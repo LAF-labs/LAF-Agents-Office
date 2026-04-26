@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { OfficeMember } from "../../api/client";
 import { useDefaultHarness } from "../../hooks/useConfig";
 import { useOfficeMembers } from "../../hooks/useMembers";
@@ -5,6 +7,7 @@ import { useOverflow } from "../../hooks/useOverflow";
 import { resolveHarness } from "../../lib/harness";
 import { useAppStore } from "../../stores/app";
 import { AgentWizard, useAgentWizard } from "../agents/AgentWizard";
+import { HumanInviteModal } from "../invites/HumanInviteModal";
 import { HarnessBadge } from "../ui/HarnessBadge";
 import { PixelAvatar } from "../ui/PixelAvatar";
 
@@ -35,6 +38,7 @@ export function AgentList() {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const channelMeta = useAppStore((s) => s.channelMeta);
   const wizard = useAgentWizard();
+  const [inviteOpen, setInviteOpen] = useState(false);
   const overflowRef = useOverflow<HTMLDivElement>();
   const defaultHarness = useDefaultHarness();
 
@@ -64,6 +68,7 @@ export function AgentList() {
 
               return (
                 <button
+                  type="button"
                   key={agent.slug}
                   data-agent-slug={agent.slug}
                   className={`sidebar-agent${isDMActive ? " active" : ""}`}
@@ -96,6 +101,7 @@ export function AgentList() {
             })
           )}
           <button
+            type="button"
             className="sidebar-item sidebar-add-btn"
             onClick={wizard.show}
             title="Create a new agent"
@@ -105,9 +111,24 @@ export function AgentList() {
             </span>
             <span>New Agent</span>
           </button>
+          <button
+            type="button"
+            className="sidebar-item sidebar-add-btn"
+            onClick={() => setInviteOpen(true)}
+            title="Invite a person"
+          >
+            <span style={{ width: 18, textAlign: "center", flexShrink: 0 }}>
+              @
+            </span>
+            <span>Invite Person</span>
+          </button>
         </div>
       </div>
       <AgentWizard open={wizard.open} onClose={wizard.hide} />
+      <HumanInviteModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+      />
     </>
   );
 }

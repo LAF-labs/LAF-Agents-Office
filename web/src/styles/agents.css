@@ -411,8 +411,417 @@
   border-radius: var(--radius-sm);
 }
 
+/* ─── Human invites ─── */
+.human-invite-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 24, 31, 0.45);
+}
+
+.human-invite-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+.human-invite-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.human-invite-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.human-invite-header button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.human-invite-kicker,
+.invite-kicker {
+  margin-bottom: 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.human-invite-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  padding: 18px 22px;
+  align-items: end;
+}
+
+.human-invite-form label {
+  display: none;
+}
+
+.human-invite-form input {
+  height: 36px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.human-invite-form button,
+.human-invite-result button,
+.human-invite-result a,
+.invite-primary {
+  min-height: 36px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  padding: 0 12px;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.human-invite-form button:disabled,
+.invite-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.human-invite-error {
+  margin: 0 22px 14px;
+  color: var(--red);
+  font-size: 12px;
+}
+
+.human-invite-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  margin: 0 22px 18px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.human-invite-result div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.human-invite-result strong,
+.human-invite-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.human-invite-result span,
+.human-invite-row small,
+.human-invite-lists p {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.human-invite-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 0 22px 22px;
+}
+
+.human-invite-lists h3 {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.human-invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  border-top: 1px solid var(--border);
+}
+
+.human-invite-row button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 42%),
+    var(--bg);
+}
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 440px);
+  gap: 32px;
+  width: min(920px, 100%);
+  align-items: center;
+}
+
+.auth-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-kicker {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-copy h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1;
+}
+
+.auth-copy p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.auth-team-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-team-list li {
+  max-width: 180px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  padding: 6px 9px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 22px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.12);
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 3px;
+}
+
+.auth-tabs button {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.auth-tabs-secondary {
+  margin-top: -4px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.auth-field input {
+  height: 42px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.auth-field input:focus,
+.invite-form input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent), transparent 72%);
+  outline-offset: 1px;
+}
+
+.auth-submit {
+  min-height: 42px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-error {
+  border: 1px solid color-mix(in srgb, var(--red), transparent 60%);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--red), transparent 92%);
+  color: var(--red);
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.invite-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.invite-card {
+  width: min(460px, 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 28px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.12);
+}
+
+.invite-card h1 {
+  margin: 0 0 12px;
+  font-size: 24px;
+}
+
+.invite-muted {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.invite-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.invite-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invite-form label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.invite-form input {
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.invite-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.invite-error {
+  color: var(--red);
+  font-size: 13px;
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .auth-copy h1 {
+    font-size: 36px;
+  }
+
   .agent-panel {
     width: 100%;
   }
@@ -420,5 +829,11 @@
   .agent-wizard-modal {
     margin: 16px;
     max-width: none;
+  }
+
+  .human-invite-form,
+  .human-invite-lists,
+  .human-invite-result {
+    grid-template-columns: 1fr;
   }
 }

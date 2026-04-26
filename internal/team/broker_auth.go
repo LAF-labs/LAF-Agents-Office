@@ -1,0 +1,384 @@
+package team
+
+import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+)
+
+const authSessionCookieName = "wuphf_session"
+
+func normalizeTeamSlug(raw string) string {
+	slug := normalizeProjectID(raw)
+	if slug == "" {
+		return "team"
+	}
+	return slug
+}
+
+func hashPassword(password, salt string) string {
+	sum := sha256.Sum256([]byte(salt + ":" + password))
+	return hex.EncodeToString(sum[:])
+}
+
+func publicAuthUser(user authUser) authUser {
+	user.PasswordSalt = ""
+	user.PasswordHash = ""
+	return user
+}
+
+func (b *Broker) findAuthUserByEmailLocked(email string) *authUser {
+	email = normalizeInviteEmail(email)
+	for i := range b.authUsers {
+		if b.authUsers[i].Email == email {
+			return &b.authUsers[i]
+		}
+	}
+	return nil
+}
+
+func (b *Broker) findAuthUserByIDLocked(id string) *authUser {
+	id = strings.TrimSpace(id)
+	for i := range b.authUsers {
+		if b.authUsers[i].ID == id {
+			return &b.authUsers[i]
+		}
+	}
+	return nil
+}
+
+func (b *Broker) findWorkspaceTeamLocked(id string) *workspaceTeam {
+	id = strings.TrimSpace(id)
+	for i := range b.workspaceTeams {
+		if b.workspaceTeams[i].ID == id {
+			return &b.workspaceTeams[i]
+		}
+	}
+	return nil
+}
+
+func (b *Broker) firstWorkspaceTeamLocked() *workspaceTeam {
+	if len(b.workspaceTeams) == 0 {
+		return nil
+	}
+	return &b.workspaceTeams[0]
+}
+
+func (b *Broker) createWorkspaceTeamLocked(name, createdBy, now string) workspaceTeam {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "My Team"
+	}
+	slug := normalizeTeamSlug(name)
+	id := "team-" + slug
+	seen := make(map[string]struct{}, len(b.workspaceTeams))
+	for _, team := range b.workspaceTeams {
+		seen[team.ID] = struct{}{}
+	}
+	baseID := id
+	for i := 2; ; i++ {
+		if _, ok := seen[id]; !ok {
+			break
+		}
+		id = fmt.Sprintf("%s-%d", baseID, i)
+	}
+	team := workspaceTeam{
+		ID:        id,
+		Name:      name,
+		Slug:      slug,
+		CreatedBy: createdBy,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	b.workspaceTeams = append(b.workspaceTeams, team)
+	return team
+}
+
+func (b *Broker) issueAuthSessionLocked(userID string, now time.Time) authSession {
+	if b.authSessions == nil {
+		b.authSessions = make(map[string]authSession)
+	}
+	session := authSession{
+		Token:     generateToken() + generateToken(),
+		UserID:    userID,
+		CreatedAt: now,
+		ExpiresAt: now.Add(30 * 24 * time.Hour),
+	}
+	b.authSessions[session.Token] = session
+	return session
+}
+
+func setAuthSessionCookie(w http.ResponseWriter, session authSession) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     authSessionCookieName,
+		Value:    session.Token,
+		Path:     "/",
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func clearAuthSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     authSessionCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (b *Broker) currentAuthUserLocked(r *http.Request) (*authUser, *workspaceTeam, authSession, bool) {
+	cookie, err := r.Cookie(authSessionCookieName)
+	if err != nil || strings.TrimSpace(cookie.Value) == "" {
+		return nil, nil, authSession{}, false
+	}
+	session, ok := b.authSessions[cookie.Value]
+	if !ok || time.Now().UTC().After(session.ExpiresAt) {
+		return nil, nil, authSession{}, false
+	}
+	user := b.findAuthUserByIDLocked(session.UserID)
+	if user == nil || user.Status != "active" {
+		return nil, nil, authSession{}, false
+	}
+	return user, b.findWorkspaceTeamLocked(user.TeamID), session, true
+}
+
+func (b *Broker) requestHasAuthSession(r *http.Request) bool {
+	b.mu.Lock()
+	_, _, _, ok := b.currentAuthUserLocked(r)
+	b.mu.Unlock()
+	return ok
+}
+
+func (b *Broker) handleTeams(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	b.mu.Lock()
+	teams := append([]workspaceTeam(nil), b.workspaceTeams...)
+	b.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"teams": teams})
+}
+
+func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Email       string `json:"email"`
+		Name        string `json:"name"`
+		Password    string `json:"password"`
+		TeamAction  string `json:"team_action"`
+		TeamName    string `json:"team_name"`
+		InviteToken string `json:"invite_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	email := normalizeInviteEmail(body.Email)
+	name := strings.TrimSpace(body.Name)
+	password := strings.TrimSpace(body.Password)
+	action := strings.TrimSpace(body.TeamAction)
+	if action == "" {
+		action = "create"
+	}
+	if email == "" || name == "" || len(password) < 8 {
+		http.Error(w, "email, name, and password length >= 8 required", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().UTC()
+	nowText := now.Format(time.RFC3339)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.findAuthUserByEmailLocked(email) != nil {
+		http.Error(w, "user already exists", http.StatusConflict)
+		return
+	}
+
+	userID := "user-" + generateToken()
+	role := "member"
+	var team workspaceTeam
+	var invite *teamInvite
+	switch action {
+	case "create":
+		team = b.createWorkspaceTeamLocked(body.TeamName, userID, nowText)
+		role = "owner"
+	case "join":
+		invite = b.findInviteByTokenLocked(body.InviteToken)
+		if invite == nil {
+			http.Error(w, "invite not found", http.StatusNotFound)
+			return
+		}
+		if invite.Status != "pending" {
+			http.Error(w, "invite already used", http.StatusConflict)
+			return
+		}
+		if invite.Email != email {
+			http.Error(w, "email does not match invite", http.StatusForbidden)
+			return
+		}
+		if invite.ExpiresAt != "" {
+			expiresAt, err := time.Parse(time.RFC3339, invite.ExpiresAt)
+			if err == nil && now.After(expiresAt) {
+				invite.Status = "expired"
+				http.Error(w, "invite expired", http.StatusGone)
+				return
+			}
+		}
+		if invite.TeamID != "" {
+			found := b.findWorkspaceTeamLocked(invite.TeamID)
+			if found == nil {
+				http.Error(w, "team not found", http.StatusNotFound)
+				return
+			}
+			team = *found
+		} else if first := b.firstWorkspaceTeamLocked(); first != nil {
+			team = *first
+			invite.TeamID = first.ID
+		} else {
+			team = b.createWorkspaceTeamLocked("Local Office", "system", nowText)
+			invite.TeamID = team.ID
+		}
+	default:
+		http.Error(w, "team_action must be create or join", http.StatusBadRequest)
+		return
+	}
+
+	salt := generateToken()
+	user := authUser{
+		ID:           userID,
+		Email:        email,
+		Name:         name,
+		TeamID:       team.ID,
+		Role:         role,
+		Status:       "active",
+		PasswordSalt: salt,
+		PasswordHash: hashPassword(password, salt),
+		CreatedAt:    nowText,
+		UpdatedAt:    nowText,
+		LastLoginAt:  nowText,
+	}
+	b.authUsers = append(b.authUsers, user)
+	if invite != nil {
+		member := humanTeamMember{
+			ID:        humanMemberIDForEmail(email),
+			UserID:    user.ID,
+			TeamID:    team.ID,
+			Email:     email,
+			Name:      name,
+			Role:      invite.Role,
+			Channel:   invite.Channel,
+			Status:    "active",
+			InviteID:  invite.ID,
+			InvitedBy: invite.CreatedBy,
+			JoinedAt:  nowText,
+		}
+		b.humanMembers = append(b.humanMembers, member)
+		invite.Status = "accepted"
+		invite.AcceptedAt = nowText
+		invite.AcceptedBy = user.ID
+	}
+	session := b.issueAuthSessionLocked(user.ID, now)
+	if err := b.saveLocked(); err != nil {
+		http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+		return
+	}
+	setAuthSessionCookie(w, session)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"user": publicAuthUser(user),
+		"team": team,
+	})
+}
+
+func (b *Broker) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	email := normalizeInviteEmail(body.Email)
+	password := strings.TrimSpace(body.Password)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	user := b.findAuthUserByEmailLocked(email)
+	if user == nil || user.Status != "active" {
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+	want := hashPassword(password, user.PasswordSalt)
+	if subtle.ConstantTimeCompare([]byte(want), []byte(user.PasswordHash)) != 1 {
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+	now := time.Now().UTC()
+	user.LastLoginAt = now.Format(time.RFC3339)
+	session := b.issueAuthSessionLocked(user.ID, now)
+	team := b.findWorkspaceTeamLocked(user.TeamID)
+	if err := b.saveLocked(); err != nil {
+		http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+		return
+	}
+	setAuthSessionCookie(w, session)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"user": publicAuthUser(*user),
+		"team": team,
+	})
+}
+
+func (b *Broker) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	b.mu.Lock()
+	if cookie, err := r.Cookie(authSessionCookieName); err == nil {
+		delete(b.authSessions, cookie.Value)
+		_ = b.saveLocked()
+	}
+	b.mu.Unlock()
+	clearAuthSessionCookie(w)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func (b *Broker) handleAuthSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	b.mu.Lock()
+	user, team, _, ok := b.currentAuthUserLocked(r)
+	b.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	if !ok {
+		_ = json.NewEncoder(w).Encode(map[string]any{"authenticated": false})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"authenticated": true,
+		"user":          publicAuthUser(*user),
+		"team":          team,
+	})
+}

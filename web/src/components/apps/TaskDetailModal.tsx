@@ -122,6 +122,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   const metaRows: Array<[string, string | null | undefined]> = [
     ["Owner", task.owner ? `@${task.owner}` : "(unassigned)"],
+    ["Project", task.project_id || null],
     ["Channel", task.channel ? `#${task.channel}` : "—"],
     ["Status", status || "—"],
     ["Review state", reviewState || null],

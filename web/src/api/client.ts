@@ -12,19 +12,23 @@ let token: string | null = null;
 
 export async function initApi(): Promise<void> {
   try {
-    const r = await fetch("/api-token");
+    const r = await fetch("/api-token", { credentials: "include" });
     const data = await r.json();
-    token = data.token;
-    if (data.broker_url) {
-      brokerDirect = String(data.broker_url).replace(/\/+$/, "");
+    const { broker_url: brokerURL, token: apiToken } = data;
+    token = apiToken;
+    if (brokerURL) {
+      brokerDirect = String(brokerURL).replace(/\/+$/, "");
     }
     useProxy = true;
   } catch {
     useProxy = false;
     try {
-      const r = await fetch(`${brokerDirect}/web-token`);
+      const r = await fetch(`${brokerDirect}/web-token`, {
+        credentials: "include",
+      });
       const data = await r.json();
-      token = data.token;
+      const { token: apiToken } = data;
+      token = apiToken;
     } catch {
       // broker unreachable — will fail on first request
     }
@@ -57,7 +61,10 @@ export async function get<T = unknown>(
       .join("&");
     if (qs) url += `?${qs}`;
   }
-  const r = await fetch(url, { headers: authHeaders() });
+  const r = await fetch(url, {
+    credentials: "include",
+    headers: authHeaders(),
+  });
   if (!r.ok) {
     const text = (await r.text().catch(() => "")).trim();
     throw new Error(text || `${r.status} ${r.statusText}`);
@@ -79,7 +86,10 @@ export async function getText(
       .join("&");
     if (qs) url += `?${qs}`;
   }
-  const r = await fetch(url, { headers: authHeaders() });
+  const r = await fetch(url, {
+    credentials: "include",
+    headers: authHeaders(),
+  });
   if (!r.ok) {
     const text = (await r.text().catch(() => "")).trim();
     throw new Error(text || `${r.status} ${r.statusText}`);
@@ -93,6 +103,7 @@ export async function post<T = unknown>(
 ): Promise<T> {
   const r = await fetch(baseURL() + path, {
     method: "POST",
+    credentials: "include",
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
@@ -113,6 +124,7 @@ export async function postWithTimeout<T = unknown>(
   try {
     const r = await fetch(baseURL() + path, {
       method: "POST",
+      credentials: "include",
       headers: authHeaders(),
       body: JSON.stringify(body),
       signal: controller.signal,
@@ -138,6 +150,7 @@ export async function del<T = unknown>(
 ): Promise<T> {
   const r = await fetch(baseURL() + path, {
     method: "DELETE",
+    credentials: "include",
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
@@ -154,6 +167,62 @@ export function sseURL(path: string): string {
   let url = baseURL() + path;
   if (!useProxy && token) url += `?token=${encodeURIComponent(token)}`;
   return url;
+}
+
+// ── Auth/session ──
+
+export interface WorkspaceTeam {
+  id: string;
+  name: string;
+  slug: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  team_id: string;
+  role: "owner" | "admin" | "member" | string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+  last_login_at?: string;
+}
+
+export interface AuthSessionResponse {
+  authenticated: boolean;
+  user?: AuthUser;
+  team?: WorkspaceTeam;
+}
+
+export function getAuthSession() {
+  return get<AuthSessionResponse>("/auth/session");
+}
+
+export function signup(body: {
+  email: string;
+  name: string;
+  password: string;
+  team_action: "create" | "join";
+  team_name?: string;
+  invite_token?: string;
+}) {
+  return post<{ user: AuthUser; team: WorkspaceTeam }>("/auth/signup", body);
+}
+
+export function login(body: { email: string; password: string }) {
+  return post<{ user: AuthUser; team: WorkspaceTeam }>("/auth/login", body);
+}
+
+export function logout() {
+  return post<{ status: string }>("/auth/logout", {});
+}
+
+export function getTeams() {
+  return get<{ teams: WorkspaceTeam[] }>("/teams");
 }
 
 // ── Messages ──
@@ -278,6 +347,78 @@ export interface OfficeMember {
 
 export function getOfficeMembers() {
   return get<{ members: OfficeMember[] }>("/office-members");
+}
+
+export interface HumanTeamMember {
+  id: string;
+  email: string;
+  name: string;
+  role?: string;
+  channel?: string;
+  status: string;
+  invite_id?: string;
+  invited_by?: string;
+  joined_at?: string;
+}
+
+export interface TeamInvite {
+  id: string;
+  email: string;
+  name?: string;
+  role?: string;
+  channel?: string;
+  token?: string;
+  status: string;
+  created_by?: string;
+  created_at?: string;
+  expires_at?: string;
+  accepted_at?: string;
+  accepted_by?: string;
+  sent_at?: string;
+  send_status?: string;
+  send_error?: string;
+  invite_url?: string;
+  mailto_url?: string;
+}
+
+export function getInvites(inviteBaseURL?: string) {
+  return get<{ invites: TeamInvite[]; human_members: HumanTeamMember[] }>(
+    "/invites",
+    { base_url: inviteBaseURL },
+  );
+}
+
+export function createInvite(body: {
+  email: string;
+  name?: string;
+  role?: string;
+  channel?: string;
+  created_by?: string;
+  base_url?: string;
+}) {
+  return post<{
+    invite: TeamInvite;
+    invite_url: string;
+    email_sent: boolean;
+  }>("/invites", {
+    created_by: "human",
+    ...body,
+  });
+}
+
+export function lookupInvite(inviteToken: string) {
+  return get<{ invite: TeamInvite }>("/invites/lookup", { token: inviteToken });
+}
+
+export function acceptInvite(body: {
+  token: string;
+  name: string;
+  email?: string;
+}) {
+  return post<{ member: HumanTeamMember; invite: TeamInvite }>(
+    "/invites/accept",
+    body,
+  );
 }
 
 export interface GeneratedAgentTemplate {
@@ -421,6 +562,7 @@ export interface Task {
   status: string;
   owner?: string;
   created_by?: string;
+  project_id?: string;
   channel?: string;
   thread_id?: string;
   task_type?: string;
@@ -441,6 +583,39 @@ export interface Task {
   recheck_at?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  channel?: string;
+  status?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getProjects(opts?: { includeArchived?: boolean }) {
+  const params: Record<string, string> = {
+    viewer_slug: "human",
+  };
+  if (opts?.includeArchived) params.include_archived = "true";
+  return get<{ projects: Project[] }>("/projects", params);
+}
+
+export function createProject(body: {
+  id?: string;
+  name: string;
+  description?: string;
+  channel?: string;
+  created_by?: string;
+}) {
+  return post<{ project: Project }>("/projects", {
+    action: "create",
+    created_by: "human",
+    ...body,
+  });
 }
 
 export function reassignTask(
@@ -481,7 +656,12 @@ export function updateTaskStatus(
 
 export function getTasks(
   channel: string,
-  opts?: { includeDone?: boolean; status?: string; mySlug?: string },
+  opts?: {
+    includeDone?: boolean;
+    status?: string;
+    mySlug?: string;
+    projectId?: string;
+  },
 ) {
   const params: Record<string, string> = {
     viewer_slug: "human",
@@ -490,6 +670,7 @@ export function getTasks(
   if (opts?.includeDone) params.include_done = "true";
   if (opts?.status) params.status = opts.status;
   if (opts?.mySlug) params.my_slug = opts.mySlug;
+  if (opts?.projectId) params.project_id = opts.projectId;
   return get<{ tasks: Task[] }>("/tasks", params);
 }
 
@@ -497,6 +678,7 @@ export function getOfficeTasks(opts?: {
   includeDone?: boolean;
   status?: string;
   mySlug?: string;
+  projectId?: string;
 }) {
   const params: Record<string, string> = {
     viewer_slug: "human",
@@ -505,6 +687,7 @@ export function getOfficeTasks(opts?: {
   if (opts?.includeDone) params.include_done = "true";
   if (opts?.status) params.status = opts.status;
   if (opts?.mySlug) params.my_slug = opts.mySlug;
+  if (opts?.projectId) params.project_id = opts.projectId;
   return get<{ tasks: Task[] }>("/tasks", params);
 }
 

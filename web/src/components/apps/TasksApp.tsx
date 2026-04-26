@@ -1,7 +1,20 @@
-import { type DragEvent, useCallback, useState } from "react";
+import {
+  type DragEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  useCallback,
+  useState,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getOfficeTasks, post, type Task } from "../../api/client";
+import {
+  createProject,
+  getOfficeTasks,
+  getProjects,
+  type Project,
+  post,
+  type Task,
+} from "../../api/client";
 import { formatRelativeTime } from "../../lib/format";
 import { showNotice } from "../ui/Toast";
 import { TaskDetailModal } from "./TaskDetailModal";
@@ -123,9 +136,27 @@ function useTaskMove() {
 }
 
 export function TasksApp() {
+  const queryClient = useQueryClient();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const selectedProjectFilter =
+    selectedProjectId === "all" ? undefined : selectedProjectId;
+
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => getProjects(),
+    staleTime: 30_000,
+  });
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["office-tasks"],
-    queryFn: () => getOfficeTasks({ includeDone: true }),
+    queryKey: ["office-tasks", selectedProjectFilter ?? "all"],
+    queryFn: () =>
+      getOfficeTasks({
+        includeDone: true,
+        projectId: selectedProjectFilter,
+      }),
     refetchInterval: 10_000,
   });
 
@@ -136,7 +167,7 @@ export function TasksApp() {
   );
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  if (isLoading) {
+  if (isLoading || projectsQuery.isLoading) {
     return (
       <div
         style={{
@@ -151,7 +182,7 @@ export function TasksApp() {
     );
   }
 
-  if (error) {
+  if (error || projectsQuery.error) {
     return (
       <div
         style={{
@@ -167,21 +198,8 @@ export function TasksApp() {
   }
 
   const tasks = data?.tasks ?? [];
-
-  if (tasks.length === 0) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        No tasks yet.
-      </div>
-    );
-  }
+  const projects = projectsQuery.data?.projects ?? [];
+  const projectNames = new Map(projects.map((p) => [p.id, p.name]));
 
   const grouped = groupTasks(tasks);
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
@@ -233,6 +251,30 @@ export function TasksApp() {
       void moveTask(task, status);
     };
 
+  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = newProjectName.trim();
+    if (!name) return;
+    setProjectError(null);
+    try {
+      const { project } = await createProject({
+        name,
+        created_by: HUMAN_SLUG,
+      });
+      setNewProjectName("");
+      setIsCreatingProject(false);
+      setSelectedProjectId(project.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
+      ]);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not create project";
+      setProjectError(message);
+    }
+  }
+
   return (
     <>
       <div
@@ -241,60 +283,107 @@ export function TasksApp() {
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <h3 style={{ fontSize: 16, fontWeight: 600 }}>Office tasks</h3>
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-tertiary)",
-            marginTop: 4,
-            marginBottom: 12,
-          }}
-        >
-          All active lanes across the office. Drag a card to move it.
+        <div className="task-heading-row">
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Office tasks</h3>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--text-tertiary)",
+                marginTop: 4,
+              }}
+            >
+              {selectedProjectId === "all"
+                ? "All active lanes across the office."
+                : (projectNames.get(selectedProjectId) ?? selectedProjectId)}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="task-project-new"
+            onClick={() => {
+              setProjectError(null);
+              setIsCreatingProject((current) => !current);
+            }}
+            aria-label="New project"
+            title="New project"
+          >
+            +
+          </button>
         </div>
+
+        <ProjectTabs
+          projects={projects}
+          selectedProjectId={selectedProjectId}
+          onSelect={setSelectedProjectId}
+        />
+        {isCreatingProject && (
+          <form className="task-project-form" onSubmit={handleCreateProject}>
+            <input
+              type="text"
+              value={newProjectName}
+              onChange={(event) => setNewProjectName(event.currentTarget.value)}
+              placeholder="Project name"
+              aria-label="Project name"
+            />
+            <button type="submit" disabled={newProjectName.trim() === ""}>
+              Create
+            </button>
+          </form>
+        )}
+        {projectError && (
+          <div className="task-project-error">{projectError}</div>
+        )}
       </div>
 
-      <div className="task-board">
-        {STATUS_ORDER.map((status) => {
-          const column = grouped[status];
-          // Hide empty pending/blocked/canceled columns only when nothing is being dragged.
-          // While dragging, keep all columns visible as drop targets.
-          if (
-            !isDragging &&
-            column.length === 0 &&
-            (status === "pending" ||
-              status === "blocked" ||
-              status === "canceled")
-          ) {
-            return null;
-          }
-          const columnClass = `task-column${dragoverStatus === status ? " dragover" : ""}`;
-          return (
-            <div
-              className={columnClass}
-              key={status}
-              onDragOver={handleColumnDragOver(status)}
-              onDragLeave={handleColumnDragLeave(status)}
-              onDrop={handleColumnDrop(status)}
-            >
-              <div className="task-column-header">
-                <span>{COLUMN_LABEL[status]}</span>
-                <span className="task-column-count">{column.length}</span>
+      {tasks.length === 0 ? (
+        <div className="task-empty-state">No tasks yet.</div>
+      ) : (
+        <div className="task-board">
+          {STATUS_ORDER.map((status) => {
+            const column = grouped[status];
+            // Hide empty pending/blocked/canceled columns only when nothing is being dragged.
+            // While dragging, keep all columns visible as drop targets.
+            if (
+              !isDragging &&
+              column.length === 0 &&
+              (status === "pending" ||
+                status === "blocked" ||
+                status === "canceled")
+            ) {
+              return null;
+            }
+            const columnClass = `task-column${dragoverStatus === status ? " dragover" : ""}`;
+            return (
+              <div
+                className={columnClass}
+                key={status}
+                onDragOver={handleColumnDragOver(status)}
+                onDragLeave={handleColumnDragLeave(status)}
+                onDrop={handleColumnDrop(status)}
+              >
+                <div className="task-column-header">
+                  <span>{COLUMN_LABEL[status]}</span>
+                  <span className="task-column-count">{column.length}</span>
+                </div>
+                {column.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    projectName={
+                      task.project_id ? projectNames.get(task.project_id) : null
+                    }
+                    isDragging={draggingId === task.id}
+                    onDragStart={handleDragStart(task.id)}
+                    onDragEnd={handleDragEnd}
+                    onOpen={() => setSelectedTaskId(task.id)}
+                  />
+                ))}
               </div>
-              {column.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isDragging={draggingId === task.id}
-                  onDragStart={handleDragStart(task.id)}
-                  onDragEnd={handleDragEnd}
-                  onOpen={() => setSelectedTaskId(task.id)}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
@@ -305,8 +394,44 @@ export function TasksApp() {
   );
 }
 
+interface ProjectTabsProps {
+  projects: Project[];
+  selectedProjectId: string;
+  onSelect: (projectId: string) => void;
+}
+
+function ProjectTabs({
+  projects,
+  selectedProjectId,
+  onSelect,
+}: ProjectTabsProps) {
+  return (
+    <div className="task-project-tabs" role="tablist" aria-label="Projects">
+      <button
+        type="button"
+        className={selectedProjectId === "all" ? "active" : ""}
+        onClick={() => onSelect("all")}
+      >
+        All projects
+      </button>
+      {projects.map((project) => (
+        <button
+          key={project.id}
+          type="button"
+          className={selectedProjectId === project.id ? "active" : ""}
+          onClick={() => onSelect(project.id)}
+          title={project.id}
+        >
+          {project.name || project.id}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 interface TaskCardProps {
   task: Task;
+  projectName?: string | null;
   isDragging: boolean;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: (event: DragEvent<HTMLDivElement>) => void;
@@ -315,6 +440,7 @@ interface TaskCardProps {
 
 function TaskCard({
   task,
+  projectName,
   isDragging,
   onDragStart,
   onDragEnd,
@@ -324,7 +450,7 @@ function TaskCard({
   const timestamp = task.updated_at ?? task.created_at;
   const className = `app-card task-card${isDragging ? " dragging" : ""}`;
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onOpen();
@@ -344,6 +470,11 @@ function TaskCard({
       style={{ marginBottom: 8, cursor: "pointer" }}
     >
       <div className="app-card-title">{task.title || "Untitled"}</div>
+      {task.project_id && (
+        <div className="task-project-chip">
+          {projectName || task.project_id}
+        </div>
+      )}
       {task.description && (
         <div
           style={{

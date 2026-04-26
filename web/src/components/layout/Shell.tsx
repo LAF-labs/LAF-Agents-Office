@@ -13,9 +13,11 @@ import { StatusBar } from "./StatusBar";
 
 interface ShellProps {
   children: ReactNode;
+  onLogout?: () => void;
+  userEmail?: string;
 }
 
-export function Shell({ children }: ShellProps) {
+export function Shell({ children, onLogout, userEmail }: ShellProps) {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const currentApp = useAppStore((s) => s.currentApp);
   const channelMeta = useAppStore((s) => s.channelMeta);
@@ -26,7 +28,7 @@ export function Shell({ children }: ShellProps) {
       <Sidebar />
       <main className="main">
         <DisconnectBanner />
-        {!inDM && <ChannelHeader />}
+        {!inDM && <ChannelHeader onLogout={onLogout} userEmail={userEmail} />}
         {!inDM && <RuntimeStrip />}
         {children}
         <StatusBar />

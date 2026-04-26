@@ -159,6 +159,43 @@ Inside the office, run `/connect openclaw`, paste your gateway URL (default `ws:
 
 WUPHF authenticates to the gateway using an Ed25519 keypair (persisted at `~/.wuphf/openclaw/identity.json`, 0600), signed against the server-issued nonce during every connect. OpenClaw grants zero scopes to token-only clients, so device pairing is mandatory — on loopback the gateway approves silently on first use.
 
+## GPT Actions OAuth Bridge
+
+Want a Custom GPT to show up as an agent in the office? WUPHF includes an
+internal MVP bridge for GPT Actions OAuth: register an invite-scoped OAuth
+client, import WUPHF's OpenAPI schema into a Custom GPT Action, and the GPT can
+post into a channel as a named external agent.
+
+See [docs/specs/GPT-OAUTH-MVP.md](docs/specs/GPT-OAUTH-MVP.md).
+
+## Project Task Boards
+
+The Tasks app includes a lightweight Jira-style project board. Create projects,
+switch the board by project, and keep the existing WUPHF task lifecycle
+(`open`, `in_progress`, `review`, `blocked`, `done`, `canceled`) scoped to that
+project. The same project tasks are available through `/projects` and
+`/tasks?project_id=<id>` for local automation and connected GPT Actions.
+
+See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md).
+
+## Login and Team Sessions
+
+The web UI now starts with a local login/signup gate. A new user can create a
+workspace team, or join an existing team with an invite token. Auth creates an
+HTTP-only session cookie and attaches users/invites to a `team_id`; the broker
+bearer token remains available for local agent and CLI workflows.
+
+See [docs/specs/AUTH-SESSIONS-MVP.md](docs/specs/AUTH-SESSIONS-MVP.md).
+
+## Human Teammate Invites
+
+The Team sidebar can invite human teammates by email. If SMTP is configured,
+WUPHF sends the invite directly; otherwise it creates a copyable invite link and
+`mailto:` draft. Opening the invite link lets the teammate create an account and
+join the inviter's team.
+
+See [docs/specs/HUMAN-INVITES-MVP.md](docs/specs/HUMAN-INVITES-MVP.md).
+
 ## External Actions
 
 To let agents take real actions (send emails, update CRMs, etc.), WUPHF ships with two action providers. Pick whichever fits your style.

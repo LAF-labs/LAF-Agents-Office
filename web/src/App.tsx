@@ -6,7 +6,13 @@ import {
   useState,
 } from "react";
 
-import { get, initApi } from "./api/client";
+import {
+  type AuthSessionResponse,
+  get,
+  getAuthSession,
+  initApi,
+  logout,
+} from "./api/client";
 import { ArtifactsApp } from "./components/apps/ArtifactsApp";
 import { CalendarApp } from "./components/apps/CalendarApp";
 import { GraphApp } from "./components/apps/GraphApp";
@@ -18,6 +24,8 @@ import { SettingsApp } from "./components/apps/SettingsApp";
 import { SkillsApp } from "./components/apps/SkillsApp";
 import { TasksApp } from "./components/apps/TasksApp";
 import { ThreadsApp } from "./components/apps/ThreadsApp";
+import { AuthScreen } from "./components/auth/AuthScreen";
+import { InviteAcceptPage } from "./components/invites/InviteAcceptPage";
 import { Shell } from "./components/layout/Shell";
 import { Composer } from "./components/messages/Composer";
 import { DMView } from "./components/messages/DMView";
@@ -105,6 +113,7 @@ class ErrorBoundary extends Component<
             {this.state.error.stack}
           </pre>
           <button
+            type="button"
             onClick={() => this.setState({ error: null })}
             style={{
               marginTop: 12,
@@ -288,15 +297,21 @@ function MainContent() {
 export default function App() {
   // --- All hooks first, in a fixed order, every render ---
   const [apiReady, setApiReady] = useState(false);
+  const [authSession, setAuthSession] = useState<AuthSessionResponse>({
+    authenticated: false,
+  });
   const [showSplash, setShowSplash] = useState(false);
   const theme = useAppStore((s) => s.theme);
   const onboardingComplete = useAppStore((s) => s.onboardingComplete);
   const setBrokerConnected = useAppStore((s) => s.setBrokerConnected);
   const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
+  const inviteToken = window.location.pathname.startsWith("/invite/")
+    ? decodeURIComponent(window.location.pathname.replace(/^\/invite\//, ""))
+    : "";
 
   useKeyboardShortcuts();
   useHashRouter();
-  useBrokerEvents(apiReady);
+  useBrokerEvents(apiReady && authSession.authenticated);
 
   // Load theme CSS when theme changes
   useEffect(() => {
@@ -325,6 +340,11 @@ export default function App() {
       .then(() => {
         if (cancelled) return;
         setBrokerConnected(true);
+        return getAuthSession();
+      })
+      .then((session) => {
+        if (cancelled || !session) return null;
+        setAuthSession(session);
         return get<{ onboarded?: boolean }>("/onboarding/state");
       })
       .then((s) => {
@@ -365,6 +385,10 @@ export default function App() {
         Connecting to broker...
       </div>
     );
+  } else if (inviteToken) {
+    body = <InviteAcceptPage token={inviteToken} />;
+  } else if (!authSession.authenticated) {
+    body = <AuthScreen onAuthenticated={setAuthSession} />;
   } else if (showSplash) {
     body = <SplashScreen onDone={() => setShowSplash(false)} />;
   } else if (!onboardingComplete) {
@@ -377,7 +401,13 @@ export default function App() {
     );
   } else {
     body = (
-      <Shell>
+      <Shell
+        userEmail={authSession.user?.email}
+        onLogout={async () => {
+          await logout().catch(() => undefined);
+          setAuthSession({ authenticated: false });
+        }}
+      >
         <MainContent />
       </Shell>
     );

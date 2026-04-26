@@ -182,6 +182,7 @@ type humanInterview struct {
 
 type teamTask struct {
 	ID               string   `json:"id"`
+	ProjectID        string   `json:"project_id,omitempty"`
 	Channel          string   `json:"channel,omitempty"`
 	Title            string   `json:"title"`
 	Details          string   `json:"details,omitempty"`
@@ -207,6 +208,82 @@ type teamTask struct {
 	RecheckAt        string   `json:"recheck_at,omitempty"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
+}
+
+type teamProject struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Channel     string `json:"channel,omitempty"`
+	Status      string `json:"status,omitempty"`
+	CreatedBy   string `json:"created_by,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+type humanTeamMember struct {
+	ID        string `json:"id"`
+	UserID    string `json:"user_id,omitempty"`
+	TeamID    string `json:"team_id,omitempty"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Role      string `json:"role,omitempty"`
+	Channel   string `json:"channel,omitempty"`
+	Status    string `json:"status"`
+	InviteID  string `json:"invite_id,omitempty"`
+	InvitedBy string `json:"invited_by,omitempty"`
+	JoinedAt  string `json:"joined_at"`
+}
+
+type teamInvite struct {
+	ID         string `json:"id"`
+	TeamID     string `json:"team_id,omitempty"`
+	Email      string `json:"email"`
+	Name       string `json:"name,omitempty"`
+	Role       string `json:"role,omitempty"`
+	Channel    string `json:"channel,omitempty"`
+	Token      string `json:"token,omitempty"`
+	Status     string `json:"status"`
+	CreatedBy  string `json:"created_by,omitempty"`
+	CreatedAt  string `json:"created_at"`
+	ExpiresAt  string `json:"expires_at,omitempty"`
+	AcceptedAt string `json:"accepted_at,omitempty"`
+	AcceptedBy string `json:"accepted_by,omitempty"`
+	SentAt     string `json:"sent_at,omitempty"`
+	SendStatus string `json:"send_status,omitempty"`
+	SendError  string `json:"send_error,omitempty"`
+	InviteURL  string `json:"invite_url,omitempty"`
+	MailtoURL  string `json:"mailto_url,omitempty"`
+}
+
+type workspaceTeam struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	CreatedBy string `json:"created_by,omitempty"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
+type authUser struct {
+	ID           string `json:"id"`
+	Email        string `json:"email"`
+	Name         string `json:"name"`
+	TeamID       string `json:"team_id"`
+	Role         string `json:"role"`
+	Status       string `json:"status"`
+	PasswordSalt string `json:"-"`
+	PasswordHash string `json:"-"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at,omitempty"`
+	LastLoginAt  string `json:"last_login_at,omitempty"`
+}
+
+type authSession struct {
+	Token     string    `json:"token"`
+	UserID    string    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 type channelSurface struct {
@@ -412,6 +489,12 @@ type brokerState struct {
 	SessionMode       string                       `json:"session_mode,omitempty"`
 	OneOnOneAgent     string                       `json:"one_on_one_agent,omitempty"`
 	FocusMode         bool                         `json:"focus_mode,omitempty"`
+	Projects          []teamProject                `json:"projects,omitempty"`
+	WorkspaceTeams    []workspaceTeam              `json:"workspace_teams,omitempty"`
+	AuthUsers         []authUser                   `json:"auth_users,omitempty"`
+	AuthSessions      []authSession                `json:"auth_sessions,omitempty"`
+	HumanMembers      []humanTeamMember            `json:"human_members,omitempty"`
+	Invites           []teamInvite                 `json:"invites,omitempty"`
 	Tasks             []teamTask                   `json:"tasks,omitempty"`
 	Requests          []humanInterview             `json:"requests,omitempty"`
 	Actions           []officeActionLog            `json:"actions,omitempty"`
@@ -427,6 +510,8 @@ type brokerState struct {
 	PendingInterview  *humanInterview              `json:"pending_interview,omitempty"`
 	Usage             teamUsageState               `json:"usage,omitempty"`
 	Policies          []officePolicy               `json:"policies,omitempty"`
+	GPTOAuthClients   []gptOAuthClient             `json:"gpt_oauth_clients,omitempty"`
+	GPTOAuthTokens    []gptOAuthToken              `json:"gpt_oauth_tokens,omitempty"`
 }
 
 type usageTotals struct {
@@ -461,6 +546,12 @@ type Broker struct {
 	sessionMode             string
 	oneOnOneAgent           string
 	focusMode               bool
+	projects                []teamProject
+	workspaceTeams          []workspaceTeam
+	authUsers               []authUser
+	authSessions            map[string]authSession
+	humanMembers            []humanTeamMember
+	invites                 []teamInvite
 	tasks                   []teamTask
 	requests                []humanInterview
 	actions                 []officeActionLog
@@ -522,6 +613,10 @@ type Broker struct {
 	generateMemberFn   func(prompt string) (generatedMemberTemplate, error)
 	generateChannelFn  func(prompt string) (generatedChannelTemplate, error)
 	policies           []officePolicy // active office operating rules
+	sendInviteEmail    func(context.Context, teamInvite, string) error
+	gptOAuthClients    map[string]gptOAuthClient
+	gptOAuthCodes      map[string]gptOAuthGrant
+	gptOAuthTokens     map[string]gptOAuthToken
 	rateLimitBuckets   map[string]ipRateLimitBucket
 	rateLimitWindow    time.Duration
 	rateLimitRequests  int
@@ -938,6 +1033,10 @@ func NewBrokerAt(statePath string) *Broker {
 		entitySubscribers:   make(map[int]chan EntityBriefSynthesizedEvent),
 		factSubscribers:     make(map[int]chan EntityFactRecordedEvent),
 		agentStreams:        make(map[string]*agentStreamBuffer),
+		authSessions:        make(map[string]authSession),
+		gptOAuthClients:     make(map[string]gptOAuthClient),
+		gptOAuthCodes:       make(map[string]gptOAuthGrant),
+		gptOAuthTokens:      make(map[string]gptOAuthToken),
 		rateLimitBuckets:    make(map[string]ipRateLimitBucket),
 		rateLimitWindow:     defaultRateLimitWindow,
 		rateLimitRequests:   defaultRateLimitRequestsPerWindow,
@@ -1388,7 +1487,7 @@ func (b *Broker) ChannelStore() *channel.Store {
 // Accepts token via Authorization header or ?token= query parameter (for EventSource which can't set headers).
 func (b *Broker) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if b.requestHasBrokerAuth(r) {
+		if b.requestHasBrokerAuth(r) || b.requestHasAuthSession(r) {
 			next(w, r)
 			return
 		}
@@ -1491,6 +1590,11 @@ func (b *Broker) StartOnPort(port int) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", b.handleHealth) // no auth — used for liveness checks
 	mux.HandleFunc("/version", b.handleVersion)
+	mux.HandleFunc("/auth/signup", b.handleAuthSignup)
+	mux.HandleFunc("/auth/login", b.handleAuthLogin)
+	mux.HandleFunc("/auth/logout", b.handleAuthLogout)
+	mux.HandleFunc("/auth/session", b.handleAuthSession)
+	mux.HandleFunc("/teams", b.handleTeams)
 	mux.HandleFunc("/session-mode", b.requireAuth(b.handleSessionMode))
 	mux.HandleFunc("/focus-mode", b.requireAuth(b.handleFocusMode))
 	mux.HandleFunc("/messages", b.requireAuth(b.handleMessages))
@@ -1503,6 +1607,10 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/channels/generate", b.requireAuth(b.handleGenerateChannel))
 	mux.HandleFunc("/channel-members", b.requireAuth(b.handleChannelMembers))
 	mux.HandleFunc("/members", b.requireAuth(b.handleMembers))
+	mux.HandleFunc("/projects", b.requireAuth(b.handleProjects))
+	mux.HandleFunc("/invites", b.requireAuth(b.handleInvites))
+	mux.HandleFunc("/invites/lookup", b.handleInviteLookup)
+	mux.HandleFunc("/invites/accept", b.handleInviteAccept)
 	mux.HandleFunc("/tasks", b.requireAuth(b.handleTasks))
 	mux.HandleFunc("/tasks/ack", b.requireAuth(b.handleTaskAck))
 	mux.HandleFunc("/agent-logs", b.requireAuth(b.handleAgentLogs))
@@ -1580,6 +1688,11 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/agent-stream/", b.requireAuth(b.handleAgentStream))
 	mux.HandleFunc("/agent-tool-event", b.requireAuth(b.handleAgentToolEvent))
 	mux.HandleFunc("/web-token", b.handleWebToken)
+	mux.HandleFunc("/gpt/oauth/clients", b.requireAuth(b.handleGPTOAuthClients))
+	mux.HandleFunc("/gpt/oauth/authorize", b.handleGPTOAuthAuthorize)
+	mux.HandleFunc("/gpt/oauth/token", b.handleGPTOAuthToken)
+	mux.HandleFunc("/gpt/actions/message", b.handleGPTActionMessage)
+	mux.HandleFunc("/gpt/actions/openapi.json", b.handleGPTActionsOpenAPI)
 	// Onboarding: state/progress/complete + prereqs/templates/validate-key + checklist.
 	// completeFn posts the first task as a human message and seeds the team.
 	onboarding.RegisterRoutes(mux, b.onboardingCompleteFn, b.packSlug, b.requireAuth)
@@ -2424,6 +2537,9 @@ func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 		setProxyClientIPHeaders(proxyReq.Header, r.RemoteAddr)
 		proxyReq.Header.Set("Authorization", "Bearer "+b.token)
 		proxyReq.Header.Set("Content-Type", r.Header.Get("Content-Type"))
+		if cookie := r.Header.Get("Cookie"); cookie != "" {
+			proxyReq.Header.Set("Cookie", cookie)
+		}
 
 		client := http.DefaultClient
 		if r.Header.Get("Accept") == "text/event-stream" {
@@ -2987,6 +3103,12 @@ func (b *Broker) Reset() {
 	b.oneOnOneAgent = agent
 	b.tasks = nil
 	b.requests = nil
+	b.projects = nil
+	b.workspaceTeams = nil
+	b.authUsers = nil
+	b.authSessions = make(map[string]authSession)
+	b.humanMembers = nil
+	b.invites = nil
 	b.actions = nil
 	b.signals = nil
 	b.decisions = nil
@@ -3045,6 +3167,10 @@ func loadBrokerStateFile(path string) (brokerState, error) {
 func brokerStateActivityScore(state brokerState) int {
 	score := 0
 	score += len(state.Messages) * 10
+	score += len(state.WorkspaceTeams) * 5
+	score += len(state.AuthUsers) * 8
+	score += len(state.HumanMembers) * 8
+	score += len(state.Invites) * 4
 	score += len(state.Tasks) * 20
 	score += len(activeRequests(state.Requests)) * 10
 	score += len(state.Actions) * 4
@@ -3092,6 +3218,20 @@ func (b *Broker) loadState() error {
 	b.sessionMode = state.SessionMode
 	b.oneOnOneAgent = state.OneOnOneAgent
 	b.focusMode = state.FocusMode
+	b.projects = state.Projects
+	b.workspaceTeams = state.WorkspaceTeams
+	b.authUsers = state.AuthUsers
+	if b.authSessions == nil {
+		b.authSessions = make(map[string]authSession)
+	}
+	now := time.Now().UTC()
+	for _, session := range state.AuthSessions {
+		if strings.TrimSpace(session.Token) != "" && now.Before(session.ExpiresAt) {
+			b.authSessions[session.Token] = session
+		}
+	}
+	b.humanMembers = state.HumanMembers
+	b.invites = state.Invites
 	b.tasks = state.Tasks
 	b.requests = state.Requests
 	b.actions = state.Actions
@@ -3107,6 +3247,17 @@ func (b *Broker) loadState() error {
 	b.insightsSince = state.InsightsSince
 	b.pendingInterview = state.PendingInterview
 	b.usage = state.Usage
+	b.ensureGPTOAuthMapsLocked()
+	for _, client := range state.GPTOAuthClients {
+		if strings.TrimSpace(client.ID) != "" {
+			b.gptOAuthClients[client.ID] = client
+		}
+	}
+	for _, token := range state.GPTOAuthTokens {
+		if strings.TrimSpace(token.Token) != "" && now.Before(token.ExpiresAt) {
+			b.gptOAuthTokens[token.Token] = token
+		}
+	}
 	if b.usage.Agents == nil {
 		b.usage.Agents = make(map[string]usageTotals)
 	}
@@ -3151,7 +3302,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.tasks) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3169,6 +3320,25 @@ func (b *Broker) saveLocked() error {
 			channelStoreRaw = raw
 		}
 	}
+	authSessions := make([]authSession, 0, len(b.authSessions))
+	sessionNow := time.Now().UTC()
+	for token, session := range b.authSessions {
+		if sessionNow.Before(session.ExpiresAt) {
+			session.Token = token
+			authSessions = append(authSessions, session)
+		}
+	}
+	gptClients := make([]gptOAuthClient, 0, len(b.gptOAuthClients))
+	for _, client := range b.gptOAuthClients {
+		gptClients = append(gptClients, client)
+	}
+	gptTokens := make([]gptOAuthToken, 0, len(b.gptOAuthTokens))
+	now := time.Now().UTC()
+	for _, token := range b.gptOAuthTokens {
+		if now.Before(token.ExpiresAt) {
+			gptTokens = append(gptTokens, token)
+		}
+	}
 	state := brokerState{
 		ChannelStore:      channelStoreRaw,
 		Messages:          b.messages,
@@ -3177,6 +3347,12 @@ func (b *Broker) saveLocked() error {
 		SessionMode:       b.sessionMode,
 		OneOnOneAgent:     b.oneOnOneAgent,
 		FocusMode:         b.focusMode,
+		Projects:          b.projects,
+		WorkspaceTeams:    b.workspaceTeams,
+		AuthUsers:         b.authUsers,
+		AuthSessions:      authSessions,
+		HumanMembers:      b.humanMembers,
+		Invites:           b.invites,
 		Tasks:             b.tasks,
 		Requests:          b.requests,
 		Actions:           b.actions,
@@ -3191,6 +3367,8 @@ func (b *Broker) saveLocked() error {
 		NotificationSince: b.notificationSince,
 		InsightsSince:     b.insightsSince,
 		PendingInterview:  firstBlockingRequest(b.requests),
+		GPTOAuthClients:   gptClients,
+		GPTOAuthTokens:    gptTokens,
 		Usage: func() teamUsageState {
 			usage := b.usage
 			usage.Session = usageTotals{}
@@ -3491,6 +3669,49 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		}
 		b.channels[i].Disabled = filteredDisabled
 	}
+	seenTeams := make(map[string]struct{}, len(b.workspaceTeams))
+	normalizedTeams := make([]workspaceTeam, 0, len(b.workspaceTeams))
+	for _, team := range b.workspaceTeams {
+		team.ID = strings.TrimSpace(team.ID)
+		team.Name = strings.TrimSpace(team.Name)
+		if team.Name == "" {
+			team.Name = "My Team"
+		}
+		team.Slug = normalizeTeamSlug(team.Slug)
+		if team.Slug == "team" {
+			team.Slug = normalizeTeamSlug(team.Name)
+		}
+		if team.ID == "" {
+			team.ID = "team-" + team.Slug
+		}
+		if _, ok := seenTeams[team.ID]; ok {
+			continue
+		}
+		seenTeams[team.ID] = struct{}{}
+		normalizedTeams = append(normalizedTeams, team)
+	}
+	b.workspaceTeams = normalizedTeams
+	normalizedAuthUsers := make([]authUser, 0, len(b.authUsers))
+	for _, user := range b.authUsers {
+		user.ID = strings.TrimSpace(user.ID)
+		user.Email = normalizeInviteEmail(user.Email)
+		user.Name = strings.TrimSpace(user.Name)
+		user.TeamID = strings.TrimSpace(user.TeamID)
+		if user.ID == "" || user.Email == "" {
+			continue
+		}
+		if user.Name == "" {
+			user.Name = user.Email
+		}
+		if strings.TrimSpace(user.Role) == "" {
+			user.Role = "member"
+		}
+		if strings.TrimSpace(user.Status) == "" {
+			user.Status = "active"
+		}
+		normalizedAuthUsers = append(normalizedAuthUsers, user)
+	}
+	b.authUsers = normalizedAuthUsers
 	for i := range b.messages {
 		if strings.TrimSpace(b.messages[i].Channel) == "" {
 			b.messages[i].Channel = "general"
@@ -3523,10 +3744,68 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		}
 		b.scheduleRequestLifecycleLocked(&b.requests[i])
 	}
+	seenProjects := make(map[string]struct{}, len(b.projects))
+	normalizedProjects := make([]teamProject, 0, len(b.projects))
+	for _, project := range b.projects {
+		project.ID = normalizeProjectID(project.ID)
+		if project.ID == "" {
+			project.ID = normalizeProjectID(project.Name)
+		}
+		if project.ID == "" {
+			continue
+		}
+		if _, ok := seenProjects[project.ID]; ok {
+			continue
+		}
+		seenProjects[project.ID] = struct{}{}
+		project.Name = strings.TrimSpace(project.Name)
+		if project.Name == "" {
+			project.Name = humanizeSlug(project.ID)
+		}
+		project.Channel = normalizeChannelSlug(project.Channel)
+		if project.Status == "" {
+			project.Status = "active"
+		}
+		normalizedProjects = append(normalizedProjects, project)
+	}
+	b.projects = normalizedProjects
+	seenHumans := make(map[string]struct{}, len(b.humanMembers))
+	normalizedHumans := make([]humanTeamMember, 0, len(b.humanMembers))
+	for _, member := range b.humanMembers {
+		member.Email = normalizeInviteEmail(member.Email)
+		if member.Email == "" {
+			continue
+		}
+		if _, ok := seenHumans[member.Email]; ok {
+			continue
+		}
+		seenHumans[member.Email] = struct{}{}
+		if member.ID == "" {
+			member.ID = humanMemberIDForEmail(member.Email)
+		}
+		member.Name = strings.TrimSpace(member.Name)
+		if member.Name == "" {
+			member.Name = member.Email
+		}
+		member.Channel = normalizeChannelSlug(member.Channel)
+		if member.Status == "" {
+			member.Status = "active"
+		}
+		normalizedHumans = append(normalizedHumans, member)
+	}
+	b.humanMembers = normalizedHumans
+	for i := range b.invites {
+		b.invites[i].Email = normalizeInviteEmail(b.invites[i].Email)
+		b.invites[i].Channel = normalizeChannelSlug(b.invites[i].Channel)
+		if b.invites[i].Status == "" {
+			b.invites[i].Status = "pending"
+		}
+	}
 	for i := range b.tasks {
 		if strings.TrimSpace(b.tasks[i].Channel) == "" {
 			b.tasks[i].Channel = "general"
 		}
+		b.tasks[i].ProjectID = normalizeProjectID(b.tasks[i].ProjectID)
 		normalizeTaskPlan(&b.tasks[i])
 		b.ensureTaskOwnerChannelMembershipLocked(b.tasks[i].Channel, b.tasks[i].Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(&b.tasks[i])
@@ -8418,6 +8697,181 @@ func (b *Broker) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func normalizeProjectID(raw string) string {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" {
+		return ""
+	}
+	var out strings.Builder
+	lastDash := false
+	for _, r := range raw {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			out.WriteRune(r)
+			lastDash = false
+		case r == '-' || r == '_' || r == ' ' || r == '.':
+			if !lastDash && out.Len() > 0 {
+				out.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+	return strings.Trim(out.String(), "-")
+}
+
+func (b *Broker) findProjectLocked(id string) *teamProject {
+	id = normalizeProjectID(id)
+	if id == "" {
+		return nil
+	}
+	for i := range b.projects {
+		if normalizeProjectID(b.projects[i].ID) == id {
+			return &b.projects[i]
+		}
+	}
+	return nil
+}
+
+func (b *Broker) handleProjects(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		viewerSlug := strings.TrimSpace(r.URL.Query().Get("viewer_slug"))
+		includeArchived := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_archived")), "true")
+
+		b.mu.Lock()
+		projects := make([]teamProject, 0, len(b.projects))
+		for _, project := range b.projects {
+			if !includeArchived && strings.EqualFold(strings.TrimSpace(project.Status), "archived") {
+				continue
+			}
+			if project.Channel != "" && !b.canAccessChannelLocked(viewerSlug, project.Channel) {
+				continue
+			}
+			projects = append(projects, project)
+		}
+		b.mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"projects": projects})
+	case http.MethodPost:
+		b.handlePostProject(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Action      string `json:"action"`
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Channel     string `json:"channel"`
+		Status      string `json:"status"`
+		CreatedBy   string `json:"created_by"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	action := strings.TrimSpace(body.Action)
+	if action == "" {
+		action = "create"
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	channel := normalizeChannelSlug(body.Channel)
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if channel != "" {
+		if b.findChannelLocked(channel) == nil {
+			http.Error(w, "channel not found", http.StatusNotFound)
+			return
+		}
+		if !b.canAccessChannelLocked(body.CreatedBy, channel) {
+			http.Error(w, "channel access denied", http.StatusForbidden)
+			return
+		}
+	}
+
+	switch action {
+	case "create":
+		name := strings.TrimSpace(body.Name)
+		id := normalizeProjectID(body.ID)
+		if id == "" {
+			id = normalizeProjectID(name)
+		}
+		if id == "" || name == "" || strings.TrimSpace(body.CreatedBy) == "" {
+			http.Error(w, "id/name and created_by required", http.StatusBadRequest)
+			return
+		}
+		if existing := b.findProjectLocked(id); existing != nil {
+			http.Error(w, "project already exists", http.StatusConflict)
+			return
+		}
+		status := strings.TrimSpace(body.Status)
+		if status == "" {
+			status = "active"
+		}
+		project := teamProject{
+			ID:          id,
+			Name:        name,
+			Description: strings.TrimSpace(body.Description),
+			Channel:     channel,
+			Status:      status,
+			CreatedBy:   strings.TrimSpace(body.CreatedBy),
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		b.projects = append(b.projects, project)
+		actionChannel := channel
+		if actionChannel == "" {
+			actionChannel = "general"
+		}
+		b.appendActionLocked("project_created", "office", actionChannel, project.CreatedBy, truncateSummary(project.Name, 140), project.ID)
+		if err := b.saveLocked(); err != nil {
+			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"project": project})
+	case "update", "archive":
+		project := b.findProjectLocked(body.ID)
+		if project == nil {
+			http.Error(w, "project not found", http.StatusNotFound)
+			return
+		}
+		if !b.canAccessChannelLocked(body.CreatedBy, project.Channel) {
+			http.Error(w, "channel access denied", http.StatusForbidden)
+			return
+		}
+		if name := strings.TrimSpace(body.Name); name != "" {
+			project.Name = name
+		}
+		if action == "archive" {
+			project.Status = "archived"
+		} else if status := strings.TrimSpace(body.Status); status != "" {
+			project.Status = status
+		}
+		project.Description = strings.TrimSpace(body.Description)
+		project.UpdatedAt = now
+		actionChannel := project.Channel
+		if actionChannel == "" {
+			actionChannel = "general"
+		}
+		b.appendActionLocked("project_updated", "office", actionChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(project.Name+" ["+project.Status+"]", 140), project.ID)
+		if err := b.saveLocked(); err != nil {
+			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"project": *project})
+	default:
+		http.Error(w, "unknown action", http.StatusBadRequest)
+	}
+}
+
 func (b *Broker) handleAgentLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -8475,6 +8929,7 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 	mySlug := strings.TrimSpace(r.URL.Query().Get("my_slug"))
 	viewerSlug := strings.TrimSpace(r.URL.Query().Get("viewer_slug"))
 	channel := normalizeChannelSlug(r.URL.Query().Get("channel"))
+	projectID := normalizeProjectID(r.URL.Query().Get("project_id"))
 	allChannels := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("all_channels")), "true")
 	if channel == "" && !allChannels {
 		channel = "general"
@@ -8482,6 +8937,11 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 	includeDone := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_done")), "true")
 
 	b.mu.Lock()
+	if projectID != "" && b.findProjectLocked(projectID) == nil {
+		b.mu.Unlock()
+		http.Error(w, "project not found", http.StatusNotFound)
+		return
+	}
 	if !allChannels && !b.canAccessChannelLocked(viewerSlug, channel) {
 		b.mu.Unlock()
 		http.Error(w, "channel access denied", http.StatusForbidden)
@@ -8490,6 +8950,9 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 	result := make([]teamTask, 0, len(b.tasks))
 	for _, task := range b.tasks {
 		if !allChannels && normalizeChannelSlug(task.Channel) != channel {
+			continue
+		}
+		if projectID != "" && normalizeProjectID(task.ProjectID) != projectID {
 			continue
 		}
 		if task.Status == "done" && !includeDone && statusFilter == "" {
@@ -8514,6 +8977,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		Action           string   `json:"action"`
 		Channel          string   `json:"channel"`
 		ID               string   `json:"id"`
+		ProjectID        string   `json:"project_id"`
 		Title            string   `json:"title"`
 		Details          string   `json:"details"`
 		Owner            string   `json:"owner"`
@@ -8540,6 +9004,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	if channel == "" {
 		channel = "general"
 	}
+	projectID := normalizeProjectID(body.ProjectID)
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -8551,6 +9016,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
 	}
+	if projectID != "" && b.findProjectLocked(projectID) == nil {
+		http.Error(w, "project not found", http.StatusNotFound)
+		return
+	}
 
 	if action == "create" {
 		if strings.TrimSpace(body.Title) == "" || strings.TrimSpace(body.CreatedBy) == "" {
@@ -8559,6 +9028,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		}
 		if existing := b.findReusableTaskLocked(taskReuseMatch{
 			Channel:          channel,
+			ProjectID:        projectID,
 			Title:            strings.TrimSpace(body.Title),
 			ThreadID:         strings.TrimSpace(body.ThreadID),
 			Owner:            strings.TrimSpace(body.Owner),
@@ -8578,6 +9048,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			}
 			if pipelineID := strings.TrimSpace(body.PipelineID); pipelineID != "" {
 				existing.PipelineID = pipelineID
+			}
+			if projectID != "" {
+				existing.ProjectID = projectID
 			}
 			if executionMode := strings.TrimSpace(body.ExecutionMode); executionMode != "" {
 				existing.ExecutionMode = executionMode
@@ -8619,6 +9092,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		b.counter++
 		task := teamTask{
 			ID:               fmt.Sprintf("task-%d", b.counter),
+			ProjectID:        projectID,
 			Channel:          channel,
 			Title:            strings.TrimSpace(body.Title),
 			Details:          strings.TrimSpace(body.Details),
@@ -8767,6 +9241,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "unknown action", http.StatusBadRequest)
 			return
+		}
+		if projectID != "" {
+			task.ProjectID = projectID
 		}
 		if strings.TrimSpace(body.Details) != "" {
 			if appendDetails {
@@ -9757,6 +10234,7 @@ func (b *Broker) unblockDependentsLocked(completedTaskID string) {
 
 type taskReuseMatch struct {
 	Channel          string
+	ProjectID        string
 	Title            string
 	ThreadID         string
 	Owner            string
@@ -9804,6 +10282,7 @@ func scopedTaskIdentityMatches(task *teamTask, match taskReuseMatch) bool {
 
 func (b *Broker) findReusableTaskLocked(match taskReuseMatch) *teamTask {
 	channel := normalizeChannelSlug(match.Channel)
+	projectID := normalizeProjectID(match.ProjectID)
 	title := strings.TrimSpace(match.Title)
 	threadID := strings.TrimSpace(match.ThreadID)
 	owner := strings.TrimSpace(match.Owner)
@@ -9811,6 +10290,9 @@ func (b *Broker) findReusableTaskLocked(match taskReuseMatch) *teamTask {
 	for i := range b.tasks {
 		task := &b.tasks[i]
 		if normalizeChannelSlug(task.Channel) != channel {
+			continue
+		}
+		if normalizeProjectID(task.ProjectID) != projectID {
 			continue
 		}
 		if isTerminalTeamTaskStatus(task.Status) {
