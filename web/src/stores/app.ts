@@ -3,6 +3,21 @@ import { create } from "zustand";
 export type Theme = "nex" | "nex-dark";
 export type Language = "en" | "ko";
 
+function languageFromLocale(
+  locale: string | null | undefined,
+): Language | null {
+  const base = locale?.trim().toLowerCase().split(/[-_]/)[0];
+  if (base === "ko" || base === "en") return base;
+  return null;
+}
+
+function defaultLanguageFromSystem(): Language {
+  if (typeof navigator === "undefined") return "en";
+  return (
+    languageFromLocale(navigator.languages?.[0] ?? navigator.language) ?? "en"
+  );
+}
+
 const _storedTheme = ((): Theme => {
   try {
     const v = localStorage.getItem("laf-office-theme");
@@ -17,9 +32,10 @@ if (typeof document !== "undefined") {
 const _storedLanguage = ((): Language => {
   try {
     const v = localStorage.getItem("laf-office-language");
+    if (v === "en") return "en";
     if (v === "ko") return "ko";
   } catch {}
-  return "en";
+  return defaultLanguageFromSystem();
 })();
 if (typeof document !== "undefined") {
   document.documentElement.setAttribute("lang", _storedLanguage);

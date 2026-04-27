@@ -21,6 +21,34 @@ afterEach(() => {
   });
 });
 
+async function freshLanguageForSystemLocale(
+  locales: readonly string[],
+  language = locales[0] ?? "",
+): Promise<{ domLanguage: string | null; storeLanguage: string }> {
+  window.localStorage.removeItem("laf-office-language");
+  const languagesSpy = vi
+    .spyOn(window.navigator, "languages", "get")
+    .mockReturnValue([...locales]);
+  const languageSpy = vi
+    .spyOn(window.navigator, "language", "get")
+    .mockReturnValue(language);
+
+  try {
+    vi.resetModules();
+    const { useAppStore: freshStore } = await import("./app");
+    return {
+      domLanguage: document.documentElement.getAttribute("lang"),
+      storeLanguage: freshStore.getState().language,
+    };
+  } finally {
+    languagesSpy.mockRestore();
+    languageSpy.mockRestore();
+    vi.resetModules();
+    document.documentElement.setAttribute("lang", "en");
+    useAppStore.setState({ language: "en" });
+  }
+}
+
 describe("DM channel helpers", () => {
   it("uses the broker canonical direct slug", () => {
     expect(directChannelSlug("ceo")).toBe("ceo__human");
@@ -109,6 +137,43 @@ describe("setTheme", () => {
 });
 
 describe("setLanguage", () => {
+  it("defaults to Korean for a Korean OS locale when no language is saved", async () => {
+    const { domLanguage, storeLanguage } = await freshLanguageForSystemLocale([
+      "ko-KR",
+    ]);
+
+    expect(storeLanguage).toBe("ko");
+    expect(domLanguage).toBe("ko");
+  });
+
+  it("defaults to English for an English OS locale when no language is saved", async () => {
+    const { domLanguage, storeLanguage } = await freshLanguageForSystemLocale([
+      "en-US",
+    ]);
+
+    expect(storeLanguage).toBe("en");
+    expect(domLanguage).toBe("en");
+  });
+
+  it("falls back to English for unsupported OS locales", async () => {
+    const { domLanguage, storeLanguage } = await freshLanguageForSystemLocale([
+      "ja-JP",
+    ]);
+
+    expect(storeLanguage).toBe("en");
+    expect(domLanguage).toBe("en");
+  });
+
+  it("uses the primary OS locale instead of scanning secondary locale preferences", async () => {
+    const { domLanguage, storeLanguage } = await freshLanguageForSystemLocale([
+      "ja-JP",
+      "ko-KR",
+    ]);
+
+    expect(storeLanguage).toBe("en");
+    expect(domLanguage).toBe("en");
+  });
+
   it("persists English and Korean UI language", () => {
     const setItemSpy = vi
       .spyOn(window.localStorage, "setItem")
