@@ -8,6 +8,7 @@ import { TasksApp } from "./TasksApp";
 
 const apiMocks = vi.hoisted(() => ({
   createProject: vi.fn(),
+  createTask: vi.fn(),
   getOfficeTasks: vi.fn(),
   getProjects: vi.fn(),
   post: vi.fn(),
@@ -172,6 +173,82 @@ describe("TasksApp project workspace", () => {
     expect(
       await screen.findByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/agent-lab");
+  });
+
+  it("creates a local worktree task from the selected project request box when a repo is connected", async () => {
+    const user = userEvent.setup();
+    apiMocks.createTask.mockResolvedValue({
+      task: {
+        id: "task-request",
+        title: "Implement project invite flow",
+        project_id: "customer-portal",
+        owner: "eng",
+        execution_mode: "local_worktree",
+      },
+    });
+
+    renderTasksApp();
+
+    expect(
+      await screen.findByText("Customer Portal workspace"),
+    ).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("Project work request"),
+      "Implement project invite flow",
+    );
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+
+    await waitFor(() => {
+      expect(apiMocks.createTask).toHaveBeenCalledWith({
+        title: "Implement project invite flow",
+        details: "Implement project invite flow",
+        project_id: "customer-portal",
+        channel: "general",
+        owner: "eng",
+        task_type: "feature",
+        execution_mode: "local_worktree",
+        created_by: "human",
+      });
+    });
+  });
+
+  it("creates an office planning task from the request box when no repo is connected", async () => {
+    const user = userEvent.setup();
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [{ id: "agent-lab", name: "Agent Lab" }],
+    });
+    apiMocks.getOfficeTasks.mockResolvedValue({ tasks: [] });
+    apiMocks.createTask.mockResolvedValue({
+      task: {
+        id: "task-request",
+        title: "Plan the first implementation slice",
+        project_id: "agent-lab",
+        owner: "ceo",
+        execution_mode: "office",
+      },
+    });
+
+    renderTasksApp();
+
+    expect(await screen.findByText("Agent Lab workspace")).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("Project work request"),
+      "Plan the first implementation slice",
+    );
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+
+    await waitFor(() => {
+      expect(apiMocks.createTask).toHaveBeenCalledWith({
+        title: "Plan the first implementation slice",
+        details: "Plan the first implementation slice",
+        project_id: "agent-lab",
+        channel: "general",
+        owner: "ceo",
+        task_type: "research",
+        execution_mode: "office",
+        created_by: "human",
+      });
+    });
   });
 
   it("opens the wiki route for a newly created project workspace", async () => {

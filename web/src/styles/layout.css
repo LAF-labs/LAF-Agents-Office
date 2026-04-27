@@ -1437,6 +1437,42 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   font-size: 11px;
   line-height: 1.35;
 }
+.task-request-panel {
+  padding: 12px 20px 0;
+}
+.task-request-panel form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+.task-request-panel textarea {
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.task-request-panel button {
+  min-width: 108px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: white;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.task-request-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .task-empty-state {
   padding: 40px 20px;
   text-align: center;
@@ -1555,6 +1591,15 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   .task-board {
     grid-template-columns: minmax(0, 1fr);
     padding: 16px;
+  }
+  .task-request-panel {
+    padding: 12px 16px 0;
+  }
+  .task-request-panel form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .task-request-panel button {
+    min-height: 36px;
   }
 }
 

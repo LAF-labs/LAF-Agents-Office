@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createProject, updateProject } from "./client";
+import { createProject, createTask, updateProject } from "./client";
 
 describe("project api client", () => {
   afterEach(() => {
@@ -81,5 +81,53 @@ describe("project api client", () => {
     expect(result.project.github_repo_url).toBe(
       "https://github.com/laf-labs/customer-portal",
     );
+  });
+
+  it("creates a project-scoped task with explicit execution context", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          task: {
+            id: "task-1",
+            title: "Implement signup",
+            project_id: "customer-portal",
+            owner: "eng",
+            execution_mode: "local_worktree",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createTask({
+      title: "Implement signup",
+      details: "Build the code path and tests.",
+      project_id: "customer-portal",
+      channel: "general",
+      owner: "eng",
+      task_type: "feature",
+      execution_mode: "local_worktree",
+      created_by: "human",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/tasks",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          action: "create",
+          created_by: "human",
+          title: "Implement signup",
+          details: "Build the code path and tests.",
+          project_id: "customer-portal",
+          channel: "general",
+          owner: "eng",
+          task_type: "feature",
+          execution_mode: "local_worktree",
+        }),
+      }),
+    );
+    expect(result.task.project_id).toBe("customer-portal");
   });
 });

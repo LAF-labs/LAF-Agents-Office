@@ -14,6 +14,7 @@ import {
 
 import {
   createProject,
+  createTask,
   getOfficeTasks,
   getProjects,
   type Project,
@@ -40,6 +41,7 @@ type StatusGroup = (typeof STATUS_ORDER)[number];
 type TaskMove = (task: Task, toStatus: StatusGroup) => Promise<void>;
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type ProjectGitHubConnectorState = ReturnType<typeof useProjectGitHubConnector>;
+type ProjectTaskCreatorState = ReturnType<typeof useProjectTaskCreator>;
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -339,6 +341,56 @@ function useProjectGitHubConnector(queryClient: QueryClient) {
   };
 }
 
+function buildProjectTaskRequest(project: Project, request: string) {
+  const repoURL = project.github_repo_url?.trim();
+  return {
+    title: request,
+    details: request,
+    project_id: project.id,
+    channel: project.channel || "general",
+    owner: repoURL ? "eng" : "ceo",
+    task_type: repoURL ? "feature" : "research",
+    execution_mode: repoURL ? "local_worktree" : "office",
+    created_by: HUMAN_SLUG,
+  };
+}
+
+function useProjectTaskCreator(queryClient: QueryClient) {
+  const [requestText, setRequestText] = useState("");
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+
+  async function handleCreateTask(
+    project: Project,
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const request = requestText.trim();
+    if (!request) return;
+    setTaskError(null);
+    setIsSubmittingTask(true);
+    try {
+      await createTask(buildProjectTaskRequest(project, request));
+      setRequestText("");
+      await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not create task";
+      setTaskError(message);
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  }
+
+  return {
+    handleCreateTask,
+    isSubmittingTask,
+    requestText,
+    setRequestText,
+    taskError,
+  };
+}
+
 function useTaskBoardDrag(tasksById: Map<string, Task>, moveTask: TaskMove) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragoverStatus, setDragoverStatus] = useState<StatusGroup | null>(
@@ -405,6 +457,7 @@ export function TasksApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const projectCreator = useProjectCreator(queryClient, setSelectedProjectId);
   const githubConnector = useProjectGitHubConnector(queryClient);
+  const taskCreator = useProjectTaskCreator(queryClient);
   const selectedProjectFilter =
     selectedProjectId && selectedProjectId !== "all"
       ? selectedProjectId
@@ -505,6 +558,8 @@ export function TasksApp() {
         tasks={tasks}
         onOpenWiki={handleOpenProjectWiki}
       />
+
+      <ProjectWorkRequest project={selectedProject} taskCreator={taskCreator} />
 
       <TaskWorkArea
         error={error}
@@ -873,6 +928,43 @@ function ProjectGitHubActions({
         <span className="task-github-error">{connector.githubError}</span>
       ) : null}
     </div>
+  );
+}
+
+interface ProjectWorkRequestProps {
+  project: Project | null;
+  taskCreator: ProjectTaskCreatorState;
+}
+
+function ProjectWorkRequest({ project, taskCreator }: ProjectWorkRequestProps) {
+  if (!project) return null;
+
+  return (
+    <section className="task-request-panel" aria-label="Project task composer">
+      <form onSubmit={(event) => taskCreator.handleCreateTask(project, event)}>
+        <textarea
+          value={taskCreator.requestText}
+          onChange={(event) =>
+            taskCreator.setRequestText(event.currentTarget.value)
+          }
+          placeholder="Ask for the next project task"
+          aria-label="Project work request"
+          rows={2}
+        />
+        <button
+          type="submit"
+          disabled={
+            taskCreator.isSubmittingTask ||
+            taskCreator.requestText.trim() === ""
+          }
+        >
+          {taskCreator.isSubmittingTask ? "Creating..." : "Create task"}
+        </button>
+      </form>
+      {taskCreator.taskError ? (
+        <div className="task-project-error">{taskCreator.taskError}</div>
+      ) : null}
+    </section>
   );
 }
 

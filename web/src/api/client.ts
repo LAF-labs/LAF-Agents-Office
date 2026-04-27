@@ -664,6 +664,23 @@ export function updateProject(body: {
   });
 }
 
+export function createTask(body: {
+  title: string;
+  details?: string;
+  project_id?: string;
+  channel?: string;
+  owner?: string;
+  task_type?: string;
+  execution_mode?: string;
+  created_by?: string;
+}) {
+  return post<{ task: Task }>("/tasks", {
+    action: "create",
+    created_by: "human",
+    ...body,
+  });
+}
+
 export function reassignTask(
   taskId: string,
   newOwner: string,
