@@ -948,6 +948,7 @@ func (l *Launcher) taskNotificationContent(action officeActionLog, task teamTask
 	if strings.TrimSpace(task.ExecutionMode) != "" {
 		execMode = ", execution " + task.ExecutionMode
 	}
+	project := l.taskProjectNotificationFragment(task)
 	worktree := ""
 	if strings.TrimSpace(task.WorktreeBranch) != "" || strings.TrimSpace(task.WorktreePath) != "" {
 		parts := make([]string, 0, 2)
@@ -975,7 +976,65 @@ func (l *Launcher) taskNotificationContent(action officeActionLog, task teamTask
 	if taskLooksLikeLiveBusinessObjective(&task) {
 		hygiene = "\n" + taskHygieneCoachingBlock()
 	}
-	return fmt.Sprintf("[%s #%s on #%s]: %s%s (owner %s, status %s%s%s%s%s). Context is included — do NOT call team_poll or team_tasks. Respond with the concrete next step immediately. Stay in your lane. Once you have posted the needed update, STOP and wait for the next pushed notification.%s%s%s%s", verb, task.ID, channel, task.Title, details, owner, status, pipeline, review, execMode, worktree, guidance, framing, capability, hygiene)
+	return fmt.Sprintf("[%s #%s on #%s]: %s%s (owner %s, status %s%s%s%s%s%s). Context is included — do NOT call team_poll or team_tasks. Respond with the concrete next step immediately. Stay in your lane. Once you have posted the needed update, STOP and wait for the next pushed notification.%s%s%s%s", verb, task.ID, channel, task.Title, details, owner, status, pipeline, review, execMode, project, worktree, guidance, framing, capability, hygiene)
+}
+
+func (l *Launcher) taskProjectForPacket(task teamTask) (teamProject, bool) {
+	projectID := normalizeProjectID(task.ProjectID)
+	if l == nil || l.broker == nil || projectID == "" {
+		return teamProject{}, false
+	}
+	l.broker.mu.Lock()
+	defer l.broker.mu.Unlock()
+	project := l.broker.findProjectLocked(projectID)
+	if project == nil {
+		return teamProject{}, false
+	}
+	return *project, true
+}
+
+func projectPacketName(project teamProject) string {
+	if name := strings.TrimSpace(project.Name); name != "" {
+		return name
+	}
+	return normalizeProjectID(project.ID)
+}
+
+func projectPacketRepoRule(project teamProject) string {
+	if strings.TrimSpace(project.GitHubRepoURL) != "" {
+		return "Project repo rule: use this project repo as the coding boundary. Do not substitute a team-wide repo or unrelated local checkout."
+	}
+	return "Project repo rule: no GitHub repo is connected for this project; do not claim branch, PR, or code execution. Limit this turn to planning, task, and project wiki updates until a repo is connected."
+}
+
+func (l *Launcher) taskProjectPacketLines(task teamTask) []string {
+	project, ok := l.taskProjectForPacket(task)
+	if !ok {
+		return nil
+	}
+	repo := strings.TrimSpace(project.GitHubRepoURL)
+	if repo == "" {
+		repo = "not connected"
+	}
+	projectID := normalizeProjectID(project.ID)
+	return []string{
+		fmt.Sprintf("- Project: %s (%s)", projectPacketName(project), projectID),
+		fmt.Sprintf("- Project wiki: %s", projectWikiArticlePath(projectID)),
+		fmt.Sprintf("- GitHub repo: %s", repo),
+		projectPacketRepoRule(project),
+	}
+}
+
+func (l *Launcher) taskProjectNotificationFragment(task teamTask) string {
+	project, ok := l.taskProjectForPacket(task)
+	if !ok {
+		return ""
+	}
+	projectID := normalizeProjectID(project.ID)
+	if projectID == "" {
+		return ""
+	}
+	return ", project " + projectID
 }
 
 func (l *Launcher) sendTaskUpdate(target notificationTarget, action officeActionLog, task teamTask, content string) {
@@ -2843,6 +2902,7 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 		fmt.Sprintf("- Status: %s", strings.TrimSpace(task.Status)),
 		fmt.Sprintf("- Owner: @%s", slug),
 	}
+	lines = append(lines, l.taskProjectPacketLines(task)...)
 	if details := strings.TrimSpace(task.Details); details != "" {
 		lines = append(lines, fmt.Sprintf("- Details: %s", truncate(details, 512)))
 	}

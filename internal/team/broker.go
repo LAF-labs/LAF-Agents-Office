@@ -537,6 +537,18 @@ func taskNeedsLocalWorktree(task *teamTask) bool {
 	}
 }
 
+func (b *Broker) taskProjectAllowsCodeExecutionLocked(task *teamTask) bool {
+	if task == nil {
+		return true
+	}
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return true
+	}
+	project := b.findProjectLocked(projectID)
+	return project != nil && strings.TrimSpace(project.GitHubRepoURL) != ""
+}
+
 func taskBlockReasonLooksLikeWorkspaceWriteIssue(reason string) bool {
 	reason = strings.ToLower(strings.TrimSpace(reason))
 	if reason == "" {
@@ -642,6 +654,19 @@ func taskChannelCandidateOwnerAllowed(ch *teamChannel, owner string) bool {
 
 func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 	if task == nil {
+		return nil
+	}
+	if !b.taskProjectAllowsCodeExecutionLocked(task) {
+		if strings.TrimSpace(task.ExecutionMode) == "" || isLocalWorktreeExecutionMode(task.ExecutionMode) {
+			task.ExecutionMode = executionModeOffice
+		}
+		if strings.TrimSpace(task.WorktreePath) != "" || strings.TrimSpace(task.WorktreeBranch) != "" {
+			if err := cleanupTaskWorktree(task.WorktreePath, task.WorktreeBranch); err != nil {
+				return err
+			}
+			task.WorktreePath = ""
+			task.WorktreeBranch = ""
+		}
 		return nil
 	}
 	// Automatically assign local_worktree mode when a coding agent claims a task.

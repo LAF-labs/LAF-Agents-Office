@@ -965,6 +965,74 @@ func TestBuildTaskExecutionPacketLocalWorktreeForbidsNestedOffice(t *testing.T) 
 	}
 }
 
+func TestBuildTaskExecutionPacketIncludesConnectedProjectContext(t *testing.T) {
+	b := &Broker{
+		projects: []teamProject{{
+			ID:            "agent-lab",
+			Name:          "Agent Lab",
+			GitHubRepoURL: "https://github.com/laf-labs/agent-lab",
+		}},
+	}
+	l := &Launcher{broker: b}
+
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:            "task-12",
+		ProjectID:     "agent-lab",
+		Channel:       "general",
+		Title:         "Implement the signup flow",
+		Owner:         "eng",
+		Status:        "in_progress",
+		ExecutionMode: executionModeLocalWorktree,
+	}, "Start the implementation.")
+
+	for _, want := range []string{
+		"- Project: Agent Lab (agent-lab)",
+		"- Project wiki: team/projects/agent-lab.md",
+		"- GitHub repo: https://github.com/laf-labs/agent-lab",
+		"Project repo rule: use this project repo as the coding boundary",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected project context %q in packet:\n%s", want, got)
+		}
+	}
+}
+
+func TestBuildTaskExecutionPacketBlocksCodeClaimsWithoutProjectRepo(t *testing.T) {
+	b := &Broker{
+		projects: []teamProject{{
+			ID:   "agent-lab",
+			Name: "Agent Lab",
+		}},
+	}
+	l := &Launcher{broker: b}
+
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:        "task-13",
+		ProjectID: "agent-lab",
+		Channel:   "general",
+		Title:     "Implement the signup flow",
+		Owner:     "eng",
+		Status:    "in_progress",
+	}, "Start the implementation.")
+
+	for _, want := range []string{
+		"- Project: Agent Lab (agent-lab)",
+		"- Project wiki: team/projects/agent-lab.md",
+		"- GitHub repo: not connected",
+		"Project repo rule: no GitHub repo is connected for this project; do not claim branch, PR, or code execution",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected repo-missing project context %q in packet:\n%s", want, got)
+		}
+	}
+}
+
 func TestBuildTaskExecutionPacketRequiresRealExternalExecution(t *testing.T) {
 	l := &Launcher{}
 	got := l.buildTaskExecutionPacket("builder", officeActionLog{

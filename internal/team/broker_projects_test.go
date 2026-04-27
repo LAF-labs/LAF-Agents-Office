@@ -311,6 +311,73 @@ func TestProjectGitHubUpdateSyncsMaterializedWikiArticle(t *testing.T) {
 	}
 }
 
+func TestProjectTaskWithoutGitHubRepoDoesNotGetLocalWorktree(t *testing.T) {
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":       "Agent Lab",
+		"created_by": "human",
+	})
+
+	rec := httptest.NewRecorder()
+	b.handlePostTask(rec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "create",
+		"title":      "Implement the signup flow",
+		"details":    "Build the code path and tests.",
+		"owner":      "eng",
+		"created_by": "human",
+		"project_id": project.ID,
+	}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create project task status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var created struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode task: %v", err)
+	}
+	if created.Task.ExecutionMode != executionModeOffice {
+		t.Fatalf("execution_mode = %q, want %q for project without repo", created.Task.ExecutionMode, executionModeOffice)
+	}
+	if created.Task.WorktreePath != "" || created.Task.WorktreeBranch != "" {
+		t.Fatalf("expected no worktree for project without repo, got path=%q branch=%q", created.Task.WorktreePath, created.Task.WorktreeBranch)
+	}
+}
+
+func TestProjectTaskWithGitHubRepoKeepsLocalWorktree(t *testing.T) {
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/agent-lab",
+	})
+
+	rec := httptest.NewRecorder()
+	b.handlePostTask(rec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "create",
+		"title":      "Implement the signup flow",
+		"details":    "Build the code path and tests.",
+		"owner":      "eng",
+		"created_by": "human",
+		"project_id": project.ID,
+	}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create project task status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var created struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode task: %v", err)
+	}
+	if created.Task.ExecutionMode != executionModeLocalWorktree {
+		t.Fatalf("execution_mode = %q, want %q for project with repo", created.Task.ExecutionMode, executionModeLocalWorktree)
+	}
+	if created.Task.WorktreePath == "" || created.Task.WorktreeBranch == "" {
+		t.Fatalf("expected worktree for project with repo, got path=%q branch=%q", created.Task.WorktreePath, created.Task.WorktreeBranch)
+	}
+}
+
 func createProjectForTest(t *testing.T, b *Broker, body map[string]string) teamProject {
 	t.Helper()
 	rec := httptest.NewRecorder()
