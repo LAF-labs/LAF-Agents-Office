@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // captureMessages returns a SlashContext that records system messages into a

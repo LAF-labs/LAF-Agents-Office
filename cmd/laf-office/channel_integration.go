@@ -15,12 +15,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/nex-crm/laf-office/internal/api"
-	"github.com/nex-crm/laf-office/internal/company"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/openclaw"
-	"github.com/nex-crm/laf-office/internal/team"
-	"github.com/nex-crm/laf-office/internal/tui"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
 )
 
 func channelIntegrationOptions() []tui.PickerOption {

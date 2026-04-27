@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 func TestBrokerStatePersistsAcrossReload_ChannelAndMember(t *testing.T) {

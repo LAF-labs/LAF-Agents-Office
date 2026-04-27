@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/gitexec"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 // wikiWorkerWriter adapts team.WikiWorker onto WikiWriter so the

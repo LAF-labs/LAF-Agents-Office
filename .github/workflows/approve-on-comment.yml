@@ -1,10 +1,5 @@
 name: Approve on Comment
 
-# Inlined (not using private nex-crm/.github reusable) because this is a
-# public repo and public repos cannot consume private reusable workflows.
-# Keep in sync with nex-crm/.github/.github/workflows/approve-on-comment.yml
-# (current canonical SHA tracked via the v1 tag on that repo).
-
 on:
   issue_comment:
     types: [created]

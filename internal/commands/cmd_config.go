@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 func cmdConfig(ctx *SlashContext, args string) error {

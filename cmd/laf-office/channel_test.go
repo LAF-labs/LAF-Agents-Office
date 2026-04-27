@@ -11,9 +11,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/team"
-	"github.com/nex-crm/laf-office/internal/tui"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
 )
 
 var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)

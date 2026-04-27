@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 // ScannerSlug is the reserved git identity for scanner-authored commits.

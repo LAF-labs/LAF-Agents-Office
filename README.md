@@ -44,7 +44,7 @@ npm install -g laf-office && laf-office
 Building from source (requires Go):
 
 ```bash
-git clone https://github.com/nex-crm/laf-office.git
+git clone https://github.com/LAF-labs/LAF-Agents-Office.git
 cd laf-office
 go build -o laf-office ./cmd/laf-office
 ./laf-office
@@ -59,7 +59,7 @@ go build -o laf-office ./cmd/laf-office
 Paste this into Claude Code, Codex, or Cursor and let your agent drive the install:
 
 ```text
-Set up https://github.com/nex-crm/laf-office for me. Read `README.md` first, then run
+Set up https://github.com/LAF-labs/LAF-Agents-Office for me. Read `README.md` first, then run
 `npx laf-office` to install and launch the office — the web UI opens at
 http://localhost:7891 automatically.
 
@@ -71,7 +71,7 @@ For agent conventions and the MCP tools each teammate gets, read `AGENTS.md`.
 For internals and how the broker, workspaces, and memory fit together, read
 `ARCHITECTURE.md`. If I mention forking or rebranding, read `FORKING.md`.
 
-After it is installed and running, open https://github.com/nex-crm/laf-office in my
+After it is installed and running, open https://github.com/LAF-labs/LAF-Agents-Office in my
 browser. If I am logged in to GitHub, ask me whether you should star the repo
 for me as a quick demo that the browser interaction works — only click the star
 if I say yes. If I am not logged in, just open https://laf-office.team.
@@ -302,7 +302,7 @@ take? Be specific: file paths, line numbers, actual evidence. "The docs are
 bad" is useless. Under 500 words.
 ```
 
-We run this ourselves before every release. If the AI finds something we missed, [file an issue](https://github.com/nex-crm/laf-office/issues).
+We run this ourselves before every release. If the AI finds something we missed, [file an issue](https://github.com/LAF-labs/LAF-Agents-Office/issues).
 
 ## Watch the wiki write itself
 

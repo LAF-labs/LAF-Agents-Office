@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 )
 
 // RunClaudeOneShot runs Claude once with the given system prompt and user prompt

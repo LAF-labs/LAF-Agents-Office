@@ -522,5 +522,5 @@ Update this log on every substantive revision. Small wording tweaks don't requir
 ## 13. Referenced documents
 
 - `DESIGN-WIKI.md` — the visual design system for the wiki surface (palette, typography, Wikipedia IA primitives, anti-slop policy). Read when rendering any wiki UI.
-- `~/.gstack/projects/nex-crm-laf-office/najmuzzaman-feat+slash-registry-design-20260422-174617.md` — the design doc for Slice 1-3 of the wiki intelligence port. Background + rationale; this schema doc is the operational spec derived from it.
+- `~/.gstack/projects/laf-labs-laf-agents-office/najmuzzaman-feat+slash-registry-design-20260422-174617.md` — the design doc for Slice 1-3 of the wiki intelligence port. Background + rationale; this schema doc is the operational spec derived from it.
 - `https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` — the original LLM Wiki pattern this implements.

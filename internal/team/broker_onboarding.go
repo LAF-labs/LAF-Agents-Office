@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/onboarding"
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // onboardingCompleteFn is invoked by the onboarding package when the user

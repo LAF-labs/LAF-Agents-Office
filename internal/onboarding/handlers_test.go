@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // withOperationsFallbackFS points the operations loader at the repo's

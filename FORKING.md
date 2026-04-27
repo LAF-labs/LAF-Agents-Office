@@ -9,7 +9,7 @@ Before you fork, read [`ARCHITECTURE.md`](ARCHITECTURE.md). It's one page. It wi
 `main` moves daily. Fork from a tag.
 
 ```bash
-git clone https://github.com/nex-crm/laf-office.git
+git clone https://github.com/LAF-labs/LAF-Agents-Office.git
 cd laf-office
 git checkout v0.0.2.0   # or the latest tag: git describe --tags --abbrev=0
 git checkout -b your-fork
@@ -83,7 +83,7 @@ Rename the binary in `cmd/laf-office/` + `go.mod` + goreleaser config if you wan
 If you rename the module in `go.mod`, rewrite all import paths in one pass:
 
 ```bash
-find . -name '*.go' | xargs sed -i 's|github.com/nex-crm/laf-office|github.com/your-org/your-fork|g'
+find . -name '*.go' | xargs sed -i 's|github.com/LAF-labs/LAF-Agents-Office|github.com/your-org/your-fork|g'
 ```
 
 ## 3. Add your own agent pack
@@ -145,6 +145,6 @@ Fork anything above the broker freely. Fork the broker and you're building a dif
 
 ## If you get stuck
 
-- Issues: https://github.com/nex-crm/laf-office/issues
+- Issues: https://github.com/LAF-labs/LAF-Agents-Office/issues
 - Discord: see the badge in [`README.md`](README.md)
 - The `CHANGELOG.md` is ground truth for what shipped in each tag.

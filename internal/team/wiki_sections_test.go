@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // sectionsTestRepo spins up a fresh Repo backed by t.TempDir(). Returns a

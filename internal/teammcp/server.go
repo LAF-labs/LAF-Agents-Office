@@ -14,9 +14,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nex-crm/laf-office/internal/action"
-	"github.com/nex-crm/laf-office/internal/brokeraddr"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 const defaultBrokerTokenFile = brokeraddr.DefaultTokenFile

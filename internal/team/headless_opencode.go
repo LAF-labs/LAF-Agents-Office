@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/runtimebin"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
 )
 
 // Opencode-specific test hooks. Kept separate from the codex hooks so test

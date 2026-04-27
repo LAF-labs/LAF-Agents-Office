@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
 )
 
 // cmdRecord dispatches record sub-commands: list, get, create, upsert, update, delete, timeline.

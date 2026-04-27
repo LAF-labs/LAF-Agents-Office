@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
 )
 
 // extractSecondArtifactResponse returns an extraction payload for the SAME

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // ---------------------------------------------------------------------------

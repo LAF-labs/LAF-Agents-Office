@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 )
 
 func TestTeamSkillCreateRegisteredForSpecialists(t *testing.T) {

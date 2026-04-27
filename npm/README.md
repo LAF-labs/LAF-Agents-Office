@@ -5,19 +5,19 @@
 A collaborative office for AI employees with a shared brain, running your work 24x7.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nex-crm/laf-office/main/assets/hero.png" alt="LAF-Office onboarding — Your AI team, visible and working." width="720" />
+  <img src="https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/assets/hero.png" alt="LAF-Office onboarding — Your AI team, visible and working." width="720" />
 </p>
 
 [![npm](https://img.shields.io/npm/v/laf-office?color=A87B4F)](https://www.npmjs.com/package/laf-office)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
-[![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](https://github.com/nex-crm/laf-office/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](https://github.com/LAF-labs/LAF-Agents-Office/blob/main/LICENSE)
 
 One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original LAF-Office.com, this one works.
 
 > *"LAF-Office. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office."*
 > — Ryan Howard, Season 7
 
-[▶ 30-second teaser and full walkthrough on GitHub](https://github.com/nex-crm/laf-office#readme)
+[▶ 30-second teaser and full walkthrough on GitHub](https://github.com/LAF-labs/LAF-Agents-Office#readme)
 
 ## Get Started
 
@@ -35,7 +35,7 @@ Prefer a global install?
 npm install -g laf-office && laf-office
 ```
 
-Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-downloaded from [GitHub releases](https://github.com/nex-crm/laf-office/releases) on first run and cached under `node_modules/laf-office/bin/`.
+Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-downloaded from [GitHub releases](https://github.com/LAF-labs/LAF-Agents-Office/releases) on first run and cached under `node_modules/laf-office/bin/`.
 
 > **Stability:** pre-1.0. `main` moves daily. Pin to a release tag, not `main`.
 
@@ -152,11 +152,11 @@ The joke still fits. Except this LAF-Office ships.
 ## Links
 
 - **Website:** https://laf-office.team
-- **Source:** https://github.com/nex-crm/laf-office
-- **Issues:** https://github.com/nex-crm/laf-office/issues
+- **Source:** https://github.com/LAF-labs/LAF-Agents-Office
+- **Issues:** https://github.com/LAF-labs/LAF-Agents-Office/issues
 - **Discord:** https://discord.gg/gjSySC3PzV
-- **Architecture:** https://github.com/nex-crm/laf-office/blob/main/ARCHITECTURE.md
-- **Forking guide:** https://github.com/nex-crm/laf-office/blob/main/FORKING.md
+- **Architecture:** https://github.com/LAF-labs/LAF-Agents-Office/blob/main/ARCHITECTURE.md
+- **Forking guide:** https://github.com/LAF-labs/LAF-Agents-Office/blob/main/FORKING.md
 
 ## Dev override
 

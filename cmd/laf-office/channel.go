@@ -23,12 +23,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/nex-crm/laf-office/internal/company"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/setup"
-	"github.com/nex-crm/laf-office/internal/team"
-	"github.com/nex-crm/laf-office/internal/tui"
-	"github.com/nex-crm/laf-office/internal/workspace"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/workspace"
 )
 
 type channelMsg struct {

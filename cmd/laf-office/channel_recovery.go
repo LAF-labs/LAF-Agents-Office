@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 func (m channelModel) currentRuntimeSnapshot() team.RuntimeSnapshot {

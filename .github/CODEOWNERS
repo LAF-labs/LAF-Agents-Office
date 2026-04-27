@@ -13,25 +13,24 @@
 # Global default: every change pings the maintainer.
 *   @FranDias
 
-# Go service code & tests
-/cmd/                       @FranDias @nex-crm/backend
-/internal/                  @FranDias @nex-crm/backend
-/tests/                     @FranDias @nex-crm/backend
-go.mod                      @FranDias @nex-crm/backend
-go.sum                      @FranDias @nex-crm/backend
+/cmd/                       @FranDias
+/internal/                  @FranDias
+/tests/                     @FranDias
+go.mod                      @FranDias
+go.sum                      @FranDias
 
 # Web UI (vite + React + biome)
-/web/                       @FranDias @nex-crm/web
+/web/                       @FranDias
 
 # Build, release, and supply-chain hygiene — owners across both teams,
 # since a regression here breaks every consumer of every artifact.
-/.github/                   @FranDias @nex-crm/backend @nex-crm/web
-/scripts/                   @FranDias @nex-crm/backend
-/lefthook.yml               @FranDias @nex-crm/backend @nex-crm/web
-/.golangci.yml              @FranDias @nex-crm/backend
-/.goreleaser.yml            @FranDias @nex-crm/backend
-/.commitlintrc.json         @FranDias @nex-crm/backend @nex-crm/web
-/.secretlintrc.json         @FranDias @nex-crm/backend @nex-crm/web
+/.github/                   @FranDias
+/scripts/                   @FranDias
+/lefthook.yml               @FranDias
+/.golangci.yml              @FranDias
+/.goreleaser.yml            @FranDias
+/.commitlintrc.json         @FranDias
+/.secretlintrc.json         @FranDias
 
 # Public-facing surfaces
 README.md                   @FranDias

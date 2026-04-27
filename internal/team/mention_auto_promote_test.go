@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 )
 
 // User typed "@pm do you know of Lenny's PM fit frameworks?" in #general.

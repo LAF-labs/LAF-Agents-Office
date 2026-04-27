@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/operations"
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 func testRepoRoot(t *testing.T) string {

@@ -14,9 +14,9 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/nex-crm/laf-office/internal/action"
-	"github.com/nex-crm/laf-office/internal/calendar"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/calendar"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 // readOnlyActionVerbs are unambiguous information-read verbs. Matched as

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-REPO="nex-crm/laf-office"
+REPO="LAF-labs/LAF-Agents-Office"
 BINARY="laf-office"
 
 # Detect OS

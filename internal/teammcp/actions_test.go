@@ -10,7 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
 )
 
 type stubActionProvider struct{}

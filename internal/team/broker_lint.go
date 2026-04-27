@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // brokerLintProvider wraps provider.RunConfiguredOneShot as a QueryProvider.

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 type headlessCodexRecord struct {

@@ -14,10 +14,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/gitexec"
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 var (

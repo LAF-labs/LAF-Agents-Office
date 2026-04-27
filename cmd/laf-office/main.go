@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/buildinfo"
-	"github.com/nex-crm/laf-office/internal/commands"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/team"
-	"github.com/nex-crm/laf-office/internal/teammcp"
-	"github.com/nex-crm/laf-office/internal/workspace"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/commands"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/teammcp"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/workspace"
 )
 
 const appName = "laf-office"

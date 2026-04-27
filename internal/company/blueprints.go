@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // LoadRuntimeManifest resolves any active blueprint refs into a startup-ready

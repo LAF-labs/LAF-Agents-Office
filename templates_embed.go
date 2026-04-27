@@ -4,7 +4,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // templatesBundle ships the blueprint YAML tree with the binary so that

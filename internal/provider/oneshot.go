@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 // RunConfiguredOneShot runs a single-shot generation using the active LLM

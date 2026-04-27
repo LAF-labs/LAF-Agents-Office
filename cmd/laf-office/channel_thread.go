@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/nex-crm/laf-office/internal/tui"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
 )
 
 // renderThreadPanel renders the thread side panel with parent message,

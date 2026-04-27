@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/api"
-	"github.com/nex-crm/laf-office/internal/company"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/setup"
-	"github.com/nex-crm/laf-office/internal/tui/render"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui/render"
 )
 
 // ErrQuit is returned by quit commands so the caller can signal clean exit.

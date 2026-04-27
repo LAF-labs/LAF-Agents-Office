@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
 )
 
 func newGossipTestClient(serverURL string) *api.Client {

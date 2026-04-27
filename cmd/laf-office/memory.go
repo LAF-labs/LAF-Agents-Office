@@ -19,10 +19,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/nex-crm/laf-office/internal/api"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/migration"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/migration"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 // runMemory dispatches `laf-office memory <verb>`. Called from main.go when

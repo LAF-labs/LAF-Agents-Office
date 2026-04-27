@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/calendar"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/calendar"
 )
 
 // cmdCalendar handles /calendar [add|remove|list] subcommands and renders the week grid.

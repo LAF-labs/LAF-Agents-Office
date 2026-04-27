@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
 )
 
 func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {

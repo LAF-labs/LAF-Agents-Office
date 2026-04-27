@@ -38,7 +38,7 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 
-const REPO = "nex-crm/laf-office";
+const REPO = "LAF-labs/LAF-Agents-Office";
 const CHECKSUMS_FILENAME = "checksums.txt";
 
 function detectPlatform() {

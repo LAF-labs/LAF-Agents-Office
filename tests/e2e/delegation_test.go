@@ -3,8 +3,8 @@ package e2e
 import (
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/orchestration"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/orchestration"
 )
 
 // fakeResolver returns a StreamFnResolver that maps agent slugs to canned responses.

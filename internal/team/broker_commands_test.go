@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/commands"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/commands"
 )
 
 // newCommandsHTTPTest spins up a minimal broker + /commands route for the

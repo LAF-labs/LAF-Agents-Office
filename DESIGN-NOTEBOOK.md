@@ -374,7 +374,7 @@ The following were considered and explicitly deferred:
 
 | Screen/Section | Mockup Path | Direction | Notes |
 |---|---|---|---|
-| Notebook article view | `~/.gstack/projects/nex-crm-laf-office/designs/notebooks-20260420/variant-A-physical.html` | Physical notebook — tan ruled paper, Caveat handwritten display, IBM Plex Serif body, rotated red DRAFT stamp | Caveat dose MUST be restricted to the four permitted zones (see Typography section). Current mock shows a `.body h2` rule using Caveat at 30px — change to Plex Serif at 30px during implementation. Inline review thread (Pass 7.1) is not yet in the mock — add below the body when review status ≠ null. |
+| Notebook article view | `~/.gstack/projects/laf-labs-laf-agents-office/designs/notebooks-20260420/variant-A-physical.html` | Physical notebook — tan ruled paper, Caveat handwritten display, IBM Plex Serif body, rotated red DRAFT stamp | Caveat dose MUST be restricted to the four permitted zones (see Typography section). Current mock shows a `.body h2` rule using Caveat at 30px — change to Plex Serif at 30px during implementation. Inline review thread (Pass 7.1) is not yet in the mock — add below the body when review status ≠ null. |
 
 ## Decisions Log
 

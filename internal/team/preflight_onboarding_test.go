@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/onboarding"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 )
 
 // TestPreflightWebSkipsProviderCheckWhenNotOnboarded verifies that the web

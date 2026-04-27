@@ -52,9 +52,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/onboarding"
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // SectionsRefreshDebounce bounds how often DiscoverSections runs under a

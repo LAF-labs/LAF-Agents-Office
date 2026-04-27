@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/openclaw"
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // openclawBootstrapDialer is an override hook for tests. When non-nil it is

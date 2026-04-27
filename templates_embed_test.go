@@ -3,8 +3,8 @@ package lafoffice_test
 import (
 	"testing"
 
-	lafoffice "github.com/nex-crm/laf-office"
-	"github.com/nex-crm/laf-office/internal/operations"
+	lafoffice "github.com/LAF-labs/LAF-Agents-Office"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // Verifies the //go:embed all:templates/... directive in templates_embed.go

@@ -34,7 +34,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 // ----- JSONL shapes (must match bench/slice-1/generate.go) ------------------

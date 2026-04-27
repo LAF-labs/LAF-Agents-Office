@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 func writeFakeOne(t *testing.T) string {

@@ -16,7 +16,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 func ensureBrokerMembers(t *testing.T, ctx context.Context, slugs ...string) {

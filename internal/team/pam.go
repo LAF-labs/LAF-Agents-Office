@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // PamSlug is the identity used for Pam's sub-process dispatch. Kept distinct

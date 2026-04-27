@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/company"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 func TestOperationBlueprintMatrixBuildsBootstrapPackage(t *testing.T) {

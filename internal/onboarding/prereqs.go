@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/runtimebin"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
 )
 
 // PrereqResult describes the detection outcome for a single prerequisite binary.

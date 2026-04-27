@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
 )
 
 // TestRunIgnoresInheritedGitDir is the regression test for the class of bug

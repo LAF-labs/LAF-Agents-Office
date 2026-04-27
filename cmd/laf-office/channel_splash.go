@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/nex-crm/laf-office/internal/company"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 )
 
 // ── Splash phases ───────────────────────────────────────────────

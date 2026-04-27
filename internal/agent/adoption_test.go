@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 )
 
 func ptr(f float64) *float64 { return &f }

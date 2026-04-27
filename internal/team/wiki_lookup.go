@@ -38,7 +38,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // brokerQueryProvider wraps provider.RunConfiguredOneShot so it satisfies

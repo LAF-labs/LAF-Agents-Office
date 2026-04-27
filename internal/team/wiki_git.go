@@ -50,8 +50,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
 )
 
 // ErrGitUnavailable is returned by Init when the `git` binary cannot be

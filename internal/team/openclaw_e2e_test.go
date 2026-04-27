@@ -13,8 +13,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
 )
 
 // TestOpenclawBridgeFullPipeline_E2E exercises the OpenClaw bridge end-to-end

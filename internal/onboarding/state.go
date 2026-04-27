@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 // currentStateVersion is the schema version written to onboarded.json.

@@ -1,4 +1,4 @@
-module github.com/nex-crm/laf-office
+module github.com/LAF-labs/LAF-Agents-Office
 
 go 1.25.9
 

@@ -3,9 +3,9 @@ package team
 import (
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/provider"
-	"github.com/nex-crm/laf-office/internal/providertest"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/providertest"
 )
 
 // TestUsesPaneRuntime_ConsultsRegistryCapabilities is the epicentric red test

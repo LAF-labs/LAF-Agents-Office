@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
 )
 
 // ghostBriefResponse returns an extraction payload that mints exactly one

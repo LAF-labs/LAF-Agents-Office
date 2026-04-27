@@ -10,7 +10,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // systemPrompt is the fixed system message sent before every eval prompt.

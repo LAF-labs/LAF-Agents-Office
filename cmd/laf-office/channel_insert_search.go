@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/nex-crm/laf-office/internal/team"
-	"github.com/nex-crm/laf-office/internal/tui"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
 )
 
 func (m channelModel) buildInsertPickerOptions() []tui.PickerOption {

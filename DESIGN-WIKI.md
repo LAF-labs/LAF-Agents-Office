@@ -292,9 +292,9 @@ If you are considering any of the above, stop and escalate rather than ship it.
 ## Preview assets (reference during implementation)
 
 The three preview mocks produced during /design-consultation are saved at:
-- `~/.gstack/projects/nex-crm-laf-office/designs/wiki-design-20260419/preview-v1.html` — modernized only (baseline)
-- `~/.gstack/projects/nex-crm-laf-office/designs/wiki-design-20260419/preview-v2-hybrid.html` — modern type + Wikipedia chrome
-- `~/.gstack/projects/nex-crm-laf-office/designs/wiki-design-20260419/preview-v3.html` — V3 (ACCEPTED — the one this spec is based on)
+- `~/.gstack/projects/laf-labs-laf-agents-office/designs/wiki-design-20260419/preview-v1.html` — modernized only (baseline)
+- `~/.gstack/projects/laf-labs-laf-agents-office/designs/wiki-design-20260419/preview-v2-hybrid.html` — modern type + Wikipedia chrome
+- `~/.gstack/projects/laf-labs-laf-agents-office/designs/wiki-design-20260419/preview-v3.html` — V3 (ACCEPTED — the one this spec is based on)
 
 Open them in a browser while implementing. Every component, spacing value, and interaction above is grounded in V3.
 

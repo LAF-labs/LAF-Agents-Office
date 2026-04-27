@@ -1,9 +1,9 @@
 package provider
 
 import (
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/api"
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 // ProviderKindResolver maps an agent slug to its registered provider Kind.

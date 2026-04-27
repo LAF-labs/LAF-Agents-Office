@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 // TestMain mirrors internal/team/worktree_guard_test.go's flag flip for

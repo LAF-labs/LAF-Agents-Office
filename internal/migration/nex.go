@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
 )
 
 // DefaultNexTypes is the seed list of Nex object types the adapter walks

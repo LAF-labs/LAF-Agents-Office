@@ -9,11 +9,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/nex"
-	"github.com/nex-crm/laf-office/internal/operations"
-	"github.com/nex-crm/laf-office/internal/runtimebin"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
 )
 
 var initFlowLookPathFn = runtimebin.LookPath

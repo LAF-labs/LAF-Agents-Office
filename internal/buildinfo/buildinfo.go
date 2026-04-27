@@ -9,7 +9,7 @@ import (
 var embeddedVersion string
 
 // Version is set at link time via
-// `-ldflags "-X github.com/nex-crm/laf-office/internal/buildinfo.Version=<tag>"`
+// `-ldflags "-X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.Version=<tag>"`
 // for tagged release builds. When empty (e.g. `go build ./cmd/laf-office` with no
 // ldflags), Current() falls back to the embedded VERSION file so contributor
 // builds still report a real version instead of a hardcoded default.

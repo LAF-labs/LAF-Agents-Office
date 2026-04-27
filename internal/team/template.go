@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 type generatedMemberTemplate struct {

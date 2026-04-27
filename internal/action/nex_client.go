@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/api"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/nex"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
 )
 
 type nexAskResponse struct {

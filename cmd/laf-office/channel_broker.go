@@ -12,8 +12,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/nex-crm/laf-office/internal/brokeraddr"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 func currentBrokerAuthToken() string {

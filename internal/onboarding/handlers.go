@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // CompleteFunc is the side-effect hook invoked by HandleComplete when the

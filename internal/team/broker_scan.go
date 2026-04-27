@@ -30,7 +30,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nex-crm/laf-office/internal/scanner"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/scanner"
 )
 
 // scanStatusTracker tracks the most recent ScanResult per root-hash. The

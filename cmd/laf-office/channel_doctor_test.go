@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 func TestInspectDoctorUsesCapabilityRegistry(t *testing.T) {

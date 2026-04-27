@@ -14,8 +14,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 type taskLogRecord struct {

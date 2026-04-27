@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/genai"
 
-	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 )
 
 const geminiModel = "gemini-2.0-flash"

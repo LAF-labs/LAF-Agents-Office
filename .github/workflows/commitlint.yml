@@ -4,11 +4,6 @@ name: commitlint
 # hook (lefthook.yml :: commitlint) so commits that bypass the local hook
 # (e.g. via the GitHub UI or --no-verify) are still caught at PR time.
 #
-# This is the only mandatory workflow from the org policy that laf-office was
-# missing pre-#283 (per nex-crm/.github :: org-rulesets/required-workflows).
-# Public-repo convention is to inline rather than delegate, matching
-# secret-scan.yml in this repo.
-
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]

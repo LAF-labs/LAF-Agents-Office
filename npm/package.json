@@ -28,11 +28,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nex-crm/laf-office.git"
+    "url": "git+https://github.com/LAF-labs/LAF-Agents-Office.git"
   },
   "homepage": "https://laf-office.team",
   "bugs": {
-    "url": "https://github.com/nex-crm/laf-office/issues"
+    "url": "https://github.com/LAF-labs/LAF-Agents-Office/issues"
   },
   "license": "MIT",
   "keywords": [

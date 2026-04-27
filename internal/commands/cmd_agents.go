@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // cmdAgent handles /agent with subcommands: list, <slug>, create, edit, remove

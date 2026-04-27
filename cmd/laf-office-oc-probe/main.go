@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
 )
 
 func main() {

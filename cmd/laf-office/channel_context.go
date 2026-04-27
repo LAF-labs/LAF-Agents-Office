@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/nex-crm/laf-office/internal/tui"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
 )
 
 type channelInteractionContext string

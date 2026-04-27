@@ -3,7 +3,7 @@ package team
 import (
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
 )
 
 // nameWithPortSuffix decides the tmux socket and session names at package

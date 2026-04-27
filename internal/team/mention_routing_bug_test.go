@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 )
 
 // This file reproduces three bug scenarios reported by the user:
@@ -231,10 +231,10 @@ func TestBug_HumanDMsSpecialist_Dispatch_SpecialistReceivesTurn(t *testing.T) {
 	// their stubs filter by the target slug. Skipping here rather than
 	// muting the alarm: fixing the leak needs a Launcher.Stop() teardown
 	// that this session does not scope.
-	// Tracked in nex-crm/laf-office#268 — un-skip once Launcher.Stop() drains
+	// Tracked in LAF-labs/LAF-Agents-Office#268 — un-skip once Launcher.Stop() drains
 	// headless worker goroutines so this test no longer inherits a leaked
 	// runHeadlessCodexQueue writer from an earlier test.
-	t.Skip("known flake: leaked headlessCodex queue goroutine from earlier test — see nex-crm/laf-office#268")
+	t.Skip("known flake: leaked headlessCodex queue goroutine from earlier test — see LAF-labs/LAF-Agents-Office#268")
 	l, processed, cleanup := fullDispatchLauncher(t)
 	defer cleanup()
 

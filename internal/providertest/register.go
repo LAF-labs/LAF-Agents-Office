@@ -3,7 +3,7 @@ package providertest
 import (
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // RegisterForTest installs e for tests that need a fake provider kind.

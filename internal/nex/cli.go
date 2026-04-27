@@ -1,8 +1,6 @@
 // Package nex wraps the nex-cli binary. LAF-Office no longer speaks the legacy
 // app.nex.ai HTTP API for detection, registration, or memory recall — those
-// paths now shell out to the nex-cli binary from the nex-as-a-skill project:
-//
-//	https://github.com/nex-crm/nex-as-a-skill
+// paths now shell out to the nex-cli binary from the nex-as-a-skill project.
 //
 // The user is considered "Nex-connected" when nex-cli is on PATH and the
 // --no-nex flag (LAF_OFFICE_NO_NEX) is not set. Every shell-out uses a context
@@ -20,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/buildinfo"
-	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
 // DefaultTimeout is the deadline applied to every nex-cli shell-out when the

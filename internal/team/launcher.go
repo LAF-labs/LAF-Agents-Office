@@ -26,18 +26,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/action"
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/brokeraddr"
-	"github.com/nex-crm/laf-office/internal/calendar"
-	"github.com/nex-crm/laf-office/internal/company"
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/nex"
-	"github.com/nex-crm/laf-office/internal/onboarding"
-	"github.com/nex-crm/laf-office/internal/operations"
-	"github.com/nex-crm/laf-office/internal/provider"
-	"github.com/nex-crm/laf-office/internal/runtimebin"
-	"github.com/nex-crm/laf-office/internal/setup"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/calendar"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
 )
 
 const (
@@ -3661,7 +3661,7 @@ func paneFallbackMessages(tmuxInstalled bool, detail string) (stderrMsg, brokerM
 		return
 	}
 	stderrMsg = fmt.Sprintf(
-		"  Agents:  pane-backed fallback attempted but unavailable (%s). %s tmux IS installed but rejected the launch command; please file a bug with the detail above at https://github.com/nex-crm/laf-office/issues.\n",
+		"  Agents:  pane-backed fallback attempted but unavailable (%s). %s tmux IS installed but rejected the launch command; please file a bug with the detail above at https://github.com/LAF-labs/LAF-Agents-Office/issues.\n",
 		detail, headlessBlurb,
 	)
 	brokerMsg = fmt.Sprintf(

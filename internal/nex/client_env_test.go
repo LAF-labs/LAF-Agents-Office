@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/buildinfo"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
 )
 
 func TestAppendClientEnvSetsDefault(t *testing.T) {

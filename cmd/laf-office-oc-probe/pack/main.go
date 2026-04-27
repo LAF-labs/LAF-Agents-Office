@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/laf-office/internal/config"
-	"github.com/nex-crm/laf-office/internal/openclaw"
-	"github.com/nex-crm/laf-office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 type packMember struct {

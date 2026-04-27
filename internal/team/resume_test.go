@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/laf-office/internal/agent"
-	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // agent is used by the routing tests to construct legacy compatibility packs.
