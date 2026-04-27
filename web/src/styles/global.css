@@ -13,7 +13,7 @@
 }
 
 :root {
-  /* Nex.System Figma ramps — mirrored here so first paint matches theme */
+  /* LAF-Office ramps — mirrored here so first paint matches theme */
   --neutral-950: #1e1f1f;
   --neutral-900: #28292a;
   --neutral-800: #323334;
@@ -27,23 +27,17 @@
   --neutral-50: #f2f2f3;
   --neutral-10: #f8f8f9;
 
-  --tertiary-500: #612a92;
-  --tertiary-400: #9f4dbf;
-  --tertiary-300: #cf72d9;
-  --tertiary-200: #ffb3e6;
-  --tertiary-100: #ffebfc;
+  --tertiary-500: #7a5a18;
+  --tertiary-400: #c49020;
+  --tertiary-300: #ecb22e;
+  --tertiary-200: #f7deab;
+  --tertiary-100: #fdf6dc;
 
   --olive-500: #3f4224;
   --olive-400: #969640;
   --olive-300: #d4db18;
   --olive-200: #eef679;
   --olive-100: #f8ffdb;
-
-  --cyan-500: #069de4;
-  --cyan-400: #00ccff;
-  --cyan-300: #46f7fd;
-  --cyan-200: #a3fcff;
-  --cyan-100: #e5feff;
 
   --success-500: #0d5935;
   --success-400: #03a04c;
@@ -81,9 +75,9 @@
   --text-secondary: var(--neutral-500);
   --text-tertiary: var(--neutral-400);
   --text-disabled: var(--neutral-300);
-  --accent: var(--tertiary-400);
-  --accent-warm: var(--tertiary-500);
-  --accent-bg: var(--tertiary-100);
+  --accent: #ecb22e;
+  --accent-warm: #c49020;
+  --accent-bg: rgba(236, 178, 46, 0.16);
   --border: var(--neutral-100);
   --border-light: var(--neutral-50);
   --border-dark: var(--neutral-200);
@@ -97,8 +91,8 @@
   --yellow: var(--warning-400);
   --yellow-dark: var(--warning-500);
   --yellow-bg: var(--warning-100);
-  --blue: var(--cyan-500);
-  --blue-bg: var(--cyan-100);
+  --blue: #1264a3;
+  --blue-bg: #edf5fa;
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-serif:

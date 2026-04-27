@@ -64,13 +64,13 @@
 }
 
 .wiki-tab:focus-visible {
-  outline: 2px solid var(--accent, #1264a3);
+  outline: 2px solid #1264a3;
   outline-offset: -2px;
 }
 
 .wiki-tab.is-active {
   color: var(--text, #1d1c1d);
-  border-bottom-color: var(--accent, #1264a3);
+  border-bottom-color: #1264a3;
 }
 
 .wiki-tab-label {
@@ -84,11 +84,22 @@
   min-width: 18px;
   height: 18px;
   padding: 0 6px;
-  background: var(--purple, #9f4dbf);
-  color: #ffffff;
+  background: #fdf6dc;
+  color: #1d1c1d;
   font-family: "Geist Mono", "SFMono-Regular", Menlo, monospace;
   font-size: 11px;
   font-weight: 500;
   line-height: 1;
-  border-radius: 9px;
+  border: 1px solid #e8e4d8;
+  border-radius: 4px;
+}
+
+.wiki-shell:has(.notebook-surface) .wiki-tab.is-active {
+  border-bottom-color: #274472;
+}
+
+.wiki-shell:has(.notebook-surface) .wiki-tab-badge {
+  background: rgba(199, 138, 31, 0.1);
+  border-color: #d9ceb5;
+  color: #2a2721;
 }

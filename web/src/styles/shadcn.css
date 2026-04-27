@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════
-   shadcn/ui theme mapped onto NEX design tokens.
+   shadcn/ui theme mapped onto LAF-Office design tokens.
    HSL values derived from web/public/themes/nex.css so that shadcn
    primitives share the same visual language as the rest of the
    app. Scoped to [data-theme="nex"] to coexist with other themes.
@@ -20,9 +20,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 2% 15%;
 
-    /* Brand — NEX cyan */
-    --primary: 200 94% 46%; /* #069DE4 */
-    --primary-foreground: 0 0% 100%;
+    /* Brand — LAF-Office amber */
+    --primary: 41 83% 55%; /* #ECB22E */
+    --primary-foreground: 36 23% 8%; /* #1A1610 */
 
     /* Secondary surface — warm neutral */
     --secondary: 240 6% 96%; /* #F5F5F6 */
@@ -33,17 +33,17 @@
     --muted-foreground: 220 3% 47%; /* #686A6E */
 
     /* Accent (hover / subtle fill) */
-    --accent: 200 94% 46%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 41 83% 55%;
+    --accent-foreground: 36 23% 8%;
 
-    /* Destructive — NEX red */
+    /* Destructive */
     --destructive: 4 76% 52%; /* #E23428 */
     --destructive-foreground: 0 0% 100%;
 
     /* Borders / inputs / focus */
     --border: 240 5% 92%; /* #E9E9EB */
     --input: 240 5% 92%;
-    --ring: 200 94% 46%;
+    --ring: 41 83% 55%;
 
     --radius: 8px;
   }

@@ -1,27 +1,34 @@
 /* Wiki surface — scoped to .wiki-root.
- * Aligned to the Nex design system: cyan accent, neutral palette.
- * Keeps Wikipedia IA + editorial serif hierarchy for articles only.
+ * Per DESIGN-WIKI.md: warm paper reference surface with blue wikilinks,
+ * amber notices, and editorial serif hierarchy for articles only.
  */
 .wiki-root {
-  --wk-paper: var(--bg);
-  --wk-paper-dark: var(--bg-warm);
-  --wk-surface: var(--bg-card);
-  --wk-text: var(--text);
-  --wk-text-muted: var(--text-secondary);
-  --wk-text-tertiary: var(--text-tertiary);
-  --wk-border: var(--border);
-  --wk-border-light: var(--border-light);
-  --wk-border-strong: var(--border-dark);
-  --wk-wikilink: var(--olive-500);
-  --wk-wikilink-broken: var(--red);
-  --wk-amber: var(--olive-500);
-  --wk-amber-bg: var(--olive-200);
-  --wk-amber-banner: var(--olive-100);
-  --wk-code-bg: var(--bg-warm);
-  --wk-display: var(--font-sans);
+  --wk-paper: #faf8f2;
+  --wk-paper-dark: #f5f1e6;
+  --wk-surface: #ffffff;
+  --wk-surface-alt: #f5f1e6;
+  --wk-text: #1d1c1d;
+  --wk-text-muted: #616061;
+  --wk-text-tertiary: #8a8680;
+  --wk-border: #e8e4d8;
+  --wk-border-light: #f0ece0;
+  --wk-border-strong: #b8b0a0;
+  --wk-wikilink: #1264a3;
+  --wk-wikilink-broken: #c94a4a;
+  --wk-amber: #ecb22e;
+  --wk-amber-bg: rgba(236, 178, 46, 0.15);
+  --wk-amber-banner: #fdf6dc;
+  --wk-code-bg: #f5f1e6;
+  --wk-accent: var(--wk-wikilink);
+  --wk-accent-ink: var(--wk-wikilink);
+  --wk-body: "Source Serif 4", ui-serif, Georgia, serif;
+  --wk-body-muted: var(--wk-text-muted);
+  --wk-display: "Fraunces", ui-serif, Georgia, serif;
   --wk-body-serif: "Source Serif 4", ui-serif, Georgia, serif;
-  --wk-chrome: var(--font-sans);
-  --wk-mono: var(--font-mono);
+  --wk-chrome:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
+    sans-serif;
+  --wk-mono: "Geist Mono", "SFMono-Regular", Menlo, monospace;
   --wk-sidebar-left: 240px;
   --wk-sidebar-right: 280px;
   --wk-article-max: 640px;
@@ -102,7 +109,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--neutral-300);
+  color: var(--wk-text-tertiary);
   margin: 0 0 4px;
   padding: 0 10px;
 }
@@ -288,7 +295,7 @@
   font-size: 52px;
   font-weight: 500;
   line-height: 1.05;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
   color: var(--wk-text);
   font-variation-settings: "opsz" 100;
   margin: 0 0 4px;
@@ -390,7 +397,7 @@
   font-weight: 500;
   line-height: 1.2;
   margin: 40px 0 14px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   font-variation-settings: "opsz" 36;
   border-bottom: 1px solid var(--wk-border);
   padding-bottom: 6px;
@@ -1311,7 +1318,7 @@
   color: var(--wk-text-muted);
   background: var(--wk-surface-alt);
   border: 1px solid var(--wk-border);
-  border-radius: 999px;
+  border-radius: 3px;
   padding: 1px 8px;
   margin-left: 4px;
 }
@@ -1431,16 +1438,15 @@
   opacity: 0.7;
 }
 .wk-section-new {
-  font-family:
-    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--wk-chrome);
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 3px;
-  background: #cff5f5;
-  color: #0f5c5c;
+  background: var(--wk-amber-banner);
+  color: var(--wk-text);
 }
 .wk-section-empty {
   padding: 4px 10px;
@@ -2132,7 +2138,7 @@
 .wk-playbook-synthesis__pending {
   font-family: var(--wk-mono);
   font-size: 11px;
-  color: #b0821c;
+  color: var(--wk-amber);
 }
 .wk-playbook-synthesis__button {
   font-family: var(--wk-chrome);

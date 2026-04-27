@@ -548,7 +548,7 @@ function GraphEdge({
         x2={coords.x2}
         y2={coords.y2}
         stroke={
-          active ? "var(--accent, #612a92)" : "var(--border-dark, #cfd1d2)"
+          active ? "var(--accent, #ecb22e)" : "var(--border-dark, #cfd1d2)"
         }
         strokeWidth={active ? 2 : 1.25}
         markerEnd="url(#graph-arrow)"

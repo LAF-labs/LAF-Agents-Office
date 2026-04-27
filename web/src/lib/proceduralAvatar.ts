@@ -219,18 +219,18 @@ const NECK_STYLES = [neckNone, neckNone, neckTie, neckBadge];
 // ── Palette pools ──────────────────────────────────────────────────────
 
 const ACCENT_POOL: string[] = [
-  "#E8A838", // amber
-  "#58A6FF", // blue
-  "#A371F7", // violet
-  "#3FB950", // green
-  "#D2A8FF", // lilac
-  "#F778BA", // pink
-  "#FFA657", // orange
-  "#79C0FF", // sky
-  "#FF7B72", // coral
-  "#56D4DD", // teal
-  "#FFD866", // yellow
-  "#C9D1D9", // slate
+  "#ECB22E", // amber
+  "#C78A1F", // aged amber
+  "#7A5A18", // brass
+  "#274472", // ink blue
+  "#1264A3", // wiki blue
+  "#6A8B52", // approval green
+  "#B43A2F", // stamp red
+  "#994200", // brown orange
+  "#8A8373", // warm gray
+  "#5B5547", // graphite
+  "#D9CEB5", // paper edge
+  "#F4B6C2", // muted receipt pink
 ];
 
 const HAIR_POOL: Rgb[] = [

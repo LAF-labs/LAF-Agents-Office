@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
-   LAF-Office Theme: Nex Dark
-   Dark variant of the Nex theme. Structural rules live in nex.css
+   LAF-Office Theme: Dark
+   Dark variant of the LAF-Office theme. Structural rules live in nex.css
    (scoped with [data-theme^="nex"]) and are inherited here.
    This file only overrides the semantic token layer.
    ═══════════════════════════════════════════════════════════════ */
@@ -29,17 +29,15 @@ html[data-theme="nex-dark"] {
   --text-tertiary:  #686c6e;
   --text-disabled:  #434647;
 
-  /* accent stays the same purple/tertiary */
-
   --border:         #1e2022;
   --border-light:   #171819;
   --border-dark:    #2a2d2f;
   --border-strong:  #434647;
 
-  /* ── Sidebar – keep purple but use a deeper shade ── */
-  --nex-sidebar:             #4a1f70;
-  --nex-sidebar-hover:       rgba(255, 255, 255, 0.08);
-  --nex-sidebar-active:      var(--olive-400);
+  /* ── Sidebar ── */
+  --nex-sidebar:             #1a1610;
+  --nex-sidebar-hover:       rgba(236, 178, 46, 0.12);
+  --nex-sidebar-active:      #ecb22e;
   --nex-sidebar-text:        rgba(255, 255, 255, 0.65);
   --nex-sidebar-text-active: #FFFFFF;
 }
@@ -57,12 +55,12 @@ html[data-theme="nex-dark"] .composer-inner {
 
 /* ── Sidebar bottom matches deeper dark ── */
 html[data-theme="nex-dark"] .sidebar-bottom {
-  background: #4a1f70;
+  background: #1a1610;
 }
 
 /* ── Sidebar sticky header ── */
 html[data-theme="nex-dark"] .sidebar-header {
-  background: #4a1f70;
+  background: #1a1610;
 }
 
 /* ── Message hover on dark bg ── */

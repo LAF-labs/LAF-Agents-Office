@@ -234,7 +234,7 @@ html[data-theme="nex"] .sidebar-rail-bottom {
   font-family: var(--font-logo);
   font-style: italic;
   font-size: 22px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   cursor: pointer;
 }
 .sidebar-btn {
@@ -442,8 +442,8 @@ html[data-theme="nex"] .sidebar.sidebar-collapsed .sidebar-rail-bottom.active,
 html[data-theme="nex"]
   .sidebar.sidebar-collapsed
   .sidebar-rail-bottom.active:hover {
-  background: var(--cyan-400);
-  color: #0b3a44;
+  background: var(--nex-sidebar-active);
+  color: #1a1610;
 }
 
 /* ─── Provider switcher ─── */
