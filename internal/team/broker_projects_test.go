@@ -13,8 +13,9 @@ func TestProjectsAPIAndTaskFiltering(t *testing.T) {
 	b := newTestBroker(t)
 
 	projectA := createProjectForTest(t, b, map[string]string{
-		"name":       "Customer Portal",
-		"created_by": "human",
+		"name":            "Customer Portal",
+		"created_by":      "human",
+		"github_repo_url": " https://github.com/laf-labs/customer-portal ",
 	})
 	projectB := createProjectForTest(t, b, map[string]string{
 		"id":         "agent-lab",
@@ -23,6 +24,9 @@ func TestProjectsAPIAndTaskFiltering(t *testing.T) {
 	})
 	if projectA.ID != "customer-portal" {
 		t.Fatalf("project id = %q, want customer-portal", projectA.ID)
+	}
+	if projectA.GitHubRepoURL != "https://github.com/laf-labs/customer-portal" {
+		t.Fatalf("project github_repo_url = %q", projectA.GitHubRepoURL)
 	}
 
 	createTaskForProjectTest(t, b, "Portal board", projectA.ID)
@@ -66,8 +70,9 @@ func TestProjectStatePersistsWithTasks(t *testing.T) {
 	statePath := filepath.Join(t.TempDir(), "broker-state.json")
 	b := NewBrokerAt(statePath)
 	project := createProjectForTest(t, b, map[string]string{
-		"name":       "Launch Room",
-		"created_by": "human",
+		"name":            "Launch Room",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:LAF-labs/launch-room.git",
 	})
 	task := createTaskForProjectTest(t, b, "Invite first teammate", project.ID)
 
@@ -89,6 +94,9 @@ func TestProjectStatePersistsWithTasks(t *testing.T) {
 	if len(projectsBody.Projects) != 1 || projectsBody.Projects[0].ID != project.ID {
 		t.Fatalf("loaded projects = %+v, want %q", projectsBody.Projects, project.ID)
 	}
+	if projectsBody.Projects[0].GitHubRepoURL != "git@github.com:LAF-labs/launch-room.git" {
+		t.Fatalf("loaded project github_repo_url = %q", projectsBody.Projects[0].GitHubRepoURL)
+	}
 
 	tasksRec := httptest.NewRecorder()
 	loaded.handleGetTasks(tasksRec, httptest.NewRequest(http.MethodGet, "/tasks?all_channels=true&include_done=true&project_id="+project.ID, nil))
@@ -103,6 +111,58 @@ func TestProjectStatePersistsWithTasks(t *testing.T) {
 	}
 	if len(tasksBody.Tasks) != 1 || tasksBody.Tasks[0].ID != task.ID || tasksBody.Tasks[0].ProjectID != project.ID {
 		t.Fatalf("loaded tasks = %+v, want task %q in project %q", tasksBody.Tasks, task.ID, project.ID)
+	}
+}
+
+func TestProjectGitHubRepoURLCanBeUpdatedAndCleared(t *testing.T) {
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Repo Setup",
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/old",
+	})
+
+	updateRec := httptest.NewRecorder()
+	b.handleProjects(updateRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":          "update",
+		"id":              project.ID,
+		"name":            project.Name,
+		"description":     project.Description,
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/new",
+	}))
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update project status = %d, want %d: %s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+	var updated struct {
+		Project teamProject `json:"project"`
+	}
+	if err := json.NewDecoder(updateRec.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode updated project: %v", err)
+	}
+	if updated.Project.GitHubRepoURL != "https://github.com/laf-labs/new" {
+		t.Fatalf("updated github_repo_url = %q", updated.Project.GitHubRepoURL)
+	}
+
+	clearRec := httptest.NewRecorder()
+	b.handleProjects(clearRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":          "update",
+		"id":              project.ID,
+		"name":            project.Name,
+		"created_by":      "human",
+		"github_repo_url": "",
+	}))
+	if clearRec.Code != http.StatusOK {
+		t.Fatalf("clear project repo status = %d, want %d: %s", clearRec.Code, http.StatusOK, clearRec.Body.String())
+	}
+	var cleared struct {
+		Project teamProject `json:"project"`
+	}
+	if err := json.NewDecoder(clearRec.Body).Decode(&cleared); err != nil {
+		t.Fatalf("decode cleared project: %v", err)
+	}
+	if cleared.Project.GitHubRepoURL != "" {
+		t.Fatalf("cleared github_repo_url = %q", cleared.Project.GitHubRepoURL)
 	}
 }
 

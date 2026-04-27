@@ -61,14 +61,15 @@ type TeamTask struct {
 }
 
 type TeamProject struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Channel     string `json:"channel,omitempty"`
-	Status      string `json:"status,omitempty"`
-	CreatedBy   string `json:"created_by,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description,omitempty"`
+	Channel       string `json:"channel,omitempty"`
+	GitHubRepoURL string `json:"github_repo_url,omitempty"`
+	Status        string `json:"status,omitempty"`
+	CreatedBy     string `json:"created_by,omitempty"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 type ActionLog struct {

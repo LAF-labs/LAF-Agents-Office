@@ -1313,6 +1313,7 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
 }
 .task-project-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 0 0 12px;
 }
@@ -1345,6 +1346,17 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   color: var(--red);
   font-size: 12px;
   padding-bottom: 12px;
+}
+.task-project-repo-link {
+  display: inline-flex;
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.task-project-repo-link:hover {
+  text-decoration: underline;
 }
 .task-empty-state {
   padding: 40px 20px;

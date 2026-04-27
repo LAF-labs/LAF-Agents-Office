@@ -3651,6 +3651,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 			project.Name = humanizeSlug(project.ID)
 		}
 		project.Channel = normalizeChannelSlug(project.Channel)
+		project.GitHubRepoURL = normalizeGitHubRepoURL(project.GitHubRepoURL)
 		if project.Status == "" {
 			project.Status = "active"
 		}
@@ -8619,6 +8620,10 @@ func normalizeProjectID(raw string) string {
 	return strings.Trim(out.String(), "-")
 }
 
+func normalizeGitHubRepoURL(raw string) string {
+	return strings.TrimSpace(raw)
+}
+
 func (b *Broker) findProjectLocked(id string) *teamProject {
 	id = normalizeProjectID(id)
 	if id == "" {
@@ -8662,13 +8667,14 @@ func (b *Broker) handleProjects(w http.ResponseWriter, r *http.Request) {
 
 func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Action      string `json:"action"`
-		ID          string `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Channel     string `json:"channel"`
-		Status      string `json:"status"`
-		CreatedBy   string `json:"created_by"`
+		Action        string `json:"action"`
+		ID            string `json:"id"`
+		Name          string `json:"name"`
+		Description   string `json:"description"`
+		Channel       string `json:"channel"`
+		GitHubRepoURL string `json:"github_repo_url"`
+		Status        string `json:"status"`
+		CreatedBy     string `json:"created_by"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -8715,14 +8721,15 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			status = "active"
 		}
 		project := teamProject{
-			ID:          id,
-			Name:        name,
-			Description: strings.TrimSpace(body.Description),
-			Channel:     channel,
-			Status:      status,
-			CreatedBy:   strings.TrimSpace(body.CreatedBy),
-			CreatedAt:   now,
-			UpdatedAt:   now,
+			ID:            id,
+			Name:          name,
+			Description:   strings.TrimSpace(body.Description),
+			Channel:       channel,
+			GitHubRepoURL: normalizeGitHubRepoURL(body.GitHubRepoURL),
+			Status:        status,
+			CreatedBy:     strings.TrimSpace(body.CreatedBy),
+			CreatedAt:     now,
+			UpdatedAt:     now,
 		}
 		b.projects = append(b.projects, project)
 		actionChannel := channel
@@ -8755,6 +8762,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			project.Status = status
 		}
 		project.Description = strings.TrimSpace(body.Description)
+		project.GitHubRepoURL = normalizeGitHubRepoURL(body.GitHubRepoURL)
 		project.UpdatedAt = now
 		actionChannel := project.Channel
 		if actionChannel == "" {

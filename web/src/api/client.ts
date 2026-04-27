@@ -618,6 +618,7 @@ export interface Project {
   name: string;
   description?: string;
   channel?: string;
+  github_repo_url?: string;
   status?: string;
   created_by?: string;
   created_at?: string;
@@ -637,6 +638,7 @@ export function createProject(body: {
   name: string;
   description?: string;
   channel?: string;
+  github_repo_url?: string;
   created_by?: string;
 }) {
   return post<{ project: Project }>("/projects", {

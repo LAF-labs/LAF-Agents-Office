@@ -86,6 +86,28 @@ function selectedProjectLabel(
   return projectNames.get(selectedProjectId) ?? selectedProjectId;
 }
 
+function findSelectedProject(
+  projects: Project[],
+  selectedProjectId: string,
+): Project | null {
+  if (selectedProjectId === "all") return null;
+  return projects.find((project) => project.id === selectedProjectId) ?? null;
+}
+
+function ProjectGitHubLink({ project }: { project: Project | null }) {
+  if (!project?.github_repo_url) return null;
+  return (
+    <a
+      className="task-project-repo-link"
+      href={project.github_repo_url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      GitHub repo
+    </a>
+  );
+}
+
 function shouldHideTaskColumn(
   status: StatusGroup,
   column: Task[],
@@ -155,6 +177,7 @@ export function TasksApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectGitHubRepoURL, setNewProjectGitHubRepoURL] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
   const selectedProjectFilter =
     selectedProjectId === "all" ? undefined : selectedProjectId;
@@ -215,6 +238,7 @@ export function TasksApp() {
   const tasks = data?.tasks ?? [];
   const projects = projectsQuery.data?.projects ?? [];
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
+  const selectedProject = findSelectedProject(projects, selectedProjectId);
 
   const grouped = groupTasks(tasks);
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
@@ -274,9 +298,11 @@ export function TasksApp() {
     try {
       const { project } = await createProject({
         name,
+        github_repo_url: newProjectGitHubRepoURL.trim() || undefined,
         created_by: HUMAN_SLUG,
       });
       setNewProjectName("");
+      setNewProjectGitHubRepoURL("");
       setIsCreatingProject(false);
       setSelectedProjectId(project.id);
       await Promise.all([
@@ -310,6 +336,7 @@ export function TasksApp() {
             >
               {selectedProjectLabel(selectedProjectId, projectNames)}
             </div>
+            <ProjectGitHubLink project={selectedProject} />
           </div>
           <button
             type="button"
@@ -338,6 +365,15 @@ export function TasksApp() {
               onChange={(event) => setNewProjectName(event.currentTarget.value)}
               placeholder="Project name"
               aria-label="Project name"
+            />
+            <input
+              type="url"
+              value={newProjectGitHubRepoURL}
+              onChange={(event) =>
+                setNewProjectGitHubRepoURL(event.currentTarget.value)
+              }
+              placeholder="GitHub repo URL (optional)"
+              aria-label="GitHub repo URL"
             />
             <button type="submit" disabled={newProjectName.trim() === ""}>
               Create
