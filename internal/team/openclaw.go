@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/openclaw"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/openclaw"
 )
 
 var defaultOpenclawRetryDelays = []time.Duration{1 * time.Second, 5 * time.Second, 30 * time.Second}
@@ -31,7 +31,7 @@ type openclawClient interface {
 // openclawDialer produces a fresh openclawClient for each reconnect attempt.
 type openclawDialer func(ctx context.Context) (openclawClient, error)
 
-// OpenclawBridge adapts OpenClaw Gateway sessions into WUPHF office members.
+// OpenclawBridge adapts OpenClaw Gateway sessions into LAF-Office team members.
 type OpenclawBridge struct {
 	broker   *Broker
 	bindings []config.OpenclawBridgeBinding

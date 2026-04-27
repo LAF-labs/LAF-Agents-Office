@@ -1,6 +1,6 @@
 import { z } from "zod";
 export function registerContextTools(server, client) {
-    server.tool("query_context", "Query the WUPHF context graph with a natural language question. Returns an AI-generated answer with supporting entities and evidence. Use for open-ended questions about contacts, companies, relationships, or history.", {
+    server.tool("query_context", "Query the LAF-Office context graph with a natural language question. Returns an AI-generated answer with supporting entities and evidence. Use for open-ended questions about contacts, companies, relationships, or history.", {
         query: z.string().describe("Natural language question about your contacts, companies, or relationships"),
         session_id: z.string().optional().describe("Session ID for multi-turn conversational continuity"),
     }, { readOnlyHint: true, openWorldHint: true }, async ({ query, session_id }) => {
@@ -10,7 +10,7 @@ export function registerContextTools(server, client) {
         const result = await client.post("/v1/context/ask", body);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     });
-    server.tool("add_context", "Ingest unstructured text (meeting notes, emails, conversation transcripts) into the WUPHF context graph. Automatically extracts entities, relationships, and insights. Returns an artifact_id — use get_artifact_status to check processing results.", {
+    server.tool("add_context", "Ingest unstructured text (meeting notes, emails, conversation transcripts) into the LAF-Office context graph. Automatically extracts entities, relationships, and insights. Returns an artifact_id — use get_artifact_status to check processing results.", {
         content: z.string().describe("The text content to process (meeting notes, email, conversation transcript, etc.)"),
         context: z.string().optional().describe("Additional context about the text, e.g. 'Sales call notes' or 'Email from client'"),
     }, { readOnlyHint: false }, async ({ content, context }) => {
@@ -52,7 +52,7 @@ export function registerContextTools(server, client) {
         const result = await client.get(path);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     });
-    server.tool("search_entities", "Search for entities (people, companies, topics) in the WUPHF knowledge base. Returns a structured list with names, types, and mention counts.", { query: z.string().describe("Search query to find entities") }, { readOnlyHint: true }, async ({ query }) => {
+    server.tool("search_entities", "Search for entities (people, companies, topics) in the LAF-Office knowledge base. Returns a structured list with names, types, and mention counts.", { query: z.string().describe("Search query to find entities") }, { readOnlyHint: true }, async ({ query }) => {
         const result = await client.post("/v1/context/ask", { query });
         const entities = result.entity_references ?? [];
         if (entities.length === 0) {

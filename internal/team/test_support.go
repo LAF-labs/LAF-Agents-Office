@@ -10,23 +10,23 @@ import (
 // stubTaskWorktreePath returns the canonical stub path + branch shape used
 // by both the in-package worktree guard (worktree_guard_test.go) and the
 // cross-package helper below. Shape mirrors production
-// (<root>/.wuphf/task-worktrees/<repoToken>/wuphf-task-<id>) so test
+// (<root>/.laf-office/task-worktrees/<repoToken>/laf-office-task-<id>) so test
 // assertions on the worktree path format stay consistent with real
 // behavior. Having two different stub shapes in the past let tests drift
-// apart — one stub passing "contains .wuphf/task-worktrees/" while the
+// apart — one stub passing "contains .laf-office/task-worktrees/" while the
 // other didn't — so this is the single source of truth.
 func stubTaskWorktreePath(taskID string) (string, string) {
 	id := sanitizeWorktreeToken(taskID)
 	root := defaultTaskWorktreeRootDir("stub")
-	return filepath.Join(root, "wuphf-task-"+id), "wuphf-" + id
+	return filepath.Join(root, "laf-office-task-"+id), "laf-office-" + id
 }
 
 // DisableRealTaskWorktreeForTests replaces the package-level
 // prepare/cleanup task worktree funcs with no-op stubs and flips the
 // broker-state-load + real-worktree guards so that tests which exercise
 // the local_worktree dispatch path (handleTeamTask etc.) cannot reach
-// `git worktree add` against the developer's wuphf repo, nor load stale
-// state from the user's real ~/.wuphf/.
+// `git worktree add` against the developer's laf-office repo, nor load stale
+// state from the user's real ~/.laf-office/.
 //
 // Intended for TestMain in packages that depend on team and exercise
 // this codepath via integration tests. Currently only
@@ -58,15 +58,15 @@ func DisableRealTaskWorktreeForTests() {
 	// as defense-in-depth for future callers.
 	verifyTaskWorktreeWritable = func(string) error { return nil }
 
-	// If the caller's test package hasn't set WUPHF_RUNTIME_HOME, point
+	// If the caller's test package hasn't set LAF_OFFICE_RUNTIME_HOME, point
 	// it at a process-lifetime leaked tempdir so any implicit
-	// ~/.wuphf/... write falls through to /tmp instead of the user's
+	// ~/.laf-office/... write falls through to /tmp instead of the user's
 	// real home. Matches worktree_guard_test.go's init for the team
 	// package's own tests. Tests that override with t.Setenv take
 	// precedence and their restore lands on this safe default.
-	if os.Getenv("WUPHF_RUNTIME_HOME") == "" {
-		if dir, err := os.MkdirTemp("", "wuphf-disable-real-worktree-home-*"); err == nil {
-			_ = os.Setenv("WUPHF_RUNTIME_HOME", dir)
+	if os.Getenv("LAF_OFFICE_RUNTIME_HOME") == "" {
+		if dir, err := os.MkdirTemp("", "laf-office-disable-real-worktree-home-*"); err == nil {
+			_ = os.Setenv("LAF_OFFICE_RUNTIME_HOME", dir)
 		}
 	}
 }

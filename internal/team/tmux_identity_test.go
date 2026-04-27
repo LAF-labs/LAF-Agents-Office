@@ -3,23 +3,23 @@ package team
 import (
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/brokeraddr"
+	"github.com/nex-crm/laf-office/internal/brokeraddr"
 )
 
 // nameWithPortSuffix decides the tmux socket and session names at package
-// init based on the broker port. When two WUPHF instances ran on the same
-// machine they used to share "wuphf" and "wuphf-team" and race each other's
+// init based on the broker port. When two LAF-Office instances ran on the same
+// machine they used to share "laf-office" and "laf-office-team" and race each other's
 // kill-session / new-session / split-window calls, which surfaced as
 // "spawn first agent: exit status 1" when the server was torn down
 // mid-launch. These tests pin the rule so the isolation can't regress
 // silently.
 
 func TestNameWithPortSuffixDefaultPort(t *testing.T) {
-	if got := nameWithPortSuffixForPort("wuphf", brokeraddr.DefaultPort); got != "wuphf" {
-		t.Fatalf("default port should not suffix: got %q, want %q", got, "wuphf")
+	if got := nameWithPortSuffixForPort("laf-office", brokeraddr.DefaultPort); got != "laf-office" {
+		t.Fatalf("default port should not suffix: got %q, want %q", got, "laf-office")
 	}
-	if got := nameWithPortSuffixForPort("wuphf-team", brokeraddr.DefaultPort); got != "wuphf-team" {
-		t.Fatalf("default port should not suffix session: got %q, want %q", got, "wuphf-team")
+	if got := nameWithPortSuffixForPort("laf-office-team", brokeraddr.DefaultPort); got != "laf-office-team" {
+		t.Fatalf("default port should not suffix session: got %q, want %q", got, "laf-office-team")
 	}
 }
 
@@ -29,9 +29,9 @@ func TestNameWithPortSuffixNonDefault(t *testing.T) {
 		port int
 		want string
 	}{
-		{"wuphf", 7899, "wuphf-7899"},
-		{"wuphf-team", 7899, "wuphf-team-7899"},
-		{"wuphf", 8080, "wuphf-8080"},
+		{"laf-office", 7899, "laf-office-7899"},
+		{"laf-office-team", 7899, "laf-office-team-7899"},
+		{"laf-office", 8080, "laf-office-8080"},
 	}
 	for _, tc := range cases {
 		if got := nameWithPortSuffixForPort(tc.base, tc.port); got != tc.want {
@@ -41,22 +41,22 @@ func TestNameWithPortSuffixNonDefault(t *testing.T) {
 }
 
 func TestNameWithPortSuffixInvalidPortFallsBack(t *testing.T) {
-	if got := nameWithPortSuffixForPort("wuphf", 0); got != "wuphf" {
+	if got := nameWithPortSuffixForPort("laf-office", 0); got != "laf-office" {
 		t.Fatalf("zero port should fall back: got %q", got)
 	}
-	if got := nameWithPortSuffixForPort("wuphf", -1); got != "wuphf" {
+	if got := nameWithPortSuffixForPort("laf-office", -1); got != "laf-office" {
 		t.Fatalf("negative port should fall back: got %q", got)
 	}
 }
 
 // TestPackageLevelNamesHonorBaseNames guards against someone inadvertently
 // changing the base constants in a way that leaks the port suffix into
-// external consumers that hardcode "wuphf-team".
+// external consumers that hardcode "laf-office-team".
 func TestPackageLevelNamesHonorBaseNames(t *testing.T) {
-	if baseSessionName != "wuphf-team" {
+	if baseSessionName != "laf-office-team" {
 		t.Fatalf("baseSessionName drifted: got %q", baseSessionName)
 	}
-	if baseTmuxSocketName != "wuphf" {
+	if baseTmuxSocketName != "laf-office" {
 		t.Fatalf("baseTmuxSocketName drifted: got %q", baseTmuxSocketName)
 	}
 }

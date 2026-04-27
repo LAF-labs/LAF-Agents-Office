@@ -14,7 +14,7 @@
 #   ENTITY_KIND=people ENTITY_SLUG=ada-lovelace ./scripts/demo-entity-synthesis.sh
 #   THRESHOLD=1 ./scripts/demo-entity-synthesis.sh            # fire on every fact
 #
-# Requirements: curl, python3, a running wuphf instance with --memory-backend markdown
+# Requirements: curl, python3, a running laf-office instance with --memory-backend markdown
 
 set -euo pipefail
 
@@ -40,14 +40,14 @@ command -v python3 >/dev/null || die "python3 is required"
 PY=python3
 
 # ── Resolve wiki repo root from broker home dir ───────────────────────────────
-# Dev broker runs with HOME=~/.wuphf-dev-home (port 7899).
+# Dev broker runs with HOME=~/.laf-office-dev-home (port 7899).
 # Prod runs with the real HOME (port 7890).
 if [[ "$BROKER" =~ :7899 ]]; then
-  WUPHF_HOME="${HOME}/.wuphf-dev-home/.wuphf"
+  LAF_OFFICE_HOME="${HOME}/.laf-office-dev-home/.laf-office"
 else
-  WUPHF_HOME="${HOME}/.wuphf"
+  LAF_OFFICE_HOME="${HOME}/.laf-office"
 fi
-WIKI_REPO="${WUPHF_REPO:-${WUPHF_HOME}/wiki}"
+WIKI_REPO="${LAF_OFFICE_REPO:-${LAF_OFFICE_HOME}/wiki}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 get_token() {
@@ -75,7 +75,7 @@ jq_field() {
 }
 
 # ── 0. Check broker is alive ─────────────────────────────────────────────────
-printf "\n%sWUPHF Entity Synthesis Demo%s\n" "$BOLD" "$RESET"
+printf "\n%sLAF-Office Entity Synthesis Demo%s\n" "$BOLD" "$RESET"
 printf "%sentity: %s/%s   broker: %s%s\n\n" "$DIM" "$ENTITY_KIND" "$ENTITY_SLUG" "$BROKER" "$RESET"
 
 step "Connecting to broker"
@@ -84,7 +84,7 @@ if [[ -z "$TOKEN" ]]; then
   die "Broker unreachable at ${BROKER}
 
   Start the dev broker first:
-    wuphf-dev --broker-port 7899 --web-port 7900 --memory-backend markdown"
+    laf-office-dev --broker-port 7899 --web-port 7900 --memory-backend markdown"
 fi
 ok "token acquired"
 
@@ -223,7 +223,7 @@ if [[ -d "${WIKI_REPO}/.git" ]]; then
   git -C "$WIKI_REPO" log --oneline -20 --color=always
 else
   warn "Wiki git repo not found at ${WIKI_REPO}"
-  warn "Set WUPHF_REPO=/path/to/wiki to override"
+  warn "Set LAF_OFFICE_REPO=/path/to/wiki to override"
 fi
 
 # ── 6. Summary ────────────────────────────────────────────────────────────────
@@ -231,9 +231,9 @@ printf "\n%s━━━ What just happened ━━━%s\n" "$BOLD" "$RESET"
 cat <<'EOF'
 
   1. demo-agent  recorded 5 facts → each landed as a git commit
-     authored by demo-agent@wuphf.local
+     authored by demo-agent@laf-office.local
 
-  2. Fact #5 crossed the synthesis threshold (WUPHF_ENTITY_BRIEF_THRESHOLD=5)
+  2. Fact #5 crossed the synthesis threshold (LAF_OFFICE_ENTITY_BRIEF_THRESHOLD=5)
      → EntitySynthesizer.EnqueueSynthesis() fired automatically
 
   3. The broker shelled out to your LLM CLI (claude / codex / openclaw)

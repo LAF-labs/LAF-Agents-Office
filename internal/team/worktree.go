@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 var prepareTaskWorktree = defaultPrepareTaskWorktree
@@ -22,7 +22,7 @@ var verifyTaskWorktreeWritable = defaultVerifyTaskWorktreeWritable
 // allowRealTaskWorktree gates access to the real git-worktree codepath. In
 // production it stays true; an init() in a *_test.go file in this package
 // flips it to false so test runs cannot accidentally register a real worktree
-// against the developer's `wuphf` repo. Tests that legitimately need the real
+// against the developer's `laf-office` repo. Tests that legitimately need the real
 // codepath (always against a tempdir-rooted repo) opt in via
 // allowRealTaskWorktreeForTest(t), which scopes the re-enable to one test.
 var allowRealTaskWorktree = true
@@ -43,7 +43,7 @@ var overlaySourceWorkspaceSkipExact = map[string]struct{}{
 var overlaySourceWorkspaceSkipPrefixes = []string{
 	".playwright-cli/",
 	".playwright-mcp/",
-	".wuphf/",
+	".laf-office/",
 }
 
 func defaultPrepareTaskWorktree(taskID string) (string, string, error) {
@@ -58,12 +58,12 @@ func defaultPrepareTaskWorktree(taskID string) (string, string, error) {
 	branch := worktreeBranchNameForRepo(taskID, repoRoot)
 	root := taskWorktreeRootDir(repoRoot)
 	if strings.TrimSpace(root) == "" {
-		root = filepath.Join(os.TempDir(), "wuphf-task-worktrees")
+		root = filepath.Join(os.TempDir(), "laf-office-task-worktrees")
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", "", fmt.Errorf("prepare task worktree root: %w", err)
 	}
-	path := filepath.Join(root, "wuphf-task-"+sanitizeWorktreeToken(taskID))
+	path := filepath.Join(root, "laf-office-task-"+sanitizeWorktreeToken(taskID))
 	_ = runGit(repoRoot, "worktree", "prune")
 	_ = cleanupTaskWorktreeAtRepoRoot(repoRoot, path, branch)
 	_ = clearStaleTaskBranch(repoRoot, branch)
@@ -133,7 +133,7 @@ func defaultVerifyTaskWorktreeWritable(path string) error {
 	if !info.IsDir() {
 		return fmt.Errorf("task worktree is not a directory: %q", path)
 	}
-	probe, err := os.CreateTemp(path, ".wuphf-write-probe-*")
+	probe, err := os.CreateTemp(path, ".laf-office-write-probe-*")
 	if err != nil {
 		return fmt.Errorf("write probe failed: %w", err)
 	}
@@ -202,9 +202,9 @@ func defaultTaskWorktreeRootDir(repoRoot string) string {
 	}
 
 	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-		return filepath.Join(home, ".wuphf", "task-worktrees", repoToken)
+		return filepath.Join(home, ".laf-office", "task-worktrees", repoToken)
 	}
-	return filepath.Join(os.TempDir(), "wuphf-task-worktrees", repoToken)
+	return filepath.Join(os.TempDir(), "laf-office-task-worktrees", repoToken)
 }
 
 func runGit(dir string, args ...string) error {
@@ -395,7 +395,7 @@ func gitRefExists(dir, ref string) bool {
 func worktreeBranchName(taskID string) string {
 	repoRoot, err := gitRepoRoot()
 	if err != nil {
-		return "wuphf-" + sanitizeWorktreeToken(taskID)
+		return "laf-office-" + sanitizeWorktreeToken(taskID)
 	}
 	return worktreeBranchNameForRepo(taskID, repoRoot)
 }
@@ -406,9 +406,9 @@ func worktreeBranchNameForRepo(taskID string, repoRoot string) string {
 		taskToken = "task"
 	}
 	if namespace := worktreeNamespaceToken(repoRoot); namespace != "" {
-		return "wuphf-" + namespace + "-" + taskToken
+		return "laf-office-" + namespace + "-" + taskToken
 	}
-	return "wuphf-" + taskToken
+	return "laf-office-" + taskToken
 }
 
 func worktreeNamespaceToken(repoRoot string) string {
@@ -466,7 +466,7 @@ func worktreePathLooksSafe(path string) bool {
 	if path == "" {
 		return false
 	}
-	if !strings.Contains(filepath.Base(path), "wuphf-task-") {
+	if !strings.Contains(filepath.Base(path), "laf-office-task-") {
 		return false
 	}
 	for _, root := range managedWorktreeRoots() {
@@ -481,9 +481,9 @@ func worktreePathLooksSafe(path string) bool {
 func managedWorktreeRoots() []string {
 	roots := make([]string, 0, 2)
 	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-		roots = append(roots, filepath.Join(home, ".wuphf", "task-worktrees"))
+		roots = append(roots, filepath.Join(home, ".laf-office", "task-worktrees"))
 	}
-	roots = append(roots, filepath.Join(os.TempDir(), "wuphf-task-worktrees"))
+	roots = append(roots, filepath.Join(os.TempDir(), "laf-office-task-worktrees"))
 	return roots
 }
 

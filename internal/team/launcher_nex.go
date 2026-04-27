@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ func (l *Launcher) pollNexNotificationsLoop() {
 }
 
 func notificationPollInterval() time.Duration {
-	if raw := os.Getenv("WUPHF_NOTIFY_INTERVAL_MINUTES"); raw != "" {
+	if raw := os.Getenv("LAF_OFFICE_NOTIFY_INTERVAL_MINUTES"); raw != "" {
 		if minutes, err := strconv.Atoi(raw); err == nil && minutes > 0 {
 			return time.Duration(minutes) * time.Minute
 		}

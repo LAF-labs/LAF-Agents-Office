@@ -9,7 +9,7 @@ package team
 // ============
 //
 //   - Identity is fixed: every human write is attributed to a synthetic
-//     `human` slug, yielding commit author `Human <human@wuphf.local>`.
+//     `human` slug, yielding commit author `Human <human@laf-office.local>`.
 //     v1 deliberately ships a single human identity — the founder. Per-user
 //     attribution is a v1.1 concern; see the PR description.
 //   - Concurrency model is optimistic, not pessimistic: we never lock the
@@ -33,10 +33,10 @@ import (
 
 // HumanAuthor is the synthetic commit author slug used when no richer
 // human identity has been registered (no `git config --global user.name`
-// / `user.email` on this machine). Yields `human <human@wuphf.local>`
+// / `user.email` on this machine). Yields `human <human@laf-office.local>`
 // via runGitLocked's identity derivation. Distinct from every agent slug
-// and from the other synthetic identities (archivist, wuphf-bootstrap,
-// wuphf-recovery, system) so audit views can colour human edits
+// and from the other synthetic identities (archivist, laf-office-bootstrap,
+// laf-office-recovery, system) so audit views can colour human edits
 // distinctly.
 //
 // v1.5: when the broker has probed a real git identity, the slug on
@@ -53,7 +53,7 @@ var ErrWikiSHAMismatch = errors.New("wiki: article changed since it was opened")
 
 // CommitHuman writes content to relPath with the caller-supplied human
 // identity, enforcing an expected-SHA pre-check. When identity has its
-// zero value, the fallback `human <human@wuphf.local>` identity is used
+// zero value, the fallback `human <human@laf-office.local>` identity is used
 // so the legacy single-user attribution path still works.
 //
 // Returns the new short SHA, bytes written, and an error;

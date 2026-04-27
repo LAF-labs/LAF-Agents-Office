@@ -10,7 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nex-crm/wuphf/internal/action"
+	"github.com/nex-crm/laf-office/internal/action"
 )
 
 type stubActionProvider struct{}
@@ -127,14 +127,14 @@ func TestActionIsReadOnly(t *testing.T) {
 }
 
 // TestRequireTeamActionApprovalBypasses exercises the three bypass paths
-// that must never require a human click: DryRun=true, WUPHF_UNSAFE=1, and
+// that must never require a human click: DryRun=true, LAF_OFFICE_UNSAFE=1, and
 // read-only action_ids. If any of these regress, agents either can't take
 // safe actions (read operations pile up approval requests) or the gate
 // fails open entirely.
 func TestRequireTeamActionApprovalBypasses(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	// Ensure the default bypass state — no WUPHF_UNSAFE unless a subtest sets it.
-	t.Setenv("WUPHF_UNSAFE", "")
+	// Ensure the default bypass state — no LAF_OFFICE_UNSAFE unless a subtest sets it.
+	t.Setenv("LAF_OFFICE_UNSAFE", "")
 
 	t.Run("DryRun bypasses", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -147,15 +147,15 @@ func TestRequireTeamActionApprovalBypasses(t *testing.T) {
 		}
 	})
 
-	t.Run("WUPHF_UNSAFE bypasses", func(t *testing.T) {
-		t.Setenv("WUPHF_UNSAFE", "1")
+	t.Run("LAF_OFFICE_UNSAFE bypasses", func(t *testing.T) {
+		t.Setenv("LAF_OFFICE_UNSAFE", "1")
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 		err := requireTeamActionApproval(ctx, "ceo", "general", TeamActionExecuteArgs{
 			Platform: "gmail", ActionID: "GMAIL_SEND_EMAIL", DryRun: false,
 		})
 		if err != nil {
-			t.Fatalf("WUPHF_UNSAFE=1 must bypass approval, got err=%v", err)
+			t.Fatalf("LAF_OFFICE_UNSAFE=1 must bypass approval, got err=%v", err)
 		}
 	})
 
@@ -179,8 +179,8 @@ func TestHandleTeamActionExecuteLogsBrokerAction(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	prev := externalActionProvider
 	externalActionProvider = stubActionProvider{}
@@ -220,8 +220,8 @@ func TestHandleTeamActionWorkflowCreateMirrorsSkill(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	prev := externalActionProvider
 	externalActionProvider = stubActionProvider{}
@@ -273,8 +273,8 @@ func TestHandleTeamActionWorkflowScheduleCreatesSchedulerJob(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	prev := externalActionProvider
 	externalActionProvider = stubActionProvider{}
@@ -326,8 +326,8 @@ func TestHandleTeamActionWorkflowScheduleRunNowExecutesImmediately(t *testing.T)
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	prev := externalActionProvider
 	externalActionProvider = stubActionProvider{}
@@ -366,7 +366,7 @@ func TestHandleTeamActionWorkflowScheduleRunNowExecutesImmediately(t *testing.T)
 
 func TestSelectedActionProviderIncludesCapabilityGuidance(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 
 	prev := externalActionProvider
 	externalActionProvider = nil

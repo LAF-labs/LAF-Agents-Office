@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/onboarding"
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/onboarding"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // onboardingCompleteFn is invoked by the onboarding package when the user
@@ -84,8 +84,8 @@ func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID st
 	}
 
 	// Materialize the blueprint's LLM wiki outside the broker lock. Lane A
-	// owns the git repo at ~/.wuphf/wiki; we write the skeleton files, commit
-	// them under the reserved `wuphf-bootstrap` author, then regenerate the
+	// owns the git repo at ~/.laf-office/wiki; we write the skeleton files, commit
+	// them under the reserved `laf-office-bootstrap` author, then regenerate the
 	// index. Wiki materialization is best-effort: a failure here should NOT
 	// fail onboarding (the user should land on an empty-but-functional wiki
 	// rather than a broken onboarding flow). Log and move on.
@@ -93,8 +93,8 @@ func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID st
 	return nil
 }
 
-// materializeBlueprintWiki resolves ~/.wuphf/wiki, runs the skeleton
-// materializer, commits any newly-written skeletons as `wuphf-bootstrap`,
+// materializeBlueprintWiki resolves ~/.laf-office/wiki, runs the skeleton
+// materializer, commits any newly-written skeletons as `laf-office-bootstrap`,
 // then regenerates the index so a fresh install has both the files AND the
 // audit trail from day 1.
 //
@@ -117,7 +117,7 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 		log.Printf("onboarding: resolve home for wiki materialization: %v", err)
 		return
 	}
-	wikiRoot := filepath.Join(home, ".wuphf", "wiki")
+	wikiRoot := filepath.Join(home, ".laf-office", "wiki")
 	result, err := operations.MaterializeWiki(context.Background(), wikiRoot, bp.WikiSchema)
 	if err != nil {
 		log.Printf("onboarding: wiki materialize failed (wiki left empty): %v", err)
@@ -142,12 +142,12 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 	defer cancel()
 	// Regenerate the index FIRST so CommitBootstrap picks up index/all.md in
 	// the same commit as the skeletons. Leaving it untracked would cause
-	// RecoverDirtyTree on the next launch to fold it into a `wuphf-recovery`
+	// RecoverDirtyTree on the next launch to fold it into a `laf-office-recovery`
 	// commit, which misattributes a derived artefact.
 	if err := repo.IndexRegen(ctx); err != nil {
 		log.Printf("onboarding: wiki index regen failed (continuing): %v", err)
 	}
-	bootstrapMsg := fmt.Sprintf("wuphf: materialize %s blueprint skeletons", bp.ID)
+	bootstrapMsg := fmt.Sprintf("laf-office: materialize %s blueprint skeletons", bp.ID)
 	sha, err := repo.CommitBootstrap(ctx, bootstrapMsg)
 	if err != nil {
 		log.Printf("onboarding: wiki commit-bootstrap failed: %v", err)
@@ -167,7 +167,7 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 // The starter roster is a fixed 5-agent founding team (CEO lead plus GTM
 // Lead, Founding Engineer, Product Manager, Designer) rather than the
 // generic operator/planner/executor/reviewer shape. This is the product
-// default for a brand-new WUPHF office: it covers the four functions a
+// default for a brand-new LAF-Office workspace: it covers the four functions a
 // real early-stage team needs (strategy, revenue, build, design) with a
 // named CEO as the human-facing lead. Users can still uncheck agents in
 // the wizard's Team step; unchecked ones are dropped via the filter.
@@ -396,10 +396,10 @@ func blankSlateOfficeMembersFromBlueprint(blueprint operations.Blueprint, select
 	// agents. Keeps the broker from crashing on empty rosters.
 	now := time.Now().UTC().Format(time.RFC3339)
 	return []officeMember{
-		{Slug: "founder", Name: "Founder", Role: "Founder", PermissionMode: "plan", BuiltIn: true, CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "auto", BuiltIn: true, CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", CreatedBy: "wuphf", CreatedAt: now},
+		{Slug: "founder", Name: "Founder", Role: "Founder", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", CreatedBy: "laf-office", CreatedAt: now},
 	}
 }
 
@@ -430,7 +430,7 @@ func blankSlateOfficeMembersFromAgents(agents []operations.StarterAgent, leadSlu
 			Personality:    strings.TrimSpace(agent.Personality),
 			PermissionMode: blankSlatePermissionMode(agent.Type),
 			AllowedTools:   nil,
-			CreatedBy:      "wuphf",
+			CreatedBy:      "laf-office",
 			CreatedAt:      now,
 			BuiltIn:        agent.BuiltIn || slug == leadSlug || slug == "operator" || slug == "founder" || slug == "ceo",
 		})
@@ -514,7 +514,7 @@ func blankSlateOfficeChannelsFromBlueprint(blueprint operations.Blueprint, membe
 		Name:        "general",
 		Description: operationRenderTemplateString(blueprint.Starter.GeneralChannelDescription, replacements),
 		Members:     memberSlugsFromMembers(members),
-		CreatedBy:   "wuphf",
+		CreatedBy:   "laf-office",
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}}
@@ -535,7 +535,7 @@ func blankSlateOfficeChannelsFromBlueprint(blueprint operations.Blueprint, membe
 			Name:        operationRenderTemplateString(starter.Name, replacements),
 			Description: operationRenderTemplateString(starter.Description, replacements),
 			Members:     uniqueSlugs(append([]string{lead}, membersList...)),
-			CreatedBy:   "wuphf",
+			CreatedBy:   "laf-office",
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		})
@@ -560,7 +560,7 @@ func blankSlateOfficeTasksFromBlueprint(blueprint operations.Blueprint) []teamTa
 			Details:   strings.TrimSpace(starter.Details),
 			Owner:     owner,
 			Status:    "open",
-			CreatedBy: "wuphf",
+			CreatedBy: "laf-office",
 			CreatedAt: now,
 			UpdatedAt: now,
 		})

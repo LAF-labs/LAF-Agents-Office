@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/buildinfo"
+	"github.com/nex-crm/laf-office/internal/buildinfo"
 )
 
 func TestAppendClientEnvSetsDefault(t *testing.T) {
 	env := appendClientEnv([]string{"PATH=/usr/bin", "HOME=/home/user"})
-	want := NexClientEnvVar + "=wuphf/" + buildinfo.Current().Version
+	want := NexClientEnvVar + "=laf-office/" + buildinfo.Current().Version
 	if !contains(env, want) {
 		t.Fatalf("expected %q in env, got %v", want, env)
 	}
@@ -23,7 +23,7 @@ func TestAppendClientEnvSetsDefault(t *testing.T) {
 func TestAppendClientEnvRespectsExistingValue(t *testing.T) {
 	// A wrapper may have already declared itself as the client — don't
 	// stomp on that. This lets integrators build chains like
-	// NEX_CLIENT=myapp/wuphf/<version> without us clobbering.
+	// NEX_CLIENT=myapp/laf-office/<version> without us clobbering.
 	env := appendClientEnv([]string{NexClientEnvVar + "=myapp/1.0", "PATH=/usr/bin"})
 	if count := countPrefix(env, NexClientEnvVar+"="); count != 1 {
 		t.Fatalf("expected exactly one %s entry, got %d: %v", NexClientEnvVar, count, env)
@@ -57,7 +57,7 @@ func countPrefix(env []string, prefix string) int {
 // silently ship a nex-cli invocation with no client tag.
 func TestRun_PropagatesNexClientToSubprocess(t *testing.T) {
 	dir := withIsolatedPATH(t)
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 	// The fake nex-cli writes its $NEX_CLIENT to stdout; Run() trims and
 	// returns it.
 	writeFakeNexCLI(t, dir, "nex-cli", `printf '%s' "$NEX_CLIENT"`)
@@ -66,18 +66,18 @@ func TestRun_PropagatesNexClientToSubprocess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if !strings.HasPrefix(got, "wuphf/") {
-		t.Fatalf("expected NEX_CLIENT=wuphf/<version>, got %q", got)
+	if !strings.HasPrefix(got, "laf-office/") {
+		t.Fatalf("expected NEX_CLIENT=laf-office/<version>, got %q", got)
 	}
 }
 
 // Companion to the propagation test: when an outer wrapper already set
-// NEX_CLIENT (e.g. `NEX_CLIENT=myapp/1.0 wuphf ...`), Run() must not stomp
+// NEX_CLIENT (e.g. `NEX_CLIENT=myapp/1.0 laf-office ...`), Run() must not stomp
 // it on the way through to nex-cli. Unit coverage on appendClientEnv alone
 // wouldn't catch a refactor that ignores the env-override path.
 func TestRun_PreservesExistingNexClientEndToEnd(t *testing.T) {
 	dir := withIsolatedPATH(t)
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 	t.Setenv(NexClientEnvVar, "myapp/1.0")
 	writeFakeNexCLI(t, dir, "nex-cli", `printf '%s' "$NEX_CLIENT"`)
 

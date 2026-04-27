@@ -26,7 +26,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
       }}
       aria-label="Dismiss splash screen"
     >
-      <div className="launch-logo">WUPHF</div>
+      <div className="launch-logo">LAF-Office</div>
       <div className="launch-spinner" />
       <p className="launch-text">Opening the office&hellip;</p>
       <p className="launch-sub">Preparing a live operating loop</p>

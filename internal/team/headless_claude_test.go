@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 // minimalLauncher builds a Launcher with a predictable two-member pack so
@@ -159,13 +159,13 @@ func TestRunHeadlessClaudeTurn_NoResumeFlag(t *testing.T) {
 // ─── MCP manifest: no-nex mode ────────────────────────────────────────────
 
 // TestBuildMCPServerMap_NoNexExcludesNexServer verifies that when
-// WUPHF_NO_NEX=true the built server map contains no "nex" entry, even if a
+// LAF_OFFICE_NO_NEX=true the built server map contains no "nex" entry, even if a
 // non-empty API key is present.
 func TestBuildMCPServerMap_NoNexExcludesNexServer(t *testing.T) {
-	t.Setenv("WUPHF_NO_NEX", "true")
-	// Provide a non-empty API key so we would enter the nex branch if WUPHF_NO_NEX
+	t.Setenv("LAF_OFFICE_NO_NEX", "true")
+	// Provide a non-empty API key so we would enter the nex branch if LAF_OFFICE_NO_NEX
 	// were not checked.
-	t.Setenv("WUPHF_API_KEY", "test-key-12345")
+	t.Setenv("LAF_OFFICE_API_KEY", "test-key-12345")
 
 	l := minimalLauncher(false)
 	servers, err := l.buildMCPServerMap()
@@ -173,19 +173,19 @@ func TestBuildMCPServerMap_NoNexExcludesNexServer(t *testing.T) {
 		t.Fatalf("buildMCPServerMap: %v", err)
 	}
 	if _, ok := servers["nex"]; ok {
-		t.Fatalf("'nex' server must be absent when WUPHF_NO_NEX=true, got servers: %v", mapKeys(servers))
+		t.Fatalf("'nex' server must be absent when LAF_OFFICE_NO_NEX=true, got servers: %v", mapKeys(servers))
 	}
-	// wuphf-office must always be present regardless of no-nex mode.
-	if _, ok := servers["wuphf-office"]; !ok {
-		t.Fatalf("'wuphf-office' server must always be present, got servers: %v", mapKeys(servers))
+	// laf-office must always be present regardless of no-nex mode.
+	if _, ok := servers["laf-office"]; !ok {
+		t.Fatalf("'laf-office' server must always be present, got servers: %v", mapKeys(servers))
 	}
 }
 
 // TestEnsureAgentMCPConfig_NoNexEntryInWrittenFile verifies that the per-agent
-// MCP config file written to disk contains no "nex" key when WUPHF_NO_NEX=true.
+// MCP config file written to disk contains no "nex" key when LAF_OFFICE_NO_NEX=true.
 func TestEnsureAgentMCPConfig_NoNexEntryInWrittenFile(t *testing.T) {
-	t.Setenv("WUPHF_NO_NEX", "true")
-	t.Setenv("WUPHF_API_KEY", "test-key-12345")
+	t.Setenv("LAF_OFFICE_NO_NEX", "true")
+	t.Setenv("LAF_OFFICE_API_KEY", "test-key-12345")
 
 	l := minimalLauncher(false)
 	path, err := l.ensureAgentMCPConfig("ceo")
@@ -204,57 +204,57 @@ func TestEnsureAgentMCPConfig_NoNexEntryInWrittenFile(t *testing.T) {
 		t.Fatalf("parse MCP config: %v", err)
 	}
 	if _, hasNex := cfg.MCPServers["nex"]; hasNex {
-		t.Fatalf("'nex' server must be absent in written MCP config when WUPHF_NO_NEX=true, got servers: %v", mapKeys(cfg.MCPServers))
+		t.Fatalf("'nex' server must be absent in written MCP config when LAF_OFFICE_NO_NEX=true, got servers: %v", mapKeys(cfg.MCPServers))
 	}
 }
 
 // TestBuildMCPServerMap_NexCredentialsFlowThroughOffice verifies that the office
 // MCP server now owns shared-memory access, so Nex credentials flow through the
-// wuphf-office server instead of mounting a raw nex MCP server.
+// laf-office server instead of mounting a raw nex MCP server.
 func TestBuildMCPServerMap_NexCredentialsFlowThroughOffice(t *testing.T) {
-	t.Setenv("WUPHF_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	t.Setenv("WUPHF_NO_NEX", "")
-	t.Setenv("WUPHF_MEMORY_BACKEND", "nex")
-	t.Setenv("WUPHF_API_KEY", "test-key-12345")
+	t.Setenv("LAF_OFFICE_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_API_KEY", "test-key-12345")
 
 	l := minimalLauncher(false)
 	servers, err := l.buildMCPServerMap()
 	if err != nil {
 		t.Fatalf("buildMCPServerMap: %v", err)
 	}
-	entry, ok := servers["wuphf-office"]
+	entry, ok := servers["laf-office"]
 	if !ok {
-		t.Fatalf("'wuphf-office' server must be present, got servers: %v", mapKeys(servers))
+		t.Fatalf("'laf-office' server must be present, got servers: %v", mapKeys(servers))
 	}
 	server, ok := entry.(map[string]any)
 	if !ok {
-		t.Fatalf("expected wuphf-office entry to be an object, got %T", entry)
+		t.Fatalf("expected laf-office entry to be an object, got %T", entry)
 	}
 	env, ok := server["env"].(map[string]string)
 	if !ok {
 		t.Fatalf("expected office env map, got %#v", server["env"])
 	}
-	if env["WUPHF_API_KEY"] != "test-key-12345" || env["NEX_API_KEY"] != "test-key-12345" {
+	if env["LAF_OFFICE_API_KEY"] != "test-key-12345" || env["NEX_API_KEY"] != "test-key-12345" {
 		t.Fatalf("expected Nex credentials on office server, got %#v", env)
 	}
 }
 
 func TestBuildMCPServerMap_GBrainCredentialsFlowThroughOffice(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "gbrain")
-	t.Setenv("WUPHF_OPENAI_API_KEY", "openai-test-key")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "gbrain")
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "openai-test-key")
 
 	l := minimalLauncher(false)
 	servers, err := l.buildMCPServerMap()
 	if err != nil {
 		t.Fatalf("buildMCPServerMap: %v", err)
 	}
-	entry, ok := servers["wuphf-office"]
+	entry, ok := servers["laf-office"]
 	if !ok {
-		t.Fatalf("'wuphf-office' server must be present when GBrain is selected, got servers: %v", mapKeys(servers))
+		t.Fatalf("'laf-office' server must be present when GBrain is selected, got servers: %v", mapKeys(servers))
 	}
 	server, ok := entry.(map[string]any)
 	if !ok {
-		t.Fatalf("expected wuphf-office entry to be an object, got %T", entry)
+		t.Fatalf("expected laf-office entry to be an object, got %T", entry)
 	}
 	env, ok := server["env"].(map[string]string)
 	if !ok {

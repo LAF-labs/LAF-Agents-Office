@@ -14,9 +14,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nex-crm/wuphf/internal/action"
-	"github.com/nex-crm/wuphf/internal/brokeraddr"
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/nex-crm/laf-office/internal/brokeraddr"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 const defaultBrokerTokenFile = brokeraddr.DefaultTokenFile
@@ -211,7 +211,7 @@ type conversationContext struct {
 type TeamBroadcastArgs struct {
 	Channel   string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	Content   string   `json:"content" jsonschema:"Message to post to the shared team channel"`
-	MySlug    string   `json:"my_slug,omitempty" jsonschema:"Agent slug sending the message. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug    string   `json:"my_slug,omitempty" jsonschema:"Agent slug sending the message. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Tagged    []string `json:"tagged,omitempty" jsonschema:"Optional list of tagged agent slugs who should respond"`
 	ReplyToID string   `json:"reply_to_id,omitempty" jsonschema:"Reply in-thread to a specific message ID when continuing a narrow discussion"`
 	NewTopic  bool     `json:"new_topic,omitempty" jsonschema:"Set true only when this genuinely needs to start a new top-level thread"`
@@ -220,12 +220,12 @@ type TeamBroadcastArgs struct {
 type TeamReactArgs struct {
 	MessageID string `json:"message_id" jsonschema:"The message ID to react to"`
 	Emoji     string `json:"emoji" jsonschema:"Emoji reaction (e.g. 👍, 💯, 🔥, 👀, ✅)"`
-	MySlug    string `json:"my_slug,omitempty" jsonschema:"Agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug    string `json:"my_slug,omitempty" jsonschema:"Agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamPollArgs struct {
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug so tagged_count can be computed. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug so tagged_count can be computed. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	SinceID string `json:"since_id,omitempty" jsonschema:"Only return messages after this message ID"`
 	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum messages to return (default 10, max 100)"`
 	Scope   string `json:"scope,omitempty" jsonschema:"Transcript scope: all, agent, inbox, or outbox. Defaults to agent-scoped for non-CEO office agents."`
@@ -234,7 +234,7 @@ type TeamPollArgs struct {
 type TeamStatusArgs struct {
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	Status  string `json:"status" jsonschema:"Short status like 'reviewing onboarding flow' or 'implementing search index'"`
-	MySlug  string `json:"my_slug,omitempty" jsonschema:"Agent slug sending the status. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Agent slug sending the status. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type HumanInterviewOption struct {
@@ -249,7 +249,7 @@ type HumanInterviewArgs struct {
 	Channel             string                 `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	Question            string                 `json:"question" jsonschema:"The specific decision or clarification needed from the human"`
 	Context             string                 `json:"context,omitempty" jsonschema:"Short context explaining why the team is asking now"`
-	MySlug              string                 `json:"my_slug,omitempty" jsonschema:"Agent slug asking the question. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug              string                 `json:"my_slug,omitempty" jsonschema:"Agent slug asking the question. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Options             []HumanInterviewOption `json:"options,omitempty" jsonschema:"Suggested answer options to show the human"`
 	RecommendedOptionID string                 `json:"recommended_option_id,omitempty" jsonschema:"Which option you recommend, if any"`
 }
@@ -259,14 +259,14 @@ type HumanMessageArgs struct {
 	Channel   string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel, or the active direct session in 1:1 mode."`
 	Title     string `json:"title,omitempty" jsonschema:"Short human-facing headline like 'Frontend ready for review' or 'Need your call on pricing'"`
 	Content   string `json:"content" jsonschema:"What you want to tell the human directly: completion update, recommendation, decision framing, or next action."`
-	MySlug    string `json:"my_slug,omitempty" jsonschema:"Agent slug speaking to the human. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug    string `json:"my_slug,omitempty" jsonschema:"Agent slug speaking to the human. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	ReplyToID string `json:"reply_to_id,omitempty" jsonschema:"Optional message ID this human-facing note belongs to."`
 }
 
 type TeamRequestsArgs struct {
 	Channel         string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	IncludeResolved bool   `json:"include_resolved,omitempty" jsonschema:"Include already answered or canceled requests."`
-	MySlug          string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug          string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamRequestArgs struct {
@@ -275,7 +275,7 @@ type TeamRequestArgs struct {
 	Title               string                 `json:"title,omitempty" jsonschema:"Short request title"`
 	Question            string                 `json:"question" jsonschema:"The actual question or approval the human needs to respond to"`
 	Context             string                 `json:"context,omitempty" jsonschema:"Short context for why the request exists"`
-	MySlug              string                 `json:"my_slug,omitempty" jsonschema:"Agent slug asking the question. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug              string                 `json:"my_slug,omitempty" jsonschema:"Agent slug asking the question. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Options             []HumanInterviewOption `json:"options,omitempty" jsonschema:"Suggested answer options for choice-style requests"`
 	RecommendedOptionID string                 `json:"recommended_option_id,omitempty" jsonschema:"Which option you recommend, if any"`
 	Blocking            bool                   `json:"blocking,omitempty" jsonschema:"Whether this request should pause channel work until answered"`
@@ -286,13 +286,13 @@ type TeamRequestArgs struct {
 
 type TeamTasksArgs struct {
 	Channel     string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	IncludeDone bool   `json:"include_done,omitempty" jsonschema:"Include completed tasks as well"`
 }
 
 type TeamRuntimeStateArgs struct {
 	Channel      string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	MySlug       string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug       string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	MessageLimit int    `json:"message_limit,omitempty" jsonschema:"How many recent messages to include when building the recovery summary (default 12, max 40)."`
 }
 
@@ -307,14 +307,14 @@ type TeamTaskArgs struct {
 	TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
 	ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
 	DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Task IDs this task must wait for before starting (create action only)"`
-	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamChannelsArgs struct{}
 
 type TeamMembersArgs struct {
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamChannelArgs struct {
@@ -323,7 +323,7 @@ type TeamChannelArgs struct {
 	Name        string   `json:"name,omitempty" jsonschema:"Optional channel display name on create"`
 	Description string   `json:"description,omitempty" jsonschema:"One-sentence explanation of what the channel is for. Required in practice when creating channels."`
 	Members     []string `json:"members,omitempty" jsonschema:"Optional initial member slugs to add when creating the channel. CEO is always included."`
-	MySlug      string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug      string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamDMOpenArgs struct {
@@ -335,7 +335,7 @@ type TeamChannelMemberArgs struct {
 	Action     string `json:"action" jsonschema:"One of: add, remove, disable, enable"`
 	Channel    string `json:"channel" jsonschema:"Channel slug"`
 	MemberSlug string `json:"member_slug" jsonschema:"Agent slug to modify"`
-	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamBridgeArgs struct {
@@ -343,7 +343,7 @@ type TeamBridgeArgs struct {
 	TargetChannel string   `json:"target_channel" jsonschema:"Channel slug the context should be carried into"`
 	Summary       string   `json:"summary" jsonschema:"Concise bridged context to carry across channels"`
 	Tagged        []string `json:"tagged,omitempty" jsonschema:"Optional agents to wake in the target channel after the bridge lands"`
-	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Agent slug performing the bridge. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Agent slug performing the bridge. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	ReplyToID     string   `json:"reply_to_id,omitempty" jsonschema:"Optional target-channel message ID this bridge belongs to"`
 }
 
@@ -363,9 +363,9 @@ type TeamMemberArgs struct {
 	// OpenClaw agents, each on its own provider.
 	Provider           string `json:"provider,omitempty" jsonschema:"LLM runtime for this agent. One of: claude-code, codex, opencode, openclaw. Empty = install default."`
 	Model              string `json:"model,omitempty" jsonschema:"Model name passed to the runtime (e.g. claude-sonnet-4.6, gpt-5.4, openai-codex/gpt-5.4). Free-form; runtime validates."`
-	OpenclawSessionKey string `json:"openclaw_session_key,omitempty" jsonschema:"Optional: attach to an existing OpenClaw session key (e.g. after WUPHF reinstall). Leave empty to auto-create a new session."`
+	OpenclawSessionKey string `json:"openclaw_session_key,omitempty" jsonschema:"Optional: attach to an existing OpenClaw session key (e.g. after LAF-Office reinstall). Leave empty to auto-create a new session."`
 	OpenclawAgentID    string `json:"openclaw_agent_id,omitempty" jsonschema:"Optional: OpenClaw agent config name (defaults to 'main')."`
-	MySlug             string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug             string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamPlanArgs struct {
@@ -378,14 +378,14 @@ type TeamPlanArgs struct {
 		ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
 		DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 	} `json:"tasks" jsonschema:"List of tasks to create in dependency order"`
-	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamMemoryQueryArgs struct {
 	Query  string `json:"query" jsonschema:"What you want to look up in memory"`
 	Scope  string `json:"scope,omitempty" jsonschema:"One of: auto, private, shared. Defaults to auto."`
 	Limit  int    `json:"limit,omitempty" jsonschema:"Maximum hits to return per scope (default 5)"`
-	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamMemoryWriteArgs struct {
@@ -393,18 +393,18 @@ type TeamMemoryWriteArgs struct {
 	Title      string `json:"title,omitempty" jsonschema:"Optional short title for the note"`
 	Content    string `json:"content" jsonschema:"Note content to store"`
 	Visibility string `json:"visibility,omitempty" jsonschema:"One of: private, shared. Defaults to private."`
-	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamMemoryPromoteArgs struct {
 	Key    string `json:"key" jsonschema:"Private note key to promote into shared durable memory"`
 	Title  string `json:"title,omitempty" jsonschema:"Optional override title for the promoted shared note"`
-	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 // TeamWikiWriteArgs is the contract for the team_wiki_write MCP tool.
 type TeamWikiWriteArgs struct {
-	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG env."`
+	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
 	ArticlePath string `json:"article_path" jsonschema:"Path within wiki root, e.g. team/people/nazz.md"`
 	Mode        string `json:"mode" jsonschema:"One of: create | replace | append_section"`
 	Content     string `json:"content" jsonschema:"Full article content (create/replace) or new section text (append_section)"`
@@ -424,7 +424,7 @@ type TeamWikiSearchArgs struct {
 // TeamWikiListArgs is intentionally empty — team_wiki_list takes no args.
 type TeamWikiListArgs struct{}
 
-// TeamWikiLookupArgs is the contract for wuphf_wiki_lookup.
+// TeamWikiLookupArgs is the contract for laf_office_wiki_lookup.
 type TeamWikiLookupArgs struct {
 	Query string `json:"query" jsonschema:"Natural-language question to answer from the team wiki"`
 	TopK  int    `json:"top_k,omitempty" jsonschema:"Max sources to retrieve (default 20)"`
@@ -433,21 +433,21 @@ type TeamWikiLookupArgs struct {
 type TeamTaskAckArgs struct {
 	ID      string `json:"id" jsonschema:"Task ID to acknowledge"`
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamTaskStatusArgs struct {
-	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 func Run(ctx context.Context) error {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "wuphf-team",
+		Name:    "laf-office-team",
 		Version: "0.1.0",
 	}, nil)
 
 	server.AddReceivingMiddleware(agentToolEventMiddleware)
-	configureServerTools(server, resolveSlugOptional(""), strings.TrimSpace(os.Getenv("WUPHF_CHANNEL")), isOneOnOneMode())
+	configureServerTools(server, resolveSlugOptional(""), strings.TrimSpace(os.Getenv("LAF_OFFICE_CHANNEL")), isOneOnOneMode())
 	return server.Run(ctx, &mcp.StdioTransport{})
 }
 
@@ -534,7 +534,7 @@ func postAgentToolEvent(ctx context.Context, slug, phase, tool, args, result, er
 // nex/gbrain installs expose the legacy team_memory_* tools; `none` skips
 // them entirely. Both tool sets NEVER coexist — agents see exactly one.
 func registerSharedMemoryTools(server *mcp.Server) {
-	switch strings.TrimSpace(os.Getenv("WUPHF_MEMORY_BACKEND")) {
+	switch strings.TrimSpace(os.Getenv("LAF_OFFICE_MEMORY_BACKEND")) {
 	case "markdown":
 		mcp.AddTool(server, officeWriteTool(
 			"team_wiki_write",
@@ -553,11 +553,11 @@ func registerSharedMemoryTools(server *mcp.Server) {
 			"Return the auto-regenerated catalog (index/all.md) of every article in the team wiki.",
 		), handleTeamWikiList)
 		mcp.AddTool(server, readOnlyTool(
-			"wuphf_wiki_lookup",
+			"laf_office_wiki_lookup",
 			"Cited-answer lookup against the team wiki. Returns a structured JSON answer with sources and inline citations. Use when you need a verified, sourced answer rather than a raw search.",
 		), handleTeamWikiLookup)
 		// Notebook tools ride on the same markdown backend. Registered here
-		// so they share the WUPHF_MEMORY_BACKEND gate with team_wiki_*.
+		// so they share the LAF_OFFICE_MEMORY_BACKEND gate with team_wiki_*.
 		registerNotebookTools(server)
 		// Entity brief tools (v1.2) — fact log + broker-level synthesis.
 		// Same backend gate: entity briefs live in the wiki subtree.
@@ -1310,7 +1310,7 @@ func handleTeamRuntimeState(ctx context.Context, _ *mcp.CallToolRequest, args Te
 	directAgent := ""
 	if isOneOnOneMode() {
 		mode = team.SessionModeOneOnOne
-		directAgent = team.NormalizeOneOnOneAgent(os.Getenv("WUPHF_ONE_ON_ONE_AGENT"))
+		directAgent = team.NormalizeOneOnOneAgent(os.Getenv("LAF_OFFICE_ONE_ON_ONE_AGENT"))
 	}
 
 	snapshot := team.BuildRuntimeSnapshot(team.RuntimeSnapshotInput{
@@ -2442,7 +2442,7 @@ func reconfigureLiveOffice() error {
 }
 
 func brokerBaseURL() string {
-	base := strings.TrimSpace(os.Getenv("WUPHF_TEAM_BROKER_URL"))
+	base := strings.TrimSpace(os.Getenv("LAF_OFFICE_TEAM_BROKER_URL"))
 	if base == "" {
 		base = strings.TrimSpace(os.Getenv("NEX_TEAM_BROKER_URL"))
 	}
@@ -2454,7 +2454,7 @@ func brokerBaseURL() string {
 
 func authHeaders() http.Header {
 	headers := http.Header{}
-	token := strings.TrimSpace(os.Getenv("WUPHF_BROKER_TOKEN"))
+	token := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN"))
 	if token == "" {
 		token = strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN"))
 	}
@@ -2468,16 +2468,16 @@ func authHeaders() http.Header {
 	// per-agent rate limit. A prompt-injected agent that loops on tool calls
 	// will otherwise bypass the IP-scoped limiter because it holds the broker
 	// token. Operator traffic from the web UI never sets this header.
-	if slug := strings.TrimSpace(os.Getenv("WUPHF_AGENT_SLUG")); slug != "" {
-		headers.Set("X-WUPHF-Agent", slug)
+	if slug := strings.TrimSpace(os.Getenv("LAF_OFFICE_AGENT_SLUG")); slug != "" {
+		headers.Set("X-LAF-Office-Agent", slug)
 	} else if slug := strings.TrimSpace(os.Getenv("NEX_AGENT_SLUG")); slug != "" {
-		headers.Set("X-WUPHF-Agent", slug)
+		headers.Set("X-LAF-Office-Agent", slug)
 	}
 	return headers
 }
 
 func readBrokerTokenFile() string {
-	path := strings.TrimSpace(os.Getenv("WUPHF_BROKER_TOKEN_FILE"))
+	path := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN_FILE"))
 	if path == "" {
 		path = strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN_FILE"))
 	}
@@ -2492,7 +2492,7 @@ func readBrokerTokenFile() string {
 }
 
 func isOneOnOneMode() bool {
-	value := strings.TrimSpace(os.Getenv("WUPHF_ONE_ON_ONE"))
+	value := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ON_ONE"))
 	return strings.EqualFold(value, "1") || strings.EqualFold(value, "true") || strings.EqualFold(value, "yes")
 }
 
@@ -2500,14 +2500,14 @@ func resolveSlug(input string) (string, error) {
 	if slug := strings.TrimSpace(resolveSlugOptional(input)); slug != "" {
 		return slug, nil
 	}
-	return "", fmt.Errorf("missing agent slug; pass my_slug explicitly or set WUPHF_AGENT_SLUG")
+	return "", fmt.Errorf("missing agent slug; pass my_slug explicitly or set LAF_OFFICE_AGENT_SLUG")
 }
 
 func resolveSlugOptional(input string) string {
 	if slug := strings.TrimSpace(input); slug != "" {
 		return slug
 	}
-	if slug := strings.TrimSpace(os.Getenv("WUPHF_AGENT_SLUG")); slug != "" {
+	if slug := strings.TrimSpace(os.Getenv("LAF_OFFICE_AGENT_SLUG")); slug != "" {
 		return slug
 	}
 	return strings.TrimSpace(os.Getenv("NEX_AGENT_SLUG"))
@@ -2525,7 +2525,7 @@ func normalizeChannelInput(input string) string {
 func resolveChannelHint(input string) string {
 	channel := normalizeChannelInput(input)
 	if channel == "" {
-		channel = normalizeChannelInput(os.Getenv("WUPHF_CHANNEL"))
+		channel = normalizeChannelInput(os.Getenv("LAF_OFFICE_CHANNEL"))
 	}
 	if channel == "" {
 		channel = normalizeChannelInput(os.Getenv("NEX_CHANNEL"))
@@ -3210,14 +3210,14 @@ func formatMessages(messages []brokerMessage, mySlug string) string {
 		// team_poll is background context; agents who need the full output can read
 		// it directly from the thread via a targeted team_poll with thread_id.
 		const pollContentLimit = 800
-		if msg.Kind == "automation" || msg.From == "wuphf" || msg.From == "nex" {
+		if msg.Kind == "automation" || msg.From == "laf-office" || msg.From == "nex" {
 			source := msg.Source
 			if source == "" {
 				source = "context_graph"
 			}
 			label := msg.SourceLabel
 			if label == "" {
-				label = "WUPHF"
+				label = "LAF-Office"
 			}
 			title := ""
 			if msg.Title != "" {

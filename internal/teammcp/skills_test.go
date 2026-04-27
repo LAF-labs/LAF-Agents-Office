@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 func TestTeamSkillCreateRegisteredForSpecialists(t *testing.T) {
@@ -41,8 +41,8 @@ func TestHandleTeamSkillRunBumpsUsageAndLogsInvocation(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	// Seed a skill the agent can invoke.
 	b.SeedDefaultSkills([]agent.PackSkillSpec{{
@@ -150,8 +150,8 @@ func TestHandleTeamSkillRunMissingSkillReturnsToolError(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	res, _, err := handleTeamSkillRun(context.Background(), nil, TeamSkillRunArgs{
 		SkillName: "nonexistent-skill",
@@ -174,8 +174,8 @@ func TestHandleTeamSkillCreateProposesSkill(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	res, _, err := handleTeamSkillCreate(context.Background(), nil, TeamSkillCreateArgs{
 		Name:        "handoff-checklist",
@@ -233,8 +233,8 @@ func TestHandleTeamSkillCreateCanActivateImmediately(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	res, _, err := handleTeamSkillCreate(context.Background(), nil, TeamSkillCreateArgs{
 		Name:    "already-approved",
@@ -286,8 +286,8 @@ func TestHandleTeamSkillCreateAllowsNonCEOProposal(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	res, _, err := handleTeamSkillCreate(context.Background(), nil, TeamSkillCreateArgs{
 		Name:    "planner-retro-loop",

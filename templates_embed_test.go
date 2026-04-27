@@ -1,21 +1,21 @@
-package wuphf_test
+package lafoffice_test
 
 import (
 	"testing"
 
-	wuphf "github.com/nex-crm/wuphf"
-	"github.com/nex-crm/wuphf/internal/operations"
+	lafoffice "github.com/nex-crm/laf-office"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // Verifies the //go:embed all:templates/... directive in templates_embed.go
 // actually pulls the blueprint YAML tree into the binary, and that the
 // init() wired it into the operations loader's fallback FS. Without this
 // test, a future refactor that drops the embed or skips the init wiring
-// would silently revert the "`npx wuphf` shows only From scratch" bug.
+// would silently revert the "`npx laf-office` shows only From scratch" bug.
 func TestTemplatesEmbedWiresOperationsFallback(t *testing.T) {
 	// Minimal guard against the embed going empty (e.g. someone builds
 	// with a broken working tree).
-	tfs, ok := wuphf.TemplatesFS()
+	tfs, ok := lafoffice.TemplatesFS()
 	if !ok {
 		t.Fatal("TemplatesFS() returned ok=false — embed is empty?")
 	}

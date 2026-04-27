@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	taskLogRootEnv          = "WUPHF_TASK_LOG_ROOT"
-	compactionTokenLimitEnv = "WUPHF_COMPACTION_TOKEN_LIMIT"
+	taskLogRootEnv          = "LAF_OFFICE_TASK_LOG_ROOT"
+	compactionTokenLimitEnv = "LAF_OFFICE_COMPACTION_TOKEN_LIMIT"
 	defaultTokenLimit       = 100000
 	// CEO routes work for the whole office and burns through context faster
 	// than any specialist, so it gets a much larger working window before the
@@ -28,9 +28,9 @@ func defaultTaskLogRoot() string {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".wuphf", "office", "tasks")
+		return filepath.Join(".laf-office", "office", "tasks")
 	}
-	return filepath.Join(home, ".wuphf", "office", "tasks")
+	return filepath.Join(home, ".laf-office", "office", "tasks")
 }
 
 func nextTaskID(slug string) string {

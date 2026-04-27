@@ -54,7 +54,7 @@ func fallbackDirs() []string {
 		dirs = append(dirs, dir)
 	}
 
-	for _, dir := range filepath.SplitList(getenvFn("WUPHF_CLI_PATHS")) {
+	for _, dir := range filepath.SplitList(getenvFn("LAF_OFFICE_CLI_PATHS")) {
 		add(dir)
 	}
 

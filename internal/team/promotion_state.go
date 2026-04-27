@@ -19,7 +19,7 @@ package team
 // Storage
 // -------
 //
-// Append-only JSONL log at ~/.wuphf/wiki/.reviews/reviews.jsonl. Line 1 is a
+// Append-only JSONL log at ~/.laf-office/wiki/.reviews/reviews.jsonl. Line 1 is a
 // header record; every subsequent line is either a "state" record (full
 // promotion snapshot + transition) or a "comment" record. Malformed lines are
 // SKIPPED with a log warning so a single corrupted line never costs us the
@@ -423,12 +423,12 @@ func (l *ReviewLog) TickExpiry(now time.Time) []StateTransition {
 		switch p.State {
 		case PromotionPending, PromotionInReview, PromotionChangesRequested:
 			if !p.ExpiresAt.IsZero() && now.After(p.ExpiresAt) {
-				t := l.transitionLocked(p, PromotionExpired, "wuphf-expiry", "idle for 14d", now, nil)
+				t := l.transitionLocked(p, PromotionExpired, "laf-office-expiry", "idle for 14d", now, nil)
 				out = append(out, t)
 			}
 		case PromotionApproved:
 			if p.ApprovedAt != nil && now.Sub(*p.ApprovedAt) >= PromotionApprovedArchive {
-				t := l.transitionLocked(p, PromotionArchived, "wuphf-expiry", "approved 7d ago", now, nil)
+				t := l.transitionLocked(p, PromotionArchived, "laf-office-expiry", "approved 7d ago", now, nil)
 				out = append(out, t)
 			}
 		}

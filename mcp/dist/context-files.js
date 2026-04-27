@@ -1,5 +1,5 @@
 /**
- * Ingests Claude Code context files (CLAUDE.md + memory files) into WUPHF.
+ * Ingests Claude Code context files (CLAUDE.md + memory files) into LAF-Office.
  *
  * Reads from both global and project-level locations:
  * - ~/.claude/CLAUDE.md (global instructions)
@@ -62,7 +62,7 @@ export async function ingestContextFiles(client, rateLimiter, cwd) {
                 continue;
             }
             if (!rateLimiter.canProceed()) {
-                process.stderr.write("[wuphf-context-files] Rate limited — stopping context file ingest\n");
+                process.stderr.write("[laf-office-context-files] Rate limited — stopping context file ingest\n");
                 result.skipped += candidates.length - result.ingested - result.skipped - result.errors;
                 break;
             }
@@ -78,7 +78,7 @@ export async function ingestContextFiles(client, rateLimiter, cwd) {
             dirty = true;
         }
         catch (err) {
-            process.stderr.write(`[wuphf-context-files] Failed to ingest ${contextTag}: ${err instanceof Error ? err.message : String(err)}\n`);
+            process.stderr.write(`[laf-office-context-files] Failed to ingest ${contextTag}: ${err instanceof Error ? err.message : String(err)}\n`);
             result.errors++;
         }
     }

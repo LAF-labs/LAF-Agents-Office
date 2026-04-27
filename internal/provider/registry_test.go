@@ -3,9 +3,9 @@ package provider_test
 import (
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/provider"
-	"github.com/nex-crm/wuphf/internal/providertest"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/nex-crm/laf-office/internal/providertest"
 )
 
 // TestRegistry_FakeKindRoutesEverywhere is the epicentric red test for the
@@ -21,7 +21,7 @@ import (
 // After the Registry exists and resolver+oneshot dispatch through it, the fake's
 // StreamFn and OneShot are invoked and the assertions pass.
 func TestRegistry_FakeKindRoutesEverywhere(t *testing.T) {
-	const fakeKind = "wuphf-test-fake-provider"
+	const fakeKind = "laf-office-test-fake-provider"
 
 	var streamFnHits, oneShotHits int
 	providertest.RegisterForTest(t, &provider.Entry{
@@ -41,7 +41,7 @@ func TestRegistry_FakeKindRoutesEverywhere(t *testing.T) {
 		Capabilities: provider.Capabilities{SupportsOneShot: true},
 	})
 
-	t.Setenv("WUPHF_LLM_PROVIDER", fakeKind)
+	t.Setenv("LAF_OFFICE_LLM_PROVIDER", fakeKind)
 
 	// Path 1: streaming resolver.
 	fn := provider.DefaultStreamFnResolver(nil, nil)("agent-slug")
@@ -72,7 +72,7 @@ func TestRegistry_FakeKindRoutesEverywhere(t *testing.T) {
 // TestRegistry_LookupReturnsNilForUnknown documents that a non-registered Kind
 // returns nil so dispatchers know to fall back to a default (claude-code).
 func TestRegistry_LookupReturnsNilForUnknown(t *testing.T) {
-	if e := provider.Lookup("wuphf-never-registered-kind"); e != nil {
+	if e := provider.Lookup("laf-office-never-registered-kind"); e != nil {
 		t.Fatalf("Lookup returned non-nil entry %+v for unregistered kind", e)
 	}
 }
@@ -91,8 +91,8 @@ func TestRegistry_LookupReturnsNilForUnknown(t *testing.T) {
 // DefaultStreamFnResolver. When set, the per-agent kind wins; when nil,
 // resolution falls back to the install-wide ResolveLLMProvider.
 func TestStreamFnResolver_PerAgentKindOverridesInstallWide(t *testing.T) {
-	const installKind = "wuphf-test-install-wide-kind"
-	const agentKind = "wuphf-test-per-agent-kind"
+	const installKind = "laf-office-test-install-wide-kind"
+	const agentKind = "laf-office-test-per-agent-kind"
 
 	var installHits, agentHits int
 	providertest.RegisterForTest(t, &provider.Entry{
@@ -118,7 +118,7 @@ func TestStreamFnResolver_PerAgentKindOverridesInstallWide(t *testing.T) {
 		},
 	})
 
-	t.Setenv("WUPHF_LLM_PROVIDER", installKind)
+	t.Setenv("LAF_OFFICE_LLM_PROVIDER", installKind)
 
 	kindResolver := func(slug string) string {
 		if slug == "agent-on-per-agent-binding" {

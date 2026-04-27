@@ -9,7 +9,7 @@ package team
 // LLM CLI), so the cron is opt-in: absent env var = disabled.
 //
 // Environment variables:
-//   WUPHF_LINT_CRON   — "HH:MM" (24-hour, local time) to enable a daily run
+//   LAF_OFFICE_LINT_CRON   — "HH:MM" (24-hour, local time) to enable a daily run
 //                        at that time. Unset or empty = cron disabled.
 
 import (
@@ -26,19 +26,19 @@ import (
 // local timezone and then runs the Lint suite once per day. The goroutine
 // stops when ctx is cancelled (broker shutdown).
 //
-// The cron is opt-in. Set WUPHF_LINT_CRON=HH:MM to enable a daily run.
+// The cron is opt-in. Set LAF_OFFICE_LINT_CRON=HH:MM to enable a daily run.
 // Unset / empty / "disabled" all mean no cron — no LLM calls happen unless
 // a human explicitly clicks "Check wiki health" in the UI.
 func (b *Broker) startLintCron(ctx context.Context, idx *WikiIndex, worker *WikiWorker) {
-	schedule := strings.TrimSpace(os.Getenv("WUPHF_LINT_CRON"))
+	schedule := strings.TrimSpace(os.Getenv("LAF_OFFICE_LINT_CRON"))
 	if schedule == "" || schedule == "disabled" {
-		log.Printf("wiki lint cron: disabled (set WUPHF_LINT_CRON=HH:MM to enable a daily run)")
+		log.Printf("wiki lint cron: disabled (set LAF_OFFICE_LINT_CRON=HH:MM to enable a daily run)")
 		return
 	}
 
 	hour, minute, err := parseLintCronTime(schedule)
 	if err != nil {
-		log.Printf("wiki lint cron: invalid WUPHF_LINT_CRON %q: %v — cron disabled", schedule, err)
+		log.Printf("wiki lint cron: invalid LAF_OFFICE_LINT_CRON %q: %v — cron disabled", schedule, err)
 		return
 	}
 

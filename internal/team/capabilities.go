@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/runtimebin"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/runtimebin"
 )
 
 type CapabilityLevel string
@@ -64,9 +64,9 @@ func DetectRuntimeCapabilities() RuntimeCapabilities {
 
 func DetectRuntimeCapabilitiesWithOptions(opts CapabilityProbeOptions) RuntimeCapabilities {
 	tmuxStatus, tmux := probeTmuxCapability()
-	claudeStatus := probeBinaryCapability("claude", "Install claude so WUPHF can start teammate runtime sessions.")
-	codexStatus := probeBinaryCapability("codex", "Install Codex CLI and run `codex login` so WUPHF can start the headless Codex office runtime.")
-	opencodeStatus := probeBinaryCapability("opencode", "Install Opencode CLI (https://opencode.ai) and configure your provider credentials so WUPHF can start the headless Opencode office runtime.")
+	claudeStatus := probeBinaryCapability("claude", "Install claude so LAF-Office can start teammate runtime sessions.")
+	codexStatus := probeBinaryCapability("codex", "Install Codex CLI and run `codex login` so LAF-Office can start the headless Codex office runtime.")
+	opencodeStatus := probeBinaryCapability("opencode", "Install Opencode CLI (https://opencode.ai) and configure your provider credentials so LAF-Office can start the headless Opencode office runtime.")
 	registry := buildCapabilityRegistry(config.ResolveLLMProvider(""), tmuxStatus, claudeStatus, codexStatus, opencodeStatus, opts)
 	summaryKeys := []string{
 		CapabilityKeyOfficeRuntime,
@@ -133,7 +133,7 @@ func probeTmuxCapability() (CapabilityStatus, TmuxCapability) {
 			Name:     "tmux",
 			Level:    CapabilityWarn,
 			Detail:   "tmux is not available on PATH.",
-			NextStep: "Install tmux so WUPHF can manage the office session.",
+			NextStep: "Install tmux so LAF-Office can manage the office session.",
 		}, capability
 	}
 	capability.BinaryPath = path
@@ -207,7 +207,7 @@ func (t TmuxCapability) summaryDetail() string {
 		version = "tmux"
 	}
 	if !t.ServerRunning {
-		return fmt.Sprintf("%s is installed, but the WUPHF tmux server on socket %s is not running yet.", version, t.SocketName)
+		return fmt.Sprintf("%s is installed, but the LAF-Office tmux server on socket %s is not running yet.", version, t.SocketName)
 	}
 	if session, ok := t.targetSession(); ok {
 		return fmt.Sprintf("%s on socket %s is running with session %s (%d attached, %d windows).", version, t.SocketName, session.Name, session.Attached, session.Windows)
@@ -217,13 +217,13 @@ func (t TmuxCapability) summaryDetail() string {
 
 func (t TmuxCapability) nextStep() string {
 	if t.BinaryPath == "" {
-		return "Install tmux so WUPHF can manage the office session."
+		return "Install tmux so LAF-Office can manage the office session."
 	}
 	if !t.ServerRunning {
-		return "Launch WUPHF to create the tmux office session."
+		return "Launch LAF-Office to create the tmux office session."
 	}
 	if _, ok := t.targetSession(); !ok {
-		return "Restart WUPHF to recreate the missing office session."
+		return "Restart LAF-Office to recreate the missing office session."
 	}
 	return ""
 }
@@ -274,11 +274,11 @@ func (t TmuxCapability) FormatLines() []string {
 		lines = append(lines, fmt.Sprintf("- TMUX env: %s", t.InsideTmuxEnv))
 	}
 	if !t.ServerRunning {
-		lines = append(lines, fmt.Sprintf("- WUPHF session: not running yet (%s)", t.SessionName))
+		lines = append(lines, fmt.Sprintf("- LAF-Office session: not running yet (%s)", t.SessionName))
 	} else if session, ok := t.targetSession(); ok {
-		lines = append(lines, fmt.Sprintf("- WUPHF session: running (%d attached, %d windows)", session.Attached, session.Windows))
+		lines = append(lines, fmt.Sprintf("- LAF-Office session: running (%d attached, %d windows)", session.Attached, session.Windows))
 	} else {
-		lines = append(lines, fmt.Sprintf("- WUPHF session: missing from socket %s", t.SocketName))
+		lines = append(lines, fmt.Sprintf("- LAF-Office session: missing from socket %s", t.SocketName))
 	}
 	if len(t.Sessions) > 0 {
 		lines = append(lines, "- tmux sessions:")

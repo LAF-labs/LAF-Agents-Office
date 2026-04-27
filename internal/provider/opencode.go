@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/runtimebin"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/runtimebin"
 )
 
 var (
@@ -35,7 +35,7 @@ func init() {
 }
 
 // CreateOpencodeCLIStreamFn returns a StreamFn that runs the Opencode CLI
-// non-interactively. Each invocation is ephemeral: WUPHF owns the conversation
+// non-interactively. Each invocation is ephemeral: LAF-Office owns the conversation
 // history and hands Opencode a fresh prompt every turn.
 //
 // Opencode emits plain text on stdout (no JSONL surface), so we stream stdout
@@ -247,7 +247,7 @@ func appendOpencodeLatencyLog(agentSlug string, line string) {
 	if err != nil {
 		return
 	}
-	logDir := filepath.Join(home, ".wuphf", "logs")
+	logDir := filepath.Join(home, ".laf-office", "logs")
 	if err := os.MkdirAll(logDir, 0o700); err != nil {
 		return
 	}

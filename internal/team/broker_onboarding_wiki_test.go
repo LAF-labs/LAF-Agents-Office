@@ -8,14 +8,14 @@ import (
 
 // TestOnboardingCompleteMaterializesWiki verifies the Lane B integration
 // hook: picking a blueprint whose wiki_schema declares bootstrap articles
-// causes those articles to land under $HOME/.wuphf/wiki/ after
+// causes those articles to land under $HOME/.laf-office/wiki/ after
 // onboarding completes. The broker state is isolated and HOME is
 // redirected to a temp dir so we never touch the real wiki.
 func TestOnboardingCompleteMaterializesWiki(t *testing.T) {
 	ensureOperationsFallbackFS(t)
 
 	// Redirect HOME so the onboarding hook writes into the test tempdir
-	// instead of ~/.wuphf. os.UserHomeDir respects $HOME on unix.
+	// instead of ~/.laf-office. os.UserHomeDir respects $HOME on unix.
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
 
@@ -24,7 +24,7 @@ func TestOnboardingCompleteMaterializesWiki(t *testing.T) {
 		t.Fatalf("onboardingCompleteFn: %v", err)
 	}
 
-	wikiRoot := filepath.Join(tmpHome, ".wuphf", "wiki")
+	wikiRoot := filepath.Join(tmpHome, ".laf-office", "wiki")
 
 	// The niche-crm blueprint declares multiple bootstrap articles; we
 	// only need to spot-check one to confirm the hook fired and the
@@ -65,7 +65,7 @@ func TestOnboardingCompleteWikiIsIdempotent(t *testing.T) {
 	if err := b.onboardingCompleteFn("Stand up niche CRM", false, "niche-crm", nil); err != nil {
 		t.Fatalf("first onboardingCompleteFn: %v", err)
 	}
-	wikiRoot := filepath.Join(tmpHome, ".wuphf", "wiki")
+	wikiRoot := filepath.Join(tmpHome, ".laf-office", "wiki")
 	article := filepath.Join(wikiRoot, "team", "customers", "onboarding.md")
 
 	// User edits an article between runs.
@@ -77,7 +77,7 @@ func TestOnboardingCompleteWikiIsIdempotent(t *testing.T) {
 	// Second run — e.g. the user re-picks the blueprint. Pinning to the
 	// same broker-state.json as `b` so normalizeLoadedStateLocked observes
 	// the persistence from the first run (matches production behavior
-	// where a CLI restart reads ~/.wuphf/team/broker-state.json).
+	// where a CLI restart reads ~/.laf-office/team/broker-state.json).
 	b2 := NewBrokerAt(b.statePath)
 	if err := b2.onboardingCompleteFn("Re-pick niche CRM", false, "niche-crm", nil); err != nil {
 		t.Fatalf("second onboardingCompleteFn: %v", err)
@@ -108,7 +108,7 @@ func TestOnboardingCompleteSynthesizedBlueprintSkipsWiki(t *testing.T) {
 	}
 
 	// No wiki dir expected — materializer never ran.
-	wikiRoot := filepath.Join(tmpHome, ".wuphf", "wiki")
+	wikiRoot := filepath.Join(tmpHome, ".laf-office", "wiki")
 	if _, err := os.Stat(wikiRoot); !os.IsNotExist(err) {
 		t.Fatalf("expected no wiki root for synthesized blueprint, got err=%v", err)
 	}

@@ -37,7 +37,7 @@ cd "$repo_root" || exit 2
 
 # macOS ships bash 3.2, so no `mapfile` / no `readarray`. Use a tempfile +
 # while-read loop, which works on any POSIX bash.
-pkg_list="$(mktemp -t wuphf-test-go.XXXXXX)"
+pkg_list="$(mktemp -t laf-office-test-go.XXXXXX)"
 trap 'rm -f "$pkg_list"' EXIT
 
 if [ "$#" -gt 0 ]; then

@@ -89,7 +89,7 @@ describe("setTheme", () => {
     try {
       useAppStore.getState().setTheme("nex-dark");
 
-      expect(setItemSpy).toHaveBeenCalledWith("wuphf-theme", "nex-dark");
+      expect(setItemSpy).toHaveBeenCalledWith("laf-office-theme", "nex-dark");
       expect(useAppStore.getState().theme).toBe("nex-dark");
       expect(document.documentElement.getAttribute("data-theme")).toBe(
         "nex-dark",
@@ -117,13 +117,13 @@ describe("setLanguage", () => {
     try {
       useAppStore.getState().setLanguage("ko");
 
-      expect(setItemSpy).toHaveBeenCalledWith("wuphf-language", "ko");
+      expect(setItemSpy).toHaveBeenCalledWith("laf-office-language", "ko");
       expect(useAppStore.getState().language).toBe("ko");
       expect(document.documentElement.getAttribute("lang")).toBe("ko");
 
       useAppStore.getState().setLanguage("en");
 
-      expect(setItemSpy).toHaveBeenCalledWith("wuphf-language", "en");
+      expect(setItemSpy).toHaveBeenCalledWith("laf-office-language", "en");
       expect(useAppStore.getState().language).toBe("en");
       expect(document.documentElement.getAttribute("lang")).toBe("en");
     } finally {

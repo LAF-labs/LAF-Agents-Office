@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // the catch-path contract here and pin it:
 //
 //   When React fails to mount, main.tsx must (a) render a fatal-error
-//   overlay and (b) signal window.__wuphfBootDone so the 10s watchdog
+//   overlay and (b) signal window.__lafOfficeBootDone so the 10s watchdog
 //   in index.html does not fire a second, generic overlay on top.
 //
 // If this contract regresses, users who hit a real module-level error
@@ -40,13 +40,13 @@ describe("main.tsx boot-error contract", () => {
     bootDoneCalls = 0;
     showFatalCalls = [];
     windowBootDoneCalls = 0;
-    window.__wuphfBootDone = () => {
+    window.__lafOfficeBootDone = () => {
       windowBootDoneCalls += 1;
     };
   });
 
   afterEach(() => {
-    delete window.__wuphfBootDone;
+    delete window.__lafOfficeBootDone;
   });
 
   it("signals bootDone after showing the fatal overlay", () => {
@@ -56,7 +56,7 @@ describe("main.tsx boot-error contract", () => {
       },
       signalBootDone: () => {
         bootDoneCalls += 1;
-        window.__wuphfBootDone?.();
+        window.__lafOfficeBootDone?.();
       },
     });
 
@@ -100,7 +100,7 @@ describe("index.html watchdog contract (simulated)", () => {
       win.document.body.appendChild(box);
       state.bootDone = true;
     };
-    win.__wuphfBootDone = () => {
+    win.__lafOfficeBootDone = () => {
       state.bootDone = true;
     };
     const fireWatchdog = () => {
@@ -146,7 +146,7 @@ describe("index.html watchdog contract (simulated)", () => {
   afterEach(() => {
     const existing = document.getElementById("fatal-error");
     if (existing) existing.remove();
-    delete window.__wuphfBootDone;
+    delete window.__lafOfficeBootDone;
     window.location.hash = "";
   });
 
@@ -164,7 +164,7 @@ describe("index.html watchdog contract (simulated)", () => {
 
   it("bootDone signal suppresses the 10s watchdog", () => {
     const { fireWatchdog } = installWatchdog(window);
-    window.__wuphfBootDone?.();
+    window.__lafOfficeBootDone?.();
     fireWatchdog();
 
     expect(document.getElementById("fatal-error")).toBeNull();

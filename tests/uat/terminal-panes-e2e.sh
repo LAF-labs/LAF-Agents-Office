@@ -5,13 +5,13 @@
 # Prerequisites:
 # - termwright daemon in PATH
 # - claude binary in PATH (for embedded mode)
-# - wuphf binary built at repo root
+# - laf-office binary built at repo root
 #
 # Usage: ./terminal-panes-e2e.sh
 set -e
 
-SOCKET="/tmp/wuphf-panes-e2e-$$.sock"
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+SOCKET="/tmp/laf-office-panes-e2e-$$.sock"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/panes-e2e-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$ARTIFACTS"
 
@@ -58,7 +58,7 @@ echo "Binary: $BINARY"
 
 # Check prerequisites.
 if [ ! -f "$BINARY" ]; then
-  echo "SKIP: wuphf binary not found at $BINARY (run: go build -o wuphf ./cmd/wuphf)"
+  echo "SKIP: laf-office binary not found at $BINARY (run: go build -o laf-office ./cmd/laf-office)"
   exit 0
 fi
 

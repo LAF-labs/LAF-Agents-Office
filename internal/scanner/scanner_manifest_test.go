@@ -8,7 +8,7 @@ import (
 )
 
 func TestScanManifestRoundTrip(t *testing.T) {
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 
 	// Start with an empty manifest.
 	m, err := ReadScanManifest()
@@ -44,7 +44,7 @@ func TestScanManifestRoundTrip(t *testing.T) {
 }
 
 func TestScanManifestMalformedJSONRecovers(t *testing.T) {
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	// Seed the manifest dir with garbage.
 	mp := ScanManifestPath()
 	if err := os.MkdirAll(filepath.Dir(mp), 0o700); err != nil {
@@ -63,7 +63,7 @@ func TestScanManifestMalformedJSONRecovers(t *testing.T) {
 }
 
 func TestScanManifestWrongVersionRecovers(t *testing.T) {
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	mp := ScanManifestPath()
 	if err := os.MkdirAll(filepath.Dir(mp), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -82,7 +82,7 @@ func TestScanManifestWrongVersionRecovers(t *testing.T) {
 }
 
 func TestScanManifestIsChangedShape(t *testing.T) {
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	m := emptyManifest()
 	p := filepath.Join(t.TempDir(), "f.md")
 	if err := os.WriteFile(p, []byte("a"), 0o600); err != nil {

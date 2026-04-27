@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/action"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 type CapabilityLifecycle string

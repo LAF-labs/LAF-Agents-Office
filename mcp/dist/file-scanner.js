@@ -1,6 +1,6 @@
 /**
  * Core file scanner — walks project directories, detects changed files,
- * and ingests them into WUPHF via the developer API.
+ * and ingests them into LAF-Office via the developer API.
  */
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { join, relative, extname } from "node:path";
@@ -51,7 +51,7 @@ export async function scanAndIngest(client, rateLimiter, cwd, config) {
     result.skipped = candidates.length - changed.length;
     for (const file of changed) {
         if (!rateLimiter.canProceed()) {
-            process.stderr.write(`[wuphf-scan] Rate limited — stopping after ${result.ingested} files\n`);
+            process.stderr.write(`[laf-office-scan] Rate limited — stopping after ${result.ingested} files\n`);
             result.skipped += changed.length - result.ingested - result.errors;
             break;
         }
@@ -67,7 +67,7 @@ export async function scanAndIngest(client, rateLimiter, cwd, config) {
             result.ingested++;
         }
         catch (err) {
-            process.stderr.write(`[wuphf-scan] Failed to ingest ${file.relativePath}: ${err instanceof Error ? err.message : String(err)}\n`);
+            process.stderr.write(`[laf-office-scan] Failed to ingest ${file.relativePath}: ${err instanceof Error ? err.message : String(err)}\n`);
             result.errors++;
         }
     }

@@ -9,11 +9,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/nex"
-	"github.com/nex-crm/wuphf/internal/operations"
-	"github.com/nex-crm/wuphf/internal/runtimebin"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/nex"
+	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/nex-crm/laf-office/internal/runtimebin"
 )
 
 var initFlowLookPathFn = runtimebin.LookPath
@@ -503,7 +503,7 @@ func (f InitFlowModel) readinessChecks() []initReadinessCheck {
 		{
 			Label:  "tmux office runtime",
 			Status: readinessStatusForBool(binaryAvailable("tmux")),
-			Detail: binaryReadinessDetail("tmux", "WUPHF can open the office panes.", "Install tmux before launching the office."),
+			Detail: binaryReadinessDetail("tmux", "LAF-Office can open the office panes.", "Install tmux before launching the office."),
 		},
 		{
 			Label:  "LLM runtime",
@@ -569,9 +569,9 @@ func readinessStatusForOptional(set bool) string {
 
 func apiKeyReadinessDetail(ok bool) string {
 	if ok {
-		return "WUPHF/Nex API key is configured."
+		return "LAF-Office/Nex API key is configured."
 	}
-	return "Paste your WUPHF/Nex API key to enable memory and managed integrations."
+	return "Paste your LAF-Office/Nex API key to enable memory and managed integrations."
 }
 
 func blueprintReadinessStatus(blueprint string) string {
@@ -638,7 +638,7 @@ func providerRuntimeDetail(provider string) string {
 	case "gemini":
 		return "Gemini uses an API key. No local CLI is required."
 	case "nex-ask":
-		return "Managed through Nex. WUPHF will route requests through your Nex identity."
+		return "Managed through Nex. LAF-Office will route requests through your Nex identity."
 	default:
 		return provider + " is selected."
 	}
@@ -661,7 +661,7 @@ func (f InitFlowModel) phaseText() (heading, instructions string) {
 	case InitIdle:
 		return "Setup", "Run /init to begin."
 	case InitAPIKey:
-		return "Enter Nex API Key", "Paste your WUPHF/Nex API key. WUPHF uses One for integrations and manages it automatically through your Nex identity."
+		return "Enter Nex API Key", "Paste your LAF-Office/Nex API key. LAF-Office uses One for integrations and manages it automatically through your Nex identity."
 	case InitProviderChoice:
 		return "Choose LLM Provider", "Select your preferred AI provider. Integrations are handled automatically through Nex using One."
 	case InitMemoryChoice:

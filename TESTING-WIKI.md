@@ -23,12 +23,12 @@ Reproducible steps to verify the `feat/llm-wiki` feature end-to-end, plus refere
 - `curl`, `python3` (used by the demo script)
 - Optional: `ffmpeg` if you want to convert recordings to GIFs
 
-Everything runs locally on dev ports to avoid colliding with a prod `npx wuphf` if you have one running:
+Everything runs locally on dev ports to avoid colliding with a prod `npx laf-office` if you have one running:
 
 | | Binary | Broker port | Web UI port | Isolated HOME |
 |---|---|---|---|---|
-| Prod | `npx wuphf` | 7890 | 7891 | `~/.wuphf` |
-| Dev | `./wuphf-dev` (this worktree) | 7899 | 7900 | any path you set via `HOME=` |
+| Prod | `npx laf-office` | 7890 | 7891 | `~/.laf-office` |
+| Dev | `./laf-office-dev` (this worktree) | 7899 | 7900 | any path you set via `HOME=` |
 
 Never run the dev binary without `--broker-port 7899 --web-port 7900` and an overridden `HOME` — see `docs/LOCAL-DEV-PROD-ISOLATION.md` (local-only) for rationale.
 
@@ -110,13 +110,13 @@ Verifies wiki works as a user would experience it on a fresh install.
 ```bash
 cd /path/to/feat-llm-wiki
 ( cd web && npm run build )                  # embedded web bundle
-go build -o wuphf-dev ./cmd/wuphf
+go build -o laf-office-dev ./cmd/laf-office
 ```
 
 ### 2. Fresh dev home
 
 ```bash
-DEMO_HOME="/tmp/wuphf-demo"
+DEMO_HOME="/tmp/laf-office-demo"
 rm -rf "$DEMO_HOME"
 mkdir -p "$DEMO_HOME"
 ```
@@ -124,7 +124,7 @@ mkdir -p "$DEMO_HOME"
 ### 3. Launch
 
 ```bash
-HOME="$DEMO_HOME" ./wuphf-dev \
+HOME="$DEMO_HOME" ./laf-office-dev \
   --broker-port 7899 --web-port 7900 \
   --memory-backend markdown
 ```
@@ -162,18 +162,18 @@ curl -s -X POST "http://127.0.0.1:7899/onboarding/complete" \
 
 ```bash
 # Blueprint skeletons should exist
-find "$DEMO_HOME/.wuphf/wiki/team" -name "*.md" | sort
+find "$DEMO_HOME/.laf-office/wiki/team" -name "*.md" | sort
 
 # Git repo should be initialized with at least one commit
-git -C "$DEMO_HOME/.wuphf/wiki" log --oneline
+git -C "$DEMO_HOME/.laf-office/wiki" log --oneline
 
 # Index should auto-regenerate
-cat "$DEMO_HOME/.wuphf/wiki/index/all.md"
+cat "$DEMO_HOME/.laf-office/wiki/index/all.md"
 ```
 
 Expected:
 - 5 skeleton markdown files under `team/` (customers/onboarding, inbox/raw-feedback, playbooks/renewal, product/roadmap-rationale, decisions/product-log for niche-crm)
-- git log shows `wuphf: init wiki` commit plus a skeleton-materialization commit
+- git log shows `laf-office: init wiki` commit plus a skeleton-materialization commit
 - `index/all.md` lists the articles grouped by dir
 
 ### 6. Verify wiki UI
@@ -205,7 +205,7 @@ Smoke test passes if all steps above complete without errors.
 
 Fastest and most reliable. Good for Reddit GIFs, quick pitches, regression checks.
 
-**Terminal 1 — keep WUPHF running** (same as the smoke test above).
+**Terminal 1 — keep LAF-Office running** (same as the smoke test above).
 
 **Terminal 2 — run the demo script:**
 
@@ -235,7 +235,7 @@ The script:
 - The "X articles" stat ticks up from 5 → 13
 - New cards appear on the catalog grid (CUSTOMERS, PEOPLE)
 - Navigate to `/#/wiki/team/customers/customer-x.md` before the demo and watch the "Referenced by" panel fill in live as later articles link to it
-- `git -C ~/.wuphf/wiki log --oneline` after the demo shows all 9 commits with per-agent authorship
+- `git -C ~/.laf-office/wiki log --oneline` after the demo shows all 9 commits with per-agent authorship
 
 **Reproducibility check** — run the demo twice against the same dev home:
 - First run: all writes succeed
@@ -247,7 +247,7 @@ The script:
 
 Slower but more demonstrably "real." Good for a YouTube walkthrough or the Karpathy-style launch pitch where "these are real AI agents" is load-bearing.
 
-### 1. Launch WUPHF as above
+### 1. Launch LAF-Office as above
 
 Onboarding must complete. Do NOT use `--unsafe` — let the agents go through the normal permission flow.
 
@@ -341,8 +341,8 @@ Walk through these by hand after any change that touches wiki code:
 
 ### Crash recovery
 
-- [ ] Launch wuphf, write one article, `kill -9` the process mid-session
-- [ ] Relaunch. Check `git log` — if there was uncommitted work, a `wuphf-recovery` author commit should appear
+- [ ] Launch laf-office, write one article, `kill -9` the process mid-session
+- [ ] Relaunch. Check `git log` — if there was uncommitted work, a `laf-office-recovery` author commit should appear
 
 ### Backend switch (IRON regression)
 
@@ -357,12 +357,12 @@ Walk through these by hand after any change that touches wiki code:
 
 ### Quick GIF (30-45s) for Reddit or Twitter
 
-1. Launch WUPHF + complete onboarding as per smoke test
+1. Launch LAF-Office + complete onboarding as per smoke test
 2. Navigate to `http://localhost:7900/#/wiki`
 3. Start screen recording (macOS: `Cmd-Shift-5`; Linux: `peek` or `kazam`)
 4. Run `./scripts/demo-wiki-live.sh` with `DELAY=2`
 5. Stop recording ~25 seconds after demo finishes
-6. Crop to the wiki area (exclude the rest of the WUPHF chrome if it's too busy)
+6. Crop to the wiki area (exclude the rest of the LAF-Office chrome if it's too busy)
 7. Convert to GIF:
 
 ```bash
@@ -381,8 +381,8 @@ Target: <2 MB. For Reddit, 4 MB hard cap.
 3. Run demo script — the "Referenced by" panel on Customer X fills live
 4. After the script finishes, click back to the catalog and show the populated groups
 5. Click into `team/playbooks/churn-prevention.md` — show the wikilinks back to Customer X and Meridian Freight
-6. Drop to a terminal, run `cat ~/.wuphf/wiki/team/customers/customer-x.md` — real markdown on disk
-7. Run `git -C ~/.wuphf/wiki log --oneline` — show per-agent authorship
+6. Drop to a terminal, run `cat ~/.laf-office/wiki/team/customers/customer-x.md` — real markdown on disk
+7. Run `git -C ~/.laf-office/wiki log --oneline` — show per-agent authorship
 8. Stop recording
 
 Export as MP4, 1080p. The "file on disk + git log" reveal at the end is the money shot for the Karpathy-wiki pitch.
@@ -391,17 +391,17 @@ Export as MP4, 1080p. The "file on disk + git log" reveal at the end is the mone
 
 ## Troubleshooting
 
-**Problem:** `./wuphf-dev: command not found`
-**Fix:** You haven't built yet. Run `go build -o wuphf-dev ./cmd/wuphf`.
+**Problem:** `./laf-office-dev: command not found`
+**Fix:** You haven't built yet. Run `go build -o laf-office-dev ./cmd/laf-office`.
 
 **Problem:** Browser opens to a splash screen, never reaches the wiki
 **Fix:** Onboarding wizard is active. Complete it (company name + blueprint + memory backend + API key). For scripting, use the programmatic `POST /onboarding/complete` sequence above.
 
 **Problem:** Wiki tab missing from the left sidebar
-**Fix:** Stale web bundle. Rebuild: `( cd web && npm run build ) && go build -o wuphf-dev ./cmd/wuphf`, then relaunch.
+**Fix:** Stale web bundle. Rebuild: `( cd web && npm run build ) && go build -o laf-office-dev ./cmd/laf-office`, then relaunch.
 
 **Problem:** Demo script prints `broker not reachable at http://127.0.0.1:7899`
-**Fix:** wuphf-dev isn't running, or it bound to different ports. Check with `lsof -i :7899`. If empty, relaunch. If your broker is on a different port, set `BROKER=http://127.0.0.1:<port>`.
+**Fix:** laf-office-dev isn't running, or it bound to different ports. Check with `lsof -i :7899`. If empty, relaunch. If your broker is on a different port, set `BROKER=http://127.0.0.1:<port>`.
 
 **Problem:** Catalog shows fake names (Sarah Chen / David Kim / Nazz) I never wrote
 **Fix:** `fetchCatalog()` is hitting its fixture fallback. That means `/wiki/catalog` returned an error. Check:
@@ -412,7 +412,7 @@ curl -s "http://127.0.0.1:7899/wiki/catalog" -H "Authorization: Bearer $TOKEN" |
 If this returns 503 "wiki backend is not active", the broker didn't start the wiki worker — launch with `--memory-backend markdown`.
 
 **Problem:** `fatal: cannot create directory` when launching
-**Fix:** Your dev HOME points into a read-only path or inside a git worktree with conflicting untracked files. Use a fresh `/tmp/wuphf-demo` as the HOME.
+**Fix:** Your dev HOME points into a read-only path or inside a git worktree with conflicting untracked files. Use a fresh `/tmp/laf-office-demo` as the HOME.
 
 **Problem:** Live edit-log footer shows fixture entries, not my writes
 **Fix:** Known follow-up — Lane C's SSE subscription isn't wired to the real `/wiki/stream` endpoint yet; the footer uses a synthetic replay. Real writes DO commit (verified via `git log`); only the footer display is stale. Refresh the page to see updated counts in the catalog and correct per-article backlinks.

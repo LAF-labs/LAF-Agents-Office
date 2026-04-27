@@ -3,9 +3,9 @@ package teammcp
 // server_slice1_tools_test.go — regression guard for Slice 1 wiki intelligence
 // MCP tools.
 //
-// The three tools added in Slice 1 (wuphf_wiki_lookup, run_lint,
+// The three tools added in Slice 1 (laf_office_wiki_lookup, run_lint,
 // resolve_contradiction) MUST be registered only when
-// WUPHF_MEMORY_BACKEND=markdown. Any other backend (nex, gbrain, none) must
+// LAF_OFFICE_MEMORY_BACKEND=markdown. Any other backend (nex, gbrain, none) must
 // not expose them — they depend on the markdown substrate to exist.
 
 import (
@@ -24,7 +24,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 			name:    "markdown_exposes_all_slice1_tools",
 			backend: "markdown",
 			mustHave: []string{
-				"wuphf_wiki_lookup",
+				"laf_office_wiki_lookup",
 				"run_lint",
 				"resolve_contradiction",
 			},
@@ -33,7 +33,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 			name:    "nex_hides_slice1_tools",
 			backend: "nex",
 			mustNotHave: []string{
-				"wuphf_wiki_lookup",
+				"laf_office_wiki_lookup",
 				"run_lint",
 				"resolve_contradiction",
 			},
@@ -42,7 +42,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 			name:    "gbrain_hides_slice1_tools",
 			backend: "gbrain",
 			mustNotHave: []string{
-				"wuphf_wiki_lookup",
+				"laf_office_wiki_lookup",
 				"run_lint",
 				"resolve_contradiction",
 			},
@@ -51,7 +51,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 			name:    "none_hides_slice1_tools",
 			backend: "none",
 			mustNotHave: []string{
-				"wuphf_wiki_lookup",
+				"laf_office_wiki_lookup",
 				"run_lint",
 				"resolve_contradiction",
 			},
@@ -60,7 +60,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 	for _, c := range tc {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
-			t.Setenv("WUPHF_MEMORY_BACKEND", c.backend)
+			t.Setenv("LAF_OFFICE_MEMORY_BACKEND", c.backend)
 			names := listRegisteredTools(t, "general", false)
 			for _, want := range c.mustHave {
 				if !slices.Contains(names, want) {
@@ -82,17 +82,17 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 // accidentally keeps slice-1 tools alive after a backend switch.
 func TestConfigureServerTools_Slice1BackendFlipRemovesTools(t *testing.T) {
 	// Instance 1: markdown.
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	markdownTools := listRegisteredTools(t, "general", false)
-	if !slices.Contains(markdownTools, "wuphf_wiki_lookup") {
-		t.Fatalf("markdown instance missing wuphf_wiki_lookup; tools=%v", markdownTools)
+	if !slices.Contains(markdownTools, "laf_office_wiki_lookup") {
+		t.Fatalf("markdown instance missing laf_office_wiki_lookup; tools=%v", markdownTools)
 	}
 
 	// Instance 2: nex.
-	t.Setenv("WUPHF_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
 	nexTools := listRegisteredTools(t, "general", false)
-	if slices.Contains(nexTools, "wuphf_wiki_lookup") {
-		t.Errorf("nex instance leaked wuphf_wiki_lookup; tools=%v", nexTools)
+	if slices.Contains(nexTools, "laf_office_wiki_lookup") {
+		t.Errorf("nex instance leaked laf_office_wiki_lookup; tools=%v", nexTools)
 	}
 	if slices.Contains(nexTools, "run_lint") {
 		t.Errorf("nex instance leaked run_lint; tools=%v", nexTools)
@@ -102,9 +102,9 @@ func TestConfigureServerTools_Slice1BackendFlipRemovesTools(t *testing.T) {
 // TestConfigureServerTools_Slice1_OneOnOneAlsoGated verifies the same gate
 // applies in 1:1 DM contexts — slice-1 tools must not leak there either.
 func TestConfigureServerTools_Slice1_OneOnOneAlsoGated(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
 	names := listRegisteredTools(t, "dm-ceo", true)
-	forbidden := []string{"wuphf_wiki_lookup", "run_lint", "resolve_contradiction"}
+	forbidden := []string{"laf_office_wiki_lookup", "run_lint", "resolve_contradiction"}
 	for _, f := range forbidden {
 		if slices.Contains(names, f) {
 			t.Errorf("1:1 DM with nex backend leaked %q; tools=%v", f, names)
@@ -116,9 +116,9 @@ func TestConfigureServerTools_Slice1_OneOnOneAlsoGated(t *testing.T) {
 // positive case: a 1:1 DM over markdown backend must still expose the
 // slice-1 tools.
 func TestConfigureServerTools_Slice1_MarkdownOneOnOneStillRegisters(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	names := listRegisteredTools(t, "dm-ceo", true)
-	for _, want := range []string{"wuphf_wiki_lookup", "run_lint", "resolve_contradiction"} {
+	for _, want := range []string{"laf_office_wiki_lookup", "run_lint", "resolve_contradiction"} {
 		if !slices.Contains(names, want) {
 			t.Errorf("1:1 DM with markdown should register %q; tools=%v", want, names)
 		}

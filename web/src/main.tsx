@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
 // Signal boot-done to the index.html fatal-error handler when main.tsx loads.
 declare global {
   interface Window {
-    __wuphfBootDone?: () => void;
+    __lafOfficeBootDone?: () => void;
   }
 }
 
@@ -51,7 +51,7 @@ try {
     </QueryClientProvider>,
   );
   // Tell the HTML-level timeout handler that we're alive.
-  window.__wuphfBootDone?.();
+  window.__lafOfficeBootDone?.();
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);
   const stack = err instanceof Error && err.stack ? err.stack : "";
@@ -59,8 +59,8 @@ try {
   // Suppress the 10s watchdog in index.html — its generic "Boot timeout"
   // overlay would otherwise fire on top of this specific error and hide
   // the actionable signal.
-  window.__wuphfBootDone?.();
+  window.__lafOfficeBootDone?.();
   // Also log so `$B console` picks it up
   // eslint-disable-next-line no-console
-  console.error("[WUPHF boot]", err);
+  console.error("[LAF-Office boot]", err);
 }

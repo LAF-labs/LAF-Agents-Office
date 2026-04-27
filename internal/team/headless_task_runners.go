@@ -72,6 +72,6 @@ func isHeadlessTaskRunnerCommand(command string) bool {
 		return false
 	}
 	return strings.Contains(command, "codex") &&
-		strings.Contains(command, "wuphf-task-") &&
-		strings.Contains(command, "mcp_servers.wuphf-office.command=")
+		strings.Contains(command, "laf-office-task-") &&
+		strings.Contains(command, "mcp_servers.laf-office.command=")
 }

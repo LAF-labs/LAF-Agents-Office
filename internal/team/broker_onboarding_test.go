@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // locateRepoRoot walks up from the test's cwd looking for the
@@ -31,7 +31,7 @@ func locateRepoRoot(t *testing.T) string {
 
 // ensureOperationsFallbackFS points operations at the repo's
 // templates/operations tree if LoadBlueprint("", ...) would otherwise miss
-// it (the wuphf root package's init() sets this, but that init does not
+// it (the laf-office root package's init() sets this, but that init does not
 // run in team-package tests).
 func ensureOperationsFallbackFS(t *testing.T) {
 	t.Helper()

@@ -48,7 +48,7 @@ func TestSignVerifiesAgainstPublicKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadOrCreateDeviceIdentity: %v", err)
 	}
-	payload := []byte("v3|abc|gateway-client|backend|operator|operator.admin|123|tok|nonce|darwin|wuphf")
+	payload := []byte("v3|abc|gateway-client|backend|operator|operator.admin|123|tok|nonce|darwin|laf-office")
 	sigB64 := id.Sign(payload)
 	sig, err := base64URLDecodeNoPad(sigB64)
 	if err != nil {
@@ -70,9 +70,9 @@ func TestBuildDeviceAuthPayloadV3WireFormat(t *testing.T) {
 		Token:        "tok",
 		Nonce:        "n1",
 		Platform:     " DARWIN ",
-		DeviceFamily: "WUPHF",
+		DeviceFamily: "LAF-Office",
 	}))
-	want := "v3|abc123|gateway-client|backend|operator|operator.admin,operator.read|1776254522461|tok|n1|darwin|wuphf"
+	want := "v3|abc123|gateway-client|backend|operator|operator.admin,operator.read|1776254522461|tok|n1|darwin|laf-office"
 	if got != want {
 		t.Fatalf("payload wire format\n got:  %q\n want: %q", got, want)
 	}

@@ -11,7 +11,7 @@ const rootDir = path.resolve(__dirname, '..')
 const seedCatalogPath = path.join(rootDir, 'assets/avatar-system/base-sprites.json')
 const webOut = path.join(rootDir, 'web/src/lib/avatarSprites.generated.ts')
 const videoOut = path.join(rootDir, 'video/src/components/avatarSprites.generated.ts')
-const goOut = path.join(rootDir, 'cmd/wuphf/avatars_office_generated.go')
+const goOut = path.join(rootDir, 'cmd/laf-office/avatars_office_generated.go')
 
 const portraitSize = 16
 

@@ -1,8 +1,8 @@
-// Package workspace wipes WUPHF's on-disk state for two distinct blast radii:
+// Package workspace wipes LAF-Office's on-disk state for two distinct blast radii:
 //
 //   - Reset: narrow. Clears broker runtime state so a stuck office can restart
 //     clean. Preserves task worktrees, team, company, office history, and
-//     workflows. Equivalent to what `wuphf shred` did before the verb swap.
+//     workflows. Equivalent to what `laf-office shred` did before the verb swap.
 //
 //   - Shred: full. Everything Reset does, plus deletes the team roster, company
 //     identity, the office's task receipts, saved workflows, logs, sessions,
@@ -22,9 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/company"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/onboarding"
+	"github.com/nex-crm/laf-office/internal/company"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/onboarding"
 )
 
 // Result reports which paths the operation actually removed and collects any
@@ -53,7 +53,7 @@ func ClearRuntime() (Result, error) {
 // onboarding state, company identity, office task receipts, workflows, logs,
 // provider session state, and local markdown memory.
 func Shred() (Result, error) {
-	home, err := wuphfHome()
+	home, err := lafOfficeHome()
 	if err != nil {
 		return Result{}, err
 	}
@@ -75,21 +75,21 @@ func Shred() (Result, error) {
 	return res, nil
 }
 
-// wuphfHome returns the absolute path to ~/.wuphf, honoring WUPHF_RUNTIME_HOME
+// lafOfficeHome returns the absolute path to ~/.laf-office, honoring LAF_OFFICE_RUNTIME_HOME
 // so tests and sandboxed runs stay isolated from the real user directory.
-func wuphfHome() (string, error) {
+func lafOfficeHome() (string, error) {
 	home := config.RuntimeHomeDir()
 	if home == "" {
 		return "", errors.New("workspace: could not resolve home directory")
 	}
-	return filepath.Join(home, ".wuphf"), nil
+	return filepath.Join(home, ".laf-office"), nil
 }
 
 func brokerStatePaths() (string, string, error) {
-	if p := strings.TrimSpace(os.Getenv("WUPHF_BROKER_STATE_PATH")); p != "" {
+	if p := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_STATE_PATH")); p != "" {
 		return p, p + ".last-good", nil
 	}
-	home, err := wuphfHome()
+	home, err := lafOfficeHome()
 	if err != nil {
 		return "", "", err
 	}

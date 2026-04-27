@@ -4,18 +4,18 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/onboarding"
+	"github.com/nex-crm/laf-office/internal/onboarding"
 )
 
 // TestPreflightWebSkipsProviderCheckWhenNotOnboarded verifies that the web
 // preflight does not fail on a missing claude/codex binary when the user
-// has not yet completed onboarding. This is the whole reason `wuphf` should
+// has not yet completed onboarding. This is the whole reason `laf-office` should
 // be launchable on a clean machine — the onboarding wizard is what installs
 // and selects the runtime, so preflight cannot demand it first.
 func TestPreflightWebSkipsProviderCheckWhenNotOnboarded(t *testing.T) {
 	// Isolate onboarding state to a fresh per-test runtime home so we do
-	// not touch the developer's real ~/.wuphf/onboarded.json.
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	// not touch the developer's real ~/.laf-office/onboarded.json.
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 
 	l := &Launcher{provider: "claude-code"}
 
@@ -34,7 +34,7 @@ func TestPreflightWebRequiresProviderWhenOnboarded(t *testing.T) {
 	}
 
 	home := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 
 	// Mark onboarding complete. We go through Save so state is written in
 	// the same format Load() expects.

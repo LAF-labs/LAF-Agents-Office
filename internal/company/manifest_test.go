@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/operations"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 func testRepoRoot(t *testing.T) string {
@@ -37,7 +37,7 @@ func TestLoadManifestFallsBackToDefault(t *testing.T) {
 func TestSaveAndLoadManifestRoundTrips(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "company.json")
-	t.Setenv("WUPHF_COMPANY_FILE", path)
+	t.Setenv("LAF_OFFICE_COMPANY_FILE", path)
 
 	manifest := Manifest{
 		Name: "Test Office",
@@ -125,7 +125,7 @@ func TestLoadManifestBackfillsBlueprintRefsFromConfigPack(t *testing.T) {
 func TestManifestSurfaceSpecRoundTrips(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "company.json")
-	t.Setenv("WUPHF_COMPANY_FILE", path)
+	t.Setenv("LAF_OFFICE_COMPANY_FILE", path)
 
 	manifest := Manifest{
 		Name: "Surface Test",
@@ -256,7 +256,7 @@ func TestLoadRuntimeManifestMaterializesEveryOperationFixture(t *testing.T) {
 		t.Run(id, func(t *testing.T) {
 			t.Setenv("HOME", t.TempDir())
 			path := filepath.Join(t.TempDir(), "company.json")
-			t.Setenv("WUPHF_COMPANY_FILE", path)
+			t.Setenv("LAF_OFFICE_COMPANY_FILE", path)
 
 			raw, err := json.MarshalIndent(Manifest{
 				Name:        "Blueprint Office",
@@ -324,7 +324,7 @@ func TestLoadRuntimeManifestMaterializesEveryOperationFixture(t *testing.T) {
 func TestLoadManifestSupportsRefsOnlyManifest(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "company.json")
-	t.Setenv("WUPHF_COMPANY_FILE", path)
+	t.Setenv("LAF_OFFICE_COMPANY_FILE", path)
 	raw := `{
   "name": "Blueprint Office",
   "description": "Refs only manifest",

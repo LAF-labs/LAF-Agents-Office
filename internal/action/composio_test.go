@@ -143,7 +143,7 @@ func TestComposioRESTActionHappyPath(t *testing.T) {
 
 func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
 
 	mux := http.NewServeMux()
 	var sentBody string
@@ -204,7 +204,7 @@ func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	t.Setenv("WUPHF_DEV_URL", server.URL)
+	t.Setenv("LAF_OFFICE_DEV_URL", server.URL)
 
 	client := &ComposioREST{
 		APIKey:  "cmp_test",
@@ -423,7 +423,7 @@ func TestComposioRESTWorkflowNormalizesHandlebarsEachSyntax(t *testing.T) {
 
 func TestComposioRESTWorkflowAutoResolvesSingleConnection(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts", func(w http.ResponseWriter, r *http.Request) {
@@ -535,7 +535,7 @@ func TestDecodeJSONObjectHandlesJSONStringPayload(t *testing.T) {
 
 func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts/ca_123", func(w http.ResponseWriter, r *http.Request) {
@@ -572,7 +572,7 @@ func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	t.Setenv("WUPHF_DEV_URL", server.URL)
+	t.Setenv("LAF_OFFICE_DEV_URL", server.URL)
 
 	client := &ComposioREST{
 		APIKey:  "cmp_test",

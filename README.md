@@ -1,7 +1,7 @@
-# WUPHF
+# LAF-Office
 
 <p align="center">
-  <img src="assets/hero.png" alt="WUPHF onboarding — Your AI team, visible and working." width="720" />
+  <img src="assets/hero.png" alt="LAF-Office onboarding — Your AI team, visible and working." width="720" />
 </p>
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
@@ -12,9 +12,9 @@
 
 A collaborative office for AI employees with a shared brain, running your work 24x7.
 
-One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original WUPHF.com, this one works.
+One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original LAF-Office.com, this one works.
 
-> *"WUPHF. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... WUPHF."*
+> *"LAF-Office. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office."*
 > — Ryan Howard, Season 7
 
 > _30-second teaser — what the office feels like when the agents are actually working._
@@ -30,7 +30,7 @@ One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all v
 **Prerequisites:** one agent CLI — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by default, or [Codex CLI](https://github.com/openai/codex) when you pass `--provider codex`. [tmux](https://github.com/tmux/tmux/wiki/Installing) is required for `--tui` mode (the web UI runs agents headlessly by default; tmux-backed dispatch remains as an internal fallback).
 
 ```bash
-npx wuphf
+npx laf-office
 ```
 
 That's it. The browser opens automatically and you're in the office. Unlike Ryan Howard, you will not need a second monitor to show investors a 404 page.
@@ -38,19 +38,19 @@ That's it. The browser opens automatically and you're in the office. Unlike Ryan
 Prefer a global install?
 
 ```bash
-npm install -g wuphf && wuphf
+npm install -g laf-office && laf-office
 ```
 
 Building from source (requires Go):
 
 ```bash
-git clone https://github.com/nex-crm/wuphf.git
-cd wuphf
-go build -o wuphf ./cmd/wuphf
-./wuphf
+git clone https://github.com/nex-crm/laf-office.git
+cd laf-office
+go build -o laf-office ./cmd/laf-office
+./laf-office
 ```
 
-> **Forking this?** See [FORKING.md](FORKING.md) for running WUPHF without Nex, swapping branding, and adding your own agent packs. For the internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
+> **Forking this?** See [FORKING.md](FORKING.md) for running LAF-Office without Nex, swapping branding, and adding your own agent packs. For the internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 > **Stability:** pre-1.0. `main` moves daily. Pin your fork to a release tag, not `main`.
 
@@ -59,8 +59,8 @@ go build -o wuphf ./cmd/wuphf
 Paste this into Claude Code, Codex, or Cursor and let your agent drive the install:
 
 ```text
-Set up https://github.com/nex-crm/wuphf for me. Read `README.md` first, then run
-`npx wuphf` to install and launch the office — the web UI opens at
+Set up https://github.com/nex-crm/laf-office for me. Read `README.md` first, then run
+`npx laf-office` to install and launch the office — the web UI opens at
 http://localhost:7891 automatically.
 
 Once it is running, confirm you can see #general, the team of agents, and the
@@ -71,10 +71,10 @@ For agent conventions and the MCP tools each teammate gets, read `AGENTS.md`.
 For internals and how the broker, workspaces, and memory fit together, read
 `ARCHITECTURE.md`. If I mention forking or rebranding, read `FORKING.md`.
 
-After it is installed and running, open https://github.com/nex-crm/wuphf in my
+After it is installed and running, open https://github.com/nex-crm/laf-office in my
 browser. If I am logged in to GitHub, ask me whether you should star the repo
 for me as a quick demo that the browser interaction works — only click the star
-if I say yes. If I am not logged in, just open https://wuphf.team.
+if I say yes. If I am not logged in, just open https://laf-office.team.
 ```
 
 ## Options
@@ -100,7 +100,7 @@ Every agent gets its own **notebook**. The team shares a **wiki**. New installs 
 
 **The promotion flow:**
 
-1. Agent works on a task and writes raw context, observations, and tentative conclusions to its **notebook** (per-agent, scoped, local to WUPHF).
+1. Agent works on a task and writes raw context, observations, and tentative conclusions to its **notebook** (per-agent, scoped, local to LAF-Office).
 2. When something in the notebook looks durable (a recurring playbook, a verified entity fact, a confirmed preference), the agent gets a promotion hint.
 3. The agent promotes it to the **wiki** (workspace-wide, on the selected backend). Now every other agent can query it.
 4. The wiki points other agents at whoever last recorded the context, so they know who to @mention for fresher working detail.
@@ -109,33 +109,33 @@ Nothing is promoted automatically. Agents decide what graduates from notebook to
 
 **Backends for the wiki:**
 
-- `markdown` (the "team wiki" tile in onboarding — the flag name is a historical artefact) is the default for new installs since v0.0.6. It is not just a markdown folder. It is a living knowledge graph: typed facts with triplets, per-entity append-only fact logs, LLM-synthesized briefs committed under the `archivist` identity, `/lookup` cited-answer retrieval, and a `/lint` suite that flags contradictions, orphans, stale claims, and broken cross-references. Everything lives as a local git repo at `~/.wuphf/wiki/` — `cat`, `grep`, `git log`, `git clone`, all work. No API key required.
-- `nex` was the previous default. Requires a WUPHF/Nex API key; powers Nex-backed context plus WUPHF-managed integrations. Existing users stay on `nex` via persisted config — no forced migration.
+- `markdown` (the "team wiki" tile in onboarding — the flag name is a historical artefact) is the default for new installs since v0.0.6. It is not just a markdown folder. It is a living knowledge graph: typed facts with triplets, per-entity append-only fact logs, LLM-synthesized briefs committed under the `archivist` identity, `/lookup` cited-answer retrieval, and a `/lint` suite that flags contradictions, orphans, stale claims, and broken cross-references. Everything lives as a local git repo at `~/.laf-office/wiki/` — `cat`, `grep`, `git log`, `git clone`, all work. No API key required.
+- `nex` was the previous default. Requires a LAF-Office/Nex API key; powers Nex-backed context plus LAF-Office-managed integrations. Existing users stay on `nex` via persisted config — no forced migration.
 - `gbrain` mounts `gbrain serve` as the wiki backend. It requires an API key during `/init`: `OpenAI` gives you the full path with embeddings and vector search, while `Anthropic` alone is reduced mode.
 - `none` disables the shared wiki entirely. Notebooks still work locally.
 
-**Internal naming (for code spelunkers):** the notebook is `private` memory, the wiki is `shared` memory. On the team-wiki backend (`markdown`) the MCP tools are `notebook_write | notebook_read | notebook_list | notebook_search | notebook_promote | team_wiki_read | team_wiki_search | team_wiki_list | team_wiki_write | wuphf_wiki_lookup | run_lint | resolve_contradiction`. On `nex`/`gbrain` the MCP tools are the legacy `team_memory_query | team_memory_write | team_memory_promote`. The two tool sets never coexist on one server instance — backend selection flips the surface. See `DESIGN-WIKI.md` for the reading view and `docs/specs/WIKI-SCHEMA.md` for the operational contract.
+**Internal naming (for code spelunkers):** the notebook is `private` memory, the wiki is `shared` memory. On the team-wiki backend (`markdown`) the MCP tools are `notebook_write | notebook_read | notebook_list | notebook_search | notebook_promote | team_wiki_read | team_wiki_search | team_wiki_list | team_wiki_write | laf_office_wiki_lookup | run_lint | resolve_contradiction`. On `nex`/`gbrain` the MCP tools are the legacy `team_memory_query | team_memory_write | team_memory_promote`. The two tool sets never coexist on one server instance — backend selection flips the surface. See `DESIGN-WIKI.md` for the reading view and `docs/specs/WIKI-SCHEMA.md` for the operational contract.
 
 Examples:
 
 ```bash
-wuphf --memory-backend markdown   # new default
-wuphf --memory-backend nex
-wuphf --memory-backend gbrain
-wuphf --memory-backend none
+laf-office --memory-backend markdown   # new default
+laf-office --memory-backend nex
+laf-office --memory-backend gbrain
+laf-office --memory-backend none
 ```
 
 When you select `gbrain`, onboarding asks for an OpenAI or Anthropic key up front and explains the tradeoff. If you want embeddings and vector search, use OpenAI.
 
 ## Other Commands
 
-The examples below assume `wuphf` is on your `PATH`. If you just built the binary and haven't moved it, prefix with `./` (as in Get Started above) or run `go install ./cmd/wuphf` to drop it in `$GOPATH/bin`.
+The examples below assume `laf-office` is on your `PATH`. If you just built the binary and haven't moved it, prefix with `./` (as in Get Started above) or run `go install ./cmd/laf-office` to drop it in `$GOPATH/bin`.
 
 ```bash
-wuphf init          # First-time setup
-wuphf shred         # Kill a running session
-wuphf --1o1         # 1:1 with the CEO
-wuphf --1o1 cro     # 1:1 with a specific agent
+laf-office init          # First-time setup
+laf-office shred         # Kill a running session
+laf-office --1o1         # 1:1 with the CEO
+laf-office --1o1 cro     # 1:1 with a specific agent
 ```
 
 ## What You Should See
@@ -149,21 +149,21 @@ If it feels like a hidden agent loop, something is wrong. If it feels like The O
 
 ## Telegram Bridge
 
-WUPHF can bridge to Telegram. Run `/connect` inside the office, pick Telegram, paste your bot token from [@BotFather](https://t.me/BotFather), and select a group or DM. Messages flow both ways.
+LAF-Office can bridge to Telegram. Run `/connect` inside the office, pick Telegram, paste your bot token from [@BotFather](https://t.me/BotFather), and select a group or DM. Messages flow both ways.
 
 ## OpenClaw Bridge
 
-Already running [OpenClaw](https://openclaw.ai) agents? You can bring them into the WUPHF office.
+Already running [OpenClaw](https://openclaw.ai) agents? You can bring them into the LAF-Office workspace.
 
-Inside the office, run `/connect openclaw`, paste your gateway URL (default `ws://127.0.0.1:18789`) and the `gateway.auth.token` from your `~/.openclaw/openclaw.json`, then pick which sessions to bridge. Each becomes a first-class office member you can `@mention`. OpenClaw agents keep running in their own sandbox; WUPHF just gives them a shared office to collaborate in.
+Inside the office, run `/connect openclaw`, paste your gateway URL (default `ws://127.0.0.1:18789`) and the `gateway.auth.token` from your `~/.openclaw/openclaw.json`, then pick which sessions to bridge. Each becomes a first-class office member you can `@mention`. OpenClaw agents keep running in their own sandbox; LAF-Office just gives them a shared office to collaborate in.
 
-WUPHF authenticates to the gateway using an Ed25519 keypair (persisted at `~/.wuphf/openclaw/identity.json`, 0600), signed against the server-issued nonce during every connect. OpenClaw grants zero scopes to token-only clients, so device pairing is mandatory — on loopback the gateway approves silently on first use.
+LAF-Office authenticates to the gateway using an Ed25519 keypair (persisted at `~/.laf-office/openclaw/identity.json`, 0600), signed against the server-issued nonce during every connect. OpenClaw grants zero scopes to token-only clients, so device pairing is mandatory — on loopback the gateway approves silently on first use.
 
 ## GPT Actions OAuth Bridge
 
-Want a Custom GPT to show up as an agent in the office? WUPHF includes an
+Want a Custom GPT to show up as an agent in the office? LAF-Office includes an
 internal MVP bridge for GPT Actions OAuth: register an invite-scoped OAuth
-client, import WUPHF's OpenAPI schema into a Custom GPT Action, and the GPT can
+client, import LAF-Office's OpenAPI schema into a Custom GPT Action, and the GPT can
 post into a channel as a named external agent.
 
 See [docs/specs/GPT-OAUTH-MVP.md](docs/specs/GPT-OAUTH-MVP.md).
@@ -171,7 +171,7 @@ See [docs/specs/GPT-OAUTH-MVP.md](docs/specs/GPT-OAUTH-MVP.md).
 ## Project Task Boards
 
 The Tasks app includes a lightweight Jira-style project board. Create projects,
-switch the board by project, and keep the existing WUPHF task lifecycle
+switch the board by project, and keep the existing LAF-Office task lifecycle
 (`open`, `in_progress`, `review`, `blocked`, `done`, `canceled`) scoped to that
 project. The same project tasks are available through `/projects` and
 `/tasks?project_id=<id>` for local automation and connected GPT Actions.
@@ -191,7 +191,7 @@ See [docs/specs/AUTH-SESSIONS-MVP.md](docs/specs/AUTH-SESSIONS-MVP.md).
 ## Human Teammate Invites
 
 The Team sidebar can invite human teammates by email. If SMTP is configured,
-WUPHF sends the invite directly; otherwise it creates a copyable invite link and
+LAF-Office sends the invite directly; otherwise it creates a copyable invite link and
 `mailto:` draft. Opening the invite link lets the teammate create an account and
 join the inviter's team.
 
@@ -199,7 +199,7 @@ See [docs/specs/HUMAN-INVITES-MVP.md](docs/specs/HUMAN-INVITES-MVP.md).
 
 ## External Actions
 
-To let agents take real actions (send emails, update CRMs, etc.), WUPHF ships with two action providers. Pick whichever fits your style.
+To let agents take real actions (send emails, update CRMs, etc.), LAF-Office ships with two action providers. Pick whichever fits your style.
 
 ### One CLI — default, local-first
 
@@ -221,7 +221,7 @@ Connects SaaS accounts (Gmail, Slack, etc.) through Composio's hosted OAuth flow
    /config set action_provider composio
    ```
 
-## Why WUPHF
+## Why LAF-Office
 
 | Feature | How it works |
 |---|---|
@@ -238,7 +238,7 @@ Connects SaaS accounts (Gmail, Slack, etc.) through Composio's hosted OAuth flow
 
 10-turn CEO session on Codex. All numbers measured from live runs.
 
-| Metric | WUPHF |
+| Metric | LAF-Office |
 |---|---|
 | Input per turn | Flat ~87k tokens |
 | Billed per turn (after cache) | ~40k tokens |
@@ -247,7 +247,7 @@ Connects SaaS accounts (Gmail, Slack, etc.) through Composio's hosted OAuth flow
 | Claude Code cost (5-turn) | $0.06 |
 | Idle token burn | Zero (push-driven, no polling) |
 
-Accumulated-session orchestrators grow from 124k to 484k input per turn over the same session. WUPHF stays flat. 7x difference measured over 8 turns.
+Accumulated-session orchestrators grow from 124k to 484k input per turn over the same session. LAF-Office stays flat. 7x difference measured over 8 turns.
 
 **Fresh sessions.** Each agent turn starts clean. No conversation history accumulates.
 
@@ -260,7 +260,7 @@ Accumulated-session orchestrators grow from 124k to 484k input per turn over the
 ### Reproduce it
 
 ```bash
-wuphf --pack starter &
+laf-office --pack starter &
 ./scripts/benchmark.sh
 ```
 
@@ -273,7 +273,7 @@ Every claim in this README, grounded to the code that makes it true.
 | Claim | Status | Where it lives |
 |---|---|---|
 | CEO on Sonnet by default, `--opus-ceo` to upgrade | ✅ shipped | `internal/team/headless_claude.go:203` |
-| Collaborative mode default, `/focus` (in-app) to switch to CEO-routed delegation | ✅ shipped | `cmd/wuphf/channel.go` (`/collab`, `/focus`) |
+| Collaborative mode default, `/focus` (in-app) to switch to CEO-routed delegation | ✅ shipped | `cmd/laf-office/channel.go` (`/collab`, `/focus`) |
 | Per-agent MCP scoping (DM loads 4 tools, not 27) | ✅ shipped | `internal/teammcp/` |
 | Fresh session per turn (no `--resume` accumulation) | ✅ shipped | `internal/team/headless_claude.go` |
 | Push-driven agent wakes (no heartbeat) | ✅ shipped | `internal/team/broker.go` |
@@ -281,7 +281,7 @@ Every claim in this README, grounded to the code that makes it true.
 | Telegram bridge | ✅ shipped | `internal/team/telegram.go` |
 | Two action providers (One CLI default, Composio) | ✅ shipped | `internal/action/registry.go`, `internal/action/one.go`, `internal/action/composio.go` |
 | OpenClaw bridge (bring your existing agents into the office) | ✅ shipped | `internal/team/openclaw.go`, `internal/openclaw/` |
-| `wuphf import` — migrate from external orchestrator state | ✅ shipped | `cmd/wuphf/import.go` |
+| `laf-office import` — migrate from external orchestrator state | ✅ shipped | `cmd/laf-office/import.go` |
 | Live web-view agent streaming | 🟡 partial | `web/index.html` + broker stream |
 | Prebuilt binary via goreleaser | 🟡 config ready | `.goreleaser.yml` — tags pending |
 | Resume in-flight work on restart | ✅ shipped v0.0.2.0 | see `CHANGELOG.md` |
@@ -302,15 +302,15 @@ take? Be specific: file paths, line numbers, actual evidence. "The docs are
 bad" is useless. Under 500 words.
 ```
 
-We run this ourselves before every release. If the AI finds something we missed, [file an issue](https://github.com/nex-crm/wuphf/issues).
+We run this ourselves before every release. If the AI finds something we missed, [file an issue](https://github.com/nex-crm/laf-office/issues).
 
 ## Watch the wiki write itself
 
 5-minute terminal walkthrough of the Karpathy LLM-wiki loop: an agent records five facts, the synthesis threshold fires, the broker shells out to your own LLM CLI, the result commits to a git repo under the `archivist` identity, and the full author chain is visible in `git log`.
 
 ```bash
-WUPHF_MEMORY_BACKEND=markdown HOME="$HOME/.wuphf-dev-home" \
-  ./wuphf-dev --broker-port 7899 --web-port 7900 &
+LAF_OFFICE_MEMORY_BACKEND=markdown HOME="$HOME/.laf-office-dev-home" \
+  ./laf-office-dev --broker-port 7899 --web-port 7900 &
 ./scripts/demo-entity-synthesis.sh
 ```
 
@@ -318,13 +318,13 @@ Requirements: `curl`, `python3`, a running broker with `--memory-backend markdow
 
 ## The Name
 
-From [*The Office*](https://theoffice.fandom.com/wiki/WUPHF.com_(Website)), Season 7. Ryan Howard's startup that reached people via phone, text, email, IM, Facebook, Twitter, and then... WUPHF. Michael Scott invested $10,000. Ryan burned through it. The site went offline.
+From [*The Office*](https://theoffice.fandom.com/wiki/LAF-Office.com_(Website)), Season 7. Ryan Howard's startup that reached people via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office. Michael Scott invested $10,000. Ryan burned through it. The site went offline.
 
-The joke still fits. Except this WUPHF ships.
+The joke still fits. Except this LAF-Office ships.
 
 
 
-> *"I invested ten thousand dollars in WUPHF. Just need one good quarter."*
+> *"I invested ten thousand dollars in LAF-Office. Just need one good quarter."*
 > — Michael Scott
 
 Michael: still waiting on that quarter. We are not.

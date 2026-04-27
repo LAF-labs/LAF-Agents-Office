@@ -1576,7 +1576,7 @@ function memoryReadinessCheck(
     return {
       label: "Memory backend",
       status: "ready",
-      detail: "Git-native team wiki in ~/.wuphf/wiki.",
+      detail: "Git-native team wiki in ~/.laf-office/wiki.",
     };
   }
   return {

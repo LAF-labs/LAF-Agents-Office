@@ -1,8 +1,8 @@
 # Go binary
-/wuphf
+/laf-office
 /nex
 /bridge
-/wuphf-oc-probe
+/laf-office-oc-probe
 
 # Local artifacts
 /docs/*
@@ -57,8 +57,8 @@ testdata/vhs/*.actual
 web/coverage/
 
 # Dev build artifacts
-wuphf-dev
+laf-office-dev
 
 
 # Local dev binary built by scripts/debug-tagging/run.sh
-/.wuphf-debug-tagging
+/.laf-office-debug-tagging

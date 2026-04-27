@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 func promotionHintsForNotes(entries []brokerMemoryNote) []string {

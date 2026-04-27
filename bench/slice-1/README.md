@@ -118,7 +118,7 @@ A validation failure fails the generator with a non-zero exit code.
 ## Why Slice 1 needs this
 
 Per the Slice 1 design note
-(`~/.gstack/projects/nex-crm-wuphf/najmuzzaman-feat+slash-registry-design-20260422-174617.md`),
+(`~/.gstack/projects/nex-crm-laf-office/najmuzzaman-feat+slash-registry-design-20260422-174617.md`),
 Week 0 ships the benchmark and the null retriever so we can measure
 improvement delta as we wire in hybrid search (BM25 + semantic) and the
 typed-fact index during Weeks 1-4. Without a ground-truth corpus, every

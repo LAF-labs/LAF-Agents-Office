@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // LoadRuntimeManifest resolves any active blueprint refs into a startup-ready
@@ -43,7 +43,7 @@ func materializeManifestFromBlueprintRefs(manifest Manifest, repoRoot string) (M
 	cfg, _ := config.Load()
 
 	resolved := Manifest{
-		Name:          firstNonTemplateNonEmpty(strings.TrimSpace(cfg.CompanyName), strings.TrimSpace(manifest.Name), strings.TrimSpace(operationBlueprint.Name), "The WUPHF Office"),
+		Name:          firstNonTemplateNonEmpty(strings.TrimSpace(cfg.CompanyName), strings.TrimSpace(manifest.Name), strings.TrimSpace(operationBlueprint.Name), "LAF-Office"),
 		Description:   firstNonTemplateNonEmpty(strings.TrimSpace(cfg.CompanyDescription), strings.TrimSpace(manifest.Description), strings.TrimSpace(operationBlueprint.Description), strings.TrimSpace(operationBlueprint.Objective), "Autonomous office runtime."),
 		Lead:          firstNonEmpty(strings.TrimSpace(operationBlueprint.Starter.LeadSlug), strings.TrimSpace(manifest.Lead), "ceo"),
 		BlueprintRefs: refs,

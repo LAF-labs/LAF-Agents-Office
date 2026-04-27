@@ -14,9 +14,9 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/nex-crm/wuphf/internal/action"
-	"github.com/nex-crm/wuphf/internal/calendar"
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/nex-crm/laf-office/internal/calendar"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 // readOnlyActionVerbs are unambiguous information-read verbs. Matched as
@@ -95,7 +95,7 @@ func actionIsReadOnly(actionID string) bool {
 // describing the rejection otherwise. The approval contract:
 //
 //  1. DryRun calls never gate — they only build the request, not send it.
-//  2. WUPHF_UNSAFE=1 bypasses the gate. The --unsafe launch flag sets this.
+//  2. LAF_OFFICE_UNSAFE=1 bypasses the gate. The --unsafe launch flag sets this.
 //  3. Read-only action IDs (search/list/get/etc.) bypass the gate.
 //  4. Otherwise a blocking "approval" request is created in the Requests
 //     panel; the handler polls until the human answers. An "approve"/
@@ -109,7 +109,7 @@ func requireTeamActionApproval(ctx context.Context, slug, channel string, args T
 	if args.DryRun {
 		return nil
 	}
-	if os.Getenv("WUPHF_UNSAFE") == "1" {
+	if os.Getenv("LAF_OFFICE_UNSAFE") == "1" {
 		return nil
 	}
 	if actionIsReadOnly(args.ActionID) {
@@ -229,17 +229,17 @@ type TeamActionExecuteArgs struct {
 	FormURLEncoded  bool           `json:"form_url_encoded,omitempty" jsonschema:"Send as application/x-www-form-urlencoded"`
 	DryRun          bool           `json:"dry_run,omitempty" jsonschema:"Build the request without sending it"`
 	Channel         string         `json:"channel,omitempty" jsonschema:"Optional office channel for logging"`
-	MySlug          string         `json:"my_slug,omitempty" jsonschema:"Agent slug performing the action. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug          string         `json:"my_slug,omitempty" jsonschema:"Agent slug performing the action. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Summary         string         `json:"summary,omitempty" jsonschema:"Optional short office log summary"`
 }
 
 type TeamActionWorkflowCreateArgs struct {
 	Key              string   `json:"key" jsonschema:"Stable workflow key like daily-digest or escalate-renewal-risk"`
-	DefinitionJSON   string   `json:"definition_json" jsonschema:"Full WUPHF workflow JSON definition as a string"`
+	DefinitionJSON   string   `json:"definition_json" jsonschema:"Full LAF-Office workflow JSON definition as a string"`
 	Channel          string   `json:"channel,omitempty" jsonschema:"Optional office channel for logging"`
-	MySlug           string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the workflow. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug           string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the workflow. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Summary          string   `json:"summary,omitempty" jsonschema:"Optional short office log summary"`
-	SkillName        string   `json:"skill_name,omitempty" jsonschema:"Optional WUPHF skill name. Defaults to the workflow key."`
+	SkillName        string   `json:"skill_name,omitempty" jsonschema:"Optional LAF-Office skill name. Defaults to the workflow key."`
 	SkillTitle       string   `json:"skill_title,omitempty" jsonschema:"Optional skill title shown in the Skills app."`
 	SkillDescription string   `json:"skill_description,omitempty" jsonschema:"Optional skill description shown in the Skills app."`
 	SkillTags        []string `json:"skill_tags,omitempty" jsonschema:"Optional skill tags"`
@@ -254,7 +254,7 @@ type TeamActionWorkflowExecuteArgs struct {
 	Mock      bool           `json:"mock,omitempty" jsonschema:"Mock external steps where supported"`
 	AllowBash bool           `json:"allow_bash,omitempty" jsonschema:"Allow bash/code steps in the workflow"`
 	Channel   string         `json:"channel,omitempty" jsonschema:"Optional office channel for logging"`
-	MySlug    string         `json:"my_slug,omitempty" jsonschema:"Agent slug executing the workflow. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug    string         `json:"my_slug,omitempty" jsonschema:"Agent slug executing the workflow. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Summary   string         `json:"summary,omitempty" jsonschema:"Optional short office log summary"`
 }
 
@@ -264,9 +264,9 @@ type TeamActionWorkflowScheduleArgs struct {
 	RunNow     bool           `json:"run_now,omitempty" jsonschema:"Also execute one immediate run after scheduling when the human asked for a manual test run now"`
 	Inputs     map[string]any `json:"inputs,omitempty" jsonschema:"Optional workflow inputs"`
 	Channel    string         `json:"channel,omitempty" jsonschema:"Optional office channel for logging"`
-	MySlug     string         `json:"my_slug,omitempty" jsonschema:"Agent slug scheduling the workflow. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug     string         `json:"my_slug,omitempty" jsonschema:"Agent slug scheduling the workflow. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Summary    string         `json:"summary,omitempty" jsonschema:"Optional short office log summary"`
-	SkillName  string         `json:"skill_name,omitempty" jsonschema:"Optional existing or new WUPHF skill name to mirror this workflow"`
+	SkillName  string         `json:"skill_name,omitempty" jsonschema:"Optional existing or new LAF-Office skill name to mirror this workflow"`
 	SkillTitle string         `json:"skill_title,omitempty" jsonschema:"Optional skill title when creating or updating the mirrored skill"`
 }
 
@@ -285,7 +285,7 @@ type TeamActionRelayCreateArgs struct {
 	EventFilters  []string `json:"event_filters,omitempty" jsonschema:"Optional list of event types to include"`
 	CreateWebhook bool     `json:"create_webhook,omitempty" jsonschema:"Whether One should create the webhook endpoint on the source platform where supported"`
 	Channel       string   `json:"channel,omitempty" jsonschema:"Optional office channel for logging"`
-	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the relay. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the relay. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Summary       string   `json:"summary,omitempty" jsonschema:"Optional short office log summary"`
 }
 
@@ -294,7 +294,7 @@ type TeamActionRelayActivateArgs struct {
 	ActionsJSON   string `json:"actions_json" jsonschema:"JSON array of relay forwarding actions"`
 	WebhookSecret string `json:"webhook_secret,omitempty" jsonschema:"Optional webhook secret"`
 	Channel       string `json:"channel,omitempty" jsonschema:"Optional office channel for logging"`
-	MySlug        string `json:"my_slug,omitempty" jsonschema:"Agent slug activating the relay. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug        string `json:"my_slug,omitempty" jsonschema:"Agent slug activating the relay. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	Summary       string `json:"summary,omitempty" jsonschema:"Optional short office log summary"`
 }
 
@@ -334,7 +334,7 @@ func registerActionTools(server *mcp.Server) {
 	), handleTeamActionExecute)
 	mcp.AddTool(server, officeWriteTool(
 		"team_action_workflow_create",
-		"Save a reusable external workflow from a full WUPHF workflow JSON definition.",
+		"Save a reusable external workflow from a full LAF-Office workflow JSON definition.",
 	), handleTeamActionWorkflowCreate)
 	mcp.AddTool(server, officeWriteTool(
 		"team_action_workflow_execute",
@@ -342,7 +342,7 @@ func registerActionTools(server *mcp.Server) {
 	), handleTeamActionWorkflowExecute)
 	mcp.AddTool(server, officeWriteTool(
 		"team_action_workflow_schedule",
-		"Schedule a saved external workflow on a WUPHF-native cadence so it shows up in Calendar and runs through the office scheduler. Set run_now when the human also asked for an immediate first run.",
+		"Schedule a saved external workflow on a LAF-Office-native cadence so it shows up in Calendar and runs through the office scheduler. Set run_now when the human also asked for an immediate first run.",
 	), handleTeamActionWorkflowSchedule)
 	mcp.AddTool(server, readOnlyTool(
 		"team_action_relays",
@@ -833,8 +833,8 @@ func touchWorkflowSkill(ctx context.Context, workflowKey, status string, when ti
 func workflowSkillContent(spec workflowSkillSpec) string {
 	label := titleCaser.String(fallbackString(spec.WorkflowProvider, "workflow"))
 	lines := []string{
-		fmt.Sprintf("WUPHF workflow skill (%s): %s", label, humanizeWorkflowKey(fallbackString(spec.WorkflowKey, spec.Name))),
-		"Use team_action_workflow_execute to run it through WUPHF.",
+		fmt.Sprintf("LAF-Office workflow skill (%s): %s", label, humanizeWorkflowKey(fallbackString(spec.WorkflowKey, spec.Name))),
+		"Use team_action_workflow_execute to run it through LAF-Office.",
 	}
 	if strings.TrimSpace(spec.WorkflowSchedule) != "" {
 		lines = append(lines, "Schedule: "+strings.TrimSpace(spec.WorkflowSchedule))

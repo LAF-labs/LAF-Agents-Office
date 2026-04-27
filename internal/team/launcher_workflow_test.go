@@ -8,15 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/action"
+	"github.com/nex-crm/laf-office/internal/action"
 )
 
 func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_ACTION_PROVIDER", "composio")
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
-	t.Setenv("WUPHF_COMPOSIO_API_KEY", "cmp-test-key")
-	t.Setenv("WUPHF_COMPOSIO_USER_ID", "najmuzzaman@nex.ai")
+	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "composio")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_COMPOSIO_API_KEY", "cmp-test-key")
+	t.Setenv("LAF_OFFICE_COMPOSIO_USER_ID", "najmuzzaman@nex.ai")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts/ca_123", func(w http.ResponseWriter, r *http.Request) {
@@ -69,12 +69,12 @@ func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	t.Setenv("WUPHF_DEV_URL", server.URL)
-	t.Setenv("WUPHF_COMPOSIO_BASE_URL", server.URL)
+	t.Setenv("LAF_OFFICE_DEV_URL", server.URL)
+	t.Setenv("LAF_OFFICE_COMPOSIO_BASE_URL", server.URL)
 
 	provider := action.NewComposioFromEnv()
 	definition, _ := json.Marshal(map[string]any{
-		"version": "wuphf_workflow_v1",
+		"version": "laf_office_workflow_v1",
 		"inputs": map[string]any{
 			"connection_key":  "ca_123",
 			"recipient_email": "najmuzzaman@nex.ai",

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 const defaultOneBin = "one"
@@ -27,8 +27,8 @@ type OneCLI struct {
 }
 
 func NewOneCLIFromEnv() *OneCLI {
-	bin := strings.TrimSpace(os.Getenv("WUPHF_ONE_BIN"))
-	workDir := strings.TrimSpace(os.Getenv("WUPHF_ONE_WORKDIR"))
+	bin := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_BIN"))
+	workDir := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_WORKDIR"))
 	if workDir == "" {
 		cfgDir := filepath.Dir(config.ConfigPath())
 		workDir = filepath.Join(cfgDir, "one")
@@ -224,13 +224,13 @@ func (o *OneCLI) ExecuteAction(ctx context.Context, req ExecuteRequest) (Execute
 }
 
 func (o *OneCLI) executeActionViaFlow(ctx context.Context, req ExecuteRequest) (ExecuteResult, error) {
-	tempRoot, err := os.MkdirTemp("", "wuphf-one-action-flow-")
+	tempRoot, err := os.MkdirTemp("", "laf-office-one-action-flow-")
 	if err != nil {
 		return ExecuteResult{}, fmt.Errorf("create temp flow dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tempRoot) }()
 
-	flowKey := fmt.Sprintf("wuphf-auto-action-%d", time.Now().UTC().UnixNano())
+	flowKey := fmt.Sprintf("laf-office-auto-action-%d", time.Now().UTC().UnixNano())
 	flowDir := filepath.Join(tempRoot, ".one", "flows", flowKey)
 	if err := os.MkdirAll(flowDir, 0o700); err != nil {
 		return ExecuteResult{}, fmt.Errorf("create temp flow layout: %w", err)
@@ -304,8 +304,8 @@ func buildOneActionFlowDefinition(req ExecuteRequest) map[string]any {
 		actionStep["headers"] = req.Headers
 	}
 	return map[string]any{
-		"key":         "wuphf-auto-action",
-		"name":        "WUPHF Auto Action",
+		"key":         "laf-office-auto-action",
+		"name":        "LAF-Office Auto Action",
 		"description": "Temporary one-step flow for auto-resolving a single provider connection.",
 		"version":     "1",
 		"inputs": map[string]any{
@@ -636,7 +636,7 @@ func (o *OneCLI) run(ctx context.Context, args []string) ([]byte, error) {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if ee, ok := err.(*exec.Error); ok && ee.Err == exec.ErrNotFound {
-			return nil, fmt.Errorf("one CLI not found. Install One, make npx available, or set WUPHF_ONE_BIN")
+			return nil, fmt.Errorf("one CLI not found. Install One, make npx available, or set LAF_OFFICE_ONE_BIN")
 		}
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
@@ -656,7 +656,7 @@ func (o *OneCLI) commandWorkDir(args []string) string {
 			return dir
 		}
 	}
-	if dir := strings.TrimSpace(os.Getenv("WUPHF_ONE_ACTION_WORKDIR")); dir != "" {
+	if dir := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ACTION_WORKDIR")); dir != "" {
 		return dir
 	}
 	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {

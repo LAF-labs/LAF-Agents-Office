@@ -13,15 +13,15 @@
 #
 # The rig is deliberately hostile to hidden global state: it uses its own HOME,
 # its own broker port, and its own log directory. Nothing about this script
-# touches your real ~/.wuphf state.
+# touches your real ~/.laf-office state.
 
 set -euo pipefail
 
 # --- Config -----------------------------------------------------------------
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BINARY="${BINARY:-$REPO_ROOT/.wuphf-debug-tagging}"
-SANDBOX_HOME="${SANDBOX_HOME:-/tmp/wuphf-debug-tagging-home}"
+BINARY="${BINARY:-$REPO_ROOT/.laf-office-debug-tagging}"
+SANDBOX_HOME="${SANDBOX_HOME:-/tmp/laf-office-debug-tagging-home}"
 BROKER_PORT="${BROKER_PORT:-7899}"
 WEB_PORT="${WEB_PORT:-7900}"
 PACK="${PACK:-founding-team}"
@@ -38,8 +38,8 @@ HIRE_SLUG="${HIRE_SLUG:-}"
 
 BROKER_URL="http://127.0.0.1:${BROKER_PORT}"
 WEB_URL="http://127.0.0.1:${WEB_PORT}"
-LOG_DIR="${SANDBOX_HOME}/.wuphf/logs"
-TOKEN_FILE="/tmp/wuphf-broker-token-${BROKER_PORT}"
+LOG_DIR="${SANDBOX_HOME}/.laf-office/logs"
+TOKEN_FILE="/tmp/laf-office-broker-token-${BROKER_PORT}"
 SERVER_LOG="${SANDBOX_HOME}/server.log"
 
 # --- Helpers ----------------------------------------------------------------
@@ -50,8 +50,8 @@ fail() { log "FAIL: $*"; exit 1; }
 # --- Step 1: build --------------------------------------------------------
 
 if [ ! -x "$BINARY" ] || [ "${BUILD:-1}" = "1" ]; then
-  log "build: compiling wuphf to $BINARY"
-  (cd "$REPO_ROOT" && go build -buildvcs=false -o "$BINARY" ./cmd/wuphf)
+  log "build: compiling laf-office to $BINARY"
+  (cd "$REPO_ROOT" && go build -buildvcs=false -o "$BINARY" ./cmd/laf-office)
 fi
 
 # --- Step 2: kill anything on our ports ---------------------------------
@@ -85,11 +85,11 @@ kill_port "$WEB_PORT"
 # --- Step 3: fresh sandbox HOME with skip-onboarding state ----------------
 
 rm -rf "$SANDBOX_HOME"
-mkdir -p "$SANDBOX_HOME/.wuphf"
+mkdir -p "$SANDBOX_HOME/.laf-office"
 
 # Seed a completed onboarding state so the wizard is skipped.
 # State schema is in internal/onboarding/state.go — keep in sync.
-cat > "$SANDBOX_HOME/.wuphf/onboarded.json" <<JSON
+cat > "$SANDBOX_HOME/.laf-office/onboarded.json" <<JSON
 {
   "completed_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "version": 1,
@@ -103,7 +103,7 @@ JSON
 # Seed a minimal config so the launcher knows which pack we chose.
 # `blueprint` is the primary field read by cfg.ActiveBlueprint(); `pack`
 # is the legacy alias. We pass --pack on the CLI too so this is belt+braces.
-cat > "$SANDBOX_HOME/.wuphf/config.json" <<JSON
+cat > "$SANDBOX_HOME/.laf-office/config.json" <<JSON
 {
   "blueprint": "$PACK",
   "pack": "$PACK",
@@ -151,8 +151,8 @@ fi
 env \
   HOME="$SANDBOX_HOME" \
   PATH="$FAKE_BIN_DIR:$PATH" \
-  WUPHF_BROKER_PORT="$BROKER_PORT" \
-  WUPHF_NO_NEX=1 \
+  LAF_OFFICE_BROKER_PORT="$BROKER_PORT" \
+  LAF_OFFICE_NO_NEX=1 \
   "$BINARY" \
     --pack "$PACK" \
     --web-port "$WEB_PORT" \
@@ -198,7 +198,7 @@ for i in $(seq 1 50); do
 done
 
 # Token is written on broker start. ResolveTokenFile appends the port when
-# non-default, so for BROKER_PORT=7899 it's /tmp/wuphf-broker-token-7899.
+# non-default, so for BROKER_PORT=7899 it's /tmp/laf-office-broker-token-7899.
 for i in $(seq 1 20); do
   if [ -s "$TOKEN_FILE" ]; then
     break
@@ -335,7 +335,7 @@ log "post: accepted id=$MSG_ID resp=$POST_RESP"
 # deterministic signal. WAIT_SECS is the upper bound, not the actual wait.
 
 log "wait: up to ${WAIT_SECS}s for headless queue to fire for $SPECIALIST"
-LATENCY_LOG="${SANDBOX_HOME}/.wuphf/logs/headless-codex-latency.log"
+LATENCY_LOG="${SANDBOX_HOME}/.laf-office/logs/headless-codex-latency.log"
 deadline_ms=$(( $(date +%s) * 1000 + WAIT_SECS * 1000 ))
 while :; do
   if [ -s "$LATENCY_LOG" ] && grep -q "agent=$SPECIALIST " "$LATENCY_LOG"; then

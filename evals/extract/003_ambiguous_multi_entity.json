@@ -7,12 +7,12 @@
     "ArtifactSHA": "1b7d24f8e0c5a109",
     "ArtifactPath": "wiki/artifacts/agent/1b7d24f8e0c5a109.md",
     "OccurredAt": "2026-04-18T09:30:00Z",
-    "Body": "From: nazz@wuphf.local\nDate: 2026-04-18T09:30:00Z\n\nMichael said yesterday that the new eval harness should ship before the pilot. He wants a recall number by Friday.\n",
+    "Body": "From: nazz@laf-office.local\nDate: 2026-04-18T09:30:00Z\n\nMichael said yesterday that the new eval harness should ship before the pilot. He wants a recall number by Friday.\n",
     "KnownEntities": [
       {
         "Slug": "michael-chen",
         "Kind": "person",
-        "SignalsOneLine": "email=michael.chen@wuphf.local, person_name=Michael Chen",
+        "SignalsOneLine": "email=michael.chen@laf-office.local, person_name=Michael Chen",
         "Aliases": [],
         "AliasesJoined": ""
       },
@@ -35,7 +35,7 @@
     "must_not_include": [
       "michael-chen",
       "michael-scott",
-      "michael.chen@wuphf.local",
+      "michael.chen@laf-office.local",
       "michael@dundermifflin.com"
     ],
     "structured": {

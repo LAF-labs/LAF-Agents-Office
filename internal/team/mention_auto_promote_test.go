@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 // User typed "@pm do you know of Lenny's PM fit frameworks?" in #general.
@@ -252,8 +252,8 @@ func TestRespawnPanesAfterReseed_TmuxNoServerClassifiedAsMissing(t *testing.T) {
 		errMsg  string
 		silence bool
 	}{
-		{"no server running", "tmux: no server running on /private/tmp/tmux-501/wuphf", true},
-		{"spawn first agent wrapper", "spawn first agent: exit status 1 (tmux: no server running on /tmp/tmux-501/wuphf)", true},
+		{"no server running", "tmux: no server running on /private/tmp/tmux-501/laf-office", true},
+		{"spawn first agent wrapper", "spawn first agent: exit status 1 (tmux: no server running on /tmp/tmux-501/laf-office)", true},
 		{"cant find session", "can't find session", true},
 		{"failed to connect to server", "tmux: failed to connect to server", true},
 		{"permission denied", "permission denied accessing /tmp/tmux-501", false},

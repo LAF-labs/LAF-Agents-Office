@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-How WUPHF works under the hood, anchored to files you can open. One page. Read it, then the code makes sense.
+How LAF-Office works under the hood, anchored to files you can open. One page. Read it, then the code makes sense.
 
 ## The shape
 
@@ -26,7 +26,7 @@ How WUPHF works under the hood, anchored to files you can open. One page. Read i
 
 | File | Role |
 |---|---|
-| `cmd/wuphf/` | CLI entrypoint, slash commands, TUI, launcher |
+| `cmd/laf-office/` | CLI entrypoint, slash commands, TUI, launcher |
 | `internal/team/broker.go` | Message bus. Every message is a push event — agents are spawned on wake, not polled |
 | `internal/team/launcher.go` | Decides which agents wake for a given message (focus/collab mode, tags) |
 | `internal/team/headless_claude.go` | Spawns `claude` as a one-shot per turn; no `--resume` accumulation |
@@ -36,7 +36,7 @@ How WUPHF works under the hood, anchored to files you can open. One page. Read i
 | `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |
 | `internal/agent/packs.go` | The team compositions (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) — packs can also pre-seed default skills |
 | `web/index.html` | The office UI — channels, composer, live streams |
-| `mcp/` | MCP servers WUPHF ships for Nex context, human-in-the-loop approvals, etc. |
+| `mcp/` | MCP servers LAF-Office ships for Nex context, human-in-the-loop approvals, etc. |
 
 ## Three load-bearing choices
 
@@ -65,7 +65,7 @@ With the file that implements each:
 - **Composio** (`--action provider`): lets agents take real-world actions (send email, update CRM).
 - **OpenClaw** (`internal/team/openclaw.go` + `internal/openclaw/` WS client): bridge users' existing OpenClaw agents into the office. Connect via `/connect openclaw`.
 
-All four are load-time optional. Core WUPHF is just `broker + launcher + headless runners + worktrees`.
+All four are load-time optional. Core LAF-Office is just `broker + launcher + headless runners + worktrees`.
 
 ## What's intentionally not here
 

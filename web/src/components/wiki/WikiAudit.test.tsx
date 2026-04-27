@@ -14,7 +14,7 @@ const ENTRIES: api.WikiAuditEntry[] = [
   },
   {
     sha: "bbb2222",
-    author_slug: "wuphf-bootstrap",
+    author_slug: "laf-office-bootstrap",
     timestamp: new Date(Date.now() - 3600 * 1000).toISOString(),
     message: "materialize niche-crm skeletons",
     paths: ["team/playbooks/renewal.md", "team/decisions/product-log.md"],
@@ -23,7 +23,7 @@ const ENTRIES: api.WikiAuditEntry[] = [
     sha: "ccc3333",
     author_slug: "system",
     timestamp: new Date(Date.now() - 7200 * 1000).toISOString(),
-    message: "wuphf: init wiki",
+    message: "laf-office: init wiki",
     paths: [],
   },
 ];
@@ -45,7 +45,7 @@ describe("<WikiAudit>", () => {
     expect(
       screen.getByText("materialize niche-crm skeletons"),
     ).toBeInTheDocument();
-    expect(screen.getByText("wuphf: init wiki")).toBeInTheDocument();
+    expect(screen.getByText("laf-office: init wiki")).toBeInTheDocument();
     expect(screen.getByText("aaa1111")).toBeInTheDocument();
     expect(screen.getByText("bbb2222")).toBeInTheDocument();
     expect(screen.getByText("ccc3333")).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("<WikiAudit>", () => {
     expect(
       screen.queryByText("materialize niche-crm skeletons"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("wuphf: init wiki")).not.toBeInTheDocument();
+    expect(screen.queryByText("laf-office: init wiki")).not.toBeInTheDocument();
   });
 
   it("filters to system only", async () => {
@@ -85,7 +85,7 @@ describe("<WikiAudit>", () => {
     expect(
       screen.getByText("materialize niche-crm skeletons"),
     ).toBeInTheDocument();
-    expect(screen.getByText("wuphf: init wiki")).toBeInTheDocument();
+    expect(screen.getByText("laf-office: init wiki")).toBeInTheDocument();
   });
 
   it("search matches against message and path", async () => {

@@ -17,11 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/buildinfo"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/gitexec"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/buildinfo"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 func TestMain(m *testing.M) {
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	// leaked writes. We pre-seed two (token file, headless log dir).
 	// Broker state paths are handled per-test via NewBrokerAt / newTestBroker,
 	// and the unisolated fallback is pinned in worktree_guard_test.go init()
-	// via WUPHF_RUNTIME_HOME.
+	// via LAF_OFFICE_RUNTIME_HOME.
 	var cleanups []func()
 	cleanup := func() {
 		for i := len(cleanups) - 1; i >= 0; i-- {
@@ -38,12 +38,12 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// 1) Broker token file: default path is /tmp/wuphf-broker-token which
+	// 1) Broker token file: default path is /tmp/laf-office-broker-token which
 	//    collides with a running broker. Point at a temp file so tests
 	//    don't clobber it. Tests get the token directly from b.Token().
 	//    Fail fast if we cannot establish the redirect — a silent fallback
 	//    to the production path is exactly the collision this guards against.
-	dir, err := os.MkdirTemp("", "wuphf-broker-test-*")
+	dir, err := os.MkdirTemp("", "laf-office-broker-test-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "TestMain: mktemp broker-token dir: %v\n", err)
 		os.Exit(1)
@@ -52,21 +52,21 @@ func TestMain(m *testing.M) {
 	cleanups = append(cleanups, func() { _ = os.RemoveAll(dir) })
 
 	// 2) Headless log dir: leaked headless-worker goroutines open append
-	//    files under wuphfLogDir(). WUPHF_LOG_DIR is the env hook; honored
-	//    by wuphfLogDir() in headless_codex.go. Append-only writes are
+	//    files under lafOfficeLogDir(). LAF_OFFICE_LOG_DIR is the env hook; honored
+	//    by lafOfficeLogDir() in headless_codex.go. Append-only writes are
 	//    safe to share across tests (nothing reads them). Fail fast on
 	//    mktemp error for the same reason as above — and run any cleanups
 	//    already registered so the token dir doesn't leak on the error path.
-	logDir, err := os.MkdirTemp("", "wuphf-team-test-logs-*")
+	logDir, err := os.MkdirTemp("", "laf-office-team-test-logs-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "TestMain: mktemp headless log dir: %v\n", err)
 		cleanup()
 		os.Exit(1)
 	}
-	if err := os.Setenv("WUPHF_LOG_DIR", logDir); err != nil {
+	if err := os.Setenv("LAF_OFFICE_LOG_DIR", logDir); err != nil {
 		// Silent fallback to the default log dir would reintroduce the
 		// cross-test cleanup race this setup exists to prevent.
-		fmt.Fprintf(os.Stderr, "TestMain: setenv WUPHF_LOG_DIR: %v\n", err)
+		fmt.Fprintf(os.Stderr, "TestMain: setenv LAF_OFFICE_LOG_DIR: %v\n", err)
 		_ = os.RemoveAll(logDir)
 		cleanup()
 		os.Exit(1)
@@ -120,7 +120,7 @@ func reloadedBroker(t *testing.T, b *Broker) *Broker {
 // goroutine-leak hazard that a larger refactor will eventually retire.
 func leakedBrokerStatePath(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "wuphf-test-state-*")
+	dir, err := os.MkdirTemp("", "laf-office-test-state-*")
 	if err != nil {
 		t.Fatalf("mktemp broker state dir: %v", err)
 	}
@@ -788,7 +788,7 @@ func TestBrokerMessagesCanScopeToAgentInbox(t *testing.T) {
 }
 
 func TestNewBrokerSeedsDefaultOfficeRosterOnFreshState(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // isolate from ~/.wuphf company.json (e.g. RevOps pack)
+	t.Setenv("HOME", t.TempDir()) // isolate from ~/.laf-office company.json (e.g. RevOps pack)
 	b := newTestBroker(t)
 	members := b.OfficeMembers()
 	if len(members) < 2 {
@@ -812,12 +812,12 @@ func TestNewBrokerSeedsDefaultOfficeRosterOnFreshState(t *testing.T) {
 func TestNewBrokerSeedsBlueprintBackedOfficeRosterOnFreshState(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so config.RuntimeHomeDir (which
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so config.RuntimeHomeDir (which
 	// prefers the env override) resolves to this test's tmpdir. Without
 	// it the process-level leaked runtime-home from worktree_guard_test
 	// wins and the manifest below is invisible to the blueprint loader.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	manifestPath := filepath.Join(home, ".wuphf", "company.json")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	manifestPath := filepath.Join(home, ".laf-office", "company.json")
 	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o700); err != nil {
 		t.Fatalf("mkdir manifest dir: %v", err)
 	}
@@ -998,11 +998,11 @@ func TestChannelMembersRejectDisableOrRemoveOfLead(t *testing.T) {
 	b.mu.Lock()
 	now := time.Now().UTC().Format(time.RFC3339)
 	b.members = []officeMember{
-		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "plan", BuiltIn: true, CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "wuphf", CreatedAt: now},
+		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "laf-office", CreatedAt: now},
 	}
 	b.channels = []teamChannel{
-		{Slug: "general", Name: "general", Members: []string{"operator", "builder"}, CreatedBy: "wuphf", CreatedAt: now, UpdatedAt: now},
+		{Slug: "general", Name: "general", Members: []string{"operator", "builder"}, CreatedBy: "laf-office", CreatedAt: now, UpdatedAt: now},
 	}
 	b.mu.Unlock()
 	if err := b.StartOnPort(0); err != nil {
@@ -1053,8 +1053,8 @@ func TestChannelMembersRejectDisableOrRemoveOfLead(t *testing.T) {
 func TestBrokerAuthRejectsUnauthenticated(t *testing.T) {
 	b := newTestBroker(t)
 	b.runtimeProvider = "codex"
-	t.Setenv("WUPHF_MEMORY_BACKEND", config.MemoryBackendGBrain)
-	t.Setenv("WUPHF_OPENAI_API_KEY", "sk-test-openai")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "sk-test-openai")
 	if err := b.StartOnPort(0); err != nil {
 		t.Fatalf("failed to start broker: %v", err)
 	}
@@ -1356,7 +1356,7 @@ func TestBrokerAgentRateLimitTripsOnRunawayLoop(t *testing.T) {
 		req.RemoteAddr = "127.0.0.1:1234"
 		req.Header.Set("Authorization", "Bearer "+b.Token())
 		if slug != "" {
-			req.Header.Set("X-WUPHF-Agent", slug)
+			req.Header.Set("X-LAF-Office-Agent", slug)
 		}
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -1403,7 +1403,7 @@ func TestBrokerOperatorTrafficBypassesAgentRateLimit(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/messages", nil)
 		req.RemoteAddr = "127.0.0.1:5555"
 		req.Header.Set("Authorization", "Bearer "+b.Token())
-		// Deliberately no X-WUPHF-Agent — this is operator traffic.
+		// Deliberately no X-LAF-Office-Agent — this is operator traffic.
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		return rec.Result()
@@ -1431,7 +1431,7 @@ func TestBrokerAgentRateLimitExemptsSSEPaths(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.RemoteAddr = "127.0.0.1:6666"
 		req.Header.Set("Authorization", "Bearer "+b.Token())
-		req.Header.Set("X-WUPHF-Agent", "ceo")
+		req.Header.Set("X-LAF-Office-Agent", "ceo")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		return rec.Result()
@@ -2681,7 +2681,7 @@ func TestBrokerEnsurePlannedTaskKeepsScopedDuplicateTitlesDistinct(t *testing.T)
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -2803,7 +2803,7 @@ func TestBrokerTaskPlanAssignsWorktreeForLocalWorktreeTask(t *testing.T) {
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -3201,7 +3201,7 @@ func TestBrokerStoresLedgerAndReviewLifecycle(t *testing.T) {
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -3292,7 +3292,7 @@ func TestBrokerReleaseTaskCleansWorktree(t *testing.T) {
 	oldCleanup := cleanupTaskWorktree
 	var cleanedPath, cleanedBranch string
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error {
 		cleanedPath = path
@@ -3357,9 +3357,9 @@ func TestBrokerApproveRetainsLocalWorktree(t *testing.T) {
 	cleanupCalls := 0
 	worktreeRoot := t.TempDir()
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		path := filepath.Join(worktreeRoot, "wuphf-task-"+taskID)
+		path := filepath.Join(worktreeRoot, "laf-office-task-"+taskID)
 		initUsableGitWorktree(t, path)
-		return path, "wuphf-" + taskID, nil
+		return path, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error {
 		cleanupCalls++
@@ -3470,7 +3470,7 @@ func TestBrokerHandlePostTaskRejectsFalseReadOnlyBlockForWritableWorktree(t *tes
 	oldVerify := verifyTaskWorktreeWritable
 	worktreeDir := t.TempDir()
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return worktreeDir, "wuphf-" + taskID, nil
+		return worktreeDir, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	verifyTaskWorktreeWritable = func(path string) error {
@@ -3726,7 +3726,7 @@ func TestBrokerBlockTaskRejectsFalseReadOnlyBlockForWritableWorktree(t *testing.
 	oldVerify := verifyTaskWorktreeWritable
 	worktreeDir := t.TempDir()
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return worktreeDir, "wuphf-" + taskID, nil
+		return worktreeDir, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	verifyTaskWorktreeWritable = func(path string) error {
@@ -3787,7 +3787,7 @@ func TestBrokerEnsurePlannedTaskQueuesConcurrentExclusiveOwnerWork(t *testing.T)
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -3977,7 +3977,7 @@ func TestBrokerBlockTaskAllowsReadOnlyBlockWhenWriteProbeFails(t *testing.T) {
 	oldVerify := verifyTaskWorktreeWritable
 	worktreeDir := t.TempDir()
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return worktreeDir, "wuphf-" + taskID, nil
+		return worktreeDir, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	verifyTaskWorktreeWritable = func(path string) error {
@@ -4024,7 +4024,7 @@ func TestBrokerCompleteClosesReviewTaskAndUnblocksDependents(t *testing.T) {
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -4135,9 +4135,9 @@ func TestBrokerCreateTaskReusesCompletedDependencyWorktree(t *testing.T) {
 		if len(prepareCalls) > 1 {
 			return "", "", fmt.Errorf("unexpected prepareTaskWorktree call for %s", taskID)
 		}
-		path := filepath.Join(worktreeRoot, "wuphf-task-"+taskID)
+		path := filepath.Join(worktreeRoot, "laf-office-task-"+taskID)
 		initUsableGitWorktree(t, path)
-		return path, "wuphf-" + taskID, nil
+		return path, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -4237,7 +4237,7 @@ func TestBrokerSyncTaskWorktreeReplacesStaleAssignedPath(t *testing.T) {
 	freshPath := filepath.Join(t.TempDir(), "fresh-worktree")
 	var cleaned []string
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return freshPath, "wuphf-" + taskID, nil
+		return freshPath, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error {
 		cleaned = append(cleaned, path+"|"+branch)
@@ -4256,12 +4256,12 @@ func TestBrokerSyncTaskWorktreeReplacesStaleAssignedPath(t *testing.T) {
 		Status:         "in_progress",
 		ExecutionMode:  "local_worktree",
 		WorktreePath:   stalePath,
-		WorktreeBranch: "wuphf-stale-task-80",
+		WorktreeBranch: "laf-office-stale-task-80",
 	}
 	if err := b.syncTaskWorktreeLocked(task); err != nil {
 		t.Fatalf("syncTaskWorktreeLocked: %v", err)
 	}
-	if task.WorktreePath != freshPath || task.WorktreeBranch != "wuphf-task-80" {
+	if task.WorktreePath != freshPath || task.WorktreeBranch != "laf-office-task-80" {
 		t.Fatalf("expected stale worktree to be replaced, got %+v", task)
 	}
 	if len(cleaned) != 1 || !strings.Contains(cleaned[0], stalePath) {
@@ -4275,7 +4275,7 @@ func TestBrokerNormalizeLoadedStateRepairsStaleAssignedWorktree(t *testing.T) {
 	stalePath := t.TempDir()
 	freshPath := filepath.Join(t.TempDir(), "fresh-worktree")
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return freshPath, "wuphf-" + taskID, nil
+		return freshPath, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -4293,7 +4293,7 @@ func TestBrokerNormalizeLoadedStateRepairsStaleAssignedWorktree(t *testing.T) {
 		Status:         "in_progress",
 		ExecutionMode:  "local_worktree",
 		WorktreePath:   stalePath,
-		WorktreeBranch: "wuphf-stale-task-80",
+		WorktreeBranch: "laf-office-stale-task-80",
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}}
@@ -4303,7 +4303,7 @@ func TestBrokerNormalizeLoadedStateRepairsStaleAssignedWorktree(t *testing.T) {
 	got := b.tasks[0]
 	b.mu.Unlock()
 
-	if got.WorktreePath != freshPath || got.WorktreeBranch != "wuphf-task-80" {
+	if got.WorktreePath != freshPath || got.WorktreeBranch != "laf-office-task-80" {
 		t.Fatalf("expected normalize to refresh stale worktree, got %+v", got)
 	}
 }
@@ -4376,7 +4376,7 @@ func TestBrokerCompleteAlreadyDoneTaskStaysApproved(t *testing.T) {
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return "/tmp/wuphf-task-" + taskID, "wuphf-" + taskID, nil
+		return "/tmp/laf-office-task-" + taskID, "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(path, branch string) error { return nil }
 	defer func() {
@@ -5040,9 +5040,9 @@ func TestBrokerGetMessagesAgentScopeKeepsHumanAndCEOContext(t *testing.T) {
 }
 
 func TestResolveTaskIntervalsRespectMinimumFloor(t *testing.T) {
-	t.Setenv("WUPHF_TASK_FOLLOWUP_MINUTES", "1")
-	t.Setenv("WUPHF_TASK_REMINDER_MINUTES", "1")
-	t.Setenv("WUPHF_TASK_RECHECK_MINUTES", "1")
+	t.Setenv("LAF_OFFICE_TASK_FOLLOWUP_MINUTES", "1")
+	t.Setenv("LAF_OFFICE_TASK_REMINDER_MINUTES", "1")
+	t.Setenv("LAF_OFFICE_TASK_RECHECK_MINUTES", "1")
 
 	if got := config.ResolveTaskFollowUpInterval(); got != 2 {
 		t.Fatalf("expected follow-up interval floor of 2, got %d", got)
@@ -6155,14 +6155,14 @@ func TestLoadDoesNotAppendDefaultsAfterBlueprintSeed(t *testing.T) {
 	b.mu.Lock()
 	now := time.Now().UTC().Format(time.RFC3339)
 	b.members = []officeMember{
-		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "plan", BuiltIn: true, CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "planner", Name: "Planner", Role: "Planner", PermissionMode: "plan", CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "growth", Name: "Growth", Role: "Growth", PermissionMode: "auto", CreatedBy: "wuphf", CreatedAt: now},
-		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", CreatedBy: "wuphf", CreatedAt: now},
+		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "planner", Name: "Planner", Role: "Planner", PermissionMode: "plan", CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "growth", Name: "Growth", Role: "Growth", PermissionMode: "auto", CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", CreatedBy: "laf-office", CreatedAt: now},
 	}
 	// Seed a task so saveLocked doesn't short-circuit on default state.
-	b.tasks = []teamTask{{ID: "niche-crm-1", Channel: "general", Title: "Choose the niche", Status: "open", CreatedBy: "wuphf", CreatedAt: now, UpdatedAt: now}}
+	b.tasks = []teamTask{{ID: "niche-crm-1", Channel: "general", Title: "Choose the niche", Status: "open", CreatedBy: "laf-office", CreatedAt: now, UpdatedAt: now}}
 	if err := b.saveLocked(); err != nil {
 		b.mu.Unlock()
 		t.Fatalf("saveLocked failed: %v", err)

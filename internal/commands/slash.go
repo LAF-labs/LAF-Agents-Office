@@ -43,7 +43,7 @@ func RegisterAllCommands(r *Registry) {
 	// System
 	r.Register(SlashCommand{Name: "help", Description: "Show all commands + keys", WebSupported: true, Execute: cmdHelp})
 	r.Register(SlashCommand{Name: "clear", Description: "Clear messages", WebSupported: true, Execute: cmdClear})
-	r.Register(SlashCommand{Name: "quit", Description: "Exit WUPHF", Execute: cmdQuit})
+	r.Register(SlashCommand{Name: "quit", Description: "Exit LAF-Office", Execute: cmdQuit})
 
 	// Wiki intelligence
 	r.Register(SlashCommand{Name: "lint", Description: "Run wiki lint — checks contradictions, orphans, stale claims, cross-refs", WebSupported: true})

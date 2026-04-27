@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/gitexec"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 var (
@@ -69,7 +69,7 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 	configureHeadlessProcess(cmd)
 	env := l.buildHeadlessClaudeEnv(slug)
 	if worktreeDir != "" {
-		env = append(env, "WUPHF_WORKTREE_PATH="+worktreeDir)
+		env = append(env, "LAF_OFFICE_WORKTREE_PATH="+worktreeDir)
 	}
 	cmd.Env = env
 
@@ -253,23 +253,23 @@ func (l *Launcher) headlessClaudeMaxTurns(slug string) string {
 
 func (l *Launcher) buildHeadlessClaudeEnv(slug string) []string {
 	// gitexec.CleanEnv: a spawned claude agent will run
-	// `git status/diff/commit` inside its sandbox. If wuphf inherited
+	// `git status/diff/commit` inside its sandbox. If laf-office inherited
 	// GIT_DIR (e.g. launched from a git hook) every child `git` would
 	// silently retarget the outer repo.
 	env := gitexec.CleanEnv()
 	env = append(env,
-		"WUPHF_AGENT_SLUG="+slug,
-		"WUPHF_BROKER_TOKEN="+l.broker.Token(),
-		"WUPHF_BROKER_BASE_URL="+l.BrokerBaseURL(),
-		"WUPHF_HEADLESS_PROVIDER=claude",
-		"WUPHF_MEMORY_BACKEND="+config.ResolveMemoryBackend(""),
-		fmt.Sprintf("WUPHF_NO_NEX=%t", config.ResolveNoNex()),
+		"LAF_OFFICE_AGENT_SLUG="+slug,
+		"LAF_OFFICE_BROKER_TOKEN="+l.broker.Token(),
+		"LAF_OFFICE_BROKER_BASE_URL="+l.BrokerBaseURL(),
+		"LAF_OFFICE_HEADLESS_PROVIDER=claude",
+		"LAF_OFFICE_MEMORY_BACKEND="+config.ResolveMemoryBackend(""),
+		fmt.Sprintf("LAF_OFFICE_NO_NEX=%t", config.ResolveNoNex()),
 		"ANTHROPIC_PROMPT_CACHING=1",
 	)
 	if l.isOneOnOne() {
 		env = append(env,
-			"WUPHF_ONE_ON_ONE=1",
-			"WUPHF_ONE_ON_ONE_AGENT="+l.oneOnOneAgent(),
+			"LAF_OFFICE_ONE_ON_ONE=1",
+			"LAF_OFFICE_ONE_ON_ONE_AGENT="+l.oneOnOneAgent(),
 		)
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
@@ -283,7 +283,7 @@ func (l *Launcher) buildHeadlessClaudeEnv(slug string) []string {
 	}
 	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
 		env = append(env,
-			"WUPHF_API_KEY="+apiKey,
+			"LAF_OFFICE_API_KEY="+apiKey,
 			"NEX_API_KEY="+apiKey,
 		)
 	}
@@ -291,7 +291,7 @@ func (l *Launcher) buildHeadlessClaudeEnv(slug string) []string {
 }
 
 func appendHeadlessClaudeLog(slug string, line string) {
-	dir := wuphfLogDir()
+	dir := lafOfficeLogDir()
 	if dir == "" {
 		return
 	}
@@ -304,7 +304,7 @@ func appendHeadlessClaudeLog(slug string, line string) {
 }
 
 func appendHeadlessClaudeLatency(slug string, line string) {
-	dir := wuphfLogDir()
+	dir := lafOfficeLogDir()
 	if dir == "" {
 		return
 	}

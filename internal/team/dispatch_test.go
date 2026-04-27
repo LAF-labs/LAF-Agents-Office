@@ -3,7 +3,7 @@ package team
 import (
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 func TestNormalizeProviderKind(t *testing.T) {

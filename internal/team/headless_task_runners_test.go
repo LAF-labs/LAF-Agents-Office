@@ -6,12 +6,12 @@ import (
 )
 
 func TestParseHeadlessTaskRunnerProcesses(t *testing.T) {
-	input := []byte(" 123 node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/wuphf-task-task-3 -c mcp_servers.wuphf-office.command=\"/tmp/wuphf\" -\n456 /usr/bin/other\n")
+	input := []byte(" 123 node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/laf-office-task-task-3 -c mcp_servers.laf-office.command=\"/tmp/laf-office\" -\n456 /usr/bin/other\n")
 	got := parseHeadlessTaskRunnerProcesses(input)
 	want := []headlessTaskRunnerProcess{
 		{
 			PID:     123,
-			Command: "node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/wuphf-task-task-3 -c mcp_servers.wuphf-office.command=\"/tmp/wuphf\" -",
+			Command: "node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/laf-office-task-task-3 -c mcp_servers.laf-office.command=\"/tmp/laf-office\" -",
 		},
 		{
 			PID:     456,
@@ -27,7 +27,7 @@ func TestKillStaleHeadlessTaskRunnersKillsOnlyMatchingProcesses(t *testing.T) {
 	oldList := listHeadlessTaskRunnerProcesses
 	oldKill := killHeadlessTaskRunnerProcess
 	listHeadlessTaskRunnerProcesses = func() ([]byte, error) {
-		return []byte("123 node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/wuphf-task-task-3 -c mcp_servers.wuphf-office.command=\"/tmp/wuphf\" -\n124 /opt/homebrew/bin/codex exec -C /tmp/elsewhere -\n125 node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/wuphf-task-task-9 -c something_else=1 -\n"), nil
+		return []byte("123 node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/laf-office-task-task-3 -c mcp_servers.laf-office.command=\"/tmp/laf-office\" -\n124 /opt/homebrew/bin/codex exec -C /tmp/elsewhere -\n125 node /opt/homebrew/bin/codex -a never -s workspace-write exec -C /private/var/folders/x/T/laf-office-task-task-9 -c something_else=1 -\n"), nil
 	}
 	defer func() {
 		listHeadlessTaskRunnerProcesses = oldList

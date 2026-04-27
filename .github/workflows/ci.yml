@@ -183,11 +183,11 @@ jobs:
         with:
           name: web-dist
           path: web/dist
-      - run: go build -o wuphf ./cmd/wuphf
+      - run: go build -o laf-office ./cmd/laf-office
       - name: Smoke test binary
         run: |
-          ./wuphf --version
-          ./wuphf --help-all > /dev/null
+          ./laf-office --version
+          ./laf-office --help-all > /dev/null
 
   vhs:
     runs-on: ubuntu-latest
@@ -201,7 +201,7 @@ jobs:
         with:
           # VHS tracks newer Go minors than go.mod pins; use stable so
           # `go install vhs` isn't blocked by GOTOOLCHAIN=local (Go is
-          # forward-compatible for the wuphf build in this job).
+          # forward-compatible for the laf-office build in this job).
           go-version: stable
       - name: Cache VHS binary
         id: cache-vhs
@@ -243,8 +243,8 @@ jobs:
           # has no version constraint, so warm runs reuse whatever .debs the
           # cold run captured.
           version: "2"
-      - name: Build wuphf
-        run: go build -o wuphf ./cmd/wuphf
+      - name: Build laf-office
+        run: go build -o laf-office ./cmd/laf-office
       - name: Run VHS regression checks
         run: |
           export PATH="$PWD:$PATH"
@@ -270,7 +270,7 @@ jobs:
     # Playwright smoke against the real web UI. Guards the class of regression
     # we kept shipping (React render crashes that only surface in a browser
     # — e.g. "No QueryClient set", Minified React error #31 on first agent
-    # click) by booting wuphf, loading /, and walking the happy path.
+    # click) by booting laf-office, loading /, and walking the happy path.
     needs: web
     runs-on: ubuntu-latest
     steps:
@@ -288,8 +288,8 @@ jobs:
         with:
           name: web-dist
           path: web/dist
-      - name: Build wuphf
-        run: go build -o wuphf ./cmd/wuphf
+      - name: Build laf-office
+        run: go build -o laf-office ./cmd/laf-office
       - name: Install e2e deps
         working-directory: web/e2e
         run: bun install --frozen-lockfile
@@ -307,7 +307,7 @@ jobs:
         # ubuntu-latest even when the cached browser binary is restored.
         run: bunx playwright install --with-deps chromium
       - name: Install claude CLI stub
-        # wuphf's PreflightWeb hard-requires `claude` on PATH (see
+        # laf-office's PreflightWeb hard-requires `claude` on PATH (see
         # internal/team/launcher.go — PreflightWeb). These smoke tests don't
         # send messages to agents, so a no-op stub that LookPath can find is
         # enough to get past preflight and boot the web UI.
@@ -321,83 +321,83 @@ jobs:
           sudo chmod +x /usr/local/bin/claude
       # The suite splits into two phases because App.tsx routes on
       # onboardingComplete: fresh install → <Wizard>, seeded → <Shell>. One
-      # wuphf instance can only be in one state, so we boot twice.
+      # laf-office instance can only be in one state, so we boot twice.
       #
       # Phase 1: fresh install (wizard.spec.ts). No onboarded.json.
       # Phase 2: seeded      (smoke.spec.ts, shell). Write onboarded.json first.
-      # `</dev/null` on both boots prevents isPiped() from yanking wuphf into
+      # `</dev/null` on both boots prevents isPiped() from yanking laf-office into
       # scanner mode.
-      - name: Start wuphf (fresh install) for wizard tests
+      - name: Start laf-office (fresh install) for wizard tests
         # Run from /tmp — NOT the checkout root. `resolveTemplatesRepoRoot`
         # walks up from cwd looking for templates/operations/, and would
         # find it in the checkout, masking the "no repo on disk" path that
-        # `npx wuphf` / `curl | bash` users actually take. Running from
+        # `npx laf-office` / `curl | bash` users actually take. Running from
         # /tmp forces the blueprint loader to go through the embedded FS
         # wired in templates_embed.go, which is exactly the regression
         # path the wizard.spec.ts blueprint-picker test guards.
         run: |
-          rm -f "$HOME/.wuphf/onboarded.json"
-          wuphf_bin="$PWD/wuphf"
+          rm -f "$HOME/.laf-office/onboarded.json"
+          laf_office_bin="$PWD/laf-office"
           run_dir="$(mktemp -d)"
           cd "$run_dir"
-          "$wuphf_bin" --no-open --broker-port 7890 --web-port 7891 --no-nex </dev/null > "$GITHUB_WORKSPACE/wuphf-wizard.log" 2>&1 &
-          echo $! > "$GITHUB_WORKSPACE/wuphf-wizard.pid"
+          "$laf_office_bin" --no-open --broker-port 7890 --web-port 7891 --no-nex </dev/null > "$GITHUB_WORKSPACE/laf-office-wizard.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/laf-office-wizard.pid"
           # /onboarding/state is the authoritative readiness signal (the
           # static index.html can 200 before the broker is fully wired).
           for i in $(seq 1 30); do
             if curl -sf http://localhost:7891/onboarding/state -o /dev/null; then
-              echo "wuphf ready (wizard) after ${i}s"
+              echo "laf-office ready (wizard) after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "wuphf failed to become ready (wizard)" >&2
-          cat "$GITHUB_WORKSPACE/wuphf-wizard.log" >&2
+          echo "laf-office failed to become ready (wizard)" >&2
+          cat "$GITHUB_WORKSPACE/laf-office-wizard.log" >&2
           exit 1
       - name: Run Playwright wizard smoke
         working-directory: web/e2e
         env:
-          WUPHF_E2E_BASE_URL: http://localhost:7891
+          LAF_OFFICE_E2E_BASE_URL: http://localhost:7891
         run: bunx playwright test tests/wizard.spec.ts
-      - name: Stop wuphf (wizard phase)
+      - name: Stop laf-office (wizard phase)
         if: always()
         run: |
-          if [ -f wuphf-wizard.pid ]; then
-            kill "$(cat wuphf-wizard.pid)" 2>/dev/null || true
+          if [ -f laf-office-wizard.pid ]; then
+            kill "$(cat laf-office-wizard.pid)" 2>/dev/null || true
           fi
           # Wait for port 7891 to free up before Phase 2 tries to bind it.
           for _ in $(seq 1 10); do
             if ! (exec 3<>/dev/tcp/127.0.0.1/7891) 2>/dev/null; then break; fi
             sleep 1
           done
-      - name: Seed onboarding state + start wuphf for shell tests
+      - name: Seed onboarding state + start laf-office for shell tests
         run: |
-          mkdir -p "$HOME/.wuphf"
-          cat > "$HOME/.wuphf/onboarded.json" <<'JSON'
+          mkdir -p "$HOME/.laf-office"
+          cat > "$HOME/.laf-office/onboarded.json" <<'JSON'
           {"version":1,"completed_at":"2026-01-01T00:00:00Z","company_name":"e2e-ci"}
           JSON
-          ./wuphf --no-open --broker-port 7890 --web-port 7891 --no-nex </dev/null > wuphf.log 2>&1 &
-          echo $! > wuphf.pid
+          ./laf-office --no-open --broker-port 7890 --web-port 7891 --no-nex </dev/null > laf-office.log 2>&1 &
+          echo $! > laf-office.pid
           for i in $(seq 1 30); do
             if curl -sf http://localhost:7891/onboarding/state -o /dev/null; then
-              echo "wuphf ready (shell) after ${i}s"
+              echo "laf-office ready (shell) after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "wuphf failed to become ready (shell)" >&2
-          cat wuphf.log >&2
+          echo "laf-office failed to become ready (shell)" >&2
+          cat laf-office.log >&2
           exit 1
       - name: Run Playwright shell smoke
         working-directory: web/e2e
         env:
-          WUPHF_E2E_BASE_URL: http://localhost:7891
+          LAF_OFFICE_E2E_BASE_URL: http://localhost:7891
         run: bunx playwright test tests/smoke.spec.ts
-      - name: Stop wuphf (shell phase)
+      - name: Stop laf-office (shell phase)
         if: always()
         run: |
-          if [ -f wuphf.pid ]; then
-            kill "$(cat wuphf.pid)" 2>/dev/null || true
+          if [ -f laf-office.pid ]; then
+            kill "$(cat laf-office.pid)" 2>/dev/null || true
           fi
       - name: Upload Playwright report on failure
         if: failure()
@@ -406,14 +406,14 @@ jobs:
           name: playwright-report
           path: web/e2e/playwright-report
           retention-days: 7
-      - name: Upload wuphf logs on failure
+      - name: Upload laf-office logs on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7
         with:
-          name: wuphf-e2e-logs
+          name: laf-office-e2e-logs
           path: |
-            wuphf.log
-            wuphf-wizard.log
+            laf-office.log
+            laf-office-wizard.log
           retention-days: 7
           if-no-files-found: ignore
 
@@ -441,7 +441,7 @@ jobs:
         # This SKIPS the redirect-parsing resolver — see next step for that.
         run: |
           set -euo pipefail
-          tarball="$(ls dist/wuphf_*_linux_amd64.tar.gz | head -1)"
+          tarball="$(ls dist/laf-office_*_linux_amd64.tar.gz | head -1)"
           if [ -z "$tarball" ]; then
             echo "no snapshot tarball found in dist/" >&2
             exit 1
@@ -449,9 +449,9 @@ jobs:
           # install.sh falls back to $HOME/.local/bin if /usr/local/bin isn't
           # writable — ensure either location is on PATH.
           export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-          WUPHF_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
-          command -v wuphf
-          wuphf --version
+          LAF_OFFICE_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
+          command -v laf-office
+          laf-office --version
       - name: Smoke-test install.sh against real resolver (mock GitHub)
         # Guards the v0.8.1 regression: the 404 shipped to users lived in the
         # redirect-parsing + archive-URL construction (install.sh:39-48). The
@@ -459,12 +459,12 @@ jobs:
         # stand up a local HTTP server that emulates GitHub's behavior:
         #   GET /releases/latest -> 302 /releases/tag/<tag>
         #   GET /releases/download/<tag>/<archive> -> the snapshot tarball
-        # and point install.sh at it via WUPHF_INSTALL_REPO_BASE_URL.
+        # and point install.sh at it via LAF_OFFICE_INSTALL_REPO_BASE_URL.
         run: |
           set -euo pipefail
-          tarball="$(ls dist/wuphf_*_linux_amd64.tar.gz | head -1)"
+          tarball="$(ls dist/laf-office_*_linux_amd64.tar.gz | head -1)"
           archive="$(basename "$tarball")"
-          version="${archive#wuphf_}"
+          version="${archive#laf-office_}"
           version="${version%_linux_amd64.tar.gz}"
           tag="v${version}"
 
@@ -514,9 +514,9 @@ jobs:
 
           # Wipe the binary the prior step installed so we're actually
           # re-exercising install.sh end-to-end.
-          rm -f "$HOME/.local/bin/wuphf"
-          sudo rm -f /usr/local/bin/wuphf || true
+          rm -f "$HOME/.local/bin/laf-office"
+          sudo rm -f /usr/local/bin/laf-office || true
           export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-          WUPHF_INSTALL_REPO_BASE_URL="http://127.0.0.1:7457" bash scripts/install.sh
-          command -v wuphf
-          wuphf --version
+          LAF_OFFICE_INSTALL_REPO_BASE_URL="http://127.0.0.1:7457" bash scripts/install.sh
+          command -v laf-office
+          laf-office --version

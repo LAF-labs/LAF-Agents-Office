@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/nex"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/nex"
 )
 
 type nexAskResponse struct {

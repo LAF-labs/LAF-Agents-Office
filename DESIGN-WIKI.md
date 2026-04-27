@@ -1,13 +1,13 @@
-# Design System — WUPHF Wiki Surface
+# Design System — LAF-Office Wiki Surface
 
-**Scope:** the `/wiki` surface inside the WUPHF web app (port 7891 prod / 7900 dev). Does NOT apply to the pixel-office marketing site (see `DESIGN.md`) or the rest of the WUPHF app chrome (see `web/src/styles/global.css`).
+**Scope:** the `/wiki` surface inside the LAF-Office web app (port 7891 prod / 7900 dev). Does NOT apply to the pixel-office marketing site (see `DESIGN.md`) or the rest of the LAF-Office app chrome (see `web/src/styles/global.css`).
 
 Always read this file before making any visual or UI decisions on the wiki. If a decision conflicts with this file, escalate — don't silently deviate.
 
 ## Product Context
 
-- **What this is:** the team wiki inside WUPHF — a git-native markdown knowledge base where AI agents write articles the user can read, `cat`, and `git clone`. Following Karpathy's "LLM wiki" pattern.
-- **Who it's for:** Claude Pro/Max power users running 3+ agents on WUPHF. Taste-maker slice — they noticed Karpathy's tweet, they care about files-over-apps, they ship.
+- **What this is:** the team wiki inside LAF-Office — a git-native markdown knowledge base where AI agents write articles the user can read, `cat`, and `git clone`. Following Karpathy's "LLM wiki" pattern.
+- **Who it's for:** Claude Pro/Max power users running 3+ agents on LAF-Office. Taste-maker slice — they noticed Karpathy's tweet, they care about files-over-apps, they ship.
 - **Memorable thing:** *"This feels like Wikipedia but for my company."* Every design decision should serve this.
 - **Project type:** In-app reading surface. Three-column layout. Reading-first editorial posture with live-update signals.
 
@@ -20,7 +20,7 @@ Always read this file before making any visual or UI decisions on the wiki. If a
 
 ## Color System
 
-**Approach:** Restrained warm-paper palette. The WUPHF app's blue and amber kept as semantic accents (wikilinks, live edits) — all other decoration stripped.
+**Approach:** Restrained warm-paper palette. The LAF-Office app's blue and amber kept as semantic accents (wikilinks, live edits) — all other decoration stripped.
 
 | Token | Hex | Usage |
 |---|---|---|
@@ -52,7 +52,7 @@ Three-font stack. Each role has a specific font — do not substitute.
 |---|---|---|
 | **Display (article titles, section heads)** | `Fraunces` (variable opsz) | Article titles (52px), H2 (28px), H3 (20px), infobox title, catalog card titles. Tracked with `font-variation-settings: "opsz" {size}` to use the correct optical size. |
 | **Body (article content)** | `Source Serif 4` (variable opsz) | All article body text. 18px / line-height 1.72 / measure 640px max. Italic variant available for hatnote + strapline + See also. |
-| **Chrome (UI, nav, buttons, breadcrumbs, infobox labels)** | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif` | Matches existing WUPHF app chrome. 13-14px base. |
+| **Chrome (UI, nav, buttons, breadcrumbs, infobox labels)** | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif` | Matches existing LAF-Office app chrome. 13-14px base. |
 | **Mono (commit hashes, timestamps, raw markdown tab, wikilink-code)** | `Geist Mono` | 11-13px. Small tabular-num displays. |
 
 **Font blacklist (never use for this surface):** Inter, Roboto, Arial, Helvetica, Open Sans, Lato, Montserrat, Poppins, Space Grotesk, Linux Libertine, system-ui as body font, Comic Sans.
@@ -113,7 +113,7 @@ Three-font stack. Each role has a specific font — do not substitute.
 
 ## Wikipedia IA Primitives — the chrome
 
-Every standard Wikipedia UI primitive has a WUPHF-native equivalent. These ARE the design system's information architecture — the thing that creates the "Wikipedia for my company" pattern-match.
+Every standard Wikipedia UI primitive has a LAF-Office-native equivalent. These ARE the design system's information architecture — the thing that creates the "Wikipedia for my company" pattern-match.
 
 ### Status banner (top of article)
 Replaces Wikipedia's "cleanup template" banners. One-line amber-bordered contextual info. Dot-pulse indicator on the left. Right-aligned meta text (`47 rev · 6 contrib · 2,347 words`).
@@ -126,7 +126,7 @@ Replaces Wikipedia's "cleanup template" banners. One-line amber-bordered context
 ```
 
 ### Hat-bar tabs
-Wikipedia's classic `Article | Talk | Edit | History`. WUPHF maps to:
+Wikipedia's classic `Article | Talk | Edit | History`. LAF-Office maps to:
 - **Article** (default, active) — read mode
 - **Talk** — agent commentary thread on this article (v1.1, show disabled in v1)
 - **History** — git log for this file
@@ -256,7 +256,7 @@ Custom React components:
 
 Typography loading: Google Fonts via `<link>` tags in `web/index.html`. No self-hosting in v1.
 
-Pixel avatars: reuse the existing `composeAvatar` routine from the WUPHF app (agent sprites at 14×14, scaled via `image-rendering: pixelated`). In DESIGN-WIKI.md's preview mocks, SVG rect approximations are used; the actual implementation uses the production sprite compositor.
+Pixel avatars: reuse the existing `composeAvatar` routine from the LAF-Office app (agent sprites at 14×14, scaled via `image-rendering: pixelated`). In DESIGN-WIKI.md's preview mocks, SVG rect approximations are used; the actual implementation uses the production sprite compositor.
 
 ## Catalog view (`/wiki` landing)
 
@@ -292,9 +292,9 @@ If you are considering any of the above, stop and escalate rather than ship it.
 ## Preview assets (reference during implementation)
 
 The three preview mocks produced during /design-consultation are saved at:
-- `~/.gstack/projects/nex-crm-wuphf/designs/wiki-design-20260419/preview-v1.html` — modernized only (baseline)
-- `~/.gstack/projects/nex-crm-wuphf/designs/wiki-design-20260419/preview-v2-hybrid.html` — modern type + Wikipedia chrome
-- `~/.gstack/projects/nex-crm-wuphf/designs/wiki-design-20260419/preview-v3.html` — V3 (ACCEPTED — the one this spec is based on)
+- `~/.gstack/projects/nex-crm-laf-office/designs/wiki-design-20260419/preview-v1.html` — modernized only (baseline)
+- `~/.gstack/projects/nex-crm-laf-office/designs/wiki-design-20260419/preview-v2-hybrid.html` — modern type + Wikipedia chrome
+- `~/.gstack/projects/nex-crm-laf-office/designs/wiki-design-20260419/preview-v3.html` — V3 (ACCEPTED — the one this spec is based on)
 
 Open them in a browser while implementing. Every component, spacing value, and interaction above is grounded in V3.
 
@@ -305,7 +305,7 @@ Open them in a browser while implementing. Every component, spacing value, and i
 | 2026-04-19 | DESIGN-WIKI.md created | /design-consultation session. V3 (full Wikipedia IA + modern typography) selected over V1 (modernized only) and V2 (hybrid, partial Wikipedia IA). |
 | 2026-04-19 | Light mode only in v1 | Memorable-thing anchor is Wikipedia, which is light. Dark mode breaks the pattern-match. Revisit v1.1. |
 | 2026-04-19 | Serif body (Source Serif 4) over sans | Every team wiki is sans; serif body signals "reference material" vs "notes to self". Weightier, distinct. |
-| 2026-04-19 | Pixel agent avatars on bylines | Ties the wiki to the rest of the WUPHF app's agent identity. Nobody else does this. |
+| 2026-04-19 | Pixel agent avatars on bylines | Ties the wiki to the rest of the LAF-Office app's agent identity. Nobody else does this. |
 | 2026-04-19 | Full Wikipedia IA primitives (infobox, hatnote, TOC box, Sources, Categories, page footer) | User direction: "exact UI and information architecture of Wikipedia with our nice styling." V3 maxes this out. |
 | 2026-04-19 | Per-agent wikis cut from v1 | See design doc §v1 scope. Team wiki only in v1. |
 | 2026-04-19 | No dark mode toggle in v1 | Defer to v1.1. |

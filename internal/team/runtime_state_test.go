@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/action"
+	"github.com/nex-crm/laf-office/internal/action"
 )
 
 func TestDetectRuntimeCapabilities(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_LLM_PROVIDER", "claude-code")
+	t.Setenv("LAF_OFFICE_LLM_PROVIDER", "claude-code")
 	oldLookPath := lookPathFn
 	oldCommandOutput := commandCombinedOutputFn
 	oldActionProviderForCapability := actionProviderForCapabilityFn
@@ -41,7 +41,7 @@ func TestDetectRuntimeCapabilities(t *testing.T) {
 			return []byte("tmux 3.4a\n"), nil
 		}
 		if len(args) == 5 && args[0] == "-L" && args[1] == tmuxSocketName && args[2] == "list-sessions" && args[3] == "-F" {
-			return []byte("wuphf-team\t2\t4\nscratch\t1\t1\n"), nil
+			return []byte("laf-office-team\t2\t4\nscratch\t1\t1\n"), nil
 		}
 		return nil, errors.New("unexpected tmux probe")
 	}
@@ -51,7 +51,7 @@ func TestDetectRuntimeCapabilities(t *testing.T) {
 	actionProvidersFn = func() []action.Provider { return nil }
 
 	t.Setenv("TMUX", "/tmp/tmux-1000/default,123,0")
-	t.Setenv("WUPHF_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 
 	got := DetectRuntimeCapabilities()
 	if got.Tmux.BinaryPath != "/usr/bin/tmux" {
@@ -86,7 +86,7 @@ func TestDetectRuntimeCapabilities(t *testing.T) {
 
 func TestDetectRuntimeCapabilitiesWhenTmuxServerIsMissing(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_LLM_PROVIDER", "claude-code")
+	t.Setenv("LAF_OFFICE_LLM_PROVIDER", "claude-code")
 	oldLookPath := lookPathFn
 	oldCommandOutput := commandCombinedOutputFn
 	oldActionProviderForCapability := actionProviderForCapabilityFn
@@ -116,7 +116,7 @@ func TestDetectRuntimeCapabilitiesWhenTmuxServerIsMissing(t *testing.T) {
 			return []byte("tmux 3.4a\n"), nil
 		}
 		if len(args) == 5 && args[0] == "-L" && args[1] == tmuxSocketName && args[2] == "list-sessions" && args[3] == "-F" {
-			return []byte("no server running on /tmp/tmux-1000/wuphf\n"), errors.New("exit status 1")
+			return []byte("no server running on /tmp/tmux-1000/laf-office\n"), errors.New("exit status 1")
 		}
 		return nil, errors.New("unexpected tmux probe")
 	}
@@ -125,7 +125,7 @@ func TestDetectRuntimeCapabilitiesWhenTmuxServerIsMissing(t *testing.T) {
 	}
 	actionProvidersFn = func() []action.Provider { return nil }
 
-	t.Setenv("WUPHF_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 
 	got := DetectRuntimeCapabilities()
 	if got.Tmux.ServerRunning {
@@ -154,7 +154,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 			Status:         "in_progress",
 			PipelineStage:  "review",
 			ExecutionMode:  "local_worktree",
-			WorktreePath:   "/tmp/wuphf-task-1",
+			WorktreePath:   "/tmp/laf-office-task-1",
 			WorktreeBranch: "feat/task-1",
 		}},
 		Requests: []RuntimeRequest{{
@@ -178,9 +178,9 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 				State:         "review",
 				Progress:      "Stage: review · Review: pending review · Execution: local worktree",
 				PartialOutput: "Latest task output retained for review.",
-				Path:          "/tmp/wuphf-task-1/output.log",
-				Worktree:      "/tmp/wuphf-task-1",
-				ResumeHint:    "Resume in /tmp/wuphf-task-1 or reopen the task thread.",
+				Path:          "/tmp/laf-office-task-1/output.log",
+				Worktree:      "/tmp/laf-office-task-1",
+				ResumeHint:    "Resume in /tmp/laf-office-task-1 or reopen the task thread.",
 				ReviewHint:    "Review pending review.",
 			},
 			{
@@ -209,7 +209,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 			Items: []CapabilityStatus{{
 				Name:   "tmux",
 				Level:  CapabilityReady,
-				Detail: "tmux 3.4a on socket wuphf is running with session wuphf-team (2 attached, 4 windows).",
+				Detail: "tmux 3.4a on socket laf-office is running with session laf-office-team (2 attached, 4 windows).",
 			}},
 		},
 		Registry: CapabilityRegistry{
@@ -231,7 +231,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 		"Pending human requests: 1",
 		"Retained execution artifacts: 2",
 		"Approve launch timing from @ceo.",
-		"Use working_directory /tmp/wuphf-task-1",
+		"Use working_directory /tmp/laf-office-task-1",
 		"Execution artifacts:",
 		"Polish launch checklist [task] review: This task is retained as a live execution artifact with its current runtime context.",
 		"Approve launch timing [request] pending: Blocking approval before tomorrow.",
@@ -240,7 +240,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 		"Binary: /usr/bin/tmux",
 		"Version: tmux 3.4a",
 		"Inside tmux: yes",
-		"WUPHF session: running (2 attached, 4 windows)",
+		"LAF-Office session: running (2 attached, 4 windows)",
 		"scratch: 1 attached, 1 windows",
 		"Runtime capabilities:",
 		"Capability registry:",

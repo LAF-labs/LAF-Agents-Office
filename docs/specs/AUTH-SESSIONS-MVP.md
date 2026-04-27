@@ -1,6 +1,6 @@
 # Auth Sessions MVP
 
-WUPHF now has a local identity layer for dogfooding team workspaces before the
+LAF-Office now has a local identity layer for dogfooding team workspaces before the
 full SaaS billing and tenant model.
 
 ## What ships

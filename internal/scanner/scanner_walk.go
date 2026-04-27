@@ -5,7 +5,7 @@ package scanner
 //
 // Key divergences from the TypeScript source:
 //   - Symlinks are never followed (file or directory). nex-cli inherits
-//     Node's readdirSync which does follow; that is unsafe for WUPHF where
+//     Node's readdirSync which does follow; that is unsafe for LAF-Office where
 //     scan roots are arbitrary user directories and a symlink to /etc
 //     could land secrets in the wiki.
 //   - Permission-denied subdirs are silently skipped rather than erroring.

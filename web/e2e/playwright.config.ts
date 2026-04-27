@@ -1,12 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
-// The wuphf backend serves the built web UI directly at :7891. CI boots the
+// The laf-office backend serves the built web UI directly at :7891. CI boots the
 // backend externally (see .github/workflows/ci.yml:web-e2e) — we don't use
 // playwright's webServer because the backend is a Go binary the CI already
 // built. For local runs use `web/e2e/run-local.sh` (see web/e2e/README.md);
-// it sandboxes WUPHF_RUNTIME_HOME, seeds onboarded.json for the shell phase,
+// it sandboxes LAF_OFFICE_RUNTIME_HOME, seeds onboarded.json for the shell phase,
 // and runs both wizard and smoke specs against alternate ports so the
-// developer's real ~/.wuphf state is never touched.
+// developer's real ~/.laf-office state is never touched.
 export default defineConfig({
   testDir: "./tests",
   timeout: 30_000,
@@ -20,7 +20,7 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: process.env.WUPHF_E2E_BASE_URL ?? "http://localhost:7891",
+    baseURL: process.env.LAF_OFFICE_E2E_BASE_URL ?? "http://localhost:7891",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

@@ -98,7 +98,7 @@ func TestSaveCreatesParentDirs(t *testing.T) {
 		if err := Save(Config{APIKey: "k"}); err != nil {
 			t.Fatalf("Save failed: %v", err)
 		}
-		path := filepath.Join(dir, ".wuphf", "config.json")
+		path := filepath.Join(dir, ".laf-office", "config.json")
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected config file at %s: %v", path, err)
 		}
@@ -110,7 +110,7 @@ func TestSaveWritesValidJSON(t *testing.T) {
 		if err := Save(Config{APIKey: "k", Email: "e@e.com"}); err != nil {
 			t.Fatalf("Save: %v", err)
 		}
-		raw, _ := os.ReadFile(filepath.Join(dir, ".wuphf", "config.json"))
+		raw, _ := os.ReadFile(filepath.Join(dir, ".laf-office", "config.json"))
 		var m map[string]interface{}
 		if err := json.Unmarshal(raw, &m); err != nil {
 			t.Fatalf("invalid JSON: %v\n%s", err, raw)
@@ -123,7 +123,7 @@ func TestSaveWritesValidJSON(t *testing.T) {
 
 func TestResolveAPIKeyFlag(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_API_KEY", "env-key")
+		t.Setenv("LAF_OFFICE_API_KEY", "env-key")
 		if got := ResolveAPIKey("flag-key"); got != "flag-key" {
 			t.Fatalf("flag should win, got: %s", got)
 		}
@@ -132,7 +132,7 @@ func TestResolveAPIKeyFlag(t *testing.T) {
 
 func TestResolveAPIKeyEnv(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_API_KEY", "env-key")
+		t.Setenv("LAF_OFFICE_API_KEY", "env-key")
 		if got := ResolveAPIKey(""); got != "env-key" {
 			t.Fatalf("env should win over config, got: %s", got)
 		}
@@ -141,7 +141,7 @@ func TestResolveAPIKeyEnv(t *testing.T) {
 
 func TestResolveAPIKeyConfigFile(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_API_KEY", "")
+		t.Setenv("LAF_OFFICE_API_KEY", "")
 		_ = Save(Config{APIKey: "file-key"})
 		if got := ResolveAPIKey(""); got != "file-key" {
 			t.Fatalf("config file fallback failed, got: %s", got)
@@ -155,8 +155,8 @@ func TestResolveMemoryBackendDefaultsToMarkdown(t *testing.T) {
 	// and the CLAUDE.md project statement that markdown is the shipping
 	// default.
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_NO_NEX", "")
-		t.Setenv("WUPHF_MEMORY_BACKEND", "")
+		t.Setenv("LAF_OFFICE_NO_NEX", "")
+		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "")
 		if got := ResolveMemoryBackend(""); got != MemoryBackendMarkdown {
 			t.Fatalf("expected default memory backend markdown, got %q", got)
 		}
@@ -169,8 +169,8 @@ func TestResolveMemoryBackendDefaultsToMarkdownWhenNoNex(t *testing.T) {
 	// previous behaviour left the user with no shared memory at all when
 	// they simply asked to skip Nex.
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_NO_NEX", "1")
-		t.Setenv("WUPHF_MEMORY_BACKEND", "")
+		t.Setenv("LAF_OFFICE_NO_NEX", "1")
+		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "")
 		if got := ResolveMemoryBackend(""); got != MemoryBackendMarkdown {
 			t.Fatalf("expected --no-nex default to resolve to markdown, got %q", got)
 		}
@@ -179,8 +179,8 @@ func TestResolveMemoryBackendDefaultsToMarkdownWhenNoNex(t *testing.T) {
 
 func TestResolveMemoryBackendAllowsGBrainUnderNoNex(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_NO_NEX", "1")
-		t.Setenv("WUPHF_MEMORY_BACKEND", MemoryBackendGBrain)
+		t.Setenv("LAF_OFFICE_NO_NEX", "1")
+		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", MemoryBackendGBrain)
 		if got := ResolveMemoryBackend(""); got != MemoryBackendGBrain {
 			t.Fatalf("expected explicit gbrain to survive no-nex, got %q", got)
 		}
@@ -189,8 +189,8 @@ func TestResolveMemoryBackendAllowsGBrainUnderNoNex(t *testing.T) {
 
 func TestResolveMemoryBackendForcesNexToNoneUnderNoNex(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_NO_NEX", "1")
-		t.Setenv("WUPHF_MEMORY_BACKEND", MemoryBackendNex)
+		t.Setenv("LAF_OFFICE_NO_NEX", "1")
+		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", MemoryBackendNex)
 		if got := ResolveMemoryBackend(""); got != MemoryBackendNone {
 			t.Fatalf("expected nex to resolve to none under no-nex, got %q", got)
 		}
@@ -199,8 +199,8 @@ func TestResolveMemoryBackendForcesNexToNoneUnderNoNex(t *testing.T) {
 
 func TestResolveOneSecretDisabledWhenNoNex(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_NO_NEX", "1")
-		t.Setenv("WUPHF_ONE_SECRET", "env-secret")
+		t.Setenv("LAF_OFFICE_NO_NEX", "1")
+		t.Setenv("LAF_OFFICE_ONE_SECRET", "env-secret")
 		_ = Save(Config{OneAPIKey: "file-secret"})
 		if got := ResolveOneSecret(); got != "" {
 			t.Fatalf("expected no One secret when Nex is disabled, got %q", got)
@@ -241,10 +241,10 @@ func TestResolveComposioAPIKeyFallsBackToConfig(t *testing.T) {
 
 func TestResolveGeminiAPIKeyEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_GEMINI_API_KEY", "wuphf-gemini")
+		t.Setenv("LAF_OFFICE_GEMINI_API_KEY", "laf-office-gemini")
 		_ = Save(Config{GeminiAPIKey: "file-gemini"})
-		if got := ResolveGeminiAPIKey(); got != "wuphf-gemini" {
-			t.Fatalf("expected WUPHF env override, got %q", got)
+		if got := ResolveGeminiAPIKey(); got != "laf-office-gemini" {
+			t.Fatalf("expected LAF-Office env override, got %q", got)
 		}
 	})
 }
@@ -269,10 +269,10 @@ func TestResolveGeminiAPIKeyConfig(t *testing.T) {
 
 func TestResolveAnthropicAPIKeyEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_ANTHROPIC_API_KEY", "wuphf-anthropic")
+		t.Setenv("LAF_OFFICE_ANTHROPIC_API_KEY", "laf-office-anthropic")
 		_ = Save(Config{AnthropicAPIKey: "file-anthropic"})
-		if got := ResolveAnthropicAPIKey(); got != "wuphf-anthropic" {
-			t.Fatalf("expected WUPHF env override, got %q", got)
+		if got := ResolveAnthropicAPIKey(); got != "laf-office-anthropic" {
+			t.Fatalf("expected LAF-Office env override, got %q", got)
 		}
 	})
 }
@@ -297,10 +297,10 @@ func TestResolveAnthropicAPIKeyConfig(t *testing.T) {
 
 func TestResolveOpenAIAPIKeyEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_OPENAI_API_KEY", "wuphf-openai")
+		t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "laf-office-openai")
 		_ = Save(Config{OpenAIAPIKey: "file-openai"})
-		if got := ResolveOpenAIAPIKey(); got != "wuphf-openai" {
-			t.Fatalf("expected WUPHF env override, got %q", got)
+		if got := ResolveOpenAIAPIKey(); got != "laf-office-openai" {
+			t.Fatalf("expected LAF-Office env override, got %q", got)
 		}
 	})
 }
@@ -325,10 +325,10 @@ func TestResolveOpenAIAPIKeyConfig(t *testing.T) {
 
 func TestResolveMinimaxAPIKeyEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_MINIMAX_API_KEY", "wuphf-minimax")
+		t.Setenv("LAF_OFFICE_MINIMAX_API_KEY", "laf-office-minimax")
 		_ = Save(Config{MinimaxAPIKey: "file-minimax"})
-		if got := ResolveMinimaxAPIKey(); got != "wuphf-minimax" {
-			t.Fatalf("expected WUPHF env override, got %q", got)
+		if got := ResolveMinimaxAPIKey(); got != "laf-office-minimax" {
+			t.Fatalf("expected LAF-Office env override, got %q", got)
 		}
 	})
 }
@@ -423,7 +423,7 @@ func TestResolveLLMProviderDefaultsToClaude(t *testing.T) {
 
 func TestResolveLLMProviderUsesEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_LLM_PROVIDER", "codex")
+		t.Setenv("LAF_OFFICE_LLM_PROVIDER", "codex")
 		if got := ResolveLLMProvider(""); got != "codex" {
 			t.Fatalf("expected codex env override, got %q", got)
 		}
@@ -441,7 +441,7 @@ func TestResolveLLMProviderNormalizesUnsupportedConfig(t *testing.T) {
 
 func TestResolveLLMProviderAcceptsOpencode(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_LLM_PROVIDER", "opencode")
+		t.Setenv("LAF_OFFICE_LLM_PROVIDER", "opencode")
 		if got := ResolveLLMProvider(""); got != "opencode" {
 			t.Fatalf("expected opencode env override, got %q", got)
 		}
@@ -458,14 +458,14 @@ func TestResolveLLMProviderOpencodeFromConfig(t *testing.T) {
 }
 
 func TestResolveOpencodeModelEnvOverride(t *testing.T) {
-	t.Setenv("WUPHF_OPENCODE_MODEL", "qwen3.6:35b-a3b")
+	t.Setenv("LAF_OFFICE_OPENCODE_MODEL", "qwen3.6:35b-a3b")
 	if got := ResolveOpencodeModel(); got != "qwen3.6:35b-a3b" {
-		t.Fatalf("expected WUPHF_OPENCODE_MODEL override, got %q", got)
+		t.Fatalf("expected LAF_OFFICE_OPENCODE_MODEL override, got %q", got)
 	}
 }
 
 func TestResolveOpencodeModelFallsBackToOpencodeEnv(t *testing.T) {
-	t.Setenv("WUPHF_OPENCODE_MODEL", "")
+	t.Setenv("LAF_OFFICE_OPENCODE_MODEL", "")
 	t.Setenv("OPENCODE_MODEL", "llama3.3")
 	if got := ResolveOpencodeModel(); got != "llama3.3" {
 		t.Fatalf("expected OPENCODE_MODEL fallback, got %q", got)
@@ -474,7 +474,7 @@ func TestResolveOpencodeModelFallsBackToOpencodeEnv(t *testing.T) {
 
 func TestResolveCodexModelUsesEnvOverride(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_CODEX_MODEL", "gpt-5.4")
+		t.Setenv("LAF_OFFICE_CODEX_MODEL", "gpt-5.4")
 		if got := ResolveCodexModel(""); got != "gpt-5.4" {
 			t.Fatalf("expected env codex model, got %q", got)
 		}
@@ -623,14 +623,14 @@ func TestPersistRegistrationMerges(t *testing.T) {
 }
 
 func TestBaseURLDevURLEnv(t *testing.T) {
-	t.Setenv("WUPHF_DEV_URL", "http://localhost:4000")
+	t.Setenv("LAF_OFFICE_DEV_URL", "http://localhost:4000")
 	if got := BaseURL(); got != "http://localhost:4000" {
 		t.Fatalf("expected localhost, got: %s", got)
 	}
 }
 
 func TestBaseURLDefault(t *testing.T) {
-	t.Setenv("WUPHF_DEV_URL", "")
+	t.Setenv("LAF_OFFICE_DEV_URL", "")
 	withTempConfig(t, func(_ string) {
 		if got := BaseURL(); got != "https://app.nex.ai" {
 			t.Fatalf("expected production URL, got: %s", got)
@@ -639,7 +639,7 @@ func TestBaseURLDefault(t *testing.T) {
 }
 
 func TestAPIBase(t *testing.T) {
-	t.Setenv("WUPHF_DEV_URL", "")
+	t.Setenv("LAF_OFFICE_DEV_URL", "")
 	withTempConfig(t, func(_ string) {
 		want := "https://app.nex.ai/api/developers"
 		if got := APIBase(); got != want {
@@ -679,7 +679,7 @@ func TestOpenclawConfigRoundTrip(t *testing.T) {
 
 func TestResolveOpenclawTokenEnvWins(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("WUPHF_OPENCLAW_TOKEN", "env-token")
+		t.Setenv("LAF_OFFICE_OPENCLAW_TOKEN", "env-token")
 		if got := ResolveOpenclawToken(); got != "env-token" {
 			t.Fatalf("expected env-token, got %q", got)
 		}

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/runtimebin"
+	"github.com/nex-crm/laf-office/internal/runtimebin"
 )
 
 // PrereqResult describes the detection outcome for a single prerequisite binary.
@@ -15,7 +15,7 @@ type PrereqResult struct {
 	// Name is the binary name (e.g. "node", "git", "claude").
 	Name string `json:"name"`
 
-	// Required is true when wuphf cannot function without this binary.
+	// Required is true when laf-office cannot function without this binary.
 	Required bool `json:"required"`
 
 	// Found is true when the binary was located on PATH.
@@ -49,13 +49,13 @@ var prereqSpecs = map[string]prereqSpec{
 
 // CheckAll returns a PrereqResult for each tracked binary in a stable order:
 // node, git, claude, codex, opencode, cursor, windsurf. At least one of the
-// CLI runtimes must be present for wuphf to actually run a turn, but all are
+// CLI runtimes must be present for laf-office to actually run a turn, but all are
 // marked optional here so the user can proceed with whichever runtime
 // they have.
 //
 // Probes run concurrently. CheckOne's per-probe timeout is 10s (see comment
 // there for rationale) and CheckAll is invoked from an HTTP handler with a
-// 5s client deadline at cmd/wuphf/onboarding.go; running probes serially
+// 5s client deadline at cmd/laf-office/onboarding.go; running probes serially
 // would mean worst-case wall-clock = 7 × 10s = 70s, far past any sane HTTP
 // budget. Concurrent probes cap wall-clock at max(probe), well under the
 // client timeout. Order of `names` is preserved in the returned slice.

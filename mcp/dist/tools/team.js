@@ -6,7 +6,7 @@ function parsePort(raw) {
     return Number.isFinite(port) && port > 0 ? port : 0;
 }
 function resolveBrokerBaseUrl() {
-    for (const key of ["WUPHF_BROKER_BASE_URL", "NEX_BROKER_BASE_URL", "WUPHF_TEAM_BROKER_URL", "NEX_TEAM_BROKER_URL"]) {
+    for (const key of ["LAF_OFFICE_BROKER_BASE_URL", "NEX_BROKER_BASE_URL", "LAF_OFFICE_TEAM_BROKER_URL", "NEX_TEAM_BROKER_URL"]) {
         const value = (process.env[key] ?? "").trim();
         if (value)
             return value.replace(/\/+$/, "");
@@ -15,12 +15,12 @@ function resolveBrokerBaseUrl() {
     return `http://127.0.0.1:${port}`;
 }
 function resolveBrokerPort() {
-    for (const key of ["WUPHF_BROKER_PORT", "NEX_BROKER_PORT"]) {
+    for (const key of ["LAF_OFFICE_BROKER_PORT", "NEX_BROKER_PORT"]) {
         const port = parsePort(process.env[key]);
         if (port > 0)
             return port;
     }
-    const base = (process.env.WUPHF_BROKER_BASE_URL ?? process.env.NEX_BROKER_BASE_URL ?? process.env.WUPHF_TEAM_BROKER_URL ?? process.env.NEX_TEAM_BROKER_URL ?? "").trim();
+    const base = (process.env.LAF_OFFICE_BROKER_BASE_URL ?? process.env.NEX_BROKER_BASE_URL ?? process.env.LAF_OFFICE_TEAM_BROKER_URL ?? process.env.NEX_TEAM_BROKER_URL ?? "").trim();
     if (base) {
         try {
             const parsed = new URL(base);
@@ -34,13 +34,13 @@ function resolveBrokerPort() {
     return defaultBrokerPort;
 }
 function resolveBrokerTokenPath() {
-    for (const key of ["WUPHF_BROKER_TOKEN_FILE", "NEX_BROKER_TOKEN_FILE"]) {
+    for (const key of ["LAF_OFFICE_BROKER_TOKEN_FILE", "NEX_BROKER_TOKEN_FILE"]) {
         const value = (process.env[key] ?? "").trim();
         if (value)
             return value;
     }
     const port = resolveBrokerPort();
-    return port === defaultBrokerPort ? "/tmp/wuphf-broker-token" : `/tmp/wuphf-broker-token-${port}`;
+    return port === defaultBrokerPort ? "/tmp/laf-office-broker-token" : `/tmp/laf-office-broker-token-${port}`;
 }
 const brokerBaseUrl = resolveBrokerBaseUrl();
 const brokerTokenPath = resolveBrokerTokenPath();
@@ -99,9 +99,9 @@ function formatMessages(messages, mySlug) {
         const mentionsMe = !!mySlug && (message.tagged ?? []).includes(mySlug);
         const tagNote = mentionsMe ? " [tagged you]" : "";
         const threadNote = message.reply_to ? ` ↳ ${message.reply_to}` : "";
-        if (message.kind === "automation" || message.from === "wuphf") {
+        if (message.kind === "automation" || message.from === "laf-office") {
             const source = message.source ?? "context_graph";
-            const label = message.source_label ?? "WUPHF";
+            const label = message.source_label ?? "LAF-Office";
             const title = message.title ? `${message.title}: ` : "";
             return `${ts} ${message.id}${threadNote} [${label}/${source}]: ${title}${message.content}${tagNote}`;
         }

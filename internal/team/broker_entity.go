@@ -183,7 +183,7 @@ func (b *Broker) SetEntitySynthesizer(factLog *FactLog, synth *EntitySynthesizer
 }
 
 func resolveThresholdFromEnv() int {
-	raw := strings.TrimSpace(os.Getenv("WUPHF_ENTITY_BRIEF_THRESHOLD"))
+	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_ENTITY_BRIEF_THRESHOLD"))
 	if raw == "" {
 		return DefaultSynthesisThreshold
 	}
@@ -195,7 +195,7 @@ func resolveThresholdFromEnv() int {
 }
 
 func resolveTimeoutFromEnv() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("WUPHF_ENTITY_BRIEF_TIMEOUT"))
+	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_ENTITY_BRIEF_TIMEOUT"))
 	if raw == "" {
 		return DefaultSynthesisTimeout
 	}
@@ -237,7 +237,7 @@ func (b *Broker) handleEntityFact(w http.ResponseWriter, r *http.Request) {
 		recordedBy = strings.TrimSpace(r.Header.Get(agentRateLimitHeader))
 	}
 	if recordedBy == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "recorded_by or X-WUPHF-Agent header is required"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "recorded_by or X-LAF-Office-Agent header is required"})
 		return
 	}
 

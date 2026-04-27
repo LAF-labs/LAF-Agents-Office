@@ -3,9 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BINARY="$ROOT/wuphf"
+BINARY="$ROOT/laf-office"
 ARTIFACTS="$ROOT/termwright-artifacts/autonomy-acceptance-$(date +%Y%m%d-%H%M%S)"
-SOCKET="/tmp/wuphf-acceptance-$$.sock"
+SOCKET="/tmp/laf-office-acceptance-$$.sock"
 mkdir -p "$ARTIFACTS"
 
 cleanup() {
@@ -21,7 +21,7 @@ stop_channel_view() {
 }
 
 if [ ! -x "$BINARY" ]; then
-  echo "SKIP: wuphf binary not found at $BINARY"
+  echo "SKIP: laf-office binary not found at $BINARY"
   exit 0
 fi
 
@@ -37,7 +37,7 @@ screen() {
 
 capture_channel_pane() {
   local label="$1"
-  tmux -L wuphf capture-pane -p -t wuphf-team:team.0 > "$ARTIFACTS/$label.txt"
+  tmux -L laf-office capture-pane -p -t laf-office-team:team.0 > "$ARTIFACTS/$label.txt"
 }
 
 pane_contains() {
@@ -56,9 +56,9 @@ pane_contains() {
 
 send_channel_line() {
   local text="$1"
-  tmux -L wuphf send-keys -t wuphf-team:team.0 C-c
+  tmux -L laf-office send-keys -t laf-office-team:team.0 C-c
   sleep 0.2
-  tmux -L wuphf send-keys -t wuphf-team:team.0 "$text" Enter
+  tmux -L laf-office send-keys -t laf-office-team:team.0 "$text" Enter
   sleep 1
 }
 
@@ -116,23 +116,23 @@ start_channel_view() {
   sleep 6
 }
 
-echo "=== WUPHF Autonomy Acceptance ==="
+echo "=== LAF-Office Autonomy Acceptance ==="
 echo "Artifacts: $ARTIFACTS"
 
 echo "--- Focused Go checks ---"
 go test ./internal/team -run 'TestPersistOfficeSignalsCreatesOwnedTaskAndLedger|TestPersistHumanDirectiveRecordsLedger|TestRecordWatchdogLedgerCreatesSignalAndDecision|TestTaskNotificationTargetsWakeOwnerOnWatchdog|TestTaskNotificationTargetsDoNotRewakeCEOForOwnCreatedTask'
 go test ./internal/teammcp -run 'TestSuppressBroadcastReason'
-go test ./cmd/wuphf -run 'TestHumanFacingMessageSwitchesBackToMessages|TestChannelViewRendersHumanFacingMessageCard|TestInsightsViewRendersSignalsDecisionsAndWatchdogs|TestBlockingRequestSwitchesBackToMessages|TestBlockingRequestCannotBeSnoozedWithEsc|TestBlockingRequestCannotBeSnoozedByCommand|TestCalendarViewRendersSchedulerAndActions'
+go test ./cmd/laf-office -run 'TestHumanFacingMessageSwitchesBackToMessages|TestChannelViewRendersHumanFacingMessageCard|TestInsightsViewRendersSignalsDecisionsAndWatchdogs|TestBlockingRequestSwitchesBackToMessages|TestBlockingRequestCannotBeSnoozedWithEsc|TestBlockingRequestCannotBeSnoozedByCommand|TestCalendarViewRendersSchedulerAndActions'
 
 echo "--- Build current binary ---"
-go build -o "$BINARY" ./cmd/wuphf
+go build -o "$BINARY" ./cmd/laf-office
 
 echo "--- Launch live office ---"
-"$BINARY" >/dev/null 2>"$ARTIFACTS/wuphf-stderr.txt" &
+"$BINARY" >/dev/null 2>"$ARTIFACTS/laf-office-stderr.txt" &
 sleep 8
-BROKER_TOKEN="$(cat /tmp/wuphf-broker-token)"
+BROKER_TOKEN="$(cat /tmp/laf-office-broker-token)"
 
-tmux -L wuphf has-session -t wuphf-team
+tmux -L laf-office has-session -t laf-office-team
 curl -s -H "Authorization: Bearer $BROKER_TOKEN" http://127.0.0.1:7890/health > "$ARTIFACTS/health.json"
 curl -s -X POST -H "Authorization: Bearer $BROKER_TOKEN" http://127.0.0.1:7890/reset > "$ARTIFACTS/reset.json"
 sleep 5
@@ -145,7 +145,7 @@ REQUEST=$(curl -s -X POST http://127.0.0.1:7890/requests \
 printf '%s\n' "$REQUEST" > "$ARTIFACTS/request-create.json"
 REQ_ID=$(printf '%s\n' "$REQUEST" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("id",""))')
 sleep 3
-tmux -L wuphf capture-pane -p -t wuphf-team:team.0 > "$ARTIFACTS/channel-blocking.txt"
+tmux -L laf-office capture-pane -p -t laf-office-team:team.0 > "$ARTIFACTS/channel-blocking.txt"
 grep -Eq 'Human decision needed|Approval needed|Ship the current direction|Answer @ceo|Request pending' "$ARTIFACTS/channel-blocking.txt"
 HTTP_CODE=$(curl -s -o "$ARTIFACTS/request-blocked-response.txt" -w "%{http_code}" -X POST http://127.0.0.1:7890/messages \
   -H "Content-Type: application/json" \
@@ -164,7 +164,7 @@ curl -s -X POST http://127.0.0.1:7890/messages \
   -H "Authorization: Bearer $BROKER_TOKEN" \
   -d '{"from":"pm","channel":"general","kind":"human_report","title":"V1 for you","content":"Keep v1 to searchable notes, shareable summaries, and crisp follow-up tasks."}' > "$ARTIFACTS/human-message.json"
 sleep 3
-tmux -L wuphf capture-pane -p -t wuphf-team:team.0 > "$ARTIFACTS/channel-human-facing.txt"
+tmux -L laf-office capture-pane -p -t laf-office-team:team.0 > "$ARTIFACTS/channel-human-facing.txt"
 grep -Eq 'V1 for you|has something for you' "$ARTIFACTS/channel-human-facing.txt"
 
 echo "--- Inject explicit human directive ---"

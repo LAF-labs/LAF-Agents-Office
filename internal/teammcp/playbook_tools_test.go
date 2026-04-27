@@ -19,7 +19,7 @@ func TestPlaybookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.backend, func(t *testing.T) {
-			t.Setenv("WUPHF_MEMORY_BACKEND", tc.backend)
+			t.Setenv("LAF_OFFICE_MEMORY_BACKEND", tc.backend)
 			names := listRegisteredTools(t, "general", false)
 			for _, tool := range toolNames {
 				has := slices.Contains(names, tool)
@@ -35,7 +35,7 @@ func TestPlaybookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 }
 
 func TestPlaybookToolsRegisteredInOneOnOne(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	names := listRegisteredTools(t, "dm-ceo", true)
 	for _, want := range []string{"playbook_list", "playbook_compile", "playbook_execution_record", "playbook_synthesize_now"} {
 		if !slices.Contains(names, want) {

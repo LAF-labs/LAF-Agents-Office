@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-// seedWorkspace builds a realistic ~/.wuphf tree under dir and returns the
+// seedWorkspace builds a realistic ~/.laf-office tree under dir and returns the
 // map of human-readable labels to absolute paths so tests can assert on
 // specific entries without recomputing paths.
 func seedWorkspace(t *testing.T, dir string) map[string]string {
 	t.Helper()
-	base := filepath.Join(dir, ".wuphf")
+	base := filepath.Join(dir, ".laf-office")
 	paths := map[string]string{
 		"onboarded":           filepath.Join(base, "onboarded.json"),
 		"company":             filepath.Join(base, "company.json"),
@@ -43,11 +43,11 @@ func seedWorkspace(t *testing.T, dir string) map[string]string {
 }
 
 // withRuntimeHome isolates Shred/ClearRuntime from the real home directory by
-// pointing WUPHF_RUNTIME_HOME at a t.TempDir().
+// pointing LAF_OFFICE_RUNTIME_HOME at a t.TempDir().
 func withRuntimeHome(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", dir)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", dir)
 	return dir
 }
 

@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/api"
+	"github.com/nex-crm/laf-office/internal/api"
 )
 
 // DefaultNexTypes is the seed list of Nex object types the adapter walks
@@ -81,7 +81,7 @@ func WithNexPageSize(n int) NexOption {
 }
 
 // NewNexAdapter returns a ready-to-use Nex adapter. When client is nil a
-// default one is constructed from WUPHF_API_KEY / ResolveAPIKey; callers
+// default one is constructed from LAF_OFFICE_API_KEY / ResolveAPIKey; callers
 // that want non-default config can build their own api.Client first.
 func NewNexAdapter(client *api.Client, opts ...NexOption) *NexAdapter {
 	a := &NexAdapter{
@@ -106,7 +106,7 @@ func (a *NexAdapter) defaultFetchPage(ctx context.Context, objectType string, li
 		return nil, fmt.Errorf("nex adapter: api client is required")
 	}
 	if !a.client.IsAuthenticated() {
-		return nil, fmt.Errorf("nex adapter: api client is not authenticated (set WUPHF_API_KEY or pass --api-key)")
+		return nil, fmt.Errorf("nex adapter: api client is not authenticated (set LAF_OFFICE_API_KEY or pass --api-key)")
 	}
 	q := url.Values{}
 	q.Set("object_type", objectType)

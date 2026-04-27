@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/openclaw"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/openclaw"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 // openclawBootstrapDialer is an override hook for tests. When non-nil it is
@@ -67,7 +67,7 @@ func StartOpenclawBridgeFromConfig(ctx context.Context, broker *Broker) (*Opencl
 	// first openclaw hire on a fresh install would fail with "bridge not
 	// active," which is exactly the chicken-and-egg we want to avoid.
 	cfg, _ := config.Load()
-	gatewayConfigured := strings.TrimSpace(cfg.OpenclawGatewayURL) != "" || strings.TrimSpace(os.Getenv("WUPHF_OPENCLAW_GATEWAY_URL")) != "" || strings.TrimSpace(os.Getenv("NEX_OPENCLAW_GATEWAY_URL")) != ""
+	gatewayConfigured := strings.TrimSpace(cfg.OpenclawGatewayURL) != "" || strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_GATEWAY_URL")) != "" || strings.TrimSpace(os.Getenv("NEX_OPENCLAW_GATEWAY_URL")) != ""
 	if len(bridged) == 0 && !gatewayConfigured {
 		return nil, nil
 	}
@@ -92,7 +92,7 @@ func StartOpenclawBridgeFromConfig(ctx context.Context, broker *Broker) (*Opencl
 
 // StartOpenclawRouter starts the mention+DM routing goroutine. Exported so
 // out-of-package callers (e.g. bridge probes) can opt into the same routing
-// behavior production WUPHF runs via launcher.go. The goroutine exits when
+// behavior production LAF-Office runs via launcher.go. The goroutine exits when
 // ctx is cancelled.
 func StartOpenclawRouter(ctx context.Context, broker *Broker, bridge *OpenclawBridge) {
 	go routeOpenclawMentionsLoop(ctx, broker, bridge)
@@ -159,7 +159,7 @@ func routeOpenclawMentionsLoop(ctx context.Context, broker *Broker, bridge *Open
 
 // defaultOpenclawDialer is the production dialer. It resolves URL, token, and
 // device identity at dial-time so rotated credentials take effect on reconnect
-// without a WUPHF restart. OpenClaw rejects token-only clients with zero scopes,
+// without a LAF-Office restart. OpenClaw rejects token-only clients with zero scopes,
 // so loading the Ed25519 identity is non-optional.
 func defaultOpenclawDialer(ctx context.Context) (openclawClient, error) {
 	url := config.ResolveOpenclawGatewayURL()

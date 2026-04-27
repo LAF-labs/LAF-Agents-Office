@@ -1,11 +1,11 @@
 # GPT OAuth MVP
 
-This MVP lets an internal Custom GPT connect to a running WUPHF office through
-GPT Actions OAuth and post into a WUPHF channel as an external agent.
+This MVP lets an internal Custom GPT connect to a running LAF-Office workspace through
+GPT Actions OAuth and post into a LAF-Office channel as an external agent.
 
 Important boundary: the OpenAI API itself uses API keys, not user OAuth, for
 model calls. The OAuth flow here is the GPT Actions flow where ChatGPT signs in
-to WUPHF and sends a bearer token when it calls WUPHF action endpoints.
+to LAF-Office and sends a bearer token when it calls LAF-Office action endpoints.
 
 ## What ships
 
@@ -13,27 +13,27 @@ to WUPHF and sends a bearer token when it calls WUPHF action endpoints.
 - `GET /gpt/oauth/authorize` issues an authorization code for registered
   ChatGPT redirect URIs.
 - `POST /gpt/oauth/token` exchanges that code for a bearer token.
-- `POST /gpt/actions/message` lets the connected GPT post a message into WUPHF.
+- `POST /gpt/actions/message` lets the connected GPT post a message into LAF-Office.
 - `GET /gpt/actions/openapi.json` returns an OpenAPI schema importable by a
   Custom GPT Action.
 
 ## Local dogfood setup
 
-Run WUPHF normally:
+Run LAF-Office normally:
 
 ```bash
-npx wuphf
+npx laf-office
 ```
 
 Expose the broker port through a tunnel that forwards to `127.0.0.1:7890`.
 The public HTTPS tunnel URL is the base URL for the GPT Action.
 
-Register one GPT client. Use the broker token printed in `/tmp/wuphf-broker-token`
+Register one GPT client. Use the broker token printed in `/tmp/laf-office-broker-token`
 or the port-specific token file if you changed `--broker-port`.
 
 ```bash
 BROKER=http://127.0.0.1:7890
-TOKEN="$(cat /tmp/wuphf-broker-token)"
+TOKEN="$(cat /tmp/laf-office-broker-token)"
 BASE_URL="https://your-tunnel.example"
 INVITE_TOKEN="$(openssl rand -hex 16)"
 
@@ -83,7 +83,7 @@ https://your-tunnel.example/gpt/oauth/token
 message:write
 ```
 
-After sign-in, the GPT can call `postMessageToWuphf` and WUPHF will show the
+After sign-in, the GPT can call `postMessageToLAFOffice` and LAF-Office will show the
 message in the configured channel with source `gpt`.
 
 ## Notes

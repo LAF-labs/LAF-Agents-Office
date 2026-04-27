@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 func newTestRepo(t *testing.T) *Repo {
@@ -308,8 +308,8 @@ func TestRepoRecoverDirtyTree(t *testing.T) {
 	if len(refs) == 0 {
 		t.Fatal("expected recovery commit in log")
 	}
-	if refs[0].Author != "wuphf-recovery" {
-		t.Fatalf("expected wuphf-recovery author, got %q", refs[0].Author)
+	if refs[0].Author != "laf-office-recovery" {
+		t.Fatalf("expected laf-office-recovery author, got %q", refs[0].Author)
 	}
 }
 
@@ -333,7 +333,7 @@ func TestRepoCommitBootstrapAttributesToBootstrapAuthor(t *testing.T) {
 	}
 	// Simulate MaterializeWiki: drop two skeleton files under team/ without
 	// going through Commit(). CommitBootstrap should pick them up and
-	// attribute them to wuphf-bootstrap (NOT wuphf-recovery, NOT system).
+	// attribute them to laf-office-bootstrap (NOT laf-office-recovery, NOT system).
 	if err := os.MkdirAll(filepath.Join(repo.Root(), "team", "playbooks"), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestRepoCommitBootstrapAttributesToBootstrapAuthor(t *testing.T) {
 		}
 	}
 
-	sha, err := repo.CommitBootstrap(ctx, "wuphf: materialize test blueprint")
+	sha, err := repo.CommitBootstrap(ctx, "laf-office: materialize test blueprint")
 	if err != nil {
 		t.Fatalf("CommitBootstrap: %v", err)
 	}
@@ -359,7 +359,7 @@ func TestRepoCommitBootstrapAttributesToBootstrapAuthor(t *testing.T) {
 		t.Fatal("expected non-empty sha")
 	}
 
-	// The most recent commit for each skeleton must be authored by wuphf-bootstrap.
+	// The most recent commit for each skeleton must be authored by laf-office-bootstrap.
 	for rel := range skeletons {
 		refs, err := repo.Log(ctx, rel)
 		if err != nil {
@@ -368,8 +368,8 @@ func TestRepoCommitBootstrapAttributesToBootstrapAuthor(t *testing.T) {
 		if len(refs) == 0 {
 			t.Fatalf("%s: expected a commit in log", rel)
 		}
-		if refs[0].Author != "wuphf-bootstrap" {
-			t.Fatalf("%s: expected wuphf-bootstrap author, got %q", rel, refs[0].Author)
+		if refs[0].Author != "laf-office-bootstrap" {
+			t.Fatalf("%s: expected laf-office-bootstrap author, got %q", rel, refs[0].Author)
 		}
 		if !strings.Contains(refs[0].Message, "materialize test blueprint") {
 			t.Fatalf("%s: expected commit message to carry the caller's msg, got %q", rel, refs[0].Message)
@@ -430,7 +430,7 @@ func TestRepoAuditLogCoversAllAuthors(t *testing.T) {
 	for _, e := range entries {
 		authors[e.Author] = true
 	}
-	for _, want := range []string{"system", "wuphf-bootstrap", "operator", "planner"} {
+	for _, want := range []string{"system", "laf-office-bootstrap", "operator", "planner"} {
 		if !authors[want] {
 			t.Errorf("expected author %q in audit log, got authors=%v", want, authors)
 		}
@@ -489,9 +489,9 @@ func TestRepoAuditLogLimitCaps(t *testing.T) {
 }
 
 // TestRepoInitIgnoresInheritedGitDir is a regression test for the bug where
-// wuphf invoked from inside a git hook (which exports GIT_DIR pointing at the
+// laf-office invoked from inside a git hook (which exports GIT_DIR pointing at the
 // outer repo) silently commits wiki state onto the user's real branch. The
-// symptom was thousands of `wuphf: init wiki` commits in the reflog of real
+// symptom was thousands of `laf-office: init wiki` commits in the reflog of real
 // working branches. Fix was `cmd.Env = gitexec.CleanEnv()` in runGitLockedAs.
 //
 // Setup: create a sacrificial "outer" git repo with one commit, point GIT_DIR
@@ -586,8 +586,8 @@ func TestRepoInitIgnoresInheritedGitDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wiki log: %v", err)
 	}
-	if got := strings.TrimSpace(string(msg)); got != "wuphf: init wiki" {
+	if got := strings.TrimSpace(string(msg)); got != "laf-office: init wiki" {
 		t.Fatalf("wiki HEAD commit message = %q, want %q (init did not commit to the wiki repo)",
-			got, "wuphf: init wiki")
+			got, "laf-office: init wiki")
 	}
 }

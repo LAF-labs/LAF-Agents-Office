@@ -2,8 +2,8 @@ package operations
 
 // MaterializeWiki seeds a git-native LLM wiki with the thematic
 // directories and skeleton articles declared on a blueprint's
-// WikiSchema. It is the Lane B half of WUPHF's LLM Wiki v1: Lane A owns
-// the actual git repo at ~/.wuphf/wiki/; this file just writes files
+// WikiSchema. It is the Lane B half of LAF-Office's LLM Wiki v1: Lane A owns
+// the actual git repo at ~/.laf-office/wiki/; this file just writes files
 // into its working tree and lets Lane A's commit worker pick them up on
 // its next pass.
 //
@@ -80,7 +80,7 @@ type MaterializeResult struct {
 const wikiTeamPrefix = "team/"
 
 // MaterializeWiki creates the thematic directories and bootstrap articles
-// for schema inside wikiRoot (typically ~/.wuphf/wiki). It is
+// for schema inside wikiRoot (typically ~/.laf-office/wiki). It is
 // transactional (per article) and idempotent (existing articles are
 // preserved). A nil schema is a no-op — the wiki is simply left empty
 // and Lane A's worker has nothing to commit.

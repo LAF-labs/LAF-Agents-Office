@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/openclaw"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/openclaw"
 )
 
 type fakeOCClient struct {

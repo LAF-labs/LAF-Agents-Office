@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# WUPHF Token Benchmark
+# LAF-Office Token Benchmark
 # Measures real token consumption per test scenario.
 # Compares against accumulated-session orchestrator baselines.
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 BROKER="http://localhost:7890"
 PROXY="http://localhost:7891"
-REPORT_DIR="/tmp/wuphf-benchmark-$(date +%Y%m%d-%H%M%S)"
+REPORT_DIR="/tmp/laf-office-benchmark-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$REPORT_DIR"
 
 # Colors
@@ -37,7 +37,7 @@ check_broker() {
   local status
   status=$(curl -s --max-time 3 "$BROKER/health" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
   if [ "$status" != "ok" ]; then
-    echo -e "${RED}Broker not running. Start with: wuphf --pack starter${NC}"
+    echo -e "${RED}Broker not running. Start with: laf-office --pack starter${NC}"
     exit 1
   fi
 }
@@ -178,17 +178,17 @@ test_single_turn() {
   print_usage_table "$REPORT_DIR/single-total.json"
 
   # Comparison
-  local wuphf_billed
-  wuphf_billed=$(python3 -c "import json; print(json.load(open('$REPORT_DIR/single-total.json'))['total']['total_billed'])")
+  local laf_office_billed
+  laf_office_billed=$(python3 -c "import json; print(json.load(open('$REPORT_DIR/single-total.json'))['total']['total_billed'])")
   echo ""
   echo -e "  ${BOLD}vs session-resume-based orchestrators (industry baseline):${NC}"
   echo -e "    baseline CEO turn:     ~300,000 input (session resume accumulation)"
   echo -e "    baseline MCP overhead: ~24,000/agent (12 servers loaded globally)"
   echo -e "    baseline estimated:    ~372,000 tokens"
-  echo -e "    ${GREEN}WUPHF actual:           ${wuphf_billed} tokens${NC}"
-  if [ "$wuphf_billed" -gt 0 ] 2>/dev/null; then
+  echo -e "    ${GREEN}LAF-Office actual:           ${laf_office_billed} tokens${NC}"
+  if [ "$laf_office_billed" -gt 0 ] 2>/dev/null; then
     python3 -c "
-ratio = 372000 / $wuphf_billed
+ratio = 372000 / $laf_office_billed
 print(f'    Ratio: {ratio:.1f}x more efficient on first turn')
 " 2>/dev/null
   fi
@@ -197,13 +197,13 @@ print(f'    Ratio: {ratio:.1f}x more efficient on first turn')
 # ═══════════════════════════════════════════════════════════════
 # Test 2: 10-turn session (accumulation curve)
 # Send 10 messages sequentially, chart tokens per turn.
-# This is where WUPHF's fresh-session architecture shines:
-# baseline grows linearly, WUPHF stays flat.
+# This is where LAF-Office's fresh-session architecture shines:
+# baseline grows linearly, LAF-Office stays flat.
 # ═══════════════════════════════════════════════════════════════
 test_session() {
   print_header "TEST 2: 10-turn session (accumulation curve)"
   echo -e "  ${DIM}10 sequential messages to CEO → measure tokens per turn${NC}"
-  echo -e "  ${DIM}WUPHF: fresh session each turn (flat). baseline: --resume (linear growth).${NC}"
+  echo -e "  ${DIM}LAF-Office: fresh session each turn (flat). baseline: --resume (linear growth).${NC}"
   echo ""
 
   local token
@@ -262,26 +262,26 @@ test_session() {
 
   echo ""
   echo -e "  ${BOLD}Session totals:${NC}"
-  echo -e "    WUPHF 10-turn total:     $(printf "%'d" $total_billed) tokens"
+  echo -e "    LAF-Office 10-turn total:     $(printf "%'d" $total_billed) tokens"
   echo -e "    baseline estimate:      $(printf "%'d" $baseline_total) tokens"
   if [ "$total_billed" -gt 0 ]; then
     python3 -c "print(f'    Ratio: {$baseline_total / $total_billed:.1f}x more efficient over 10 turns')" 2>/dev/null
   fi
   echo ""
   echo -e "  ${DIM}baseline estimate: 84k base + 40k/turn accumulated context (--resume).${NC}"
-  echo -e "  ${DIM}WUPHF stays flat because each turn starts a fresh session.${NC}"
+  echo -e "  ${DIM}LAF-Office stays flat because each turn starts a fresh session.${NC}"
 }
 
 # ═══════════════════════════════════════════════════════════════
 # Test 3: Idle burn
 # Start the system, leave it idle for 2 minutes, measure tokens.
-# WUPHF: zero (push-driven, no polling).
+# LAF-Office: zero (push-driven, no polling).
 # baseline: heartbeat polls every 30s.
 # ═══════════════════════════════════════════════════════════════
 test_idle() {
   print_header "TEST 3: Idle burn (2 minutes)"
   echo -e "  ${DIM}System running, no human messages, measure token consumption.${NC}"
-  echo -e "  ${DIM}WUPHF: push-driven (zero idle cost). baseline: heartbeat every 30s.${NC}"
+  echo -e "  ${DIM}LAF-Office: push-driven (zero idle cost). baseline: heartbeat every 30s.${NC}"
   echo ""
 
   local token
@@ -315,14 +315,14 @@ test_idle() {
 
   echo ""
   echo -e "  ${BOLD}Results:${NC}"
-  echo -e "    WUPHF idle tokens:       ${GREEN}${total_idle}${NC}"
+  echo -e "    LAF-Office idle tokens:       ${GREEN}${total_idle}${NC}"
   echo -e "    baseline estimate:      ${RED}$(printf "%'d" $baseline_idle)${NC}"
   echo ""
   if [ "$total_idle" -eq 0 ]; then
-    echo -e "  ${GREEN}${BOLD}WUPHF burned exactly zero tokens while idle.${NC}"
+    echo -e "  ${GREEN}${BOLD}LAF-Office burned exactly zero tokens while idle.${NC}"
     echo -e "  ${DIM}baseline would burn ~${baseline_idle} tokens polling the LLM every 30s.${NC}"
   else
-    echo -e "  ${YELLOW}WUPHF burned ${total_idle} tokens during idle (unexpected — investigate).${NC}"
+    echo -e "  ${YELLOW}LAF-Office burned ${total_idle} tokens during idle (unexpected — investigate).${NC}"
   fi
 }
 
@@ -380,7 +380,7 @@ baseline = 84000 * 3  # all 3 agents poll and process
 print(f'')
 print(f'  vs baseline:')
 print(f'    baseline: all agents wake via heartbeat (~{baseline:,} tokens)')
-print(f'    WUPHF:     only tagged agents wake ({total[\"total_billed\"]:,} tokens)')
+print(f'    LAF-Office:     only tagged agents wake ({total[\"total_billed\"]:,} tokens)')
 if total['total_billed'] > 0:
     print(f'    Ratio: {baseline / total[\"total_billed\"]:.1f}x more efficient')
 " 2>/dev/null
@@ -395,7 +395,7 @@ print_report() {
   echo -e "  ${BOLD}Architecture comparison:${NC}"
   echo ""
   echo "  ┌────────────────────────┬──────────────────────┬──────────────────────┐"
-  echo "  │ Dimension              │ WUPHF                │ baseline            │"
+  echo "  │ Dimension              │ LAF-Office                │ baseline            │"
   echo "  ├────────────────────────┼──────────────────────┼──────────────────────┤"
   echo "  │ Session model          │ Fresh per turn       │ --resume accumulates │"
   echo "  │ Idle cost              │ Zero (push-driven)   │ Heartbeat every 30s  │"
@@ -421,7 +421,7 @@ def load(name):
             return json.load(f)
     return None
 
-lines = ["# WUPHF Token Benchmark Report\n"]
+lines = ["# LAF-Office Token Benchmark Report\n"]
 lines.append(f"Generated: {os.path.basename(report_dir)}\n")
 
 # Single turn
@@ -435,7 +435,7 @@ if single:
     lines.append(f"- **Billed: {t['total_billed']:,}**")
     lines.append(f"- baseline estimate: ~372,000")
     if t['total_billed'] > 0:
-        lines.append(f"- **WUPHF is {372000/t['total_billed']:.1f}x more efficient**\n")
+        lines.append(f"- **LAF-Office is {372000/t['total_billed']:.1f}x more efficient**\n")
 
 # Session
 session_total = 0
@@ -451,10 +451,10 @@ if session_lines:
     lines.append("|------|-------|--------|--------|")
     lines.extend(session_lines)
     baseline_session = sum(84000 + 40000 * i for i in range(1, 11))
-    lines.append(f"\n- **WUPHF total: {session_total:,}**")
+    lines.append(f"\n- **LAF-Office total: {session_total:,}**")
     lines.append(f"- baseline estimate: {baseline_session:,}")
     if session_total > 0:
-        lines.append(f"- **WUPHF is {baseline_session/session_total:.1f}x more efficient over 10 turns**\n")
+        lines.append(f"- **LAF-Office is {baseline_session/session_total:.1f}x more efficient over 10 turns**\n")
 
 # Idle
 idle_total = 0
@@ -464,7 +464,7 @@ for agent in ["ceo", "eng", "gtm"]:
         idle_total += d["total_billed"]
 if idle_total == 0:
     lines.append("\n## Test 3: Idle burn\n")
-    lines.append("- **WUPHF: 0 tokens** (push-driven, zero idle cost)")
+    lines.append("- **LAF-Office: 0 tokens** (push-driven, zero idle cost)")
     lines.append("- baseline: ~48,000 tokens (heartbeat polling)\n")
 
 # Fanout
@@ -475,7 +475,7 @@ if fanout:
     for name, a in sorted(fanout["agents"].items()):
         status = f"WOKE — {a['total_billed']:,} tokens" if a['turns'] > 0 else "QUIET — 0 tokens"
         lines.append(f"- {name}: {status}")
-    lines.append(f"\n- **WUPHF total: {t['total_billed']:,}**")
+    lines.append(f"\n- **LAF-Office total: {t['total_billed']:,}**")
     lines.append(f"- baseline: ~252,000 (all agents wake)\n")
 
 report_path = os.path.join(report_dir, "REPORT.md")

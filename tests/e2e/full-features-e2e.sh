@@ -9,8 +9,8 @@ if [ -z "$TERMWRIGHT" ]; then
   echo "termwright not found in PATH; set TERMWRIGHT=/abs/path/to/termwright" >&2
   exit 1
 fi
-SOCKET="/tmp/wuphf-full-e2e-$$.sock"
-WUPHF="${WUPHF_BIN:-$REPO_ROOT/wuphf}"
+SOCKET="/tmp/laf-office-full-e2e-$$.sock"
+LAF-Office="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
 ARTIFACTS="${ARTIFACTS:-$REPO_ROOT/termwright-artifacts/full-e2e-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$ARTIFACTS"
 
@@ -19,14 +19,14 @@ FAIL=0
 TOTAL=0
 
 cleanup() {
-  pkill -f "termwright.*wuphf-full-e2e" 2>/dev/null || true
+  pkill -f "termwright.*laf-office-full-e2e" 2>/dev/null || true
   rm -f "$SOCKET"
   sleep 1
 }
 
 start_daemon() {
   cleanup
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$WUPHF" -no-nex "$@" &
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex "$@" &
   sleep 2
   "$TERMWRIGHT" exec --socket "$SOCKET" --method wait_for_text --params '{"text":"Channels","timeout_ms":25000}' 2>/dev/null || \
   "$TERMWRIGHT" exec --socket "$SOCKET" --method wait_for_text --params '{"text":"1:1","timeout_ms":10000}' 2>/dev/null || {
@@ -34,7 +34,7 @@ start_daemon() {
     sleep 5
   }
   sleep 1
-  BROKER_TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null)
+  BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null)
 }
 
 screen_text() {
@@ -114,8 +114,8 @@ assert_api() {
 
 trap cleanup EXIT
 
-echo "=== WUPHF Full Feature E2E Tests ==="
-echo "Binary: $WUPHF"
+echo "=== LAF-Office Full Feature E2E Tests ==="
+echo "Binary: $LAF-Office"
 echo "Artifacts: $ARTIFACTS"
 echo ""
 
@@ -348,7 +348,7 @@ sleep 2
 
 # Check that the agent pane is running (at least the tmux session exists)
 TOTAL=$((TOTAL + 1))
-if tmux -L wuphf list-panes -t wuphf-team 2>/dev/null | grep -q "." ; then
+if tmux -L laf-office list-panes -t laf-office-team 2>/dev/null | grep -q "." ; then
   echo "  PASS: tmux team session running"
   PASS=$((PASS + 1))
 else

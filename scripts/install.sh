@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-REPO="nex-crm/wuphf"
-BINARY="wuphf"
+REPO="nex-crm/laf-office"
+BINARY="laf-office"
 
 # Detect OS
 OS="$(uname -s)"
@@ -29,16 +29,16 @@ case "$ARCH" in
 esac
 
 # Two CI hooks, in order of how much of the install path they exercise:
-#   WUPHF_INSTALL_URL_OVERRIDE   — skip resolution; download a specific tarball.
+#   LAF_OFFICE_INSTALL_URL_OVERRIDE   — skip resolution; download a specific tarball.
 #                                  Cheap sanity check against a snapshot build.
-#   WUPHF_INSTALL_REPO_BASE_URL  — override the GitHub base URL only. Still
+#   LAF_OFFICE_INSTALL_REPO_BASE_URL  — override the GitHub base URL only. Still
 #                                  runs the redirect-parsing + archive-name
 #                                  construction that shipped broken in v0.8.1.
 # Prefer the second in CI so the path that actually regressed stays covered.
-REPO_BASE_URL="${WUPHF_INSTALL_REPO_BASE_URL:-https://github.com/${REPO}}"
-URL="${WUPHF_INSTALL_URL_OVERRIDE:-}"
+REPO_BASE_URL="${LAF_OFFICE_INSTALL_REPO_BASE_URL:-https://github.com/${REPO}}"
+URL="${LAF_OFFICE_INSTALL_URL_OVERRIDE:-}"
 if [ -n "$URL" ]; then
-  VERSION="${WUPHF_INSTALL_VERSION_OVERRIDE:-snapshot}"
+  VERSION="${LAF_OFFICE_INSTALL_VERSION_OVERRIDE:-snapshot}"
   ARCHIVE="$(basename "$URL")"
 else
   # Resolve latest version tag from GitHub redirect

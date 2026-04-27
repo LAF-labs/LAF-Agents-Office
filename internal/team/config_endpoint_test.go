@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // TestConfigEndpointAndHealth is a smoke test for ISSUE-004: the wizard's
@@ -20,16 +20,16 @@ func TestConfigEndpointAndHealth(t *testing.T) {
 	// Redirect config file to a temp HOME so we don't clobber user state.
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
-	// Pair HOME with WUPHF_RUNTIME_HOME so config.RuntimeHomeDir resolves
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so config.RuntimeHomeDir resolves
 	// to this test's tmpdir instead of the process-level leaked home
 	// from worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, ".wuphf"), 0o700); err != nil {
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", tmp)
+	if err := os.MkdirAll(filepath.Join(tmp, ".laf-office"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	// Seed config with claude-code, then POST codex.
 	initial := `{"llm_provider":"claude-code"}`
-	if err := os.WriteFile(filepath.Join(tmp, ".wuphf", "config.json"), []byte(initial), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, ".laf-office", "config.json"), []byte(initial), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,7 +111,7 @@ func TestConfigEndpointAndHealth(t *testing.T) {
 	}
 
 	// Verify persisted to disk
-	disk, _ := os.ReadFile(filepath.Join(tmp, ".wuphf", "config.json"))
+	disk, _ := os.ReadFile(filepath.Join(tmp, ".laf-office", "config.json"))
 	if !strings.Contains(string(disk), `"llm_provider": "codex"`) {
 		t.Fatalf("config.json missing codex: %s", string(disk))
 	}
@@ -173,7 +173,7 @@ func TestConfigEndpointAndHealth(t *testing.T) {
 func TestConfigEndpointAcceptsActionProviders(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, ".wuphf"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, ".laf-office"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 

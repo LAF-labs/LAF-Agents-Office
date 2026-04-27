@@ -3,8 +3,8 @@
 # Tests real user scenarios for 5 personas across all features
 set -e
 
-SOCKET="/tmp/wuphf-persona-$$.sock"
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+SOCKET="/tmp/laf-office-persona-$$.sock"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/personas-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$ARTIFACTS"
 
@@ -217,7 +217,7 @@ run_test "/config path — shows config location"
 send_raw "/config path"
 send_enter
 sleep 1
-assert_text ".wuphf" "p3-config-path" && pass || fail
+assert_text ".laf-office" "p3-config-path" && pass || fail
 save_screenshot "p3-04-config-path"
 
 # ============================================================

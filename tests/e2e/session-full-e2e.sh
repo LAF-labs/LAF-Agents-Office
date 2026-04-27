@@ -8,7 +8,7 @@ if [ -z "$TERMWRIGHT" ]; then
   echo "termwright not found in PATH; set TERMWRIGHT=/abs/path/to/termwright" >&2
   exit 1
 fi
-WUPHF="${WUPHF_BIN:-$REPO_ROOT/wuphf}"
+LAF-Office="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
 ARTIFACTS="${ARTIFACTS:-$REPO_ROOT/termwright-artifacts/session-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$ARTIFACTS"
 
@@ -23,29 +23,29 @@ DAEMON_PID=""
 cleanup() {
   [ -n "$DAEMON_PID" ] && kill "$DAEMON_PID" 2>/dev/null || true
   DAEMON_PID=""
-  tmux -L wuphf kill-session -t wuphf-team 2>/dev/null || true
+  tmux -L laf-office kill-session -t laf-office-team 2>/dev/null || true
   [ -n "$SOCKET" ] && rm -f "$SOCKET"
   sleep 2
 }
 
 start_office() {
   cleanup
-  rm -f ~/.wuphf/team/broker-state.json 2>/dev/null
-  SOCKET="/tmp/wuphf-session-office-$$.sock"
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$WUPHF" -no-nex &
+  rm -f ~/.laf-office/team/broker-state.json 2>/dev/null
+  SOCKET="/tmp/laf-office-session-office-$$.sock"
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex &
   DAEMON_PID=$!
   sleep 20
-  BROKER_TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null)
+  BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null)
 }
 
 start_1o1() {
   cleanup
-  rm -f ~/.wuphf/team/broker-state.json 2>/dev/null
-  SOCKET="/tmp/wuphf-session-1o1-$$.sock"
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$WUPHF" -no-nex -1o1 &
+  rm -f ~/.laf-office/team/broker-state.json 2>/dev/null
+  SOCKET="/tmp/laf-office-session-1o1-$$.sock"
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex -1o1 &
   DAEMON_PID=$!
   sleep 20
-  BROKER_TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null)
+  BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null)
 }
 
 screen_text() {
@@ -115,9 +115,9 @@ assert_api_body() {
 trap cleanup EXIT
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║          WUPHF SESSION E2E — Full Feature Coverage          ║"
+echo "║          LAF-Office SESSION E2E — Full Feature Coverage          ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
-echo "Binary: $WUPHF"
+echo "Binary: $LAF-Office"
 echo "Artifacts: $ARTIFACTS"
 echo ""
 
@@ -431,7 +431,7 @@ echo "━━━ SECTION 9: MCP TOOLS ━━━"
 echo ""
 echo "T31: tmux team session exists"
 start_office
-if tmux -L wuphf list-panes -t wuphf-team 2>/dev/null | grep -q "." ; then
+if tmux -L laf-office list-panes -t laf-office-team 2>/dev/null | grep -q "." ; then
   ok "tmux team session running"
 else
   fail "No tmux team session"
@@ -439,7 +439,7 @@ fi
 
 echo ""
 echo "T32: Multiple agent panes exist"
-PANE_COUNT=$(tmux -L wuphf list-panes -t wuphf-team 2>/dev/null | wc -l | tr -d ' ')
+PANE_COUNT=$(tmux -L laf-office list-panes -t laf-office-team 2>/dev/null | wc -l | tr -d ' ')
 if [ "$PANE_COUNT" -gt 1 ]; then
   ok "$PANE_COUNT panes (agents + channel)"
 else
@@ -453,13 +453,13 @@ echo "━━━ SECTION 10: SPLASH & STARTUP ━━━"
 # ═══════════════════════════════════════════════════════════════════
 echo ""
 echo "T33: Office mode starts with splash then transitions to channel"
-SOCKET="/tmp/wuphf-session-splash-$$.sock"
-"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$WUPHF" -no-nex &
+SOCKET="/tmp/laf-office-session-splash-$$.sock"
+"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex &
 sleep 8
 screenshot "33-splash"
-# Splash should show character sprites or WUPHF title
+# Splash should show character sprites or LAF-Office title
 SCREEN=$(screen_text)
-if echo "$SCREEN" | grep -q "CEO\|WUPHF\|Channels" 2>/dev/null; then
+if echo "$SCREEN" | grep -q "CEO\|LAF-Office\|Channels" 2>/dev/null; then
   ok "Splash or channel view rendered"
 else
   fail "Neither splash nor channel view visible"

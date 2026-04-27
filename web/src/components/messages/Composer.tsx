@@ -41,9 +41,9 @@ import {
 /** How many sent messages to keep in per-channel history. */
 const COMPOSER_HISTORY_LIMIT = 20;
 
-/** sessionStorage key shape: `wuphf:composer-history:<channel>`. */
+/** sessionStorage key shape: `laf-office:composer-history:<channel>`. */
 function historyKey(channel: string): string {
-  return `wuphf:composer-history:${channel || "general"}`;
+  return `laf-office:composer-history:${channel || "general"}`;
 }
 
 function readHistory(channel: string): string[] {

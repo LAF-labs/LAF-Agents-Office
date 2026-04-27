@@ -1,4 +1,4 @@
-# Visual regression tape for `wuphf --help`.
+# Visual regression tape for `laf-office --help`.
 #
 # Build the binary first (check.sh does this), then:
 #   vhs testdata/vhs/help.tape
@@ -19,7 +19,7 @@ Hide
 Type "clear"
 Enter
 Sleep 300ms
-Type "/tmp/wuphf-vhs --help"
+Type "/tmp/laf-office-vhs --help"
 Enter
 Sleep 800ms
 Show

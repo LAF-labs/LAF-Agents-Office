@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bootstrap.sh — one-shot setup for a fresh wuphf checkout.
+# bootstrap.sh — one-shot setup for a fresh laf-office checkout.
 #
 # Idempotent: safe to re-run. Installs Bun dependencies at the repo root
 # (secretlint, commitlint rules) and in web/ (frontend deps), registers

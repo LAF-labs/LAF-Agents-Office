@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { persistRegistration, CONFIG_PATH } from "../config.js";
 export function registerRegistrationTools(server, client) {
-    server.tool("register", `Register for a WUPHF API key. Call this first if no WUPHF_API_KEY is configured. Requires the user's email. After successful registration, the API key is saved to ${CONFIG_PATH} and all other tools become available immediately. Returns the API key, workspace info, and plan details.`, {
+    server.tool("register", `Register for a LAF-Office API key. Call this first if no LAF_OFFICE_API_KEY is configured. Requires the user's email. After successful registration, the API key is saved to ${CONFIG_PATH} and all other tools become available immediately. Returns the API key, workspace info, and plan details.`, {
         email: z.string().email().describe("User's email address (required for registration)"),
         name: z.string().optional().describe("User's full name"),
         company_name: z.string().optional().describe("Company or organization name"),

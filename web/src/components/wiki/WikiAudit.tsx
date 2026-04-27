@@ -314,20 +314,22 @@ function passesAuthor(slug: string, filter: AuthorBucket): boolean {
 
 function isSystemSlug(slug: string): boolean {
   return (
-    slug === "system" || slug === "wuphf-bootstrap" || slug === "wuphf-recovery"
+    slug === "system" ||
+    slug === "laf-office-bootstrap" ||
+    slug === "laf-office-recovery"
   );
 }
 
 function authorTag(slug: string): string | null {
-  if (slug === "wuphf-bootstrap") return "bootstrap";
-  if (slug === "wuphf-recovery") return "recovery";
+  if (slug === "laf-office-bootstrap") return "bootstrap";
+  if (slug === "laf-office-recovery") return "recovery";
   if (slug === "system") return "system";
   return null;
 }
 
 function rowClass(slug: string): string {
-  if (slug === "wuphf-bootstrap") return "is-bootstrap";
-  if (slug === "wuphf-recovery") return "is-recovery";
+  if (slug === "laf-office-bootstrap") return "is-bootstrap";
+  if (slug === "laf-office-recovery") return "is-recovery";
   if (slug === "system") return "is-system";
   return "is-agent";
 }
@@ -375,7 +377,7 @@ function downloadCSV(entries: WikiAuditEntry[]): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `wuphf-wiki-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `laf-office-wiki-audit-${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

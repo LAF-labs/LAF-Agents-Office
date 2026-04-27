@@ -3,9 +3,9 @@ package provider
 import (
 	"fmt"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // askRequest is the payload for the /ask endpoint.

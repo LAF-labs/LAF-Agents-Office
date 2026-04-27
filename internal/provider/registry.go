@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // Capabilities describes how a provider integrates with the team launcher.
@@ -50,7 +50,7 @@ var (
 )
 
 // Register installs a provider Entry. It also teaches the config layer to
-// accept e.Kind as a valid value for the WUPHF_LLM_PROVIDER env var, the
+// accept e.Kind as a valid value for the LAF_OFFICE_LLM_PROVIDER env var, the
 // config file, and CLI --provider flags. Intended for use from package init().
 //
 // Panics if e is nil, e.Kind is empty, or e.Kind is already registered —

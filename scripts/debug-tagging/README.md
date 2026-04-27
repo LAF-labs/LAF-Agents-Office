@@ -8,9 +8,9 @@ regression tests in `internal/team/mention_routing_bug_test.go` and
 `internal/team/mention_auto_promote_test.go`. Those tests all pass on
 `origin/main` at v0.0.6.2, yet the bug persists in the coworker's real install.
 
-This rig stands up a completely isolated WUPHF instance so we can test the real
+This rig stands up a completely isolated LAF-Office instance so we can test the real
 runtime path (HTTP → broker auto-promote → launcher targeting → headless
-dispatch) without any contamination from the coworker's existing `~/.wuphf`
+dispatch) without any contamination from the coworker's existing `~/.laf-office`
 state.
 
 ## What it checks
@@ -25,16 +25,16 @@ state.
 If the specialist log shows nothing and CEO got the turn, we've reproduced the
 bug and can bisect from there. If the specialist log has entries, the runtime
 path is fine and the coworker's bug is state-specific — compare their
-`~/.wuphf` to the sandbox.
+`~/.laf-office` to the sandbox.
 
 ## Isolation
 
-- Custom `HOME` at `/tmp/wuphf-debug-tagging-home` — no touch to real state.
+- Custom `HOME` at `/tmp/laf-office-debug-tagging-home` — no touch to real state.
 - Broker on `:7899`, web UI on `:7900` — no collision with default `:7890/:7891`.
 - Pre-seeded `onboarded.json` + `config.json` — no wizard.
 - Fake `claude` and `codex` binaries on `PATH` — the turn is dispatched but
   exits immediately; we're testing routing, not LLM quality.
-- Nex disabled (`--no-nex`, `WUPHF_NO_NEX=1`).
+- Nex disabled (`--no-nex`, `LAF_OFFICE_NO_NEX=1`).
 
 ## Usage
 
@@ -95,7 +95,7 @@ Post-fix verification (this rig, `HIRE_SLUG=qa-spec`):
 HIRE_SLUG=qa-spec KEEP=1 ./scripts/debug-tagging/run.sh
 
 # Inspect general's roster:
-curl -s -H "Authorization: Bearer $(cat /tmp/wuphf-broker-token-7899)" \
+curl -s -H "Authorization: Bearer $(cat /tmp/laf-office-broker-token-7899)" \
   http://127.0.0.1:7899/channels | jq '.channels[] | select(.slug=="general") | .members'
 # -> [ceo, pm, fe, be, ai, designer, cmo, cro, qa-spec]   <-- qa-spec now present
 ```
@@ -110,9 +110,9 @@ Compare our sandbox to their environment:
 
 ```bash
 # On the coworker's machine:
-curl -s -H "Authorization: Bearer $(cat /tmp/wuphf-broker-token)" \
+curl -s -H "Authorization: Bearer $(cat /tmp/laf-office-broker-token)" \
   http://127.0.0.1:7890/channels | jq '.channels[] | {slug, members, disabled}'
-curl -s -H "Authorization: Bearer $(cat /tmp/wuphf-broker-token)" \
+curl -s -H "Authorization: Bearer $(cat /tmp/laf-office-broker-token)" \
   http://127.0.0.1:7890/office-members | jq '.members[] | {slug, provider}'
 ```
 

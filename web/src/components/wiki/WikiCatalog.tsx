@@ -51,7 +51,8 @@ export default function WikiCatalog({
         <h1 className="wk-catalog-title">Team Wiki</h1>
         <div className="wk-catalog-stats">{stats}</div>
         <div className="wk-catalog-clone">
-          Your wiki lives on your disk. <code>git clone ~/.wuphf/wiki</code>
+          Your wiki lives on your disk.{" "}
+          <code>git clone ~/.laf-office/wiki</code>
           {" · "}
           <button
             type="button"

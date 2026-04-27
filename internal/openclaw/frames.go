@@ -1,4 +1,4 @@
-// Package openclaw implements the WUPHF side of the OpenClaw gateway bridge:
+// Package openclaw implements the LAF-Office side of the OpenClaw gateway bridge:
 // frame types, JSON codec, and (in later tasks) the transport client.
 package openclaw
 
@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-// RequestFrame is a WUPHF→OpenClaw gateway request.
+// RequestFrame is a LAF-Office→OpenClaw gateway request.
 type RequestFrame struct {
 	Type   string `json:"type"` // always "req"
 	ID     string `json:"id"`
@@ -15,7 +15,7 @@ type RequestFrame struct {
 	Params any    `json:"params,omitempty"`
 }
 
-// ResponseFrame is a gateway→WUPHF response to a request.
+// ResponseFrame is a gateway→LAF-Office response to a request.
 type ResponseFrame struct {
 	Type    string          `json:"type"` // always "res"
 	ID      string          `json:"id"`
@@ -24,7 +24,7 @@ type ResponseFrame struct {
 	Error   *ErrorShape     `json:"error,omitempty"`
 }
 
-// EventFrame is a gateway→WUPHF push event.
+// EventFrame is a gateway→LAF-Office push event.
 type EventFrame struct {
 	Type    string          `json:"type"` // always "event"
 	Event   string          `json:"event"`

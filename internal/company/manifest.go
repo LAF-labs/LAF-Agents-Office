@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 type MemberSpec struct {
@@ -85,16 +85,16 @@ func (m Manifest) BlueprintRefsByKind(kind string) []BlueprintRef {
 }
 
 func ManifestPath() string {
-	if path := strings.TrimSpace(os.Getenv("WUPHF_COMPANY_FILE")); path != "" {
+	if path := strings.TrimSpace(os.Getenv("LAF_OFFICE_COMPANY_FILE")); path != "" {
 		return path
 	}
 	if path := strings.TrimSpace(os.Getenv("NEX_COMPANY_FILE")); path != "" {
 		return path
 	}
 
-	if strings.TrimSpace(os.Getenv("WUPHF_RUNTIME_HOME")) == "" {
+	if strings.TrimSpace(os.Getenv("LAF_OFFICE_RUNTIME_HOME")) == "" {
 		if cwd, err := os.Getwd(); err == nil {
-			local := filepath.Join(cwd, "wuphf.company.json")
+			local := filepath.Join(cwd, "laf-office.company.json")
 			if _, err := os.Stat(local); err == nil {
 				return local
 			}
@@ -103,9 +103,9 @@ func ManifestPath() string {
 
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".wuphf", "company.json")
+		return filepath.Join(".laf-office", "company.json")
 	}
-	return filepath.Join(home, ".wuphf", "company.json")
+	return filepath.Join(home, ".laf-office", "company.json")
 }
 
 func LoadManifest() (Manifest, error) {
@@ -131,7 +131,7 @@ func LoadManifest() (Manifest, error) {
 // so onboarding answers flow into the company manifest.
 func backfillFromConfig(manifest Manifest) Manifest {
 	cfg, _ := config.Load()
-	if strings.TrimSpace(manifest.Name) == "" || manifest.Name == "The WUPHF Office" {
+	if strings.TrimSpace(manifest.Name) == "" || manifest.Name == "LAF-Office" {
 		if name := strings.TrimSpace(cfg.CompanyName); name != "" {
 			manifest.Name = name
 		}
@@ -178,7 +178,7 @@ func DefaultManifest() Manifest {
 	}
 	blueprintID := normalizeSlug(cfg.ActiveBlueprint())
 	manifest := Manifest{
-		Name:        "The WUPHF Office",
+		Name:        "LAF-Office",
 		Description: "Autonomous office runtime.",
 		Lead:        "ceo",
 		UpdatedAt:   now,
@@ -214,7 +214,7 @@ func DefaultManifest() Manifest {
 }
 
 func launchFromScratchRequested() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("WUPHF_START_FROM_SCRATCH"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("LAF_OFFICE_START_FROM_SCRATCH"))) {
 	case "1", "true", "yes":
 		return true
 	default:
@@ -234,7 +234,7 @@ func fromScratchDefaultManifest(now string) Manifest {
 		channelMembers = append(channelMembers, member.Slug)
 	}
 	return Manifest{
-		Name:        "WUPHF Office",
+		Name:        "LAF-Office",
 		Description: "Autonomous office runtime that starts from a directive instead of a saved blueprint.",
 		Lead:        "founder",
 		Members:     members,
@@ -250,7 +250,7 @@ func fromScratchDefaultManifest(now string) Manifest {
 
 func normalizeManifest(manifest Manifest) Manifest {
 	if strings.TrimSpace(manifest.Name) == "" {
-		manifest.Name = "The WUPHF Office"
+		manifest.Name = "LAF-Office"
 	}
 	if strings.TrimSpace(manifest.Lead) == "" {
 		manifest.Lead = "ceo"

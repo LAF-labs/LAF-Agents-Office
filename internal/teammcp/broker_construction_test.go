@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 // These tests pin the broker-construction invariants that every other

@@ -128,7 +128,7 @@ class ErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
     // eslint-disable-next-line no-console
-    console.error("[WUPHF ErrorBoundary]", error, info);
+    console.error("[LAF-Office ErrorBoundary]", error, info);
   }
 
   render() {
@@ -401,7 +401,7 @@ export default function App() {
   }, [theme]);
 
   // Init API and determine onboarding state.
-  // Source of truth: GET /onboarding/state.onboarded (backed by ~/.wuphf/onboarded.json).
+  // Source of truth: GET /onboarding/state.onboarded (backed by ~/.laf-office/onboarded.json).
   // Broker health / default agents must not skip the wizard — the broker seeds 7
   // default agents on every boot, so a health-based check was making the wizard
   // permanently unreachable for fresh installs.

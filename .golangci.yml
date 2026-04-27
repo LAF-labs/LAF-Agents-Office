@@ -44,4 +44,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/nex-crm/wuphf
+        - github.com/nex-crm/laf-office

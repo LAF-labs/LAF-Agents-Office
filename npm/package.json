@@ -1,12 +1,12 @@
 {
-  "name": "wuphf",
+  "name": "laf-office",
   "version": "0.0.0",
   "description": "Slack for AI employees with a shared brain. A collaborative office where AI employees run your work 24x7.",
   "bin": {
-    "wuphf": "bin/wuphf.js"
+    "laf-office": "bin/laf-office.js"
   },
   "files": [
-    "bin/wuphf.js",
+    "bin/laf-office.js",
     "scripts/download-binary.js",
     "scripts/postinstall.js",
     "scripts/version-check.js",
@@ -28,15 +28,15 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nex-crm/wuphf.git"
+    "url": "git+https://github.com/nex-crm/laf-office.git"
   },
-  "homepage": "https://wuphf.team",
+  "homepage": "https://laf-office.team",
   "bugs": {
-    "url": "https://github.com/nex-crm/wuphf/issues"
+    "url": "https://github.com/nex-crm/laf-office/issues"
   },
   "license": "MIT",
   "keywords": [
-    "wuphf",
+    "laf-office",
     "ai-agents",
     "slack-for-ai",
     "multi-agent",

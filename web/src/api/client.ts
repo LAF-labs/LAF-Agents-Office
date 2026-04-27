@@ -1,5 +1,5 @@
 /**
- * Typed WuphfAPI client.
+ * Typed LAFOfficeAPI client.
  * Mirrors every method from the legacy IIFE in index.legacy.html.
  */
 

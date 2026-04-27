@@ -1,14 +1,14 @@
-package wuphf
+package lafoffice
 
 import (
 	"embed"
 	"io/fs"
 
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // templatesBundle ships the blueprint YAML tree with the binary so that
-// installs without a repo checkout (`npx wuphf`, `curl | bash`) still see
+// installs without a repo checkout (`npx laf-office`, `curl | bash`) still see
 // the full operations and employee blueprint catalog. Without this embed
 // the web onboarding wizard silently degrades to "From scratch" only,
 // because resolveTemplatesRepoRoot walks the filesystem looking for a

@@ -2,8 +2,8 @@
 # E2E test using termwright daemon with raw input for Bubbletea compatibility
 set -e
 
-SOCKET="/tmp/wuphf-e2e-$$.sock"
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+SOCKET="/tmp/laf-office-e2e-$$.sock"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/e2e-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$ARTIFACTS"
 

@@ -3,10 +3,10 @@
 ## Office Build
 
 ```bash
-go build -o wuphf ./cmd/wuphf
+go build -o laf-office ./cmd/laf-office
 ```
 
-For normal app usage you do not need Bun. The local office/team MCP tools now run from the main Go binary through the hidden `wuphf mcp-team` subcommand.
+For normal app usage you do not need Bun. The local office/team MCP tools now run from the main Go binary through the hidden `laf-office mcp-team` subcommand.
 
 ## First-time setup
 
@@ -46,7 +46,7 @@ Hooks run via [lefthook](https://github.com/evilmartians/lefthook) (`lefthook.ym
 | Hook | What it does |
 |------|--------------|
 | `smoke` | `go build ./... && go vet ./...` — compile + vet sanity (~10s) |
-| `build` | `go build -o /dev/null ./cmd/wuphf` — verify the main binary still links |
+| `build` | `go build -o /dev/null ./cmd/laf-office` — verify the main binary still links |
 | `vhs` | Runs `testdata/vhs/check.sh` if `vhs` is on PATH (skipped with a warning otherwise) |
 
 The full Go test suite runs in CI (`go-test-matrix` job) instead of pre-push — fan-out per package with `-race` on everything except `internal/team` and `internal/teammcp`. Those two packages have known goroutine-leak patterns where a worker spawned by one test outlives that test and races against the next test's setup; the race detector is correct to flag them, but the result is non-deterministic local failures on Mac. The fix lives upstream in those packages' lifecycles (tracked at `internal/team/headless_codex.go` :: `enqueueHeadlessCodexTurnRecord`, where `runHeadlessCodexQueue` is spawned without a per-test cleanup channel). Until that lands, the carve-out keeps CI honest.
@@ -72,36 +72,36 @@ The old standalone CLI is no longer vendored in this repo.
 If you need the latest published CLI separately:
 
 ```bash
-bash scripts/install-latest-wuphf-cli.sh
+bash scripts/install-latest-laf-office-cli.sh
 ```
 
 The same install step is also wired into setup:
 
 ```bash
-./wuphf init
+./laf-office init
 ```
 
 ## Environments
 
-The WUPHF runtime reads `WUPHF_BASE_URL` from the environment, falling back to `https://app.nex.ai` in production.
+The LAF-Office runtime reads `LAF_OFFICE_BASE_URL` from the environment, falling back to `https://app.nex.ai` in production.
 
-| Environment | `WUPHF_BASE_URL` |
+| Environment | `LAF_OFFICE_BASE_URL` |
 |-------------|----------------|
 | Production  | _(unset — default)_ |
-| Staging     | `https://app.staging.wuphf.ai` |
+| Staging     | `https://app.staging.laf-office.ai` |
 | Local       | `http://localhost:30000` |
 
 ### Switching environments
 
 ```bash
 # Staging
-export WUPHF_BASE_URL="https://app.staging.wuphf.ai"
+export LAF_OFFICE_BASE_URL="https://app.staging.laf-office.ai"
 
 # Local
-export WUPHF_BASE_URL="http://localhost:30000"
+export LAF_OFFICE_BASE_URL="http://localhost:30000"
 
 # Back to production
-unset WUPHF_BASE_URL
+unset LAF_OFFICE_BASE_URL
 ```
 
 or set it directly in `.zshrc` or `.bashrc`.

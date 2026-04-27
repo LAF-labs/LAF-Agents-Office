@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 // cmdAgent handles /agent with subcommands: list, <slug>, create, edit, remove
@@ -230,7 +230,7 @@ func brokerPostOfficeMembers(body map[string]any) (map[string]any, error) {
 }
 
 func resolveBrokerBaseURL() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_TEAM_BROKER_URL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_TEAM_BROKER_URL")); v != "" {
 		return strings.TrimRight(v, "/")
 	}
 	if v := strings.TrimSpace(os.Getenv("NEX_TEAM_BROKER_URL")); v != "" {
@@ -240,13 +240,13 @@ func resolveBrokerBaseURL() string {
 }
 
 func resolveBrokerToken() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_BROKER_TOKEN")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN")); v != "" {
 		return v
 	}
-	if path := strings.TrimSpace(os.Getenv("WUPHF_BROKER_TOKEN_FILE")); path != "" {
+	if path := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN_FILE")); path != "" {
 		if raw, err := os.ReadFile(path); err == nil {
 			return strings.TrimSpace(string(raw))
 		}

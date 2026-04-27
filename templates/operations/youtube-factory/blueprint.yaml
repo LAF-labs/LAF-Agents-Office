@@ -214,7 +214,7 @@ bootstrap_config:
   kpi_tracking:
     - name: "Primary CTA conversions"
       target: "25+ monthly"
-      why: "Proves WUPHF is capturing owned demand instead of only views."
+      why: "Proves LAF-Office is capturing owned demand instead of only views."
     - name: "Workflow click-through"
       target: "3%+"
       why: "Shows the monetization lane matches the workflow problem."

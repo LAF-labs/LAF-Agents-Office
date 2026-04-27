@@ -33,7 +33,7 @@ jobs:
     # approves once and both surfaces ship together — or nothing ships.
     environment:
       name: npm-publish
-      url: https://www.npmjs.com/package/wuphf
+      url: https://www.npmjs.com/package/laf-office
     permissions:
       contents: write
     outputs:
@@ -46,7 +46,7 @@ jobs:
       - name: Verify releasable tree
         run: |
           missing=0
-          for path in go.mod cmd/wuphf/main.go npm/package.json web/bun.lock; do
+          for path in go.mod cmd/laf-office/main.go npm/package.json web/bun.lock; do
             if [ ! -e "$path" ]; then
               echo "::error::missing ${path}; refusing to build or publish this tag"
               missing=1
@@ -128,13 +128,13 @@ jobs:
       - name: Wait for npm registry propagation
         run: sleep 45
 
-      - name: npx wuphf --version
+      - name: npx laf-office --version
         run: |
           # The binary's self-reported version must match the tag. Without
           # this check, a goreleaser misconfiguration (missing -X ldflag on
           # buildinfo.Version) silently ships the hardcoded fallback and no
-          # amount of `npx wuphf@latest` gets users the real release.
-          OUT=$(npx --yes "wuphf@$VERSION" --version)
+          # amount of `npx laf-office@latest` gets users the real release.
+          OUT=$(npx --yes "laf-office@$VERSION" --version)
           echo "$OUT"
           echo "$OUT" | grep -E -q " v${VERSION}(\s|$)" || {
             echo "::error::binary self-reported version did not match tag $VERSION"

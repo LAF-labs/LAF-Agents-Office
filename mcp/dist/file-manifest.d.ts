@@ -2,7 +2,7 @@
  * Persistent file manifest — tracks which files have been ingested
  * using mtime + size as change detection.
  *
- * Stored at ~/.wuphf/file-scan-manifest.json.
+ * Stored at ~/.laf-office/file-scan-manifest.json.
  */
 import { type Stats } from "node:fs";
 export interface FileManifestEntry {

@@ -1,23 +1,23 @@
-# WIKI-SCHEMA.md — Contract for WUPHF's team wiki
+# WIKI-SCHEMA.md — Contract for LAF-Office's team wiki
 
-This file is the source of truth for **how the WUPHF wiki is organized and maintained**. Every in-broker LLM prompt that touches wiki state (extract, synthesize, query, lint) references this document as its opening directive. Every human (or agent) editing wiki files by hand reads this document first. Every Go service that writes to or indexes the wiki follows the contract below.
+This file is the source of truth for **how the LAF-Office wiki is organized and maintained**. Every in-broker LLM prompt that touches wiki state (extract, synthesize, query, lint) references this document as its opening directive. Every human (or agent) editing wiki files by hand reads this document first. Every Go service that writes to or indexes the wiki follows the contract below.
 
 If a contract decision below conflicts with code, the contract wins. Fix the code.
 
-This is Karpathy's "schema layer" for WUPHF — the document that makes the LLM a disciplined wiki maintainer rather than a generic chatbot. See `https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` for the pattern this implements.
+This is Karpathy's "schema layer" for LAF-Office — the document that makes the LLM a disciplined wiki maintainer rather than a generic chatbot. See `https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` for the pattern this implements.
 
 ---
 
 ## 1. Purpose
 
-The WUPHF wiki is a git-native, human-readable knowledge base for a team of AI agents and humans working together. It is the compounding intelligence layer that makes the moat real: every agent turn, email, meeting, or conversation can become durable, indexed, cross-referenced knowledge in markdown form, readable with `cat` and `git log`.
+The LAF-Office wiki is a git-native, human-readable knowledge base for a team of AI agents and humans working together. It is the compounding intelligence layer that makes the moat real: every agent turn, email, meeting, or conversation can become durable, indexed, cross-referenced knowledge in markdown form, readable with `cat` and `git log`.
 
 The wiki is NOT a chat log, NOT a raw artifact dump, NOT a vector database. It is an encyclopedia of the team's operating reality, actively maintained by the agents and humans who contribute to it.
 
 **Guiding principles:**
 
 1. **Markdown is the source of truth.** Every fact, brief, insight, playbook, and lint finding lives in a markdown file, version-controlled by git. Everything else — SQLite indexes, bleve search, vector stores — is a derived cache, rebuildable from markdown on demand.
-2. **Substrate guarantee.** `rm -rf .wuphf/index/` → restart broker → the wiki still works. `git clone` of the wiki repo on a fresh machine → functional wiki without any WUPHF process running. Manual markdown edits in vim → picked up by the next index reconcile pass.
+2. **Substrate guarantee.** `rm -rf .laf-office/index/` → restart broker → the wiki still works. `git clone` of the wiki repo on a fresh machine → functional wiki without any LAF-Office process running. Manual markdown edits in vim → picked up by the next index reconcile pass.
 3. **Single writer, many readers.** All writes go through the broker's `WikiWorker` queue. Agents, HTTP handlers, and CLI commands all enqueue write requests; the worker serializes commits. This preserves git-log attribution, prevents conflicting writes, and gives us the single-writer invariant that makes fact IDs deterministic.
 4. **Per-human git identity.** Every commit is authored by a named identity — either a human (e.g. `nazz`) or the synthetic `archivist` (used for automated extraction, synthesis, and lint). Agent-originated commits are attributed to the human who owns that agent. `git log` on any file shows exactly who did what.
 5. **Compounding over curation.** Agents contribute facts by default, not by request. The auto-loop closes without human ritual: agent talks → artifact committed → entities extracted → facts recorded → brief synthesized → next agent queries → reinforces or contradicts. Human intervention is rare and always additive.
@@ -27,7 +27,7 @@ The wiki is NOT a chat log, NOT a raw artifact dump, NOT a vector database. It i
 ## 2. When to read this document
 
 Read in full on:
-- First call to `wuphf_wiki_lookup` in a session (agent or human)
+- First call to `laf_office_wiki_lookup` in a session (agent or human)
 - First extraction run per artifact kind
 - Every `synthesize` pass that creates or updates a brief
 - Every `run_lint` invocation
@@ -309,7 +309,7 @@ fact_id = sha256(artifact_sha + "/" + sentence_offset + "/" + norm(subject) + "/
 
 ### 7.4 Rebuild contract
 
-`rm -rf .wuphf/index/` → restart broker → boot reconcile runs → SQLite + bleve re-indexed from markdown. The result must be **logically identical**, not byte-identical. Logical identity means: `SELECT * FROM facts ORDER BY id` produces the same canonical hash pre- and post-rebuild.
+`rm -rf .laf-office/index/` → restart broker → boot reconcile runs → SQLite + bleve re-indexed from markdown. The result must be **logically identical**, not byte-identical. Logical identity means: `SELECT * FROM facts ORDER BY id` produces the same canonical hash pre- and post-rebuild.
 
 **Every code path that introduces a new fact must append it to `wiki/facts/{kind}/{slug}.jsonl` via `WikiWorker.EnqueueFactLogAppend` under the `archivist` identity.** The extraction loop, human `save_as_insight`, and any future synthesis-time fact mint all honor this contract — markdown is the source of truth, and a fact that lives only in the derived cache violates the rebuild guarantee.
 
@@ -522,5 +522,5 @@ Update this log on every substantive revision. Small wording tweaks don't requir
 ## 13. Referenced documents
 
 - `DESIGN-WIKI.md` — the visual design system for the wiki surface (palette, typography, Wikipedia IA primitives, anti-slop policy). Read when rendering any wiki UI.
-- `~/.gstack/projects/nex-crm-wuphf/najmuzzaman-feat+slash-registry-design-20260422-174617.md` — the design doc for Slice 1-3 of the wiki intelligence port. Background + rationale; this schema doc is the operational spec derived from it.
+- `~/.gstack/projects/nex-crm-laf-office/najmuzzaman-feat+slash-registry-design-20260422-174617.md` — the design doc for Slice 1-3 of the wiki intelligence port. Background + rationale; this schema doc is the operational spec derived from it.
 - `https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` — the original LLM Wiki pattern this implements.

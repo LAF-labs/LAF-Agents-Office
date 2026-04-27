@@ -22,19 +22,19 @@ import (
 	"sync"
 	"time"
 
-	wuphf "github.com/nex-crm/wuphf"
-	"github.com/nex-crm/wuphf/internal/action"
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/brokeraddr"
-	"github.com/nex-crm/wuphf/internal/buildinfo"
-	"github.com/nex-crm/wuphf/internal/channel"
-	"github.com/nex-crm/wuphf/internal/company"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/nex"
-	"github.com/nex-crm/wuphf/internal/onboarding"
-	"github.com/nex-crm/wuphf/internal/operations"
-	"github.com/nex-crm/wuphf/internal/provider"
-	"github.com/nex-crm/wuphf/internal/workspace"
+	lafoffice "github.com/nex-crm/laf-office"
+	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/brokeraddr"
+	"github.com/nex-crm/laf-office/internal/buildinfo"
+	"github.com/nex-crm/laf-office/internal/channel"
+	"github.com/nex-crm/laf-office/internal/company"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/nex"
+	"github.com/nex-crm/laf-office/internal/onboarding"
+	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/nex-crm/laf-office/internal/workspace"
 )
 
 const BrokerPort = brokeraddr.DefaultPort
@@ -47,7 +47,7 @@ const defaultRateLimitRequestsPerWindow = 600
 const defaultRateLimitWindow = time.Minute
 
 // Per-agent rate limit. Applies even to authenticated requests that identify
-// themselves via the X-WUPHF-Agent header. The threshold is high enough that
+// themselves via the X-LAF-Office-Agent header. The threshold is high enough that
 // well-behaved agents will never trip it, but low enough that a prompt-injected
 // agent stuck in a tool-call loop gets throttled before it burns the budget.
 const defaultAgentRateLimitRequestsPerWindow = 1000
@@ -56,7 +56,7 @@ const defaultAgentRateLimitWindow = time.Minute
 // agentRateLimitHeader is the HTTP header the MCP server sets on every outbound
 // broker call so the broker can attribute cost back to the agent. Must match
 // the value set by internal/teammcp/server.go authHeaders().
-const agentRateLimitHeader = "X-WUPHF-Agent"
+const agentRateLimitHeader = "X-LAF-Office-Agent"
 
 // studioPackageGenerator routes Studio package generation through the
 // install-wide LLM provider so opencode-only or claude-code-only setups
@@ -598,7 +598,7 @@ type Broker struct {
 	agentStreams            map[string]*agentStreamBuffer
 	mu                      sync.Mutex
 	// configMu serializes handleConfig POST reads/writes so concurrent
-	// /config calls don't corrupt ~/.wuphf/config.json. config.Save uses
+	// /config calls don't corrupt ~/.laf-office/config.json. config.Save uses
 	// os.WriteFile (O_TRUNC) without locking, so two parallel POSTs can
 	// produce a truncated/overlaid file.
 	configMu           sync.Mutex
@@ -965,7 +965,7 @@ func generateToken() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		// Fallback: this should never happen on modern systems
-		return fmt.Sprintf("wuphf-%d", time.Now().UnixNano())
+		return fmt.Sprintf("laf-office-%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
 }
@@ -997,8 +997,8 @@ var skipBrokerStateLoadOnConstruct = false
 
 // NewBroker constructs a Broker bound to defaultBrokerStatePath() resolved
 // at call time. Production code uses this so the CLI resumes from the
-// default ~/.wuphf/team/broker-state.json (or its WUPHF_BROKER_STATE_PATH /
-// WUPHF_RUNTIME_HOME override). Tests should prefer NewBrokerAt or the
+// default ~/.laf-office/team/broker-state.json (or its LAF_OFFICE_BROKER_STATE_PATH /
+// LAF_OFFICE_RUNTIME_HOME override). Tests should prefer NewBrokerAt or the
 // newTestBroker(t) helper — both pin a per-test path explicitly.
 func NewBroker() *Broker {
 	return NewBrokerAt(defaultBrokerStatePath())
@@ -1510,7 +1510,7 @@ func (b *Broker) Start() error {
 // ensureWikiWorker initializes the markdown-backend wiki worker when the
 // resolved memory backend is "markdown". Runs once. Never crashes the
 // broker on wiki init failure — the worker is advisory; writes simply fail
-// with ErrWorkerStopped until a user runs `wuphf` with git installed.
+// with ErrWorkerStopped until a user runs `laf-office` with git installed.
 func (b *Broker) ensureWikiWorker() {
 	if config.ResolveMemoryBackend("") != config.MemoryBackendMarkdown {
 		return
@@ -1578,7 +1578,7 @@ func (b *Broker) ensureWikiWorker() {
 		}
 	}()
 
-	// Daily lint cron. The schedule is controlled by WUPHF_LINT_CRON (default
+	// Daily lint cron. The schedule is controlled by LAF_OFFICE_LINT_CRON (default
 	// "09:00" local time). Empty string disables the cron (useful in tests).
 	// The goroutine is cancelled by the background context when the broker
 	// shuts down.
@@ -1788,7 +1788,7 @@ func (b *Broker) rateLimitMiddleware(next http.Handler) http.Handler {
 
 		// Authenticated — check the per-agent bucket so a prompt-injected agent
 		// cannot loop forever on team_broadcast / team_action_execute. Operator
-		// traffic (web UI) does not set X-WUPHF-Agent and is exempt.
+		// traffic (web UI) does not set X-LAF-Office-Agent and is exempt.
 		agentSlug := strings.TrimSpace(r.Header.Get(agentRateLimitHeader))
 		if agentSlug == "" || isAgentBucketExemptPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
@@ -1888,7 +1888,7 @@ func (b *Broker) consumeRateLimit(clientIP string) (time.Duration, bool) {
 }
 
 // consumeAgentRateLimit counts an authenticated request against the per-agent
-// bucket keyed by the X-WUPHF-Agent header. It mirrors consumeRateLimit but
+// bucket keyed by the X-LAF-Office-Agent header. It mirrors consumeRateLimit but
 // lives in its own bucket so agent traffic cannot starve operator traffic and
 // vice versa.
 func (b *Broker) consumeAgentRateLimit(agentSlug string) (time.Duration, bool) {
@@ -2454,7 +2454,7 @@ func (b *Broker) ServeWebUI(port int) {
 	if _, err := os.Stat(distIndex); err == nil {
 		// Real Vite build output on disk — use it.
 		fileServer = http.FileServer(http.Dir(distDir))
-	} else if embeddedFS, ok := wuphf.WebFS(); ok {
+	} else if embeddedFS, ok := lafoffice.WebFS(); ok {
 		// No on-disk build; use embedded assets.
 		fileServer = http.FileServer(http.FS(embeddedFS))
 	} else {
@@ -2825,7 +2825,7 @@ func (b *Broker) EnsureDirectChannel(agentSlug string) (string, error) {
 			Type:        "dm",
 			Description: "Direct messages with " + agentSlug,
 			Members:     []string{"human", agentSlug},
-			CreatedBy:   "wuphf",
+			CreatedBy:   "laf-office",
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		})
@@ -3135,16 +3135,16 @@ func (b *Broker) Reset() {
 
 func defaultBrokerStatePath() string {
 	// Env override lets probes and test harnesses isolate broker state from
-	// the user's real ~/.wuphf/team/ dir without needing to remap HOME (which
+	// the user's real ~/.laf-office/team/ dir without needing to remap HOME (which
 	// breaks macOS keychain-backed auth for bundled CLIs like Claude Code).
-	if p := strings.TrimSpace(os.Getenv("WUPHF_BROKER_STATE_PATH")); p != "" {
+	if p := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_STATE_PATH")); p != "" {
 		return p
 	}
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".wuphf", "team", "broker-state.json")
+		return filepath.Join(".laf-office", "team", "broker-state.json")
 	}
-	return filepath.Join(home, ".wuphf", "team", "broker-state.json")
+	return filepath.Join(home, ".laf-office", "team", "broker-state.json")
 }
 
 // stateSnapshotPath returns the path the Broker writes its last-good
@@ -3444,7 +3444,7 @@ func defaultOfficeMembers() []officeMember {
 	members := make([]officeMember, 0, len(manifest.Members))
 	for _, cfg := range manifest.Members {
 		builtIn := cfg.System || cfg.Slug == manifest.Lead || cfg.Slug == "ceo"
-		members = append(members, memberFromSpec(cfg, "wuphf", now, builtIn))
+		members = append(members, memberFromSpec(cfg, "laf-office", now, builtIn))
 	}
 	return members
 }
@@ -3472,7 +3472,7 @@ func defaultTeamChannels() []teamChannel {
 			Description: channel.Description,
 			Members:     append([]string(nil), channel.Members...),
 			Disabled:    append([]string(nil), channel.Disabled...),
-			CreatedBy:   "wuphf",
+			CreatedBy:   "laf-office",
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
@@ -3903,7 +3903,7 @@ func (b *Broker) ensureDMConversationLocked(slug string) *teamChannel {
 		Type:        "dm",
 		Description: "Direct messages with " + agentSlug,
 		Members:     []string{"human", agentSlug},
-		CreatedBy:   "wuphf",
+		CreatedBy:   "laf-office",
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	})
@@ -5036,14 +5036,14 @@ func respawnAgentPane(slug string) {
 	for i, agent := range manifest.Members {
 		if agent.Slug == slug {
 			paneIdx := i + 1 // pane 0 is channel view
-			target := fmt.Sprintf("wuphf-team:team.%d", paneIdx)
+			target := fmt.Sprintf("laf-office-team:team.%d", paneIdx)
 			// Send Ctrl+C to interrupt, then exit to terminate
-			_ = exec.Command("tmux", "-L", "wuphf", "send-keys", "-t", target, "C-c", "").Run()
+			_ = exec.Command("tmux", "-L", "laf-office", "send-keys", "-t", target, "C-c", "").Run()
 			time.Sleep(500 * time.Millisecond)
-			_ = exec.Command("tmux", "-L", "wuphf", "send-keys", "-t", target, "C-c", "").Run()
+			_ = exec.Command("tmux", "-L", "laf-office", "send-keys", "-t", target, "C-c", "").Run()
 			time.Sleep(500 * time.Millisecond)
 			// Respawn the pane with a fresh claude session
-			_ = exec.Command("tmux", "-L", "wuphf", "respawn-pane", "-k", "-t", target).Run()
+			_ = exec.Command("tmux", "-L", "laf-office", "respawn-pane", "-k", "-t", target).Run()
 			return
 		}
 	}
@@ -6118,7 +6118,7 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 	}
 	content := summary + fmt.Sprintf("\n\nCEO bridged this context from #%s to help #%s.", source, target)
 	msg, _, err := b.PostAutomationMessage(
-		"wuphf",
+		"laf-office",
 		target,
 		"Bridge from #"+source,
 		content,
@@ -6205,7 +6205,7 @@ func (b *Broker) handleCompany(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleConfig exposes GET/POST over ~/.wuphf/config.json for the web UI
+// handleConfig exposes GET/POST over ~/.laf-office/config.json for the web UI
 // settings page and onboarding wizard. All POST fields are optional; clients
 // can update one without touching the others. Secret fields (API keys, tokens)
 // are returned as boolean flags on GET and accepted as plain values on POST.
@@ -6687,7 +6687,7 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 					if agentID == "" {
 						agentID = "main"
 					}
-					label := fmt.Sprintf("wuphf-%s-%d", slug, time.Now().UnixNano())
+					label := fmt.Sprintf("laf-office-%s-%d", slug, time.Now().UnixNano())
 					key, err := bridge.CreateSession(r.Context(), agentID, label)
 					if err != nil {
 						http.Error(w, fmt.Sprintf("openclaw sessions.create: %v", err), http.StatusBadGateway)
@@ -6820,7 +6820,7 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 						if agentID == "" {
 							agentID = "main"
 						}
-						label := fmt.Sprintf("wuphf-%s-%d", member.Slug, time.Now().UnixNano())
+						label := fmt.Sprintf("laf-office-%s-%d", member.Slug, time.Now().UnixNano())
 						key, err := bridge.CreateSession(r.Context(), agentID, label)
 						if err != nil {
 							http.Error(w, fmt.Sprintf("openclaw sessions.create: %v", err), http.StatusBadGateway)
@@ -8479,7 +8479,7 @@ func (b *Broker) capturePaneActivity(slugOverride string) map[string]string {
 		for i, agent := range manifest.Members {
 			checks = append(checks, paneCheck{
 				slug:   agent.Slug,
-				target: fmt.Sprintf("wuphf-team:team.%d", i+1),
+				target: fmt.Sprintf("laf-office-team:team.%d", i+1),
 			})
 		}
 	}
@@ -8491,7 +8491,7 @@ func (b *Broker) capturePaneActivity(slugOverride string) map[string]string {
 	b.mu.Unlock()
 
 	for _, check := range checks {
-		paneOut, err := exec.Command("tmux", "-L", "wuphf", "capture-pane",
+		paneOut, err := exec.Command("tmux", "-L", "laf-office", "capture-pane",
 			"-p", "-J",
 			"-t", check.target).CombinedOutput()
 		if err != nil {
@@ -9442,7 +9442,7 @@ func (b *Broker) postTaskDMLocked(from, targetSlug, kind, title, content string)
 			Type:        "dm",
 			Description: "Direct messages with " + targetSlug,
 			Members:     []string{"human", targetSlug},
-			CreatedBy:   "wuphf",
+			CreatedBy:   "laf-office",
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		})

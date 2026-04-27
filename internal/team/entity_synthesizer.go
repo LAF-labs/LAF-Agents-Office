@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 // defaultLLMCall shells out to the user's configured LLM CLI.
@@ -45,11 +45,11 @@ const ArchivistAuthor = "archivist"
 
 // DefaultSynthesisThreshold is the number of new facts that must accumulate
 // before an automatic synthesis is triggered. Configurable per deployment
-// via WUPHF_ENTITY_BRIEF_THRESHOLD.
+// via LAF_OFFICE_ENTITY_BRIEF_THRESHOLD.
 const DefaultSynthesisThreshold = 5
 
 // DefaultSynthesisTimeout bounds a single LLM shell-out. Configurable via
-// WUPHF_ENTITY_BRIEF_TIMEOUT (seconds).
+// LAF_OFFICE_ENTITY_BRIEF_TIMEOUT (seconds).
 const DefaultSynthesisTimeout = 30 * time.Second
 
 // MaxSynthesisQueue is the buffered channel size for pending jobs. Overflow
@@ -547,8 +547,8 @@ func (s *EntitySynthesizer) renderRelatedSection(kind EntityKind, slug string) s
 // like bullet items. That narrow shape matches what the renderer always
 // produced and avoids catching arbitrary prose.
 const (
-	relatedSentinelStart = "<!-- wuphf:related:start -->"
-	relatedSentinelEnd   = "<!-- wuphf:related:end -->"
+	relatedSentinelStart = "<!-- laf-office:related:start -->"
+	relatedSentinelEnd   = "<!-- laf-office:related:end -->"
 )
 
 // stripRelatedSection removes the managed "## Related" section from body.

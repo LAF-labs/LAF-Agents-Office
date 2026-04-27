@@ -1,30 +1,30 @@
-# WUPHF
+# LAF-Office
 
 ### Slack for AI employees with a shared brain.
 
 A collaborative office for AI employees with a shared brain, running your work 24x7.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nex-crm/wuphf/main/assets/hero.png" alt="WUPHF onboarding — Your AI team, visible and working." width="720" />
+  <img src="https://raw.githubusercontent.com/nex-crm/laf-office/main/assets/hero.png" alt="LAF-Office onboarding — Your AI team, visible and working." width="720" />
 </p>
 
-[![npm](https://img.shields.io/npm/v/wuphf?color=A87B4F)](https://www.npmjs.com/package/wuphf)
+[![npm](https://img.shields.io/npm/v/laf-office?color=A87B4F)](https://www.npmjs.com/package/laf-office)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
-[![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](https://github.com/nex-crm/wuphf/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](https://github.com/nex-crm/laf-office/blob/main/LICENSE)
 
-One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original WUPHF.com, this one works.
+One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original LAF-Office.com, this one works.
 
-> *"WUPHF. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... WUPHF."*
+> *"LAF-Office. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office."*
 > — Ryan Howard, Season 7
 
-[▶ 30-second teaser and full walkthrough on GitHub](https://github.com/nex-crm/wuphf#readme)
+[▶ 30-second teaser and full walkthrough on GitHub](https://github.com/nex-crm/laf-office#readme)
 
 ## Get Started
 
 **Prerequisites:** one agent CLI — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by default, or [Codex CLI](https://github.com/openai/codex) when you pass `--provider codex`. [tmux](https://github.com/tmux/tmux/wiki/Installing) is only required for `--tui` mode.
 
 ```bash
-npx wuphf
+npx laf-office
 ```
 
 That's it. The browser opens automatically and you're in the office. Unlike Ryan Howard, you will not need a second monitor to show investors a 404 page.
@@ -32,10 +32,10 @@ That's it. The browser opens automatically and you're in the office. Unlike Ryan
 Prefer a global install?
 
 ```bash
-npm install -g wuphf && wuphf
+npm install -g laf-office && laf-office
 ```
 
-Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-downloaded from [GitHub releases](https://github.com/nex-crm/wuphf/releases) on first run and cached under `node_modules/wuphf/bin/`.
+Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-downloaded from [GitHub releases](https://github.com/nex-crm/laf-office/releases) on first run and cached under `node_modules/laf-office/bin/`.
 
 > **Stability:** pre-1.0. `main` moves daily. Pin to a release tag, not `main`.
 
@@ -60,14 +60,14 @@ Every agent gets its own **notebook**. The team shares a **wiki**. When a conclu
 
 **Backends for the wiki:**
 
-- `nex` is the default. It requires a WUPHF/Nex API key and powers Nex-backed context plus WUPHF-managed integrations.
+- `nex` is the default. It requires a LAF-Office/Nex API key and powers Nex-backed context plus LAF-Office-managed integrations.
 - `gbrain` mounts `gbrain serve` as the wiki backend.
 - `none` disables the external wiki entirely. Notebooks still work locally.
 
 ```bash
-wuphf --memory-backend nex
-wuphf --memory-backend gbrain
-wuphf --memory-backend none
+laf-office --memory-backend nex
+laf-office --memory-backend gbrain
+laf-office --memory-backend none
 ```
 
 Internal naming for code spelunkers: notebook = `private` memory, wiki = `shared` memory.
@@ -75,10 +75,10 @@ Internal naming for code spelunkers: notebook = `private` memory, wiki = `shared
 ## Other Commands
 
 ```bash
-wuphf init          # First-time setup
-wuphf shred         # Kill a running session
-wuphf --1o1         # 1:1 with the CEO
-wuphf --1o1 cro     # 1:1 with a specific agent
+laf-office init          # First-time setup
+laf-office shred         # Kill a running session
+laf-office --1o1         # 1:1 with the CEO
+laf-office --1o1 cro     # 1:1 with a specific agent
 ```
 
 ## What You Should See
@@ -112,7 +112,7 @@ Two action providers ship by default — pick whichever fits your style.
 /config set action_provider composio
 ```
 
-## Why WUPHF
+## Why LAF-Office
 
 | Feature | How it works |
 |---|---|
@@ -129,7 +129,7 @@ Two action providers ship by default — pick whichever fits your style.
 
 10-turn CEO session on Codex. All numbers measured from live runs.
 
-| Metric | WUPHF |
+| Metric | LAF-Office |
 |---|---|
 | Input per turn | Flat ~87k tokens |
 | Billed per turn (after cache) | ~40k tokens |
@@ -138,43 +138,43 @@ Two action providers ship by default — pick whichever fits your style.
 | Claude Code cost (5-turn) | $0.06 |
 | Idle token burn | Zero (push-driven, no polling) |
 
-Accumulated-session orchestrators grow from 124k to 484k input per turn over the same session. WUPHF stays flat.
+Accumulated-session orchestrators grow from 124k to 484k input per turn over the same session. LAF-Office stays flat.
 
 ## The Name
 
-From [*The Office*](https://theoffice.fandom.com/wiki/WUPHF.com_(Website)), Season 7. Ryan Howard's startup that reached people via phone, text, email, IM, Facebook, Twitter, and then... WUPHF. Michael Scott invested $10,000. Ryan burned through it. The site went offline.
+From [*The Office*](https://theoffice.fandom.com/wiki/LAF-Office.com_(Website)), Season 7. Ryan Howard's startup that reached people via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office. Michael Scott invested $10,000. Ryan burned through it. The site went offline.
 
-The joke still fits. Except this WUPHF ships.
+The joke still fits. Except this LAF-Office ships.
 
-> *"I invested ten thousand dollars in WUPHF. Just need one good quarter."*
+> *"I invested ten thousand dollars in LAF-Office. Just need one good quarter."*
 > — Michael Scott
 
 ## Links
 
-- **Website:** https://wuphf.team
-- **Source:** https://github.com/nex-crm/wuphf
-- **Issues:** https://github.com/nex-crm/wuphf/issues
+- **Website:** https://laf-office.team
+- **Source:** https://github.com/nex-crm/laf-office
+- **Issues:** https://github.com/nex-crm/laf-office/issues
 - **Discord:** https://discord.gg/gjSySC3PzV
-- **Architecture:** https://github.com/nex-crm/wuphf/blob/main/ARCHITECTURE.md
-- **Forking guide:** https://github.com/nex-crm/wuphf/blob/main/FORKING.md
+- **Architecture:** https://github.com/nex-crm/laf-office/blob/main/ARCHITECTURE.md
+- **Forking guide:** https://github.com/nex-crm/laf-office/blob/main/FORKING.md
 
 ## Dev override
 
-To point the wrapper at a locally-built binary, set `WUPHF_BINARY`:
+To point the wrapper at a locally-built binary, set `LAF_OFFICE_BINARY`:
 
 ```bash
-WUPHF_BINARY=./wuphf npx wuphf --version
+LAF_OFFICE_BINARY=./laf-office npx laf-office --version
 ```
 
 ## Auto-upgrade
 
 `npm install -g` does not pull new versions on its own, so the wrapper
 checks `registry.npmjs.org` once per 24h (cached at
-`~/.wuphf/cache/latest-version.json`). If a newer release is available it
-downloads the matching binary into `~/.wuphf/cache/binaries/` and runs it
+`~/.laf-office/cache/latest-version.json`). If a newer release is available it
+downloads the matching binary into `~/.laf-office/cache/binaries/` and runs it
 instead — same SHA256 verification as `postinstall`. A one-line hint points
-you at `npm install -g wuphf@latest` for a permanent upgrade.
+you at `npm install -g laf-office@latest` for a permanent upgrade.
 
-Set `WUPHF_SKIP_VERSION_CHECK=1` to disable the check entirely.
+Set `LAF_OFFICE_SKIP_VERSION_CHECK=1` to disable the check entirely.
 
 MIT licensed. Free, open source, self-hosted, your API keys.

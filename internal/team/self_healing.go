@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 const selfHealingTaskTitlePrefix = "Self-heal "

@@ -23,8 +23,8 @@ package team
 //   → QueryHandler.Answer is called
 //   → response formatted as wiki-shape chat message
 //
-// MCP tool flow (wuphf_wiki_lookup):
-//   agent calls wuphf_wiki_lookup({query, top_k})
+// MCP tool flow (laf_office_wiki_lookup):
+//   agent calls laf_office_wiki_lookup({query, top_k})
 //   → MCP handler POSTs to /wiki/lookup
 //   → JSON QueryAnswer returned to agent
 
@@ -38,7 +38,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 // brokerQueryProvider wraps provider.RunConfiguredOneShot so it satisfies

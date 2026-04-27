@@ -1,11 +1,11 @@
-// Package nex wraps the nex-cli binary. WUPHF no longer speaks the legacy
+// Package nex wraps the nex-cli binary. LAF-Office no longer speaks the legacy
 // app.nex.ai HTTP API for detection, registration, or memory recall — those
 // paths now shell out to the nex-cli binary from the nex-as-a-skill project:
 //
 //	https://github.com/nex-crm/nex-as-a-skill
 //
 // The user is considered "Nex-connected" when nex-cli is on PATH and the
-// --no-nex flag (WUPHF_NO_NEX) is not set. Every shell-out uses a context
+// --no-nex flag (LAF_OFFICE_NO_NEX) is not set. Every shell-out uses a context
 // with a real timeout; failures are returned to callers so they can log and
 // fall back gracefully — missing binary is NOT a crash.
 package nex
@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/buildinfo"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/buildinfo"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // DefaultTimeout is the deadline applied to every nex-cli shell-out when the
@@ -31,7 +31,7 @@ const DefaultTimeout = 8 * time.Second
 // ErrNotInstalled is returned when nex-cli is not on PATH.
 var ErrNotInstalled = errors.New("nex-cli not installed")
 
-// ErrDisabled is returned when --no-nex (WUPHF_NO_NEX) is set for this run.
+// ErrDisabled is returned when --no-nex (LAF_OFFICE_NO_NEX) is set for this run.
 var ErrDisabled = errors.New("nex disabled via --no-nex")
 
 // binaryCandidates lists the executable names we accept as "nex-cli",
@@ -59,13 +59,13 @@ func IsInstalled() bool {
 }
 
 // Disabled reports whether the user has turned Nex off for this session
-// via the --no-nex flag / WUPHF_NO_NEX env var. --no-nex takes precedence
+// via the --no-nex flag / LAF_OFFICE_NO_NEX env var. --no-nex takes precedence
 // over auto-detection: even if nex-cli is installed, Disabled() wins.
 func Disabled() bool {
 	return config.ResolveNoNex()
 }
 
-// Connected reports whether WUPHF should treat the user as Nex-connected
+// Connected reports whether LAF-Office should treat the user as Nex-connected
 // for this session. True iff nex-cli is on PATH AND the user hasn't set
 // --no-nex. This is the replacement for the legacy `nex_connected` HTTP
 // ping check.
@@ -136,7 +136,7 @@ func Run(ctx context.Context, args ...string) (string, error) {
 
 // Register shells out to `nex-cli --cmd "setup <email>"`. nex-cli exposes
 // non-interactive registration as the `setup` subcommand (there is no
-// `register`). Used by the WUPHF onboarding flow in place of the legacy
+// `register`). Used by the LAF-Office onboarding flow in place of the legacy
 // POST to /api/v1/agents/register on app.nex.ai. Blocks until the command
 // exits (or the default timeout trips).
 func Register(ctx context.Context, email string) (string, error) {
@@ -163,9 +163,9 @@ func Recall(ctx context.Context, query string) (string, error) {
 // so server-side tooling doesn't have to guess the name.
 const NexClientEnvVar = "NEX_CLIENT"
 
-// appendClientEnv adds NEX_CLIENT=wuphf/<version> unless it's already
+// appendClientEnv adds NEX_CLIENT=laf-office/<version> unless it's already
 // set in env. Respecting an existing value lets integrators nest clients
-// (e.g. a wrapper that sets NEX_CLIENT=myapp/wuphf/<version>) without us
+// (e.g. a wrapper that sets NEX_CLIENT=myapp/laf-office/<version>) without us
 // stomping on it.
 func appendClientEnv(env []string) []string {
 	prefix := NexClientEnvVar + "="
@@ -174,5 +174,5 @@ func appendClientEnv(env []string) []string {
 			return env
 		}
 	}
-	return append(env, prefix+"wuphf/"+buildinfo.Current().Version)
+	return append(env, prefix+"laf-office/"+buildinfo.Current().Version)
 }

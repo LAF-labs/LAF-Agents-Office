@@ -14,7 +14,7 @@ import (
 )
 
 // TestNotebookToolsRegisteredOnlyInMarkdownBackend locks in the gate: the 5
-// notebook_* tools appear iff WUPHF_MEMORY_BACKEND=markdown. Other backends
+// notebook_* tools appear iff LAF_OFFICE_MEMORY_BACKEND=markdown. Other backends
 // (nex, gbrain, none) must not expose them — matches wiki parity.
 func TestNotebookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 	notebookTools := []string{
@@ -36,7 +36,7 @@ func TestNotebookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("WUPHF_MEMORY_BACKEND", tc.backend)
+			t.Setenv("LAF_OFFICE_MEMORY_BACKEND", tc.backend)
 			names := listRegisteredTools(t, "general", false)
 			for _, name := range notebookTools {
 				if tc.mustHave && !slices.Contains(names, name) {
@@ -53,7 +53,7 @@ func TestNotebookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 // TestNotebookToolsRegisteredInOneOnOne confirms the DM/1:1 path also
 // registers the notebook tools when markdown is the backend.
 func TestNotebookToolsRegisteredInOneOnOne(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	names := listRegisteredTools(t, "dm-ceo", true)
 	for _, want := range []string{"notebook_write", "notebook_read", "notebook_list", "notebook_search", "notebook_promote"} {
 		if !slices.Contains(names, want) {
@@ -89,9 +89,9 @@ type testingAuth struct {
 
 func withBrokerURL(t *testing.T, url string) {
 	t.Helper()
-	t.Setenv("WUPHF_TEAM_BROKER_URL", url)
-	t.Setenv("WUPHF_BROKER_TOKEN", "test-token")
-	t.Setenv("WUPHF_BROKER_TOKEN_FILE", "/dev/null")
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", url)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "test-token")
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN_FILE", "/dev/null")
 }
 
 func TestHandleTeamNotebookWrite(t *testing.T) {
@@ -104,7 +104,7 @@ func TestHandleTeamNotebookWrite(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	res, _, err := handleTeamNotebookWrite(context.Background(), nil, TeamNotebookWriteArgs{
 		ArticlePath: "agents/pm/notebook/x.md",
@@ -131,7 +131,7 @@ func TestHandleTeamNotebookWrite(t *testing.T) {
 
 func TestHandleTeamNotebookWriteSlugMismatchLocal(t *testing.T) {
 	// No broker hit — client-side rejection.
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	res, _, err := handleTeamNotebookWrite(context.Background(), nil, TeamNotebookWriteArgs{
 		ArticlePath: "agents/ceo/notebook/x.md",
 		Mode:        "create",
@@ -149,7 +149,7 @@ func TestHandleTeamNotebookWriteSlugMismatchLocal(t *testing.T) {
 }
 
 func TestHandleTeamNotebookWriteValidations(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	cases := []struct {
 		name string
 		args TeamNotebookWriteArgs
@@ -173,7 +173,7 @@ func TestHandleTeamNotebookWriteValidations(t *testing.T) {
 
 func TestHandleTeamNotebookWriteMissingSlug(t *testing.T) {
 	// Explicitly clear the env slug so resolveSlug fails.
-	t.Setenv("WUPHF_AGENT_SLUG", "")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "")
 	t.Setenv("NEX_AGENT_SLUG", "")
 	res, _, _ := handleTeamNotebookWrite(context.Background(), nil, TeamNotebookWriteArgs{
 		ArticlePath: "agents/pm/notebook/x.md",
@@ -191,7 +191,7 @@ func TestHandleTeamNotebookRead(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	res, _, err := handleTeamNotebookRead(context.Background(), nil, TeamNotebookReadArgs{
 		ArticlePath: "agents/ceo/notebook/x.md",
@@ -212,7 +212,7 @@ func TestHandleTeamNotebookRead(t *testing.T) {
 }
 
 func TestHandleTeamNotebookReadMissingPath(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	res, _, _ := handleTeamNotebookRead(context.Background(), nil, TeamNotebookReadArgs{})
 	if !isToolError(res) {
 		t.Fatal("expected tool error for missing path")
@@ -225,7 +225,7 @@ func TestHandleTeamNotebookListDefaultsToCaller(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	_, _, err := handleTeamNotebookList(context.Background(), nil, TeamNotebookListArgs{})
 	if err != nil {
@@ -246,7 +246,7 @@ func TestHandleTeamNotebookListCrossAgent(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	_, _, err := handleTeamNotebookList(context.Background(), nil, TeamNotebookListArgs{TargetSlug: "ceo"})
 	if err != nil {
@@ -258,7 +258,7 @@ func TestHandleTeamNotebookListCrossAgent(t *testing.T) {
 }
 
 func TestHandleTeamNotebookListNoSlugAnywhere(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "")
 	t.Setenv("NEX_AGENT_SLUG", "")
 	res, _, _ := handleTeamNotebookList(context.Background(), nil, TeamNotebookListArgs{})
 	if !isToolError(res) {
@@ -276,7 +276,7 @@ func TestHandleTeamNotebookSearch(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	_, _, err := handleTeamNotebookSearch(context.Background(), nil, TeamNotebookSearchArgs{
 		TargetSlug: "pm",
@@ -291,7 +291,7 @@ func TestHandleTeamNotebookSearch(t *testing.T) {
 }
 
 func TestHandleTeamNotebookSearchRequiresArgs(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	cases := []struct {
 		name string
 		args TeamNotebookSearchArgs
@@ -317,7 +317,7 @@ func TestHandleTeamNotebookSearchEncoding(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	_, _, _ = handleTeamNotebookSearch(context.Background(), nil, TeamNotebookSearchArgs{
 		TargetSlug: "pm",
@@ -339,7 +339,7 @@ func TestHandleTeamNotebookPromote_Happy(t *testing.T) {
 	})
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	res, _, err := handleTeamNotebookPromote(context.Background(), nil, TeamNotebookPromoteArgs{
 		SourcePath:     "agents/pm/notebook/retro.md",
@@ -364,7 +364,7 @@ func TestHandleTeamNotebookPromote_Happy(t *testing.T) {
 }
 
 func TestHandleTeamNotebookPromote_Validations(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	cases := []struct {
 		name string
 		args TeamNotebookPromoteArgs

@@ -1,8 +1,8 @@
-// Package wuphf provides the embedded web UI bundle shipped with the
+// Package lafoffice provides the embedded web UI bundle shipped with the
 // binary. The bundle is built from web/dist/ at release time and embedded
 // so single-binary installs (`curl | bash`) have a working UI without any
 // external files on disk.
-package wuphf
+package lafoffice
 
 import (
 	"embed"

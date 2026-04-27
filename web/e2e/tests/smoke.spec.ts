@@ -5,7 +5,7 @@ import { test, expect, type Page } from '@playwright/test';
 // as a React child") on first agent click. PR #101 fixed the specific bug;
 // this test makes sure the next one gets caught in CI instead of in Slack.
 //
-// Assumes wuphf was started with ~/.wuphf/onboarded.json pre-seeded so the
+// Assumes laf-office was started with ~/.laf-office/onboarded.json pre-seeded so the
 // app lands in the Shell (where the React #31 crash lived) rather than the
 // onboarding Wizard. Wizard coverage lives in wizard.spec.ts.
 
@@ -37,7 +37,7 @@ async function waitForReactMount(page: Page): Promise<void> {
   );
 }
 
-test.describe('wuphf web UI smoke (shell)', () => {
+test.describe('laf-office web UI smoke (shell)', () => {
   test('initial page render does not trip the React error boundary', async ({ page }) => {
     const getErrors = collectReactErrors(page);
 
@@ -45,7 +45,7 @@ test.describe('wuphf web UI smoke (shell)', () => {
     await waitForReactMount(page);
 
     // Sidebar appearing is our "React committed and effects ran" signal.
-    // networkidle does NOT work here — wuphf opens a long-lived SSE stream
+    // networkidle does NOT work here — laf-office opens a long-lived SSE stream
     // as soon as the shell mounts, so the page is never idle.
     await expect(page.locator('button[data-agent-slug]').first()).toBeVisible({ timeout: 10_000 });
 

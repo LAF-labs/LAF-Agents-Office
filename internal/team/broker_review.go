@@ -123,7 +123,7 @@ func (b *Broker) SetReviewerResolver(resolver ReviewerResolver) {
 
 // ensureReviewLog initializes the on-disk JSONL + in-memory cache. Idempotent.
 // Requires the wiki worker to be up so the reviews dir lands inside
-// ~/.wuphf/wiki/.reviews/.
+// ~/.laf-office/wiki/.reviews/.
 func (b *Broker) ensureReviewLog() {
 	b.mu.Lock()
 	if b.reviewLog != nil {
@@ -255,7 +255,7 @@ func (b *Broker) handleNotebookPromote(w http.ResponseWriter, r *http.Request) {
 //	GET /review/list?scope=all         — every non-archived review
 //	GET /review/list?scope=<slug>      — reviews assigned to slug
 //	GET /review/list?scope=mine        — alias for the caller's slug
-//	                                     (requires X-WUPHF-Agent header)
+//	                                     (requires X-LAF-Office-Agent header)
 //
 // Response envelope matches what the frontend expects: { reviews: [...] }.
 func (b *Broker) handleReviewList(w http.ResponseWriter, r *http.Request) {
@@ -271,10 +271,10 @@ func (b *Broker) handleReviewList(w http.ResponseWriter, r *http.Request) {
 	scope := strings.TrimSpace(r.URL.Query().Get("scope"))
 	if scope == "mine" {
 		// "mine" maps to the caller's agent slug via the standard
-		// X-WUPHF-Agent header the MCP server sets on every broker call.
+		// X-LAF-Office-Agent header the MCP server sets on every broker call.
 		scope = strings.TrimSpace(r.Header.Get(agentRateLimitHeader))
 		if scope == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "scope=mine requires X-WUPHF-Agent"})
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "scope=mine requires X-LAF-Office-Agent"})
 			return
 		}
 	}

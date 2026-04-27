@@ -9,10 +9,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/gbrain"
-	"github.com/nex-crm/wuphf/internal/nex"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/gbrain"
+	"github.com/nex-crm/laf-office/internal/nex"
 )
 
 type MemoryBackendStatus struct {
@@ -94,10 +94,10 @@ func (nexMemoryBackend) MCPServer() (*memoryMCPServer, error) {
 		Name:    "nex",
 		Command: bin,
 		Env: map[string]string{
-			"WUPHF_API_KEY": apiKey,
-			"NEX_API_KEY":   apiKey,
+			"LAF_OFFICE_API_KEY": apiKey,
+			"NEX_API_KEY":        apiKey,
 		},
-		EnvVars: []string{"WUPHF_API_KEY", "NEX_API_KEY"},
+		EnvVars: []string{"LAF_OFFICE_API_KEY", "NEX_API_KEY"},
 	}, nil
 }
 func (nexMemoryBackend) FetchBrief(ctx context.Context, notification string) string {
@@ -260,8 +260,8 @@ func (gbrainMemoryBackend) WriteShared(ctx context.Context, note SharedMemoryWri
 	if slug == "" {
 		slug = "shared-note"
 	}
-	actor := slugify(firstNonEmpty(note.Actor, "wuphf"))
-	slug = fmt.Sprintf("wuphf-shared--%s--%s--%s", actor, slug, time.Now().UTC().Format("20060102-150405"))
+	actor := slugify(firstNonEmpty(note.Actor, "laf-office"))
+	slug = fmt.Sprintf("laf-office-shared--%s--%s--%s", actor, slug, time.Now().UTC().Format("20060102-150405"))
 	raw, err := gbrain.Call(ctx, "put_page", map[string]any{
 		"slug":    slug,
 		"content": renderGBrainSharedMemoryPage(slug, note),
@@ -310,8 +310,8 @@ func ResolveMemoryBackendStatus() MemoryBackendStatus {
 		}
 	case config.MemoryBackendNex:
 		if strings.TrimSpace(config.ResolveAPIKey("")) == "" {
-			status.Detail = "Nex backend selected, but no WUPHF/Nex API key is configured."
-			status.NextStep = "Run /init or set WUPHF_API_KEY to enable Nex-backed context."
+			status.Detail = "Nex backend selected, but no LAF-Office/Nex API key is configured."
+			status.NextStep = "Run /init or set LAF_OFFICE_API_KEY to enable Nex-backed context."
 			return status
 		}
 		if nexMCPBinaryPath() == "" {
@@ -324,12 +324,12 @@ func ResolveMemoryBackendStatus() MemoryBackendStatus {
 		status.Detail = "Nex-backed organizational context is configured."
 	case config.MemoryBackendMarkdown:
 		// Markdown is the file-over-app default: a git repo under
-		// ~/.wuphf/wiki. No API keys, no external service. Always "ready"
+		// ~/.laf-office/wiki. No API keys, no external service. Always "ready"
 		// as long as `git` is on PATH — and if it isn't, Repo.Init surfaces
 		// ErrGitUnavailable at launch, so we don't need to guard here.
 		status.ActiveKind = config.MemoryBackendMarkdown
 		status.ActiveLabel = config.MemoryBackendLabel(config.MemoryBackendMarkdown)
-		status.Detail = "Markdown-backed team wiki at ~/.wuphf/wiki is configured. Every edit commits to git with per-agent authorship."
+		status.Detail = "Markdown-backed team wiki at ~/.laf-office/wiki is configured. Every edit commits to git with per-agent authorship."
 	case config.MemoryBackendGBrain:
 		if !gbrainProviderKeyConfigured() {
 			status.Detail = "GBrain backend selected, but no provider key is configured. OpenAI is required for embeddings and vector search; Anthropic alone only enables reduced-mode retrieval."
@@ -348,7 +348,7 @@ func ResolveMemoryBackendStatus() MemoryBackendStatus {
 			status.Detail = "GBrain-backed organizational context is configured with an OpenAI key, so embeddings and vector search are available."
 		case gbrainAnthropicConfigured():
 			status.Detail = "GBrain-backed organizational context is configured in Anthropic-only mode. Keyword search and query expansion work, but embeddings and vector search still require OpenAI."
-			status.NextStep = "Add WUPHF_OPENAI_API_KEY if you want full GBrain embeddings and vector search."
+			status.NextStep = "Add LAF_OFFICE_OPENAI_API_KEY if you want full GBrain embeddings and vector search."
 		default:
 			status.Detail = "GBrain-backed organizational context is configured with provider credentials."
 		}
@@ -547,13 +547,13 @@ func specialistMemoryStorageRule() string {
 func renderNexSharedMemoryContent(note SharedMemoryWrite) string {
 	title := strings.TrimSpace(note.Title)
 	if title == "" {
-		title = firstNonEmpty(strings.TrimSpace(note.Key), "WUPHF shared memory")
+		title = firstNonEmpty(strings.TrimSpace(note.Key), "LAF-Office shared memory")
 	}
 	actor := strings.TrimSpace(note.Actor)
 	if actor == "" {
-		actor = "wuphf"
+		actor = "laf-office"
 	}
-	return fmt.Sprintf("[WUPHF shared memory]\nTitle: %s\nAuthor: @%s\nRecorded at: %s\n\n%s",
+	return fmt.Sprintf("[LAF-Office shared memory]\nTitle: %s\nAuthor: @%s\nRecorded at: %s\n\n%s",
 		title,
 		actor,
 		time.Now().UTC().Format(time.RFC3339),
@@ -567,11 +567,11 @@ func renderGBrainSharedMemoryPage(slug string, note SharedMemoryWrite) string {
 		title = strings.TrimSpace(note.Key)
 	}
 	if title == "" {
-		title = "WUPHF shared memory"
+		title = "LAF-Office shared memory"
 	}
 	actor := strings.TrimSpace(note.Actor)
 	if actor == "" {
-		actor = "wuphf"
+		actor = "laf-office"
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	yamlTitle := strings.ReplaceAll(title, `"`, `\"`)
@@ -579,7 +579,7 @@ func renderGBrainSharedMemoryPage(slug string, note SharedMemoryWrite) string {
 title: "%s"
 type: note
 tags:
-  - wuphf
+  - laf-office
   - shared-memory
   - agent-%s
 slug: %s
@@ -624,7 +624,7 @@ func parseGBrainSharedMemoryOwner(identifier string) string {
 	if len(parts) < 4 {
 		return ""
 	}
-	if strings.TrimSpace(parts[0]) != "wuphf-shared" {
+	if strings.TrimSpace(parts[0]) != "laf-office-shared" {
 		return ""
 	}
 	return slugify(parts[1])

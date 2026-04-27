@@ -9,7 +9,7 @@ import (
 // fallbackFS is consulted by the template loaders when a filesystem read
 // rooted at repoRoot fails (or when repoRoot is empty). Binaries built
 // with `//go:embed all:templates/…` wire this in via SetFallbackFS so
-// installs without a repo checkout (e.g. `npx wuphf`, `curl | bash`)
+// installs without a repo checkout (e.g. `npx laf-office`, `curl | bash`)
 // still see the shipped operations and employee blueprints.
 //
 // When both the filesystem and the fallback have the requested file, the

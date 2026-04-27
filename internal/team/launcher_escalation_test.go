@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 func TestPostEscalation_WritesToGeneralChannel(t *testing.T) {

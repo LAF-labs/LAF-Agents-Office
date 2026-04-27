@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/company"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/setup"
-	"github.com/nex-crm/wuphf/internal/tui/render"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/company"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/setup"
+	"github.com/nex-crm/laf-office/internal/tui/render"
 )
 
 // ErrQuit is returned by quit commands so the caller can signal clean exit.
@@ -38,7 +38,7 @@ func cmdHelp(ctx *SlashContext, args string) error {
 		"  /provider              Switch LLM provider\n\n" +
 		"  /help                  This help\n" +
 		"  /clear                 Clear messages\n" +
-		"  /quit                  Exit WUPHF"
+		"  /quit                  Exit LAF-Office"
 	ctx.AddMessage("system", help)
 	return nil
 }
@@ -54,7 +54,7 @@ func cmdQuit(ctx *SlashContext, args string) error {
 
 func cmdInit(ctx *SlashContext, args string) error {
 	if config.ResolveNoNex() {
-		ctx.AddMessage("system", "Nex integration is disabled for this session (--no-nex). Start WUPHF without --no-nex to run setup.")
+		ctx.AddMessage("system", "Nex integration is disabled for this session (--no-nex). Start LAF-Office without --no-nex to run setup.")
 		return nil
 	}
 
@@ -92,7 +92,7 @@ func cmdInit(ctx *SlashContext, args string) error {
 	}
 	ctx.AddMessage("system", fmt.Sprintf("Setup defaults saved. Provider: %s | Blueprint template: %s", cfg.LLMProvider, label))
 	if cfg.APIKey == "" {
-		ctx.AddMessage("system", "No WUPHF API key is configured yet. Run interactive /init inside WUPHF to add one.")
+		ctx.AddMessage("system", "No LAF-Office API key is configured yet. Run interactive /init inside LAF-Office to add one.")
 	}
 	ctx.AddMessage("system", config.OneSetupBlurb())
 

@@ -1,4 +1,4 @@
-// Package config handles loading, saving, and resolving WUPHF configuration.
+// Package config handles loading, saving, and resolving LAF-Office configuration.
 // Resolution chain: CLI flag > environment variable > config file.
 package config
 
@@ -13,11 +13,11 @@ import (
 	"sync"
 )
 
-// RuntimeHomeDir returns the home directory WUPHF should use for persisted
-// runtime state. Inventive runs may override this with WUPHF_RUNTIME_HOME so
-// they don't inherit an existing office from the user's global ~/.wuphf.
+// RuntimeHomeDir returns the home directory LAF-Office should use for persisted
+// runtime state. Inventive runs may override this with LAF_OFFICE_RUNTIME_HOME so
+// they don't inherit an existing office from the user's global ~/.laf-office.
 func RuntimeHomeDir() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_RUNTIME_HOME")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_RUNTIME_HOME")); v != "" {
 		return v
 	}
 	home, err := os.UserHomeDir()
@@ -27,7 +27,7 @@ func RuntimeHomeDir() string {
 	return home
 }
 
-// Config mirrors ~/.wuphf/config.json.
+// Config mirrors ~/.laf-office/config.json.
 type Config struct {
 	APIKey         string `json:"api_key,omitempty"`
 	MemoryBackend  string `json:"memory_backend,omitempty"`
@@ -80,7 +80,7 @@ const (
 	MemoryBackendMarkdown = "markdown"
 )
 
-// OpenclawBridgeBinding binds a WUPHF agent session to an OpenClaw bridge slug.
+// OpenclawBridgeBinding binds a LAF-Office agent session to an OpenClaw bridge slug.
 type OpenclawBridgeBinding struct {
 	SessionKey  string `json:"session_key"`
 	Slug        string `json:"slug"`
@@ -103,20 +103,20 @@ func (c *Config) SetActiveBlueprint(id string) {
 	c.Blueprint = id
 }
 
-// ConfigPath returns the absolute path to ~/.wuphf/config.json, with a legacy
+// ConfigPath returns the absolute path to ~/.laf-office/config.json, with a legacy
 // fallback to ~/.nex/config.json when the old file already exists.
 func ConfigPath() string {
 	// Env override for test harnesses that need to isolate config state from
-	// the user's real ~/.wuphf/config.json without remapping HOME (which
+	// the user's real ~/.laf-office/config.json without remapping HOME (which
 	// breaks macOS keychain-backed CLI auth).
-	if p := strings.TrimSpace(os.Getenv("WUPHF_CONFIG_PATH")); p != "" {
+	if p := strings.TrimSpace(os.Getenv("LAF_OFFICE_CONFIG_PATH")); p != "" {
 		return p
 	}
 	home := RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".wuphf", "config.json")
+		return filepath.Join(".laf-office", "config.json")
 	}
-	newPath := filepath.Join(home, ".wuphf", "config.json")
+	newPath := filepath.Join(home, ".laf-office", "config.json")
 	legacyPath := filepath.Join(home, ".nex", "config.json")
 	if _, err := os.Stat(newPath); err == nil {
 		return newPath
@@ -128,14 +128,14 @@ func ConfigPath() string {
 }
 
 // BaseURL returns the resolved base URL.
-// Priority: WUPHF_DEV_URL env > NEX_DEV_URL env > config dev_url > production default.
+// Priority: LAF_OFFICE_DEV_URL env > NEX_DEV_URL env > config dev_url > production default.
 //
 // Note: as of the nex-cli migration, BaseURL is only used by the legacy
 // developer API client surface (api.Client) which still backs the workflow
 // engine's /v1/insights and /v1/context/ask calls. New Nex integrations
 // should shell out via the internal/nex package instead.
 func BaseURL() string {
-	if v := os.Getenv("WUPHF_DEV_URL"); v != "" {
+	if v := os.Getenv("LAF_OFFICE_DEV_URL"); v != "" {
 		return v
 	}
 	if v := os.Getenv("NEX_DEV_URL"); v != "" {
@@ -188,7 +188,7 @@ func Save(cfg Config) error {
 
 // ResolveNoNex reports whether Nex-backed tools are disabled for this run.
 func ResolveNoNex() bool {
-	v := strings.TrimSpace(os.Getenv("WUPHF_NO_NEX"))
+	v := strings.TrimSpace(os.Getenv("LAF_OFFICE_NO_NEX"))
 	if v == "" {
 		return false
 	}
@@ -215,7 +215,7 @@ func NormalizeMemoryBackend(value string) string {
 // Resolution: flag/env override > config file > default.
 //
 // Defaults:
-//   - `markdown` (git-native team wiki at ~/.wuphf/wiki) — the advertised
+//   - `markdown` (git-native team wiki at ~/.laf-office/wiki) — the advertised
 //     "file-over-app, git-clone-able" default. Zero config, zero API keys.
 //   - `none` when --no-nex is set and the user hasn't picked a non-Nex
 //     backend in the wizard (preserved for backwards compat with the old
@@ -226,7 +226,7 @@ func NormalizeMemoryBackend(value string) string {
 func ResolveMemoryBackend(flagValue string) string {
 	backend := NormalizeMemoryBackend(flagValue)
 	if backend == "" {
-		backend = NormalizeMemoryBackend(os.Getenv("WUPHF_MEMORY_BACKEND"))
+		backend = NormalizeMemoryBackend(os.Getenv("LAF_OFFICE_MEMORY_BACKEND"))
 	}
 	if backend == "" {
 		cfg, _ := Load()
@@ -262,7 +262,7 @@ func ResolveLLMProvider(flagValue string) string {
 	if v := normalizeLLMProvider(flagValue); v != "" {
 		return v
 	}
-	if v := normalizeLLMProvider(os.Getenv("WUPHF_LLM_PROVIDER")); v != "" {
+	if v := normalizeLLMProvider(os.Getenv("LAF_OFFICE_LLM_PROVIDER")); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -273,7 +273,7 @@ func ResolveLLMProvider(flagValue string) string {
 }
 
 // allowedLLMProviderKinds is the set of values normalizeLLMProvider accepts
-// for --provider, WUPHF_LLM_PROVIDER, and the config file. claude-code and
+// for --provider, LAF_OFFICE_LLM_PROVIDER, and the config file. claude-code and
 // codex are baked in for backward compatibility and standalone config tests
 // (which don't import the provider package). Additional kinds are registered
 // at init() time by their provider implementation via AllowLLMProviderKind —
@@ -318,9 +318,9 @@ var codexModelLinePattern = regexp.MustCompile(`(?m)^\s*model\s*=\s*("([^"\\]|\\
 
 // ResolveCodexModel returns the effective Codex model for the current working
 // directory, following the documented Codex config layering:
-// WUPHF_CODEX_MODEL/CODEX_MODEL env > nearest .codex/config.toml > ~/.codex/config.toml.
+// LAF_OFFICE_CODEX_MODEL/CODEX_MODEL env > nearest .codex/config.toml > ~/.codex/config.toml.
 func ResolveCodexModel(cwd string) string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_CODEX_MODEL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_CODEX_MODEL")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("CODEX_MODEL")); v != "" {
@@ -388,12 +388,12 @@ func codexModelFromFile(path string) string {
 }
 
 // ResolveOpencodeModel returns the effective Opencode model for the current
-// run. Resolution: WUPHF_OPENCODE_MODEL env > OPENCODE_MODEL env > empty (Opencode
+// run. Resolution: LAF_OFFICE_OPENCODE_MODEL env > OPENCODE_MODEL env > empty (Opencode
 // picks its configured default). Unlike Codex, Opencode has no on-disk config
-// file layout WUPHF needs to inspect — users configure their Opencode
+// file layout LAF-Office needs to inspect — users configure their Opencode
 // ~/.config/opencode settings directly, so there is no cwd-relative search.
 func ResolveOpencodeModel() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_OPENCODE_MODEL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCODE_MODEL")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("OPENCODE_MODEL")); v != "" {
@@ -402,7 +402,7 @@ func ResolveOpencodeModel() string {
 	return ""
 }
 
-// ResolveAPIKey resolves the API key via: flag > WUPHF_API_KEY env > NEX_API_KEY env > config file.
+// ResolveAPIKey resolves the API key via: flag > LAF_OFFICE_API_KEY env > NEX_API_KEY env > config file.
 func ResolveAPIKey(flagValue string) string {
 	if ResolveNoNex() {
 		return ""
@@ -410,7 +410,7 @@ func ResolveAPIKey(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	if v := os.Getenv("WUPHF_API_KEY"); v != "" {
+	if v := os.Getenv("LAF_OFFICE_API_KEY"); v != "" {
 		return v
 	}
 	if v := os.Getenv("NEX_API_KEY"); v != "" {
@@ -422,12 +422,12 @@ func ResolveAPIKey(flagValue string) string {
 
 // ResolveOneSecret resolves the Nex-managed One secret.
 // One is disabled entirely when Nex is disabled for the session.
-// Resolution: WUPHF_ONE_SECRET env > ONE_SECRET env > config file.
+// Resolution: LAF_OFFICE_ONE_SECRET env > ONE_SECRET env > config file.
 func ResolveOneSecret() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("WUPHF_ONE_SECRET")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_SECRET")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ONE_SECRET")); v != "" {
@@ -437,13 +437,13 @@ func ResolveOneSecret() string {
 	return strings.TrimSpace(cfg.OneAPIKey)
 }
 
-// ResolveOneIdentity resolves the identity scope WUPHF should use with One.
-// Resolution: WUPHF_ONE_IDENTITY env > ONE_IDENTITY env > config email.
+// ResolveOneIdentity resolves the identity scope LAF-Office should use with One.
+// Resolution: LAF_OFFICE_ONE_IDENTITY env > ONE_IDENTITY env > config email.
 func ResolveOneIdentity() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("WUPHF_ONE_IDENTITY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_IDENTITY")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ONE_IDENTITY")); v != "" {
@@ -454,12 +454,12 @@ func ResolveOneIdentity() string {
 }
 
 // ResolveOneIdentityType resolves the One identity type.
-// Resolution: WUPHF_ONE_IDENTITY_TYPE env > ONE_IDENTITY_TYPE env > "user".
+// Resolution: LAF_OFFICE_ONE_IDENTITY_TYPE env > ONE_IDENTITY_TYPE env > "user".
 func ResolveOneIdentityType() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("WUPHF_ONE_IDENTITY_TYPE")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_IDENTITY_TYPE")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ONE_IDENTITY_TYPE")); v != "" {
@@ -493,22 +493,22 @@ func OneSetupSummary() string {
 // OneSetupBlurb is the user-facing copy for setup and config surfaces.
 func OneSetupBlurb() string {
 	if ResolveNoNex() {
-		return "Nex is disabled for this session, so WUPHF-managed integrations are disabled too."
+		return "Nex is disabled for this session, so LAF-Office-managed integrations are disabled too."
 	}
 	email := ResolveOneIdentity()
 	if email != "" {
-		return fmt.Sprintf("WUPHF uses One for integrations and manages it automatically with your Nex email (%s).", email)
+		return fmt.Sprintf("LAF-Office uses One for integrations and manages it automatically with your Nex email (%s).", email)
 	}
-	return "WUPHF uses One for integrations and will manage it automatically once Nex setup is complete."
+	return "LAF-Office uses One for integrations and will manage it automatically once Nex setup is complete."
 }
 
 // ResolveComposioAPIKey resolves the Composio API key.
-// Resolution: WUPHF_COMPOSIO_API_KEY env > COMPOSIO_API_KEY env > config file.
+// Resolution: LAF_OFFICE_COMPOSIO_API_KEY env > COMPOSIO_API_KEY env > config file.
 func ResolveComposioAPIKey() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("WUPHF_COMPOSIO_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_COMPOSIO_API_KEY")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("COMPOSIO_API_KEY")); v != "" {
@@ -520,7 +520,7 @@ func ResolveComposioAPIKey() string {
 
 // ResolveTelegramBotToken returns the stored Telegram bot token from config.
 func ResolveTelegramBotToken() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_TELEGRAM_BOT_TOKEN")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_TELEGRAM_BOT_TOKEN")); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -559,9 +559,9 @@ func CompanyContextBlock() string {
 }
 
 // ResolveGeminiAPIKey resolves the Gemini API key.
-// Resolution: WUPHF_GEMINI_API_KEY env > GEMINI_API_KEY env > config file.
+// Resolution: LAF_OFFICE_GEMINI_API_KEY env > GEMINI_API_KEY env > config file.
 func ResolveGeminiAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_GEMINI_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_GEMINI_API_KEY")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("GEMINI_API_KEY")); v != "" {
@@ -572,9 +572,9 @@ func ResolveGeminiAPIKey() string {
 }
 
 // ResolveAnthropicAPIKey resolves the Anthropic API key.
-// Resolution: WUPHF_ANTHROPIC_API_KEY env > ANTHROPIC_API_KEY env > config file.
+// Resolution: LAF_OFFICE_ANTHROPIC_API_KEY env > ANTHROPIC_API_KEY env > config file.
 func ResolveAnthropicAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_ANTHROPIC_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ANTHROPIC_API_KEY")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")); v != "" {
@@ -585,9 +585,9 @@ func ResolveAnthropicAPIKey() string {
 }
 
 // ResolveOpenAIAPIKey resolves the OpenAI API key.
-// Resolution: WUPHF_OPENAI_API_KEY env > OPENAI_API_KEY env > config file.
+// Resolution: LAF_OFFICE_OPENAI_API_KEY env > OPENAI_API_KEY env > config file.
 func ResolveOpenAIAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_OPENAI_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENAI_API_KEY")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("OPENAI_API_KEY")); v != "" {
@@ -598,9 +598,9 @@ func ResolveOpenAIAPIKey() string {
 }
 
 // ResolveMinimaxAPIKey resolves the Minimax API key.
-// Resolution: WUPHF_MINIMAX_API_KEY env > MINIMAX_API_KEY env > config file.
+// Resolution: LAF_OFFICE_MINIMAX_API_KEY env > MINIMAX_API_KEY env > config file.
 func ResolveMinimaxAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_MINIMAX_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_MINIMAX_API_KEY")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("MINIMAX_API_KEY")); v != "" {
@@ -610,13 +610,13 @@ func ResolveMinimaxAPIKey() string {
 	return strings.TrimSpace(cfg.MinimaxAPIKey)
 }
 
-// ResolveComposioUserID resolves the Composio user identity WUPHF should use.
-// Resolution: WUPHF_COMPOSIO_USER_ID env > COMPOSIO_USER_ID env > config email.
+// ResolveComposioUserID resolves the Composio user identity LAF-Office should use.
+// Resolution: LAF_OFFICE_COMPOSIO_USER_ID env > COMPOSIO_USER_ID env > config email.
 func ResolveComposioUserID() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("WUPHF_COMPOSIO_USER_ID")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_COMPOSIO_USER_ID")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("COMPOSIO_USER_ID")); v != "" {
@@ -627,9 +627,9 @@ func ResolveComposioUserID() string {
 }
 
 // ResolveActionProvider resolves the preferred external action provider.
-// Resolution: WUPHF_ACTION_PROVIDER env > ACTION_PROVIDER env > config file > auto.
+// Resolution: LAF_OFFICE_ACTION_PROVIDER env > ACTION_PROVIDER env > config file > auto.
 func ResolveActionProvider() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_ACTION_PROVIDER")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ACTION_PROVIDER")); v != "" {
 		return strings.ToLower(v)
 	}
 	if v := strings.TrimSpace(os.Getenv("ACTION_PROVIDER")); v != "" {
@@ -690,7 +690,7 @@ func PersistRegistration(data map[string]interface{}) error {
 
 func ResolveInsightsPollInterval() int {
 	minutes := 15
-	if raw := os.Getenv("WUPHF_INSIGHTS_INTERVAL_MINUTES"); raw != "" {
+	if raw := os.Getenv("LAF_OFFICE_INSIGHTS_INTERVAL_MINUTES"); raw != "" {
 		if n, err := strconv.Atoi(raw); err == nil {
 			minutes = n
 		}
@@ -709,7 +709,7 @@ func ResolveInsightsPollInterval() int {
 
 func ResolveTaskFollowUpInterval() int {
 	return resolveTaskInterval(
-		"WUPHF_TASK_FOLLOWUP_MINUTES",
+		"LAF_OFFICE_TASK_FOLLOWUP_MINUTES",
 		"NEX_TASK_FOLLOWUP_MINUTES",
 		func(cfg Config) int { return cfg.TaskFollowUpMinutes },
 		60,
@@ -718,7 +718,7 @@ func ResolveTaskFollowUpInterval() int {
 
 func ResolveTaskReminderInterval() int {
 	return resolveTaskInterval(
-		"WUPHF_TASK_REMINDER_MINUTES",
+		"LAF_OFFICE_TASK_REMINDER_MINUTES",
 		"NEX_TASK_REMINDER_MINUTES",
 		func(cfg Config) int { return cfg.TaskReminderMinutes },
 		30,
@@ -727,7 +727,7 @@ func ResolveTaskReminderInterval() int {
 
 func ResolveTaskRecheckInterval() int {
 	return resolveTaskInterval(
-		"WUPHF_TASK_RECHECK_MINUTES",
+		"LAF_OFFICE_TASK_RECHECK_MINUTES",
 		"NEX_TASK_RECHECK_MINUTES",
 		func(cfg Config) int { return cfg.TaskRecheckMinutes },
 		15,
@@ -755,7 +755,7 @@ func resolveTaskInterval(envKey, legacyEnvKey string, fromConfig func(Config) in
 
 // ResolveOpenclawToken returns the OpenClaw gateway auth token from env > config.
 func ResolveOpenclawToken() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_OPENCLAW_TOKEN")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_TOKEN")); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -764,7 +764,7 @@ func ResolveOpenclawToken() string {
 
 // ResolveOpenclawGatewayURL returns the OpenClaw gateway URL from env > config > default loopback.
 func ResolveOpenclawGatewayURL() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_OPENCLAW_GATEWAY_URL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_GATEWAY_URL")); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -777,14 +777,14 @@ func ResolveOpenclawGatewayURL() string {
 // ResolveOpenclawIdentityPath returns where the Ed25519 device identity is
 // persisted. OpenClaw's gateway requires device-pair auth — token alone grants
 // zero scopes — so this keypair is effectively credentials: write only to a
-// user-scoped 0600 file under the WUPHF home.
+// user-scoped 0600 file under the LAF-Office home.
 func ResolveOpenclawIdentityPath() string {
-	if v := strings.TrimSpace(os.Getenv("WUPHF_OPENCLAW_IDENTITY_PATH")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_IDENTITY_PATH")); v != "" {
 		return v
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".wuphf", "openclaw", "identity.json")
+		return filepath.Join(".laf-office", "openclaw", "identity.json")
 	}
-	return filepath.Join(home, ".wuphf", "openclaw", "identity.json")
+	return filepath.Join(home, ".laf-office", "openclaw", "identity.json")
 }

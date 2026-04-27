@@ -57,7 +57,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 // ---------------------------------------------------------------------------
@@ -359,7 +359,7 @@ type query struct {
 // ---------------------------------------------------------------------------
 
 func artifactSHA(i int) string {
-	h := sha256.Sum256([]byte(fmt.Sprintf("wuphf-bench-slice-1/artifact/%04d", i)))
+	h := sha256.Sum256([]byte(fmt.Sprintf("laf-office-bench-slice-1/artifact/%04d", i)))
 	return hex.EncodeToString(h[:])[:16]
 }
 

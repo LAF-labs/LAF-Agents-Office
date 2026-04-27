@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 // Bug reproduced by scripts/debug-tagging/run.sh with HIRE_SLUG=qa-spec:

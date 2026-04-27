@@ -5,8 +5,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // ManagedAgent wraps an AgentLoop with its config and last-known state.

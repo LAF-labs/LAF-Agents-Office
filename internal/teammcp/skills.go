@@ -12,7 +12,7 @@ import (
 type TeamSkillRunArgs struct {
 	SkillName string `json:"skill_name" jsonschema:"Name of the skill to run (slug, e.g. 'investigate', 'daily-digest')"`
 	Channel   string `json:"channel,omitempty" jsonschema:"Optional channel slug to log the invocation into. Defaults to the active conversation channel."`
-	MySlug    string `json:"my_slug,omitempty" jsonschema:"Agent slug invoking the skill. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug    string `json:"my_slug,omitempty" jsonschema:"Agent slug invoking the skill. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 // TeamSkillCreateArgs are the inputs for the team_skill_create tool.
@@ -25,7 +25,7 @@ type TeamSkillCreateArgs struct {
 	Tags        []string `json:"tags,omitempty" jsonschema:"Optional tags such as engineering, ops, launch"`
 	Action      string   `json:"action" jsonschema:"Required: propose or create. Any agent may propose; only CEO may create an active skill immediately."`
 	Channel     string   `json:"channel,omitempty" jsonschema:"Optional channel slug to log the proposal into. Defaults to the active conversation channel."`
-	MySlug      string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the skill. Defaults to WUPHF_AGENT_SLUG."`
+	MySlug      string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the skill. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 // brokerSkillResponse mirrors the JSON shape returned by
@@ -48,7 +48,7 @@ type brokerSkillResponse struct {
 func registerSkillAuthoringTools(server *mcp.Server) {
 	mcp.AddTool(server, officeWriteTool(
 		"team_skill_create",
-		"Create or propose a durable WUPHF skill through structured fields instead of a prose block. Any agent may use action=propose to queue human approval. Only CEO may use action=create to activate immediately when the human explicitly asked to create or activate the skill.",
+		"Create or propose a durable LAF-Office skill through structured fields instead of a prose block. Any agent may use action=propose to queue human approval. Only CEO may use action=create to activate immediately when the human explicitly asked to create or activate the skill.",
 	), handleTeamSkillCreate)
 }
 

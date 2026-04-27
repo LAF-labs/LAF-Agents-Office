@@ -53,8 +53,8 @@ describe("per-channel composer history", () => {
   });
 
   it("uses a stable key shape", () => {
-    expect(historyKey("eng")).toBe("wuphf:composer-history:eng");
-    expect(historyKey("")).toBe("wuphf:composer-history:general");
+    expect(historyKey("eng")).toBe("laf-office:composer-history:eng");
+    expect(historyKey("")).toBe("laf-office:composer-history:general");
   });
 
   it("handles corrupt JSON gracefully", () => {

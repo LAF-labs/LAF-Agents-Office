@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const composioWorkflowVersion = "wuphf_workflow_v1"
+const composioWorkflowVersion = "laf_office_workflow_v1"
 
 type composioWorkflowDefinition struct {
 	Version     string         `json:"version,omitempty"`

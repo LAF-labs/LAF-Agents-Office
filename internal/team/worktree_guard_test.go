@@ -20,7 +20,7 @@ import (
 //   - The two vars are stubbed so indirect callers (e.g. EnsureTask →
 //     syncTaskWorktreeLocked → prepareTaskWorktree on a coding-agent
 //     task) get a deterministic fake path + branch instead of
-//     registering a worktree against the developer's wuphf repo.
+//     registering a worktree against the developer's laf-office repo.
 //
 // Tests that legitimately need the real prepare/cleanup codepath (the
 // three cases in worktree_test.go that build a tempdir-scoped repo and
@@ -35,25 +35,25 @@ func init() {
 	cleanupTaskWorktree = stubCleanupTaskWorktree
 	skipBrokerStateLoadOnConstruct = true
 
-	// Pin WUPHF_RUNTIME_HOME into a process-lifetime leaked tempdir so
+	// Pin LAF_OFFICE_RUNTIME_HOME into a process-lifetime leaked tempdir so
 	// any test that constructs a Broker without its own isolation setup
-	// falls back to /tmp instead of the developer's real ~/.wuphf.
+	// falls back to /tmp instead of the developer's real ~/.laf-office.
 	// defaultBrokerStatePath() consults this env var, so broker state
 	// files created by unisolated tests land under a leaked temp dir.
 	// Leaked (not t.TempDir) so late writes from goroutines a test
 	// failed to stop don't race on a directory being deleted.
-	runtimeHome, err := os.MkdirTemp("", "wuphf-test-runtime-home-*")
+	runtimeHome, err := os.MkdirTemp("", "laf-office-test-runtime-home-*")
 	if err != nil {
 		panic(fmt.Sprintf("worktree_guard_test init: mktemp runtime home: %v", err))
 	}
-	if err := os.Setenv("WUPHF_RUNTIME_HOME", runtimeHome); err != nil {
-		panic(fmt.Sprintf("worktree_guard_test init: setenv WUPHF_RUNTIME_HOME: %v", err))
+	if err := os.Setenv("LAF_OFFICE_RUNTIME_HOME", runtimeHome); err != nil {
+		panic(fmt.Sprintf("worktree_guard_test init: setenv LAF_OFFICE_RUNTIME_HOME: %v", err))
 	}
 }
 
 func stubPrepareTaskWorktree(taskID string) (string, string, error) {
 	// Share stubTaskWorktreePath with DisableRealTaskWorktreeForTests so
-	// both stubs emit the same `<root>/.wuphf/task-worktrees/<repoToken>/wuphf-task-<id>`
+	// both stubs emit the same `<root>/.laf-office/task-worktrees/<repoToken>/laf-office-task-<id>`
 	// shape — downstream assertions on the path format stay consistent.
 	path, branch := stubTaskWorktreePath(taskID)
 	return path, branch, nil

@@ -18,7 +18,7 @@ import (
 // Config configures a Client.
 type Config struct {
 	URL         string          // e.g. ws://127.0.0.1:18789 or wss://host:18789
-	Token       string          // shared secret (from wuphf config or env)
+	Token       string          // shared secret (from laf-office config or env)
 	Identity    *DeviceIdentity // required — OpenClaw grants zero scopes without device auth
 	UserAgent   string          // optional
 	DialTimeout time.Duration
@@ -120,7 +120,7 @@ const (
 	clientIDBackend     = "gateway-client"
 	clientModeBackend   = "backend"
 	connectRole         = "operator"
-	connectDeviceFamily = "wuphf"
+	connectDeviceFamily = "laf-office"
 	connectScopeAdmin   = "operator.admin"
 	supportedProtocol   = 3
 )

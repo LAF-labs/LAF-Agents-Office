@@ -20,7 +20,7 @@ const (
 	// After paneCaptureMaxFailures in a row, the pane is probably gone (office
 	// reseed rebuilt tmux, pane crashed, etc.). Instead of giving up forever,
 	// sleep this long then re-resolve the current pane target from the launcher
-	// and try again. Users running wuphf for hours see office reseeds and panes
+	// and try again. Users running laf-office for hours see office reseeds and panes
 	// should recover without restarting the whole office. If the target is still
 	// stale after the long sleep, we repeat — cheaper than dropping the agent's
 	// live-stream feed.

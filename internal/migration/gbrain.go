@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/gbrain"
+	"github.com/nex-crm/laf-office/internal/gbrain"
 )
 
 // gbrainListPageSize is the page size requested from list_pages. Keeping

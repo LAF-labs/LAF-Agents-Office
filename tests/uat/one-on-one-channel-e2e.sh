@@ -1,37 +1,37 @@
 #!/bin/bash
 set -euo pipefail
 
-SOCKET="/tmp/wuphf-1o1-$$.sock"
+SOCKET="/tmp/laf-office-1o1-$$.sock"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BINARY="$ROOT/wuphf"
+BINARY="$ROOT/laf-office"
 ARTIFACTS="$ROOT/termwright-artifacts/one-on-one-channel-$(date +%Y%m%d-%H%M%S)"
-TEST_HOME="$(mktemp -d /tmp/wuphf-1o1-home-XXXXXX)"
+TEST_HOME="$(mktemp -d /tmp/laf-office-1o1-home-XXXXXX)"
 mkdir -p "$ARTIFACTS"
 export HOME="$TEST_HOME"
 
-WUPHF_PID=""
+LAF_OFFICE_PID=""
 PHASE=""
 
 cleanup() {
   pkill -f "termwright daemon.*$SOCKET" 2>/dev/null || true
   rm -f "$SOCKET"
   "$BINARY" kill >/dev/null 2>&1 || true
-  tmux -L wuphf kill-server >/dev/null 2>&1 || true
-  pkill -x wuphf >/dev/null 2>&1 || true
+  tmux -L laf-office kill-server >/dev/null 2>&1 || true
+  pkill -x laf-office >/dev/null 2>&1 || true
   if command -v lsof >/dev/null 2>&1; then
     lsof -i :7890 -t 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
   fi
-  if [ -n "${WUPHF_PID:-}" ]; then
-    kill "$WUPHF_PID" >/dev/null 2>&1 || true
-    wait "$WUPHF_PID" 2>/dev/null || true
+  if [ -n "${LAF_OFFICE_PID:-}" ]; then
+    kill "$LAF_OFFICE_PID" >/dev/null 2>&1 || true
+    wait "$LAF_OFFICE_PID" 2>/dev/null || true
   fi
-  rm -f /tmp/wuphf-broker-token
+  rm -f /tmp/laf-office-broker-token
   rm -rf "$TEST_HOME"
 }
 trap cleanup EXIT
 
 if [ ! -x "$BINARY" ]; then
-  echo "SKIP: wuphf binary not found at $BINARY"
+  echo "SKIP: laf-office binary not found at $BINARY"
   exit 0
 fi
 
@@ -143,7 +143,7 @@ wait_for_pane_count() {
   local pane_file="$ARTIFACTS/$label.txt"
 
   for _ in 1 2 3 4 5 6 7 8 9 10; do
-    tmux -L wuphf list-panes -t wuphf-team:team -F '#{pane_index} #{pane_dead} #{pane_title} #{pane_current_command}' > "$pane_file" || true
+    tmux -L laf-office list-panes -t laf-office-team:team -F '#{pane_index} #{pane_dead} #{pane_title} #{pane_current_command}' > "$pane_file" || true
     local count
     count=$(wc -l < "$pane_file" | tr -d ' ')
     if [ "$count" = "$expected" ] && awk '{ if ($2 != 0) bad=1 } END { exit bad }' "$pane_file"; then
@@ -162,12 +162,12 @@ start_runtime() {
   shift
 
   cleanup
-  "$BINARY" --no-nex "$@" > "$ARTIFACTS/$PHASE-wuphf-stdout.txt" 2> "$ARTIFACTS/$PHASE-wuphf-stderr.txt" &
-  WUPHF_PID=$!
+  "$BINARY" --no-nex "$@" > "$ARTIFACTS/$PHASE-laf-office-stdout.txt" 2> "$ARTIFACTS/$PHASE-laf-office-stderr.txt" &
+  LAF_OFFICE_PID=$!
   sleep 8
   local attached=false
   for _ in 1 2 3; do
-    if termwright daemon --socket "$SOCKET" --cols 120 --rows 40 --background -- tmux -L wuphf attach -t wuphf-team >/dev/null 2>&1; then
+    if termwright daemon --socket "$SOCKET" --cols 120 --rows 40 --background -- tmux -L laf-office attach -t laf-office-team >/dev/null 2>&1; then
       attached=true
       break
     fi
@@ -192,7 +192,7 @@ wait_for_health "1o1" "pm" "phase1-health"
 wait_for_pane_count 2 "phase1-panes"
 assert_screen_contains "1:1 with Product Manager" "phase1-boot"
 assert_screen_contains "Talk directly to your agent here..." "phase1-boot"
-assert_screen_not_contains "The WUPHF Office" "phase1-boot"
+assert_screen_not_contains "Welcome to LAF-Office" "phase1-boot"
 assert_screen_not_contains "Channels" "phase1-boot"
 
 send_raw "/"
@@ -225,7 +225,7 @@ wait_for_health "1o1" "pm" "phase3-health"
 wait_for_pane_count 2 "phase3-panes"
 assert_screen_contains "1:1 with Product Manager" "phase3-screen"
 
-TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null || echo "")
+TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null || echo "")
 if [ -z "$TOKEN" ]; then
   echo "FAIL: missing broker token"
   exit 1
@@ -265,7 +265,7 @@ assert_screen_contains "Return To Main Office" "phase5-confirm"
 send_enter
 wait_for_health "office" "ceo" "phase5-health"
 wait_for_pane_count 6 "phase5-panes"
-assert_screen_contains "The WUPHF Office" "phase5-screen"
+assert_screen_contains "LAF-Office" "phase5-screen"
 assert_screen_contains "Message #general" "phase5-screen"
 assert_screen_not_contains "1:1 with Product Manager" "phase5-screen"
 
@@ -275,12 +275,12 @@ send_enter
 wait_for_health "1o1" "be" "phase6-health"
 wait_for_pane_count 2 "phase6-panes"
 assert_screen_contains "1:1 with Backend Engineer" "phase6-screen"
-assert_screen_not_contains "The WUPHF Office" "phase6-screen"
+assert_screen_not_contains "Welcome to LAF-Office" "phase6-screen"
 
 echo "--- Phase 7: Fresh default launch returns to office ---"
 start_runtime "phase7"
 wait_for_health "office" "ceo" "phase7-health"
-assert_screen_contains "The WUPHF Office" "phase7-screen"
+assert_screen_contains "LAF-Office" "phase7-screen"
 assert_screen_contains "Message #general" "phase7-screen"
 assert_screen_not_contains "1:1 with Backend Engineer" "phase7-screen"
 

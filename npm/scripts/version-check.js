@@ -1,13 +1,13 @@
 "use strict";
 
-// Queries npm for the published `latest` wuphf version, with a 24h on-disk
+// Queries npm for the published `latest` laf-office version, with a 24h on-disk
 // cache so we don't hammer the registry on every CLI invocation.
 //
-// Why this exists: `npm install -g wuphf` does not auto-upgrade. A user who
+// Why this exists: `npm install -g laf-office` does not auto-upgrade. A user who
 // installed weeks ago runs their old binary forever unless they manually
-// re-install. The shim in bin/wuphf.js uses this to transparently serve the
+// re-install. The shim in bin/laf-office.js uses this to transparently serve the
 // *latest* release from a verified cache while pointing the user at a real
-// fix (`npm install -g wuphf@latest`). See bin/wuphf.js for how the result
+// fix (`npm install -g laf-office@latest`). See bin/laf-office.js for how the result
 // feeds into ensureBinary().
 //
 // Contract:
@@ -25,7 +25,7 @@ const fsp = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
 
-const REGISTRY_URL = "https://registry.npmjs.org/wuphf/latest";
+const REGISTRY_URL = "https://registry.npmjs.org/laf-office/latest";
 // Generous enough to survive a cold TLS handshake on a slow network but
 // short enough to not stall the CLI noticeably. Only runs once per 24h
 // per user because the result is cached on disk.
@@ -33,9 +33,9 @@ const FETCH_TIMEOUT_MS = 3000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 function cacheDir() {
-  // Sits under ~/.wuphf so HOME-override dev environments (see
+  // Sits under ~/.laf-office so HOME-override dev environments (see
   // docs/LOCAL-DEV-PROD-ISOLATION.md) get a separate cache from prod.
-  return path.join(os.homedir(), ".wuphf", "cache");
+  return path.join(os.homedir(), ".laf-office", "cache");
 }
 
 function latestVersionCachePath() {

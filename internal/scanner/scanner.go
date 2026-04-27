@@ -5,7 +5,7 @@ package scanner
 // and the on-disk manifest (scanner_manifest.go) into a single API the
 // HTTP handler wires up.
 //
-// Port of nex-cli's ts/src/lib/file-scanner.ts, adapted for WUPHF:
+// Port of nex-cli's ts/src/lib/file-scanner.ts, adapted for LAF-Office:
 //
 //   - Symlinks are NOT followed (eng-review v1.1 divergence).
 //   - Extension allowlist defaults to prose formats, overridable via env.
@@ -25,11 +25,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // ScannerSlug is the reserved git identity for scanner-authored commits.
-// Distinct from wuphf-bootstrap / wuphf-recovery / system so audit tools
+// Distinct from laf-office-bootstrap / laf-office-recovery / system so audit tools
 // can filter scanner ingestion out of human-authored history.
 const ScannerSlug = "scanner"
 
@@ -331,12 +331,12 @@ func rootAlreadyScanned(detector ChangeDetector, root string) bool {
 	return mt.HasRoot(root)
 }
 
-// ScannerWikiRoot returns the wiki root honouring WUPHF_RUNTIME_HOME so
-// dev runs stay isolated from the prod ~/.wuphf.
+// ScannerWikiRoot returns the wiki root honouring LAF_OFFICE_RUNTIME_HOME so
+// dev runs stay isolated from the prod ~/.laf-office.
 func ScannerWikiRoot() string {
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".wuphf", "wiki")
+		return filepath.Join(".laf-office", "wiki")
 	}
-	return filepath.Join(home, ".wuphf", "wiki")
+	return filepath.Join(home, ".laf-office", "wiki")
 }

@@ -1,5 +1,5 @@
 session:
-  command: ./wuphf
+  command: ./laf-office
   cols: 120
   rows: 40
 artifacts:

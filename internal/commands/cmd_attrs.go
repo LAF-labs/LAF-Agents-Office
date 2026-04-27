@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/nex-crm/wuphf/internal/api"
+	"github.com/nex-crm/laf-office/internal/api"
 )
 
 func cmdAttribute(ctx *SlashContext, args string) error {

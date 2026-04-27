@@ -123,7 +123,7 @@ const messages = {
     "settings.company.save": "Save company info",
     "settings.keys.title": "API Keys",
     "settings.keys.desc":
-      "Authentication credentials for external services. Keys are stored in your local config file and never transmitted to WUPHF servers. Enter a new value to update, or leave blank to keep the current key.",
+      "Authentication credentials for external services. Keys are stored in your local config file and never transmitted to LAF-Office servers. Enter a new value to update, or leave blank to keep the current key.",
     "settings.keys.env": "Env:",
     "settings.keys.noKeys":
       "No keys entered. Leave blank to keep existing keys.",
@@ -159,7 +159,7 @@ const messages = {
     "settings.intervals.save": "Save intervals",
     "settings.flags.title": "CLI Flags",
     "settings.flags.desc":
-      "All flags available when launching wuphf from the terminal. These are runtime-only and not persisted in the config file.",
+      "All flags available when launching laf-office from the terminal. These are runtime-only and not persisted in the config file.",
     "settings.flags.flag": "Flag",
     "settings.flags.description": "Description",
     "settings.flags.envGroup": "Environment Variables",
@@ -276,7 +276,7 @@ const messages = {
     "app.receipts": "Receipts",
     "app.health-check": "Health Check",
     "app.settings": "Settings",
-    "auth.kicker": "WUPHF workspace",
+    "auth.kicker": "LAF-Office workspace",
     "auth.title": "Team access",
     "auth.desc":
       "Sign in to your local office, or create an account and choose a team before entering the workspace.",
@@ -297,12 +297,12 @@ const messages = {
     "auth.working": "Working...",
     "auth.createAccount": "Create account",
     "auth.failed": "Authentication failed",
-    "auth.aria": "WUPHF sign in",
-    "invite.kicker": "WUPHF invite",
+    "auth.aria": "LAF-Office sign in",
+    "invite.kicker": "LAF-Office invite",
     "invite.title": "Join the office",
     "invite.checking": "Checking invite...",
     "invite.done":
-      "You're in. Open the WUPHF office tab to start working with the team.",
+      "You're in. Open the LAF-Office tab to start working with the team.",
     "invite.openOffice": "Open office",
     "invite.notFound": "Invite not found",
     "invite.acceptFailed": "Could not accept invite",
@@ -427,7 +427,7 @@ const messages = {
     "settings.company.save": "회사 정보 저장",
     "settings.keys.title": "API 키",
     "settings.keys.desc":
-      "외부 서비스 인증 정보입니다. 키는 로컬 설정 파일에 저장되며 WUPHF 서버로 전송되지 않습니다. 새 값으로 업데이트하거나 비워 두면 기존 키를 유지합니다.",
+      "외부 서비스 인증 정보입니다. 키는 로컬 설정 파일에 저장되며 LAF-Office 서버로 전송되지 않습니다. 새 값으로 업데이트하거나 비워 두면 기존 키를 유지합니다.",
     "settings.keys.env": "환경 변수:",
     "settings.keys.noKeys":
       "입력한 키가 없습니다. 비워 두면 기존 키를 유지합니다.",
@@ -461,7 +461,7 @@ const messages = {
     "settings.intervals.save": "폴링 주기 저장",
     "settings.flags.title": "CLI 플래그",
     "settings.flags.desc":
-      "터미널에서 wuphf를 실행할 때 사용할 수 있는 모든 플래그입니다. 런타임 전용이며 설정 파일에 저장되지 않습니다.",
+      "터미널에서 laf-office를 실행할 때 사용할 수 있는 모든 플래그입니다. 런타임 전용이며 설정 파일에 저장되지 않습니다.",
     "settings.flags.flag": "플래그",
     "settings.flags.description": "설명",
     "settings.flags.envGroup": "환경 변수",
@@ -577,7 +577,7 @@ const messages = {
     "app.receipts": "영수증",
     "app.health-check": "헬스 체크",
     "app.settings": "설정",
-    "auth.kicker": "WUPHF 워크스페이스",
+    "auth.kicker": "LAF-Office 워크스페이스",
     "auth.title": "팀 접근",
     "auth.desc":
       "로컬 오피스에 로그인하거나 계정을 만들고 팀을 선택한 뒤 워크스페이스에 들어갑니다.",
@@ -598,12 +598,12 @@ const messages = {
     "auth.working": "처리 중...",
     "auth.createAccount": "계정 만들기",
     "auth.failed": "인증에 실패했습니다",
-    "auth.aria": "WUPHF 로그인",
-    "invite.kicker": "WUPHF 초대",
+    "auth.aria": "LAF-Office 로그인",
+    "invite.kicker": "LAF-Office 초대",
     "invite.title": "오피스 합류",
     "invite.checking": "초대를 확인하는 중...",
     "invite.done":
-      "합류했습니다. WUPHF 오피스를 열고 팀과 함께 일할 수 있습니다.",
+      "합류했습니다. LAF-Office 오피스를 열고 팀과 함께 일할 수 있습니다.",
     "invite.openOffice": "오피스 열기",
     "invite.notFound": "초대를 찾을 수 없습니다",
     "invite.acceptFailed": "초대를 수락하지 못했습니다",

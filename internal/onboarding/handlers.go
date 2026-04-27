@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // CompleteFunc is the side-effect hook invoked by HandleComplete when the
@@ -456,7 +456,7 @@ type blueprintTaskSummary struct {
 // Returns {"templates": [...]} in the shape the Wizard expects for its
 // blueprint picker. Passes "" to ListBlueprints when the filesystem walk
 // finds no repo — the loader falls back to the binary's embedded
-// templates (wired in the root wuphf package's init), so installs without
+// templates (wired in the root laf-office package's init), so installs without
 // a checkout still see the shipped blueprints.
 func HandleBlueprints(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

@@ -1,7 +1,7 @@
 package teammcp
 
 // notebook_tools.go defines the notebook_{write,read,list,search} MCP tools.
-// Registered only when WUPHF_MEMORY_BACKEND=markdown — notebooks are the
+// Registered only when LAF_OFFICE_MEMORY_BACKEND=markdown — notebooks are the
 // v1.1 per-agent draft workspace that sits on top of the wiki's git substrate.
 //
 // Tool shape (matches family of team_wiki_* tools):
@@ -27,7 +27,7 @@ import (
 
 // TeamNotebookWriteArgs is the contract for notebook_write.
 type TeamNotebookWriteArgs struct {
-	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG env."`
+	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
 	ArticlePath string `json:"article_path" jsonschema:"Path within wiki root — MUST be agents/{my_slug}/notebook/{filename}.md"`
 	Mode        string `json:"mode" jsonschema:"One of: create | replace | append_section"`
 	Content     string `json:"content" jsonschema:"Full entry content (create/replace) or new section text (append_section)"`
@@ -42,7 +42,7 @@ type TeamNotebookReadArgs struct {
 
 // TeamNotebookListArgs is the contract for notebook_list.
 type TeamNotebookListArgs struct {
-	TargetSlug string `json:"target_slug,omitempty" jsonschema:"Agent whose notebook to list. Defaults to WUPHF_AGENT_SLUG (your own)."`
+	TargetSlug string `json:"target_slug,omitempty" jsonschema:"Agent whose notebook to list. Defaults to LAF_OFFICE_AGENT_SLUG (your own)."`
 }
 
 // TeamNotebookSearchArgs is the contract for notebook_search.
@@ -56,7 +56,7 @@ type TeamNotebookSearchArgs struct {
 // canonical team wiki. Does NOT delete the source — the notebook entry is
 // preserved with a back-link frontmatter block once approved.
 type TeamNotebookPromoteArgs struct {
-	MySlug         string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG env."`
+	MySlug         string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
 	SourcePath     string `json:"source_path" jsonschema:"Notebook source path — MUST be agents/{my_slug}/notebook/{filename}.md"`
 	TargetWikiPath string `json:"target_wiki_path" jsonschema:"Proposed wiki path — MUST start with team/ and end in .md (e.g. team/playbooks/q2-launch.md)"`
 	Rationale      string `json:"rationale" jsonschema:"Why this entry is ready for promotion — the reviewer sees this as the commit message rationale."`
@@ -65,7 +65,7 @@ type TeamNotebookPromoteArgs struct {
 
 // registerNotebookTools attaches the 4 notebook tools to the MCP server.
 // Caller (configureServerTools, markdown branch) is responsible for gating on
-// WUPHF_MEMORY_BACKEND; this function does not re-check the env.
+// LAF_OFFICE_MEMORY_BACKEND; this function does not re-check the env.
 func registerNotebookTools(server *mcp.Server) {
 	mcp.AddTool(server, officeWriteTool(
 		"notebook_write",
@@ -164,7 +164,7 @@ func handleTeamNotebookList(ctx context.Context, _ *mcp.CallToolRequest, args Te
 		target = resolveSlugOptional("")
 	}
 	if target == "" {
-		return toolError(fmt.Errorf("target_slug is required (and WUPHF_AGENT_SLUG is not set)")), nil, nil
+		return toolError(fmt.Errorf("target_slug is required (and LAF_OFFICE_AGENT_SLUG is not set)")), nil, nil
 	}
 	var result struct {
 		Entries []map[string]any `json:"entries"`

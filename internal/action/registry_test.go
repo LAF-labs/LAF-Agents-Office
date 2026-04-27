@@ -58,7 +58,7 @@ func (p registryStubProvider) GetRelayEvent(context.Context, string) (RelayEvent
 }
 
 func TestRegistryPrefersOneForActionsInAutoMode(t *testing.T) {
-	t.Setenv("WUPHF_ACTION_PROVIDER", "auto")
+	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "auto")
 	registry := &Registry{
 		providers: []Provider{
 			registryStubProvider{
@@ -87,7 +87,7 @@ func TestRegistryPrefersOneForActionsInAutoMode(t *testing.T) {
 }
 
 func TestRegistryPrefersOneForWorkflowsInAutoMode(t *testing.T) {
-	t.Setenv("WUPHF_ACTION_PROVIDER", "auto")
+	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "auto")
 	registry := &Registry{
 		providers: []Provider{
 			registryStubProvider{
@@ -116,7 +116,7 @@ func TestRegistryPrefersOneForWorkflowsInAutoMode(t *testing.T) {
 }
 
 func TestRegistryFallsBackToComposioWhenOneMissing(t *testing.T) {
-	t.Setenv("WUPHF_ACTION_PROVIDER", "auto")
+	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "auto")
 	registry := &Registry{
 		providers: []Provider{
 			registryStubProvider{

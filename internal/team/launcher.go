@@ -1,5 +1,5 @@
-// Package team implements the WUPHF team launcher that starts a multi-agent
-// collaborative team using tmux + Claude Code + the WUPHF office broker.
+// Package team implements the LAF-Office team launcher that starts a multi-agent
+// collaborative team using tmux + Claude Code + the LAF-Office runtime broker.
 //
 // Architecture:
 //   - Each agent is a real Claude Code session in a tmux window
@@ -26,18 +26,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/action"
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/brokeraddr"
-	"github.com/nex-crm/wuphf/internal/calendar"
-	"github.com/nex-crm/wuphf/internal/company"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/nex"
-	"github.com/nex-crm/wuphf/internal/onboarding"
-	"github.com/nex-crm/wuphf/internal/operations"
-	"github.com/nex-crm/wuphf/internal/provider"
-	"github.com/nex-crm/wuphf/internal/runtimebin"
-	"github.com/nex-crm/wuphf/internal/setup"
+	"github.com/nex-crm/laf-office/internal/action"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/brokeraddr"
+	"github.com/nex-crm/laf-office/internal/calendar"
+	"github.com/nex-crm/laf-office/internal/company"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/nex"
+	"github.com/nex-crm/laf-office/internal/onboarding"
+	"github.com/nex-crm/laf-office/internal/operations"
+	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/nex-crm/laf-office/internal/runtimebin"
+	"github.com/nex-crm/laf-office/internal/setup"
 )
 
 const (
@@ -52,15 +52,15 @@ const (
 	// when a non-default broker port is configured, so concurrent prod, dev,
 	// and worktree launches cannot collide on a shared tmux socket or
 	// session name. See nameWithPortSuffix for the suffixing rule.
-	baseSessionName    = "wuphf-team"
-	baseTmuxSocketName = "wuphf"
+	baseSessionName    = "laf-office-team"
+	baseTmuxSocketName = "laf-office"
 )
 
 // SessionName and tmuxSocketName are derived at package init from the
 // broker port resolved via brokeraddr. On the default port they keep their
-// historical values ("wuphf-team", "wuphf"); on any non-default port they
+// historical values ("laf-office-team", "laf-office"); on any non-default port they
 // gain a "-<port>" suffix. This isolation is what prevents the
-// "spawn first agent: exit status 1" race seen when two WUPHF instances
+// "spawn first agent: exit status 1" race seen when two LAF-Office instances
 // tried to share a single tmux socket + session name.
 var (
 	SessionName    = nameWithPortSuffix(baseSessionName)
@@ -177,7 +177,7 @@ func isBlankSlateLaunchSlug(value string) bool {
 func NewLauncher(packSlug string) (*Launcher, error) {
 	cfg, _ := config.Load()
 	explicitPack := packSlug != "" // true when user passed --pack explicitly
-	blankSlateLaunch := isBlankSlateLaunchSlug(packSlug) || strings.TrimSpace(os.Getenv("WUPHF_START_FROM_SCRATCH")) == "1"
+	blankSlateLaunch := isBlankSlateLaunchSlug(packSlug) || strings.TrimSpace(os.Getenv("LAF_OFFICE_START_FROM_SCRATCH")) == "1"
 	if isBlankSlateLaunchSlug(packSlug) {
 		packSlug = ""
 	}
@@ -251,7 +251,7 @@ func NewLauncher(packSlug string) (*Launcher, error) {
 
 // isOnboarded reports whether the user has completed the onboarding wizard.
 // Any error loading state is treated as not-onboarded so a corrupt or
-// missing ~/.wuphf/onboarded.json still lets the web UI boot into the
+// missing ~/.laf-office/onboarded.json still lets the web UI boot into the
 // wizard rather than failing at preflight.
 func isOnboarded() bool {
 	s, err := onboarding.Load()
@@ -354,8 +354,8 @@ func (l *Launcher) Launch() error {
 	// Kill any existing session
 	_ = exec.Command("tmux", "-L", tmuxSocketName, "kill-session", "-t", l.sessionName).Run()
 
-	// Resolve wuphf binary path for the channel view
-	wuphfBinary, _ := os.Executable()
+	// Resolve laf-office binary path for the channel view
+	lafOfficeBinary, _ := os.Executable()
 	if err := os.MkdirAll(filepath.Dir(channelStderrLogPath()), 0o700); err != nil {
 		return fmt.Errorf("prepare channel log dir: %w", err)
 	}
@@ -363,16 +363,16 @@ func (l *Launcher) Launch() error {
 	// Window 0 "team": channel on the left
 	// Pass broker token via env so channel view + agents can authenticate
 	channelEnv := []string{
-		fmt.Sprintf("WUPHF_BROKER_TOKEN=%s", l.broker.Token()),
-		fmt.Sprintf("WUPHF_BROKER_BASE_URL=%s", l.BrokerBaseURL()),
+		fmt.Sprintf("LAF_OFFICE_BROKER_TOKEN=%s", l.broker.Token()),
+		fmt.Sprintf("LAF_OFFICE_BROKER_BASE_URL=%s", l.BrokerBaseURL()),
 	}
 	if l.isOneOnOne() {
 		channelEnv = append(channelEnv,
-			"WUPHF_ONE_ON_ONE=1",
-			fmt.Sprintf("WUPHF_ONE_ON_ONE_AGENT=%s", l.oneOnOneAgent()),
+			"LAF_OFFICE_ONE_ON_ONE=1",
+			fmt.Sprintf("LAF_OFFICE_ONE_ON_ONE_AGENT=%s", l.oneOnOneAgent()),
 		)
 	}
-	channelCmd := fmt.Sprintf("%s %s --channel-view 2>>%s", strings.Join(channelEnv, " "), wuphfBinary, shellQuote(channelStderrLogPath()))
+	channelCmd := fmt.Sprintf("%s %s --channel-view 2>>%s", strings.Join(channelEnv, " "), lafOfficeBinary, shellQuote(channelStderrLogPath()))
 	err = exec.Command("tmux", "-L", tmuxSocketName, "new-session", "-d",
 		"-s", l.sessionName,
 		"-n", "team",
@@ -384,7 +384,7 @@ func (l *Launcher) Launch() error {
 	}
 
 	// Keep tmux mouse off for this session so native terminal selection/copy works.
-	// WUPHF is keyboard-first; we don't want the TUI or tmux to steal mouse events.
+	// LAF-Office is keyboard-first; we don't want the TUI or tmux to steal mouse events.
 	_ = exec.Command("tmux", "-L", tmuxSocketName, "set-option", "-t", l.sessionName,
 		"mouse", "off",
 	).Run()
@@ -475,7 +475,7 @@ func (l *Launcher) safeDeliverMessage(msg channelMessage) {
 
 // recoverPanicTo is the shared panic-recovery body used by broker background
 // goroutines. It logs the goroutine stack to stderr and to
-// ~/.wuphf/logs/panics.log so the broker stays up even if a specific action
+// ~/.laf-office/logs/panics.log so the broker stays up even if a specific action
 // path blows up. Call as: defer recoverPanicTo("loopName", "extra context").
 func recoverPanicTo(site, extra string) {
 	r := recover()
@@ -486,7 +486,7 @@ func recoverPanicTo(site, extra string) {
 	n := runtime.Stack(buf, false)
 	fmt.Fprintf(os.Stderr, "panic in %s: %v\n%s\n%s\n", site, r, extra, buf[:n])
 	if home, err := os.UserHomeDir(); err == nil {
-		if f, ferr := os.OpenFile(filepath.Join(home, ".wuphf", "logs", "panics.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
+		if f, ferr := os.OpenFile(filepath.Join(home, ".laf-office", "logs", "panics.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
 			_, _ = fmt.Fprintf(f, "%s panic in %s: %v\n%s\n%s\n\n", time.Now().UTC().Format(time.RFC3339), site, r, extra, buf[:n])
 			_ = f.Close()
 		}
@@ -1326,17 +1326,17 @@ func (l *Launcher) captureDeadChannelPane(status string) error {
 func channelStderrLogPath() string {
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return ".wuphf-channel-stderr.log"
+		return ".laf-office-channel-stderr.log"
 	}
-	return filepath.Join(home, ".wuphf", "logs", "channel-stderr.log")
+	return filepath.Join(home, ".laf-office", "logs", "channel-stderr.log")
 }
 
 func channelPaneSnapshotPath() string {
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return ".wuphf-channel-pane.log"
+		return ".laf-office-channel-pane.log"
 	}
-	return filepath.Join(home, ".wuphf", "logs", "channel-pane.log")
+	return filepath.Join(home, ".laf-office", "logs", "channel-pane.log")
 }
 
 func shellQuote(s string) string {
@@ -1570,7 +1570,7 @@ func (l *Launcher) processDueRequestJob(job schedulerJob) {
 	_ = l.broker.RecordAction("watchdog_alert", "watchdog", req.Channel, "watchdog", truncate(summary, 140), req.ID, signalIDs, decisionID)
 	if req.Blocking && !existing {
 		_, _, _ = l.broker.PostAutomationMessage(
-			"wuphf",
+			"laf-office",
 			req.Channel,
 			"Waiting on human decision",
 			summary,
@@ -2071,7 +2071,7 @@ func normalizeProviderKind(raw string) string {
 }
 
 // UsesTmuxRuntime reports whether agents run in tmux panes. Equivalent to
-// usesPaneRuntime — exported for cmd/wuphf/main.go and tests.
+// usesPaneRuntime — exported for cmd/laf-office/main.go and tests.
 func (l *Launcher) UsesTmuxRuntime() bool {
 	return l.usesPaneRuntime()
 }
@@ -2155,7 +2155,7 @@ func containsSlug(items []string, want string) bool {
 
 // Attach attaches the user's terminal to the tmux session.
 // In iTerm2: uses tmux -CC for native panes (resizable, close buttons, drag).
-// Otherwise: uses regular tmux attach with -L wuphf to avoid nesting.
+// Otherwise: uses regular tmux attach with -L laf-office to avoid nesting.
 func (l *Launcher) Attach() error {
 	var cmd *exec.Cmd
 	if os.Getenv("TERM_PROGRAM") == "iTerm.app" {
@@ -2887,13 +2887,13 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 		lines = append(lines, ctx)
 	}
 	lines = append(lines, fmt.Sprintf("If you deliver the substantive result for #%s in this turn, you MUST call team_task complete or review-ready for \"%s\" before any completion post and before you stop. A channel reply alone does not unblock dependent work, and a completion post without the task mutation is a failure.", task.ID, task.ID))
-	lines = append(lines, "Runtime rule: never launch another WUPHF office, copied wuphf binary, browser instance, or local web server/--web-port process from inside this turn. The office is already running; use the existing repo, broker state, and assigned worktree instead.")
+	lines = append(lines, "Runtime rule: never launch another LAF-Office runtime, copied laf-office binary, browser instance, or local web server/--web-port process from inside this turn. The office is already running; use the existing repo, broker state, and assigned worktree instead.")
 	lines = append(lines, fmt.Sprintf("%s Use team_task with my_slug \"%s\" to update status as you go.", truncate(content, 1000), slug))
 	return strings.Join(lines, "\n")
 }
 
 func headlessSandboxNote() string {
-	return "Runtime: this office is already running. Never launch another `wuphf`, copied `wuphf` binary, `/reset`, browser instance, or local server/`--web-port` process from inside your turn. For `execution_mode=local_worktree`, make edits directly in the assigned working_directory instead of re-auditing or trying to boot a second office. Never search parent or sibling temp directories (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`) from a task worktree; stay inside the assigned working_directory. If shell commands fail with 'operation not permitted' or 'permission denied' (go build cache, localhost bind, sandboxed writes), stop retrying them and continue from code inspection or the existing running office.\n\n"
+	return "Runtime: this office is already running. Never launch another `laf-office`, copied `laf-office` binary, `/reset`, browser instance, or local server/`--web-port` process from inside your turn. For `execution_mode=local_worktree`, make edits directly in the assigned working_directory instead of re-auditing or trying to boot a second office. Never search parent or sibling temp directories (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`) from a task worktree; stay inside the assigned working_directory. If shell commands fail with 'operation not permitted' or 'permission denied' (go build cache, localhost bind, sandboxed writes), stop retrying them and continue from code inspection or the existing running office.\n\n"
 }
 
 func (l *Launcher) sendChannelUpdate(target notificationTarget, msg channelMessage) {
@@ -3148,7 +3148,7 @@ func (l *Launcher) capturePaneContent(paneIdx int) (string, error) {
 }
 
 func ResetBrokerState() error {
-	token := os.Getenv("WUPHF_BROKER_TOKEN")
+	token := os.Getenv("LAF_OFFICE_BROKER_TOKEN")
 	if token == "" {
 		token = os.Getenv("NEX_BROKER_TOKEN")
 	}
@@ -3166,9 +3166,9 @@ func ClearPersistedBrokerState() error {
 func officePIDFilePath() string {
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".wuphf", "team", "office.pid")
+		return filepath.Join(".laf-office", "team", "office.pid")
 	}
-	return filepath.Join(home, ".wuphf", "team", "office.pid")
+	return filepath.Join(home, ".laf-office", "team", "office.pid")
 }
 
 func writeOfficePIDFile() error {
@@ -3282,7 +3282,7 @@ func (l *Launcher) listTeamPanes() ([]int, error) {
 	return parseAgentPaneIndices(string(out)), nil
 }
 
-// HasLiveTmuxSession returns true if a wuphf-team tmux session is running.
+// HasLiveTmuxSession returns true if a laf-office-team tmux session is running.
 func HasLiveTmuxSession() bool {
 	err := exec.Command("tmux", "-L", tmuxSocketName, "has-session", "-t", SessionName).Run()
 	return err == nil
@@ -3661,7 +3661,7 @@ func paneFallbackMessages(tmuxInstalled bool, detail string) (stderrMsg, brokerM
 		return
 	}
 	stderrMsg = fmt.Sprintf(
-		"  Agents:  pane-backed fallback attempted but unavailable (%s). %s tmux IS installed but rejected the launch command; please file a bug with the detail above at https://github.com/nex-crm/wuphf/issues.\n",
+		"  Agents:  pane-backed fallback attempted but unavailable (%s). %s tmux IS installed but rejected the launch command; please file a bug with the detail above at https://github.com/nex-crm/laf-office/issues.\n",
 		detail, headlessBlurb,
 	)
 	brokerMsg = fmt.Sprintf(
@@ -3692,7 +3692,7 @@ func markdownKnowledgeToolBlock() string {
 	return "- notebook_write: Save your own working notes, rough observations, draft decisions, draft playbooks, and task learnings at agents/{my_slug}/notebook/{date-or-topic}.md. This is the default write path for agent-authored knowledge.\n" +
 		"- notebook_promote: Submit a durable notebook entry for reviewer approval into the team wiki. Use this when the team should rely on the note as canonical knowledge.\n" +
 		"- notebook_read / notebook_list / notebook_search: Inspect agent notebooks for fresh working context before asking someone to repeat themselves.\n" +
-		"- team_wiki_read / team_wiki_search / team_wiki_list / wuphf_wiki_lookup: Read the canonical shared wiki.\n" +
+		"- team_wiki_read / team_wiki_search / team_wiki_list / laf_office_wiki_lookup: Read the canonical shared wiki.\n" +
 		"- team_wiki_write: Direct canonical wiki writes only for already-approved edits, bootstrap/admin maintenance, or explicit human requests. Do not bypass notebook_promote for new agent-authored knowledge.\n"
 }
 
@@ -3727,7 +3727,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 	companyCtx := config.CompanyContextBlock()
 
 	if l.isOneOnOne() {
-		sb.WriteString(fmt.Sprintf("You are %s in a direct one-on-one WUPHF session with the human.\n\n", agentCfg.Name))
+		sb.WriteString(fmt.Sprintf("You are %s in a direct one-on-one LAF-Office session with the human.\n\n", agentCfg.Name))
 		sb.WriteString(companyCtx)
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
@@ -3794,7 +3794,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- human_interview: Ask the human a blocking decision question — only when the team cannot proceed without it.\n")
 		sb.WriteString("Other tools: team_tasks, team_task_status, team_requests, team_request, team_status, team_members, team_office_members, team_channels, team_channel, team_member, team_channel_member, team_action_guide, team_action_workflow_create, team_action_workflow_schedule, team_action_relays, team_action_relay_event_types, team_action_relay_create, team_action_relay_activate, team_action_relay_events, team_action_relay_event.\n\n")
 		sb.WriteString("== TOOL HYGIENE ==\n")
-		sb.WriteString("All team_*, human_*, and mcp__wuphf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
+		sb.WriteString("All team_*, human_*, and mcp__laf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
 		sb.WriteString("Do not read unrelated files (MEMORY.md, arbitrary docs) unless the current packet's task requires it. Every tool call pays full turn cost.\n")
 		sb.WriteString("Emit at most one team_broadcast per turn unless you are deliberately crossing channels. Never re-post the same content in different wording.\n\n")
 		if markdownMemory {
@@ -3824,7 +3824,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("THREADING: Default to replying in the active thread. If you intentionally cross into another channel or start a new topic, pass channel or new_topic explicitly.\n\n")
 		sb.WriteString("YOUR ROLE AS LEADER:\n")
 		if markdownMemory {
-			sb.WriteString("1. On strategy or prior decisions, use wuphf_wiki_lookup or notebook_search before guessing\n")
+			sb.WriteString("1. On strategy or prior decisions, use laf_office_wiki_lookup or notebook_search before guessing\n")
 		} else if noNex {
 			sb.WriteString("1. Coordinate inside the office channel first and keep the team aligned there\n")
 		} else {
@@ -3888,7 +3888,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		} else {
 			sb.WriteString("Do not pretend the graph was updated; verify add_context succeeded.\n")
 		}
-		sb.WriteString("Never launch another WUPHF office from inside your turn (`wuphf`, `./wuphf`, `/reset`, or a new browser instance). The office is already running; inspect the current repo and UI instead.\n")
+		sb.WriteString("Never launch another LAF-Office runtime from inside your turn (`laf-office`, `./laf-office`, `/reset`, or a new browser instance). The office is already running; inspect the current repo and UI instead.\n")
 	} else {
 		sb.WriteString(fmt.Sprintf("You are %s on the %s.\n", agentCfg.Name, l.PackName()))
 		sb.WriteString(companyCtx)
@@ -3920,7 +3920,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- human_interview: Ask the human only for blocking clarifications you cannot responsibly guess.\n")
 		sb.WriteString("Other tools: team_tasks, team_task_status, team_requests, team_request, team_status, team_members, team_office_members, team_channels, team_channel, team_member, team_channel_member, team_action_guide, team_action_workflow_create, team_action_workflow_schedule, team_action_relays, team_action_relay_event_types, team_action_relay_create, team_action_relay_activate, team_action_relay_events, team_action_relay_event.\n\n")
 		sb.WriteString("== TOOL HYGIENE ==\n")
-		sb.WriteString("All team_*, human_*, and mcp__wuphf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
+		sb.WriteString("All team_*, human_*, and mcp__laf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
 		sb.WriteString("Do not read unrelated files (MEMORY.md, arbitrary docs) unless the current packet's task requires it. Every tool call pays full turn cost.\n")
 		sb.WriteString("Emit at most one team_broadcast per turn unless you are deliberately crossing channels. Never re-post the same content in different wording.\n\n")
 		if markdownMemory {
@@ -3958,7 +3958,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("6. When assigned a task, claim it with team_task first, use team_status to show what you're working on, then mark complete or review-ready and broadcast when done. Final sequence for owned tasks: team_task mutation first, then any completion broadcast or human_message, then stop. A task is NOT finished until team_task marks it complete or review-ready; posting a channel reply alone does not unblock downstream work, and a completion post while the task stays in_progress is a failure. If the CEO delegates a substantial workstream and the packet shows no owned task yet, do one quick team_tasks check before creating a fallback task; if a matching task already exists, claim that instead of duplicating it. Only create a fallback task when the delegated work is substantial and no matching task exists after that single check. If the result is mainly for the human, also send it via human_message.\n")
 		sb.WriteString("7. You can see other channel names and descriptions, but cannot access their content unless you are a member. If context from another channel is needed, ask the CEO to bridge it.\n")
 		sb.WriteString("8. If a task or status line shows a worktree path, use that as working_directory for local file and bash tools.\n")
-		sb.WriteString("9. For local_worktree or feature tasks, default to direct implementation in the assigned worktree. Do not relaunch WUPHF, copied binaries, or a fresh local server just to inspect the app; use the current repo and running office instead.\n")
+		sb.WriteString("9. For local_worktree or feature tasks, default to direct implementation in the assigned worktree. Do not relaunch LAF-Office, copied binaries, or a fresh local server just to inspect the app; use the current repo and running office instead.\n")
 		sb.WriteString("10. For local_worktree feature tasks, do NOT start with `rg --files`, `find .`, or a repo-wide audit. Read only the few files directly tied to the requested slice, then start editing. If the task is broad or lists multiple outputs, narrow it yourself to one exact smallest runnable slice, post a `team_status` naming that cut line, and ship that slice now.\n")
 		sb.WriteString("10b. Never search parent or sibling directories outside the assigned working_directory (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`, or other task worktrees). If you need instructions, read `AGENTS.md` or `README.md` inside the assigned worktree only.\n")
 		sb.WriteString("11. Ignore unrelated modified or untracked files already present in the assigned worktree unless they are directly needed for your slice. They may be preexisting repo state; do not audit or re-explain them.\n")
@@ -3971,7 +3971,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 			sb.WriteString("11g. When you commit to opening a pull request, actually open it. Run `gh pr create --title \"<short title>\" --body \"<body>\" --head \"<your-branch>\" --base main` via the bash tool. Paste the returned URL into your channel message so the team can click through. Do not claim a PR is open unless the bash output shows a https://github.com/... URL.\n")
 		}
 		if markdownMemory {
-			sb.WriteString("12. Use wuphf_wiki_lookup, team_wiki_search, or notebook_search when prior knowledge matters. Store your own durable working notes with notebook_write and submit notebook_promote when they should become canonical.\n")
+			sb.WriteString("12. Use laf_office_wiki_lookup, team_wiki_search, or notebook_search when prior knowledge matters. Store your own durable working notes with notebook_write and submit notebook_promote when they should become canonical.\n")
 			sb.WriteString("13. Once you have posted the needed update for the current packet, stop. A later pushed notification will wake you again if more is needed.\n\n")
 		} else if noNex {
 			sb.WriteString("12. Don't fake outside memory. Surface uncertainty in-channel and keep outcomes explicit in-thread.\n")
@@ -3981,14 +3981,14 @@ func (l *Launcher) buildPrompt(slug string) string {
 			sb.WriteString("13. Once you have posted the needed update for the current packet, stop. A later pushed notification will wake you again if more is needed.\n\n")
 		}
 		sb.WriteString("STYLE: Be concise, stay in lane, short lively messages. Use markdown tables/checklists for structured data.\n")
-		sb.WriteString("Never launch another WUPHF office from inside your turn (`wuphf`, `./wuphf`, `/reset`, or a new browser instance). The office is already running; inspect the current repo and UI instead.\n")
+		sb.WriteString("Never launch another LAF-Office runtime from inside your turn (`laf-office`, `./laf-office`, `/reset`, or a new browser instance). The office is already running; inspect the current repo and UI instead.\n")
 	}
 
 	return sb.String()
 }
 
 // claudeCommand builds the shell command string for spawning a claude session.
-// Sets WUPHF_AGENT_SLUG so the MCP knows which agent this session serves.
+// Sets LAF_OFFICE_AGENT_SLUG so the MCP knows which agent this session serves.
 // claudeCommand returns the shell command that launches an interactive
 // `claude` session for the given agent. The command is passed as a single
 // argument to tmux split-window; if it grows past tmux's internal
@@ -4025,7 +4025,7 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 
 	oneOnOneEnv := ""
 	if l.isOneOnOne() {
-		oneOnOneEnv = fmt.Sprintf("WUPHF_ONE_ON_ONE=1 WUPHF_ONE_ON_ONE_AGENT=%s ", l.oneOnOneAgent())
+		oneOnOneEnv = fmt.Sprintf("LAF_OFFICE_ONE_ON_ONE=1 LAF_OFFICE_ONE_ON_ONE_AGENT=%s ", l.oneOnOneAgent())
 	}
 	oneSecretEnv := ""
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
@@ -4042,7 +4042,7 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 	model := l.headlessClaudeModel(slug)
 
 	return fmt.Sprintf(
-		"%s%s%sWUPHF_AGENT_SLUG=%s WUPHF_BROKER_TOKEN=%s WUPHF_BROKER_BASE_URL=%s WUPHF_NO_NEX=%t ANTHROPIC_PROMPT_CACHING=1 CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=otlp OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=%s/v1/logs OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer %s' OTEL_RESOURCE_ATTRIBUTES='agent.slug=%s,wuphf.channel=office' claude --model %s %s --append-system-prompt-file '%s' --mcp-config '%s' --strict-mcp-config -n '%s'",
+		"%s%s%sLAF_OFFICE_AGENT_SLUG=%s LAF_OFFICE_BROKER_TOKEN=%s LAF_OFFICE_BROKER_BASE_URL=%s LAF_OFFICE_NO_NEX=%t ANTHROPIC_PROMPT_CACHING=1 CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=otlp OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=%s/v1/logs OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer %s' OTEL_RESOURCE_ATTRIBUTES='agent.slug=%s,laf-office.channel=office' claude --model %s %s --append-system-prompt-file '%s' --mcp-config '%s' --strict-mcp-config -n '%s'",
 		oneOnOneEnv,
 		oneSecretEnv,
 		oneIdentityEnv,
@@ -4065,11 +4065,11 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 // per-slug temp file so it can be passed to `claude --append-system-prompt-file`
 // without bloating the tmux command.
 //
-// File naming mirrors ensureAgentMCPConfig (wuphf-mcp-<slug>.json) so both
+// File naming mirrors ensureAgentMCPConfig (laf-office-mcp-<slug>.json) so both
 // artifacts are easy to clean up together. Perms are 0o600 because the prompt
 // can contain team-internal instructions and tool lists.
 func (l *Launcher) writeAgentPromptFile(slug, prompt string) (string, error) {
-	path := filepath.Join(os.TempDir(), "wuphf-prompt-"+slug+".txt")
+	path := filepath.Join(os.TempDir(), "laf-office-prompt-"+slug+".txt")
 	if err := os.WriteFile(path, []byte(prompt), 0o600); err != nil {
 		return "", err
 	}
@@ -4084,8 +4084,8 @@ func (l *Launcher) cleanupAgentTempFiles() {
 	tmp := os.TempDir()
 	for _, m := range l.officeMembersSnapshot() {
 		for _, path := range []string{
-			filepath.Join(tmp, "wuphf-mcp-"+m.Slug+".json"),
-			filepath.Join(tmp, "wuphf-prompt-"+m.Slug+".txt"),
+			filepath.Join(tmp, "laf-office-mcp-"+m.Slug+".json"),
+			filepath.Join(tmp, "laf-office-prompt-"+m.Slug+".txt"),
 		} {
 			_ = os.Remove(path)
 		}
@@ -4111,15 +4111,15 @@ var codingAgentSlugs = map[string]bool{
 
 // agentMCPServers returns the MCP server keys that a given agent should receive.
 func agentMCPServers(slug string) []string {
-	channel := strings.TrimSpace(os.Getenv("WUPHF_CHANNEL"))
-	// DM mode: only wuphf-office (minimal tool set, no nex overhead)
+	channel := strings.TrimSpace(os.Getenv("LAF_OFFICE_CHANNEL"))
+	// DM mode: only laf-office (minimal tool set, no nex overhead)
 	if strings.HasPrefix(channel, "dm-") {
-		return []string{"wuphf-office"}
+		return []string{"laf-office"}
 	}
 	if codingAgentSlugs[slug] {
-		return []string{"wuphf-office"}
+		return []string{"laf-office"}
 	}
-	return []string{"wuphf-office", "nex"}
+	return []string{"laf-office", "nex"}
 }
 
 // buildMCPServerMap constructs the full set of MCP server entries.
@@ -4127,16 +4127,16 @@ func agentMCPServers(slug string) []string {
 func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 	apiKey := config.ResolveAPIKey("")
 	servers := map[string]any{}
-	wuphfBinary, err := os.Executable()
+	lafOfficeBinary, err := os.Executable()
 	if err != nil {
 		return nil, err
 	}
 
 	office := map[string]any{
-		"command": wuphfBinary,
+		"command": lafOfficeBinary,
 		"args":    []string{"mcp-team"},
 	}
-	servers["wuphf-office"] = office
+	servers["laf-office"] = office
 	if oneSecret := strings.TrimSpace(config.ResolveOneSecret()); oneSecret != "" {
 		office["env"] = map[string]string{
 			"ONE_SECRET": oneSecret,
@@ -4161,7 +4161,7 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 			if env == nil {
 				env = map[string]string{}
 			}
-			env["WUPHF_API_KEY"] = apiKey
+			env["LAF_OFFICE_API_KEY"] = apiKey
 			env["NEX_API_KEY"] = apiKey
 			office["env"] = env
 		}
@@ -4194,8 +4194,8 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 			servers["nex"] = map[string]any{
 				"command": nexMCP,
 				"env": map[string]string{
-					"WUPHF_API_KEY": apiKey,
-					"NEX_API_KEY":   apiKey,
+					"LAF_OFFICE_API_KEY": apiKey,
+					"NEX_API_KEY":        apiKey,
 				},
 			}
 		}
@@ -4218,7 +4218,7 @@ func (l *Launcher) ensureMCPConfig() (string, error) {
 		return "", err
 	}
 
-	path := filepath.Join(os.TempDir(), "wuphf-team-mcp.json")
+	path := filepath.Join(os.TempDir(), "laf-office-team-mcp.json")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return "", err
 	}
@@ -4249,7 +4249,7 @@ func (l *Launcher) ensureAgentMCPConfig(slug string) (string, error) {
 		return "", err
 	}
 
-	path := filepath.Join(os.TempDir(), "wuphf-mcp-"+slug+".json")
+	path := filepath.Join(os.TempDir(), "laf-office-mcp-"+slug+".json")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return "", err
 	}
@@ -4452,7 +4452,7 @@ func resolveRepoRoot(start string) string {
 }
 
 func loadRunningSessionMode() (string, string) {
-	token := strings.TrimSpace(os.Getenv("WUPHF_BROKER_TOKEN"))
+	token := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN"))
 	if token == "" {
 		return SessionModeOffice, DefaultOneOnOneAgent
 	}
@@ -4614,7 +4614,7 @@ func (l *Launcher) PackName() string {
 	if l.isOneOnOne() {
 		return "1:1 with " + l.getAgentName(l.oneOnOneAgent())
 	}
-	return "WUPHF Office"
+	return "LAF-Office"
 }
 
 // AgentCount returns the number of agents in the pack.
@@ -4656,7 +4656,7 @@ func (l *Launcher) getAgentName(slug string) string {
 // to pick a runtime. Hard-failing here would make the binary unlaunchable
 // until the user already had the CLI they were trying to pick. A missing
 // runtime is still caught at first-dispatch time with a clear message once
-// onboarding has committed a choice to ~/.wuphf/config.json.
+// onboarding has committed a choice to ~/.laf-office/config.json.
 func (l *Launcher) PreflightWeb() error {
 	if !isOnboarded() {
 		if _, _, note := checkGHCapability(); note != "" {

@@ -114,11 +114,11 @@ func TestShredHandlerReportsRemovedPaths(t *testing.T) {
 	}
 	// The response should list concrete paths the user can audit. We don't
 	// pin the exact count because internal path composition may shift, but
-	// we do require that the wuphf home surfaces somewhere in the list.
+	// we do require that the laf-office home surfaces somewhere in the list.
 	if len(removed) == 0 {
 		t.Fatalf("expected non-empty removed list")
 	}
-	wantSubstring := filepath.Join(dir, ".wuphf")
+	wantSubstring := filepath.Join(dir, ".laf-office")
 	var found bool
 	for _, entry := range removed {
 		s, _ := entry.(string)
@@ -135,7 +135,7 @@ func TestShredHandlerReportsRemovedPaths(t *testing.T) {
 func TestShredHandlerOnEmptyHomeIsOK(t *testing.T) {
 	dir := withRuntimeHome(t)
 	// Ensure the home exists but is completely empty.
-	if err := os.MkdirAll(filepath.Join(dir, ".wuphf"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ".laf-office"), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 

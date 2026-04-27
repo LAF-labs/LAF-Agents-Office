@@ -66,7 +66,7 @@ const (
 	// zero-width-space after every 3–4 characters so the LLM cannot parse
 	// them as the same instruction. We also prefix a visible marker so a
 	// human reading the escaped text sees that something was sanitised.
-	injectionEscapePrefix = "[WUPHF-ESCAPED] "
+	injectionEscapePrefix = "[LAF-Office-ESCAPED] "
 )
 
 // injectionPatterns is the list of known-injection-flavored sequences we
@@ -225,13 +225,13 @@ func escapeLineStartTripleDash(s string) string {
 // case-insensitive match. Original casing is preserved in the output so the
 // reader can see what the input was.
 //
-// Idempotency: the replacement prefix "[WUPHF-ESCAPED] " does not match any
+// Idempotency: the replacement prefix "[LAF-Office-ESCAPED] " does not match any
 // injection pattern, and disruptTokens inserts a ZWSP every three letters
 // inside the wrapped span, so on the second pass the previously-escaped
 // pattern no longer appears as a contiguous substring and the wrap is not
 // re-applied. We deliberately do NOT short-circuit on a pre-existing
 // sentinel prefix — doing so would let an attacker prepend
-// "[WUPHF-ESCAPED] " to their payload and smuggle the raw injection past
+// "[LAF-Office-ESCAPED] " to their payload and smuggle the raw injection past
 // the escaper.
 func escapeInjectionPatterns(s string) string {
 	// No fast-path on hasLetter: injectionPatterns now includes
@@ -268,7 +268,7 @@ func escapeInjectionPatterns(s string) string {
 			// skipped escaping when the match was already preceded by
 			// injectionEscapePrefix, reasoning "already neutralised on a
 			// prior pass." That was exploitable: an attacker who knows the
-			// sentinel could prepend "[WUPHF-ESCAPED] " to their payload
+			// sentinel could prepend "[LAF-Office-ESCAPED] " to their payload
 			// and the guard would pass the raw injection phrase through.
 			// The correct trade is to wrap every match, accepting harmless
 			// double-wrapping on legitimate re-escape paths.
@@ -313,7 +313,7 @@ func escapeInjectionPatterns(s string) string {
 
 // disruptTokens inserts a zero-width-space inside each run of letters so the
 // LLM tokeniser cannot reassemble the original instruction as a single span.
-// Combined with the visible "[WUPHF-ESCAPED] " prefix emitted by the caller,
+// Combined with the visible "[LAF-Office-ESCAPED] " prefix emitted by the caller,
 // this guarantees the string visibly differs from the original and is
 // unlikely to parse as a top-level instruction.
 func disruptTokens(s string) string {

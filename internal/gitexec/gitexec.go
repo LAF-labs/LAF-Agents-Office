@@ -1,11 +1,11 @@
 // Package gitexec runs `git` subprocesses with a sanitized environment so
-// wuphf never silently retargets the outer repository when invoked from
+// laf-office never silently retargets the outer repository when invoked from
 // inside a git hook or a nested git operation. Every call-site that needs
 // to shell out to git MUST go through the helpers in this package (Run,
 // RunOK) or, at a minimum, build cmd.Env from CleanEnv(). Do not use
 // exec.Command("git", ...) directly — inheriting GIT_DIR / GIT_WORK_TREE /
 // GIT_CONFIG_PARAMETERS from the parent process is how we produced the
-// runaway "wuphf: init wiki" commits clobbering real branches, and is the
+// runaway "laf-office: init wiki" commits clobbering real branches, and is the
 // class of bug PR #277 discovered in commitCountForPath. Centralizing the
 // env strip here makes the guarantee a package-level invariant instead of
 // a convention callers can forget.
@@ -26,9 +26,9 @@ import (
 // discovery); GIT_ALTERNATE_OBJECT_DIRECTORIES which lets the subprocess
 // resolve objects from the outer repo; and GIT_ATTR_SOURCE which overrides
 // attributes lookup. Callers set cmd.Dir explicitly, so inheriting GIT_DIR
-// from a parent (e.g. when wuphf runs inside a `git push` hook or a nested
+// from a parent (e.g. when laf-office runs inside a `git push` hook or a nested
 // git operation) would silently redirect every subprocess to the outer repo —
-// that's what produced the runaway "wuphf: init wiki" commits clobbering
+// that's what produced the runaway "laf-office: init wiki" commits clobbering
 // real branches.
 //
 // Callers that legitimately want to pin config to /dev/null (e.g. the wiki

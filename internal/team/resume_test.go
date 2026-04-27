@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 // agent is used by the routing tests to construct legacy compatibility packs.
@@ -628,7 +628,7 @@ func TestBuildResumePacketSpecSectionMessagesLabel(t *testing.T) {
 // resumeInFlightWork branched on webMode alone — TUI has webMode=false, so it
 // fell through to agentPaneTargets() which computes pane addresses without
 // verifying they exist, and the resulting tmux send-keys commands silently
-// failed. Users restarting `wuphf --tui` with in-flight work lost resumption.
+// failed. Users restarting `laf-office --tui` with in-flight work lost resumption.
 func TestResumeInFlightWorkTUIClaudeRoutesHeadless(t *testing.T) {
 	// Leaked path (not t.TempDir) so a headless worker goroutine that
 	// outlives the test can keep writing without racing the dir cleanup

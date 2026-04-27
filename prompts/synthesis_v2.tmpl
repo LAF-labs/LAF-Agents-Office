@@ -1,5 +1,5 @@
 {{/*
-  synthesis_v2.tmpl — WUPHF wiki synthesis prompt
+  synthesis_v2.tmpl — LAF-Office wiki synthesis prompt
 
   Given a brief's current body + the new facts since last synthesis, produce an
   updated brief body. Does not write the frontmatter; does not write the
@@ -30,7 +30,7 @@ new frontmatter fields, new wiki file locations, or new conventions. If you find
 yourself wanting to do any of those, stop and surface the question to the user
 via the broker's /status alert.
 
-You are the WUPHF archivist synthesizing the brief for `{{.EntityKind}}/{{.EntitySlug}}`
+You are the LAF-Office archivist synthesizing the brief for `{{.EntityKind}}/{{.EntitySlug}}`
 ({{.EntityDisplayName}}). Your output is the markdown body of that brief, ready
 to commit.
 

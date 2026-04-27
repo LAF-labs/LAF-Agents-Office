@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 func makeTestTool(name string) agent.AgentTool {
@@ -315,7 +315,7 @@ func TestSendMessageToolWritesOutbox(t *testing.T) {
 		t.Fatalf("expected recipient be, got %#v", result["recipient"])
 	}
 
-	data, err := os.ReadFile(filepath.Join(home, ".wuphf", "office", "messages", "outbox.jsonl"))
+	data, err := os.ReadFile(filepath.Join(home, ".laf-office", "office", "messages", "outbox.jsonl"))
 	if err != nil {
 		t.Fatalf("read outbox: %v", err)
 	}

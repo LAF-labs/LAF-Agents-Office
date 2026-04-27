@@ -24,7 +24,7 @@ func TestCheckOneGitFound(t *testing.T) {
 }
 
 func TestCheckOneNonexistentBinary(t *testing.T) {
-	r := CheckOne("nonexistent-binary-xyz-wuphf")
+	r := CheckOne("nonexistent-binary-xyz-laf-office")
 	if r.Found {
 		t.Fatal("expected Found=false for nonexistent binary")
 	}
@@ -32,8 +32,8 @@ func TestCheckOneNonexistentBinary(t *testing.T) {
 		t.Errorf("Version should be empty when binary is not found, got %q", r.Version)
 	}
 	// InstallURL is empty for unknown binaries (not in prereqSpecs).
-	if r.Name != "nonexistent-binary-xyz-wuphf" {
-		t.Errorf("Name: got %q, want %q", r.Name, "nonexistent-binary-xyz-wuphf")
+	if r.Name != "nonexistent-binary-xyz-laf-office" {
+		t.Errorf("Name: got %q, want %q", r.Name, "nonexistent-binary-xyz-laf-office")
 	}
 }
 

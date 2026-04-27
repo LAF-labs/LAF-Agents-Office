@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/runtimebin"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/runtimebin"
 )
 
 // Opencode-specific test hooks. Kept separate from the codex hooks so test
@@ -25,18 +25,18 @@ var (
 	headlessOpencodeExecutablePath = os.Executable
 )
 
-// headlessOpencodeSecretEnvVars lists WUPHF-managed secrets that must NOT flow
+// headlessOpencodeSecretEnvVars lists LAF-Office-managed secrets that must NOT flow
 // into the outer opencode process. Opencode is a third-party binary that
 // routes to user-configured LLM backends (OpenAI, Ollama, any OpenAI-
 // compatible endpoint) and can load plugins; leaking these broader-than-Codex
 // tokens into that process is a credential-exfiltration surface we would not
-// trust. These secrets are still available to the WUPHF MCP subprocess via
+// trust. These secrets are still available to the LAF-Office MCP subprocess via
 // opencode.json's per-server `environment` block, where they are scoped to the
-// wuphf-office MCP server and never reach the model backend.
+// laf-office MCP server and never reach the model backend.
 var headlessOpencodeSecretEnvVars = []string{
-	"WUPHF_BROKER_TOKEN",
-	"WUPHF_API_KEY",
-	"WUPHF_OPENAI_API_KEY",
+	"LAF_OFFICE_BROKER_TOKEN",
+	"LAF_OFFICE_API_KEY",
+	"LAF_OFFICE_OPENAI_API_KEY",
 	"NEX_API_KEY",
 	"ONE_SECRET",
 }
@@ -71,11 +71,11 @@ func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, not
 	// Start from the Codex env builder (broker/workspace/identity plumbing),
 	// then apply the Opencode-specific fixups: restore the user's real HOME so
 	// opencode finds ~/.local/share/opencode/auth.json, strip secrets that
-	// should never reach the third-party opencode process, overlay WUPHF's MCP
+	// should never reach the third-party opencode process, overlay LAF-Office's MCP
 	// config so agents can claim tasks / post status / update wiki, and flip
 	// the provider tag + NO_COLOR.
 	env := l.buildHeadlessCodexEnv(slug, workspaceDir, firstNonEmpty(channel...))
-	env = setEnvValue(env, "WUPHF_HEADLESS_PROVIDER", "opencode")
+	env = setEnvValue(env, "LAF_OFFICE_HEADLESS_PROVIDER", "opencode")
 	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
 		env = setEnvValue(env, "HOME", home)
 	}
@@ -83,12 +83,12 @@ func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, not
 	env = stripEnvKeys(env, headlessOpencodeSecretEnvVars)
 	env = setEnvValue(env, "NO_COLOR", "1")
 	if workspaceDir != strings.TrimSpace(l.cwd) {
-		env = append(env, "WUPHF_WORKTREE_PATH="+workspaceDir)
+		env = append(env, "LAF_OFFICE_WORKTREE_PATH="+workspaceDir)
 	}
 	opencodeConfigPath, err := l.writeHeadlessOpencodeMCPConfig(slug)
 	if err != nil {
 		// MCP failure is loud but non-fatal — opencode will still run, just
-		// without the wuphf-office tools. Log so the user can debug.
+		// without the laf-office tools. Log so the user can debug.
 		appendHeadlessCodexLog(slug, "opencode_mcp-config-failed: "+err.Error())
 	} else {
 		env = setEnvValue(env, "OPENCODE_CONFIG", opencodeConfigPath)
@@ -291,18 +291,18 @@ func escapeHeadlessOpencodeSystemWrapper(s string) string {
 	return s
 }
 
-// writeHeadlessOpencodeMCPConfig merges WUPHF's MCP server definition into an
+// writeHeadlessOpencodeMCPConfig merges LAF-Office's MCP server definition into an
 // agent-scoped Opencode config derived from the user's normal
 // $HOME/.config/opencode/opencode.json. The caller passes the returned path via
 // OPENCODE_CONFIG, so concurrent agents do not race to rewrite a shared config
-// with different WUPHF_AGENT_SLUG values. Preserves other top-level user keys
+// with different LAF_OFFICE_AGENT_SLUG values. Preserves other top-level user keys
 // (theme, provider preferences, user-configured MCP servers) and only touches
-// the wuphf-office entry under `mcp`. Secrets live in the MCP subprocess's
+// the laf-office entry under `mcp`. Secrets live in the MCP subprocess's
 // `environment` block so they never reach the model backend opencode routes to.
 func (l *Launcher) writeHeadlessOpencodeMCPConfig(slug string) (string, error) {
-	wuphfBinary, err := headlessOpencodeExecutablePath()
+	lafOfficeBinary, err := headlessOpencodeExecutablePath()
 	if err != nil {
-		return "", fmt.Errorf("resolve wuphf binary: %w", err)
+		return "", fmt.Errorf("resolve laf-office binary: %w", err)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
@@ -317,7 +317,7 @@ func (l *Launcher) writeHeadlessOpencodeMCPConfig(slug string) (string, error) {
 	merged := map[string]any{}
 	if raw, err := os.ReadFile(baseConfigPath); err == nil && len(raw) > 0 {
 		// Best-effort: if the existing file isn't valid JSON, overwrite it
-		// rather than silently losing the WUPHF overlay.
+		// rather than silently losing the LAF-Office overlay.
 		_ = json.Unmarshal(raw, &merged)
 	}
 
@@ -325,7 +325,7 @@ func (l *Launcher) writeHeadlessOpencodeMCPConfig(slug string) (string, error) {
 	if mcp == nil {
 		mcp = map[string]any{}
 	}
-	mcp["wuphf-office"] = l.buildHeadlessOpencodeMCPEntry(wuphfBinary, slug)
+	mcp["laf-office"] = l.buildHeadlessOpencodeMCPEntry(lafOfficeBinary, slug)
 	merged["mcp"] = mcp
 	if _, ok := merged["$schema"]; !ok {
 		merged["$schema"] = "https://opencode.ai/config.json"
@@ -391,32 +391,32 @@ func safeHeadlessOpencodeConfigSlug(slug string) string {
 	return b.String()
 }
 
-// buildHeadlessOpencodeMCPEntry constructs the `mcp.wuphf-office` block for
-// opencode.json. The WUPHF-managed secrets (broker token, identity, Nex API
+// buildHeadlessOpencodeMCPEntry constructs the `mcp.laf-office` block for
+// opencode.json. The LAF-Office-managed secrets (broker token, identity, Nex API
 // key) live inside the MCP `environment` map — opencode forwards these only
 // to the MCP subprocess, not to the model backend. This scoping is the
 // security boundary that makes it safe to add a third-party provider like
 // opencode, which can route to arbitrary user-configured endpoints.
-func (l *Launcher) buildHeadlessOpencodeMCPEntry(wuphfBinary string, slug string) map[string]any {
+func (l *Launcher) buildHeadlessOpencodeMCPEntry(lafOfficeBinary string, slug string) map[string]any {
 	entry := map[string]any{
 		"type":    "local",
-		"command": []string{wuphfBinary, "mcp-team"},
+		"command": []string{lafOfficeBinary, "mcp-team"},
 		"enabled": true,
 	}
 	envMap := map[string]string{
-		"WUPHF_AGENT_SLUG":      slug,
-		"WUPHF_BROKER_BASE_URL": l.BrokerBaseURL(),
+		"LAF_OFFICE_AGENT_SLUG":      slug,
+		"LAF_OFFICE_BROKER_BASE_URL": l.BrokerBaseURL(),
 	}
 	if l != nil && l.broker != nil {
-		envMap["WUPHF_BROKER_TOKEN"] = l.broker.Token()
+		envMap["LAF_OFFICE_BROKER_TOKEN"] = l.broker.Token()
 	}
 	if config.ResolveNoNex() {
-		envMap["WUPHF_NO_NEX"] = "1"
+		envMap["LAF_OFFICE_NO_NEX"] = "1"
 	}
 	if l != nil && l.isOneOnOne() {
-		envMap["WUPHF_ONE_ON_ONE"] = "1"
+		envMap["LAF_OFFICE_ONE_ON_ONE"] = "1"
 		if v := strings.TrimSpace(l.oneOnOneAgent()); v != "" {
-			envMap["WUPHF_ONE_ON_ONE_AGENT"] = v
+			envMap["LAF_OFFICE_ONE_ON_ONE_AGENT"] = v
 		}
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
@@ -429,7 +429,7 @@ func (l *Launcher) buildHeadlessOpencodeMCPEntry(wuphfBinary string, slug string
 		}
 	}
 	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-		envMap["WUPHF_API_KEY"] = apiKey
+		envMap["LAF_OFFICE_API_KEY"] = apiKey
 		envMap["NEX_API_KEY"] = apiKey
 	}
 	entry["environment"] = envMap

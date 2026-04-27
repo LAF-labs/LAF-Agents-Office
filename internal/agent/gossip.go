@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/api"
+	"github.com/nex-crm/laf-office/internal/api"
 )
 
 // GossipInsight is a single insight received from the gossip network.

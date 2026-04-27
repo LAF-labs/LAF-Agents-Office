@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// Fresh-install onboarding smoke. Assumes wuphf was started WITHOUT a
-// pre-seeded ~/.wuphf/onboarded.json, so App.tsx routes to the Wizard
+// Fresh-install onboarding smoke. Assumes laf-office was started WITHOUT a
+// pre-seeded ~/.laf-office/onboarded.json, so App.tsx routes to the Wizard
 // (see App.tsx — onboardingComplete=false → <Wizard>).
 //
 // This is the path Garry Tan's sudden traffic would have hit. If the
@@ -56,7 +56,7 @@ async function advanceToTemplatesStep(page: Page): Promise<void> {
   await page.locator('.wizard-step button.btn-primary').first().click();
 }
 
-test.describe('wuphf onboarding wizard smoke', () => {
+test.describe('laf-office onboarding wizard smoke', () => {
   test('fresh install lands on the welcome step without crashing', async ({ page }) => {
     const getErrors = collectReactErrors(page);
 
@@ -89,7 +89,7 @@ test.describe('wuphf onboarding wizard smoke', () => {
     page,
   }) => {
     // Regression guard for the bug where blueprint YAMLs were read from
-    // the filesystem only — `npx wuphf` / `curl | bash` users saw the
+    // the filesystem only — `npx laf-office` / `curl | bash` users saw the
     // hardcoded "From scratch" card as their only option.
     //
     // With embedded templates wired in (internal/operations fallback FS +

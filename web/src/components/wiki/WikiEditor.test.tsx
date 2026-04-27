@@ -11,7 +11,7 @@ import * as api from "../../api/wiki";
 import WikiEditor from "./WikiEditor";
 
 const PATH = "team/people/nazz.md";
-const DRAFT_KEY = `wuphf:draft:${PATH}`;
+const DRAFT_KEY = `laf-office:draft:${PATH}`;
 const SERVER_TS = "2026-04-20T10:00:00.000Z";
 
 function setLocalStorageDraft(

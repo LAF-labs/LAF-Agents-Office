@@ -1,12 +1,12 @@
 package team
 
-// wiki_git.go owns all git operations for the team wiki at ~/.wuphf/wiki/.
+// wiki_git.go owns all git operations for the team wiki at ~/.laf-office/wiki/.
 //
 // State machine
 // =============
 //
 //	      ┌─────────────────┐
-//	      │   NotInit       │  no ~/.wuphf/wiki/ or no .git/ under it
+//	      │   NotInit       │  no ~/.laf-office/wiki/ or no .git/ under it
 //	      └──────┬──────────┘
 //	             │ Init()
 //	             ▼
@@ -18,13 +18,13 @@ package team
 //	      ┌─────────────────┐
 //	      │   Dirty         │  uncommitted changes in tree
 //	      └──────┬──────────┘
-//	             │ auto-commit as wuphf-recovery
+//	             │ auto-commit as laf-office-recovery
 //	             ▼
 //	          Clean
 //
 // Durability
 //
-//	Clean ──BackupMirror──► ~/.wuphf/wiki.bak/  (async, debounced, no mutex)
+//	Clean ──BackupMirror──► ~/.laf-office/wiki.bak/  (async, debounced, no mutex)
 //
 // Corruption handling
 //
@@ -50,8 +50,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 // ErrGitUnavailable is returned by Init when the `git` binary cannot be
@@ -75,7 +75,7 @@ type CommitRef struct {
 	Message   string
 }
 
-// Repo represents the wiki git repository living at ~/.wuphf/wiki/.
+// Repo represents the wiki git repository living at ~/.laf-office/wiki/.
 type Repo struct {
 	root       string
 	backupRoot string
@@ -83,10 +83,10 @@ type Repo struct {
 }
 
 // unscopedWikiRootAllowed gates WikiRootDir / WikiBackupDir access when
-// WUPHF_RUNTIME_HOME is unset. Production keeps it true; a *_test.go init
+// LAF_OFFICE_RUNTIME_HOME is unset. Production keeps it true; a *_test.go init
 // flips it to false so any future test that wires up a real wiki Repo
-// without first setting WUPHF_RUNTIME_HOME to a tempdir panics up front
-// instead of silently touching the developer's real ~/.wuphf/wiki.
+// without first setting LAF_OFFICE_RUNTIME_HOME to a tempdir panics up front
+// instead of silently touching the developer's real ~/.laf-office/wiki.
 var unscopedWikiRootAllowed = true
 
 // WikiRootDir returns the canonical on-disk path for the team wiki.
@@ -101,16 +101,16 @@ func WikiBackupDir() string {
 }
 
 func wikiDirForSegment(segment string) string {
-	runtimeOverride := strings.TrimSpace(os.Getenv("WUPHF_RUNTIME_HOME"))
+	runtimeOverride := strings.TrimSpace(os.Getenv("LAF_OFFICE_RUNTIME_HOME"))
 	if runtimeOverride == "" && !unscopedWikiRootAllowed {
-		panic(fmt.Sprintf("team: wiki %q resolved under tests without WUPHF_RUNTIME_HOME set — "+
-			"set t.Setenv(%q, t.TempDir()) or inject a Repo via NewRepoAt(...)", segment, "WUPHF_RUNTIME_HOME"))
+		panic(fmt.Sprintf("team: wiki %q resolved under tests without LAF_OFFICE_RUNTIME_HOME set — "+
+			"set t.Setenv(%q, t.TempDir()) or inject a Repo via NewRepoAt(...)", segment, "LAF_OFFICE_RUNTIME_HOME"))
 	}
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".wuphf", segment)
+		return filepath.Join(".laf-office", segment)
 	}
-	return filepath.Join(home, ".wuphf", segment)
+	return filepath.Join(home, ".laf-office", segment)
 }
 
 // NewRepo returns a Repo rooted at the resolved wiki path.
@@ -184,7 +184,7 @@ func (r *Repo) Init(ctx context.Context) error {
 	if err := r.stageAllLocked(ctx); err != nil {
 		return err
 	}
-	if out, err := r.runGitLocked(ctx, "system", "commit", "-q", "--allow-empty", "-m", "wuphf: init wiki"); err != nil {
+	if out, err := r.runGitLocked(ctx, "system", "commit", "-q", "--allow-empty", "-m", "laf-office: init wiki"); err != nil {
 		return fmt.Errorf("wiki: initial commit: %w: %s", err, out)
 	}
 	return nil
@@ -298,7 +298,7 @@ func (r *Repo) Commit(ctx context.Context, slug, relPath, content, mode, message
 	// same commit as the article. Without this, the index is repeatedly
 	// modified-but-uncommitted and every `git status` sees it as dirty —
 	// eventually RecoverDirtyTree folds it into a misattributed
-	// `wuphf-recovery` commit. Inline regen keeps the working tree clean.
+	// `laf-office-recovery` commit. Inline regen keeps the working tree clean.
 	if err := r.regenerateIndexLocked(); err != nil {
 		return "", 0, fmt.Errorf("wiki: index regen: %w", err)
 	}
@@ -341,19 +341,19 @@ func (r *Repo) Commit(ctx context.Context, slug, relPath, content, mode, message
 }
 
 // CommitBootstrap stages every untracked / modified path under team/ and
-// commits the whole pile as author `wuphf-bootstrap`. It is idempotent: if
+// commits the whole pile as author `laf-office-bootstrap`. It is idempotent: if
 // nothing is dirty, it returns ("", nil) without creating an empty commit.
 //
 // This is the handshake between the blueprint materializer (which only
 // writes files to disk) and git. Without it, the freshly-seeded skeletons
-// are untracked — on a later crash they get folded into a `wuphf-recovery`
+// are untracked — on a later crash they get folded into a `laf-office-recovery`
 // commit, which is misleading in an audit view. With it, the first commit
 // for every skeleton article is attributable to the bootstrap step, not to
 // some later recovery pass or to an agent that happened to edit the file.
 //
-// The author slug `wuphf-bootstrap` is deliberate: it is visually distinct
+// The author slug `laf-office-bootstrap` is deliberate: it is visually distinct
 // from both the per-agent slugs (operator/planner/…) and the two reserved
-// system slugs (`system`, `wuphf-recovery`). Audit views can filter or
+// system slugs (`system`, `laf-office-recovery`). Audit views can filter or
 // colour it differently from real human / agent edits.
 func (r *Repo) CommitBootstrap(ctx context.Context, message string) (string, error) {
 	r.mu.Lock()
@@ -370,14 +370,14 @@ func (r *Repo) CommitBootstrap(ctx context.Context, message string) (string, err
 		return "", nil
 	}
 
-	if out, err := r.runGitLocked(ctx, "wuphf-bootstrap", "add", "-A"); err != nil {
+	if out, err := r.runGitLocked(ctx, "laf-office-bootstrap", "add", "-A"); err != nil {
 		return "", fmt.Errorf("wiki: git add -A (bootstrap): %w: %s", err, out)
 	}
 	commitMsg := strings.TrimSpace(message)
 	if commitMsg == "" {
-		commitMsg = "wuphf: materialize blueprint skeletons"
+		commitMsg = "laf-office: materialize blueprint skeletons"
 	}
-	if out, err := r.runGitLocked(ctx, "wuphf-bootstrap", "commit", "-q", "-m", commitMsg); err != nil {
+	if out, err := r.runGitLocked(ctx, "laf-office-bootstrap", "commit", "-q", "-m", commitMsg); err != nil {
 		return "", fmt.Errorf("wiki: git commit (bootstrap): %w: %s", err, out)
 	}
 	sha, err := r.runGitLocked(ctx, "system", "rev-parse", "--short", "HEAD")
@@ -447,7 +447,7 @@ type AuditEntry struct {
 //  1. We always include the full author slug, timestamp, and file list so
 //     downstream audit tooling (CSV export, compliance review, SOC2
 //     artefact generation, etc.) can work without re-shelling to git.
-//  2. Bootstrap (`wuphf-bootstrap`), recovery (`wuphf-recovery`), and
+//  2. Bootstrap (`laf-office-bootstrap`), recovery (`laf-office-recovery`), and
 //     system (`system`) authors are surfaced alongside agent slugs. Audit
 //     tools can filter them out by author, but the default feed is the
 //     complete lineage — hiding bootstrap would create a false impression
@@ -624,7 +624,7 @@ func (r *Repo) regenerateIndexLocked() error {
 	return nil
 }
 
-// BackupMirror copies the wiki repo to ~/.wuphf/wiki.bak/ skipping git object
+// BackupMirror copies the wiki repo to ~/.laf-office/wiki.bak/ skipping git object
 // packs for speed. The worker calls this asynchronously and debounced.
 func (r *Repo) BackupMirror(ctx context.Context) error {
 	r.mu.Lock()
@@ -657,7 +657,7 @@ func (r *Repo) RestoreFromBackup(ctx context.Context) error {
 }
 
 // RecoverDirtyTree detects uncommitted changes on startup and auto-commits
-// them as `wuphf-recovery` so no user data is discarded.
+// them as `laf-office-recovery` so no user data is discarded.
 func (r *Repo) RecoverDirtyTree(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -674,8 +674,8 @@ func (r *Repo) RecoverDirtyTree(ctx context.Context) error {
 	if _, err := r.runGitLocked(ctx, "system", "add", "-A"); err != nil {
 		return fmt.Errorf("wiki: git add for recovery: %w", err)
 	}
-	msg := "wuphf: recover from crashed write"
-	if _, err := r.runGitLocked(ctx, "wuphf-recovery", "commit", "-q", "--allow-empty", "-m", msg); err != nil {
+	msg := "laf-office: recover from crashed write"
+	if _, err := r.runGitLocked(ctx, "laf-office-recovery", "commit", "-q", "--allow-empty", "-m", msg); err != nil {
 		return fmt.Errorf("wiki: recovery commit: %w", err)
 	}
 	return nil
@@ -695,25 +695,25 @@ func (r *Repo) stageAllLocked(ctx context.Context) error {
 func (r *Repo) runGitLocked(ctx context.Context, slug string, args ...string) (string, error) {
 	slug = strings.TrimSpace(slug)
 	if slug == "" {
-		slug = "wuphf"
+		slug = "laf-office"
 	}
-	return r.runGitLockedAs(ctx, slug, slug+"@wuphf.local", args...)
+	return r.runGitLockedAs(ctx, slug, slug+"@laf-office.local", args...)
 }
 
 // runGitLockedAs runs `git` with an explicit author name + email. Used
 // for human wiki edits where we want the user's real git identity on
 // the commit (e.g. `Sarah Chen <sarah@acme.com>`) instead of the
-// synthetic slug@wuphf.local pattern used for agents.
+// synthetic slug@laf-office.local pattern used for agents.
 //
 // Caller must hold r.mu.
 func (r *Repo) runGitLockedAs(ctx context.Context, name, email string, args ...string) (string, error) {
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" {
-		name = "wuphf"
+		name = "laf-office"
 	}
 	if email == "" {
-		email = "wuphf@wuphf.local"
+		email = "laf-office@laf-office.local"
 	}
 	identity := []string{
 		"-c", "user.name=" + name,
@@ -726,10 +726,10 @@ func (r *Repo) runGitLockedAs(ctx context.Context, name, email string, args ...s
 	cmd := exec.CommandContext(ctx, "git", all...)
 	cmd.Dir = r.root
 	// gitexec.CleanEnv strips GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE etc.
-	// so a wuphf invocation launched from inside a git hook (which exports
+	// so a laf-office invocation launched from inside a git hook (which exports
 	// GIT_DIR pointing at the outer repo) cannot silently retarget these
 	// commits onto the user's actual working branch — that's what produced
-	// the runaway "wuphf: init wiki" commits clobbering real branches.
+	// the runaway "laf-office: init wiki" commits clobbering real branches.
 	// gitexec.CleanEnv also strips GIT_CONFIG_GLOBAL/_SYSTEM; the literal
 	// /dev/null appends below re-pin them last-wins via os/exec dedupEnv,
 	// so config discovery is fully scoped to this call regardless of parent

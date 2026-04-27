@@ -1,13 +1,13 @@
-# Design System — WUPHF Notebook Surface
+# Design System — LAF-Office Notebook Surface
 
-**Scope:** the `/notebooks` and `/reviews` surfaces inside the WUPHF web app (port 7891 prod / 7900 dev). Does NOT apply to the pixel-office marketing site (see `DESIGN.md`), the wiki (see `DESIGN-WIKI.md`), or the rest of the app chrome (see `web/src/styles/global.css`).
+**Scope:** the `/notebooks` and `/reviews` surfaces inside the LAF-Office web app (port 7891 prod / 7900 dev). Does NOT apply to the pixel-office marketing site (see `DESIGN.md`), the wiki (see `DESIGN-WIKI.md`), or the rest of the app chrome (see `web/src/styles/global.css`).
 
 Always read this file before making any visual or UI decisions on notebooks. If a decision conflicts with this file, escalate — don't silently deviate.
 
 ## Product Context
 
 - **What this is:** per-agent draft workspace. Agents write half-baked thoughts, working notes, and draft playbooks in their notebooks before anything is reviewed and promoted to the canonical team wiki.
-- **Who it's for:** the same Claude-Pro/Max power users running 3+ agents on WUPHF. Notebooks give agents (and humans) a focus space without polluting team context.
+- **Who it's for:** the same Claude-Pro/Max power users running 3+ agents on LAF-Office. Notebooks give agents (and humans) a focus space without polluting team context.
 - **Memorable thing:** *"This feels like my engineering notebook. Draft, then promote."* Every design decision should serve this.
 - **Project type:** In-app working surface. Two-column layout with a clear "this is a draft" posture.
 - **Relationship to wiki:** same git/markdown substrate, opposite editorial posture. Wiki = canonical reference. Notebook = working draft. Promotion is the review gate between them.
@@ -55,7 +55,7 @@ Three-font stack with deliberate handwritten accent. Each role has a specific fo
 |---|---|---|
 | **Display (entry titles, sidebar date-headers, marginalia, author-name chrome)** | `Caveat` (handwritten) | Entry title (48px), date headers (17-22px), marginalia Q-callouts, "PM's notebook" label. |
 | **Body + inline headings (H2, H3)** | `IBM Plex Serif` | All article body text (17px / line-height 1.72), H2 (30px, Plex Serif italic), H3 (22px, Plex Serif semibold). |
-| **Chrome (UI, nav, buttons, breadcrumbs, byline meta, DRAFT pill)** | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif` | Matches existing WUPHF app chrome. 12-14px. |
+| **Chrome (UI, nav, buttons, breadcrumbs, byline meta, DRAFT pill)** | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif` | Matches existing LAF-Office app chrome. 12-14px. |
 | **Mono (commit hashes, timestamps, file paths, raw-markdown tab)** | `Geist Mono` | 10-13px. Shared with wiki. |
 
 **Caveat-dose discipline:** Caveat is powerful BUT easy to over-use. Restrict to **four zones only**:
@@ -203,7 +203,7 @@ Visual language: same Variant A design vocabulary (tan paper, ruled separators b
 
 ### Posterity line (bottom of entry)
 Plex Serif italic, muted. One line:
-> Private to {author} until promoted. Reviewer for promotion: **{reviewer}**. File: `~/.wuphf/wiki/agents/{slug}/notebook/{date}-{slug}.md`
+> Private to {author} until promoted. Reviewer for promotion: **{reviewer}**. File: `~/.laf-office/wiki/agents/{slug}/notebook/{date}-{slug}.md`
 
 ## Motion
 
@@ -250,9 +250,9 @@ Notebooks and the wiki (`/wiki`) are siblings sharing the same markdown/git subs
 
 1. **Wikilinks from notebook → wiki article:** Notebook wikilinks use `--nb-ink-blue` dashed-underline. Click navigates to `/wiki/{path}`, which renders in the wiki design system. The user experiences a surface transition (notebook tan → wiki off-white paper, Caveat → Fraunces), which is the point.
 2. **Promoted-from links wiki → notebook:** wiki articles show a quiet "Promoted from PM's notebook · 2d ago · [view original]" line in the Sources section (per `DESIGN-WIKI.md:169`). Click navigates to `/notebooks/{agent}/{entry}`, renders in notebook design system.
-3. **Shared pixel avatars:** reuse the existing `composeAvatar` routine from the WUPHF app in both surfaces. 14×14 or 22×22, `image-rendering: pixelated`.
+3. **Shared pixel avatars:** reuse the existing `composeAvatar` routine from the LAF-Office app in both surfaces. 14×14 or 22×22, `image-rendering: pixelated`.
 4. **Shared mono font:** `Geist Mono` for timestamps, commit hashes, file paths in BOTH surfaces. Keeps cross-surface metadata consistent.
-5. **Shared system-ui chrome:** app bar, top-level nav tabs, buttons. Users always know they're in the WUPHF app regardless of surface.
+5. **Shared system-ui chrome:** app bar, top-level nav tabs, buttons. Users always know they're in the LAF-Office app regardless of surface.
 6. **Token namespacing:** all notebook CSS rules live inside `.notebook-surface` (or `@scope (.notebook-surface)`) wrapper. Notebook tokens (prefix `--nb-`) never leak into wiki. Wiki tokens never bleed into notebooks.
 
 ## Reviewer Model
@@ -368,13 +368,13 @@ The following were considered and explicitly deferred:
 - `/tasks` Kanban layout primitives — reuse column structure, card spacing, drag-reorder mechanics for `/reviews`.
 - Broker SSE channel — notebook writes + review-state changes fire events on the same channel; UI subscribes by event type.
 - `git` per-commit identity flags — agents commit as their slug; reviewers commit as their slug. Same mechanism as wiki.
-- WUPHF app bar + top-nav structure — shared across all surfaces.
+- LAF-Office app bar + top-nav structure — shared across all surfaces.
 
 ## Approved Mockup
 
 | Screen/Section | Mockup Path | Direction | Notes |
 |---|---|---|---|
-| Notebook article view | `~/.gstack/projects/nex-crm-wuphf/designs/notebooks-20260420/variant-A-physical.html` | Physical notebook — tan ruled paper, Caveat handwritten display, IBM Plex Serif body, rotated red DRAFT stamp | Caveat dose MUST be restricted to the four permitted zones (see Typography section). Current mock shows a `.body h2` rule using Caveat at 30px — change to Plex Serif at 30px during implementation. Inline review thread (Pass 7.1) is not yet in the mock — add below the body when review status ≠ null. |
+| Notebook article view | `~/.gstack/projects/nex-crm-laf-office/designs/notebooks-20260420/variant-A-physical.html` | Physical notebook — tan ruled paper, Caveat handwritten display, IBM Plex Serif body, rotated red DRAFT stamp | Caveat dose MUST be restricted to the four permitted zones (see Typography section). Current mock shows a `.body h2` rule using Caveat at 30px — change to Plex Serif at 30px during implementation. Inline review thread (Pass 7.1) is not yet in the mock — add below the body when review status ≠ null. |
 
 ## Decisions Log
 

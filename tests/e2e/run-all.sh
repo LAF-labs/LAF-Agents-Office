@@ -1,5 +1,5 @@
 #!/bin/bash
-# E2E acceptance tests for WUPHF CLI Go TUI
+# E2E acceptance tests for LAF-Office CLI Go TUI
 # Uses termwright daemon mode for reliable alt-screen testing
 
 set -e
@@ -10,8 +10,8 @@ if [ -z "$TERMWRIGHT" ]; then
   echo "termwright not found in PATH; set TERMWRIGHT=/abs/path/to/termwright" >&2
   exit 1
 fi
-SOCKET="/tmp/wuphf-go-e2e.sock"
-NEX="${WUPHF_BIN:-$REPO_ROOT/wuphf}"
+SOCKET="/tmp/laf-office-go-e2e.sock"
+NEX="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
 ARTIFACTS="${ARTIFACTS:-$REPO_ROOT/termwright-artifacts/e2e-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$ARTIFACTS"
 
@@ -20,7 +20,7 @@ FAIL=0
 TOTAL=0
 
 cleanup() {
-  pkill -f "termwright.*wuphf-go-e2e" 2>/dev/null || true
+  pkill -f "termwright.*laf-office-go-e2e" 2>/dev/null || true
   rm -f "$SOCKET"
   sleep 1
 }
@@ -93,7 +93,7 @@ assert_screen_not_contains() {
   fi
 }
 
-echo "=== WUPHF CLI E2E Acceptance Tests ==="
+echo "=== LAF-Office CLI E2E Acceptance Tests ==="
 echo "Binary: $NEX"
 echo "Artifacts: $ARTIFACTS"
 echo ""

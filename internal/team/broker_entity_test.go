@@ -408,7 +408,7 @@ func TestBrokerEntity_WorkerDownReturns503(t *testing.T) {
 	}
 }
 
-// Ensures X-WUPHF-Agent is the recorded_by fallback when the body omits it.
+// Ensures X-LAF-Office-Agent is the recorded_by fallback when the body omits it.
 func TestBrokerEntity_FactFallbackToAgentHeader(t *testing.T) {
 	srv, b, _, teardown := newEntityTestServer(t, nil)
 	defer teardown()
@@ -416,7 +416,7 @@ func TestBrokerEntity_FactFallbackToAgentHeader(t *testing.T) {
 		"entity_kind": "people", "entity_slug": "x", "fact": "y",
 	})
 	req, _ := authReq(http.MethodPost, srv.URL+"/entity/fact", bytes.NewReader(payload), b.Token())
-	req.Header.Set("X-WUPHF-Agent", "sales")
+	req.Header.Set("X-LAF-Office-Agent", "sales")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("http: %v", err)

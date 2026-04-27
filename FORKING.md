@@ -1,6 +1,6 @@
-# FORKING WUPHF
+# FORKING LAF-Office
 
-Honest instructions for making WUPHF yours in about 45 minutes. This file is maintained — if any step breaks, file an issue.
+Honest instructions for making LAF-Office yours in about 45 minutes. This file is maintained — if any step breaks, file an issue.
 
 Before you fork, read [`ARCHITECTURE.md`](ARCHITECTURE.md). It's one page. It will save you an afternoon of `grep -R`.
 
@@ -9,18 +9,18 @@ Before you fork, read [`ARCHITECTURE.md`](ARCHITECTURE.md). It's one page. It wi
 `main` moves daily. Fork from a tag.
 
 ```bash
-git clone https://github.com/nex-crm/wuphf.git
-cd wuphf
+git clone https://github.com/nex-crm/laf-office.git
+cd laf-office
 git checkout v0.0.2.0   # or the latest tag: git describe --tags --abbrev=0
 git checkout -b your-fork
 ```
 
 ## 1. Run it without Nex (read-only, no vendor coupling)
 
-WUPHF ships with optional Nex context graph integration. If you want a clean, vendor-free baseline:
+LAF-Office ships with optional Nex context graph integration. If you want a clean, vendor-free baseline:
 
 ```bash
-./wuphf --no-nex
+./laf-office --no-nex
 ```
 
 That's the whole fix. The `--no-nex` flag skips all Nex wiring at startup. No code edits needed.
@@ -43,25 +43,25 @@ rm internal/action/nex_client.go
 #    internal/team/launcher.go ~ line 1489 (selectImportantInsights / nexInsight)
 ```
 
-Then in `cmd/wuphf/main.go`: delete the `--no-nex` flag and the import blocks that reference `nex`. The `ResolveNoNex()` calls in `cmd/wuphf/channel.go` and `internal/config/config.go` can be deleted or replaced with a constant `true`.
+Then in `cmd/laf-office/main.go`: delete the `--no-nex` flag and the import blocks that reference `nex`. The `ResolveNoNex()` calls in `cmd/laf-office/channel.go` and `internal/config/config.go` can be deleted or replaced with a constant `true`.
 
 ## 2. Strip the Office branding
 
-WUPHF uses *The Office* (US) references throughout the UI and copy. If you're shipping this to enterprise customers, a non-English market, or just don't share the taste, here's where it lives:
+LAF-Office uses *The Office* (US) references throughout the UI and copy. If you're shipping this to enterprise customers, a non-English market, or just don't share the taste, here's where it lives:
 
 | File | What to change |
 |---|---|
 | `README.md` | Ryan Howard quote, Michael Scott quotes, "The Name" section |
-| `web/index.html` | Any "WUPHF" branding in the office UI |
-| `cmd/wuphf/channel.go` | Welcome messages, slash command copy |
-| `cmd/wuphf/channel_render.go` | Office-themed status lines |
+| `web/index.html` | Any "LAF-Office" branding in the office UI |
+| `cmd/laf-office/channel.go` | Welcome messages, slash command copy |
+| `cmd/laf-office/channel_render.go` | Office-themed status lines |
 | `internal/team/template.go` | Agent prompt templates that reference Office tone |
 | `internal/teammcp/actions.go` | Action descriptions |
 
 A fast pass scoped to source files only:
 
 ```bash
-grep -rn "Ryan\|Michael\|Dunder\|Scranton\|WUPHF\.com" \
+grep -rn "Ryan\|Michael\|Dunder\|Scranton\|LAF-Office\.com" \
   --include='*.go' --include='*.html' \
   ./cmd ./internal ./web ./mcp
 ```
@@ -71,19 +71,19 @@ That will surface ~50 hits across 5 files:
 | File | Hits | What to change |
 |---|---|---|
 | `web/index.html` | 25 | Intro splash copy, channel header strings |
-| `cmd/wuphf/channel.go` | 18 | Slash-command help text (one joke per command) |
-| `cmd/wuphf/channel_render.go` | 3 | Status line strings |
-| `cmd/wuphf/main.go` | 2 | Startup notice strings |
-| `cmd/wuphf/channel_workspace_state.go` | 1 | Workspace state notice |
+| `cmd/laf-office/channel.go` | 18 | Slash-command help text (one joke per command) |
+| `cmd/laf-office/channel_render.go` | 3 | Status line strings |
+| `cmd/laf-office/main.go` | 2 | Startup notice strings |
+| `cmd/laf-office/channel_workspace_state.go` | 1 | Workspace state notice |
 
 Removing these strings doesn't affect command behavior — they're display copy only.
 
-Rename the binary in `cmd/wuphf/` + `go.mod` + goreleaser config if you want a different command name.
+Rename the binary in `cmd/laf-office/` + `go.mod` + goreleaser config if you want a different command name.
 
 If you rename the module in `go.mod`, rewrite all import paths in one pass:
 
 ```bash
-find . -name '*.go' | xargs sed -i 's|github.com/nex-crm/wuphf|github.com/your-org/your-fork|g'
+find . -name '*.go' | xargs sed -i 's|github.com/nex-crm/laf-office|github.com/your-org/your-fork|g'
 ```
 
 ## 3. Add your own agent pack
@@ -114,8 +114,8 @@ Add an entry to `Packs`:
 Rebuild and launch:
 
 ```bash
-go build -o wuphf ./cmd/wuphf
-./wuphf --pack my-team
+go build -o laf-office ./cmd/laf-office
+./laf-office --pack my-team
 ```
 
 Permissions: `plan` means every tool call needs human approval in the Requests panel. `auto` lets the agent run but you can scope with `AllowedTools` (see existing `starter` pack for examples).
@@ -145,6 +145,6 @@ Fork anything above the broker freely. Fork the broker and you're building a dif
 
 ## If you get stuck
 
-- Issues: https://github.com/nex-crm/wuphf/issues
+- Issues: https://github.com/nex-crm/laf-office/issues
 - Discord: see the badge in [`README.md`](README.md)
 - The `CHANGELOG.md` is ground truth for what shipped in each tag.

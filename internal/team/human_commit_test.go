@@ -63,8 +63,8 @@ func TestCommitHumanHappyPath(t *testing.T) {
 	if parts[0] != HumanAuthor {
 		t.Errorf("want author %q, got %q", HumanAuthor, parts[0])
 	}
-	if parts[1] != "human@wuphf.local" {
-		t.Errorf("want email human@wuphf.local, got %q", parts[1])
+	if parts[1] != "human@laf-office.local" {
+		t.Errorf("want email human@laf-office.local, got %q", parts[1])
 	}
 }
 

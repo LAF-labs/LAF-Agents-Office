@@ -1,6 +1,6 @@
 # Project Task Tracking MVP
 
-WUPHF now treats projects as first-class task scopes. The MVP keeps the existing
+LAF-Office now treats projects as first-class task scopes. The MVP keeps the existing
 office task lifecycle and adds a lightweight Jira-style project filter on top.
 
 ## What ships

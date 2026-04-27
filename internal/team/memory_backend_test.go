@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 func TestResolveMemoryBackendStatusNoNexFallsBackToMarkdown(t *testing.T) {
@@ -14,8 +14,8 @@ func TestResolveMemoryBackendStatusNoNexFallsBackToMarkdown(t *testing.T) {
 	// wiki — the default external memory that doesn't require Nex. Silent
 	// 'none' was a worse default: the user asked to skip Nex, not to lose
 	// all shared memory.
-	t.Setenv("WUPHF_NO_NEX", "1")
-	t.Setenv("WUPHF_MEMORY_BACKEND", "")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "")
 
 	status := ResolveMemoryBackendStatus()
 	if status.SelectedKind != config.MemoryBackendMarkdown {
@@ -27,9 +27,9 @@ func TestResolveMemoryBackendStatusNoNexFallsBackToMarkdown(t *testing.T) {
 }
 
 func TestResolveMemoryBackendStatusGBrainReadyUnderNoNex(t *testing.T) {
-	t.Setenv("WUPHF_NO_NEX", "1")
-	t.Setenv("WUPHF_MEMORY_BACKEND", config.MemoryBackendGBrain)
-	t.Setenv("WUPHF_OPENAI_API_KEY", "sk-test-openai")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "sk-test-openai")
 
 	binDir := t.TempDir()
 	gbrainBin := filepath.Join(binDir, "gbrain")
@@ -45,7 +45,7 @@ func TestResolveMemoryBackendStatusGBrainReadyUnderNoNex(t *testing.T) {
 }
 
 func TestResolveMemoryBackendStatusGBrainNeedsProviderKey(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", config.MemoryBackendGBrain)
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
 
 	status := ResolveMemoryBackendStatus()
 	if status.SelectedKind != config.MemoryBackendGBrain {
@@ -60,8 +60,8 @@ func TestResolveMemoryBackendStatusGBrainNeedsProviderKey(t *testing.T) {
 }
 
 func TestResolveMemoryBackendStatusGBrainAnthropicOnlyShowsReducedMode(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", config.MemoryBackendGBrain)
-	t.Setenv("WUPHF_ANTHROPIC_API_KEY", "sk-ant-test-anthropic")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
+	t.Setenv("LAF_OFFICE_ANTHROPIC_API_KEY", "sk-ant-test-anthropic")
 
 	binDir := t.TempDir()
 	gbrainBin := filepath.Join(binDir, "gbrain")
@@ -80,9 +80,9 @@ func TestResolveMemoryBackendStatusGBrainAnthropicOnlyShowsReducedMode(t *testin
 }
 
 func TestShouldPollNexNotificationsOnlyWhenNexIsActive(t *testing.T) {
-	t.Setenv("WUPHF_NO_NEX", "")
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
-	t.Setenv("WUPHF_MEMORY_BACKEND", config.MemoryBackendNex)
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendNex)
 
 	binDir := t.TempDir()
 	nexMCP := filepath.Join(binDir, "nex-mcp")
@@ -95,8 +95,8 @@ func TestShouldPollNexNotificationsOnlyWhenNexIsActive(t *testing.T) {
 		t.Fatal("expected nex notification polling when nex backend is active")
 	}
 
-	t.Setenv("WUPHF_MEMORY_BACKEND", config.MemoryBackendGBrain)
-	t.Setenv("WUPHF_OPENAI_API_KEY", "sk-test-openai")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "sk-test-openai")
 	gbrainBin := filepath.Join(binDir, "gbrain")
 	if err := os.WriteFile(gbrainBin, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatalf("create fake gbrain: %v", err)
@@ -107,7 +107,7 @@ func TestShouldPollNexNotificationsOnlyWhenNexIsActive(t *testing.T) {
 }
 
 func TestInferSharedMemoryOwnerFromGBrainSlug(t *testing.T) {
-	owner := inferSharedMemoryOwner("wuphf-shared--pm--launch-brief--20260416-120000", "")
+	owner := inferSharedMemoryOwner("laf-office-shared--pm--launch-brief--20260416-120000", "")
 	if owner != "pm" {
 		t.Fatalf("expected owner pm from gbrain slug, got %q", owner)
 	}

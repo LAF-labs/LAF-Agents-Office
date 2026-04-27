@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 // wikiWorkerWriter adapts team.WikiWorker onto WikiWriter so the
@@ -109,7 +109,7 @@ func TestRenderArticleIncludesProvenanceHeader(t *testing.T) {
 		Kind:    KindPeople,
 		Slug:    "nazz",
 		Title:   "Nazz",
-		Content: "Founder of WUPHF.",
+		Content: "Founder of LAF-Office.",
 		Source:  "nex",
 	}
 	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
@@ -287,7 +287,7 @@ func TestMigratorIntegrationWithWikiWorker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("git log: %v", err)
 	}
-	if !strings.Contains(out, "migrate <migrate@wuphf.local>") {
+	if !strings.Contains(out, "migrate <migrate@laf-office.local>") {
 		t.Fatalf("expected migrate author in log, got:\n%s", out)
 	}
 }

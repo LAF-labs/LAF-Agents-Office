@@ -280,7 +280,7 @@ func (b *Broker) handlePlaybookExecution(w http.ResponseWriter, r *http.Request)
 		recordedBy = strings.TrimSpace(r.Header.Get(agentRateLimitHeader))
 	}
 	if recordedBy == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "recorded_by or X-WUPHF-Agent header is required"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "recorded_by or X-LAF-Office-Agent header is required"})
 		return
 	}
 	slug := strings.TrimSpace(body.Slug)
@@ -393,7 +393,7 @@ func (b *Broker) ensurePlaybookSynthesizer() {
 }
 
 func resolvePlaybookSynthThresholdFromEnv() int {
-	raw := strings.TrimSpace(os.Getenv("WUPHF_PLAYBOOK_SYNTHESIS_THRESHOLD"))
+	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_PLAYBOOK_SYNTHESIS_THRESHOLD"))
 	if raw == "" {
 		return DefaultPlaybookSynthesisThreshold
 	}
@@ -405,7 +405,7 @@ func resolvePlaybookSynthThresholdFromEnv() int {
 }
 
 func resolvePlaybookSynthTimeoutFromEnv() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("WUPHF_PLAYBOOK_SYNTHESIS_TIMEOUT"))
+	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_PLAYBOOK_SYNTHESIS_TIMEOUT"))
 	if raw == "" {
 		return DefaultPlaybookSynthesisTimeout
 	}

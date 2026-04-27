@@ -1,8 +1,8 @@
 "use strict";
 
-// Downloads the wuphf binary that matches the current package version
+// Downloads the laf-office binary that matches the current package version
 // from the corresponding GitHub release and extracts it into bin/.
-// GoReleaser archive name: wuphf_<version>_<os>_<arch>.tar.gz
+// GoReleaser archive name: laf-office_<version>_<os>_<arch>.tar.gz
 // where <version> is the tag without the leading 'v'.
 //
 // ---------------------------------------------------------------------------
@@ -16,7 +16,7 @@
 //     <sha256-hex>  <archive-filename>
 //
 // Verification flow:
-//   1. Download the per-platform archive (wuphf_<ver>_<os>_<arch>.tar.gz).
+//   1. Download the per-platform archive (laf-office_<ver>_<os>_<arch>.tar.gz).
 //   2. Download checksums.txt from the same release.
 //   3. Compute SHA256 of the downloaded archive locally.
 //   4. Compare against the hash listed for that archive in checksums.txt.
@@ -24,7 +24,7 @@
 //      listed in it: delete the archive and abort with a non-zero exit.
 //
 // This guards against release-asset tampering: even if a compromised release
-// token replaces the tarball, the mismatch causes `npm install wuphf` to fail
+// token replaces the tarball, the mismatch causes `npm install laf-office` to fail
 // loudly rather than silently install a backdoored binary.
 //
 // To regenerate checksums.txt, run `goreleaser release` (or `goreleaser
@@ -38,7 +38,7 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 
-const REPO = "nex-crm/wuphf";
+const REPO = "nex-crm/laf-office";
 const CHECKSUMS_FILENAME = "checksums.txt";
 
 function detectPlatform() {
@@ -50,12 +50,12 @@ function detectPlatform() {
 
   if (!osMap[platform]) {
     throw new Error(
-      `Unsupported platform: ${platform}. wuphf supports darwin and linux.`,
+      `Unsupported platform: ${platform}. laf-office supports darwin and linux.`,
     );
   }
   if (!archMap[arch]) {
     throw new Error(
-      `Unsupported architecture: ${arch}. wuphf supports x64 (amd64) and arm64.`,
+      `Unsupported architecture: ${arch}. laf-office supports x64 (amd64) and arm64.`,
     );
   }
   return { os: osMap[platform], arch: archMap[arch] };
@@ -70,7 +70,7 @@ function packageVersion() {
 
 function archiveName(version) {
   const { os: goOs, arch: goArch } = detectPlatform();
-  return `wuphf_${version}_${goOs}_${goArch}.tar.gz`;
+  return `laf-office_${version}_${goOs}_${goArch}.tar.gz`;
 }
 
 function releaseAssetUrl(version, filename) {
@@ -126,7 +126,7 @@ function expectedHashFor(checksumsText, filename) {
 async function verifyArchive({ version, archivePath, archiveBasename, silent }) {
   const checksumsUrl = releaseAssetUrl(version, CHECKSUMS_FILENAME);
   if (!silent) {
-    process.stderr.write(`wuphf: verifying ${archiveBasename} against ${CHECKSUMS_FILENAME}\n`);
+    process.stderr.write(`laf-office: verifying ${archiveBasename} against ${CHECKSUMS_FILENAME}\n`);
   }
 
   let checksumsText;
@@ -165,27 +165,27 @@ async function verifyArchive({ version, archivePath, archiveBasename, silent }) 
 // Options:
 //   silent      — suppress progress output on stderr.
 //   version     — download a specific tagged release instead of the one
-//                 recorded in package.json. Used by bin/wuphf.js to fetch a
+//                 recorded in package.json. Used by bin/laf-office.js to fetch a
 //                 newer release into an out-of-tree cache when npm's latest
 //                 has moved past the installed version.
 //   targetPath  — where to place the extracted binary. Defaults to
-//                 bin/wuphf inside this package. The out-of-tree cache uses
+//                 bin/laf-office inside this package. The out-of-tree cache uses
 //                 a version-keyed path so multiple versions can coexist.
 async function downloadBinary({ silent = false, version, targetPath } = {}) {
   const resolvedVersion = version ?? packageVersion();
   const archiveBasename = archiveName(resolvedVersion);
   const url = releaseAssetUrl(resolvedVersion, archiveBasename);
-  const binaryPath = targetPath ?? path.join(__dirname, "..", "bin", "wuphf");
+  const binaryPath = targetPath ?? path.join(__dirname, "..", "bin", "laf-office");
   const binDir = path.dirname(binaryPath);
 
   await fsp.mkdir(binDir, { recursive: true });
 
-  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "wuphf-"));
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "laf-office-"));
   const archivePath = path.join(tmpDir, archiveBasename);
 
   try {
     if (!silent) {
-      process.stderr.write(`wuphf: downloading ${url}\n`);
+      process.stderr.write(`laf-office: downloading ${url}\n`);
     }
     await fetchToFile(url, archivePath);
 
@@ -202,7 +202,7 @@ async function downloadBinary({ silent = false, version, targetPath } = {}) {
       stdio: silent ? "ignore" : "inherit",
     });
 
-    const extractedBinary = path.join(tmpDir, "wuphf");
+    const extractedBinary = path.join(tmpDir, "laf-office");
     await fsp.copyFile(extractedBinary, binaryPath);
     await fsp.chmod(binaryPath, 0o755);
 

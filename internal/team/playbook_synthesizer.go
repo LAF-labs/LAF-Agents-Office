@@ -29,11 +29,11 @@ import (
 
 // DefaultPlaybookSynthesisThreshold is the number of new executions that
 // must accumulate before an automatic synthesis is triggered. Configurable
-// per deployment via WUPHF_PLAYBOOK_SYNTHESIS_THRESHOLD.
+// per deployment via LAF_OFFICE_PLAYBOOK_SYNTHESIS_THRESHOLD.
 const DefaultPlaybookSynthesisThreshold = 3
 
 // DefaultPlaybookSynthesisTimeout bounds a single LLM shell-out.
-// Configurable via WUPHF_PLAYBOOK_SYNTHESIS_TIMEOUT (seconds).
+// Configurable via LAF_OFFICE_PLAYBOOK_SYNTHESIS_TIMEOUT (seconds).
 const DefaultPlaybookSynthesisTimeout = 45 * time.Second
 
 // MaxPlaybookSynthQueue is the buffered channel size for pending jobs.

@@ -6,7 +6,7 @@ package team
 // ========
 //
 // Markdown is the source of truth. This index is a rebuildable cache.
-// See docs/specs/WIKI-SCHEMA.md §7.4: `rm -rf .wuphf/index/` → restart broker
+// See docs/specs/WIKI-SCHEMA.md §7.4: `rm -rf .laf-office/index/` → restart broker
 // → logically-identical rebuild (same canonical hash per table).
 //
 // Slice 1 scaffolds with small interfaces + in-memory implementations so the
@@ -495,7 +495,7 @@ func (w *WikiIndex) ReconcilePath(ctx context.Context, relPath string) error {
 }
 
 // ReconcileFromMarkdown walks the wiki repo from scratch and rebuilds the
-// index. Implements the §7.4 substrate guarantee: `rm -rf .wuphf/index/`
+// index. Implements the §7.4 substrate guarantee: `rm -rf .laf-office/index/`
 // → call this → logically-identical index. Safe to run concurrently with
 // reads (writes are serialized inside the store).
 //

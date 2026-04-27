@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 var (

@@ -12,11 +12,11 @@ const defaultCLIPackage = "@nex-ai/nex"
 // InstallLatestCLI installs the latest published CLI from npm.
 // The package and installer binary can be overridden for tests via env vars.
 func InstallLatestCLI() (string, error) {
-	bin := strings.TrimSpace(os.Getenv("WUPHF_CLI_INSTALL_BIN"))
+	bin := strings.TrimSpace(os.Getenv("LAF_OFFICE_CLI_INSTALL_BIN"))
 	if bin == "" {
 		bin = "npm"
 	}
-	pkg := strings.TrimSpace(os.Getenv("WUPHF_CLI_PACKAGE"))
+	pkg := strings.TrimSpace(os.Getenv("LAF_OFFICE_CLI_PACKAGE"))
 	if pkg == "" {
 		pkg = defaultCLIPackage
 	}

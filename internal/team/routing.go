@@ -3,7 +3,7 @@ package team
 import (
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/orchestration"
+	"github.com/nex-crm/laf-office/internal/orchestration"
 )
 
 const officeRoutingMatchThreshold = 0.28

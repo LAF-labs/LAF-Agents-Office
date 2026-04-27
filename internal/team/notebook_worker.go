@@ -24,7 +24,7 @@ package team
 //	           ▼
 //	       next request
 //
-// Rationale for the shared queue: any commit against ~/.wuphf/wiki/ must
+// Rationale for the shared queue: any commit against ~/.laf-office/wiki/ must
 // serialize through a single git writer. Wiki vs notebook is a path-prefix
 // distinction, not a separate repo.
 
@@ -431,7 +431,7 @@ func validateNotebookPath(relPath string) error {
 
 // validateNotebookSlug guards against slug values that would break filesystem
 // paths or be mistaken for directory traversal. Keep the allowed charset
-// tight; agent slugs are kebab-case alphanumerics in WUPHF.
+// tight; agent slugs are kebab-case alphanumerics in LAF-Office.
 func validateNotebookSlug(slug string) error {
 	if slug == "" {
 		return fmt.Errorf("notebook: slug is required")

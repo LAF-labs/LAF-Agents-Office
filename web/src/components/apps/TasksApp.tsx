@@ -25,7 +25,7 @@ const STATUS_ORDER = [
 
 type StatusGroup = (typeof STATUS_ORDER)[number];
 
-const DND_MIME = "application/x-wuphf-task-id";
+const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
 const HIDDEN_EMPTY_COLUMNS = new Set<StatusGroup>([
   "pending",

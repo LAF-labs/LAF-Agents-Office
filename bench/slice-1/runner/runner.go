@@ -34,7 +34,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 // ----- JSONL shapes (must match bench/slice-1/generate.go) ------------------
@@ -310,7 +310,7 @@ func Run(ctx context.Context, cfg Config) (*Aggregate, []QueryResult, error) {
 		return nil, nil, err
 	}
 
-	tempRoot, err := os.MkdirTemp("", "wuphf-bench-slice1-")
+	tempRoot, err := os.MkdirTemp("", "laf-office-bench-slice1-")
 	if err != nil {
 		return nil, nil, fmt.Errorf("mktemp: %w", err)
 	}

@@ -24,7 +24,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nex-crm/wuphf/bench/slice-1/runner"
+	"github.com/nex-crm/laf-office/bench/slice-1/runner"
 )
 
 func main() {

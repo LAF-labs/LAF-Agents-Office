@@ -76,7 +76,7 @@ updates:
       prefix: "chore(e2e)"
       include: "scope"
 
-  # npm wrapper that ships `npx wuphf` to the npm registry. Bumps here
+  # npm wrapper that ships `npx laf-office` to the npm registry. Bumps here
   # affect the public install surface — keep its own group so they get
   # individual review, not lumped with the dev-tooling root group.
   - package-ecosystem: "npm"

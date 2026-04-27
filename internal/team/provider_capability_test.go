@@ -3,9 +3,9 @@ package team
 import (
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/provider"
-	"github.com/nex-crm/wuphf/internal/providertest"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/provider"
+	"github.com/nex-crm/laf-office/internal/providertest"
 )
 
 // TestUsesPaneRuntime_ConsultsRegistryCapabilities is the epicentric red test
@@ -25,7 +25,7 @@ import (
 //
 //	and returns the registered PaneEligible value. Test PASSES.
 func TestUsesPaneRuntime_ConsultsRegistryCapabilities(t *testing.T) {
-	const fakeKind = "wuphf-test-fake-non-pane"
+	const fakeKind = "laf-office-test-fake-non-pane"
 	providertest.RegisterForTest(t, &provider.Entry{
 		Kind: fakeKind,
 		StreamFn: func(slug string) agent.StreamFn {
@@ -49,7 +49,7 @@ func TestUsesPaneRuntime_ConsultsRegistryCapabilities(t *testing.T) {
 // runtimes (Claude Code today, future Ollama variants if any) keep their
 // pane-runtime status after the refactor.
 func TestUsesPaneRuntime_PaneEligibleProviderStaysTrue(t *testing.T) {
-	const fakeKind = "wuphf-test-fake-pane"
+	const fakeKind = "laf-office-test-fake-pane"
 	providertest.RegisterForTest(t, &provider.Entry{
 		Kind: fakeKind,
 		StreamFn: func(slug string) agent.StreamFn {

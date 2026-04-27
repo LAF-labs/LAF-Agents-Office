@@ -1,22 +1,22 @@
-# WUPHF Brand Assets
+# LAF-Office Brand Assets
 
-Official logo, icon exports, and usage guidance for the WUPHF brand.
+Official logo, icon exports, and usage guidance for the LAF-Office brand.
 
 ## The Logo
 
-The WUPHF mark is a pixel-art "W" set inside an amber sign-frame. It echoes the WUPHF sign glowing on the back wall of the pixel office, and reads cleanly from 16px browser-tab scale up to 1024px app-store scale.
+The LAF-Office mark is a pixel-art "W" set inside an amber sign-frame. It echoes the LAF-Office sign glowing on the back wall of the pixel office, and reads cleanly from 16px browser-tab scale up to 1024px app-store scale.
 
 It is built from a 16-unit grid with `shape-rendering="crispEdges"`. Every size is a pixel-aligned integer multiple of that grid, so no anti-aliased blur ever shows up in exports. Zero border-radius. Zero smoothing. Zero gradients.
 
-### Primary — `wuphf-logo.svg`
+### Primary — `laf-office-logo.svg`
 
-![Primary logo](png/wuphf-logo-128.png)
+![Primary logo](png/laf-office-logo-128.png)
 
 Amber frame, dark interior, amber W. Use this everywhere by default: browser tabs, app icons, social avatars, READMEs, docs, merch, GitHub profile, business cards. Self-contained, so it works on any background.
 
-### Inverted — `wuphf-logo-inverted.svg`
+### Inverted — `laf-office-logo-inverted.svg`
 
-![Inverted logo](png/wuphf-logo-inverted-128.png)
+![Inverted logo](png/laf-office-logo-inverted-128.png)
 
 Dark W stamped on a solid amber field. Use this only when the primary would disappear or lose punch, for example:
 
@@ -30,7 +30,7 @@ If in doubt, use the primary.
 
 | Token | Hex | Role |
 |-------|-----|------|
-| `--yellow` | `#ECB22E` | WUPHF amber, primary accent |
+| `--yellow` | `#ECB22E` | LAF-Office amber, primary accent |
 | `--bg` | `#1A1610` | Warm near-black, primary background |
 
 Source of truth is [DESIGN.md](../DESIGN.md). Never substitute a different amber, never use pure black.
@@ -39,19 +39,19 @@ Source of truth is [DESIGN.md](../DESIGN.md). Never substitute a different amber
 
 ```
 brand/
-  wuphf-logo.svg              — primary, scales to any size
-  wuphf-logo-inverted.svg     — alternate, scales to any size
+  laf-office-logo.svg              — primary, scales to any size
+  laf-office-logo-inverted.svg     — alternate, scales to any size
   png/
-    wuphf-logo-16.png          → tab favicon
-    wuphf-logo-32.png          → standard favicon
-    wuphf-logo-64.png
-    wuphf-logo-128.png
-    wuphf-logo-180.png         → apple-touch-icon
-    wuphf-logo-192.png         → Android chrome icon
-    wuphf-logo-256.png
-    wuphf-logo-512.png         → PWA splash
-    wuphf-logo-1024.png        → App Store / marketing hero
-    wuphf-logo-inverted-*.png  (same sizes)
+    laf-office-logo-16.png          → tab favicon
+    laf-office-logo-32.png          → standard favicon
+    laf-office-logo-64.png
+    laf-office-logo-128.png
+    laf-office-logo-180.png         → apple-touch-icon
+    laf-office-logo-192.png         → Android chrome icon
+    laf-office-logo-256.png
+    laf-office-logo-512.png         → PWA splash
+    laf-office-logo-1024.png        → App Store / marketing hero
+    laf-office-logo-inverted-*.png  (same sizes)
 ```
 
 ## Clear Space
@@ -79,8 +79,8 @@ If the SVG sources ever change, regenerate PNGs with:
 ```bash
 cd brand
 for size in 16 32 64 128 180 192 256 512 1024; do
-  rsvg-convert -w $size -h $size wuphf-logo.svg -o png/wuphf-logo-${size}.png
-  rsvg-convert -w $size -h $size wuphf-logo-inverted.svg -o png/wuphf-logo-inverted-${size}.png
+  rsvg-convert -w $size -h $size laf-office-logo.svg -o png/laf-office-logo-${size}.png
+  rsvg-convert -w $size -h $size laf-office-logo-inverted.svg -o png/laf-office-logo-inverted-${size}.png
 done
 ```
 

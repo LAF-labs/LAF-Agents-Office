@@ -8,16 +8,16 @@ if [ -z "$TERMWRIGHT" ]; then
   echo "termwright not found in PATH; set TERMWRIGHT=/abs/path/to/termwright" >&2
   exit 1
 fi
-WUPHF="${WUPHF_BIN:-$REPO_ROOT/wuphf}"
+LAF-Office="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
 ARTIFACTS="${ARTIFACTS:-$REPO_ROOT/termwright-artifacts/agent-response-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$ARTIFACTS"
 
-SOCKET="/tmp/wuphf-agent-resp-$$.sock"
+SOCKET="/tmp/laf-office-agent-resp-$$.sock"
 DAEMON_PID=""
 
 cleanup() {
   [ -n "$DAEMON_PID" ] && kill "$DAEMON_PID" 2>/dev/null
-  tmux -L wuphf kill-session -t wuphf-team 2>/dev/null || true
+  tmux -L laf-office kill-session -t laf-office-team 2>/dev/null || true
   rm -f "$SOCKET"
   sleep 2
 }
@@ -28,13 +28,13 @@ echo "Artifacts: $ARTIFACTS"
 
 # Start fresh
 cleanup
-rm -f ~/.wuphf/team/broker-state.json 2>/dev/null
+rm -f ~/.laf-office/team/broker-state.json 2>/dev/null
 
-"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 140 --rows 40 -- "$WUPHF" -no-nex 2>/dev/null &
+"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 140 --rows 40 -- "$LAF-Office" -no-nex 2>/dev/null &
 DAEMON_PID=$!
 sleep 22
 
-BROKER_TOKEN=$(cat /tmp/wuphf-broker-token)
+BROKER_TOKEN=$(cat /tmp/laf-office-broker-token)
 echo "Broker token: ${BROKER_TOKEN:0:8}..."
 
 # Verify broker is alive
@@ -44,7 +44,7 @@ echo "Broker health: $HEALTH"
 # Verify agents are running
 echo ""
 echo "=== Agent Panes ==="
-tmux -L wuphf list-panes -t wuphf-team -F "pane #{pane_index}: #{pane_current_command}" 2>/dev/null
+tmux -L laf-office list-panes -t laf-office-team -F "pane #{pane_index}: #{pane_current_command}" 2>/dev/null
 
 echo ""
 echo "=== TEST 1: Untagged message (CEO should triage) ==="
@@ -82,7 +82,7 @@ for r in replies[-3:]:
   fi
 
   # Check pane activity
-  PANE1=$(tmux -L wuphf capture-pane -p -J -S -3 -t wuphf-team:team.1 2>/dev/null | grep -v '^$' | tail -1)
+  PANE1=$(tmux -L laf-office capture-pane -p -J -S -3 -t laf-office-team:team.1 2>/dev/null | grep -v '^$' | tail -1)
   echo "  poll $i (${i}*2s): pane1=[$PANE1]"
 done
 
@@ -94,7 +94,7 @@ else
   echo ""
   echo "=== Diagnostics ==="
   echo "--- CEO pane (last 10 lines) ---"
-  tmux -L wuphf capture-pane -p -J -S -10 -t wuphf-team:team.1 2>/dev/null
+  tmux -L laf-office capture-pane -p -J -S -10 -t laf-office-team:team.1 2>/dev/null
   echo ""
   echo "--- All messages ---"
   curl -s "http://127.0.0.1:7890/messages?channel=general&limit=20" \
@@ -149,7 +149,7 @@ for m in d.get('messages',[]):
     break
   fi
 
-  PANE1=$(tmux -L wuphf capture-pane -p -J -S -2 -t wuphf-team:team.1 2>/dev/null | grep -v '^$' | tail -1)
+  PANE1=$(tmux -L laf-office capture-pane -p -J -S -2 -t laf-office-team:team.1 2>/dev/null | grep -v '^$' | tail -1)
   echo "  poll $i: pane=[$PANE1]"
 done
 
@@ -158,14 +158,14 @@ if [ "$RESPONDED2" = true ]; then
 else
   echo "FAIL: CEO did not respond to direct mention after 60s"
   echo "--- CEO pane ---"
-  tmux -L wuphf capture-pane -p -J -S -15 -t wuphf-team:team.1 2>/dev/null
+  tmux -L laf-office capture-pane -p -J -S -15 -t laf-office-team:team.1 2>/dev/null
 fi
 
 echo ""
 echo "=== TEST 3: Direct @fe mention (should skip CEO via direct routing) ==="
 # Check which pane is FE
 echo "Agent panes:"
-tmux -L wuphf list-panes -t wuphf-team -F "  pane #{pane_index}" 2>/dev/null
+tmux -L laf-office list-panes -t laf-office-team -F "  pane #{pane_index}" 2>/dev/null
 
 curl -s -X POST "http://127.0.0.1:7890/messages" \
   -H "Content-Type: application/json" \
@@ -200,7 +200,7 @@ if [ "$RESPONDED3" = true ]; then
 else
   echo "FAIL: FE did not respond after 60s"
   echo "--- FE pane (pane 3) ---"
-  tmux -L wuphf capture-pane -p -J -S -15 -t wuphf-team:team.3 2>/dev/null
+  tmux -L laf-office capture-pane -p -J -S -15 -t laf-office-team:team.3 2>/dev/null
 fi
 
 # Final screenshot

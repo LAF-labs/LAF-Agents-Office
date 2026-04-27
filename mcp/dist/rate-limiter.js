@@ -1,6 +1,6 @@
 /**
  * File-based sliding window rate limiter.
- * Designed for WUPHF /text endpoint (10 req/min).
+ * Designed for LAF-Office /text endpoint (10 req/min).
  *
  * Persists timestamps to a JSON file so rate limits are respected
  * across invocations.
@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 const DEFAULTS = {
     maxRequests: 10,
     windowMs: 60_000,
-    dataDir: join(homedir(), ".wuphf"),
+    dataDir: join(homedir(), ".laf-office"),
 };
 export class RateLimiter {
     config;

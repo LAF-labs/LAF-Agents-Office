@@ -2,7 +2,7 @@ package team
 
 // wiki_extractor_closure_test.go — Thread B coverage for the §7.4 substrate
 // guarantee. Extraction MUST append the JSONL fact log in addition to mutating
-// the in-memory index, so `rm -rf .wuphf/index/` + ReconcileFromMarkdown
+// the in-memory index, so `rm -rf .laf-office/index/` + ReconcileFromMarkdown
 // produces a logically-identical rebuild.
 
 import (
@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 // extractSecondArtifactResponse returns an extraction payload for the SAME
@@ -100,7 +100,7 @@ func TestExtractionSurvivesReboot(t *testing.T) {
 	}
 
 	// Wipe the index by constructing a fresh one rooted at the same repo, then
-	// reconciling from markdown. This is the equivalent of rm -rf .wuphf/index/
+	// reconciling from markdown. This is the equivalent of rm -rf .laf-office/index/
 	// + broker restart.
 	fresh := NewWikiIndex(h.repo.Root())
 	defer fresh.Close()

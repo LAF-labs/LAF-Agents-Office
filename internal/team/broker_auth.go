@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const authSessionCookieName = "wuphf_session"
+const authSessionCookieName = "laf_office_session"
 
 func normalizeTeamSlug(raw string) string {
 	slug := normalizeProjectID(raw)

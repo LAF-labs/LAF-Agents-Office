@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 const defaultTimeout = 120 * time.Second
@@ -182,6 +182,6 @@ func Delete[T any](c *Client, path string, timeout time.Duration) (T, error) {
 }
 
 // Registration has moved off the legacy HTTP API. Callers that need to
-// register a WUPHF user now shell out via internal/nex.Register, which
+// register a LAF-Office user now shell out via internal/nex.Register, which
 // drives the nex-cli binary. RegisterRequest is kept in this package for
 // backwards compatibility with existing JSON callers only.

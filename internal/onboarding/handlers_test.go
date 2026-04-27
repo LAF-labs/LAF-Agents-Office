@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // withOperationsFallbackFS points the operations loader at the repo's
 // templates/operations tree so HandleBlueprints can find curated yaml
 // files during tests. Without this the package-level init in the root
-// wuphf package (which wires the embed FS) never runs in onboarding
+// laf-office package (which wires the embed FS) never runs in onboarding
 // tests, and HandleBlueprints returns an empty list.
 func withOperationsFallbackFS(t *testing.T) {
 	t.Helper()
@@ -339,7 +339,7 @@ func TestHandleCompleteBackwardCompatWithLegacyClient(t *testing.T) {
 // those stay server-side in logs.
 func TestHandleCompleteReturns500OnCompleteFnError(t *testing.T) {
 	withTempHome(t, func(_ string) {
-		const secretDetail = "secret-path-/etc/wuphf/state.yaml"
+		const secretDetail = "secret-path-/etc/laf-office/state.yaml"
 		failing := func(task string, skipTask bool, blueprintID string, selectedAgents []string) error {
 			return fmt.Errorf("%s: simulated loader failure for %q", secretDetail, blueprintID)
 		}

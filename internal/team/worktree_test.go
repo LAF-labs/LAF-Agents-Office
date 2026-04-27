@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 func TestCleanupPersistedTaskWorktreesRemovesUniqueTrackedWorktrees(t *testing.T) {
 	stateDir := t.TempDir()
 	statePath := filepath.Join(stateDir, "broker-state.json")
-	t.Setenv("WUPHF_BROKER_STATE_PATH", statePath)
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", statePath)
 
 	oldCleanup := cleanupTaskWorktree
 	defer func() { cleanupTaskWorktree = oldCleanup }()
@@ -29,9 +29,9 @@ func TestCleanupPersistedTaskWorktreesRemovesUniqueTrackedWorktrees(t *testing.T
 		Tasks []teamTask `json:"tasks"`
 	}{
 		Tasks: []teamTask{
-			{ID: "task-1", WorktreePath: "/tmp/wuphf-task-1", WorktreeBranch: "wuphf-task-1"},
-			{ID: "task-2", WorktreePath: "/tmp/wuphf-task-1", WorktreeBranch: "wuphf-task-1"},
-			{ID: "task-3", WorktreePath: "/tmp/wuphf-task-3", WorktreeBranch: "wuphf-task-3"},
+			{ID: "task-1", WorktreePath: "/tmp/laf-office-task-1", WorktreeBranch: "laf-office-task-1"},
+			{ID: "task-2", WorktreePath: "/tmp/laf-office-task-1", WorktreeBranch: "laf-office-task-1"},
+			{ID: "task-3", WorktreePath: "/tmp/laf-office-task-3", WorktreeBranch: "laf-office-task-3"},
 		},
 	}
 	raw, err := json.Marshal(state)
@@ -53,7 +53,7 @@ func TestCleanupPersistedTaskWorktreesRemovesUniqueTrackedWorktrees(t *testing.T
 func TestCleanupPersistedTaskWorktreesMissingStateIsNoOp(t *testing.T) {
 	stateDir := t.TempDir()
 	statePath := filepath.Join(stateDir, "broker-state.json")
-	t.Setenv("WUPHF_BROKER_STATE_PATH", statePath)
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", statePath)
 
 	if err := CleanupPersistedTaskWorktrees(); err != nil {
 		t.Fatalf("expected missing state cleanup to succeed, got %v", err)
@@ -86,8 +86,8 @@ func TestDefaultPrepareTaskWorktreeOverlaysDirtyWorkspace(t *testing.T) {
 	}
 
 	run("git", "init", "-b", "main")
-	run("git", "config", "user.name", "WUPHF Test")
-	run("git", "config", "user.email", "wuphf@example.com")
+	run("git", "config", "user.name", "LAF-Office Test")
+	run("git", "config", "user.email", "laf-office@example.com")
 	if err := os.WriteFile(filepath.Join(repoDir, "tracked.txt"), []byte("base\n"), 0o644); err != nil {
 		t.Fatalf("write tracked baseline: %v", err)
 	}
@@ -104,14 +104,14 @@ func TestDefaultPrepareTaskWorktreeOverlaysDirtyWorkspace(t *testing.T) {
 	if err := os.WriteFile(untrackedPath, []byte("id: vid_01\n"), 0o644); err != nil {
 		t.Fatalf("write untracked file: %v", err)
 	}
-	skippedCachePath := filepath.Join(repoDir, ".wuphf", "cache", "go-build", "ceo", "trim.txt")
+	skippedCachePath := filepath.Join(repoDir, ".laf-office", "cache", "go-build", "ceo", "trim.txt")
 	if err := os.MkdirAll(filepath.Dir(skippedCachePath), 0o755); err != nil {
 		t.Fatalf("mkdir skipped cache parent: %v", err)
 	}
 	if err := os.WriteFile(skippedCachePath, []byte("skip me\n"), 0o644); err != nil {
 		t.Fatalf("write skipped cache file: %v", err)
 	}
-	skippedStatePath := filepath.Join(repoDir, ".wuphf", "browser-home-test", ".wuphf", "team", "broker-state.json")
+	skippedStatePath := filepath.Join(repoDir, ".laf-office", "browser-home-test", ".laf-office", "team", "broker-state.json")
 	if err := os.MkdirAll(filepath.Dir(skippedStatePath), 0o755); err != nil {
 		t.Fatalf("mkdir skipped state parent: %v", err)
 	}
@@ -159,11 +159,11 @@ func TestDefaultPrepareTaskWorktreeOverlaysDirtyWorkspace(t *testing.T) {
 		t.Fatalf("expected untracked overlay in worktree, got %q", got)
 	}
 
-	if _, err := os.Stat(filepath.Join(path, ".wuphf", "cache", "go-build", "ceo", "trim.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(path, ".laf-office", "cache", "go-build", "ceo", "trim.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected generated cache file to be skipped, stat err=%v", err)
 	}
-	if _, err := os.Stat(filepath.Join(path, ".wuphf", "browser-home-test", ".wuphf", "team", "broker-state.json")); !os.IsNotExist(err) {
-		t.Fatalf("expected runtime state under .wuphf to be skipped, stat err=%v", err)
+	if _, err := os.Stat(filepath.Join(path, ".laf-office", "browser-home-test", ".laf-office", "team", "broker-state.json")); !os.IsNotExist(err) {
+		t.Fatalf("expected runtime state under .laf-office to be skipped, stat err=%v", err)
 	}
 	if _, err := os.Stat(filepath.Join(path, ".playwright-cli", "console.log")); !os.IsNotExist(err) {
 		t.Fatalf("expected playwright log to be skipped, stat err=%v", err)
@@ -187,7 +187,7 @@ func TestDefaultPrepareTaskWorktreeOverlaysCompletedSiblingTaskWorkspace(t *test
 	taskWorktreeRootDir = func(repoRoot string) string {
 		return filepath.Join(worktreeRoot, sanitizeWorktreeToken(filepath.Base(repoRoot)))
 	}
-	t.Setenv("WUPHF_BROKER_STATE_PATH", statePath)
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", statePath)
 
 	run := func(dir string, args ...string) {
 		t.Helper()
@@ -200,8 +200,8 @@ func TestDefaultPrepareTaskWorktreeOverlaysCompletedSiblingTaskWorkspace(t *test
 	}
 
 	run(repoDir, "git", "init", "-b", "main")
-	run(repoDir, "git", "config", "user.name", "WUPHF Test")
-	run(repoDir, "git", "config", "user.email", "wuphf@example.com")
+	run(repoDir, "git", "config", "user.name", "LAF-Office Test")
+	run(repoDir, "git", "config", "user.email", "laf-office@example.com")
 	if err := os.WriteFile(filepath.Join(repoDir, "tracked.txt"), []byte("base\n"), 0o644); err != nil {
 		t.Fatalf("write tracked baseline: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestDefaultPrepareTaskWorktreeSkipsDuplicateAndMissingCompletedSiblingSourc
 	taskWorktreeRootDir = func(repoRoot string) string {
 		return filepath.Join(worktreeRoot, sanitizeWorktreeToken(filepath.Base(repoRoot)))
 	}
-	t.Setenv("WUPHF_BROKER_STATE_PATH", statePath)
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", statePath)
 
 	run := func(dir string, args ...string) {
 		t.Helper()
@@ -299,8 +299,8 @@ func TestDefaultPrepareTaskWorktreeSkipsDuplicateAndMissingCompletedSiblingSourc
 	}
 
 	run(repoDir, "git", "init", "-b", "main")
-	run(repoDir, "git", "config", "user.name", "WUPHF Test")
-	run(repoDir, "git", "config", "user.email", "wuphf@example.com")
+	run(repoDir, "git", "config", "user.name", "LAF-Office Test")
+	run(repoDir, "git", "config", "user.email", "laf-office@example.com")
 	if err := os.WriteFile(filepath.Join(repoDir, "tracked.txt"), []byte("base\n"), 0o644); err != nil {
 		t.Fatalf("write tracked baseline: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestDefaultPrepareTaskWorktreeSkipsDuplicateAndMissingCompletedSiblingSourc
 				Status:         "review",
 				ExecutionMode:  "local_worktree",
 				WorktreePath:   filepath.Join(t.TempDir(), "missing-worktree"),
-				WorktreeBranch: "wuphf-missing-task-12",
+				WorktreeBranch: "laf-office-missing-task-12",
 			},
 		},
 	}
@@ -393,12 +393,12 @@ func TestWorktreePathLooksSafeAllowsManagedAndLegacyRoots(t *testing.T) {
 		return filepath.Join(t.TempDir(), "task-worktrees", "repo")
 	}
 
-	managed := filepath.Join(taskWorktreeRootDir("repo"), "wuphf-task-task-1")
+	managed := filepath.Join(taskWorktreeRootDir("repo"), "laf-office-task-task-1")
 	if !worktreePathLooksSafe(managed) {
 		t.Fatalf("expected managed worktree path to be safe: %q", managed)
 	}
 
-	legacy := filepath.Join(os.TempDir(), "wuphf-task-task-legacy")
+	legacy := filepath.Join(os.TempDir(), "laf-office-task-task-legacy")
 	if !worktreePathLooksSafe(legacy) {
 		t.Fatalf("expected legacy temp worktree path to remain safe: %q", legacy)
 	}

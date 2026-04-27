@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/api"
+	"github.com/nex-crm/laf-office/internal/api"
 )
 
 // ToolRegistry manages a set of named AgentTools.
@@ -421,7 +421,7 @@ func localToolDefinitions() []AgentTool {
 				if err != nil {
 					return "", err
 				}
-				outboxDir := filepath.Join(home, ".wuphf", "office", "messages")
+				outboxDir := filepath.Join(home, ".laf-office", "office", "messages")
 				if err := os.MkdirAll(outboxDir, 0o755); err != nil {
 					return "", err
 				}

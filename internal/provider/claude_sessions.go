@@ -56,7 +56,7 @@ func newClaudeSessionStore() *claudeSessionStore {
 	if err != nil {
 		return newClaudeSessionStoreAt("")
 	}
-	return newClaudeSessionStoreAt(filepath.Join(home, ".wuphf", "providers", "claude-sessions.json"))
+	return newClaudeSessionStoreAt(filepath.Join(home, ".laf-office", "providers", "claude-sessions.json"))
 }
 
 func newClaudeSessionStoreAt(path string) *claudeSessionStore {

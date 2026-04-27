@@ -469,7 +469,7 @@ function GeneralSection({ cfg, save }: SectionProps) {
               borderRadius: 3,
             }}
           >
-            wuphf shred
+            laf-office shred
           </code>{" "}
           {t("settings.general.restartTail")}
         </div>
@@ -1166,7 +1166,7 @@ const KEY_DEFS: KeyDef[] = [
     flag: "api_key_set",
     label: "Nex API Key",
     placeholder: "nex_...",
-    env: "WUPHF_API_KEY",
+    env: "LAF_OFFICE_API_KEY",
   },
   {
     field: "anthropic_api_key",
@@ -1215,7 +1215,7 @@ const KEY_DEFS: KeyDef[] = [
     flag: "telegram_token_set",
     label: "Telegram Bot",
     placeholder: "123456:ABC...",
-    env: "WUPHF_TELEGRAM_BOT_TOKEN",
+    env: "LAF_OFFICE_TELEGRAM_BOT_TOKEN",
   },
 ];
 
@@ -1472,20 +1472,20 @@ const CLI_FLAGS: [string, I18nKey][] = [
 ];
 
 const ENV_VARS: [string, I18nKey][] = [
-  ["WUPHF_LLM_PROVIDER", "settings.flags.env.provider"],
-  ["WUPHF_MEMORY_BACKEND", "settings.flags.env.memory"],
-  ["WUPHF_API_KEY", "settings.flags.env.apiKey"],
-  ["WUPHF_BROKER_PORT", "settings.flags.env.brokerPort"],
-  ["WUPHF_CONFIG_PATH", "settings.flags.env.configPath"],
-  ["WUPHF_RUNTIME_HOME", "settings.flags.env.runtimeHome"],
-  ["WUPHF_NO_NEX", "settings.flags.env.noNex"],
-  ["WUPHF_START_FROM_SCRATCH", "settings.flags.env.fromScratch"],
-  ["WUPHF_ONE_ON_ONE", "settings.flags.env.oneOnOne"],
-  ["WUPHF_HEADLESS_PROVIDER", "settings.flags.env.headlessProvider"],
-  ["WUPHF_INSIGHTS_INTERVAL_MINUTES", "settings.flags.env.insights"],
-  ["WUPHF_TASK_FOLLOWUP_MINUTES", "settings.flags.env.followUp"],
-  ["WUPHF_TASK_REMINDER_MINUTES", "settings.flags.env.reminder"],
-  ["WUPHF_TASK_RECHECK_MINUTES", "settings.flags.env.recheck"],
+  ["LAF_OFFICE_LLM_PROVIDER", "settings.flags.env.provider"],
+  ["LAF_OFFICE_MEMORY_BACKEND", "settings.flags.env.memory"],
+  ["LAF_OFFICE_API_KEY", "settings.flags.env.apiKey"],
+  ["LAF_OFFICE_BROKER_PORT", "settings.flags.env.brokerPort"],
+  ["LAF_OFFICE_CONFIG_PATH", "settings.flags.env.configPath"],
+  ["LAF_OFFICE_RUNTIME_HOME", "settings.flags.env.runtimeHome"],
+  ["LAF_OFFICE_NO_NEX", "settings.flags.env.noNex"],
+  ["LAF_OFFICE_START_FROM_SCRATCH", "settings.flags.env.fromScratch"],
+  ["LAF_OFFICE_ONE_ON_ONE", "settings.flags.env.oneOnOne"],
+  ["LAF_OFFICE_HEADLESS_PROVIDER", "settings.flags.env.headlessProvider"],
+  ["LAF_OFFICE_INSIGHTS_INTERVAL_MINUTES", "settings.flags.env.insights"],
+  ["LAF_OFFICE_TASK_FOLLOWUP_MINUTES", "settings.flags.env.followUp"],
+  ["LAF_OFFICE_TASK_REMINDER_MINUTES", "settings.flags.env.reminder"],
+  ["LAF_OFFICE_TASK_RECHECK_MINUTES", "settings.flags.env.recheck"],
 ];
 
 function FlagsSection() {
@@ -1841,7 +1841,7 @@ function DangerZoneSection() {
         <ul style={dangerStyles.list}>
           <li>
             {t("settings.danger.resetClearBroker")} (
-            <code>~/.wuphf/team/broker-state.json</code>)
+            <code>~/.laf-office/team/broker-state.json</code>)
           </li>
           <li>{t("settings.danger.resetClearSnapshot")}</li>
         </ul>
@@ -1876,14 +1876,15 @@ function DangerZoneSection() {
         <ul style={dangerStyles.list}>
           <li>
             {t("settings.danger.shredDeleteOnboarding")} (
-            <code>~/.wuphf/onboarded.json</code>)
+            <code>~/.laf-office/onboarded.json</code>)
           </li>
           <li>
             {t("settings.danger.shredDeleteCompany")} (
-            <code>~/.wuphf/company.json</code>)
+            <code>~/.laf-office/company.json</code>)
           </li>
           <li>
-            {t("settings.danger.shredDeleteRuntime")} <code>~/.wuphf/</code>
+            {t("settings.danger.shredDeleteRuntime")}{" "}
+            <code>~/.laf-office/</code>
           </li>
           <li>{t("settings.danger.shredDeleteLogs")}</li>
           <li>{t("settings.danger.shredDeleteBroker")}</li>

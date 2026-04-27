@@ -1,6 +1,6 @@
 package team
 
-// wiki_extractor.go — the extraction loop for WUPHF Wiki Intelligence Slice 1.
+// wiki_extractor.go — the extraction loop for LAF-Office Wiki Intelligence Slice 1.
 //
 // Data flow:
 //
@@ -446,7 +446,7 @@ func (e *Extractor) persistGhostBriefs(ctx context.Context, entities []IndexEnti
 //
 // This is the §7.4 substrate-rebuild closure for the extraction path: without
 // it, the fact lives only in the derived index cache and evaporates on
-// `rm -rf .wuphf/index/`.
+// `rm -rf .laf-office/index/`.
 //
 // Errors are logged and routed through the DLQ under the dedicated
 // DLQCategoryFactLogPersist category so ReplayDLQ can retry the append

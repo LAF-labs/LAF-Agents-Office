@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 // captureMessages returns a SlashContext that records system messages into a
@@ -89,9 +89,9 @@ func TestCmdAgentCreate_PostsToBroker(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", ts.URL)
-	t.Setenv("WUPHF_BROKER_TOKEN", "test-token")
-	t.Setenv("WUPHF_BROKER_TOKEN_FILE", "")
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", ts.URL)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "test-token")
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN_FILE", "")
 
 	ctx, out := captureMessages()
 	if err := cmdAgentCreate(ctx, "pm-bot --name 'PM Bot' --provider codex --model gpt-5.4 --role 'Product Manager'"); err != nil {
@@ -121,8 +121,8 @@ func TestCmdAgentRemove_PostsToBroker(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", ts.URL)
-	t.Setenv("WUPHF_BROKER_TOKEN", "test-token")
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", ts.URL)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "test-token")
 
 	ctx, out := captureMessages()
 	if err := cmdAgentRemove(ctx, "pm-bot"); err != nil {
@@ -145,8 +145,8 @@ func TestCmdAgentEdit_ProviderSwitch(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", ts.URL)
-	t.Setenv("WUPHF_BROKER_TOKEN", "test-token")
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", ts.URL)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "test-token")
 
 	ctx, out := captureMessages()
 	if err := cmdAgentEdit(ctx, "pm-bot --provider openclaw --session-key agent:test:pm"); err != nil {

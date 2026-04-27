@@ -2,8 +2,8 @@
 # E2E test for agent sidebar streaming + inline DM feature (channelModel / channel view)
 set -e
 
-SOCKET="/tmp/wuphf-sidebar-dm-$$.sock"
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+SOCKET="/tmp/laf-office-sidebar-dm-$$.sock"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/sidebar-dm-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$ARTIFACTS"
 
@@ -20,11 +20,11 @@ echo "Artifacts: $ARTIFACTS"
 # Create a launcher wrapper that runs channel-view directly (no tmux layer).
 # --channel-view: run the TUI directly without launching tmux/agents
 # --no-nex: skip API-key prompt so the model starts clean in office-only mode
-# WUPHF_NO_SPLASH: skip the splash screen so channelModel starts immediately
+# LAF_OFFICE_NO_SPLASH: skip the splash screen so channelModel starts immediately
 LAUNCHER="$ARTIFACTS/launcher.sh"
 cat > "$LAUNCHER" <<EOF
 #!/bin/bash
-export WUPHF_NO_SPLASH=1
+export LAF_OFFICE_NO_SPLASH=1
 exec "$BINARY" --channel-view --no-nex "\$@"
 EOF
 chmod +x "$LAUNCHER"
@@ -126,7 +126,7 @@ PASS=0
 FAIL=0
 
 # ===== TEST 1: TUI boots with agents in sidebar =====
-# With WUPHF_NO_SPLASH=1, the channel view starts immediately.
+# With LAF_OFFICE_NO_SPLASH=1, the channel view starts immediately.
 echo ""
 echo "--- Test 1: TUI boots and shows agents in sidebar ---"
 sleep 2

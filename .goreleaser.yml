@@ -1,9 +1,9 @@
 version: 2
 
 builds:
-  - id: wuphf
-    main: ./cmd/wuphf
-    binary: wuphf
+  - id: laf-office
+    main: ./cmd/laf-office
+    binary: laf-office
     goos:
       - darwin
       - linux
@@ -13,18 +13,18 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      # Inject the release version (and build timestamp) so `wuphf --version`
+      # Inject the release version (and build timestamp) so `laf-office --version`
       # reports the actual release instead of the hardcoded 0.1.0 fallback in
       # internal/buildinfo. goreleaser exposes {{.Version}} without a leading v
       # and {{.Date}} as RFC3339 — both match what buildinfo.Current() returns
       # to users.
       - -s -w
-      - -X github.com/nex-crm/wuphf/internal/buildinfo.Version={{.Version}}
-      - -X github.com/nex-crm/wuphf/internal/buildinfo.BuildTimestamp={{.Date}}
+      - -X github.com/nex-crm/laf-office/internal/buildinfo.Version={{.Version}}
+      - -X github.com/nex-crm/laf-office/internal/buildinfo.BuildTimestamp={{.Date}}
 
 archives:
   - formats: [tar.gz]
-    name_template: "wuphf_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "laf-office_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt
@@ -35,4 +35,4 @@ changelog:
 release:
   github:
     owner: nex-crm
-    name: wuphf
+    name: laf-office

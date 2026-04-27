@@ -196,7 +196,7 @@ func formatRedactionReasons(reasons []RedactionReason) string {
 // --- Extension loader ---
 
 // defaultExtensions is the v1.1 prose-only allowlist. Overridable via
-// WUPHF_SCAN_EXTENSIONS (comma-separated, leading "." optional).
+// LAF_OFFICE_SCAN_EXTENSIONS (comma-separated, leading "." optional).
 var defaultExtensions = []string{".md", ".txt", ".rst", ".org", ".adoc"}
 
 // LoadScanExtensions returns the configured allowlist. Order: caller-
@@ -208,7 +208,7 @@ func LoadScanExtensions(override []string) map[string]struct{} {
 	case len(override) > 0:
 		list = override
 	default:
-		if env := strings.TrimSpace(os.Getenv("WUPHF_SCAN_EXTENSIONS")); env != "" {
+		if env := strings.TrimSpace(os.Getenv("LAF_OFFICE_SCAN_EXTENSIONS")); env != "" {
 			for _, raw := range strings.Split(env, ",") {
 				raw = strings.TrimSpace(raw)
 				if raw == "" {

@@ -1,5 +1,5 @@
 {{/*
-  answer_query.tmpl — WUPHF wiki query prompt
+  answer_query.tmpl — LAF-Office wiki query prompt
 
   Given a user query + top-K retrieved facts/briefs/playbooks, produce a cited
   answer with inline <sup>[n]</sup> references keyed to a numbered sources list.
@@ -8,7 +8,7 @@
 
   Used by:
     - /lookup slash command (channel-side cited answer)
-    - wuphf_wiki_lookup MCP tool (agent-side cited answer)
+    - laf_office_wiki_lookup MCP tool (agent-side cited answer)
 
   Skipped by classifier-routed simple lookups (Option C routing — design doc
   Slice 1). This prompt runs only on queries the classifier routes as complex
@@ -29,7 +29,7 @@ new frontmatter fields, new wiki file locations, or new conventions. If you find
 yourself wanting to do any of those, stop and surface the question to the user
 via the broker's /status alert.
 
-You are the WUPHF wiki answering a question. Your job is cited retrieval, not
+You are the LAF-Office wiki answering a question. Your job is cited retrieval, not
 invention. If the sources below support an answer, give it. If they do not,
 say so.
 

@@ -3,7 +3,7 @@
 # Tests the single-window tmux team flow: broker, channel, live agent panes, and agent replies.
 set -e
 
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/notetaker-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$ARTIFACTS"
 
@@ -22,9 +22,9 @@ log_test "Binary exists"
 if [ -x "$BINARY" ]; then pass; else fail "not found"; exit 1; fi
 
 log_test "Version"
-if "$BINARY" --version 2>&1 | grep -q "wuphf v"; then pass; else fail "bad version"; fi
+if "$BINARY" --version 2>&1 | grep -q "laf-office v"; then pass; else fail "bad version"; fi
 
-log_test "Start wuphf"
+log_test "Start laf-office"
 "$BINARY" >"$ARTIFACTS/stdout.txt" 2>"$ARTIFACTS/stderr.txt" &
 NEX_PID=$!
 sleep 8
@@ -42,16 +42,16 @@ done
 if $BROKER_OK; then pass; else fail "broker down"; fi
 
 # Read broker auth token from temp file
-BROKER_TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null || echo "")
+BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null || echo "")
 if [ -z "$BROKER_TOKEN" ]; then
   echo "    WARNING: no broker token found, authenticated requests will fail"
 fi
 
 log_test "tmux session exists"
-if tmux -L wuphf list-sessions 2>&1 | grep -q "wuphf-team"; then pass; else fail "no session"; fi
+if tmux -L laf-office list-sessions 2>&1 | grep -q "laf-office-team"; then pass; else fail "no session"; fi
 
 log_test "Single team window exists"
-WIN_NAMES=$(tmux -L wuphf list-windows -t wuphf-team -F "#{window_name}" 2>&1)
+WIN_NAMES=$(tmux -L laf-office list-windows -t laf-office-team -F "#{window_name}" 2>&1)
 echo "$WIN_NAMES" > "$ARTIFACTS/windows.txt"
 if echo "$WIN_NAMES" | grep -q "^team$"; then
   pass
@@ -61,7 +61,7 @@ else
 fi
 
 log_test "Team window has channel + agent panes"
-TOTAL_PANES=$(tmux -L wuphf list-panes -t wuphf-team:team 2>&1 | wc -l | tr -d ' ')
+TOTAL_PANES=$(tmux -L laf-office list-panes -t laf-office-team:team 2>&1 | wc -l | tr -d ' ')
 if [ "$TOTAL_PANES" -ge 5 ]; then
   pass
   echo "    $TOTAL_PANES panes"
@@ -72,9 +72,9 @@ fi
 echo "--- Phase 2: Channel View ---"
 
 log_test "Channel pane running"
-CHAN=$(tmux -L wuphf capture-pane -p -t wuphf-team:team.0 2>&1)
+CHAN=$(tmux -L laf-office capture-pane -p -t laf-office-team:team.0 2>&1)
 echo "$CHAN" > "$ARTIFACTS/channel-boot.txt"
-if echo "$CHAN" | grep -qi "channel\|waiting\|wuphf\|team"; then pass; else fail "empty"; fi
+if echo "$CHAN" | grep -qi "channel\|waiting\|laf-office\|team"; then pass; else fail "empty"; fi
 
 log_test "Channel has input area"
 if echo "$CHAN" | grep -qi "type\|message\|quit"; then pass; else fail "no input"; fi
@@ -96,7 +96,7 @@ if echo "$MSGS" | grep -q "notetaker"; then pass; else fail "not stored"; fi
 
 log_test "Channel shows message"
 sleep 3
-CHAN2=$(tmux -L wuphf capture-pane -p -t wuphf-team:team.0 2>&1)
+CHAN2=$(tmux -L laf-office capture-pane -p -t laf-office-team:team.0 2>&1)
 echo "$CHAN2" > "$ARTIFACTS/channel-after-post.txt"
 if echo "$CHAN2" | grep -qi "notetaker\|you\|strategy"; then pass; else fail "not visible"; fi
 
@@ -108,8 +108,8 @@ BOOTED=0
 for attempt in 1 2 3 4 5; do
   BOOTED=0
   for i in 1 2 3 4; do
-    PANE_CMD=$(tmux -L wuphf display-message -p -t "wuphf-team:team.$i" "#{pane_current_command}" 2>/dev/null || echo "")
-    CONTENT=$(tmux -L wuphf capture-pane -p -t "wuphf-team:team.$i" 2>/dev/null || echo "")
+    PANE_CMD=$(tmux -L laf-office display-message -p -t "laf-office-team:team.$i" "#{pane_current_command}" 2>/dev/null || echo "")
+    CONTENT=$(tmux -L laf-office capture-pane -p -t "laf-office-team:team.$i" 2>/dev/null || echo "")
     echo "$CONTENT" > "$ARTIFACTS/pane-$i.txt"
     if echo "$CONTENT" | grep -qi "trust this folder"; then
       continue
@@ -133,7 +133,7 @@ fi
 log_test "No visible agent is stuck on trust prompt"
 TRUST_STUCK=0
 for i in 1 2 3 4; do
-  CONTENT=$(tmux -L wuphf capture-pane -p -t "wuphf-team:team.$i" 2>/dev/null || echo "")
+  CONTENT=$(tmux -L laf-office capture-pane -p -t "laf-office-team:team.$i" 2>/dev/null || echo "")
   if echo "$CONTENT" | grep -qi "trust this folder"; then
     TRUST_STUCK=$((TRUST_STUCK + 1))
   fi
@@ -146,7 +146,7 @@ log_test "Notification loop reaches an agent pane (best effort)"
 sleep 5
 NOTIFIED=0
 for i in 1 2 3 4; do
-  CONTENT=$(tmux -L wuphf capture-pane -p -t "wuphf-team:team.$i" 2>/dev/null || echo "")
+  CONTENT=$(tmux -L laf-office capture-pane -p -t "laf-office-team:team.$i" 2>/dev/null || echo "")
   if echo "$CONTENT" | grep -qi "Channel update\|notetaker\|team_poll"; then
     NOTIFIED=$((NOTIFIED + 1))
   fi
@@ -178,7 +178,7 @@ fi
 
 log_test "Channel eventually shows an agent reply"
 sleep 3
-CHAN3=$(tmux -L wuphf capture-pane -p -t wuphf-team:team.0 2>&1)
+CHAN3=$(tmux -L laf-office capture-pane -p -t laf-office-team:team.0 2>&1)
 echo "$CHAN3" > "$ARTIFACTS/channel-final.txt"
 if echo "$CHAN3" | grep -qi "CEO\|Product Manager\|Frontend Engineer\|Backend Engineer\|AI Engineer\|Designer\|CMO\|CRO"; then
   pass
@@ -189,9 +189,9 @@ fi
 echo "--- Phase 6: Reset ---"
 
 log_test "Reset team session without killing panes"
-tmux -L wuphf send-keys -t "wuphf-team:team.0" "/reset" Enter
+tmux -L laf-office send-keys -t "laf-office-team:team.0" "/reset" Enter
 sleep 12
-RESET_STATUS=$(tmux -L wuphf list-panes -t wuphf-team:team -F "#{pane_index} #{pane_dead} #{pane_current_command}" 2>/dev/null || true)
+RESET_STATUS=$(tmux -L laf-office list-panes -t laf-office-team:team -F "#{pane_index} #{pane_dead} #{pane_current_command}" 2>/dev/null || true)
 echo "$RESET_STATUS" > "$ARTIFACTS/reset-panes.txt"
 if echo "$RESET_STATUS" | awk '{ if ($2 != 0) bad=1 } END { exit bad }'; then
   pass
@@ -200,9 +200,9 @@ else
 fi
 
 log_test "Channel still renders after reset"
-RESET_CHAN=$(tmux -L wuphf capture-pane -p -t wuphf-team:team.0 2>&1)
+RESET_CHAN=$(tmux -L laf-office capture-pane -p -t laf-office-team:team.0 2>&1)
 echo "$RESET_CHAN" > "$ARTIFACTS/channel-after-reset.txt"
-if echo "$RESET_CHAN" | grep -qi "#general\|The WUPHF Office\|Message #general"; then
+if echo "$RESET_CHAN" | grep -qi "#general\|LAF-Office\|Message #general"; then
   pass
 else
   fail "channel not visible after reset"
@@ -229,7 +229,7 @@ echo "--- Phase 8: Clean Exit ---"
 
 log_test "Kill team"
 "$BINARY" kill 2>/dev/null
-if tmux -L wuphf list-sessions 2>&1 | grep -qi "no server\|error"; then pass; else fail "still running"; fi
+if tmux -L laf-office list-sessions 2>&1 | grep -qi "no server\|error"; then pass; else fail "still running"; fi
 
 kill $NEX_PID 2>/dev/null || true
 wait $NEX_PID 2>/dev/null || true

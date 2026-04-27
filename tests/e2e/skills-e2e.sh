@@ -9,8 +9,8 @@ if [ -z "$TERMWRIGHT" ]; then
   echo "termwright not found in PATH; set TERMWRIGHT=/abs/path/to/termwright" >&2
   exit 1
 fi
-SOCKET="/tmp/wuphf-skills-e2e-$$.sock"
-WUPHF="${WUPHF_BIN:-$REPO_ROOT/wuphf}"
+SOCKET="/tmp/laf-office-skills-e2e-$$.sock"
+LAF-Office="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
 ARTIFACTS="${ARTIFACTS:-$REPO_ROOT/termwright-artifacts/skills-e2e-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$ARTIFACTS"
 
@@ -19,14 +19,14 @@ FAIL=0
 TOTAL=0
 
 cleanup() {
-  pkill -f "termwright.*wuphf-skills-e2e" 2>/dev/null || true
+  pkill -f "termwright.*laf-office-skills-e2e" 2>/dev/null || true
   rm -f "$SOCKET"
   sleep 1
 }
 
 start_daemon() {
   cleanup
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$WUPHF" -no-nex &
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex &
   sleep 2
   # Wait for channel view to fully load after splash (~15s)
   "$TERMWRIGHT" exec --socket "$SOCKET" --method wait_for_text --params '{"text":"Channels","timeout_ms":25000}' 2>/dev/null || {
@@ -35,7 +35,7 @@ start_daemon() {
   }
   sleep 1
   # Read broker token for API calls
-  BROKER_TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null || true)
+  BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null || true)
 }
 
 screen_text() {
@@ -104,8 +104,8 @@ assert_screen_not_contains() {
 
 trap cleanup EXIT
 
-echo "=== WUPHF Skills E2E Tests ==="
-echo "Binary: $WUPHF"
+echo "=== LAF-Office Skills E2E Tests ==="
+echo "Binary: $LAF-Office"
 echo "Artifacts: $ARTIFACTS"
 echo ""
 

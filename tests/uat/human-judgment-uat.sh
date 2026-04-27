@@ -1,5 +1,5 @@
 #!/bin/bash
-# Human Judgment UAT Test Suite for wuphf TUI
+# Human Judgment UAT Test Suite for laf-office TUI
 # Tests USABILITY, not just functionality.
 #
 # Runs against the current office channel surface.
@@ -12,9 +12,9 @@
 #   assert_layout     — input at bottom, no excessive blank lines
 set -euo pipefail
 
-SOCKET="/tmp/wuphf-hj-uat-$$.sock"
+SOCKET="/tmp/laf-office-hj-uat-$$.sock"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BINARY="$ROOT/wuphf"
+BINARY="$ROOT/laf-office"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 ARTIFACTS="$ROOT/termwright-artifacts/hj-uat-$TIMESTAMP"
 mkdir -p "$ARTIFACTS"
@@ -350,7 +350,7 @@ echo ""
 
 # Build fresh binary
 echo "Building binary..."
-cd "$ROOT" && go build -o wuphf ./cmd/wuphf 2>&1
+cd "$ROOT" && go build -o laf-office ./cmd/laf-office 2>&1
 echo "Build complete."
 echo ""
 
@@ -362,7 +362,7 @@ sleep 5
 
 # ═══════════════════════════════════════════════════════════════════════
 # PERSONA 1: Maya (First-time user, non-technical)
-#   "I just installed wuphf. What am I looking at?"
+#   "I just installed laf-office. What am I looking at?"
 # ═══════════════════════════════════════════════════════════════════════
 CURRENT_P=1
 echo ""
@@ -371,7 +371,7 @@ echo "  Focus: Is the first impression clean and understandable?"
 
 run_test "M1" "Boot: welcome message is readable (not JSON, not protocol)"
 save_screenshot "maya-01-boot"
-if assert_screen_not_blank "m1" && assert_text "The WUPHF Office|Welcome to The WUPHF Office" "m1" && assert_text "Message #general" "m1" && assert_readable "m1-boot"; then pass; else fail; fi
+if assert_screen_not_blank "m1" && assert_text "LAF-Office|Welcome to LAF-Office" "m1" && assert_text "Message #general" "m1" && assert_readable "m1-boot"; then pass; else fail; fi
 
 run_test "M2" "Slash autocomplete groups commands with clear descriptions"
 clear_input

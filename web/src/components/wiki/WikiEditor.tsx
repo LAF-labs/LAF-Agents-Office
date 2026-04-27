@@ -42,7 +42,7 @@ interface DraftPayload {
   saved_at: string;
 }
 
-const DRAFT_KEY_PREFIX = "wuphf:draft:";
+const DRAFT_KEY_PREFIX = "laf-office:draft:";
 const AUTOSAVE_DEBOUNCE_MS = 750;
 const MOBILE_BREAKPOINT_PX = 768;
 
@@ -333,7 +333,7 @@ export default function WikiEditor({
       />
       <p className="wk-editor-help">
         Plain markdown. <code>[[slug]]</code> creates a wikilink. Saved as
-        commit author <strong>Human &lt;human@wuphf.local&gt;</strong>.
+        commit author <strong>Human &lt;human@laf-office.local&gt;</strong>.
       </p>
     </div>
   );

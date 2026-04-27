@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 // claudeEnvVarsToStrip are the env vars injected by Claude Code that must be

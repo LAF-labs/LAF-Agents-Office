@@ -1,4 +1,4 @@
-module github.com/nex-crm/wuphf
+module github.com/nex-crm/laf-office
 
 go 1.25.9
 

@@ -330,7 +330,7 @@ func TestAnswerQueryPromptEscapesUserQuery(t *testing.T) {
 	// 2. The escape sentinel MUST be present in the query section —
 	//    proves the escape actually ran on req.Query (not just that the
 	//    template happens to omit it).
-	if !strings.Contains(querySection, "[WUPHF-ESCAPED]") {
+	if !strings.Contains(querySection, "[LAF-Office-ESCAPED]") {
 		t.Fatalf("escape sentinel missing from rendered ## Query section for hostile query:\n%s", querySection)
 	}
 }

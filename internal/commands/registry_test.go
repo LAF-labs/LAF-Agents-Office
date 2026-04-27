@@ -182,7 +182,7 @@ func TestDispatchJSON(t *testing.T) {
 
 func TestDispatchInitInstallsLatestCLI(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "")
+	t.Setenv("LAF_OFFICE_API_KEY", "")
 	t.Setenv("NEX_API_KEY", "")
 
 	dir := t.TempDir()
@@ -193,14 +193,14 @@ func TestDispatchInitInstallsLatestCLI(t *testing.T) {
 		t.Fatalf("write fake npm: %v", err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("WUPHF_CLI_INSTALL_BIN", "npm")
-	t.Setenv("WUPHF_CLI_PACKAGE", "@example/wuphf")
+	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", "npm")
+	t.Setenv("LAF_OFFICE_CLI_PACKAGE", "@example/laf-office")
 
 	result := Dispatch("/init", "", "text", 0)
 	if result.ExitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d (%s)", result.ExitCode, result.Error)
 	}
-	if !strings.Contains(result.Output, "Latest @example/wuphf CLI installed from npm.") {
+	if !strings.Contains(result.Output, "Latest @example/laf-office CLI installed from npm.") {
 		t.Fatalf("expected install notice, got %q", result.Output)
 	}
 	if !strings.Contains(result.Output, "Setup defaults saved.") {

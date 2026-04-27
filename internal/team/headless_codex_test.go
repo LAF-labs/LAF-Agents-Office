@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 type headlessCodexRecord struct {
@@ -31,12 +31,12 @@ type processedTurn struct {
 func TestNewLauncherUsesCodexProviderFromConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToPack writes into
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToPack writes into
 	// this test's tmpdir instead of the process-level leaked runtime home
 	// installed by worktree_guard_test's init — that leak pollutes
 	// downstream tests that read company.json via NewBroker.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_BROKER_TOKEN", "")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "")
 	if err := config.Save(config.Config{LLMProvider: "codex"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
@@ -56,11 +56,11 @@ func TestNewLauncherUsesCodexProviderFromConfig(t *testing.T) {
 func TestNewLauncherAcceptsOperationBlueprintID(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToOperationBlueprint
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToOperationBlueprint
 	// writes into this test's tmpdir, not the process-level leaked runtime
 	// home from worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_BROKER_TOKEN", "")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "")
 	if err := config.Save(config.Config{LLMProvider: "codex"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestNewLauncherAcceptsOperationBlueprintID(t *testing.T) {
 func TestBuildCodexOfficeConfigOverridesIncludesOfficeMCPEnv(t *testing.T) {
 	oldExecutablePath := headlessCodexExecutablePath
 	oldLookPath := headlessCodexLookPath
-	headlessCodexExecutablePath = func() (string, error) { return "/tmp/wuphf", nil }
+	headlessCodexExecutablePath = func() (string, error) { return "/tmp/laf-office", nil }
 	headlessCodexLookPath = func(file string) (string, error) {
 		return "", exec.ErrNotFound
 	}
@@ -89,7 +89,7 @@ func TestBuildCodexOfficeConfigOverridesIncludesOfficeMCPEnv(t *testing.T) {
 		headlessCodexLookPath = oldLookPath
 	}()
 
-	t.Setenv("WUPHF_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 
 	broker := newTestBroker(t)
 	if err := broker.SetSessionMode(SessionModeOneOnOne, "pm"); err != nil {
@@ -107,20 +107,20 @@ func TestBuildCodexOfficeConfigOverridesIncludesOfficeMCPEnv(t *testing.T) {
 		t.Fatalf("buildCodexOfficeConfigOverrides: %v", err)
 	}
 	joined := strings.Join(overrides, "\n")
-	if !strings.Contains(joined, `mcp_servers.wuphf-office.command="/tmp/wuphf"`) {
-		t.Fatalf("expected WUPHF MCP command override, got %q", joined)
+	if !strings.Contains(joined, `mcp_servers.laf-office.command="/tmp/laf-office"`) {
+		t.Fatalf("expected LAF-Office MCP command override, got %q", joined)
 	}
-	if !strings.Contains(joined, `mcp_servers.wuphf-office.args=["mcp-team"]`) {
-		t.Fatalf("expected WUPHF MCP args override, got %q", joined)
+	if !strings.Contains(joined, `mcp_servers.laf-office.args=["mcp-team"]`) {
+		t.Fatalf("expected LAF-Office MCP args override, got %q", joined)
 	}
-	if !strings.Contains(joined, `mcp_servers.wuphf-office.env_vars=["WUPHF_AGENT_SLUG", "WUPHF_BROKER_TOKEN", "WUPHF_BROKER_BASE_URL", "WUPHF_NO_NEX", "WUPHF_ONE_ON_ONE", "WUPHF_ONE_ON_ONE_AGENT"]`) {
+	if !strings.Contains(joined, `mcp_servers.laf-office.env_vars=["LAF_OFFICE_AGENT_SLUG", "LAF_OFFICE_BROKER_TOKEN", "LAF_OFFICE_BROKER_BASE_URL", "LAF_OFFICE_NO_NEX", "LAF_OFFICE_ONE_ON_ONE", "LAF_OFFICE_ONE_ON_ONE_AGENT"]`) {
 		t.Fatalf("expected office env var forwarding, got %q", joined)
 	}
 	if strings.Contains(joined, broker.Token()) {
 		t.Fatalf("expected broker token value to stay out of args, got %q", joined)
 	}
 	if strings.Contains(joined, `mcp_servers.nex.command=`) {
-		t.Fatalf("expected Nex MCP to stay disabled with WUPHF_NO_NEX, got %q", joined)
+		t.Fatalf("expected Nex MCP to stay disabled with LAF_OFFICE_NO_NEX, got %q", joined)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 			return "", exec.ErrNotFound
 		}
 	}
-	headlessCodexExecutablePath = func() (string, error) { return "/tmp/wuphf", nil }
+	headlessCodexExecutablePath = func() (string, error) { return "/tmp/laf-office", nil }
 	headlessCodexCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cmdArgs := []string{"-test.run=TestHeadlessCodexHelperProcess", "--"}
 		cmdArgs = append(cmdArgs, args...)
@@ -154,11 +154,11 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	t.Setenv("GO_WANT_HEADLESS_CODEX_HELPER_PROCESS", "1")
 	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "nex-secret-key")
-	t.Setenv("WUPHF_OPENAI_API_KEY", "openai-secret-key")
-	t.Setenv("WUPHF_ONE_SECRET", "one-secret-value")
-	t.Setenv("WUPHF_ONE_IDENTITY", "founder@example.com")
-	t.Setenv("WUPHF_ONE_IDENTITY_TYPE", "user")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-secret-key")
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "openai-secret-key")
+	t.Setenv("LAF_OFFICE_ONE_SECRET", "one-secret-value")
+	t.Setenv("LAF_OFFICE_ONE_IDENTITY", "founder@example.com")
+	t.Setenv("LAF_OFFICE_ONE_IDENTITY_TYPE", "user")
 
 	l := &Launcher{
 		pack:        agent.GetPack("founding-team"),
@@ -185,16 +185,16 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	if !strings.Contains(joinedArgs, "--disable plugins") {
 		t.Fatalf("expected plugins feature to be disabled, got %#v", record.Args)
 	}
-	if !strings.Contains(joinedArgs, `mcp_servers.wuphf-office.command="/tmp/wuphf"`) {
+	if !strings.Contains(joinedArgs, `mcp_servers.laf-office.command="/tmp/laf-office"`) {
 		t.Fatalf("expected office MCP override, got %#v", record.Args)
 	}
-	if !strings.Contains(joinedArgs, `mcp_servers.wuphf-office.env_vars=["WUPHF_AGENT_SLUG", "WUPHF_BROKER_TOKEN", "WUPHF_BROKER_BASE_URL", "ONE_SECRET", "ONE_IDENTITY", "ONE_IDENTITY_TYPE"]`) {
+	if !strings.Contains(joinedArgs, `mcp_servers.laf-office.env_vars=["LAF_OFFICE_AGENT_SLUG", "LAF_OFFICE_BROKER_TOKEN", "LAF_OFFICE_BROKER_BASE_URL", "ONE_SECRET", "ONE_IDENTITY", "ONE_IDENTITY_TYPE"]`) {
 		t.Fatalf("expected office env var forwarding, got %#v", record.Args)
 	}
 	if !strings.Contains(joinedArgs, `mcp_servers.nex.command="/usr/bin/nex-mcp"`) {
 		t.Fatalf("expected nex MCP override, got %#v", record.Args)
 	}
-	if !strings.Contains(joinedArgs, `mcp_servers.nex.env_vars=["WUPHF_API_KEY", "NEX_API_KEY"]`) {
+	if !strings.Contains(joinedArgs, `mcp_servers.nex.env_vars=["LAF_OFFICE_API_KEY", "NEX_API_KEY"]`) {
 		t.Fatalf("expected nex env var forwarding, got %#v", record.Args)
 	}
 	if got := argValue(record.Args, "-C"); !samePath(got, l.cwd) {
@@ -203,32 +203,32 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	if !samePath(record.Dir, l.cwd) {
 		t.Fatalf("expected command dir %q, got %q", l.cwd, record.Dir)
 	}
-	if !containsEnv(record.Env, "WUPHF_AGENT_SLUG=ceo") {
+	if !containsEnv(record.Env, "LAF_OFFICE_AGENT_SLUG=ceo") {
 		t.Fatalf("expected agent env, got %#v", record.Env)
 	}
-	wantCodexHome := filepath.Join(os.Getenv("HOME"), ".wuphf", "codex-headless")
+	wantCodexHome := filepath.Join(os.Getenv("HOME"), ".laf-office", "codex-headless")
 	if !containsEnv(record.Env, "HOME="+wantCodexHome) {
 		t.Fatalf("expected isolated HOME env, got %#v", record.Env)
 	}
 	if !containsEnv(record.Env, "CODEX_HOME="+wantCodexHome) {
 		t.Fatalf("expected absolute CODEX_HOME env, got %#v", record.Env)
 	}
-	if !containsEnv(record.Env, "WUPHF_HEADLESS_PROVIDER=codex") {
+	if !containsEnv(record.Env, "LAF_OFFICE_HEADLESS_PROVIDER=codex") {
 		t.Fatalf("expected headless provider env, got %#v", record.Env)
 	}
-	if got := envValue(record.Env, "GOCACHE"); !samePath(got, filepath.Join(l.cwd, ".wuphf", "cache", "go-build", "ceo")) {
+	if got := envValue(record.Env, "GOCACHE"); !samePath(got, filepath.Join(l.cwd, ".laf-office", "cache", "go-build", "ceo")) {
 		t.Fatalf("expected repo-local GOCACHE, got %#v", record.Env)
 	}
-	if got := envValue(record.Env, "GOTMPDIR"); !samePath(got, filepath.Join(l.cwd, ".wuphf", "cache", "go-tmp", "ceo")) {
+	if got := envValue(record.Env, "GOTMPDIR"); !samePath(got, filepath.Join(l.cwd, ".laf-office", "cache", "go-tmp", "ceo")) {
 		t.Fatalf("expected repo-local GOTMPDIR, got %#v", record.Env)
 	}
-	if !containsEnvPrefix(record.Env, "WUPHF_BROKER_TOKEN=") {
+	if !containsEnvPrefix(record.Env, "LAF_OFFICE_BROKER_TOKEN=") {
 		t.Fatalf("expected broker token env, got %#v", record.Env)
 	}
-	if !containsEnv(record.Env, "WUPHF_API_KEY=nex-secret-key") || !containsEnv(record.Env, "NEX_API_KEY=nex-secret-key") {
+	if !containsEnv(record.Env, "LAF_OFFICE_API_KEY=nex-secret-key") || !containsEnv(record.Env, "NEX_API_KEY=nex-secret-key") {
 		t.Fatalf("expected nex API env, got %#v", record.Env)
 	}
-	if !containsEnv(record.Env, "WUPHF_OPENAI_API_KEY=openai-secret-key") || !containsEnv(record.Env, "OPENAI_API_KEY=openai-secret-key") {
+	if !containsEnv(record.Env, "LAF_OFFICE_OPENAI_API_KEY=openai-secret-key") || !containsEnv(record.Env, "OPENAI_API_KEY=openai-secret-key") {
 		t.Fatalf("expected openai API env, got %#v", record.Env)
 	}
 	if !containsEnv(record.Env, "ONE_SECRET=one-secret-value") {
@@ -271,7 +271,7 @@ func TestRunHeadlessCodexTurnUsesAssignedWorktreeForCodingAgents(t *testing.T) {
 			return "", exec.ErrNotFound
 		}
 	}
-	headlessCodexExecutablePath = func() (string, error) { return "/tmp/wuphf", nil }
+	headlessCodexExecutablePath = func() (string, error) { return "/tmp/laf-office", nil }
 	headlessCodexCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cmdArgs := []string{"-test.run=TestHeadlessCodexHelperProcess", "--"}
 		cmdArgs = append(cmdArgs, args...)
@@ -346,23 +346,23 @@ func TestRunHeadlessCodexTurnUsesAssignedWorktreeForCodingAgents(t *testing.T) {
 	if !samePath(record.Dir, worktreeDir) {
 		t.Fatalf("expected command dir %q, got %q", worktreeDir, record.Dir)
 	}
-	if got := envValue(record.Env, "WUPHF_WORKTREE_PATH"); !samePath(got, worktreeDir) {
+	if got := envValue(record.Env, "LAF_OFFICE_WORKTREE_PATH"); !samePath(got, worktreeDir) {
 		t.Fatalf("expected worktree env, got %#v", record.Env)
 	}
 	if got := envValue(record.Env, "PWD"); !samePath(got, worktreeDir) {
 		t.Fatalf("expected PWD to match worktree, got %#v", record.Env)
 	}
-	wantCodexHome := filepath.Join(os.Getenv("HOME"), ".wuphf", "codex-headless")
+	wantCodexHome := filepath.Join(os.Getenv("HOME"), ".laf-office", "codex-headless")
 	if !containsEnv(record.Env, "HOME="+wantCodexHome) {
 		t.Fatalf("expected isolated HOME env, got %#v", record.Env)
 	}
 	if !containsEnv(record.Env, "CODEX_HOME="+wantCodexHome) {
 		t.Fatalf("expected absolute CODEX_HOME env, got %#v", record.Env)
 	}
-	if got := envValue(record.Env, "GOCACHE"); !samePath(got, filepath.Join(worktreeDir, ".wuphf", "cache", "go-build", "eng")) {
+	if got := envValue(record.Env, "GOCACHE"); !samePath(got, filepath.Join(worktreeDir, ".laf-office", "cache", "go-build", "eng")) {
 		t.Fatalf("expected worktree-local GOCACHE, got %#v", record.Env)
 	}
-	if got := envValue(record.Env, "GOTMPDIR"); !samePath(got, filepath.Join(worktreeDir, ".wuphf", "cache", "go-tmp", "eng")) {
+	if got := envValue(record.Env, "GOTMPDIR"); !samePath(got, filepath.Join(worktreeDir, ".laf-office", "cache", "go-tmp", "eng")) {
 		t.Fatalf("expected worktree-local GOTMPDIR, got %#v", record.Env)
 	}
 	for _, forbiddenPrefix := range []string{
@@ -394,7 +394,7 @@ func TestRunHeadlessCodexTurnUsesAssignedWorktreeForLocalWorktreeBuilder(t *test
 			return "", exec.ErrNotFound
 		}
 	}
-	headlessCodexExecutablePath = func() (string, error) { return "/tmp/wuphf", nil }
+	headlessCodexExecutablePath = func() (string, error) { return "/tmp/laf-office", nil }
 	headlessCodexCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cmdArgs := []string{"-test.run=TestHeadlessCodexHelperProcess", "--"}
 		cmdArgs = append(cmdArgs, args...)
@@ -458,7 +458,7 @@ func TestRunHeadlessCodexTurnUsesAssignedWorktreeForLocalWorktreeBuilder(t *test
 	if !samePath(record.Dir, worktreeDir) {
 		t.Fatalf("expected command dir %q, got %q", worktreeDir, record.Dir)
 	}
-	if got := envValue(record.Env, "WUPHF_WORKTREE_PATH"); !samePath(got, worktreeDir) {
+	if got := envValue(record.Env, "LAF_OFFICE_WORKTREE_PATH"); !samePath(got, worktreeDir) {
 		t.Fatalf("expected worktree env, got %#v", record.Env)
 	}
 }
@@ -476,7 +476,7 @@ func TestRunHeadlessCodexTurnPassesScopedChannelEnv(t *testing.T) {
 			return "", exec.ErrNotFound
 		}
 	}
-	headlessCodexExecutablePath = func() (string, error) { return "/tmp/wuphf", nil }
+	headlessCodexExecutablePath = func() (string, error) { return "/tmp/laf-office", nil }
 	headlessCodexCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cmdArgs := []string{"-test.run=TestHeadlessCodexHelperProcess", "--"}
 		cmdArgs = append(cmdArgs, args...)
@@ -492,7 +492,7 @@ func TestRunHeadlessCodexTurnPassesScopedChannelEnv(t *testing.T) {
 	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("OPENAI_API_KEY", "test-key")
-	t.Setenv("WUPHF_CHANNEL", "general")
+	t.Setenv("LAF_OFFICE_CHANNEL", "general")
 
 	l := &Launcher{
 		pack:        agent.GetPack("founding-team"),
@@ -506,7 +506,7 @@ func TestRunHeadlessCodexTurnPassesScopedChannelEnv(t *testing.T) {
 	}
 
 	record := readHeadlessCodexRecord(t, recordFile)
-	if !containsEnv(record.Env, "WUPHF_CHANNEL=youtube-factory") {
+	if !containsEnv(record.Env, "LAF_OFFICE_CHANNEL=youtube-factory") {
 		t.Fatalf("expected scoped channel env, got %#v", record.Env)
 	}
 }
@@ -542,7 +542,7 @@ func TestPrepareHeadlessCodexHomeUsesDedicatedRuntimeHomeAndCopiesAuth(t *testin
 	sourceHome := t.TempDir()
 	runtimeHome := t.TempDir()
 	t.Setenv("HOME", runtimeHome)
-	t.Setenv("WUPHF_GLOBAL_HOME", sourceHome)
+	t.Setenv("LAF_OFFICE_GLOBAL_HOME", sourceHome)
 
 	sourceCodexHome := filepath.Join(sourceHome, ".codex")
 	if err := os.MkdirAll(sourceCodexHome, 0o755); err != nil {
@@ -566,7 +566,7 @@ func TestPrepareHeadlessCodexHomeUsesDedicatedRuntimeHomeAndCopiesAuth(t *testin
 	}
 
 	got := prepareHeadlessCodexHome()
-	want := filepath.Join(runtimeHome, ".wuphf", "codex-headless")
+	want := filepath.Join(runtimeHome, ".laf-office", "codex-headless")
 	if !samePath(got, want) {
 		t.Fatalf("expected runtime headless home %q, got %q", want, got)
 	}
@@ -615,9 +615,9 @@ func TestEnqueueHeadlessCodexTurnProcessesFIFO(t *testing.T) {
 }
 
 func TestPostHeadlessFinalMessageIfSilentPostsFinalOutput(t *testing.T) {
-	// Isolate state from the user's real ~/.wuphf/team/broker-state.json.
+	// Isolate state from the user's real ~/.laf-office/team/broker-state.json.
 	// Without isolation NewBroker could still pick up state from a shared
-	// ~/.wuphf/team/broker-state.json, and agentPostedSubstantiveMessageToChannelSince
+	// ~/.laf-office/team/broker-state.json, and agentPostedSubstantiveMessageToChannelSince
 	// could observe an unrelated ceo message, making the "expected posted=true"
 	// assertion fail non-deterministically depending on machine history.
 	b := newTestBroker(t)
@@ -1959,7 +1959,7 @@ func TestRunHeadlessCodexQueueRetriesLocalWorktreeAfterGenericError(t *testing.T
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return filepath.Join(tmpDir, "wuphf-task-"+taskID), "wuphf-" + taskID, nil
+		return filepath.Join(tmpDir, "laf-office-task-"+taskID), "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(string, string) error { return nil }
 	defer func() {
@@ -2111,7 +2111,7 @@ func TestEnqueueHeadlessCodexTurnBypassesLeadHoldForReviewReadyTask(t *testing.T
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return filepath.Join(stateDir, "wuphf-task-"+taskID), "wuphf-" + taskID, nil
+		return filepath.Join(stateDir, "laf-office-task-"+taskID), "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(string, string) error { return nil }
 	defer func() {
@@ -2201,7 +2201,7 @@ func waitForProcessedTurn(t *testing.T, ch <-chan processedTurn) processedTurn {
 func TestPreflightHeadlessCodexAuthFailsAndPostsSystemMessage(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("WUPHF_OPENAI_API_KEY", "")
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	if err := config.Save(config.Config{}); err != nil {
 		t.Fatalf("save config: %v", err)
@@ -2240,7 +2240,7 @@ func TestPreflightHeadlessCodexAuthFailsAndPostsSystemMessage(t *testing.T) {
 func TestPreflightHeadlessCodexAuthPassesWhenOpenAIKeySet(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("WUPHF_OPENAI_API_KEY", "")
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "sk-test-key")
 	if err := config.Save(config.Config{}); err != nil {
 		t.Fatalf("save config: %v", err)
@@ -2255,7 +2255,7 @@ func TestPreflightHeadlessCodexAuthPassesWhenOpenAIKeySet(t *testing.T) {
 func TestPreflightHeadlessCodexAuthPassesWhenAuthJSONPresent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("WUPHF_OPENAI_API_KEY", "")
+	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	if err := config.Save(config.Config{}); err != nil {
 		t.Fatalf("save config: %v", err)

@@ -9,7 +9,7 @@ package migration
 // ===============
 //
 // The writer passes MigrateAuthor ("migrate") as the author slug. The
-// wiki git layer derives the commit author as `migrate <migrate@wuphf.local>`
+// wiki git layer derives the commit author as `migrate <migrate@laf-office.local>`
 // via runGitLocked's identity flags. That keeps migration commits visually
 // distinct from human / archivist / agent commits in audit views, and
 // matches the CLI spec without any changes to runGitLocked itself.
@@ -35,7 +35,7 @@ import (
 )
 
 // MigrateAuthor is the commit-author slug for every migrated article.
-// Yields `migrate <migrate@wuphf.local>` via Repo.runGitLocked's
+// Yields `migrate <migrate@laf-office.local>` via Repo.runGitLocked's
 // identity derivation, in line with the HumanAuthor / ArchivistAuthor
 // pattern in internal/team/. Defined here (not in internal/team/) so
 // the migration package owns its own identity without editing files

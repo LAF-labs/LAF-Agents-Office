@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/agent-prompt-$(date +%Y%m%d-%H%M%S)"
-SOCKET="/tmp/wuphf-agent-prompt-$$.sock"
+SOCKET="/tmp/laf-office-agent-prompt-$$.sock"
 STUB='{"slug":"devrel","name":"Developer Relations","role":"Developer Relations","expertise":["developer relations","technical content","feedback loops"],"personality":"Developer-relations operator who turns product work into community momentum and brings real user feedback back to the office.","permission_mode":"plan"}'
 mkdir -p "$ARTIFACTS"
 
@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ ! -x "$BINARY" ]; then
-  echo "SKIP: wuphf binary not found at $BINARY"
+  echo "SKIP: laf-office binary not found at $BINARY"
   exit 0
 fi
 
@@ -64,15 +64,15 @@ echo "Artifacts: $ARTIFACTS"
 APP_PID=$!
 sleep 8
 
-BROKER_TOKEN=$(cat /tmp/wuphf-broker-token 2>/dev/null || true)
+BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null || true)
 if [ -z "$BROKER_TOKEN" ]; then
   echo "FAIL: missing broker token"
   exit 1
 fi
 
 termwright daemon --socket "$SOCKET" --cols 120 --rows 40 --background -- env \
-  WUPHF_BROKER_TOKEN="$BROKER_TOKEN" \
-  WUPHF_AGENT_TEMPLATE_STUB="$STUB" \
+  LAF_OFFICE_BROKER_TOKEN="$BROKER_TOKEN" \
+  LAF_OFFICE_AGENT_TEMPLATE_STUB="$STUB" \
   "$BINARY" --channel-view --channel-app messages
 sleep 5
 

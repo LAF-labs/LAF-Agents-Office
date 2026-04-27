@@ -16,7 +16,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nex-crm/wuphf/internal/team"
+	"github.com/nex-crm/laf-office/internal/team"
 )
 
 func ensureBrokerMembers(t *testing.T, ctx context.Context, slugs ...string) {
@@ -65,7 +65,7 @@ func TestConfigureServerToolsExposesActionToolsToOfficeSpecialists(t *testing.T)
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "wuphf-team-test", Version: "0.1.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "laf-office-team-test", Version: "0.1.0"}, nil)
 	configureServerTools(server, "workflow-architect", "general", false)
 
 	serverSession, err := server.Connect(ctx, serverTransport, nil)
@@ -101,7 +101,7 @@ func TestConfigureServerToolsAnnotatesActionTools(t *testing.T) {
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "wuphf-team-test", Version: "0.1.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "laf-office-team-test", Version: "0.1.0"}, nil)
 	configureServerTools(server, "workflow-architect", "general", false)
 
 	serverSession, err := server.Connect(ctx, serverTransport, nil)
@@ -250,7 +250,7 @@ func TestSuppressBroadcastReasonAllowsRecentlyCompletedOwnedTaskBroadcast(t *tes
 				ID:        "task-4",
 				Owner:     "gtm",
 				Status:    "done",
-				Title:     "Lock the launch monetization path for the flagship WUPHF episode",
+				Title:     "Lock the launch monetization path for the flagship LAF-Office episode",
 				Details:   "Finalize monetization ladder and CTA routing for the first live upload.",
 				UpdatedAt: time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
 			},
@@ -272,7 +272,7 @@ func TestSuppressBroadcastReasonBlocksStaleCompletedOwnedTaskBroadcast(t *testin
 				ID:        "task-4",
 				Owner:     "gtm",
 				Status:    "done",
-				Title:     "Lock the launch monetization path for the flagship WUPHF episode",
+				Title:     "Lock the launch monetization path for the flagship LAF-Office episode",
 				Details:   "Finalize monetization ladder and CTA routing for the first live upload.",
 				UpdatedAt: time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
 			},
@@ -284,7 +284,7 @@ func TestSuppressBroadcastReasonBlocksStaleCompletedOwnedTaskBroadcast(t *testin
 }
 
 func TestIsOneOnOneModeFromEnv(t *testing.T) {
-	t.Setenv("WUPHF_ONE_ON_ONE", "1")
+	t.Setenv("LAF_OFFICE_ONE_ON_ONE", "1")
 	if !isOneOnOneMode() {
 		t.Fatal("expected 1o1 env to enable direct mode")
 	}
@@ -298,8 +298,8 @@ func TestHandleTeamMemberCreateTriggersReconfigure(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	called := 0
 	prev := reconfigureOfficeSessionFn
@@ -342,8 +342,8 @@ func TestHandleTeamChannelCreateTriggersReconfigure(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	called := 0
@@ -404,7 +404,7 @@ func TestHandleTeamChannelCreateTriggersReconfigure(t *testing.T) {
 
 func TestHandleTeamChannelCreateRequiresExplicitSlug(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_CHANNEL", "general")
+	t.Setenv("LAF_OFFICE_CHANNEL", "general")
 
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {
@@ -412,8 +412,8 @@ func TestHandleTeamChannelCreateRequiresExplicitSlug(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	result, _, err := handleTeamChannel(context.Background(), nil, TeamChannelArgs{
 		Action:      "create",
@@ -455,8 +455,8 @@ func TestHandleTeamChannelCreateRequiresExplicitSlug(t *testing.T) {
 
 func TestHandleHumanMessageUsesDirectSessionLabelInOneOnOneMode(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_ONE_ON_ONE", "1")
-	t.Setenv("WUPHF_AGENT_SLUG", "ceo")
+	t.Setenv("LAF_OFFICE_ONE_ON_ONE", "1")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "ceo")
 
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {
@@ -464,8 +464,8 @@ func TestHandleHumanMessageUsesDirectSessionLabelInOneOnOneMode(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	result, _, err := handleHumanMessage(context.Background(), nil, HumanMessageArgs{
 		Content: "Action complete.",
@@ -500,8 +500,8 @@ func TestHandleTeamMemoryWriteAndQueryPrivate(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	if _, _, err := handleTeamMemoryWrite(context.Background(), nil, TeamMemoryWriteArgs{
 		Key:        "launch-brief",
@@ -536,8 +536,8 @@ func TestHandleTeamMemoryWriteHintsPromotionForDurableNote(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	result, _, err := handleTeamMemoryWrite(context.Background(), nil, TeamMemoryWriteArgs{
 		Key:        "launch-brief",
@@ -560,9 +560,9 @@ func TestHandleTeamMemoryWriteHintsPromotionForDurableNote(t *testing.T) {
 
 func TestHandleTeamMemoryQueryAutoIncludesSharedNexMemory(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_MEMORY_BACKEND", "nex")
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 
 	var askedQuery string
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -576,7 +576,7 @@ func TestHandleTeamMemoryQueryAutoIncludesSharedNexMemory(t *testing.T) {
 		}
 	}))
 	defer apiServer.Close()
-	t.Setenv("WUPHF_DEV_URL", apiServer.URL)
+	t.Setenv("LAF_OFFICE_DEV_URL", apiServer.URL)
 
 	binDir := t.TempDir()
 	nexMCP := filepath.Join(binDir, "nex-mcp")
@@ -591,8 +591,8 @@ func TestHandleTeamMemoryQueryAutoIncludesSharedNexMemory(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	if _, _, err := handleTeamMemoryWrite(context.Background(), nil, TeamMemoryWriteArgs{
 		Key:        "launch-brief",
@@ -623,9 +623,9 @@ func TestHandleTeamMemoryQueryAutoIncludesSharedNexMemory(t *testing.T) {
 
 func TestHandleTeamMemoryPromoteWritesSharedNexMemory(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_MEMORY_BACKEND", "nex")
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 
 	var postedBody string
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -641,7 +641,7 @@ func TestHandleTeamMemoryPromoteWritesSharedNexMemory(t *testing.T) {
 		}
 	}))
 	defer apiServer.Close()
-	t.Setenv("WUPHF_DEV_URL", apiServer.URL)
+	t.Setenv("LAF_OFFICE_DEV_URL", apiServer.URL)
 
 	binDir := t.TempDir()
 	nexMCP := filepath.Join(binDir, "nex-mcp")
@@ -656,8 +656,8 @@ func TestHandleTeamMemoryPromoteWritesSharedNexMemory(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	if _, _, err := handleTeamMemoryWrite(context.Background(), nil, TeamMemoryWriteArgs{
 		Key:        "launch-brief",
@@ -687,9 +687,9 @@ func TestHandleTeamMemoryPromoteWritesSharedNexMemory(t *testing.T) {
 
 func TestHandleTeamMemoryQuerySharedSuggestsRoutingHint(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_MEMORY_BACKEND", "nex")
-	t.Setenv("WUPHF_API_KEY", "nex-test-key")
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -701,7 +701,7 @@ func TestHandleTeamMemoryQuerySharedSuggestsRoutingHint(t *testing.T) {
 		}
 	}))
 	defer apiServer.Close()
-	t.Setenv("WUPHF_DEV_URL", apiServer.URL)
+	t.Setenv("LAF_OFFICE_DEV_URL", apiServer.URL)
 
 	binDir := t.TempDir()
 	nexMCP := filepath.Join(binDir, "nex-mcp")
@@ -716,8 +716,8 @@ func TestHandleTeamMemoryQuerySharedSuggestsRoutingHint(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ctx := context.Background()
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
@@ -740,8 +740,8 @@ func TestHandleTeamMemoryQuerySharedSuggestsRoutingHint(t *testing.T) {
 
 func TestHandleTeamPollOneOnOneHighlightsLatestHumanRequest(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_ONE_ON_ONE", "1")
-	t.Setenv("WUPHF_AGENT_SLUG", "ceo")
+	t.Setenv("LAF_OFFICE_ONE_ON_ONE", "1")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "ceo")
 
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {
@@ -749,8 +749,8 @@ func TestHandleTeamPollOneOnOneHighlightsLatestHumanRequest(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	for _, msg := range []map[string]any{
 		{"channel": "general", "from": "you", "content": "Old unrelated ask."},
@@ -791,8 +791,8 @@ func TestHandleTeamPollScopesMessagesForNonCEO(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	for _, msg := range []map[string]any{
@@ -829,7 +829,7 @@ func TestSummarizeTaskRuntimeIncludesIsolationCounts(t *testing.T) {
 			Owner:          "fe",
 			Status:         "in_progress",
 			ExecutionMode:  "local_worktree",
-			WorktreePath:   "/tmp/wuphf-task-1",
+			WorktreePath:   "/tmp/laf-office-task-1",
 			WorktreeBranch: "feat/task-1",
 			Title:          "Implement landing page",
 		},
@@ -851,7 +851,7 @@ func TestSummarizeTaskRuntimeIncludesIsolationCounts(t *testing.T) {
 	if !strings.Contains(summary, "branch feat/task-1") {
 		t.Fatalf("expected worktree branch in %q", summary)
 	}
-	if !strings.Contains(summary, "/tmp/wuphf-task-1") {
+	if !strings.Contains(summary, "/tmp/laf-office-task-1") {
 		t.Fatalf("expected worktree path in %q", summary)
 	}
 	if !strings.Contains(summary, "working_directory") {
@@ -869,8 +869,8 @@ func TestHandleTeamTaskStatusReportsWorktreeIsolation(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "fe")
 
 	payload := map[string]any{
@@ -880,7 +880,7 @@ func TestHandleTeamTaskStatusReportsWorktreeIsolation(t *testing.T) {
 		"owner":           "fe",
 		"created_by":      "ceo",
 		"execution_mode":  "local_worktree",
-		"worktree_path":   "/tmp/wuphf-task-42",
+		"worktree_path":   "/tmp/laf-office-task-42",
 		"worktree_branch": "task/42",
 	}
 	body, err := json.Marshal(payload)
@@ -916,10 +916,10 @@ func TestHandleTeamTaskStatusReportsWorktreeIsolation(t *testing.T) {
 	if !strings.Contains(text, "Isolated worktrees: 1") {
 		t.Fatalf("expected isolation count in %q", text)
 	}
-	if !strings.Contains(text, "branch wuphf-") {
+	if !strings.Contains(text, "branch laf-office-") {
 		t.Fatalf("expected worktree branch in %q", text)
 	}
-	if !strings.Contains(text, ".wuphf/task-worktrees/") {
+	if !strings.Contains(text, ".laf-office/task-worktrees/") {
 		t.Fatalf("expected worktree path in %q", text)
 	}
 	if !strings.Contains(text, "working_directory") {
@@ -937,10 +937,10 @@ func TestHandleTeamTaskStatusReportsWorktreeIsolation(t *testing.T) {
 	if !strings.Contains(tasksText, "Current team tasks:") {
 		t.Fatalf("expected task listing header in %q", tasksText)
 	}
-	if !strings.Contains(tasksText, "branch wuphf-") {
+	if !strings.Contains(tasksText, "branch laf-office-") {
 		t.Fatalf("expected worktree branch in task listing %q", tasksText)
 	}
-	if !strings.Contains(tasksText, "working_directory ") || !strings.Contains(tasksText, ".wuphf/task-worktrees/") {
+	if !strings.Contains(tasksText, "working_directory ") || !strings.Contains(tasksText, ".laf-office/task-worktrees/") {
 		t.Fatalf("expected working_directory path in task listing %q", tasksText)
 	}
 }
@@ -955,8 +955,8 @@ func TestHandleTeamTaskReturnsWorktreeGuidance(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "fe")
 
 	payload := map[string]any{
@@ -966,7 +966,7 @@ func TestHandleTeamTaskReturnsWorktreeGuidance(t *testing.T) {
 		"owner":           "fe",
 		"created_by":      "ceo",
 		"execution_mode":  "local_worktree",
-		"worktree_path":   "/tmp/wuphf-task-99",
+		"worktree_path":   "/tmp/laf-office-task-99",
 		"worktree_branch": "task/99",
 	}
 	body, err := json.Marshal(payload)
@@ -1007,17 +1007,17 @@ func TestHandleTeamTaskReturnsWorktreeGuidance(t *testing.T) {
 		t.Fatalf("handleTeamTask: %v", err)
 	}
 	text := textFromResult(t, result)
-	if !strings.Contains(text, "branch wuphf-") {
+	if !strings.Contains(text, "branch laf-office-") {
 		t.Fatalf("expected worktree branch in %q", text)
 	}
-	if !strings.Contains(text, "working_directory ") || !strings.Contains(text, ".wuphf/task-worktrees/") {
+	if !strings.Contains(text, "working_directory ") || !strings.Contains(text, ".laf-office/task-worktrees/") {
 		t.Fatalf("expected working_directory guidance in %q", text)
 	}
 }
 
 func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_NO_NEX", "1")
+	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 	ctx := context.Background()
 
 	b := newTestBroker(t)
@@ -1026,8 +1026,8 @@ func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "fe")
 
 	if err := brokerPostJSON(ctx, "/messages", map[string]any{
@@ -1045,7 +1045,7 @@ func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 		"owner":           "fe",
 		"created_by":      "ceo",
 		"execution_mode":  "local_worktree",
-		"worktree_path":   "/tmp/wuphf-task-77",
+		"worktree_path":   "/tmp/laf-office-task-77",
 		"worktree_branch": "task/77",
 	}, nil); err != nil {
 		t.Fatalf("create task: %v", err)
@@ -1086,7 +1086,7 @@ func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 		// with no memory backend at all. The capability label follows the
 		// active-backend naming convention (`<Backend> memory`) and the
 		// detail describes where the wiki lives.
-		"Markdown wiki memory [ready]: Markdown-backed team wiki at ~/.wuphf/wiki is configured.",
+		"Markdown wiki memory [ready]: Markdown-backed team wiki at ~/.laf-office/wiki is configured.",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("expected %q in %q", want, text)
@@ -1100,7 +1100,7 @@ func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 	if snapshot.Channel != "general" {
 		t.Fatalf("expected general channel, got %q", snapshot.Channel)
 	}
-	if len(snapshot.Tasks) != 1 || !strings.Contains(snapshot.Tasks[0].WorktreePath, ".wuphf/task-worktrees/") {
+	if len(snapshot.Tasks) != 1 || !strings.Contains(snapshot.Tasks[0].WorktreePath, ".laf-office/task-worktrees/") {
 		t.Fatalf("unexpected runtime tasks: %+v", snapshot.Tasks)
 	}
 	if len(snapshot.Requests) == 0 || snapshot.Requests[0].Title != "Approve release" {
@@ -1123,8 +1123,8 @@ func TestHandleTeamRequestDefaultsApprovalOptions(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	if _, _, err := handleTeamRequest(context.Background(), nil, TeamRequestArgs{
 		Kind:     "approval",
@@ -1170,8 +1170,8 @@ func TestHandleTeamPollUsesAgentScopedTranscript(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	for _, msg := range []map[string]any{
@@ -1211,8 +1211,8 @@ func TestHandleTeamBroadcastDefaultsToLatestTaggedChannelAndThread(t *testing.T)
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	if err := brokerPostJSON(ctx, "/channels", map[string]any{
@@ -1272,8 +1272,8 @@ func TestHandleTeamPollDefaultsToLatestTaggedChannel(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	if err := brokerPostJSON(ctx, "/channels", map[string]any{
@@ -1318,8 +1318,8 @@ func TestHandleTeamTaskUsesTaskChannelWhenIDGiven(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	if err := brokerPostJSON(ctx, "/channels", map[string]any{
@@ -1365,7 +1365,7 @@ func TestHandleTeamTaskUsesTaskChannelWhenIDGiven(t *testing.T) {
 
 func TestHandleHumanMessageDefaultsToDirectReplyThreadInOneOnOneMode(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_ONE_ON_ONE", "1")
+	t.Setenv("LAF_OFFICE_ONE_ON_ONE", "1")
 	ctx := context.Background()
 
 	b := newTestBroker(t)
@@ -1374,8 +1374,8 @@ func TestHandleHumanMessageDefaultsToDirectReplyThreadInOneOnOneMode(t *testing.
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm")
 	if err := b.SetSessionMode(team.SessionModeOneOnOne, "pm"); err != nil {
 		t.Fatalf("set session mode: %v", err)
@@ -1415,8 +1415,8 @@ func TestHandleTeamInboxAndOutboxExposeOwnedTranscriptSlices(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 	ensureBrokerMembers(t, ctx, "pm", "fe")
 
 	if err := brokerPostJSON(ctx, "/messages", map[string]any{
@@ -1539,8 +1539,8 @@ func TestHandleTeamPlanCreatesDependentBlockedTasks(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	result, _, err := handleTeamPlan(context.Background(), nil, TeamPlanArgs{
 		Channel: "general",
@@ -1593,8 +1593,8 @@ func TestHandleTeamPlanPreservesTaskMetadata(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	_, _, err := handleTeamPlan(context.Background(), nil, TeamPlanArgs{
 		Channel: "general",
@@ -1641,8 +1641,8 @@ func TestHandleTeamTaskCreatePreservesTaskMetadata(t *testing.T) {
 	}
 	defer b.Stop()
 
-	t.Setenv("WUPHF_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("WUPHF_BROKER_TOKEN", b.Token())
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	_, _, err := handleTeamTask(context.Background(), nil, TeamTaskArgs{
 		Action:        "create",

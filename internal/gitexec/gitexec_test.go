@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 // TestRunIgnoresInheritedGitDir is the regression test for the class of bug
 // PR #277 fixed in commitCountForPath: if a parent process exports GIT_DIR
-// (e.g. wuphf invoked from a git hook), every child `git` call would silently
+// (e.g. laf-office invoked from a git hook), every child `git` call would silently
 // retarget the outer repo. gitexec.Run must strip that env so cmd.Dir wins.
 func TestRunIgnoresInheritedGitDir(t *testing.T) {
 	tmpRepo := t.TempDir()

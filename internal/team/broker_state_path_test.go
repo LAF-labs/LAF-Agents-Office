@@ -8,7 +8,7 @@ package team
 // the happy save/reload path. These cover the three invariants that
 // the refactor most easily breaks:
 //
-//  1. WUPHF_BROKER_STATE_PATH env override still wins over defaults.
+//  1. LAF_OFFICE_BROKER_STATE_PATH env override still wins over defaults.
 //  2. .last-good snapshot path is always a sibling of the main path.
 //  3. skipBrokerStateLoadOnConstruct still gates the auto-load hook.
 //
@@ -24,13 +24,13 @@ import (
 )
 
 func TestDefaultBrokerStatePath_EnvOverrideWins(t *testing.T) {
-	// WUPHF_BROKER_STATE_PATH takes precedence over WUPHF_RUNTIME_HOME
+	// LAF_OFFICE_BROKER_STATE_PATH takes precedence over LAF_OFFICE_RUNTIME_HOME
 	// so probes and harnesses can pin just the broker file without
 	// remapping $HOME (which breaks Keychain lookups on macOS for
 	// bundled CLIs like Claude Code).
 	override := filepath.Join(t.TempDir(), "explicit-broker-state.json")
-	t.Setenv("WUPHF_BROKER_STATE_PATH", override)
-	t.Setenv("WUPHF_RUNTIME_HOME", "/tmp/should-be-ignored")
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", override)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", "/tmp/should-be-ignored")
 
 	got := defaultBrokerStatePath()
 	if got != override {
@@ -39,16 +39,16 @@ func TestDefaultBrokerStatePath_EnvOverrideWins(t *testing.T) {
 }
 
 func TestDefaultBrokerStatePath_RuntimeHomeFallback(t *testing.T) {
-	// No env override, WUPHF_RUNTIME_HOME set → <home>/.wuphf/team/
+	// No env override, LAF_OFFICE_RUNTIME_HOME set → <home>/.laf-office/team/
 	// broker-state.json. This is the happy path prod and tests both
-	// take (tests via worktree_guard_test.go pinning WUPHF_RUNTIME_HOME
+	// take (tests via worktree_guard_test.go pinning LAF_OFFICE_RUNTIME_HOME
 	// to a leaked tempdir).
-	t.Setenv("WUPHF_BROKER_STATE_PATH", "")
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", "")
 	home := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 
 	got := defaultBrokerStatePath()
-	want := filepath.Join(home, ".wuphf", "team", "broker-state.json")
+	want := filepath.Join(home, ".laf-office", "team", "broker-state.json")
 	if got != want {
 		t.Fatalf("home fallback wrong: got %q, want %q", got, want)
 	}
@@ -59,12 +59,12 @@ func TestDefaultBrokerStatePath_RelativeFallbackWhenHomeMissing(t *testing.T) {
 	// config.RuntimeHomeDir() returns "" — e.g. a CI container without
 	// HOME. Must still produce a deterministic writable path rather
 	// than panicking.
-	t.Setenv("WUPHF_BROKER_STATE_PATH", "")
-	t.Setenv("WUPHF_RUNTIME_HOME", "")
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", "")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", "")
 	t.Setenv("HOME", "")
 
 	got := defaultBrokerStatePath()
-	want := filepath.Join(".wuphf", "team", "broker-state.json")
+	want := filepath.Join(".laf-office", "team", "broker-state.json")
 	if got != want {
 		t.Fatalf("relative fallback wrong: got %q, want %q", got, want)
 	}

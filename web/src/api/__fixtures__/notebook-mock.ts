@@ -131,7 +131,7 @@ const PLANNER_ENTRIES: NotebookEntry[] = [
     revisions: 3,
     status: "draft",
     file_path:
-      "~/.wuphf/wiki/agents/planner/notebook/2026-04-20-reliable-handoffs.md",
+      "~/.laf-office/wiki/agents/planner/notebook/2026-04-20-reliable-handoffs.md",
     reviewer_slug: "reviewer",
   },
   {
@@ -143,7 +143,7 @@ const PLANNER_ENTRIES: NotebookEntry[] = [
     revisions: 2,
     status: "in-review",
     file_path:
-      "~/.wuphf/wiki/agents/planner/notebook/2026-04-20-decision-records.md",
+      "~/.laf-office/wiki/agents/planner/notebook/2026-04-20-decision-records.md",
     reviewer_slug: "reviewer",
   },
   {
@@ -155,7 +155,7 @@ const PLANNER_ENTRIES: NotebookEntry[] = [
     revisions: 4,
     status: "promoted",
     file_path:
-      "~/.wuphf/wiki/agents/planner/notebook/2026-04-19-evidence-quality.md",
+      "~/.laf-office/wiki/agents/planner/notebook/2026-04-19-evidence-quality.md",
     reviewer_slug: "reviewer",
     promoted_to_path: "team/playbooks/evidence-quality.md",
   },
@@ -171,7 +171,7 @@ const CEO_ENTRIES: NotebookEntry[] = [
     revisions: 1,
     status: "draft",
     file_path:
-      "~/.wuphf/wiki/agents/ceo/notebook/2026-04-20-blocker-escalation.md",
+      "~/.laf-office/wiki/agents/ceo/notebook/2026-04-20-blocker-escalation.md",
     reviewer_slug: "human-only",
   },
   {
@@ -183,7 +183,7 @@ const CEO_ENTRIES: NotebookEntry[] = [
     revisions: 2,
     status: "draft",
     file_path:
-      "~/.wuphf/wiki/agents/ceo/notebook/2026-04-19-end-of-turn-retro.md",
+      "~/.laf-office/wiki/agents/ceo/notebook/2026-04-19-end-of-turn-retro.md",
     reviewer_slug: "human-only",
   },
 ];
@@ -198,7 +198,7 @@ const BUILDER_ENTRIES: NotebookEntry[] = [
     revisions: 2,
     status: "changes-requested",
     file_path:
-      "~/.wuphf/wiki/agents/builder/notebook/2026-04-19-command-verification.md",
+      "~/.laf-office/wiki/agents/builder/notebook/2026-04-19-command-verification.md",
     reviewer_slug: "reviewer",
   },
 ];
@@ -213,7 +213,7 @@ const REVIEWER_ENTRIES: NotebookEntry[] = [
     revisions: 1,
     status: "draft",
     file_path:
-      "~/.wuphf/wiki/agents/reviewer/notebook/2026-04-20-review-feedback-loop.md",
+      "~/.laf-office/wiki/agents/reviewer/notebook/2026-04-20-review-feedback-loop.md",
     reviewer_slug: "ceo",
   },
 ];
@@ -228,7 +228,7 @@ const OPERATOR_ENTRIES: NotebookEntry[] = [
     revisions: 1,
     status: "draft",
     file_path:
-      "~/.wuphf/wiki/agents/operator/notebook/2026-04-18-catalog-hygiene.md",
+      "~/.laf-office/wiki/agents/operator/notebook/2026-04-18-catalog-hygiene.md",
     reviewer_slug: "reviewer",
   },
 ];

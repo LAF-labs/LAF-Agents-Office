@@ -4,7 +4,7 @@
  * review queue) with a shared tab bar. Lives above the per-surface design
  * systems so it never picks up .wiki-surface or .notebook-surface tokens.
  *
- * Tab bar uses the WUPHF app chrome (system-ui, existing --text tokens) so
+ * Tab bar uses the LAF-Office app chrome (system-ui, existing --text tokens) so
  * it reads as app scaffolding, not as content of either surface.
  */
 

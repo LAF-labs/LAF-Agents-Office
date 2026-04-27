@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/operations"
+	"github.com/nex-crm/laf-office/internal/operations"
 )
 
 // TaskTemplate describes a first-task suggestion shown during onboarding.
@@ -30,7 +30,7 @@ const blankSlateStarterTemplateID = "__blank_slate__"
 // blueprint-specific task list can be resolved.
 func DefaultTemplates() []TaskTemplate {
 	return []TaskTemplate{
-		{ID: "landing", Title: "Draft the landing page", Description: "Hero, value props, one clear CTA. Not the WUPHF.com approach.", OwnerSlug: "executor"},
+		{ID: "landing", Title: "Draft the landing page", Description: "Hero, value props, one clear CTA. Not the LAF-Office.com approach.", OwnerSlug: "executor"},
 		{ID: "repo", Title: "Set up repo structure", Description: "Folders, README, CI scaffold. Dwight would document everything.", OwnerSlug: "executor"},
 		{ID: "spec", Title: "Write the product spec", Description: "What we're building, why, and what done looks like. Michael would skip this step.", OwnerSlug: "planner"},
 		{ID: "readme", Title: "Write the README", Description: "Installation, usage, one example. Short enough that someone actually reads it.", OwnerSlug: "planner"},

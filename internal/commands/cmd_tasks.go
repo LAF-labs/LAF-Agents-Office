@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/tui/render"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/tui/render"
 )
 
 func cmdTask(ctx *SlashContext, args string) error {

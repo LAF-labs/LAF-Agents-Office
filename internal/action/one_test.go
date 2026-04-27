@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 func writeFakeOne(t *testing.T) string {
@@ -208,7 +208,7 @@ func TestOneCLIRunsWithoutManagedProvisioning(t *testing.T) {
 
 func TestNewOneCLIFromEnvFallsBackToNpx(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_ONE_BIN", "")
+	t.Setenv("LAF_OFFICE_ONE_BIN", "")
 	dir := t.TempDir()
 	npxPath := filepath.Join(dir, "npx")
 	script := `#!/bin/sh

@@ -14,7 +14,7 @@ func TestBuildSessionMemorySnapshotIncludesSerializableSummaries(t *testing.T) {
 		PipelineStage:  "review",
 		ReviewState:    "pending_review",
 		ExecutionMode:  "local_worktree",
-		WorktreePath:   "/tmp/wuphf-task-1",
+		WorktreePath:   "/tmp/laf-office-task-1",
 		WorktreeBranch: "task/1",
 	}}, []RuntimeRequest{{
 		ID:       "req-1",
@@ -58,8 +58,8 @@ func TestSessionMemorySnapshotRestorationContextCollectsResumeHandles(t *testing
 		Focus:     "Resume launch work.",
 		NextSteps: []string{"Answer the blocker.", "Use the worktree."},
 		Tasks: []SessionMemoryTaskSummary{
-			{ID: "task-1", Status: "in_progress", WorktreePath: "/tmp/wuphf-task-1", ThreadID: "msg-9"},
-			{ID: "task-2", Status: "review", WorktreePath: "/tmp/wuphf-task-1", ThreadID: "msg-10"},
+			{ID: "task-1", Status: "in_progress", WorktreePath: "/tmp/laf-office-task-1", ThreadID: "msg-9"},
+			{ID: "task-2", Status: "review", WorktreePath: "/tmp/laf-office-task-1", ThreadID: "msg-10"},
 		},
 		Requests: []SessionMemoryRequestSummary{
 			{ID: "req-1", Status: "pending", Blocking: true, ReplyTo: "msg-9"},
@@ -77,7 +77,7 @@ func TestSessionMemorySnapshotRestorationContextCollectsResumeHandles(t *testing
 	if len(ctx.PendingRequestIDs) != 1 || ctx.PendingRequestIDs[0] != "req-1" {
 		t.Fatalf("expected only pending blocking request, got %+v", ctx.PendingRequestIDs)
 	}
-	if len(ctx.WorkingDirectories) != 1 || ctx.WorkingDirectories[0] != "/tmp/wuphf-task-1" {
+	if len(ctx.WorkingDirectories) != 1 || ctx.WorkingDirectories[0] != "/tmp/laf-office-task-1" {
 		t.Fatalf("expected deduped worktree path, got %+v", ctx.WorkingDirectories)
 	}
 	if len(ctx.ThreadIDs) != 2 {
@@ -95,7 +95,7 @@ func TestBuildSessionMemorySnapshotFromOfficeStateReconstructsContext(t *testing
 			PipelineStage:  "execution",
 			ReviewState:    "pending_review",
 			ExecutionMode:  "local_worktree",
-			WorktreePath:   "/tmp/wuphf-task-7",
+			WorktreePath:   "/tmp/laf-office-task-7",
 			WorktreeBranch: "task/7",
 			ThreadID:       "msg-7",
 		},
@@ -147,7 +147,7 @@ func TestBuildSessionMemorySnapshotFromOfficeStateReconstructsContext(t *testing
 		t.Fatalf("expected request-led focus, got %+v", snapshot)
 	}
 	restore := snapshot.RestorationContext()
-	if len(restore.WorkingDirectories) != 1 || restore.WorkingDirectories[0] != "/tmp/wuphf-task-7" {
+	if len(restore.WorkingDirectories) != 1 || restore.WorkingDirectories[0] != "/tmp/laf-office-task-7" {
 		t.Fatalf("expected worktree restore hint, got %+v", restore)
 	}
 	if len(restore.PendingRequestIDs) != 1 || restore.PendingRequestIDs[0] != "req-3" {

@@ -1,7 +1,7 @@
-# Design System — WUPHF Pixel Office Website
+# Design System — LAF-Office Pixel Office Website
 
 ## Product Context
-- **What this is:** The marketing/landing website for WUPHF — an open-source AI agent office tool where an AI team (CEO, PM, engineers, designer) works visibly in a shared office, claimable via one terminal command.
+- **What this is:** The marketing/landing website for LAF-Office — an open-source AI agent office tool where an AI team (CEO, PM, engineers, designer) works visibly in a shared office, claimable via one terminal command.
 - **Who it's for:** Developers and technical founders who want an AI team that works in the open rather than behind an API.
 - **Space/industry:** AI developer tools / agent frameworks.
 - **Project type:** Isometric pixel-art marketing site. The website IS the product experience — not a description of it.
@@ -11,13 +11,13 @@
 ## Aesthetic Direction
 - **Direction:** Pixel-Retro / The Office (US TV show) workplace — isometric top-down 3D view
 - **Decoration level:** Expressive — 100% pixel art, no smooth vectors, no photos, no gradients
-- **Mood:** A dark office where something is always happening. AI agents and The Office cast sharing the floor. Dim fluorescent lights, golden WUPHF sign glowing on the back wall, everything quietly animated. You discover the product by exploring the environment, not by reading bullet points.
-- **EUREKA:** Every AI agent platform uses dark mode + gradient hero + "your AI team" headline. This site IS the office. The product concept and the website experience are unified. You don't read about WUPHF — you live in it for 30 seconds on the landing page.
+- **Mood:** A dark office where something is always happening. AI agents and The Office cast sharing the floor. Dim fluorescent lights, golden LAF-Office sign glowing on the back wall, everything quietly animated. You discover the product by exploring the environment, not by reading bullet points.
+- **EUREKA:** Every AI agent platform uses dark mode + gradient hero + "your AI team" headline. This site IS the office. The product concept and the website experience are unified. You don't read about LAF-Office — you live in it for 30 seconds on the landing page.
 
 ---
 
 ## Color System
-**Approach:** Dark mode. Amber (#ECB22E) as primary accent — the WUPHF yellow from the existing app token `--yellow`. Works dramatically on dark backgrounds.
+**Approach:** Dark mode. Amber (#ECB22E) as primary accent — the LAF-Office yellow from the existing app token `--yellow`. Works dramatically on dark backgrounds.
 
 | Token | Hex | Usage |
 |-------|-----|-------|
@@ -27,7 +27,7 @@
 | `--border` | `#3A3028` | Dividers, tile outlines, outlines |
 | `--text` | `#F0EBD8` | Primary text (warm off-white) |
 | `--text-muted` | `#8A7D6A` | Secondary text, labels |
-| `--yellow` | `#ECB22E` | WUPHF amber/gold — primary accent, sign, nav logo, CTAs |
+| `--yellow` | `#ECB22E` | LAF-Office amber/gold — primary accent, sign, nav logo, CTAs |
 | `--yellow-dark` | `#C49020` | Button offset shadows, active borders |
 | `--yellow-glow` | `rgba(236,178,46,0.15)` | Subtle ambient glow behind the sign |
 | `--blue` | `#5A9AC8` | Secondary accent, links, engineer agent (brighter for dark bg) |
@@ -54,7 +54,7 @@ Three-font stack. Each has a distinct register and visual purpose. Do not substi
 
 | Role | Font | Usage |
 |------|------|-------|
-| **Display** | `Press Start 2P` | Nav logo, WUPHF sign, UI labels, buttons, section headers |
+| **Display** | `Press Start 2P` | Nav logo, LAF-Office sign, UI labels, buttons, section headers |
 | **Dialogue** | `VT323` | Character thought bubbles, papers on desks, in-world text |
 | **Functional** | `DM Mono` | Body copy, install commands, design system docs |
 
@@ -97,7 +97,7 @@ Three-font stack. Each has a distinct register and visual purpose. Do not substi
   - Draw order: back-to-front (painter's algorithm)
 - **Nav:** Sticky, minimal, 10px padding. Surface background with yellow bottom border.
 - **Max content width:** 1000px (for design system docs section below scene)
-- **Mobile (< 768px):** 2D side-scrolling view of office hallway. Same pixel aesthetic, same colors. Characters walk left/right. No isometric perspective. WUPHF sign still prominent on wall.
+- **Mobile (< 768px):** 2D side-scrolling view of office hallway. Same pixel aesthetic, same colors. Characters walk left/right. No isometric perspective. LAF-Office sign still prominent on wall.
 - **Border radius:** None. Zero. This is pixel art. Everything is sharp rectangles.
 
 ---
@@ -133,7 +133,7 @@ Where `TW=60`, `TH=30`, `OX=420`, `OY=100`.
 ### Back wall
 - Full-width dark panel `#201C14`, height = OY + 30px
 - 4 fluorescent fixtures: `#FFFEF0` with rgba glow cone below
-- WUPHF sign: `#0E0C08` panel, `#ECB22E` border + text, subtle `rgba(236,178,46,0.08)` inner glow, `ctx.shadowColor` amber glow on text
+- LAF-Office sign: `#0E0C08` panel, `#ECB22E` border + text, subtle `rgba(236,178,46,0.08)` inner glow, `ctx.shadowColor` amber glow on text
 
 ### Floor tiles
 - 9×6 diamond grid. Alternating `#3A3228` / `#302A20`.
@@ -142,7 +142,7 @@ Where `TW=60`, `TH=30`, `OX=420`, `OY=100`.
 ### Character positions
 | Character | Grid position | Notes |
 |-----------|---------------|-------|
-| Pam Beesly | (3.5, 0.5) | Reception, in front of WUPHF sign |
+| Pam Beesly | (3.5, 0.5) | Reception, in front of LAF-Office sign |
 | Michael Scott | (6.5, 1.5) | Wandering, background right |
 | Dwight Schrute | (1, 3) | At his desk, left side |
 | Jim Halpert | (3, 3) | At his desk, center — looks at viewer |
@@ -153,7 +153,7 @@ Where `TW=60`, `TH=30`, `OX=420`, `OY=100`.
 | CMO Agent | (4.2, 3.2) | Green nameplate (#5AAA7A) |
 
 ### Interactivity
-1. **Flashing drawer:** First desk item (reception desk, right side). Pulses amber. Carries "Click Me!" tooltip above it (amber background, dark text). On click: reveals `"One command. One office. ./wuphf"` in an amber-bordered panel.
+1. **Flashing drawer:** First desk item (reception desk, right side). Pulses amber. Carries "Click Me!" tooltip above it (amber background, dark text). On click: reveals `"One command. One office. ./laf-office"` in an amber-bordered panel.
 2. **All clickable items:** Stepped amber `box-shadow` pulse. No smooth glow.
 3. **Character click:** Shows thought bubble with character quote. VT323 font. Amber border. 5s auto-dismiss. Click character again to dismiss.
 4. **Hidden messaging:** Multiple clickable items throughout the scene, each revealing product copy in the environment.
@@ -161,11 +161,11 @@ Where `TW=60`, `TH=30`, `OX=420`, `OY=100`.
 ### Hidden messaging map
 | Location | Click to reveal |
 |----------|----------------|
-| Reception drawer (first, flashes) | `"One command. One office. ./wuphf"` |
+| Reception drawer (first, flashes) | `"One command. One office. ./laf-office"` |
 | Paper on Pam's desk | `"CEO, PM, engineers — all visible, all working."` |
 | Conference room whiteboard | Architecture diagram — agent routing + broker |
-| Agent monitor screen | `"Open source. MIT license. go build -o wuphf"` |
-| Plant by window | `"Unlike Ryan Howard's WUPHF, this one works."` |
+| Agent monitor screen | `"Open source. MIT license. go build -o laf-office"` |
+| Plant by window | `"Unlike Ryan Howard's LAF-Office, this one works."` |
 | Break room fridge | Full install command |
 | Stapler in jello (Dwight area) | Easter egg — Dwight rage quit message |
 | Dundie on shelf | `"Best AI Office, 2025. (Self-awarded.)"` |
@@ -174,7 +174,7 @@ Where `TW=60`, `TH=30`, `OX=420`, `OY=100`.
 ### Character thought bubbles (click to trigger)
 | Character | Quote |
 |-----------|-------|
-| Pam Beesly | "WUPHF!" |
+| Pam Beesly | "LAF-Office!" |
 | Michael Scott | "I'm not superstitious, but I am a little stitious." |
 | Dwight Schrute | "Bears. Beets. Battlestar Galactica." |
 | Jim Halpert | "How the turntables..." |
@@ -236,9 +236,9 @@ border-bottom: 3px solid #C49020;
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-04-15 | Dark mode instead of beige/light | Amber (#ECB22E) pops on dark. On beige it washes out. Dark also fits "AI agents working late" narrative and differentiates from every SaaS site using white + blue. |
-| 2026-04-15 | WUPHF Yellow (#ECB22E) as primary accent | Picked up from existing app `--yellow` token. Consistent with product branding. |
+| 2026-04-15 | LAF-Office Yellow (#ECB22E) as primary accent | Picked up from existing app `--yellow` token. Consistent with product branding. |
 | 2026-04-15 | Press Start 2P + VT323 + DM Mono | Three-font system: pixel UI, in-world dialogue, functional prose. Each has a distinct register. |
 | 2026-04-15 | Zero hero copy in first viewport | All messaging is environmental. The product concept (visible AI team) IS the website experience. |
 | 2026-04-15 | steps() animations only — hard rule | Smooth CSS transitions break the pixel art illusion. 16-bit game feel requires discrete frames. |
 | 2026-04-15 | Isometric 3D view as hero layout | Isometric is unmistakable and distinctive. No other AI tool website does this. The product IS an office, so the website IS an office. |
-| 2026-04-15 | The Office cast + WUPHF agents on same floor | Office cast provides instant recognition and humor. AI agents demonstrate the product inline. The joke writes itself — they coexist. |
+| 2026-04-15 | The Office cast + LAF-Office agents on same floor | Office cast provides instant recognition and humor. AI agents demonstrate the product inline. The joke writes itself — they coexist. |

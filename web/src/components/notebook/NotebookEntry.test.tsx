@@ -15,7 +15,7 @@ const DRAFT_ENTRY: NotebookEntry = {
   last_edited_ts: new Date().toISOString(),
   revisions: 3,
   status: "draft",
-  file_path: "~/.wuphf/wiki/agents/pm/notebook/2026-04-20.md",
+  file_path: "~/.laf-office/wiki/agents/pm/notebook/2026-04-20.md",
   reviewer_slug: "ceo",
 };
 

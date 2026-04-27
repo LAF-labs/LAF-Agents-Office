@@ -88,7 +88,7 @@ func TestStaleUnansweredFilteredOnResume(t *testing.T) {
 	// Pin members explicitly so the test stays self-contained: this
 	// scenario only cares about ceo + planner routing. Defense-in-depth
 	// against future leaks — the root cause (launcher tests leaking a
-	// youtube-factory manifest into the init-time WUPHF_RUNTIME_HOME) is
+	// youtube-factory manifest into the init-time LAF_OFFICE_RUNTIME_HOME) is
 	// fixed in the same PR, but the buildResumePackets inPack-drop path
 	// fails silently (no error, just a missing packet) so any new leak
 	// would be painful to re-diagnose.

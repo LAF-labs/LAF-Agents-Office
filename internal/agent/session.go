@@ -17,13 +17,13 @@ type SessionStore struct {
 	baseDir string
 }
 
-// NewSessionStore creates a store rooted at ~/.wuphf/sessions by default.
+// NewSessionStore creates a store rooted at ~/.laf-office/sessions by default.
 func NewSessionStore() (*SessionStore, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("get home dir: %w", err)
 	}
-	return &SessionStore{baseDir: filepath.Join(home, ".wuphf", "sessions")}, nil
+	return &SessionStore{baseDir: filepath.Join(home, ".laf-office", "sessions")}, nil
 }
 
 // NewSessionStoreAt creates a store rooted at a specific directory (useful for tests).

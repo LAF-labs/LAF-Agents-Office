@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 type generatedMemberTemplate struct {
@@ -23,12 +23,12 @@ func (l *Launcher) GenerateMemberTemplateFromPrompt(request string) (generatedMe
 	if request == "" {
 		return generatedMemberTemplate{}, fmt.Errorf("prompt is required")
 	}
-	if stub := strings.TrimSpace(os.Getenv("WUPHF_AGENT_TEMPLATE_STUB")); stub != "" {
+	if stub := strings.TrimSpace(os.Getenv("LAF_OFFICE_AGENT_TEMPLATE_STUB")); stub != "" {
 		return parseGeneratedMemberTemplate(stub)
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
 
-You are designing a NEW office teammate template for WUPHF.
+You are designing a NEW office teammate template for LAF-Office.
 Return exactly one JSON object and nothing else.
 Do not wrap it in markdown fences.
 Do not explain your reasoning.
@@ -101,12 +101,12 @@ func (l *Launcher) GenerateChannelTemplateFromPrompt(request string) (generatedC
 	if request == "" {
 		return generatedChannelTemplate{}, fmt.Errorf("prompt is required")
 	}
-	if stub := strings.TrimSpace(os.Getenv("WUPHF_CHANNEL_TEMPLATE_STUB")); stub != "" {
+	if stub := strings.TrimSpace(os.Getenv("LAF_OFFICE_CHANNEL_TEMPLATE_STUB")); stub != "" {
 		return parseGeneratedChannelTemplate(stub)
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
 
-You are designing a NEW office channel for WUPHF.
+You are designing a NEW office channel for LAF-Office.
 Return exactly one JSON object and nothing else.
 Do not wrap it in markdown fences.
 Do not explain your reasoning.

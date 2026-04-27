@@ -11,7 +11,7 @@ func withTempHome(t *testing.T) func() {
 	tmp := t.TempDir()
 	old := os.Getenv("HOME")
 	os.Setenv("HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, ".wuphf"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, ".laf-office"), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	return func() { os.Setenv("HOME", old) }

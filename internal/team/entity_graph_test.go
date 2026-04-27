@@ -265,7 +265,7 @@ func TestStripRelatedSection(t *testing.T) {
 			// Sentinel-wrapped block (the shape the current renderer emits)
 			// is the strict path — strip regardless of surrounding content.
 			"sentinel-wrapped section — stripped",
-			"# Title\n\nBody.\n\n<!-- wuphf:related:start -->\n## Related\n\n- [[companies/acme]]\n<!-- wuphf:related:end -->\n",
+			"# Title\n\nBody.\n\n<!-- laf-office:related:start -->\n## Related\n\n- [[companies/acme]]\n<!-- laf-office:related:end -->\n",
 			"# Title\n\nBody.",
 		},
 		{
@@ -330,7 +330,7 @@ func TestRenderRelatedSection_AppendsFromGraph(t *testing.T) {
 	if out == "" {
 		t.Fatal("expected Related section, got empty")
 	}
-	// Output is wrapped in the wuphf:related sentinels so stripRelatedSection
+	// Output is wrapped in the laf-office:related sentinels so stripRelatedSection
 	// can remove the managed block on the next synthesis pass without
 	// shape-matching heuristics.
 	want := relatedSentinelStart + "\n## Related\n\n- [[companies/acme]]\n" + relatedSentinelEnd + "\n"

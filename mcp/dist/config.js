@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
-const CONFIG_PATH = join(homedir(), ".wuphf", "config.json");
+const CONFIG_PATH = join(homedir(), ".laf-office", "config.json");
 export function loadConfig() {
     try {
         const raw = readFileSync(CONFIG_PATH, "utf-8");
@@ -16,7 +16,7 @@ export function saveConfig(config) {
     writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
 }
 export function loadApiKey() {
-    return process.env.WUPHF_API_KEY || loadConfig().api_key || undefined;
+    return process.env.LAF_OFFICE_API_KEY || loadConfig().api_key || undefined;
 }
 export function persistRegistration(data) {
     const existing = loadConfig();

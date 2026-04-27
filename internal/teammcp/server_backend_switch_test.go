@@ -136,7 +136,7 @@ func TestConfigureServerToolsBackendMatrix(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			t.Setenv("WUPHF_MEMORY_BACKEND", tc.backend)
+			t.Setenv("LAF_OFFICE_MEMORY_BACKEND", tc.backend)
 
 			channel := "general"
 			if tc.name == "markdown/dm" {
@@ -174,7 +174,7 @@ func listRegisteredTools(t *testing.T, channel string, oneOnOne bool) []string {
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "wuphf-team-test", Version: "0.1.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "laf-office-team-test", Version: "0.1.0"}, nil)
 	configureServerTools(server, "workflow-architect", channel, oneOnOne)
 
 	serverSession, err := server.Connect(ctx, serverTransport, nil)

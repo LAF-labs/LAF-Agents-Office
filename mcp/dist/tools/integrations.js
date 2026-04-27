@@ -1,10 +1,10 @@
 import { z } from "zod";
 export function registerIntegrationTools(server, client) {
-    server.tool("list_integrations", "List all available third-party integrations and their connection status. Calendar integrations (Google Calendar, Outlook Calendar) enable the WUPHF Meeting Bot which joins calls on any platform (Google Meet, Zoom, Webex, Teams, etc.) and feeds transcripts into the context graph. To connect, use connect_integration. To disconnect, use disconnect_integration.", {}, { readOnlyHint: true }, async () => {
+    server.tool("list_integrations", "List all available third-party integrations and their connection status. Calendar integrations (Google Calendar, Outlook Calendar) enable the LAF-Office Meeting Bot which joins calls on any platform (Google Meet, Zoom, Webex, Teams, etc.) and feeds transcripts into the context graph. To connect, use connect_integration. To disconnect, use disconnect_integration.", {}, { readOnlyHint: true }, async () => {
         const result = await client.get("/v1/integrations/");
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     });
-    server.tool("connect_integration", "Start connecting a third-party integration via OAuth. Returns an auth_url to open in the browser and a connect_id to poll for status. Calendar integrations (type: 'calendar') enable the WUPHF Meeting Bot which auto-joins calls and processes transcripts.", {
+    server.tool("connect_integration", "Start connecting a third-party integration via OAuth. Returns an auth_url to open in the browser and a connect_id to poll for status. Calendar integrations (type: 'calendar') enable the LAF-Office Meeting Bot which auto-joins calls and processes transcripts.", {
         type: z.enum(["email", "calendar", "crm", "messaging"]).describe("Integration type"),
         provider: z.enum(["google", "microsoft", "attio", "slack", "salesforce", "hubspot"]).describe("Integration provider"),
     }, { readOnlyHint: false }, async ({ type, provider }) => {

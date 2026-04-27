@@ -251,7 +251,7 @@ func TestScannerSlugifyRoot(t *testing.T) {
 // --- LoadScanExtensions tests ---
 
 func TestScannerLoadScanExtensions(t *testing.T) {
-	t.Setenv("WUPHF_SCAN_EXTENSIONS", "")
+	t.Setenv("LAF_OFFICE_SCAN_EXTENSIONS", "")
 	def := LoadScanExtensions(nil)
 	if _, ok := def[".md"]; !ok {
 		t.Fatalf("default should include .md")
@@ -259,7 +259,7 @@ func TestScannerLoadScanExtensions(t *testing.T) {
 	if _, ok := def[".go"]; ok {
 		t.Fatalf("default should NOT include .go")
 	}
-	t.Setenv("WUPHF_SCAN_EXTENSIONS", "go, md , txt")
+	t.Setenv("LAF_OFFICE_SCAN_EXTENSIONS", "go, md , txt")
 	env := LoadScanExtensions(nil)
 	for _, want := range []string{".go", ".md", ".txt"} {
 		if _, ok := env[want]; !ok {
@@ -283,7 +283,7 @@ func TestScannerScanHumanConfirmationGate(t *testing.T) {
 	// default — but we use the real detector path here. Use the real
 	// MtimeChangeDetector with an isolated manifest path.
 	_ = det
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	real, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -303,7 +303,7 @@ func TestScannerScanConfirmsAndIngests(t *testing.T) {
 		"sub/other.md": "content two",
 	})
 	wiki := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -342,7 +342,7 @@ func TestScannerScanConfirmsAndIngests(t *testing.T) {
 func TestScannerScanIsIdempotent(t *testing.T) {
 	root := setupRoot(t, map[string]string{"note.md": "hi"})
 	wiki := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -388,7 +388,7 @@ func TestScannerScanSkipsSecretsFile(t *testing.T) {
 		"secrets.md": body,
 	})
 	wiki := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -412,7 +412,7 @@ func TestScannerScanRedactsSecretsInIngestedFile(t *testing.T) {
 		"mixed.md": "ok\nAKIAIOSFODNN7EXAMPLE\nrest",
 	})
 	wiki := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -445,7 +445,7 @@ func TestScannerScanEnforcesSizeCaps(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "big.md"), []byte(big), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -465,7 +465,7 @@ func TestScannerScanEnforcesFileCountCap(t *testing.T) {
 			t.Fatalf("write: %v", err)
 		}
 	}
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -489,7 +489,7 @@ func TestScannerScanEnforcesTotalSizeCap(t *testing.T) {
 			t.Fatalf("write: %v", err)
 		}
 	}
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -506,7 +506,7 @@ func TestScannerScanSkipsEmptyFiles(t *testing.T) {
 		"content.md": "real",
 	})
 	wiki := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -526,7 +526,7 @@ func TestScannerScanRootMustBeDirectory(t *testing.T) {
 	if err := os.WriteFile(f, []byte("x"), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -572,7 +572,7 @@ func TestScannerScanFixtureOnlyIngestsInnocentMarkdown(t *testing.T) {
 	// Extend the default allowlist so .pem and .env are discovered by
 	// the walker. Without this, the extension allowlist alone would
 	// silently filter them out and we'd claim a win we didn't earn.
-	t.Setenv("WUPHF_SCAN_EXTENSIONS", "md,pem,env")
+	t.Setenv("LAF_OFFICE_SCAN_EXTENSIONS", "md,pem,env")
 
 	pemBody := "-----BEGIN OPENSSH PRIVATE KEY-----\n" +
 		strings.Repeat("AAAAB3NzaC1yc2EAAAADAQABAAABAQ", 4) + "\n" +
@@ -592,7 +592,7 @@ func TestScannerScanFixtureOnlyIngestsInnocentMarkdown(t *testing.T) {
 		"welcome.md":  innocent,
 	})
 	wiki := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)
@@ -623,7 +623,7 @@ func TestScannerScanFixtureOnlyIngestsInnocentMarkdown(t *testing.T) {
 
 // Verify the mtime-based detector treats a touched file as changed.
 func TestScannerMtimeDetectsModification(t *testing.T) {
-	t.Setenv("WUPHF_RUNTIME_HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	det, err := NewMtimeChangeDetector()
 	if err != nil {
 		t.Fatalf("detector: %v", err)

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 const defaultComposioBaseURL = "https://backend.composio.dev/api/v3"
@@ -72,10 +72,10 @@ func (c *ComposioREST) Guide(_ context.Context, topic string) (GuideResult, erro
 		"topic":    topic,
 		"notes": []string{
 			"Use search -> knowledge -> dry-run -> execute for external actions.",
-			"Use connected account IDs returned by team_action_connections as the connection_key. If a workflow omits connection_key and there is exactly one active connection for that platform, WUPHF auto-resolves it.",
+			"Use connected account IDs returned by team_action_connections as the connection_key. If a workflow omits connection_key and there is exactly one active connection for that platform, LAF-Office auto-resolves it.",
 			"Trigger registration is supported through the existing relay compatibility tools with one event filter per trigger.",
-			"Workflow creation and execution are WUPHF-native: save a workflow definition in WUPHF, then WUPHF executes external steps through Composio.",
-			`Supported WUPHF workflow step types: "action", "template", "nex_ask", and "nex_insights".`,
+			"Workflow creation and execution are LAF-Office-native: save a workflow definition in LAF-Office, then LAF-Office executes external steps through Composio.",
+			`Supported LAF-Office workflow step types: "action", "template", "nex_ask", and "nex_insights".`,
 			"Every workflow step also exposes a generic .result value: action=result response object, template=result text, nex_ask=result answer text, nex_insights=result compact insight summary text.",
 			"Use a template step to compress large action output into concise text before handing it to nex_ask or another action.",
 			"Keep workflow compose prompts compact. For digest/report flows, default to about 10 recent emails and 5 recent insights unless the human explicitly asks for more.",
@@ -392,11 +392,11 @@ func (c *ComposioREST) ActivateRelay(ctx context.Context, req RelayActivateReque
 }
 
 func (c *ComposioREST) ListRelayEvents(context.Context, RelayEventsOptions) (RelayEventsResult, error) {
-	return RelayEventsResult{}, fmt.Errorf("composio trigger event polling is not wired into WUPHF yet")
+	return RelayEventsResult{}, fmt.Errorf("composio trigger event polling is not wired into LAF-Office yet")
 }
 
 func (c *ComposioREST) GetRelayEvent(context.Context, string) (RelayEventDetail, error) {
-	return RelayEventDetail{}, fmt.Errorf("composio trigger event fetch is not wired into WUPHF yet")
+	return RelayEventDetail{}, fmt.Errorf("composio trigger event fetch is not wired into LAF-Office yet")
 }
 
 func (c *ComposioREST) get(ctx context.Context, path string, query url.Values) ([]byte, error) {
@@ -497,7 +497,7 @@ func composioCompactStrings(items []string) []string {
 }
 
 func configResolveComposioBaseURL() string {
-	if v := strings.TrimSpace(strings.TrimRight(os.Getenv("WUPHF_COMPOSIO_BASE_URL"), "/")); v != "" {
+	if v := strings.TrimSpace(strings.TrimRight(os.Getenv("LAF_OFFICE_COMPOSIO_BASE_URL"), "/")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(strings.TrimRight(os.Getenv("COMPOSIO_BASE_URL"), "/")); v != "" {

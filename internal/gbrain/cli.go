@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 const DefaultTimeout = 8 * time.Second
@@ -32,7 +32,7 @@ type SearchResult struct {
 }
 
 func BinaryPath() string {
-	if candidate := strings.TrimSpace(os.Getenv("WUPHF_GBRAIN_COMMAND")); candidate != "" {
+	if candidate := strings.TrimSpace(os.Getenv("LAF_OFFICE_GBRAIN_COMMAND")); candidate != "" {
 		if path, err := exec.LookPath(candidate); err == nil {
 			return path
 		}

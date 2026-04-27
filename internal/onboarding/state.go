@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 // currentStateVersion is the schema version written to onboarded.json.
@@ -19,7 +19,7 @@ import (
 // user goes through the flow again after a breaking upgrade.
 const currentStateVersion = 1
 
-// State mirrors the full contents of ~/.wuphf/onboarded.json.
+// State mirrors the full contents of ~/.laf-office/onboarded.json.
 type State struct {
 	// CompletedAt is the RFC-3339 timestamp of when the user finished onboarding.
 	// Empty string means onboarding is not complete.
@@ -73,18 +73,18 @@ type ChecklistItem struct {
 	Done bool `json:"done"`
 }
 
-// StatePath returns the absolute path to ~/.wuphf/onboarded.json.
+// StatePath returns the absolute path to ~/.laf-office/onboarded.json.
 // It expands $HOME via os.UserHomeDir; falls back to a relative path on
 // error (only occurs in extremely restricted environments).
 func StatePath() string {
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".wuphf", "onboarded.json")
+		return filepath.Join(".laf-office", "onboarded.json")
 	}
-	return filepath.Join(home, ".wuphf", "onboarded.json")
+	return filepath.Join(home, ".laf-office", "onboarded.json")
 }
 
-// Load reads and parses ~/.wuphf/onboarded.json.
+// Load reads and parses ~/.laf-office/onboarded.json.
 // When the file does not exist it returns a fresh State with Onboarded()==false
 // and a default checklist — no error is returned in that case.
 func Load() (*State, error) {
@@ -117,7 +117,7 @@ func Load() (*State, error) {
 	return &s, nil
 }
 
-// Save atomically writes s to ~/.wuphf/onboarded.json by first writing to a
+// Save atomically writes s to ~/.laf-office/onboarded.json by first writing to a
 // sibling temp file and then renaming it into place.
 func Save(s *State) error {
 	path := StatePath()

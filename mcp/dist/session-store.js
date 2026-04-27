@@ -1,12 +1,12 @@
 /**
  * File-based session store for MCP session ID mapping.
- * Persists session mappings to ~/.wuphf/mcp-sessions.json.
+ * Persists session mappings to ~/.laf-office/mcp-sessions.json.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 const DEFAULT_MAX = 100;
-const DEFAULT_DATA_DIR = join(homedir(), ".wuphf");
+const DEFAULT_DATA_DIR = join(homedir(), ".laf-office");
 export class SessionStore {
     filePath;
     maxSize;

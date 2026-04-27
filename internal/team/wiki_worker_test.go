@@ -235,12 +235,12 @@ func TestWikiSearchReturnsHits(t *testing.T) {
 	worker, _, _, teardown := newStartedWorker(t)
 	defer teardown()
 	ctx := context.Background()
-	if _, _, err := worker.Enqueue(ctx, "ceo", "team/people/nazz.md", "# Nazz\n\nFounded WUPHF in 2026.\n", "create", "m"); err != nil {
+	if _, _, err := worker.Enqueue(ctx, "ceo", "team/people/nazz.md", "# Nazz\n\nFounded LAF-Office in 2026.\n", "create", "m"); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
 
 	// Act
-	hits, err := searchArticles(worker.Repo(), "WUPHF")
+	hits, err := searchArticles(worker.Repo(), "LAF-Office")
 
 	// Assert
 	if err != nil {
@@ -458,7 +458,7 @@ func TestBrokerWikiAuditReturnsFullLineage(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 	// Seed a bootstrap commit and one agent commit so the audit log has
-	// three distinct authors (system, wuphf-bootstrap, operator).
+	// three distinct authors (system, laf-office-bootstrap, operator).
 	stub := filepath.Join(root, "team", "playbooks", "renewal.md")
 	if err := os.MkdirAll(filepath.Dir(stub), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -517,7 +517,7 @@ func TestBrokerWikiAuditReturnsFullLineage(t *testing.T) {
 			t.Errorf("entry %s: paths should be [] not nil for JSON stability", e.SHA)
 		}
 	}
-	for _, want := range []string{"system", "wuphf-bootstrap", "operator"} {
+	for _, want := range []string{"system", "laf-office-bootstrap", "operator"} {
 		if !seen[want] {
 			t.Errorf("expected author %q in audit feed, got %v", want, seen)
 		}
@@ -571,15 +571,15 @@ func TestWikiPublishViaBroker(t *testing.T) {
 
 func TestWikiRootAndBackupDirsHonorRuntimeHome(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", dir)
-	if got := WikiRootDir(); got != filepath.Join(dir, ".wuphf", "wiki") {
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", dir)
+	if got := WikiRootDir(); got != filepath.Join(dir, ".laf-office", "wiki") {
 		t.Fatalf("unexpected root: %s", got)
 	}
-	if got := WikiBackupDir(); got != filepath.Join(dir, ".wuphf", "wiki.bak") {
+	if got := WikiBackupDir(); got != filepath.Join(dir, ".laf-office", "wiki.bak") {
 		t.Fatalf("unexpected backup: %s", got)
 	}
 	r := NewRepo()
-	if r.Root() != filepath.Join(dir, ".wuphf", "wiki") {
+	if r.Root() != filepath.Join(dir, ".laf-office", "wiki") {
 		t.Fatalf("unexpected NewRepo root: %s", r.Root())
 	}
 	if r.TeamDir() != filepath.Join(r.Root(), "team") {

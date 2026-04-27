@@ -1,8 +1,8 @@
 #!/bin/bash
-# Comprehensive multi-persona UAT test suite for wuphf TUI
+# Comprehensive multi-persona UAT test suite for laf-office TUI
 # Tests CURRENT state: embedded terminal mode (pane-per-agent layout)
 #
-# When `claude` binary is available, wuphf boots into embedded mode:
+# When `claude` binary is available, laf-office boots into embedded mode:
 # - Leader pane (CEO) takes top 60% of screen
 # - Specialist panes (PM, FE, BE, etc.) in bottom row
 # - Ctrl+N/P cycle focus, Ctrl+B toggles broadcast, Ctrl+1..7 jump
@@ -12,9 +12,9 @@
 # visually correct, responsive, and navigable.
 set -euo pipefail
 
-SOCKET="/tmp/wuphf-uat-$$.sock"
+SOCKET="/tmp/laf-office-uat-$$.sock"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BINARY="$ROOT/wuphf"
+BINARY="$ROOT/laf-office"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 ARTIFACTS="$ROOT/termwright-artifacts/uat-$TIMESTAMP"
 mkdir -p "$ARTIFACTS"
@@ -270,7 +270,7 @@ echo ""
 
 # Build fresh binary
 echo "Building binary..."
-cd "$ROOT" && go build -o wuphf ./cmd/wuphf 2>&1
+cd "$ROOT" && go build -o laf-office ./cmd/laf-office 2>&1
 echo "Build complete."
 echo ""
 
@@ -282,7 +282,7 @@ sleep 7
 
 # ═══════════════════════════════════════════════════════════════════════
 # PERSONA 1: Maya (First-time user, non-technical)
-#   "I just installed wuphf. What am I looking at?"
+#   "I just installed laf-office. What am I looking at?"
 # ═══════════════════════════════════════════════════════════════════════
 CURRENT_P=1
 echo ""

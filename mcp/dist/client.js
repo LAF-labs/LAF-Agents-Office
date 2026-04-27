@@ -1,12 +1,12 @@
 import { loadConfig } from "./config.js";
 function getBaseUrl() {
     const config = loadConfig();
-    const base = process.env.WUPHF_API_BASE_URL || process.env.NEX_API_BASE_URL || config.base_url || config.dev_url || "https://app.nex.ai";
+    const base = process.env.LAF_OFFICE_API_BASE_URL || process.env.NEX_API_BASE_URL || config.base_url || config.dev_url || "https://app.nex.ai";
     return `${base.replace(/\/+$/, "")}/api/developers`;
 }
 function getRegisterUrl() {
     const config = loadConfig();
-    const base = process.env.WUPHF_API_BASE_URL || process.env.NEX_API_BASE_URL || config.base_url || config.dev_url || "https://app.nex.ai";
+    const base = process.env.LAF_OFFICE_API_BASE_URL || process.env.NEX_API_BASE_URL || config.base_url || config.dev_url || "https://app.nex.ai";
     return `${base.replace(/\/+$/, "")}/api/v1/agents/register`;
 }
 export class NexApiError extends Error {
@@ -14,7 +14,7 @@ export class NexApiError extends Error {
     statusText;
     body;
     constructor(status, statusText, body) {
-        super(`WUPHF API error ${status}: ${statusText}`);
+        super(`LAF-Office API error ${status}: ${statusText}`);
         this.status = status;
         this.statusText = statusText;
         this.body = body;
@@ -56,7 +56,7 @@ export class NexApiClient {
         });
         if (res.status === 401 || res.status === 403) {
             throw new NexApiError(res.status, res.statusText, {
-                message: "API key expired or invalid. Run 'wuphf register --email <email>' to get a new key.",
+                message: "API key expired or invalid. Run 'laf-office register --email <email>' to get a new key.",
             });
         }
         if (!res.ok) {
@@ -140,7 +140,7 @@ export class NexApiClient {
         return res.text();
     }
     getBaseUrl() {
-        return `${(process.env.WUPHF_API_BASE_URL || process.env.NEX_API_BASE_URL || "https://app.nex.ai").replace(/\/+$/, "")}/api/developers`;
+        return `${(process.env.LAF_OFFICE_API_BASE_URL || process.env.NEX_API_BASE_URL || "https://app.nex.ai").replace(/\/+$/, "")}/api/developers`;
     }
 }
 //# sourceMappingURL=client.js.map

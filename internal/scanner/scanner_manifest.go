@@ -3,7 +3,7 @@ package scanner
 // scanner_manifest.go ports file-manifest.ts to Go. The on-disk shape is
 // compatible JSON so migration tooling (if any) can interop.
 //
-// Location: ~/.wuphf/wiki/.scan-manifest.json (honours WUPHF_RUNTIME_HOME).
+// Location: ~/.laf-office/wiki/.scan-manifest.json (honours LAF_OFFICE_RUNTIME_HOME).
 //
 // A manifest corruption recovers silently: we treat unparseable or
 // wrong-version JSON as "no prior scan" and continue. Losing the manifest

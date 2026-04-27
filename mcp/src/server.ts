@@ -20,7 +20,7 @@ import { registerSkillSyncTools } from "./tools/skill-sync.js";
 
 export function createServer(apiKey?: string): McpServer {
   const server = new McpServer({
-    name: "wuphf",
+    name: "laf-office",
     version: "0.1.0",
   });
 

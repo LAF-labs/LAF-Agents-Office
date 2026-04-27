@@ -1,4 +1,4 @@
-// WUPHF Pixel Office — scene engine
+// LAF-Office Pixel Office — scene engine
 // Loaded by website/index.html. No dependencies.
 
 (function () {
@@ -71,16 +71,16 @@
 
   // ── Ambient speech bubble system ───────────────────────────────
   const ambientMessages = [
-    { charId: 'pam',     text: 'WUPHF!' },
+    { charId: 'pam',     text: 'LAF-Office!' },
     { charId: 'ceo',     text: 'One command. One office.' },
-    { charId: 'eng',     text: '$ go build -o wuphf && ./wuphf' },
+    { charId: 'eng',     text: '$ go build -o laf-office && ./laf-office' },
     { charId: 'michael', text: "I'm not superstitious, but I am a little stitious." },
     { charId: 'cmo',     text: 'Open source. MIT license.' },
     { charId: 'dwight',  text: 'Bears. Beets. Battlestar Galactica.' },
     { charId: 'ceo',     text: 'Routing task to engineering. ETA: 3 minutes.' },
     { charId: 'pam',     text: 'CEO, PM, engineers — all visible, all working.' },
     { charId: 'eng',     text: 'Implementing feature... 47% complete.' },
-    { charId: 'jim',     text: "Unlike Ryan Howard's WUPHF, this one works." },
+    { charId: 'jim',     text: "Unlike Ryan Howard's LAF-Office, this one works." },
     { charId: 'cmo',     text: 'Drafting launch post. You will not believe this lede.' },
     { charId: 'kevin',   text: '... (stares at snacks)' },
     { charId: 'creed',   text: 'Nobody steals from Creed Bratton and gets away with it.' },
@@ -226,7 +226,7 @@
       ctx.fillStyle = grad; ctx.fillRect(lx, ly + 8, 140, 42);
     }
 
-    // WUPHF sign (centered on viewport)
+    // LAF-Office sign (centered on viewport)
     const sw = Math.min(360, W * 0.28), sh = 60;
     const sx = Math.round(W / 2 - sw / 2), sy = 22;
     ctx.fillStyle = '#0E0C08'; ctx.fillRect(sx, sy, sw, sh);
@@ -238,7 +238,7 @@
     ctx.fillStyle = C.yellow;
     ctx.font = `bold ${Math.round(sw / 6.5)}px "Press Start 2P"`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('WUPHF', W / 2, sy + sh / 2);
+    ctx.fillText('LAF-Office', W / 2, sy + sh / 2);
     ctx.shadowBlur = 0;
     ctx.fillStyle = C.deskDark;
     ctx.fillRect(sx + 50, sy + sh - 2, 10, 16); ctx.fillRect(sx + sw - 60, sy + sh - 2, 10, 16);
@@ -455,7 +455,7 @@
     ctx.fillStyle = C.yellow;
     ctx.font = `bold ${Math.floor(sw / 6)}px "Press Start 2P"`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('WUPHF', sx + sw / 2, sy + sh / 2);
+    ctx.fillText('LAF-Office', sx + sw / 2, sy + sh / 2);
     ctx.shadowBlur = 0;
     ctx.fillStyle = C.textMuted;
     ctx.font = '7px "Press Start 2P"'; ctx.textBaseline = 'top';

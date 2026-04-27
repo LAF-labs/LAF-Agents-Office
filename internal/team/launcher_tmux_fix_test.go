@@ -17,11 +17,11 @@ import (
 func TestClaudeCommand_UsesFileForSystemPrompt(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToPack writes into
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToPack writes into
 	// this test's tmpdir, not the process-level leaked runtime home from
 	// worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_START_FROM_SCRATCH", "1")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
 
 	l, err := NewLauncher("from-scratch")
 	if err != nil {
@@ -52,16 +52,16 @@ func TestClaudeCommand_UsesFileForSystemPrompt(t *testing.T) {
 // string for every visible office member and asserts the length is comfortably
 // below any plausible tmux command-parse buffer. 4096 bytes is a safety margin
 // well below historical tmux limits. If this test fails, pane-backed spawn
-// will regress and the opt-in WUPHF_AGENT_MODE=panes path falls back to the
+// will regress and the opt-in LAF_OFFICE_AGENT_MODE=panes path falls back to the
 // default headless claude --print dispatch.
 func TestClaudeCommand_StaysUnderTmuxLimit(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToPack writes into
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToPack writes into
 	// this test's tmpdir, not the process-level leaked runtime home from
 	// worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_START_FROM_SCRATCH", "1")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
 
 	l, err := NewLauncher("from-scratch")
 	if err != nil {
@@ -93,11 +93,11 @@ func TestClaudeCommand_StaysUnderTmuxLimit(t *testing.T) {
 func TestClaudeCommand_WritesPromptFileWithCorrectContent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToPack writes into
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToPack writes into
 	// this test's tmpdir, not the process-level leaked runtime home from
 	// worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_START_FROM_SCRATCH", "1")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
 
 	l, err := NewLauncher("from-scratch")
 	if err != nil {
@@ -159,11 +159,11 @@ func TestClaudeCommand_WritesPromptFileWithCorrectContent(t *testing.T) {
 func TestClaudeCommand_ErrorSurfaces(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToPack writes into
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToPack writes into
 	// this test's tmpdir, not the process-level leaked runtime home from
 	// worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_START_FROM_SCRATCH", "1")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
 
 	l, err := NewLauncher("from-scratch")
 	if err != nil {
@@ -228,11 +228,11 @@ func TestPaneFallbackMessages_TmuxMissingVsSpawnFailure(t *testing.T) {
 func TestLauncherShutdown_CleansAgentTempFiles(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so resetManifestToPack writes into
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so resetManifestToPack writes into
 	// this test's tmpdir, not the process-level leaked runtime home from
 	// worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_START_FROM_SCRATCH", "1")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
 
 	l, err := NewLauncher("from-scratch")
 	if err != nil {

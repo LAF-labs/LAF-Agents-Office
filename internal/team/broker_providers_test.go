@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/company"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/company"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 func TestMemberFromSpec_CopiesProvider(t *testing.T) {

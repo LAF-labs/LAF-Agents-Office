@@ -14,18 +14,18 @@ type storeData struct {
 	Events    []CalendarEvent `json:"events"`
 }
 
-// CalendarStore persists schedules and events to ~/.wuphf/calendar.json.
+// CalendarStore persists schedules and events to ~/.laf-office/calendar.json.
 type CalendarStore struct {
 	path string
 	data storeData
 }
 
 // NewCalendarStore creates a store backed by the given file path.
-// If path is empty, defaults to ~/.wuphf/calendar.json.
+// If path is empty, defaults to ~/.laf-office/calendar.json.
 func NewCalendarStore(path string) *CalendarStore {
 	if path == "" {
 		home, _ := os.UserHomeDir()
-		path = filepath.Join(home, ".wuphf", "calendar.json")
+		path = filepath.Join(home, ".laf-office", "calendar.json")
 	}
 	s := &CalendarStore{path: path}
 	s.load()

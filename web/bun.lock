@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "wuphf-web",
+      "name": "laf-office-web",
       "dependencies": {
         "@tanstack/react-query": "^5.80.7",
         "@tanstack/react-router": "^1.121.3",

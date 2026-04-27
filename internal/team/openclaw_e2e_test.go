@@ -13,8 +13,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/openclaw"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/openclaw"
 )
 
 // TestOpenclawBridgeFullPipeline_E2E exercises the OpenClaw bridge end-to-end
@@ -95,7 +95,7 @@ func countMessagesFrom(b *Broker, slug, contains string) int {
 }
 
 // fakeOpenclawGatewayE2E implements the subset of OpenClaw Gateway protocol
-// the WUPHF bridge actually hits, matching the observed real-daemon shape:
+// the LAF-Office bridge actually hits, matching the observed real-daemon shape:
 //
 //   - connect.challenge event pushed BEFORE reading client
 //   - wrapped res(hello-ok) as the connect response (protocol 3)

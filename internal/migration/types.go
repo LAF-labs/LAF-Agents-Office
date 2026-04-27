@@ -1,13 +1,13 @@
 // Package migration ports team knowledge out of legacy memory backends
-// (Nex, GBrain) and into the WUPHF markdown wiki at ~/.wuphf/wiki/team/.
+// (Nex, GBrain) and into the LAF-Office markdown wiki at ~/.laf-office/wiki/team/.
 //
 // Why this exists
 // ===============
 //
 // Existing Nex or GBrain installs store their team knowledge in those legacy
-// backends. Moving to WUPHF's markdown wiki without a migration path means
+// backends. Moving to LAF-Office's markdown wiki without a migration path means
 // walking away from that prior investment. This package closes the gap:
-// `wuphf memory migrate --from {nex,gbrain}` walks the source, converts each
+// `laf-office memory migrate --from {nex,gbrain}` walks the source, converts each
 // record to a standard wiki article, and commits it via the existing wiki
 // worker so the index regenerates and SSE events fire the same way they
 // would for any other write.
@@ -18,7 +18,7 @@
 //   - Adapters expose a single Iter() method that returns a channel of
 //     MigrationRecord. Streaming (not a slice) so large backends don't
 //     balloon memory and errors can terminate the walk mid-stream.
-//   - The writer owns identity ("migrate" slug → `migrate <migrate@wuphf.local>`
+//   - The writer owns identity ("migrate" slug → `migrate <migrate@laf-office.local>`
 //     via Repo.runGitLocked), path construction, and dedup. Adapters stay
 //     ignorant of wiki conventions.
 //   - Serial by design (v1). The wiki worker is single-reader; parallel

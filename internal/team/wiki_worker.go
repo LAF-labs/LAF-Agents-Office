@@ -20,7 +20,7 @@ package team
 //	           │ repo.IndexRegen(ctx)
 //	           │ reply via req.ReplyCh
 //	           │ publishWikiEventLocked(payload)   ─► SSE "wiki:write"
-//	           │ async debounced BackupMirror      ─► ~/.wuphf/wiki.bak/
+//	           │ async debounced BackupMirror      ─► ~/.laf-office/wiki.bak/
 //	           ▼
 //	       next request
 //
@@ -140,7 +140,7 @@ type wikiWriteRequest struct {
 	ExpectedSHA string
 	// HumanIdentity carries the per-human git identity used when
 	// IsHuman is true. Zero value falls back to the synthetic
-	// `human <human@wuphf.local>` author.
+	// `human <human@laf-office.local>` author.
 	HumanIdentity HumanIdentity
 	ReplyCh       chan wikiWriteResult
 }

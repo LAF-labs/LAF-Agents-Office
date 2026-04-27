@@ -44,7 +44,7 @@ func humanMemberIDForEmail(email string) string {
 func (b *Broker) inviteURLForToken(baseURL, token string) string {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
-		if env := strings.TrimSpace(os.Getenv("WUPHF_PUBLIC_URL")); env != "" {
+		if env := strings.TrimSpace(os.Getenv("LAF_OFFICE_PUBLIC_URL")); env != "" {
 			baseURL = strings.TrimRight(env, "/")
 		}
 	}
@@ -55,8 +55,8 @@ func (b *Broker) inviteURLForToken(baseURL, token string) string {
 }
 
 func inviteMailtoURL(invite teamInvite, inviteURL string) string {
-	subject := "You're invited to WUPHF"
-	body := fmt.Sprintf("You've been invited to join this WUPHF office.\n\nOpen this link to accept:\n%s\n", inviteURL)
+	subject := "You're invited to LAF-Office"
+	body := fmt.Sprintf("You've been invited to join this LAF-Office workspace.\n\nOpen this link to accept:\n%s\n", inviteURL)
 	return "mailto:" + url.PathEscape(invite.Email) + "?subject=" + url.QueryEscape(subject) + "&body=" + url.QueryEscape(body)
 }
 
@@ -369,17 +369,17 @@ func (b *Broker) handleInviteAccept(w http.ResponseWriter, r *http.Request) {
 }
 
 func defaultSendInviteEmail(ctx context.Context, invite teamInvite, inviteURL string) error {
-	host := strings.TrimSpace(os.Getenv("WUPHF_SMTP_HOST"))
+	host := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_HOST"))
 	if host == "" {
 		return errInviteEmailNotConfigured
 	}
-	port := strings.TrimSpace(os.Getenv("WUPHF_SMTP_PORT"))
+	port := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_PORT"))
 	if port == "" {
 		port = "587"
 	}
-	from := strings.TrimSpace(os.Getenv("WUPHF_SMTP_FROM"))
-	username := strings.TrimSpace(os.Getenv("WUPHF_SMTP_USERNAME"))
-	password := strings.TrimSpace(os.Getenv("WUPHF_SMTP_PASSWORD"))
+	from := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_FROM"))
+	username := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_USERNAME"))
+	password := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_PASSWORD"))
 	if from == "" {
 		from = username
 	}
@@ -387,8 +387,8 @@ func defaultSendInviteEmail(ctx context.Context, invite teamInvite, inviteURL st
 		return errInviteEmailNotConfigured
 	}
 
-	subject := "You're invited to WUPHF"
-	body := fmt.Sprintf("You've been invited to join a WUPHF office.\n\nAccept your invite:\n%s\n\nThis link expires in 14 days.\n", inviteURL)
+	subject := "You're invited to LAF-Office"
+	body := fmt.Sprintf("You've been invited to join a LAF-Office workspace.\n\nAccept your invite:\n%s\n\nThis link expires in 14 days.\n", inviteURL)
 	msg := strings.Join([]string{
 		"From: " + from,
 		"To: " + invite.Email,

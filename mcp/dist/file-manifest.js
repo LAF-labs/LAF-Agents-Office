@@ -2,12 +2,12 @@
  * Persistent file manifest — tracks which files have been ingested
  * using mtime + size as change detection.
  *
- * Stored at ~/.wuphf/file-scan-manifest.json.
+ * Stored at ~/.laf-office/file-scan-manifest.json.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-const DATA_DIR = join(homedir(), ".wuphf");
+const DATA_DIR = join(homedir(), ".laf-office");
 const MANIFEST_PATH = join(DATA_DIR, "file-scan-manifest.json");
 export function readManifest() {
     try {

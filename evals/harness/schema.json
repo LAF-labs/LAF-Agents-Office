@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wuphf.local/schemas/eval-case.json",
-  "title": "WUPHF wiki intelligence eval case",
+  "$id": "https://laf-office.local/schemas/eval-case.json",
+  "title": "LAF-Office wiki intelligence eval case",
   "description": "Single golden test case for a prompt template in prompts/*.tmpl",
   "type": "object",
   "required": ["id", "prompt", "description", "template_vars", "expected"],

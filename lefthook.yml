@@ -87,7 +87,7 @@ pre-push:
   parallel: false
   commands:
     smoke:
-      # internal/team's former test-isolation bugs (shared ~/.wuphf/wiki,
+      # internal/team's former test-isolation bugs (shared ~/.laf-office/wiki,
       # worktrees registered against the invoking repo, cross-test state
       # leakage via broker-state.json) are now guarded at the package
       # level: worktree_guard_test.go flips allowRealTaskWorktree and
@@ -98,7 +98,7 @@ pre-push:
       # CI (go-test-matrix job) so pre-push stays a ~10s smoke.
       run: go build ./... && go vet ./...
     build:
-      run: go build -o /dev/null ./cmd/wuphf
+      run: go build -o /dev/null ./cmd/laf-office
     vhs:
       run: |
         if ! command -v vhs >/dev/null 2>&1; then

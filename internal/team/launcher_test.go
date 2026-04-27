@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/api"
-	"github.com/nex-crm/wuphf/internal/channel"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/api"
+	"github.com/nex-crm/laf-office/internal/channel"
 )
 
 func TestParseAgentPaneIndicesSkipsChannelPane(t *testing.T) {
@@ -96,18 +96,18 @@ func TestAgentPaneSlugsOneOnOneUsesOnlySelectedAgent(t *testing.T) {
 func TestNewLauncherFromScratchUsesGenericOffice(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Pair HOME with WUPHF_RUNTIME_HOME so NewLauncher reads from this
+	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so NewLauncher reads from this
 	// test's tmpdir instead of the process-level leaked runtime home
 	// installed by worktree_guard_test's init.
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
-	t.Setenv("WUPHF_START_FROM_SCRATCH", "1")
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
 
 	l, err := NewLauncher("from-scratch")
 	if err != nil {
 		t.Fatalf("NewLauncher(from-scratch): %v", err)
 	}
-	if got := l.PackName(); got != "WUPHF Office" {
-		t.Fatalf("PackName: got %q, want %q", got, "WUPHF Office")
+	if got := l.PackName(); got != "LAF-Office" {
+		t.Fatalf("PackName: got %q, want %q", got, "LAF-Office")
 	}
 	if got := l.AgentCount(); got != 4 {
 		t.Fatalf("AgentCount: got %d, want 4", got)
@@ -158,7 +158,7 @@ func TestAgentPaneSlugsUsesOfficeRosterNotStaticPack(t *testing.T) {
 
 func TestOfficeMembersSnapshotPrefersPersistedStateOverPack(t *testing.T) {
 	statePath := filepath.Join(t.TempDir(), "broker-state.json")
-	t.Setenv("WUPHF_BROKER_STATE_PATH", statePath)
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", statePath)
 
 	state := brokerState{
 		Members: []officeMember{
@@ -279,8 +279,8 @@ func TestLoadRunningSessionModePrefersLiveBrokerState(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv("WUPHF_BROKER_TOKEN", "test-token")
-	t.Setenv("WUPHF_BROKER_BASE_URL", server.URL)
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "test-token")
+	t.Setenv("LAF_OFFICE_BROKER_BASE_URL", server.URL)
 
 	mode, agent := loadRunningSessionMode()
 	if mode != SessionModeOneOnOne {
@@ -362,9 +362,9 @@ func TestEnsureMCPConfigUsesLocalGoTeamServer(t *testing.T) {
 		t.Fatalf("unmarshal config: %v", err)
 	}
 
-	server, ok := cfg.MCPServers["wuphf-office"]
+	server, ok := cfg.MCPServers["laf-office"]
 	if !ok {
-		t.Fatal("expected wuphf-office MCP server entry")
+		t.Fatal("expected laf-office MCP server entry")
 	}
 	wantCommand, err := os.Executable()
 	if err != nil {
@@ -416,7 +416,7 @@ func TestChannelPaneNeedsRespawn(t *testing.T) {
 		status string
 		want   bool
 	}{
-		{name: "healthy channel", status: "0 0 wuphf", want: false},
+		{name: "healthy channel", status: "0 0 laf-office", want: false},
 		{name: "dead pane", status: "1 1 dead", want: true},
 		{name: "missing command", status: "", want: false},
 		{name: "wrong command", status: "0 0 bash", want: false},
@@ -445,10 +445,10 @@ func TestIsNoSessionError(t *testing.T) {
 
 func TestChannelPaneLogPaths(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	if got := channelStderrLogPath(); !strings.Contains(got, ".wuphf/logs/channel-stderr.log") {
+	if got := channelStderrLogPath(); !strings.Contains(got, ".laf-office/logs/channel-stderr.log") {
 		t.Fatalf("unexpected stderr log path: %q", got)
 	}
-	if got := channelPaneSnapshotPath(); !strings.Contains(got, ".wuphf/logs/channel-pane.log") {
+	if got := channelPaneSnapshotPath(); !strings.Contains(got, ".laf-office/logs/channel-pane.log") {
 		t.Fatalf("unexpected pane log path: %q", got)
 	}
 }
@@ -955,16 +955,16 @@ func TestTaskNotificationContentIncludesWorktreeDetails(t *testing.T) {
 		Owner:          "fe",
 		Status:         "in_progress",
 		ExecutionMode:  "local_worktree",
-		WorktreeBranch: "wuphf-task-10",
-		WorktreePath:   "/tmp/wuphf-task-task-10",
+		WorktreeBranch: "laf-office-task-10",
+		WorktreePath:   "/tmp/laf-office-task-task-10",
 	})
 	if !strings.Contains(got, "execution local_worktree") {
 		t.Fatalf("expected execution mode in content: %q", got)
 	}
-	if !strings.Contains(got, "branch wuphf-task-10") || !strings.Contains(got, "path /tmp/wuphf-task-task-10") {
+	if !strings.Contains(got, "branch laf-office-task-10") || !strings.Contains(got, "path /tmp/laf-office-task-task-10") {
 		t.Fatalf("expected worktree details in content: %q", got)
 	}
-	if !strings.Contains(got, `working_directory="/tmp/wuphf-task-task-10"`) {
+	if !strings.Contains(got, `working_directory="/tmp/laf-office-task-task-10"`) {
 		t.Fatalf("expected working_directory guidance in content: %q", got)
 	}
 }
@@ -978,16 +978,16 @@ func TestBuildTaskExecutionPacketLocalWorktreeForbidsNestedOffice(t *testing.T) 
 		ID:            "task-11",
 		Channel:       "general",
 		Title:         "Build the channel operations MVP",
-		Details:       "Wire `docs/youtube-factory/default-channel-pack.yaml` into `cmd/wuphf/main.go` first.",
+		Details:       "Wire `docs/youtube-factory/default-channel-pack.yaml` into `cmd/laf-office/main.go` first.",
 		Owner:         "eng",
 		Status:        "in_progress",
 		ExecutionMode: "local_worktree",
-		WorktreePath:  "/tmp/wuphf-task-task-11",
+		WorktreePath:  "/tmp/laf-office-task-task-11",
 	}, "Start implementing the web UI MVP now.")
 	if !strings.Contains(got, "default to direct implementation") {
 		t.Fatalf("expected direct implementation rule in packet: %q", got)
 	}
-	if !strings.Contains(got, "never launch another WUPHF office") {
+	if !strings.Contains(got, "never launch another LAF-Office runtime") {
 		t.Fatalf("expected nested office ban in packet: %q", got)
 	}
 	if !strings.Contains(got, "smallest shippable implementation slice") {
@@ -996,7 +996,7 @@ func TestBuildTaskExecutionPacketLocalWorktreeForbidsNestedOffice(t *testing.T) 
 	if !strings.Contains(got, "post team_status naming that cut line before you read files") {
 		t.Fatalf("expected cut-line team_status guidance in packet: %q", got)
 	}
-	if !strings.Contains(got, "Named file targets: docs/youtube-factory/default-channel-pack.yaml, cmd/wuphf/main.go") {
+	if !strings.Contains(got, "Named file targets: docs/youtube-factory/default-channel-pack.yaml, cmd/laf-office/main.go") {
 		t.Fatalf("expected named file targets in packet: %q", got)
 	}
 	if !strings.Contains(got, "open the named file targets first") {
@@ -1091,7 +1091,7 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 	if !strings.Contains(specialist, "post a `team_status` naming that cut line") {
 		t.Fatalf("expected cut-line status guidance in specialist prompt: %q", specialist)
 	}
-	if !strings.Contains(specialist, "Never launch another WUPHF office") {
+	if !strings.Contains(specialist, "Never launch another LAF-Office runtime") {
 		t.Fatalf("expected nested office warning in specialist prompt: %q", specialist)
 	}
 	if !strings.Contains(specialist, "Capability-gap rule: if the work is blocked because the needed specialist, channel, skill, or tool path does not exist yet") {
@@ -1150,7 +1150,7 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 }
 
 func TestBuildPromptIncludesMarkdownNotebookPromotionGuidance(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	t.Setenv("NEX_API_KEY", "")
 
 	l := &Launcher{
@@ -1168,7 +1168,7 @@ func TestBuildPromptIncludesMarkdownNotebookPromotionGuidance(t *testing.T) {
 		for _, want := range []string{
 			"notebook_write",
 			"notebook_promote",
-			"wuphf_wiki_lookup",
+			"laf_office_wiki_lookup",
 			"Do not bypass notebook_promote",
 		} {
 			if !strings.Contains(prompt, want) {
@@ -2025,7 +2025,7 @@ func TestRelevantTaskForTargetCrossChannel(t *testing.T) {
 	oldPrepare := prepareTaskWorktree
 	oldCleanup := cleanupTaskWorktree
 	prepareTaskWorktree = func(taskID string) (string, string, error) {
-		return filepath.Join(tmpDir, "wuphf-task-"+taskID), "wuphf-" + taskID, nil
+		return filepath.Join(tmpDir, "laf-office-task-"+taskID), "laf-office-" + taskID, nil
 	}
 	cleanupTaskWorktree = func(string, string) error { return nil }
 	defer func() {

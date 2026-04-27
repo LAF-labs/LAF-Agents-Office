@@ -25,7 +25,7 @@ func TestEntityToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.backend, func(t *testing.T) {
-			t.Setenv("WUPHF_MEMORY_BACKEND", tc.backend)
+			t.Setenv("LAF_OFFICE_MEMORY_BACKEND", tc.backend)
 			names := listRegisteredTools(t, "general", false)
 			for _, tool := range toolNames {
 				has := slices.Contains(names, tool)
@@ -41,7 +41,7 @@ func TestEntityToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 }
 
 func TestEntityToolsRegisteredInOneOnOne(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	names := listRegisteredTools(t, "dm-ceo", true)
 	for _, want := range []string{"entity_fact_record", "entity_brief_synthesize"} {
 		if !slices.Contains(names, want) {
@@ -63,7 +63,7 @@ func TestHandleEntityFactRecord_HappyPath(t *testing.T) {
 	}))
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	res, _, err := handleEntityFactRecord(context.Background(), nil, TeamEntityFactRecordArgs{
 		EntityKind: "people",
@@ -106,7 +106,7 @@ func TestHandleEntityFactRecord_ValidationErrors(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("WUPHF_AGENT_SLUG", "pm")
+			t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 			res, _, _ := handleEntityFactRecord(context.Background(), nil, tc.args)
 			if !isToolError(res) {
 				t.Fatalf("expected tool error; got: %s", toolErrorText(res))
@@ -124,7 +124,7 @@ func TestHandleEntityBriefSynthesize_HappyPath(t *testing.T) {
 	}))
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	res, _, err := handleEntityBriefSynthesize(context.Background(), nil, TeamEntityBriefSynthesizeArgs{
 		EntityKind: "companies",
@@ -142,7 +142,7 @@ func TestHandleEntityBriefSynthesize_HappyPath(t *testing.T) {
 }
 
 func TestEntityGraphQueryRegistered(t *testing.T) {
-	t.Setenv("WUPHF_MEMORY_BACKEND", "markdown")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
 	names := listRegisteredTools(t, "general", false)
 	if !slices.Contains(names, "entity_graph_query") {
 		t.Fatalf("entity_graph_query missing; got %v", names)
@@ -172,7 +172,7 @@ func TestHandleEntityGraphQuery_HappyPath(t *testing.T) {
 	}))
 	defer srv.Close()
 	withBrokerURL(t, srv.URL)
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 
 	res, _, err := handleEntityGraphQuery(context.Background(), nil, TeamEntityGraphQueryArgs{
 		EntityKind: "people",
@@ -195,7 +195,7 @@ func TestHandleEntityGraphQuery_HappyPath(t *testing.T) {
 }
 
 func TestHandleEntityGraphQuery_Validation(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	cases := []TeamEntityGraphQueryArgs{
 		{EntitySlug: "x"},      // missing kind
 		{EntityKind: "people"}, // missing slug
@@ -210,7 +210,7 @@ func TestHandleEntityGraphQuery_Validation(t *testing.T) {
 }
 
 func TestHandleEntityBriefSynthesize_Validation(t *testing.T) {
-	t.Setenv("WUPHF_AGENT_SLUG", "pm")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "pm")
 	cases := []TeamEntityBriefSynthesizeArgs{
 		{EntitySlug: "x"},
 		{EntityKind: "people"},

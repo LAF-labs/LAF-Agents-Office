@@ -5,7 +5,7 @@ export type Language = "en" | "ko";
 
 const _storedTheme = ((): Theme => {
   try {
-    const v = localStorage.getItem("wuphf-theme");
+    const v = localStorage.getItem("laf-office-theme");
     if (v === "nex-dark") return "nex-dark";
   } catch {}
   return "nex";
@@ -16,7 +16,7 @@ if (typeof document !== "undefined") {
 
 const _storedLanguage = ((): Language => {
   try {
-    const v = localStorage.getItem("wuphf-language");
+    const v = localStorage.getItem("laf-office-language");
     if (v === "ko") return "ko";
   } catch {}
   return "en";
@@ -201,7 +201,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // console.warn keeps a breadcrumb so a user reporting "theme doesn't
     // stick" has something diagnosable in DevTools.
     try {
-      localStorage.setItem("wuphf-theme", t);
+      localStorage.setItem("laf-office-theme", t);
     } catch (err) {
       console.warn(
         "setTheme: localStorage.setItem failed; theme will not persist across reloads",
@@ -214,7 +214,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   language: _storedLanguage,
   setLanguage: (language) => {
     try {
-      localStorage.setItem("wuphf-language", language);
+      localStorage.setItem("laf-office-language", language);
     } catch (err) {
       console.warn(
         "setLanguage: localStorage.setItem failed; language will not persist across reloads",

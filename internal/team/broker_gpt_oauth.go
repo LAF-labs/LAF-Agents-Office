@@ -387,15 +387,15 @@ func (b *Broker) handleGPTActionsOpenAPI(w http.ResponseWriter, r *http.Request)
 	schema := map[string]any{
 		"openapi": "3.1.0",
 		"info": map[string]any{
-			"title":   "WUPHF GPT Actions",
+			"title":   "LAF-Office GPT Actions",
 			"version": "0.1.0",
 		},
 		"servers": []map[string]string{{"url": baseURL}},
 		"paths": map[string]any{
 			"/gpt/actions/message": map[string]any{
 				"post": map[string]any{
-					"operationId": "postMessageToWuphf",
-					"summary":     "Post a message from this GPT into a WUPHF workspace channel.",
+					"operationId": "postMessageToLAFOffice",
+					"summary":     "Post a message from this GPT into a LAF-Office workspace channel.",
 					"requestBody": map[string]any{
 						"required": true,
 						"content": map[string]any{
@@ -404,7 +404,7 @@ func (b *Broker) handleGPTActionsOpenAPI(w http.ResponseWriter, r *http.Request)
 									"type":     "object",
 									"required": []string{"content"},
 									"properties": map[string]any{
-										"channel":  map[string]string{"type": "string", "description": "WUPHF channel slug. Defaults to the OAuth client's channel."},
+										"channel":  map[string]string{"type": "string", "description": "LAF-Office channel slug. Defaults to the OAuth client's channel."},
 										"title":    map[string]string{"type": "string"},
 										"content":  map[string]string{"type": "string"},
 										"event_id": map[string]string{"type": "string", "description": "Optional idempotency key."},
@@ -430,7 +430,7 @@ func (b *Broker) handleGPTActionsOpenAPI(w http.ResponseWriter, r *http.Request)
 						"authorizationCode": map[string]any{
 							"authorizationUrl": baseURL + "/gpt/oauth/authorize",
 							"tokenUrl":         baseURL + "/gpt/oauth/token",
-							"scopes":           map[string]string{"message:write": "Post messages into WUPHF"},
+							"scopes":           map[string]string{"message:write": "Post messages into LAF-Office"},
 						},
 					},
 				},

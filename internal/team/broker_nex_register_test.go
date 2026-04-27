@@ -39,14 +39,14 @@ func TestNexRegisterEndpoint_Success(t *testing.T) {
 	// keep the user's real one out of the picture.
 	dir := t.TempDir()
 	t.Setenv("PATH", dir)
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 	writeFakeNexCLIForBroker(t, dir, "nex-cli", `printf 'api_key=fake-nex-123'`)
 
 	// Isolate config state to a temp HOME so config writes from register
 	// (nex-cli would normally emit) don't collide with the user's disk.
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	if err := os.MkdirAll(filepath.Join(home, ".wuphf"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, ".laf-office"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,7 +125,7 @@ func TestNexRegisterEndpoint_MissingEmail(t *testing.T) {
 func TestNexRegisterEndpoint_CLIMissing(t *testing.T) {
 	// Empty PATH — nex-cli resolution will fail.
 	t.Setenv("PATH", t.TempDir())
-	t.Setenv("WUPHF_NO_NEX", "")
+	t.Setenv("LAF_OFFICE_NO_NEX", "")
 
 	b := newTestBroker(t)
 	b.token = "test-token"
@@ -196,7 +196,7 @@ func TestNexRegisterEndpoint_RejectsGET(t *testing.T) {
 func TestConfigEndpoint_NexAPIKeyPersists(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, ".wuphf"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, ".laf-office"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 

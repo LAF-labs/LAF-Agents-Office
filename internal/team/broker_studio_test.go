@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 func writeFakeOperationOne(t *testing.T) string {
@@ -217,8 +217,8 @@ func TestHandleMemoryRoundTripScopedStudioRecords(t *testing.T) {
 }
 
 func TestHandleStudioRunWorkflowExecutesOneDraftAndUpdatesSkill(t *testing.T) {
-	t.Setenv("WUPHF_ACTION_PROVIDER", "one")
-	t.Setenv("WUPHF_ONE_BIN", writeFakeOperationOne(t))
+	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "one")
+	t.Setenv("LAF_OFFICE_ONE_BIN", writeFakeOperationOne(t))
 
 	b := newTestBroker(t)
 	b.skills = append(b.skills, teamSkill{
@@ -294,8 +294,8 @@ func TestHandleStudioRunWorkflowExecutesOneDraftAndUpdatesSkill(t *testing.T) {
 }
 
 func TestHandleStudioRunWorkflowReturnsRateLimitMetadata(t *testing.T) {
-	t.Setenv("WUPHF_ACTION_PROVIDER", "one")
-	t.Setenv("WUPHF_ONE_BIN", writeRateLimitedOperationOne(t))
+	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "one")
+	t.Setenv("LAF_OFFICE_ONE_BIN", writeRateLimitedOperationOne(t))
 
 	b := newTestBroker(t)
 	b.skills = append(b.skills, teamSkill{
@@ -374,7 +374,7 @@ func TestHandleStudioRunWorkflowReturnsRateLimitMetadata(t *testing.T) {
 func TestBuildOperationBootstrapPackageFromRepoIncludesStarterPlan(t *testing.T) {
 	pkg, err := buildOperationBootstrapPackageFromRepo(context.Background(), operationCompanyProfile{
 		BlueprintID: "youtube-factory",
-		Name:        "WUPHF",
+		Name:        "LAF-Office",
 	})
 	if err != nil {
 		t.Fatalf("buildOperationBootstrapPackageFromRepo: %v", err)
@@ -397,16 +397,16 @@ func TestBuildOperationBootstrapPackageFromRepoIncludesStarterPlan(t *testing.T)
 	if len(pkg.Automation) != len(pkg.Blueprint.Automation) {
 		t.Fatalf("expected automation cards to come from blueprint, got %d cards for %d modules", len(pkg.Automation), len(pkg.Blueprint.Automation))
 	}
-	if pkg.Starter.Defaults.Company != "WUPHF" {
+	if pkg.Starter.Defaults.Company != "LAF-Office" {
 		t.Fatalf("expected starter defaults to use pack brand, got %+v", pkg.Starter.Defaults)
 	}
-	if !strings.Contains(strings.ToLower(pkg.Starter.GeneralDesc), "wuphf") {
+	if !strings.Contains(strings.ToLower(pkg.Starter.GeneralDesc), "laf-office") {
 		t.Fatalf("expected general description to mention pack brand, got %q", pkg.Starter.GeneralDesc)
 	}
-	if !strings.Contains(pkg.Starter.KickoffMessage, "WUPHF") {
+	if !strings.Contains(pkg.Starter.KickoffMessage, "LAF-Office") {
 		t.Fatalf("expected kickoff message to render pack brand, got %q", pkg.Starter.KickoffMessage)
 	}
-	if pkg.BootstrapConfig.ChannelName != "WUPHF" || pkg.BootstrapConfig.ChannelSlug != "wuphf" {
+	if pkg.BootstrapConfig.ChannelName != "LAF-Office" || pkg.BootstrapConfig.ChannelSlug != "laf-office" {
 		t.Fatalf("expected template bootstrap config, got %+v", pkg.BootstrapConfig)
 	}
 	if len(pkg.BootstrapConfig.ContentSeries) != 4 || pkg.BootstrapConfig.ContentSeries[0] != "Live Steering Demos" {
@@ -440,8 +440,8 @@ func TestBuildOperationBootstrapPackageFromRepoIncludesStarterPlan(t *testing.T)
 
 func TestBuildOperationBootstrapPackageFromRepoResolvesLegacyPackIDToBlueprint(t *testing.T) {
 	pkg, err := buildOperationBootstrapPackageFromRepo(context.Background(), operationCompanyProfile{
-		BlueprintID: "youtube_factory_wuphf_operator_channel_pack",
-		Name:        "WUPHF",
+		BlueprintID: "youtube_factory_laf_office_operator_channel_pack",
+		Name:        "LAF-Office",
 	})
 	if err != nil {
 		t.Fatalf("buildOperationBootstrapPackageFromRepo legacy selector: %v", err)

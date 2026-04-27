@@ -17,14 +17,14 @@ func TestInstallLatestCLI(t *testing.T) {
 	}
 
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("WUPHF_CLI_INSTALL_BIN", "npm")
-	t.Setenv("WUPHF_CLI_PACKAGE", "@example/wuphf")
+	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", "npm")
+	t.Setenv("LAF_OFFICE_CLI_PACKAGE", "@example/laf-office")
 
 	notice, err := InstallLatestCLI()
 	if err != nil {
 		t.Fatalf("InstallLatestCLI returned error: %v", err)
 	}
-	if !strings.Contains(notice, "@example/wuphf") {
+	if !strings.Contains(notice, "@example/laf-office") {
 		t.Fatalf("expected package name in notice, got %q", notice)
 	}
 
@@ -33,7 +33,7 @@ func TestInstallLatestCLI(t *testing.T) {
 		t.Fatalf("read args log: %v", err)
 	}
 	got := strings.Fields(string(data))
-	want := []string{"install", "-g", "@example/wuphf@latest"}
+	want := []string{"install", "-g", "@example/laf-office@latest"}
 	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("expected args %v, got %v", want, got)
 	}
@@ -48,8 +48,8 @@ func TestInstallLatestCLIReturnsHelpfulFailure(t *testing.T) {
 	}
 
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("WUPHF_CLI_INSTALL_BIN", "npm")
-	t.Setenv("WUPHF_CLI_PACKAGE", "@example/wuphf")
+	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", "npm")
+	t.Setenv("LAF_OFFICE_CLI_PACKAGE", "@example/laf-office")
 
 	_, err := InstallLatestCLI()
 	if err == nil {

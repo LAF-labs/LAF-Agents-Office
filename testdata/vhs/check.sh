@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Visual regression check for wuphf.
+# Visual regression check for laf-office.
 #
 # Re-runs each VHS tape and fails if the generated .txt golden drifts from
 # the committed one. Pre-commit friendly — leaves the committed golden
@@ -7,8 +7,8 @@
 # <name>.txt.actual for inspection.
 #
 # Tapes covered:
-#   help.tape     — `wuphf --help` output
-#   version.tape  — `wuphf --version` output
+#   help.tape     — `laf-office --help` output
+#   version.tape  — `laf-office --version` output
 #
 # Only `.txt` is diffed. `.gif` files are regenerated on every run and are
 # NOT tracked in git (see .gitignore). They exist only as a human-viewable
@@ -21,7 +21,7 @@
 #        mv testdata/vhs/<name>.txt.actual testdata/vhs/<name>.txt
 #        git add testdata/vhs/<name>.txt
 #
-# Version bumps in cmd/wuphf/buildinfo drift version.txt — update the golden
+# Version bumps in cmd/laf-office/buildinfo drift version.txt — update the golden
 # as part of the version-bump commit.
 
 set -euo pipefail
@@ -31,7 +31,7 @@ cd "$(dirname "$0")/../.."
 TAPES=(help version)
 
 # Compile once outside the tape so VHS recording time is just exec.
-go build -o /tmp/wuphf-vhs ./cmd/wuphf
+go build -o /tmp/laf-office-vhs ./cmd/laf-office
 
 # VHS captures multiple scrollback frames separated by '────' lines.
 # The PS1 prompt ('>') at the top of each scrollback frame is captured
@@ -74,7 +74,7 @@ check_one() {
   if ! normalize "$golden_txt"; then
     cp "$backup_txt" "$golden_txt"
     rm -f "$backup_txt"
-    echo "wuphf visual regression: ${name} normalize failed — golden restored" >&2
+    echo "laf-office visual regression: ${name} normalize failed — golden restored" >&2
     return 1
   fi
 
@@ -82,7 +82,7 @@ check_one() {
     cp "$golden_txt" "$actual_txt"
     cp "$backup_txt" "$golden_txt"
     rm -f "$backup_txt"
-    echo "wuphf visual regression: ${name}.txt drifted" >&2
+    echo "laf-office visual regression: ${name}.txt drifted" >&2
     diff -u "$golden_txt" "$actual_txt" >&2 || true
     echo >&2
     echo "To accept this drift as the new baseline:" >&2
@@ -93,7 +93,7 @@ check_one() {
   fi
 
   rm -f "$backup_txt" "$actual_txt"
-  echo "wuphf visual regression: ${name} OK"
+  echo "laf-office visual regression: ${name} OK"
 }
 
 for tape in "${TAPES[@]}"; do

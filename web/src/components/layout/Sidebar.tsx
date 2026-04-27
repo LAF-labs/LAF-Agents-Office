@@ -25,7 +25,7 @@ export function Sidebar() {
       ) : (
         <>
           <div className="sidebar-header">
-            <span className="sidebar-logo">WUPHF</span>
+            <span className="sidebar-logo">LAF-Office</span>
             <div className="sidebar-header-actions">
               <button
                 type="button"

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 func withTempConfigHome(t *testing.T, f func()) {

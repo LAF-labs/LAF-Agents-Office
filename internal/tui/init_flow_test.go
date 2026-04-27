@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 func TestInitFlowStartsWithAPIKeyStepWhenMissing(t *testing.T) {
@@ -18,7 +18,7 @@ func TestInitFlowStartsWithAPIKeyStepWhenMissing(t *testing.T) {
 
 func TestInitFlowUsesResolvedAPIKeyFromEnv(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("WUPHF_API_KEY", "env-key")
+	t.Setenv("LAF_OFFICE_API_KEY", "env-key")
 
 	flow, _ := NewInitFlow().Start()
 	if flow.Phase() != InitProviderChoice {
@@ -31,7 +31,7 @@ func TestInitFlowUsesResolvedAPIKeyFromEnv(t *testing.T) {
 
 func TestInitFlowSkipsToBlueprintWhenAPIKeyExists(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	if err := config.Save(config.Config{APIKey: "wuphf-key"}); err != nil {
+	if err := config.Save(config.Config{APIKey: "laf-office-key"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 
@@ -67,7 +67,7 @@ func TestInitFlowViewShowsReadinessSummary(t *testing.T) {
 	if !containsAll(view, "Setup Readiness", "Nex identity", "tmux office runtime", "LLM runtime", "Operation template") {
 		t.Fatalf("expected readiness summary in init view, got %q", view)
 	}
-	if !strings.Contains(view, "Paste your WUPHF/Nex API key") {
+	if !strings.Contains(view, "Paste your LAF-Office/Nex API key") {
 		t.Fatalf("expected API key guidance in readiness summary, got %q", view)
 	}
 }

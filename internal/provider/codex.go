@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/config"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/config"
 )
 
 var (
@@ -31,7 +31,7 @@ func init() {
 }
 
 // CreateCodexCLIStreamFn returns a StreamFn that runs Codex CLI non-interactively.
-// WUPHF keeps the conversation history, so each invocation is intentionally ephemeral.
+// LAF-Office keeps the conversation history, so each invocation is intentionally ephemeral.
 func CreateCodexCLIStreamFn(agentSlug string) agent.StreamFn {
 	return func(msgs []agent.Message, tools []agent.AgentTool) <-chan agent.StreamChunk {
 		ch := make(chan agent.StreamChunk, 64)
@@ -205,7 +205,7 @@ func appendCodexLatencyLog(agentSlug string, line string) {
 	if err != nil {
 		return
 	}
-	logDir := filepath.Join(home, ".wuphf", "logs")
+	logDir := filepath.Join(home, ".laf-office", "logs")
 	if err := os.MkdirAll(logDir, 0o700); err != nil {
 		return
 	}

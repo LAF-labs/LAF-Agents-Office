@@ -3,22 +3,22 @@
 # This targets --channel-view directly, which is the reliable capture surface.
 set -euo pipefail
 
-SOCKET="/tmp/wuphf-office-$$.sock"
-BINARY="$(cd "$(dirname "$0")/../.." && pwd)/wuphf"
+SOCKET="/tmp/laf-office-$$.sock"
+BINARY="$(cd "$(dirname "$0")/../.." && pwd)/laf-office"
 ARTIFACTS="$(cd "$(dirname "$0")/../.." && pwd)/termwright-artifacts/office-channel-$(date +%Y%m%d-%H%M%S)"
-TEST_HOME="$(mktemp -d /tmp/wuphf-office-home-XXXXXX)"
+TEST_HOME="$(mktemp -d /tmp/laf-office-home-XXXXXX)"
 mkdir -p "$ARTIFACTS"
 export HOME="$TEST_HOME"
 
 kill_stale_runtime() {
   "$BINARY" kill >/dev/null 2>&1 || true
-  tmux -L wuphf kill-server >/dev/null 2>&1 || true
-  pkill -x wuphf >/dev/null 2>&1 || true
+  tmux -L laf-office kill-server >/dev/null 2>&1 || true
+  pkill -x laf-office >/dev/null 2>&1 || true
   if command -v lsof >/dev/null 2>&1; then
     lsof -i :7890 -t 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
     sleep 1
   fi
-  rm -f /tmp/wuphf-broker-token
+  rm -f /tmp/laf-office-broker-token
 }
 
 cleanup() {
@@ -30,7 +30,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ ! -x "$BINARY" ]; then
-  echo "SKIP: wuphf binary not found at $BINARY"
+  echo "SKIP: laf-office binary not found at $BINARY"
   exit 0
 fi
 
@@ -81,7 +81,7 @@ kill_stale_runtime
 termwright daemon --socket "$SOCKET" --cols 120 --rows 40 --background -- "$BINARY" --no-nex --channel-view --channel-app messages
 sleep 5
 
-assert_contains "The WUPHF Office" "boot"
+assert_contains "LAF-Office" "boot"
 assert_contains "Message #general" "boot"
 
 send_raw "/"

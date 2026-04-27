@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nex-crm/wuphf/internal/commands"
+	"github.com/nex-crm/laf-office/internal/commands"
 )
 
 // commandDescriptor is the JSON shape returned by GET /commands. JSON tags

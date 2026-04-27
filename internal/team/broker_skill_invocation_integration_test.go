@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nex-crm/wuphf/internal/agent"
+	"github.com/nex-crm/laf-office/internal/agent"
 )
 
 func TestBrokerSkillInvocationE2E_PersistsAcrossReload(t *testing.T) {

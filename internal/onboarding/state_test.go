@@ -9,7 +9,7 @@ import (
 )
 
 // withTempHome redirects os.UserHomeDir (via $HOME) to a temp dir for
-// the duration of f, keeping test state isolated from the real ~/.wuphf.
+// the duration of f, keeping test state isolated from the real ~/.laf-office.
 func withTempHome(t *testing.T, f func(home string)) {
 	t.Helper()
 	dir := t.TempDir()
@@ -58,7 +58,7 @@ func TestLoadDefaultChecklistItems(t *testing.T) {
 
 func TestLoadExistingFileReturnsCorrectData(t *testing.T) {
 	withTempHome(t, func(home string) {
-		dir := filepath.Join(home, ".wuphf")
+		dir := filepath.Join(home, ".laf-office")
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatalf("MkdirAll: %v", err)
 		}
@@ -117,7 +117,7 @@ func TestSaveIsAtomic(t *testing.T) {
 		entries, _ := os.ReadDir(filepath.Dir(path))
 		for _, e := range entries {
 			if e.Name() != "onboarded.json" {
-				t.Errorf("unexpected file in .wuphf dir after Save: %s", e.Name())
+				t.Errorf("unexpected file in .laf-office dir after Save: %s", e.Name())
 			}
 		}
 	})
@@ -194,7 +194,7 @@ func TestSaveProgressMergesCorrectly(t *testing.T) {
 func TestVersionBumpReturnsNotOnboarded(t *testing.T) {
 	withTempHome(t, func(home string) {
 		// Write a file that looks complete but with an old schema version.
-		dir := filepath.Join(home, ".wuphf")
+		dir := filepath.Join(home, ".laf-office")
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatalf("MkdirAll: %v", err)
 		}

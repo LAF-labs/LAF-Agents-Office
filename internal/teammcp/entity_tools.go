@@ -5,7 +5,7 @@ package teammcp
 //   entity_fact_record     — record one fact about an entity (person, company, customer)
 //   entity_brief_synthesize — explicitly request a brief refresh
 //
-// Registered only when WUPHF_MEMORY_BACKEND=markdown, matching the wiki and
+// Registered only when LAF_OFFICE_MEMORY_BACKEND=markdown, matching the wiki and
 // notebook gates — the entity brief surface rides on the same markdown git
 // substrate, so it has the same backend precondition.
 
@@ -21,7 +21,7 @@ import (
 
 // TeamEntityFactRecordArgs is the contract for entity_fact_record.
 type TeamEntityFactRecordArgs struct {
-	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG env."`
+	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
 	EntityKind string `json:"entity_kind" jsonschema:"One of: people | companies | customers"`
 	EntitySlug string `json:"entity_slug" jsonschema:"Kebab-case slug matching the canonical wiki file (e.g. team/people/nazz.md -> nazz)"`
 	Fact       string `json:"fact" jsonschema:"One atomic observation. Max 4000 chars. Never invent or generalise — record only what you directly observed."`
@@ -30,14 +30,14 @@ type TeamEntityFactRecordArgs struct {
 
 // TeamEntityBriefSynthesizeArgs is the contract for entity_brief_synthesize.
 type TeamEntityBriefSynthesizeArgs struct {
-	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG env."`
+	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
 	EntityKind string `json:"entity_kind" jsonschema:"One of: people | companies | customers"`
 	EntitySlug string `json:"entity_slug" jsonschema:"Kebab-case slug."`
 }
 
 // TeamEntityGraphQueryArgs is the contract for entity_graph_query.
 type TeamEntityGraphQueryArgs struct {
-	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to WUPHF_AGENT_SLUG env."`
+	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
 	EntityKind string `json:"entity_kind" jsonschema:"One of: people | companies | customers"`
 	EntitySlug string `json:"entity_slug" jsonschema:"Kebab-case slug."`
 	Direction  string `json:"direction,omitempty" jsonschema:"One of: out | in | both. Defaults to 'out' (who this entity mentions)."`
@@ -45,7 +45,7 @@ type TeamEntityGraphQueryArgs struct {
 
 // registerEntityTools attaches the two entity tools to the MCP server.
 // Caller (registerSharedMemoryTools, markdown branch) is responsible for
-// gating on WUPHF_MEMORY_BACKEND.
+// gating on LAF_OFFICE_MEMORY_BACKEND.
 func registerEntityTools(server *mcp.Server) {
 	mcp.AddTool(server, officeWriteTool(
 		"entity_fact_record",

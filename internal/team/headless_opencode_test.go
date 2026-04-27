@@ -22,7 +22,7 @@ func TestWriteHeadlessOpencodeMCPConfigConcurrent(t *testing.T) {
 	}
 
 	// Seed an existing opencode.json with some user content that should survive
-	// the merge (theme key is untouched by WUPHF).
+	// the merge (theme key is untouched by LAF-Office).
 	seed := `{"$schema":"https://opencode.ai/config.json","theme":"dark","ai":{"ollama":{"type":"openai-compatible","url":"http://localhost:11434/v1"}}}`
 	configPath := filepath.Join(configDir, "opencode.json")
 	if err := os.WriteFile(configPath, []byte(seed), 0o600); err != nil {
@@ -30,9 +30,9 @@ func TestWriteHeadlessOpencodeMCPConfigConcurrent(t *testing.T) {
 	}
 
 	// Point the executable-path hook at a harmless path so the launcher can
-	// construct the MCP entry without needing the real wuphf binary.
+	// construct the MCP entry without needing the real laf-office binary.
 	orig := headlessOpencodeExecutablePath
-	headlessOpencodeExecutablePath = func() (string, error) { return "/usr/local/bin/wuphf", nil }
+	headlessOpencodeExecutablePath = func() (string, error) { return "/usr/local/bin/laf-office", nil }
 	defer func() { headlessOpencodeExecutablePath = orig }()
 
 	l := &Launcher{}
@@ -67,7 +67,7 @@ func TestWriteHeadlessOpencodeMCPConfigConcurrent(t *testing.T) {
 		t.Fatalf("base opencode.json is not valid JSON after concurrent writes: %v\n\ncontent:\n%s", err, raw)
 	}
 	if _, ok := base["mcp"]; ok {
-		t.Fatal("base opencode.json should not be rewritten with WUPHF's agent-scoped MCP entry")
+		t.Fatal("base opencode.json should not be rewritten with LAF-Office's agent-scoped MCP entry")
 	}
 
 	for _, slug := range slugs {
@@ -93,16 +93,16 @@ func TestWriteHeadlessOpencodeMCPConfigConcurrent(t *testing.T) {
 		if mcp == nil {
 			t.Fatalf("mcp key missing from %s config", slug)
 		}
-		wuphfOffice, _ := mcp["wuphf-office"].(map[string]any)
-		if wuphfOffice == nil {
-			t.Fatalf("mcp.wuphf-office missing from %s config", slug)
+		lafOffice, _ := mcp["laf-office"].(map[string]any)
+		if lafOffice == nil {
+			t.Fatalf("mcp.laf-office missing from %s config", slug)
 		}
-		env, _ := wuphfOffice["environment"].(map[string]any)
+		env, _ := lafOffice["environment"].(map[string]any)
 		if env == nil {
-			t.Fatalf("mcp.wuphf-office.environment missing from %s config", slug)
+			t.Fatalf("mcp.laf-office.environment missing from %s config", slug)
 		}
-		if env["WUPHF_AGENT_SLUG"] != slug {
-			t.Fatalf("%s config has WUPHF_AGENT_SLUG=%#v", slug, env["WUPHF_AGENT_SLUG"])
+		if env["LAF_OFFICE_AGENT_SLUG"] != slug {
+			t.Fatalf("%s config has LAF_OFFICE_AGENT_SLUG=%#v", slug, env["LAF_OFFICE_AGENT_SLUG"])
 		}
 	}
 }

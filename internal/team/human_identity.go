@@ -8,7 +8,7 @@ package team
 //
 // In v1.4 every human wiki edit was attributed to the synthetic identity
 //
-//	human <human@wuphf.local>
+//	human <human@laf-office.local>
 //
 // That worked for a one-person team but collapsed for two. With multiple
 // humans editing the wiki (founder + cofounder, say) `git log` could not
@@ -21,7 +21,7 @@ package team
 // git config for `user.name` + `user.email`. That identity is cached on
 // disk at
 //
-//	~/.wuphf/humans/{sha256(email)[:16]}.json
+//	~/.laf-office/humans/{sha256(email)[:16]}.json
 //
 // and served back for every subsequent `POST /wiki/write-human` from the
 // same machine. Two different humans on two different machines produce
@@ -44,7 +44,7 @@ package team
 // --------
 //
 // When git config is missing (fresh shell, CI sandbox) the probe falls
-// back to the v1.4 synthetic identity (`human`/`human@wuphf.local`). That
+// back to the v1.4 synthetic identity (`human`/`human@laf-office.local`). That
 // preserves existing behaviour and lets the handler stay unconditional.
 //
 // Multi-human support
@@ -67,14 +67,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/gitexec"
 )
 
 // HumanIdentity is the cached git identity for a single human.
 //
 // It is written to disk as the JSON contents of
-// ~/.wuphf/humans/{sha256(email)[:16]}.json and is the source of truth
+// ~/.laf-office/humans/{sha256(email)[:16]}.json and is the source of truth
 // the broker uses when stamping a `/wiki/write-human` commit.
 type HumanIdentity struct {
 	Name      string    `json:"name"`
@@ -88,7 +88,7 @@ type HumanIdentity struct {
 // history keeps its meaning for single-user installs.
 var FallbackHumanIdentity = HumanIdentity{
 	Name:  HumanAuthor,
-	Email: HumanAuthor + "@wuphf.local",
+	Email: HumanAuthor + "@laf-office.local",
 	Slug:  HumanAuthor,
 }
 
@@ -102,7 +102,7 @@ type HumanIdentityRegistry struct {
 }
 
 // NewHumanIdentityRegistry constructs a registry rooted at
-// {RuntimeHomeDir}/.wuphf/humans. The directory is created lazily on
+// {RuntimeHomeDir}/.laf-office/humans. The directory is created lazily on
 // first write; construction never touches the filesystem.
 func NewHumanIdentityRegistry() *HumanIdentityRegistry {
 	return &HumanIdentityRegistry{dir: humansDir()}
@@ -114,14 +114,14 @@ func NewHumanIdentityRegistryAt(dir string) *HumanIdentityRegistry {
 	return &HumanIdentityRegistry{dir: dir}
 }
 
-// humansDir mirrors WikiRootDir's layout so dev runs (WUPHF_RUNTIME_HOME
-// override) stay isolated from a user's prod ~/.wuphf.
+// humansDir mirrors WikiRootDir's layout so dev runs (LAF_OFFICE_RUNTIME_HOME
+// override) stay isolated from a user's prod ~/.laf-office.
 func humansDir() string {
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".wuphf", "humans")
+		return filepath.Join(".laf-office", "humans")
 	}
-	return filepath.Join(home, ".wuphf", "humans")
+	return filepath.Join(home, ".laf-office", "humans")
 }
 
 // Dir returns the on-disk directory the registry reads/writes. Useful
@@ -278,7 +278,7 @@ func runGitConfig(key string) string {
 	// WANT the user's real global config. Honour a short timeout so a
 	// hung git doesn't stall broker startup.
 	//
-	// gitexec.CleanEnv strips GIT_CONFIG_PARAMETERS and friends: when wuphf
+	// gitexec.CleanEnv strips GIT_CONFIG_PARAMETERS and friends: when laf-office
 	// runs inside a git hook, the outer git may inject `-c` overrides
 	// via that env var which would silently override --global reads.
 	cmd := exec.Command("git", "config", "--global", key)

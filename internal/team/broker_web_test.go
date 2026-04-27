@@ -50,9 +50,9 @@ func TestWebUIProxyHandlerForwardsOnboardingRoutes(t *testing.T) {
 
 func TestWorkspaceShredRouteResetsBrokerWithoutShutdown(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 
-	logPath := filepath.Join(home, ".wuphf", "logs", "channel-stderr.log")
+	logPath := filepath.Join(home, ".laf-office", "logs", "channel-stderr.log")
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestWorkspaceShredRouteResetsBrokerWithoutShutdown(t *testing.T) {
 // coverage; the dead-code removal in #307 makes it the steady state.
 func TestWorkspaceShredRoutePostShredBrokerAcceptsNewState(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("WUPHF_RUNTIME_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 
 	// Pin broker state path explicitly so the assertion doesn't depend on
 	// defaultBrokerStatePath()'s home resolution. NewBrokerAt binds the
@@ -182,7 +182,7 @@ func TestWorkspaceShredRoutePostShredBrokerAcceptsNewState(t *testing.T) {
 	b.mu.Unlock()
 
 	// Broker can accept a fresh post-shred message on the same listener,
-	// mimicking the user re-onboarding without restarting wuphf. Goes through
+	// mimicking the user re-onboarding without restarting laf-office. Goes through
 	// the full /messages route + auth + persistence pipeline.
 	postBody := strings.NewReader(`{"from":"human","channel":"general","content":"post-shred kickoff"}`)
 	postReq, err := http.NewRequest(http.MethodPost, "http://"+b.Addr()+"/messages", postBody)

@@ -33,8 +33,8 @@ PY=$(command -v python3 || command -v python || true)
 step "fetching broker token from $BROKER/web-token"
 TOKEN=$(curl -fsS "$BROKER/web-token" 2>/dev/null | "$PY" -c "import sys,json;print(json.load(sys.stdin).get('token',''))")
 if [ -z "$TOKEN" ]; then
-  fail "broker not reachable at $BROKER (is wuphf-dev running?)"
-  fail "try:  ./wuphf-dev --broker-port 7899 --web-port 7900 --memory-backend markdown"
+  fail "broker not reachable at $BROKER (is laf-office-dev running?)"
+  fail "try:  ./laf-office-dev --broker-port 7899 --web-port 7900 --memory-backend markdown"
   exit 1
 fi
 ok "token acquired (len ${#TOKEN})"
@@ -82,7 +82,7 @@ print(json.dumps({
   sleep "$DELAY"
 }
 
-printf "\n%sWUPHF LIVE WIKI DEMO%s\n" "$BOLD" "$RESET"
+printf "\n%sLAF-Office LIVE WIKI DEMO%s\n" "$BOLD" "$RESET"
 printf "%sOpen http://localhost:7900/#/wiki in a browser BEFORE this script finishes.%s\n" "$DIM" "$RESET"
 printf "%s5-second head start so you can switch to the browser...%s\n\n" "$DIM" "$RESET"
 sleep 5
@@ -177,12 +177,12 @@ As of this week, new installs default to the markdown wiki instead of the Nex kn
 
 - Users can \`cat\` and \`git clone\` their team memory
 - No API key required to try it
-- File-over-app story matches WUPHF's MIT/self-hosted posture
+- File-over-app story matches LAF-Office's MIT/self-hosted posture
 
 ## What it means
 
 - Existing Nex/GBrain users unaffected (backend switch is config-pinned)
-- Four new MCP tools (\`team_wiki_read/search/list/write\`) replace \`team_memory_*\` when \`WUPHF_MEMORY_BACKEND=markdown\`
+- Four new MCP tools (\`team_wiki_read/search/list/write\`) replace \`team_memory_*\` when \`LAF_OFFICE_MEMORY_BACKEND=markdown\`
 
 See [[decisions/2026-q2-pricing]] for the related commercial thinking."
 

@@ -14,10 +14,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nex-crm/wuphf/internal/agent"
-	"github.com/nex-crm/wuphf/internal/config"
-	"github.com/nex-crm/wuphf/internal/gitexec"
-	"github.com/nex-crm/wuphf/internal/provider"
+	"github.com/nex-crm/laf-office/internal/agent"
+	"github.com/nex-crm/laf-office/internal/config"
+	"github.com/nex-crm/laf-office/internal/gitexec"
+	"github.com/nex-crm/laf-office/internal/provider"
 )
 
 var (
@@ -1141,7 +1141,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	cmd.Dir = workspaceDir
 	cmd.Env = l.buildHeadlessCodexEnv(slug, workspaceDir, firstNonEmpty(channel...))
 	if workspaceDir != strings.TrimSpace(l.cwd) {
-		cmd.Env = append(cmd.Env, "WUPHF_WORKTREE_PATH="+workspaceDir)
+		cmd.Env = append(cmd.Env, "LAF_OFFICE_WORKTREE_PATH="+workspaceDir)
 	}
 	stdinText := buildHeadlessCodexPrompt(l.buildPrompt(slug), notification)
 	cmd.Stdin = strings.NewReader(stdinText)
@@ -1321,8 +1321,8 @@ func (l *Launcher) headlessCodexNeedsDangerousBypass(slug string) bool {
 
 func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, channel string) []string {
 	// gitexec.CleanEnv: codex agents run `git` subcommands inside their
-	// sandbox. If wuphf inherited GIT_DIR / GIT_WORK_TREE /
-	// GIT_CONFIG_PARAMETERS from a parent (git hook, nested wuphf call)
+	// sandbox. If laf-office inherited GIT_DIR / GIT_WORK_TREE /
+	// GIT_CONFIG_PARAMETERS from a parent (git hook, nested laf-office call)
 	// every child git would retarget the outer repo. Clean those first,
 	// then drop codex-specific noise. stripEnvKeys is exact-match,
 	// gitexec.CleanEnv is prefix-match — the GIT_CONFIG_KEY_<n> family
@@ -1349,19 +1349,19 @@ func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, chann
 		env = setEnvValue(env, "GOCACHE", goCache)
 		env = setEnvValue(env, "GOTMPDIR", goTmp)
 	}
-	env = setEnvValue(env, "WUPHF_AGENT_SLUG", slug)
+	env = setEnvValue(env, "LAF_OFFICE_AGENT_SLUG", slug)
 	if channel = strings.TrimSpace(channel); channel != "" {
-		env = setEnvValue(env, "WUPHF_CHANNEL", channel)
+		env = setEnvValue(env, "LAF_OFFICE_CHANNEL", channel)
 	}
-	env = setEnvValue(env, "WUPHF_BROKER_TOKEN", l.broker.Token())
-	env = setEnvValue(env, "WUPHF_BROKER_BASE_URL", l.BrokerBaseURL())
-	env = setEnvValue(env, "WUPHF_HEADLESS_PROVIDER", "codex")
+	env = setEnvValue(env, "LAF_OFFICE_BROKER_TOKEN", l.broker.Token())
+	env = setEnvValue(env, "LAF_OFFICE_BROKER_BASE_URL", l.BrokerBaseURL())
+	env = setEnvValue(env, "LAF_OFFICE_HEADLESS_PROVIDER", "codex")
 	if config.ResolveNoNex() {
-		env = setEnvValue(env, "WUPHF_NO_NEX", "1")
+		env = setEnvValue(env, "LAF_OFFICE_NO_NEX", "1")
 	}
 	if l.isOneOnOne() {
-		env = setEnvValue(env, "WUPHF_ONE_ON_ONE", "1")
-		env = setEnvValue(env, "WUPHF_ONE_ON_ONE_AGENT", l.oneOnOneAgent())
+		env = setEnvValue(env, "LAF_OFFICE_ONE_ON_ONE", "1")
+		env = setEnvValue(env, "LAF_OFFICE_ONE_ON_ONE_AGENT", l.oneOnOneAgent())
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
 		env = setEnvValue(env, "ONE_SECRET", secret)
@@ -1373,11 +1373,11 @@ func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, chann
 		}
 	}
 	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-		env = setEnvValue(env, "WUPHF_API_KEY", apiKey)
+		env = setEnvValue(env, "LAF_OFFICE_API_KEY", apiKey)
 		env = setEnvValue(env, "NEX_API_KEY", apiKey)
 	}
 	if openAIKey := strings.TrimSpace(config.ResolveOpenAIAPIKey()); openAIKey != "" {
-		env = setEnvValue(env, "WUPHF_OPENAI_API_KEY", openAIKey)
+		env = setEnvValue(env, "LAF_OFFICE_OPENAI_API_KEY", openAIKey)
 		env = setEnvValue(env, "OPENAI_API_KEY", openAIKey)
 	}
 	return env
@@ -1401,7 +1401,7 @@ func headlessCodexHomeDir() string {
 }
 
 func headlessCodexGlobalHomeDir() string {
-	if raw := strings.TrimSpace(os.Getenv("WUPHF_GLOBAL_HOME")); raw != "" {
+	if raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_GLOBAL_HOME")); raw != "" {
 		if abs, err := filepath.Abs(raw); err == nil && strings.TrimSpace(abs) != "" {
 			return abs
 		}
@@ -1423,7 +1423,7 @@ func headlessCodexRuntimeHomeDir() string {
 	if home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".wuphf", "codex-headless")
+	return filepath.Join(home, ".laf-office", "codex-headless")
 }
 
 func prepareHeadlessCodexHome() string {
@@ -1510,7 +1510,7 @@ func (l *Launcher) headlessCodexWorkspaceCacheDir(workspaceDir string) string {
 	if base == "" {
 		return ""
 	}
-	return filepath.Join(base, ".wuphf", "cache")
+	return filepath.Join(base, ".laf-office", "cache")
 }
 
 func (l *Launcher) headlessTaskWorkspaceDir(slug string) string {
@@ -1538,38 +1538,38 @@ func (l *Launcher) headlessTaskWorkspaceDir(slug string) string {
 }
 
 func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error) {
-	wuphfBinary, err := headlessCodexExecutablePath()
+	lafOfficeBinary, err := headlessCodexExecutablePath()
 	if err != nil {
 		return nil, err
 	}
-	wuphfEnvVars := []string{
-		"WUPHF_AGENT_SLUG",
-		"WUPHF_BROKER_TOKEN",
-		"WUPHF_BROKER_BASE_URL",
+	lafOfficeEnvVars := []string{
+		"LAF_OFFICE_AGENT_SLUG",
+		"LAF_OFFICE_BROKER_TOKEN",
+		"LAF_OFFICE_BROKER_BASE_URL",
 	}
 	if config.ResolveNoNex() {
-		wuphfEnvVars = append(wuphfEnvVars, "WUPHF_NO_NEX")
+		lafOfficeEnvVars = append(lafOfficeEnvVars, "LAF_OFFICE_NO_NEX")
 	}
 	if l.isOneOnOne() {
-		wuphfEnvVars = append(wuphfEnvVars,
-			"WUPHF_ONE_ON_ONE",
-			"WUPHF_ONE_ON_ONE_AGENT",
+		lafOfficeEnvVars = append(lafOfficeEnvVars,
+			"LAF_OFFICE_ONE_ON_ONE",
+			"LAF_OFFICE_ONE_ON_ONE_AGENT",
 		)
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
-		wuphfEnvVars = append(wuphfEnvVars, "ONE_SECRET")
+		lafOfficeEnvVars = append(lafOfficeEnvVars, "ONE_SECRET")
 	}
 	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		wuphfEnvVars = append(wuphfEnvVars, "ONE_IDENTITY")
+		lafOfficeEnvVars = append(lafOfficeEnvVars, "ONE_IDENTITY")
 		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			wuphfEnvVars = append(wuphfEnvVars, "ONE_IDENTITY_TYPE")
+			lafOfficeEnvVars = append(lafOfficeEnvVars, "ONE_IDENTITY_TYPE")
 		}
 	}
 
 	overrides := []string{
-		fmt.Sprintf(`mcp_servers.wuphf-office.command=%s`, tomlQuote(wuphfBinary)),
-		`mcp_servers.wuphf-office.args=["mcp-team"]`,
-		fmt.Sprintf(`mcp_servers.wuphf-office.env_vars=%s`, tomlStringArray(wuphfEnvVars)),
+		fmt.Sprintf(`mcp_servers.laf-office.command=%s`, tomlQuote(lafOfficeBinary)),
+		`mcp_servers.laf-office.args=["mcp-team"]`,
+		fmt.Sprintf(`mcp_servers.laf-office.env_vars=%s`, tomlStringArray(lafOfficeEnvVars)),
 	}
 
 	if !config.ResolveNoNex() {
@@ -1577,7 +1577,7 @@ func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error
 			overrides = append(overrides, fmt.Sprintf(`mcp_servers.nex.command=%s`, tomlQuote(nexMCP)))
 			if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
 				overrides = append(overrides, fmt.Sprintf(`mcp_servers.nex.env_vars=%s`, tomlStringArray([]string{
-					"WUPHF_API_KEY",
+					"LAF_OFFICE_API_KEY",
 					"NEX_API_KEY",
 				})))
 			}
@@ -1598,22 +1598,22 @@ func buildHeadlessCodexPrompt(systemPrompt string, prompt string) string {
 	return strings.Join(parts, "\n\n")
 }
 
-func wuphfLogDir() string {
-	// WUPHF_LOG_DIR lets tests redirect headless log writes to a
+func lafOfficeLogDir() string {
+	// LAF_OFFICE_LOG_DIR lets tests redirect headless log writes to a
 	// process-stable path. Headless-worker goroutines routinely outlive the
 	// test that started them; if they wrote to the test's t.TempDir() they
 	// would race with go's test-scoped RemoveAll ("directory not empty" on
 	// unlinkat). Tests set this to a package-owned leaked dir so writes
 	// from leaked goroutines land harmlessly. Unset in production → HOME.
-	if override := strings.TrimSpace(os.Getenv("WUPHF_LOG_DIR")); override != "" {
+	if override := strings.TrimSpace(os.Getenv("LAF_OFFICE_LOG_DIR")); override != "" {
 		// Fail loudly on a broken override instead of silently falling
-		// through — a misconfigured WUPHF_LOG_DIR path otherwise surfaces
+		// through — a misconfigured LAF_OFFICE_LOG_DIR path otherwise surfaces
 		// as confusing "file open failed" errors far from the root cause.
 		// Returning "" disables headless logging for this call (the
 		// appendHeadless*Log helpers no-op on empty dir), which matches
 		// the HOME-lookup graceful-degradation path below.
 		if err := os.MkdirAll(override, 0o700); err != nil {
-			fmt.Fprintf(os.Stderr, "wuphf: WUPHF_LOG_DIR=%q unwritable: %v — headless logging disabled\n", override, err)
+			fmt.Fprintf(os.Stderr, "laf-office: LAF_OFFICE_LOG_DIR=%q unwritable: %v — headless logging disabled\n", override, err)
 			return ""
 		}
 		return override
@@ -1622,13 +1622,13 @@ func wuphfLogDir() string {
 	if err != nil {
 		return ""
 	}
-	dir := filepath.Join(home, ".wuphf", "logs")
+	dir := filepath.Join(home, ".laf-office", "logs")
 	_ = os.MkdirAll(dir, 0o700)
 	return dir
 }
 
 func appendHeadlessCodexLog(slug string, line string) {
-	dir := wuphfLogDir()
+	dir := lafOfficeLogDir()
 	if dir == "" {
 		return
 	}
@@ -1641,7 +1641,7 @@ func appendHeadlessCodexLog(slug string, line string) {
 }
 
 func appendHeadlessCodexLatency(slug string, line string) {
-	dir := wuphfLogDir()
+	dir := lafOfficeLogDir()
 	if dir == "" {
 		return
 	}
@@ -1655,13 +1655,13 @@ func appendHeadlessCodexLatency(slug string, line string) {
 
 // preflightHeadlessCodexAuth verifies codex has a way to authenticate before we
 // spawn the process. Without this check, codex dies with a 401 after retrying
-// for ~10s and WUPHF's error log reads "exit status 1: exit status 1" — totally
+// for ~10s and LAF-Office's error log reads "exit status 1: exit status 1" — totally
 // undebuggable from the UI. We check the two valid auth paths: a copied
 // auth.json in the isolated CODEX_HOME (ChatGPT plan or API-key file), or an
 // OPENAI_API_KEY in the env we're about to hand codex. If neither, fail fast
 // with a message the user will actually see in the channel.
 func (l *Launcher) preflightHeadlessCodexAuth(slug string, channel string) error {
-	// Check the source codex creds that WUPHF will later copy into the isolated
+	// Check the source codex creds that LAF-Office will later copy into the isolated
 	// CODEX_HOME. If the source is missing AND there's no OPENAI_API_KEY to fall
 	// back on, fail fast so the user sees a clear message rather than a silent
 	// 5-second 401 loop.
@@ -1700,10 +1700,10 @@ func (l *Launcher) preflightHeadlessCodexAuth(slug string, channel string) error
 }
 
 // dumpHeadlessCodexInvocation writes the exact codex argv + env + stdin to a
-// shell script in $WUPHF_DEBUG_CODEX_DUMP when that env var is set. Off by
-// default. Used to reproduce a failing turn outside WUPHF in a few seconds.
+// shell script in $LAF_OFFICE_DEBUG_CODEX_DUMP when that env var is set. Off by
+// default. Used to reproduce a failing turn outside LAF-Office in a few seconds.
 func dumpHeadlessCodexInvocation(slug, workspaceDir string, args []string, env []string, stdinText string) {
-	dumpDir := strings.TrimSpace(os.Getenv("WUPHF_DEBUG_CODEX_DUMP"))
+	dumpDir := strings.TrimSpace(os.Getenv("LAF_OFFICE_DEBUG_CODEX_DUMP"))
 	if dumpDir == "" {
 		return
 	}
@@ -1717,7 +1717,7 @@ func dumpHeadlessCodexInvocation(slug, workspaceDir string, args []string, env [
 	}
 	var sh strings.Builder
 	sh.WriteString("#!/bin/bash\n")
-	fmt.Fprintf(&sh, "# Reproduces the exact codex invocation WUPHF builds for agent=%s\n", slug)
+	fmt.Fprintf(&sh, "# Reproduces the exact codex invocation LAF-Office builds for agent=%s\n", slug)
 	sh.WriteString("set -e\n")
 	fmt.Fprintf(&sh, "cd %q\n", workspaceDir)
 	for _, kv := range env {

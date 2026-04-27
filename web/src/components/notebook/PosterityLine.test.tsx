@@ -9,13 +9,15 @@ describe("<PosterityLine>", () => {
       <PosterityLine
         authorSlug="pm"
         reviewerSlug="ceo"
-        filePath="~/.wuphf/wiki/agents/pm/notebook/2026-04-20-acme.md"
+        filePath="~/.laf-office/wiki/agents/pm/notebook/2026-04-20-acme.md"
       />,
     );
     expect(screen.getByText("PM")).toBeInTheDocument();
     expect(screen.getByText("CEO")).toBeInTheDocument();
     expect(
-      screen.getByText("~/.wuphf/wiki/agents/pm/notebook/2026-04-20-acme.md"),
+      screen.getByText(
+        "~/.laf-office/wiki/agents/pm/notebook/2026-04-20-acme.md",
+      ),
     ).toBeInTheDocument();
   });
 

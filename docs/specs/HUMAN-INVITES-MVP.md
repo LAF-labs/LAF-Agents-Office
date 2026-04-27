@@ -1,6 +1,6 @@
 # Human Invites MVP
 
-WUPHF can invite human teammates by email. This is a local MVP for dogfooding,
+LAF-Office can invite human teammates by email. This is a local MVP for dogfooding,
 not a full SaaS identity system.
 
 ## What ships
@@ -16,15 +16,15 @@ not a full SaaS identity system.
 
 ## Email delivery
 
-If SMTP is configured, WUPHF sends the email immediately. Configure these
-environment variables before starting WUPHF:
+If SMTP is configured, LAF-Office sends the email immediately. Configure these
+environment variables before starting LAF-Office:
 
 ```bash
-export WUPHF_SMTP_HOST="smtp.example.com"
-export WUPHF_SMTP_PORT="587"
-export WUPHF_SMTP_USERNAME="smtp-user"
-export WUPHF_SMTP_PASSWORD="smtp-password"
-export WUPHF_SMTP_FROM="WUPHF <team@example.com>"
+export LAF_OFFICE_SMTP_HOST="smtp.example.com"
+export LAF_OFFICE_SMTP_PORT="587"
+export LAF_OFFICE_SMTP_USERNAME="smtp-user"
+export LAF_OFFICE_SMTP_PASSWORD="smtp-password"
+export LAF_OFFICE_SMTP_FROM="LAF-Office <team@example.com>"
 ```
 
 If SMTP is not configured, the invite is still created. The UI shows a copyable
@@ -40,7 +40,7 @@ curl -X POST "$BROKER/invites" \
     "email": "teammate@example.com",
     "name": "Kim Teammate",
     "created_by": "human",
-    "base_url": "https://your-wuphf-url.example"
+    "base_url": "https://your-laf-office-url.example"
   }'
 ```
 

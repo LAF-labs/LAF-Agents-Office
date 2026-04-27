@@ -15,7 +15,7 @@ type SessionsListFilter struct {
 	AgentID            string   `json:"agentId,omitempty"`
 }
 
-// SessionRow is the subset of OpenClaw session-list-row WUPHF needs.
+// SessionRow is the subset of OpenClaw session-list-row LAF-Office needs.
 //
 // The real daemon uses "key" as the session identifier (NOT "sessionKey").
 // Verified 2026-04-15 against OpenClaw 2026.4.14 sessions.list output.
