@@ -366,7 +366,6 @@ func TestHandleTeamActionWorkflowScheduleRunNowExecutesImmediately(t *testing.T)
 
 func TestSelectedActionProviderIncludesCapabilityGuidance(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 
 	prev := externalActionProvider
 	externalActionProvider = nil
@@ -374,9 +373,9 @@ func TestSelectedActionProviderIncludesCapabilityGuidance(t *testing.T) {
 
 	_, err := selectedActionProvider(action.CapabilityActionExecute)
 	if err == nil {
-		t.Fatal("expected provider selection to fail when Nex is disabled")
+		t.Fatal("expected provider selection to fail when managed integrations are unavailable")
 	}
-	if !strings.Contains(err.Error(), "Restart without --no-nex") {
+	if !strings.Contains(err.Error(), "managed integrations are not available") {
 		t.Fatalf("expected readiness next step in %q", err)
 	}
 }

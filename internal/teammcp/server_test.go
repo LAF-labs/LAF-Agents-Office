@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -61,7 +58,7 @@ func textFromResult(t *testing.T, result *mcp.CallToolResult) string {
 	return text.Text
 }
 
-func TestConfigureServerToolsExposesActionToolsToOfficeSpecialists(t *testing.T) {
+func TestConfigureServerToolsHidesHostedActionTools(t *testing.T) {
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
@@ -89,15 +86,15 @@ func TestConfigureServerToolsExposesActionToolsToOfficeSpecialists(t *testing.T)
 	for _, tool := range tools.Tools {
 		names = append(names, tool.Name)
 	}
-	if !slices.Contains(names, "team_action_connections") {
-		t.Fatalf("expected team_action_connections for office specialist, got %v", names)
+	if slices.Contains(names, "team_action_connections") {
+		t.Fatalf("did not expect hosted action tools, got %v", names)
 	}
-	if !slices.Contains(names, "team_action_workflow_execute") {
-		t.Fatalf("expected team_action_workflow_execute for office specialist, got %v", names)
+	if slices.Contains(names, "team_action_workflow_execute") {
+		t.Fatalf("did not expect hosted workflow tools, got %v", names)
 	}
 }
 
-func TestConfigureServerToolsAnnotatesActionTools(t *testing.T) {
+func TestConfigureServerToolsOmitsActionToolAnnotations(t *testing.T) {
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
@@ -132,11 +129,11 @@ func TestConfigureServerToolsAnnotatesActionTools(t *testing.T) {
 			execute = tools.Tools[i]
 		}
 	}
-	if connections == nil || connections.Annotations == nil || !connections.Annotations.ReadOnlyHint {
-		t.Fatalf("expected team_action_connections to be read-only, got %+v", connections)
+	if connections != nil {
+		t.Fatalf("did not expect team_action_connections to be registered, got %+v", connections)
 	}
-	if execute == nil || execute.Annotations == nil || execute.Annotations.DestructiveHint == nil || *execute.Annotations.DestructiveHint {
-		t.Fatalf("expected team_action_execute to be a non-destructive write tool, got %+v", execute)
+	if execute != nil {
+		t.Fatalf("did not expect team_action_execute to be registered, got %+v", execute)
 	}
 }
 
@@ -558,186 +555,6 @@ func TestHandleTeamMemoryWriteHintsPromotionForDurableNote(t *testing.T) {
 	}
 }
 
-func TestHandleTeamMemoryQueryAutoIncludesSharedNexMemory(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
-	t.Setenv("LAF_OFFICE_NO_NEX", "")
-
-	var askedQuery string
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/developers/v1/context/ask":
-			askedQuery = r.URL.Path
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"answer":"Shared launch history from Nex."}`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer apiServer.Close()
-	t.Setenv("LAF_OFFICE_DEV_URL", apiServer.URL)
-
-	binDir := t.TempDir()
-	nexMCP := filepath.Join(binDir, "nex-mcp")
-	if err := os.WriteFile(nexMCP, []byte("#!/bin/sh\n"), 0o755); err != nil {
-		t.Fatalf("create fake nex-mcp: %v", err)
-	}
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	b := newTestBroker(t)
-	if err := b.StartOnPort(0); err != nil {
-		t.Fatalf("start broker: %v", err)
-	}
-	defer b.Stop()
-
-	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-
-	if _, _, err := handleTeamMemoryWrite(context.Background(), nil, TeamMemoryWriteArgs{
-		Key:        "launch-brief",
-		Title:      "Launch brief",
-		Content:    "Private note for the PM.",
-		Visibility: "private",
-		MySlug:     "pm",
-	}); err != nil {
-		t.Fatalf("handleTeamMemoryWrite: %v", err)
-	}
-
-	result, _, err := handleTeamMemoryQuery(context.Background(), nil, TeamMemoryQueryArgs{
-		Query:  "launch",
-		Scope:  "auto",
-		MySlug: "pm",
-	})
-	if err != nil {
-		t.Fatalf("handleTeamMemoryQuery: %v", err)
-	}
-	text := textFromResult(t, result)
-	if askedQuery == "" {
-		t.Fatal("expected shared Nex query to be called")
-	}
-	if !strings.Contains(text, "Private memory:") || !strings.Contains(text, "Shared memory:") || !strings.Contains(text, "Shared launch history from Nex.") {
-		t.Fatalf("expected both private and shared memory hits, got %q", text)
-	}
-}
-
-func TestHandleTeamMemoryPromoteWritesSharedNexMemory(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
-	t.Setenv("LAF_OFFICE_NO_NEX", "")
-
-	var postedBody string
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/developers/v1/context/text":
-			body := new(bytes.Buffer)
-			_, _ = body.ReadFrom(r.Body)
-			postedBody = body.String()
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"ok":true}`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer apiServer.Close()
-	t.Setenv("LAF_OFFICE_DEV_URL", apiServer.URL)
-
-	binDir := t.TempDir()
-	nexMCP := filepath.Join(binDir, "nex-mcp")
-	if err := os.WriteFile(nexMCP, []byte("#!/bin/sh\n"), 0o755); err != nil {
-		t.Fatalf("create fake nex-mcp: %v", err)
-	}
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	b := newTestBroker(t)
-	if err := b.StartOnPort(0); err != nil {
-		t.Fatalf("start broker: %v", err)
-	}
-	defer b.Stop()
-
-	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-
-	if _, _, err := handleTeamMemoryWrite(context.Background(), nil, TeamMemoryWriteArgs{
-		Key:        "launch-brief",
-		Title:      "Launch brief",
-		Content:    "Approved final launch positioning for Customer Alpha.",
-		Visibility: "private",
-		MySlug:     "pm",
-	}); err != nil {
-		t.Fatalf("handleTeamMemoryWrite: %v", err)
-	}
-
-	result, _, err := handleTeamMemoryPromote(context.Background(), nil, TeamMemoryPromoteArgs{
-		Key:    "launch-brief",
-		MySlug: "pm",
-	})
-	if err != nil {
-		t.Fatalf("handleTeamMemoryPromote: %v", err)
-	}
-	text := textFromResult(t, result)
-	if !strings.Contains(text, "Promoted private note launch-brief") {
-		t.Fatalf("expected promote confirmation, got %q", text)
-	}
-	if !strings.Contains(postedBody, "Launch brief") || !strings.Contains(postedBody, "Approved final launch positioning") {
-		t.Fatalf("expected promoted content in Nex write, got %q", postedBody)
-	}
-}
-
-func TestHandleTeamMemoryQuerySharedSuggestsRoutingHint(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
-	t.Setenv("LAF_OFFICE_NO_NEX", "")
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/developers/v1/context/ask":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"answer":"Author: @pm\nApproved final launch positioning for Customer Alpha."}`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer apiServer.Close()
-	t.Setenv("LAF_OFFICE_DEV_URL", apiServer.URL)
-
-	binDir := t.TempDir()
-	nexMCP := filepath.Join(binDir, "nex-mcp")
-	if err := os.WriteFile(nexMCP, []byte("#!/bin/sh\n"), 0o755); err != nil {
-		t.Fatalf("create fake nex-mcp: %v", err)
-	}
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	b := newTestBroker(t)
-	if err := b.StartOnPort(0); err != nil {
-		t.Fatalf("start broker: %v", err)
-	}
-	defer b.Stop()
-
-	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
-	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ctx := context.Background()
-	ensureBrokerMembers(t, ctx, "pm", "fe")
-
-	result, _, err := handleTeamMemoryQuery(ctx, nil, TeamMemoryQueryArgs{
-		Query:  "launch positioning",
-		Scope:  "shared",
-		MySlug: "fe",
-	})
-	if err != nil {
-		t.Fatalf("handleTeamMemoryQuery: %v", err)
-	}
-	text := textFromResult(t, result)
-	if !strings.Contains(text, "Shared Nex memory:") {
-		t.Fatalf("expected shared-memory section, got %q", text)
-	}
-	if !strings.Contains(text, "Routing hints:") || !strings.Contains(text, "@pm") {
-		t.Fatalf("expected routing hint toward @pm, got %q", text)
-	}
-}
-
 func TestHandleTeamPollOneOnOneHighlightsLatestHumanRequest(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("LAF_OFFICE_ONE_ON_ONE", "1")
@@ -1017,7 +834,6 @@ func TestHandleTeamTaskReturnsWorktreeGuidance(t *testing.T) {
 
 func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 	ctx := context.Background()
 
 	b := newTestBroker(t)
@@ -1081,7 +897,7 @@ func TestHandleTeamRuntimeStateIncludesRecoveryAndCapabilities(t *testing.T) {
 		"Current focus: Approve release from @ceo.",
 		"working_directory ",
 		"Runtime capabilities:",
-		// With --no-nex + no explicit memory-backend, we now fall through to
+		// With no legacy memory + no explicit memory-backend, we now fall through to
 		// the markdown wiki (no external deps) instead of silently running
 		// with no memory backend at all. The capability label follows the
 		// active-backend naming convention (`<Backend> memory`) and the
@@ -1506,7 +1322,7 @@ func TestDetectUntaggedMentions(t *testing.T) {
 	}
 
 	// Known non-agent @-references → not flagged
-	nonAgents := []string{"you", "human", "nex", "team", "everyone"}
+	nonAgents := []string{"you", "human", "GBrain", "team", "everyone"}
 	for _, na := range nonAgents {
 		content := fmt.Sprintf("@%s please reply", na)
 		if got := detectUntaggedMentions(content, nil); len(got) != 0 {

@@ -36,7 +36,7 @@ const GLOBAL_KEYS: Keybinding[] = [
 
 /**
  * Mirrors TUI operator guidance. The composer parity PR ships Ctrl+P/N history
- * and Esc handling; sibling PRs ship feed vim nav (j/k/g/G) and the graph app.
+ * and Esc handling; sibling PRs ship feed vim nav (j/k/g/G) and wiki panels.
  * Listing them here even before they merge gives operators one place to learn
  * the full keymap.
  */
@@ -62,7 +62,7 @@ const WIZARD_KEYS: Keybinding[] = [
     description: "New line inside the first-task editor",
   },
   { keys: ["Tab"], description: "Move between fields, tiles, and actions" },
-  { keys: ["Esc"], description: "Close an inline panel (Nex signup, etc.)" },
+  { keys: ["Esc"], description: "Close an inline panel" },
 ];
 
 const PALETTE_KEYS: Keybinding[] = [
@@ -217,9 +217,8 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
             <h3 className="help-section-title">Feed navigation</h3>
             <KeybindingList items={NAV_KEYS} />
             <p className="help-note">
-              Vim-style nav and the graph app ship in sibling PRs. This
-              reference lists them upfront so your muscle memory does not have
-              to wait.
+              These keys keep the message feed usable when the workspace gets
+              busy.
             </p>
           </section>
         </div>

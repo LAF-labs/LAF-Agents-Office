@@ -147,17 +147,17 @@ if [ "$MODE" = "collab" ]; then
   MODE_FLAG="--collab"
 fi
 
-# Isolate: custom HOME, custom PATH with fake bins first, no Nex, no browser.
+# Isolate: custom HOME, custom PATH with fake bins first, no hosted memory, no browser.
 env \
   HOME="$SANDBOX_HOME" \
   PATH="$FAKE_BIN_DIR:$PATH" \
   LAF_OFFICE_BROKER_PORT="$BROKER_PORT" \
-  LAF_OFFICE_NO_NEX=1 \
+  \
   "$BINARY" \
     --pack "$PACK" \
     --web-port "$WEB_PORT" \
     --no-open \
-    --no-nex \
+    \
     $MODE_FLAG \
   > "$SERVER_LOG" 2>&1 &
 

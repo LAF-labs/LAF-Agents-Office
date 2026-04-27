@@ -123,7 +123,7 @@ func configSet(ctx *SlashContext, key, value string) error {
 	case "memory_backend":
 		normalized := config.NormalizeMemoryBackend(value)
 		if normalized == "" {
-			ctx.AddMessage("system", "Unsupported memory backend. Valid values: nex, gbrain, none")
+			ctx.AddMessage("system", "Unsupported memory backend. Valid values: markdown, none")
 			return nil
 		}
 		cfg.MemoryBackend = normalized

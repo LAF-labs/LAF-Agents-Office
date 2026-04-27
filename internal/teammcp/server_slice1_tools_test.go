@@ -5,7 +5,7 @@ package teammcp
 //
 // The three tools added in Slice 1 (laf_office_wiki_lookup, run_lint,
 // resolve_contradiction) MUST be registered only when
-// LAF_OFFICE_MEMORY_BACKEND=markdown. Any other backend (nex, gbrain, none) must
+// LAF_OFFICE_MEMORY_BACKEND=markdown. Any other backend (legacy, gbrain, none) must
 // not expose them — they depend on the markdown substrate to exist.
 
 import (
@@ -31,7 +31,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 		},
 		{
 			name:    "nex_hides_slice1_tools",
-			backend: "nex",
+			backend: "legacy",
 			mustNotHave: []string{
 				"laf_office_wiki_lookup",
 				"run_lint",
@@ -88,26 +88,26 @@ func TestConfigureServerTools_Slice1BackendFlipRemovesTools(t *testing.T) {
 		t.Fatalf("markdown instance missing laf_office_wiki_lookup; tools=%v", markdownTools)
 	}
 
-	// Instance 2: nex.
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
+	// Instance 2: legacy.
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "legacy")
 	nexTools := listRegisteredTools(t, "general", false)
 	if slices.Contains(nexTools, "laf_office_wiki_lookup") {
-		t.Errorf("nex instance leaked laf_office_wiki_lookup; tools=%v", nexTools)
+		t.Errorf("legacy instance leaked laf_office_wiki_lookup; tools=%v", nexTools)
 	}
 	if slices.Contains(nexTools, "run_lint") {
-		t.Errorf("nex instance leaked run_lint; tools=%v", nexTools)
+		t.Errorf("legacy instance leaked run_lint; tools=%v", nexTools)
 	}
 }
 
 // TestConfigureServerTools_Slice1_OneOnOneAlsoGated verifies the same gate
 // applies in 1:1 DM contexts — slice-1 tools must not leak there either.
 func TestConfigureServerTools_Slice1_OneOnOneAlsoGated(t *testing.T) {
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
+	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "legacy")
 	names := listRegisteredTools(t, "dm-ceo", true)
 	forbidden := []string{"laf_office_wiki_lookup", "run_lint", "resolve_contradiction"}
 	for _, f := range forbidden {
 		if slices.Contains(names, f) {
-			t.Errorf("1:1 DM with nex backend leaked %q; tools=%v", f, names)
+			t.Errorf("1:1 DM with legacy backend leaked %q; tools=%v", f, names)
 		}
 	}
 }

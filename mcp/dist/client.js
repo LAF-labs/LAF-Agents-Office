@@ -1,12 +1,12 @@
 import { loadConfig } from "./config.js";
 function getBaseUrl() {
     const config = loadConfig();
-    const base = process.env.LAF_OFFICE_API_BASE_URL || process.env.NEX_API_BASE_URL || config.base_url || config.dev_url || "https://app.nex.ai";
+    const base = process.env.LAF_OFFICE_API_BASE_URL || process.env.LAF_OFFICE_API_BASE_URL || config.base_url || config.dev_url || "https://app.laf-office.ai";
     return `${base.replace(/\/+$/, "")}/api/developers`;
 }
 function getRegisterUrl() {
     const config = loadConfig();
-    const base = process.env.LAF_OFFICE_API_BASE_URL || process.env.NEX_API_BASE_URL || config.base_url || config.dev_url || "https://app.nex.ai";
+    const base = process.env.LAF_OFFICE_API_BASE_URL || process.env.LAF_OFFICE_API_BASE_URL || config.base_url || config.dev_url || "https://app.laf-office.ai";
     return `${base.replace(/\/+$/, "")}/api/v1/agents/register`;
 }
 export class NexApiError extends Error {
@@ -140,7 +140,7 @@ export class NexApiClient {
         return res.text();
     }
     getBaseUrl() {
-        return `${(process.env.LAF_OFFICE_API_BASE_URL || process.env.NEX_API_BASE_URL || "https://app.nex.ai").replace(/\/+$/, "")}/api/developers`;
+        return `${(process.env.LAF_OFFICE_API_BASE_URL || process.env.LAF_OFFICE_API_BASE_URL || "https://app.laf-office.ai").replace(/\/+$/, "")}/api/developers`;
     }
 }
 //# sourceMappingURL=client.js.map

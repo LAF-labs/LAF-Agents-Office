@@ -147,8 +147,8 @@ func TestGetRaw_ReturnsText(t *testing.T) {
 
 // TestRegisterRequest_RoundTrips locks in the JSON shape of the legacy
 // RegisterRequest struct for any external callers still marshaling it.
-// The HTTP Register() method itself has been removed — nex-cli owns
-// registration now (see internal/nex.Register).
+// The HTTP Register() method itself has been removed — office-cli owns
+// registration now (see internal/office.Register).
 func TestRegisterRequest_RoundTrips(t *testing.T) {
 	payload := RegisterRequest{
 		Email:       "test@example.com",

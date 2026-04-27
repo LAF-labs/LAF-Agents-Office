@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
@@ -507,183 +506,16 @@ func countLines(text string) int {
 	return strings.Count(text, "\n") + 1
 }
 
-// CreateBuiltinTools returns the 7 standard Nex tools backed by the API client.
-func CreateBuiltinTools(client *api.Client) []AgentTool {
-	tools := []AgentTool{
-		{
-			Name:        "nex_search",
-			Description: "Search organizational knowledge base",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"query"},
-				"properties": map[string]any{
-					"query": map[string]any{"type": "string"},
-					"limit": map[string]any{"type": "number"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Searching...")
-				result, err := api.Post[any](client, "/search", map[string]any{
-					"query": params["query"],
-					"limit": params["limit"],
-				}, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-		{
-			Name:        "nex_ask",
-			Description: "Ask a question to the Nex knowledge base",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"question"},
-				"properties": map[string]any{
-					"question": map[string]any{"type": "string"},
-					"context":  map[string]any{"type": "string"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Asking...")
-				result, err := api.Post[any](client, "/ask", map[string]any{
-					"question": params["question"],
-					"context":  params["context"],
-				}, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-		{
-			Name:        "nex_remember",
-			Description: "Store information in the Nex knowledge base",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"content"},
-				"properties": map[string]any{
-					"content": map[string]any{"type": "string"},
-					"tags":    map[string]any{"type": "array"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Remembering...")
-				result, err := api.Post[any](client, "/remember", map[string]any{
-					"content": params["content"],
-					"tags":    params["tags"],
-				}, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-		{
-			Name:        "nex_record_list",
-			Description: "List records of a given object type",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"objectType"},
-				"properties": map[string]any{
-					"objectType": map[string]any{"type": "string"},
-					"limit":      map[string]any{"type": "number"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Fetching records...")
-				objectType, _ := params["objectType"].(string)
-				path := "/records/" + objectType
-				if limit, ok := params["limit"]; ok {
-					path += fmt.Sprintf("?limit=%v", limit)
-				}
-				result, err := api.Get[any](client, path, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-		{
-			Name:        "nex_record_get",
-			Description: "Get a specific record by type and ID",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"objectType", "recordId"},
-				"properties": map[string]any{
-					"objectType": map[string]any{"type": "string"},
-					"recordId":   map[string]any{"type": "string"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Fetching record...")
-				objectType, _ := params["objectType"].(string)
-				recordId, _ := params["recordId"].(string)
-				result, err := api.Get[any](client, "/records/"+objectType+"/"+recordId, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-		{
-			Name:        "nex_record_create",
-			Description: "Create a new record of a given object type",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"objectType", "properties"},
-				"properties": map[string]any{
-					"objectType": map[string]any{"type": "string"},
-					"properties": map[string]any{"type": "object"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Creating record...")
-				objectType, _ := params["objectType"].(string)
-				result, err := api.Post[any](client, "/records/"+objectType, map[string]any{
-					"properties": params["properties"],
-				}, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-		{
-			Name:        "nex_record_update",
-			Description: "Update an existing record by type and ID",
-			Schema: map[string]any{
-				"type":     "object",
-				"required": []any{"objectType", "recordId", "properties"},
-				"properties": map[string]any{
-					"objectType": map[string]any{"type": "string"},
-					"recordId":   map[string]any{"type": "string"},
-					"properties": map[string]any{"type": "object"},
-				},
-			},
-			Execute: func(params map[string]any, ctx context.Context, onUpdate func(string)) (string, error) {
-				onUpdate("Updating record...")
-				objectType, _ := params["objectType"].(string)
-				recordId, _ := params["recordId"].(string)
-				result, err := api.Patch[any](client, "/records/"+objectType+"/"+recordId, map[string]any{
-					"properties": params["properties"],
-				}, 0)
-				if err != nil {
-					return "", err
-				}
-				return marshalResult(result)
-			},
-		},
-	}
-	tools = append(tools, localToolDefinitions()...)
-	return tools
+// CreateBuiltinTools returns the local toolset available to agent loops.
+func CreateBuiltinTools() []AgentTool {
+	return localToolDefinitions()
 }
 
 // CreateGossipTools returns tools for publishing and querying the gossip network.
 func CreateGossipTools(gossipLayer *GossipLayer, agentSlug string) []AgentTool {
 	return []AgentTool{
 		{
-			Name:        "nex_gossip_publish",
+			Name:        "office_gossip_publish",
 			Description: "Publish an insight for other agents",
 			Schema: map[string]any{
 				"type":     "object",
@@ -701,7 +533,7 @@ func CreateGossipTools(gossipLayer *GossipLayer, agentSlug string) []AgentTool {
 			},
 		},
 		{
-			Name:        "nex_gossip_query",
+			Name:        "office_gossip_query",
 			Description: "Query gossip network for insights",
 			Schema: map[string]any{
 				"type":     "object",

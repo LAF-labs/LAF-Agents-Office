@@ -18,7 +18,7 @@ func TestEntityToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 		mustHave bool
 	}{
 		{"markdown", true},
-		{"nex", false},
+		{"legacy", false},
 		{"gbrain", false},
 		{"none", false},
 	}

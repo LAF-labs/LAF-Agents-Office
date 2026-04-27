@@ -4,7 +4,7 @@
 // Architecture:
 //   - Each agent is a real Claude Code session in a tmux window
 //   - the office broker provides the shared channel (all agents see all messages)
-//   - Nex is an optional context layer, not a requirement
+//   - The git-native team wiki provides shared organizational memory
 //   - CEO has final decision authority; agents participate when relevant
 //   - Go TUI is the channel "observer" — displays the conversation
 package team
@@ -32,13 +32,11 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/calendar"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
-	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
-	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
 )
 
 const (
@@ -444,7 +442,6 @@ func (l *Launcher) Launch() error {
 	if !l.isOneOnOne() {
 		go l.notifyTaskActionsLoop()
 		go l.notifyOfficeChangesLoop()
-		go l.pollNexNotificationsLoop()
 		go l.watchdogSchedulerLoop()
 	}
 
@@ -690,7 +687,7 @@ func (l *Launcher) deliverMessageNotification(msg channelMessage) {
 
 	// Debounce: use shorter cooldown for human/CEO messages, longer for agent-originated
 	// to prevent agent-to-agent feedback loops (devil's advocate finding #3)
-	isHumanOrCEO := msg.From == "you" || msg.From == "human" || msg.From == "nex" || msg.From == l.officeLeadSlug()
+	isHumanOrCEO := msg.From == "you" || msg.From == "human" || msg.From == "automation" || msg.From == l.officeLeadSlug()
 	cooldown := agentNotifyCooldownAgent
 	if isHumanOrCEO {
 		cooldown = agentNotifyCooldown
@@ -2674,7 +2671,7 @@ func (l *Launcher) responseInstructionForTarget(msg channelMessage, slug string)
 		// should review and deliver or coordinate, not re-initiate. When woken by
 		// the human, the CEO should reply quickly and route.
 		from := strings.TrimSpace(msg.From)
-		isFromHuman := from == "" || from == "you" || from == "human" || from == "nex"
+		isFromHuman := from == "" || from == "you" || from == "human" || from == "automation"
 		if !isFromHuman {
 			return fmt.Sprintf("You are @%s. A specialist just finished a lane. If the build is still underway, any task is open or in review, or the next lane is obvious, act now: approve/release review items, create the next owned team_task records, and only then stop. On a human build/ship/end-to-end request, if you approve or close an engineering/execution slice and the product is not yet runnable end to end, you MUST leave at least one engineering or execution lane active before you stop; do not let the company drift into GTM-only, rubric-only, or evaluation-only work while the build is still incomplete. Before you say a task is approved, closed, back in progress, reassigned, or blocked, you MUST make the matching team_task or team_plan call first; channel narration alone does not change durable state. If the task mutation fails, say that it failed and do not claim the state changed. Before creating any new task, inspect Active tasks in this packet: if a live task already covers that lane, reuse or update that task instead of creating an overlapping duplicate with a new title. Stay quiet only when the human already has what they need AND there is no remaining office work or obvious follow-up.", slug)
 		}
@@ -2792,7 +2789,7 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 				if _, inThread := threadIDs[strings.TrimSpace(tm.ID)]; !inThread {
 					continue
 				}
-				if tm.From != "" && tm.From != "you" && tm.From != "human" && tm.From != "nex" && tm.From != slug {
+				if tm.From != "" && tm.From != "you" && tm.From != "human" && tm.From != "automation" && tm.From != slug {
 					activeAgents[tm.From] = struct{}{}
 				}
 			}
@@ -3155,9 +3152,6 @@ func (l *Launcher) capturePaneContent(paneIdx int) (string, error) {
 
 func ResetBrokerState() error {
 	token := os.Getenv(product.Env("BROKER_TOKEN"))
-	if token == "" {
-		token = os.Getenv("NEX_BROKER_TOKEN")
-	}
 	return resetBrokerState(brokerBaseURL(), token)
 }
 
@@ -3719,7 +3713,6 @@ func (l *Launcher) buildPrompt(slug string) string {
 	lead := officeLeadSlugFrom(officeMembers)
 	memoryBackendKind := config.ResolveMemoryBackend("")
 	markdownMemory := memoryBackendKind == config.MemoryBackendMarkdown
-	noNex := config.ResolveNoNex() || config.ResolveAPIKey("") == ""
 	var activePolicies []officePolicy
 	if l.broker != nil {
 		activePolicies = l.broker.ListPolicies()
@@ -3745,13 +3738,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_broadcast: Send a normal direct chat reply into the 1:1 conversation\n")
 		sb.WriteString("- human_message: Send an emphasized report, recommendation, or action card directly to the human when you want it to stand out\n")
 		sb.WriteString("- human_interview: Ask a blocking decision question only when you truly cannot proceed responsibly without it\n\n")
-		if noNex {
-			sb.WriteString("Nex tools are disabled for this run. Base your work on the conversation and direct human answers only.\n\n")
-		} else {
-			sb.WriteString("Use the Nex context graph when it materially helps:\n")
-			sb.WriteString("- query_context: Look up prior decisions, people, projects, and history before guessing\n")
-			sb.WriteString("- add_context: Store durable conclusions only after you have actually landed them\n\n")
-		}
+		sb.WriteString("Use the git-native team wiki and your notebook only when prior context materially helps.\n\n")
 		sb.WriteString("RULES:\n")
 		sb.WriteString("1. Do not talk as if a team exists. There are no other agents in this session.\n")
 		sb.WriteString("2. Do not create or suggest channels, teammates, bridges, shared tasks, or office structure.\n")
@@ -3759,14 +3746,14 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("4. The pushed notification IS the latest state. Respond directly from it. Do NOT poll before replying.\n")
 		sb.WriteString("5. Use team_broadcast for normal replies. Use human_message only when you are deliberately presenting completion, a recommendation, or a next action.\n")
 		sb.WriteString("6. Use human_interview only for truly blocking decisions.\n")
-		sb.WriteString("7. If Nex is enabled, do not claim something is stored unless add_context actually succeeded.\n")
+		sb.WriteString("7. Do not claim something is stored unless the notebook or wiki write actually succeeded.\n")
 		sb.WriteString("8. No fake collaboration language like 'I'll ask the team' or 'let me route this'. It is just you and the human here.\n\n")
 		sb.WriteString("CONVERSATION STYLE:\n")
 		sb.WriteString("- Sound like a sharp human operator, not a formal assistant.\n")
 		sb.WriteString("- Be concise, direct, and a little alive.\n")
 		sb.WriteString("- Light humor is fine. Don't turn the 1:1 into a bit.\n")
 		sb.WriteString("- If the human asks for a plan, recommendation, explanation, or judgment you can reasonably give now, answer now.\n")
-		sb.WriteString("- Do not go silent and over-research by default. Only inspect files, run tools, or query Nex first when the answer genuinely depends on that context.\n")
+		sb.WriteString("- Do not go silent and over-research by default. Only inspect files, run tools, or query memory first when the answer genuinely depends on that context.\n")
 		sb.WriteString("- If you need a deeper pass, give the human the quick answer first, then continue with the deeper work.\n")
 		return sb.String()
 	}
@@ -3791,24 +3778,18 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
 		sb.WriteString("- team_skill_run: Invoke a saved skill by name when the request matches one. Use this BEFORE routing or replying — it returns the canonical playbook content to follow and logs a visible skill_invocation in the channel.\n")
 		sb.WriteString("- team_skill_create: Create or propose a reusable skill through structured fields. Use action=create only as CEO when the human explicitly asked to create/activate a skill; use action=propose for proposed improvements from any agent.\n")
-		sb.WriteString("- team_action_connections / team_action_search / team_action_knowledge: inspect connected external systems and the exact action/workflow schema before you improvise. If connection listing is flaky, do NOT stop there; search/knowledge still give you the real action contract.\n")
-		sb.WriteString("- team_action_execute / team_action_workflow_execute: use these for real external reads, writes, and workflow runs. Prefer dry_run only when the task or policy says preview/mock first. When the provider is One and there is exactly one connected account for that platform, you may omit connection_key and let the runtime auto-resolve it.\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeToolBlock())
 		}
 		sb.WriteString("- human_message: Present output or a recommendation directly to the human.\n")
 		sb.WriteString("- human_interview: Ask the human a blocking decision question — only when the team cannot proceed without it.\n")
-		sb.WriteString("Other tools: team_tasks, team_task_status, team_requests, team_request, team_status, team_members, team_office_members, team_channels, team_channel, team_member, team_channel_member, team_action_guide, team_action_workflow_create, team_action_workflow_schedule, team_action_relays, team_action_relay_event_types, team_action_relay_create, team_action_relay_activate, team_action_relay_events, team_action_relay_event.\n\n")
+		sb.WriteString("Other tools: team_tasks, team_task_status, team_requests, team_request, team_status, team_members, team_office_members, team_channels, team_channel, team_member, team_channel_member.\n\n")
 		sb.WriteString("== TOOL HYGIENE ==\n")
 		sb.WriteString("All team_*, human_*, and mcp__laf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
 		sb.WriteString("Do not read unrelated files (MEMORY.md, arbitrary docs) unless the current packet's task requires it. Every tool call pays full turn cost.\n")
 		sb.WriteString("Emit at most one team_broadcast per turn unless you are deliberately crossing channels. Never re-post the same content in different wording.\n\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeMemoryBlock())
-		} else if noNex {
-			sb.WriteString("Nex tools are disabled for this run. Work only with the shared office channel and human answers.\n\n")
-		} else {
-			sb.WriteString("Nex memory: query_context before reinventing; add_context only after a decision is actually landed.\n\n")
 		}
 		if len(activePolicies) > 0 {
 			sb.WriteString("== ACTIVE OFFICE POLICIES ==\n")
@@ -3831,10 +3812,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("YOUR ROLE AS LEADER:\n")
 		if markdownMemory {
 			sb.WriteString("1. On strategy or prior decisions, use laf_office_wiki_lookup or notebook_search before guessing\n")
-		} else if noNex {
-			sb.WriteString("1. Coordinate inside the office channel first and keep the team aligned there\n")
 		} else {
-			sb.WriteString("1. On strategy or prior decisions, call query_context early\n")
+			sb.WriteString("1. Coordinate inside the office channel first and keep the team aligned there\n")
 		}
 		sb.WriteString("2. The pushed notification is authoritative — it contains thread context, task state, and agent activity. Respond directly from it. Do NOT call team_poll or team_tasks unless the notification explicitly says context is missing. Every unnecessary tool call burns tokens without adding value.\n")
 		sb.WriteString("3. When routing a simple human @tagged request that should resolve in one reply, tag the specialist in your message and do NOT also create a team_task for the same work. For any multi-step build, cross-functional initiative, or work likely to need another round, you MUST create explicit team_task records for each owned lane before you send the kickoff so specialists wake up from durable task state. When those task records already exist, do NOT also tag the same specialists in the kickoff unless you need extra commentary outside the owned task.\n")
@@ -3844,10 +3823,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("7. Use human_message for direct human-facing output, human_interview for blocking decisions\n")
 		if markdownMemory {
 			sb.WriteString("8. When you lock a durable decision, write it to your notebook first and submit notebook_promote if it should become canonical wiki knowledge\n")
-		} else if noNex {
-			sb.WriteString("8. Summarize final decisions clearly in-channel\n")
 		} else {
-			sb.WriteString("8. When you lock a decision, call add_context before claiming it is stored\n")
+			sb.WriteString("8. Summarize final decisions clearly in-channel\n")
 		}
 		sb.WriteString("9. Once decided, create durable task state first, then broadcast the kickoff and assignments. If you already know multiple owned lanes, prefer one team_plan call over several separate team_task creates. Every created task should set `task_type` and `execution_mode` deliberately instead of relying on inference.\n")
 		sb.WriteString("10. Choose task_type deliberately. Use `research` for audits/analysis, `launch` for GTM/rollout packages, `follow_up` for scoped office deliverables, and `feature` only for real implementation work. Do NOT label planning or audit work as `feature` just because it matters.\n")
@@ -3862,7 +3839,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("16. If a task lands in review but no human approval is actually needed, approve it or immediately translate it into the next task. Do not leave the company idle behind an internal review gate.\n")
 		sb.WriteString("16b. Before you write any sentence claiming a task is approved, closed, reopened, reassigned, or blocked, you MUST make the matching team_task or team_plan call first. Channel narration does not mutate durable task state. If the mutation fails, say it failed and do not claim success.\n")
 		sb.WriteString("16c. On a human build/ship/end-to-end request, after you approve or close any engineering/execution slice, if the system is not yet runnable end to end and no engineering/execution lane remains active, create the next engineering/execution task in that same turn before you stop. Do not replace the only live build lane with GTM-only packaging, eval prompts, scoring rubrics, or other sidecar work.\n")
-		sb.WriteString("16d. When a task or policy allows a low-risk external step on a connected system, prefer the smallest real external action now over more internal collateral. A Slack/Notion/Drive lane is not satisfied by repo markdown, preview notes, proof markers, or substitute proof artifacts unless the task explicitly says mock/preview/stub-only.\n")
+		sb.WriteString("16d. Managed external systems are not available in this build. If a task needs CRM, email, calendar, notifications, or hosted actions, ask the human for the needed source material and record durable context in the markdown wiki.\n")
 		sb.WriteString("16e. When the work is live, describe outputs as client deliverables, approvals, handoffs, updates, or records. Do not frame live business work as proof/test/eval artifacts unless the task explicitly asks for testing or evidence capture.\n")
 		sb.WriteString("16f. Capability-gap rule: if the work is blocked because the needed specialist, channel, skill, or tool path does not exist yet, treat that gap as the next real work item. Do not fall back to a review bundle, proof packet, artifact shell, or local substitute deliverable. Create the missing specialist with team_member first; if the work will span more than one turn, create the missing execution channel with team_channel; propose or update the missing skill block in the same turn; and if the blocker is a tool or provider gap, open a tool-discovery/research lane named for the exact tool you need so the office can discover, validate, and enable it. Example: if the work needs video generation and you do not already have a usable path, create a discovery lane for Remotion or the exact video tool before drafting any deliverable shell.\n")
 		sb.WriteString("16g. Task hygiene rule: if a live business lane gets named or reframed as a review packet, proof artifact, blueprint-derived scaffold, rubric, or other internal shell, rewrite that lane in the same turn. Replace it with either the next real deliverable/customer-facing/business-facing step or the exact capability-enablement task that unblocks that step.\n")
@@ -3889,10 +3866,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("STYLE: Be concise, delegate, short lively messages. Use markdown tables/checklists for structured data.\n")
 		if markdownMemory {
 			sb.WriteString("Do not pretend the team wiki was updated; verify notebook_promote or team_wiki_write succeeded before claiming canonical storage.\n")
-		} else if noNex {
-			sb.WriteString("Do not claim you stored anything outside the office.\n")
 		} else {
-			sb.WriteString("Do not pretend the graph was updated; verify add_context succeeded.\n")
+			sb.WriteString("Do not claim you stored anything outside the office.\n")
 		}
 		sb.WriteString("Never launch another LAF-Office runtime from inside your turn (`laf-office`, `./laf-office`, `/reset`, or a new browser instance). The office is already running; inspect the current repo and UI instead.\n")
 	} else {
@@ -3917,24 +3892,18 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_task: Claim, complete, block, resume, or release tasks in your domain.\n")
 		sb.WriteString("- team_skill_run: When @ceo tells you to run a skill, or when the request clearly matches one, call team_skill_run(skill_name) BEFORE doing the work. It returns the canonical step-by-step content — follow it exactly instead of freelancing. Failing to invoke the skill leaves the office with no trace that the playbook was actually used.\n")
 		sb.WriteString("- team_skill_create: Propose a reusable skill yourself with action=propose when you spot a repeatable workflow. You do not need to ask @ceo to propose it for you. Only @ceo may use action=create.\n")
-		sb.WriteString("- team_action_connections / team_action_search / team_action_knowledge: inspect connected external systems and the exact action/workflow schema before you improvise. If connection listing is flaky, do NOT stop there; search/knowledge still give you the real action contract.\n")
-		sb.WriteString("- team_action_execute / team_action_workflow_execute: use these for real external reads, writes, and workflow runs. Prefer dry_run only when the task or policy says preview/mock first. When the provider is One and there is exactly one connected account for that platform, you may omit connection_key and let the runtime auto-resolve it.\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeToolBlock())
 		}
 		sb.WriteString("- human_message: Present completion or a recommendation directly to the human.\n")
 		sb.WriteString("- human_interview: Ask the human only for blocking clarifications you cannot responsibly guess.\n")
-		sb.WriteString("Other tools: team_tasks, team_task_status, team_requests, team_request, team_status, team_members, team_office_members, team_channels, team_channel, team_member, team_channel_member, team_action_guide, team_action_workflow_create, team_action_workflow_schedule, team_action_relays, team_action_relay_event_types, team_action_relay_create, team_action_relay_activate, team_action_relay_events, team_action_relay_event.\n\n")
+		sb.WriteString("Other tools: team_tasks, team_task_status, team_requests, team_request, team_status, team_members, team_office_members, team_channels, team_channel, team_member, team_channel_member.\n\n")
 		sb.WriteString("== TOOL HYGIENE ==\n")
 		sb.WriteString("All team_*, human_*, and mcp__laf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
 		sb.WriteString("Do not read unrelated files (MEMORY.md, arbitrary docs) unless the current packet's task requires it. Every tool call pays full turn cost.\n")
 		sb.WriteString("Emit at most one team_broadcast per turn unless you are deliberately crossing channels. Never re-post the same content in different wording.\n\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeMemoryBlock())
-		} else if noNex {
-			sb.WriteString("Nex tools are disabled for this run. Base your work on the office conversation and direct human answers only.\n\n")
-		} else {
-			sb.WriteString("Nex memory: query_context before making assumptions; add_context only for durable conclusions.\n\n")
 		}
 		if len(activePolicies) > 0 {
 			sb.WriteString("== ACTIVE OFFICE POLICIES ==\n")
@@ -3968,9 +3937,9 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("10. For local_worktree feature tasks, do NOT start with `rg --files`, `find .`, or a repo-wide audit. Read only the few files directly tied to the requested slice, then start editing. If the task is broad or lists multiple outputs, narrow it yourself to one exact smallest runnable slice, post a `team_status` naming that cut line, and ship that slice now.\n")
 		sb.WriteString("10b. Never search parent or sibling directories outside the assigned working_directory (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`, or other task worktrees). If you need instructions, read `AGENTS.md` or `README.md` inside the assigned worktree only.\n")
 		sb.WriteString("11. Ignore unrelated modified or untracked files already present in the assigned worktree unless they are directly needed for your slice. They may be preexisting repo state; do not audit or re-explain them.\n")
-		sb.WriteString("11b. If a task names a connected external system and asks you to create, post, query, or run something there, do that live external step through the connected workflow/integration path. Repo docs, previews, local markdown, proof markers, or test artifacts do not count unless the task explicitly says mock/preview/stub-only.\n")
+		sb.WriteString("11b. Managed external systems are not available in this build. If a task needs CRM, email, calendar, notifications, or hosted actions, ask the human for the needed source material and record durable context in the markdown wiki.\n")
 		sb.WriteString("11c. When the work is live, phrase it as a client deliverable, approval, handoff, update, or record. Avoid proof/test/marker/eval language unless the task explicitly asks for testing or evidence capture.\n")
-		sb.WriteString("11d. When a task calls for Slack, Notion, Drive, or another connected system, use the `team_action_*` tools first. Do NOT probe localhost broker routes, curl the provider directly, or fall back to shell-side API experiments when the office action tools can do the job.\n")
+		sb.WriteString("11d. Do not claim to have used external connected accounts. Work from provided files, the conversation, and the local wiki.\n")
 		sb.WriteString("11e. Capability-gap rule: if the work is blocked because the needed specialist, channel, skill, or tool path does not exist yet, treat that gap as the next real work item. Do not fall back to a review bundle, proof packet, artifact shell, or local substitute deliverable. Create the missing specialist with team_member first; if the work will span more than one turn, create the missing execution channel with team_channel; propose or update the missing skill block in the same turn; and if the blocker is a tool or provider gap, open a tool-discovery/research lane named for the exact tool you need so the office can discover, validate, and enable it. Example: if the work needs video generation and you do not already have a usable path, create a discovery lane for Remotion or the exact video tool before drafting any deliverable shell.\n")
 		sb.WriteString("11f. Task hygiene rule: if a live business lane gets named or reframed as a review packet, proof artifact, blueprint-derived scaffold, rubric, or other internal shell, rewrite that lane in the same turn. Replace it with either the next real deliverable/customer-facing/business-facing step or the exact capability-enablement task that unblocks that step.\n")
 		if codingAgentSlugs[slug] {
@@ -3979,11 +3948,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		if markdownMemory {
 			sb.WriteString("12. Use laf_office_wiki_lookup, team_wiki_search, or notebook_search when prior knowledge matters. Store your own durable working notes with notebook_write and submit notebook_promote when they should become canonical.\n")
 			sb.WriteString("13. Once you have posted the needed update for the current packet, stop. A later pushed notification will wake you again if more is needed.\n\n")
-		} else if noNex {
-			sb.WriteString("12. Don't fake outside memory. Surface uncertainty in-channel and keep outcomes explicit in-thread.\n")
-			sb.WriteString("13. Once you have posted the needed update for the current packet, stop. A later pushed notification will wake you again if more is needed.\n\n")
 		} else {
-			sb.WriteString("12. Use query_context when prior knowledge matters. Only use add_context for durable conclusions, and don't claim something stored unless add_context actually succeeded.\n")
+			sb.WriteString("12. Don't fake outside memory. Surface uncertainty in-channel and keep outcomes explicit in-thread.\n")
 			sb.WriteString("13. Once you have posted the needed update for the current packet, stop. A later pushed notification will wake you again if more is needed.\n\n")
 		}
 		sb.WriteString("STYLE: Be concise, stay in lane, short lively messages. Use markdown tables/checklists for structured data.\n")
@@ -4033,33 +3999,17 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 	if l.isOneOnOne() {
 		oneOnOneEnv = fmt.Sprintf("%s=1 %s=%s ", product.Env("ONE_ON_ONE"), product.Env("ONE_ON_ONE_AGENT"), l.oneOnOneAgent())
 	}
-	oneSecretEnv := ""
-	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
-		oneSecretEnv = "ONE_SECRET=" + shellQuote(secret) + " "
-	}
-	oneIdentityEnv := ""
-	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		oneIdentityEnv = "ONE_IDENTITY=" + shellQuote(identity) + " "
-		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			oneIdentityEnv += "ONE_IDENTITY_TYPE=" + shellQuote(identityType) + " "
-		}
-	}
-
 	model := l.headlessClaudeModel(slug)
 
 	return fmt.Sprintf(
-		"%s%s%s%s=%s %s=%s %s=%s %s=%t ANTHROPIC_PROMPT_CACHING=1 CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=otlp OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=%s/v1/logs OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer %s' OTEL_RESOURCE_ATTRIBUTES='agent.slug=%s,laf-office.channel=office' claude --model %s %s --append-system-prompt-file '%s' --mcp-config '%s' --strict-mcp-config -n '%s'",
+		"%s%s=%s %s=%s %s=%s ANTHROPIC_PROMPT_CACHING=1 CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=otlp OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=%s/v1/logs OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer %s' OTEL_RESOURCE_ATTRIBUTES='agent.slug=%s,laf-office.channel=office' claude --model %s %s --append-system-prompt-file '%s' --mcp-config '%s' --strict-mcp-config -n '%s'",
 		oneOnOneEnv,
-		oneSecretEnv,
-		oneIdentityEnv,
 		product.Env("AGENT_SLUG"),
 		slug,
 		product.Env("BROKER_TOKEN"),
 		brokerToken,
 		product.Env("BROKER_BASE_URL"),
 		l.BrokerBaseURL(),
-		product.Env("NO_NEX"),
-		config.ResolveNoNex(),
 		l.BrokerBaseURL(),
 		brokerToken,
 		slug,
@@ -4122,20 +4072,19 @@ var codingAgentSlugs = map[string]bool{
 // agentMCPServers returns the MCP server keys that a given agent should receive.
 func agentMCPServers(slug string) []string {
 	channel := strings.TrimSpace(os.Getenv(product.Env("CHANNEL")))
-	// DM mode: only laf-office (minimal tool set, no nex overhead)
+	// DM mode: only laf-office (minimal tool set).
 	if strings.HasPrefix(channel, "dm-") {
 		return []string{product.CLIName}
 	}
 	if codingAgentSlugs[slug] {
 		return []string{product.CLIName}
 	}
-	return []string{product.CLIName, "nex"}
+	return []string{product.CLIName}
 }
 
 // buildMCPServerMap constructs the full set of MCP server entries.
 // This is the shared helper used by both ensureMCPConfig and ensureAgentMCPConfig.
 func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
-	apiKey := config.ResolveAPIKey("")
 	servers := map[string]any{}
 	lafOfficeBinary, err := os.Executable()
 	if err != nil {
@@ -4147,34 +4096,7 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 		"args":    []string{"mcp-team"},
 	}
 	servers[product.CLIName] = office
-	if oneSecret := strings.TrimSpace(config.ResolveOneSecret()); oneSecret != "" {
-		office["env"] = map[string]string{
-			"ONE_SECRET": oneSecret,
-		}
-	}
-	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		env, _ := office["env"].(map[string]string)
-		if env == nil {
-			env = map[string]string{}
-		}
-		env["ONE_IDENTITY"] = identity
-		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			env["ONE_IDENTITY_TYPE"] = identityType
-		}
-		office["env"] = env
-	}
-
 	switch config.ResolveMemoryBackend("") {
-	case config.MemoryBackendNex:
-		if apiKey != "" {
-			env, _ := office["env"].(map[string]string)
-			if env == nil {
-				env = map[string]string{}
-			}
-			env[product.Env("API_KEY")] = apiKey
-			env["NEX_API_KEY"] = apiKey
-			office["env"] = env
-		}
 	case config.MemoryBackendGBrain:
 		env, _ := office["env"].(map[string]string)
 		if env == nil {
@@ -4197,18 +4119,6 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 			env[key] = value
 		}
 		office["env"] = env
-	}
-
-	if !config.ResolveNoNex() && apiKey != "" {
-		if nexMCP, err := exec.LookPath("nex-mcp"); err == nil {
-			servers["nex"] = map[string]any{
-				"command": nexMCP,
-				"env": map[string]string{
-					product.Env("API_KEY"): apiKey,
-					"NEX_API_KEY":          apiKey,
-				},
-			}
-		}
 	}
 
 	return servers, nil
@@ -4697,41 +4607,6 @@ func (l *Launcher) PreflightWeb() error {
 
 // LaunchWeb starts the broker, web UI server, and background agents without tmux.
 func (l *Launcher) LaunchWeb(webPort int) error {
-	// Offer to wire Nex when the user hasn't opted out and nex-cli isn't yet
-	// installed. `nex setup` handles detection and wiring for us — we just
-	// surface the prompt.
-	if !config.ResolveNoNex() && !nex.IsInstalled() {
-		fmt.Println()
-		fmt.Print("  Connect Nex for memory and context? [Y/n] ")
-		var answer string
-		_, _ = fmt.Scanln(&answer)
-		answer = strings.TrimSpace(strings.ToLower(answer))
-		if answer == "" || answer == "y" || answer == "yes" {
-			fmt.Println()
-			fmt.Println("  Nex CLI not found. Installing...")
-			if _, installErr := setup.InstallLatestCLI(); installErr != nil {
-				fmt.Printf("  Could not install: %v\n", installErr)
-				fmt.Println("  Continuing without Nex.")
-			}
-			if nexBin := nex.BinaryPath(); nexBin != "" {
-				cmd := exec.Command(nexBin, "setup")
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					fmt.Printf("  Setup did not complete: %v\n", err)
-					fmt.Println("  Continuing without Nex.")
-				} else {
-					fmt.Println("  Nex connected.")
-				}
-			}
-			fmt.Println()
-		} else {
-			fmt.Println("  Skipping Nex. Agents will work without organizational memory.")
-			fmt.Println()
-		}
-	}
-
 	mcpConfig, err := l.ensureMCPConfig()
 	if err != nil {
 		return fmt.Errorf("prepare mcp config: %w", err)
@@ -4797,7 +4672,6 @@ func (l *Launcher) LaunchWeb(webPort int) error {
 	go l.notifyAgentsLoop()
 	go l.notifyTaskActionsLoop()
 	go l.notifyOfficeChangesLoop()
-	go l.pollNexNotificationsLoop()
 	go l.watchdogSchedulerLoop()
 	if l.paneBackedAgents {
 		go l.primeVisibleAgents()

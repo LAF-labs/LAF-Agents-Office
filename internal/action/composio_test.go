@@ -143,7 +143,6 @@ func TestComposioRESTActionHappyPath(t *testing.T) {
 
 func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
 
 	mux := http.NewServeMux()
 	var sentBody string
@@ -164,7 +163,7 @@ func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 						"messageTimestamp": "2026-03-31T07:30:00Z",
 						"subject":          "Customer escalation on Acme rollout",
 						"sender":           "support@acme.com",
-						"to":               "najmuzzaman@nex.ai",
+						"to":               "user@example.com",
 						"messageText":      "Customer reported rollout issue.",
 						"preview": map[string]any{
 							"body": "Customer reported rollout issue.",
@@ -187,20 +186,6 @@ func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 			},
 		})
 	})
-	mux.HandleFunc("/api/developers/v1/context/ask", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"answer": "Executive Summary\n- Acme escalation needs immediate follow-up.\n\nWhy This Matters\n- It affects rollout trust.\n\nWhat To Do Next\n- Have PM coordinate a response today.\n\nEmail Highlights\n- support@acme.com | Customer escalation on Acme rollout\n\nRelevant Nex Insights\n- Recent insight confirms rollout risk.",
-		})
-	})
-	mux.HandleFunc("/api/developers/v1/insights", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"insights": []map[string]any{{
-				"id":      "ins-1",
-				"type":    "risk",
-				"content": "Acme rollout risk increased after support issues.",
-			}},
-		})
-	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -208,7 +193,7 @@ func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 
 	client := &ComposioREST{
 		APIKey:  "cmp_test",
-		UserID:  "najmuzzaman@nex.ai",
+		UserID:  "user@example.com",
 		BaseURL: server.URL,
 		Client:  server.Client(),
 	}
@@ -217,10 +202,8 @@ func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 		"version": composioWorkflowVersion,
 		"inputs": map[string]any{
 			"connection_key":  "ca_123",
-			"recipient_email": "najmuzzaman@nex.ai",
+			"recipient_email": "user@example.com",
 			"subject":         "Daily Digest",
-			"window_hours":    24,
-			"insight_limit":   5,
 			"max_results":     10,
 		},
 		"steps": []map[string]any{
@@ -236,20 +219,14 @@ func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
 				},
 			},
 			{
-				"id":             "recent_insights",
-				"type":           "nex_insights",
-				"lookback_hours": "{{ .inputs.window_hours }}",
-				"insight_limit":  "{{ .inputs.insight_limit }}",
-			},
-			{
 				"id":       "email_summary",
 				"type":     "template",
 				"template": "Email highlights:\n{{- range $m := .steps.fetch_emails.result.data.messages }}\n- {{ $m.sender }} | {{ $m.subject }} | {{ $m.preview.body }}\n{{- end }}",
 			},
 			{
-				"id":             "compose_digest",
-				"type":           "nex_ask",
-				"query_template": "Create a plain-text daily digest with sections Executive Summary, Why This Matters, What To Do Next, Email Highlights, and Relevant Nex Insights.\n\n{{ .steps.email_summary.result }}\n\nInsights:\n{{ .steps.recent_insights.result }}",
+				"id":       "compose_digest",
+				"type":     "template",
+				"template": "Executive Summary\n- Acme escalation needs immediate follow-up.\n\nWhy This Matters\n- It affects rollout trust.\n\nWhat To Do Next\n- Have PM coordinate a response today.\n\n{{ .steps.email_summary.result }}",
 			},
 			{
 				"id":             "send_email",
@@ -311,7 +288,7 @@ func TestComposioRESTWorkflowNormalizesProviderStepAliases(t *testing.T) {
 				"action_id":      "GMAIL_SEND_EMAIL",
 				"connection_key": "ca_123",
 				"data": map[string]any{
-					"recipient_email": "najmuzzaman@nex.ai",
+					"recipient_email": "user@example.com",
 					"subject":         "Hi",
 					"body":            "Body",
 				},
@@ -338,7 +315,7 @@ func TestComposioRESTWorkflowNormalizesAgentShorthandSyntax(t *testing.T) {
 		"inputs": map[string]any{
 			"recipient": map[string]any{
 				"type":        "string",
-				"default":     "najmuzzaman@nex.ai",
+				"default":     "user@example.com",
 				"description": "Email recipient",
 			},
 			"gmail_connection_key": map[string]any{
@@ -381,7 +358,7 @@ func TestComposioRESTWorkflowNormalizesAgentShorthandSyntax(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode workflow definition: %v", err)
 	}
-	if got := spec.Inputs["recipient"]; got != "najmuzzaman@nex.ai" {
+	if got := spec.Inputs["recipient"]; got != "user@example.com" {
 		t.Fatalf("expected input default to normalize, got %#v", got)
 	}
 	if got := spec.Steps[0].ConnectionKey; got != "{{ .inputs.gmail_connection_key}}" {
@@ -423,7 +400,7 @@ func TestComposioRESTWorkflowNormalizesHandlebarsEachSyntax(t *testing.T) {
 
 func TestComposioRESTWorkflowAutoResolvesSingleConnection(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
+	t.Setenv("LAF_OFFICE_API_KEY", "laf-office-test-key")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts", func(w http.ResponseWriter, r *http.Request) {
@@ -465,7 +442,7 @@ func TestComposioRESTWorkflowAutoResolvesSingleConnection(t *testing.T) {
 
 	client := &ComposioREST{
 		APIKey:  "cmp_test",
-		UserID:  "najmuzzaman@nex.ai",
+		UserID:  "user@example.com",
 		BaseURL: server.URL,
 		Client:  server.Client(),
 	}
@@ -479,7 +456,7 @@ func TestComposioRESTWorkflowAutoResolvesSingleConnection(t *testing.T) {
 				"platform":  "gmail",
 				"action_id": "GMAIL_SEND_EMAIL",
 				"data": map[string]any{
-					"recipient_email": "najmuzzaman@nex.ai",
+					"recipient_email": "user@example.com",
 					"subject":         "Daily Digest — {{ .meta.date }}",
 					"body":            "Hello",
 				},
@@ -535,7 +512,6 @@ func TestDecodeJSONObjectHandlesJSONStringPayload(t *testing.T) {
 
 func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts/ca_123", func(w http.ResponseWriter, r *http.Request) {
@@ -555,20 +531,6 @@ func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 			},
 		})
 	})
-	mux.HandleFunc("/api/developers/v1/context/ask", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"answer": "Digest body",
-		})
-	})
-	mux.HandleFunc("/api/developers/v1/insights", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"insights": []map[string]any{{
-				"id":      "ins-1",
-				"type":    "risk",
-				"content": "Something changed.",
-			}},
-		})
-	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -576,7 +538,7 @@ func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 
 	client := &ComposioREST{
 		APIKey:  "cmp_test",
-		UserID:  "najmuzzaman@nex.ai",
+		UserID:  "user@example.com",
 		BaseURL: server.URL,
 		Client:  server.Client(),
 	}
@@ -600,15 +562,9 @@ func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 				"template": "{{ range .steps.fetch_emails.result.data.messages }}{{ .subject }}{{ end }}",
 			},
 			{
-				"id":             "recent_insights",
-				"type":           "nex_insights",
-				"lookback_hours": 24,
-				"insight_limit":  5,
-			},
-			{
-				"id":             "compose_digest",
-				"type":           "nex_ask",
-				"query_template": "{{ .steps.email_summary.result }} :: {{ toPrettyJSON .steps.recent_insights.result }}",
+				"id":       "compose_digest",
+				"type":     "template",
+				"template": "Digest body: {{ .steps.email_summary.result }}",
 			},
 		},
 	})
@@ -630,7 +586,7 @@ func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 	if err := json.Unmarshal(result.Steps["compose_digest"], &compose); err != nil {
 		t.Fatalf("decode compose step: %v", err)
 	}
-	if compose["result"] != "Digest body" {
+	if compose["result"] != "Digest body: hello" {
 		t.Fatalf("expected compose result alias, got %#v", compose["result"])
 	}
 
@@ -640,14 +596,5 @@ func TestWorkflowStepsExposeGenericResult(t *testing.T) {
 	}
 	if summary["result"] != "hello" {
 		t.Fatalf("expected template result alias, got %#v", summary["result"])
-	}
-
-	var recentInsights map[string]any
-	if err := json.Unmarshal(result.Steps["recent_insights"], &recentInsights); err != nil {
-		t.Fatalf("decode recent insights step: %v", err)
-	}
-	insightSummary, _ := recentInsights["result"].(string)
-	if !strings.Contains(insightSummary, "Something changed.") {
-		t.Fatalf("expected compact insight summary, got %#v", recentInsights["result"])
 	}
 }

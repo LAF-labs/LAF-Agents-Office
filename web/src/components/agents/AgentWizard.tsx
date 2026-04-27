@@ -31,6 +31,11 @@ const PROVIDERS: { value: Provider; label: string }[] = [
   { value: "opencode", label: "Opencode" },
 ];
 
+function providerPayload(provider: Provider) {
+  if (provider === "inherit") return undefined;
+  return { kind: provider };
+}
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -120,8 +125,7 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
         name: form.name,
         role: form.role || undefined,
         emoji: form.emoji || undefined,
-        provider:
-          form.provider === "inherit" ? undefined : { kind: form.provider },
+        provider: providerPayload(form.provider),
         expertise: expertiseTags.length > 0 ? expertiseTags : undefined,
       };
 

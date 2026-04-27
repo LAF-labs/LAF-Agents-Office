@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-const NEX_DIR = ".nex";
-const BRIEFS_DIR = join(NEX_DIR, "briefs");
+const OFFICE_DIR = ".laf-office";
+const BRIEFS_DIR = join(OFFICE_DIR, "briefs");
 const ENTITY_DIR = join(BRIEFS_DIR, "entities");
 const WORKSPACE_DIR = join(BRIEFS_DIR, "workspace");
 const PRIVATE_DIR = join(BRIEFS_DIR, "private");
-const SYNC_STATE_FILE = join(NEX_DIR, ".sync-state.json");
+const SYNC_STATE_FILE = join(OFFICE_DIR, ".sync-state.json");
 function ensureDirs() {
-    for (const dir of [NEX_DIR, BRIEFS_DIR, ENTITY_DIR, WORKSPACE_DIR, PRIVATE_DIR]) {
+    for (const dir of [OFFICE_DIR, BRIEFS_DIR, ENTITY_DIR, WORKSPACE_DIR, PRIVATE_DIR]) {
         if (!existsSync(dir))
             mkdirSync(dir, { recursive: true });
     }
@@ -36,7 +36,7 @@ function slugify(title) {
         .slice(0, 80);
 }
 export function registerBriefSyncTools(server, client) {
-    server.tool("sync_briefs", "Sync all entity briefs, workspace playbooks, and private playbooks to the local .nex/briefs/ folder. Downloads new and updated briefs as .md files. Local agents can read these files directly instead of making API calls. Run this periodically or after data changes.", {
+    server.tool("sync_briefs", "Sync all entity briefs, workspace playbooks, and private playbooks to the local .laf-office/briefs/ folder. Downloads new and updated briefs as .md files. Local agents can read these files directly instead of making API calls. Run this periodically or after data changes.", {
         force: z.boolean().optional().describe("If true, re-download all briefs even if unchanged"),
     }, { readOnlyHint: false }, async ({ force }) => {
         ensureDirs();
@@ -92,7 +92,7 @@ export function registerBriefSyncTools(server, client) {
         state.last_sync = new Date().toISOString();
         saveSyncState(state);
         const summary = [
-            `Synced ${total} briefs to .nex/briefs/`,
+            `Synced ${total} briefs to .laf-office/briefs/`,
             `  Downloaded: ${downloaded} (new/updated)`,
             `  Skipped: ${skipped} (unchanged)`,
             `  Entity briefs: ${ENTITY_DIR}/`,
@@ -101,7 +101,7 @@ export function registerBriefSyncTools(server, client) {
         ].join("\n");
         return { content: [{ type: "text", text: summary }] };
     });
-    server.tool("read_brief", "Read a brief from the local .nex/briefs/ folder. Falls back to API if not synced locally. Faster than API calls for local agents.", {
+    server.tool("read_brief", "Read a brief from the local .laf-office/briefs/ folder. Falls back to API if not synced locally. Faster than API calls for local agents.", {
         title: z.string().describe("Brief title or partial match (e.g., 'lenny', 'airbnb', 'b2b sales')"),
     }, { readOnlyHint: true }, async ({ title }) => {
         ensureDirs();

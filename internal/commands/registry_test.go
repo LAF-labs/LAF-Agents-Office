@@ -183,7 +183,7 @@ func TestDispatchJSON(t *testing.T) {
 func TestDispatchInitInstallsLatestCLI(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("LAF_OFFICE_API_KEY", "")
-	t.Setenv("NEX_API_KEY", "")
+	t.Setenv("LAF_OFFICE_API_KEY", "")
 
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "args.log")

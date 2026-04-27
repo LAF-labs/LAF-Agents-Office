@@ -6,11 +6,8 @@ import (
 )
 
 func TestBuildOfficeIntroLinesUsesWorkspaceState(t *testing.T) {
-	// Pin memory backend to none — this test asserts the "local-only
-	// runtime" card. Under the new default, --no-nex alone lands on the
-	// markdown wiki (not local-only), so we opt in to local-only
-	// explicitly.
-	t.Setenv("LAF_OFFICE_NO_NEX", "1")
+	// Pin memory backend to none — this test asserts the "local-only"
+	// runtime card instead of the default markdown wiki.
 	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "none")
 	m := newChannelModel(false)
 	m.brokerConnected = true
@@ -27,7 +24,7 @@ func TestBuildOfficeIntroLinesUsesWorkspaceState(t *testing.T) {
 	if !strings.Contains(plain, "Local-only runtime") {
 		t.Fatalf("expected local-only readiness card, got %q", plain)
 	}
-	if !strings.Contains(plain, "Restart without --no-nex or select --memory-backend gbrain when you want external context.") {
+	if !strings.Contains(plain, "Set --memory-backend markdown to enable the git-native team wiki.") {
 		t.Fatalf("expected switcher guidance, got %q", plain)
 	}
 }
@@ -84,7 +81,6 @@ func TestCurrentHeaderMetaUsesWorkspaceStateForOfficeMessages(t *testing.T) {
 func TestCurrentWorkspaceUIStatePromotesDoctorWarningsIntoReadiness(t *testing.T) {
 	// Same pin as TestBuildOfficeIntroLinesUsesWorkspaceState — the
 	// readiness card asserted here is the "Local-only" variant.
-	t.Setenv("LAF_OFFICE_NO_NEX", "1")
 	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "none")
 	m := newChannelModel(false)
 	m.brokerConnected = true
@@ -94,8 +90,8 @@ func TestCurrentWorkspaceUIStatePromotesDoctorWarningsIntoReadiness(t *testing.T
 			{
 				Label:    "Connected accounts",
 				Severity: doctorWarn,
-				Detail:   "No accounts connected.",
-				NextStep: "Connect Gmail, CRM, or another account in the provider dashboard.",
+				Detail:   "Managed integrations are not available in this build yet.",
+				NextStep: "Use the markdown team wiki for project memory.",
 			},
 		},
 	}

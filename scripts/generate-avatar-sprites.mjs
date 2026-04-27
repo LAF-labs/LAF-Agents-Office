@@ -43,7 +43,7 @@ const avatarRoleSpecs = {
     charm: 'legacyPam',
   },
   human: { baseSpriteId: 'office22', aliases: ['human', 'you'], face: 'humanSoft', outfit: 'casual' },
-  nex: { baseSpriteId: 'office17', aliases: ['nex'], face: 'preserve', outfit: 'ops' },
+  office: { baseSpriteId: 'office17', aliases: ['office'], face: 'preserve', outfit: 'ops' },
   generic: { baseSpriteId: 'office05', aliases: ['generic'], face: 'preserve', outfit: 'suit' },
   qa: { baseSpriteId: 'office03', aliases: ['qa'], face: 'preserve', outfit: 'dwight' },
   ae: { baseSpriteId: 'office10', aliases: ['ae'], face: 'mouthOnly', outfit: 'suit' },

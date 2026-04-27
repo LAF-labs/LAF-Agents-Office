@@ -6,8 +6,8 @@ How LAF-Office works under the hood, anchored to files you can open. One page. R
 
 ```
           ┌──────────────┐         ┌──────────────┐
- human ──▶│   Web UI /   │────────▶│    Broker    │◀── Nex / Telegram / Composio
-          │  TUI / 1:1   │         │  (pub/sub +  │    (optional integrations)
+ human ──▶│   Web UI /   │────────▶│    Broker    │
+          │  TUI / 1:1   │         │  (pub/sub +  │
           └──────────────┘◀────────│    queue)    │
                                    └──────┬───────┘
                                           │ push on message
@@ -36,7 +36,7 @@ How LAF-Office works under the hood, anchored to files you can open. One page. R
 | `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |
 | `internal/agent/packs.go` | The team compositions (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) — packs can also pre-seed default skills |
 | `web/index.html` | The office UI — channels, composer, live streams |
-| `mcp/` | MCP servers LAF-Office ships for Nex context, human-in-the-loop approvals, etc. |
+| `mcp/` | MCP servers LAF-Office ships for team tools, human-in-the-loop approvals, etc. |
 
 ## Three load-bearing choices
 
@@ -58,22 +58,15 @@ With the file that implements each:
 6. Agent responses with `@other-agent` mentions re-enter step 2.
 7. Tool calls are gated: mutating tools require human approval via the Requests panel unless `--unsafe`.
 
-## Optional integrations
-
-- **Nex** (`internal/action/nex_client.go` + external `nex-mcp` binary): context graph, notifications, email/CRM context. Opt out with `--no-nex`.
-- **Telegram** (`internal/team/telegram.go`): bidirectional bridge via `/connect`.
-- **Composio** (`--action provider`): lets agents take real-world actions (send email, update CRM).
-- **OpenClaw** (`internal/team/openclaw.go` + `internal/openclaw/` WS client): bridge users' existing OpenClaw agents into the office. Connect via `/connect openclaw`.
-
-All four are load-time optional. Core LAF-Office is just `broker + launcher + headless runners + worktrees`.
-
 ## What's intentionally not here
 
 - No central LLM proxy, no "model router" layer. Each agent shells out directly.
 - No conversation-persistent sessions. Persistence is in the channel log, not the model.
-- No SaaS backend. Everything is local, single binary, local sqlite/files.
+- No production SaaS backend yet. The current runtime is local-first; hosted
+  deployment will be designed around this project's workspace/auth needs before
+  Supabase/Vercel are wired in.
 
 ## Next stops
 
-- [`FORKING.md`](FORKING.md) — how to cut Nex, swap branding, add packs.
+- [`FORKING.md`](FORKING.md) — how to swap branding and add packs.
 - `scripts/benchmark.sh` — run the 9× benchmark yourself. Full methodology is inline in the script comments.

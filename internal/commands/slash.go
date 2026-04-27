@@ -1,6 +1,6 @@
 package commands
 
-// RegisterAllCommands populates r with the full set of nex slash commands.
+// RegisterAllCommands populates r with the full set of office slash commands.
 // One canonical command per action. No aliases.
 //
 // WebSupported flags are set against the web composer's current handler set
@@ -28,7 +28,7 @@ func RegisterAllCommands(r *Registry) {
 	// Views
 	r.Register(SlashCommand{Name: "graph", Description: "View context graph", Execute: cmdGraph})
 	r.Register(SlashCommand{Name: "insights", Description: "View insights", Execute: cmdInsights})
-	r.Register(SlashCommand{Name: "calendar", Description: "View schedule", WebSupported: true, Execute: cmdCalendar})
+	r.Register(SlashCommand{Name: "calendar", Description: "View schedule", Execute: cmdCalendar})
 	r.Register(SlashCommand{Name: "chat", Description: "Switch to chat view"})
 
 	// Agents
@@ -54,10 +54,10 @@ func RegisterAllCommands(r *Registry) {
 	// keeps them discoverable. See Composer.tsx's handleSlashCommand switch.
 	r.Register(SlashCommand{Name: "reset", Description: "Reset the office", WebSupported: true})
 	r.Register(SlashCommand{Name: "requests", Description: "Open requests", WebSupported: true})
-	r.Register(SlashCommand{Name: "policies", Description: "View policies", WebSupported: true})
+	r.Register(SlashCommand{Name: "policies", Description: "View policies"})
 	r.Register(SlashCommand{Name: "skills", Description: "View skills", WebSupported: true})
 	r.Register(SlashCommand{Name: "tasks", Description: "Open task board", WebSupported: true})
-	r.Register(SlashCommand{Name: "recover", Description: "Health Check view", WebSupported: true})
+	r.Register(SlashCommand{Name: "recover", Description: "Recovery summary"})
 	r.Register(SlashCommand{Name: "threads", Description: "See every active thread", WebSupported: true})
 	r.Register(SlashCommand{Name: "focus", Description: "Switch to delegation mode", WebSupported: true})
 	r.Register(SlashCommand{Name: "collab", Description: "Switch to collaborative mode", WebSupported: true})

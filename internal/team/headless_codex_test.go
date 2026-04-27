@@ -89,8 +89,6 @@ func TestBuildCodexOfficeConfigOverridesIncludesOfficeMCPEnv(t *testing.T) {
 		headlessCodexLookPath = oldLookPath
 	}()
 
-	t.Setenv("LAF_OFFICE_NO_NEX", "1")
-
 	broker := newTestBroker(t)
 	if err := broker.SetSessionMode(SessionModeOneOnOne, "pm"); err != nil {
 		t.Fatalf("SetSessionMode: %v", err)
@@ -113,14 +111,14 @@ func TestBuildCodexOfficeConfigOverridesIncludesOfficeMCPEnv(t *testing.T) {
 	if !strings.Contains(joined, `mcp_servers.laf-office.args=["mcp-team"]`) {
 		t.Fatalf("expected LAF-Office MCP args override, got %q", joined)
 	}
-	if !strings.Contains(joined, `mcp_servers.laf-office.env_vars=["LAF_OFFICE_AGENT_SLUG", "LAF_OFFICE_BROKER_TOKEN", "LAF_OFFICE_BROKER_BASE_URL", "LAF_OFFICE_NO_NEX", "LAF_OFFICE_ONE_ON_ONE", "LAF_OFFICE_ONE_ON_ONE_AGENT"]`) {
+	if !strings.Contains(joined, `mcp_servers.laf-office.env_vars=["LAF_OFFICE_AGENT_SLUG", "LAF_OFFICE_BROKER_TOKEN", "LAF_OFFICE_BROKER_BASE_URL", "LAF_OFFICE_ONE_ON_ONE", "LAF_OFFICE_ONE_ON_ONE_AGENT"]`) {
 		t.Fatalf("expected office env var forwarding, got %q", joined)
 	}
 	if strings.Contains(joined, broker.Token()) {
 		t.Fatalf("expected broker token value to stay out of args, got %q", joined)
 	}
-	if strings.Contains(joined, `mcp_servers.nex.command=`) {
-		t.Fatalf("expected Nex MCP to stay disabled with LAF_OFFICE_NO_NEX, got %q", joined)
+	if strings.Contains(joined, `mcp_servers.automation.command=`) {
+		t.Fatalf("expected legacy MCP to stay disabled with LAF_OFFICE_NO_LEGACY_MEMORY, got %q", joined)
 	}
 }
 
@@ -133,8 +131,6 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 		switch file {
 		case "codex":
 			return "/usr/bin/codex", nil
-		case "nex-mcp":
-			return "/usr/bin/nex-mcp", nil
 		default:
 			return "", exec.ErrNotFound
 		}
@@ -154,11 +150,7 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	t.Setenv("GO_WANT_HEADLESS_CODEX_HELPER_PROCESS", "1")
 	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-secret-key")
 	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "openai-secret-key")
-	t.Setenv("LAF_OFFICE_ONE_SECRET", "one-secret-value")
-	t.Setenv("LAF_OFFICE_ONE_IDENTITY", "founder@example.com")
-	t.Setenv("LAF_OFFICE_ONE_IDENTITY_TYPE", "user")
 
 	l := &Launcher{
 		pack:        agent.GetPack("founding-team"),
@@ -188,14 +180,11 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	if !strings.Contains(joinedArgs, `mcp_servers.laf-office.command="/tmp/laf-office"`) {
 		t.Fatalf("expected office MCP override, got %#v", record.Args)
 	}
-	if !strings.Contains(joinedArgs, `mcp_servers.laf-office.env_vars=["LAF_OFFICE_AGENT_SLUG", "LAF_OFFICE_BROKER_TOKEN", "LAF_OFFICE_BROKER_BASE_URL", "ONE_SECRET", "ONE_IDENTITY", "ONE_IDENTITY_TYPE"]`) {
+	if !strings.Contains(joinedArgs, `mcp_servers.laf-office.env_vars=["LAF_OFFICE_AGENT_SLUG", "LAF_OFFICE_BROKER_TOKEN", "LAF_OFFICE_BROKER_BASE_URL"]`) {
 		t.Fatalf("expected office env var forwarding, got %#v", record.Args)
 	}
-	if !strings.Contains(joinedArgs, `mcp_servers.nex.command="/usr/bin/nex-mcp"`) {
-		t.Fatalf("expected nex MCP override, got %#v", record.Args)
-	}
-	if !strings.Contains(joinedArgs, `mcp_servers.nex.env_vars=["LAF_OFFICE_API_KEY", "NEX_API_KEY"]`) {
-		t.Fatalf("expected nex env var forwarding, got %#v", record.Args)
+	if strings.Contains(joinedArgs, `mcp_servers.automation`) {
+		t.Fatalf("did not expect legacy automation MCP override, got %#v", record.Args)
 	}
 	if got := argValue(record.Args, "-C"); !samePath(got, l.cwd) {
 		t.Fatalf("expected codex workspace root %q, got %q", l.cwd, got)
@@ -225,16 +214,10 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	if !containsEnvPrefix(record.Env, "LAF_OFFICE_BROKER_TOKEN=") {
 		t.Fatalf("expected broker token env, got %#v", record.Env)
 	}
-	if !containsEnv(record.Env, "LAF_OFFICE_API_KEY=nex-secret-key") || !containsEnv(record.Env, "NEX_API_KEY=nex-secret-key") {
-		t.Fatalf("expected nex API env, got %#v", record.Env)
-	}
 	if !containsEnv(record.Env, "LAF_OFFICE_OPENAI_API_KEY=openai-secret-key") || !containsEnv(record.Env, "OPENAI_API_KEY=openai-secret-key") {
 		t.Fatalf("expected openai API env, got %#v", record.Env)
 	}
-	if !containsEnv(record.Env, "ONE_SECRET=one-secret-value") {
-		t.Fatalf("expected one secret env, got %#v", record.Env)
-	}
-	if strings.Contains(joinedArgs, l.broker.Token()) || strings.Contains(joinedArgs, "nex-secret-key") || strings.Contains(joinedArgs, "openai-secret-key") || strings.Contains(joinedArgs, "one-secret-value") {
+	if strings.Contains(joinedArgs, l.broker.Token()) || strings.Contains(joinedArgs, "openai-secret-key") {
 		t.Fatalf("expected secret values to stay out of args, got %#v", record.Args)
 	}
 	if !strings.Contains(record.Stdin, "<system>") || !strings.Contains(record.Stdin, "You have new work in #launch.") {

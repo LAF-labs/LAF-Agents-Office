@@ -734,27 +734,6 @@ export function getActions() {
   return get("/actions");
 }
 
-// ── Policies ──
-
-export interface Policy {
-  id: string;
-  source: string;
-  rule: string;
-  active?: boolean;
-}
-
-export function getPolicies() {
-  return get<{ policies: Policy[] }>("/policies");
-}
-
-export function createPolicy(source: string, rule: string) {
-  return post("/policies", { source, rule });
-}
-
-export function deletePolicy(id: string) {
-  return del("/policies", { id });
-}
-
 // ── Scheduler ──
 
 export interface SchedulerJob {
@@ -846,7 +825,7 @@ export function setMemory(namespace: string, key: string, value: string) {
 // ── Config (Settings) ──
 
 export type LLMProvider = "claude-code" | "codex" | "opencode";
-export type MemoryBackend = "nex" | "gbrain" | "none";
+export type MemoryBackend = "markdown";
 export type ActionProvider = "auto" | "one" | "composio" | "";
 
 export interface ConfigSnapshot {

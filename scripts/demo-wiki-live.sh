@@ -171,7 +171,7 @@ write "builder" "team/decisions/wiki-as-default.md" "create" \
   "wiki as default memory" \
   "# Wiki as default memory
 
-As of this week, new installs default to the markdown wiki instead of the Nex knowledge graph.
+As of this week, new installs default to the markdown wiki instead of the hosted knowledge graph.
 
 ## Why
 
@@ -181,7 +181,7 @@ As of this week, new installs default to the markdown wiki instead of the Nex kn
 
 ## What it means
 
-- Existing Nex/GBrain users unaffected (backend switch is config-pinned)
+- Existing GBrain users unaffected (backend switch is config-pinned)
 - Four new MCP tools (\`team_wiki_read/search/list/write\`) replace \`team_memory_*\` when \`LAF_OFFICE_MEMORY_BACKEND=markdown\`
 
 See [[decisions/2026-q2-pricing]] for the related commercial thinking."

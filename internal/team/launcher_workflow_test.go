@@ -14,9 +14,8 @@ import (
 func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("LAF_OFFICE_ACTION_PROVIDER", "composio")
-	t.Setenv("LAF_OFFICE_API_KEY", "nex-test-key")
 	t.Setenv("LAF_OFFICE_COMPOSIO_API_KEY", "cmp-test-key")
-	t.Setenv("LAF_OFFICE_COMPOSIO_USER_ID", "najmuzzaman@nex.ai")
+	t.Setenv("LAF_OFFICE_COMPOSIO_USER_ID", "user@example.com")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts/ca_123", func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +34,7 @@ func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 					"messageTimestamp": "2026-03-31T07:30:00Z",
 					"subject":          "Digest source email",
 					"sender":           "support@example.com",
-					"to":               "najmuzzaman@nex.ai",
+					"to":               "user@example.com",
 					"preview": map[string]any{
 						"body": "Important update for the digest.",
 					},
@@ -52,20 +51,6 @@ func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 			},
 		})
 	})
-	mux.HandleFunc("/api/developers/v1/context/ask", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"answer": "Executive Summary\n- Digest generated.\n\nWhy This Matters\n- It keeps the office current.\n\nWhat To Do Next\n- Read the highlights.\n\nEmail Highlights\n- support@example.com | Digest source email\n\nRelevant Nex Insights\n- Insight included.",
-		})
-	})
-	mux.HandleFunc("/api/developers/v1/insights", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"insights": []map[string]any{{
-				"id":      "ins-1",
-				"type":    "summary",
-				"content": "Digest-relevant insight.",
-			}},
-		})
-	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -77,10 +62,8 @@ func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 		"version": "laf_office_workflow_v1",
 		"inputs": map[string]any{
 			"connection_key":  "ca_123",
-			"recipient_email": "najmuzzaman@nex.ai",
+			"recipient_email": "user@example.com",
 			"subject":         "Daily Digest",
-			"window_hours":    24,
-			"insight_limit":   5,
 		},
 		"steps": []map[string]any{
 			{
@@ -94,15 +77,9 @@ func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 				},
 			},
 			{
-				"id":             "recent_insights",
-				"type":           "nex_insights",
-				"lookback_hours": "{{ .inputs.window_hours }}",
-				"insight_limit":  "{{ .inputs.insight_limit }}",
-			},
-			{
-				"id":             "compose_digest",
-				"type":           "nex_ask",
-				"query_template": "Build a digest email with Executive Summary, Why This Matters, What To Do Next, Email Highlights, and Relevant Nex Insights. Emails: {{ toJSON .steps.fetch_emails.response.data.messages }} Insights: {{ toJSON .steps.recent_insights.insights }}",
+				"id":       "compose_digest",
+				"type":     "template",
+				"template": "Executive Summary\n- Digest generated.\n\nWhy This Matters\n- It keeps the office current.\n\nWhat To Do Next\n- Read the highlights.\n\nEmail Highlights: {{ toJSON .steps.fetch_emails.response.data.messages }}",
 			},
 			{
 				"id":             "send_email",
@@ -113,7 +90,7 @@ func TestProcessDueWorkflowJobUsesComposioProvider(t *testing.T) {
 				"data": map[string]any{
 					"recipient_email": "{{ .inputs.recipient_email }}",
 					"subject":         "{{ .inputs.subject }}",
-					"body":            "{{ .steps.compose_digest.answer }}",
+					"body":            "{{ .steps.compose_digest.result }}",
 				},
 			},
 		},

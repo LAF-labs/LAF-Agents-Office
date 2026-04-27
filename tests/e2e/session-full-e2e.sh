@@ -32,7 +32,7 @@ start_office() {
   cleanup
   rm -f ~/.laf-office/team/broker-state.json 2>/dev/null
   SOCKET="/tmp/laf-office-session-office-$$.sock"
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex &
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" &
   DAEMON_PID=$!
   sleep 20
   BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null)
@@ -42,7 +42,7 @@ start_1o1() {
   cleanup
   rm -f ~/.laf-office/team/broker-state.json 2>/dev/null
   SOCKET="/tmp/laf-office-session-1o1-$$.sock"
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex -1o1 &
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -1o1 &
   DAEMON_PID=$!
   sleep 20
   BROKER_TOKEN=$(cat /tmp/laf-office-broker-token 2>/dev/null)
@@ -454,7 +454,7 @@ echo "━━━ SECTION 10: SPLASH & STARTUP ━━━"
 echo ""
 echo "T33: Office mode starts with splash then transitions to channel"
 SOCKET="/tmp/laf-office-session-splash-$$.sock"
-"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex &
+"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" &
 sleep 8
 screenshot "33-splash"
 # Splash should show character sprites or LAF-Office title

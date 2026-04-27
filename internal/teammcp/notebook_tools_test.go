@@ -15,7 +15,7 @@ import (
 
 // TestNotebookToolsRegisteredOnlyInMarkdownBackend locks in the gate: the 5
 // notebook_* tools appear iff LAF_OFFICE_MEMORY_BACKEND=markdown. Other backends
-// (nex, gbrain, none) must not expose them — matches wiki parity.
+// (legacy, gbrain, none) must not expose them — matches wiki parity.
 func TestNotebookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 	notebookTools := []string{
 		"notebook_write",
@@ -30,7 +30,7 @@ func TestNotebookToolsRegisteredOnlyInMarkdownBackend(t *testing.T) {
 		mustHave bool
 	}{
 		{"markdown registers notebook tools", "markdown", true},
-		{"nex excludes notebook tools", "nex", false},
+		{"legacy excludes notebook tools", "legacy", false},
 		{"gbrain excludes notebook tools", "gbrain", false},
 		{"none excludes notebook tools", "none", false},
 	}
@@ -174,7 +174,7 @@ func TestHandleTeamNotebookWriteValidations(t *testing.T) {
 func TestHandleTeamNotebookWriteMissingSlug(t *testing.T) {
 	// Explicitly clear the env slug so resolveSlug fails.
 	t.Setenv("LAF_OFFICE_AGENT_SLUG", "")
-	t.Setenv("NEX_AGENT_SLUG", "")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "")
 	res, _, _ := handleTeamNotebookWrite(context.Background(), nil, TeamNotebookWriteArgs{
 		ArticlePath: "agents/pm/notebook/x.md",
 		Mode:        "create",
@@ -259,7 +259,7 @@ func TestHandleTeamNotebookListCrossAgent(t *testing.T) {
 
 func TestHandleTeamNotebookListNoSlugAnywhere(t *testing.T) {
 	t.Setenv("LAF_OFFICE_AGENT_SLUG", "")
-	t.Setenv("NEX_AGENT_SLUG", "")
+	t.Setenv("LAF_OFFICE_AGENT_SLUG", "")
 	res, _, _ := handleTeamNotebookList(context.Background(), nil, TeamNotebookListArgs{})
 	if !isToolError(res) {
 		t.Fatal("expected tool error when no slug available")

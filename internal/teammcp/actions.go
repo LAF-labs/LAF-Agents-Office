@@ -923,14 +923,10 @@ func selectedActionProvider(cap action.Capability) (action.Provider, error) {
 	if externalActionProvider != nil {
 		return externalActionProvider, nil
 	}
-	provider, err := team.ResolveActionProviderForCapability(cap)
-	if err == nil {
-		return provider, nil
-	}
 	caps := team.DetectRuntimeCapabilities()
 	entry, ok := caps.Registry.Entry(team.RegistryKeyForActionCapability(cap))
 	if !ok || strings.TrimSpace(entry.NextStep) == "" {
-		return nil, err
+		return nil, fmt.Errorf("managed integrations are not available in this build yet")
 	}
-	return nil, fmt.Errorf("%w. Next: %s", err, entry.NextStep)
+	return nil, fmt.Errorf("%s. Next: %s", entry.Detail, entry.NextStep)
 }

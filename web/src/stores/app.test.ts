@@ -115,12 +115,12 @@ describe("setTheme", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      useAppStore.getState().setTheme("nex-dark");
+      useAppStore.getState().setTheme("office-dark");
 
-      expect(setItemSpy).toHaveBeenCalledWith("laf-office-theme", "nex-dark");
-      expect(useAppStore.getState().theme).toBe("nex-dark");
+      expect(setItemSpy).toHaveBeenCalledWith("laf-office-theme", "office-dark");
+      expect(useAppStore.getState().theme).toBe("office-dark");
       expect(document.documentElement.getAttribute("data-theme")).toBe(
-        "nex-dark",
+        "office-dark",
       );
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("setTheme: localStorage.setItem failed"),
@@ -130,8 +130,8 @@ describe("setTheme", () => {
       setItemSpy.mockRestore();
       warnSpy.mockRestore();
       // Reset DOM + store so other tests don't inherit dark theme.
-      document.documentElement.setAttribute("data-theme", "nex");
-      useAppStore.setState({ theme: "nex" });
+      document.documentElement.setAttribute("data-theme", "office");
+      useAppStore.setState({ theme: "office" });
     }
   });
 });

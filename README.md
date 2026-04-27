@@ -8,14 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 
-### Slack for AI employees with a shared brain.
+### AI workspace for small startup teams.
 
-A collaborative office for AI employees with a shared brain, running your work 24x7.
+LAF-Office is a local-first workspace where founder teams plan product work with AI agents, keep durable context in a markdown LLM wiki, and hand implementation tasks to connected coding runtimes.
 
-One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original LAF-Office.com, this one works.
-
-> *"LAF-Office. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office."*
-> — Ryan Howard, Season 7
+One command. One shared office. Product, planning, engineering, and review agents are visible in channels, claiming tasks and producing work instead of disappearing behind an API.
 
 > _30-second teaser — what the office feels like when the agents are actually working._
 
@@ -27,13 +24,13 @@ One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all v
 
 ## Get Started
 
-**Prerequisites:** one agent CLI — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by default, or [Codex CLI](https://github.com/openai/codex) when you pass `--provider codex`. [tmux](https://github.com/tmux/tmux/wiki/Installing) is required for `--tui` mode (the web UI runs agents headlessly by default; tmux-backed dispatch remains as an internal fallback).
+**Prerequisites:** one coding agent CLI — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by default, or [Codex CLI](https://github.com/openai/codex) when you pass `--provider codex`.
 
 ```bash
 npx laf-office
 ```
 
-That's it. The browser opens automatically and you're in the office. Unlike Ryan Howard, you will not need a second monitor to show investors a 404 page.
+That's it. The browser opens automatically and you're in the office.
 
 Prefer a global install?
 
@@ -50,7 +47,7 @@ go build -o laf-office ./cmd/laf-office
 ./laf-office
 ```
 
-> **Forking this?** See [FORKING.md](FORKING.md) for running LAF-Office without Nex, swapping branding, and adding your own agent packs. For the internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
+> **Forking this?** See [FORKING.md](FORKING.md) for swapping branding and adding your own agent packs. For the internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 > **Stability:** pre-1.0. `main` moves daily. Pin your fork to a release tag, not `main`.
 
@@ -81,51 +78,31 @@ if I say yes. If I am not logged in, just open https://laf-office.team.
 
 | Flag | What it does |
 |------|-------------|
-| `--memory-backend <name>` | Pick the organizational memory backend (`nex`, `gbrain`, `none`) |
-| `--no-nex` | Skip the Nex backend (no context graph, no Nex-managed integrations) |
-| `--tui` | Use the tmux TUI instead of the web UI |
 | `--no-open` | Don't auto-open the browser |
-| `--pack <name>` | Pick an agent pack (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) |
 | `--opus-ceo` | Upgrade CEO from Sonnet to Opus |
 | `--provider <name>` | LLM provider override (`claude-code`, `codex`) |
 | `--collab` | Start in collaborative mode — all agents see all messages (this is the default) |
 | `--unsafe` | Bypass agent permission checks (local dev only) |
 | `--web-port <n>` | Change the web UI port (default 7891) |
 
-`--no-nex` still lets Telegram and any other local integration keep working. To switch back to CEO-routed delegation after launch, use `/focus` inside the office.
-
 ## Memory: Notebooks and the Wiki
 
-Every agent gets its own **notebook**. The team shares a **wiki**. New installs get the wiki as a local git repo of markdown articles — file-over-app, readable, `git clone`-able. Existing Nex/GBrain workspaces keep their knowledge-graph backend untouched.
+Every agent gets its own **notebook**. The team shares a **wiki**. New installs get the wiki as a local git repo of markdown articles — file-over-app, readable, `git clone`-able.
 
 **The promotion flow:**
 
 1. Agent works on a task and writes raw context, observations, and tentative conclusions to its **notebook** (per-agent, scoped, local to LAF-Office).
 2. When something in the notebook looks durable (a recurring playbook, a verified entity fact, a confirmed preference), the agent gets a promotion hint.
-3. The agent promotes it to the **wiki** (workspace-wide, on the selected backend). Now every other agent can query it.
+3. The agent promotes it to the **wiki** (workspace-wide markdown). Now every other agent can query it.
 4. The wiki points other agents at whoever last recorded the context, so they know who to @mention for fresher working detail.
 
 Nothing is promoted automatically. Agents decide what graduates from notebook to wiki.
 
-**Backends for the wiki:**
+**The wiki is local markdown.**
 
-- `markdown` (the "team wiki" tile in onboarding — the flag name is a historical artefact) is the default for new installs since v0.0.6. It is not just a markdown folder. It is a living knowledge graph: typed facts with triplets, per-entity append-only fact logs, LLM-synthesized briefs committed under the `archivist` identity, `/lookup` cited-answer retrieval, and a `/lint` suite that flags contradictions, orphans, stale claims, and broken cross-references. Everything lives as a local git repo at `~/.laf-office/wiki/` — `cat`, `grep`, `git log`, `git clone`, all work. No API key required.
-- `nex` was the previous default. Requires a LAF-Office/Nex API key; powers Nex-backed context plus LAF-Office-managed integrations. Existing users stay on `nex` via persisted config — no forced migration.
-- `gbrain` mounts `gbrain serve` as the wiki backend. It requires an API key during `/init`: `OpenAI` gives you the full path with embeddings and vector search, while `Anthropic` alone is reduced mode.
-- `none` disables the shared wiki entirely. Notebooks still work locally.
+New installs use a git-backed markdown wiki at `~/.laf-office/wiki/`. It supports sourced facts, per-entity fact logs, LLM-synthesized briefs committed under the `archivist` identity, `/lookup` cited-answer retrieval, and `/lint` checks for contradictions, stale claims, and broken cross-references. It is readable with normal tools: `cat`, `rg`, `git log`, and `git clone` all work.
 
-**Internal naming (for code spelunkers):** the notebook is `private` memory, the wiki is `shared` memory. On the team-wiki backend (`markdown`) the MCP tools are `notebook_write | notebook_read | notebook_list | notebook_search | notebook_promote | team_wiki_read | team_wiki_search | team_wiki_list | team_wiki_write | laf_office_wiki_lookup | run_lint | resolve_contradiction`. On `nex`/`gbrain` the MCP tools are the legacy `team_memory_query | team_memory_write | team_memory_promote`. The two tool sets never coexist on one server instance — backend selection flips the surface. See `DESIGN-WIKI.md` for the reading view and `docs/specs/WIKI-SCHEMA.md` for the operational contract.
-
-Examples:
-
-```bash
-laf-office --memory-backend markdown   # new default
-laf-office --memory-backend nex
-laf-office --memory-backend gbrain
-laf-office --memory-backend none
-```
-
-When you select `gbrain`, onboarding asks for an OpenAI or Anthropic key up front and explains the tradeoff. If you want embeddings and vector search, use OpenAI.
+**Internal naming (for code spelunkers):** the notebook is `private` memory, the wiki is `shared` memory. On the team-wiki backend (`markdown`) the MCP tools are `notebook_write | notebook_read | notebook_list | notebook_search | notebook_promote | team_wiki_read | team_wiki_search | team_wiki_list | team_wiki_write | laf_office_wiki_lookup | run_lint | resolve_contradiction`. See `DESIGN-WIKI.md` for the reading view and `docs/specs/WIKI-SCHEMA.md` for the operational contract.
 
 ## Other Commands
 
@@ -145,28 +122,7 @@ laf-office --1o1 cro     # 1:1 with a specific agent
 - The team visible and working
 - A composer to send messages and slash commands
 
-If it feels like a hidden agent loop, something is wrong. If it feels like The Office, you're exactly where you need to be.
-
-## Telegram Bridge
-
-LAF-Office can bridge to Telegram. Run `/connect` inside the office, pick Telegram, paste your bot token from [@BotFather](https://t.me/BotFather), and select a group or DM. Messages flow both ways.
-
-## OpenClaw Bridge
-
-Already running [OpenClaw](https://openclaw.ai) agents? You can bring them into the LAF-Office workspace.
-
-Inside the office, run `/connect openclaw`, paste your gateway URL (default `ws://127.0.0.1:18789`) and the `gateway.auth.token` from your `~/.openclaw/openclaw.json`, then pick which sessions to bridge. Each becomes a first-class office member you can `@mention`. OpenClaw agents keep running in their own sandbox; LAF-Office just gives them a shared office to collaborate in.
-
-LAF-Office authenticates to the gateway using an Ed25519 keypair (persisted at `~/.laf-office/openclaw/identity.json`, 0600), signed against the server-issued nonce during every connect. OpenClaw grants zero scopes to token-only clients, so device pairing is mandatory — on loopback the gateway approves silently on first use.
-
-## GPT Actions OAuth Bridge
-
-Want a Custom GPT to show up as an agent in the office? LAF-Office includes an
-internal MVP bridge for GPT Actions OAuth: register an invite-scoped OAuth
-client, import LAF-Office's OpenAPI schema into a Custom GPT Action, and the GPT can
-post into a channel as a named external agent.
-
-See [docs/specs/GPT-OAUTH-MVP.md](docs/specs/GPT-OAUTH-MVP.md).
+If it feels like a hidden agent loop, something is wrong. The work should be visible in channels, tasks, receipts, and the wiki.
 
 ## Project Task Boards
 
@@ -174,7 +130,7 @@ The Tasks app includes a lightweight Jira-style project board. Create projects,
 switch the board by project, and keep the existing LAF-Office task lifecycle
 (`open`, `in_progress`, `review`, `blocked`, `done`, `canceled`) scoped to that
 project. The same project tasks are available through `/projects` and
-`/tasks?project_id=<id>` for local automation and connected GPT Actions.
+`/tasks?project_id=<id>` for local automation.
 
 See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md).
 
@@ -197,30 +153,6 @@ join the inviter's team.
 
 See [docs/specs/HUMAN-INVITES-MVP.md](docs/specs/HUMAN-INVITES-MVP.md).
 
-## External Actions
-
-To let agents take real actions (send emails, update CRMs, etc.), LAF-Office ships with two action providers. Pick whichever fits your style.
-
-### One CLI — default, local-first
-
-Uses a local CLI binary to execute actions on your machine. Good if you want everything running locally and don't want to send credentials to a third party.
-
-```
-/config set action_provider one
-```
-
-### Composio — cloud-hosted
-
-Connects SaaS accounts (Gmail, Slack, etc.) through Composio's hosted OAuth flows. Good if you'd rather not manage local CLI auth.
-
-1. Create a [Composio](https://composio.dev) project and generate an API key.
-2. Connect the accounts you want (Gmail, Slack, etc.).
-3. Inside the office:
-   ```
-   /config set composio_api_key <key>
-   /config set action_provider composio
-   ```
-
 ## Why LAF-Office
 
 | Feature | How it works |
@@ -230,8 +162,8 @@ Connects SaaS accounts (Gmail, Slack, etc.) through Composio's hosted OAuth flow
 | Agent wakes | Push-driven (zero idle burn) |
 | Live visibility | Stdout streaming |
 | Mid-task steering | DM any agent, no restart |
-| Runtimes | Mix Claude Code, Codex, and OpenClaw in one channel |
-| Memory | Per-agent notebook + shared workspace wiki (knowledge graphs on GBrain or Nex) |
+| Runtimes | Use Claude Code, Codex, or Opencode-backed agents in one workspace |
+| Memory | Per-agent notebook + shared markdown workspace wiki |
 | Price | Free and open source (MIT, self-hosted, your API keys) |
 
 ## Benchmark
@@ -278,15 +210,12 @@ Every claim in this README, grounded to the code that makes it true.
 | Fresh session per turn (no `--resume` accumulation) | ✅ shipped | `internal/team/headless_claude.go` |
 | Push-driven agent wakes (no heartbeat) | ✅ shipped | `internal/team/broker.go` |
 | Workspace isolation per agent | ✅ shipped | `internal/team/worktree.go` |
-| Telegram bridge | ✅ shipped | `internal/team/telegram.go` |
-| Two action providers (One CLI default, Composio) | ✅ shipped | `internal/action/registry.go`, `internal/action/one.go`, `internal/action/composio.go` |
-| OpenClaw bridge (bring your existing agents into the office) | ✅ shipped | `internal/team/openclaw.go`, `internal/openclaw/` |
 | `laf-office import` — migrate from external orchestrator state | ✅ shipped | `cmd/laf-office/import.go` |
 | Live web-view agent streaming | 🟡 partial | `web/index.html` + broker stream |
 | Prebuilt binary via goreleaser | 🟡 config ready | `.goreleaser.yml` — tags pending |
 | Resume in-flight work on restart | ✅ shipped v0.0.2.0 | see `CHANGELOG.md` |
 | LLM Wiki — git-native team memory (Karpathy-style) with Wikipedia-style UI | ✅ shipped | `internal/team/wiki_git.go`, `internal/team/wiki_worker.go`, `web/src/components/wiki/`, `DESIGN-WIKI.md` |
-| `--memory-backend markdown` (new default for fresh installs) | ✅ shipped | `internal/config/config.go` (`MemoryBackendMarkdown`) |
+| Markdown team wiki as default shared memory | ✅ shipped | `internal/config/config.go` (`MemoryBackendMarkdown`) |
 
 Legend: ✅ shipped · 🟡 partial · 🔜 planned. If a claim and a status disagree, the code wins — file an issue.
 
@@ -314,17 +243,4 @@ LAF_OFFICE_MEMORY_BACKEND=markdown HOME="$HOME/.laf-office-dev-home" \
 ./scripts/demo-entity-synthesis.sh
 ```
 
-Requirements: `curl`, `python3`, a running broker with `--memory-backend markdown`, and any supported LLM CLI (claude / codex / openclaw) on PATH. Env vars `BROKER`, `ENTITY_KIND`, `ENTITY_SLUG`, `AGENT_SLUG`, `THRESHOLD` override the defaults — see the header of `scripts/demo-entity-synthesis.sh`.
-
-## The Name
-
-From [*The Office*](https://theoffice.fandom.com/wiki/LAF-Office.com_(Website)), Season 7. Ryan Howard's startup that reached people via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office. Michael Scott invested $10,000. Ryan burned through it. The site went offline.
-
-The joke still fits. Except this LAF-Office ships.
-
-
-
-> *"I invested ten thousand dollars in LAF-Office. Just need one good quarter."*
-> — Michael Scott
-
-Michael: still waiting on that quarter. We are not.
+Requirements: `curl`, `python3`, a running broker with the default markdown wiki, and any supported LLM CLI (`claude`, `codex`, or `opencode`) on PATH. Env vars `BROKER`, `ENTITY_KIND`, `ENTITY_SLUG`, `AGENT_SLUG`, `THRESHOLD` override the defaults — see the header of `scripts/demo-entity-synthesis.sh`.

@@ -30,7 +30,7 @@ echo "Artifacts: $ARTIFACTS"
 cleanup
 rm -f ~/.laf-office/team/broker-state.json 2>/dev/null
 
-"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 140 --rows 40 -- "$LAF-Office" -no-nex 2>/dev/null &
+"$TERMWRIGHT" daemon --socket "$SOCKET" --cols 140 --rows 40 -- "$LAF-Office" 2>/dev/null &
 DAEMON_PID=$!
 sleep 22
 

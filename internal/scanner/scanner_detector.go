@@ -2,7 +2,7 @@ package scanner
 
 // scanner_detector.go hosts the pluggable ChangeDetector interface plus
 // the mtime-based implementation (and its secret-redaction helpers). The
-// hash-based detector from nex-cli is NOT ported — v1.1 only needs mtime
+// hash-based detector from office-cli is NOT ported — v1.1 only needs mtime
 // semantics for the HTTP endpoints and hook-driven re-scans. Re-adding
 // hash detection later is a matter of wiring a second struct here.
 

@@ -248,8 +248,21 @@ func (a *GBrainAdapter) hydratePage(ctx context.Context, p GBrainPage) (Migratio
 		Title:     title,
 		Content:   content,
 		Source:    "gbrain",
-		Timestamp: parseNexTimestamp(firstNonEmpty(p.UpdatedAt, p.CreatedAt)),
+		Timestamp: parseGBrainTimestamp(firstNonEmpty(p.UpdatedAt, p.CreatedAt)),
 	}, true
+}
+
+func parseGBrainTimestamp(raw string) time.Time {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
+		if ts, err := time.Parse(layout, raw); err == nil {
+			return ts
+		}
+	}
+	return time.Time{}
 }
 
 func firstGBrainContent(p GBrainPage) string {
@@ -317,6 +330,6 @@ func GBrainReady() bool {
 	return gbrain.IsInstalled()
 }
 
-// NexNow is the fallback timestamp when a record has none of its own.
+// migrationNow is the fallback timestamp when a record has none of its own.
 // Exposed so callers and tests use the same clock source.
-func NexNow() time.Time { return time.Now().UTC() }
+func migrationNow() time.Time { return time.Now().UTC() }

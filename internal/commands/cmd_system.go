@@ -29,9 +29,7 @@ func cmdHelp(ctx *SlashContext, args string) error {
 		"  /rel <sub>             list-defs | create-def | create | delete\n" +
 		"  /attribute <sub>       create | update | delete\n\n" +
 		"  /agent                 list | <slug>\n" +
-		"  /graph                 View context graph\n" +
-		"  /insights              View insights\n" +
-		"  /calendar              View calendar\n\n" +
+		"  /insights              View insights\n\n" +
 		"  /config <sub>          show | set | path\n" +
 		"  /detect                Detect AI platforms\n" +
 		"  /init                  Run setup\n" +
@@ -53,11 +51,6 @@ func cmdQuit(ctx *SlashContext, args string) error {
 }
 
 func cmdInit(ctx *SlashContext, args string) error {
-	if config.ResolveNoNex() {
-		ctx.AddMessage("system", "Nex integration is disabled for this session (--no-nex). Start LAF-Office without --no-nex to run setup.")
-		return nil
-	}
-
 	cfg, _ := config.Load()
 	if cfg.APIKey == "" {
 		cfg.APIKey = config.ResolveAPIKey("")
@@ -208,11 +201,7 @@ func cmdInsights(ctx *SlashContext, args string) error {
 
 func requireAuth(ctx *SlashContext) bool {
 	if ctx.APIClient == nil || !ctx.APIClient.IsAuthenticated() {
-		if config.ResolveNoNex() {
-			ctx.AddMessage("system", "Nex integration is disabled for this session (--no-nex).")
-		} else {
-			ctx.AddMessage("system", "Not authenticated. Run /init to set up.")
-		}
+		ctx.AddMessage("system", "Not authenticated. Run /init to set up.")
 		return false
 	}
 	return true

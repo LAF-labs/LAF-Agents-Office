@@ -89,9 +89,6 @@ func ManifestPath() string {
 	if path := strings.TrimSpace(os.Getenv(product.Env("COMPANY_FILE"))); path != "" {
 		return path
 	}
-	if path := strings.TrimSpace(os.Getenv("NEX_COMPANY_FILE")); path != "" {
-		return path
-	}
 
 	if strings.TrimSpace(os.Getenv(product.Env("RUNTIME_HOME"))) == "" {
 		if cwd, err := os.Getwd(); err == nil {

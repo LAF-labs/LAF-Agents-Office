@@ -101,7 +101,7 @@ All notable changes to LAF-Office will be documented in this file.
 ### Added — LLM Wiki (Karpathy-pattern team memory)
 
 - **Git-native team wiki at `~/.laf-office/wiki/`.** Every article is a real markdown file in a local git repo. Each agent commits under its own git identity (per-commit `-c user.name=...` flags — never touches your global git config). Your team's memory is explicit, yours, file-over-app, and portable. `cat` it, `git log` it, `git clone` it anywhere.
-- **`--memory-backend markdown` as the new default for fresh installs.** Existing Nex/GBrain users keep their current backend via `.laf-office/config.yaml` — no forced migration. `--memory-backend` now accepts `markdown | nex | gbrain | none`, and the MCP tool surface switches accordingly: markdown exposes `team_wiki_*` tools, the knowledge-graph backends keep the existing `team_memory_*` tools. The two never coexist on one server instance.
+- **`--memory-backend markdown` as the new default for fresh installs.** Existing GBrain users keep their current backend via `.laf-office/config.yaml` — no forced migration. `--memory-backend` now accepts `markdown | gbrain | none`, and the MCP tool surface switches accordingly: markdown exposes `team_wiki_*` tools, the knowledge-graph backends keep the existing `team_memory_*` tools. The two never coexist on one server instance.
 - **Serialized-write worker with fail-fast backpressure.** All writes flow through a single goroutine-owned queue (buffered 64, 10s per-write timeout). On saturation the MCP tool returns `wiki queue saturated, retry on next turn` — no hidden retries, no silent blocking. Covered by an IRON regression matrix that verifies exact tool-registration per backend.
 - **Crash recovery on startup.** If the wiki repo has uncommitted changes from a prior crashed write, startup auto-commits them with a `laf-office-recovery` author. No data loss, full trace in `git log`.
 - **Backup mirror + double-fault recovery.** Every commit kicks off a debounced async copy to `~/.laf-office/wiki.bak/`. If the repo corrupts and the backup is healthy, startup restores automatically. If both are corrupt, LAF-Office falls back to `--memory-backend none` with a banner rather than crashing.
@@ -117,7 +117,7 @@ All notable changes to LAF-Office will be documented in this file.
 - **Three design systems, one repo.** `DESIGN.md` covers the pixel-office marketing site (dark, Press Start 2P). `web/src/styles/global.css` covers the general Slack-inspired web app. `DESIGN-WIKI.md` covers the `/wiki` surface (editorial-reference, warm paper, Fraunces + Source Serif 4). Each scope has non-interchangeable rules.
 - **Per-agent wikis are deferred to v1.1.** v1 ships team wiki only. Per-agent `agents/{slug}/` introduces a private-on-filesystem access model that isn't load-bearing for the demo moment.
 - **LLM merge-resolver is deferred to v1.1.** v1 uses serialized writes — no concurrent commits can conflict. Merge-resolver only worth building once the serialized-write path shows measurable pain at real-world load.
-- **Nex compounding intelligence layer (entity briefs, playbook compilation, skill generation) is deferred to v1.1.** These sit additively on top of the markdown files and are disableable — the file-over-app guarantee is preserved forever.
+- **Hosted compounding intelligence layer (entity briefs, playbook compilation, skill generation) is deferred to v1.1.** These sit additively on top of the markdown files and are disableable — the file-over-app guarantee is preserved forever.
 
 ### Internal
 
@@ -173,10 +173,10 @@ All notable changes to LAF-Office will be documented in this file.
 ### Added
 - **Resume in-flight work on restart.** When LAF-Office shuts down with tasks in progress or conversations mid-flight, work now automatically resumes when LAF-Office comes back up. On startup, agents receive a resume packet listing their active tasks (with stage, status, and working directory for worktree-isolated work) and any unanswered human messages awaiting their response. No more orphaned tasks or dropped conversations after a crash or restart.
 - **Spec-compliant routing.** Resume packets route using pack membership: tagged messages go to the tagged agents, untagged messages go to the pack lead. Agents no longer in the current pack are silently skipped. The CEO is always enqueued first in headless mode to bypass the queue-hold guard.
-- **29 new tests** covering in-flight detection, reply-chain parsing, pack membership filtering, 1:1 mode, nil-broker safety, terminal status exclusions (including `completed`), nex-sender inclusion, and the full resume flow in both tmux and headless paths.
+- **29 new tests** covering in-flight detection, reply-chain parsing, pack membership filtering, 1:1 mode, nil-broker safety, terminal status exclusions (including `completed`), and the full resume flow in both tmux and headless paths.
 
 ### Changed
-- `RecentHumanMessages` now includes the `nex` sender alongside `you` and `human`, so Nex automation messages that triggered work are correctly captured in resume packets.
+- `RecentHumanMessages` now includes the automation sender alongside `you` and `human`, so automation messages that triggered work are correctly captured in resume packets.
 - `findUnansweredMessages` now only counts replies from agent senders, so human-to-human thread continuations no longer falsely mark a message as answered.
 
 ## [0.0.1.0] - 2026-04-14

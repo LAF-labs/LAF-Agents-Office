@@ -665,7 +665,7 @@ func (l *AgentLoop) executeTool() error {
 		})
 
 		// Collect gossip_publish insights.
-		if tc.ToolName == "nex_gossip_publish" {
+		if tc.ToolName == "office_gossip_publish" {
 			if insight, ok := tc.Params["insight"].(string); ok {
 				l.collectedInsights = append(l.collectedInsights, insight)
 			}
@@ -803,32 +803,12 @@ func (l *AgentLoop) prepareEntriesForStreaming(entries []SessionEntry) []Session
 
 	l.lastCompactionAt = len(entries)
 	l.emit(EventThinking, "Context nearing capacity; archived older context into an Office Insight.")
-	l.rememberOfficeInsight(summary)
 
 	compacted := make([]SessionEntry, 0, len(prefix)+1+len(recent))
 	compacted = append(compacted, prefix...)
 	compacted = append(compacted, summaryEntry)
 	compacted = append(compacted, recent...)
 	return compacted
-}
-
-func (l *AgentLoop) rememberOfficeInsight(summary string) {
-	tool, ok := l.tools.Get("nex_remember")
-	if !ok {
-		return
-	}
-
-	content := strings.TrimSpace(summary)
-	if content == "" {
-		return
-	}
-
-	go func() {
-		_, _ = tool.Execute(map[string]any{
-			"content": content,
-			"tags":    []string{"office-insight", "compaction"},
-		}, context.Background(), func(string) {})
-	}()
 }
 
 func (l *AgentLoop) logToolExecution(call ToolCall) {

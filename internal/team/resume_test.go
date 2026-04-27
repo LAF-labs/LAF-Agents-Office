@@ -95,20 +95,20 @@ func TestFindUnansweredMessagesHumanThreadReplyDoesNotCountAsAgentAnswer(t *test
 	}
 }
 
-func TestFindUnansweredMessagesNexReplyDoesNotCountAsAgentAnswer(t *testing.T) {
-	// Nex automation messages (kind=automation) are not agent replies.
+func TestFindUnansweredMessagesAutomationReplyDoesNotCountAsAgentAnswer(t *testing.T) {
+	// automation messages (kind=automation) are not agent replies.
 	humanMsgs := []channelMessage{
 		{ID: "h1", From: "you", Content: "What is the status?", Timestamp: "2026-04-14T10:00:00Z"},
 	}
 	allMessages := []channelMessage{
 		{ID: "h1", From: "you", Content: "What is the status?", Timestamp: "2026-04-14T10:00:00Z"},
-		{ID: "n1", From: "nex", Content: "Here is context from Nex", ReplyTo: "h1", Timestamp: "2026-04-14T10:01:00Z"},
+		{ID: "n1", From: "automation", Content: "Here is context from automation", ReplyTo: "h1", Timestamp: "2026-04-14T10:01:00Z"},
 	}
 
 	got := findUnansweredMessages(humanMsgs, allMessages)
-	// h1 should still be unanswered — nex reply is not an agent answer.
+	// h1 should still be unanswered — automation reply is not an agent answer.
 	if len(got) != 1 {
-		t.Fatalf("expected h1 to remain unanswered (nex reply is not an agent answer), got %d: %+v", len(got), got)
+		t.Fatalf("expected h1 to remain unanswered (automation reply is not an agent answer), got %d: %+v", len(got), got)
 	}
 }
 

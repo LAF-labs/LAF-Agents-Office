@@ -40,7 +40,6 @@ const (
 	CapabilityKeyOfficeRuntime = "office_runtime"
 	CapabilityKeyDirectRuntime = "direct_runtime"
 	CapabilityKeyMemory        = "memory"
-	CapabilityKeyNex           = CapabilityKeyMemory
 	CapabilityKeyConnections   = "connections"
 	CapabilityKeyActions       = "actions"
 	CapabilityKeyWorkflows     = "workflows"
@@ -69,10 +68,7 @@ type CapabilityRegistry struct {
 }
 
 var actionProvidersFn = func() []action.Provider {
-	return []action.Provider{
-		action.NewComposioFromEnv(),
-		action.NewOneCLIFromEnv(),
-	}
+	return nil
 }
 
 var actionProviderForCapabilityFn = func(cap action.Capability) (action.Provider, error) {
@@ -277,27 +273,16 @@ func buildMemoryDescriptor() CapabilityDescriptor {
 }
 
 func buildActionCapabilityDescriptor(key, label string, category CapabilityCategory, cap action.Capability) CapabilityDescriptor {
-	if config.ResolveNoNex() {
-		return CapabilityDescriptor{
-			Key:       key,
-			Label:     label,
-			Category:  category,
-			Level:     CapabilityInfo,
-			Lifecycle: CapabilityLifecycleDisabled,
-			Detail:    "Disabled for this session with --no-nex.",
-			NextStep:  "Restart without --no-nex to enable provider-backed actions.",
-		}
-	}
 	provider, err := ResolveActionProviderForCapability(cap)
 	if err != nil {
 		return CapabilityDescriptor{
 			Key:       key,
 			Label:     label,
 			Category:  category,
-			Level:     CapabilityWarn,
-			Lifecycle: CapabilityLifecycleNeedsSetup,
-			Detail:    err.Error(),
-			NextStep:  "Configure a supported action provider or connect the required account.",
+			Level:     CapabilityInfo,
+			Lifecycle: CapabilityLifecycleDeferred,
+			Detail:    "Managed integrations are not available in this build yet.",
+			NextStep:  "Use the markdown team wiki for project memory.",
 		}
 	}
 	return CapabilityDescriptor{
@@ -311,27 +296,16 @@ func buildActionCapabilityDescriptor(key, label string, category CapabilityCateg
 }
 
 func buildConnectionsDescriptor(opts CapabilityProbeOptions) CapabilityDescriptor {
-	if config.ResolveNoNex() {
-		return CapabilityDescriptor{
-			Key:       CapabilityKeyConnections,
-			Label:     "Connected accounts",
-			Category:  CapabilityCategoryAction,
-			Level:     CapabilityInfo,
-			Lifecycle: CapabilityLifecycleDisabled,
-			Detail:    "Disabled for this session with --no-nex.",
-			NextStep:  "Restart without --no-nex to enable live connected accounts.",
-		}
-	}
 	provider, err := ResolveActionProviderForCapability(action.CapabilityConnections)
 	if err != nil {
 		return CapabilityDescriptor{
 			Key:       CapabilityKeyConnections,
 			Label:     "Connected accounts",
 			Category:  CapabilityCategoryAction,
-			Level:     CapabilityWarn,
-			Lifecycle: CapabilityLifecycleNeedsSetup,
-			Detail:    err.Error(),
-			NextStep:  "Configure an action provider and connect an account.",
+			Level:     CapabilityInfo,
+			Lifecycle: CapabilityLifecycleDeferred,
+			Detail:    "Managed integrations are not available in this build yet.",
+			NextStep:  "Use the markdown team wiki for project memory.",
 		}
 	}
 

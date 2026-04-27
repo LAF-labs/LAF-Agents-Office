@@ -162,7 +162,7 @@ start_runtime() {
   shift
 
   cleanup
-  "$BINARY" --no-nex "$@" > "$ARTIFACTS/$PHASE-laf-office-stdout.txt" 2> "$ARTIFACTS/$PHASE-laf-office-stderr.txt" &
+  "$BINARY" "$@" > "$ARTIFACTS/$PHASE-laf-office-stdout.txt" 2> "$ARTIFACTS/$PHASE-laf-office-stderr.txt" &
   LAF_OFFICE_PID=$!
   sleep 8
   local attached=false

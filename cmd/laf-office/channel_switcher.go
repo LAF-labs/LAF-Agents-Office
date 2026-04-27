@@ -44,8 +44,6 @@ func (m channelModel) buildWorkspaceSwitcherOptions() []tui.PickerOption {
 			tui.PickerOption{Label: "Recovery", Value: "app:recovery", Description: m.recoverySwitcherDescription(workspace)},
 			tui.PickerOption{Label: "Tasks", Value: "app:tasks", Description: "Active work in #" + m.activeChannel},
 			tui.PickerOption{Label: "Requests", Value: "app:requests", Description: "Human decisions and interviews"},
-			tui.PickerOption{Label: "Policies", Value: "app:policies", Description: "Signals, decisions, and watchdogs"},
-			tui.PickerOption{Label: "Calendar", Value: "app:calendar", Description: "Scheduled work and follow-ups"},
 			tui.PickerOption{Label: "Artifacts", Value: "app:artifacts", Description: "Task logs, workflow runs, and approvals"},
 			tui.PickerOption{Label: "Skills", Value: "app:skills", Description: "Reusable skills and workflows"},
 		)

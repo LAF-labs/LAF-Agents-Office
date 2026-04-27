@@ -18,8 +18,9 @@ vi.mock("../../api/client", async () => {
   };
 });
 
-import { post } from "../../api/client";
+import { get, post } from "../../api/client";
 
+const getMock = vi.mocked(get);
 const postMock = vi.mocked(post);
 
 function pressEnterOn(
@@ -36,9 +37,46 @@ function pressEnterOn(
   window.dispatchEvent(ev);
 }
 
+async function advanceToSetupStep() {
+  pressEnterOn(window);
+  await waitFor(() => screen.getByLabelText(/Company or project name/i));
+
+  fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+    target: { value: "Acme" },
+  });
+  fireEvent.change(screen.getByLabelText(/One-liner description/i), {
+    target: { value: "We do things" },
+  });
+
+  pressEnterOn(window);
+  await waitFor(() => screen.getByText(/What should your office run\?/i));
+  pressEnterOn(window);
+  await waitFor(() => screen.getByText(/Your team/i));
+  pressEnterOn(window);
+  await waitFor(() => screen.getByText(/How should agents run\?/i));
+}
+
+async function finishFromSetupWithoutTask() {
+  fireEvent.click(screen.getByRole("button", { name: /Ready/i }));
+  await waitFor(() =>
+    screen.getByText(/What should the team work on first\?/i),
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
+  await waitFor(() => screen.getByText(/You're set/i));
+  fireEvent.click(screen.getByRole("button", { name: /Get started/i }));
+}
+
 beforeEach(() => {
-  postMock.mockClear();
+  getMock.mockReset();
+  getMock.mockImplementation(async (path: string) => {
+    if (path === "/onboarding/prereqs") return { prereqs: [] };
+    if (path === "/onboarding/blueprints") return { templates: [] };
+    return {};
+  });
+  postMock.mockReset();
+  postMock.mockResolvedValue({});
   useAppStore.setState({
+    language: "en",
     onboardingComplete: false,
   });
 });
@@ -50,6 +88,94 @@ afterEach(() => {
 });
 
 describe("Wizard keyboard advancement", () => {
+  it("renders Korean onboarding copy when Korean is selected", async () => {
+    useAppStore.setState({ language: "ko" });
+
+    render(<Wizard onComplete={vi.fn()} />);
+
+    expect(
+      screen.getByText("공유 두뇌를 가진 AI 직원용 오피스."),
+    ).toBeInTheDocument();
+
+    pressEnterOn(window);
+
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText(/회사 또는 프로젝트 이름/i),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("keeps API key fallback collapsed when Codex CLI is detected", async () => {
+    getMock.mockImplementation(async (path: string) => {
+      if (path === "/onboarding/prereqs") {
+        return {
+          prereqs: [
+            {
+              name: "codex",
+              required: false,
+              found: true,
+              version: "codex-cli 0.125.0-alpha.3",
+            },
+          ],
+        };
+      }
+      if (path === "/onboarding/blueprints") return { templates: [] };
+      return {};
+    });
+
+    render(<Wizard onComplete={vi.fn()} />);
+    await advanceToSetupStep();
+
+    expect(screen.getByText(/Codex CLI detected/i)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("OPENAI_API_KEY")).toBeNull();
+    expect(screen.queryByText(/GPT Actions OAuth/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /API key fallback/i }));
+    expect(screen.getByPlaceholderText("OPENAI_API_KEY")).toBeInTheDocument();
+  });
+
+  it("does not expose the deferred GPT OAuth gateway during onboarding", async () => {
+    render(<Wizard onComplete={vi.fn()} />);
+    await advanceToSetupStep();
+
+    expect(screen.queryByText("GPT OAuth gateway")).toBeNull();
+    expect(screen.queryByText(/OpenClaw/i)).toBeNull();
+    expect(screen.queryByLabelText("Gateway URL")).toBeNull();
+    expect(screen.queryByLabelText("Gateway token")).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("OPENAI_API_KEY"), {
+      target: { value: "sk-test" },
+    });
+
+    await finishFromSetupWithoutTask();
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith(
+        "/config",
+        expect.objectContaining({
+          openai_api_key: "sk-test",
+        }),
+      );
+    });
+    expect(postMock).not.toHaveBeenCalledWith(
+      "/gpt/oauth/clients",
+      expect.anything(),
+    );
+    for (const call of postMock.mock.calls) {
+      expect(call[1]).not.toEqual(
+        expect.objectContaining({
+          openclaw_gateway_url: expect.anything(),
+        }),
+      );
+      expect(call[1]).not.toEqual(
+        expect.objectContaining({
+          openclaw_token: expect.anything(),
+        }),
+      );
+    }
+  });
+
   it("Enter on the welcome step advances to the Identity step", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     // Welcome CTA is visible
@@ -156,40 +282,5 @@ describe("Wizard keyboard advancement", () => {
         screen.getByText(/What should your office run\?/i),
       ).toBeInTheDocument();
     });
-  });
-
-  it("Enter in the Nex signup email submits the panel instead of advancing the step", async () => {
-    render(<Wizard onComplete={vi.fn()} />);
-    pressEnterOn(window); // → identity
-    await waitFor(() => screen.getByLabelText(/Company or project name/i));
-
-    // Fill fields so the identity gate would normally allow advancement
-    fireEvent.change(screen.getByLabelText(/Company or project name/i), {
-      target: { value: "Acme" },
-    });
-    fireEvent.change(screen.getByLabelText(/One-liner description/i), {
-      target: { value: "We do things" },
-    });
-
-    // Open the Nex signup panel
-    const trigger = screen.getByText(/Don.?t have a Nex account/i);
-    fireEvent.click(trigger);
-
-    const emailInput = await waitFor(() => screen.getByLabelText("Email"));
-    fireEvent.change(emailInput, { target: { value: "me@example.com" } });
-
-    // Pressing Enter inside the email field should call /nex/register and
-    // should NOT advance to the templates step.
-    fireEvent.keyDown(emailInput, { key: "Enter" });
-
-    await waitFor(() => {
-      expect(postMock).toHaveBeenCalledWith("/nex/register", {
-        email: "me@example.com",
-      });
-    });
-    // Still on the identity step
-    expect(
-      screen.getByLabelText(/Company or project name/i),
-    ).toBeInTheDocument();
   });
 });

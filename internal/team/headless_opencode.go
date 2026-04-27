@@ -38,7 +38,6 @@ var headlessOpencodeSecretEnvVars = []string{
 	product.Env("BROKER_TOKEN"),
 	product.Env("API_KEY"),
 	product.Env("OPENAI_API_KEY"),
-	"NEX_API_KEY",
 	"ONE_SECRET",
 }
 
@@ -393,7 +392,7 @@ func safeHeadlessOpencodeConfigSlug(slug string) string {
 }
 
 // buildHeadlessOpencodeMCPEntry constructs the `mcp.laf-office` block for
-// opencode.json. The LAF-Office-managed secrets (broker token, identity, Nex API
+// opencode.json. The LAF-Office-managed secrets (broker token, identity, API
 // key) live inside the MCP `environment` map — opencode forwards these only
 // to the MCP subprocess, not to the model backend. This scoping is the
 // security boundary that makes it safe to add a third-party provider like
@@ -411,27 +410,11 @@ func (l *Launcher) buildHeadlessOpencodeMCPEntry(lafOfficeBinary string, slug st
 	if l != nil && l.broker != nil {
 		envMap["LAF_OFFICE_BROKER_TOKEN"] = l.broker.Token()
 	}
-	if config.ResolveNoNex() {
-		envMap["LAF_OFFICE_NO_NEX"] = "1"
-	}
 	if l != nil && l.isOneOnOne() {
 		envMap["LAF_OFFICE_ONE_ON_ONE"] = "1"
 		if v := strings.TrimSpace(l.oneOnOneAgent()); v != "" {
 			envMap["LAF_OFFICE_ONE_ON_ONE_AGENT"] = v
 		}
-	}
-	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
-		envMap["ONE_SECRET"] = secret
-	}
-	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		envMap["ONE_IDENTITY"] = identity
-		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			envMap["ONE_IDENTITY_TYPE"] = identityType
-		}
-	}
-	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-		envMap["LAF_OFFICE_API_KEY"] = apiKey
-		envMap["NEX_API_KEY"] = apiKey
 	}
 	entry["environment"] = envMap
 	return entry

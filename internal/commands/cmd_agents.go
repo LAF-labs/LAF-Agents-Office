@@ -234,17 +234,11 @@ func resolveBrokerBaseURL() string {
 	if v := strings.TrimSpace(os.Getenv(product.Env("TEAM_BROKER_URL"))); v != "" {
 		return strings.TrimRight(v, "/")
 	}
-	if v := strings.TrimSpace(os.Getenv("NEX_TEAM_BROKER_URL")); v != "" {
-		return strings.TrimRight(v, "/")
-	}
 	return "http://127.0.0.1:18779"
 }
 
 func resolveBrokerToken() string {
 	if v := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN"))); v != "" {
-		return v
-	}
-	if v := strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN")); v != "" {
 		return v
 	}
 	if path := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN_FILE"))); path != "" {

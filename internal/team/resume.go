@@ -22,16 +22,16 @@ var staleUnansweredThreshold = time.Hour
 // source (not an agent). Only agent replies count as "answers".
 func isHumanOrSystemSender(from string) bool {
 	f := strings.ToLower(strings.TrimSpace(from))
-	return f == "you" || f == "human" || f == "nex" || f == "system" || f == ""
+	return f == "you" || f == "human" || f == "automation" || f == "system" || f == ""
 }
 
 // findUnansweredMessages returns the subset of humanMsgs that have received no
 // agent reply in allMessages. A human message is considered "answered" only when
-// at least one AGENT message (not human/nex/system) in allMessages has ReplyTo
+// at least one AGENT message (not human/automation/system) in allMessages has ReplyTo
 // set to that human message's ID.
 func findUnansweredMessages(humanMsgs, allMessages []channelMessage) []channelMessage {
 	// Build a set of human message IDs that have been replied to by agents.
-	// Skip replies from human/nex/system senders — only agent replies count.
+	// Skip replies from human/automation/system senders — only agent replies count.
 	replied := make(map[string]struct{})
 	for _, msg := range allMessages {
 		if msg.ReplyTo == "" {

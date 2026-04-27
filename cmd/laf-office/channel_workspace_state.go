@@ -46,7 +46,6 @@ type workspaceUIState struct {
 	NextStep        string
 	NeedsYou        *channelInterview
 	PrimaryTask     *channelTask
-	NoNex           bool
 }
 
 func (m channelModel) currentWorkspaceUIState() workspaceUIState {
@@ -68,7 +67,6 @@ func (m channelModel) currentWorkspaceUIState() workspaceUIState {
 		AwaySummary:     awaySummary,
 		Focus:           trimRecoverySentence(snapshot.Recovery.Focus),
 		Memory:          team.ResolveMemoryBackendStatus(),
-		NoNex:           config.ResolveNoNex(),
 	}
 
 	for _, req := range snapshot.Requests {
@@ -335,10 +333,6 @@ func (s workspaceUIState) sidebarHintLine() string {
 		return s.Readiness.NextStep
 	case strings.TrimSpace(s.AwaySummary) != "" && s.UnreadCount > 0:
 		return "While away: " + s.AwaySummary
-	case s.Memory.SelectedKind == config.MemoryBackendNex && s.Memory.ActiveKind == config.MemoryBackendNone:
-		return "/init finishes Nex setup · /doctor explains what is missing"
-	case s.Memory.SelectedKind == config.MemoryBackendGBrain && s.Memory.ActiveKind == config.MemoryBackendNone:
-		return firstWorkspaceString(s.Memory.NextStep, "/doctor explains what is missing")
 	case strings.TrimSpace(s.NextStep) != "":
 		return s.NextStep
 	case strings.TrimSpace(s.Focus) != "":
@@ -377,7 +371,7 @@ func (m channelModel) buildOfficeIntroLines(contentWidth int) []renderedLine {
 		{Text: ""},
 	}
 	title := subtlePill("office", "#F8FAFC", "#1264A3") + " " + lipgloss.NewStyle().Bold(true).Render("LAF-Office")
-	body := "Welcome to LAF-Office. Live company-building coordination across channels, direct sessions, tasks, and decisions. Michael Scott would be proud — and also confused, but mostly proud."
+	body := "Welcome to LAF-Office. Live company-building coordination across channels, direct sessions, tasks, and decisions."
 	extra := []string{
 		fmt.Sprintf("%d teammates · %d running tasks · %d open requests", state.PeerCount, state.RunningTasks, state.OpenRequests),
 	}
@@ -407,7 +401,7 @@ func (m channelModel) buildOfficeIntroLines(contentWidth int) []renderedLine {
 		lines = append(lines, state.needsYouLines(contentWidth)...)
 	} else {
 		lines = append(lines, renderedLine{Text: ""})
-		lines = append(lines, renderedLine{Text: mutedStyle.Render("  Suggested: /switcher for active work, /recover for context, or tag a teammate in #general. Bears. Beets. Ship it.")})
+		lines = append(lines, renderedLine{Text: mutedStyle.Render("  Suggested: /switcher for active work, /recover for context, or tag a teammate in #general.")})
 	}
 	return lines
 }
@@ -420,7 +414,7 @@ func (m channelModel) buildDirectIntroLines(contentWidth int) []renderedLine {
 		{Text: ""},
 	}
 	title := subtlePill("1:1", "#F8FAFC", "#334155") + " " + lipgloss.NewStyle().Bold(true).Render("Direct session with "+m.oneOnOneAgentName())
-	body := "Direct session reset. Agent pane reloaded in place. This surface is just you and the selected agent. No office channels, no colleague chatter, no Toby. The door is closed."
+	body := "Direct session reset. Agent pane reloaded in place. This surface is just you and the selected agent."
 	extra := []string{"Use /switcher to jump back to the office."}
 	if strings.TrimSpace(state.Focus) != "" {
 		extra = append(extra, "Focus: "+state.Focus)
@@ -438,7 +432,7 @@ func (m channelModel) buildDirectIntroLines(contentWidth int) []renderedLine {
 			lines = append(lines, renderedLine{Text: "  " + line})
 		}
 	} else {
-		lines = append(lines, renderedLine{Text: mutedStyle.Render("  Suggested: ask for planning help, a review pass, or a direct decision memo. Dwight would want a full briefing first. You do not have to do that.")})
+		lines = append(lines, renderedLine{Text: mutedStyle.Render("  Suggested: ask for planning help, a review pass, or a direct decision memo.")})
 	}
 	return lines
 }

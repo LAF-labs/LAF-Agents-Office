@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   BookStack,
-  Calendar,
   ChatBubble,
   CheckCircle,
   ClipboardCheck,
@@ -19,10 +18,7 @@ import {
   Package,
   Page,
   Play,
-  Search,
   Settings as SettingsIcon,
-  ShareAndroid,
-  Shield,
   SidebarExpand,
 } from "iconoir-react";
 
@@ -39,13 +35,9 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   wiki: BookStack,
   tasks: CheckCircle,
   requests: ClipboardCheck,
-  graph: ShareAndroid,
-  policies: Shield,
-  calendar: Calendar,
   skills: Flash,
   activity: Package,
   receipts: Page,
-  "health-check": Search,
   settings: SettingsIcon,
 };
 

@@ -67,7 +67,7 @@ trap cleanup EXIT
 start_laf_office() {
   local label="$1"
   echo "[smoke] starting laf-office ($label)"
-  "$BIN" --no-open --broker-port "$broker_port" --web-port "$web_port" --no-nex \
+  "$BIN" --no-open --broker-port "$broker_port" --web-port "$web_port" \
     </dev/null > "$sandbox/laf-office-$label.log" 2>&1 &
   pid=$!
   for _ in $(seq 1 30); do

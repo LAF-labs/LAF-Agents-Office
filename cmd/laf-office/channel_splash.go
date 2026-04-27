@@ -14,7 +14,7 @@ import (
 
 // ── Splash phases ───────────────────────────────────────────────
 //
-// The splash is a scripted sequence inspired by The Office intro:
+// The splash is a scripted sequence for the local workspace intro:
 //
 //   Phase 0: Cast entrance — characters appear one by one
 //   Phase 1: Full cast visible, brief beat

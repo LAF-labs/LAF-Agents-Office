@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
-	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
 )
@@ -35,7 +33,6 @@ const (
 	InitMemoryChoice     InitPhase = "memory_choice"
 	InitGBrainOpenAIKey  InitPhase = "gbrain_openai_key"
 	InitGBrainAnthropKey InitPhase = "gbrain_anthropic_key"
-	InitNexRegister      InitPhase = "nex_register"
 	InitBlueprintChoice  InitPhase = "blueprint_choice"
 	InitPackChoice       InitPhase = "pack_choice" // legacy alias
 	InitDone             InitPhase = "done"
@@ -79,10 +76,6 @@ func (f InitFlowModel) Start() (InitFlowModel, tea.Cmd) {
 	f.memory = config.ResolveMemoryBackend("")
 	if cfg, err := config.Load(); err == nil {
 		f.blueprint = cfg.ActiveBlueprint()
-	}
-	if f.apiKey == "" {
-		f.phase = InitAPIKey
-		return f, f.emitPhase(InitAPIKey)
 	}
 	f.phase = InitProviderChoice
 	return f, f.emitPhase(InitProviderChoice)
@@ -145,15 +138,6 @@ func (f InitFlowModel) advanceAfterMemoryChoice() (InitFlowModel, tea.Cmd) {
 		// Key already configured, skip to blueprint.
 		f.phase = InitBlueprintChoice
 		return f, f.emitPhase(InitBlueprintChoice)
-	case config.MemoryBackendNex:
-		// Nex requires a Nex identity. If no API key is configured, prompt
-		// the user to register via email.
-		if config.ResolveAPIKey("") == "" {
-			f.phase = InitNexRegister
-			return f, f.emitPhase(InitNexRegister)
-		}
-		f.phase = InitBlueprintChoice
-		return f, f.emitPhase(InitBlueprintChoice)
 	default:
 		f.phase = InitBlueprintChoice
 		return f, f.emitPhase(InitBlueprintChoice)
@@ -162,14 +146,14 @@ func (f InitFlowModel) advanceAfterMemoryChoice() (InitFlowModel, tea.Cmd) {
 
 func (f InitFlowModel) requiresTextInput() bool {
 	switch f.phase {
-	case InitAPIKey, InitGBrainOpenAIKey, InitGBrainAnthropKey, InitNexRegister:
+	case InitAPIKey, InitGBrainOpenAIKey, InitGBrainAnthropKey:
 		return true
 	}
 	return false
 }
 
 // updateTextInput handles keystrokes during any text-entry phase
-// (API key, GBrain OpenAI/Anthropic keys, Nex email registration).
+// (API key or GBrain OpenAI/Anthropic keys).
 func (f InitFlowModel) updateTextInput(msg tea.KeyMsg) (InitFlowModel, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -243,24 +227,6 @@ func (f InitFlowModel) submitTextInput(value string) (InitFlowModel, tea.Cmd) {
 		f.phase = InitBlueprintChoice
 		return f, f.emitPhase(InitBlueprintChoice)
 
-	case InitNexRegister:
-		if value == "" {
-			f.keyError = "Email is required to register with Nex."
-			return f, nil
-		}
-		// Shell out to nex-cli register synchronously. The TUI will block
-		// briefly (nex-cli should be fast), then proceed.
-		_, err := nex.Register(context.Background(), value)
-		if err != nil {
-			f.keyError = "Registration failed: " + err.Error()
-			return f, nil
-		}
-		f.keyError = ""
-		f.keyInput = nil
-		// Reload API key since register should have written it.
-		f.apiKey = strings.TrimSpace(config.ResolveAPIKey(""))
-		f.phase = InitBlueprintChoice
-		return f, f.emitPhase(InitBlueprintChoice)
 	}
 	return f, nil
 }
@@ -322,23 +288,13 @@ func ProviderOptions() []PickerOption {
 }
 
 // MemoryOptions returns the picker options for organizational memory backend
-// selection. Order matches the recommended default-first, then opt-out.
+// selection. The current product surface uses the git-native team wiki only.
 func MemoryOptions() []PickerOption {
 	return []PickerOption{
 		{
-			Label:       "Nex (recommended)",
-			Value:       config.MemoryBackendNex,
-			Description: "Hosted org memory: entity briefs, shared notes, and search backed by your Nex identity.",
-		},
-		{
-			Label:       "GBrain",
-			Value:       config.MemoryBackendGBrain,
-			Description: "Local-first knowledge graph CLI. Good when you want everything on your machine.",
-		},
-		{
-			Label:       "No shared memory",
-			Value:       config.MemoryBackendNone,
-			Description: "Skip the memory layer. Agents only know what's in the current conversation.",
+			Label:       "Team wiki (default)",
+			Value:       config.MemoryBackendMarkdown,
+			Description: "Git-native LLM wiki under ~/.laf-office/wiki. No hosted memory service.",
 		},
 	}
 }
@@ -392,7 +348,7 @@ func legacyPackOptions() []PickerOption {
 // View renders the current phase and instructions.
 func (f InitFlowModel) View() string {
 	heading, instructions := f.phaseText()
-	labelStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(NexPurple))
+	labelStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(BrandPurple))
 	muteStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(MutedColor))
 
 	view := labelStyle.Render(heading) + "\n" + muteStyle.Render(instructions)
@@ -419,12 +375,10 @@ func (f InitFlowModel) renderAPIKeyInput() string {
 		label = "OpenAI Key: "
 	case InitGBrainAnthropKey:
 		label = "Anthropic Key (Enter to skip): "
-	case InitNexRegister:
-		label = "Email: "
 	default:
 		label = "API Key: "
 	}
-	prompt := lipgloss.NewStyle().Foreground(lipgloss.Color(NexBlue)).Bold(true).Render(label)
+	prompt := lipgloss.NewStyle().Foreground(lipgloss.Color(BrandBlue)).Bold(true).Render(label)
 
 	display := prompt + input + cursorStyle.Render(" ")
 
@@ -442,7 +396,7 @@ func (f InitFlowModel) renderReadinessSummary() string {
 		return ""
 	}
 
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(NexBlue))
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(BrandBlue))
 	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(MutedColor))
 
 	lines := []string{
@@ -481,10 +435,6 @@ func readinessStatusColor(status string) string {
 }
 
 func (f InitFlowModel) readinessChecks() []initReadinessCheck {
-	effectiveAPIKey := strings.TrimSpace(f.apiKey)
-	if effectiveAPIKey == "" {
-		effectiveAPIKey = strings.TrimSpace(config.ResolveAPIKey(""))
-	}
 	provider := strings.TrimSpace(f.provider)
 	if provider == "" {
 		provider = "claude-code"
@@ -495,11 +445,6 @@ func (f InitFlowModel) readinessChecks() []initReadinessCheck {
 	}
 
 	checks := []initReadinessCheck{
-		{
-			Label:  "Nex identity",
-			Status: readinessStatusForBool(effectiveAPIKey != ""),
-			Detail: apiKeyReadinessDetail(effectiveAPIKey != ""),
-		},
 		{
 			Label:  "tmux office runtime",
 			Status: readinessStatusForBool(binaryAvailable("tmux")),
@@ -567,13 +512,6 @@ func readinessStatusForOptional(set bool) string {
 	return "next"
 }
 
-func apiKeyReadinessDetail(ok bool) string {
-	if ok {
-		return "LAF-Office/Nex API key is configured."
-	}
-	return "Paste your LAF-Office/Nex API key to enable memory and managed integrations."
-}
-
 func blueprintReadinessStatus(blueprint string) string {
 	if strings.TrimSpace(blueprint) == "" {
 		return "next"
@@ -592,7 +530,7 @@ func blueprintReadinessDetail(blueprint string) string {
 
 func memoryReadinessStatus(backend string) string {
 	switch config.NormalizeMemoryBackend(backend) {
-	case config.MemoryBackendNex, config.MemoryBackendGBrain:
+	case config.MemoryBackendMarkdown:
 		return "ready"
 	case config.MemoryBackendNone:
 		return "next"
@@ -603,10 +541,8 @@ func memoryReadinessStatus(backend string) string {
 
 func memoryReadinessDetail(backend string) string {
 	switch config.NormalizeMemoryBackend(backend) {
-	case config.MemoryBackendNex:
-		return "Hosted org memory via Nex."
-	case config.MemoryBackendGBrain:
-		return "Local knowledge graph via GBrain CLI."
+	case config.MemoryBackendMarkdown:
+		return "Git-native team wiki in ~/.laf-office/wiki."
 	case config.MemoryBackendNone:
 		return "No shared memory. Agents only know what's in the current conversation."
 	default:
@@ -637,8 +573,6 @@ func providerRuntimeDetail(provider string) string {
 		return binaryReadinessDetail("opencode", "Opencode CLI is ready for teammate sessions.", "Install opencode or pick another provider.")
 	case "gemini":
 		return "Gemini uses an API key. No local CLI is required."
-	case "nex-ask":
-		return "Managed through Nex. LAF-Office will route requests through your Nex identity."
 	default:
 		return provider + " is selected."
 	}
@@ -661,23 +595,21 @@ func (f InitFlowModel) phaseText() (heading, instructions string) {
 	case InitIdle:
 		return "Setup", "Run /init to begin."
 	case InitAPIKey:
-		return "Enter Nex API Key", "Paste your LAF-Office/Nex API key. LAF-Office uses One for integrations and manages it automatically through your Nex identity."
+		return "Enter API Key", "Paste an API key for the selected provider."
 	case InitProviderChoice:
-		return "Choose LLM Provider", "Select your preferred AI provider. Integrations are handled automatically through Nex using One."
+		return "Choose LLM Provider", "Select your preferred AI provider."
 	case InitMemoryChoice:
-		return "Choose Memory Backend", "Where should the office remember what it learns? Nex is hosted org memory, GBrain is a local knowledge graph, or skip for no shared memory."
+		return "Choose Memory Backend", "Where should the office remember what it learns? Team wiki is the default git-native LLM wiki."
 	case InitGBrainOpenAIKey:
-		return "Enter OpenAI API Key", "GBrain uses OpenAI for embeddings. Paste your OpenAI API key (starts with sk-)."
+		return "Enter OpenAI API Key", "Paste your OpenAI API key (starts with sk-)."
 	case InitGBrainAnthropKey:
-		return "Enter Anthropic API Key (optional)", "GBrain can optionally use Anthropic for reasoning. Press Enter to skip, or paste your key."
-	case InitNexRegister:
-		return "Register with Nex", "Enter your email to create or connect your Nex identity. This enables shared memory, entity briefs, and integrations."
+		return "Enter Anthropic API Key (optional)", "Press Enter to skip, or paste your key."
 	case InitBlueprintChoice, InitPackChoice:
 		return "Choose Operation Template", "Select the blueprint or template that will seed your startup."
 	case InitDone:
 		blueprintName := blueprintDisplayName(f.blueprint)
 		memoryName := config.MemoryBackendLabel(f.memory)
-		return "Setup Complete", "Provider: " + f.provider + " | Memory: " + memoryName + " | Blueprint: " + blueprintName + ". " + config.OneSetupBlurb()
+		return "Setup Complete", "Provider: " + f.provider + " | Memory: " + memoryName + " | Blueprint: " + blueprintName + "."
 	default:
 		return "Setup", "Run /init to begin."
 	}

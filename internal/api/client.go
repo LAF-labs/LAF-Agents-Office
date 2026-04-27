@@ -1,4 +1,4 @@
-// Package api provides the HTTP client for communicating with the Nex API.
+// Package api provides a small HTTP client for legacy LAF-Office API calls.
 package api
 
 import (
@@ -15,7 +15,7 @@ import (
 
 const defaultTimeout = 120 * time.Second
 
-// Client is the Nex HTTP client.
+// Client is a generic JSON HTTP client.
 type Client struct {
 	BaseURL    string
 	APIKey     string
@@ -181,7 +181,5 @@ func Delete[T any](c *Client, path string, timeout time.Duration) (T, error) {
 	return request[T](c, http.MethodDelete, c.BaseURL+path, nil, timeout)
 }
 
-// Registration has moved off the legacy HTTP API. Callers that need to
-// register a LAF-Office user now shell out via internal/nex.Register, which
-// drives the nex-cli binary. RegisterRequest is kept in this package for
-// backwards compatibility with existing JSON callers only.
+// Registration has moved off the legacy HTTP API. RegisterRequest is kept in
+// this package for backwards compatibility with existing JSON callers only.

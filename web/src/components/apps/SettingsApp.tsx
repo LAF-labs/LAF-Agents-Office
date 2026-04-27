@@ -14,12 +14,9 @@ import {
   Copy,
   Key,
   PeopleTag,
-  Puzzle,
   Refresh,
   SendMail,
   Settings as SettingsIcon,
-  Terminal,
-  Timer,
   WarningTriangle,
 } from "iconoir-react";
 
@@ -38,19 +35,11 @@ import {
   updateConfig,
   type WorkspaceWipeResult,
 } from "../../api/client";
-import { type I18nKey, useI18n } from "../../lib/i18n";
+import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 
-type SectionId =
-  | "general"
-  | "team"
-  | "company"
-  | "keys"
-  | "integrations"
-  | "intervals"
-  | "flags"
-  | "danger";
+type SectionId = "general" | "team" | "company" | "keys" | "danger";
 
 interface Section {
   id: SectionId;
@@ -60,9 +49,6 @@ interface Section {
     | "settings.section.team"
     | "settings.section.company"
     | "settings.section.keys"
-    | "settings.section.integrations"
-    | "settings.section.intervals"
-    | "settings.section.flags"
     | "settings.section.danger";
 }
 
@@ -90,21 +76,7 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
   {
     labelKey: "settings.group.credentials",
-    items: [
-      { id: "keys", Icon: Key, nameKey: "settings.section.keys" },
-      {
-        id: "integrations",
-        Icon: Puzzle,
-        nameKey: "settings.section.integrations",
-      },
-    ],
-  },
-  {
-    labelKey: "settings.group.system",
-    items: [
-      { id: "intervals", Icon: Timer, nameKey: "settings.section.intervals" },
-      { id: "flags", Icon: Terminal, nameKey: "settings.section.flags" },
-    ],
+    items: [{ id: "keys", Icon: Key, nameKey: "settings.section.keys" }],
   },
   {
     labelKey: "settings.group.advanced",
@@ -312,6 +284,16 @@ const styles = {
     paddingBottom: 6,
     borderBottom: "1px solid var(--border-light)",
   } as const,
+  emptyState: {
+    border: "1px solid var(--border-light)",
+    borderRadius: 6,
+    background: "var(--bg-warm)",
+    color: "var(--text-secondary)",
+    fontSize: 13,
+    lineHeight: 1.5,
+    padding: "12px 14px",
+    marginBottom: 20,
+  } as const,
 };
 
 // ─── Small components ───────────────────────────────────────────────────
@@ -421,7 +403,6 @@ function GeneralSection({ cfg, save }: SectionProps) {
   const { language, t } = useI18n();
   const setLanguage = useAppStore((s) => s.setLanguage);
   const [provider, setProvider] = useState(cfg.llm_provider ?? "claude-code");
-  const [memory, setMemory] = useState(cfg.memory_backend ?? "nex");
   const [teamLead, setTeamLead] = useState(cfg.team_lead_slug ?? "");
   const [maxConcurrent, setMaxConcurrent] = useState(
     cfg.max_concurrent_agents ? String(cfg.max_concurrent_agents) : "",
@@ -430,17 +411,13 @@ function GeneralSection({ cfg, save }: SectionProps) {
   const [timeout, setTimeout] = useState(
     cfg.default_timeout ? String(cfg.default_timeout) : "",
   );
-  const [blueprint, setBlueprint] = useState(cfg.blueprint ?? "");
-  const [email, setEmail] = useState(cfg.email ?? "");
   const [devUrl, setDevUrl] = useState(cfg.dev_url ?? "");
 
   const onSave = async () => {
     const patch: ConfigUpdate = {
       llm_provider: provider as ConfigUpdate["llm_provider"],
-      memory_backend: memory as ConfigUpdate["memory_backend"],
+      memory_backend: "markdown",
       default_format: format,
-      blueprint,
-      email,
       dev_url: devUrl,
       team_lead_slug: teamLead,
     };
@@ -502,17 +479,6 @@ function GeneralSection({ cfg, save }: SectionProps) {
           <option value="opencode">Opencode</option>
         </select>
       </Field>
-      <Field label={t("settings.general.memory")} hint="--memory-backend">
-        <select
-          style={styles.input}
-          value={memory}
-          onChange={(e) => setMemory(e.target.value as typeof memory)}
-        >
-          <option value="nex">Nex</option>
-          <option value="gbrain">GBrain</option>
-          <option value="none">{t("settings.general.memoryNone")}</option>
-        </select>
-      </Field>
 
       <div style={{ ...styles.groupTitle, marginTop: 24 }}>
         {t("settings.general.agentsGroup")}
@@ -570,35 +536,15 @@ function GeneralSection({ cfg, save }: SectionProps) {
       </Field>
 
       <div style={{ ...styles.groupTitle, marginTop: 24 }}>
-        {t("settings.general.identityGroup")}
+        {t("settings.general.developmentGroup")}
       </div>
-      <Field label={t("settings.general.blueprint")} hint="--blueprint">
-        <input
-          style={styles.input}
-          placeholder={t("settings.general.blueprintHint")}
-          value={blueprint}
-          onChange={(e) => setBlueprint(e.target.value)}
-        />
-      </Field>
-      <Field
-        label={t("settings.general.email")}
-        hint={t("settings.general.emailHint")}
-      >
-        <input
-          style={styles.input}
-          type="email"
-          placeholder="you@company.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </Field>
       <Field
         label={t("settings.general.devUrl")}
         hint={t("settings.general.devUrlHint")}
       >
         <input
           style={styles.input}
-          placeholder="https://app.nex.ai"
+          placeholder="http://localhost:7890"
           value={devUrl}
           onChange={(e) => setDevUrl(e.target.value)}
         />
@@ -1164,8 +1110,8 @@ const KEY_DEFS: KeyDef[] = [
   {
     field: "api_key",
     flag: "api_key_set",
-    label: "Nex API Key",
-    placeholder: "nex_...",
+    label: "LAF-Office API Key",
+    placeholder: "key_...",
     env: "LAF_OFFICE_API_KEY",
   },
   {
@@ -1195,27 +1141,6 @@ const KEY_DEFS: KeyDef[] = [
     label: "Minimax",
     placeholder: "mm-...",
     env: "MINIMAX_API_KEY",
-  },
-  {
-    field: "one_api_key",
-    flag: "one_key_set",
-    label: "One (integration)",
-    placeholder: "one_...",
-    env: "ONE_SECRET",
-  },
-  {
-    field: "composio_api_key",
-    flag: "composio_key_set",
-    label: "Composio",
-    placeholder: "cmp_...",
-    env: "COMPOSIO_API_KEY",
-  },
-  {
-    field: "telegram_bot_token",
-    flag: "telegram_token_set",
-    label: "Telegram Bot",
-    placeholder: "123456:ABC...",
-    env: "LAF_OFFICE_TELEGRAM_BOT_TOKEN",
   },
 ];
 
@@ -1258,289 +1183,6 @@ function KeysSection({ cfg, save }: SectionProps) {
       ))}
 
       <SaveButton label={t("settings.keys.save")} onSave={onSave} />
-    </div>
-  );
-}
-
-function IntegrationsSection({ cfg, save }: SectionProps) {
-  const { t } = useI18n();
-  const [actionProvider, setActionProvider] = useState<string>(
-    cfg.action_provider ?? "auto",
-  );
-  const [gatewayUrl, setGatewayUrl] = useState(cfg.openclaw_gateway_url ?? "");
-  const [openclawToken, setOpenclawToken] = useState("");
-
-  const onSave = async () => {
-    const patch: ConfigUpdate = {
-      action_provider: actionProvider as ConfigUpdate["action_provider"],
-    };
-    if (gatewayUrl) patch.openclaw_gateway_url = gatewayUrl;
-    if (openclawToken) patch.openclaw_token = openclawToken;
-    await save(patch);
-    setOpenclawToken("");
-  };
-
-  return (
-    <div>
-      <h2 style={styles.sectionTitle}>{t("settings.integrations.title")}</h2>
-      <p style={styles.sectionDesc}>{t("settings.integrations.desc")}</p>
-
-      <Field
-        label={t("settings.integrations.actionProvider")}
-        hint={t("settings.integrations.actionProviderHint")}
-      >
-        <select
-          style={styles.input}
-          value={actionProvider}
-          onChange={(e) => setActionProvider(e.target.value)}
-        >
-          <option value="auto">{t("settings.integrations.auto")}</option>
-          <option value="one">One CLI</option>
-          <option value="composio">Composio</option>
-        </select>
-      </Field>
-
-      <div style={{ marginTop: 20 }}>
-        <div style={styles.groupTitle}>OpenClaw</div>
-        <Field
-          label={t("settings.integrations.gatewayUrl")}
-          hint={t("settings.integrations.gatewayHint")}
-        >
-          <input
-            style={{
-              ...styles.input,
-              fontFamily: "var(--font-mono)",
-              fontSize: 12,
-            }}
-            placeholder="ws://127.0.0.1:18789"
-            value={gatewayUrl}
-            onChange={(e) => setGatewayUrl(e.target.value)}
-          />
-        </Field>
-        <Field
-          label={t("settings.integrations.token")}
-          hint={t("settings.integrations.tokenHint")}
-        >
-          <KeyField
-            hasValue={Boolean(cfg.openclaw_token_set)}
-            placeholder="oc_..."
-            value={openclawToken}
-            onChange={setOpenclawToken}
-          />
-        </Field>
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <div style={styles.groupTitle}>
-          {t("settings.integrations.workspaceGroup")}
-        </div>
-        <Field
-          label={t("settings.integrations.workspaceId")}
-          hint={t("settings.integrations.readOnly")}
-        >
-          <input
-            style={{ ...styles.input, opacity: 0.6, cursor: "default" }}
-            readOnly={true}
-            placeholder={t("settings.integrations.registrationPlaceholder")}
-            value={cfg.workspace_id ?? ""}
-          />
-        </Field>
-        <Field
-          label={t("settings.integrations.workspaceSlug")}
-          hint={t("settings.integrations.readOnly")}
-        >
-          <input
-            style={{ ...styles.input, opacity: 0.6, cursor: "default" }}
-            readOnly={true}
-            placeholder={t("settings.integrations.registrationPlaceholder")}
-            value={cfg.workspace_slug ?? ""}
-          />
-        </Field>
-      </div>
-
-      <SaveButton label={t("settings.integrations.save")} onSave={onSave} />
-    </div>
-  );
-}
-
-function IntervalsSection({ cfg, save }: SectionProps) {
-  const { t } = useI18n();
-  const [insights, setInsights] = useState(
-    String(cfg.insights_poll_minutes ?? 15),
-  );
-  const [followUp, setFollowUp] = useState(
-    String(cfg.task_follow_up_minutes ?? 60),
-  );
-  const [reminder, setReminder] = useState(
-    String(cfg.task_reminder_minutes ?? 30),
-  );
-  const [recheck, setRecheck] = useState(
-    String(cfg.task_recheck_minutes ?? 15),
-  );
-
-  const onSave = () =>
-    save({
-      insights_poll_minutes: parseInt(insights, 10) || 15,
-      task_follow_up_minutes: parseInt(followUp, 10) || 60,
-      task_reminder_minutes: parseInt(reminder, 10) || 30,
-      task_recheck_minutes: parseInt(recheck, 10) || 15,
-    });
-
-  return (
-    <div>
-      <h2 style={styles.sectionTitle}>{t("settings.intervals.title")}</h2>
-      <p style={styles.sectionDesc}>{t("settings.intervals.desc")}</p>
-
-      <Field
-        label={t("settings.intervals.insights")}
-        hint={t("settings.intervals.insightsHint")}
-      >
-        <input
-          style={styles.input}
-          type="number"
-          min={2}
-          placeholder="15"
-          value={insights}
-          onChange={(e) => setInsights(e.target.value)}
-        />
-      </Field>
-      <Field
-        label={t("settings.intervals.followUp")}
-        hint={t("settings.intervals.followUpHint")}
-      >
-        <input
-          style={styles.input}
-          type="number"
-          min={2}
-          placeholder="60"
-          value={followUp}
-          onChange={(e) => setFollowUp(e.target.value)}
-        />
-      </Field>
-      <Field
-        label={t("settings.intervals.reminder")}
-        hint={t("settings.intervals.reminderHint")}
-      >
-        <input
-          style={styles.input}
-          type="number"
-          min={2}
-          placeholder="30"
-          value={reminder}
-          onChange={(e) => setReminder(e.target.value)}
-        />
-      </Field>
-      <Field
-        label={t("settings.intervals.recheck")}
-        hint={t("settings.intervals.recheckHint")}
-      >
-        <input
-          style={styles.input}
-          type="number"
-          min={2}
-          placeholder="15"
-          value={recheck}
-          onChange={(e) => setRecheck(e.target.value)}
-        />
-      </Field>
-
-      <SaveButton label={t("settings.intervals.save")} onSave={onSave} />
-    </div>
-  );
-}
-
-const CLI_FLAGS: [string, I18nKey][] = [
-  ["--provider <name>", "settings.flags.cli.provider"],
-  ["--memory-backend <name>", "settings.flags.cli.memory"],
-  ["--blueprint <id>", "settings.flags.cli.blueprint"],
-  ["--tui", "settings.flags.cli.tui"],
-  ["--web-port <port>", "settings.flags.cli.webPort"],
-  ["--broker-port <port>", "settings.flags.cli.brokerPort"],
-  ["--opus-ceo", "settings.flags.cli.opusCeo"],
-  ["--collab", "settings.flags.cli.collab"],
-  ["--1o1", "settings.flags.cli.oneOnOne"],
-  ["--unsafe", "settings.flags.cli.unsafe"],
-  ["--no-nex", "settings.flags.cli.noNex"],
-  ["--no-open", "settings.flags.cli.noOpen"],
-  ["--from-scratch", "settings.flags.cli.fromScratch"],
-  ["--threads-collapsed", "settings.flags.cli.threadsCollapsed"],
-  ["--cmd <command>", "settings.flags.cli.cmd"],
-  ["--format <fmt>", "settings.flags.cli.format"],
-  ["--api-key <key>", "settings.flags.cli.apiKey"],
-  ["--version", "settings.flags.cli.version"],
-  ["--help-all", "settings.flags.cli.helpAll"],
-];
-
-const ENV_VARS: [string, I18nKey][] = [
-  ["LAF_OFFICE_LLM_PROVIDER", "settings.flags.env.provider"],
-  ["LAF_OFFICE_MEMORY_BACKEND", "settings.flags.env.memory"],
-  ["LAF_OFFICE_API_KEY", "settings.flags.env.apiKey"],
-  ["LAF_OFFICE_BROKER_PORT", "settings.flags.env.brokerPort"],
-  ["LAF_OFFICE_CONFIG_PATH", "settings.flags.env.configPath"],
-  ["LAF_OFFICE_RUNTIME_HOME", "settings.flags.env.runtimeHome"],
-  ["LAF_OFFICE_NO_NEX", "settings.flags.env.noNex"],
-  ["LAF_OFFICE_START_FROM_SCRATCH", "settings.flags.env.fromScratch"],
-  ["LAF_OFFICE_ONE_ON_ONE", "settings.flags.env.oneOnOne"],
-  ["LAF_OFFICE_HEADLESS_PROVIDER", "settings.flags.env.headlessProvider"],
-  ["LAF_OFFICE_INSIGHTS_INTERVAL_MINUTES", "settings.flags.env.insights"],
-  ["LAF_OFFICE_TASK_FOLLOWUP_MINUTES", "settings.flags.env.followUp"],
-  ["LAF_OFFICE_TASK_REMINDER_MINUTES", "settings.flags.env.reminder"],
-  ["LAF_OFFICE_TASK_RECHECK_MINUTES", "settings.flags.env.recheck"],
-];
-
-function FlagsSection() {
-  const { t } = useI18n();
-  return (
-    <div>
-      <h2 style={styles.sectionTitle}>{t("settings.flags.title")}</h2>
-      <p style={styles.sectionDesc}>{t("settings.flags.desc")}</p>
-
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.th}>{t("settings.flags.flag")}</th>
-            <th style={styles.th}>{t("settings.flags.description")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {CLI_FLAGS.map(([flag, desc]) => (
-            <tr key={flag}>
-              <td style={styles.tdFlag}>{flag}</td>
-              <td style={styles.tdDesc}>{t(desc)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div style={{ marginTop: 24 }}>
-        <div style={styles.groupTitle}>{t("settings.flags.envGroup")}</div>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            lineHeight: 1.6,
-            marginBottom: 12,
-          }}
-        >
-          {t("settings.flags.envDesc")}
-        </p>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>{t("settings.flags.variable")}</th>
-              <th style={styles.th}>{t("settings.flags.purpose")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ENV_VARS.map(([v, p]) => (
-              <tr key={v}>
-                <td style={styles.tdFlag}>{v}</td>
-                <td style={styles.tdDesc}>{t(p)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
@@ -2046,11 +1688,6 @@ export function SettingsApp() {
         {section === "team" && <TeamSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}
-        {section === "integrations" && (
-          <IntegrationsSection cfg={data} save={save} />
-        )}
-        {section === "intervals" && <IntervalsSection cfg={data} save={save} />}
-        {section === "flags" && <FlagsSection />}
         {section === "danger" && <DangerZoneSection />}
       </div>
     </div>

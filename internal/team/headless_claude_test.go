@@ -156,15 +156,8 @@ func TestRunHeadlessClaudeTurn_NoResumeFlag(t *testing.T) {
 	}
 }
 
-// ─── MCP manifest: no-nex mode ────────────────────────────────────────────
-
-// TestBuildMCPServerMap_NoNexExcludesNexServer verifies that when
-// LAF_OFFICE_NO_NEX=true the built server map contains no "nex" entry, even if a
-// non-empty API key is present.
-func TestBuildMCPServerMap_NoNexExcludesNexServer(t *testing.T) {
-	t.Setenv("LAF_OFFICE_NO_NEX", "true")
-	// Provide a non-empty API key so we would enter the nex branch if LAF_OFFICE_NO_NEX
-	// were not checked.
+func TestBuildMCPServerMap_LegacyServerAbsent(t *testing.T) {
+	t.Setenv("LAF_OFFICE_NO_LEGACY_MEMORY", "true")
 	t.Setenv("LAF_OFFICE_API_KEY", "test-key-12345")
 
 	l := minimalLauncher(false)
@@ -172,19 +165,17 @@ func TestBuildMCPServerMap_NoNexExcludesNexServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildMCPServerMap: %v", err)
 	}
-	if _, ok := servers["nex"]; ok {
-		t.Fatalf("'nex' server must be absent when LAF_OFFICE_NO_NEX=true, got servers: %v", mapKeys(servers))
+	if _, ok := servers["automation"]; ok {
+		t.Fatalf("legacy automation server must be absent, got servers: %v", mapKeys(servers))
 	}
-	// laf-office must always be present regardless of no-nex mode.
+	// laf-office must always be present regardless of legacy-memory-disabled mode.
 	if _, ok := servers["laf-office"]; !ok {
 		t.Fatalf("'laf-office' server must always be present, got servers: %v", mapKeys(servers))
 	}
 }
 
-// TestEnsureAgentMCPConfig_NoNexEntryInWrittenFile verifies that the per-agent
-// MCP config file written to disk contains no "nex" key when LAF_OFFICE_NO_NEX=true.
-func TestEnsureAgentMCPConfig_NoNexEntryInWrittenFile(t *testing.T) {
-	t.Setenv("LAF_OFFICE_NO_NEX", "true")
+func TestEnsureAgentMCPConfig_NoLegacyAutomationEntryInWrittenFile(t *testing.T) {
+	t.Setenv("LAF_OFFICE_NO_LEGACY_MEMORY", "true")
 	t.Setenv("LAF_OFFICE_API_KEY", "test-key-12345")
 
 	l := minimalLauncher(false)
@@ -203,43 +194,12 @@ func TestEnsureAgentMCPConfig_NoNexEntryInWrittenFile(t *testing.T) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("parse MCP config: %v", err)
 	}
-	if _, hasNex := cfg.MCPServers["nex"]; hasNex {
-		t.Fatalf("'nex' server must be absent in written MCP config when LAF_OFFICE_NO_NEX=true, got servers: %v", mapKeys(cfg.MCPServers))
+	if _, hasLegacyAutomation := cfg.MCPServers["automation"]; hasLegacyAutomation {
+		t.Fatalf("legacy automation server must be absent in written MCP config, got servers: %v", mapKeys(cfg.MCPServers))
 	}
 }
 
-// TestBuildMCPServerMap_NexCredentialsFlowThroughOffice verifies that the office
-// MCP server now owns shared-memory access, so Nex credentials flow through the
-// laf-office server instead of mounting a raw nex MCP server.
-func TestBuildMCPServerMap_NexCredentialsFlowThroughOffice(t *testing.T) {
-	t.Setenv("LAF_OFFICE_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	t.Setenv("LAF_OFFICE_NO_NEX", "")
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "nex")
-	t.Setenv("LAF_OFFICE_API_KEY", "test-key-12345")
-
-	l := minimalLauncher(false)
-	servers, err := l.buildMCPServerMap()
-	if err != nil {
-		t.Fatalf("buildMCPServerMap: %v", err)
-	}
-	entry, ok := servers["laf-office"]
-	if !ok {
-		t.Fatalf("'laf-office' server must be present, got servers: %v", mapKeys(servers))
-	}
-	server, ok := entry.(map[string]any)
-	if !ok {
-		t.Fatalf("expected laf-office entry to be an object, got %T", entry)
-	}
-	env, ok := server["env"].(map[string]string)
-	if !ok {
-		t.Fatalf("expected office env map, got %#v", server["env"])
-	}
-	if env["LAF_OFFICE_API_KEY"] != "test-key-12345" || env["NEX_API_KEY"] != "test-key-12345" {
-		t.Fatalf("expected Nex credentials on office server, got %#v", env)
-	}
-}
-
-func TestBuildMCPServerMap_GBrainCredentialsFlowThroughOffice(t *testing.T) {
+func TestBuildMCPServerMap_DeprecatedGBrainFallsBackToWiki(t *testing.T) {
 	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "gbrain")
 	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "openai-test-key")
 
@@ -250,18 +210,14 @@ func TestBuildMCPServerMap_GBrainCredentialsFlowThroughOffice(t *testing.T) {
 	}
 	entry, ok := servers["laf-office"]
 	if !ok {
-		t.Fatalf("'laf-office' server must be present when GBrain is selected, got servers: %v", mapKeys(servers))
+		t.Fatalf("'laf-office' server must be present for the team wiki, got servers: %v", mapKeys(servers))
 	}
 	server, ok := entry.(map[string]any)
 	if !ok {
 		t.Fatalf("expected laf-office entry to be an object, got %T", entry)
 	}
-	env, ok := server["env"].(map[string]string)
-	if !ok {
-		t.Fatalf("expected office env map, got %#v", server["env"])
-	}
-	if env["OPENAI_API_KEY"] != "openai-test-key" {
-		t.Fatalf("expected OPENAI_API_KEY to flow through office env, got %#v", env)
+	if _, hasEnv := server["env"]; hasEnv {
+		t.Fatalf("deprecated gbrain setting must not add provider env to wiki MCP server, got %#v", server["env"])
 	}
 }
 

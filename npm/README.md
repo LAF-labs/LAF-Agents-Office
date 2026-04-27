@@ -43,8 +43,7 @@ Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-
 
 | Flag | What it does |
 |------|-------------|
-| `--memory-backend <name>` | Pick the organizational memory backend (`nex`, `gbrain`, `none`) |
-| `--no-nex` | Skip the Nex backend (no context graph, no Nex-managed integrations) |
+| `--memory-backend <name>` | Pick the organizational memory backend (`markdown`, `gbrain`, `none`) |
 | `--tui` | Use the tmux TUI instead of the web UI |
 | `--no-open` | Don't auto-open the browser |
 | `--pack <name>` | Pick an agent pack (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) |
@@ -56,16 +55,16 @@ Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-
 
 ## Memory: Notebooks and the Wiki
 
-Every agent gets its own **notebook**. The team shares a **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole office benefits. Both are knowledge graphs under the hood, on Garry Tan's GBrain or Nex.
+Every agent gets its own **notebook**. The team shares a local markdown **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole office benefits.
 
 **Backends for the wiki:**
 
-- `nex` is the default. It requires a LAF-Office/Nex API key and powers Nex-backed context plus LAF-Office-managed integrations.
+- `markdown` is the default local team wiki.
 - `gbrain` mounts `gbrain serve` as the wiki backend.
 - `none` disables the external wiki entirely. Notebooks still work locally.
 
 ```bash
-laf-office --memory-backend nex
+laf-office --memory-backend markdown
 laf-office --memory-backend gbrain
 laf-office --memory-backend none
 ```
@@ -97,20 +96,8 @@ If it feels like a hidden agent loop, something is wrong. If it feels like The O
 
 ## External Actions
 
-Two action providers ship by default — pick whichever fits your style.
-
-### One CLI — local-first (default)
-
-```
-/config set action_provider one
-```
-
-### Composio — cloud-hosted
-
-```
-/config set composio_api_key <key>
-/config set action_provider composio
-```
+Managed CRM, email, calendar, notification, and hosted action integrations are
+not available in this build yet.
 
 ## Why LAF-Office
 
@@ -122,7 +109,7 @@ Two action providers ship by default — pick whichever fits your style.
 | Live visibility | Stdout streaming |
 | Mid-task steering | DM any agent, no restart |
 | Runtimes | Mix Claude Code, Codex, and OpenClaw in one channel |
-| Memory | Per-agent notebook + shared workspace wiki (knowledge graphs on GBrain or Nex) |
+| Memory | Per-agent notebook + shared markdown workspace wiki |
 | Price | Free and open source (MIT, self-hosted, your API keys) |
 
 ## Benchmark

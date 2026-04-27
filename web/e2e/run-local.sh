@@ -97,7 +97,7 @@ start_laf_office() {
   local logfile="${runtime_home}/laf-office-${label}.log"
   echo "[run-local] starting laf-office (${label}); log: ${logfile}"
   LAF_OFFICE_RUNTIME_HOME="$runtime_home" \
-    ./laf-office --no-open --broker-port "$broker_port" --web-port "$web_port" --no-nex \
+    ./laf-office --no-open --broker-port "$broker_port" --web-port "$web_port" \
     </dev/null > "$logfile" 2>&1 &
   pid=$!
   for _ in $(seq 1 30); do

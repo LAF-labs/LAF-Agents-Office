@@ -235,10 +235,15 @@ func (b *OpenclawBridge) Start(ctx context.Context) error {
 // Stop cancels the bridge context, closes the client, and waits for the event loop to drain.
 func (b *OpenclawBridge) Stop() {
 	b.mu.Lock()
-	if b.cancel != nil {
-		b.cancel()
-	}
+	cancel := b.cancel
 	b.mu.Unlock()
+	if cancel == nil {
+		if c := b.getClient(); c != nil {
+			_ = c.Close()
+		}
+		return
+	}
+	cancel()
 	if c := b.getClient(); c != nil {
 		_ = c.Close()
 	}

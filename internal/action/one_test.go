@@ -173,7 +173,7 @@ func TestOneCLIHappyPath(t *testing.T) {
 func TestNewOneCLIFromEnvUsesManagedIdentity(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	if err := config.Save(config.Config{
-		APIKey:    "nex-key",
+		APIKey:    "office-key",
 		OneAPIKey: "one-secret",
 		Email:     "ceo@example.com",
 	}); err != nil {

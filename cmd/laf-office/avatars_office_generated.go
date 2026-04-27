@@ -2658,7 +2658,7 @@ var knownOfficeSprites = map[string]knownOfficeSprite{
 			18: {0, 0, 0},
 		},
 	},
-	"hybridNex": {
+	"hybridAutomation": {
 		Full: pixelSprite{
 			{0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0},
 			{0, 0, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 3},
@@ -3149,7 +3149,7 @@ var knownOfficeSlugMap = map[string]string{
 	"pam-legacy": "hybridPamCute",
 	"human":      "hybridHuman",
 	"you":        "hybridHuman",
-	"nex":        "hybridNex",
+	"automation": "hybridAutomation",
 	"generic":    "hybridGeneric",
 	"qa":         "hybridQa",
 	"ae":         "hybridAe",

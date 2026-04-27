@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // Fresh-install onboarding smoke. Assumes laf-office was started WITHOUT a
-// pre-seeded ~/.laf-office/onboarded.json, so App.tsx routes to the Wizard
+// pre-seeded ~/.laf-office/onboarded.json. The current web flow requires team
+// access first, then App.tsx routes the authenticated fresh user to the Wizard
 // (see App.tsx — onboardingComplete=false → <Wizard>).
 //
 // This is the path Garry Tan's sudden traffic would have hit. If the
@@ -46,6 +47,18 @@ async function expectNoReactErrors(
   expect(errors, `Uncaught errors ${context}:\n  ${errors.join('\n  ')}`).toHaveLength(0);
 }
 
+async function signUpIfNeeded(page: Page): Promise<void> {
+  const createButton = page.getByRole('button', { name: 'Create account' });
+  if ((await createButton.count()) === 0) return;
+
+  const suffix = `${Date.now()}-${Math.round(Math.random() * 1_000_000)}`;
+  await page.getByRole('textbox', { name: 'Email' }).fill(`wizard-${suffix}@example.com`);
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Wizard Smoke');
+  await page.getByLabel('Password').fill('password123');
+  await page.getByRole('textbox', { name: 'Team name' }).fill('Wizard Smoke Team');
+  await createButton.click();
+}
+
 // The wizard flow is welcome → identity → templates. Fill the two required
 // identity fields so the primary CTA enables and we can advance.
 async function advanceToTemplatesStep(page: Page): Promise<void> {
@@ -62,6 +75,7 @@ test.describe('laf-office onboarding wizard smoke', () => {
 
     await page.goto('/');
     await waitForReactMount(page);
+    await signUpIfNeeded(page);
 
     // The Wizard renders `.wizard-step` as its root container
     // (see web/src/components/onboarding/Wizard.tsx — WelcomeStep).
@@ -77,6 +91,7 @@ test.describe('laf-office onboarding wizard smoke', () => {
 
     await page.goto('/');
     await waitForReactMount(page);
+    await signUpIfNeeded(page);
 
     await advanceToTemplatesStep(page);
 
@@ -100,6 +115,7 @@ test.describe('laf-office onboarding wizard smoke', () => {
     // card whose name differs from "From scratch".
     await page.goto('/');
     await waitForReactMount(page);
+    await signUpIfNeeded(page);
 
     await advanceToTemplatesStep(page);
 

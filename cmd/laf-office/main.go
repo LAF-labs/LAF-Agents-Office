@@ -40,8 +40,8 @@ func printSubcommandHelp(sub string) {
 	case "init":
 		fmt.Fprintln(os.Stderr, "laf-office init — first-time setup")
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Installs the latest Nex CLI from npm and saves your default provider")
-		fmt.Fprintln(os.Stderr, "and pack so future `laf-office` invocations just work.")
+		fmt.Fprintln(os.Stderr, "Sets your default provider, pack, and local markdown team wiki")
+		fmt.Fprintln(os.Stderr, "so future `laf-office` invocations just work.")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
 		fmt.Fprintln(os.Stderr, "  laf-office init")
@@ -52,10 +52,10 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Stops the running session, clears broker state, and deletes the team")
 		fmt.Fprintln(os.Stderr, "roster, company identity, office task receipts, saved workflows, logs,")
-		fmt.Fprintln(os.Stderr, "sessions, provider state, calendar, and local wiki memory.")
+		fmt.Fprintln(os.Stderr, "sessions, provider state, and local wiki memory.")
 		fmt.Fprintln(os.Stderr, "Next launch reopens onboarding.")
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Preserved: task worktrees, OpenClaw device identity, config.json.")
+		fmt.Fprintln(os.Stderr, "Preserved: task worktrees, local device identity, config.json.")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
 		fmt.Fprintln(os.Stderr, "  laf-office shred           Prompts before wiping")
@@ -72,10 +72,6 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "laf-office memory — manage the team wiki and legacy memory backends")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
-		fmt.Fprintln(os.Stderr, "  laf-office memory migrate --from nex           Import Nex memory into ~/.laf-office/wiki/team/")
-		fmt.Fprintln(os.Stderr, "  laf-office memory migrate --from gbrain        Import GBrain pages into the wiki")
-		fmt.Fprintln(os.Stderr, "  laf-office memory migrate --from <backend> --dry-run  Preview without committing")
-		fmt.Fprintln(os.Stderr, "  laf-office memory migrate --from <backend> --limit N  Cap the number imported")
 	case "log":
 		fmt.Fprintln(os.Stderr, "laf-office log — show agent task receipts")
 		fmt.Fprintln(os.Stderr, "")
@@ -139,15 +135,14 @@ func main() {
 	tuiMode := flag.Bool("tui", false, "Launch with tmux TUI instead of the web UI")
 	webPort := flag.Int("web-port", 7891, "Port for the web UI (default 7891)")
 	brokerPort := flag.Int("broker-port", 0, "Port for the local broker (default 7890)")
-	noNex := flag.Bool("no-nex", false, "Disable Nex completely for this run")
-	memoryBackend := flag.String("memory-backend", "", "Memory backend for organizational context (nex, gbrain, none)")
+	memoryBackend := flag.String("memory-backend", "", "Memory backend override (internal)")
 	opusCEO := flag.Bool("opus-ceo", false, "Upgrade CEO agent from Sonnet to Opus")
 	collabMode := flag.Bool("collab", false, "Start in collaborative mode (all agents see all messages)")
 	noOpen := flag.Bool("no-open", false, "Don't open browser automatically on launch")
 	helpAll := flag.Bool("help-all", false, "Show all flags including internal ones")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "LAF-Office v%s — the terminal office Ryan Howard always wanted.\n\n", buildinfo.Current().Version)
+		fmt.Fprintf(os.Stderr, "LAF-Office v%s — local AI workspace for startup teams.\n\n", buildinfo.Current().Version)
 		fmt.Fprintf(os.Stderr, "Usage:\n")
 		fmt.Fprintf(os.Stderr, "  %s              Launch multi-agent team (web UI on :%d)\n", appName, *webPort)
 		fmt.Fprintf(os.Stderr, "  %s --tui        Launch with tmux TUI instead\n", appName)
@@ -155,7 +150,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s shred        Burn the workspace down and reopen onboarding\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s import --from legacy  Import from a running external orchestrator (auto-detect)\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s log          Show what your agents actually did (task receipts)\n", appName)
-		fmt.Fprintf(os.Stderr, "  %s memory migrate --from {nex,gbrain}  Port legacy memory into the team wiki\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s --cmd <cmd>  Run a command non-interactively\n", appName)
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		printVisibleFlags(os.Stderr)
@@ -170,16 +164,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *noNex {
-		_ = os.Setenv(product.Env("NO_NEX"), "1")
-	}
 	if *brokerPort > 0 {
 		_ = os.Setenv(product.Env("BROKER_PORT"), fmt.Sprintf("%d", *brokerPort))
 	}
 	if backend := strings.TrimSpace(*memoryBackend); backend != "" {
 		normalized := config.NormalizeMemoryBackend(backend)
 		if normalized == "" {
-			fmt.Fprintf(os.Stderr, "error: unsupported memory backend %q (expected nex, gbrain, or none)\n", backend)
+			fmt.Fprintf(os.Stderr, "error: unsupported memory backend %q (expected markdown)\n", backend)
 			os.Exit(1)
 		}
 		_ = os.Setenv(product.Env("MEMORY_BACKEND"), normalized)
@@ -264,7 +255,7 @@ func main() {
 				os.Exit(1)
 			}
 			printWipeResult("Shredded", res)
-			fmt.Println("Next `laf-office` launch will reopen onboarding. Michael would be proud.")
+			fmt.Println("Next `laf-office` launch will reopen onboarding.")
 			return
 		case "init":
 			dispatch("/init", *apiKeyFlag, *format)
@@ -381,7 +372,7 @@ func runTeam(args []string, packSlug string, unsafe bool, oneOnOne bool, opusCEO
 	if err := l.Attach(); err != nil {
 		// Attach failed (not a terminal, or tmux error).
 		// Keep the process alive to maintain the broker.
-		fmt.Fprintf(os.Stderr, "Could not attach to tmux (not a terminal?). The office is running without you — like when Michael went to New York.\n")
+		fmt.Fprintf(os.Stderr, "Could not attach to tmux (not a terminal?). The office is still running in the background.\n")
 		fmt.Fprintf(os.Stderr, "Team is running in background. Attach manually:\n")
 		fmt.Fprintf(os.Stderr, "  tmux -L %s attach -t %s\n", team.TmuxSocketName(), team.SessionName)
 		fmt.Fprintf(os.Stderr, "Broker running on %s\n", l.BrokerBaseURL())
@@ -439,10 +430,6 @@ func fromScratchRuntimeHome() string {
 }
 
 func dispatch(cmd string, apiKeyFlag string, format string) {
-	if config.ResolveMemoryBackend("") != config.MemoryBackendNex {
-		fmt.Fprintf(os.Stderr, "Non-interactive backend commands currently require the Nex memory backend. Selected backend: %s.\n", config.MemoryBackendLabel(config.ResolveMemoryBackend("")))
-		os.Exit(1)
-	}
 	if isSetupCommand(cmd) {
 		result := commands.Dispatch(cmd, "", format, 0)
 		if result.Error != "" {
@@ -454,13 +441,7 @@ func dispatch(cmd string, apiKeyFlag string, format string) {
 		}
 		return
 	}
-	apiKey := config.ResolveAPIKey(apiKeyFlag)
-	if apiKey == "" {
-		fmt.Fprintf(os.Stderr, "No API key found. Set LAF_OFFICE_API_KEY, or run `%s` and type /init.\n", appName)
-		os.Exit(2)
-	}
-
-	result := commands.Dispatch(cmd, apiKey, format, 0)
+	result := commands.Dispatch(cmd, config.ResolveAPIKey(apiKeyFlag), format, 0)
 	if result.Error != "" {
 		fmt.Fprintf(os.Stderr, "error: %s\n", result.Error)
 		if strings.Contains(result.Error, "401") || strings.Contains(result.Error, "auth") {
@@ -493,10 +474,10 @@ func isPiped() bool {
 const shredSummary = `This will:
   • Stop the running LAF-Office session
   • Delete your team, company identity, office task receipts, workflows
-  • Delete logs, sessions, provider state, calendar, and local wiki memory
+  • Delete logs, sessions, provider state, and local wiki memory
   • Wipe broker runtime state
   • Reopen onboarding on next launch
-Preserved: task worktrees, OpenClaw device identity, config.json.`
+Preserved: task worktrees, local device identity, config.json.`
 
 // confirmDestructive gates a destructive subcommand behind a y/N prompt.
 // A "-y" / "--yes" in rest skips the prompt — useful for scripted teardown.

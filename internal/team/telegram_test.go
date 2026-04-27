@@ -190,7 +190,7 @@ func TestFormatTelegramOutbound(t *testing.T) {
 	}
 
 	// Automation message
-	autoMsg := channelMessage{From: "nex", Kind: "automation", Source: "github", Content: "PR #42 merged"}
+	autoMsg := channelMessage{From: "automation", Kind: "automation", Source: "github", Content: "PR #42 merged"}
 	gotAuto := formatTelegramOutbound(autoMsg)
 	wantAuto := "🤖 <b>[github]</b>: PR #42 merged"
 	if gotAuto != wantAuto {
@@ -198,7 +198,7 @@ func TestFormatTelegramOutbound(t *testing.T) {
 	}
 
 	// Automation with source label
-	autoMsg2 := channelMessage{From: "nex", Kind: "automation", Source: "gh", SourceLabel: "GitHub Actions", Content: "Build passed"}
+	autoMsg2 := channelMessage{From: "automation", Kind: "automation", Source: "gh", SourceLabel: "GitHub Actions", Content: "Build passed"}
 	gotAuto2 := formatTelegramOutbound(autoMsg2)
 	wantAuto2 := "🤖 <b>[GitHub Actions]</b>: Build passed"
 	if gotAuto2 != wantAuto2 {

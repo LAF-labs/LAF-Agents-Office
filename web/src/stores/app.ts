@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Theme = "nex" | "nex-dark";
+export type Theme = "office" | "office-dark";
 export type Language = "en" | "ko";
 
 function languageFromLocale(
@@ -21,9 +21,9 @@ function defaultLanguageFromSystem(): Language {
 const _storedTheme = ((): Theme => {
   try {
     const v = localStorage.getItem("laf-office-theme");
-    if (v === "nex-dark") return "nex-dark";
+    if (v === "office-dark") return "office-dark";
   } catch {}
-  return "nex";
+  return "office";
 })();
 if (typeof document !== "undefined") {
   document.documentElement.setAttribute("data-theme", _storedTheme);

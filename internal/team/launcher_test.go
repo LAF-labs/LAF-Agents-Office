@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
-	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/channel"
 )
 
@@ -288,53 +287,6 @@ func TestLoadRunningSessionModePrefersLiveBrokerState(t *testing.T) {
 	}
 	if agent != "pm" {
 		t.Fatalf("expected live 1o1 agent pm, got %q", agent)
-	}
-}
-
-func TestFormatNexFeedItem(t *testing.T) {
-	title, content := formatNexFeedItem(nexFeedItem{
-		Type: "context_alert",
-		Content: nexFeedItemContent{
-			ImportantItems: []nexFeedItemContentItem{
-				{Title: "Budget pressure", Context: "Acme mentioned a freeze"},
-			},
-			EntityChanges: []nexFeedItemContentItem{
-				{Title: "Champion changed", Context: "New VP now owns the deal"},
-			},
-		},
-	})
-
-	if title != "Context alert" {
-		t.Fatalf("unexpected title: %q", title)
-	}
-	if !strings.Contains(content, "Important: Budget pressure") || !strings.Contains(content, "Change: Champion changed") {
-		t.Fatalf("unexpected content: %q", content)
-	}
-}
-
-func TestFetchAndIngestNexNotificationsSeedsCursorOnColdStart(t *testing.T) {
-	requests := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
-		t.Fatalf("expected cold start to seed cursor without calling feed, got %s", r.URL.String())
-	}))
-	defer server.Close()
-
-	b := newTestBroker(t)
-	launcher := &Launcher{broker: b}
-	client := api.NewClient("test-key")
-	client.BaseURL = server.URL
-
-	launcher.fetchAndIngestNexNotifications(client)
-
-	if requests != 0 {
-		t.Fatalf("expected no feed requests on cold start, got %d", requests)
-	}
-	if got := b.NotificationCursor(); got == "" {
-		t.Fatal("expected cold start to seed notification cursor")
-	}
-	if len(b.Messages()) != 0 {
-		t.Fatalf("expected no notifications to be posted on cold start, got %d", len(b.Messages()))
 	}
 }
 
@@ -1064,14 +1016,11 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 	if !strings.Contains(specialist, "team_task_status") {
 		t.Fatalf("expected team_task_status guidance in specialist prompt: %q", specialist)
 	}
-	if !strings.Contains(specialist, "team_action_connections / team_action_search / team_action_knowledge") {
-		t.Fatalf("expected action discovery guidance in specialist prompt: %q", specialist)
+	if strings.Contains(specialist, "team_action_") {
+		t.Fatalf("did not expect hosted action tools in specialist prompt: %q", specialist)
 	}
-	if !strings.Contains(specialist, "team_action_execute / team_action_workflow_execute") {
-		t.Fatalf("expected action execution guidance in specialist prompt: %q", specialist)
-	}
-	if !strings.Contains(specialist, "you may omit connection_key and let the runtime auto-resolve it") {
-		t.Fatalf("expected auto-resolve guidance in specialist prompt: %q", specialist)
+	if !strings.Contains(specialist, "Managed external systems are not available in this build") {
+		t.Fatalf("expected managed-integration unavailable guidance in specialist prompt: %q", specialist)
 	}
 	if !strings.Contains(specialist, "working_directory") {
 		t.Fatalf("expected working_directory guidance in specialist prompt: %q", specialist)
@@ -1084,9 +1033,6 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 	}
 	if !strings.Contains(specialist, "Never search parent or sibling directories outside the assigned working_directory") {
 		t.Fatalf("expected worktree boundary guidance in specialist prompt: %q", specialist)
-	}
-	if !strings.Contains(specialist, "use the `team_action_*` tools first") {
-		t.Fatalf("expected action-tool-first guidance in specialist prompt: %q", specialist)
 	}
 	if !strings.Contains(specialist, "post a `team_status` naming that cut line") {
 		t.Fatalf("expected cut-line status guidance in specialist prompt: %q", specialist)
@@ -1102,11 +1048,11 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 	if !strings.Contains(lead, "team_task_status") {
 		t.Fatalf("expected team_task_status guidance in lead prompt: %q", lead)
 	}
-	if !strings.Contains(lead, "team_action_connections / team_action_search / team_action_knowledge") {
-		t.Fatalf("expected action discovery guidance in lead prompt: %q", lead)
+	if strings.Contains(lead, "team_action_") {
+		t.Fatalf("did not expect hosted action tools in lead prompt: %q", lead)
 	}
-	if !strings.Contains(lead, "you may omit connection_key and let the runtime auto-resolve it") {
-		t.Fatalf("expected auto-resolve guidance in lead prompt: %q", lead)
+	if !strings.Contains(lead, "Managed external systems are not available in this build") {
+		t.Fatalf("expected managed-integration unavailable guidance in lead prompt: %q", lead)
 	}
 	if !strings.Contains(lead, "working_directory") {
 		t.Fatalf("expected working_directory guidance in lead prompt: %q", lead)
@@ -1151,7 +1097,7 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 
 func TestBuildPromptIncludesMarkdownNotebookPromotionGuidance(t *testing.T) {
 	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "markdown")
-	t.Setenv("NEX_API_KEY", "")
+	t.Setenv("LAF_OFFICE_API_KEY", "")
 
 	l := &Launcher{
 		pack: &agent.PackDefinition{

@@ -26,7 +26,7 @@ cleanup() {
 
 start_daemon() {
   cleanup
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" -no-nex "$@" &
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF-Office" "$@" &
   sleep 2
   "$TERMWRIGHT" exec --socket "$SOCKET" --method wait_for_text --params '{"text":"Channels","timeout_ms":25000}' 2>/dev/null || \
   "$TERMWRIGHT" exec --socket "$SOCKET" --method wait_for_text --params '{"text":"1:1","timeout_ms":10000}' 2>/dev/null || {

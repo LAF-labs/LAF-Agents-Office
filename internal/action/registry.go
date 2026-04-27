@@ -65,7 +65,7 @@ func (r *Registry) ProviderFor(cap Capability) (Provider, error) {
 		}
 	}
 	if len(supported) == 0 {
-		return nil, fmt.Errorf("no provider supports %s", cap)
+		return nil, fmt.Errorf("managed integrations are not available in this build yet")
 	}
 	return nil, fmt.Errorf("no configured provider available for %s; supported providers: %s", cap, strings.Join(supported, ", "))
 }

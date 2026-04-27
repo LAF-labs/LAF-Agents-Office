@@ -80,8 +80,8 @@
   color: inherit;
   letter-spacing: 0;
 }
-html[data-theme="nex"] .sidebar-rail-bottom {
-  color: var(--nex-sidebar-text);
+html[data-theme="office"] .sidebar-rail-bottom {
+  color: var(--office-sidebar-text);
 }
 
 /* Popover panels anchored to the rail */
@@ -423,26 +423,26 @@ html[data-theme="nex"] .sidebar-rail-bottom {
   background: var(--accent-bg);
   color: var(--text);
 }
-html[data-theme="nex"]
+html[data-theme="office"]
   .sidebar.sidebar-collapsed
   .sidebar-icon-btn:hover:not(.active),
-html[data-theme="nex"] .sidebar.sidebar-collapsed .sidebar-icon-btn.is-open,
-html[data-theme="nex"]
+html[data-theme="office"] .sidebar.sidebar-collapsed .sidebar-icon-btn.is-open,
+html[data-theme="office"]
   .sidebar.sidebar-collapsed
   .sidebar-rail-bottom:hover:not(.active),
-html[data-theme="nex"] .sidebar.sidebar-collapsed .sidebar-rail-bottom.is-open {
-  background: var(--nex-sidebar-hover);
-  color: var(--nex-sidebar-text-active);
+html[data-theme="office"] .sidebar.sidebar-collapsed .sidebar-rail-bottom.is-open {
+  background: var(--office-sidebar-hover);
+  color: var(--office-sidebar-text-active);
 }
-html[data-theme="nex"] .sidebar.sidebar-collapsed .sidebar-icon-btn.active,
-html[data-theme="nex"]
+html[data-theme="office"] .sidebar.sidebar-collapsed .sidebar-icon-btn.active,
+html[data-theme="office"]
   .sidebar.sidebar-collapsed
   .sidebar-icon-btn.active:hover,
-html[data-theme="nex"] .sidebar.sidebar-collapsed .sidebar-rail-bottom.active,
-html[data-theme="nex"]
+html[data-theme="office"] .sidebar.sidebar-collapsed .sidebar-rail-bottom.active,
+html[data-theme="office"]
   .sidebar.sidebar-collapsed
   .sidebar-rail-bottom.active:hover {
-  background: var(--nex-sidebar-active);
+  background: var(--office-sidebar-active);
   color: #1a1610;
 }
 

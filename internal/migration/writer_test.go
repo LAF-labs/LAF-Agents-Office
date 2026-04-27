@@ -110,14 +110,14 @@ func TestRenderArticleIncludesProvenanceHeader(t *testing.T) {
 		Slug:    "nazz",
 		Title:   "Nazz",
 		Content: "Founder of LAF-Office.",
-		Source:  "nex",
+		Source:  "legacy",
 	}
 	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
 	got := renderArticle(rec, now)
 	if !strings.Contains(got, "# Nazz") {
 		t.Errorf("missing title heading: %q", got)
 	}
-	if !strings.Contains(got, "Imported from nex") {
+	if !strings.Contains(got, "Imported from legacy") {
 		t.Errorf("missing provenance line: %q", got)
 	}
 }
@@ -129,7 +129,7 @@ func TestMigratorDryRunSkipsCommit(t *testing.T) {
 	m.now = func() time.Time { return time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC) }
 
 	adapter := &fixedAdapter{records: []MigrationRecord{
-		{Kind: KindPeople, Slug: "nazz", Title: "Nazz", Content: "founder", Source: "nex"},
+		{Kind: KindPeople, Slug: "nazz", Title: "Nazz", Content: "founder", Source: "legacy"},
 	}}
 	summary, err := m.Run(context.Background(), adapter, RunOptions{DryRun: true})
 	if err != nil {
@@ -159,7 +159,7 @@ func TestMigratorSkipsIdenticalContent(t *testing.T) {
 	fixedNow := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
 	m.now = func() time.Time { return fixedNow }
 
-	rec := MigrationRecord{Kind: KindPeople, Slug: "nazz", Title: "Nazz", Content: "founder", Source: "nex"}
+	rec := MigrationRecord{Kind: KindPeople, Slug: "nazz", Title: "Nazz", Content: "founder", Source: "legacy"}
 	// Pre-seed with the exact rendered output so the dedup check fires.
 	w.seedExisting(t, "team/people/nazz.md", renderArticle(rec, fixedNow))
 
@@ -214,9 +214,9 @@ func TestMigratorRespectsLimit(t *testing.T) {
 	m.now = func() time.Time { return time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC) }
 
 	records := []MigrationRecord{
-		{Kind: KindPeople, Slug: "a", Title: "A", Content: "a", Source: "nex"},
-		{Kind: KindPeople, Slug: "b", Title: "B", Content: "b", Source: "nex"},
-		{Kind: KindPeople, Slug: "c", Title: "C", Content: "c", Source: "nex"},
+		{Kind: KindPeople, Slug: "a", Title: "A", Content: "a", Source: "legacy"},
+		{Kind: KindPeople, Slug: "b", Title: "B", Content: "b", Source: "legacy"},
+		{Kind: KindPeople, Slug: "c", Title: "C", Content: "c", Source: "legacy"},
 	}
 	summary, err := m.Run(context.Background(), &fixedAdapter{records: records}, RunOptions{Limit: 2})
 	if err != nil {
@@ -250,7 +250,7 @@ func TestMigratorIntegrationWithWikiWorker(t *testing.T) {
 	m.now = func() time.Time { return time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC) }
 
 	adapter := &fixedAdapter{records: []MigrationRecord{
-		{Kind: KindPeople, Slug: "nazz", Title: "Nazz", Content: "Founder.", Source: "nex"},
+		{Kind: KindPeople, Slug: "nazz", Title: "Nazz", Content: "Founder.", Source: "legacy"},
 		{Kind: KindCompanies, Slug: "hubspot", Title: "HubSpot", Content: "Prior life.", Source: "gbrain"},
 	}}
 	summary, err := m.Run(ctx, adapter, RunOptions{})

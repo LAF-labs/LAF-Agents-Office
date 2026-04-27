@@ -75,8 +75,8 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 	// slash.go and add it here.
 	webSupported := []string{
 		"ask", "search", "remember", "help", "clear", "reset",
-		"requests", "policies", "skills", "calendar", "tasks",
-		"recover", "threads", "provider", "focus", "collab",
+		"requests", "skills", "tasks",
+		"threads", "provider", "focus", "collab",
 		"pause", "resume", "1o1", "task", "cancel",
 	}
 	for _, name := range webSupported {
@@ -94,7 +94,8 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 	// must never leak into the web autocomplete.
 	tuiOnly := []string{
 		"object", "record", "list", "rel", "attribute", "agent",
-		"config", "detect", "init", "graph", "insights",
+		"config", "detect", "init", "graph", "insights", "calendar",
+		"policies", "recover",
 		"youtube-pack", "quit", "note", "chat",
 	}
 	for _, name := range tuiOnly {

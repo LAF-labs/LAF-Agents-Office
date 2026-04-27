@@ -30,7 +30,6 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/channel"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
-	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
@@ -1476,7 +1475,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/focus-mode", b.requireAuth(b.handleFocusMode))
 	mux.HandleFunc("/messages", b.requireAuth(b.handleMessages))
 	mux.HandleFunc("/reactions", b.requireAuth(b.handleReactions))
-	mux.HandleFunc("/notifications/nex", b.requireAuth(b.handleNexNotifications))
+	mux.HandleFunc("/notifications/automation", b.requireAuth(b.handleAutomationNotifications))
 	mux.HandleFunc("/office-members", b.requireAuth(b.handleOfficeMembers))
 	mux.HandleFunc("/office-members/generate", b.requireAuth(b.handleGenerateMember))
 	mux.HandleFunc("/channels", b.requireAuth(b.handleChannels))
@@ -1559,7 +1558,6 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/queue", b.requireAuth(b.handleQueue))
 	mux.HandleFunc("/company", b.requireAuth(b.handleCompany))
 	mux.HandleFunc("/config", b.requireAuth(b.handleConfig))
-	mux.HandleFunc("/nex/register", b.requireAuth(b.handleNexRegister))
 	mux.HandleFunc("/v1/logs", b.requireAuth(b.handleOTLPLogs))
 	mux.HandleFunc("/events", b.handleEvents)
 	mux.HandleFunc("/agent-stream/", b.requireAuth(b.handleAgentStream))
@@ -1610,6 +1608,9 @@ func (b *Broker) StartOnPort(port int) error {
 	go func() {
 		_ = b.server.Serve(ln)
 	}()
+	if err := b.ensureOpenclawBridgeRunning(); err != nil {
+		log.Printf("openclaw bridge bootstrap skipped: %v", err)
+	}
 	return nil
 }
 
@@ -1627,7 +1628,12 @@ func (b *Broker) Stop() {
 	synth := b.entitySynthesizer
 	pbSynth := b.playbookSynthesizer
 	pamDisp := b.pamDispatcher
+	openclawBridge := b.openclawBridge
+	b.openclawBridge = nil
 	b.mu.Unlock()
+	if openclawBridge != nil {
+		openclawBridge.Stop()
+	}
 	if synth != nil {
 		synth.Stop()
 	}
@@ -2536,7 +2542,7 @@ func (b *Broker) DisabledMembers(channel string) []string {
 // senderMayAutoPromoteLocked reports whether a `from` value is allowed to have
 // its @slug body text auto-promoted into the tagged array. Allowlist shape:
 // humans (empty / "you" / "human") and any registered agent slug are allowed;
-// synthetic senders ("system", "nex", bridges, automation kinds) are not. A
+// synthetic senders ("system", automation, bridges) are not. A
 // denylist would silently let every future synthetic identity leak through.
 // Sender is normalized first so case drift ("PM", "Human") matches the
 // allowlist the same way channel access does.
@@ -2821,7 +2827,7 @@ func (b *Broker) InFlightTasks() []teamTask {
 }
 
 // RecentHumanMessages returns up to limit messages sent by a human or external
-// sender ("you", "human", or "nex"). The returned slice contains the most
+// sender ("you", "human", or "automation"). The returned slice contains the most
 // recent messages in chronological order (earliest first).
 func (b *Broker) RecentHumanMessages(limit int) []channelMessage {
 	b.mu.Lock()
@@ -2829,7 +2835,7 @@ func (b *Broker) RecentHumanMessages(limit int) []channelMessage {
 	var human []channelMessage
 	for _, msg := range b.messages {
 		f := strings.ToLower(strings.TrimSpace(msg.From))
-		if f == "you" || f == "human" || f == "nex" {
+		if f == "you" || f == "human" || f == "automation" {
 			human = append(human, msg)
 		}
 	}
@@ -3819,6 +3825,53 @@ func (b *Broker) AttachOpenclawBridge(bridge *OpenclawBridge) {
 	b.mu.Unlock()
 }
 
+func (b *Broker) ensureOpenclawBridgeRunning() error {
+	b.mu.Lock()
+	if b.openclawBridge != nil {
+		b.mu.Unlock()
+		return nil
+	}
+	b.mu.Unlock()
+
+	ctx, cancel := b.newBrokerLifetimeContext()
+	bridge, err := StartOpenclawBridgeFromConfig(ctx, b)
+	if err != nil {
+		cancel()
+		return err
+	}
+	if bridge == nil {
+		cancel()
+		return nil
+	}
+
+	b.mu.Lock()
+	if b.openclawBridge != nil {
+		b.mu.Unlock()
+		bridge.Stop()
+		cancel()
+		return nil
+	}
+	b.openclawBridge = bridge
+	b.mu.Unlock()
+	StartOpenclawRouter(ctx, b, bridge)
+	return nil
+}
+
+func (b *Broker) newBrokerLifetimeContext() (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+	if b.stopCh == nil {
+		return ctx, cancel
+	}
+	go func() {
+		select {
+		case <-b.stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, cancel
+}
+
 // openclawBridgeLocked returns the attached bridge pointer. Callers must
 // hold b.mu. Kept as a small helper so the field is never read without the
 // lock (and so we have one place to note the invariant).
@@ -4229,10 +4282,10 @@ func defaultTeamChannelDescription(slug, name string) string {
 // channel-create handler guards against this by rejecting create requests
 // whose slug matches this set; keep the two lists in sync.
 var reservedChannelSlugs = map[string]bool{
-	"system": true,
-	"nex":    true,
-	"you":    true,
-	"human":  true,
+	"system":     true,
+	"automation": true,
+	"you":        true,
+	"human":      true,
 }
 
 func (b *Broker) canAccessChannelLocked(slug, channel string) bool {
@@ -4247,7 +4300,7 @@ func (b *Broker) canAccessChannelLocked(slug, channel string) bool {
 	// NOTE: any new entry added here MUST also be added to
 	// reservedChannelSlugs above so the channel-create handler keeps the
 	// invariant "no user channel can shadow a trusted sender slug".
-	if slug == "" || slug == "you" || slug == "human" || slug == "nex" || slug == "system" {
+	if slug == "" || slug == "you" || slug == "human" || slug == "automation" || slug == "system" {
 		return true
 	}
 	if slug == "ceo" {
@@ -4737,7 +4790,6 @@ func (b *Broker) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"memory_backend":        memoryStatus.SelectedKind,
 		"memory_backend_active": memoryStatus.ActiveKind,
 		"memory_backend_ready":  memoryStatus.ActiveKind != config.MemoryBackendNone,
-		"nex_connected":         memoryStatus.ActiveKind == config.MemoryBackendNex && nex.Connected(),
 		"build":                 buildinfo.Current(),
 	})
 }
@@ -6386,6 +6438,11 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "save failed", http.StatusInternalServerError)
 			return
 		}
+		if body.OpenclawToken != nil || body.OpenclawGateway != nil {
+			if err := b.ensureOpenclawBridgeRunning(); err != nil {
+				log.Printf("openclaw bridge bootstrap after config update skipped: %v", err)
+			}
+		}
 		// Keep /health in sync for this process so the wizard choice is
 		// reflected immediately without requiring a broker restart.
 		if provider != "" {
@@ -6402,45 +6459,6 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-}
-
-// handleNexRegister wraps `nex-cli --cmd "setup <email>"` so the onboarding
-// wizard can register a Nex identity without the user dropping to the terminal.
-// Body: {"email": "..."}. Returns whatever the CLI prints on success, or the
-// CLI's stderr on failure. Requires nex-cli to be installed and on PATH.
-func (b *Broker) handleNexRegister(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Email string `json:"email"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	email := strings.TrimSpace(body.Email)
-	if email == "" {
-		http.Error(w, "email is required", http.StatusBadRequest)
-		return
-	}
-	output, err := nex.Register(r.Context(), email)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status": "error",
-			"error":  err.Error(),
-		})
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status": "ok",
-		"email":  email,
-		"output": output,
-	})
 }
 
 func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
@@ -7399,7 +7417,7 @@ func (b *Broker) handleOTLPLogs(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"accepted": len(events)})
 }
 
-func (b *Broker) handleNexNotifications(w http.ResponseWriter, r *http.Request) {
+func (b *Broker) handleAutomationNotifications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -7420,7 +7438,7 @@ func (b *Broker) handleNexNotifications(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	msg, duplicate, err := b.PostAutomationMessage("nex", body.Channel, body.Title, body.Content, body.EventID, body.Source, body.SourceLabel, body.Tagged, body.ReplyTo)
+	msg, duplicate, err := b.PostAutomationMessage("automation", body.Channel, body.Title, body.Content, body.EventID, body.Source, body.SourceLabel, body.Tagged, body.ReplyTo)
 	if err != nil {
 		http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 		return
@@ -7706,7 +7724,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// tag chip.
 	//
 	// Senders allowed to auto-promote: empty / "you" / "human" (humans) and
-	// any registered agent slug. Everything else — "system", "nex", future
+	// any registered agent slug. Everything else — "system", automation, future
 	// synthetic senders — is excluded by default so automation posts do not
 	// accidentally wake agents on every @-reference they quote.
 	//
@@ -7783,7 +7801,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// rule is routinely ignored; this is the broker-side safety net.
 	//
 	// Humans and system senders are exempt — this only fires for agent posts.
-	if !isHuman && sender != "" && sender != "system" && sender != "nex" {
+	if !isHuman && sender != "" && sender != "system" && sender != "automation" {
 		if b.isDuplicateAgentBroadcastLocked(sender, channel, replyTo, body.Content) {
 			b.counter--
 			b.mu.Unlock()
@@ -8039,10 +8057,10 @@ func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, s
 		msg.Source = "context_graph"
 	}
 	if msg.SourceLabel == "" {
-		msg.SourceLabel = "Nex"
+		msg.SourceLabel = "Automation"
 	}
 	if msg.From == "" {
-		msg.From = "nex"
+		msg.From = "automation"
 	}
 
 	b.appendMessageLocked(msg)
@@ -8448,7 +8466,7 @@ func (b *Broker) handleMembers(w http.ResponseWriter, r *http.Request) {
 		if b.sessionMode == SessionModeOneOnOne && msg.From != b.oneOnOneAgent {
 			continue
 		}
-		if msg.Kind == messageKindAutomation || msg.From == "nex" {
+		if msg.Kind == messageKindAutomation || msg.From == "automation" {
 			continue
 		}
 		content := msg.Content
@@ -10696,7 +10714,7 @@ func FormatChannelView(messages []channelMessage) string {
 		}
 
 		prefix := m.From
-		if m.Kind == messageKindAutomation || m.From == "nex" {
+		if m.Kind == messageKindAutomation || m.From == "automation" {
 			source := m.Source
 			if source == "" {
 				source = "context_graph"
@@ -10705,7 +10723,7 @@ func FormatChannelView(messages []channelMessage) string {
 			if title != "" {
 				title += ": "
 			}
-			sb.WriteString(fmt.Sprintf("  %s  Nex/%s: %s%s\n", ts, source, title, m.Content))
+			sb.WriteString(fmt.Sprintf("  %s  Automation/%s: %s%s\n", ts, source, title, m.Content))
 			continue
 		}
 		if strings.HasPrefix(m.Content, "[STATUS]") {

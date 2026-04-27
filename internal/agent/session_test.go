@@ -9,7 +9,7 @@ import (
 
 func newTempStore(t *testing.T) *agent.SessionStore {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "nex-session-*")
+	dir, err := os.MkdirTemp("", "office-session-*")
 	if err != nil {
 		t.Fatalf("create temp dir: %v", err)
 	}

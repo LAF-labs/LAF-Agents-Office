@@ -8,11 +8,11 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 )
 
-func TestInitFlowStartsWithAPIKeyStepWhenMissing(t *testing.T) {
+func TestInitFlowStartsWithProviderChoice(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	flow, _ := NewInitFlow().Start()
-	if flow.Phase() != InitAPIKey {
-		t.Fatalf("expected API key phase, got %q", flow.Phase())
+	if flow.Phase() != InitProviderChoice {
+		t.Fatalf("expected provider choice phase, got %q", flow.Phase())
 	}
 }
 
@@ -64,11 +64,11 @@ func TestInitFlowViewShowsReadinessSummary(t *testing.T) {
 	flow.provider = "claude-code"
 
 	view := flow.View()
-	if !containsAll(view, "Setup Readiness", "Nex identity", "tmux office runtime", "LLM runtime", "Operation template") {
+	if !containsAll(view, "Setup Readiness", "tmux office runtime", "LLM runtime", "Memory backend", "Operation template") {
 		t.Fatalf("expected readiness summary in init view, got %q", view)
 	}
-	if !strings.Contains(view, "Paste your LAF-Office/Nex API key") {
-		t.Fatalf("expected API key guidance in readiness summary, got %q", view)
+	if strings.Contains(view, "legacy backend") {
+		t.Fatalf("did not expect legacy backend copy in readiness summary, got %q", view)
 	}
 }
 
@@ -83,7 +83,7 @@ func TestBlueprintOptionsIncludeTemplates(t *testing.T) {
 	}
 }
 
-func TestInitFlowMentionsManagedIntegrations(t *testing.T) {
+func TestInitFlowDoesNotMentionHostedIntegrations(t *testing.T) {
 	heading, instructions := NewInitFlow().phaseText()
 	if heading != "Setup" || instructions == "" {
 		t.Fatalf("unexpected idle phase text: %q / %q", heading, instructions)
@@ -92,8 +92,8 @@ func TestInitFlowMentionsManagedIntegrations(t *testing.T) {
 	flow := NewInitFlow()
 	flow.phase = InitAPIKey
 	_, instructions = flow.phaseText()
-	if instructions == "" || !containsAll(instructions, "One", "automatically") {
-		t.Fatalf("expected managed integration copy, got %q", instructions)
+	if instructions == "" || strings.Contains(instructions, "legacy backend") || strings.Contains(instructions, "One") {
+		t.Fatalf("unexpected hosted integration copy, got %q", instructions)
 	}
 }
 
@@ -127,7 +127,7 @@ func TestProviderOptionsExcludeUnsupportedProviders(t *testing.T) {
 	// Unsupported providers must not appear. Framed as a negative invariant
 	// (rather than an exact allowlist) so adding new supported providers —
 	// opencode, openclaw, etc. — doesn't require editing this test.
-	for _, banned := range []string{"gemini", "nex-ask"} {
+	for _, banned := range []string{"gemini", "GBrain-ask"} {
 		if strings.Contains(joined, banned) {
 			t.Fatalf("expected provider options to hide %q, got %q", banned, joined)
 		}

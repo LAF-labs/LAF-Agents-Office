@@ -6,7 +6,7 @@ func TestMessageComesFromHumanOrSystem(t *testing.T) {
 	cases := []channelMessage{
 		{From: "you"},
 		{From: "human"},
-		{From: "nex"},
+		{From: "automation"},
 		{From: "scheduler", Kind: messageKindAutomation},
 	}
 	for _, msg := range cases {

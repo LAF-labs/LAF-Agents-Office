@@ -136,6 +136,20 @@ func TestBridgeStartSubscribesAllBindings(t *testing.T) {
 	}
 }
 
+func TestBridgeStopBeforeStartDoesNotBlock(t *testing.T) {
+	bridge := NewOpenclawBridge(nil, newFakeOC(), nil)
+	done := make(chan struct{})
+	go func() {
+		bridge.Stop()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Stop blocked before bridge Start")
+	}
+}
+
 // TestHandleClientEventForwardsAssistantMessage confirms an assistant reply
 // emitted on sessions.messages.subscribe is posted into #general under the
 // bridged slug's name. The real OpenClaw daemon sends every transcript update

@@ -133,7 +133,7 @@ func renderOfficeMessageBlock(tm threadedMessage, contentWidth int, unreadAnchor
 		return lines
 	}
 
-	if msg.Kind == "automation" || msg.From == "nex" {
+	if msg.Kind == "automation" || msg.From == "automation" {
 		lines = append(lines, renderedLine{Text: ""})
 		source := msg.Source
 		if source == "" {

@@ -74,7 +74,7 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 	}
 	cmd.Env = env
 
-	// Enrich the notification with Nex entity context. Use a 2s deadline so a
+	// Enrich the notification with wiki entity context. Use a 2s deadline so a
 	// slow or unreachable memory backend never holds up the agent turn.
 	//
 	// The memory brief can contain attacker-controlled data (email bodies, CRM
@@ -264,28 +264,12 @@ func (l *Launcher) buildHeadlessClaudeEnv(slug string) []string {
 		product.Env("BROKER_BASE_URL")+"="+l.BrokerBaseURL(),
 		product.Env("HEADLESS_PROVIDER")+"=claude",
 		product.Env("MEMORY_BACKEND")+"="+config.ResolveMemoryBackend(""),
-		fmt.Sprintf("%s=%t", product.Env("NO_NEX"), config.ResolveNoNex()),
 		"ANTHROPIC_PROMPT_CACHING=1",
 	)
 	if l.isOneOnOne() {
 		env = append(env,
 			product.Env("ONE_ON_ONE")+"=1",
 			product.Env("ONE_ON_ONE_AGENT")+"="+l.oneOnOneAgent(),
-		)
-	}
-	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
-		env = append(env, "ONE_SECRET="+secret)
-	}
-	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		env = append(env, "ONE_IDENTITY="+identity)
-		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			env = append(env, "ONE_IDENTITY_TYPE="+identityType)
-		}
-	}
-	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-		env = append(env,
-			product.Env("API_KEY")+"="+apiKey,
-			"NEX_API_KEY="+apiKey,
 		)
 	}
 	return env

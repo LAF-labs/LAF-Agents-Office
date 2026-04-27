@@ -11,7 +11,6 @@ const PALETTE: Record<HarnessKind, { bg: string; fg: string }> = {
   "claude-code": { bg: "#D97757", fg: "#FFFFFF" },
   codex: { bg: "#10A37F", fg: "#FFFFFF" },
   opencode: { bg: "#2563EB", fg: "#FFFFFF" },
-  openclaw: { bg: "#8B5CF6", fg: "#FFFFFF" },
 };
 
 function Glyph({ kind, color }: { kind: HarnessKind; color: string }) {
@@ -44,16 +43,6 @@ function Glyph({ kind, color }: { kind: HarnessKind; color: string }) {
           strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
-          fill="none"
-        />
-      );
-    case "openclaw":
-      return (
-        <path
-          d="M7 5v10M12 3v12M17 5v10M6 15c0 3 3 5 6 5s6-2 6-5"
-          stroke={color}
-          strokeWidth="2.2"
-          strokeLinecap="round"
           fill="none"
         />
       );

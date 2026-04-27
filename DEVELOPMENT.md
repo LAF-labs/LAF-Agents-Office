@@ -83,7 +83,7 @@ The same install step is also wired into setup:
 
 ## Environments
 
-The LAF-Office runtime reads `LAF_OFFICE_BASE_URL` from the environment, falling back to `https://app.nex.ai` in production.
+The LAF-Office runtime reads `LAF_OFFICE_BASE_URL` from the environment. If unset, hosted API features remain disabled.
 
 | Environment | `LAF_OFFICE_BASE_URL` |
 |-------------|----------------|

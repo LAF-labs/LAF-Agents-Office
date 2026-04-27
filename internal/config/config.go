@@ -77,7 +77,6 @@ type Config struct {
 
 const (
 	MemoryBackendNone     = "none"
-	MemoryBackendNex      = "nex"
 	MemoryBackendGBrain   = "gbrain"
 	MemoryBackendMarkdown = "markdown"
 )
@@ -105,8 +104,7 @@ func (c *Config) SetActiveBlueprint(id string) {
 	c.Blueprint = id
 }
 
-// ConfigPath returns the absolute path to ~/.laf-office/config.json, with a legacy
-// fallback to ~/.nex/config.json when the old file already exists.
+// ConfigPath returns the absolute path to ~/.laf-office/config.json.
 func ConfigPath() string {
 	// Env override for test harnesses that need to isolate config state from
 	// the user's real ~/.laf-office/config.json without remapping HOME (which
@@ -119,34 +117,19 @@ func ConfigPath() string {
 		return product.RuntimePath("", "config.json")
 	}
 	newPath := product.RuntimePath(home, "config.json")
-	legacyPath := filepath.Join(home, ".nex", "config.json")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
 	return newPath
 }
 
-// BaseURL returns the resolved base URL.
-// Priority: LAF_OFFICE_DEV_URL env > NEX_DEV_URL env > config dev_url > production default.
-//
-// Note: as of the nex-cli migration, BaseURL is only used by the legacy
-// developer API client surface (api.Client) which still backs the workflow
-// engine's /v1/insights and /v1/context/ask calls. New Nex integrations
-// should shell out via the internal/nex package instead.
+// BaseURL returns the resolved base URL for legacy developer API clients.
+// Priority: LAF_OFFICE_DEV_URL env > config dev_url > production default.
 func BaseURL() string {
 	if v := os.Getenv(product.Env("DEV_URL")); v != "" {
-		return v
-	}
-	if v := os.Getenv("NEX_DEV_URL"); v != "" {
 		return v
 	}
 	if cfg, err := load(ConfigPath()); err == nil && cfg.DevURL != "" {
 		return cfg.DevURL
 	}
-	return "https://app.nex.ai"
+	return ""
 }
 
 // APIBase returns the developer API base URL.
@@ -188,24 +171,11 @@ func Save(cfg Config) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// ResolveNoNex reports whether Nex-backed tools are disabled for this run.
-func ResolveNoNex() bool {
-	v := strings.TrimSpace(os.Getenv(product.Env("NO_NEX")))
-	if v == "" {
-		return false
-	}
-	return v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
-}
-
 // NormalizeMemoryBackend returns a supported memory backend or the empty string.
 func NormalizeMemoryBackend(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
 	case MemoryBackendNone:
 		return MemoryBackendNone
-	case MemoryBackendNex:
-		return MemoryBackendNex
-	case MemoryBackendGBrain:
-		return MemoryBackendGBrain
 	case MemoryBackendMarkdown:
 		return MemoryBackendMarkdown
 	default:
@@ -216,15 +186,8 @@ func NormalizeMemoryBackend(value string) string {
 // ResolveMemoryBackend resolves the active organizational memory backend.
 // Resolution: flag/env override > config file > default.
 //
-// Defaults:
-//   - `markdown` (git-native team wiki at ~/.laf-office/wiki) — the advertised
-//     "file-over-app, git-clone-able" default. Zero config, zero API keys.
-//   - `none` when --no-nex is set and the user hasn't picked a non-Nex
-//     backend in the wizard (preserved for backwards compat with the old
-//     semantics where --no-nex was a hard off-switch).
-//
-// `--no-nex` always disables the Nex backend itself, but does not prevent an
-// alternate backend like GBrain or Markdown from being selected.
+// Default: `markdown` (git-native team wiki at ~/.laf-office/wiki). Zero
+// hosted services and zero memory API keys.
 func ResolveMemoryBackend(flagValue string) string {
 	backend := NormalizeMemoryBackend(flagValue)
 	if backend == "" {
@@ -237,21 +200,14 @@ func ResolveMemoryBackend(flagValue string) string {
 	if backend == "" {
 		return MemoryBackendMarkdown
 	}
-	if backend == MemoryBackendNex && ResolveNoNex() {
-		return MemoryBackendNone
-	}
 	return backend
 }
 
 // MemoryBackendLabel returns a short user-facing label for the backend.
 func MemoryBackendLabel(backend string) string {
 	switch NormalizeMemoryBackend(backend) {
-	case MemoryBackendNex:
-		return "Nex"
-	case MemoryBackendGBrain:
-		return "GBrain"
 	case MemoryBackendMarkdown:
-		return "Markdown wiki"
+		return "Team wiki"
 	default:
 		return "Local-only"
 	}
@@ -404,31 +360,21 @@ func ResolveOpencodeModel() string {
 	return ""
 }
 
-// ResolveAPIKey resolves the API key via: flag > LAF_OFFICE_API_KEY env > NEX_API_KEY env > config file.
+// ResolveAPIKey resolves the API key via: flag > LAF_OFFICE_API_KEY env > config file.
 func ResolveAPIKey(flagValue string) string {
-	if ResolveNoNex() {
-		return ""
-	}
 	if flagValue != "" {
 		return flagValue
 	}
 	if v := os.Getenv(product.Env("API_KEY")); v != "" {
 		return v
 	}
-	if v := os.Getenv("NEX_API_KEY"); v != "" {
-		return v
-	}
 	cfg, _ := Load()
 	return cfg.APIKey
 }
 
-// ResolveOneSecret resolves the Nex-managed One secret.
-// One is disabled entirely when Nex is disabled for the session.
+// ResolveOneSecret resolves the local One secret.
 // Resolution: LAF_OFFICE_ONE_SECRET env > ONE_SECRET env > config file.
 func ResolveOneSecret() string {
-	if ResolveNoNex() {
-		return ""
-	}
 	if v := strings.TrimSpace(os.Getenv(product.Env("ONE_SECRET"))); v != "" {
 		return v
 	}
@@ -442,9 +388,6 @@ func ResolveOneSecret() string {
 // ResolveOneIdentity resolves the identity scope LAF-Office should use with One.
 // Resolution: LAF_OFFICE_ONE_IDENTITY env > ONE_IDENTITY env > config email.
 func ResolveOneIdentity() string {
-	if ResolveNoNex() {
-		return ""
-	}
 	if v := strings.TrimSpace(os.Getenv(product.Env("ONE_IDENTITY"))); v != "" {
 		return v
 	}
@@ -458,9 +401,6 @@ func ResolveOneIdentity() string {
 // ResolveOneIdentityType resolves the One identity type.
 // Resolution: LAF_OFFICE_ONE_IDENTITY_TYPE env > ONE_IDENTITY_TYPE env > "user".
 func ResolveOneIdentityType() string {
-	if ResolveNoNex() {
-		return ""
-	}
 	if v := strings.TrimSpace(os.Getenv(product.Env("ONE_IDENTITY_TYPE"))); v != "" {
 		return v
 	}
@@ -475,41 +415,17 @@ func ResolveOneIdentityType() string {
 
 // OneSetupSummary explains how integrations are handled for the current setup.
 func OneSetupSummary() string {
-	if ResolveNoNex() {
-		return "disabled with Nex (--no-nex)"
-	}
-	email := ResolveOneIdentity()
-	secret := ResolveOneSecret()
-	switch {
-	case email != "" && secret != "":
-		return fmt.Sprintf("managed by Nex via One (%s)", email)
-	case email != "":
-		return fmt.Sprintf("managed by Nex via One (%s), provisioning pending", email)
-	case secret != "":
-		return "managed by Nex via One"
-	default:
-		return "managed by Nex via One after Nex setup"
-	}
+	return "Managed integrations are not available in this build yet."
 }
 
 // OneSetupBlurb is the user-facing copy for setup and config surfaces.
 func OneSetupBlurb() string {
-	if ResolveNoNex() {
-		return "Nex is disabled for this session, so LAF-Office-managed integrations are disabled too."
-	}
-	email := ResolveOneIdentity()
-	if email != "" {
-		return fmt.Sprintf("LAF-Office uses One for integrations and manages it automatically with your Nex email (%s).", email)
-	}
-	return "LAF-Office uses One for integrations and will manage it automatically once Nex setup is complete."
+	return "Managed integrations are not available in this build yet."
 }
 
 // ResolveComposioAPIKey resolves the Composio API key.
 // Resolution: LAF_OFFICE_COMPOSIO_API_KEY env > COMPOSIO_API_KEY env > config file.
 func ResolveComposioAPIKey() string {
-	if ResolveNoNex() {
-		return ""
-	}
 	if v := strings.TrimSpace(os.Getenv(product.Env("COMPOSIO_API_KEY"))); v != "" {
 		return v
 	}
@@ -615,9 +531,6 @@ func ResolveMinimaxAPIKey() string {
 // ResolveComposioUserID resolves the Composio user identity LAF-Office should use.
 // Resolution: LAF_OFFICE_COMPOSIO_USER_ID env > COMPOSIO_USER_ID env > config email.
 func ResolveComposioUserID() string {
-	if ResolveNoNex() {
-		return ""
-	}
 	if v := strings.TrimSpace(os.Getenv(product.Env("COMPOSIO_USER_ID"))); v != "" {
 		return v
 	}
@@ -696,10 +609,6 @@ func ResolveInsightsPollInterval() int {
 		if n, err := strconv.Atoi(raw); err == nil {
 			minutes = n
 		}
-	} else if raw := os.Getenv("NEX_INSIGHTS_INTERVAL_MINUTES"); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil {
-			minutes = n
-		}
 	} else if cfg, err := Load(); err == nil && cfg.InsightsPollMinutes > 0 {
 		minutes = cfg.InsightsPollMinutes
 	}
@@ -712,7 +621,6 @@ func ResolveInsightsPollInterval() int {
 func ResolveTaskFollowUpInterval() int {
 	return resolveTaskInterval(
 		product.Env("TASK_FOLLOWUP_MINUTES"),
-		"NEX_TASK_FOLLOWUP_MINUTES",
 		func(cfg Config) int { return cfg.TaskFollowUpMinutes },
 		60,
 	)
@@ -721,7 +629,6 @@ func ResolveTaskFollowUpInterval() int {
 func ResolveTaskReminderInterval() int {
 	return resolveTaskInterval(
 		product.Env("TASK_REMINDER_MINUTES"),
-		"NEX_TASK_REMINDER_MINUTES",
 		func(cfg Config) int { return cfg.TaskReminderMinutes },
 		30,
 	)
@@ -730,19 +637,14 @@ func ResolveTaskReminderInterval() int {
 func ResolveTaskRecheckInterval() int {
 	return resolveTaskInterval(
 		product.Env("TASK_RECHECK_MINUTES"),
-		"NEX_TASK_RECHECK_MINUTES",
 		func(cfg Config) int { return cfg.TaskRecheckMinutes },
 		15,
 	)
 }
 
-func resolveTaskInterval(envKey, legacyEnvKey string, fromConfig func(Config) int, defaultMinutes int) int {
+func resolveTaskInterval(envKey string, fromConfig func(Config) int, defaultMinutes int) int {
 	minutes := defaultMinutes
 	if raw := os.Getenv(envKey); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil {
-			minutes = n
-		}
-	} else if raw := os.Getenv(legacyEnvKey); raw != "" {
 		if n, err := strconv.Atoi(raw); err == nil {
 			minutes = n
 		}

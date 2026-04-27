@@ -25,18 +25,18 @@ const (
 
 // agentColorMap maps agent slugs to their brand colors.
 var agentColorMap = map[string]string{
-	"all":      "#FFFFFF",
-	"ceo":      "#EAB308",
-	"pm":       "#22C55E",
-	"fe":       "#3B82F6",
-	"be":       "#8B5CF6",
-	"ai":       "#14B8A6",
-	"designer": "#EC4899",
-	"cmo":      "#F97316",
-	"cro":      "#06B6D4",
-	"nex":      "#7C3AED",
-	"you":      "#38BDF8",
-	"human":    "#38BDF8",
+	"all":        "#FFFFFF",
+	"ceo":        "#EAB308",
+	"pm":         "#22C55E",
+	"fe":         "#3B82F6",
+	"be":         "#8B5CF6",
+	"ai":         "#14B8A6",
+	"designer":   "#EC4899",
+	"cmo":        "#F97316",
+	"cro":        "#06B6D4",
+	"automation": "#7C3AED",
+	"you":        "#38BDF8",
+	"human":      "#38BDF8",
 }
 
 // statusDotColors maps activity states to dot colors.
@@ -171,7 +171,7 @@ func agentAvatar(slug string) string {
 		return "✶"
 	case "cro":
 		return "◈"
-	case "nex":
+	case "automation":
 		return "◎"
 	case "you":
 		return "●"
@@ -198,7 +198,7 @@ func mascotAccent(slug string) string {
 		return "!"
 	case "cro":
 		return "$"
-	case "nex":
+	case "automation":
 		return "◎"
 	case "you":
 		return "+"
@@ -211,7 +211,7 @@ func mascotEyes(slug string) (string, string) {
 	switch slug {
 	case "ceo":
 		return "■", "■"
-	case "ai", "nex":
+	case "ai", "automation":
 		return "◉", "◉"
 	case "designer":
 		return "◕", "◕"
@@ -282,7 +282,7 @@ func mascotProp(slug string) string {
 		return "!"
 	case "cro":
 		return "%"
-	case "nex":
+	case "automation":
 		return "o"
 	case "you":
 		return "+"

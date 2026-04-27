@@ -14835,7 +14835,7 @@ export const KNOWN_AVATAR_SLUG_MAP: Record<string, string> = {
   "pam-legacy": "hybridPamCute",
   "human": "hybridHuman",
   "you": "hybridHuman",
-  "nex": "hybridNex",
+  "office": "hybridNex",
   "generic": "hybridGeneric",
   "qa": "hybridQa",
   "ae": "hybridAe",

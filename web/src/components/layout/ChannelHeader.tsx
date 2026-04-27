@@ -54,16 +54,16 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
         ) : null}
         <button
           className="sidebar-btn"
-          title={theme === "nex-dark" ? "Light mode" : "Dark mode"}
+          title={theme === "office-dark" ? "Light mode" : "Dark mode"}
           aria-label={
-            theme === "nex-dark"
+            theme === "office-dark"
               ? "Switch to light mode"
               : "Switch to dark mode"
           }
-          onClick={() => setTheme(theme === "nex-dark" ? "nex" : "nex-dark")}
+          onClick={() => setTheme(theme === "office-dark" ? "office" : "office-dark")}
           type="button"
         >
-          {theme === "nex-dark" ? (
+          {theme === "office-dark" ? (
             <svg
               aria-hidden="true"
               width="16"

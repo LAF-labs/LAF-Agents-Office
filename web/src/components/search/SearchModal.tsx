@@ -734,12 +734,8 @@ interface CommandDeps {
 
 const PALETTE_APP_COMMANDS: Record<string, string> = {
   "/requests": "requests",
-  "/policies": "policies",
   "/skills": "skills",
-  "/calendar": "calendar",
   "/tasks": "tasks",
-  "/recover": "health-check",
-  "/doctor": "health-check",
   "/threads": "threads",
 };
 

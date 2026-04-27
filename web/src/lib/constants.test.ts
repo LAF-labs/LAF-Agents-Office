@@ -1,0 +1,25 @@
+import { describe, expect, it } from "vitest";
+
+import { SIDEBAR_APPS } from "./constants";
+
+describe("SIDEBAR_APPS", () => {
+  it("keeps the product surface focused on agent collaboration and the wiki", () => {
+    expect(SIDEBAR_APPS.map((app) => app.id)).toEqual([
+      "wiki",
+      "tasks",
+      "requests",
+      "skills",
+      "activity",
+      "receipts",
+      "settings",
+    ]);
+  });
+
+  it("does not expose deferred CRM-style or operator-only surfaces", () => {
+    const ids = SIDEBAR_APPS.map((app) => app.id);
+    expect(ids).not.toContain("graph");
+    expect(ids).not.toContain("policies");
+    expect(ids).not.toContain("calendar");
+    expect(ids).not.toContain("health-check");
+  });
+});

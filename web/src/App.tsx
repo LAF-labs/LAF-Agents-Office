@@ -53,26 +53,6 @@ const ArtifactsApp = lazy(() =>
     default: module.ArtifactsApp,
   })),
 );
-const CalendarApp = lazy(() =>
-  import("./components/apps/CalendarApp").then((module) => ({
-    default: module.CalendarApp,
-  })),
-);
-const GraphApp = lazy(() =>
-  import("./components/apps/GraphApp").then((module) => ({
-    default: module.GraphApp,
-  })),
-);
-const HealthCheckApp = lazy(() =>
-  import("./components/apps/HealthCheckApp").then((module) => ({
-    default: module.HealthCheckApp,
-  })),
-);
-const PoliciesApp = lazy(() =>
-  import("./components/apps/PoliciesApp").then((module) => ({
-    default: module.PoliciesApp,
-  })),
-);
 const ReceiptsApp = lazy(() =>
   import("./components/apps/ReceiptsApp").then((module) => ({
     default: module.ReceiptsApp,
@@ -313,13 +293,9 @@ function MainContent() {
     const panels: Record<string, PanelComponent> = {
       tasks: TasksApp,
       requests: RequestsApp,
-      graph: GraphApp,
-      policies: PoliciesApp,
-      calendar: CalendarApp,
       skills: SkillsApp,
       activity: ArtifactsApp,
       receipts: ReceiptsApp,
-      "health-check": HealthCheckApp,
       settings: SettingsApp,
       threads: ThreadsApp,
     };

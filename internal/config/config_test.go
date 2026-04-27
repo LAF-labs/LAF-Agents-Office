@@ -155,7 +155,6 @@ func TestResolveMemoryBackendDefaultsToMarkdown(t *testing.T) {
 	// and the CLAUDE.md project statement that markdown is the shipping
 	// default.
 	withTempConfig(t, func(_ string) {
-		t.Setenv("LAF_OFFICE_NO_NEX", "")
 		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "")
 		if got := ResolveMemoryBackend(""); got != MemoryBackendMarkdown {
 			t.Fatalf("expected default memory backend markdown, got %q", got)
@@ -163,47 +162,11 @@ func TestResolveMemoryBackendDefaultsToMarkdown(t *testing.T) {
 	})
 }
 
-func TestResolveMemoryBackendDefaultsToMarkdownWhenNoNex(t *testing.T) {
-	// --no-nex says "don't reach for Nex." Markdown doesn't reach for Nex,
-	// so it's a valid and strictly better default than silent 'none' —
-	// previous behaviour left the user with no shared memory at all when
-	// they simply asked to skip Nex.
+func TestResolveOneSecretFallsBackToConfig(t *testing.T) {
 	withTempConfig(t, func(_ string) {
-		t.Setenv("LAF_OFFICE_NO_NEX", "1")
-		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", "")
-		if got := ResolveMemoryBackend(""); got != MemoryBackendMarkdown {
-			t.Fatalf("expected --no-nex default to resolve to markdown, got %q", got)
-		}
-	})
-}
-
-func TestResolveMemoryBackendAllowsGBrainUnderNoNex(t *testing.T) {
-	withTempConfig(t, func(_ string) {
-		t.Setenv("LAF_OFFICE_NO_NEX", "1")
-		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", MemoryBackendGBrain)
-		if got := ResolveMemoryBackend(""); got != MemoryBackendGBrain {
-			t.Fatalf("expected explicit gbrain to survive no-nex, got %q", got)
-		}
-	})
-}
-
-func TestResolveMemoryBackendForcesNexToNoneUnderNoNex(t *testing.T) {
-	withTempConfig(t, func(_ string) {
-		t.Setenv("LAF_OFFICE_NO_NEX", "1")
-		t.Setenv("LAF_OFFICE_MEMORY_BACKEND", MemoryBackendNex)
-		if got := ResolveMemoryBackend(""); got != MemoryBackendNone {
-			t.Fatalf("expected nex to resolve to none under no-nex, got %q", got)
-		}
-	})
-}
-
-func TestResolveOneSecretDisabledWhenNoNex(t *testing.T) {
-	withTempConfig(t, func(_ string) {
-		t.Setenv("LAF_OFFICE_NO_NEX", "1")
-		t.Setenv("LAF_OFFICE_ONE_SECRET", "env-secret")
 		_ = Save(Config{OneAPIKey: "file-secret"})
-		if got := ResolveOneSecret(); got != "" {
-			t.Fatalf("expected no One secret when Nex is disabled, got %q", got)
+		if got := ResolveOneSecret(); got != "file-secret" {
+			t.Fatalf("expected One secret fallback, got %q", got)
 		}
 	})
 }
@@ -224,7 +187,7 @@ func TestOneSetupSummaryManagedPending(t *testing.T) {
 	withTempConfig(t, func(_ string) {
 		_ = Save(Config{Email: "ops@example.com"})
 		got := OneSetupSummary()
-		if got != "managed by Nex via One (ops@example.com), provisioning pending" {
+		if got != "Managed integrations are not available in this build yet." {
 			t.Fatalf("unexpected setup summary %q", got)
 		}
 	})
@@ -632,8 +595,8 @@ func TestBaseURLDevURLEnv(t *testing.T) {
 func TestBaseURLDefault(t *testing.T) {
 	t.Setenv("LAF_OFFICE_DEV_URL", "")
 	withTempConfig(t, func(_ string) {
-		if got := BaseURL(); got != "https://app.nex.ai" {
-			t.Fatalf("expected production URL, got: %s", got)
+		if got := BaseURL(); got != "" {
+			t.Fatalf("expected no default hosted API URL, got: %s", got)
 		}
 	})
 }
@@ -641,16 +604,12 @@ func TestBaseURLDefault(t *testing.T) {
 func TestAPIBase(t *testing.T) {
 	t.Setenv("LAF_OFFICE_DEV_URL", "")
 	withTempConfig(t, func(_ string) {
-		want := "https://app.nex.ai/api/developers"
+		want := "/api/developers"
 		if got := APIBase(); got != want {
 			t.Fatalf("APIBase: got %q, want %q", got, want)
 		}
 	})
 }
-
-// RegisterURL used to point at the legacy HTTP registration endpoint.
-// Registration now shells out via internal/nex.Register (nex-cli), so the
-// URL builder is gone. The test is removed along with it.
 
 func TestOpenclawConfigRoundTrip(t *testing.T) {
 	withTempConfig(t, func(_ string) {

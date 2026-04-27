@@ -1,5 +1,5 @@
 > /tmp/laf-office-vhs --help
-LAF-Office v0.0.7.1 — the terminal office Ryan Howard always wanted.
+LAF-Office v0.0.7.1 - local AI workspace for startup teams.
 
 Usage:
   laf-office              Launch multi-agent team (web UI on :7891)
@@ -8,7 +8,6 @@ Usage:
   laf-office shred        Burn the workspace down and reopen onboarding
   laf-office import --from legacy  Import from a running external orchestrator (auto-detect)
   laf-office log          Show what your agents actually did (task receipts)
-  laf-office memory migrate --from {nex,gbrain}  Port legacy memory into the team wiki
   laf-office --cmd <cmd>  Run a command non-interactively
 
 Flags:
@@ -28,10 +27,6 @@ Flags:
         Output format (text, json) (default "text")
   --from-scratch
         Start without a saved blueprint and synthesize the first operation from the directive
-  --memory-backend
-        Memory backend for organizational context (nex, gbrain, none)
-  --no-nex
-        Disable Nex completely for this run
   --no-open
         Don't open browser automatically on launch
   --opus-ceo

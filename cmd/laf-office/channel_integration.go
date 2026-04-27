@@ -103,21 +103,7 @@ func connectIntegration(spec channelIntegrationSpec) tea.Cmd {
 }
 
 func (m *channelModel) startTelegramConnect() tea.Cmd {
-	token := os.Getenv(product.Env("TELEGRAM_BOT_TOKEN"))
-	if token == "" {
-		token = config.ResolveTelegramBotToken()
-	}
-	if token != "" {
-		m.posting = true
-		m.notice = "Verifying bot token and discovering groups..."
-		return discoverTelegramGroups(token)
-	}
-	// Show token input inside the picker overlay
-	m.picker = tui.NewPicker("Connect Telegram", nil)
-	m.picker.TextInput = true
-	m.picker.TextPrompt = "Paste your bot token from @BotFather:"
-	m.picker.SetActive(true)
-	m.pickerMode = channelPickerTelegramToken
+	m.notice = "External integrations are deferred in this build."
 	return nil
 }
 
@@ -206,7 +192,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 		newChannel := company.ChannelSpec{
 			Slug:        slug,
 			Name:        group.Title,
-			Description: fmt.Sprintf("Telegram bridge for %s.", group.Title),
+			Description: fmt.Sprintf("External bridge for %s.", group.Title),
 			Members:     members,
 			Surface: &company.ChannelSurfaceSpec{
 				Provider:    "telegram",
@@ -225,7 +211,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 			"action":      "create",
 			"slug":        slug,
 			"name":        group.Title,
-			"description": fmt.Sprintf("Telegram bridge for %s.", group.Title),
+			"description": fmt.Sprintf("External bridge for %s.", group.Title),
 			"members":     members,
 			"created_by":  "you",
 			"surface": map[string]any{
@@ -245,7 +231,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 			}
 		}
 
-		// Send confirmation message to the Telegram group
+		// Send confirmation message to the external group.
 		if group.ChatID != 0 {
 			_ = team.SendTelegramMessage(token, group.ChatID,
 				"Connected to LAF-Office. Messages here will be visible to the team.")
@@ -286,18 +272,18 @@ func (m *channelModel) startOpenclawConnect() {
 }
 
 func (m *channelModel) promptOpenclawURL() {
-	m.picker = tui.NewPicker("Connect OpenClaw", nil)
+	m.picker = tui.NewPicker("Connect gateway", nil)
 	m.picker.TextInput = true
 	m.picker.TextPrompt = "Gateway URL (default ws://127.0.0.1:18789):"
 	m.picker.SetActive(true)
 	m.pickerMode = channelPickerOpenclawURL
-	m.notice = "Paste your OpenClaw gateway URL or press Enter for the default."
+	m.notice = "Paste your gateway URL or press Enter for the default."
 }
 
 func (m *channelModel) promptOpenclawToken() {
-	m.picker = tui.NewPicker("Connect OpenClaw", nil)
+	m.picker = tui.NewPicker("Connect gateway", nil)
 	m.picker.TextInput = true
-	m.picker.TextPrompt = "Shared secret (gateway.auth.token from ~/.openclaw/openclaw.json):"
+	m.picker.TextPrompt = "Shared secret:"
 	m.picker.SetActive(true)
 	m.pickerMode = channelPickerOpenclawToken
 	m.notice = "Paste the shared secret for the gateway."

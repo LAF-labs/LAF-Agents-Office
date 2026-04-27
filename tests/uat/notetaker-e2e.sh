@@ -26,7 +26,7 @@ if "$BINARY" --version 2>&1 | grep -q "laf-office v"; then pass; else fail "bad 
 
 log_test "Start laf-office"
 "$BINARY" >"$ARTIFACTS/stdout.txt" 2>"$ARTIFACTS/stderr.txt" &
-NEX_PID=$!
+APP_PID=$!
 sleep 8
 pass
 
@@ -231,8 +231,8 @@ log_test "Kill team"
 "$BINARY" kill 2>/dev/null
 if tmux -L laf-office list-sessions 2>&1 | grep -qi "no server\|error"; then pass; else fail "still running"; fi
 
-kill $NEX_PID 2>/dev/null || true
-wait $NEX_PID 2>/dev/null || true
+kill $APP_PID 2>/dev/null || true
+wait $APP_PID 2>/dev/null || true
 
 echo ""
 echo "============================================"

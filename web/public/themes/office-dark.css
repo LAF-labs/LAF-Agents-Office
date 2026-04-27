@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
    LAF-Office Theme: Dark
-   Dark variant of the LAF-Office theme. Structural rules live in nex.css
-   (scoped with [data-theme^="nex"]) and are inherited here.
+   Dark variant of the LAF-Office theme. Structural rules live in office.css
+   (scoped with [data-theme^="office"]) and are inherited here.
    This file only overrides the semantic token layer.
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('./nex.css');
+@import url('./office.css');
 
-html[data-theme="nex-dark"] {
+html[data-theme="office-dark"] {
   /* ── Ramp overrides (reuse same palette, just reference different stops) ── */
 
   /* ── Overlays flipped for dark surface ── */
@@ -35,35 +35,35 @@ html[data-theme="nex-dark"] {
   --border-strong:  #434647;
 
   /* ── Sidebar ── */
-  --nex-sidebar:             #1a1610;
-  --nex-sidebar-hover:       rgba(236, 178, 46, 0.12);
-  --nex-sidebar-active:      #ecb22e;
-  --nex-sidebar-text:        rgba(255, 255, 255, 0.65);
-  --nex-sidebar-text-active: #FFFFFF;
+  --office-sidebar:             #1a1610;
+  --office-sidebar-hover:       rgba(236, 178, 46, 0.12);
+  --office-sidebar-active:      #ecb22e;
+  --office-sidebar-text:        rgba(255, 255, 255, 0.65);
+  --office-sidebar-text-active: #FFFFFF;
 }
 
-/* ── Override hard-coded message text color (not a CSS variable in nex.css) ── */
-html[data-theme="nex-dark"] .message-text {
+/* ── Override hard-coded message text color (not a CSS variable in office.css) ── */
+html[data-theme="office-dark"] .message-text {
   color: #c8cacc;
 }
 
 /* ── Composer inner border slightly lighter for dark bg ── */
-html[data-theme="nex-dark"] .composer-inner {
+html[data-theme="office-dark"] .composer-inner {
   background: #191a1b;
   border-color: #2a2d2f;
 }
 
 /* ── Sidebar bottom matches deeper dark ── */
-html[data-theme="nex-dark"] .sidebar-bottom {
+html[data-theme="office-dark"] .sidebar-bottom {
   background: #1a1610;
 }
 
 /* ── Sidebar sticky header ── */
-html[data-theme="nex-dark"] .sidebar-header {
+html[data-theme="office-dark"] .sidebar-header {
   background: #1a1610;
 }
 
 /* ── Message hover on dark bg ── */
-html[data-theme="nex-dark"] .message:hover {
+html[data-theme="office-dark"] .message:hover {
   background: #191a1b;
 }

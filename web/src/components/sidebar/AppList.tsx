@@ -2,17 +2,13 @@ import type { ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookStack,
-  Calendar,
   CheckCircle,
   ClipboardCheck,
   Flash,
   Package,
   Page,
   Play,
-  Search,
   Settings,
-  ShareAndroid,
-  Shield,
 } from "iconoir-react";
 
 import { getRequests } from "../../api/client";
@@ -31,13 +27,9 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   wiki: BookStack,
   tasks: CheckCircle,
   requests: ClipboardCheck,
-  graph: ShareAndroid,
-  policies: Shield,
-  calendar: Calendar,
   skills: Flash,
   activity: Package,
   receipts: Page,
-  "health-check": Search,
   settings: Settings,
 };
 

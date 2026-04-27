@@ -4,7 +4,7 @@ Playwright smoke tests against the real laf-office web UI. Two specs, two phases
 
 | Spec | Phase | Precondition |
 |---|---|---|
-| `tests/wizard.spec.ts` | fresh install | **no** `~/.laf-office/onboarded.json` — laf-office serves the onboarding wizard |
+| `tests/wizard.spec.ts` | fresh install | **no** `~/.laf-office/onboarded.json` — spec creates a local team account, then laf-office serves the onboarding wizard |
 | `tests/smoke.spec.ts` | post-onboarding shell | `~/.laf-office/onboarded.json` is **seeded** — laf-office serves the shell, with sidebar + agent panel |
 
 CI runs both in `.github/workflows/ci.yml :: web-e2e` by booting laf-office twice (once with each precondition).

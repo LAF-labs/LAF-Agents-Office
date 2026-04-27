@@ -20,7 +20,7 @@ func TestOnboardingModelStepAdvance(t *testing.T) {
 	m := newOnboardingModel(brokerBaseURL(), 80, 24)
 
 	// Populate step 1 inputs.
-	m.companyInput.SetValue("Dunder Mifflin")
+	m.companyInput.SetValue("LAF Labs")
 	m.descInput.SetValue("Paper company")
 	m.priorityInput.SetValue("Sell more paper")
 

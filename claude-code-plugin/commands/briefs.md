@@ -12,7 +12,7 @@ First use `search_entities` to find the entity by name. Then use `get_entity_bri
 **"workspace" or "playbooks" → list workspace playbooks only:**
 Use `list_briefs` with scope_type=2.
 
-**"sync" → sync all briefs to local .nex/ folder:**
+**"sync" → sync all briefs to local .office/ folder:**
 Use `sync_briefs`. This downloads all briefs as .md files for fast local access.
 
 **"compile <entity>" → trigger compilation:**

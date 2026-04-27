@@ -23,10 +23,8 @@ func ResolveBaseURL() string {
 }
 
 func ResolvePort() int {
-	for _, key := range []string{product.Env("BROKER_PORT"), "NEX_BROKER_PORT"} {
-		if port := parsePort(os.Getenv(key)); port > 0 {
-			return port
-		}
+	if port := parsePort(os.Getenv(product.Env("BROKER_PORT"))); port > 0 {
+		return port
 	}
 	if port := portFromBaseURL(envBaseURL()); port > 0 {
 		return port
@@ -35,10 +33,8 @@ func ResolvePort() int {
 }
 
 func ResolveTokenFile() string {
-	for _, key := range []string{product.Env("BROKER_TOKEN_FILE"), "NEX_BROKER_TOKEN_FILE"} {
-		if path := strings.TrimSpace(os.Getenv(key)); path != "" {
-			return path
-		}
+	if path := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN_FILE"))); path != "" {
+		return path
 	}
 	port := ResolvePort()
 	if port == DefaultPort {
@@ -62,9 +58,7 @@ func parsePort(raw string) int {
 func envBaseURL() string {
 	for _, key := range []string{
 		product.Env("BROKER_BASE_URL"),
-		"NEX_BROKER_BASE_URL",
 		product.Env("TEAM_BROKER_URL"),
-		"NEX_TEAM_BROKER_URL",
 	} {
 		if base := strings.TrimSpace(os.Getenv(key)); base != "" {
 			return strings.TrimRight(base, "/")

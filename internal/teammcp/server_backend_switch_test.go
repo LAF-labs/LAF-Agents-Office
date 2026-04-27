@@ -9,7 +9,7 @@ import (
 )
 
 // TestConfigureServerToolsBackendMatrix is the IRON regression test for
-// backend-axis tool registration. Markdown and Nex/GBrain must NEVER coexist
+// backend-axis tool registration. Markdown and legacy backend/GBrain must NEVER coexist
 // on one server instance — if someone breaks this, existing users lose
 // shared memory silently.
 //
@@ -45,8 +45,8 @@ func TestConfigureServerToolsBackendMatrix(t *testing.T) {
 			commonPresent: []string{"team_broadcast", "team_poll"},
 		},
 		{
-			name:    "nex/office",
-			backend: "nex",
+			name:    "GBrain/office",
+			backend: "GBrain",
 			mustHave: []string{
 				"team_memory_query",
 				"team_memory_write",

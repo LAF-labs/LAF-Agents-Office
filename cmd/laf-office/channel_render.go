@@ -25,11 +25,11 @@ func buildOfficeMessageLines(messages []brokerMessage, expanded map[string]bool,
 	if len(messages) == 0 {
 		lines = append(lines,
 			renderedLine{Text: ""},
-			renderedLine{Text: mutedStyle.Render("  Welcome to LAF-Office. The cast is assembled.")},
+			renderedLine{Text: mutedStyle.Render("  Welcome to LAF-Office. Your agent team is ready.")},
 			renderedLine{Text: mutedStyle.Render("  Drop a company-building thought in #general, or tag a teammate to get things moving.")},
 			renderedLine{Text: ""},
-			renderedLine{Text: mutedStyle.Render("  Suggested: Let's build an AI notetaking company. (Ryan Howard would've called it NoteLAF-Office.)")},
-			renderedLine{Text: mutedStyle.Render("  The CEO triages first, then the right specialists pile in — unlike the original LAF-Office.com, this ships.")},
+			renderedLine{Text: mutedStyle.Render("  Suggested: Let's plan the first shippable version.")},
+			renderedLine{Text: mutedStyle.Render("  The CEO triages first, then the right specialists pick up scoped work.")},
 		)
 		return lines
 	}
@@ -95,10 +95,10 @@ func buildOneOnOneMessageLines(messages []brokerMessage, expanded map[string]boo
 		return []renderedLine{
 			{Text: ""},
 			{Text: mutedStyle.Render("  Conference room reserved. Direct session reset. Agent pane reloaded in place.")},
-			{Text: mutedStyle.Render("  No colleagues, no sidebar, no Toby. Just you and " + agentName + ".")},
+			{Text: mutedStyle.Render("  Just you and " + agentName + ".")},
 			{Text: ""},
 			{Text: mutedStyle.Render("  Suggested: Help me think through the v1 launch plan.")},
-			{Text: mutedStyle.Render("  Whatever you say here stays in this room. Like Vegas. Or Threat Level Midnight.")},
+			{Text: mutedStyle.Render("  Use this for focused planning, review, or decision work.")},
 		}
 	}
 	return buildOfficeMessageLines(messages, expanded, contentWidth, true, unreadAnchorID, unreadCount)
@@ -170,7 +170,7 @@ func buildRequestLines(requests []channelInterview, contentWidth int) []rendered
 		return []renderedLine{
 			{Text: ""},
 			{Text: muted.Render("  No open requests right now. The team is self-sufficient.")},
-			{Text: muted.Render("  When an agent needs a real decision, it shows up here — unlike Toby's requests, these matter.")},
+			{Text: muted.Render("  When an agent needs a real decision, it shows up here.")},
 		}
 	}
 	var lines []renderedLine
@@ -205,7 +205,7 @@ func buildRequestLines(requests []channelInterview, contentWidth int) []rendered
 		if req.RecommendedID != "" {
 			lines = append(lines, renderedLine{Text: "  " + highlight.Render("Recommended: "+req.RecommendedID), RequestID: req.ID})
 		}
-		lines = append(lines, renderedLine{Text: "  " + muted.Render("Click to focus, answer, or snooze. Esc hides it locally — the team still waits. Unlike Toby's requests, these are worth your time."), RequestID: req.ID})
+		lines = append(lines, renderedLine{Text: "  " + muted.Render("Click to focus, answer, or snooze. Esc hides it locally; the team still waits."), RequestID: req.ID})
 	}
 	return lines
 }
@@ -219,9 +219,9 @@ func buildPolicyLines(signals []channelSignal, decisions []channelDecision, aler
 		lines = append(lines, renderedLine{Text: ""})
 		lines = append(lines, renderedLine{Text: muted.Render("  No office insights yet. Give the team a minute.")})
 		lines = append(lines, renderedLine{Text: muted.Render("  Signals, decisions, watchdogs, and external actions will appear here")})
-		lines = append(lines, renderedLine{Text: muted.Render("  as the office starts tracking higher-signal work — like the Dundies, but actually useful.")})
+		lines = append(lines, renderedLine{Text: muted.Render("  as the workspace starts tracking higher-signal work.")})
 		lines = append(lines, renderedLine{Text: ""})
-		lines = append(lines, renderedLine{Text: muted.Render("  Use /policies to refresh this ledger. Even Michael checked his metrics eventually.")})
+		lines = append(lines, renderedLine{Text: muted.Render("  Use /messages to return to active work.")})
 		return lines
 	}
 

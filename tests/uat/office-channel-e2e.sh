@@ -78,7 +78,7 @@ echo "Artifacts: $ARTIFACTS"
 
 kill_stale_runtime
 
-termwright daemon --socket "$SOCKET" --cols 120 --rows 40 --background -- "$BINARY" --no-nex --channel-view --channel-app messages
+termwright daemon --socket "$SOCKET" --cols 120 --rows 40 --background -- "$BINARY" --channel-view --channel-app messages
 sleep 5
 
 assert_contains "LAF-Office" "boot"

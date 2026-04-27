@@ -19,13 +19,13 @@ echo "Artifacts: $ARTIFACTS"
 
 # Create a launcher wrapper that runs channel-view directly (no tmux layer).
 # --channel-view: run the TUI directly without launching tmux/agents
-# --no-nex: skip API-key prompt so the model starts clean in office-only mode
+#: skip API-key prompt so the model starts clean in office-only mode
 # LAF_OFFICE_NO_SPLASH: skip the splash screen so channelModel starts immediately
 LAUNCHER="$ARTIFACTS/launcher.sh"
 cat > "$LAUNCHER" <<EOF
 #!/bin/bash
 export LAF_OFFICE_NO_SPLASH=1
-exec "$BINARY" --channel-view --no-nex "\$@"
+exec "$BINARY" --channel-view "\$@"
 EOF
 chmod +x "$LAUNCHER"
 

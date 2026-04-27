@@ -9,11 +9,11 @@ Use the `list_skills` MCP tool. Display results as a table with Name (slug), Tri
 **Skill slug -> show skill:**
 Use `get_skill_by_slug` with the slug. Display the full markdown content including action steps, required integrations, and workspace context.
 
-**"sync" -> sync all skills to local .nex/ folder:**
-Use `sync_skills`. This downloads all skills as .md files to .nex/skills/ for fast local access by any AI agent.
+**"sync" -> sync all skills to local .office/ folder:**
+Use `sync_skills`. This downloads all skills as .md files to .office/skills/ for fast local access by any AI agent.
 
 **"compile" -> trigger skill compilation:**
 Use `compile_skills`. This scans playbook rules and generates executable skills grounded to the workspace's tools, team, and CRM schema.
 
 **"read <slug>" -> read from local cache:**
-Use `read_skill` with the slug. Reads from .nex/skills/ first, falls back to API.
+Use `read_skill` with the slug. Reads from .office/skills/ first, falls back to API.

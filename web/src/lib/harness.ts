@@ -1,13 +1,12 @@
 import type { OfficeMember } from "../api/client";
 
-export type HarnessKind = "claude-code" | "codex" | "opencode" | "openclaw";
+export type HarnessKind = "claude-code" | "codex" | "opencode";
 
 const VALID_KINDS: Record<string, HarnessKind> = {
   "claude-code": "claude-code",
   claude: "claude-code",
   codex: "codex",
   opencode: "opencode",
-  openclaw: "openclaw",
 };
 
 function normalize(raw: string | undefined | null): HarnessKind | null {
@@ -36,7 +35,5 @@ export function harnessLabel(kind: HarnessKind): string {
       return "Codex";
     case "opencode":
       return "Opencode";
-    case "openclaw":
-      return "OpenClaw";
   }
 }

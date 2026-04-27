@@ -6,7 +6,7 @@ function parsePort(raw) {
     return Number.isFinite(port) && port > 0 ? port : 0;
 }
 function resolveBrokerBaseUrl() {
-    for (const key of ["LAF_OFFICE_BROKER_BASE_URL", "NEX_BROKER_BASE_URL", "LAF_OFFICE_TEAM_BROKER_URL", "NEX_TEAM_BROKER_URL"]) {
+    for (const key of ["LAF_OFFICE_BROKER_BASE_URL", "", "LAF_OFFICE_TEAM_BROKER_URL", ""]) {
         const value = (process.env[key] ?? "").trim();
         if (value)
             return value.replace(/\/+$/, "");
@@ -15,12 +15,12 @@ function resolveBrokerBaseUrl() {
     return `http://127.0.0.1:${port}`;
 }
 function resolveBrokerPort() {
-    for (const key of ["LAF_OFFICE_BROKER_PORT", "NEX_BROKER_PORT"]) {
+    for (const key of ["LAF_OFFICE_BROKER_PORT", ""]) {
         const port = parsePort(process.env[key]);
         if (port > 0)
             return port;
     }
-    const base = (process.env.LAF_OFFICE_BROKER_BASE_URL ?? process.env.NEX_BROKER_BASE_URL ?? process.env.LAF_OFFICE_TEAM_BROKER_URL ?? process.env.NEX_TEAM_BROKER_URL ?? "").trim();
+    const base = (process.env.LAF_OFFICE_BROKER_BASE_URL ?? process.env. ?? process.env.LAF_OFFICE_TEAM_BROKER_URL ?? process.env. ?? "").trim();
     if (base) {
         try {
             const parsed = new URL(base);
@@ -34,7 +34,7 @@ function resolveBrokerPort() {
     return defaultBrokerPort;
 }
 function resolveBrokerTokenPath() {
-    for (const key of ["LAF_OFFICE_BROKER_TOKEN_FILE", "NEX_BROKER_TOKEN_FILE"]) {
+    for (const key of ["LAF_OFFICE_BROKER_TOKEN_FILE", ""]) {
         const value = (process.env[key] ?? "").trim();
         if (value)
             return value;
@@ -45,14 +45,14 @@ function resolveBrokerTokenPath() {
 const brokerBaseUrl = resolveBrokerBaseUrl();
 const brokerTokenPath = resolveBrokerTokenPath();
 function resolveSlug(input) {
-    const slug = input ?? process.env.NEX_AGENT_SLUG ?? "";
+    const slug = input ?? process.env.LAF_OFFICE_AGENT_SLUG ?? "";
     if (!slug) {
-        throw new Error("Missing agent slug. Pass my_slug explicitly or set NEX_AGENT_SLUG.");
+        throw new Error("Missing agent slug. Pass my_slug explicitly or set LAF_OFFICE_AGENT_SLUG.");
     }
     return slug;
 }
 function authHeaders() {
-    const token = (process.env.NEX_BROKER_TOKEN ?? "").trim() || readBrokerTokenFile();
+    const token = (process.env.LAF_OFFICE_BROKER_TOKEN ?? "").trim() || readBrokerTokenFile();
     if (!token)
         return {};
     return { Authorization: `Bearer ${token}` };
@@ -161,7 +161,7 @@ async function inferDefaultThreadTarget(slug) {
 export function registerTeamTools(server) {
     server.tool("team_broadcast", "Post a message into the shared team channel so the human and every agent can see it.", {
         content: z.string().describe("Message to post to the shared team channel"),
-        my_slug: z.string().optional().describe("Agent slug sending the message. Defaults to NEX_AGENT_SLUG."),
+        my_slug: z.string().optional().describe("Agent slug sending the message. Defaults to LAF_OFFICE_AGENT_SLUG."),
         tagged: z.array(z.string()).optional().describe("Optional list of tagged agent slugs who should respond"),
         reply_to_id: z.string().optional().describe("Reply in-thread to a specific message ID when continuing a narrow discussion"),
         new_topic: z.boolean().optional().describe("Set true only when this genuinely needs to start a new top-level thread"),
@@ -188,11 +188,11 @@ export function registerTeamTools(server) {
         };
     });
     server.tool("team_poll", "Read recent messages from the shared team channel so you can stay in sync with teammates.", {
-        my_slug: z.string().optional().describe("Your agent slug so tagged_count can be computed. Defaults to NEX_AGENT_SLUG."),
+        my_slug: z.string().optional().describe("Your agent slug so tagged_count can be computed. Defaults to LAF_OFFICE_AGENT_SLUG."),
         since_id: z.string().optional().describe("Only return messages after this message ID"),
         limit: z.number().optional().describe("Maximum messages to return (default 20, max 100)"),
     }, { readOnlyHint: true, openWorldHint: true }, async ({ my_slug, since_id, limit }) => {
-        const slug = my_slug ?? process.env.NEX_AGENT_SLUG;
+        const slug = my_slug ?? process.env.LAF_OFFICE_AGENT_SLUG;
         const params = new URLSearchParams();
         if (slug)
             params.set("my_slug", slug);
@@ -214,7 +214,7 @@ export function registerTeamTools(server) {
     });
     server.tool("team_status", "Share a short status update in the team channel. This is rendered as lightweight activity in the channel UI.", {
         status: z.string().describe("Short status like 'reviewing onboarding flow' or 'implementing search index'"),
-        my_slug: z.string().optional().describe("Agent slug sending the status. Defaults to NEX_AGENT_SLUG."),
+        my_slug: z.string().optional().describe("Agent slug sending the status. Defaults to LAF_OFFICE_AGENT_SLUG."),
     }, { readOnlyHint: false, openWorldHint: true }, async ({ status, my_slug }) => {
         const slug = resolveSlug(my_slug);
         await brokerPost("/messages", {
@@ -250,7 +250,7 @@ export function registerTeamTools(server) {
     server.tool("human_interview", "Ask the human a blocking interview question when the team cannot proceed responsibly without a decision. Presents options and optionally marks one as recommended. Pauses the team until answered.", {
         question: z.string().describe("The specific decision or clarification needed from the human"),
         context: z.string().optional().describe("Short context explaining why the team is asking now"),
-        my_slug: z.string().optional().describe("Agent slug asking the question. Defaults to NEX_AGENT_SLUG."),
+        my_slug: z.string().optional().describe("Agent slug asking the question. Defaults to LAF_OFFICE_AGENT_SLUG."),
         options: z.array(z.object({
             id: z.string().describe("Stable short ID like 'sales' or 'smbs'"),
             label: z.string().describe("User-facing option label"),

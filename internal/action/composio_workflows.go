@@ -37,9 +37,6 @@ type workflowStep struct {
 	FormData        bool           `json:"form_data,omitempty"`
 	FormURLEncoded  bool           `json:"form_url_encoded,omitempty"`
 	DryRun          *bool          `json:"dry_run,omitempty"`
-	QueryTemplate   string         `json:"query_template,omitempty"`
-	LookbackHours   any            `json:"lookback_hours,omitempty"`
-	InsightLimit    any            `json:"insight_limit,omitempty"`
 }
 
 type workflowRunRecord struct {
@@ -175,14 +172,11 @@ func (c *ComposioREST) decodeWorkflowDefinition(definition json.RawMessage) (com
 			spec.Steps[i].Data = spec.Steps[i].Params
 		}
 		spec.Steps[i].Template = normalizeWorkflowTemplateString(spec.Steps[i].Template)
-		spec.Steps[i].QueryTemplate = normalizeWorkflowTemplateString(spec.Steps[i].QueryTemplate)
 		spec.Steps[i].ConnectionKey = normalizeWorkflowValueSyntax(spec.Steps[i].ConnectionKey)
 		spec.Steps[i].Data = normalizeWorkflowMapSyntax(spec.Steps[i].Data)
 		spec.Steps[i].PathVariables = normalizeWorkflowMapSyntax(spec.Steps[i].PathVariables)
 		spec.Steps[i].QueryParameters = normalizeWorkflowMapSyntax(spec.Steps[i].QueryParameters)
 		spec.Steps[i].Headers = normalizeWorkflowMapSyntax(spec.Steps[i].Headers)
-		spec.Steps[i].LookbackHours = normalizeWorkflowValueSyntax(spec.Steps[i].LookbackHours)
-		spec.Steps[i].InsightLimit = normalizeWorkflowValueSyntax(spec.Steps[i].InsightLimit)
 		if spec.Steps[i].ID == "" {
 			return spec, fmt.Errorf("workflow step %d is missing id", i+1)
 		}
@@ -202,11 +196,6 @@ func (c *ComposioREST) decodeWorkflowDefinition(definition json.RawMessage) (com
 			if strings.TrimSpace(spec.Steps[i].Template) == "" {
 				return spec, fmt.Errorf("workflow step %q is missing template", spec.Steps[i].ID)
 			}
-		case "nex_ask":
-			if strings.TrimSpace(spec.Steps[i].QueryTemplate) == "" {
-				return spec, fmt.Errorf("workflow step %q is missing query_template", spec.Steps[i].ID)
-			}
-		case "nex_insights":
 		default:
 			return spec, fmt.Errorf("unsupported workflow step type %q", spec.Steps[i].Type)
 		}
@@ -357,10 +346,6 @@ func (c *ComposioREST) executeWorkflowStep(ctx context.Context, step workflowSte
 		return c.executeWorkflowActionStep(ctx, step, scope, workflowDryRun)
 	case "template":
 		return executeWorkflowTemplateStep(step, scope)
-	case "nex_ask":
-		return executeWorkflowNexAskStep(step, scope)
-	case "nex_insights":
-		return executeWorkflowNexInsightsStep(step, scope)
 	default:
 		return nil, fmt.Errorf("unsupported workflow step type %q", step.Type)
 	}
@@ -463,54 +448,6 @@ func executeWorkflowTemplateStep(step workflowStep, scope map[string]any) (map[s
 	}, nil
 }
 
-func executeWorkflowNexAskStep(step workflowStep, scope map[string]any) (map[string]any, error) {
-	query, err := renderWorkflowTemplate(step.QueryTemplate, scope)
-	if err != nil {
-		return nil, fmt.Errorf("render query_template: %w", err)
-	}
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, fmt.Errorf("query_template rendered empty")
-	}
-	answer, err := nexAsk(query)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"type":       "nex_ask",
-		"query":      query,
-		"answer":     strings.TrimSpace(answer.Answer),
-		"session_id": strings.TrimSpace(answer.SessionID),
-		"result":     strings.TrimSpace(answer.Answer),
-	}, nil
-}
-
-func executeWorkflowNexInsightsStep(step workflowStep, scope map[string]any) (map[string]any, error) {
-	lookbackHours, err := renderWorkflowInt(step.LookbackHours, scope, 24)
-	if err != nil {
-		return nil, fmt.Errorf("render lookback_hours: %w", err)
-	}
-	insightLimit, err := renderWorkflowInt(step.InsightLimit, scope, 5)
-	if err != nil {
-		return nil, fmt.Errorf("render insight_limit: %w", err)
-	}
-	from := time.Now().UTC().Add(-time.Duration(lookbackHours) * time.Hour)
-	insights, err := nexInsightsSince(from, insightLimit)
-	if err != nil {
-		return nil, err
-	}
-	normalizedInsights := normalizeTemplateScopeValue(insights.Insights)
-	compactSummary := summarizeWorkflowInsights(insights.Insights)
-	return map[string]any{
-		"type":           "nex_insights",
-		"lookback_hours": lookbackHours,
-		"limit":          insightLimit,
-		"from":           from.Format(time.RFC3339),
-		"insights":       normalizedInsights,
-		"result":         compactSummary,
-	}, nil
-}
-
 func renderWorkflowMap(in map[string]any, scope map[string]any) (map[string]any, error) {
 	if len(in) == 0 {
 		return nil, nil
@@ -610,44 +547,6 @@ func renderWorkflowTemplate(tpl string, scope map[string]any) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
-}
-
-func summarizeWorkflowInsights(items []nexInsightItem) string {
-	if len(items) == 0 {
-		return "No notable Nex insights in the requested window."
-	}
-	var b strings.Builder
-	b.WriteString("Relevant Nex insights:\n")
-	for _, item := range items {
-		content := truncateWorkflowInsight(strings.TrimSpace(item.Content), 240)
-		if content == "" {
-			continue
-		}
-		label := strings.TrimSpace(item.Type)
-		if label == "" {
-			label = "insight"
-		}
-		fmt.Fprintf(&b, "- [%s] %s\n", label, content)
-	}
-	text := strings.TrimSpace(b.String())
-	if text == "Relevant Nex insights:" || text == "" {
-		return "No notable Nex insights in the requested window."
-	}
-	return text
-}
-
-func truncateWorkflowInsight(text string, max int) string {
-	if max <= 0 || len(text) <= max {
-		return text
-	}
-	text = strings.TrimSpace(text)
-	if len(text) <= max {
-		return text
-	}
-	if max <= 1 {
-		return text[:max]
-	}
-	return strings.TrimSpace(text[:max-1]) + "…"
 }
 
 func actionStepDryRun(step workflowStep, workflowDryRun bool) bool {

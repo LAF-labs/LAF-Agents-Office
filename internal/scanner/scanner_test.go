@@ -166,7 +166,7 @@ func TestScannerWalkDirSkipsSymlinks(t *testing.T) {
 			t.Fatalf("scanner followed a symlink to %s", f.AbsolutePath)
 		}
 	}
-	// Regression anchor for the eng-review decision to diverge from nex-cli.
+	// Regression anchor for the eng-review decision to diverge from office-cli.
 	if len(got) != 2 {
 		t.Fatalf("expected exactly 2 (real.md + sub/file.md), got %d: %+v", len(got), got)
 	}

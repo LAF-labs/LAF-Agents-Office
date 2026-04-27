@@ -242,7 +242,7 @@ export async function fetchEntityGraph(
 
 /**
  * `GET /entity/graph/all` — returns the full cross-entity graph: every brief
- * + every coalesced edge, in one payload. Used by the Graph app view.
+ * + every coalesced edge, in one payload. Used by wiki relationship views.
  */
 export async function fetchEntityGraphAll(): Promise<GraphAllResponse> {
   const res = await get<GraphAllResponse>("/entity/graph/all");

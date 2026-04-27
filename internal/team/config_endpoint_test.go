@@ -235,3 +235,43 @@ func TestConfigEndpointAcceptsActionProviders(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigEndpointStartsOpenclawBridgeAfterGatewayConfig(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", tmp)
+
+	fake := newFakeOC()
+	openclawBootstrapDialer = func(ctx context.Context) (openclawClient, error) {
+		return fake, nil
+	}
+	defer func() { openclawBootstrapDialer = nil }()
+
+	b := newTestBroker(t)
+	b.token = "test-token"
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	body := bytes.NewBufferString(`{"openclaw_gateway_url":"ws://127.0.0.1:18789","openclaw_token":"oc-test"}`)
+	req, _ := http.NewRequest(http.MethodPost, "http://"+b.addr+"/config", body)
+	req.Header.Set("Authorization", "Bearer test-token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST /config: %v", err)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /config openclaw status=%d body=%s", resp.StatusCode, string(raw))
+	}
+
+	b.mu.Lock()
+	bridge := b.openclawBridge
+	b.mu.Unlock()
+	if bridge == nil {
+		t.Fatal("expected /config openclaw settings to start and attach the bridge")
+	}
+}

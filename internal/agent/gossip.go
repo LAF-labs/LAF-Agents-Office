@@ -17,7 +17,7 @@ type GossipInsight struct {
 	Relevance float64 `json:"relevance"`
 }
 
-// GossipLayer provides cross-agent knowledge sharing via the Nex API.
+// GossipLayer provides cross-agent knowledge sharing via a legacy HTTP API.
 type GossipLayer struct {
 	client *api.Client
 }

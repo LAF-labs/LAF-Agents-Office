@@ -22,7 +22,7 @@ func (l *Launcher) CollaborationMode() CollaborationMode {
 
 func messageComesFromHumanOrSystem(msg channelMessage) bool {
 	switch strings.TrimSpace(msg.From) {
-	case "you", "human", "nex":
+	case "you", "human", "automation":
 		return true
 	default:
 		return msg.Kind == messageKindAutomation

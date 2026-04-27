@@ -1,12 +1,6 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 
-import {
-  type AuthSessionResponse,
-  getTeams,
-  login,
-  signup,
-  type WorkspaceTeam,
-} from "../../api/client";
+import { type AuthSessionResponse, login, signup } from "../../api/client";
 import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 
@@ -23,7 +17,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const setLanguage = useAppStore((s) => s.setLanguage);
   const [mode, setMode] = useState<AuthMode>("signup");
   const [teamAction, setTeamAction] = useState<TeamAction>("create");
-  const [teams, setTeams] = useState<WorkspaceTeam[]>([]);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -31,20 +24,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [inviteToken, setInviteToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getTeams()
-      .then((response) => {
-        if (!cancelled) setTeams(response.teams ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setTeams([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,137 +61,141 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         (teamAction === "create"
           ? teamName.trim() !== ""
           : inviteToken.trim() !== "")));
+  const isSignup = mode === "signup";
 
   return (
     <main className="auth-page">
+      <label className="auth-language">
+        <span>{t("settings.general.languageLabel")}</span>
+        <select
+          value={language}
+          onChange={(event) =>
+            setLanguage(event.currentTarget.value === "ko" ? "ko" : "en")
+          }
+        >
+          <option value="en">{t("language.english")}</option>
+          <option value="ko">{t("language.korean")}</option>
+        </select>
+      </label>
+
       <section className="auth-shell" aria-label={t("auth.aria")}>
         <div className="auth-copy">
+          <div className="auth-brand-mark" aria-hidden="true">
+            LAF
+          </div>
           <div className="auth-kicker">{t("auth.kicker")}</div>
           <h1>{t("auth.title")}</h1>
           <p>{t("auth.desc")}</p>
-          {teams.length > 0 ? (
-            <ul className="auth-team-list" aria-label={t("auth.existingTeams")}>
-              {teams.slice(0, 4).map((team) => (
-                <li key={team.id}>{team.name}</li>
-              ))}
-            </ul>
-          ) : null}
         </div>
 
         <form className="auth-panel" onSubmit={handleSubmit}>
-          <label className="auth-field">
-            <span>{t("settings.general.languageLabel")}</span>
-            <select
-              value={language}
-              onChange={(event) =>
-                setLanguage(event.currentTarget.value === "ko" ? "ko" : "en")
-              }
-            >
-              <option value="en">{t("language.english")}</option>
-              <option value="ko">{t("language.korean")}</option>
-            </select>
-          </label>
-
-          <div className="auth-tabs" role="tablist" aria-label={t("auth.mode")}>
-            <button
-              type="button"
-              className={mode === "signup" ? "active" : ""}
-              onClick={() => setMode("signup")}
-            >
-              {t("auth.signup")}
-            </button>
-            <button
-              type="button"
-              className={mode === "login" ? "active" : ""}
-              onClick={() => setMode("login")}
-            >
-              {t("auth.login")}
-            </button>
+          <div className="auth-panel-header">
+            <span>{isSignup ? t("auth.signup") : t("auth.login")}</span>
+            <h2>
+              {isSignup ? t("auth.createAccountTitle") : t("auth.loginTitle")}
+            </h2>
+            <p>
+              {isSignup ? t("auth.createAccountDesc") : t("auth.loginDesc")}
+            </p>
           </div>
 
-          {mode === "signup" ? (
-            <div className="auth-tabs auth-tabs-secondary" role="tablist">
-              <button
-                type="button"
-                className={teamAction === "create" ? "active" : ""}
-                onClick={() => setTeamAction("create")}
-              >
-                {t("auth.newTeam")}
-              </button>
-              <button
-                type="button"
-                className={teamAction === "join" ? "active" : ""}
-                onClick={() => setTeamAction("join")}
-              >
-                {t("auth.joinByInvite")}
-              </button>
-            </div>
-          ) : null}
-
-          <div className="auth-field">
-            <label htmlFor="auth-email">{t("auth.email")}</label>
-            <input
-              id="auth-email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.currentTarget.value)}
-              placeholder="you@company.com"
-            />
-          </div>
-
-          {mode === "signup" ? (
+          <section className="auth-form-section">
+            <h3>{t("auth.accountSection")}</h3>
             <div className="auth-field">
-              <label htmlFor="auth-name">{t("auth.name")}</label>
+              <label htmlFor="auth-email">{t("auth.email")}</label>
               <input
-                id="auth-name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.currentTarget.value)}
-                placeholder={t("auth.yourName")}
+                id="auth-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+                placeholder="you@company.com"
               />
             </div>
-          ) : null}
 
-          <div className="auth-field">
-            <label htmlFor="auth-password">{t("auth.password")}</label>
-            <input
-              id="auth-password"
-              type="password"
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
-              value={password}
-              onChange={(event) => setPassword(event.currentTarget.value)}
-              placeholder={t("auth.passwordHint")}
-            />
-          </div>
+            {isSignup ? (
+              <div className="auth-field">
+                <label htmlFor="auth-name">{t("auth.name")}</label>
+                <input
+                  id="auth-name"
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(event) => setName(event.currentTarget.value)}
+                  placeholder={t("auth.yourName")}
+                />
+              </div>
+            ) : null}
 
-          {mode === "signup" && teamAction === "create" ? (
             <div className="auth-field">
-              <label htmlFor="auth-team-name">{t("auth.teamName")}</label>
+              <label htmlFor="auth-password">{t("auth.password")}</label>
               <input
-                id="auth-team-name"
-                type="text"
-                value={teamName}
-                onChange={(event) => setTeamName(event.currentTarget.value)}
-                placeholder={t("auth.teamName")}
+                id="auth-password"
+                type="password"
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                placeholder={t("auth.passwordHint")}
               />
             </div>
-          ) : null}
+          </section>
 
-          {mode === "signup" && teamAction === "join" ? (
-            <div className="auth-field">
-              <label htmlFor="auth-invite-token">{t("auth.inviteToken")}</label>
-              <input
-                id="auth-invite-token"
-                type="text"
-                value={inviteToken}
-                onChange={(event) => setInviteToken(event.currentTarget.value)}
-                placeholder={t("auth.inviteTokenHint")}
-              />
-            </div>
+          {isSignup ? (
+            <section className="auth-form-section">
+              <div className="auth-section-heading">
+                <h3>{t("auth.workspaceSection")}</h3>
+                <p>{t("auth.workspaceDesc")}</p>
+              </div>
+
+              <div className="auth-choice-list">
+                <button
+                  type="button"
+                  className={teamAction === "create" ? "active" : ""}
+                  aria-pressed={teamAction === "create"}
+                  onClick={() => setTeamAction("create")}
+                >
+                  <span>{t("auth.createWorkspace")}</span>
+                  <small>{t("auth.createWorkspaceDesc")}</small>
+                </button>
+                <button
+                  type="button"
+                  className={teamAction === "join" ? "active" : ""}
+                  aria-pressed={teamAction === "join"}
+                  onClick={() => setTeamAction("join")}
+                >
+                  <span>{t("auth.joinWorkspace")}</span>
+                  <small>{t("auth.joinWorkspaceDesc")}</small>
+                </button>
+              </div>
+
+              {teamAction === "create" ? (
+                <div className="auth-field">
+                  <label htmlFor="auth-team-name">{t("auth.teamName")}</label>
+                  <input
+                    id="auth-team-name"
+                    type="text"
+                    value={teamName}
+                    onChange={(event) => setTeamName(event.currentTarget.value)}
+                    placeholder={t("auth.teamName")}
+                  />
+                </div>
+              ) : (
+                <div className="auth-field">
+                  <label htmlFor="auth-invite-token">
+                    {t("auth.inviteToken")}
+                  </label>
+                  <input
+                    id="auth-invite-token"
+                    type="text"
+                    value={inviteToken}
+                    onChange={(event) =>
+                      setInviteToken(event.currentTarget.value)
+                    }
+                    placeholder={t("auth.inviteTokenHint")}
+                  />
+                </div>
+              )}
+            </section>
           ) : null}
 
           {error ? <div className="auth-error">{error}</div> : null}
@@ -228,6 +211,23 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 ? t("auth.login")
                 : t("auth.createAccount")}
           </button>
+
+          <div className="auth-mode-switch">
+            <span>
+              {isSignup
+                ? t("auth.switchToLoginPrompt")
+                : t("auth.switchToSignupPrompt")}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setMode(isSignup ? "login" : "signup");
+              }}
+            >
+              {isSignup ? t("auth.login") : t("auth.signup")}
+            </button>
+          </div>
         </form>
       </section>
     </main>

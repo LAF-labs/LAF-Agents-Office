@@ -45,29 +45,70 @@
 
 /* ─── Progress Indicator ─── */
 .wizard-progress {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
+  padding: 0;
+  list-style: none;
 }
 
-.wizard-progress-dot {
-  height: 6px;
+.wizard-progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-tertiary);
+}
+
+.wizard-progress-track {
+  height: 4px;
   border-radius: var(--radius-full);
+  background: var(--border-light);
   transition:
-    width 0.25s,
+    opacity 0.25s,
     background 0.25s;
 }
 
-.wizard-progress-dot.active {
-  width: 40px;
+.wizard-progress-item.complete .wizard-progress-track,
+.wizard-progress-item.active .wizard-progress-track {
   background: var(--accent);
 }
 
-.wizard-progress-dot.inactive {
-  width: 24px;
-  background: var(--border-light);
+.wizard-progress-item.complete .wizard-progress-track {
+  opacity: 0.45;
+}
+
+.wizard-progress-label {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-progress-item.active .wizard-progress-label {
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .wizard-container {
+    align-items: flex-start;
+    padding: 28px 16px;
+  }
+
+  .wizard-progress {
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+
+  .wizard-progress-label {
+    font-size: 10px;
+  }
 }
 
 /* ─── Hero (Step 1) ─── */
@@ -369,6 +410,152 @@
   grid-column: 1 / -1;
 }
 
+/* ─── Setup Runtime Summary (Step 5) ─── */
+.runtime-ready-card {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: var(--radius-md);
+  background: rgba(34, 197, 94, 0.07);
+}
+
+.runtime-ready-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.16);
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.runtime-ready-title {
+  margin: 0 0 2px 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.runtime-ready-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.setup-api-panel {
+  margin-top: 12px;
+}
+
+.setup-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.setup-disclosure:hover {
+  border-color: var(--border-dark);
+  color: var(--text);
+}
+
+.setup-required-copy {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.setup-section-title {
+  margin: 0 0 4px 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.setup-section-hint {
+  margin: 0 0 10px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.setup-api-fields {
+  margin-top: 10px;
+  padding-top: 4px;
+}
+
+.gpt-gateway-panel {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.gpt-gateway-panel.configured {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.gpt-gateway-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.gpt-gateway-protocol {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gpt-gateway-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.gpt-gateway-fields .form-group {
+  margin-bottom: 0;
+}
+
+.gpt-gateway-hint {
+  margin: 10px 0 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .gpt-gateway-head,
+  .gpt-gateway-fields {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 /* ─── Key Rows (Step 5) ─── */
 .key-row {
   display: flex;
@@ -402,6 +589,16 @@
 .key-input-wrap {
   flex: 1.2;
   min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .key-row {
+    flex-direction: column;
+  }
+
+  .key-input-wrap {
+    width: 100%;
+  }
 }
 
 /* ─── Runtime Tiles (Step 5) ─── */
@@ -770,45 +967,7 @@
   color: var(--text-secondary);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Wizard parity — Nex signup, conditional GBrain keys, readiness
-   ═══════════════════════════════════════════════════════════════ */
-
-/* ─── Inline "don't have a Nex account?" trigger on Identity step ─── */
-.wiz-nex-trigger {
-  text-align: center;
-}
-
-.wiz-nex-trigger-link {
-  background: none;
-  border: none;
-  color: var(--accent, #1264a3);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 8px 0;
-  text-decoration: underline;
-}
-
-.wiz-nex-trigger-link:hover {
-  color: var(--accent-hover, var(--accent));
-}
-
-/* ─── Expanded Nex signup panel ─── */
-.wiz-nex-signup {
-  border: 1px solid var(--border);
-}
-
-.wiz-nex-ok {
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: var(--text);
-  padding: 12px;
-  border-radius: var(--radius-md, 6px);
-  font-size: 13px;
-  margin: 0;
-}
-
-/* ─── Conditional GBrain keys (inside Setup step's memory panel) ─── */
+/* ─── Conditional backend keys (inside Setup step's memory panel) ─── */
 .wiz-backend-keys {
   margin-top: 16px;
   padding-top: 16px;

@@ -14,7 +14,6 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
@@ -532,7 +531,7 @@ func postAgentToolEvent(ctx context.Context, slug, phase, tool, args, result, er
 
 // registerSharedMemoryTools registers the active shared-memory / wiki tool
 // set on the server. Markdown-backend installs expose team_wiki_* tools;
-// nex/gbrain installs expose the legacy team_memory_* tools; `none` skips
+// gbrain installs expose the legacy team_memory_* tools; `none` skips
 // them entirely. Both tool sets NEVER coexist — agents see exactly one.
 func registerSharedMemoryTools(server *mcp.Server) {
 	switch strings.TrimSpace(os.Getenv(product.Env("MEMORY_BACKEND"))) {
@@ -580,7 +579,7 @@ func registerSharedMemoryTools(server *mcp.Server) {
 	case "none":
 		// Nothing — user explicitly disabled shared memory.
 	default:
-		// nex / gbrain (default): legacy tool set unchanged.
+		// gbrain (default): legacy tool set unchanged.
 		mcp.AddTool(server, readOnlyTool(
 			"team_memory_query",
 			"Query your private notes and, when configured, shared organizational memory. Results may suggest which teammate to ask for fresher working context.",
@@ -800,15 +799,11 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 	}
 }
 
-// hasActionProvider reports whether any external action provider is configured
-// and usable. Used to gate registerActionTools so agents in offices without a
-// connected provider do not see 14 action tools that would all return errors.
+// hasActionProvider reports whether the hosted integration/action layer should
+// be exposed to agents. It is intentionally disabled while LAF-Office uses the
+// markdown team wiki as its only memory/integration surface.
 func hasActionProvider() bool {
-	if externalActionProvider != nil {
-		return true
-	}
-	_, err := team.ResolveActionProviderForCapability(action.CapabilityGuide)
-	return err == nil
+	return false
 }
 
 func handleTeamBroadcast(ctx context.Context, _ *mcp.CallToolRequest, args TeamBroadcastArgs) (*mcp.CallToolResult, any, error) {
@@ -918,7 +913,7 @@ func detectUntaggedMentions(content string, tagged []string) []string {
 		}
 		// Skip common non-agent references
 		switch raw {
-		case "you", "human", "nex", "system", "everyone", "all", "team", "channel":
+		case "you", "human", "automation", "system", "gbrain", "everyone", "all", "team", "channel":
 			continue
 		}
 		if _, inTagged := taggedSet[raw]; inTagged {
@@ -2445,9 +2440,6 @@ func reconfigureLiveOffice() error {
 func brokerBaseURL() string {
 	base := strings.TrimSpace(os.Getenv(product.Env("TEAM_BROKER_URL")))
 	if base == "" {
-		base = strings.TrimSpace(os.Getenv("NEX_TEAM_BROKER_URL"))
-	}
-	if base == "" {
 		base = brokeraddr.ResolveBaseURL()
 	}
 	return strings.TrimRight(base, "/")
@@ -2456,9 +2448,6 @@ func brokerBaseURL() string {
 func authHeaders() http.Header {
 	headers := http.Header{}
 	token := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN")))
-	if token == "" {
-		token = strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN"))
-	}
 	if token == "" {
 		token = readBrokerTokenFile()
 	}
@@ -2471,17 +2460,12 @@ func authHeaders() http.Header {
 	// token. Operator traffic from the web UI never sets this header.
 	if slug := strings.TrimSpace(os.Getenv(product.Env("AGENT_SLUG"))); slug != "" {
 		headers.Set("X-LAF-Office-Agent", slug)
-	} else if slug := strings.TrimSpace(os.Getenv("NEX_AGENT_SLUG")); slug != "" {
-		headers.Set("X-LAF-Office-Agent", slug)
 	}
 	return headers
 }
 
 func readBrokerTokenFile() string {
 	path := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN_FILE")))
-	if path == "" {
-		path = strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN_FILE"))
-	}
 	if path == "" {
 		path = defaultBrokerTokenFile
 	}
@@ -2511,7 +2495,7 @@ func resolveSlugOptional(input string) string {
 	if slug := strings.TrimSpace(os.Getenv(product.Env("AGENT_SLUG"))); slug != "" {
 		return slug
 	}
-	return strings.TrimSpace(os.Getenv("NEX_AGENT_SLUG"))
+	return ""
 }
 
 func normalizeChannelInput(input string) string {
@@ -2527,9 +2511,6 @@ func resolveChannelHint(input string) string {
 	channel := normalizeChannelInput(input)
 	if channel == "" {
 		channel = normalizeChannelInput(os.Getenv(product.Env("CHANNEL")))
-	}
-	if channel == "" {
-		channel = normalizeChannelInput(os.Getenv("NEX_CHANNEL"))
 	}
 	return channel
 }
@@ -3211,7 +3192,7 @@ func formatMessages(messages []brokerMessage, mySlug string) string {
 		// team_poll is background context; agents who need the full output can read
 		// it directly from the thread via a targeted team_poll with thread_id.
 		const pollContentLimit = 800
-		if msg.Kind == "automation" || msg.From == product.CLIName || msg.From == "nex" {
+		if msg.Kind == "automation" || msg.From == product.CLIName || msg.From == "automation" {
 			source := msg.Source
 			if source == "" {
 				source = "context_graph"

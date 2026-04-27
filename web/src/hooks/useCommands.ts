@@ -42,12 +42,9 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/reset", desc: "Reset the office", icon: "🔄" },
   { name: "/tasks", desc: "Open task board", icon: "📋" },
   { name: "/requests", desc: "Open requests", icon: "🔔" },
-  { name: "/recover", desc: "Health Check view", icon: "🔁" },
   { name: "/1o1", desc: "1:1 with agent", icon: "💬" },
   { name: "/task", desc: "Task actions", icon: "✅" },
   { name: "/cancel", desc: "Cancel a task", icon: "❌" },
-  { name: "/policies", desc: "View policies", icon: "📜" },
-  { name: "/calendar", desc: "View schedule", icon: "📅" },
   { name: "/skills", desc: "View skills", icon: "⚡" },
   { name: "/focus", desc: "Switch to delegation mode", icon: "🎯" },
   { name: "/collab", desc: "Switch to collaborative mode", icon: "🤝" },
@@ -74,12 +71,9 @@ const COMMAND_ICONS: Record<string, string> = {
   reset: "🔄",
   tasks: "📋",
   requests: "🔔",
-  recover: "🔁",
   "1o1": "💬",
   task: "✅",
   cancel: "❌",
-  policies: "📜",
-  calendar: "📅",
   skills: "⚡",
   focus: "🎯",
   collab: "🤝",
@@ -90,6 +84,7 @@ const COMMAND_ICONS: Record<string, string> = {
 };
 
 const DEFAULT_ICON = "›";
+const DEFERRED_WEB_COMMANDS = new Set(["calendar", "policies", "recover"]);
 
 /**
  * Convert the broker's payload into the shape the autocomplete renderer
@@ -98,7 +93,7 @@ const DEFAULT_ICON = "›";
  */
 function toAutocomplete(commands: SlashCommandDescriptor[]): SlashCommand[] {
   return commands
-    .filter((c) => c.webSupported)
+    .filter((c) => c.webSupported && !DEFERRED_WEB_COMMANDS.has(c.name))
     .map((c) => ({
       name: `/${c.name}`,
       desc: c.description,

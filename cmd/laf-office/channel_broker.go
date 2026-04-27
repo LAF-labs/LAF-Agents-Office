@@ -21,9 +21,6 @@ func currentBrokerAuthToken() string {
 	if token := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN"))); token != "" {
 		return token
 	}
-	if token := strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN")); token != "" {
-		return token
-	}
 	path := strings.TrimSpace(brokerTokenPath)
 	if path == "" || path == brokeraddr.DefaultTokenFile {
 		path = brokeraddr.ResolveTokenFile()

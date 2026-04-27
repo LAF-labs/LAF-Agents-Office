@@ -42,7 +42,7 @@ func TestNewBrokerRequestUsesEnvTokenAtRequestTime(t *testing.T) {
 		brokerTokenPath = oldPath
 	})
 
-	brokerTokenPath = "/tmp/non-existent-nex-broker-token"
+	brokerTokenPath = "/tmp/non-existent-GBrain-broker-token"
 	if err := os.Setenv("LAF_OFFICE_BROKER_TOKEN", "token-from-env"); err != nil {
 		t.Fatalf("set env: %v", err)
 	}
@@ -327,9 +327,14 @@ func TestSwitchCommandIncludesWorkspaceDestinations(t *testing.T) {
 		values[option.Value] = true
 	}
 
-	for _, want := range []string{"app:messages", "app:tasks", "app:requests", "app:policies", "app:calendar", "session:1o1:ceo"} {
+	for _, want := range []string{"app:messages", "app:tasks", "app:requests", "session:1o1:ceo"} {
 		if !values[want] {
 			t.Fatalf("expected switcher option %q, got %+v", want, options)
+		}
+	}
+	for _, hidden := range []string{"app:policies", "app:calendar"} {
+		if values[hidden] {
+			t.Fatalf("expected deferred option %q to be hidden, got %+v", hidden, options)
 		}
 	}
 }
@@ -694,7 +699,7 @@ func TestDisplaySignalKindUsesHumanDirectiveLabel(t *testing.T) {
 	if got != "Human directive" {
 		t.Fatalf("expected human directive label, got %q", got)
 	}
-	if got := displaySignalKind(channelSignal{Kind: "risk", Source: "nex_insights"}); got != "risk" {
+	if got := displaySignalKind(channelSignal{Kind: "risk", Source: "wiki_insights"}); got != "risk" {
 		t.Fatalf("expected raw signal kind for non-human signal, got %q", got)
 	}
 }
@@ -919,8 +924,8 @@ func TestCtrlOQuickJumpSelectsApp(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected selecting a numbered app to trigger a command")
 	}
-	if got.activeApp != officeAppCalendar {
-		t.Fatalf("expected quick jump 6 to open calendar, got %s", got.activeApp)
+	if got.activeApp != officeAppSkills {
+		t.Fatalf("expected quick jump 6 to open skills, got %s", got.activeApp)
 	}
 	if got.quickJumpTarget != quickJumpNone {
 		t.Fatal("expected app quick nav mode to exit after selection")
@@ -1192,17 +1197,17 @@ func TestChannelViewShowsRuntimeStripForOfficeMessages(t *testing.T) {
 	}
 }
 
-func TestChannelViewRendersNexAutomationMessage(t *testing.T) {
+func TestChannelViewRendersAutomationMessage(t *testing.T) {
 	m := newChannelModel(false)
 	m.width = 120
 	m.height = 30
 	m.messages = []brokerMessage{
 		{
 			ID:          "msg-1",
-			From:        "nex",
+			From:        "automation",
 			Kind:        "automation",
-			Source:      "context_graph",
-			SourceLabel: "Nex",
+			Source:      "wiki",
+			SourceLabel: "Wiki",
 			Title:       "Context alert",
 			Content:     "Important: Acme mentioned budget pressure",
 			Timestamp:   "2026-03-24T10:00:00Z",
@@ -1211,7 +1216,7 @@ func TestChannelViewRendersNexAutomationMessage(t *testing.T) {
 
 	view := stripANSI(m.View())
 	if !strings.Contains(view, "automation") || !strings.Contains(view, "Context alert") || !strings.Contains(view, "Important: Acme mentioned budget pressure") {
-		t.Fatalf("expected Nex automation rendering, got %q", view)
+		t.Fatalf("expected automation rendering, got %q", view)
 	}
 }
 
@@ -1288,28 +1293,7 @@ func TestInitCommandStartsSetupFlow(t *testing.T) {
 	}
 }
 
-func TestNewChannelModelAutoStartsInitWithoutAPIKey(t *testing.T) {
-	origHome := os.Getenv("HOME")
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("LAF_OFFICE_API_KEY", "")
-	// Pin the Nex backend explicitly — this test is asserting Nex-specific
-	// behaviour ("no API key → init flow fires to ask for one"). Since the
-	// shipping default is now markdown (no API key needed), the init flow
-	// would not auto-start without this pin.
-	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendNex)
-	defer os.Setenv("HOME", origHome)
-
-	m := newChannelModel(false)
-
-	if !m.initFlow.IsActive() && m.initFlow.Phase() != "api_key" {
-		t.Fatalf("expected init flow to auto-start without API key, got phase %q", m.initFlow.Phase())
-	}
-	if !strings.Contains(m.notice, "Starting setup") {
-		t.Fatalf("expected setup notice, got %q", m.notice)
-	}
-}
-
-func TestNewChannelModelAutoStartsInitForGBrainWithoutProviderKey(t *testing.T) {
+func TestNewChannelModelDoesNotAutoStartInitForDeprecatedGBrain(t *testing.T) {
 	origHome := os.Getenv("HOME")
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
@@ -1319,15 +1303,15 @@ func TestNewChannelModelAutoStartsInitForGBrainWithoutProviderKey(t *testing.T) 
 
 	m := newChannelModel(false)
 
-	if !m.initFlow.IsActive() && m.initFlow.Phase() != tui.InitAPIKey {
-		t.Fatalf("expected init flow to auto-start for missing gbrain credentials, got phase %q", m.initFlow.Phase())
+	if m.initFlow.IsActive() {
+		t.Fatalf("expected deprecated gbrain setting to fall back to wiki without setup, got phase %q", m.initFlow.Phase())
 	}
-	if !strings.Contains(m.notice, "GBrain") || !strings.Contains(m.notice, "Starting setup") {
-		t.Fatalf("expected GBrain setup notice, got %q", m.notice)
+	if strings.Contains(m.notice, "GBrain") || strings.Contains(m.notice, "Starting setup") {
+		t.Fatalf("expected no legacy setup notice, got %q", m.notice)
 	}
 }
 
-func TestInitCommandRunsForGBrainBackend(t *testing.T) {
+func TestInitCommandRunsForDeprecatedGBrainBackend(t *testing.T) {
 	origHome := os.Getenv("HOME")
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("LAF_OFFICE_MEMORY_BACKEND", config.MemoryBackendGBrain)
@@ -1349,8 +1333,8 @@ func TestInitCommandRunsForGBrainBackend(t *testing.T) {
 	if cmd == nil && got.initFlow.Phase() == tui.InitIdle {
 		t.Fatalf("expected /init to activate setup, got phase %q", got.initFlow.Phase())
 	}
-	if got.initFlow.Phase() != tui.InitAPIKey {
-		t.Fatalf("expected gbrain setup to ask for a provider key, got %q", got.initFlow.Phase())
+	if got.initFlow.Phase() != tui.InitProviderChoice {
+		t.Fatalf("expected setup to start at provider choice, got %q", got.initFlow.Phase())
 	}
 }
 
@@ -1385,8 +1369,11 @@ func TestRefreshSlashCommandsPreservesAutocompleteQuery(t *testing.T) {
 		t.Fatal("expected slash autocomplete to remain visible")
 	}
 	view := stripANSI(m.autocomplete.View())
-	if !strings.Contains(view, "/integrate") || !strings.Contains(view, "/daily-digest") {
+	if !strings.Contains(view, "/init") || !strings.Contains(view, "/daily-digest") {
 		t.Fatalf("expected refreshed command list, got %q", view)
+	}
+	if strings.Contains(view, "/integrate") || strings.Contains(view, "/connect") {
+		t.Fatalf("expected deferred integration commands to be hidden, got %q", view)
 	}
 }
 
@@ -1440,9 +1427,9 @@ func TestChannelDoctorDoneShowsDoctorCard(t *testing.T) {
 	next, _ := m.Update(channelDoctorDoneMsg{report: channelDoctorReport{
 		GeneratedAt: time.Now(),
 		Checks: []doctorCheck{{
-			Label:    "Nex API key",
+			Label:    "API key",
 			Severity: doctorWarn,
-			Detail:   "Missing LAF-Office/Nex API key.",
+			Detail:   "Missing LAF-Office API key.",
 			NextStep: "Run /init and paste your LAF-Office API key.",
 		}},
 	}})
@@ -1452,7 +1439,7 @@ func TestChannelDoctorDoneShowsDoctorCard(t *testing.T) {
 		t.Fatal("expected doctor report to be visible")
 	}
 	view := stripANSI(got.View())
-	if !strings.Contains(view, "Doctor") || !strings.Contains(view, "Nex API key") {
+	if !strings.Contains(view, "Doctor") || !strings.Contains(view, "API key") {
 		t.Fatalf("expected doctor card in view, got %q", view)
 	}
 }
@@ -1480,8 +1467,11 @@ func TestOfficeViewRendersSlashAutocompletePopup(t *testing.T) {
 	m.updateInputOverlays()
 
 	view := stripANSI(m.View())
-	if !strings.Contains(view, "/integrate") || !strings.Contains(view, "/agents") {
+	if !strings.Contains(view, "/init") || !strings.Contains(view, "/agents") {
 		t.Fatalf("expected office view to render slash popup, got %q", view)
+	}
+	if strings.Contains(view, "/integrate") || strings.Contains(view, "/connect") {
+		t.Fatalf("expected deferred integration commands to stay hidden, got %q", view)
 	}
 }
 
@@ -1951,11 +1941,11 @@ func TestCalendarViewRendersSchedulerAndActions(t *testing.T) {
 	m.height = 30
 	m.activeApp = officeAppCalendar
 	m.actions = []channelAction{{ID: "action-1", Kind: "task_created", Actor: "ceo", Summary: "Opened a follow-up task", CreatedAt: "2026-03-24T10:00:00Z"}}
-	m.scheduler = []channelSchedulerJob{{Slug: "nex-insights", Label: "Nex insights", IntervalMinutes: 15, NextRun: "2026-03-24T10:15:00Z", Status: "sleeping"}}
+	m.scheduler = []channelSchedulerJob{{Slug: "wiki-digest", Label: "Wiki digest", IntervalMinutes: 15, NextRun: "2026-03-24T10:15:00Z", Status: "sleeping"}}
 	m.members = []channelMember{{Slug: "ceo", Name: "CEO"}}
 
 	view := stripANSI(m.View())
-	if !strings.Contains(view, "Calendar") || !strings.Contains(view, "Nex insights") || !strings.Contains(view, "Opened a follow-up task") {
+	if !strings.Contains(view, "Calendar") || !strings.Contains(view, "Wiki digest") || !strings.Contains(view, "Opened a follow-up task") {
 		t.Fatalf("expected calendar view without recent actions, got %q", view)
 	}
 }
@@ -1968,9 +1958,9 @@ func TestInsightsViewRendersSignalsDecisionsAndWatchdogs(t *testing.T) {
 	m.activeApp = officeAppPolicies
 	m.signals = []channelSignal{{
 		ID:         "signal-1",
-		Source:     "nex_insights",
+		Source:     "wiki_insights",
 		Kind:       "risk",
-		Title:      "Nex insight",
+		Title:      "Wiki insight",
 		Content:    "Signup conversion is slipping.",
 		Channel:    "general",
 		Owner:      "fe",
@@ -2753,46 +2743,31 @@ func TestBlockingRequestCannotBeSnoozedByCommand(t *testing.T) {
 	}
 }
 
-func TestConnectOpenclawOpensPicker(t *testing.T) {
+func TestConnectOpenclawIsDeferred(t *testing.T) {
 	m := newChannelModel(false)
 
 	next, _ := m.runCommand("/connect openclaw", "")
 	got := next.(channelModel)
 
-	if !got.picker.IsActive() {
-		t.Fatal("expected picker active after /connect openclaw")
+	if got.picker.IsActive() {
+		t.Fatal("expected deferred integration not to open a picker")
 	}
-	if string(got.pickerMode) != "openclaw-url" {
-		t.Fatalf("expected picker mode openclaw-url, got %q", got.pickerMode)
-	}
-	view := stripANSI(got.picker.View())
-	if !strings.Contains(view, "Gateway URL") {
-		t.Fatalf("picker should prompt for Gateway URL: %q", view)
+	if !strings.Contains(got.notice, "deferred") {
+		t.Fatalf("expected deferred integration notice, got %q", got.notice)
 	}
 }
 
-func TestConnectOpenclawChainsFromURLToToken(t *testing.T) {
+func TestConnectCommandIsDeferred(t *testing.T) {
 	m := newChannelModel(false)
 
-	next, _ := m.runCommand("/connect openclaw", "")
+	next, _ := m.runCommand("/connect", "")
 	got := next.(channelModel)
 
-	// Submit URL (empty → default)
-	next2, _ := got.Update(tui.PickerSelectMsg{Value: "", Label: ""})
-	got2 := next2.(channelModel)
-
-	if !got2.picker.IsActive() {
-		t.Fatal("expected picker still active after URL submit")
+	if got.picker.IsActive() {
+		t.Fatal("expected deferred integration not to open a picker")
 	}
-	if string(got2.pickerMode) != "openclaw-token" {
-		t.Fatalf("expected picker mode openclaw-token, got %q", got2.pickerMode)
-	}
-	if got2.openclawURL != "ws://127.0.0.1:18789" {
-		t.Fatalf("expected default URL, got %q", got2.openclawURL)
-	}
-	view := stripANSI(got2.picker.View())
-	if !strings.Contains(view, "Shared secret") {
-		t.Fatalf("picker should prompt for Shared secret: %q", view)
+	if !strings.Contains(got.notice, "deferred") {
+		t.Fatalf("expected deferred integration notice, got %q", got.notice)
 	}
 }
 
@@ -2801,6 +2776,6 @@ func TestMain(m *testing.M) {
 	tmp, _ := os.MkdirTemp("", "laf-office-test-*")
 	os.Setenv("HOME", tmp)
 	os.Setenv("LAF_OFFICE_API_KEY", "test-key")
-	os.Unsetenv("LAF_OFFICE_NO_NEX")
+	os.Unsetenv("LAF_OFFICE_MEMORY_BACKEND")
 	os.Exit(m.Run())
 }

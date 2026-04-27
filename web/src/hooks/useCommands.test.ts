@@ -17,14 +17,25 @@ describe("toAutocomplete", () => {
     expect(mapped.map((c) => c.name)).toEqual(["/ask", "/clear"]);
   });
 
+  it("filters deferred app commands even if an older broker marks them web-supported", () => {
+    const broker: SlashCommandDescriptor[] = [
+      { name: "calendar", description: "Calendar", webSupported: true },
+      { name: "policies", description: "Policies", webSupported: true },
+      { name: "recover", description: "Recover", webSupported: true },
+      { name: "tasks", description: "Tasks", webSupported: true },
+    ];
+
+    expect(toAutocomplete(broker).map((c) => c.name)).toEqual(["/tasks"]);
+  });
+
   it("maps known commands to their icon", () => {
     const broker: SlashCommandDescriptor[] = [
       { name: "ask", description: "Ask", webSupported: true },
-      { name: "calendar", description: "Calendar", webSupported: true },
+      { name: "tasks", description: "Tasks", webSupported: true },
     ];
     const mapped = toAutocomplete(broker);
     expect(mapped[0].icon).toBe(COMMAND_ICONS.ask);
-    expect(mapped[1].icon).toBe(COMMAND_ICONS.calendar);
+    expect(mapped[1].icon).toBe(COMMAND_ICONS.tasks);
   });
 
   it("assigns the default icon to unknown commands so autocomplete never shows a blank glyph", () => {
@@ -80,12 +91,9 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
       "/reset",
       "/tasks",
       "/requests",
-      "/recover",
       "/1o1",
       "/task",
       "/cancel",
-      "/policies",
-      "/calendar",
       "/skills",
       "/focus",
       "/collab",
@@ -97,6 +105,13 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
     expect(FALLBACK_SLASH_COMMANDS.map((c) => c.name).sort(sortText)).toEqual(
       expected,
     );
+  });
+
+  it("does not expose deferred CRM-style or operator-only app commands", () => {
+    const names = FALLBACK_SLASH_COMMANDS.map((c) => c.name);
+    expect(names).not.toContain("/policies");
+    expect(names).not.toContain("/calendar");
+    expect(names).not.toContain("/recover");
   });
 
   it("never ships an empty icon — every fallback entry has a glyph", () => {

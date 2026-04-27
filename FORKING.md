@@ -1,8 +1,9 @@
 # FORKING LAF-Office
 
-Honest instructions for making LAF-Office yours in about 45 minutes. This file is maintained — if any step breaks, file an issue.
+Honest instructions for making LAF-Office yours in about 45 minutes. This file
+is maintained; if any step breaks, file an issue.
 
-Before you fork, read [`ARCHITECTURE.md`](ARCHITECTURE.md). It's one page. It will save you an afternoon of `grep -R`.
+Before you fork, read [`ARCHITECTURE.md`](ARCHITECTURE.md). It's one page.
 
 ## 0. Pin to a release tag, not `main`
 
@@ -11,86 +12,45 @@ Before you fork, read [`ARCHITECTURE.md`](ARCHITECTURE.md). It's one page. It wi
 ```bash
 git clone https://github.com/LAF-labs/LAF-Agents-Office.git
 cd laf-office
-git checkout v0.0.2.0   # or the latest tag: git describe --tags --abbrev=0
+git checkout "$(git describe --tags --abbrev=0)"
 git checkout -b your-fork
 ```
 
-## 1. Run it without Nex (read-only, no vendor coupling)
+## 1. Keep the Wiki Local
 
-LAF-Office ships with optional Nex context graph integration. If you want a clean, vendor-free baseline:
+LAF-Office currently uses the local markdown team wiki as its default project
+memory surface. CRM, email, calendar, notification, and hosted action
+integrations are intentionally unavailable in this build.
 
-```bash
-./laf-office --no-nex
-```
-
-That's the whole fix. The `--no-nex` flag skips all Nex wiring at startup. No code edits needed.
-
-If you want Nex gone from your fork entirely, there are four integration points to remove:
+Use:
 
 ```bash
-# 1. Delete the Nex MCP server (if present)
-rm -f mcp/nex*
-
-# 2. Delete the Nex API client
-rm internal/action/nex_client.go
-
-# 3. Remove the nex-mcp lookPath blocks (2 places)
-#    internal/team/launcher.go      ~ line 3069  (search: nex-mcp)
-#    internal/team/headless_codex.go ~ line 555   (search: nex-mcp)
-
-# 4. Remove nex types from launcher context
-#    internal/team/launcher.go ~ line 55   (nexFeedItemContentItem)
-#    internal/team/launcher.go ~ line 1489 (selectImportantInsights / nexInsight)
+./laf-office --memory-backend markdown
 ```
 
-Then in `cmd/laf-office/main.go`: delete the `--no-nex` flag and the import blocks that reference `nex`. The `ResolveNoNex()` calls in `cmd/laf-office/channel.go` and `internal/config/config.go` can be deleted or replaced with a constant `true`.
+## 2. Strip the Office Branding
 
-## 2. Strip the Office branding
-
-LAF-Office uses *The Office* (US) references throughout the UI and copy. If you're shipping this to enterprise customers, a non-English market, or just don't share the taste, here's where it lives:
+LAF-Office uses Office-themed copy throughout the UI and prompts. If you're
+shipping this to customers, a non-English market, or a different internal
+audience, start here:
 
 | File | What to change |
 |---|---|
-| `README.md` | Ryan Howard quote, Michael Scott quotes, "The Name" section |
-| `web/index.html` | Any "LAF-Office" branding in the office UI |
-| `cmd/laf-office/channel.go` | Welcome messages, slash command copy |
-| `cmd/laf-office/channel_render.go` | Office-themed status lines |
-| `internal/team/template.go` | Agent prompt templates that reference Office tone |
-| `internal/teammcp/actions.go` | Action descriptions |
+| `README.md` | Product positioning and setup copy |
+| `website/index.html` | Public website copy |
+| `web/src/` | Web app labels and settings copy |
+| `cmd/laf-office/channel.go` | TUI welcome messages and slash command copy |
+| `cmd/laf-office/channel_render.go` | TUI status lines |
+| `internal/team/launcher.go` | Agent prompt guidance |
+| `internal/agent/packs.go` | Default team packs and skills |
 
-A fast pass scoped to source files only:
+Rename the binary in `cmd/laf-office/` plus `go.mod` if you want a different
+command name.
 
-```bash
-grep -rn "Ryan\|Michael\|Dunder\|Scranton\|LAF-Office\.com" \
-  --include='*.go' --include='*.html' \
-  ./cmd ./internal ./web ./mcp
-```
+## 3. Add Your Own Agent Pack
 
-That will surface ~50 hits across 5 files:
-
-| File | Hits | What to change |
-|---|---|---|
-| `web/index.html` | 25 | Intro splash copy, channel header strings |
-| `cmd/laf-office/channel.go` | 18 | Slash-command help text (one joke per command) |
-| `cmd/laf-office/channel_render.go` | 3 | Status line strings |
-| `cmd/laf-office/main.go` | 2 | Startup notice strings |
-| `cmd/laf-office/channel_workspace_state.go` | 1 | Workspace state notice |
-
-Removing these strings doesn't affect command behavior — they're display copy only.
-
-Rename the binary in `cmd/laf-office/` + `go.mod` + goreleaser config if you want a different command name.
-
-If you rename the module in `go.mod`, rewrite all import paths in one pass:
-
-```bash
-find . -name '*.go' | xargs sed -i 's|github.com/LAF-labs/LAF-Agents-Office|github.com/your-org/your-fork|g'
-```
-
-## 3. Add your own agent pack
-
-Packs live in Go (`internal/agent/packs.go`) as a static slice. Not YAML — yet. Recompile after editing.
-
-Add an entry to `Packs`:
+Packs live in Go (`internal/agent/packs.go`) as a static slice. Recompile after
+editing.
 
 ```go
 {
@@ -100,15 +60,14 @@ Add an entry to `Packs`:
     LeadSlug:    "lead",
     Agents: []AgentConfig{
         {
-            Slug:        "lead",
-            Name:        "Team Lead",
-            Expertise:   []string{"your", "domains"},
-            Personality: "One-sentence persona",
-            PermissionMode: "plan", // or "auto"
+            Slug:           "lead",
+            Name:           "Team Lead",
+            Expertise:      []string{"your", "domains"},
+            Personality:    "One-sentence persona",
+            PermissionMode: "plan",
         },
-        // ...more agents
     },
-},
+}
 ```
 
 Rebuild and launch:
@@ -118,33 +77,21 @@ go build -o laf-office ./cmd/laf-office
 ./laf-office --pack my-team
 ```
 
-Permissions: `plan` means every tool call needs human approval in the Requests panel. `auto` lets the agent run but you can scope with `AllowedTools` (see existing `starter` pack for examples).
+## 4. Cut a Release of Your Fork
 
-## 4. Swap the action layer
-
-Default action providers are Composio (real-world actions: Gmail, CRM, etc.) and Telegram (bridge).
-
-To add your own provider, look at `internal/teammcp/actions.go` for the interface. Register via `/config set action_provider <yours>`.
-
-## 5. Cut a release of your fork
-
-`.goreleaser.yml` is already configured. Edit the `release.github.owner/name` to point at your repo, then:
+`.goreleaser.yml` is already configured. Edit the `release.github.owner/name`
+to point at your repo, then:
 
 ```bash
 git tag v0.1.0
 goreleaser release --clean
 ```
 
-## What's intentionally hard to change
+## What's Intentionally Hard To Change
 
-- **Broker push model.** It's the architectural spine. Replacing it means rewriting the project.
-- **Per-turn fresh sessions.** This is the reason for the benchmark win. If you switch to `--resume`, you lose the 9× cost advantage.
-- **Git worktree isolation.** Each agent works in its own branch. Removing this means agents share a working directory and can corrupt each other's in-progress files.
+- **Broker push model.** It's the architectural spine.
+- **Per-turn fresh sessions.** This is the reason for the benchmark win.
+- **Git worktree isolation.** Each agent works in its own branch.
 
-Fork anything above the broker freely. Fork the broker and you're building a different project.
-
-## If you get stuck
-
-- Issues: https://github.com/LAF-labs/LAF-Agents-Office/issues
-- Discord: see the badge in [`README.md`](README.md)
-- The `CHANGELOG.md` is ground truth for what shipped in each tag.
+Fork anything above the broker freely. Fork the broker and you're building a
+different project.

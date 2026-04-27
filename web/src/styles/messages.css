@@ -129,7 +129,7 @@
 .message-reply {
   position: relative;
   gap: 10px;
-  /* Pull reply flush with the -24px page margin the nex theme puts on
+  /* Pull reply flush with the -24px page margin the office theme puts on
      .message so hover highlights bleed edge-to-edge like top-level
      messages — not orphaned in a smaller box. */
   margin-left: -56px;
@@ -1026,7 +1026,7 @@ html[data-theme] .interview-bar-actions .btn-primary:hover {
 }
 /* Mirror + textarea share a relative container so their text lays out on
    the same pixel grid. Font metrics (family, size, color) are set by the
-   active theme (nex.css etc.) so a single place controls both surfaces. */
+   active theme (office.css etc.) so a single place controls both surfaces. */
 .composer-field {
   position: relative;
   flex: 1;

@@ -4,9 +4,9 @@ import { NexApiClient } from "../client.js";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const NEX_DIR = ".nex";
-const SKILLS_DIR = join(NEX_DIR, "skills");
-const SYNC_STATE_FILE = join(NEX_DIR, ".skill-sync-state.json");
+const OFFICE_DIR = ".laf-office";
+const SKILLS_DIR = join(OFFICE_DIR, "skills");
+const SYNC_STATE_FILE = join(OFFICE_DIR, ".skill-sync-state.json");
 
 interface SkillSyncState {
   last_sync: string;
@@ -14,7 +14,7 @@ interface SkillSyncState {
 }
 
 function ensureDirs(): void {
-  for (const dir of [NEX_DIR, SKILLS_DIR]) {
+  for (const dir of [OFFICE_DIR, SKILLS_DIR]) {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   }
 }
@@ -37,7 +37,7 @@ function saveSyncState(state: SkillSyncState): void {
 export function registerSkillSyncTools(server: McpServer, client: NexApiClient) {
   server.tool(
     "sync_skills",
-    "Sync all agent skills to the local .nex/skills/ folder as markdown files. Local agents can read these directly instead of making API calls. Run after skill compilation or periodically.",
+    "Sync all agent skills to the local .laf-office/skills/ folder as markdown files. Local agents can read these directly instead of making API calls. Run after skill compilation or periodically.",
     {
       force: z.boolean().optional().describe("If true, re-download all skills even if unchanged"),
     },
@@ -91,7 +91,7 @@ export function registerSkillSyncTools(server: McpServer, client: NexApiClient) 
       saveSyncState(state);
 
       const summary = [
-        `Synced ${total} skills to .nex/skills/`,
+        `Synced ${total} skills to .laf-office/skills/`,
         `  Downloaded: ${downloaded} (new/updated)`,
         `  Skipped: ${skipped} (unchanged)`,
         `  Location: ${SKILLS_DIR}/`,
@@ -103,7 +103,7 @@ export function registerSkillSyncTools(server: McpServer, client: NexApiClient) 
 
   server.tool(
     "read_skill",
-    "Read a skill from the local .nex/skills/ folder by slug or partial name. Falls back to API if not synced locally.",
+    "Read a skill from the local .laf-office/skills/ folder by slug or partial name. Falls back to API if not synced locally.",
     {
       slug: z.string().describe("Skill slug or partial match (e.g., 'jolt', 'pitch', 'accelerate')"),
     },

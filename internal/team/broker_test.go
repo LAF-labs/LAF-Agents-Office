@@ -1077,7 +1077,6 @@ func TestBrokerAuthRejectsUnauthenticated(t *testing.T) {
 		Provider            string `json:"provider"`
 		MemoryBackend       string `json:"memory_backend"`
 		MemoryBackendActive string `json:"memory_backend_active"`
-		NexConnected        bool   `json:"nex_connected"`
 		Build               struct {
 			Version        string `json:"version"`
 			BuildTimestamp string `json:"build_timestamp"`
@@ -1097,14 +1096,11 @@ func TestBrokerAuthRejectsUnauthenticated(t *testing.T) {
 	if health.Provider != "codex" {
 		t.Fatalf("expected health to report provider codex, got %q", health.Provider)
 	}
-	if health.MemoryBackend != config.MemoryBackendGBrain {
-		t.Fatalf("expected health to report selected memory backend gbrain, got %q", health.MemoryBackend)
+	if health.MemoryBackend != config.MemoryBackendMarkdown {
+		t.Fatalf("expected deprecated gbrain setting to fall back to markdown, got %q", health.MemoryBackend)
 	}
-	if health.MemoryBackendActive != config.MemoryBackendNone {
-		t.Fatalf("expected inactive gbrain backend without CLI installed, got %q", health.MemoryBackendActive)
-	}
-	if health.NexConnected {
-		t.Fatal("expected nex_connected=false when gbrain is selected")
+	if health.MemoryBackendActive != config.MemoryBackendMarkdown {
+		t.Fatalf("expected markdown wiki backend to stay active, got %q", health.MemoryBackendActive)
 	}
 	wantBuild := buildinfo.Current()
 	if health.Build.Version != wantBuild.Version {
@@ -1756,7 +1752,7 @@ func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 }
 
 // TestChannelCreateRejectsReservedSlugs guards against a privilege-escalation
-// shape: canAccessChannelLocked treats a small set of slugs ("system", "nex",
+// shape: canAccessChannelLocked treats a small set of slugs ("system", "automation",
 // "you", "human") as universally trusted senders. A user-created channel
 // sharing one of those slugs would let every trusted-sender slug read + post
 // in it without an explicit Members entry. The reservedChannelSlugs guard at
@@ -1770,7 +1766,7 @@ func TestChannelCreateRejectsReservedSlugs(t *testing.T) {
 
 	base := fmt.Sprintf("http://%s", b.Addr())
 
-	for _, reserved := range []string{"system", "nex", "you", "human"} {
+	for _, reserved := range []string{"system", "automation", "you", "human"} {
 		t.Run(reserved, func(t *testing.T) {
 			body, _ := json.Marshal(map[string]any{
 				"action":     "create",
@@ -2105,8 +2101,8 @@ func TestBrokerActionsAndSchedulerEndpoints(t *testing.T) {
 	b.appendActionLocked("request_created", "office", "general", "ceo", "Asked for approval", "request-1")
 	b.mu.Unlock()
 	if err := b.SetSchedulerJob(schedulerJob{
-		Slug:            "nex-insights",
-		Label:           "Nex insights",
+		Slug:            "wiki-digest",
+		Label:           "Wiki digest",
 		IntervalMinutes: 15,
 		Status:          "sleeping",
 		NextRun:         "2026-03-24T10:15:00Z",
@@ -2174,7 +2170,7 @@ func TestSchedulerDueOnlyFiltersFutureJobs(t *testing.T) {
 	}
 }
 
-func TestBrokerPostsAndDedupesNexNotifications(t *testing.T) {
+func TestBrokerPostsAndDedupesAutomationNotifications(t *testing.T) {
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {
 		t.Fatalf("failed to start broker: %v", err)
@@ -2188,12 +2184,12 @@ func TestBrokerPostsAndDedupesNexNotifications(t *testing.T) {
 		"content":      "Important: Acme mentioned budget pressure",
 		"tagged":       []string{"ceo"},
 		"source":       "context_graph",
-		"source_label": "Nex",
+		"source_label": "Automation",
 	}
 	payload, _ := json.Marshal(body)
 
 	for i := 0; i < 2; i++ {
-		req, _ := http.NewRequest(http.MethodPost, base+"/notifications/nex", bytes.NewReader(payload))
+		req, _ := http.NewRequest(http.MethodPost, base+"/notifications/automation", bytes.NewReader(payload))
 		req.Header.Set("Authorization", "Bearer "+b.Token())
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := http.DefaultClient.Do(req)
@@ -2202,7 +2198,7 @@ func TestBrokerPostsAndDedupesNexNotifications(t *testing.T) {
 		}
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected 200 from nex notification ingest, got %d", resp.StatusCode)
+			t.Fatalf("expected 200 from automation notification ingest, got %d", resp.StatusCode)
 		}
 	}
 
@@ -2210,8 +2206,8 @@ func TestBrokerPostsAndDedupesNexNotifications(t *testing.T) {
 	if len(msgs) != 1 {
 		t.Fatalf("expected deduped single notification, got %d", len(msgs))
 	}
-	if msgs[0].Kind != "automation" || msgs[0].From != "nex" {
-		t.Fatalf("expected automation message from nex, got %+v", msgs[0])
+	if msgs[0].Kind != "automation" || msgs[0].From != "automation" {
+		t.Fatalf("expected automation message, got %+v", msgs[0])
 	}
 	if msgs[0].EventID != "feed-item-1" {
 		t.Fatalf("expected event id to persist, got %+v", msgs[0])
@@ -3216,10 +3212,10 @@ func TestBrokerStoresLedgerAndReviewLifecycle(t *testing.T) {
 	defer b.Stop()
 
 	signals, err := b.RecordSignals([]officeSignal{{
-		ID:         "nex-1",
-		Source:     "nex_insights",
+		ID:         "wiki-1",
+		Source:     "wiki_insights",
 		Kind:       "risk",
-		Title:      "Nex insight",
+		Title:      "Wiki insight",
 		Content:    "Signup conversion is slipping.",
 		Channel:    "general",
 		Owner:      "fe",
@@ -5338,7 +5334,7 @@ func TestRecentHumanMessagesReturnsLastNHumanMessages(t *testing.T) {
 	b.messages = []channelMessage{
 		{ID: "m1", From: "fe", Content: "agent reply 1", Timestamp: "2026-04-14T10:00:00Z"},
 		{ID: "m2", From: "you", Content: "human says hi", Timestamp: "2026-04-14T10:01:00Z"},
-		{ID: "m3", From: "nex", Content: "nex automation", Timestamp: "2026-04-14T10:02:00Z"},
+		{ID: "m3", From: "automation", Content: "wiki automation", Timestamp: "2026-04-14T10:02:00Z"},
 		{ID: "m4", From: "be", Content: "agent reply 2", Timestamp: "2026-04-14T10:03:00Z"},
 		{ID: "m5", From: "human", Content: "human follow-up", Timestamp: "2026-04-14T10:04:00Z"},
 		{ID: "m6", From: "you", Content: "human again", Timestamp: "2026-04-14T10:05:00Z"},
@@ -5364,14 +5360,14 @@ func TestRecentHumanMessagesLimitCapsResults(t *testing.T) {
 	b.messages = []channelMessage{
 		{ID: "m1", From: "you", Content: "first", Timestamp: "2026-04-14T10:00:00Z"},
 		{ID: "m2", From: "you", Content: "second", Timestamp: "2026-04-14T10:01:00Z"},
-		{ID: "m3", From: "nex", Content: "nex msg", Timestamp: "2026-04-14T10:02:00Z"},
+		{ID: "m3", From: "automation", Content: "automation msg", Timestamp: "2026-04-14T10:02:00Z"},
 	}
 	b.mu.Unlock()
 
-	// nex is also a human/external sender — all 3 qualify; limit=5 returns all 3.
+	// automation is also an external sender — all 3 qualify; limit=5 returns all 3.
 	got := b.RecentHumanMessages(5)
 	if len(got) != 3 {
-		t.Fatalf("expected 3 messages (you+you+nex), got %d", len(got))
+		t.Fatalf("expected 3 messages (you+you+automation), got %d", len(got))
 	}
 }
 
@@ -5390,29 +5386,29 @@ func TestRecentHumanMessagesExcludesNonHuman(t *testing.T) {
 	}
 }
 
-func TestRecentHumanMessagesIncludesNexSender(t *testing.T) {
+func TestRecentHumanMessagesIncludesAutomationSender(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
 	b.messages = []channelMessage{
 		{ID: "m1", From: "fe", Content: "agent msg", Timestamp: "2026-04-14T10:00:00Z"},
-		{ID: "m2", From: "nex", Content: "nex automation context", Timestamp: "2026-04-14T10:01:00Z"},
+		{ID: "m2", From: "automation", Content: "automation context", Timestamp: "2026-04-14T10:01:00Z"},
 		{ID: "m3", From: "you", Content: "human question", Timestamp: "2026-04-14T10:02:00Z"},
 	}
 	b.mu.Unlock()
 
-	// Spec: "nex" is treated as human/external alongside "you" and "human".
-	// Without nex messages in resume packets, conversations triggered by Nex automation
+	// Spec: "automation" is treated as human/external alongside "you" and "human".
+	// Without automation messages in resume packets, conversations triggered by automation
 	// are silently dropped on restart.
 	got := b.RecentHumanMessages(10)
 	if len(got) != 2 {
-		t.Fatalf("expected 2 messages (nex+you), got %d", len(got))
+		t.Fatalf("expected 2 messages (automation+you), got %d", len(got))
 	}
 	ids := map[string]bool{}
 	for _, m := range got {
 		ids[m.ID] = true
 	}
 	if !ids["m2"] {
-		t.Error("expected nex message m2 to be included")
+		t.Error("expected automation message m2 to be included")
 	}
 	if !ids["m3"] {
 		t.Error("expected human message m3 to be included")
@@ -5774,7 +5770,7 @@ func TestSkillProposalPersistenceRoundTrip(t *testing.T) {
 func TestPostAutomationMessageDeduplicatesByEventID(t *testing.T) {
 	b := newTestBroker(t)
 
-	first, dup1, err := b.PostAutomationMessage("nex", "general", "Signal", "first post", "evt-001", "nex", "Nex", nil, "")
+	first, dup1, err := b.PostAutomationMessage("automation", "general", "Signal", "first post", "evt-001", "automation", "Automation", nil, "")
 	if err != nil {
 		t.Fatalf("first PostAutomationMessage: %v", err)
 	}
@@ -5782,7 +5778,7 @@ func TestPostAutomationMessageDeduplicatesByEventID(t *testing.T) {
 		t.Fatal("first call should not be a duplicate")
 	}
 
-	second, dup2, err := b.PostAutomationMessage("nex", "general", "Signal", "second post", "evt-001", "nex", "Nex", nil, "")
+	second, dup2, err := b.PostAutomationMessage("automation", "general", "Signal", "second post", "evt-001", "automation", "Automation", nil, "")
 	if err != nil {
 		t.Fatalf("second PostAutomationMessage: %v", err)
 	}

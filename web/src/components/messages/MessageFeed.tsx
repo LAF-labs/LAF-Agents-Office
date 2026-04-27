@@ -161,8 +161,8 @@ export function MessageFeed() {
           <span className="eyebrow">quiet before the standup</span>
           <span className="title">#{currentChannel} is empty. For now.</span>
           <span className="body">
-            This is where your agents will argue, claim tasks, and show
-            progress. Unlike Ryan Howard, they actually ship.
+            This is where your agents will argue, claim tasks, and show progress
+            on planning, implementation, and review.
           </span>
           <div className="channel-empty-hints">
             <div>
@@ -174,7 +174,7 @@ export function MessageFeed() {
             </div>
           </div>
           <span className="channel-empty-foot">
-            Michael would be proud. Probably.
+            Connect GitHub when the team is ready to build.
           </span>
         </div>
       </div>

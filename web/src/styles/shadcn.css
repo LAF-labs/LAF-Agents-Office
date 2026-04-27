@@ -4,14 +4,14 @@
 
 /* ═══════════════════════════════════════════════════════════════
    shadcn/ui theme mapped onto LAF-Office design tokens.
-   HSL values derived from web/public/themes/nex.css so that shadcn
+   HSL values derived from web/public/themes/office.css so that shadcn
    primitives share the same visual language as the rest of the
-   app. Scoped to [data-theme="nex"] to coexist with other themes.
+   app. Scoped to [data-theme="office"] to coexist with other themes.
    ═══════════════════════════════════════════════════════════════ */
 
 @layer base {
   :root,
-  html[data-theme="nex"] {
+  html[data-theme="office"] {
     /* Surfaces */
     --background: 0 0% 100%; /* #FFFFFF */
     --foreground: 240 2% 15%; /* #252527 */

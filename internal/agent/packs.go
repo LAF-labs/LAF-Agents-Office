@@ -21,34 +21,18 @@ type PackDefinition struct {
 }
 
 // revopsDriveConnection is the shared prelude for RevOps skills. It tells the
-// agent not to fabricate data and to walk the user through connecting the
-// required tool end-to-end before doing any work.
-//
-// Skills are provider-agnostic by design. Which backend actually serves a
-// call (One CLI or Composio) is decided by the action Registry in
-// internal/action/registry.go, not by skill content. One is preferred because
-// it is local and personal; Composio is the fallback for tools One does not
-// cover. If you need to change provider priority, change it in the Registry,
-// not here.
-const revopsDriveConnection = `## Step 0: Drive the connection before you start
+// agent not to fabricate data and to work from the local wiki or user-provided
+// exports while hosted integrations are unavailable.
+const revopsDriveConnection = `## Step 0: Ground the work before you start
 
-This skill acts on real company data. Never fabricate deals, contacts, pipeline numbers, or activity. If the required integration is not connected, DRIVE the user through connecting it end-to-end before you do any work.
+This skill acts on real company data. Never fabricate deals, contacts, pipeline numbers, or activity. Managed CRM, email, calendar, notification, and hosted action integrations are not available in this build.
 
-1. Call **team_action_connections** to see what is already connected. The framework picks the right backend automatically — you do not need to reason about One versus Composio.
-2. If what you need is already connected, skip to step 4.
-3. The integration is missing. Drive the user through connecting it:
-   a. Ask via **human_interview** which tool they use. Give concrete options:
-      - CRM: HubSpot, Salesforce, Attio, Pipedrive, Zoho, Close, Copper, Other
-      - If the skill also needs email / calendar / outbound, ask for that tool too: Gmail, Outlook, Google Calendar, Apollo, Outreach, Salesloft, SendGrid, or manual
-   b. Call **team_action_guide** with the tool name. The guide returns step-by-step setup instructions for the backend the framework selected (set a config key, authorize an account, run a CLI command, etc.). Walk the user through each step. Wait for confirmation after each.
-   c. Re-call **team_action_connections** to verify. Iterate on failures until connected.
-   d. If **team_action_guide** reports that no configured backend supports the tool, offer three options via **human_interview**:
-      1. Pick a supported tool instead — list what the guide surfaces for common categories.
-      2. Ask you to propose a dedicated skill for the tool. Draft an instruction-based skill that wraps its public API and save it for review.
-      3. Provide an API key and base URL for the tool. Save it via ` + "`/config set <tool>_api_key <value>`" + ` and make direct HTTP calls. Gate every write on **human_interview**.
-4. Once connected, use **team_action_search** to discover the action slug and **team_action_execute** to run it.
+1. Search the local wiki/notebook for relevant context.
+2. If the needed live data is missing, ask the human for an export, pasted data, or a file path.
+3. Work only from the thread, supplied files, and the local markdown wiki.
+4. Gate any recommendation that would change an external system on **human_interview**.
 
-If the user explicitly says "skip" or "work from context only", proceed using Nex and the thread alone. Flag "Data source: thread + Nex only, no live data" at the top of your output so the gap is visible.
+If the user explicitly says "skip" or "work from context only", proceed using the team wiki and the thread alone. Flag "Data source: thread + the team wiki only, no live data" at the top of your output so the gap is visible.
 
 `
 
@@ -160,9 +144,9 @@ var legacyPacks = []PackDefinition{
 
 ` + revopsDriveConnection + `## What to do
 
-1. **Query Nex for context first**: Ask "What contacts, companies, or deals in our CRM are most at risk from data gaps?" Nex may surface patterns before you hit the CRM directly.
+1. **Query the team wiki for context first**: Ask "What contacts, companies, or deals in our CRM are most at risk from data gaps?" the team wiki may surface patterns before you hit the CRM directly.
 
-2. **Pull live CRM data** via **team_action_execute** using the actions you discovered in Step 0. Audit across:
+2. **Pull live CRM data** via **human_interview** using the actions you discovered in Step 0. Audit across:
    - Contacts missing email, phone, or job title
    - Companies missing industry, size, or website
    - Open deals with no activity in 14+ days
@@ -197,12 +181,12 @@ Post findings to #general as a summary table with issue, count, impact, and reco
 
 1. **Identify the meeting**: Who is it with? What company? What stage?
 
-2. **Query Nex for context**:
+2. **Query the team wiki for context**:
    - "What do we know about [company name] — their business, buying signals, and recent activity?"
    - "What is the current status of our relationship or deal with [company name]?"
    - "Are there any open action items, blockers, or commitments from previous interactions?"
 
-3. **Pull live data** via **team_action_execute** against whatever CRM / calendar / email is connected:
+3. **Pull live data** via **human_interview** against whatever CRM / calendar / email is connected:
    - Last interaction date and type
    - Deal stage, ARR, close date
    - Key stakeholders and their roles
@@ -213,7 +197,7 @@ Post findings to #general as a summary table with issue, count, impact, and reco
 5. **Build the brief** with:
    - **Who you're meeting**: name, title, company, decision-maker status
    - **Where we are**: deal stage, last touch, next step on file
-   - **Context from Nex**: buying signals, known pain points, priorities
+   - **Context from the team wiki**: buying signals, known pain points, priorities
    - **Your agenda**: 2-3 suggested talking points for the current stage
    - **Watch-outs**: open objections, competitor mentions, red flags, data gaps
    - **Ask**: the one clear ask for this call (demo booked, POC scoped, legal introduced)
@@ -232,12 +216,12 @@ Post the brief to #general tagged with the rep's name and meeting time.`,
 
 ` + revopsDriveConnection + `## What to do
 
-1. **Query Nex for signal**:
+1. **Query the team wiki for signal**:
    - "Are there closed-lost deals where the company has since had a leadership change, funding event, or relevant trigger?"
    - "Which lost deals had the most positive engagement before they closed-lost?"
    - "What were the most common reasons we lost deals in the last 6 months?"
 
-2. **Pull closed-lost deals** via **team_action_execute** against the CRM. Filter by:
+2. **Pull closed-lost deals** via **human_interview** against the CRM. Filter by:
    - Lost 3-18 months ago (not too fresh, not too stale)
    - Lost reason: timing, budget, or internal priority — not product fit
    - Company has had a trigger event: new funding, new exec, product launch, hiring surge
@@ -268,12 +252,12 @@ Output a re-engagement queue: company, deal size, lost reason, trigger event, sc
 
 ` + revopsDriveConnection + `## What to do
 
-1. **Query Nex for deal context**:
+1. **Query the team wiki for deal context**:
    - Ask "Which of our open deals have had no recent activity or contact?"
    - Ask "Are there any deals where the champion has gone quiet or changed roles?"
    - Ask "What deals are approaching their close date without a clear next step?"
 
-2. **Pull open pipeline** via **team_action_execute** against the connected CRM:
+2. **Pull open pipeline** via **human_interview** against the connected CRM:
    - Filter deals with no logged activity (call, email, meeting) in 10+ days
    - Flag deals where close date is within 30 days but no next step is set
    - Flag deals where the primary contact hasn't responded to the last 2 touches
@@ -311,12 +295,12 @@ Gate any CRM stage updates on human review via human_interview.`,
 
 ` + revopsDriveConnection + `## What to do
 
-1. **Query Nex for ICP and playbook context**:
+1. **Query the team wiki for ICP and playbook context**:
    - Ask "What does our ideal customer profile look like — industry, size, buying signals?"
    - Ask "What are the strongest indicators that a lead is ready to buy?"
    - Ask "Which lead sources have historically converted best?"
 
-2. **Pull the lead list** via **team_action_execute** against the connected CRM:
+2. **Pull the lead list** via **human_interview** against the connected CRM:
    - Unworked leads added in the last 14 days
    - Leads that re-engaged (opened email, visited pricing page, booked a demo)
    - MQLs that haven't been contacted within 48 hours

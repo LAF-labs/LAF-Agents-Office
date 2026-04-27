@@ -150,7 +150,6 @@ func (l *Launcher) launchHeadlessCodex() error {
 	if !l.isOneOnOne() {
 		go l.notifyTaskActionsLoop()
 		go l.notifyOfficeChangesLoop()
-		go l.pollNexNotificationsLoop()
 		go l.watchdogSchedulerLoop()
 	}
 
@@ -1357,25 +1356,9 @@ func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, chann
 	env = setEnvValue(env, product.Env("BROKER_TOKEN"), l.broker.Token())
 	env = setEnvValue(env, product.Env("BROKER_BASE_URL"), l.BrokerBaseURL())
 	env = setEnvValue(env, product.Env("HEADLESS_PROVIDER"), "codex")
-	if config.ResolveNoNex() {
-		env = setEnvValue(env, product.Env("NO_NEX"), "1")
-	}
 	if l.isOneOnOne() {
 		env = setEnvValue(env, product.Env("ONE_ON_ONE"), "1")
 		env = setEnvValue(env, product.Env("ONE_ON_ONE_AGENT"), l.oneOnOneAgent())
-	}
-	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
-		env = setEnvValue(env, "ONE_SECRET", secret)
-	}
-	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		env = setEnvValue(env, "ONE_IDENTITY", identity)
-		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			env = setEnvValue(env, "ONE_IDENTITY_TYPE", identityType)
-		}
-	}
-	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-		env = setEnvValue(env, product.Env("API_KEY"), apiKey)
-		env = setEnvValue(env, "NEX_API_KEY", apiKey)
 	}
 	if openAIKey := strings.TrimSpace(config.ResolveOpenAIAPIKey()); openAIKey != "" {
 		env = setEnvValue(env, product.Env("OPENAI_API_KEY"), openAIKey)
@@ -1548,41 +1531,17 @@ func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error
 		product.Env("BROKER_TOKEN"),
 		product.Env("BROKER_BASE_URL"),
 	}
-	if config.ResolveNoNex() {
-		lafOfficeEnvVars = append(lafOfficeEnvVars, product.Env("NO_NEX"))
-	}
 	if l.isOneOnOne() {
 		lafOfficeEnvVars = append(lafOfficeEnvVars,
 			product.Env("ONE_ON_ONE"),
 			product.Env("ONE_ON_ONE_AGENT"),
 		)
 	}
-	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
-		lafOfficeEnvVars = append(lafOfficeEnvVars, "ONE_SECRET")
-	}
-	if identity := strings.TrimSpace(config.ResolveOneIdentity()); identity != "" {
-		lafOfficeEnvVars = append(lafOfficeEnvVars, "ONE_IDENTITY")
-		if identityType := strings.TrimSpace(config.ResolveOneIdentityType()); identityType != "" {
-			lafOfficeEnvVars = append(lafOfficeEnvVars, "ONE_IDENTITY_TYPE")
-		}
-	}
 
 	overrides := []string{
 		fmt.Sprintf(`mcp_servers.%s.command=%s`, product.CLIName, tomlQuote(lafOfficeBinary)),
 		fmt.Sprintf(`mcp_servers.%s.args=["mcp-team"]`, product.CLIName),
 		fmt.Sprintf(`mcp_servers.%s.env_vars=%s`, product.CLIName, tomlStringArray(lafOfficeEnvVars)),
-	}
-
-	if !config.ResolveNoNex() {
-		if nexMCP, err := headlessCodexLookPath("nex-mcp"); err == nil {
-			overrides = append(overrides, fmt.Sprintf(`mcp_servers.nex.command=%s`, tomlQuote(nexMCP)))
-			if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-				overrides = append(overrides, fmt.Sprintf(`mcp_servers.nex.env_vars=%s`, tomlStringArray([]string{
-					product.Env("API_KEY"),
-					"NEX_API_KEY",
-				})))
-			}
-		}
 	}
 
 	return overrides, nil

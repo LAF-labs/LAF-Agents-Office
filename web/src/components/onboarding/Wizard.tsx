@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { get, post } from "../../api/client";
-import { ONBOARDING_COPY } from "../../lib/constants";
+import type { Language } from "../../stores/app";
 import { useAppStore } from "../../stores/app";
 import { Kbd, MOD_KEY } from "../ui/Kbd";
 import "../../styles/onboarding.css";
@@ -214,34 +214,447 @@ const API_KEY_FIELDS = [
   },
 ] as const;
 
-type MemoryBackend = "markdown" | "nex" | "gbrain" | "none";
+type MemoryBackend = "markdown";
 
-const MEMORY_BACKEND_OPTIONS: ReadonlyArray<{
-  value: MemoryBackend;
-  label: string;
-  hint: string;
-}> = [
-  {
-    value: "markdown",
-    label: "Team wiki (default)",
-    hint: 'A living knowledge graph for your team. Agents record typed facts as git commits, the LLM rewrites briefs under the "archivist" identity, and every claim has a citation. `/lookup` answers questions with sources. `/lint` flags contradictions, orphans, and stale facts. File-over-app, `git clone`-able, no API key needed.',
+interface WizardCopy {
+  common: {
+    back: string;
+    continue: string;
+    optional: string;
+  };
+  progress: Record<WizardStep, string>;
+  welcome: {
+    eyebrow: string;
+    headline: string;
+    subhead: string;
+    cta: string;
+  };
+  templates: {
+    eyebrow: string;
+    headline: string;
+    subhead: string;
+    loading: string;
+    other: string;
+    scratchTitle: string;
+    scratchSubhead: string;
+    next: string;
+    categories: Record<BlueprintCategoryKey, { label: string; hint: string }>;
+    display: Record<string, { name: string; shortDescription: string }>;
+  };
+  identity: {
+    title: string;
+    companyLabel: string;
+    companyPlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    priorityLabel: string;
+    priorityPlaceholder: string;
+    next: string;
+  };
+  team: {
+    title: string;
+    description: string;
+    empty: string;
+    leadTitle: string;
+    leadBadge: string;
+  };
+  setup: {
+    title: string;
+    description: string;
+    checkingRuntimes: string;
+    installed: string;
+    notInstalled: string;
+    install: string;
+    notInstalledTitle: (label: string) => string;
+    priorityTitle: (priority: number) => string;
+    fallbackOrder: string;
+    fallbackHint: string;
+    moveUp: (label: string) => string;
+    moveDown: (label: string) => string;
+    remove: (label: string) => string;
+    apiKeysRequiredTitle: string;
+    apiKeysOptionalHint: string;
+    apiKeysRequiredHint: string;
+    runtimeReadyTitle: (label: string) => string;
+    runtimeReadyHint: string;
+    apiKeysFallbackButton: string;
+    apiKeysFallbackHide: string;
+    apiKeyHints: Record<string, string>;
+    memoryTitle: string;
+    memoryDescription: string;
+    memoryOptions: { markdown: { label: string; hint: string } };
+    next: string;
+  };
+  task: {
+    title: string;
+    subhead: string;
+    placeholder: string;
+    newLineHint: string;
+    reviewSetupHint: string;
+    suggestions: string;
+    skip: string;
+    next: string;
+  };
+  ready: {
+    title: string;
+    subhead: string;
+    cta: string;
+    starting: string;
+  };
+  readiness: {
+    sessionLabel: string;
+    sessionReady: string;
+    runtimeLabel: string;
+    runtimeInstalled: (label: string) => string;
+    runtimeSelectedMissing: (label: string) => string;
+    runtimeKeyReady: string;
+    runtimeMissing: string;
+    memoryLabel: string;
+    memoryMarkdown: string;
+    blueprintLabel: string;
+    blueprintScratch: string;
+  };
+}
+
+const WIZARD_COPY: Record<Language, WizardCopy> = {
+  en: {
+    common: {
+      back: "Back",
+      continue: "Continue",
+      optional: "optional",
+    },
+    progress: {
+      welcome: "Start",
+      identity: "Office",
+      templates: "Blueprint",
+      team: "Team",
+      setup: "Run",
+      task: "Task",
+      ready: "Review",
+    },
+    welcome: {
+      eyebrow: "Ready to set up",
+      headline: "Plan, build, and automate with your startup agent team.",
+      subhead:
+        "A local workspace where agents coordinate in channels, keep a shared wiki, and turn product work into visible progress.",
+      cta: "Open the office",
+    },
+    templates: {
+      eyebrow: "Start with a preset, or build from scratch",
+      headline: "What should your office run?",
+      subhead:
+        "Pick the shape of work. We'll assemble the team, channels, and first tasks around it. You can change anything later.",
+      loading: "Loading blueprints...",
+      other: "Other",
+      scratchTitle: "Start from scratch",
+      scratchSubhead:
+        "5-person founding team: CEO, GTM Lead, Founding Engineer, PM, Designer",
+      next: "Review the team",
+      categories: {
+        services: {
+          label: "Services",
+          hint: "Client work, done by your office",
+        },
+        media: {
+          label: "Media & Community",
+          hint: "Content or community as the business",
+        },
+        product: {
+          label: "Products",
+          hint: "Software you build and sell",
+        },
+      },
+      display: {
+        "bookkeeping-invoicing-service": {
+          name: "Bookkeeping and Invoicing Service",
+          shortDescription: "Books · invoices · monthly close",
+        },
+        "local-business-ai-package": {
+          name: "Local Business AI Package",
+          shortDescription: "Intake · booking · follow-up",
+        },
+        "multi-agent-workflow-consulting": {
+          name: "Multi-Agent Workflow Consulting",
+          shortDescription: "Client engagements · workflow delivery",
+        },
+        "niche-crm": {
+          name: "Niche CRM",
+          shortDescription: "Build & launch a focused CRM",
+        },
+        "paid-discord-community": {
+          name: "Paid Discord Community",
+          shortDescription: "Moderation · onboarding · engagement",
+        },
+        "youtube-factory": {
+          name: "YouTube Factory",
+          shortDescription: "Script · film · publish · analyze",
+        },
+      },
+    },
+    identity: {
+      title: "Tell us about this office",
+      companyLabel: "Company or project name",
+      companyPlaceholder: "Acme Operations, or your real project name",
+      descriptionLabel: "One-liner description",
+      descriptionPlaceholder:
+        "What real business or workflow should this office run?",
+      priorityLabel: "Top priority right now",
+      priorityPlaceholder: "Win the first real customer loop",
+      next: "Choose a blueprint",
+    },
+    team: {
+      title: "Your team",
+      description:
+        "These are the specialists your blueprint assembled. Toggle anyone you don't need.",
+      empty:
+        "No teammates yet. Go back and pick a blueprint, or open the office and add agents from the team panel.",
+      leadTitle: "Lead agent — always included",
+      leadBadge: "Lead",
+    },
+    setup: {
+      title: "How should agents run?",
+      description:
+        "Use local coding CLIs first. API keys stay as a fallback for agents that need provider access.",
+      checkingRuntimes: "Checking which CLIs are installed...",
+      installed: "Installed",
+      notInstalled: "Not installed",
+      install: "install",
+      notInstalledTitle: (label) => `${label} — not installed`,
+      priorityTitle: (priority) => `Priority ${priority}`,
+      fallbackOrder: "Fallback order",
+      fallbackHint: "Agents try these in order. Use the arrows to reorder.",
+      moveUp: (label) => `Move ${label} up`,
+      moveDown: (label) => `Move ${label} down`,
+      remove: (label) => `Remove ${label}`,
+      apiKeysRequiredTitle: "API keys (required)",
+      apiKeysOptionalHint:
+        "Only used if every selected runtime fails. Leave blank to rely on local CLI auth.",
+      apiKeysRequiredHint:
+        "No installed CLI selected. Add at least one key so agents can reason.",
+      runtimeReadyTitle: (label) => `${label} CLI detected`,
+      runtimeReadyHint:
+        "This runtime uses its own local login. Add provider API keys only when you want a fallback.",
+      apiKeysFallbackButton: "API key fallback",
+      apiKeysFallbackHide: "Hide API key fallback",
+      apiKeyHints: {
+        ANTHROPIC_API_KEY: "Powers Claude-based agents",
+        OPENAI_API_KEY: "Powers GPT-based agents",
+        GOOGLE_API_KEY: "Powers Gemini-based agents",
+      },
+      memoryTitle: "Team wiki",
+      memoryDescription:
+        "Shared context is stored in the local LLM wiki. Agents use it for durable project decisions, facts, and playbooks.",
+      memoryOptions: {
+        markdown: {
+          label: "Team wiki (default)",
+          hint: "Local git-backed wiki with sourced facts and /lookup. No API key.",
+        },
+      },
+      next: "Ready",
+    },
+    task: {
+      title: "What should the team work on first?",
+      subhead:
+        "Type your own first task, or pick from the blueprint's suggested sequence below.",
+      placeholder: "e.g. Draft the launch plan for our first customer segment",
+      newLineHint: "new line",
+      reviewSetupHint: "review setup",
+      suggestions: "Suggested sequence for this blueprint",
+      skip: "Skip for now",
+      next: "Review setup",
+    },
+    ready: {
+      title: "You're set",
+      subhead:
+        "Here's what's configured. Anything with a ! or - can be fixed later from Settings.",
+      cta: "Get started",
+      starting: "Starting...",
+    },
+    readiness: {
+      sessionLabel: "Session runtime",
+      sessionReady: "Web session. No tmux required in the browser.",
+      runtimeLabel: "LLM runtime",
+      runtimeInstalled: (label) => `${label} installed`,
+      runtimeSelectedMissing: (label) =>
+        `${label} selected but not installed. Install before agents can reason.`,
+      runtimeKeyReady: "Provider API key will drive agent runs.",
+      runtimeMissing: "Pick a CLI or add a provider key on the Setup step.",
+      memoryLabel: "Memory backend",
+      memoryMarkdown: "Git-native team wiki in ~/.laf-office/wiki.",
+      blueprintLabel: "Blueprint",
+      blueprintScratch: "Start from scratch (5-person founding team).",
+    },
   },
-  {
-    value: "nex",
-    label: "Nex",
-    hint: "Hosted memory graph. Ships with free tier. Needs NEX_API_KEY.",
+  ko: {
+    common: {
+      back: "뒤로",
+      continue: "계속",
+      optional: "선택 사항",
+    },
+    progress: {
+      welcome: "시작",
+      identity: "오피스",
+      templates: "블루프린트",
+      team: "팀",
+      setup: "실행",
+      task: "첫 작업",
+      ready: "검토",
+    },
+    welcome: {
+      eyebrow: "설정 준비 완료",
+      headline: "공유 두뇌를 가진 AI 직원용 오피스.",
+      subhead:
+        "에이전트가 채널에서 협업하고, 중요한 맥락을 기억하며, 일을 눈에 보이는 진행 상황으로 바꾸는 협업 오피스입니다.",
+      cta: "오피스 열기",
+    },
+    templates: {
+      eyebrow: "프리셋으로 시작하거나 직접 구성하기",
+      headline: "이 오피스는 어떤 일을 하게 할까요?",
+      subhead:
+        "업무의 형태를 고르면 팀, 채널, 첫 작업을 그에 맞춰 구성합니다. 나중에 언제든 바꿀 수 있습니다.",
+      loading: "블루프린트 불러오는 중...",
+      other: "기타",
+      scratchTitle: "처음부터 시작",
+      scratchSubhead:
+        "5명 창업팀: CEO, GTM 리드, 파운딩 엔지니어, PM, 디자이너",
+      next: "팀 검토",
+      categories: {
+        services: {
+          label: "서비스",
+          hint: "오피스가 수행하는 클라이언트 업무",
+        },
+        media: {
+          label: "미디어와 커뮤니티",
+          hint: "콘텐츠나 커뮤니티가 비즈니스인 경우",
+        },
+        product: {
+          label: "제품",
+          hint: "만들고 판매할 소프트웨어",
+        },
+      },
+      display: {
+        "bookkeeping-invoicing-service": {
+          name: "장부·청구 자동화 서비스",
+          shortDescription: "장부 · 청구서 · 월마감",
+        },
+        "local-business-ai-package": {
+          name: "지역 비즈니스 AI 패키지",
+          shortDescription: "접수 · 예약 · 후속 연락",
+        },
+        "multi-agent-workflow-consulting": {
+          name: "멀티 에이전트 워크플로 컨설팅",
+          shortDescription: "클라이언트 프로젝트 · 워크플로 납품",
+        },
+        "niche-crm": {
+          name: "니치 CRM",
+          shortDescription: "특정 시장용 CRM 구축과 출시",
+        },
+        "paid-discord-community": {
+          name: "유료 디스코드 커뮤니티",
+          shortDescription: "운영 · 온보딩 · 참여도 관리",
+        },
+        "youtube-factory": {
+          name: "유튜브 팩토리",
+          shortDescription: "대본 · 촬영 · 발행 · 분석",
+        },
+      },
+    },
+    identity: {
+      title: "이 오피스에 대해 알려주세요",
+      companyLabel: "회사 또는 프로젝트 이름",
+      companyPlaceholder: "Acme Operations 또는 실제 프로젝트 이름",
+      descriptionLabel: "한 줄 설명",
+      descriptionPlaceholder:
+        "이 오피스가 맡을 실제 비즈니스나 워크플로는 무엇인가요?",
+      priorityLabel: "지금 가장 중요한 목표",
+      priorityPlaceholder: "첫 실제 고객 루프 만들기",
+      next: "블루프린트 선택",
+    },
+    team: {
+      title: "팀 구성",
+      description:
+        "선택한 블루프린트가 구성한 전문가들입니다. 필요 없는 구성원은 끌 수 있습니다.",
+      empty:
+        "아직 팀원이 없습니다. 뒤로 가서 블루프린트를 고르거나, 오피스를 연 뒤 팀 패널에서 에이전트를 추가하세요.",
+      leadTitle: "리드 에이전트 - 항상 포함됨",
+      leadBadge: "리드",
+    },
+    setup: {
+      title: "에이전트를 어떻게 실행할까요?",
+      description:
+        "로컬 코딩 CLI를 우선 사용합니다. API 키는 제공자 접근이 필요할 때 쓰는 대체 수단입니다.",
+      checkingRuntimes: "설치된 CLI 확인 중...",
+      installed: "설치됨",
+      notInstalled: "설치되지 않음",
+      install: "설치",
+      notInstalledTitle: (label) => `${label} - 설치되지 않음`,
+      priorityTitle: (priority) => `우선순위 ${priority}`,
+      fallbackOrder: "대체 실행 순서",
+      fallbackHint:
+        "에이전트는 이 순서대로 시도합니다. 화살표로 순서를 바꾸세요.",
+      moveUp: (label) => `${label} 위로 이동`,
+      moveDown: (label) => `${label} 아래로 이동`,
+      remove: (label) => `${label} 제거`,
+      apiKeysRequiredTitle: "API 키 (필수)",
+      apiKeysOptionalHint:
+        "선택한 런타임이 모두 실패할 때만 사용합니다. 로컬 CLI 인증을 사용할 거라면 비워두세요.",
+      apiKeysRequiredHint:
+        "설치된 CLI가 선택되지 않았습니다. 에이전트가 추론할 수 있도록 하나 이상의 키를 추가하세요.",
+      runtimeReadyTitle: (label) => `${label} CLI 감지됨`,
+      runtimeReadyHint:
+        "이 런타임은 로컬 로그인 정보를 사용합니다. 제공자 API 키는 대체 실행이 필요할 때만 추가하세요.",
+      apiKeysFallbackButton: "API 키 대체 실행",
+      apiKeysFallbackHide: "API 키 대체 실행 숨기기",
+      apiKeyHints: {
+        ANTHROPIC_API_KEY: "Claude 기반 에이전트 실행",
+        OPENAI_API_KEY: "GPT 기반 에이전트 실행",
+        GOOGLE_API_KEY: "Gemini 기반 에이전트 실행",
+      },
+      memoryTitle: "팀 위키",
+      memoryDescription:
+        "공유 맥락은 로컬 LLM 위키에 저장합니다. 에이전트는 프로젝트 결정, 사실, 플레이북을 여기서 이어받습니다.",
+      memoryOptions: {
+        markdown: {
+          label: "팀 위키 (기본값)",
+          hint: "출처가 붙는 로컬 git 위키입니다. /lookup을 지원하며 API 키가 필요 없습니다.",
+        },
+      },
+      next: "준비 완료",
+    },
+    task: {
+      title: "팀이 가장 먼저 할 일은 무엇인가요?",
+      subhead:
+        "첫 작업을 직접 입력하거나 블루프린트가 제안한 순서에서 고르세요.",
+      placeholder: "예: 첫 고객 세그먼트를 위한 출시 계획 초안 작성",
+      newLineHint: "줄바꿈",
+      reviewSetupHint: "설정 검토",
+      suggestions: "이 블루프린트의 추천 작업 순서",
+      skip: "지금은 건너뛰기",
+      next: "설정 검토",
+    },
+    ready: {
+      title: "설정이 끝났습니다",
+      subhead:
+        "현재 구성된 항목입니다. ! 또는 - 표시가 있는 항목은 나중에 설정에서 고칠 수 있습니다.",
+      cta: "시작하기",
+      starting: "시작 중...",
+    },
+    readiness: {
+      sessionLabel: "세션 런타임",
+      sessionReady: "웹 세션입니다. 브라우저에서는 tmux가 필요하지 않습니다.",
+      runtimeLabel: "LLM 런타임",
+      runtimeInstalled: (label) => `${label} 설치됨`,
+      runtimeSelectedMissing: (label) =>
+        `${label}을 선택했지만 설치되어 있지 않습니다. 에이전트가 추론하려면 먼저 설치해야 합니다.`,
+      runtimeKeyReady: "제공자 API 키로 에이전트를 실행합니다.",
+      runtimeMissing: "CLI를 선택하거나 설정 단계에서 제공자 키를 추가하세요.",
+      memoryLabel: "메모리 백엔드",
+      memoryMarkdown: "git 기반 팀 위키를 ~/.laf-office/wiki에 저장합니다.",
+      blueprintLabel: "블루프린트",
+      blueprintScratch: "처음부터 시작 (5명 창업팀).",
+    },
   },
-  {
-    value: "gbrain",
-    label: "GBrain",
-    hint: "Local graph over Postgres. Needs an LLM key for embeddings.",
-  },
-  {
-    value: "none",
-    label: "None",
-    hint: "Skip shared memory. Agents work with only per-turn context.",
-  },
-] as const;
+};
 
 /* ═══════════════════════════════════════════
    Arrow icon reused across buttons
@@ -311,39 +724,51 @@ function EnterHint({ modifier }: { modifier?: string } = {}) {
    Sub-components
    ═══════════════════════════════════════════ */
 
-function ProgressDots({ current }: { current: WizardStep }) {
+function ProgressDots({
+  copy,
+  current,
+}: {
+  copy: WizardCopy;
+  current: WizardStep;
+}) {
+  const currentIndex = STEP_ORDER.indexOf(current);
   return (
-    <div className="wizard-progress">
-      {STEP_ORDER.map((step) => (
-        <div
+    <ol className="wizard-progress" aria-label="Onboarding progress">
+      {STEP_ORDER.map((step, index) => (
+        <li
           key={step}
-          className={`wizard-progress-dot ${step === current ? "active" : "inactive"}`}
-        />
+          className={`wizard-progress-item ${step === current ? "active" : ""} ${index < currentIndex ? "complete" : ""}`}
+          aria-current={step === current ? "step" : undefined}
+        >
+          <span className="wizard-progress-track" aria-hidden="true" />
+          <span className="wizard-progress-label">{copy.progress[step]}</span>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
 /* ─── Step 1: Welcome ─── */
 
 interface WelcomeStepProps {
+  copy: WizardCopy;
   onNext: () => void;
 }
 
-function WelcomeStep({ onNext }: WelcomeStepProps) {
+function WelcomeStep({ copy, onNext }: WelcomeStepProps) {
   return (
     <div className="wizard-step">
       <div className="wizard-hero">
         <div className="wizard-eyebrow">
           <span className="status-dot active pulse" />
-          Ready to set up
+          {copy.welcome.eyebrow}
         </div>
-        <h1 className="wizard-headline">{ONBOARDING_COPY.step1_headline}</h1>
-        <p className="wizard-subhead">{ONBOARDING_COPY.step1_subhead}</p>
+        <h1 className="wizard-headline">{copy.welcome.headline}</h1>
+        <p className="wizard-subhead">{copy.welcome.subhead}</p>
       </div>
       <div style={{ display: "flex", justifyContent: "center" }}>
         <button type="button" className="btn btn-primary" onClick={onNext}>
-          {ONBOARDING_COPY.step1_cta}
+          {copy.welcome.cta}
           <ArrowIcon />
           <EnterHint />
         </button>
@@ -355,6 +780,7 @@ function WelcomeStep({ onNext }: WelcomeStepProps) {
 /* ─── Step 2: Templates ─── */
 
 interface TemplatesStepProps {
+  copy: WizardCopy;
   templates: BlueprintTemplate[];
   loading: boolean;
   selected: string | null;
@@ -364,6 +790,7 @@ interface TemplatesStepProps {
 }
 
 function TemplatesStep({
+  copy,
   templates,
   loading,
   selected,
@@ -389,8 +816,13 @@ function TemplatesStep({
 
   const renderTile = (t: BlueprintTemplate) => {
     const display = BLUEPRINT_DISPLAY[t.id];
+    const displayCopy = copy.templates.display[t.id];
     const icon = display?.icon ?? t.emoji;
-    const desc = display?.shortDescription ?? t.description;
+    const name = displayCopy?.name ?? t.name;
+    const desc =
+      displayCopy?.shortDescription ??
+      display?.shortDescription ??
+      t.description;
     return (
       <button
         key={t.id}
@@ -399,7 +831,7 @@ function TemplatesStep({
         type="button"
       >
         {icon ? <div className="template-card-emoji">{icon}</div> : null}
-        <div className="template-card-name">{t.name}</div>
+        <div className="template-card-name">{name}</div>
         <div className="template-card-desc">{desc}</div>
       </button>
     );
@@ -410,13 +842,10 @@ function TemplatesStep({
       <div className="wizard-hero">
         <div className="wizard-eyebrow">
           <span className="status-dot active pulse" />
-          Start with a preset, or build from scratch
+          {copy.templates.eyebrow}
         </div>
-        <h1 className="wizard-headline">What should your office run?</h1>
-        <p className="wizard-subhead">
-          Pick the shape of work. We&apos;ll assemble the team, channels, and
-          first tasks around it. You can change anything later.
-        </p>
+        <h1 className="wizard-headline">{copy.templates.headline}</h1>
+        <p className="wizard-subhead">{copy.templates.subhead}</p>
       </div>
 
       {loading ? (
@@ -429,7 +858,7 @@ function TemplatesStep({
               padding: 20,
             }}
           >
-            Loading blueprints&hellip;
+            {copy.templates.loading}
           </div>
         </div>
       ) : (
@@ -437,11 +866,12 @@ function TemplatesStep({
           {BLUEPRINT_CATEGORIES.map((cat) => {
             const items = grouped.get(cat.key) ?? [];
             if (items.length === 0) return null;
+            const category = copy.templates.categories[cat.key];
             return (
               <div key={cat.key} className="wizard-panel template-group">
                 <div className="template-group-head">
-                  <p className="template-group-label">{cat.label}</p>
-                  <p className="template-group-hint">{cat.hint}</p>
+                  <p className="template-group-label">{category.label}</p>
+                  <p className="template-group-hint">{category.hint}</p>
                 </div>
                 <div className="template-grid">{items.map(renderTile)}</div>
               </div>
@@ -451,7 +881,7 @@ function TemplatesStep({
           {(grouped.get("other") ?? []).length > 0 && (
             <div className="wizard-panel template-group">
               <div className="template-group-head">
-                <p className="template-group-label">Other</p>
+                <p className="template-group-label">{copy.templates.other}</p>
               </div>
               <div className="template-grid">
                 {(grouped.get("other") ?? []).map(renderTile)}
@@ -466,10 +896,9 @@ function TemplatesStep({
               type="button"
             >
               <span className="template-from-scratch-icon">+</span>
-              Start from scratch
+              {copy.templates.scratchTitle}
               <span className="template-from-scratch-sub">
-                5-person founding team: CEO, GTM Lead, Founding Engineer, PM,
-                Designer
+                {copy.templates.scratchSubhead}
               </span>
             </button>
           </div>
@@ -478,10 +907,10 @@ function TemplatesStep({
 
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
-          Back
+          {copy.common.back}
         </button>
         <button className="btn btn-primary" onClick={onNext} type="button">
-          Review the team
+          {copy.templates.next}
           <ArrowIcon />
           <EnterHint />
         </button>
@@ -492,44 +921,26 @@ function TemplatesStep({
 
 /* ─── Step 3: Identity ─── */
 
-// NexSignupStatus tracks the state of the optional in-wizard Nex
-// registration sub-flow. 'hidden' means the user hasn't opened the
-// affordance yet; 'open' means they're entering their email; 'submitting'
-// is the in-flight POST to /nex/register; 'ok' shows a green "sent, check
-// your inbox" hint; 'fallback' flips to the external-link version when
-// nex-cli is not installed (the broker responds 502 with ErrNotInstalled).
-type NexSignupStatus = "hidden" | "open" | "submitting" | "ok" | "fallback";
-
 interface IdentityStepProps {
+  copy: WizardCopy;
   company: string;
   description: string;
   priority: string;
-  nexEmail: string;
-  nexSignupStatus: NexSignupStatus;
-  nexSignupError: string;
   onChangeCompany: (v: string) => void;
   onChangeDescription: (v: string) => void;
   onChangePriority: (v: string) => void;
-  onChangeNexEmail: (v: string) => void;
-  onSubmitNexSignup: () => void;
-  onOpenNexSignup: () => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 function IdentityStep({
+  copy,
   company,
   description,
   priority,
-  nexEmail,
-  nexSignupStatus,
-  nexSignupError,
   onChangeCompany,
   onChangeDescription,
   onChangePriority,
-  onChangeNexEmail,
-  onSubmitNexSignup,
-  onOpenNexSignup,
   onNext,
   onBack,
 }: IdentityStepProps) {
@@ -539,16 +950,16 @@ function IdentityStep({
   return (
     <div className="wizard-step">
       <div className="wizard-panel">
-        <p className="wizard-panel-title">Tell us about this office</p>
+        <p className="wizard-panel-title">{copy.identity.title}</p>
         <div className="form-group">
           <label className="label" htmlFor="wiz-company">
-            Company or project name{" "}
+            {copy.identity.companyLabel}{" "}
             <span style={{ color: "var(--red)" }}>*</span>
           </label>
           <input
             className="input"
             id="wiz-company"
-            placeholder="Acme Operations, or your real project name"
+            placeholder={copy.identity.companyPlaceholder}
             autoComplete="organization"
             value={company}
             onChange={(e) => onChangeCompany(e.target.value)}
@@ -556,53 +967,34 @@ function IdentityStep({
         </div>
         <div className="form-group">
           <label className="label" htmlFor="wiz-description">
-            One-liner description <span style={{ color: "var(--red)" }}>*</span>
+            {copy.identity.descriptionLabel}{" "}
+            <span style={{ color: "var(--red)" }}>*</span>
           </label>
           <input
             className="input"
             id="wiz-description"
-            placeholder="What real business or workflow should this office run?"
+            placeholder={copy.identity.descriptionPlaceholder}
             value={description}
             onChange={(e) => onChangeDescription(e.target.value)}
           />
         </div>
         <div className="form-group">
           <label className="label" htmlFor="wiz-priority">
-            Top priority right now
+            {copy.identity.priorityLabel}
           </label>
           <input
             className="input"
             id="wiz-priority"
-            placeholder="Win the first real customer loop"
+            placeholder={copy.identity.priorityPlaceholder}
             value={priority}
             onChange={(e) => onChangePriority(e.target.value)}
           />
         </div>
       </div>
 
-      {nexSignupStatus === "hidden" ? (
-        <div className="wiz-nex-trigger">
-          <button
-            type="button"
-            className="wiz-nex-trigger-link"
-            onClick={onOpenNexSignup}
-          >
-            Don&apos;t have a Nex account? Sign up here.
-          </button>
-        </div>
-      ) : (
-        <NexSignupPanel
-          email={nexEmail}
-          status={nexSignupStatus}
-          error={nexSignupError}
-          onChangeEmail={onChangeNexEmail}
-          onSubmit={onSubmitNexSignup}
-        />
-      )}
-
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
-          Back
+          {copy.common.back}
         </button>
         <button
           className="btn btn-primary"
@@ -610,7 +1002,7 @@ function IdentityStep({
           disabled={!canContinue}
           type="button"
         >
-          Choose a blueprint
+          {copy.identity.next}
           <ArrowIcon />
           <EnterHint />
         </button>
@@ -619,124 +1011,21 @@ function IdentityStep({
   );
 }
 
-/* ─── Nex signup affordance (rendered inside IdentityStep) ─── */
-
-interface NexSignupPanelProps {
-  email: string;
-  status: NexSignupStatus;
-  error: string;
-  onChangeEmail: (v: string) => void;
-  onSubmit: () => void;
-}
-
-// NexSignupPanel is the optional "don't have a Nex account yet?"
-// affordance. It's compact by default (one-line link) so users with a key
-// already aren't distracted. The primary path calls /nex/register on the
-// broker, which shells out to `nex-cli setup <email>`. If nex-cli isn't
-// installed, the broker returns 502 with ErrNotInstalled and we flip to
-// the external-link fallback (open nex.ai/register + paste key on Setup
-// step). Matches the TUI's InitNexRegister phase in init_flow.go.
-function NexSignupPanel({
-  email,
-  status,
-  error,
-  onChangeEmail,
-  onSubmit,
-}: NexSignupPanelProps) {
-  return (
-    <div className="wizard-panel wiz-nex-signup">
-      <p className="wizard-panel-title">Sign up for Nex (optional)</p>
-      <p
-        style={{
-          fontSize: 12,
-          color: "var(--text-secondary)",
-          margin: "-8px 0 12px 0",
-        }}
-      >
-        {status === "fallback"
-          ? "nex-cli is not installed on this machine. Register in your browser, then paste the key on the Setup step."
-          : "Register an email to get a free Nex API key. Powers shared memory, entity briefs, and integrations. You can also paste an existing key on the Setup step."}
-      </p>
-
-      {status === "fallback" ? (
-        <a
-          className="btn btn-secondary"
-          href="https://nex.ai/register"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open nex.ai/register
-          <ArrowIcon />
-        </a>
-      ) : status === "ok" ? (
-        <p className="wiz-nex-ok" role="status">
-          Check your inbox at {email} for the Nex API key, then paste it on the
-          Setup step.
-        </p>
-      ) : (
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="label" htmlFor="wiz-nex-email">
-            Email
-          </label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              className="input"
-              id="wiz-nex-email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => onChangeEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  status !== "submitting" &&
-                  email.trim().length > 0
-                ) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onSubmit();
-                }
-              }}
-              disabled={status === "submitting"}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={onSubmit}
-              disabled={status === "submitting" || email.trim().length === 0}
-            >
-              {status === "submitting" ? "Registering..." : "Register"}
-            </button>
-          </div>
-          {error ? (
-            <p
-              style={{ color: "var(--red)", fontSize: 12, marginTop: 6 }}
-              role="alert"
-            >
-              {error}
-            </p>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ─── Step 4: Team Review ─── */
 
 interface TeamStepProps {
+  copy: WizardCopy;
   agents: BlueprintAgent[];
   onToggle: (slug: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
+function TeamStep({ copy, agents, onToggle, onNext, onBack }: TeamStepProps) {
   return (
     <div className="wizard-step">
       <div className="wizard-panel">
-        <p className="wizard-panel-title">Your team</p>
+        <p className="wizard-panel-title">{copy.team.title}</p>
         <p
           style={{
             fontSize: 12,
@@ -744,20 +1033,17 @@ function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
             margin: "-8px 0 12px 0",
           }}
         >
-          These are the specialists your blueprint assembled. Toggle anyone you
-          don&apos;t need.
+          {copy.team.description}
         </p>
 
         {agents.length === 0 ? (
-          <div className="wiz-team-empty">
-            No teammates yet. Go back and pick a blueprint, or open the office
-            and add agents from the team panel.
-          </div>
+          <div className="wiz-team-empty">{copy.team.empty}</div>
         ) : (
           <div className="wiz-team-grid">
             {agents.map((agent) => (
               <TeamAgentTile
                 key={agent.slug}
+                copy={copy}
                 agent={agent}
                 onToggle={onToggle}
               />
@@ -768,10 +1054,10 @@ function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
 
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
-          Back
+          {copy.common.back}
         </button>
         <button className="btn btn-primary" onClick={onNext} type="button">
-          Continue
+          {copy.common.continue}
           <ArrowIcon />
           <EnterHint />
         </button>
@@ -781,9 +1067,11 @@ function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
 }
 
 function TeamAgentTile({
+  copy,
   agent,
   onToggle,
 }: {
+  copy: WizardCopy;
   agent: BlueprintAgent;
   onToggle: (slug: string) => void;
 }) {
@@ -798,7 +1086,7 @@ function TeamAgentTile({
       type="button"
       disabled={locked}
       aria-disabled={locked}
-      title={locked ? "Lead agent — always included" : undefined}
+      title={locked ? copy.team.leadTitle : undefined}
     >
       <div className="wiz-team-check">
         {agent.checked ? <CheckIcon /> : null}
@@ -808,7 +1096,9 @@ function TeamAgentTile({
           <span style={{ marginRight: 6 }}>{agent.emoji}</span>
         ) : null}
         <span className="wiz-team-name">{agent.name}</span>
-        {locked ? <span className="wiz-team-lead-badge">Lead</span> : null}
+        {locked ? (
+          <span className="wiz-team-lead-badge">{copy.team.leadBadge}</span>
+        ) : null}
         {agent.role ? <div className="wiz-team-role">{agent.role}</div> : null}
       </div>
     </button>
@@ -818,6 +1108,7 @@ function TeamAgentTile({
 /* ─── Step 5: Setup ─── */
 
 interface SetupStepProps {
+  copy: WizardCopy;
   prereqs: PrereqResult[];
   prereqsLoading: boolean;
   runtimePriority: string[];
@@ -825,14 +1116,6 @@ interface SetupStepProps {
   onReorderRuntime: (label: string, direction: -1 | 1) => void;
   apiKeys: Record<string, string>;
   onChangeApiKey: (key: string, value: string) => void;
-  memoryBackend: MemoryBackend;
-  onChangeMemoryBackend: (value: MemoryBackend) => void;
-  nexApiKey: string;
-  onChangeNexApiKey: (v: string) => void;
-  gbrainOpenAIKey: string;
-  onChangeGBrainOpenAIKey: (v: string) => void;
-  gbrainAnthropicKey: string;
-  onChangeGBrainAnthropicKey: (v: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -844,12 +1127,24 @@ function detectedBinary(
   return prereqs.find((p) => p.name === binary);
 }
 
+function primaryInstalledRuntimeLabel(
+  runtimePriority: string[],
+  prereqs: PrereqResult[],
+): string | undefined {
+  return runtimePriority.find((label) => {
+    const spec = RUNTIMES.find((runtime) => runtime.label === label);
+    return Boolean(spec && detectedBinary(prereqs, spec.binary)?.found);
+  });
+}
+
 function RuntimeGrid({
+  copy,
   prereqsLoading,
   prereqs,
   runtimePriority,
   onToggleRuntime,
 }: {
+  copy: WizardCopy;
   prereqsLoading: boolean;
   prereqs: PrereqResult[];
   runtimePriority: string[];
@@ -864,7 +1159,7 @@ function RuntimeGrid({
           padding: "8px 0",
         }}
       >
-        Checking which CLIs are installed&hellip;
+        {copy.setup.checkingRuntimes}
       </div>
     );
   }
@@ -874,6 +1169,7 @@ function RuntimeGrid({
       {RUNTIMES.map((spec) => (
         <RuntimeTile
           key={spec.label}
+          copy={copy}
           spec={spec}
           detection={detectedBinary(prereqs, spec.binary)}
           priorityIdx={runtimePriority.indexOf(spec.label)}
@@ -885,11 +1181,13 @@ function RuntimeGrid({
 }
 
 function RuntimeTile({
+  copy,
   spec,
   detection,
   priorityIdx,
   onToggleRuntime,
 }: {
+  copy: WizardCopy;
   spec: RuntimeSpec;
   detection: PrereqResult | undefined;
   priorityIdx: number;
@@ -916,12 +1214,12 @@ function RuntimeTile({
       disabled={!installed}
       aria-disabled={!installed}
       aria-pressed={selected}
-      title={runtimeTileTitle(spec, detection, installed)}
+      title={runtimeTileTitle(spec, detection, installed, copy)}
     >
       {selected ? (
         <span
           className="runtime-priority-badge"
-          title={`Priority ${priorityIdx + 1}`}
+          title={copy.setup.priorityTitle(priorityIdx + 1)}
         >
           {priorityIdx + 1}
         </span>
@@ -934,6 +1232,7 @@ function RuntimeTile({
         {spec.label}
       </div>
       <RuntimeTileMeta
+        copy={copy}
         spec={spec}
         detection={detection}
         installed={installed}
@@ -946,18 +1245,21 @@ function runtimeTileTitle(
   spec: RuntimeSpec,
   detection: PrereqResult | undefined,
   installed: boolean,
+  copy: WizardCopy,
 ): string {
-  if (!installed) return `${spec.label} — not installed`;
+  if (!installed) return copy.setup.notInstalledTitle(spec.label);
   return detection?.version
     ? `${spec.label} — ${detection.version}`
     : spec.label;
 }
 
 function RuntimeTileMeta({
+  copy,
   spec,
   detection,
   installed,
 }: {
+  copy: WizardCopy;
   spec: RuntimeSpec;
   detection: PrereqResult | undefined;
   installed: boolean;
@@ -965,14 +1267,14 @@ function RuntimeTileMeta({
   if (installed) {
     return (
       <div className="runtime-tile-meta">
-        {detection?.version ? detection.version : "Installed"}
+        {detection?.version ? detection.version : copy.setup.installed}
       </div>
     );
   }
 
   return (
     <div className="runtime-tile-meta">
-      Not installed{" · "}
+      {copy.setup.notInstalled}{" "}
       <a
         className="runtime-tile-install-link"
         href={spec.installUrl}
@@ -980,13 +1282,14 @@ function RuntimeTileMeta({
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
       >
-        install
+        {copy.setup.install}
       </a>
     </div>
   );
 }
 
 function SetupStep({
+  copy,
   prereqs,
   prereqsLoading,
   runtimePriority,
@@ -994,39 +1297,26 @@ function SetupStep({
   onReorderRuntime,
   apiKeys,
   onChangeApiKey,
-  memoryBackend,
-  onChangeMemoryBackend,
-  nexApiKey,
-  onChangeNexApiKey,
-  gbrainOpenAIKey,
-  onChangeGBrainOpenAIKey,
-  gbrainAnthropicKey,
-  onChangeGBrainAnthropicKey,
   onNext,
   onBack,
 }: SetupStepProps) {
   // A runtime is usable only when its binary is actually present on PATH.
   // "Selected and installed" drives whether we can continue without keys.
-  const hasInstalledSelection = runtimePriority.some((label) => {
-    const spec = RUNTIMES.find((r) => r.label === label);
-    if (!spec) return false;
-    const detection = detectedBinary(prereqs, spec.binary);
-    return Boolean(detection?.found);
-  });
+  const hasInstalledSelection = hasInstalledRuntimeSelection(
+    runtimePriority,
+    prereqs,
+  );
   const hasAnyApiKey = Object.values(apiKeys).some((v) => v.trim().length > 0);
-  // GBrain requires an OpenAI key to function — the TUI gates on this in
-  // InitGBrainOpenAIKey (see internal/tui/init_flow.go:215). Mirror the
-  // gate here so the wizard doesn't let users commit an unusable config.
-  const gbrainSelected = memoryBackend === "gbrain";
-  const gbrainOpenAIMissing =
-    gbrainSelected && gbrainOpenAIKey.trim().length === 0;
-  const canContinue =
-    (hasInstalledSelection || hasAnyApiKey) && !gbrainOpenAIMissing;
+  const canContinue = hasInstalledSelection || hasAnyApiKey;
+  const primaryRuntimeLabel =
+    primaryInstalledRuntimeLabel(runtimePriority, prereqs) ??
+    runtimePriority[0] ??
+    "CLI";
 
   return (
     <div className="wizard-step">
       <div className="wizard-panel">
-        <p className="wizard-panel-title">How should agents run?</p>
+        <p className="wizard-panel-title">{copy.setup.title}</p>
         <p
           style={{
             fontSize: 12,
@@ -1034,13 +1324,11 @@ function SetupStep({
             margin: "-8px 0 12px 0",
           }}
         >
-          Pick the CLIs you have installed. Each CLI&apos;s login handles its
-          own provider auth, so no API keys are needed. Select multiple to set a
-          fallback order — if the first one fails, agents fall through to the
-          next.
+          {copy.setup.description}
         </p>
 
         <RuntimeGrid
+          copy={copy}
           prereqsLoading={prereqsLoading}
           prereqs={prereqs}
           runtimePriority={runtimePriority}
@@ -1049,10 +1337,8 @@ function SetupStep({
 
         {runtimePriority.length > 1 && (
           <div className="runtime-priority-controls">
-            <p className="runtime-priority-title">Fallback order</p>
-            <p className="runtime-priority-hint">
-              Agents try these in order. Use the arrows to reorder.
-            </p>
+            <p className="runtime-priority-title">{copy.setup.fallbackOrder}</p>
+            <p className="runtime-priority-hint">{copy.setup.fallbackHint}</p>
             {runtimePriority.map((label, idx) => (
               <div key={label} className="runtime-priority-row">
                 <span className="runtime-priority-row-rank">#{idx + 1}</span>
@@ -1062,7 +1348,7 @@ function SetupStep({
                   className="runtime-priority-btn"
                   onClick={() => onReorderRuntime(label, -1)}
                   disabled={idx === 0}
-                  aria-label={`Move ${label} up`}
+                  aria-label={copy.setup.moveUp(label)}
                 >
                   ↑
                 </button>
@@ -1071,7 +1357,7 @@ function SetupStep({
                   className="runtime-priority-btn"
                   onClick={() => onReorderRuntime(label, 1)}
                   disabled={idx === runtimePriority.length - 1}
-                  aria-label={`Move ${label} down`}
+                  aria-label={copy.setup.moveDown(label)}
                 >
                   ↓
                 </button>
@@ -1079,7 +1365,7 @@ function SetupStep({
                   type="button"
                   className="runtime-priority-btn"
                   onClick={() => onToggleRuntime(label)}
-                  aria-label={`Remove ${label}`}
+                  aria-label={copy.setup.remove(label)}
                 >
                   ✕
                 </button>
@@ -1088,40 +1374,145 @@ function SetupStep({
           </div>
         )}
 
-        <div
+        {hasInstalledSelection ? (
+          <RuntimeReadyCard copy={copy} label={primaryRuntimeLabel} />
+        ) : null}
+
+        <ApiKeyFallbackPanel
+          copy={copy}
+          hasInstalledSelection={hasInstalledSelection}
+          apiKeys={apiKeys}
+          onChangeApiKey={onChangeApiKey}
+        />
+      </div>
+
+      <div className="wizard-panel">
+        <p className="wizard-panel-title">{copy.setup.memoryTitle}</p>
+        <p
           style={{
-            marginTop: 16,
-            paddingTop: 16,
-            borderTop: "1px solid var(--border)",
+            fontSize: 12,
+            color: "var(--text-secondary)",
+            margin: "-8px 0 12px 0",
           }}
         >
-          <p
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              margin: "0 0 4px 0",
-              color: "var(--text)",
-            }}
+          {copy.setup.memoryDescription}
+        </p>
+        <div className="runtime-grid">
+          <div
+            className="runtime-tile selected"
+            title={copy.setup.memoryOptions.markdown.hint}
           >
-            API keys{" "}
-            {hasInstalledSelection ? "(optional fallback)" : "(required)"}
+            <div style={{ fontWeight: 600 }}>
+              {copy.setup.memoryOptions.markdown.label}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text-tertiary)",
+                marginTop: 4,
+                fontWeight: 400,
+              }}
+            >
+              {copy.setup.memoryOptions.markdown.hint}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="wizard-nav">
+        <button className="btn btn-ghost" onClick={onBack} type="button">
+          {copy.common.back}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={onNext}
+          disabled={!canContinue}
+          type="button"
+        >
+          {copy.setup.next}
+          <ArrowIcon />
+          <EnterHint />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RuntimeReadyCard({
+  copy,
+  label,
+}: {
+  copy: WizardCopy;
+  label: string;
+}) {
+  return (
+    <div className="runtime-ready-card">
+      <span className="runtime-ready-glyph" aria-hidden="true">
+        ✓
+      </span>
+      <div>
+        <p className="runtime-ready-title">
+          {copy.setup.runtimeReadyTitle(label)}
+        </p>
+        <p className="runtime-ready-hint">{copy.setup.runtimeReadyHint}</p>
+      </div>
+    </div>
+  );
+}
+
+function ApiKeyFallbackPanel({
+  copy,
+  hasInstalledSelection,
+  apiKeys,
+  onChangeApiKey,
+}: {
+  copy: WizardCopy;
+  hasInstalledSelection: boolean;
+  apiKeys: Record<string, string>;
+  onChangeApiKey: (key: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const showFields = !hasInstalledSelection || open;
+
+  return (
+    <div className="setup-api-panel">
+      {hasInstalledSelection ? (
+        <button
+          type="button"
+          className="setup-disclosure"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <span>
+            {open
+              ? copy.setup.apiKeysFallbackHide
+              : copy.setup.apiKeysFallbackButton}
+          </span>
+          <span aria-hidden="true">{open ? "−" : "+"}</span>
+        </button>
+      ) : (
+        <div className="setup-required-copy">
+          <p className="setup-section-title">
+            {copy.setup.apiKeysRequiredTitle}
           </p>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              margin: "0 0 12px 0",
-            }}
-          >
-            {hasInstalledSelection
-              ? "Only used if every selected CLI fails. Leave blank to rely on the CLI login."
-              : "No installed CLI selected. Add at least one key so agents can reason."}
-          </p>
+          <p className="setup-section-hint">{copy.setup.apiKeysRequiredHint}</p>
+        </div>
+      )}
+
+      {showFields ? (
+        <div className="setup-api-fields">
+          {hasInstalledSelection ? (
+            <p className="setup-section-hint">
+              {copy.setup.apiKeysOptionalHint}
+            </p>
+          ) : null}
           {API_KEY_FIELDS.map((field) => (
             <div className="key-row" key={field.key}>
               <div className="key-label-wrap">
                 <span className="key-label">{field.label}</span>
-                <span className="key-hint">{field.hint}</span>
+                <span className="key-hint">
+                  {copy.setup.apiKeyHints[field.key] ?? field.hint}
+                </span>
               </div>
               <div className="key-input-wrap">
                 <input
@@ -1136,140 +1527,7 @@ function SetupStep({
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="wizard-panel">
-        <p className="wizard-panel-title">Organizational memory</p>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            margin: "-8px 0 12px 0",
-          }}
-        >
-          Where agents store shared context, relationships, and learnings across
-          sessions. You can change this later in Settings or via{" "}
-          <code>--memory-backend</code>.
-        </p>
-        <div className="runtime-grid">
-          {MEMORY_BACKEND_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              className={`runtime-tile ${memoryBackend === opt.value ? "selected" : ""}`}
-              onClick={() => onChangeMemoryBackend(opt.value)}
-              type="button"
-              title={opt.hint}
-            >
-              <div style={{ fontWeight: 600 }}>{opt.label}</div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-tertiary)",
-                  marginTop: 4,
-                  fontWeight: 400,
-                }}
-              >
-                {opt.hint}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {gbrainSelected && (
-          <div className="wiz-backend-keys">
-            <p className="wiz-backend-keys-title">GBrain keys</p>
-            <p className="wiz-backend-keys-hint">
-              GBrain uses OpenAI for embeddings (required) and optionally
-              Anthropic for reasoning.
-            </p>
-            <div className="form-group">
-              <label className="label" htmlFor="wiz-gbrain-openai">
-                OpenAI API key <span style={{ color: "var(--red)" }}>*</span>
-              </label>
-              <input
-                className="input"
-                id="wiz-gbrain-openai"
-                type="password"
-                placeholder="sk-..."
-                value={gbrainOpenAIKey}
-                onChange={(e) => onChangeGBrainOpenAIKey(e.target.value)}
-                autoComplete="off"
-              />
-              {gbrainOpenAIMissing ? (
-                <p style={{ color: "var(--red)", fontSize: 11, marginTop: 4 }}>
-                  Required: GBrain can&apos;t create embeddings without an
-                  OpenAI key.
-                </p>
-              ) : null}
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="label" htmlFor="wiz-gbrain-anthropic">
-                Anthropic API key{" "}
-                <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
-                  (optional)
-                </span>
-              </label>
-              <input
-                className="input"
-                id="wiz-gbrain-anthropic"
-                type="password"
-                placeholder="sk-ant-..."
-                value={gbrainAnthropicKey}
-                onChange={(e) => onChangeGBrainAnthropicKey(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="wizard-panel">
-        <p className="wizard-panel-title">Nex API key</p>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            margin: "-8px 0 12px 0",
-          }}
-        >
-          Unlocks hosted memory, entity briefs, and managed integrations. You
-          can skip this and paste later from Settings. Don&apos;t have one? Sign
-          up on the Identity step above.
-        </p>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="label" htmlFor="wiz-nex-api-key">
-            Nex API key{" "}
-            <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
-              (optional, paste if you have one)
-            </span>
-          </label>
-          <input
-            className="input"
-            id="wiz-nex-api-key"
-            type="password"
-            placeholder="nex-..."
-            value={nexApiKey}
-            onChange={(e) => onChangeNexApiKey(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-      </div>
-
-      <div className="wizard-nav">
-        <button className="btn btn-ghost" onClick={onBack} type="button">
-          Back
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={onNext}
-          disabled={!canContinue}
-          type="button"
-        >
-          {ONBOARDING_COPY.step2_cta}
-          <ArrowIcon />
-          <EnterHint />
-        </button>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -1277,6 +1535,7 @@ function SetupStep({
 /* ─── Step 6: First Task ─── */
 
 interface TaskStepProps {
+  copy: WizardCopy;
   taskTemplates: TaskTemplate[];
   selectedTaskTemplate: string | null;
   onSelectTaskTemplate: (id: string | null) => void;
@@ -1289,6 +1548,7 @@ interface TaskStepProps {
 }
 
 function TaskStep({
+  copy,
   taskTemplates,
   selectedTaskTemplate,
   onSelectTaskTemplate,
@@ -1303,13 +1563,10 @@ function TaskStep({
     <div className="wizard-step">
       <div className="wizard-hero">
         <h1 className="wizard-headline" style={{ fontSize: 28 }}>
-          {ONBOARDING_COPY.step3_title}
+          {copy.task.title}
         </h1>
         {taskTemplates.length > 0 && (
-          <p className="wizard-subhead">
-            Type your own first task, or pick from the blueprint&apos;s
-            suggested sequence below.
-          </p>
+          <p className="wizard-subhead">{copy.task.subhead}</p>
         )}
       </div>
 
@@ -1317,21 +1574,20 @@ function TaskStep({
         <textarea
           className="task-textarea task-textarea-primary"
           id="wiz-task-input"
-          placeholder={ONBOARDING_COPY.step3_placeholder}
+          placeholder={copy.task.placeholder}
           value={taskText}
           onChange={(e) => onChangeTaskText(e.target.value)}
         />
         <p className="task-textarea-hint">
-          <Kbd size="sm">↵</Kbd> new line · <Kbd size="sm">{MOD_KEY}</Kbd>
-          <Kbd size="sm">↵</Kbd> review setup
+          <Kbd size="sm">↵</Kbd> {copy.task.newLineHint} ·{" "}
+          <Kbd size="sm">{MOD_KEY}</Kbd>
+          <Kbd size="sm">↵</Kbd> {copy.task.reviewSetupHint}
         </p>
       </div>
 
       {taskTemplates.length > 0 && (
         <div className="task-suggestions">
-          <p className="task-suggestions-label">
-            Suggested sequence for this blueprint
-          </p>
+          <p className="task-suggestions-label">{copy.task.suggestions}</p>
           <div className="task-suggestions-list">
             {taskTemplates.map((t, idx) => {
               const isSelected = selectedTaskTemplate === t.id;
@@ -1359,7 +1615,7 @@ function TaskStep({
 
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
-          Back
+          {copy.common.back}
         </button>
         <div className="wizard-nav-right">
           <button
@@ -1368,10 +1624,10 @@ function TaskStep({
             disabled={submitting}
             type="button"
           >
-            {ONBOARDING_COPY.step3_skip}
+            {copy.task.skip}
           </button>
           <button className="btn btn-primary" onClick={onNext} type="button">
-            Review setup
+            {copy.task.next}
             <ArrowIcon />
             <EnterHint modifier={MOD_KEY} />
           </button>
@@ -1395,6 +1651,7 @@ interface ReadinessCheck {
 }
 
 interface ReadyStepProps {
+  copy: WizardCopy;
   checks: ReadinessCheck[];
   taskText: string;
   submitting: boolean;
@@ -1403,12 +1660,10 @@ interface ReadyStepProps {
   onBack: () => void;
 }
 
-// ReadyStep is the six-item final review matching the TUI's InitDone
-// readinessChecks() view. It's honest: a missing Nex key is not papered
-// over, and GBrain+no-OpenAI-key would show a red "missing" row (though
-// the Setup step blocks continuing in that case, so users shouldn't get
-// here with it).
+// ReadyStep is the final review matching the TUI's InitDone readinessChecks()
+// view.
 function ReadyStep({
+  copy,
   checks,
   taskText,
   submitting,
@@ -1420,14 +1675,9 @@ function ReadyStep({
     <div className="wizard-step">
       <div className="wizard-hero">
         <h1 className="wizard-headline" style={{ fontSize: 28 }}>
-          You&apos;re set
+          {copy.ready.title}
         </h1>
-        <p className="wizard-subhead">
-          Here&apos;s what&apos;s configured. Anything with a{" "}
-          <span className="readiness-glyph-inline missing">!</span> or{" "}
-          <span className="readiness-glyph-inline next">—</span> can be fixed
-          later from Settings.
-        </p>
+        <p className="wizard-subhead">{copy.ready.subhead}</p>
       </div>
 
       <div className="wizard-panel readiness-panel">
@@ -1455,7 +1705,7 @@ function ReadyStep({
 
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
-          Back
+          {copy.common.back}
         </button>
         <div className="wizard-nav-right">
           <button
@@ -1464,7 +1714,7 @@ function ReadyStep({
             disabled={submitting}
             type="button"
           >
-            {submitting ? "Starting..." : ONBOARDING_COPY.step3_cta}
+            {submitting ? copy.ready.starting : copy.ready.cta}
             {!submitting && taskText.trim().length > 0 && <EnterHint />}
           </button>
         </div>
@@ -1474,45 +1724,30 @@ function ReadyStep({
 }
 
 interface ReadinessOptions {
-  nexApiKey: string;
+  copy: WizardCopy;
   runtimePriority: string[];
   prereqs: PrereqResult[];
   apiKeys: Record<string, string>;
-  gbrainOpenAIKey: string;
-  gbrainAnthropicKey: string;
   memoryBackend: MemoryBackend;
   selectedBlueprint: string | null;
   blueprints: BlueprintTemplate[];
 }
 
 function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
-  const hasNexKey = options.nexApiKey.trim().length > 0;
   return [
-    nexReadinessCheck(hasNexKey),
     {
-      label: "Session runtime",
+      label: options.copy.readiness.sessionLabel,
       status: "ready",
-      detail: "Web session. No tmux required in the browser.",
+      detail: options.copy.readiness.sessionReady,
     },
     runtimeReadinessCheck(options),
-    memoryReadinessCheck(
-      options.memoryBackend,
-      hasNexKey,
-      options.gbrainOpenAIKey,
+    memoryReadinessCheck(options.copy),
+    blueprintReadinessCheck(
+      options.selectedBlueprint,
+      options.blueprints,
+      options.copy,
     ),
-    blueprintReadinessCheck(options.selectedBlueprint, options.blueprints),
-    integrationsReadinessCheck(options),
   ];
-}
-
-function nexReadinessCheck(hasNexKey: boolean): ReadinessCheck {
-  return {
-    label: "Nex API key",
-    status: hasNexKey ? "ready" : "next",
-    detail: hasNexKey
-      ? "Configured. Hosted memory and integrations unlocked."
-      : "Skipped. Paste a key later from Settings to enable hosted memory.",
-  };
 }
 
 function runtimeReadinessCheck(options: ReadinessOptions): ReadinessCheck {
@@ -1526,135 +1761,67 @@ function runtimeReadinessCheck(options: ReadinessOptions): ReadinessCheck {
 
   if (primarySpec && primaryDetection?.found) {
     return {
-      label: "LLM runtime",
+      label: options.copy.readiness.runtimeLabel,
       status: "ready",
       detail: primaryDetection.version
         ? `${primarySpec.label} — ${primaryDetection.version}`
-        : `${primarySpec.label} installed`,
+        : options.copy.readiness.runtimeInstalled(primarySpec.label),
     };
   }
   if (primarySpec) {
     return {
-      label: "LLM runtime",
+      label: options.copy.readiness.runtimeLabel,
       status: "next",
-      detail: `${primarySpec.label} selected but not installed. Install before agents can reason.`,
+      detail: options.copy.readiness.runtimeSelectedMissing(primarySpec.label),
     };
   }
-  return apiKeyRuntimeReadiness(options.apiKeys);
+  return apiKeyRuntimeReadiness(options.apiKeys, options.copy);
 }
 
 function apiKeyRuntimeReadiness(
   apiKeys: Record<string, string>,
+  copy: WizardCopy,
 ): ReadinessCheck {
   const hasAnyKey = Object.values(apiKeys).some(
     (value) => value.trim().length > 0,
   );
   return {
-    label: "LLM runtime",
+    label: copy.readiness.runtimeLabel,
     status: hasAnyKey ? "ready" : "missing",
     detail: hasAnyKey
-      ? "Provider API key will drive agent runs."
-      : "Pick a CLI or add a provider key on the Setup step.",
+      ? copy.readiness.runtimeKeyReady
+      : copy.readiness.runtimeMissing,
   };
 }
 
-function memoryReadinessCheck(
-  memoryBackend: MemoryBackend,
-  hasNexKey: boolean,
-  gbrainOpenAIKey: string,
-): ReadinessCheck {
-  const memoryLabel =
-    MEMORY_BACKEND_OPTIONS.find((option) => option.value === memoryBackend)
-      ?.label ?? memoryBackend;
-  if (memoryBackend === "gbrain") {
-    return gbrainMemoryReadiness(memoryLabel, gbrainOpenAIKey);
-  }
-  if (memoryBackend === "nex") {
-    return nexMemoryReadiness(memoryLabel, hasNexKey);
-  }
-  if (memoryBackend === "markdown") {
-    return {
-      label: "Memory backend",
-      status: "ready",
-      detail: "Git-native team wiki in ~/.laf-office/wiki.",
-    };
-  }
+function memoryReadinessCheck(copy: WizardCopy): ReadinessCheck {
   return {
-    label: "Memory backend",
-    status: "next",
-    detail: "No shared memory — agents only see per-turn context.",
-  };
-}
-
-function gbrainMemoryReadiness(
-  memoryLabel: string,
-  gbrainOpenAIKey: string,
-): ReadinessCheck {
-  if (gbrainOpenAIKey.trim().length === 0) {
-    return {
-      label: "Memory backend",
-      status: "missing",
-      detail: "GBrain selected but OpenAI key is missing.",
-    };
-  }
-  return {
-    label: "Memory backend",
+    label: copy.readiness.memoryLabel,
     status: "ready",
-    detail:
-      memoryLabel === "GBrain" ? "GBrain with OpenAI embeddings." : memoryLabel,
-  };
-}
-
-function nexMemoryReadiness(
-  memoryLabel: string,
-  hasNexKey: boolean,
-): ReadinessCheck {
-  if (!hasNexKey) {
-    return {
-      label: "Memory backend",
-      status: "next",
-      detail: "Nex selected — add a Nex API key to enable hosted memory.",
-    };
-  }
-  return {
-    label: "Memory backend",
-    status: "ready",
-    detail: memoryLabel === "Nex" ? "Hosted memory via Nex." : memoryLabel,
+    detail: copy.readiness.memoryMarkdown,
   };
 }
 
 function blueprintReadinessCheck(
   selectedBlueprint: string | null,
   blueprints: BlueprintTemplate[],
+  copy: WizardCopy,
 ): ReadinessCheck {
   if (selectedBlueprint === null) {
     return {
-      label: "Blueprint",
+      label: copy.readiness.blueprintLabel,
       status: "ready",
-      detail: "Start from scratch (5-person founding team).",
+      detail: copy.readiness.blueprintScratch,
     };
   }
   const blueprint = blueprints.find((item) => item.id === selectedBlueprint);
   return {
-    label: "Blueprint",
+    label: copy.readiness.blueprintLabel,
     status: "ready",
-    detail: blueprint?.name ?? selectedBlueprint,
-  };
-}
-
-function integrationsReadinessCheck(options: ReadinessOptions): ReadinessCheck {
-  const keyCount =
-    Object.values(options.apiKeys).filter((value) => value.trim().length > 0)
-      .length +
-    (options.gbrainOpenAIKey.trim().length > 0 ? 1 : 0) +
-    (options.gbrainAnthropicKey.trim().length > 0 ? 1 : 0);
-  return {
-    label: "Integrations",
-    status: keyCount > 0 ? "ready" : "next",
     detail:
-      keyCount > 0
-        ? `${keyCount} provider key${keyCount === 1 ? "" : "s"} configured.`
-        : "None configured. Add providers later from Settings.",
+      copy.templates.display[selectedBlueprint]?.name ??
+      blueprint?.name ??
+      selectedBlueprint,
   };
 }
 
@@ -1673,25 +1840,17 @@ function providerPriorityFromLabels(
 interface ConfigPayloadOptions {
   memoryBackend: MemoryBackend;
   providerPriority: SupportedProvider[];
-  nexApiKey: string;
-  gbrainOpenAIKey: string;
-  gbrainAnthropicKey: string;
   apiKeys: Record<string, string>;
 }
 
 function buildOnboardingConfigPayload({
   memoryBackend,
   providerPriority,
-  nexApiKey,
-  gbrainOpenAIKey,
-  gbrainAnthropicKey,
   apiKeys,
 }: ConfigPayloadOptions): Record<string, unknown> {
   const payload: Record<string, unknown> = { memory_backend: memoryBackend };
   addProviderConfig(payload, providerPriority);
-  addTrimmedValue(payload, "api_key", nexApiKey);
-  addMemoryKeys(payload, memoryBackend, gbrainOpenAIKey, gbrainAnthropicKey);
-  addGenericApiKeys(payload, memoryBackend, apiKeys);
+  addGenericApiKeys(payload, apiKeys);
   return payload;
 }
 
@@ -1713,30 +1872,16 @@ function addTrimmedValue(
   if (trimmed.length > 0) payload[field] = trimmed;
 }
 
-function addMemoryKeys(
-  payload: Record<string, unknown>,
-  memoryBackend: MemoryBackend,
-  gbrainOpenAIKey: string,
-  gbrainAnthropicKey: string,
-) {
-  if (memoryBackend !== "gbrain") return;
-  addTrimmedValue(payload, "openai_api_key", gbrainOpenAIKey);
-  addTrimmedValue(payload, "anthropic_api_key", gbrainAnthropicKey);
-}
-
 function addGenericApiKeys(
   payload: Record<string, unknown>,
-  memoryBackend: MemoryBackend,
   apiKeys: Record<string, string>,
 ) {
-  if (memoryBackend !== "gbrain") {
-    addTrimmedValue(
-      payload,
-      "anthropic_api_key",
-      apiKeys.ANTHROPIC_API_KEY ?? "",
-    );
-    addTrimmedValue(payload, "openai_api_key", apiKeys.OPENAI_API_KEY ?? "");
-  }
+  addTrimmedValue(
+    payload,
+    "anthropic_api_key",
+    apiKeys.ANTHROPIC_API_KEY ?? "",
+  );
+  addTrimmedValue(payload, "openai_api_key", apiKeys.OPENAI_API_KEY ?? "");
   addTrimmedValue(payload, "gemini_api_key", apiKeys.GOOGLE_API_KEY ?? "");
 }
 
@@ -1747,21 +1892,14 @@ interface WizardKeyContext {
   runtimePriority: string[];
   prereqs: PrereqResult[];
   apiKeys: Record<string, string>;
-  memoryBackend: MemoryBackend;
-  gbrainOpenAIKey: string;
   submitting: boolean;
   taskText: string;
   goTo: (step: WizardStep) => void;
   nextStep: () => void;
   finishOnboarding: (skipTask: boolean) => void | Promise<void>;
-  closeNexSignup: () => void;
 }
 
 function handleWizardKey(e: KeyboardEvent, context: WizardKeyContext) {
-  if (e.key === "Escape") {
-    context.closeNexSignup();
-    return;
-  }
   if (!shouldHandleWizardEnter(e)) return;
 
   const canIdentityContinue =
@@ -1774,7 +1912,6 @@ function shouldHandleWizardEnter(e: KeyboardEvent): boolean {
   if (e.key !== "Enter") return false;
   if (e.repeat) return false;
   const target = e.target as HTMLElement | null;
-  if (target?.id === "wiz-nex-email") return false;
   const tag = target?.tagName;
   if (tag === "BUTTON" || tag === "A" || tag === "SELECT") return false;
   const inTextarea = tag === "TEXTAREA";
@@ -1790,10 +1927,7 @@ function canContinueSetup(context: WizardKeyContext): boolean {
   const hasAnyApiKey = Object.values(context.apiKeys).some(
     (value) => value.trim().length > 0,
   );
-  const gbrainOpenAIMissing =
-    context.memoryBackend === "gbrain" &&
-    context.gbrainOpenAIKey.trim().length === 0;
-  return (hasInstalledSelection || hasAnyApiKey) && !gbrainOpenAIMissing;
+  return hasInstalledSelection || hasAnyApiKey;
 }
 
 function hasInstalledRuntimeSelection(
@@ -1863,8 +1997,11 @@ interface WizardProps {
   onComplete?: () => void;
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: This component owns the onboarding state machine; step UI is already split into subcomponents.
 export function Wizard({ onComplete }: WizardProps) {
   const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
+  const language = useAppStore((s) => s.language);
+  const copy = WIZARD_COPY[language];
 
   // Navigation
   const [step, setStep] = useState<WizardStep>("welcome");
@@ -1880,14 +2017,6 @@ export function Wizard({ onComplete }: WizardProps) {
   const [company, setCompany] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
-  // Optional in-wizard Nex registration. Mirrors the TUI's InitNexRegister
-  // phase — we POST /nex/register which shells out to `nex-cli setup <email>`.
-  // If nex-cli isn't installed we flip to `fallback` (external link to
-  // nex.ai/register, key pasted on the Setup step).
-  const [nexEmail, setNexEmail] = useState("");
-  const [nexSignupStatus, setNexSignupStatus] =
-    useState<NexSignupStatus>("hidden");
-  const [nexSignupError, setNexSignupError] = useState("");
 
   // Step 4: team
   const [agents, setAgents] = useState<BlueprintAgent[]>([]);
@@ -1901,21 +2030,9 @@ export function Wizard({ onComplete }: WizardProps) {
   // works with zero clicks.
   const [runtimePriority, setRuntimePriority] = useState<string[]>([]);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  // Matches MEMORY_BACKEND_OPTIONS[0] (the "Markdown (default)" tile) and the
-  // server-side `config.ResolveMemoryBackend` default. Shipping 'nex' here
-  // contradicted the label and meant a user who clicked through got a
-  // different backend than the one marked default.
-  const [memoryBackend, setMemoryBackend] = useState<MemoryBackend>("markdown");
-  // Nex API key (maps to `api_key` on /config). Parity with TUI's InitAPIKey
-  // phase. Kept separate from `apiKeys` because the latter is the per-runtime
-  // fallback set (Anthropic/OpenAI/Google) while this one unlocks hosted
-  // memory and managed integrations. Empty = skipped, not an error.
-  const [nexApiKey, setNexApiKey] = useState("");
-  // GBrain-specific key inputs. Only rendered when memoryBackend === 'gbrain'.
-  // Mirrors the TUI's InitGBrainOpenAIKey (required) + InitGBrainAnthropKey
-  // (optional) phases.
-  const [gbrainOpenAIKey, setGbrainOpenAIKey] = useState("");
-  const [gbrainAnthropicKey, setGbrainAnthropicKey] = useState("");
+  // Matches the localized "Team wiki (default)" tile and the server-side
+  // `config.ResolveMemoryBackend` default.
+  const memoryBackend: MemoryBackend = "markdown";
 
   // Step 6: first task
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
@@ -2077,63 +2194,11 @@ export function Wizard({ onComplete }: WizardProps) {
     setApiKeys((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Open the in-wizard Nex signup affordance. A separate handler (not just
-  // `setNexSignupStatus('open')` inline) keeps the error/email state reset in
-  // one place — reopening after a failed attempt shouldn't leak the old error.
-  const openNexSignup = useCallback(() => {
-    setNexSignupError("");
-    setNexSignupStatus("open");
-  }, []);
-
-  // Submit the email to /nex/register. On success: mark status 'ok' so the
-  // UI tells the user to check their inbox. On ErrNotInstalled (502 from the
-  // broker when nex-cli isn't on PATH): flip to 'fallback' — the user gets an
-  // external link to nex.ai/register and pastes the key on the Setup step.
-  // Any other error: surface the message and let the user retry.
-  const submitNexSignup = useCallback(async () => {
-    const email = nexEmail.trim();
-    if (email.length === 0) return;
-    setNexSignupStatus("submitting");
-    setNexSignupError("");
-    try {
-      await post<{ status: string; output?: string }>("/nex/register", {
-        email,
-      });
-      setNexSignupStatus("ok");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Registration failed";
-      // nex.Register returns ErrNotInstalled (broker wraps as 502) when
-      // nex-cli isn't on PATH. Detect and flip to the external-link flow.
-      if (msg.toLowerCase().includes("not installed") || msg.includes("502")) {
-        setNexSignupStatus("fallback");
-        return;
-      }
-      setNexSignupStatus("open");
-      setNexSignupError(msg);
-    }
-  }, [nexEmail]);
-
-  // Close the Nex signup panel via Escape — keeps the outer Escape handler
-  // in `useKeyboardShortcuts` free to act on app-level panels without
-  // fighting the wizard's internal affordance.
-  const closeNexSignup = useCallback(() => {
-    if (
-      nexSignupStatus === "open" ||
-      nexSignupStatus === "ok" ||
-      nexSignupStatus === "fallback"
-    ) {
-      setNexSignupStatus("hidden");
-      setNexSignupError("");
-    }
-  }, [nexSignupStatus]);
-
   const readinessChecks = buildReadinessChecks({
-    nexApiKey,
+    copy,
     runtimePriority,
     prereqs,
     apiKeys,
-    gbrainOpenAIKey,
-    gbrainAnthropicKey,
     memoryBackend,
     selectedBlueprint,
     blueprints,
@@ -2161,12 +2226,9 @@ export function Wizard({ onComplete }: WizardProps) {
         const configPayload = buildOnboardingConfigPayload({
           memoryBackend,
           providerPriority,
-          nexApiKey,
-          gbrainOpenAIKey,
-          gbrainAnthropicKey,
           apiKeys,
         });
-        post("/config", configPayload).catch(() => {});
+        await post("/config", configPayload).catch(() => {});
 
         // Primary runtime label for the onboarding payload (best-effort;
         // the broker only acts on {task, skip_task} today, but the extra
@@ -2203,9 +2265,6 @@ export function Wizard({ onComplete }: WizardProps) {
       selectedBlueprint,
       agents,
       apiKeys,
-      nexApiKey,
-      gbrainOpenAIKey,
-      gbrainAnthropicKey,
       taskText,
       setOnboardingComplete,
       onComplete,
@@ -2215,8 +2274,6 @@ export function Wizard({ onComplete }: WizardProps) {
   // Keyboard: Enter advances each step when the step's own gate allows it,
   // so the whole wizard can be run without reaching for the mouse. Textarea
   // steps (TaskStep) keep Enter for newlines; ⌘/Ctrl+Enter advances there.
-  // The NexSignupPanel handles its own Enter inside the email input via an
-  // onKeyDown below, so we bail out when that's the focused target.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       handleWizardKey(e, {
@@ -2226,14 +2283,11 @@ export function Wizard({ onComplete }: WizardProps) {
         runtimePriority,
         prereqs,
         apiKeys,
-        memoryBackend,
-        gbrainOpenAIKey,
         submitting,
         taskText,
         goTo,
         nextStep,
         finishOnboarding,
-        closeNexSignup,
       });
     }
     window.addEventListener("keydown", onKey);
@@ -2247,25 +2301,25 @@ export function Wizard({ onComplete }: WizardProps) {
     runtimePriority,
     prereqs,
     apiKeys,
-    memoryBackend,
-    gbrainOpenAIKey,
     submitting,
     taskText,
     goTo,
     nextStep,
     finishOnboarding,
-    closeNexSignup,
   ]);
 
   return (
     <div className="wizard-container">
       <div className="wizard-body">
-        <ProgressDots current={step} />
+        <ProgressDots copy={copy} current={step} />
 
-        {step === "welcome" && <WelcomeStep onNext={() => goTo("identity")} />}
+        {step === "welcome" && (
+          <WelcomeStep copy={copy} onNext={() => goTo("identity")} />
+        )}
 
         {step === "templates" && (
           <TemplatesStep
+            copy={copy}
             templates={blueprints}
             loading={blueprintsLoading}
             selected={selectedBlueprint}
@@ -2277,18 +2331,13 @@ export function Wizard({ onComplete }: WizardProps) {
 
         {step === "identity" && (
           <IdentityStep
+            copy={copy}
             company={company}
             description={description}
             priority={priority}
-            nexEmail={nexEmail}
-            nexSignupStatus={nexSignupStatus}
-            nexSignupError={nexSignupError}
             onChangeCompany={setCompany}
             onChangeDescription={setDescription}
             onChangePriority={setPriority}
-            onChangeNexEmail={setNexEmail}
-            onSubmitNexSignup={submitNexSignup}
-            onOpenNexSignup={openNexSignup}
             onNext={nextStep}
             onBack={prevStep}
           />
@@ -2296,6 +2345,7 @@ export function Wizard({ onComplete }: WizardProps) {
 
         {step === "team" && (
           <TeamStep
+            copy={copy}
             agents={agents}
             onToggle={toggleAgent}
             onNext={nextStep}
@@ -2305,6 +2355,7 @@ export function Wizard({ onComplete }: WizardProps) {
 
         {step === "setup" && (
           <SetupStep
+            copy={copy}
             prereqs={prereqs}
             prereqsLoading={prereqsLoading}
             runtimePriority={runtimePriority}
@@ -2312,14 +2363,6 @@ export function Wizard({ onComplete }: WizardProps) {
             onReorderRuntime={reorderRuntime}
             apiKeys={apiKeys}
             onChangeApiKey={handleApiKeyChange}
-            memoryBackend={memoryBackend}
-            onChangeMemoryBackend={setMemoryBackend}
-            nexApiKey={nexApiKey}
-            onChangeNexApiKey={setNexApiKey}
-            gbrainOpenAIKey={gbrainOpenAIKey}
-            onChangeGBrainOpenAIKey={setGbrainOpenAIKey}
-            gbrainAnthropicKey={gbrainAnthropicKey}
-            onChangeGBrainAnthropicKey={setGbrainAnthropicKey}
             onNext={nextStep}
             onBack={prevStep}
           />
@@ -2327,6 +2370,7 @@ export function Wizard({ onComplete }: WizardProps) {
 
         {step === "task" && (
           <TaskStep
+            copy={copy}
             taskTemplates={taskTemplates}
             selectedTaskTemplate={selectedTaskTemplate}
             onSelectTaskTemplate={setSelectedTaskTemplate}
@@ -2345,6 +2389,7 @@ export function Wizard({ onComplete }: WizardProps) {
 
         {step === "ready" && (
           <ReadyStep
+            copy={copy}
             checks={readinessChecks}
             taskText={taskText}
             submitting={submitting}

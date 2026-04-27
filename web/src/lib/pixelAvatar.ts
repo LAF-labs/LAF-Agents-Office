@@ -21,7 +21,7 @@ const AGENT_COLORS: Record<string, string> = {
   cmo: "#c78a1f",
   cro: "#1264a3",
   pam: "#b43a2f",
-  nex: "#c78a1f",
+  office: "#c78a1f",
 };
 
 type Rgb = readonly [number, number, number];

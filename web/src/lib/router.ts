@@ -13,7 +13,7 @@ export const channelRoute = createRoute({
   path: "/channels/$channelSlug",
 });
 
-// /apps/$appId — app panel view (tasks, policies, calendar, etc.)
+// /apps/$appId — app panel view (tasks, requests, wiki-adjacent tools, etc.)
 export const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/apps/$appId",
