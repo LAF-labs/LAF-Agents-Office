@@ -25,6 +25,20 @@ export default function HatBar({
   rightRail,
   disabledTabs = ["talk"],
 }: HatBarProps) {
+  let firstRightRailItem = true;
+  const seenRightRailItems = new Map<string, number>();
+  const rightRailItems = (rightRail ?? []).map((item) => {
+    const occurrence = (seenRightRailItems.get(item) ?? 0) + 1;
+    seenRightRailItems.set(item, occurrence);
+    const out = {
+      item,
+      key: occurrence === 1 ? item : `${item}-${occurrence}`,
+      showSeparator: !firstRightRailItem,
+    };
+    firstRightRailItem = false;
+    return out;
+  });
+
   return (
     <nav className="wk-hatbar" aria-label="Article views">
       {ORDER.map((tab) => {
@@ -42,11 +56,11 @@ export default function HatBar({
           </button>
         );
       })}
-      {rightRail && rightRail.length > 0 && (
+      {rightRailItems.length > 0 && (
         <span className="wk-rail-right">
-          {rightRail.map((item, i) => (
-            <span key={`${item}-${i}`}>
-              {i > 0 && <span>•</span>} {item}
+          {rightRailItems.map(({ item, key, showSeparator }) => (
+            <span key={key}>
+              {showSeparator ? <span>•</span> : null} {item}
             </span>
           ))}
         </span>

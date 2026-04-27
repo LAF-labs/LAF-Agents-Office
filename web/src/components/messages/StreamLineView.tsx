@@ -120,13 +120,15 @@ function ClaudeAssistantEvent({
   compact: boolean;
 }) {
   const blocks = messageContentBlocks(parsed);
-  const rendered = blocks
-    .map((block, index) => {
+  const rendered = keyedByOccurrence(blocks, (block) =>
+    stableValueKey("block", block),
+  )
+    .map(({ item: block, key }) => {
       const blockType = stringish(block.type);
       if (blockType === "text") {
         const text = stringish(block.text).trim();
         return text ? (
-          <div key={index} className="cc-thinking">
+          <div key={key} className="cc-thinking">
             {text}
           </div>
         ) : null;
@@ -134,7 +136,7 @@ function ClaudeAssistantEvent({
       if (blockType === "thinking") {
         const text = stringish(block.thinking).trim();
         return text ? (
-          <div key={index} className="stream-card-detail">
+          <div key={key} className="stream-card-detail">
             {text}
           </div>
         ) : null;
@@ -142,7 +144,7 @@ function ClaudeAssistantEvent({
       if (blockType === "tool_use") {
         return (
           <ToolCallCard
-            key={index}
+            key={key}
             item={{
               type: "tool_call",
               name: block.name,
@@ -169,12 +171,14 @@ function ClaudeUserEvent({
   compact: boolean;
 }) {
   const blocks = messageContentBlocks(parsed);
-  const rendered = blocks
-    .map((block, index) => {
+  const rendered = keyedByOccurrence(blocks, (block) =>
+    stableValueKey("tool-result", block),
+  )
+    .map(({ item: block, key }) => {
       if (stringish(block.type) !== "tool_result") return null;
       const content = block.content;
       return (
-        <div key={index} className="cc-tool-call">
+        <div key={key} className="cc-tool-call">
           <div className="cc-tool-section-label">Tool result</div>
           <ToolResultContent
             text={stringFromToolContent(content)}
@@ -204,6 +208,41 @@ function ClaudeUserEvent({
   if (rendered.length === 0) return null;
   if (rendered.length === 1) return <>{rendered[0]}</>;
   return <div className="stream-event-stack">{rendered}</div>;
+}
+
+function keyedByOccurrence<T>(
+  items: readonly T[],
+  getBaseKey: (item: T) => string,
+): Array<{ item: T; key: string }> {
+  const seen = new Map<string, number>();
+  return items.map((item) => {
+    const baseKey = getBaseKey(item) || "item";
+    const occurrence = (seen.get(baseKey) ?? 0) + 1;
+    seen.set(baseKey, occurrence);
+    return {
+      item,
+      key: occurrence === 1 ? baseKey : `${baseKey}-${occurrence}`,
+    };
+  });
+}
+
+function stableValueKey(prefix: string, value: unknown): string {
+  const raw =
+    typeof value === "string" ? value : safeStringify(value) || String(value);
+  let hash = 2166136261;
+  for (const char of raw) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}-${(hash >>> 0).toString(36)}`;
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? "";
+  } catch {
+    return "";
+  }
 }
 
 function messageContentBlocks(
@@ -418,8 +457,10 @@ function ToolCallCard({
               <div className="cc-tool-section-label cc-tool-result-label">
                 {"\u2713 Response"}
               </div>
-              {result.content.map((c, i) => (
-                <ToolResultContent key={i} text={c.text} compact={compact} />
+              {keyedByOccurrence(result.content, (c) =>
+                stableValueKey("content", c.text ?? c),
+              ).map(({ item: c, key }) => (
+                <ToolResultContent key={key} text={c.text} compact={compact} />
               ))}
             </>
           ) : null}
@@ -645,8 +686,10 @@ function Value({
     return (
       <Collapsible label={`[${value.length}]`} startOpen={depth === 0}>
         <div className="sv-array">
-          {value.map((item, idx) => (
-            <div key={idx} className="sv-array-item">
+          {keyedByOccurrence(value, (item) =>
+            stableValueKey("array-item", item),
+          ).map(({ item, key }) => (
+            <div key={key} className="sv-array-item">
               <Value value={item} depth={depth + 1} compact={compact} />
             </div>
           ))}

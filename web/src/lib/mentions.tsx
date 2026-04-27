@@ -105,10 +105,14 @@ export function extractTaggedMentions(
 }
 
 export function renderMentionTokens(tokens: MentionToken[]): ReactNode[] {
-  return tokens.map((t, i) => {
+  const seenMentions = new Map<string, number>();
+  return tokens.map((t) => {
     if (t.kind === "mention") {
+      const seen = seenMentions.get(t.value) ?? 0;
+      seenMentions.set(t.value, seen + 1);
+      const key = seen === 0 ? `m-${t.value}` : `m-${t.value}-${seen + 1}`;
       return (
-        <span key={`m-${i}-${t.value}`} className="mention">
+        <span key={key} className="mention">
           @{t.value}
         </span>
       );

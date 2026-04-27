@@ -25,8 +25,8 @@ export default function Infobox({ title, fields, sections }: InfoboxProps) {
             <FieldRow key={f.dt} field={f} />
           ))}
         </dl>
-        {sections?.map((section, i) => (
-          <div key={`ib-section-${i}`} className="wk-ib-section">
+        {sections?.map((section) => (
+          <div key={infoboxSectionKey(section)} className="wk-ib-section">
             <dl>
               {section.fields.map((f) => (
                 <FieldRow key={f.dt} field={f} />
@@ -36,6 +36,13 @@ export default function Infobox({ title, fields, sections }: InfoboxProps) {
         ))}
       </div>
     </aside>
+  );
+}
+
+function infoboxSectionKey(section: InfoboxSection): string {
+  return (
+    section.fields.map((field) => `${field.dt}:${field.dd}`).join("|") ||
+    "empty-section"
   );
 }
 

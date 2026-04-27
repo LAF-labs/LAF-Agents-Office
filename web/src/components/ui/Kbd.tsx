@@ -48,14 +48,14 @@ export function KbdSequence({
   return (
     <span className={`kbd-sequence ${className}`.trim()}>
       {chords.map((chord, i) => (
-        <span key={i} className="kbd-chord">
+        <span key={chord.join("+") || "empty-chord"} className="kbd-chord">
           {i > 0 && (
             <span className="kbd-then" aria-hidden="true">
               then
             </span>
           )}
-          {chord.map((k, j) => (
-            <Kbd key={j} size={size} variant={variant}>
+          {chord.map((k) => (
+            <Kbd key={k} size={size} variant={variant}>
               {k}
             </Kbd>
           ))}

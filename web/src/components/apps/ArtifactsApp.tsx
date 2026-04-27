@@ -16,6 +16,7 @@ import { Timeline, type TimelineEvent } from "../activity/Timeline";
 
 /** Minimal action/decision/watchdog shapes from the untyped endpoints. */
 interface ActionRecord {
+  id?: string;
   summary?: string;
   name?: string;
   title?: string;
@@ -401,9 +402,9 @@ export function ArtifactsApp() {
             ) : (
               allActions
                 .slice(0, 12)
-                .map((action, i) => (
+                .map((action) => (
                   <ActivityItem
-                    key={i}
+                    key={actionKey(action)}
                     title={
                       action.summary || action.name || action.title || "Action"
                     }
@@ -628,5 +629,23 @@ function EmptyState({ children }: { children: React.ReactNode }) {
     >
       {children}
     </div>
+  );
+}
+
+function actionKey(action: ActionRecord): string {
+  return (
+    action.id ||
+    [
+      action.created_at,
+      action.actor,
+      action.source,
+      action.channel,
+      action.kind ?? action.type,
+      action.summary ?? action.name ?? action.title,
+      action.related_id,
+    ]
+      .filter(Boolean)
+      .join("|") ||
+    "action"
   );
 }

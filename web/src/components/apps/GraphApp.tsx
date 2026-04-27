@@ -433,7 +433,7 @@ export function GraphApp() {
                 const y2 = b.y - (dy / dist) * shrink;
                 return (
                   <g
-                    key={i}
+                    key={`${e.from}->${e.to}:${e.label}`}
                     onMouseEnter={() => setHoveredEdge(i)}
                     onMouseLeave={() => setHoveredEdge(null)}
                   >

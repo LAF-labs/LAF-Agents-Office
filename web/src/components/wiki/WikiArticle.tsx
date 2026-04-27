@@ -200,6 +200,12 @@ export default function WikiArticle({
   const entity = detectEntity(article.path);
   const playbook = detectPlaybook(article.path);
   const breadcrumbSegments = article.path.split("/").filter(Boolean);
+  let breadcrumbPath = "";
+  const breadcrumbItems = breadcrumbSegments.map((seg) => {
+    breadcrumbPath = breadcrumbPath ? `${breadcrumbPath}/${seg}` : seg;
+    return { seg, path: breadcrumbPath };
+  });
+  const lastBreadcrumbPath = breadcrumbItems[breadcrumbItems.length - 1]?.path;
   const context = breadcrumbSegments[0] || "";
   const byline = (
     <Byline
@@ -246,10 +252,10 @@ export default function WikiArticle({
           >
             Team Wiki
           </a>
-          {breadcrumbSegments.map((seg, i) => (
-            <span key={`${seg}-${i}`} style={{ display: "contents" }}>
+          {breadcrumbItems.map(({ seg, path }) => (
+            <span key={path} style={{ display: "contents" }}>
               <span className="sep">›</span>
-              {i < breadcrumbSegments.length - 1 ? (
+              {path !== lastBreadcrumbPath ? (
                 <a href="#">{seg}</a>
               ) : (
                 <span>{article.title}</span>

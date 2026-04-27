@@ -124,7 +124,7 @@ export default function WikiLint({ onNavigate }: WikiLintProps) {
           <tbody>
             {report.findings.map((f, idx) => (
               <tr
-                key={`${f.type}-${f.entity_slug ?? ""}-${idx}`}
+                key={lintFindingKey(f)}
                 className={`wk-audit-row ${findingRowClass(f.severity)}`}
               >
                 <td className="wk-audit-when">
@@ -188,6 +188,18 @@ export default function WikiLint({ onNavigate }: WikiLintProps) {
       ) : null}
     </main>
   );
+}
+
+function lintFindingKey(finding: LintFinding): string {
+  return [
+    finding.type,
+    finding.entity_slug,
+    finding.severity,
+    finding.summary,
+    finding.fact_ids?.join(","),
+  ]
+    .filter(Boolean)
+    .join("|");
 }
 
 function severityLabel(sev: string): string {
