@@ -1,12 +1,14 @@
 import { type FormEvent, useEffect, useState } from "react";
 
 import { lookupInvite, signup, type TeamInvite } from "../../api/client";
+import { useI18n } from "../../lib/i18n";
 
 interface InviteAcceptPageProps {
   token: string;
 }
 
 export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
+  const { t } = useI18n();
   const [invite, setInvite] = useState<TeamInvite | null>(null);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -28,12 +30,12 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
       .catch((err) => {
         if (cancelled) return;
         setStatus("error");
-        setMessage(err instanceof Error ? err.message : "Invite not found");
+        setMessage(err instanceof Error ? err.message : t("invite.notFound"));
       });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, t]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,27 +53,22 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
       setStatus("done");
     } catch (err) {
       setStatus("error");
-      setMessage(
-        err instanceof Error ? err.message : "Could not accept invite",
-      );
+      setMessage(err instanceof Error ? err.message : t("invite.acceptFailed"));
     }
   }
 
   return (
     <main className="invite-page">
       <section className="invite-card">
-        <div className="invite-kicker">WUPHF invite</div>
-        <h1>Join the office</h1>
+        <div className="invite-kicker">{t("invite.kicker")}</div>
+        <h1>{t("invite.title")}</h1>
         {status === "loading" ? (
-          <p className="invite-muted">Checking invite...</p>
+          <p className="invite-muted">{t("invite.checking")}</p>
         ) : status === "done" ? (
           <>
-            <p className="invite-muted">
-              You're in. Open the WUPHF office tab to start working with the
-              team.
-            </p>
+            <p className="invite-muted">{t("invite.done")}</p>
             <a className="invite-primary" href="/">
-              Open office
+              {t("invite.openOffice")}
             </a>
           </>
         ) : (
@@ -86,23 +83,23 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
               <p className="invite-error">{message}</p>
             ) : null}
             <form onSubmit={handleSubmit} className="invite-form">
-              <label htmlFor="invite-name">Name</label>
+              <label htmlFor="invite-name">{t("auth.name")}</label>
               <input
                 id="invite-name"
                 type="text"
                 autoComplete="name"
                 value={name}
                 onChange={(event) => setName(event.currentTarget.value)}
-                placeholder="Your name"
+                placeholder={t("auth.yourName")}
               />
-              <label htmlFor="invite-password">Password</label>
+              <label htmlFor="invite-password">{t("auth.password")}</label>
               <input
                 id="invite-password"
                 type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.currentTarget.value)}
-                placeholder="At least 8 characters"
+                placeholder={t("auth.passwordHint")}
               />
               <button
                 type="submit"
@@ -113,7 +110,7 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
                   status === "error"
                 }
               >
-                Create account
+                {t("auth.createAccount")}
               </button>
             </form>
           </>

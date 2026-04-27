@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import type { OfficeMember } from "../../api/client";
 import { useDefaultHarness } from "../../hooks/useConfig";
 import { useOfficeMembers } from "../../hooks/useMembers";
@@ -7,7 +5,6 @@ import { useOverflow } from "../../hooks/useOverflow";
 import { resolveHarness } from "../../lib/harness";
 import { useAppStore } from "../../stores/app";
 import { AgentWizard, useAgentWizard } from "../agents/AgentWizard";
-import { HumanInviteModal } from "../invites/HumanInviteModal";
 import { HarnessBadge } from "../ui/HarnessBadge";
 import { PixelAvatar } from "../ui/PixelAvatar";
 
@@ -35,10 +32,11 @@ function classifyActivity(member: OfficeMember | undefined) {
 export function AgentList() {
   const { data: members = [] } = useOfficeMembers();
   const setActiveAgentSlug = useAppStore((s) => s.setActiveAgentSlug);
+  const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const setSettingsSection = useAppStore((s) => s.setSettingsSection);
   const currentChannel = useAppStore((s) => s.currentChannel);
   const channelMeta = useAppStore((s) => s.channelMeta);
   const wizard = useAgentWizard();
-  const [inviteOpen, setInviteOpen] = useState(false);
   const overflowRef = useOverflow<HTMLDivElement>();
   const defaultHarness = useDefaultHarness();
 
@@ -114,7 +112,10 @@ export function AgentList() {
           <button
             type="button"
             className="sidebar-item sidebar-add-btn"
-            onClick={() => setInviteOpen(true)}
+            onClick={() => {
+              setSettingsSection("team");
+              setCurrentApp("settings");
+            }}
             title="Invite a person"
           >
             <span style={{ width: 18, textAlign: "center", flexShrink: 0 }}>
@@ -125,10 +126,6 @@ export function AgentList() {
         </div>
       </div>
       <AgentWizard open={wizard.open} onClose={wizard.hide} />
-      <HumanInviteModal
-        open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
-      />
     </>
   );
 }

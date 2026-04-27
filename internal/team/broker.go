@@ -1594,6 +1594,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/auth/login", b.handleAuthLogin)
 	mux.HandleFunc("/auth/logout", b.handleAuthLogout)
 	mux.HandleFunc("/auth/session", b.handleAuthSession)
+	mux.HandleFunc("/auth/users", b.requireAuth(b.handleAuthUsers))
 	mux.HandleFunc("/teams", b.handleTeams)
 	mux.HandleFunc("/session-mode", b.requireAuth(b.handleSessionMode))
 	mux.HandleFunc("/focus-mode", b.requireAuth(b.handleFocusMode))

@@ -6,6 +6,7 @@ afterEach(() => {
   useAppStore.setState({
     currentChannel: "general",
     currentApp: null,
+    settingsSection: null,
     activeThreadId: null,
     lastMessageId: null,
     activeAgentSlug: null,
@@ -37,6 +38,7 @@ describe("DM channel helpers", () => {
     useAppStore.setState({
       currentChannel: "ceo__human",
       currentApp: "settings",
+      settingsSection: "team",
       activeThreadId: "thread-1",
       lastMessageId: "msg-1",
       activeAgentSlug: "ceo",
@@ -55,6 +57,7 @@ describe("DM channel helpers", () => {
     expect(useAppStore.getState()).toMatchObject({
       currentChannel: "general",
       currentApp: null,
+      settingsSection: null,
       activeThreadId: null,
       lastMessageId: null,
       activeAgentSlug: null,
@@ -101,6 +104,32 @@ describe("setTheme", () => {
       // Reset DOM + store so other tests don't inherit dark theme.
       document.documentElement.setAttribute("data-theme", "nex");
       useAppStore.setState({ theme: "nex" });
+    }
+  });
+});
+
+describe("setLanguage", () => {
+  it("persists English and Korean UI language", () => {
+    const setItemSpy = vi
+      .spyOn(window.localStorage, "setItem")
+      .mockImplementation(() => {});
+
+    try {
+      useAppStore.getState().setLanguage("ko");
+
+      expect(setItemSpy).toHaveBeenCalledWith("wuphf-language", "ko");
+      expect(useAppStore.getState().language).toBe("ko");
+      expect(document.documentElement.getAttribute("lang")).toBe("ko");
+
+      useAppStore.getState().setLanguage("en");
+
+      expect(setItemSpy).toHaveBeenCalledWith("wuphf-language", "en");
+      expect(useAppStore.getState().language).toBe("en");
+      expect(document.documentElement.getAttribute("lang")).toBe("en");
+    } finally {
+      setItemSpy.mockRestore();
+      document.documentElement.setAttribute("lang", "en");
+      useAppStore.setState({ language: "en" });
     }
   });
 });

@@ -202,6 +202,10 @@ export function getAuthSession() {
   return get<AuthSessionResponse>("/auth/session");
 }
 
+export function getAuthUsers() {
+  return get<{ users: AuthUser[] }>("/auth/users");
+}
+
 export function signup(body: {
   email: string;
   name: string;
@@ -219,6 +223,30 @@ export function login(body: { email: string; password: string }) {
 
 export function logout() {
   return post<{ status: string }>("/auth/logout", {});
+}
+
+export async function patchJSON<T = unknown>(
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const r = await fetch(baseURL() + path, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const text = (await r.text().catch(() => "")).trim();
+    throw new Error(text || `${r.status} ${r.statusText}`);
+  }
+  return r.json();
+}
+
+export function updateAuthUserRole(body: {
+  user_id: string;
+  role: "owner" | "admin" | "member";
+}) {
+  return patchJSON<{ user: AuthUser; users: AuthUser[] }>("/auth/users", body);
 }
 
 export function getTeams() {

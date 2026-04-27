@@ -108,3 +108,48 @@ func TestHumanInviteFallsBackToCopyableLinkWhenSMTPIsMissing(t *testing.T) {
 		t.Fatalf("invite url %q does not contain token %q", body.InviteURL, body.Invite.Token)
 	}
 }
+
+func TestHumanInvitesListFiltersCurrentAuthTeam(t *testing.T) {
+	b := newTestBroker(t)
+	ownerA := signupForTest(t, b, "owner-a@example.com", "Owner A", "create", "Team A", "")
+	ownerB := signupForTest(t, b, "owner-b@example.com", "Owner B", "create", "Team B", "")
+
+	createA := httptest.NewRecorder()
+	reqA := jsonRequestForTest(t, "/invites", map[string]string{
+		"email":    "a@example.com",
+		"base_url": "https://office.example",
+	})
+	reqA.AddCookie(ownerA.Cookie)
+	b.handleInvites(createA, reqA)
+	if createA.Code != http.StatusOK {
+		t.Fatalf("create A invite status = %d, want %d: %s", createA.Code, http.StatusOK, createA.Body.String())
+	}
+
+	createB := httptest.NewRecorder()
+	reqB := jsonRequestForTest(t, "/invites", map[string]string{
+		"email":    "b@example.com",
+		"base_url": "https://office.example",
+	})
+	reqB.AddCookie(ownerB.Cookie)
+	b.handleInvites(createB, reqB)
+	if createB.Code != http.StatusOK {
+		t.Fatalf("create B invite status = %d, want %d: %s", createB.Code, http.StatusOK, createB.Body.String())
+	}
+
+	listRec := httptest.NewRecorder()
+	listReq := httptest.NewRequest(http.MethodGet, "/invites?base_url=https://office.example", nil)
+	listReq.AddCookie(ownerA.Cookie)
+	b.handleInvites(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list invites status = %d, want %d: %s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var body struct {
+		Invites []teamInvite `json:"invites"`
+	}
+	if err := json.NewDecoder(listRec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode list invites: %v", err)
+	}
+	if len(body.Invites) != 1 || body.Invites[0].Email != "a@example.com" || body.Invites[0].TeamID != ownerA.Team.ID {
+		t.Fatalf("unexpected filtered invites: %+v ownerA=%+v", body.Invites, ownerA.Team)
+	}
+}

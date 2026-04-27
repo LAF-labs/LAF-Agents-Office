@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type Theme = "nex" | "nex-dark";
+export type Language = "en" | "ko";
 
 const _storedTheme = ((): Theme => {
   try {
@@ -11,6 +12,17 @@ const _storedTheme = ((): Theme => {
 })();
 if (typeof document !== "undefined") {
   document.documentElement.setAttribute("data-theme", _storedTheme);
+}
+
+const _storedLanguage = ((): Language => {
+  try {
+    const v = localStorage.getItem("wuphf-language");
+    if (v === "ko") return "ko";
+  } catch {}
+  return "en";
+})();
+if (typeof document !== "undefined") {
+  document.documentElement.setAttribute("lang", _storedLanguage);
 }
 
 export interface ChannelMeta {
@@ -75,6 +87,8 @@ export interface AppStore {
   setCurrentChannel: (ch: string) => void;
   currentApp: string | null; // null = messages view
   setCurrentApp: (app: string | null) => void;
+  settingsSection: string | null;
+  setSettingsSection: (section: string | null) => void;
 
   // Channel metadata (DM info, etc.)
   channelMeta: Record<string, ChannelMeta>;
@@ -83,6 +97,10 @@ export interface AppStore {
   // Theme
   theme: Theme;
   setTheme: (t: Theme) => void;
+
+  // UI language
+  language: Language;
+  setLanguage: (language: Language) => void;
 
   // Sidebar
   sidebarAgentsOpen: boolean;
@@ -167,6 +185,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     set({ currentApp: app });
   },
+  settingsSection: null,
+  setSettingsSection: (section) => set({ settingsSection: section }),
 
   channelMeta: {},
   setChannelMeta: (slug, meta) =>
@@ -190,6 +210,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     document.documentElement.setAttribute("data-theme", t);
     set({ theme: t });
+  },
+  language: _storedLanguage,
+  setLanguage: (language) => {
+    try {
+      localStorage.setItem("wuphf-language", language);
+    } catch (err) {
+      console.warn(
+        "setLanguage: localStorage.setItem failed; language will not persist across reloads",
+        err,
+      );
+    }
+    document.documentElement.setAttribute("lang", language);
+    set({ language });
   },
 
   sidebarAgentsOpen: true,
@@ -215,6 +248,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => ({
       currentChannel: channelSlug,
       currentApp: null,
+      settingsSection: null,
       channelMeta: {
         ...s.channelMeta,
         [channelSlug]: { ...s.channelMeta[channelSlug], type: "D", agentSlug },
@@ -241,6 +275,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({
       currentChannel: "general",
       currentApp: null,
+      settingsSection: null,
       activeThreadId: null,
       lastMessageId: null,
       activeAgentSlug: null,

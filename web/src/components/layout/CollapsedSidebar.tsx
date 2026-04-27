@@ -29,6 +29,7 @@ import {
 import { getUsage } from "../../api/client";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { formatTokens, formatUSD } from "../../lib/format";
+import { type I18nKey, useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { AgentList } from "../sidebar/AgentList";
 import { ChannelList } from "../sidebar/ChannelList";
@@ -55,6 +56,7 @@ export function CollapsedSidebar() {
   const toggleCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const { t } = useI18n();
   const [popover, setPopover] = useState<Popover>(null);
   const [hint, setHint] = useState<HintState>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -106,9 +108,9 @@ export function CollapsedSidebar() {
         <button
           type="button"
           className="sidebar-icon-btn"
-          aria-label="Expand sidebar"
+          aria-label={t("sidebar.expand")}
           onClick={toggleCollapsed}
-          onMouseEnter={(e) => showHint(e, "Expand sidebar")}
+          onMouseEnter={(e) => showHint(e, t("sidebar.expand"))}
           onMouseLeave={hideHint}
         >
           <SidebarExpand />
@@ -116,9 +118,9 @@ export function CollapsedSidebar() {
         <button
           type="button"
           className={`sidebar-icon-btn${currentApp === "settings" ? " active" : ""}`}
-          aria-label="Settings"
+          aria-label={t("sidebar.settings")}
           onClick={() => setCurrentApp("settings")}
-          onMouseEnter={(e) => showHint(e, "Settings")}
+          onMouseEnter={(e) => showHint(e, t("sidebar.settings"))}
           onMouseLeave={hideHint}
         >
           <SettingsIcon />
@@ -129,7 +131,7 @@ export function CollapsedSidebar() {
         <button
           type="button"
           className={`sidebar-icon-btn${popover === "team" ? " is-open" : ""}`}
-          aria-label="Team"
+          aria-label={t("sidebar.team")}
           aria-haspopup="dialog"
           aria-expanded={popover === "team"}
           onMouseEnter={() => openPopover("team")}
@@ -142,7 +144,7 @@ export function CollapsedSidebar() {
         <button
           type="button"
           className={`sidebar-icon-btn${popover === "channels" ? " is-open" : ""}`}
-          aria-label="Channels"
+          aria-label={t("sidebar.channels")}
           aria-haspopup="dialog"
           aria-expanded={popover === "channels"}
           onMouseEnter={() => openPopover("channels")}
@@ -165,14 +167,15 @@ export function CollapsedSidebar() {
                 currentApp === "notebooks" ||
                 currentApp === "reviews"
               : currentApp === app.id;
+          const appName = t(`app.${app.id}` as I18nKey);
           return (
             <button
               key={app.id}
               type="button"
               className={`sidebar-icon-btn${isActive ? " active" : ""}`}
-              aria-label={app.name}
+              aria-label={appName}
               onClick={() => setCurrentApp(app.id)}
-              onMouseEnter={(e) => showHint(e, app.name)}
+              onMouseEnter={(e) => showHint(e, appName)}
               onMouseLeave={hideHint}
             >
               {Icon ? (
@@ -191,42 +194,44 @@ export function CollapsedSidebar() {
         active={popover === "usage"}
       />
 
-      {popover &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            className={`sidebar-rail-popover sidebar-rail-popover-${popover}`}
-            role="dialog"
-            onMouseEnter={() => openPopover(popover)}
-            onMouseLeave={scheduleClose}
-          >
-            <div className="sidebar-rail-popover-title">
-              {popover === "team"
-                ? "Team"
-                : popover === "channels"
-                  ? "Channels"
-                  : "Usage"}
-            </div>
-            <div className="sidebar-rail-popover-body">
-              {popover === "team" && <AgentList />}
-              {popover === "channels" && <ChannelList />}
-              {popover === "usage" && <UsageBody />}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {popover
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              className={`sidebar-rail-popover sidebar-rail-popover-${popover}`}
+              role="dialog"
+              onMouseEnter={() => openPopover(popover)}
+              onMouseLeave={scheduleClose}
+            >
+              <div className="sidebar-rail-popover-title">
+                {popover === "team"
+                  ? t("sidebar.team")
+                  : popover === "channels"
+                    ? t("sidebar.channels")
+                    : t("sidebar.usage")}
+              </div>
+              <div className="sidebar-rail-popover-body">
+                {popover === "team" && <AgentList />}
+                {popover === "channels" && <ChannelList />}
+                {popover === "usage" && <UsageBody />}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
-      {hint &&
-        createPortal(
-          <div
-            className="sidebar-rail-hint"
-            style={{ top: hint.y }}
-            role="tooltip"
-          >
-            {hint.label}
-          </div>,
-          document.body,
-        )}
+      {hint
+        ? createPortal(
+            <div
+              className="sidebar-rail-hint"
+              style={{ top: hint.y }}
+              role="tooltip"
+            >
+              {hint.label}
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
@@ -247,6 +252,7 @@ function UsageRail({
   onLeave: () => void;
   active: boolean;
 }) {
+  const { t } = useI18n();
   const { data: usage } = useQuery({
     queryKey: ["usage"],
     queryFn: () => getUsage(),
@@ -257,14 +263,14 @@ function UsageRail({
     <button
       type="button"
       className={`sidebar-rail-bottom${active ? " is-open" : ""}`}
-      aria-label={`Usage ${formatUSD(totalCost)}`}
+      aria-label={`${t("sidebar.usage")} ${formatUSD(totalCost)}`}
       aria-haspopup="dialog"
       aria-expanded={active}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onFocus={onEnter}
       onBlur={onLeave}
-      title={`Usage ${formatUSD(totalCost)}`}
+      title={`${t("sidebar.usage")} ${formatUSD(totalCost)}`}
     >
       <Activity className="sidebar-rail-usage-icon" />
       <span className="sidebar-rail-usage-value">
@@ -275,6 +281,7 @@ function UsageRail({
 }
 
 function UsageBody() {
+  const { t } = useI18n();
   const { data: usage } = useQuery({
     queryKey: ["usage"],
     queryFn: () => getUsage(),
@@ -292,7 +299,7 @@ function UsageBody() {
           padding: "8px 14px",
         }}
       >
-        No usage recorded yet.
+        {t("sidebar.noUsage")}
       </p>
     );
   }
@@ -301,7 +308,13 @@ function UsageBody() {
       <table className="usage-table">
         <thead>
           <tr>
-            {["Agent", "In", "Out", "Cache", "Cost"].map((h) => (
+            {[
+              t("sidebar.usageAgent"),
+              t("sidebar.usageIn"),
+              t("sidebar.usageOut"),
+              t("sidebar.usageCache"),
+              t("sidebar.usageCost"),
+            ].map((h) => (
               <th key={h}>{h}</th>
             ))}
           </tr>
@@ -323,7 +336,8 @@ function UsageBody() {
       </table>
       <div className="usage-total">
         <span>
-          Session: {formatTokens(usage?.session?.total_tokens ?? 0)} tokens
+          {t("sidebar.usageSession")}:{" "}
+          {formatTokens(usage?.session?.total_tokens ?? 0)} tokens
         </span>
         <span className="usage-total-cost">{formatUSD(totalCost)}</span>
       </div>

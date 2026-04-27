@@ -95,12 +95,25 @@ func (b *Broker) handleInvites(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		baseURL := strings.TrimSpace(r.URL.Query().Get("base_url"))
 		b.mu.Lock()
+		var teamID string
+		if user, _, _, ok := b.currentAuthUserLocked(r); ok {
+			teamID = user.TeamID
+		}
 		invites := make([]teamInvite, 0, len(b.invites))
 		for _, invite := range b.invites {
+			if teamID != "" && invite.TeamID != "" && invite.TeamID != teamID {
+				continue
+			}
 			inviteURL := b.inviteURLForToken(baseURL, invite.Token)
 			invites = append(invites, withInviteLinks(invite, inviteURL))
 		}
-		humans := append([]humanTeamMember(nil), b.humanMembers...)
+		humans := make([]humanTeamMember, 0, len(b.humanMembers))
+		for _, member := range b.humanMembers {
+			if teamID != "" && member.TeamID != "" && member.TeamID != teamID {
+				continue
+			}
+			humans = append(humans, member)
+		}
 		b.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -140,6 +153,11 @@ func (b *Broker) handlePostInvite(w http.ResponseWriter, r *http.Request) {
 	var teamID string
 	var creatorIsAuthUser bool
 	if user, _, _, ok := b.currentAuthUserLocked(r); ok {
+		if !canManageAuthRoles(user) {
+			b.mu.Unlock()
+			http.Error(w, "owner or admin role required", http.StatusForbidden)
+			return
+		}
 		teamID = user.TeamID
 		creatorIsAuthUser = true
 		if createdBy == "" || createdBy == "human" || createdBy == "you" {

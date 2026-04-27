@@ -138,9 +138,95 @@ func TestAuthLoginAndLogout(t *testing.T) {
 	}
 }
 
+func TestAuthUsersListsAndUpdatesCurrentTeamRoles(t *testing.T) {
+	b := newTestBroker(t)
+	owner := signupForTest(t, b, "owner@example.com", "Owner", "create", "Ops Team", "")
+
+	inviteRec := httptest.NewRecorder()
+	inviteReq := jsonRequestForTest(t, "/invites", map[string]string{
+		"email":    "member@example.com",
+		"name":     "Member",
+		"base_url": "https://office.example",
+	})
+	inviteReq.AddCookie(owner.Cookie)
+	b.handleInvites(inviteRec, inviteReq)
+	if inviteRec.Code != http.StatusOK {
+		t.Fatalf("invite status = %d, want %d: %s", inviteRec.Code, http.StatusOK, inviteRec.Body.String())
+	}
+	var inviteBody struct {
+		Invite teamInvite `json:"invite"`
+	}
+	if err := json.NewDecoder(inviteRec.Body).Decode(&inviteBody); err != nil {
+		t.Fatalf("decode invite: %v", err)
+	}
+	member := signupForTest(t, b, "member@example.com", "Member", "join", "", inviteBody.Invite.Token)
+	other := signupForTest(t, b, "other@example.com", "Other", "create", "Other Team", "")
+
+	listReq := httptest.NewRequest(http.MethodGet, "/auth/users", nil)
+	listReq.AddCookie(owner.Cookie)
+	listRec := httptest.NewRecorder()
+	b.handleAuthUsers(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list users status = %d, want %d: %s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var listBody struct {
+		Users []authUser `json:"users"`
+	}
+	if err := json.NewDecoder(listRec.Body).Decode(&listBody); err != nil {
+		t.Fatalf("decode users: %v", err)
+	}
+	if len(listBody.Users) != 2 {
+		t.Fatalf("users len = %d, want 2: %+v", len(listBody.Users), listBody.Users)
+	}
+	for _, user := range listBody.Users {
+		if user.TeamID != owner.Team.ID || user.ID == other.User.ID || user.PasswordHash != "" || user.PasswordSalt != "" {
+			t.Fatalf("unexpected listed user: %+v other=%+v", user, other.User)
+		}
+	}
+
+	memberPatchReq := jsonRequestForTest(t, "/auth/users", map[string]string{
+		"user_id": owner.User.ID,
+		"role":    "admin",
+	})
+	memberPatchReq.Method = http.MethodPatch
+	memberPatchReq.AddCookie(member.Cookie)
+	memberPatchRec := httptest.NewRecorder()
+	b.handleAuthUsers(memberPatchRec, memberPatchReq)
+	if memberPatchRec.Code != http.StatusForbidden {
+		t.Fatalf("member role update status = %d, want %d", memberPatchRec.Code, http.StatusForbidden)
+	}
+
+	memberInviteReq := jsonRequestForTest(t, "/invites", map[string]string{
+		"email":    "newbie@example.com",
+		"base_url": "https://office.example",
+	})
+	memberInviteReq.AddCookie(member.Cookie)
+	memberInviteRec := httptest.NewRecorder()
+	b.handleInvites(memberInviteRec, memberInviteReq)
+	if memberInviteRec.Code != http.StatusForbidden {
+		t.Fatalf("member invite status = %d, want %d", memberInviteRec.Code, http.StatusForbidden)
+	}
+
+	ownerPatchReq := jsonRequestForTest(t, "/auth/users", map[string]string{
+		"user_id": member.User.ID,
+		"role":    "admin",
+	})
+	ownerPatchReq.Method = http.MethodPatch
+	ownerPatchReq.AddCookie(owner.Cookie)
+	ownerPatchRec := httptest.NewRecorder()
+	b.handleAuthUsers(ownerPatchRec, ownerPatchReq)
+	if ownerPatchRec.Code != http.StatusOK {
+		t.Fatalf("owner role update status = %d, want %d: %s", ownerPatchRec.Code, http.StatusOK, ownerPatchRec.Body.String())
+	}
+	if got := b.findAuthUserByIDLocked(member.User.ID).Role; got != "admin" {
+		t.Fatalf("member role = %q, want admin", got)
+	}
+}
+
 type signupResult struct {
-	User authUser
-	Team workspaceTeam
+	User   authUser
+	Team   workspaceTeam
+	Cookie *http.Cookie
 }
 
 func signupForTest(t *testing.T, b *Broker, email, name, action, teamName, inviteToken string) signupResult {
@@ -160,6 +246,10 @@ func signupForTest(t *testing.T, b *Broker, email, name, action, teamName, invit
 	var body signupResult
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode signup: %v", err)
+	}
+	body.Cookie = authCookieFromRecorder(rec)
+	if body.Cookie == nil {
+		t.Fatalf("signup %s did not set auth cookie", email)
 	}
 	return body
 }

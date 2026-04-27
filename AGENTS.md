@@ -57,3 +57,23 @@ Use `nex_remember` when:
 Always try `nex_ask` first for general queries. Use `nex_search` when you need to find a specific record by name.
 
 # --- End Nex ---
+
+# --- Karpathy Guidelines ---
+
+For coding, review, refactoring, and debugging work in this repository, apply the
+globally installed Codex skill `karpathy-guidelines` from:
+
+`~/.codex/skills/karpathy-guidelines/SKILL.md`
+
+Use these project-level defaults:
+
+- State assumptions before changing code when requirements are ambiguous.
+- Prefer the smallest implementation that solves the requested behavior.
+- Keep edits surgical: touch only files needed for the current task and preserve
+  existing style.
+- Do not add speculative abstractions, configurability, or unrelated refactors.
+- Define verifiable success criteria and run the narrowest useful checks.
+- Remove only unused code introduced by the current change; mention unrelated
+  dead code instead of deleting it.
+
+# --- End Karpathy Guidelines ---

@@ -7,6 +7,8 @@ import {
   signup,
   type WorkspaceTeam,
 } from "../../api/client";
+import { useI18n } from "../../lib/i18n";
+import { useAppStore } from "../../stores/app";
 
 interface AuthScreenProps {
   onAuthenticated: (session: AuthSessionResponse) => void;
@@ -17,6 +19,8 @@ type TeamAction = "create" | "join";
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: The MVP keeps this short auth form colocated.
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
+  const { language, t } = useI18n();
+  const setLanguage = useAppStore((s) => s.setLanguage);
   const [mode, setMode] = useState<AuthMode>("signup");
   const [teamAction, setTeamAction] = useState<TeamAction>("create");
   const [teams, setTeams] = useState<WorkspaceTeam[]>([]);
@@ -64,7 +68,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         team: result.team,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      setError(err instanceof Error ? err.message : t("auth.failed"));
     } finally {
       setBusy(false);
     }
@@ -81,16 +85,13 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
   return (
     <main className="auth-page">
-      <section className="auth-shell" aria-label="WUPHF sign in">
+      <section className="auth-shell" aria-label={t("auth.aria")}>
         <div className="auth-copy">
-          <div className="auth-kicker">WUPHF workspace</div>
-          <h1>Team access</h1>
-          <p>
-            Sign in to your local office, or create an account and choose a team
-            before entering the workspace.
-          </p>
+          <div className="auth-kicker">{t("auth.kicker")}</div>
+          <h1>{t("auth.title")}</h1>
+          <p>{t("auth.desc")}</p>
           {teams.length > 0 ? (
-            <ul className="auth-team-list" aria-label="Existing teams">
+            <ul className="auth-team-list" aria-label={t("auth.existingTeams")}>
               {teams.slice(0, 4).map((team) => (
                 <li key={team.id}>{team.name}</li>
               ))}
@@ -99,20 +100,33 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         </div>
 
         <form className="auth-panel" onSubmit={handleSubmit}>
-          <div className="auth-tabs" role="tablist" aria-label="Auth mode">
+          <label className="auth-field">
+            <span>{t("settings.general.languageLabel")}</span>
+            <select
+              value={language}
+              onChange={(event) =>
+                setLanguage(event.currentTarget.value === "ko" ? "ko" : "en")
+              }
+            >
+              <option value="en">{t("language.english")}</option>
+              <option value="ko">{t("language.korean")}</option>
+            </select>
+          </label>
+
+          <div className="auth-tabs" role="tablist" aria-label={t("auth.mode")}>
             <button
               type="button"
               className={mode === "signup" ? "active" : ""}
               onClick={() => setMode("signup")}
             >
-              Sign up
+              {t("auth.signup")}
             </button>
             <button
               type="button"
               className={mode === "login" ? "active" : ""}
               onClick={() => setMode("login")}
             >
-              Log in
+              {t("auth.login")}
             </button>
           </div>
 
@@ -123,20 +137,20 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 className={teamAction === "create" ? "active" : ""}
                 onClick={() => setTeamAction("create")}
               >
-                New team
+                {t("auth.newTeam")}
               </button>
               <button
                 type="button"
                 className={teamAction === "join" ? "active" : ""}
                 onClick={() => setTeamAction("join")}
               >
-                Join by invite
+                {t("auth.joinByInvite")}
               </button>
             </div>
           ) : null}
 
           <div className="auth-field">
-            <label htmlFor="auth-email">Email</label>
+            <label htmlFor="auth-email">{t("auth.email")}</label>
             <input
               id="auth-email"
               type="email"
@@ -149,20 +163,20 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
           {mode === "signup" ? (
             <div className="auth-field">
-              <label htmlFor="auth-name">Name</label>
+              <label htmlFor="auth-name">{t("auth.name")}</label>
               <input
                 id="auth-name"
                 type="text"
                 autoComplete="name"
                 value={name}
                 onChange={(event) => setName(event.currentTarget.value)}
-                placeholder="Your name"
+                placeholder={t("auth.yourName")}
               />
             </div>
           ) : null}
 
           <div className="auth-field">
-            <label htmlFor="auth-password">Password</label>
+            <label htmlFor="auth-password">{t("auth.password")}</label>
             <input
               id="auth-password"
               type="password"
@@ -171,32 +185,32 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               }
               value={password}
               onChange={(event) => setPassword(event.currentTarget.value)}
-              placeholder="At least 8 characters"
+              placeholder={t("auth.passwordHint")}
             />
           </div>
 
           {mode === "signup" && teamAction === "create" ? (
             <div className="auth-field">
-              <label htmlFor="auth-team-name">Team name</label>
+              <label htmlFor="auth-team-name">{t("auth.teamName")}</label>
               <input
                 id="auth-team-name"
                 type="text"
                 value={teamName}
                 onChange={(event) => setTeamName(event.currentTarget.value)}
-                placeholder="Team name"
+                placeholder={t("auth.teamName")}
               />
             </div>
           ) : null}
 
           {mode === "signup" && teamAction === "join" ? (
             <div className="auth-field">
-              <label htmlFor="auth-invite-token">Invite token</label>
+              <label htmlFor="auth-invite-token">{t("auth.inviteToken")}</label>
               <input
                 id="auth-invite-token"
                 type="text"
                 value={inviteToken}
                 onChange={(event) => setInviteToken(event.currentTarget.value)}
-                placeholder="Paste invite token or open invite link"
+                placeholder={t("auth.inviteTokenHint")}
               />
             </div>
           ) : null}
@@ -209,10 +223,10 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             disabled={!canSubmit || busy}
           >
             {busy
-              ? "Working..."
+              ? t("auth.working")
               : mode === "login"
-                ? "Log in"
-                : "Create account"}
+                ? t("auth.login")
+                : t("auth.createAccount")}
           </button>
         </form>
       </section>

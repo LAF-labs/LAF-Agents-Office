@@ -183,7 +183,8 @@ See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-M
 The web UI now starts with a local login/signup gate. A new user can create a
 workspace team, or join an existing team with an invite token. Auth creates an
 HTTP-only session cookie and attaches users/invites to a `team_id`; the broker
-bearer token remains available for local agent and CLI workflows.
+bearer token remains available for local agent and CLI workflows. Member roles
+and invites live in Settings → Team.
 
 See [docs/specs/AUTH-SESSIONS-MVP.md](docs/specs/AUTH-SESSIONS-MVP.md).
 

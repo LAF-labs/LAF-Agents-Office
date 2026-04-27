@@ -1,16 +1,22 @@
 import {
   type ComponentType,
   type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   useEffect,
+  useId,
   useState,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building,
+  Copy,
   Key,
+  PeopleTag,
   Puzzle,
   Refresh,
+  SendMail,
   Settings as SettingsIcon,
   Terminal,
   Timer,
@@ -18,19 +24,27 @@ import {
 } from "iconoir-react";
 
 import {
+  type AuthUser,
   type ConfigSnapshot,
   type ConfigUpdate,
+  createInvite,
+  getAuthSession,
+  getAuthUsers,
   getConfig,
+  getInvites,
   resetWorkspace,
   shredWorkspace,
+  updateAuthUserRole,
   updateConfig,
   type WorkspaceWipeResult,
 } from "../../api/client";
+import { type I18nKey, useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 
 type SectionId =
   | "general"
+  | "team"
   | "company"
   | "keys"
   | "integrations"
@@ -41,39 +55,66 @@ type SectionId =
 interface Section {
   id: SectionId;
   Icon: ComponentType<{ className?: string; style?: CSSProperties }>;
-  name: string;
+  nameKey:
+    | "settings.section.general"
+    | "settings.section.team"
+    | "settings.section.company"
+    | "settings.section.keys"
+    | "settings.section.integrations"
+    | "settings.section.intervals"
+    | "settings.section.flags"
+    | "settings.section.danger";
 }
 
 interface SectionGroup {
-  label: string;
+  labelKey:
+    | "settings.group.workspace"
+    | "settings.group.credentials"
+    | "settings.group.system"
+    | "settings.group.advanced";
   items: Section[];
 }
 
 const SECTION_GROUPS: SectionGroup[] = [
   {
-    label: "Workspace",
+    labelKey: "settings.group.workspace",
     items: [
-      { id: "general", Icon: SettingsIcon, name: "General" },
-      { id: "company", Icon: Building, name: "Company" },
+      {
+        id: "general",
+        Icon: SettingsIcon,
+        nameKey: "settings.section.general",
+      },
+      { id: "team", Icon: PeopleTag, nameKey: "settings.section.team" },
+      { id: "company", Icon: Building, nameKey: "settings.section.company" },
     ],
   },
   {
-    label: "Credentials",
+    labelKey: "settings.group.credentials",
     items: [
-      { id: "keys", Icon: Key, name: "API Keys" },
-      { id: "integrations", Icon: Puzzle, name: "Integrations" },
+      { id: "keys", Icon: Key, nameKey: "settings.section.keys" },
+      {
+        id: "integrations",
+        Icon: Puzzle,
+        nameKey: "settings.section.integrations",
+      },
     ],
   },
   {
-    label: "System",
+    labelKey: "settings.group.system",
     items: [
-      { id: "intervals", Icon: Timer, name: "Polling" },
-      { id: "flags", Icon: Terminal, name: "CLI Flags" },
+      { id: "intervals", Icon: Timer, nameKey: "settings.section.intervals" },
+      { id: "flags", Icon: Terminal, nameKey: "settings.section.flags" },
     ],
   },
   {
-    label: "Advanced",
-    items: [{ id: "danger", Icon: WarningTriangle, name: "Danger Zone" }],
+    labelKey: "settings.group.advanced",
+    items: [
+      {
+        id: "danger",
+        Icon: WarningTriangle,
+        nameKey: "settings.section.danger",
+      },
+    ],
   },
 ];
 
@@ -286,7 +327,7 @@ function Field({ label, hint, children }: FieldProps) {
     <div style={styles.row}>
       <div style={styles.rowLabel}>
         <div style={styles.rowLabelName}>{label}</div>
-        {hint && <div style={styles.rowLabelHint}>{hint}</div>}
+        {hint ? <div style={styles.rowLabelHint}>{hint}</div> : null}
       </div>
       <div style={styles.rowField}>{children}</div>
     </div>
@@ -299,6 +340,7 @@ interface SaveButtonProps {
 }
 
 function SaveButton({ label, onSave }: SaveButtonProps) {
+  const { t } = useI18n();
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
 
   const handle = async () => {
@@ -310,7 +352,7 @@ function SaveButton({ label, onSave }: SaveButtonProps) {
       setTimeout(() => setState("idle"), 1500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      showNotice(`Save failed: ${msg}`, "error");
+      showNotice(`${t("settings.saveFailed")}: ${msg}`, "error");
       setState("idle");
     }
   };
@@ -318,11 +360,16 @@ function SaveButton({ label, onSave }: SaveButtonProps) {
   return (
     <div style={styles.saveRow}>
       <button
+        type="button"
         className="btn btn-primary btn-sm"
         onClick={handle}
         disabled={state === "saving"}
       >
-        {state === "saving" ? "Saving..." : state === "saved" ? "Saved" : label}
+        {state === "saving"
+          ? t("common.saving")
+          : state === "saved"
+            ? t("common.saved")
+            : label}
       </button>
     </div>
   );
@@ -336,6 +383,7 @@ interface KeyFieldProps {
 }
 
 function KeyField({ hasValue, placeholder, value, onChange }: KeyFieldProps) {
+  const { t } = useI18n();
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       <input
@@ -356,7 +404,7 @@ function KeyField({ hasValue, placeholder, value, onChange }: KeyFieldProps) {
         onChange={(e) => onChange(e.target.value)}
       />
       <span style={styles.keyStatus(hasValue)}>
-        {hasValue ? "Set" : "Not set"}
+        {hasValue ? t("common.set") : t("common.notSet")}
       </span>
     </div>
   );
@@ -370,6 +418,8 @@ interface SectionProps {
 }
 
 function GeneralSection({ cfg, save }: SectionProps) {
+  const { language, t } = useI18n();
+  const setLanguage = useAppStore((s) => s.setLanguage);
   const [provider, setProvider] = useState(cfg.llm_provider ?? "claude-code");
   const [memory, setMemory] = useState(cfg.memory_backend ?? "nex");
   const [teamLead, setTeamLead] = useState(cfg.team_lead_slug ?? "");
@@ -402,19 +452,14 @@ function GeneralSection({ cfg, save }: SectionProps) {
 
   return (
     <div>
-      <h2 style={styles.sectionTitle}>General</h2>
-      <p style={styles.sectionDesc}>
-        Core runtime settings. These map to CLI flags and config file entries.
-      </p>
+      <h2 style={styles.sectionTitle}>{t("settings.general.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.general.desc")}</p>
 
       <div style={styles.banner}>
         <span style={{ fontSize: 14, flexShrink: 0 }}>{"\u26A0"}</span>
         <div>
-          <strong>
-            Restart required for LLM Provider and Memory Backend changes.{" "}
-          </strong>
-          New values save immediately, but agents already running keep their
-          launch-time settings. Run{" "}
+          <strong>{t("settings.general.restartTitle")} </strong>
+          {t("settings.general.restartBody")}{" "}
           <code
             style={{
               fontFamily: "var(--font-mono)",
@@ -426,12 +471,27 @@ function GeneralSection({ cfg, save }: SectionProps) {
           >
             wuphf shred
           </code>{" "}
-          then relaunch to apply.
+          {t("settings.general.restartTail")}
         </div>
       </div>
 
-      <div style={styles.groupTitle}>Runtime</div>
-      <Field label="LLM Provider" hint="--provider">
+      <div style={styles.groupTitle}>{t("settings.general.languageGroup")}</div>
+      <Field
+        label={t("settings.general.languageLabel")}
+        hint={t("settings.general.languageHint")}
+      >
+        <select
+          style={styles.input}
+          value={language}
+          onChange={(e) => setLanguage(e.target.value === "ko" ? "ko" : "en")}
+        >
+          <option value="en">{t("language.english")}</option>
+          <option value="ko">{t("language.korean")}</option>
+        </select>
+      </Field>
+
+      <div style={styles.groupTitle}>{t("settings.general.runtimeGroup")}</div>
+      <Field label={t("settings.general.provider")} hint="--provider">
         <select
           style={styles.input}
           value={provider}
@@ -442,7 +502,7 @@ function GeneralSection({ cfg, save }: SectionProps) {
           <option value="opencode">Opencode</option>
         </select>
       </Field>
-      <Field label="Memory Backend" hint="--memory-backend">
+      <Field label={t("settings.general.memory")} hint="--memory-backend">
         <select
           style={styles.input}
           value={memory}
@@ -450,32 +510,42 @@ function GeneralSection({ cfg, save }: SectionProps) {
         >
           <option value="nex">Nex</option>
           <option value="gbrain">GBrain</option>
-          <option value="none">None (local only)</option>
+          <option value="none">{t("settings.general.memoryNone")}</option>
         </select>
       </Field>
 
-      <div style={{ ...styles.groupTitle, marginTop: 24 }}>Agents</div>
-      <Field label="Team Lead" hint="Default agent that leads operations">
+      <div style={{ ...styles.groupTitle, marginTop: 24 }}>
+        {t("settings.general.agentsGroup")}
+      </div>
+      <Field
+        label={t("settings.general.teamLead")}
+        hint={t("settings.general.teamLeadHint")}
+      >
         <input
           style={styles.input}
-          placeholder="e.g. ceo"
+          placeholder={t("settings.general.teamLeadPlaceholder")}
           value={teamLead}
           onChange={(e) => setTeamLead(e.target.value)}
         />
       </Field>
-      <Field label="Max Concurrent" hint="Parallel agent limit">
+      <Field
+        label={t("settings.general.maxConcurrent")}
+        hint={t("settings.general.maxConcurrentHint")}
+      >
         <input
           style={styles.input}
           type="number"
           min={1}
-          placeholder="Unlimited"
+          placeholder={t("settings.general.unlimited")}
           value={maxConcurrent}
           onChange={(e) => setMaxConcurrent(e.target.value)}
         />
       </Field>
 
-      <div style={{ ...styles.groupTitle, marginTop: 24 }}>Defaults</div>
-      <Field label="Output Format" hint="--format">
+      <div style={{ ...styles.groupTitle, marginTop: 24 }}>
+        {t("settings.general.defaultsGroup")}
+      </div>
+      <Field label={t("settings.general.outputFormat")} hint="--format">
         <select
           style={styles.input}
           value={format}
@@ -485,7 +555,10 @@ function GeneralSection({ cfg, save }: SectionProps) {
           <option value="json">JSON</option>
         </select>
       </Field>
-      <Field label="Timeout (ms)" hint="Default command timeout">
+      <Field
+        label={t("settings.general.timeout")}
+        hint={t("settings.general.timeoutHint")}
+      >
         <input
           style={styles.input}
           type="number"
@@ -496,16 +569,21 @@ function GeneralSection({ cfg, save }: SectionProps) {
         />
       </Field>
 
-      <div style={{ ...styles.groupTitle, marginTop: 24 }}>Identity</div>
-      <Field label="Blueprint" hint="--blueprint">
+      <div style={{ ...styles.groupTitle, marginTop: 24 }}>
+        {t("settings.general.identityGroup")}
+      </div>
+      <Field label={t("settings.general.blueprint")} hint="--blueprint">
         <input
           style={styles.input}
-          placeholder="Operation blueprint ID"
+          placeholder={t("settings.general.blueprintHint")}
           value={blueprint}
           onChange={(e) => setBlueprint(e.target.value)}
         />
       </Field>
-      <Field label="Email" hint="Identity scope for integrations">
+      <Field
+        label={t("settings.general.email")}
+        hint={t("settings.general.emailHint")}
+      >
         <input
           style={styles.input}
           type="email"
@@ -514,7 +592,10 @@ function GeneralSection({ cfg, save }: SectionProps) {
           onChange={(e) => setEmail(e.target.value)}
         />
       </Field>
-      <Field label="Dev URL" hint="API base URL override">
+      <Field
+        label={t("settings.general.devUrl")}
+        hint={t("settings.general.devUrlHint")}
+      >
         <input
           style={styles.input}
           placeholder="https://app.nex.ai"
@@ -524,13 +605,460 @@ function GeneralSection({ cfg, save }: SectionProps) {
       </Field>
 
       <div style={{ marginTop: 24 }}>
-        <SaveButton label="Save general settings" onSave={onSave} />
+        <SaveButton label={t("settings.general.save")} onSave={onSave} />
       </div>
 
-      {cfg.config_path && (
+      {cfg.config_path ? (
         <div style={{ marginTop: 24 }}>
-          <div style={styles.groupTitle}>Config file</div>
+          <div style={styles.groupTitle}>
+            {t("settings.general.configFile")}
+          </div>
           <div style={styles.filePath}>{cfg.config_path}</div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type EditableRole = "owner" | "admin" | "member";
+
+const ROLE_OPTIONS: { value: EditableRole; label: string }[] = [
+  { value: "owner", label: "Owner" },
+  { value: "admin", label: "Admin" },
+  { value: "member", label: "Member" },
+];
+
+function editableRole(role?: string): EditableRole {
+  if (role === "owner" || role === "admin" || role === "member") return role;
+  return "member";
+}
+
+function canManageTeam(role?: string): boolean {
+  return role === "owner" || role === "admin";
+}
+
+function shortDate(value: string | undefined, language: "en" | "ko"): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(language === "ko" ? "ko-KR" : undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function RolePill({ role }: { role?: string }) {
+  const { t } = useI18n();
+  const normalized = editableRole(role);
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 22,
+        borderRadius: "var(--radius-full)",
+        background:
+          normalized === "owner"
+            ? "var(--green-bg)"
+            : normalized === "admin"
+              ? "var(--yellow-bg)"
+              : "var(--bg-warm)",
+        color:
+          normalized === "owner"
+            ? "var(--green)"
+            : normalized === "admin"
+              ? "var(--warning-500)"
+              : "var(--text-secondary)",
+        padding: "0 8px",
+        fontSize: 11,
+        fontWeight: 700,
+        textTransform: "capitalize",
+      }}
+    >
+      {t(`settings.team.${normalized}`)}
+    </span>
+  );
+}
+
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: Team settings keeps account, members, and invites together for this MVP.
+function TeamSection() {
+  const { language, t } = useI18n();
+  const queryClient = useQueryClient();
+  const inviteBaseURL =
+    typeof window === "undefined" ? "" : window.location.origin;
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState<EditableRole>("member");
+  const [roleBusyUser, setRoleBusyUser] = useState<string | null>(null);
+
+  const { data: session } = useQuery({
+    queryKey: ["auth-session"],
+    queryFn: getAuthSession,
+  });
+  const { data: usersData } = useQuery({
+    queryKey: ["auth-users"],
+    queryFn: getAuthUsers,
+  });
+  const { data: inviteData } = useQuery({
+    queryKey: ["human-invites", inviteBaseURL],
+    queryFn: () => getInvites(inviteBaseURL),
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: () =>
+      createInvite({
+        email: inviteEmail.trim(),
+        name: inviteName.trim(),
+        role: inviteRole,
+        base_url: inviteBaseURL,
+      }),
+    onSuccess: (result) => {
+      setInviteEmail("");
+      setInviteName("");
+      setInviteRole("member");
+      queryClient.invalidateQueries({ queryKey: ["human-invites"] });
+      showNotice(
+        result.email_sent
+          ? t("settings.team.inviteSent")
+          : t("settings.team.inviteCreated"),
+        "success",
+      );
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error ? err.message : t("settings.team.inviteFailed"),
+        "error",
+      );
+    },
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: ({
+      targetUser,
+      role,
+    }: {
+      targetUser: AuthUser;
+      role: EditableRole;
+    }) => updateAuthUserRole({ user_id: targetUser.id, role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth-users"] });
+      queryClient.invalidateQueries({ queryKey: ["auth-session"] });
+      queryClient.invalidateQueries({ queryKey: ["human-invites"] });
+      showNotice(t("settings.team.roleUpdated"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error
+          ? err.message
+          : t("settings.team.roleUpdateFailed"),
+        "error",
+      );
+    },
+    onSettled: () => setRoleBusyUser(null),
+  });
+
+  const user = session?.user;
+  const team = session?.team;
+  const users = usersData?.users ?? [];
+  const pendingInvites = (inviteData?.invites ?? []).filter(
+    (invite) => invite.status === "pending",
+  );
+  const canManage = canManageTeam(user?.role);
+  const canSubmitInvite =
+    canManage && inviteEmail.trim() !== "" && !inviteMutation.isPending;
+
+  const copyInvite = async (url?: string) => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      showNotice(t("settings.team.linkCopied"), "success");
+    } catch {
+      showNotice(t("settings.team.copyFailed"), "error");
+    }
+  };
+
+  const changeRole = async (target: AuthUser, role: EditableRole) => {
+    if (role === editableRole(target.role)) return;
+    setRoleBusyUser(target.id);
+    await roleMutation.mutateAsync({ targetUser: target, role });
+  };
+
+  if (session && !session.authenticated) {
+    return (
+      <div>
+        <h2 style={styles.sectionTitle}>{t("settings.team.title")}</h2>
+        <p style={styles.sectionDesc}>{t("settings.team.signInRequired")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>{t("settings.team.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.team.desc")}</p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 10,
+          marginBottom: 22,
+        }}
+      >
+        {[
+          [
+            t("settings.team.workspace"),
+            team?.name ?? t("settings.team.localOffice"),
+          ],
+          [t("settings.team.signedInAs"), user?.email ?? "—"],
+          [t("settings.team.yourRole"), editableRole(user?.role)],
+        ].map(([label, value]) => (
+          <div
+            key={label}
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-md)",
+              background: "var(--bg-card)",
+              padding: "12px 14px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                color: "var(--text-tertiary)",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                marginBottom: 5,
+                textTransform: "uppercase",
+              }}
+            >
+              {label}
+            </div>
+            <div
+              style={{
+                overflow: "hidden",
+                color: "var(--text)",
+                fontSize: 13,
+                fontWeight: 650,
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={value}
+            >
+              {label === t("settings.team.yourRole") ? (
+                <RolePill role={value} />
+              ) : (
+                value
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.groupTitle}>{t("settings.team.inviteGroup")}</div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr) 130px auto",
+          gap: 8,
+          alignItems: "end",
+          marginBottom: 22,
+        }}
+      >
+        <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
+          <span style={styles.rowLabelName}>{t("settings.team.email")}</span>
+          <input
+            style={styles.input}
+            type="email"
+            placeholder="teammate@company.com"
+            value={inviteEmail}
+            disabled={!canManage}
+            onChange={(event) => setInviteEmail(event.currentTarget.value)}
+          />
+        </label>
+        <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
+          <span style={styles.rowLabelName}>{t("settings.team.name")}</span>
+          <input
+            style={styles.input}
+            type="text"
+            placeholder={t("settings.team.optional")}
+            value={inviteName}
+            disabled={!canManage}
+            onChange={(event) => setInviteName(event.currentTarget.value)}
+          />
+        </label>
+        <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
+          <span style={styles.rowLabelName}>{t("settings.team.role")}</span>
+          <select
+            style={styles.input}
+            value={inviteRole}
+            disabled={!canManage}
+            onChange={(event) =>
+              setInviteRole(event.currentTarget.value as EditableRole)
+            }
+          >
+            <option value="member">{t("settings.team.member")}</option>
+            <option value="admin">{t("settings.team.admin")}</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          disabled={!canSubmitInvite}
+          onClick={() => inviteMutation.mutate()}
+          style={{ minHeight: 36 }}
+        >
+          <SendMail width={14} height={14} />
+          {inviteMutation.isPending
+            ? t("settings.team.sending")
+            : t("settings.team.invite")}
+        </button>
+      </div>
+      {!canManage ? (
+        <div style={{ ...styles.banner, marginTop: -8 }}>
+          <WarningTriangle width={14} height={14} />
+          <span>{t("settings.team.manageRequired")}</span>
+        </div>
+      ) : null}
+
+      <div style={styles.groupTitle}>{t("settings.team.people")}</div>
+      <table style={{ ...styles.table, marginBottom: 24 }}>
+        <thead>
+          <tr>
+            <th style={styles.th}>{t("settings.team.person")}</th>
+            <th style={styles.th}>{t("settings.team.role")}</th>
+            <th style={styles.th}>{t("settings.team.status")}</th>
+            <th style={styles.th}>{t("settings.team.joined")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((member) => {
+            const isSelf = member.id === user?.id;
+            const disabled = !canManage || isSelf || roleBusyUser === member.id;
+            return (
+              <tr key={member.id}>
+                <td style={styles.td}>
+                  <div style={{ fontWeight: 650 }}>
+                    {member.name || member.email}
+                    {isSelf ? ` (${t("settings.team.you")})` : ""}
+                  </div>
+                  <div
+                    style={{
+                      color: "var(--text-tertiary)",
+                      fontSize: 11,
+                      marginTop: 2,
+                    }}
+                  >
+                    {member.email}
+                  </div>
+                </td>
+                <td style={styles.td}>
+                  {canManage ? (
+                    <select
+                      style={{ ...styles.input, height: 30, maxWidth: 126 }}
+                      value={editableRole(member.role)}
+                      disabled={disabled}
+                      onChange={(event) =>
+                        changeRole(
+                          member,
+                          event.currentTarget.value as EditableRole,
+                        )
+                      }
+                    >
+                      {ROLE_OPTIONS.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {t(`settings.team.${role.value}`)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <RolePill role={member.role} />
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {member.status || t("settings.team.statusActive")}
+                </td>
+                <td style={styles.td}>
+                  {shortDate(member.created_at, language)}
+                </td>
+              </tr>
+            );
+          })}
+          {users.length === 0 ? (
+            <tr>
+              <td style={styles.tdDesc} colSpan={4}>
+                {t("settings.team.noMembers")}
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+
+      <div style={styles.groupTitle}>{t("settings.team.pendingInvites")}</div>
+      {pendingInvites.length === 0 ? (
+        <p style={{ color: "var(--text-tertiary)", fontSize: 12 }}>
+          {t("settings.team.noPendingInvites")}
+        </p>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {pendingInvites.map((invite) => (
+            <div
+              key={invite.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                gap: 8,
+                alignItems: "center",
+                border: "1px solid var(--border-light)",
+                borderRadius: "var(--radius-sm)",
+                padding: "9px 10px",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    overflow: "hidden",
+                    fontSize: 13,
+                    fontWeight: 650,
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {invite.name || invite.email}
+                </div>
+                <div
+                  style={{
+                    color: "var(--text-tertiary)",
+                    fontSize: 11,
+                    marginTop: 2,
+                  }}
+                >
+                  {invite.email} ·{" "}
+                  {t(`settings.team.${editableRole(invite.role)}`)} ·{" "}
+                  {t("settings.team.expires")}{" "}
+                  {shortDate(invite.expires_at, language)}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => copyInvite(invite.invite_url)}
+              >
+                <Copy width={13} height={13} />
+                {t("settings.team.copy")}
+              </button>
+              {invite.mailto_url ? (
+                <a
+                  className="btn btn-secondary btn-sm"
+                  href={invite.mailto_url}
+                >
+                  {t("settings.team.openEmail")}
+                </a>
+              ) : null}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -538,6 +1066,7 @@ function GeneralSection({ cfg, save }: SectionProps) {
 }
 
 function CompanySection({ cfg, save }: SectionProps) {
+  const { t } = useI18n();
   const [name, setName] = useState(cfg.company_name ?? "");
   const [description, setDescription] = useState(cfg.company_description ?? "");
   const [goals, setGoals] = useState(cfg.company_goals ?? "");
@@ -555,13 +1084,13 @@ function CompanySection({ cfg, save }: SectionProps) {
 
   return (
     <div>
-      <h2 style={styles.sectionTitle}>Company</h2>
-      <p style={styles.sectionDesc}>
-        Organizational context injected into agent system prompts. The more you
-        fill in, the better agents understand your business.
-      </p>
+      <h2 style={styles.sectionTitle}>{t("settings.company.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.company.desc")}</p>
 
-      <Field label="Name" hint="Your company or project name">
+      <Field
+        label={t("settings.company.name")}
+        hint={t("settings.company.nameHint")}
+      >
         <input
           style={styles.input}
           placeholder="Acme Corp"
@@ -570,43 +1099,55 @@ function CompanySection({ cfg, save }: SectionProps) {
         />
       </Field>
 
-      <Field label="Description" hint="One-liner about the business">
+      <Field
+        label={t("settings.company.description")}
+        hint={t("settings.company.descriptionHint")}
+      >
         <textarea
           style={styles.textarea}
-          placeholder="What does your company do?"
+          placeholder={t("settings.company.descriptionPlaceholder")}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
       </Field>
 
-      <Field label="Goals" hint="What the team is working toward">
+      <Field
+        label={t("settings.company.goals")}
+        hint={t("settings.company.goalsHint")}
+      >
         <textarea
           style={styles.textarea}
-          placeholder="Current organizational goals"
+          placeholder={t("settings.company.goalsPlaceholder")}
           value={goals}
           onChange={(e) => setGoals(e.target.value)}
         />
       </Field>
 
-      <Field label="Size" hint="Team or company size">
+      <Field
+        label={t("settings.company.size")}
+        hint={t("settings.company.sizeHint")}
+      >
         <input
           style={styles.input}
-          placeholder="e.g. 5, 50, 500"
+          placeholder={t("settings.company.sizePlaceholder")}
           value={size}
           onChange={(e) => setSize(e.target.value)}
         />
       </Field>
 
-      <Field label="Priority" hint="What matters most right now">
+      <Field
+        label={t("settings.company.priority")}
+        hint={t("settings.company.priorityHint")}
+      >
         <textarea
           style={styles.textarea}
-          placeholder="Immediate priority focus"
+          placeholder={t("settings.company.priorityPlaceholder")}
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
         />
       </Field>
 
-      <SaveButton label="Save company info" onSave={onSave} />
+      <SaveButton label={t("settings.company.save")} onSave={onSave} />
     </div>
   );
 }
@@ -679,12 +1220,13 @@ const KEY_DEFS: KeyDef[] = [
 ];
 
 function KeysSection({ cfg, save }: SectionProps) {
+  const { t } = useI18n();
   const [values, setValues] = useState<Record<string, string>>({});
 
   const onSave = async () => {
     const entries = Object.entries(values).filter(([, v]) => v.trim() !== "");
     if (entries.length === 0) {
-      showNotice("No keys entered. Leave blank to keep existing keys.", "info");
+      showNotice(t("settings.keys.noKeys"), "info");
       throw new Error("no_keys_entered");
     }
     const patch: ConfigUpdate = {};
@@ -697,15 +1239,15 @@ function KeysSection({ cfg, save }: SectionProps) {
 
   return (
     <div>
-      <h2 style={styles.sectionTitle}>API Keys</h2>
-      <p style={styles.sectionDesc}>
-        Authentication credentials for external services. Keys are stored in
-        your local config file and never transmitted to WUPHF servers. Enter a
-        new value to update, or leave blank to keep the current key.
-      </p>
+      <h2 style={styles.sectionTitle}>{t("settings.keys.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.keys.desc")}</p>
 
       {KEY_DEFS.map((def) => (
-        <Field key={def.field} label={def.label} hint={`Env: ${def.env}`}>
+        <Field
+          key={def.field}
+          label={def.label}
+          hint={`${t("settings.keys.env")} ${def.env}`}
+        >
           <KeyField
             hasValue={Boolean(cfg[def.flag])}
             placeholder={def.placeholder}
@@ -715,12 +1257,13 @@ function KeysSection({ cfg, save }: SectionProps) {
         </Field>
       ))}
 
-      <SaveButton label="Save API keys" onSave={onSave} />
+      <SaveButton label={t("settings.keys.save")} onSave={onSave} />
     </div>
   );
 }
 
 function IntegrationsSection({ cfg, save }: SectionProps) {
+  const { t } = useI18n();
   const [actionProvider, setActionProvider] = useState<string>(
     cfg.action_provider ?? "auto",
   );
@@ -739,18 +1282,19 @@ function IntegrationsSection({ cfg, save }: SectionProps) {
 
   return (
     <div>
-      <h2 style={styles.sectionTitle}>Integrations</h2>
-      <p style={styles.sectionDesc}>
-        External service connections and action providers.
-      </p>
+      <h2 style={styles.sectionTitle}>{t("settings.integrations.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.integrations.desc")}</p>
 
-      <Field label="Action Provider" hint="External action routing">
+      <Field
+        label={t("settings.integrations.actionProvider")}
+        hint={t("settings.integrations.actionProviderHint")}
+      >
         <select
           style={styles.input}
           value={actionProvider}
           onChange={(e) => setActionProvider(e.target.value)}
         >
-          <option value="auto">Auto</option>
+          <option value="auto">{t("settings.integrations.auto")}</option>
           <option value="one">One CLI</option>
           <option value="composio">Composio</option>
         </select>
@@ -758,7 +1302,10 @@ function IntegrationsSection({ cfg, save }: SectionProps) {
 
       <div style={{ marginTop: 20 }}>
         <div style={styles.groupTitle}>OpenClaw</div>
-        <Field label="Gateway URL" hint="WebSocket endpoint">
+        <Field
+          label={t("settings.integrations.gatewayUrl")}
+          hint={t("settings.integrations.gatewayHint")}
+        >
           <input
             style={{
               ...styles.input,
@@ -770,7 +1317,10 @@ function IntegrationsSection({ cfg, save }: SectionProps) {
             onChange={(e) => setGatewayUrl(e.target.value)}
           />
         </Field>
-        <Field label="Token" hint="Gateway auth token">
+        <Field
+          label={t("settings.integrations.token")}
+          hint={t("settings.integrations.tokenHint")}
+        >
           <KeyField
             hasValue={Boolean(cfg.openclaw_token_set)}
             placeholder="oc_..."
@@ -781,31 +1331,40 @@ function IntegrationsSection({ cfg, save }: SectionProps) {
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <div style={styles.groupTitle}>Workspace</div>
-        <Field label="Workspace ID" hint="Read-only">
+        <div style={styles.groupTitle}>
+          {t("settings.integrations.workspaceGroup")}
+        </div>
+        <Field
+          label={t("settings.integrations.workspaceId")}
+          hint={t("settings.integrations.readOnly")}
+        >
           <input
             style={{ ...styles.input, opacity: 0.6, cursor: "default" }}
             readOnly={true}
-            placeholder="(set via Nex registration)"
+            placeholder={t("settings.integrations.registrationPlaceholder")}
             value={cfg.workspace_id ?? ""}
           />
         </Field>
-        <Field label="Workspace Slug" hint="Read-only">
+        <Field
+          label={t("settings.integrations.workspaceSlug")}
+          hint={t("settings.integrations.readOnly")}
+        >
           <input
             style={{ ...styles.input, opacity: 0.6, cursor: "default" }}
             readOnly={true}
-            placeholder="(set via Nex registration)"
+            placeholder={t("settings.integrations.registrationPlaceholder")}
             value={cfg.workspace_slug ?? ""}
           />
         </Field>
       </div>
 
-      <SaveButton label="Save integration settings" onSave={onSave} />
+      <SaveButton label={t("settings.integrations.save")} onSave={onSave} />
     </div>
   );
 }
 
 function IntervalsSection({ cfg, save }: SectionProps) {
+  const { t } = useI18n();
   const [insights, setInsights] = useState(
     String(cfg.insights_poll_minutes ?? 15),
   );
@@ -829,13 +1388,13 @@ function IntervalsSection({ cfg, save }: SectionProps) {
 
   return (
     <div>
-      <h2 style={styles.sectionTitle}>Polling Intervals</h2>
-      <p style={styles.sectionDesc}>
-        How often background processes check for updates. All values in minutes.
-        Minimum 2 minutes.
-      </p>
+      <h2 style={styles.sectionTitle}>{t("settings.intervals.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.intervals.desc")}</p>
 
-      <Field label="Insights" hint="Context graph polling">
+      <Field
+        label={t("settings.intervals.insights")}
+        hint={t("settings.intervals.insightsHint")}
+      >
         <input
           style={styles.input}
           type="number"
@@ -845,7 +1404,10 @@ function IntervalsSection({ cfg, save }: SectionProps) {
           onChange={(e) => setInsights(e.target.value)}
         />
       </Field>
-      <Field label="Task Follow-up" hint="Post-completion check-in">
+      <Field
+        label={t("settings.intervals.followUp")}
+        hint={t("settings.intervals.followUpHint")}
+      >
         <input
           style={styles.input}
           type="number"
@@ -855,7 +1417,10 @@ function IntervalsSection({ cfg, save }: SectionProps) {
           onChange={(e) => setFollowUp(e.target.value)}
         />
       </Field>
-      <Field label="Task Reminder" hint="Stalled task nudge">
+      <Field
+        label={t("settings.intervals.reminder")}
+        hint={t("settings.intervals.reminderHint")}
+      >
         <input
           style={styles.input}
           type="number"
@@ -865,7 +1430,10 @@ function IntervalsSection({ cfg, save }: SectionProps) {
           onChange={(e) => setReminder(e.target.value)}
         />
       </Field>
-      <Field label="Task Recheck" hint="Progress re-evaluation">
+      <Field
+        label={t("settings.intervals.recheck")}
+        hint={t("settings.intervals.recheckHint")}
+      >
         <input
           style={styles.input}
           type="number"
@@ -876,78 +1444,76 @@ function IntervalsSection({ cfg, save }: SectionProps) {
         />
       </Field>
 
-      <SaveButton label="Save intervals" onSave={onSave} />
+      <SaveButton label={t("settings.intervals.save")} onSave={onSave} />
     </div>
   );
 }
 
-const CLI_FLAGS: [string, string][] = [
-  ["--provider <name>", "LLM provider (claude-code, codex, opencode)"],
-  ["--memory-backend <name>", "Memory backend (nex, gbrain, none)"],
-  ["--blueprint <id>", "Operation blueprint for this run"],
-  ["--tui", "Launch tmux TUI instead of web UI"],
-  ["--web-port <port>", "Web UI port (default: 7891)"],
-  ["--broker-port <port>", "Local broker port (default: 7890)"],
-  ["--opus-ceo", "Upgrade CEO agent to Opus model"],
-  ["--collab", "Collaborative mode (all agents see all messages)"],
-  ["--1o1", "Direct 1:1 session with a single agent"],
-  ["--unsafe", "Bypass agent permission checks (dev only)"],
-  ["--no-nex", "Disable Nex for this session"],
-  ["--no-open", "Skip auto-opening browser on launch"],
-  ["--from-scratch", "Start without saved blueprint"],
-  ["--threads-collapsed", "Start with threads collapsed"],
-  ["--cmd <command>", "Run a slash command non-interactively"],
-  ["--format <fmt>", "Output format (text, json)"],
-  ["--api-key <key>", "Nex API key override"],
-  ["--version", "Print version and exit"],
-  ["--help-all", "Show all flags including internal ones"],
+const CLI_FLAGS: [string, I18nKey][] = [
+  ["--provider <name>", "settings.flags.cli.provider"],
+  ["--memory-backend <name>", "settings.flags.cli.memory"],
+  ["--blueprint <id>", "settings.flags.cli.blueprint"],
+  ["--tui", "settings.flags.cli.tui"],
+  ["--web-port <port>", "settings.flags.cli.webPort"],
+  ["--broker-port <port>", "settings.flags.cli.brokerPort"],
+  ["--opus-ceo", "settings.flags.cli.opusCeo"],
+  ["--collab", "settings.flags.cli.collab"],
+  ["--1o1", "settings.flags.cli.oneOnOne"],
+  ["--unsafe", "settings.flags.cli.unsafe"],
+  ["--no-nex", "settings.flags.cli.noNex"],
+  ["--no-open", "settings.flags.cli.noOpen"],
+  ["--from-scratch", "settings.flags.cli.fromScratch"],
+  ["--threads-collapsed", "settings.flags.cli.threadsCollapsed"],
+  ["--cmd <command>", "settings.flags.cli.cmd"],
+  ["--format <fmt>", "settings.flags.cli.format"],
+  ["--api-key <key>", "settings.flags.cli.apiKey"],
+  ["--version", "settings.flags.cli.version"],
+  ["--help-all", "settings.flags.cli.helpAll"],
 ];
 
-const ENV_VARS: [string, string][] = [
-  ["WUPHF_LLM_PROVIDER", "LLM provider override"],
-  ["WUPHF_MEMORY_BACKEND", "Memory backend override"],
-  ["WUPHF_API_KEY", "Nex API key"],
-  ["WUPHF_BROKER_PORT", "Broker port"],
-  ["WUPHF_CONFIG_PATH", "Config file path override"],
-  ["WUPHF_RUNTIME_HOME", "Runtime state directory"],
-  ["WUPHF_NO_NEX", "Disable Nex (1/true/yes)"],
-  ["WUPHF_START_FROM_SCRATCH", "Start without blueprint (1)"],
-  ["WUPHF_ONE_ON_ONE", "Enable 1:1 mode (1)"],
-  ["WUPHF_HEADLESS_PROVIDER", "Headless provider override"],
-  ["WUPHF_INSIGHTS_INTERVAL_MINUTES", "Insights poll interval"],
-  ["WUPHF_TASK_FOLLOWUP_MINUTES", "Task follow-up interval"],
-  ["WUPHF_TASK_REMINDER_MINUTES", "Task reminder interval"],
-  ["WUPHF_TASK_RECHECK_MINUTES", "Task recheck interval"],
+const ENV_VARS: [string, I18nKey][] = [
+  ["WUPHF_LLM_PROVIDER", "settings.flags.env.provider"],
+  ["WUPHF_MEMORY_BACKEND", "settings.flags.env.memory"],
+  ["WUPHF_API_KEY", "settings.flags.env.apiKey"],
+  ["WUPHF_BROKER_PORT", "settings.flags.env.brokerPort"],
+  ["WUPHF_CONFIG_PATH", "settings.flags.env.configPath"],
+  ["WUPHF_RUNTIME_HOME", "settings.flags.env.runtimeHome"],
+  ["WUPHF_NO_NEX", "settings.flags.env.noNex"],
+  ["WUPHF_START_FROM_SCRATCH", "settings.flags.env.fromScratch"],
+  ["WUPHF_ONE_ON_ONE", "settings.flags.env.oneOnOne"],
+  ["WUPHF_HEADLESS_PROVIDER", "settings.flags.env.headlessProvider"],
+  ["WUPHF_INSIGHTS_INTERVAL_MINUTES", "settings.flags.env.insights"],
+  ["WUPHF_TASK_FOLLOWUP_MINUTES", "settings.flags.env.followUp"],
+  ["WUPHF_TASK_REMINDER_MINUTES", "settings.flags.env.reminder"],
+  ["WUPHF_TASK_RECHECK_MINUTES", "settings.flags.env.recheck"],
 ];
 
 function FlagsSection() {
+  const { t } = useI18n();
   return (
     <div>
-      <h2 style={styles.sectionTitle}>CLI Flags</h2>
-      <p style={styles.sectionDesc}>
-        All flags available when launching wuphf from the terminal. These are
-        runtime-only and not persisted in the config file.
-      </p>
+      <h2 style={styles.sectionTitle}>{t("settings.flags.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.flags.desc")}</p>
 
       <table style={styles.table}>
         <thead>
           <tr>
-            <th style={styles.th}>Flag</th>
-            <th style={styles.th}>Description</th>
+            <th style={styles.th}>{t("settings.flags.flag")}</th>
+            <th style={styles.th}>{t("settings.flags.description")}</th>
           </tr>
         </thead>
         <tbody>
           {CLI_FLAGS.map(([flag, desc]) => (
             <tr key={flag}>
               <td style={styles.tdFlag}>{flag}</td>
-              <td style={styles.tdDesc}>{desc}</td>
+              <td style={styles.tdDesc}>{t(desc)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <div style={{ marginTop: 24 }}>
-        <div style={styles.groupTitle}>Environment Variables</div>
+        <div style={styles.groupTitle}>{t("settings.flags.envGroup")}</div>
         <p
           style={{
             fontSize: 12,
@@ -956,22 +1522,20 @@ function FlagsSection() {
             marginBottom: 12,
           }}
         >
-          Settings resolve in order: CLI flag → environment variable → config
-          file → default. Set these in your shell profile to override config
-          file values.
+          {t("settings.flags.envDesc")}
         </p>
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Variable</th>
-              <th style={styles.th}>Purpose</th>
+              <th style={styles.th}>{t("settings.flags.variable")}</th>
+              <th style={styles.th}>{t("settings.flags.purpose")}</th>
             </tr>
           </thead>
           <tbody>
             {ENV_VARS.map(([v, p]) => (
               <tr key={v}>
                 <td style={styles.tdFlag}>{v}</td>
-                <td style={styles.tdDesc}>{p}</td>
+                <td style={styles.tdDesc}>{t(p)}</td>
               </tr>
             ))}
           </tbody>
@@ -1147,21 +1711,35 @@ function WipeModal({
   onConfirm,
   onCancel,
 }: WipeModalProps) {
+  const { t } = useI18n();
+  const inputId = useId();
   const [value, setValue] = useState("");
   const enabled = !busy && value.trim().toLowerCase() === CONFIRM_PHRASE;
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget && !busy) onCancel();
+  };
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && !busy) onCancel();
+  };
 
   return (
     <div
       style={dangerStyles.modalBackdrop}
-      onClick={busy ? undefined : onCancel}
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
     >
-      <div style={dangerStyles.modalPanel} onClick={(e) => e.stopPropagation()}>
+      <div style={dangerStyles.modalPanel}>
         <div style={dangerStyles.modalTitle}>{title}</div>
         <div style={dangerStyles.modalBody}>{intro}</div>
-        <label style={dangerStyles.modalInputLabel}>
-          Type <code>{CONFIRM_PHRASE}</code> to confirm
+        <label htmlFor={inputId} style={dangerStyles.modalInputLabel}>
+          {t("settings.danger.confirmType")} <code>{CONFIRM_PHRASE}</code>{" "}
+          {t("settings.danger.confirmTail")}
         </label>
         <input
+          id={inputId}
           type="text"
           style={dangerStyles.modalInput}
           placeholder={CONFIRM_PHRASE}
@@ -1176,7 +1754,7 @@ function WipeModal({
             onClick={onCancel}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -1184,7 +1762,7 @@ function WipeModal({
             onClick={enabled ? onConfirm : undefined}
             disabled={!enabled}
           >
-            {busy ? "Working…" : confirmLabel}
+            {busy ? t("common.working") : String(confirmLabel)}
           </button>
         </div>
       </div>
@@ -1195,6 +1773,7 @@ function WipeModal({
 type DangerAction = "reset" | "shred";
 
 function DangerZoneSection() {
+  const { t } = useI18n();
   const [open, setOpen] = useState<DangerAction | null>(null);
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
@@ -1205,14 +1784,17 @@ function DangerZoneSection() {
     try {
       const result: WorkspaceWipeResult = await resetWorkspace();
       if (!result.ok) {
-        showNotice(result.error || "Reset failed", "error");
+        showNotice(result.error || t("settings.danger.resetFailed"), "error");
         setBusy(false);
         return;
       }
-      showNotice("Broker state cleared. Reloading…", "success");
+      showNotice(t("settings.danger.resetSuccess"), "success");
       setTimeout(() => window.location.reload(), 400);
     } catch (err) {
-      showNotice(err instanceof Error ? err.message : "Reset failed", "error");
+      showNotice(
+        err instanceof Error ? err.message : t("settings.danger.resetFailed"),
+        "error",
+      );
       setBusy(false);
     }
   };
@@ -1222,7 +1804,7 @@ function DangerZoneSection() {
     try {
       const result: WorkspaceWipeResult = await shredWorkspace();
       if (!result.ok) {
-        showNotice(result.error || "Shred failed", "error");
+        showNotice(result.error || t("settings.danger.shredFailed"), "error");
         setBusy(false);
         return;
       }
@@ -1231,45 +1813,45 @@ function DangerZoneSection() {
       resetForOnboarding();
       setOpen(null);
       setBusy(false);
-      showNotice("Workspace shredded. Onboarding reopened.", "success");
+      showNotice(t("settings.danger.shredSuccess"), "success");
     } catch (err) {
-      showNotice(err instanceof Error ? err.message : "Shred failed", "error");
+      showNotice(
+        err instanceof Error ? err.message : t("settings.danger.shredFailed"),
+        "error",
+      );
       setBusy(false);
     }
   };
 
   return (
     <div>
-      <div style={styles.sectionTitle}>Danger Zone</div>
-      <div style={styles.sectionDesc}>
-        Irreversible operations on this workspace. Reset reloads the current
-        broker. Shred wipes local workspace history and reopens onboarding in
-        the running web UI.
-      </div>
+      <div style={styles.sectionTitle}>{t("settings.danger.title")}</div>
+      <div style={styles.sectionDesc}>{t("settings.danger.desc")}</div>
 
       {/* RESET — narrow: broker runtime state only */}
       <div style={dangerStyles.card("warn")}>
         <div style={dangerStyles.cardTitle}>
           <Refresh width={16} height={16} />
-          <span>Reset broker state</span>
+          <span>{t("settings.danger.resetTitle")}</span>
         </div>
         <div style={dangerStyles.cardSubtitle}>
-          Use this when something is stuck — an agent wedged, the queue won't
-          drain, messages stop flowing — and you want a clean restart without
-          losing your team or work.
+          {t("settings.danger.resetSubtitle")}
         </div>
-        <div style={dangerStyles.listLabel}>Clears</div>
+        <div style={dangerStyles.listLabel}>{t("settings.danger.clears")}</div>
         <ul style={dangerStyles.list}>
           <li>
-            Broker runtime state (<code>~/.wuphf/team/broker-state.json</code>)
+            {t("settings.danger.resetClearBroker")} (
+            <code>~/.wuphf/team/broker-state.json</code>)
           </li>
-          <li>Last-good in-memory snapshot</li>
+          <li>{t("settings.danger.resetClearSnapshot")}</li>
         </ul>
-        <div style={dangerStyles.listLabel}>Preserved</div>
+        <div style={dangerStyles.listLabel}>
+          {t("settings.danger.preserved")}
+        </div>
         <ul style={dangerStyles.list}>
-          <li>Your team roster, company identity, tasks, workflows</li>
-          <li>All on-disk history (logs, sessions, artifacts)</li>
-          <li>API keys and config</li>
+          <li>{t("settings.danger.resetPreserveTeam")}</li>
+          <li>{t("settings.danger.resetPreserveHistory")}</li>
+          <li>{t("settings.danger.resetPreserveKeys")}</li>
         </ul>
         <button
           type="button"
@@ -1277,7 +1859,7 @@ function DangerZoneSection() {
           onClick={() => setOpen("reset")}
           disabled={busy}
         >
-          Reset broker state…
+          {t("settings.danger.resetButton")}
         </button>
       </div>
 
@@ -1285,42 +1867,37 @@ function DangerZoneSection() {
       <div style={dangerStyles.card("critical")}>
         <div style={dangerStyles.cardTitle}>
           <WarningTriangle width={16} height={16} />
-          <span>Shred workspace</span>
+          <span>{t("settings.danger.shredTitle")}</span>
         </div>
         <div style={dangerStyles.cardSubtitle}>
-          Full wipe. Deletes your team, company identity, office task receipts,
-          saved workflows, local memory, logs, and provider session state, then
-          returns you to onboarding. Use this to start completely fresh or to try
-          a different blueprint.
+          {t("settings.danger.shredSubtitle")}
         </div>
-        <div style={dangerStyles.listLabel}>Deletes</div>
+        <div style={dangerStyles.listLabel}>{t("settings.danger.deletes")}</div>
         <ul style={dangerStyles.list}>
           <li>
-            Onboarding flag (<code>~/.wuphf/onboarded.json</code>) so the wizard
-            reopens
+            {t("settings.danger.shredDeleteOnboarding")} (
+            <code>~/.wuphf/onboarded.json</code>)
           </li>
           <li>
-            Company identity (<code>~/.wuphf/company.json</code>)
+            {t("settings.danger.shredDeleteCompany")} (
+            <code>~/.wuphf/company.json</code>)
           </li>
           <li>
-            Team runtime state, office, and workflows under{" "}
-            <code>~/.wuphf/</code>
+            {t("settings.danger.shredDeleteRuntime")} <code>~/.wuphf/</code>
           </li>
-          <li>
-            Logs, sessions, provider state, calendar, and local wiki memory
-          </li>
-          <li>Broker runtime state (same as Reset)</li>
+          <li>{t("settings.danger.shredDeleteLogs")}</li>
+          <li>{t("settings.danger.shredDeleteBroker")}</li>
         </ul>
-        <div style={dangerStyles.listLabel}>Preserved</div>
+        <div style={dangerStyles.listLabel}>
+          {t("settings.danger.preserved")}
+        </div>
         <ul style={dangerStyles.list}>
+          <li>{t("settings.danger.shredPreserveWorktrees")}</li>
           <li>
-            <strong>Task worktrees</strong> — uncommitted work on branches stays
-            on disk
+            {t("settings.danger.shredPreserveConfig")} (<code>config.json</code>
+            )
           </li>
-          <li>
-            Your global config (<code>config.json</code>) and API keys
-          </li>
-          <li>OpenClaw device identity used for gateway pairing</li>
+          <li>{t("settings.danger.shredPreserveDevice")}</li>
         </ul>
         <button
           type="button"
@@ -1328,23 +1905,16 @@ function DangerZoneSection() {
           onClick={() => setOpen("shred")}
           disabled={busy}
         >
-          Shred workspace…
+          {t("settings.danger.shredButton")}
         </button>
       </div>
 
       {open === "reset" && (
         <WipeModal
-          title="Reset broker state?"
+          title={t("settings.danger.resetModalTitle")}
           severity="warn"
-          intro={
-            <>
-              This clears the broker's on-disk runtime state and reboots the
-              office from a clean slate. Your team, company, tasks, and
-              workflows are all kept. If this doesn't unblock things, try{" "}
-              <strong>Shred workspace</strong> instead.
-            </>
-          }
-          confirmLabel="Reset broker state"
+          intro={t("settings.danger.resetModalIntro")}
+          confirmLabel={t("settings.danger.resetConfirm")}
           busy={busy}
           onConfirm={handleReset}
           onCancel={() => setOpen(null)}
@@ -1353,18 +1923,10 @@ function DangerZoneSection() {
 
       {open === "shred" && (
         <WipeModal
-          title="Shred this workspace?"
+          title={t("settings.danger.shredModalTitle")}
           severity="critical"
-          intro={
-            <>
-              This permanently deletes your team, company identity, office task
-              receipts, and saved workflows, plus local logs, sessions, provider
-              state, calendar, and wiki memory. Onboarding will reopen
-              immediately. Task worktrees, config, and device identity are kept.{" "}
-              <strong>This cannot be undone.</strong>
-            </>
-          }
-          confirmLabel="Shred workspace"
+          intro={t("settings.danger.shredModalIntro")}
+          confirmLabel={t("settings.danger.shredConfirm")}
           busy={busy}
           onConfirm={handleShred}
           onCancel={() => setOpen(null)}
@@ -1377,8 +1939,11 @@ function DangerZoneSection() {
 // ─── Main component ─────────────────────────────────────────────────────
 
 export function SettingsApp() {
+  const { t } = useI18n();
   const [section, setSection] = useState<SectionId>("general");
   const queryClient = useQueryClient();
+  const requestedSection = useAppStore((s) => s.settingsSection);
+  const setSettingsSection = useAppStore((s) => s.setSettingsSection);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["config"],
@@ -1390,11 +1955,11 @@ export function SettingsApp() {
     mutationFn: (patch: ConfigUpdate) => updateConfig(patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["config"] });
-      showNotice("Settings saved.", "success");
+      showNotice(t("settings.saved"), "success");
     },
     onError: (err: unknown) => {
       const message =
-        err instanceof Error ? err.message : "Failed to save settings";
+        err instanceof Error ? err.message : t("settings.saveFailed");
       showNotice(message, "error");
     },
   });
@@ -1404,6 +1969,18 @@ export function SettingsApp() {
   useEffect(() => {
     setDataKey((k) => k + 1);
   }, []);
+
+  useEffect(() => {
+    if (!requestedSection) return;
+    if (
+      SECTION_GROUPS.some((group) =>
+        group.items.some((item) => item.id === requestedSection),
+      )
+    ) {
+      setSection(requestedSection as SectionId);
+    }
+    setSettingsSection(null);
+  }, [requestedSection, setSettingsSection]);
 
   const save = async (patch: ConfigUpdate) => {
     await saveMutation.mutateAsync(patch);
@@ -1419,7 +1996,7 @@ export function SettingsApp() {
           fontSize: 14,
         }}
       >
-        Loading settings...
+        {t("settings.loading")}
       </div>
     );
   }
@@ -1434,7 +2011,7 @@ export function SettingsApp() {
           fontSize: 14,
         }}
       >
-        Failed to load settings:{" "}
+        {t("settings.loadFailed")}{" "}
         {error instanceof Error ? error.message : String(error)}
       </div>
     );
@@ -1444,18 +2021,19 @@ export function SettingsApp() {
     <div style={styles.shell}>
       <nav style={styles.nav}>
         {SECTION_GROUPS.map((group) => (
-          <div key={group.label}>
-            <p style={styles.navGroupLabel}>{group.label}</p>
+          <div key={group.labelKey}>
+            <p style={styles.navGroupLabel}>{t(group.labelKey)}</p>
             {group.items.map((sec) => {
-              const Icon = sec.Icon;
+              const { Icon } = sec;
               return (
                 <button
+                  type="button"
                   key={sec.id}
                   style={styles.navItem(sec.id === section)}
                   onClick={() => setSection(sec.id)}
                 >
                   <Icon style={styles.navIcon} />
-                  <span>{sec.name}</span>
+                  <span>{t(sec.nameKey)}</span>
                 </button>
               );
             })}
@@ -1464,6 +2042,7 @@ export function SettingsApp() {
       </nav>
       <div style={styles.body} key={dataKey}>
         {section === "general" && <GeneralSection cfg={data} save={save} />}
+        {section === "team" && <TeamSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}
         {section === "integrations" && (

@@ -32,6 +32,31 @@ func publicAuthUser(user authUser) authUser {
 	return user
 }
 
+func publicAuthUsers(users []authUser) []authUser {
+	out := make([]authUser, 0, len(users))
+	for _, user := range users {
+		out = append(out, publicAuthUser(user))
+	}
+	return out
+}
+
+func normalizeAuthRole(role string) string {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "owner", "admin", "member":
+		return strings.ToLower(strings.TrimSpace(role))
+	default:
+		return ""
+	}
+}
+
+func canManageAuthRoles(user *authUser) bool {
+	if user == nil {
+		return false
+	}
+	role := normalizeAuthRole(user.Role)
+	return role == "owner" || role == "admin"
+}
+
 func (b *Broker) findAuthUserByEmailLocked(email string) *authUser {
 	email = normalizeInviteEmail(email)
 	for i := range b.authUsers {
@@ -67,6 +92,27 @@ func (b *Broker) firstWorkspaceTeamLocked() *workspaceTeam {
 		return nil
 	}
 	return &b.workspaceTeams[0]
+}
+
+func (b *Broker) authUsersForTeamLocked(teamID string) []authUser {
+	teamID = strings.TrimSpace(teamID)
+	users := make([]authUser, 0, len(b.authUsers))
+	for _, user := range b.authUsers {
+		if user.TeamID == teamID {
+			users = append(users, user)
+		}
+	}
+	return users
+}
+
+func (b *Broker) ownerCountForTeamLocked(teamID string) int {
+	count := 0
+	for _, user := range b.authUsers {
+		if user.TeamID == teamID && normalizeAuthRole(user.Role) == "owner" && user.Status == "active" {
+			count++
+		}
+	}
+	return count
 }
 
 func (b *Broker) createWorkspaceTeamLocked(name, createdBy, now string) workspaceTeam {
@@ -168,6 +214,83 @@ func (b *Broker) handleTeams(w http.ResponseWriter, r *http.Request) {
 	b.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"teams": teams})
+}
+
+func (b *Broker) handleAuthUsers(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		b.mu.Lock()
+		user, _, _, ok := b.currentAuthUserLocked(r)
+		if !ok {
+			b.mu.Unlock()
+			http.Error(w, "auth session required", http.StatusUnauthorized)
+			return
+		}
+		users := publicAuthUsers(b.authUsersForTeamLocked(user.TeamID))
+		b.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"users": users})
+	case http.MethodPatch:
+		var body struct {
+			UserID string `json:"user_id"`
+			Role   string `json:"role"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		nextRole := normalizeAuthRole(body.Role)
+		if nextRole == "" {
+			http.Error(w, "role must be owner, admin, or member", http.StatusBadRequest)
+			return
+		}
+		b.mu.Lock()
+		requester, _, _, ok := b.currentAuthUserLocked(r)
+		if !ok {
+			b.mu.Unlock()
+			http.Error(w, "auth session required", http.StatusUnauthorized)
+			return
+		}
+		if !canManageAuthRoles(requester) {
+			b.mu.Unlock()
+			http.Error(w, "owner or admin role required", http.StatusForbidden)
+			return
+		}
+		target := b.findAuthUserByIDLocked(body.UserID)
+		if target == nil || target.TeamID != requester.TeamID {
+			b.mu.Unlock()
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		if target.ID == requester.ID && normalizeAuthRole(target.Role) == "owner" && nextRole != "owner" && b.ownerCountForTeamLocked(target.TeamID) <= 1 {
+			b.mu.Unlock()
+			http.Error(w, "cannot remove the last owner", http.StatusConflict)
+			return
+		}
+		now := time.Now().UTC().Format(time.RFC3339)
+		target.Role = nextRole
+		target.UpdatedAt = now
+		for i := range b.humanMembers {
+			if b.humanMembers[i].UserID == target.ID {
+				b.humanMembers[i].Role = nextRole
+			}
+		}
+		users := publicAuthUsers(b.authUsersForTeamLocked(requester.TeamID))
+		if err := b.saveLocked(); err != nil {
+			b.mu.Unlock()
+			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+			return
+		}
+		updated := publicAuthUser(*target)
+		b.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"user":  updated,
+			"users": users,
+		})
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {

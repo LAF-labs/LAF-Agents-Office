@@ -694,13 +694,15 @@
   gap: 6px;
 }
 
-.auth-field label {
+.auth-field label,
+.auth-field > span {
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 650;
 }
 
-.auth-field input {
+.auth-field input,
+.auth-field select {
   height: 42px;
   min-width: 0;
   border: 1px solid var(--border);
@@ -711,6 +713,7 @@
 }
 
 .auth-field input:focus,
+.auth-field select:focus,
 .invite-form input:focus {
   outline: 2px solid color-mix(in srgb, var(--accent), transparent 72%);
   outline-offset: 1px;

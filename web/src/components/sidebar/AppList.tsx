@@ -19,6 +19,7 @@ import { getRequests } from "../../api/client";
 import { fetchReviews } from "../../api/notebook";
 import { useOverflow } from "../../hooks/useOverflow";
 import { SIDEBAR_APPS } from "../../lib/constants";
+import { type I18nKey, useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 
 // Notebooks and reviews render inside the Wiki app shell via tabs, so the
@@ -44,6 +45,7 @@ export function AppList() {
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const currentChannel = useAppStore((s) => s.currentChannel);
+  const { t } = useI18n();
 
   const { data: requestsData } = useQuery({
     queryKey: ["requests-badge", currentChannel],
@@ -83,8 +85,10 @@ export function AppList() {
             app.id === "wiki"
               ? WIKI_SURFACE_APPS.has(currentApp ?? "")
               : currentApp === app.id;
+          const appName = t(`app.${app.id}` as I18nKey);
           return (
             <button
+              type="button"
               key={app.id}
               className={`sidebar-item${isActive ? " active" : ""}`}
               onClick={() => setCurrentApp(app.id)}
@@ -94,12 +98,12 @@ export function AppList() {
               ) : (
                 <span className="sidebar-item-emoji">{app.icon}</span>
               )}
-              <span style={{ flex: 1 }}>{app.name}</span>
-              {badge !== null && (
-                <span className="sidebar-badge" aria-label={`${badge} pending`}>
+              <span style={{ flex: 1 }}>{appName}</span>
+              {badge !== null ? (
+                <span className="sidebar-badge" title={`${badge} pending`}>
                   {badge}
                 </span>
-              )}
+              ) : null}
             </button>
           );
         })}
