@@ -30,7 +30,7 @@ func TestConfigureServerTools_Slice1Tools_MarkdownOnly(t *testing.T) {
 			},
 		},
 		{
-			name:    "nex_hides_slice1_tools",
+			name:    "legacy_hides_slice1_tools",
 			backend: "legacy",
 			mustNotHave: []string{
 				"laf_office_wiki_lookup",

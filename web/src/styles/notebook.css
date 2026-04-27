@@ -572,10 +572,6 @@
   transform: rotate(-1deg);
   margin: 14px 0;
 }
-.notebook-surface .nb-margin .nb-margin-tag {
-  font-weight: 700;
-  margin-right: 4px;
-}
 
 /* Promoted-back inline callout */
 .notebook-surface .nb-promoted-back {

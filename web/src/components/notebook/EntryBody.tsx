@@ -7,7 +7,7 @@ import { wikiLinkRemarkPlugin } from "../../lib/wikilink";
 import ImageEmbed from "../wiki/ImageEmbed";
 
 /**
- * Notebook markdown renderer. Reuses the wiki's remark-gfm + remark-wiki-link
+ * Notebook markdown renderer. Reuses the wiki's remark-gfm + wikilink
  * pipeline so wikilinks cross-navigate to `/wiki/{path}`, styled per the
  * notebook design tokens (dashed ink-blue underline).
  */

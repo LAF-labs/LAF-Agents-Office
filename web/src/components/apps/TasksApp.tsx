@@ -1,5 +1,16 @@
-import { type DragEvent, type FormEvent, useCallback, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type DragEvent,
+  type FormEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+import {
+  type QueryClient,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   createProject,
@@ -10,6 +21,7 @@ import {
   type Task,
 } from "../../api/client";
 import { formatRelativeTime } from "../../lib/format";
+import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 import { TaskDetailModal } from "./TaskDetailModal";
 
@@ -24,6 +36,8 @@ const STATUS_ORDER = [
 ] as const;
 
 type StatusGroup = (typeof STATUS_ORDER)[number];
+type TaskMove = (task: Task, toStatus: StatusGroup) => Promise<void>;
+type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -82,30 +96,42 @@ function selectedProjectLabel(
   selectedProjectId: string,
   projectNames: Map<string, string>,
 ): string {
+  if (selectedProjectId === "") return "Open a project workspace.";
   if (selectedProjectId === "all") return "All active lanes across the office.";
-  return projectNames.get(selectedProjectId) ?? selectedProjectId;
+  return `Focused project: ${projectNames.get(selectedProjectId) ?? selectedProjectId}`;
 }
 
 function findSelectedProject(
   projects: Project[],
   selectedProjectId: string,
 ): Project | null {
-  if (selectedProjectId === "all") return null;
+  if (selectedProjectId === "" || selectedProjectId === "all") return null;
   return projects.find((project) => project.id === selectedProjectId) ?? null;
 }
 
-function ProjectGitHubLink({ project }: { project: Project | null }) {
-  if (!project?.github_repo_url) return null;
-  return (
-    <a
-      className="task-project-repo-link"
-      href={project.github_repo_url}
-      target="_blank"
-      rel="noreferrer"
-    >
-      GitHub repo
-    </a>
-  );
+function countActiveTasks(tasks: Task[]): number {
+  return tasks.filter((task) => {
+    const status = normalizeStatus(task.status);
+    return status !== "done" && status !== "canceled";
+  }).length;
+}
+
+function countAgentOwnedTasks(tasks: Task[]): number {
+  return tasks.filter((task) => {
+    const status = normalizeStatus(task.status);
+    const owner = task.owner?.trim().toLowerCase();
+    return Boolean(
+      status !== "done" &&
+        status !== "canceled" &&
+        owner &&
+        owner !== "human" &&
+        owner !== "you",
+    );
+  }).length;
+}
+
+function taskCountLabel(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 function shouldHideTaskColumn(
@@ -172,86 +198,64 @@ function useTaskMove() {
   );
 }
 
-export function TasksApp() {
-  const queryClient = useQueryClient();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+function useProjectCreator(
+  queryClient: QueryClient,
+  onProjectCreated: (projectId: string) => void,
+) {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectGitHubRepoURL, setNewProjectGitHubRepoURL] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
-  const selectedProjectFilter =
-    selectedProjectId === "all" ? undefined : selectedProjectId;
 
-  const projectsQuery = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => getProjects(),
-    staleTime: 30_000,
-  });
+  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = newProjectName.trim();
+    if (!name) return;
+    setProjectError(null);
+    try {
+      const { project } = await createProject({
+        name,
+        github_repo_url: newProjectGitHubRepoURL.trim() || undefined,
+        created_by: HUMAN_SLUG,
+      });
+      setNewProjectName("");
+      setNewProjectGitHubRepoURL("");
+      setIsCreatingProject(false);
+      onProjectCreated(project.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
+      ]);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not create project";
+      setProjectError(message);
+    }
+  }
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["office-tasks", selectedProjectFilter ?? "all"],
-    queryFn: () =>
-      getOfficeTasks({
-        includeDone: true,
-        projectId: selectedProjectFilter,
-      }),
-    refetchInterval: 10_000,
-  });
+  return {
+    handleCreateProject,
+    isCreatingProject,
+    newProjectGitHubRepoURL,
+    newProjectName,
+    projectError,
+    setIsCreatingProject,
+    setNewProjectGitHubRepoURL,
+    setNewProjectName,
+    setProjectError,
+  };
+}
 
-  const moveTask = useTaskMove();
+function useTaskBoardDrag(tasksById: Map<string, Task>, moveTask: TaskMove) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragoverStatus, setDragoverStatus] = useState<StatusGroup | null>(
     null,
   );
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-
-  if (isLoading || projectsQuery.isLoading) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Loading tasks...
-      </div>
-    );
-  }
-
-  if (error || projectsQuery.error) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Could not load tasks.
-      </div>
-    );
-  }
-
-  const tasks = data?.tasks ?? [];
-  const projects = projectsQuery.data?.projects ?? [];
-  const projectNames = new Map(projects.map((p) => [p.id, p.name]));
-  const selectedProject = findSelectedProject(projects, selectedProjectId);
-
-  const grouped = groupTasks(tasks);
-  const tasksById = new Map(tasks.map((t) => [t.id, t]));
-  const isDragging = draggingId !== null;
-  const selectedTask = selectedTaskId
-    ? (tasksById.get(selectedTaskId) ?? null)
-    : null;
 
   const handleDragStart =
     (taskId: string) => (event: DragEvent<HTMLButtonElement>) => {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(DND_MIME, taskId);
-      // Fallback for browsers that restrict custom MIME reads during dragover.
       event.dataTransfer.setData("text/plain", taskId);
       setDraggingId(taskId);
     };
@@ -270,7 +274,6 @@ export function TasksApp() {
 
   const handleColumnDragLeave =
     (status: StatusGroup) => (event: DragEvent<HTMLElement>) => {
-      // Only clear when leaving the column itself, not a nested child.
       if (event.currentTarget.contains(event.relatedTarget as Node | null))
         return;
       if (dragoverStatus === status) setDragoverStatus(null);
@@ -290,152 +293,144 @@ export function TasksApp() {
       void moveTask(task, status);
     };
 
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = newProjectName.trim();
-    if (!name) return;
-    setProjectError(null);
-    try {
-      const { project } = await createProject({
-        name,
-        github_repo_url: newProjectGitHubRepoURL.trim() || undefined,
-        created_by: HUMAN_SLUG,
-      });
-      setNewProjectName("");
-      setNewProjectGitHubRepoURL("");
-      setIsCreatingProject(false);
-      setSelectedProjectId(project.id);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["projects"] }),
-        queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
-      ]);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Could not create project";
-      setProjectError(message);
+  return {
+    draggingId,
+    dragoverStatus,
+    handleColumnDragLeave,
+    handleColumnDragOver,
+    handleColumnDrop,
+    handleDragEnd,
+    handleDragStart,
+    isDragging: draggingId !== null,
+  };
+}
+
+export function TasksApp() {
+  const queryClient = useQueryClient();
+  const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const setWikiPath = useAppStore((s) => s.setWikiPath);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const projectCreator = useProjectCreator(queryClient, setSelectedProjectId);
+  const selectedProjectFilter =
+    selectedProjectId && selectedProjectId !== "all"
+      ? selectedProjectId
+      : undefined;
+
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => getProjects(),
+    staleTime: 30_000,
+  });
+
+  const projects = projectsQuery.data?.projects ?? [];
+  useEffect(() => {
+    if (selectedProjectId === "" && projects.length > 0) {
+      setSelectedProjectId(projects[0].id);
     }
+  }, [projects, selectedProjectId]);
+
+  const shouldLoadTasks =
+    projectsQuery.isSuccess &&
+    (projects.length === 0 || selectedProjectId !== "");
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["office-tasks", selectedProjectFilter ?? "all"],
+    queryFn: () =>
+      getOfficeTasks({
+        includeDone: true,
+        projectId: selectedProjectFilter,
+      }),
+    enabled: shouldLoadTasks,
+    refetchInterval: 10_000,
+  });
+
+  const moveTask = useTaskMove();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const tasks = data?.tasks ?? [];
+  const projectNames = new Map(projects.map((p) => [p.id, p.name]));
+  const selectedProject = findSelectedProject(projects, selectedProjectId);
+  const grouped = groupTasks(tasks);
+  const tasksById = new Map(tasks.map((t) => [t.id, t]));
+  const boardDrag = useTaskBoardDrag(tasksById, moveTask);
+  const selectedTask = selectedTaskId
+    ? (tasksById.get(selectedTaskId) ?? null)
+    : null;
+  const isTaskLoading = shouldLoadTasks && isLoading;
+
+  if (projectsQuery.isLoading) {
+    return (
+      <div
+        style={{
+          padding: "40px 20px",
+          textAlign: "center",
+          color: "var(--text-tertiary)",
+          fontSize: 14,
+        }}
+      >
+        Loading tasks...
+      </div>
+    );
   }
+
+  if (projectsQuery.error) {
+    return (
+      <div
+        style={{
+          padding: "40px 20px",
+          textAlign: "center",
+          color: "var(--text-tertiary)",
+          fontSize: 14,
+        }}
+      >
+        Could not load tasks.
+      </div>
+    );
+  }
+
+  const handleOpenProjectWiki = () => {
+    if (!selectedProject) return;
+    setWikiPath(`projects/${selectedProject.id}`);
+    setCurrentApp("wiki");
+  };
 
   return (
     <>
-      <div
-        style={{
-          padding: "16px 20px 0",
-          borderBottom: "1px solid var(--border)",
-        }}
+      <ProjectToolbar
+        projectCreator={projectCreator}
+        projectNames={projectNames}
+        projects={projects}
+        selectedProjectId={selectedProjectId}
+        onSelectProject={setSelectedProjectId}
+      />
+
+      <ProjectWorkspaceOverview
+        project={selectedProject}
+        projectCount={projects.length}
+        isLoadingTasks={isTaskLoading}
+        tasks={tasks}
+        onOpenWiki={handleOpenProjectWiki}
+      />
+
+      <TaskWorkArea
+        error={error}
+        isTaskLoading={isTaskLoading}
+        selectedProject={selectedProject}
+        tasks={tasks}
       >
-        <div className="task-heading-row">
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 600 }}>Office tasks</h3>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--text-tertiary)",
-                marginTop: 4,
-              }}
-            >
-              {selectedProjectLabel(selectedProjectId, projectNames)}
-            </div>
-            <ProjectGitHubLink project={selectedProject} />
-          </div>
-          <button
-            type="button"
-            className="task-project-new"
-            onClick={() => {
-              setProjectError(null);
-              setIsCreatingProject((current) => !current);
-            }}
-            aria-label="New project"
-            title="New project"
-          >
-            +
-          </button>
-        </div>
-
-        <ProjectTabs
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          onSelect={setSelectedProjectId}
+        <TaskBoard
+          grouped={grouped}
+          isDragging={boardDrag.isDragging}
+          dragoverStatus={boardDrag.dragoverStatus}
+          draggingId={boardDrag.draggingId}
+          projectNames={projectNames}
+          onColumnDragOver={boardDrag.handleColumnDragOver}
+          onColumnDragLeave={boardDrag.handleColumnDragLeave}
+          onColumnDrop={boardDrag.handleColumnDrop}
+          onTaskDragStart={boardDrag.handleDragStart}
+          onTaskDragEnd={boardDrag.handleDragEnd}
+          onOpenTask={setSelectedTaskId}
         />
-        {isCreatingProject ? (
-          <form className="task-project-form" onSubmit={handleCreateProject}>
-            <input
-              type="text"
-              value={newProjectName}
-              onChange={(event) => setNewProjectName(event.currentTarget.value)}
-              placeholder="Project name"
-              aria-label="Project name"
-            />
-            <input
-              type="url"
-              value={newProjectGitHubRepoURL}
-              onChange={(event) =>
-                setNewProjectGitHubRepoURL(event.currentTarget.value)
-              }
-              placeholder="GitHub repo URL (optional)"
-              aria-label="GitHub repo URL"
-            />
-            <button type="submit" disabled={newProjectName.trim() === ""}>
-              Create
-            </button>
-          </form>
-        ) : null}
-        {projectError ? (
-          <div className="task-project-error">{projectError}</div>
-        ) : null}
-      </div>
-
-      {tasks.length === 0 ? (
-        <div className="task-empty-state">No tasks yet.</div>
-      ) : (
-        <div className="task-board">
-          {STATUS_ORDER.map((status) => {
-            const column = grouped[status];
-            // Hide empty pending/blocked/canceled columns only when nothing is being dragged.
-            // While dragging, keep all columns visible as drop targets.
-            if (shouldHideTaskColumn(status, column, isDragging)) {
-              return null;
-            }
-            const columnClass = `task-column${dragoverStatus === status ? " dragover" : ""}`;
-            return (
-              <section
-                className={columnClass}
-                key={status}
-                onDragOver={handleColumnDragOver(status)}
-                onDragLeave={handleColumnDragLeave(status)}
-                onDrop={handleColumnDrop(status)}
-                aria-labelledby={`task-column-${status}`}
-              >
-                <div
-                  className="task-column-header"
-                  id={`task-column-${status}`}
-                >
-                  <span>{COLUMN_LABEL[status]}</span>
-                  <span className="task-column-count">{column.length}</span>
-                </div>
-                <ul className="task-column-list">
-                  {column.map((task) => (
-                    <li className="task-column-item" key={task.id}>
-                      <TaskCard
-                        task={task}
-                        projectName={
-                          task.project_id
-                            ? projectNames.get(task.project_id)
-                            : null
-                        }
-                        isDragging={draggingId === task.id}
-                        onDragStart={handleDragStart(task.id)}
-                        onDragEnd={handleDragEnd}
-                        onOpen={() => setSelectedTaskId(task.id)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-        </div>
-      )}
+      </TaskWorkArea>
       {selectedTask ? (
         <TaskDetailModal
           task={selectedTask}
@@ -443,6 +438,317 @@ export function TasksApp() {
         />
       ) : null}
     </>
+  );
+}
+
+interface ProjectToolbarProps {
+  projectCreator: ProjectCreatorState;
+  projectNames: Map<string, string>;
+  projects: Project[];
+  selectedProjectId: string;
+  onSelectProject: (projectId: string) => void;
+}
+
+function ProjectToolbar({
+  projectCreator,
+  projectNames,
+  projects,
+  selectedProjectId,
+  onSelectProject,
+}: ProjectToolbarProps) {
+  const toggleProjectForm = () => {
+    projectCreator.setProjectError(null);
+    projectCreator.setIsCreatingProject((current) => !current);
+  };
+
+  return (
+    <div
+      style={{
+        padding: "16px 20px 0",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <div className="task-heading-row">
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 600 }}>Project workspace</h3>
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--text-tertiary)",
+              marginTop: 4,
+            }}
+          >
+            {selectedProjectLabel(selectedProjectId, projectNames)}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="task-project-new"
+          onClick={toggleProjectForm}
+          aria-label="New project"
+          title="New project"
+        >
+          +
+        </button>
+      </div>
+
+      <ProjectTabs
+        projects={projects}
+        selectedProjectId={selectedProjectId || "all"}
+        onSelect={onSelectProject}
+      />
+      {projectCreator.isCreatingProject ? (
+        <ProjectCreateForm projectCreator={projectCreator} />
+      ) : null}
+      {projectCreator.projectError ? (
+        <div className="task-project-error">{projectCreator.projectError}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProjectCreateForm({
+  projectCreator,
+}: {
+  projectCreator: ProjectCreatorState;
+}) {
+  return (
+    <form
+      className="task-project-form"
+      onSubmit={projectCreator.handleCreateProject}
+    >
+      <input
+        type="text"
+        value={projectCreator.newProjectName}
+        onChange={(event) =>
+          projectCreator.setNewProjectName(event.currentTarget.value)
+        }
+        placeholder="Project name"
+        aria-label="Project name"
+      />
+      <input
+        type="url"
+        value={projectCreator.newProjectGitHubRepoURL}
+        onChange={(event) =>
+          projectCreator.setNewProjectGitHubRepoURL(event.currentTarget.value)
+        }
+        placeholder="GitHub repo URL (optional)"
+        aria-label="GitHub repo URL"
+      />
+      <button
+        type="submit"
+        disabled={projectCreator.newProjectName.trim() === ""}
+      >
+        Create
+      </button>
+    </form>
+  );
+}
+
+interface TaskWorkAreaProps {
+  children: ReactNode;
+  error: unknown;
+  isTaskLoading: boolean;
+  selectedProject: Project | null;
+  tasks: Task[];
+}
+
+function TaskWorkArea({
+  children,
+  error,
+  isTaskLoading,
+  selectedProject,
+  tasks,
+}: TaskWorkAreaProps) {
+  if (error) {
+    return (
+      <div className="task-empty-state">Could not load project tasks.</div>
+    );
+  }
+  if (isTaskLoading) {
+    return <div className="task-empty-state">Loading project tasks...</div>;
+  }
+  if (tasks.length === 0) {
+    return (
+      <div className="task-empty-state">
+        {selectedProject
+          ? "No work queued in this project yet."
+          : "Create or select a project to open its workspace."}
+      </div>
+    );
+  }
+  return children;
+}
+
+interface ProjectWorkspaceOverviewProps {
+  project: Project | null;
+  projectCount: number;
+  isLoadingTasks: boolean;
+  tasks: Task[];
+  onOpenWiki: () => void;
+}
+
+function ProjectWorkspaceOverview({
+  project,
+  projectCount,
+  isLoadingTasks,
+  tasks,
+  onOpenWiki,
+}: ProjectWorkspaceOverviewProps) {
+  if (!project) {
+    return (
+      <section
+        className="task-workspace-overview"
+        aria-label="Project workspace overview"
+      >
+        <article className="task-workspace-card task-workspace-card-wide">
+          <span className="task-workspace-kicker">Projects</span>
+          <strong>
+            {projectCount === 0
+              ? "Create the first project"
+              : taskCountLabel(projectCount, "project")}
+          </strong>
+          <span>
+            Open one project to see its wiki, queue, agents, and repo.
+          </span>
+        </article>
+      </section>
+    );
+  }
+
+  const activeTaskCount = countActiveTasks(tasks);
+  const agentOwnedTaskCount = countAgentOwnedTasks(tasks);
+  const repoURL = project.github_repo_url?.trim();
+
+  return (
+    <section
+      className="task-workspace-overview"
+      aria-label="Project workspace overview"
+    >
+      <article className="task-workspace-card task-workspace-card-wide">
+        <span className="task-workspace-kicker">Project</span>
+        <strong>{project.name || project.id} workspace</strong>
+        <span>Goals, decisions, constraints, and handoff notes live here.</span>
+      </article>
+      <article className="task-workspace-card">
+        <span className="task-workspace-kicker">Wiki context</span>
+        <strong>Project wiki</strong>
+        <span>Planning memory for humans and agents.</span>
+        <button type="button" onClick={onOpenWiki}>
+          Open project wiki
+        </button>
+      </article>
+      <article className="task-workspace-card">
+        <span className="task-workspace-kicker">Task queue</span>
+        <strong>
+          {isLoadingTasks
+            ? "Loading tasks..."
+            : taskCountLabel(activeTaskCount, "active task")}
+        </strong>
+        <span>Open, in-progress, review, pending, and blocked work.</span>
+      </article>
+      <article className="task-workspace-card">
+        <span className="task-workspace-kicker">Agent work</span>
+        <strong>
+          {isLoadingTasks
+            ? "Loading assignments..."
+            : taskCountLabel(agentOwnedTaskCount, "agent-owned task")}
+        </strong>
+        <span>Work currently assigned away from the human owner.</span>
+      </article>
+      <article className="task-workspace-card">
+        <span className="task-workspace-kicker">GitHub</span>
+        <strong>{repoURL ? "Repo connected" : "Repo not connected"}</strong>
+        <span>
+          {repoURL
+            ? "Ready for project-scoped coding work."
+            : "Connect it only when code work starts."}
+        </span>
+        {repoURL ? (
+          <a href={repoURL} target="_blank" rel="noreferrer">
+            Open GitHub repo
+          </a>
+        ) : null}
+      </article>
+    </section>
+  );
+}
+
+interface TaskBoardProps {
+  grouped: Record<StatusGroup, Task[]>;
+  isDragging: boolean;
+  dragoverStatus: StatusGroup | null;
+  draggingId: string | null;
+  projectNames: Map<string, string>;
+  onColumnDragOver: (
+    status: StatusGroup,
+  ) => (event: DragEvent<HTMLElement>) => void;
+  onColumnDragLeave: (
+    status: StatusGroup,
+  ) => (event: DragEvent<HTMLElement>) => void;
+  onColumnDrop: (
+    status: StatusGroup,
+  ) => (event: DragEvent<HTMLElement>) => void;
+  onTaskDragStart: (
+    taskId: string,
+  ) => (event: DragEvent<HTMLButtonElement>) => void;
+  onTaskDragEnd: (event: DragEvent<HTMLButtonElement>) => void;
+  onOpenTask: (taskId: string) => void;
+}
+
+function TaskBoard({
+  grouped,
+  isDragging,
+  dragoverStatus,
+  draggingId,
+  projectNames,
+  onColumnDragOver,
+  onColumnDragLeave,
+  onColumnDrop,
+  onTaskDragStart,
+  onTaskDragEnd,
+  onOpenTask,
+}: TaskBoardProps) {
+  return (
+    <div className="task-board">
+      {STATUS_ORDER.map((status) => {
+        const column = grouped[status];
+        if (shouldHideTaskColumn(status, column, isDragging)) return null;
+        const columnClass = `task-column${dragoverStatus === status ? " dragover" : ""}`;
+
+        return (
+          <section
+            className={columnClass}
+            key={status}
+            onDragOver={onColumnDragOver(status)}
+            onDragLeave={onColumnDragLeave(status)}
+            onDrop={onColumnDrop(status)}
+            aria-labelledby={`task-column-${status}`}
+          >
+            <div className="task-column-header" id={`task-column-${status}`}>
+              <span>{COLUMN_LABEL[status]}</span>
+              <span className="task-column-count">{column.length}</span>
+            </div>
+            <ul className="task-column-list">
+              {column.map((task) => (
+                <li className="task-column-item" key={task.id}>
+                  <TaskCard
+                    task={task}
+                    projectName={
+                      task.project_id ? projectNames.get(task.project_id) : null
+                    }
+                    isDragging={draggingId === task.id}
+                    onDragStart={onTaskDragStart(task.id)}
+                    onDragEnd={onTaskDragEnd}
+                    onOpen={() => onOpenTask(task.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 

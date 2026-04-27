@@ -50,7 +50,7 @@ export default defineConfig({
             {
               name: 'markdown-vendor',
               test:
-                /node_modules\/(react-markdown|remark-|rehype-|unified|micromark|mdast-|hast-|vfile|github-slugger|dompurify)\//,
+                /node_modules\/(react-markdown|remark-|rehype-|unified|micromark|mdast-|hast-|vfile|github-slugger)\//,
             },
             {
               name: 'vendor',

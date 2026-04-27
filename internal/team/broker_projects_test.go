@@ -2,10 +2,13 @@ package team
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -163,6 +166,58 @@ func TestProjectGitHubRepoURLCanBeUpdatedAndCleared(t *testing.T) {
 	}
 	if cleared.Project.GitHubRepoURL != "" {
 		t.Fatalf("cleared github_repo_url = %q", cleared.Project.GitHubRepoURL)
+	}
+}
+
+func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Customer Portal",
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/customer-portal",
+	})
+	worker.WaitForIdle()
+
+	articlePath := filepath.Join(root, "team", "projects", project.ID+".md")
+	raw, err := os.ReadFile(articlePath)
+	if err != nil {
+		t.Fatalf("read materialized project wiki: %v", err)
+	}
+	content := string(raw)
+	for _, want := range []string{
+		"# Customer Portal",
+		"Project ID: `customer-portal`",
+		"https://github.com/laf-labs/customer-portal",
+		"## Agent work",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("project wiki missing %q in:\n%s", want, content)
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/wiki/article?path=team/projects/"+project.ID+".md", nil)
+	b.handleWikiArticle(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("wiki article status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }
 

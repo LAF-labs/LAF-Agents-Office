@@ -60,7 +60,9 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
               ? "Switch to light mode"
               : "Switch to dark mode"
           }
-          onClick={() => setTheme(theme === "office-dark" ? "office" : "office-dark")}
+          onClick={() =>
+            setTheme(theme === "office-dark" ? "office" : "office-dark")
+          }
           type="button"
         >
           {theme === "office-dark" ? (

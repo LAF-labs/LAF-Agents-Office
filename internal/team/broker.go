@@ -8689,13 +8689,14 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	channel := normalizeChannelSlug(body.Channel)
 
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if channel != "" {
 		if b.findChannelLocked(channel) == nil {
+			b.mu.Unlock()
 			http.Error(w, "channel not found", http.StatusNotFound)
 			return
 		}
 		if !b.canAccessChannelLocked(body.CreatedBy, channel) {
+			b.mu.Unlock()
 			http.Error(w, "channel access denied", http.StatusForbidden)
 			return
 		}
@@ -8709,10 +8710,12 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			id = normalizeProjectID(name)
 		}
 		if id == "" || name == "" || strings.TrimSpace(body.CreatedBy) == "" {
+			b.mu.Unlock()
 			http.Error(w, "id/name and created_by required", http.StatusBadRequest)
 			return
 		}
 		if existing := b.findProjectLocked(id); existing != nil {
+			b.mu.Unlock()
 			http.Error(w, "project already exists", http.StatusConflict)
 			return
 		}
@@ -8738,7 +8741,13 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		}
 		b.appendActionLocked("project_created", "office", actionChannel, project.CreatedBy, truncateSummary(project.Name, 140), project.ID)
 		if err := b.saveLocked(); err != nil {
+			b.mu.Unlock()
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+			return
+		}
+		b.mu.Unlock()
+		if err := b.materializeProjectWiki(r.Context(), project); err != nil {
+			http.Error(w, "failed to materialize project wiki", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -8746,10 +8755,12 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	case "update", "archive":
 		project := b.findProjectLocked(body.ID)
 		if project == nil {
+			b.mu.Unlock()
 			http.Error(w, "project not found", http.StatusNotFound)
 			return
 		}
 		if !b.canAccessChannelLocked(body.CreatedBy, project.Channel) {
+			b.mu.Unlock()
 			http.Error(w, "channel access denied", http.StatusForbidden)
 			return
 		}
@@ -8770,12 +8781,16 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		}
 		b.appendActionLocked("project_updated", "office", actionChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(project.Name+" ["+project.Status+"]", 140), project.ID)
 		if err := b.saveLocked(); err != nil {
+			b.mu.Unlock()
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 			return
 		}
+		responseProject := *project
+		b.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"project": *project})
+		_ = json.NewEncoder(w).Encode(map[string]any{"project": responseProject})
 	default:
+		b.mu.Unlock()
 		http.Error(w, "unknown action", http.StatusBadRequest)
 	}
 }

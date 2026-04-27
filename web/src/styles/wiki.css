@@ -478,53 +478,6 @@
   background: rgba(0, 0, 0, 0.02);
 }
 
-/* ─── Infobox ─── */
-.wk-infobox {
-  float: right;
-  width: 260px;
-  margin: 4px 0 18px 24px;
-  padding: 0;
-  border: 1px solid var(--wk-text);
-  background: var(--wk-paper-dark);
-  font-family: var(--wk-chrome);
-  font-size: 13px;
-  line-height: 1.45;
-}
-.wk-infobox .wk-ib-title {
-  background: var(--wk-text);
-  color: var(--wk-paper);
-  font-family: var(--wk-display);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 8px 12px;
-  text-align: center;
-}
-.wk-infobox .wk-ib-body {
-  padding: 12px;
-}
-.wk-infobox dl {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 10px;
-  margin: 0;
-}
-.wk-infobox dt {
-  color: var(--wk-text-muted);
-  font-family: var(--wk-chrome);
-  font-weight: 500;
-}
-.wk-infobox dd {
-  color: var(--wk-text);
-  font-variant-numeric: tabular-nums;
-  margin: 0;
-}
-.wk-infobox .wk-ib-section {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--wk-border);
-  font-size: 12px;
-}
-
 /* ─── See also ─── */
 .wk-see-also {
   margin: 48px 0 24px;
