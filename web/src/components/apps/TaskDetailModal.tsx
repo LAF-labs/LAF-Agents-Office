@@ -6,6 +6,8 @@ import {
 } from "@tanstack/react-query";
 
 import {
+  type ActionRecord,
+  getActions,
   getOfficeMembers,
   type OfficeMember,
   reassignTask,
@@ -171,12 +173,49 @@ function relativeMeta(value: string | null | undefined): string | null {
   return value ? formatRelativeTime(value) : null;
 }
 
+function taskExecutionLabel(status: string): string {
+  switch (status) {
+    case "in_progress":
+      return "Agent is working";
+    case "review":
+      return "Ready for review";
+    case "done":
+    case "completed":
+      return "Completed";
+    case "blocked":
+      return "Blocked";
+    case "canceled":
+    case "cancelled":
+      return "Canceled";
+    default:
+      return "Queued";
+  }
+}
+
+function actionTimestamp(action: ActionRecord): number {
+  const raw = action.created_at ?? "";
+  const parsed = Date.parse(raw);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function relatedTaskActions(actions: ActionRecord[], taskID: string) {
+  return actions
+    .filter((action) => action.related_id === taskID)
+    .sort((a, b) => actionTimestamp(b) - actionTimestamp(a))
+    .slice(0, 5);
+}
+
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const queryClient = useQueryClient();
   const { data: memberData } = useQuery({
     queryKey: ["office-members"],
     queryFn: getOfficeMembers,
     staleTime: 30_000,
+  });
+  const { data: actionData, isLoading: isActionLoading } = useQuery({
+    queryKey: ["task-actions", task.id],
+    queryFn: getActions,
+    refetchInterval: 5_000,
   });
 
   const currentOwner = (task.owner ?? "").trim();
@@ -231,6 +270,10 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   const metaRows = buildTaskMetaRows(task, status, reviewState);
   const dependsOn = task.depends_on ?? [];
+  const taskActions = useMemo(
+    () => relatedTaskActions(actionData?.actions ?? [], task.id),
+    [actionData?.actions, task.id],
+  );
 
   const ownerChanged =
     selectedOwner.trim() !== currentOwner && selectedOwner.trim() !== "";
@@ -266,6 +309,12 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           statusBusy={statusBusy}
           onStatusAction={handleStatusAction}
         />
+        <TaskExecutionSection
+          actions={taskActions}
+          isActionLoading={isActionLoading}
+          status={currentStatus}
+          task={task}
+        />
 
         <TaskOwnershipSection
           task={task}
@@ -283,6 +332,93 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         <TaskMetadataSection metaRows={metaRows} />
       </div>
     </div>
+  );
+}
+
+interface TaskExecutionSectionProps {
+  actions: ActionRecord[];
+  isActionLoading: boolean;
+  status: string;
+  task: Task;
+}
+
+function TaskExecutionSection({
+  actions,
+  isActionLoading,
+  status,
+  task,
+}: TaskExecutionSectionProps) {
+  const facts = [
+    ["Owner", ownerMeta(task.owner)],
+    ["Mode", optionalMeta(task.execution_mode)],
+    ["Branch", optionalMeta(task.worktree_branch)],
+    ["Working directory", optionalMeta(task.worktree_path)],
+  ].filter(([, value]) => value);
+
+  return (
+    <section className="task-detail-section">
+      <div className="task-detail-label">Execution</div>
+      <div className="task-detail-execution">
+        <div className="task-detail-execution-state">
+          {taskExecutionLabel(status)}
+        </div>
+        {facts.length > 0 ? (
+          <dl className="task-detail-execution-facts">
+            {facts.map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        <TaskActionTimeline actions={actions} isLoading={isActionLoading} />
+      </div>
+    </section>
+  );
+}
+
+interface TaskActionTimelineProps {
+  actions: ActionRecord[];
+  isLoading: boolean;
+}
+
+function TaskActionTimeline({ actions, isLoading }: TaskActionTimelineProps) {
+  return (
+    <section
+      className="task-detail-timeline"
+      aria-label="Task execution timeline"
+    >
+      {isLoading ? (
+        <div className="task-detail-timeline-empty">Loading activity...</div>
+      ) : null}
+      {!isLoading && actions.length === 0 ? (
+        <div className="task-detail-timeline-empty">No activity yet.</div>
+      ) : null}
+      {!isLoading && actions.length > 0
+        ? actions.map((action) => (
+            <article
+              className="task-detail-timeline-item"
+              key={action.id || `${action.kind}-${action.created_at}`}
+            >
+              <div className="task-detail-timeline-topline">
+                <span className="task-detail-timeline-kind">
+                  {action.kind || "action"}
+                </span>
+                {action.actor ? <span>@{action.actor}</span> : null}
+                {action.created_at ? (
+                  <span>{formatRelativeTime(action.created_at)}</span>
+                ) : null}
+              </div>
+              {action.summary ? (
+                <div className="task-detail-timeline-summary">
+                  {action.summary}
+                </div>
+              ) : null}
+            </article>
+          ))
+        : null}
+    </section>
   );
 }
 

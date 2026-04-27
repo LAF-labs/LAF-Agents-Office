@@ -765,8 +765,22 @@ export function getDecisions() {
 export function getWatchdogs() {
   return get("/watchdogs");
 }
+
+export interface ActionRecord {
+  id?: string;
+  kind?: string;
+  source?: string;
+  channel?: string;
+  actor?: string;
+  summary?: string;
+  related_id?: string;
+  signal_ids?: string[];
+  decision_id?: string;
+  created_at?: string;
+}
+
 export function getActions() {
-  return get("/actions");
+  return get<{ actions: ActionRecord[] }>("/actions");
 }
 
 // ── Scheduler ──

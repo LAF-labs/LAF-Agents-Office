@@ -42,6 +42,7 @@ type TaskMove = (task: Task, toStatus: StatusGroup) => Promise<void>;
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type ProjectGitHubConnectorState = ReturnType<typeof useProjectGitHubConnector>;
 type ProjectTaskCreatorState = ReturnType<typeof useProjectTaskCreator>;
+type TasksQueryData = { tasks: Task[] };
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -355,7 +356,38 @@ function buildProjectTaskRequest(project: Project, request: string) {
   };
 }
 
-function useProjectTaskCreator(queryClient: QueryClient) {
+function upsertTaskData(data: TasksQueryData | undefined, task: Task) {
+  if (!data) return data;
+  const tasks = data.tasks ?? [];
+  const existingIndex = tasks.findIndex(
+    (candidate) => candidate.id === task.id,
+  );
+  if (existingIndex >= 0) {
+    const next = [...tasks];
+    next[existingIndex] = { ...next[existingIndex], ...task };
+    return { ...data, tasks: next };
+  }
+  return { ...data, tasks: [task, ...tasks] };
+}
+
+function seedCreatedTask(
+  queryClient: QueryClient,
+  projectID: string,
+  task: Task,
+) {
+  queryClient.setQueryData<TasksQueryData>(
+    ["office-tasks", projectID],
+    (data) => upsertTaskData(data, task),
+  );
+  queryClient.setQueryData<TasksQueryData>(["office-tasks", "all"], (data) =>
+    upsertTaskData(data, task),
+  );
+}
+
+function useProjectTaskCreator(
+  queryClient: QueryClient,
+  onTaskCreated?: (task: Task) => void,
+) {
   const [requestText, setRequestText] = useState("");
   const [taskError, setTaskError] = useState<string | null>(null);
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
@@ -370,8 +402,12 @@ function useProjectTaskCreator(queryClient: QueryClient) {
     setTaskError(null);
     setIsSubmittingTask(true);
     try {
-      await createTask(buildProjectTaskRequest(project, request));
+      const { task } = await createTask(
+        buildProjectTaskRequest(project, request),
+      );
+      seedCreatedTask(queryClient, project.id, task);
       setRequestText("");
+      onTaskCreated?.(task);
       await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
     } catch (err) {
       const message =
@@ -455,9 +491,16 @@ export function TasksApp() {
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const setWikiPath = useAppStore((s) => s.setWikiPath);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<Task | null>(
+    null,
+  );
   const projectCreator = useProjectCreator(queryClient, setSelectedProjectId);
   const githubConnector = useProjectGitHubConnector(queryClient);
-  const taskCreator = useProjectTaskCreator(queryClient);
+  const taskCreator = useProjectTaskCreator(queryClient, (task) => {
+    setSelectedTaskSnapshot(task);
+    setSelectedTaskId(task.id);
+  });
   const selectedProjectFilter =
     selectedProjectId && selectedProjectId !== "all"
       ? selectedProjectId
@@ -492,7 +535,6 @@ export function TasksApp() {
   });
 
   const moveTask = useTaskMove();
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const tasks = data?.tasks ?? [];
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
   const selectedProject = findSelectedProject(projects, selectedProjectId);
@@ -500,7 +542,10 @@ export function TasksApp() {
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
   const boardDrag = useTaskBoardDrag(tasksById, moveTask);
   const selectedTask = selectedTaskId
-    ? (tasksById.get(selectedTaskId) ?? null)
+    ? (tasksById.get(selectedTaskId) ??
+      (selectedTaskSnapshot?.id === selectedTaskId
+        ? selectedTaskSnapshot
+        : null))
     : null;
   const isTaskLoading = shouldLoadTasks && isLoading;
 
@@ -584,7 +629,10 @@ export function TasksApp() {
       {selectedTask ? (
         <TaskDetailModal
           task={selectedTask}
-          onClose={() => setSelectedTaskId(null)}
+          onClose={() => {
+            setSelectedTaskId(null);
+            setSelectedTaskSnapshot(null);
+          }}
         />
       ) : null}
     </>

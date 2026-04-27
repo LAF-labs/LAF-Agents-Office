@@ -9,10 +9,14 @@ import { TasksApp } from "./TasksApp";
 const apiMocks = vi.hoisted(() => ({
   createProject: vi.fn(),
   createTask: vi.fn(),
+  getActions: vi.fn(),
+  getOfficeMembers: vi.fn(),
   getOfficeTasks: vi.fn(),
   getProjects: vi.fn(),
   post: vi.fn(),
+  reassignTask: vi.fn(),
   updateProject: vi.fn(),
+  updateTaskStatus: vi.fn(),
 }));
 
 vi.mock("../../api/client", () => apiMocks);
@@ -71,6 +75,8 @@ describe("TasksApp project workspace", () => {
         },
       ],
     });
+    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+    apiMocks.getActions.mockResolvedValue({ actions: [] });
   });
 
   afterEach(() => {
@@ -181,9 +187,13 @@ describe("TasksApp project workspace", () => {
       task: {
         id: "task-request",
         title: "Implement project invite flow",
+        status: "in_progress",
         project_id: "customer-portal",
+        channel: "general",
         owner: "eng",
         execution_mode: "local_worktree",
+        worktree_branch: "laf-office-task-task-request",
+        worktree_path: "/tmp/customer-portal-task-request",
       },
     });
 
@@ -210,6 +220,15 @@ describe("TasksApp project workspace", () => {
         created_by: "human",
       });
     });
+    expect(
+      await screen.findByRole("dialog", { name: "Task task-request" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Execution")).toBeInTheDocument();
+    expect(screen.getByText("Agent is working")).toBeInTheDocument();
+    expect(screen.getAllByText("@eng").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("/tmp/customer-portal-task-request").length,
+    ).toBeGreaterThan(0);
   });
 
   it("creates an office planning task from the request box when no repo is connected", async () => {

@@ -1764,6 +1764,71 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   gap: 6px;
   flex-wrap: wrap;
 }
+.task-detail-execution {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.task-detail-execution-state {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.task-detail-execution-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+}
+.task-detail-execution-facts div {
+  min-width: 0;
+}
+.task-detail-execution-facts dt {
+  margin-bottom: 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.task-detail-execution-facts dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.task-detail-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.task-detail-timeline-item {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  padding: 9px 10px;
+}
+.task-detail-timeline-topline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.task-detail-timeline-kind {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.task-detail-timeline-summary,
+.task-detail-timeline-empty {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.task-detail-timeline-summary {
+  margin-top: 5px;
+}
 .task-detail-status-btn-danger {
   color: var(--red);
   border-color: var(--red-bg);
@@ -1844,6 +1909,9 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   .task-detail-meta-row {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+  .task-detail-execution-facts {
+    grid-template-columns: 1fr;
   }
   .task-detail-modal {
     width: 96%;
