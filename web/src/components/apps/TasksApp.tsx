@@ -27,6 +27,11 @@ type StatusGroup = (typeof STATUS_ORDER)[number];
 
 const DND_MIME = "application/x-wuphf-task-id";
 const HUMAN_SLUG = "human";
+const HIDDEN_EMPTY_COLUMNS = new Set<StatusGroup>([
+  "pending",
+  "blocked",
+  "canceled",
+]);
 
 const COLUMN_LABEL: Record<StatusGroup, string> = {
   in_progress: "in progress",
@@ -71,6 +76,22 @@ function groupTasks(tasks: Task[]): Record<StatusGroup, Task[]> {
     groups[status].push(task);
   }
   return groups;
+}
+
+function selectedProjectLabel(
+  selectedProjectId: string,
+  projectNames: Map<string, string>,
+): string {
+  if (selectedProjectId === "all") return "All active lanes across the office.";
+  return projectNames.get(selectedProjectId) ?? selectedProjectId;
+}
+
+function shouldHideTaskColumn(
+  status: StatusGroup,
+  column: Task[],
+  isDragging: boolean,
+): boolean {
+  return !isDragging && column.length === 0 && HIDDEN_EMPTY_COLUMNS.has(status);
 }
 
 /**
@@ -287,9 +308,7 @@ export function TasksApp() {
                 marginTop: 4,
               }}
             >
-              {selectedProjectId === "all"
-                ? "All active lanes across the office."
-                : (projectNames.get(selectedProjectId) ?? selectedProjectId)}
+              {selectedProjectLabel(selectedProjectId, projectNames)}
             </div>
           </div>
           <button
@@ -338,13 +357,7 @@ export function TasksApp() {
             const column = grouped[status];
             // Hide empty pending/blocked/canceled columns only when nothing is being dragged.
             // While dragging, keep all columns visible as drop targets.
-            if (
-              !isDragging &&
-              column.length === 0 &&
-              (status === "pending" ||
-                status === "blocked" ||
-                status === "canceled")
-            ) {
+            if (shouldHideTaskColumn(status, column, isDragging)) {
               return null;
             }
             const columnClass = `task-column${dragoverStatus === status ? " dragover" : ""}`;

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { getChannels } from "../api/client";
 import { useAppStore } from "../stores/app";
@@ -17,6 +17,98 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return false;
 }
 
+function hasCommandModifier(e: KeyboardEvent): boolean {
+  return e.metaKey || e.ctrlKey;
+}
+
+function handleSearchShortcut(
+  e: KeyboardEvent,
+  setSearchOpen: (open: boolean) => void,
+): boolean {
+  if (!(hasCommandModifier(e) && e.key === "k")) return false;
+  e.preventDefault();
+  const state = useAppStore.getState();
+  setSearchOpen(!state.searchOpen);
+  return true;
+}
+
+function handleComposerFocusShortcut(e: KeyboardEvent): boolean {
+  if (!(hasCommandModifier(e) && e.key === "/")) return false;
+  e.preventDefault();
+  document.querySelector<HTMLTextAreaElement>(".composer-input")?.focus();
+  return true;
+}
+
+function handleChannelJumpShortcut(
+  e: KeyboardEvent,
+  queryClient: QueryClient,
+  setCurrentApp: (app: string | null) => void,
+  setCurrentChannel: (channel: string) => void,
+  setLastMessageId: (id: string | null) => void,
+): boolean {
+  if (!(hasCommandModifier(e) && e.key >= "1" && e.key <= "9")) return false;
+  const cached = queryClient.getQueryData<{ channels: { slug: string }[] }>([
+    "channels",
+  ]);
+  const channels = cached?.channels;
+  if (!channels) {
+    getChannels()
+      .then((data) => {
+        queryClient.setQueryData(["channels"], data);
+      })
+      .catch(() => {});
+    return true;
+  }
+  const channel = channels[parseInt(e.key, 10) - 1];
+  if (!channel) return true;
+  e.preventDefault();
+  setCurrentApp(null);
+  setCurrentChannel(channel.slug);
+  setLastMessageId(null);
+  return true;
+}
+
+function handleHelpShortcut(
+  e: KeyboardEvent,
+  setComposerHelpOpen: (open: boolean) => void,
+): boolean {
+  if (e.key !== "?" || e.metaKey || e.ctrlKey || e.altKey) return false;
+  if (isTypingTarget(e.target)) return true;
+  const state = useAppStore.getState();
+  if (!state.onboardingComplete) return true;
+  e.preventDefault();
+  setComposerHelpOpen(!state.composerHelpOpen);
+  return true;
+}
+
+function handleEscapeShortcut(
+  e: KeyboardEvent,
+  setComposerHelpOpen: (open: boolean) => void,
+  setSearchOpen: (open: boolean) => void,
+  setActiveAgentSlug: (slug: string | null) => void,
+  setActiveThreadId: (id: string | null) => void,
+): boolean {
+  if (e.key !== "Escape") return false;
+  const state = useAppStore.getState();
+  if (state.composerHelpOpen) {
+    setComposerHelpOpen(false);
+    return true;
+  }
+  if (state.searchOpen) {
+    setSearchOpen(false);
+    return true;
+  }
+  if (state.activeAgentSlug) {
+    setActiveAgentSlug(null);
+    return true;
+  }
+  if (state.activeThreadId) {
+    setActiveThreadId(null);
+    return true;
+  }
+  return false;
+}
+
 /** Global keyboard shortcuts matching legacy behavior. */
 export function useKeyboardShortcuts() {
   const setSearchOpen = useAppStore((s) => s.setSearchOpen);
@@ -31,51 +123,22 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       // Cmd+K or Ctrl+K → command palette
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        const state = useAppStore.getState();
-        setSearchOpen(!state.searchOpen);
-        return;
-      }
+      if (handleSearchShortcut(e, setSearchOpen)) return;
 
       // Cmd+/ or Ctrl+/ → focus composer
-      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
-        e.preventDefault();
-        const ta =
-          document.querySelector<HTMLTextAreaElement>(".composer-input");
-        ta?.focus();
-        return;
-      }
+      if (handleComposerFocusShortcut(e)) return;
 
       // Cmd+1..9 → quick-jump to nth channel
-      if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "9") {
-        const target = e.target as HTMLElement | null;
-        // Don't intercept inside text inputs unless modifier is also present
-        if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") {
-          // Only the modifier+digit combo lands here, so still safe.
-        }
-        const cached = queryClient.getQueryData<{
-          channels: { slug: string }[];
-        }>(["channels"]);
-        const channels = cached?.channels;
-        if (!channels) {
-          // Fetch once if cache cold
-          getChannels()
-            .then((data) => {
-              queryClient.setQueryData(["channels"], data);
-            })
-            .catch(() => {});
-          return;
-        }
-        const idx = parseInt(e.key, 10) - 1;
-        const ch = channels[idx];
-        if (!ch) return;
-        e.preventDefault();
-        setCurrentApp(null);
-        setCurrentChannel(ch.slug);
-        setLastMessageId(null);
+      if (
+        handleChannelJumpShortcut(
+          e,
+          queryClient,
+          setCurrentApp,
+          setCurrentChannel,
+          setLastMessageId,
+        )
+      )
         return;
-      }
 
       // `?` → open keyboard + command reference. Only when not typing,
       // since `?` is a plain character inside inputs. Shift+/ also
@@ -84,35 +147,16 @@ export function useKeyboardShortcuts() {
       // HelpModalHost lives in Shell — toggling composerHelpOpen there
       // would set hidden state and then surprise the user after the
       // wizard completes.
-      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (isTypingTarget(e.target)) return;
-        const state = useAppStore.getState();
-        if (!state.onboardingComplete) return;
-        e.preventDefault();
-        setComposerHelpOpen(!state.composerHelpOpen);
-        return;
-      }
+      if (handleHelpShortcut(e, setComposerHelpOpen)) return;
 
       // Escape → close panels in priority order
-      if (e.key === "Escape") {
-        const state = useAppStore.getState();
-        if (state.composerHelpOpen) {
-          setComposerHelpOpen(false);
-          return;
-        }
-        if (state.searchOpen) {
-          setSearchOpen(false);
-          return;
-        }
-        if (state.activeAgentSlug) {
-          setActiveAgentSlug(null);
-          return;
-        }
-        if (state.activeThreadId) {
-          setActiveThreadId(null);
-          return;
-        }
-      }
+      handleEscapeShortcut(
+        e,
+        setComposerHelpOpen,
+        setSearchOpen,
+        setActiveAgentSlug,
+        setActiveThreadId,
+      );
     }
 
     window.addEventListener("keydown", handleKeyDown);

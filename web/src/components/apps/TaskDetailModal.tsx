@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   getOfficeMembers,
@@ -18,6 +22,154 @@ interface TaskDetailModalProps {
 }
 
 const HUMAN_SLUG = "human";
+
+interface StatusActionOptions {
+  action: TaskStatusAction;
+  task: Task;
+  queryClient: QueryClient;
+  onClose: () => void;
+  setStatusBusy: (action: TaskStatusAction | null) => void;
+  setErrorMsg: (message: string | null) => void;
+}
+
+async function runTaskStatusAction({
+  action,
+  task,
+  queryClient,
+  onClose,
+  setStatusBusy,
+  setErrorMsg,
+}: StatusActionOptions) {
+  setStatusBusy(action);
+  setErrorMsg(null);
+  try {
+    await updateTaskStatus(
+      task.id,
+      action,
+      task.channel || "general",
+      HUMAN_SLUG,
+    );
+    await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+    if (action === "cancel" || action === "complete") {
+      onClose();
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : `${action} failed`;
+    setErrorMsg(message);
+  } finally {
+    setStatusBusy(null);
+  }
+}
+
+function confirmTaskStatusAction(
+  action: TaskStatusAction,
+  task: Task,
+  runAction: () => void,
+) {
+  if (action !== "cancel") {
+    runAction();
+    return;
+  }
+
+  confirm({
+    title: "Mark task as won't do?",
+    message: `"${task.title || task.id}" will move to the Won't Do column. Owners are notified.`,
+    confirmLabel: "Won't do",
+    danger: true,
+    onConfirm: runAction,
+  });
+}
+
+interface ReassignOptions {
+  selectedOwner: string;
+  currentOwner: string;
+  task: Task;
+  queryClient: QueryClient;
+  onClose: () => void;
+  setSubmitting: (submitting: boolean) => void;
+  setErrorMsg: (message: string | null) => void;
+}
+
+async function reassignSelectedOwner({
+  selectedOwner,
+  currentOwner,
+  task,
+  queryClient,
+  onClose,
+  setSubmitting,
+  setErrorMsg,
+}: ReassignOptions) {
+  const next = selectedOwner.trim();
+  if (!next || next === currentOwner) return;
+  setSubmitting(true);
+  setErrorMsg(null);
+  try {
+    await reassignTask(task.id, next, task.channel || "general", HUMAN_SLUG);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
+      queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    ]);
+    onClose();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Reassign failed";
+    setErrorMsg(message);
+  } finally {
+    setSubmitting(false);
+  }
+}
+
+function buildTaskMetaRows(
+  task: Task,
+  status: string,
+  reviewState: string,
+): Array<[string, string | null | undefined]> {
+  return [
+    ["Owner", ownerMeta(task.owner)],
+    ["Project", optionalMeta(task.project_id)],
+    ["Channel", channelMeta(task.channel)],
+    ["Status", status || "—"],
+    ["Review state", optionalMeta(reviewState)],
+    ["Task type", optionalMeta(task.task_type)],
+    ["Execution mode", optionalMeta(task.execution_mode)],
+    ["Pipeline", optionalMeta(task.pipeline_id)],
+    ["Pipeline stage", optionalMeta(task.pipeline_stage)],
+    ["Worktree branch", optionalMeta(task.worktree_branch)],
+    ["Worktree path", optionalMeta(task.worktree_path)],
+    ["Source signal", optionalMeta(task.source_signal_id)],
+    ["Source decision", optionalMeta(task.source_decision_id)],
+    ["Thread", optionalMeta(task.thread_id)],
+    ["Created by", prefixedMeta("@", task.created_by)],
+    ["Created", relativeMeta(task.created_at)],
+    ["Updated", relativeMeta(task.updated_at)],
+    ["Due", relativeMeta(task.due_at)],
+    ["Follow up", relativeMeta(task.follow_up_at)],
+    ["Reminder", relativeMeta(task.reminder_at)],
+    ["Recheck", relativeMeta(task.recheck_at)],
+  ];
+}
+
+function optionalMeta(value: string | null | undefined): string | null {
+  return value || null;
+}
+
+function prefixedMeta(
+  prefix: string,
+  value: string | null | undefined,
+): string | null {
+  return value ? `${prefix}${value}` : null;
+}
+
+function ownerMeta(owner: string | null | undefined): string {
+  return prefixedMeta("@", owner) ?? "(unassigned)";
+}
+
+function channelMeta(channel: string | null | undefined): string {
+  return prefixedMeta("#", channel) ?? "—";
+}
+
+function relativeMeta(value: string | null | undefined): string | null {
+  return value ? formatRelativeTime(value) : null;
+}
 
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const queryClient = useQueryClient();
@@ -55,60 +207,17 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
     });
   }, [memberData]);
 
-  async function runStatusAction(action: TaskStatusAction) {
-    setStatusBusy(action);
-    setErrorMsg(null);
-    try {
-      await updateTaskStatus(
-        task.id,
-        action,
-        task.channel || "general",
-        HUMAN_SLUG,
-      );
-      await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
-      if (action === "cancel" || action === "complete") {
-        onClose();
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : `${action} failed`;
-      setErrorMsg(message);
-    } finally {
-      setStatusBusy(null);
-    }
-  }
-
   function handleStatusAction(action: TaskStatusAction) {
-    if (action === "cancel") {
-      confirm({
-        title: "Mark task as won't do?",
-        message: `"${task.title || task.id}" will move to the Won't Do column. Owners are notified.`,
-        confirmLabel: "Won't do",
-        danger: true,
-        onConfirm: () => runStatusAction(action),
+    confirmTaskStatusAction(action, task, () => {
+      void runTaskStatusAction({
+        action,
+        task,
+        queryClient,
+        onClose,
+        setStatusBusy,
+        setErrorMsg,
       });
-      return;
-    }
-    void runStatusAction(action);
-  }
-
-  async function handleReassign() {
-    const next = selectedOwner.trim();
-    if (!next || next === currentOwner) return;
-    setSubmitting(true);
-    setErrorMsg(null);
-    try {
-      await reassignTask(task.id, next, task.channel || "general", HUMAN_SLUG);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
-        queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-      ]);
-      onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Reassign failed";
-      setErrorMsg(message);
-    } finally {
-      setSubmitting(false);
-    }
+    });
   }
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -120,40 +229,23 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const description = task.description?.trim() || "";
   const details = task.details?.trim() || "";
 
-  const metaRows: Array<[string, string | null | undefined]> = [
-    ["Owner", task.owner ? `@${task.owner}` : "(unassigned)"],
-    ["Project", task.project_id || null],
-    ["Channel", task.channel ? `#${task.channel}` : "—"],
-    ["Status", status || "—"],
-    ["Review state", reviewState || null],
-    ["Task type", task.task_type || null],
-    ["Execution mode", task.execution_mode || null],
-    ["Pipeline", task.pipeline_id || null],
-    ["Pipeline stage", task.pipeline_stage || null],
-    ["Worktree branch", task.worktree_branch || null],
-    ["Worktree path", task.worktree_path || null],
-    ["Source signal", task.source_signal_id || null],
-    ["Source decision", task.source_decision_id || null],
-    ["Thread", task.thread_id || null],
-    ["Created by", task.created_by ? `@${task.created_by}` : null],
-    ["Created", task.created_at ? formatRelativeTime(task.created_at) : null],
-    ["Updated", task.updated_at ? formatRelativeTime(task.updated_at) : null],
-    ["Due", task.due_at ? formatRelativeTime(task.due_at) : null],
-    [
-      "Follow up",
-      task.follow_up_at ? formatRelativeTime(task.follow_up_at) : null,
-    ],
-    [
-      "Reminder",
-      task.reminder_at ? formatRelativeTime(task.reminder_at) : null,
-    ],
-    ["Recheck", task.recheck_at ? formatRelativeTime(task.recheck_at) : null],
-  ];
-
+  const metaRows = buildTaskMetaRows(task, status, reviewState);
   const dependsOn = task.depends_on ?? [];
 
   const ownerChanged =
     selectedOwner.trim() !== currentOwner && selectedOwner.trim() !== "";
+
+  const handleReassign = () => {
+    void reassignSelectedOwner({
+      selectedOwner,
+      currentOwner,
+      task,
+      queryClient,
+      onClose,
+      setSubmitting,
+      setErrorMsg,
+    });
+  };
 
   return (
     <div
@@ -168,166 +260,261 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
       tabIndex={-1}
     >
       <div className="task-detail-modal card">
-        <header className="task-detail-header">
-          <div>
-            <div className="task-detail-id">#{task.id}</div>
-            <h2 className="task-detail-title">
-              {task.title || "Untitled task"}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="task-detail-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
+        <TaskDetailHeader task={task} onClose={onClose} />
+        <TaskStatusSection
+          currentStatus={currentStatus}
+          statusBusy={statusBusy}
+          onStatusAction={handleStatusAction}
+        />
 
-        <section className="task-detail-section">
-          <div className="task-detail-label">Status</div>
-          <div className="task-detail-status">
-            <span
-              className={`task-detail-status-badge status-${currentStatus || "open"}`}
-            >
-              {currentStatus ? currentStatus.replace(/_/g, " ") : "open"}
-            </span>
-            <div className="task-detail-status-actions">
-              <StatusButton
-                action="release"
-                label="Release"
-                busy={statusBusy}
-                disabledFor={["open"]}
-                currentStatus={currentStatus}
-                onClick={handleStatusAction}
-              />
-              <StatusButton
-                action="review"
-                label="Mark review"
-                busy={statusBusy}
-                disabledFor={["review"]}
-                currentStatus={currentStatus}
-                onClick={handleStatusAction}
-              />
-              <StatusButton
-                action="block"
-                label="Block"
-                busy={statusBusy}
-                disabledFor={["blocked"]}
-                currentStatus={currentStatus}
-                onClick={handleStatusAction}
-              />
-              <StatusButton
-                action="complete"
-                label="Mark done"
-                busy={statusBusy}
-                disabledFor={["done"]}
-                currentStatus={currentStatus}
-                onClick={handleStatusAction}
-              />
-              <StatusButton
-                action="cancel"
-                label="Won't do"
-                busy={statusBusy}
-                disabledFor={["canceled", "cancelled"]}
-                currentStatus={currentStatus}
-                onClick={handleStatusAction}
-                danger={true}
-              />
-            </div>
-          </div>
-        </section>
+        <TaskOwnershipSection
+          task={task}
+          assignableMembers={assignableMembers}
+          selectedOwner={selectedOwner}
+          setSelectedOwner={setSelectedOwner}
+          submitting={submitting}
+          ownerChanged={ownerChanged}
+          errorMsg={errorMsg}
+          onReassign={handleReassign}
+        />
 
-        <section className="task-detail-section">
-          <div className="task-detail-label">Ownership</div>
-          <div className="task-detail-ownership">
-            <div className="task-detail-owner-current">
-              <span className="task-detail-owner-badge">
-                {task.owner ? `@${task.owner}` : "(unassigned)"}
-              </span>
-              <span className="task-detail-hint">
-                Reassigning posts to #{task.channel || "general"} and DMs both
-                owners. CEO is cc'd.
-              </span>
-            </div>
-            <div className="task-detail-owner-controls">
-              <select
-                className="task-detail-select"
-                value={selectedOwner}
-                onChange={(e) => setSelectedOwner(e.target.value)}
-                disabled={submitting}
-              >
-                <option value="">(pick an owner)</option>
-                {assignableMembers.map((m) => (
-                  <option key={m.slug} value={m.slug}>
-                    {m.name ? `${m.name} — @${m.slug}` : `@${m.slug}`}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={handleReassign}
-                disabled={!ownerChanged || submitting}
-              >
-                {submitting ? "Reassigning..." : "Reassign"}
-              </button>
-            </div>
-            {errorMsg ? (
-              <div className="task-detail-error">{errorMsg}</div>
-            ) : null}
-          </div>
-        </section>
-
-        {description || details ? (
-          <section className="task-detail-section">
-            {description ? (
-              <>
-                <div className="task-detail-label">Description</div>
-                <div className="task-detail-body">{description}</div>
-              </>
-            ) : null}
-            {details ? (
-              <>
-                <div
-                  className="task-detail-label"
-                  style={{ marginTop: description ? 12 : 0 }}
-                >
-                  Details
-                </div>
-                <div className="task-detail-body">{details}</div>
-              </>
-            ) : null}
-          </section>
-        ) : null}
-
-        {dependsOn.length > 0 && (
-          <section className="task-detail-section">
-            <div className="task-detail-label">Depends on</div>
-            <ul className="task-detail-deps">
-              {dependsOn.map((dep) => (
-                <li key={dep}>#{dep}</li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="task-detail-section">
-          <div className="task-detail-label">Metadata</div>
-          <dl className="task-detail-meta">
-            {metaRows
-              .filter(([, value]) => value !== null && value !== "")
-              .map(([key, value]) => (
-                <div key={key} className="task-detail-meta-row">
-                  <dt>{key}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-          </dl>
-        </section>
+        <TaskNarrativeSection description={description} details={details} />
+        <TaskDependenciesSection dependsOn={dependsOn} />
+        <TaskMetadataSection metaRows={metaRows} />
       </div>
     </div>
+  );
+}
+
+interface TaskDetailHeaderProps {
+  task: Task;
+  onClose: () => void;
+}
+
+function TaskDetailHeader({ task, onClose }: TaskDetailHeaderProps) {
+  return (
+    <header className="task-detail-header">
+      <div>
+        <div className="task-detail-id">#{task.id}</div>
+        <h2 className="task-detail-title">{task.title || "Untitled task"}</h2>
+      </div>
+      <button
+        type="button"
+        className="task-detail-close"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        ×
+      </button>
+    </header>
+  );
+}
+
+interface TaskStatusSectionProps {
+  currentStatus: string;
+  statusBusy: TaskStatusAction | null;
+  onStatusAction: (action: TaskStatusAction) => void;
+}
+
+function TaskStatusSection({
+  currentStatus,
+  statusBusy,
+  onStatusAction,
+}: TaskStatusSectionProps) {
+  return (
+    <section className="task-detail-section">
+      <div className="task-detail-label">Status</div>
+      <div className="task-detail-status">
+        <span
+          className={`task-detail-status-badge status-${currentStatus || "open"}`}
+        >
+          {currentStatus ? currentStatus.replace(/_/g, " ") : "open"}
+        </span>
+        <div className="task-detail-status-actions">
+          <StatusButton
+            action="release"
+            label="Release"
+            busy={statusBusy}
+            disabledFor={["open"]}
+            currentStatus={currentStatus}
+            onClick={onStatusAction}
+          />
+          <StatusButton
+            action="review"
+            label="Mark review"
+            busy={statusBusy}
+            disabledFor={["review"]}
+            currentStatus={currentStatus}
+            onClick={onStatusAction}
+          />
+          <StatusButton
+            action="block"
+            label="Block"
+            busy={statusBusy}
+            disabledFor={["blocked"]}
+            currentStatus={currentStatus}
+            onClick={onStatusAction}
+          />
+          <StatusButton
+            action="complete"
+            label="Mark done"
+            busy={statusBusy}
+            disabledFor={["done"]}
+            currentStatus={currentStatus}
+            onClick={onStatusAction}
+          />
+          <StatusButton
+            action="cancel"
+            label="Won't do"
+            busy={statusBusy}
+            disabledFor={["canceled", "cancelled"]}
+            currentStatus={currentStatus}
+            onClick={onStatusAction}
+            danger={true}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+interface TaskOwnershipSectionProps {
+  task: Task;
+  assignableMembers: OfficeMember[];
+  selectedOwner: string;
+  setSelectedOwner: (owner: string) => void;
+  submitting: boolean;
+  ownerChanged: boolean;
+  errorMsg: string | null;
+  onReassign: () => void;
+}
+
+function TaskOwnershipSection({
+  task,
+  assignableMembers,
+  selectedOwner,
+  setSelectedOwner,
+  submitting,
+  ownerChanged,
+  errorMsg,
+  onReassign,
+}: TaskOwnershipSectionProps) {
+  return (
+    <section className="task-detail-section">
+      <div className="task-detail-label">Ownership</div>
+      <div className="task-detail-ownership">
+        <div className="task-detail-owner-current">
+          <span className="task-detail-owner-badge">
+            {task.owner ? `@${task.owner}` : "(unassigned)"}
+          </span>
+          <span className="task-detail-hint">
+            Reassigning posts to #{task.channel || "general"} and DMs both
+            owners. CEO is cc'd.
+          </span>
+        </div>
+        <div className="task-detail-owner-controls">
+          <select
+            className="task-detail-select"
+            value={selectedOwner}
+            onChange={(e) => setSelectedOwner(e.target.value)}
+            disabled={submitting}
+          >
+            <option value="">(pick an owner)</option>
+            {assignableMembers.map((member) => (
+              <option key={member.slug} value={member.slug}>
+                {member.name
+                  ? `${member.name} — @${member.slug}`
+                  : `@${member.slug}`}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={onReassign}
+            disabled={!ownerChanged || submitting}
+          >
+            {submitting ? "Reassigning..." : "Reassign"}
+          </button>
+        </div>
+        {errorMsg ? <div className="task-detail-error">{errorMsg}</div> : null}
+      </div>
+    </section>
+  );
+}
+
+interface TaskNarrativeSectionProps {
+  description: string;
+  details: string;
+}
+
+function TaskNarrativeSection({
+  description,
+  details,
+}: TaskNarrativeSectionProps) {
+  if (!(description || details)) return null;
+
+  return (
+    <section className="task-detail-section">
+      {description ? (
+        <>
+          <div className="task-detail-label">Description</div>
+          <div className="task-detail-body">{description}</div>
+        </>
+      ) : null}
+      {details ? (
+        <>
+          <div
+            className="task-detail-label"
+            style={{ marginTop: description ? 12 : 0 }}
+          >
+            Details
+          </div>
+          <div className="task-detail-body">{details}</div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+interface TaskDependenciesSectionProps {
+  dependsOn: string[];
+}
+
+function TaskDependenciesSection({ dependsOn }: TaskDependenciesSectionProps) {
+  if (dependsOn.length === 0) return null;
+
+  return (
+    <section className="task-detail-section">
+      <div className="task-detail-label">Depends on</div>
+      <ul className="task-detail-deps">
+        {dependsOn.map((dep) => (
+          <li key={dep}>#{dep}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface TaskMetadataSectionProps {
+  metaRows: Array<[string, string | null | undefined]>;
+}
+
+function TaskMetadataSection({ metaRows }: TaskMetadataSectionProps) {
+  return (
+    <section className="task-detail-section">
+      <div className="task-detail-label">Metadata</div>
+      <dl className="task-detail-meta">
+        {metaRows
+          .filter(([, value]) => value !== null && value !== "")
+          .map(([key, value]) => (
+            <div key={key} className="task-detail-meta-row">
+              <dt>{key}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+      </dl>
+    </section>
   );
 }
 

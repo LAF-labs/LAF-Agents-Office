@@ -16,100 +16,118 @@ interface StreamLineViewProps {
  */
 export function StreamLineView({ line, compact = false }: StreamLineViewProps) {
   if (!line.parsed) {
-    const text =
-      line.data.length > 400 ? `${line.data.slice(0, 400)}\u2026` : line.data;
-    return <div className="stream-line stream-line-raw">{text}</div>;
+    return <RawStreamLine data={line.data} />;
   }
 
   const parsed = line.parsed;
   const evtType = typeof parsed.type === "string" ? parsed.type : "";
-
-  // Skip noise events entirely
-  if (
-    evtType === "thread.started" ||
-    evtType === "turn.started" ||
-    evtType === "item.started"
-  ) {
-    return null;
-  }
-
-  // Token total line for turn/response completed
-  if (evtType === "turn.completed" || evtType === "response.completed") {
-    const tokens = renderTokens(parsed);
-    if (tokens) return <div className="cc-token-line">{tokens}</div>;
-    return null;
-  }
-
-  if (evtType === "mcp_tool_event") {
-    const phase = stringish(parsed.phase);
-    const tool = stringish(parsed.tool) || "tool";
-    return (
-      <ToolCallCard
-        item={{
-          type: "tool_call",
-          name: phase ? `${phase}: ${tool}` : tool,
-          arguments: parsed.arguments ?? parsed.args,
-          result: parsed.result,
-          error: parsed.error,
-        }}
-        compact={compact}
-      />
-    );
-  }
-
-  if (evtType === "assistant") {
-    return <ClaudeAssistantEvent parsed={parsed} compact={compact} />;
-  }
-
-  if (evtType === "user") {
-    return <ClaudeUserEvent parsed={parsed} compact={compact} />;
-  }
-
-  if (evtType === "result") {
-    const text = stringish(parsed.result).trim();
-    if (text) return <div className="cc-thinking">{text}</div>;
-  }
-
-  if (evtType === "response.output_text.delta") {
-    const text = stringish(parsed.delta ?? parsed.text).trim();
-    if (text) return <div className="cc-thinking">{text}</div>;
-  }
-
-  // item.completed → agent_message / tool call
-  if (
-    evtType === "item.completed" &&
-    parsed.item &&
-    typeof parsed.item === "object"
-  ) {
-    const item = parsed.item as Record<string, unknown>;
-    const itemType = typeof item.type === "string" ? item.type : "";
-
-    if (
-      itemType === "agent_message" ||
-      itemType === "message" ||
-      itemType === "assistant"
-    ) {
-      const text = codexItemText(item);
-      if (!text) return null;
-      const truncated =
-        text.length > 500 ? `${text.slice(0, 500)}\u2026` : text;
-      return <div className="cc-thinking">{truncated}</div>;
-    }
-
-    if (
-      itemType === "mcp_tool_call" ||
-      itemType === "tool_call" ||
-      itemType === "function_call"
-    ) {
-      return <ToolCallCard item={item} compact={compact} />;
-    }
-
-    // Other completed items are bookkeeping; drop.
-    return null;
-  }
+  const knownEvent = renderKnownStreamEvent(evtType, parsed, compact);
+  if (knownEvent !== undefined) return knownEvent;
 
   // Fallback: structured event with type/phase/agent + detail + extras
   return <GenericEventCard parsed={parsed} compact={compact} />;
+}
+
+function RawStreamLine({ data }: { data: string }) {
+  const text = data.length > 400 ? `${data.slice(0, 400)}\u2026` : data;
+  return <div className="stream-line stream-line-raw">{text}</div>;
+}
+
+function renderKnownStreamEvent(
+  evtType: string,
+  parsed: Record<string, unknown>,
+  compact: boolean,
+): ReactNode | undefined {
+  if (isNoiseEvent(evtType)) return null;
+  if (evtType === "turn.completed" || evtType === "response.completed") {
+    return renderTokenLine(parsed);
+  }
+  if (evtType === "mcp_tool_event") {
+    return <ToolCallCard item={mcpToolItem(parsed)} compact={compact} />;
+  }
+  if (evtType === "assistant") {
+    return <ClaudeAssistantEvent parsed={parsed} compact={compact} />;
+  }
+  if (evtType === "user") {
+    return <ClaudeUserEvent parsed={parsed} compact={compact} />;
+  }
+  if (evtType === "result") {
+    return renderThinkingText(parsed.result);
+  }
+  if (evtType === "response.output_text.delta") {
+    return renderThinkingText(parsed.delta ?? parsed.text);
+  }
+  if (evtType === "item.completed") {
+    return renderCompletedItem(parsed, compact);
+  }
+  return undefined;
+}
+
+function isNoiseEvent(evtType: string): boolean {
+  return (
+    evtType === "thread.started" ||
+    evtType === "turn.started" ||
+    evtType === "item.started"
+  );
+}
+
+function renderTokenLine(parsed: Record<string, unknown>): ReactNode {
+  const tokens = renderTokens(parsed);
+  return tokens ? <div className="cc-token-line">{tokens}</div> : null;
+}
+
+function mcpToolItem(parsed: Record<string, unknown>): Record<string, unknown> {
+  const phase = stringish(parsed.phase);
+  const tool = stringish(parsed.tool) || "tool";
+  return {
+    type: "tool_call",
+    name: phase ? `${phase}: ${tool}` : tool,
+    arguments: parsed.arguments ?? parsed.args,
+    result: parsed.result,
+    error: parsed.error,
+  };
+}
+
+function renderThinkingText(value: unknown): ReactNode {
+  const text = stringish(value).trim();
+  return text ? <div className="cc-thinking">{text}</div> : undefined;
+}
+
+function renderCompletedItem(
+  parsed: Record<string, unknown>,
+  compact: boolean,
+): ReactNode | undefined {
+  if (!(parsed.item && typeof parsed.item === "object")) return undefined;
+
+  const item = parsed.item as Record<string, unknown>;
+  const itemType = typeof item.type === "string" ? item.type : "";
+  if (isMessageItem(itemType)) return renderMessageItem(item);
+  if (isToolCallItem(itemType))
+    return <ToolCallCard item={item} compact={compact} />;
+  return null;
+}
+
+function isMessageItem(itemType: string): boolean {
+  return (
+    itemType === "agent_message" ||
+    itemType === "message" ||
+    itemType === "assistant"
+  );
+}
+
+function isToolCallItem(itemType: string): boolean {
+  return (
+    itemType === "mcp_tool_call" ||
+    itemType === "tool_call" ||
+    itemType === "function_call"
+  );
+}
+
+function renderMessageItem(item: Record<string, unknown>): ReactNode {
+  const text = codexItemText(item);
+  if (!text) return null;
+  const truncated = text.length > 500 ? `${text.slice(0, 500)}\u2026` : text;
+  return <div className="cc-thinking">{truncated}</div>;
 }
 
 function ClaudeAssistantEvent({
@@ -123,44 +141,53 @@ function ClaudeAssistantEvent({
   const rendered = keyedByOccurrence(blocks, (block) =>
     stableValueKey("block", block),
   )
-    .map(({ item: block, key }) => {
-      const blockType = stringish(block.type);
-      if (blockType === "text") {
-        const text = stringish(block.text).trim();
-        return text ? (
-          <div key={key} className="cc-thinking">
-            {text}
-          </div>
-        ) : null;
-      }
-      if (blockType === "thinking") {
-        const text = stringish(block.thinking).trim();
-        return text ? (
-          <div key={key} className="stream-card-detail">
-            {text}
-          </div>
-        ) : null;
-      }
-      if (blockType === "tool_use") {
-        return (
-          <ToolCallCard
-            key={key}
-            item={{
-              type: "tool_call",
-              name: block.name,
-              arguments: block.input,
-            }}
-            compact={compact}
-          />
-        );
-      }
-      return null;
-    })
+    .map(({ item: block, key }) => renderAssistantBlock(block, key, compact))
     .filter(Boolean);
 
   if (rendered.length === 0) return null;
   if (rendered.length === 1) return <>{rendered[0]}</>;
   return <div className="stream-event-stack">{rendered}</div>;
+}
+
+function renderAssistantBlock(
+  block: Record<string, unknown>,
+  key: string,
+  compact: boolean,
+): ReactNode {
+  const blockType = stringish(block.type);
+  if (blockType === "text") {
+    return renderKeyedText(key, "cc-thinking", block.text);
+  }
+  if (blockType === "thinking") {
+    return renderKeyedText(key, "stream-card-detail", block.thinking);
+  }
+  if (blockType === "tool_use") {
+    return (
+      <ToolCallCard
+        key={key}
+        item={{
+          type: "tool_call",
+          name: block.name,
+          arguments: block.input,
+        }}
+        compact={compact}
+      />
+    );
+  }
+  return null;
+}
+
+function renderKeyedText(
+  key: string,
+  className: string,
+  value: unknown,
+): ReactNode {
+  const text = stringish(value).trim();
+  return text ? (
+    <div key={key} className={className}>
+      {text}
+    </div>
+  ) : null;
 }
 
 function ClaudeUserEvent({
@@ -357,57 +384,10 @@ function ToolCallCard({
   const result = normalizeToolResult(item.result);
   const errorField = item.error;
 
-  const { summaryArg, summaryResult, summaryError } = useMemo(() => {
-    const pick = [
-      args.content,
-      args.command,
-      args.text,
-      args.query,
-      args.channel,
-    ].find((v) => typeof v === "string" && v.length > 0);
-    const sumArg =
-      typeof pick === "string"
-        ? pick.length > 80
-          ? `${pick.slice(0, 80)}\u2026`
-          : pick
-        : "";
-
-    let sumResult = "";
-    if (result && Array.isArray(result.content)) {
-      for (const c of result.content) {
-        if (c.text) {
-          let short = c.text;
-          try {
-            const rp = JSON.parse(c.text);
-            if (rp && typeof rp === "object") {
-              short =
-                rp.message ||
-                rp.status ||
-                rp.result ||
-                rp.text ||
-                `${Object.keys(rp).length} fields`;
-            }
-          } catch {
-            // keep plain text
-          }
-          sumResult = short.length > 60 ? `${short.slice(0, 60)}\u2026` : short;
-          break;
-        }
-      }
-    }
-
-    let sumError = "";
-    if (errorField !== null) {
-      sumError =
-        typeof errorField === "string" ? errorField.slice(0, 60) : "Error";
-    }
-
-    return {
-      summaryArg: sumArg,
-      summaryResult: sumResult,
-      summaryError: sumError,
-    };
-  }, [args, result, errorField]);
+  const { summaryArg, summaryResult, summaryError } = useMemo(
+    () => buildToolSummary(args, result, errorField),
+    [args, result, errorField],
+  );
 
   const cleanArgs = useMemo<Record<string, unknown>>(() => {
     const out: Record<string, unknown> = {};
@@ -430,52 +410,159 @@ function ToolCallCard({
           <span className="cc-tool-summary">{summaryArg}</span>
         ) : null}
       </button>
-      {summaryResult && !open ? (
-        <div className="cc-tool-result-summary">
-          {"\u2713 "}
-          {summaryResult}
-        </div>
-      ) : null}
-      {summaryError && !open ? (
-        <div className="cc-tool-error">
-          {"\u2717 "}
-          {summaryError}
-        </div>
-      ) : null}
+      <ToolResultSummary summaryResult={summaryResult} open={open} />
+      <ToolErrorSummary summaryError={summaryError} open={open} />
       {open ? (
-        <div className="cc-tool-body">
-          {Object.keys(cleanArgs).length > 0 ? (
-            <>
-              <div className="cc-tool-section-label">Args</div>
-              <Value value={cleanArgs} depth={1} compact={compact} />
-            </>
-          ) : null}
-          {result &&
-          Array.isArray(result.content) &&
-          result.content.length > 0 ? (
-            <>
-              <div className="cc-tool-section-label cc-tool-result-label">
-                {"\u2713 Response"}
-              </div>
-              {keyedByOccurrence(result.content, (c) =>
-                stableValueKey("content", c.text ?? c),
-              ).map(({ item: c, key }) => (
-                <ToolResultContent key={key} text={c.text} compact={compact} />
-              ))}
-            </>
-          ) : null}
-          {errorField !== null ? (
-            <>
-              <div className="cc-tool-section-label cc-tool-error">
-                {"\u2717 Error"}
-              </div>
-              <ToolErrorContent error={errorField} compact={compact} />
-            </>
-          ) : null}
-        </div>
+        <ToolCallBody
+          cleanArgs={cleanArgs}
+          result={result}
+          errorField={errorField}
+          compact={compact}
+        />
       ) : null}
     </div>
   );
+}
+
+function ToolResultSummary({
+  summaryResult,
+  open,
+}: {
+  summaryResult: string;
+  open: boolean;
+}) {
+  if (!(summaryResult && !open)) return null;
+  return (
+    <div className="cc-tool-result-summary">
+      {"\u2713 "}
+      {summaryResult}
+    </div>
+  );
+}
+
+function ToolErrorSummary({
+  summaryError,
+  open,
+}: {
+  summaryError: string;
+  open: boolean;
+}) {
+  if (!(summaryError && !open)) return null;
+  return (
+    <div className="cc-tool-error">
+      {"\u2717 "}
+      {summaryError}
+    </div>
+  );
+}
+
+function ToolCallBody({
+  cleanArgs,
+  result,
+  errorField,
+  compact,
+}: {
+  cleanArgs: Record<string, unknown>;
+  result: { content?: Array<{ text?: string }> } | undefined;
+  errorField: unknown;
+  compact: boolean;
+}) {
+  return (
+    <div className="cc-tool-body">
+      {Object.keys(cleanArgs).length > 0 ? (
+        <>
+          <div className="cc-tool-section-label">Args</div>
+          <Value value={cleanArgs} depth={1} compact={compact} />
+        </>
+      ) : null}
+      {result && Array.isArray(result.content) && result.content.length > 0 ? (
+        <>
+          <div className="cc-tool-section-label cc-tool-result-label">
+            {"\u2713 Response"}
+          </div>
+          {keyedByOccurrence(result.content, (content) =>
+            stableValueKey("content", content.text ?? content),
+          ).map(({ item: content, key }) => (
+            <ToolResultContent
+              key={key}
+              text={content.text}
+              compact={compact}
+            />
+          ))}
+        </>
+      ) : null}
+      {errorField !== null ? (
+        <>
+          <div className="cc-tool-section-label cc-tool-error">
+            {"\u2717 Error"}
+          </div>
+          <ToolErrorContent error={errorField} compact={compact} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function buildToolSummary(
+  args: Record<string, unknown>,
+  result: { content?: Array<{ text?: string }> } | undefined,
+  errorField: unknown,
+) {
+  return {
+    summaryArg: summarizeToolArgs(args),
+    summaryResult: summarizeToolResult(result),
+    summaryError: summarizeToolError(errorField),
+  };
+}
+
+function summarizeToolArgs(args: Record<string, unknown>): string {
+  const pick = [
+    args.content,
+    args.command,
+    args.text,
+    args.query,
+    args.channel,
+  ].find((v) => typeof v === "string" && v.length > 0);
+  return typeof pick === "string" ? truncateText(pick, 80) : "";
+}
+
+function summarizeToolResult(
+  result: { content?: Array<{ text?: string }> } | undefined,
+): string {
+  if (!(result && Array.isArray(result.content))) return "";
+  const firstText = result.content.find((item) => item.text)?.text;
+  return firstText ? truncateText(resultTextPreview(firstText), 60) : "";
+}
+
+function resultTextPreview(text: string): string {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object") {
+      return objectSummaryText(parsed as Record<string, unknown>);
+    }
+  } catch {
+    // keep plain text
+  }
+  return text;
+}
+
+function objectSummaryText(parsed: Record<string, unknown>): string {
+  return (
+    stringish(parsed.message) ||
+    stringish(parsed.status) ||
+    stringish(parsed.result) ||
+    stringish(parsed.text) ||
+    `${Object.keys(parsed).length} fields`
+  );
+}
+
+function summarizeToolError(errorField: unknown): string {
+  if (errorField === null) return "";
+  return typeof errorField === "string" ? errorField.slice(0, 60) : "Error";
+}
+
+function truncateText(text: string, maxLength: number): string {
+  return text.length > maxLength ? `${text.slice(0, maxLength)}\u2026` : text;
 }
 
 function objectFromToolField(value: unknown): Record<string, unknown> {
@@ -653,73 +740,118 @@ function Value({
   compact: boolean;
 }): ReactNode {
   if (value === null) return <span className="sv-null">null</span>;
-  if (typeof value === "boolean")
-    return <span className="sv-bool">{String(value)}</span>;
-  if (typeof value === "number")
-    return <span className="sv-num">{String(value)}</span>;
-  if (typeof value === "string") {
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
-      let display = value;
-      try {
-        display = new Date(value).toLocaleString([], {
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-      } catch {
-        // keep raw
-      }
-      return (
-        <span className="sv-ts" title={value}>
-          {display}
-        </span>
-      );
-    }
-    const truncated =
-      depth > 0 && value.length > 200 ? `${value.slice(0, 200)}\u2026` : value;
-    return <span className="sv-str">{truncated}</span>;
-  }
+  if (typeof value === "boolean") return <BooleanValue value={value} />;
+  if (typeof value === "number") return <NumberValue value={value} />;
+  if (typeof value === "string")
+    return <StringValue value={value} depth={depth} />;
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="sv-null">[]</span>;
-    if ((compact && depth >= 1) || depth > 3)
-      return <span className="sv-str">[{value.length} items]</span>;
-    return (
-      <Collapsible label={`[${value.length}]`} startOpen={depth === 0}>
-        <div className="sv-array">
-          {keyedByOccurrence(value, (item) =>
-            stableValueKey("array-item", item),
-          ).map(({ item, key }) => (
-            <div key={key} className="sv-array-item">
-              <Value value={item} depth={depth + 1} compact={compact} />
-            </div>
-          ))}
-        </div>
-      </Collapsible>
-    );
+    return <ArrayValue value={value} depth={depth} compact={compact} />;
   }
   if (typeof value === "object") {
-    const keys = Object.keys(value as Record<string, unknown>);
-    if (keys.length === 0) return <span className="sv-null">{"{}"}</span>;
-    if ((compact && depth >= 1) || depth > 3)
-      return <span className="sv-str">{`{${keys.length} fields}`}</span>;
     return (
-      <Collapsible label={`{${keys.length}}`} startOpen={depth === 0}>
-        <div className="sv-obj">
-          {keys.map((k) => (
-            <div key={k} className="sv-obj-row">
-              <span className="sv-key">{k}</span>
-              <Value
-                value={(value as Record<string, unknown>)[k]}
-                depth={depth + 1}
-                compact={compact}
-              />
-            </div>
-          ))}
-        </div>
-      </Collapsible>
+      <ObjectValue
+        value={value as Record<string, unknown>}
+        depth={depth}
+        compact={compact}
+      />
     );
   }
   return <span className="sv-str">{String(value)}</span>;
+}
+
+function BooleanValue({ value }: { value: boolean }) {
+  return <span className="sv-bool">{String(value)}</span>;
+}
+
+function NumberValue({ value }: { value: number }) {
+  return <span className="sv-num">{String(value)}</span>;
+}
+
+function StringValue({ value, depth }: { value: string; depth: number }) {
+  if (isIsoTimestamp(value)) {
+    return <TimestampValue value={value} />;
+  }
+  const truncated =
+    depth > 0 && value.length > 200 ? `${value.slice(0, 200)}\u2026` : value;
+  return <span className="sv-str">{truncated}</span>;
+}
+
+function isIsoTimestamp(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
+}
+
+function TimestampValue({ value }: { value: string }) {
+  let display = value;
+  try {
+    display = new Date(value).toLocaleString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    // keep raw
+  }
+  return (
+    <span className="sv-ts" title={value}>
+      {display}
+    </span>
+  );
+}
+
+function ArrayValue({
+  value,
+  depth,
+  compact,
+}: {
+  value: unknown[];
+  depth: number;
+  compact: boolean;
+}) {
+  if (value.length === 0) return <span className="sv-null">[]</span>;
+  if ((compact && depth >= 1) || depth > 3) {
+    return <span className="sv-str">[{value.length} items]</span>;
+  }
+  return (
+    <Collapsible label={`[${value.length}]`} startOpen={depth === 0}>
+      <div className="sv-array">
+        {keyedByOccurrence(value, (item) =>
+          stableValueKey("array-item", item),
+        ).map(({ item, key }) => (
+          <div key={key} className="sv-array-item">
+            <Value value={item} depth={depth + 1} compact={compact} />
+          </div>
+        ))}
+      </div>
+    </Collapsible>
+  );
+}
+
+function ObjectValue({
+  value,
+  depth,
+  compact,
+}: {
+  value: Record<string, unknown>;
+  depth: number;
+  compact: boolean;
+}) {
+  const keys = Object.keys(value);
+  if (keys.length === 0) return <span className="sv-null">{"{}"}</span>;
+  if ((compact && depth >= 1) || depth > 3) {
+    return <span className="sv-str">{`{${keys.length} fields}`}</span>;
+  }
+  return (
+    <Collapsible label={`{${keys.length}}`} startOpen={depth === 0}>
+      <div className="sv-obj">
+        {keys.map((key) => (
+          <div key={key} className="sv-obj-row">
+            <span className="sv-key">{key}</span>
+            <Value value={value[key]} depth={depth + 1} compact={compact} />
+          </div>
+        ))}
+      </div>
+    </Collapsible>
+  );
 }
 
 function Collapsible({

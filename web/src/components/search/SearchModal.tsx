@@ -22,8 +22,32 @@ interface PaletteItem {
   run: () => void;
 }
 
+interface GroupedPaletteItem {
+  group: PaletteItem["group"];
+  items: { item: PaletteItem; flatIdx: number }[];
+}
+
 interface MessageHit extends Message {
   matchedChannel: string;
+}
+
+interface SearchChannel {
+  slug: string;
+  name?: string | null;
+  description?: string | null;
+}
+
+interface SearchMember {
+  slug?: string | null;
+  name?: string | null;
+  role?: string | null;
+  emoji?: string | null;
+}
+
+interface SearchHitResults {
+  messageHits: MessageHit[];
+  wikiHits: WikiSearchHit[];
+  notebookHits: NotebookSearchHit[];
 }
 
 function formatTime(ts: string): string {
@@ -70,6 +94,280 @@ function parseNotebookPath(
   return { agent, entry };
 }
 
+function searchTerm(query: string, prefix: string): string {
+  return query.replace(new RegExp(`^${prefix}`), "");
+}
+
+function isSearchableAgentSlug(slug: unknown): slug is string {
+  return (
+    typeof slug === "string" &&
+    slug !== "human" &&
+    slug !== "you" &&
+    slug !== "system"
+  );
+}
+
+async function searchMessages(
+  channels: SearchChannel[],
+  needle: string,
+): Promise<MessageHit[]> {
+  const grouped = await Promise.all(
+    channels.map(async (channel) => {
+      try {
+        const { messages } = await getMessages(channel.slug, null, 100);
+        return messages
+          .filter((message) => message.content?.toLowerCase().includes(needle))
+          .map(
+            (message): MessageHit => ({
+              ...message,
+              matchedChannel: channel.slug,
+            }),
+          );
+      } catch {
+        return [] as MessageHit[];
+      }
+    }),
+  );
+
+  return grouped
+    .flat()
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    )
+    .slice(0, 8);
+}
+
+async function searchNotebooks(
+  members: SearchMember[],
+  query: string,
+): Promise<NotebookSearchHit[]> {
+  const agentSlugs = members
+    .map((member) => member.slug)
+    .filter(isSearchableAgentSlug);
+  const grouped = await Promise.all(
+    agentSlugs.map((slug) =>
+      searchNotebook(slug, query).catch(() => [] as NotebookSearchHit[]),
+    ),
+  );
+  return grouped.flat().slice(0, 8);
+}
+
+async function loadSearchHits(
+  channels: SearchChannel[],
+  members: SearchMember[],
+  query: string,
+  needle: string,
+): Promise<SearchHitResults> {
+  const [messageHits, wikiHits, notebookHits] = await Promise.all([
+    searchMessages(channels, needle),
+    searchWiki(query).then((hits) => hits.slice(0, 8)),
+    searchNotebooks(members, query),
+  ]);
+  return { messageHits, wikiHits, notebookHits };
+}
+
+interface PaletteBuildDeps extends CommandDeps {
+  query: string;
+  channels: SearchChannel[];
+  members: SearchMember[];
+  messageHits: MessageHit[];
+  wikiHits: WikiSearchHit[];
+  notebookHits: NotebookSearchHit[];
+  setActiveAgentSlug: (slug: string | null) => void;
+  setWikiPath: (path: string | null) => void;
+  setNotebookRoute: (
+    agentSlug: string | null,
+    entrySlug: string | null,
+  ) => void;
+  close: () => void;
+}
+
+function buildPaletteItems(deps: PaletteBuildDeps): PaletteItem[] {
+  const q = deps.query.trim().toLowerCase();
+  return [
+    ...buildChannelItems(deps, q),
+    ...buildAgentItems(deps, q),
+    ...buildCommandItems(deps, q),
+    ...buildSearchResultItems(deps, q),
+  ];
+}
+
+function buildChannelItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
+  const items: PaletteItem[] = [];
+  for (const channel of deps.channels) {
+    const hay =
+      `${channel.slug} ${channel.name ?? ""} ${channel.description ?? ""}`.toLowerCase();
+    if (q && !hay.includes(searchTerm(q, "#"))) continue;
+    items.push({
+      id: `ch:${channel.slug}`,
+      group: "Channels",
+      icon: "#",
+      label: channel.name || channel.slug,
+      desc: channel.description || undefined,
+      meta: `#${channel.slug}`,
+      run: () => {
+        deps.setCurrentApp(null);
+        deps.setCurrentChannel(channel.slug);
+        deps.setLastMessageId(null);
+        deps.close();
+      },
+    });
+  }
+  return items;
+}
+
+function buildAgentItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
+  const items: PaletteItem[] = [];
+  for (const member of deps.members) {
+    const { slug } = member;
+    if (!isSearchableAgentSlug(slug)) continue;
+    const hay =
+      `${slug} ${member.name ?? ""} ${member.role ?? ""}`.toLowerCase();
+    if (q && !hay.includes(searchTerm(q, "@"))) continue;
+    items.push({
+      id: `ag:${slug}`,
+      group: "Agents",
+      icon: member.emoji || "🤖",
+      label: member.name || slug,
+      desc: member.role || undefined,
+      meta: `@${slug}`,
+      run: () => {
+        deps.setActiveAgentSlug(slug);
+        deps.close();
+      },
+    });
+  }
+  return items;
+}
+
+function buildCommandItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
+  const items: PaletteItem[] = [];
+  for (const command of SLASH_COMMANDS) {
+    const hay = `${command.name} ${command.desc}`.toLowerCase();
+    if (q && !hay.includes(searchTerm(q, "/"))) continue;
+    items.push({
+      id: `cmd:${command.name}`,
+      group: "Commands",
+      icon: command.icon,
+      label: command.name,
+      desc: command.desc,
+      run: () => {
+        dispatchPaletteCommand(command.name, deps);
+        deps.close();
+      },
+    });
+  }
+  return items;
+}
+
+function buildSearchResultItems(
+  deps: PaletteBuildDeps,
+  q: string,
+): PaletteItem[] {
+  if (q.length < 2) return [];
+  return [
+    ...buildMessageItems(deps),
+    ...buildWikiItems(deps),
+    ...buildNotebookItems(deps),
+  ];
+}
+
+function buildMessageItems(deps: PaletteBuildDeps): PaletteItem[] {
+  return deps.messageHits.map((hit) => {
+    const snippet =
+      hit.content.length > 100
+        ? `${hit.content.slice(0, 100)}...`
+        : hit.content;
+    return {
+      id: `msg:${hit.id}:${hit.matchedChannel}`,
+      group: "Messages",
+      icon: "💬",
+      label: `${hit.from}: ${snippet}`,
+      desc: `#${hit.matchedChannel} · ${formatTime(hit.timestamp)}`,
+      run: () => {
+        deps.setCurrentApp(null);
+        deps.setCurrentChannel(hit.matchedChannel);
+        deps.setLastMessageId(null);
+        deps.close();
+      },
+    };
+  });
+}
+
+function buildWikiItems(deps: PaletteBuildDeps): PaletteItem[] {
+  return deps.wikiHits.map((hit) => ({
+    id: `wiki:${hit.path}:${hit.line}`,
+    group: "Wiki",
+    icon: "📖",
+    label: prettyWikiPath(hit.path),
+    desc: hit.snippet.trim().slice(0, 120),
+    meta: `L${hit.line}`,
+    run: () => {
+      deps.setCurrentApp("wiki");
+      deps.setWikiPath(hit.path);
+      deps.close();
+    },
+  }));
+}
+
+function buildNotebookItems(deps: PaletteBuildDeps): PaletteItem[] {
+  return deps.notebookHits.map((hit) => {
+    const parsed = parseNotebookPath(hit.path);
+    const label = parsed ? `${parsed.agent} · ${parsed.entry}` : hit.path;
+    return {
+      id: `nb:${hit.path}:${hit.line}`,
+      group: "Notebooks",
+      icon: "📓",
+      label,
+      desc: hit.snippet.trim().slice(0, 120),
+      meta: `L${hit.line}`,
+      run: () => {
+        deps.setCurrentApp("notebooks");
+        if (parsed) {
+          deps.setNotebookRoute(parsed.agent, parsed.entry);
+        }
+        deps.close();
+      },
+    };
+  });
+}
+
+interface PaletteKeyContext {
+  close: () => void;
+  items: PaletteItem[];
+  selectedIdx: number;
+  setSelectedIdx: React.Dispatch<React.SetStateAction<number>>;
+}
+
+function handlePaletteKeyDown(e: KeyboardEvent, context: PaletteKeyContext) {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    context.close();
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    context.setSelectedIdx((i) =>
+      context.items.length === 0 ? 0 : (i + 1) % context.items.length,
+    );
+    return;
+  }
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    context.setSelectedIdx((i) =>
+      context.items.length === 0
+        ? 0
+        : (i - 1 + context.items.length) % context.items.length,
+    );
+    return;
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    context.items[context.selectedIdx]?.run();
+  }
+}
+
 export function SearchModal() {
   const searchOpen = useAppStore((s) => s.searchOpen);
   const setSearchOpen = useAppStore((s) => s.setSearchOpen);
@@ -112,55 +410,15 @@ export function SearchModal() {
       }
       setSearching(true);
       try {
-        const messagesP = Promise.all(
-          channels.map(async (ch) => {
-            try {
-              const { messages } = await getMessages(ch.slug, null, 100);
-              return messages
-                .filter((m) => m.content?.toLowerCase().includes(needle))
-                .map((m): MessageHit => ({ ...m, matchedChannel: ch.slug }));
-            } catch {
-              return [] as MessageHit[];
-            }
-          }),
-        ).then((grouped) =>
-          grouped
-            .flat()
-            .sort(
-              (a, b) =>
-                new Date(b.timestamp).getTime() -
-                new Date(a.timestamp).getTime(),
-            )
-            .slice(0, 8),
+        const results = await loadSearchHits(
+          channels,
+          members,
+          trimmed,
+          needle,
         );
-
-        const wikiP = searchWiki(trimmed).then((hits) => hits.slice(0, 8));
-
-        const agentSlugs = members
-          .map((m) => m.slug)
-          .filter(
-            (s): s is string =>
-              typeof s === "string" &&
-              s !== "human" &&
-              s !== "you" &&
-              s !== "system",
-          );
-        const notebookP = Promise.all(
-          agentSlugs.map((slug) =>
-            searchNotebook(slug, trimmed).catch(
-              () => [] as NotebookSearchHit[],
-            ),
-          ),
-        ).then((grouped) => grouped.flat().slice(0, 8));
-
-        const [msg, wiki, nb] = await Promise.all([
-          messagesP,
-          wikiP,
-          notebookP,
-        ]);
-        setMessageHits(msg);
-        setWikiHits(wiki);
-        setNotebookHits(nb);
+        setMessageHits(results.messageHits);
+        setWikiHits(results.wikiHits);
+        setNotebookHits(results.notebookHits);
       } finally {
         setSearching(false);
       }
@@ -200,134 +458,23 @@ export function SearchModal() {
   ]);
 
   const items = useMemo<PaletteItem[]>(() => {
-    const q = query.trim().toLowerCase();
-    const list: PaletteItem[] = [];
-
-    for (const ch of channels) {
-      const hay =
-        `${ch.slug} ${ch.name ?? ""} ${ch.description ?? ""}`.toLowerCase();
-      if (q && !hay.includes(q.replace(/^#/, ""))) continue;
-      list.push({
-        id: `ch:${ch.slug}`,
-        group: "Channels",
-        icon: "#",
-        label: ch.name || ch.slug,
-        desc: ch.description,
-        meta: `#${ch.slug}`,
-        run: () => {
-          setCurrentApp(null);
-          setCurrentChannel(ch.slug);
-          setLastMessageId(null);
-          close();
-        },
-      });
-    }
-
-    for (const m of members) {
-      if (
-        !m.slug ||
-        m.slug === "human" ||
-        m.slug === "you" ||
-        m.slug === "system"
-      )
-        continue;
-      const hay = `${m.slug} ${m.name ?? ""} ${m.role ?? ""}`.toLowerCase();
-      if (q && !hay.includes(q.replace(/^@/, ""))) continue;
-      list.push({
-        id: `ag:${m.slug}`,
-        group: "Agents",
-        icon: m.emoji || "🤖",
-        label: m.name || m.slug,
-        desc: m.role,
-        meta: `@${m.slug}`,
-        run: () => {
-          setActiveAgentSlug(m.slug);
-          close();
-        },
-      });
-    }
-
-    for (const c of SLASH_COMMANDS) {
-      const hay = `${c.name} ${c.desc}`.toLowerCase();
-      if (q && !hay.includes(q.replace(/^\//, ""))) continue;
-      list.push({
-        id: `cmd:${c.name}`,
-        group: "Commands",
-        icon: c.icon,
-        label: c.name,
-        desc: c.desc,
-        run: () => {
-          dispatchPaletteCommand(c.name, {
-            setCurrentApp,
-            setCurrentChannel,
-            setLastMessageId,
-            setSearchOpen,
-            enterDM,
-          });
-          close();
-        },
-      });
-    }
-
-    if (q.length >= 2) {
-      for (const hit of messageHits) {
-        const snippet =
-          hit.content.length > 100
-            ? `${hit.content.slice(0, 100)}...`
-            : hit.content;
-        list.push({
-          id: `msg:${hit.id}:${hit.matchedChannel}`,
-          group: "Messages",
-          icon: "💬",
-          label: `${hit.from}: ${snippet}`,
-          desc: `#${hit.matchedChannel} · ${formatTime(hit.timestamp)}`,
-          run: () => {
-            setCurrentApp(null);
-            setCurrentChannel(hit.matchedChannel);
-            setLastMessageId(null);
-            close();
-          },
-        });
-      }
-
-      for (const hit of wikiHits) {
-        list.push({
-          id: `wiki:${hit.path}:${hit.line}`,
-          group: "Wiki",
-          icon: "📖",
-          label: prettyWikiPath(hit.path),
-          desc: hit.snippet.trim().slice(0, 120),
-          meta: `L${hit.line}`,
-          run: () => {
-            setCurrentApp("wiki");
-            setWikiPath(hit.path);
-            close();
-          },
-        });
-      }
-
-      for (const hit of notebookHits) {
-        const parsed = parseNotebookPath(hit.path);
-        const label = parsed ? `${parsed.agent} · ${parsed.entry}` : hit.path;
-        list.push({
-          id: `nb:${hit.path}:${hit.line}`,
-          group: "Notebooks",
-          icon: "📓",
-          label,
-          desc: hit.snippet.trim().slice(0, 120),
-          meta: `L${hit.line}`,
-          run: () => {
-            setCurrentApp("notebooks");
-            if (parsed) {
-              setNotebookRoute(parsed.agent, parsed.entry);
-            }
-            close();
-          },
-        });
-      }
-    }
-
-    return list;
+    return buildPaletteItems({
+      query,
+      channels,
+      members,
+      messageHits,
+      wikiHits,
+      notebookHits,
+      setCurrentApp,
+      setCurrentChannel,
+      setActiveAgentSlug,
+      setLastMessageId,
+      setSearchOpen,
+      setWikiPath,
+      setNotebookRoute,
+      enterDM,
+      close,
+    });
   }, [
     query,
     channels,
@@ -353,40 +500,14 @@ export function SearchModal() {
   useEffect(() => {
     if (!searchOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        close();
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIdx((i) =>
-          items.length === 0 ? 0 : (i + 1) % items.length,
-        );
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIdx((i) =>
-          items.length === 0 ? 0 : (i - 1 + items.length) % items.length,
-        );
-        return;
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const item = items[selectedIdx];
-        if (item) item.run();
-      }
+      handlePaletteKeyDown(e, { close, items, selectedIdx, setSelectedIdx });
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [searchOpen, items, selectedIdx, close]);
 
   const grouped = useMemo(() => {
-    const out: {
-      group: PaletteItem["group"];
-      items: { item: PaletteItem; flatIdx: number }[];
-    }[] = [];
+    const out: GroupedPaletteItem[] = [];
     items.forEach((item, idx) => {
       const last = out[out.length - 1];
       if (last && last.group === item.group) {
@@ -445,51 +566,13 @@ export function SearchModal() {
           {searching ? <span className="search-spinner" /> : null}
         </div>
 
-        <div className="cmd-palette-results">
-          {items.length === 0 ? (
-            <div className="cmd-palette-empty">
-              {query
-                ? `No results for "${query}"`
-                : "Start typing to search..."}
-            </div>
-          ) : (
-            grouped.map((g) => (
-              <div key={g.group} className="cmd-palette-group">
-                <div className="cmd-palette-group-title">{g.group}</div>
-                {g.items.map(({ item, flatIdx }) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`cmd-palette-item${flatIdx === selectedIdx ? " selected" : ""}`}
-                    onMouseEnter={() => setSelectedIdx(flatIdx)}
-                    onClick={item.run}
-                  >
-                    <span className="cmd-palette-item-icon">{item.icon}</span>
-                    <span className="cmd-palette-item-text">
-                      <span className="cmd-palette-item-label">
-                        {item.group === "Messages" ||
-                        item.group === "Wiki" ||
-                        item.group === "Notebooks"
-                          ? highlightMatch(item.label, query.trim())
-                          : item.label}
-                      </span>
-                      {item.desc ? (
-                        <span className="cmd-palette-item-desc">
-                          {item.group === "Wiki" || item.group === "Notebooks"
-                            ? highlightMatch(item.desc, query.trim())
-                            : item.desc}
-                        </span>
-                      ) : null}
-                    </span>
-                    {item.meta ? (
-                      <span className="cmd-palette-item-meta">{item.meta}</span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            ))
-          )}
-        </div>
+        <PaletteResults
+          items={items}
+          grouped={grouped}
+          query={query}
+          selectedIdx={selectedIdx}
+          setSelectedIdx={setSelectedIdx}
+        />
 
         <div className="cmd-palette-footer">
           <span>
@@ -508,6 +591,139 @@ export function SearchModal() {
   );
 }
 
+interface PaletteResultsProps {
+  items: PaletteItem[];
+  grouped: GroupedPaletteItem[];
+  query: string;
+  selectedIdx: number;
+  setSelectedIdx: React.Dispatch<React.SetStateAction<number>>;
+}
+
+function PaletteResults({
+  items,
+  grouped,
+  query,
+  selectedIdx,
+  setSelectedIdx,
+}: PaletteResultsProps) {
+  return (
+    <div className="cmd-palette-results">
+      {items.length === 0 ? (
+        <PaletteEmpty query={query} />
+      ) : (
+        grouped.map((group) => (
+          <PaletteGroup
+            key={group.group}
+            group={group}
+            query={query}
+            selectedIdx={selectedIdx}
+            setSelectedIdx={setSelectedIdx}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function PaletteEmpty({ query }: { query: string }) {
+  const message = query
+    ? `No results for "${query}"`
+    : "Start typing to search...";
+  return <div className="cmd-palette-empty">{message}</div>;
+}
+
+interface PaletteGroupProps {
+  group: GroupedPaletteItem;
+  query: string;
+  selectedIdx: number;
+  setSelectedIdx: React.Dispatch<React.SetStateAction<number>>;
+}
+
+function PaletteGroup({
+  group,
+  query,
+  selectedIdx,
+  setSelectedIdx,
+}: PaletteGroupProps) {
+  return (
+    <div className="cmd-palette-group">
+      <div className="cmd-palette-group-title">{group.group}</div>
+      {group.items.map(({ item, flatIdx }) => (
+        <PaletteButton
+          key={item.id}
+          item={item}
+          flatIdx={flatIdx}
+          query={query}
+          selectedIdx={selectedIdx}
+          setSelectedIdx={setSelectedIdx}
+        />
+      ))}
+    </div>
+  );
+}
+
+interface PaletteButtonProps {
+  item: PaletteItem;
+  flatIdx: number;
+  query: string;
+  selectedIdx: number;
+  setSelectedIdx: React.Dispatch<React.SetStateAction<number>>;
+}
+
+function PaletteButton({
+  item,
+  flatIdx,
+  query,
+  selectedIdx,
+  setSelectedIdx,
+}: PaletteButtonProps) {
+  const trimmedQuery = query.trim();
+  return (
+    <button
+      type="button"
+      className={`cmd-palette-item${flatIdx === selectedIdx ? " selected" : ""}`}
+      onMouseEnter={() => setSelectedIdx(flatIdx)}
+      onClick={item.run}
+    >
+      <span className="cmd-palette-item-icon">{item.icon}</span>
+      <span className="cmd-palette-item-text">
+        <span className="cmd-palette-item-label">
+          {renderPaletteLabel(item, trimmedQuery)}
+        </span>
+        <PaletteDescription item={item} query={trimmedQuery} />
+      </span>
+      {item.meta ? (
+        <span className="cmd-palette-item-meta">{item.meta}</span>
+      ) : null}
+    </button>
+  );
+}
+
+function renderPaletteLabel(item: PaletteItem, query: string): ReactNode {
+  return shouldHighlightLabel(item.group)
+    ? highlightMatch(item.label, query)
+    : item.label;
+}
+
+function shouldHighlightLabel(group: PaletteItem["group"]): boolean {
+  return group === "Messages" || group === "Wiki" || group === "Notebooks";
+}
+
+function PaletteDescription({
+  item,
+  query,
+}: {
+  item: PaletteItem;
+  query: string;
+}) {
+  if (!item.desc) return null;
+  const desc =
+    item.group === "Wiki" || item.group === "Notebooks"
+      ? highlightMatch(item.desc, query)
+      : item.desc;
+  return <span className="cmd-palette-item-desc">{desc}</span>;
+}
+
 interface CommandDeps {
   setCurrentApp: (id: string | null) => void;
   setCurrentChannel: (slug: string) => void;
@@ -516,89 +732,74 @@ interface CommandDeps {
   enterDM: (agentSlug: string, channelSlug: string) => void;
 }
 
+const PALETTE_APP_COMMANDS: Record<string, string> = {
+  "/requests": "requests",
+  "/policies": "policies",
+  "/skills": "skills",
+  "/calendar": "calendar",
+  "/tasks": "tasks",
+  "/recover": "health-check",
+  "/doctor": "health-check",
+  "/threads": "threads",
+};
+
+const PALETTE_COMMAND_HANDLERS: Record<string, (deps: CommandDeps) => void> = {
+  "/clear": () => showNotice("Messages cleared", "info"),
+  "/help": () => useAppStore.getState().setComposerHelpOpen(true),
+  "/ask": () =>
+    showNotice("/ask requires arguments — type it in the composer.", "info"),
+  "/remember": () =>
+    showNotice(
+      "/remember requires arguments — type it in the composer.",
+      "info",
+    ),
+  "/search": (deps) => deps.setSearchOpen(true),
+  "/provider": () => openProviderSwitcher(),
+  "/focus": () => {
+    post("/focus-mode", { focus_mode: true })
+      .then(() => showNotice("Switched to delegation mode", "success"))
+      .catch((e: Error) =>
+        showNotice(`Failed to switch mode: ${e.message}`, "error"),
+      );
+  },
+  "/collab": () => {
+    post("/focus-mode", { focus_mode: false })
+      .then(() => showNotice("Switched to collaborative mode", "success"))
+      .catch((e: Error) =>
+        showNotice(`Failed to switch mode: ${e.message}`, "error"),
+      );
+  },
+  "/pause": () => {
+    post("/signals", { kind: "pause", summary: "Human paused all agents" })
+      .then(() => showNotice("All agents paused", "success"))
+      .catch((e: Error) => showNotice(`Pause failed: ${e.message}`, "error"));
+  },
+  "/resume": () => {
+    post("/signals", { kind: "resume", summary: "Human resumed agents" })
+      .then(() => showNotice("Agents resumed", "success"))
+      .catch((e: Error) => showNotice(`Resume failed: ${e.message}`, "error"));
+  },
+  "/reset": (deps) => {
+    post("/reset", {})
+      .then(() => {
+        deps.setLastMessageId(null);
+        deps.setCurrentChannel("general");
+        showNotice("Office reset", "success");
+      })
+      .catch((e: Error) => showNotice(`Reset failed: ${e.message}`, "error"));
+  },
+};
+
 function dispatchPaletteCommand(name: string, deps: CommandDeps) {
-  switch (name) {
-    case "/clear":
-      showNotice("Messages cleared", "info");
-      return;
-    case "/help":
-      useAppStore.getState().setComposerHelpOpen(true);
-      return;
-    case "/ask":
-    case "/remember":
-      showNotice(
-        `${name} requires arguments — type it in the composer.`,
-        "info",
-      );
-      return;
-    case "/search":
-      deps.setSearchOpen(true);
-      return;
-    case "/requests":
-      deps.setCurrentApp("requests");
-      return;
-    case "/policies":
-      deps.setCurrentApp("policies");
-      return;
-    case "/skills":
-      deps.setCurrentApp("skills");
-      return;
-    case "/calendar":
-      deps.setCurrentApp("calendar");
-      return;
-    case "/tasks":
-      deps.setCurrentApp("tasks");
-      return;
-    case "/recover":
-    case "/doctor":
-      deps.setCurrentApp("health-check");
-      return;
-    case "/threads":
-      deps.setCurrentApp("threads");
-      return;
-    case "/provider":
-      openProviderSwitcher();
-      return;
-    case "/focus":
-      post("/focus-mode", { focus_mode: true })
-        .then(() => showNotice("Switched to delegation mode", "success"))
-        .catch((e: Error) =>
-          showNotice(`Failed to switch mode: ${e.message}`, "error"),
-        );
-      return;
-    case "/collab":
-      post("/focus-mode", { focus_mode: false })
-        .then(() => showNotice("Switched to collaborative mode", "success"))
-        .catch((e: Error) =>
-          showNotice(`Failed to switch mode: ${e.message}`, "error"),
-        );
-      return;
-    case "/pause":
-      post("/signals", { kind: "pause", summary: "Human paused all agents" })
-        .then(() => showNotice("All agents paused", "success"))
-        .catch((e: Error) => showNotice(`Pause failed: ${e.message}`, "error"));
-      return;
-    case "/resume":
-      post("/signals", { kind: "resume", summary: "Human resumed agents" })
-        .then(() => showNotice("Agents resumed", "success"))
-        .catch((e: Error) =>
-          showNotice(`Resume failed: ${e.message}`, "error"),
-        );
-      return;
-    case "/reset":
-      post("/reset", {})
-        .then(() => {
-          deps.setLastMessageId(null);
-          deps.setCurrentChannel("general");
-          showNotice("Office reset", "success");
-        })
-        .catch((e: Error) => showNotice(`Reset failed: ${e.message}`, "error"));
-      return;
-    default:
-      showNotice(
-        `${name} requires arguments — type it in the composer.`,
-        "info",
-      );
-      return;
+  const app = PALETTE_APP_COMMANDS[name];
+  if (app) {
+    deps.setCurrentApp(app);
+    return;
   }
+  const handler = PALETTE_COMMAND_HANDLERS[name];
+  if (handler) {
+    handler(deps);
+    return;
+  }
+  showNotice(`${name} requires arguments — type it in the composer.`, "info");
 }

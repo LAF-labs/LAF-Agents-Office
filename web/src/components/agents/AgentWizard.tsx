@@ -171,87 +171,18 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
     >
       <div className="agent-wizard-modal card">
         <div className="agent-wizard-title">Create agent</div>
-        {/* Mode toggle */}
-        <div className="channel-wizard-tabs" style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            className={`channel-wizard-tab${mode === "describe" ? " active" : ""}`}
-            onClick={() => {
-              setMode("describe");
-              setError(null);
-            }}
-          >
-            Describe
-          </button>
-          <button
-            type="button"
-            className={`channel-wizard-tab${mode === "manual" ? " active" : ""}`}
-            onClick={() => {
-              setMode("manual");
-              setError(null);
-            }}
-          >
-            Manual
-          </button>
-        </div>
+        <AgentWizardTabs mode={mode} setMode={setMode} setError={setError} />
 
         {mode === "describe" ? (
-          <div className="agent-wizard-form">
-            <div className="agent-wizard-field">
-              <label className="label" htmlFor="agent-prompt">
-                Describe the agent you want
-              </label>
-              <textarea
-                id="agent-prompt"
-                className="input"
-                placeholder='e.g. "A DevOps engineer who manages CI/CD and infrastructure"'
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  setError(null);
-                }}
-                rows={3}
-                style={{
-                  minHeight: 80,
-                  resize: "vertical",
-                  padding: "10px 12px",
-                  lineHeight: 1.5,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-tertiary)",
-                  marginTop: 6,
-                  display: "block",
-                }}
-              >
-                AI will draft a slug, name, role, expertise, and personality.
-                You can edit before creating.
-              </span>
-            </div>
-
-            {error ? <div className="agent-wizard-error">{error}</div> : null}
-
-            <div className="agent-wizard-footer">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={handleCancel}
-                disabled={generating}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={handleGenerate}
-                disabled={generating || !prompt.trim()}
-              >
-                {generating ? "Generating..." : "Generate"}
-              </button>
-            </div>
-          </div>
+          <DescribeAgentStep
+            prompt={prompt}
+            setPrompt={setPrompt}
+            error={error}
+            setError={setError}
+            generating={generating}
+            onCancel={handleCancel}
+            onGenerate={handleGenerate}
+          />
         ) : (
           <form className="agent-wizard-form" onSubmit={handleSubmit}>
             {/* Name */}
@@ -390,6 +321,110 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+interface AgentWizardTabsProps {
+  mode: WizardMode;
+  setMode: (mode: WizardMode) => void;
+  setError: (error: string | null) => void;
+}
+
+function AgentWizardTabs({ mode, setMode, setError }: AgentWizardTabsProps) {
+  const selectMode = (nextMode: WizardMode) => {
+    setMode(nextMode);
+    setError(null);
+  };
+
+  return (
+    <div className="channel-wizard-tabs" style={{ marginBottom: 16 }}>
+      <button
+        type="button"
+        className={`channel-wizard-tab${mode === "describe" ? " active" : ""}`}
+        onClick={() => selectMode("describe")}
+      >
+        Describe
+      </button>
+      <button
+        type="button"
+        className={`channel-wizard-tab${mode === "manual" ? " active" : ""}`}
+        onClick={() => selectMode("manual")}
+      >
+        Manual
+      </button>
+    </div>
+  );
+}
+
+interface DescribeAgentStepProps {
+  prompt: string;
+  setPrompt: (prompt: string) => void;
+  error: string | null;
+  setError: (error: string | null) => void;
+  generating: boolean;
+  onCancel: () => void;
+  onGenerate: () => void;
+}
+
+function DescribeAgentStep({
+  prompt,
+  setPrompt,
+  error,
+  setError,
+  generating,
+  onCancel,
+  onGenerate,
+}: DescribeAgentStepProps) {
+  return (
+    <div className="agent-wizard-form">
+      <div className="agent-wizard-field">
+        <label className="label" htmlFor="agent-prompt">
+          Describe the agent you want
+        </label>
+        <textarea
+          id="agent-prompt"
+          className="textarea"
+          placeholder="e.g. Create a deal desk analyst who reviews contracts, flags risky terms, and drafts negotiation notes."
+          rows={5}
+          value={prompt}
+          onChange={(e) => {
+            setPrompt(e.target.value);
+            setError(null);
+          }}
+        />
+        <span
+          style={{
+            color: "var(--text-tertiary)",
+            fontSize: 12,
+            lineHeight: 1.4,
+          }}
+        >
+          AI will draft the name, slug, role, emoji, and expertise. You can edit
+          everything before creating.
+        </span>
+      </div>
+
+      {error ? <div className="agent-wizard-error">{error}</div> : null}
+
+      <div className="agent-wizard-footer">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={onCancel}
+          disabled={generating}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={onGenerate}
+          disabled={generating || prompt.trim().length === 0}
+        >
+          {generating ? "Generating..." : "Generate draft"}
+        </button>
       </div>
     </div>
   );

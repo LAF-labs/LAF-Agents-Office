@@ -80,45 +80,76 @@ export function ThreadsApp() {
           No threads yet. Reply to a message to start one.
         </div>
       ) : (
-        <div className="threads-view-list">
-          {threads.map((t) => {
-            const agent = members.find((m) => m.slug === t.message.from);
-            const preview =
-              t.message.content && t.message.content.length > 120
-                ? `${t.message.content.slice(0, 120)}\u2026`
-                : t.message.content || "(no content)";
-            return (
-              <button
-                key={`${t.channel}-${t.id}`}
-                type="button"
-                className="thread-list-item"
-                onClick={() => openThread(t)}
-              >
-                <div className="thread-list-item-avatar">
-                  {agent ? (
-                    <PixelAvatar slug={agent.slug} size={32} />
-                  ) : (
-                    <span style={{ fontSize: 22 }}>{"\uD83D\uDCAC"}</span>
-                  )}
-                </div>
-                <div className="thread-list-item-body">
-                  <div className="thread-list-item-preview">{preview}</div>
-                  <div className="thread-list-item-meta">
-                    <span className="thread-list-item-replies">
-                      {t.replyCount} repl{t.replyCount === 1 ? "y" : "ies"}
-                    </span>
-                    {agent ? <span>{agent.name}</span> : null}
-                    <span>#{t.channel}</span>
-                    {t.message.timestamp ? (
-                      <span>{formatRelativeTime(t.message.timestamp)}</span>
-                    ) : null}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <ThreadList threads={threads} members={members} onOpen={openThread} />
       )}
     </div>
   );
+}
+
+function ThreadList({
+  threads,
+  members,
+  onOpen,
+}: {
+  threads: ThreadRow[];
+  members: Array<{ slug: string; name: string }>;
+  onOpen: (thread: ThreadRow) => void;
+}) {
+  return (
+    <div className="threads-view-list">
+      {threads.map((thread) => (
+        <ThreadListItem
+          key={`${thread.channel}-${thread.id}`}
+          thread={thread}
+          agent={members.find((member) => member.slug === thread.message.from)}
+          onOpen={onOpen}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ThreadListItem({
+  thread,
+  agent,
+  onOpen,
+}: {
+  thread: ThreadRow;
+  agent?: { slug: string; name: string };
+  onOpen: (thread: ThreadRow) => void;
+}) {
+  const preview = messagePreview(thread.message.content);
+  return (
+    <button
+      type="button"
+      className="thread-list-item"
+      onClick={() => onOpen(thread)}
+    >
+      <div className="thread-list-item-avatar">
+        {agent ? (
+          <PixelAvatar slug={agent.slug} size={32} />
+        ) : (
+          <span style={{ fontSize: 22 }}>{"\uD83D\uDCAC"}</span>
+        )}
+      </div>
+      <div className="thread-list-item-body">
+        <div className="thread-list-item-preview">{preview}</div>
+        <div className="thread-list-item-meta">
+          <span className="thread-list-item-replies">
+            {thread.replyCount} repl{thread.replyCount === 1 ? "y" : "ies"}
+          </span>
+          {agent ? <span>{agent.name}</span> : null}
+          <span>#{thread.channel}</span>
+          {thread.message.timestamp ? (
+            <span>{formatRelativeTime(thread.message.timestamp)}</span>
+          ) : null}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function messagePreview(content: string | null | undefined): string {
+  if (!content) return "(no content)";
+  return content.length > 120 ? `${content.slice(0, 120)}\u2026` : content;
 }

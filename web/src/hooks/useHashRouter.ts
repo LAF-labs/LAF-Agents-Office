@@ -16,41 +16,54 @@ type Route =
   | { view: "notebooks"; agentSlug: string | null; entrySlug: string | null }
   | { view: "reviews" };
 
+const DEFAULT_ROUTE: Route = { view: "channel", channel: "general" };
+
 function parseHash(hash: string): Route {
   const cleaned = hash.replace(/^#\/?/, "");
   const parts = cleaned.split("/").filter(Boolean);
-  if (parts[0] === "channels" && parts[1]) {
-    return { view: "channel", channel: decodeURIComponent(parts[1]) };
+
+  switch (parts[0]) {
+    case "channels":
+      return parts[1]
+        ? { view: "channel", channel: decodeURIComponent(parts[1]) }
+        : DEFAULT_ROUTE;
+    case "dm":
+      return parts[1]
+        ? { view: "dm", agent: decodeURIComponent(parts[1]) }
+        : DEFAULT_ROUTE;
+    case "apps":
+      return parts[1]
+        ? { view: "app", app: decodeURIComponent(parts[1]) }
+        : DEFAULT_ROUTE;
+    case "threads":
+      return { view: "app", app: "threads" };
+    case "wiki":
+      return parseWikiRoute(parts, cleaned);
+    case "notebooks":
+      return parseNotebookRoute(parts);
+    case "reviews":
+      return { view: "reviews" };
+    default:
+      return DEFAULT_ROUTE;
   }
-  if (parts[0] === "dm" && parts[1]) {
-    return { view: "dm", agent: decodeURIComponent(parts[1]) };
-  }
-  if (parts[0] === "apps" && parts[1]) {
-    return { view: "app", app: decodeURIComponent(parts[1]) };
-  }
-  if (parts[0] === "threads") {
-    return { view: "app", app: "threads" };
-  }
-  if (parts[0] === "wiki" && parts[1] === "lookup") {
+}
+
+function parseWikiRoute(parts: string[], cleaned: string): Route {
+  if (parts[1] === "lookup") {
     const params = new URLSearchParams(
       window.location.search.slice(1) || cleaned.split("?")[1] || "",
     );
     const q = params.get("q") || "";
     return { view: "wiki-lookup", query: decodeURIComponent(q) };
   }
-  if (parts[0] === "wiki") {
-    const rest = parts.slice(1).map(decodeURIComponent).join("/");
-    return { view: "wiki", articlePath: rest || null };
-  }
-  if (parts[0] === "notebooks") {
-    const agent = parts[1] ? decodeURIComponent(parts[1]) : null;
-    const entry = parts[2] ? decodeURIComponent(parts[2]) : null;
-    return { view: "notebooks", agentSlug: agent, entrySlug: entry };
-  }
-  if (parts[0] === "reviews") {
-    return { view: "reviews" };
-  }
-  return { view: "channel", channel: "general" };
+  const rest = parts.slice(1).map(decodeURIComponent).join("/");
+  return { view: "wiki", articlePath: rest || null };
+}
+
+function parseNotebookRoute(parts: string[]): Route {
+  const agent = parts[1] ? decodeURIComponent(parts[1]) : null;
+  const entry = parts[2] ? decodeURIComponent(parts[2]) : null;
+  return { view: "notebooks", agentSlug: agent, entrySlug: entry };
 }
 
 function stateToHash(state: {
@@ -62,36 +75,97 @@ function stateToHash(state: {
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
 }): string {
-  if (state.currentApp === "wiki-lookup") {
-    return state.wikiLookupQuery
-      ? `#/wiki/lookup?q=${encodeURIComponent(state.wikiLookupQuery)}`
-      : "#/wiki/lookup";
-  }
-  if (state.currentApp === "wiki") {
-    return state.wikiPath
-      ? `#/wiki/${state.wikiPath.split("/").map(encodeURIComponent).join("/")}`
-      : "#/wiki";
-  }
-  if (state.currentApp === "notebooks") {
-    const parts: string[] = ["notebooks"];
-    if (state.notebookAgentSlug)
-      parts.push(encodeURIComponent(state.notebookAgentSlug));
-    if (state.notebookAgentSlug && state.notebookEntrySlug) {
-      parts.push(encodeURIComponent(state.notebookEntrySlug));
-    }
-    return `#/${parts.join("/")}`;
-  }
-  if (state.currentApp === "reviews") {
-    return "#/reviews";
-  }
-  if (state.currentApp) {
-    return `#/apps/${encodeURIComponent(state.currentApp)}`;
-  }
+  const appHash = appStateToHash(state);
+  if (appHash) return appHash;
   const dm = isDMChannel(state.currentChannel, state.channelMeta);
   if (dm) {
     return `#/dm/${encodeURIComponent(dm.agentSlug)}`;
   }
   return `#/channels/${encodeURIComponent(state.currentChannel || "general")}`;
+}
+
+function appStateToHash(state: {
+  currentApp: string | null;
+  wikiPath: string | null;
+  wikiLookupQuery: string | null;
+  notebookAgentSlug: string | null;
+  notebookEntrySlug: string | null;
+}): string | null {
+  switch (state.currentApp) {
+    case "wiki-lookup":
+      return state.wikiLookupQuery
+        ? `#/wiki/lookup?q=${encodeURIComponent(state.wikiLookupQuery)}`
+        : "#/wiki/lookup";
+    case "wiki":
+      return state.wikiPath
+        ? `#/wiki/${state.wikiPath.split("/").map(encodeURIComponent).join("/")}`
+        : "#/wiki";
+    case "notebooks":
+      return notebookStateToHash(state);
+    case "reviews":
+      return "#/reviews";
+    case null:
+      return null;
+    default:
+      return `#/apps/${encodeURIComponent(state.currentApp)}`;
+  }
+}
+
+function notebookStateToHash(state: {
+  notebookAgentSlug: string | null;
+  notebookEntrySlug: string | null;
+}): string {
+  const parts: string[] = ["notebooks"];
+  if (state.notebookAgentSlug)
+    parts.push(encodeURIComponent(state.notebookAgentSlug));
+  if (state.notebookAgentSlug && state.notebookEntrySlug) {
+    parts.push(encodeURIComponent(state.notebookEntrySlug));
+  }
+  return `#/${parts.join("/")}`;
+}
+
+interface HashRouteActions {
+  enterDM: (agent: string, channel: string) => void;
+  setCurrentApp: (app: string | null) => void;
+  setCurrentChannel: (channel: string) => void;
+  setLastMessageId: (id: string | null) => void;
+  setWikiPath: (path: string | null) => void;
+  setWikiLookupQuery: (query: string) => void;
+  setNotebookRoute: (
+    agentSlug: string | null,
+    entrySlug: string | null,
+  ) => void;
+}
+
+function applyRoute(route: Route, actions: HashRouteActions) {
+  switch (route.view) {
+    case "dm":
+      actions.enterDM(route.agent, directChannelSlug(route.agent));
+      break;
+    case "app":
+      actions.setCurrentApp(route.app);
+      break;
+    case "wiki-lookup":
+      actions.setWikiLookupQuery(route.query);
+      actions.setCurrentApp("wiki-lookup");
+      break;
+    case "wiki":
+      actions.setWikiPath(route.articlePath);
+      actions.setCurrentApp("wiki");
+      break;
+    case "notebooks":
+      actions.setNotebookRoute(route.agentSlug, route.entrySlug);
+      actions.setCurrentApp("notebooks");
+      break;
+    case "reviews":
+      actions.setCurrentApp("reviews");
+      break;
+    case "channel":
+      actions.setCurrentApp(null);
+      actions.setCurrentChannel(route.channel);
+      actions.setLastMessageId(null);
+      break;
+  }
 }
 
 /**
@@ -137,26 +211,15 @@ export function useHashRouter() {
       }
       const route = parseHash(window.location.hash);
       ignoreNextStoreSync.current = true;
-      if (route.view === "dm") {
-        enterDM(route.agent, directChannelSlug(route.agent));
-      } else if (route.view === "app") {
-        setCurrentApp(route.app);
-      } else if (route.view === "wiki-lookup") {
-        setWikiLookupQuery(route.query);
-        setCurrentApp("wiki-lookup");
-      } else if (route.view === "wiki") {
-        setWikiPath(route.articlePath);
-        setCurrentApp("wiki");
-      } else if (route.view === "notebooks") {
-        setNotebookRoute(route.agentSlug, route.entrySlug);
-        setCurrentApp("notebooks");
-      } else if (route.view === "reviews") {
-        setCurrentApp("reviews");
-      } else {
-        setCurrentApp(null);
-        setCurrentChannel(route.channel);
-        setLastMessageId(null);
-      }
+      applyRoute(route, {
+        enterDM,
+        setCurrentApp,
+        setCurrentChannel,
+        setLastMessageId,
+        setWikiPath,
+        setWikiLookupQuery,
+        setNotebookRoute,
+      });
     }
 
     applyHash();

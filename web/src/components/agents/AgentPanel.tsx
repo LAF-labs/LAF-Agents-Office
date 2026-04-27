@@ -20,6 +20,15 @@ interface AgentPanelViewProps {
   onClose: () => void;
 }
 
+function memberToggleAction(next: boolean, hasChannelEntry: boolean): string {
+  if (!next) return "disable";
+  return hasChannelEntry ? "enable" : "add";
+}
+
+function memberToggleNotice(agent: OfficeMember, next: boolean): string {
+  return `${agent.name || agent.slug} ${next ? "enabled" : "disabled"}`;
+}
+
 function StreamSection({ slug }: { slug: string }) {
   const { lines, connected } = useAgentStream(slug);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -178,7 +187,7 @@ function AgentPanelView({ agent, onClose }: AgentPanelViewProps) {
       // Broker's `enable` action only lifts the Disabled flag — it doesn't
       // add a non-member. Translate to `add` so flipping the toggle ON does
       // what the user expects regardless of prior channel membership.
-      const action = next ? (channelEntry ? "enable" : "add") : "disable";
+      const action = memberToggleAction(next, Boolean(channelEntry));
       await post("/channel-members", {
         channel: currentChannel,
         slug: agent.slug,
@@ -188,10 +197,7 @@ function AgentPanelView({ agent, onClose }: AgentPanelViewProps) {
         queryKey: ["channel-members", currentChannel],
       });
       await queryClient.invalidateQueries({ queryKey: ["office-members"] });
-      showNotice(
-        `${agent.name || agent.slug} ${next ? "enabled" : "disabled"}`,
-        "success",
-      );
+      showNotice(memberToggleNotice(agent, next), "success");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Toggle failed";
       showNotice(message, "error");

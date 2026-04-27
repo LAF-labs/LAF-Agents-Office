@@ -108,107 +108,171 @@ interface SimOpts {
   iterations: number;
 }
 
+interface ForceMaps {
+  fx: Map<string, number>;
+  fy: Map<string, number>;
+}
+
+interface SimulationConfig {
+  cx: number;
+  cy: number;
+  idealLink: number;
+  repulse: number;
+  centerPull: number;
+  width: number;
+  height: number;
+}
+
+function simulationConfig(nodes: SimNode[], opts: SimOpts): SimulationConfig {
+  const nodeCount = nodes.length;
+  return {
+    cx: opts.width / 2,
+    cy: opts.height / 2,
+    idealLink: Math.min(280, 140 + nodeCount * 8),
+    repulse: 18000 + nodeCount * 600,
+    centerPull: 0.008,
+    width: opts.width,
+    height: opts.height,
+  };
+}
+
+function initForces(nodes: SimNode[]): ForceMaps {
+  const fx = new Map<string, number>();
+  const fy = new Map<string, number>();
+  for (const node of nodes) {
+    fx.set(node.id, 0);
+    fy.set(node.id, 0);
+  }
+  return { fx, fy };
+}
+
+function addForce(forces: ForceMaps, nodeId: string, dx: number, dy: number) {
+  forces.fx.set(nodeId, (forces.fx.get(nodeId) ?? 0) + dx);
+  forces.fy.set(nodeId, (forces.fy.get(nodeId) ?? 0) + dy);
+}
+
+function applyRepulsion(nodes: SimNode[], forces: ForceMaps, repulse: number) {
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      applyRepulsionPair(nodes[i], nodes[j], forces, repulse);
+    }
+  }
+}
+
+function applyRepulsionPair(
+  a: SimNode,
+  b: SimNode,
+  forces: ForceMaps,
+  repulse: number,
+) {
+  let dx = a.x - b.x;
+  let dy = a.y - b.y;
+  let d2 = dx * dx + dy * dy;
+  if (d2 < 1) {
+    dx = Math.random() - 0.5;
+    dy = Math.random() - 0.5;
+    d2 = 1;
+  }
+  const force = repulse / d2;
+  const dist = Math.sqrt(d2);
+  const nx = dx / dist;
+  const ny = dy / dist;
+  addForce(forces, a.id, nx * force, ny * force);
+  addForce(forces, b.id, -nx * force, -ny * force);
+}
+
+function mapNodesById(nodes: SimNode[]): Map<string, SimNode> {
+  const byId = new Map<string, SimNode>();
+  for (const node of nodes) byId.set(node.id, node);
+  return byId;
+}
+
+function applyAttraction(
+  edges: SimEdge[],
+  byId: Map<string, SimNode>,
+  forces: ForceMaps,
+  idealLink: number,
+) {
+  for (const edge of edges) {
+    const a = byId.get(edge.from);
+    const b = byId.get(edge.to);
+    if (!(a && b)) continue;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const force = (dist - idealLink) * 0.05;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    addForce(forces, a.id, nx * force, ny * force);
+    addForce(forces, b.id, -nx * force, -ny * force);
+  }
+}
+
+function applyCenterPull(
+  nodes: SimNode[],
+  forces: ForceMaps,
+  config: SimulationConfig,
+) {
+  for (const node of nodes) {
+    addForce(
+      forces,
+      node.id,
+      (config.cx - node.x) * config.centerPull,
+      (config.cy - node.y) * config.centerPull,
+    );
+  }
+}
+
+function integrateNodes(
+  nodes: SimNode[],
+  forces: ForceMaps,
+  config: SimulationConfig,
+  cooling: number,
+) {
+  const damping = 0.85;
+  const maxVel = 30;
+  const pad = NODE_RADIUS + 8;
+  for (const node of nodes) {
+    node.vx = clampVelocity(
+      (node.vx + (forces.fx.get(node.id) ?? 0)) * damping * cooling,
+      maxVel,
+    );
+    node.vy = clampVelocity(
+      (node.vy + (forces.fy.get(node.id) ?? 0)) * damping * cooling,
+      maxVel,
+    );
+    node.x = clampPosition(node.x + node.vx, pad, config.width - pad);
+    node.y = clampPosition(node.y + node.vy, pad, config.height - pad);
+  }
+}
+
+function clampVelocity(value: number, maxVel: number): number {
+  return Math.max(-maxVel, Math.min(maxVel, value));
+}
+
+function clampPosition(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function runSimulation(
   nodes: SimNode[],
   edges: SimEdge[],
-  { width, height, iterations }: SimOpts,
+  opts: SimOpts,
 ): void {
   if (nodes.length === 0) return;
-  const cx = width / 2;
-  const cy = height / 2;
   // Scale forces with node count so a 6-node graph spreads across the canvas
   // the same way a 30-node graph does. Empirically: repulse grows with n,
   // link length with √n.
-  const n = nodes.length;
-  const idealLink = Math.min(280, 140 + n * 8);
-  const repulse = 18000 + n * 600;
-  const centerPull = 0.008;
+  const config = simulationConfig(nodes, opts);
+  const byId = mapNodesById(nodes);
 
-  // Adjacency for quick neighbor lookup.
-  const adjacency = new Map<string, string[]>();
-  for (const n of nodes) adjacency.set(n.id, []);
-  for (const e of edges) {
-    adjacency.get(e.from)?.push(e.to);
-    adjacency.get(e.to)?.push(e.from);
-  }
-
-  for (let step = 0; step < iterations; step++) {
-    const cooling = 1 - step / iterations;
-    // Reset forces.
-    const fx = new Map<string, number>();
-    const fy = new Map<string, number>();
-    for (const n of nodes) {
-      fx.set(n.id, 0);
-      fy.set(n.id, 0);
-    }
-
-    // Repulsion between every pair of nodes (O(n²) — fine for v1 scale).
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a = nodes[i];
-        const b = nodes[j];
-        let dx = a.x - b.x;
-        let dy = a.y - b.y;
-        let d2 = dx * dx + dy * dy;
-        if (d2 < 1) {
-          dx = Math.random() - 0.5;
-          dy = Math.random() - 0.5;
-          d2 = 1;
-        }
-        const f = repulse / d2;
-        const dist = Math.sqrt(d2);
-        const nx = dx / dist;
-        const ny = dy / dist;
-        fx.set(a.id, (fx.get(a.id) ?? 0) + nx * f);
-        fy.set(a.id, (fy.get(a.id) ?? 0) + ny * f);
-        fx.set(b.id, (fx.get(b.id) ?? 0) - nx * f);
-        fy.set(b.id, (fy.get(b.id) ?? 0) - ny * f);
-      }
-    }
-
-    // Attraction along edges (Hooke's law toward idealLink).
-    const byId = new Map<string, SimNode>();
-    for (const n of nodes) byId.set(n.id, n);
-    for (const e of edges) {
-      const a = byId.get(e.from);
-      const b = byId.get(e.to);
-      if (!(a && b)) continue;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const f = (dist - idealLink) * 0.05;
-      const nx = dx / dist;
-      const ny = dy / dist;
-      fx.set(a.id, (fx.get(a.id) ?? 0) + nx * f);
-      fy.set(a.id, (fy.get(a.id) ?? 0) + ny * f);
-      fx.set(b.id, (fx.get(b.id) ?? 0) - nx * f);
-      fy.set(b.id, (fy.get(b.id) ?? 0) - ny * f);
-    }
-
-    // Center pull keeps disconnected nodes from drifting off-canvas.
-    for (const n of nodes) {
-      fx.set(n.id, (fx.get(n.id) ?? 0) + (cx - n.x) * centerPull);
-      fy.set(n.id, (fy.get(n.id) ?? 0) + (cy - n.y) * centerPull);
-    }
-
-    // Integrate + clamp to canvas.
-    const damping = 0.85;
-    const maxVel = 30;
-    for (const n of nodes) {
-      n.vx = (n.vx + (fx.get(n.id) ?? 0)) * damping * cooling;
-      n.vy = (n.vy + (fy.get(n.id) ?? 0)) * damping * cooling;
-      if (n.vx > maxVel) n.vx = maxVel;
-      if (n.vx < -maxVel) n.vx = -maxVel;
-      if (n.vy > maxVel) n.vy = maxVel;
-      if (n.vy < -maxVel) n.vy = -maxVel;
-      n.x += n.vx;
-      n.y += n.vy;
-      const pad = NODE_RADIUS + 8;
-      if (n.x < pad) n.x = pad;
-      if (n.x > width - pad) n.x = width - pad;
-      if (n.y < pad) n.y = pad;
-      if (n.y > height - pad) n.y = height - pad;
-    }
+  for (let step = 0; step < opts.iterations; step++) {
+    const cooling = 1 - step / opts.iterations;
+    const forces = initForces(nodes);
+    applyRepulsion(nodes, forces, config.repulse);
+    applyAttraction(edges, byId, forces, config.idealLink);
+    applyCenterPull(nodes, forces, config);
+    integrateNodes(nodes, forces, config, cooling);
   }
 }
 
@@ -414,110 +478,17 @@ export function GraphApp() {
                 </marker>
               </defs>
 
-              {/* Edges first so nodes paint on top. */}
-              {simResult.edges.map((e) => {
-                const a = nodesById.get(e.from);
-                const b = nodesById.get(e.to);
-                if (!(a && b)) return null;
-                const active = hoveredNode === a.id || hoveredNode === b.id;
-                // Shrink the line ends so the arrow doesn't plunge into the node.
-                const dx = b.x - a.x;
-                const dy = b.y - a.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const shrink = NODE_RADIUS + 2;
-                const x1 = a.x + (dx / dist) * shrink;
-                const y1 = a.y + (dy / dist) * shrink;
-                const x2 = b.x - (dx / dist) * shrink;
-                const y2 = b.y - (dy / dist) * shrink;
-                return (
-                  <g key={`${e.from}->${e.to}:${e.label}`}>
-                    <title>
-                      {e.occurrenceCount}x{" "}
-                      {e.label ? e.label.slice(0, 24) : "mention"}
-                    </title>
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={
-                        active
-                          ? "var(--accent, #612a92)"
-                          : "var(--border-dark, #cfd1d2)"
-                      }
-                      strokeWidth={active ? 2 : 1.25}
-                      markerEnd="url(#graph-arrow)"
-                      opacity={active ? 1 : 0.65}
-                    />
-                    {/* Invisible wide stroke for easier hover pickup. */}
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke="transparent"
-                      strokeWidth={12}
-                      style={{ cursor: "default" }}
-                    />
-                  </g>
-                );
-              })}
-
-              {/* Nodes. */}
-              {simResult.nodes.map((n) => {
-                const s = styleFor(n.kind);
-                const active = hoveredNode === n.id;
-                return (
-                  <a
-                    key={n.id}
-                    href={`#/wiki/team/${n.kind}/${encodeURIComponent(n.slug)}.md`}
-                    aria-label={`Open ${n.title}`}
-                    onMouseEnter={() => setHoveredNode(n.id)}
-                    onMouseLeave={() => setHoveredNode(null)}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      handleNodeClick(n);
-                    }}
-                  >
-                    <g
-                      transform={`translate(${n.x},${n.y})`}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <circle
-                        r={NODE_RADIUS}
-                        fill={s.fill}
-                        stroke={s.stroke}
-                        strokeWidth={active ? 3 : 2}
-                        filter={
-                          active
-                            ? "drop-shadow(0 4px 12px rgba(0,0,0,0.12))"
-                            : undefined
-                        }
-                      />
-                      <text
-                        y={-2}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize={20}
-                        pointerEvents="none"
-                      >
-                        {s.icon}
-                      </text>
-                      <text
-                        y={NODE_RADIUS + 14}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize={11}
-                        fontWeight={active ? 600 : 500}
-                        fill="var(--text)"
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {truncateLabel(n.title)}
-                      </text>
-                    </g>
-                  </a>
-                );
-              })}
+              <GraphEdges
+                edges={simResult.edges}
+                nodesById={nodesById}
+                hoveredNode={hoveredNode}
+              />
+              <GraphNodes
+                nodes={simResult.nodes}
+                hoveredNode={hoveredNode}
+                setHoveredNode={setHoveredNode}
+                onNodeClick={handleNodeClick}
+              />
             </svg>
 
             <Legend counts={legendCounts} />
@@ -529,6 +500,176 @@ export function GraphApp() {
 }
 
 // ── Supporting views ─────────────────────────────────────────────
+
+interface GraphEdgesProps {
+  edges: SimEdge[];
+  nodesById: Map<string, SimNode>;
+  hoveredNode: string | null;
+}
+
+function GraphEdges({ edges, nodesById, hoveredNode }: GraphEdgesProps) {
+  return (
+    <>
+      {edges.map((edge) => (
+        <GraphEdge
+          key={`${edge.from}->${edge.to}:${edge.label}`}
+          edge={edge}
+          nodesById={nodesById}
+          hoveredNode={hoveredNode}
+        />
+      ))}
+    </>
+  );
+}
+
+function GraphEdge({
+  edge,
+  nodesById,
+  hoveredNode,
+}: {
+  edge: SimEdge;
+  nodesById: Map<string, SimNode>;
+  hoveredNode: string | null;
+}) {
+  const a = nodesById.get(edge.from);
+  const b = nodesById.get(edge.to);
+  if (!(a && b)) return null;
+  const active = hoveredNode === a.id || hoveredNode === b.id;
+  const coords = edgeCoords(a, b);
+  return (
+    <g>
+      <title>
+        {edge.occurrenceCount}x{" "}
+        {edge.label ? edge.label.slice(0, 24) : "mention"}
+      </title>
+      <line
+        x1={coords.x1}
+        y1={coords.y1}
+        x2={coords.x2}
+        y2={coords.y2}
+        stroke={
+          active ? "var(--accent, #612a92)" : "var(--border-dark, #cfd1d2)"
+        }
+        strokeWidth={active ? 2 : 1.25}
+        markerEnd="url(#graph-arrow)"
+        opacity={active ? 1 : 0.65}
+      />
+      {/* Invisible wide stroke for easier hover pickup. */}
+      <line
+        x1={coords.x1}
+        y1={coords.y1}
+        x2={coords.x2}
+        y2={coords.y2}
+        stroke="transparent"
+        strokeWidth={12}
+        style={{ cursor: "default" }}
+      />
+    </g>
+  );
+}
+
+function edgeCoords(a: SimNode, b: SimNode) {
+  // Shrink the line ends so the arrow doesn't plunge into the node.
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  const shrink = NODE_RADIUS + 2;
+  return {
+    x1: a.x + (dx / dist) * shrink,
+    y1: a.y + (dy / dist) * shrink,
+    x2: b.x - (dx / dist) * shrink,
+    y2: b.y - (dy / dist) * shrink,
+  };
+}
+
+interface GraphNodesProps {
+  nodes: SimNode[];
+  hoveredNode: string | null;
+  setHoveredNode: (id: string | null) => void;
+  onNodeClick: (node: SimNode) => void;
+}
+
+function GraphNodes({
+  nodes,
+  hoveredNode,
+  setHoveredNode,
+  onNodeClick,
+}: GraphNodesProps) {
+  return (
+    <>
+      {nodes.map((node) => (
+        <GraphNode
+          key={node.id}
+          node={node}
+          active={hoveredNode === node.id}
+          setHoveredNode={setHoveredNode}
+          onNodeClick={onNodeClick}
+        />
+      ))}
+    </>
+  );
+}
+
+function GraphNode({
+  node,
+  active,
+  setHoveredNode,
+  onNodeClick,
+}: {
+  node: SimNode;
+  active: boolean;
+  setHoveredNode: (id: string | null) => void;
+  onNodeClick: (node: SimNode) => void;
+}) {
+  const style = styleFor(node.kind);
+  return (
+    <a
+      href={`#/wiki/team/${node.kind}/${encodeURIComponent(node.slug)}.md`}
+      aria-label={`Open ${node.title}`}
+      onMouseEnter={() => setHoveredNode(node.id)}
+      onMouseLeave={() => setHoveredNode(null)}
+      onClick={(event) => {
+        event.preventDefault();
+        onNodeClick(node);
+      }}
+    >
+      <g
+        transform={`translate(${node.x},${node.y})`}
+        style={{ cursor: "pointer" }}
+      >
+        <circle
+          r={NODE_RADIUS}
+          fill={style.fill}
+          stroke={style.stroke}
+          strokeWidth={active ? 3 : 2}
+          filter={
+            active ? "drop-shadow(0 4px 12px rgba(0,0,0,0.12))" : undefined
+          }
+        />
+        <text
+          y={-2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={20}
+          pointerEvents="none"
+        >
+          {style.icon}
+        </text>
+        <text
+          y={NODE_RADIUS + 14}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={11}
+          fontWeight={active ? 600 : 500}
+          fill="var(--text)"
+          style={{ pointerEvents: "none" }}
+        >
+          {truncateLabel(node.title)}
+        </text>
+      </g>
+    </a>
+  );
+}
 
 function EmptyState() {
   return (

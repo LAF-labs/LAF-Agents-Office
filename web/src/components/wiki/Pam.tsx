@@ -1,5 +1,6 @@
 import {
   type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
   useCallback,
   useEffect,
   useRef,
@@ -78,6 +79,13 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
     onActionDoneRef.current = onActionDone;
   }, [onActionDone]);
 
+  const scheduleClear = useCallback(() => {
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = setTimeout(() => {
+      setStatus({ kind: "idle" });
+    }, STATUS_CLEAR_MS);
+  }, []);
+
   // Fetch the action registry once on mount. A fetch failure surfaces a
   // distinct error state in the menu so it's not silently indistinguishable
   // from "no actions available".
@@ -108,39 +116,17 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
   // `started` event fired between POST and the next effect pass.
   useEffect(() => {
     const unsub = subscribePamEvents((evt: PamActionEvent) => {
-      const current = activeJobIdRef.current;
-      if (current === null || evt.job_id !== current) return;
-      if (evt.kind === "started") {
-        setStatus({
-          kind: "running",
-          label: labelFor(evt.action, menuRef.current),
-        });
-        return;
-      }
-      if (evt.kind === "done") {
-        setStatus({
-          kind: "done",
-          label: labelFor(evt.action, menuRef.current),
-        });
-        setActiveJobId(null);
-        scheduleClear();
-        onActionDoneRef.current?.();
-        return;
-      }
-      if (evt.kind === "failed") {
-        setStatus({
-          kind: "failed",
-          message: evt.error || "Pam could not finish.",
-        });
-        setActiveJobId(null);
-        scheduleClear();
-      }
+      handlePamEvent(evt, activeJobIdRef.current, menuRef.current, {
+        setStatus,
+        setActiveJobId,
+        scheduleClear,
+        onActionDone: onActionDoneRef.current,
+      });
     });
     return () => {
       unsub();
     };
-    // scheduleClear is stable (useCallback with empty deps) — safe to omit.
-  }, []);
+  }, [scheduleClear]);
 
   // Close menu on outside click so it doesn't linger when the user moves
   // on. Keep it simple: single global listener, cleaned up on unmount.
@@ -170,13 +156,6 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
     firstItem?.focus();
   }, [menuOpen]);
 
-  const scheduleClear = useCallback(() => {
-    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-    statusTimerRef.current = setTimeout(() => {
-      setStatus({ kind: "idle" });
-    }, STATUS_CLEAR_MS);
-  }, []);
-
   const closeMenuAndRefocus = useCallback(() => {
     setMenuOpen(false);
     triggerRef.current?.focus();
@@ -202,27 +181,7 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
 
   const onMenuKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeMenuAndRefocus();
-        return;
-      }
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      const items = Array.from(
-        menuElRef.current?.querySelectorAll<HTMLButtonElement>(
-          '[role="menuitem"]',
-        ) ?? [],
-      ).filter((el) => !el.disabled);
-      if (items.length === 0) return;
-      e.preventDefault();
-      const activeIndex = items.findIndex(
-        (el) => el === document.activeElement,
-      );
-      const nextIndex =
-        e.key === "ArrowDown"
-          ? (activeIndex + 1 + items.length) % items.length
-          : (activeIndex - 1 + items.length) % items.length;
-      items[nextIndex]?.focus();
+      handlePamMenuKeyDown(e, menuElRef.current, closeMenuAndRefocus);
     },
     [closeMenuAndRefocus],
   );
@@ -247,41 +206,15 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
       <div className="pam-desk" aria-hidden="true" />
 
       {menuOpen ? (
-        <div
-          ref={menuElRef}
-          className="pam-menu"
-          role="menu"
-          aria-label="Pam's actions"
-          onKeyDown={onMenuKeyDown}
-        >
-          <div className="pam-menu-header">Pam can help with</div>
-          {menu === null ? (
-            <div className="pam-menu-empty">Loading…</div>
-          ) : loadError ? (
-            <div className="pam-menu-empty" role="alert">
-              Could not load Pam’s menu.
-            </div>
-          ) : menu.length === 0 ? (
-            <div className="pam-menu-empty">No actions available.</div>
-          ) : !articlePath ? (
-            <div className="pam-menu-empty">Open an article to use Pam.</div>
-          ) : (
-            menu.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                role="menuitem"
-                className="pam-menu-item"
-                disabled={busy}
-                onClick={() => {
-                  void runAction(entry);
-                }}
-              >
-                {entry.label}
-              </button>
-            ))
-          )}
-        </div>
+        <PamMenu
+          menuElRef={menuElRef}
+          onMenuKeyDown={onMenuKeyDown}
+          menu={menu}
+          loadError={loadError}
+          articlePath={articlePath}
+          busy={busy}
+          runAction={runAction}
+        />
       ) : null}
 
       {status.kind !== "idle" && (
@@ -295,6 +228,89 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
         </div>
       )}
     </div>
+  );
+}
+
+interface PamMenuProps {
+  menuElRef: RefObject<HTMLDivElement | null>;
+  onMenuKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => void;
+  menu: PamMenuEntry[] | null;
+  loadError: string | null;
+  articlePath: string | null;
+  busy: boolean;
+  runAction: (entry: PamMenuEntry) => Promise<void>;
+}
+
+function PamMenu({
+  menuElRef,
+  onMenuKeyDown,
+  menu,
+  loadError,
+  articlePath,
+  busy,
+  runAction,
+}: PamMenuProps) {
+  return (
+    <div
+      ref={menuElRef}
+      className="pam-menu"
+      role="menu"
+      aria-label="Pam's actions"
+      onKeyDown={onMenuKeyDown}
+    >
+      <div className="pam-menu-header">Pam can help with</div>
+      <PamMenuItems
+        menu={menu}
+        loadError={loadError}
+        articlePath={articlePath}
+        busy={busy}
+        runAction={runAction}
+      />
+    </div>
+  );
+}
+
+function PamMenuItems({
+  menu,
+  loadError,
+  articlePath,
+  busy,
+  runAction,
+}: Pick<
+  PamMenuProps,
+  "menu" | "loadError" | "articlePath" | "busy" | "runAction"
+>) {
+  if (menu === null) return <div className="pam-menu-empty">Loading…</div>;
+  if (loadError) {
+    return (
+      <div className="pam-menu-empty" role="alert">
+        Could not load Pam’s menu.
+      </div>
+    );
+  }
+  if (menu.length === 0) {
+    return <div className="pam-menu-empty">No actions available.</div>;
+  }
+  if (!articlePath) {
+    return <div className="pam-menu-empty">Open an article to use Pam.</div>;
+  }
+  return (
+    <>
+      {menu.map((entry) => (
+        <button
+          key={entry.id}
+          type="button"
+          role="menuitem"
+          className="pam-menu-item"
+          disabled={busy}
+          onClick={() => {
+            void runAction(entry);
+          }}
+        >
+          {entry.label}
+        </button>
+      ))}
+    </>
   );
 }
 
@@ -321,4 +337,73 @@ function labelFor(id: string, menu: PamMenuEntry[] | null): string {
   if (!menu) return id;
   const hit = menu.find((m) => m.id === id);
   return hit?.label ?? id;
+}
+
+function handlePamEvent(
+  evt: PamActionEvent,
+  currentJobId: number | null,
+  menu: PamMenuEntry[] | null,
+  actions: {
+    setStatus: (status: Status) => void;
+    setActiveJobId: (id: number | null) => void;
+    scheduleClear: () => void;
+    onActionDone?: () => void;
+  },
+) {
+  if (currentJobId === null || evt.job_id !== currentJobId) return;
+  if (evt.kind === "started") {
+    actions.setStatus({
+      kind: "running",
+      label: labelFor(evt.action, menu),
+    });
+    return;
+  }
+  if (evt.kind === "done") {
+    actions.setStatus({
+      kind: "done",
+      label: labelFor(evt.action, menu),
+    });
+    actions.setActiveJobId(null);
+    actions.scheduleClear();
+    actions.onActionDone?.();
+    return;
+  }
+  if (evt.kind === "failed") {
+    actions.setStatus({
+      kind: "failed",
+      message: evt.error || "Pam could not finish.",
+    });
+    actions.setActiveJobId(null);
+    actions.scheduleClear();
+  }
+}
+
+function enabledMenuItems(menuEl: HTMLDivElement | null): HTMLButtonElement[] {
+  return Array.from(
+    menuEl?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
+  ).filter((el) => !el.disabled);
+}
+
+function handlePamMenuKeyDown(
+  e: ReactKeyboardEvent<HTMLDivElement>,
+  menuEl: HTMLDivElement | null,
+  closeMenuAndRefocus: () => void,
+) {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    closeMenuAndRefocus();
+    return;
+  }
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  const items = enabledMenuItems(menuEl);
+  if (items.length === 0) return;
+  e.preventDefault();
+  const activeIndex = items.indexOf(
+    document.activeElement as HTMLButtonElement,
+  );
+  const nextIndex =
+    e.key === "ArrowDown"
+      ? (activeIndex + 1 + items.length) % items.length
+      : (activeIndex - 1 + items.length) % items.length;
+  items[nextIndex]?.focus();
 }

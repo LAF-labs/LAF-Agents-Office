@@ -53,35 +53,13 @@ function detectEntity(path: string): { kind: EntityKind; slug: string } | null {
   return { kind: m[1] as EntityKind, slug: m[2] };
 }
 
-interface WikiArticleProps {
-  path: string;
-  catalog: WikiCatalogEntry[];
-  onNavigate: (path: string) => void;
-  /**
-   * Bumped by Pam (now hoisted to the Wiki shell) when an action completes,
-   * so the article + history refetch without a navigation. Treated as an
-   * additive trigger on top of the local refreshNonce used by inline edits.
-   */
-  externalRefreshNonce?: number;
+interface ArticleState {
+  article: WikiArticleT | null;
+  loading: boolean;
+  error: string | null;
 }
 
-export default function WikiArticle({
-  path,
-  catalog,
-  onNavigate,
-  externalRefreshNonce = 0,
-}: WikiArticleProps) {
-  const [article, setArticle] = useState<WikiArticleT | null>(null);
-  const [tab, setTab] = useState<HatBarTab>("article");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [historyCommits, setHistoryCommits] = useState<
-    WikiHistoryCommit[] | null
-  >(null);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [historyError, setHistoryError] = useState(false);
-  const [liveAgent, setLiveAgent] = useState<string | null>(null);
-  const [_refreshNonce, setRefreshNonce] = useState(0);
+function useHumanIdentities(): HumanIdentity[] {
   const [humans, setHumans] = useState<HumanIdentity[]>([]);
 
   // Fetch the human registry once per mount. The list is small (a handful
@@ -102,8 +80,23 @@ export default function WikiArticle({
     };
   }, []);
 
+  return humans;
+}
+
+function useArticleData(
+  path: string,
+  refreshNonce: number,
+  externalRefreshNonce: number,
+): ArticleState {
+  const [article, setArticle] = useState<WikiArticleT | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
+    // Nonces intentionally retrigger the fetch even though the request URL is path-only.
+    void refreshNonce;
+    void externalRefreshNonce;
     setLoading(true);
     setError(null);
     fetchArticle(path)
@@ -121,10 +114,27 @@ export default function WikiArticle({
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, refreshNonce, externalRefreshNonce]);
+
+  return { article, loading, error };
+}
+
+function useArticleHistory(
+  path: string,
+  refreshNonce: number,
+  externalRefreshNonce: number,
+) {
+  const [historyCommits, setHistoryCommits] = useState<
+    WikiHistoryCommit[] | null
+  >(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    // Nonces intentionally retrigger the fetch even though the request URL is path-only.
+    void refreshNonce;
+    void externalRefreshNonce;
     setHistoryCommits(null);
     setHistoryLoading(true);
     setHistoryError(false);
@@ -145,7 +155,13 @@ export default function WikiArticle({
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, refreshNonce, externalRefreshNonce]);
+
+  return { historyCommits, historyLoading, historyError };
+}
+
+function useLiveArticleAgent(path: string): string | null {
+  const [liveAgent, setLiveAgent] = useState<string | null>(null);
 
   useEffect(() => {
     setLiveAgent(null);
@@ -161,6 +177,42 @@ export default function WikiArticle({
       unsubscribe();
     };
   }, [path]);
+
+  return liveAgent;
+}
+
+interface WikiArticleProps {
+  path: string;
+  catalog: WikiCatalogEntry[];
+  onNavigate: (path: string) => void;
+  /**
+   * Bumped by Pam (now hoisted to the Wiki shell) when an action completes,
+   * so the article + history refetch without a navigation. Treated as an
+   * additive trigger on top of the local refreshNonce used by inline edits.
+   */
+  externalRefreshNonce?: number;
+}
+
+export default function WikiArticle({
+  path,
+  catalog,
+  onNavigate,
+  externalRefreshNonce = 0,
+}: WikiArticleProps) {
+  const [tab, setTab] = useState<HatBarTab>("article");
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const humans = useHumanIdentities();
+  const { article, loading, error } = useArticleData(
+    path,
+    refreshNonce,
+    externalRefreshNonce,
+  );
+  const { historyCommits, historyLoading, historyError } = useArticleHistory(
+    path,
+    refreshNonce,
+    externalRefreshNonce,
+  );
+  const liveAgent = useLiveArticleAgent(path);
 
   const sourceItems = useMemo<SourceItem[]>(() => {
     if (!historyCommits) return [];
@@ -200,12 +252,6 @@ export default function WikiArticle({
   const entity = detectEntity(article.path);
   const playbook = detectPlaybook(article.path);
   const breadcrumbSegments = article.path.split("/").filter(Boolean);
-  let breadcrumbPath = "";
-  const breadcrumbItems = breadcrumbSegments.map((seg) => {
-    breadcrumbPath = breadcrumbPath ? `${breadcrumbPath}/${seg}` : seg;
-    return { seg, path: breadcrumbPath };
-  });
-  const lastBreadcrumbPath = breadcrumbItems[breadcrumbItems.length - 1]?.path;
   const context = breadcrumbSegments[0] || "";
   const byline = (
     <Byline
@@ -220,45 +266,18 @@ export default function WikiArticle({
   return (
     <>
       <main className="wk-article-col">
-        {liveAgent ? (
-          <ArticleStatusBanner
-            message={`${formatAgentName(liveAgent)} is editing this article right now.`}
-            liveAgent={liveAgent}
-            revisions={article.revisions}
-            contributors={article.contributors.length}
-            wordCount={article.word_count}
-          />
-        ) : null}
-        {entity && (
-          <EntityBriefBar
-            kind={entity.kind}
-            slug={entity.slug}
-            onSynthesized={() => setRefreshNonce((n) => n + 1)}
-          />
-        )}
-        {playbook && <PlaybookSkillBadge slug={playbook.slug} />}
+        <LiveArticleStatus liveAgent={liveAgent} article={article} />
+        <ArticleIdentityPanels
+          entity={entity}
+          playbook={playbook}
+          onRefresh={() => setRefreshNonce((n) => n + 1)}
+        />
         <HatBar
           active={tab}
           onChange={setTab}
           rightRail={context ? [context] : undefined}
         />
-        <div className="wk-breadcrumb">
-          <button type="button" onClick={() => onNavigate("")}>
-            Team Wiki
-          </button>
-          {breadcrumbItems.map(({ seg, path }) => (
-            <span key={path} style={{ display: "contents" }}>
-              <span className="sep">›</span>
-              {path !== lastBreadcrumbPath ? (
-                <button type="button" onClick={() => onNavigate(path)}>
-                  {seg}
-                </button>
-              ) : (
-                <span>{article.title}</span>
-              )}
-            </span>
-          ))}
-        </div>
+        <ArticleBreadcrumb article={article} onNavigate={onNavigate} />
         <ArticleTitle title={article.title} />
         {byline}
         <Hatnote>
@@ -316,15 +335,11 @@ export default function WikiArticle({
             A.
           </div>
         )}
-        {entity && tab === "article" && (
-          <FactsOnFile kind={entity.kind} slug={entity.slug} />
-        )}
-        {entity && tab === "article" && (
-          <EntityRelatedPanel kind={entity.kind} slug={entity.slug} />
-        )}
-        {playbook && tab === "article" && (
-          <PlaybookExecutionLog slug={playbook.slug} />
-        )}
+        <ArticleSupplementPanels
+          entity={entity}
+          playbook={playbook}
+          activeTab={tab}
+        />
         <SeeAlso
           items={article.backlinks.map((b) => ({
             slug: b.path,
@@ -355,6 +370,123 @@ export default function WikiArticle({
         <ReferencedBy backlinks={article.backlinks} onNavigate={onNavigate} />
       </aside>
     </>
+  );
+}
+
+interface BreadcrumbItem {
+  segment: string;
+  path: string;
+}
+
+type DetectedEntity = { kind: EntityKind; slug: string };
+type DetectedPlaybook = ReturnType<typeof detectPlaybook>;
+
+interface LiveArticleStatusProps {
+  liveAgent: string | null;
+  article: WikiArticleT;
+}
+
+function LiveArticleStatus({ liveAgent, article }: LiveArticleStatusProps) {
+  if (!liveAgent) return null;
+
+  return (
+    <ArticleStatusBanner
+      message={`${formatAgentName(liveAgent)} is editing this article right now.`}
+      liveAgent={liveAgent}
+      revisions={article.revisions}
+      contributors={article.contributors.length}
+      wordCount={article.word_count}
+    />
+  );
+}
+
+interface ArticleIdentityPanelsProps {
+  entity: DetectedEntity | null;
+  playbook: DetectedPlaybook;
+  onRefresh: () => void;
+}
+
+function ArticleIdentityPanels({
+  entity,
+  playbook,
+  onRefresh,
+}: ArticleIdentityPanelsProps) {
+  return (
+    <>
+      {entity ? (
+        <EntityBriefBar
+          kind={entity.kind}
+          slug={entity.slug}
+          onSynthesized={onRefresh}
+        />
+      ) : null}
+      {playbook ? <PlaybookSkillBadge slug={playbook.slug} /> : null}
+    </>
+  );
+}
+
+interface ArticleSupplementPanelsProps {
+  entity: DetectedEntity | null;
+  playbook: DetectedPlaybook;
+  activeTab: HatBarTab;
+}
+
+function ArticleSupplementPanels({
+  entity,
+  playbook,
+  activeTab,
+}: ArticleSupplementPanelsProps) {
+  if (activeTab !== "article") return null;
+
+  return (
+    <>
+      {entity ? <FactsOnFile kind={entity.kind} slug={entity.slug} /> : null}
+      {entity ? (
+        <EntityRelatedPanel kind={entity.kind} slug={entity.slug} />
+      ) : null}
+      {playbook ? <PlaybookExecutionLog slug={playbook.slug} /> : null}
+    </>
+  );
+}
+
+function buildBreadcrumbItems(articlePath: string): BreadcrumbItem[] {
+  let currentPath = "";
+  return articlePath
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      return { segment, path: currentPath };
+    });
+}
+
+interface ArticleBreadcrumbProps {
+  article: WikiArticleT;
+  onNavigate: (path: string) => void;
+}
+
+function ArticleBreadcrumb({ article, onNavigate }: ArticleBreadcrumbProps) {
+  const breadcrumbItems = buildBreadcrumbItems(article.path);
+  const lastBreadcrumbPath = breadcrumbItems[breadcrumbItems.length - 1]?.path;
+
+  return (
+    <div className="wk-breadcrumb">
+      <button type="button" onClick={() => onNavigate("")}>
+        Team Wiki
+      </button>
+      {breadcrumbItems.map(({ segment, path: itemPath }) => (
+        <span key={itemPath} style={{ display: "contents" }}>
+          <span className="sep">›</span>
+          {itemPath !== lastBreadcrumbPath ? (
+            <button type="button" onClick={() => onNavigate(itemPath)}>
+              {segment}
+            </button>
+          ) : (
+            <span>{article.title}</span>
+          )}
+        </span>
+      ))}
+    </div>
   );
 }
 

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -16,7 +24,11 @@ import {
   parseMentions,
   renderMentionTokens,
 } from "../../lib/mentions";
-import { directChannelSlug, useAppStore } from "../../stores/app";
+import {
+  type AppStore,
+  directChannelSlug,
+  useAppStore,
+} from "../../stores/app";
 import { confirm } from "../ui/ConfirmDialog";
 import { openProviderSwitcher } from "../ui/ProviderSwitcher";
 import { showNotice } from "../ui/Toast";
@@ -103,6 +115,218 @@ interface OutboundMessage {
   tagged: string[];
 }
 
+interface SlashCommand {
+  cmd: string;
+  args: string;
+}
+
+type SlashCommandHandler = (
+  args: string,
+  store: AppStore,
+  handlers: SlashHandlers,
+) => boolean;
+
+const APP_COMMANDS: Record<string, string> = {
+  "/requests": "requests",
+  "/policies": "policies",
+  "/skills": "skills",
+  "/calendar": "calendar",
+  "/tasks": "tasks",
+  "/recover": "health-check",
+  "/doctor": "health-check",
+  "/threads": "threads",
+};
+
+function parseSlashCommand(input: string): SlashCommand {
+  const parts = input.split(/\s+/);
+  return {
+    cmd: parts[0].toLowerCase(),
+    args: parts.slice(1).join(" ").trim(),
+  };
+}
+
+function handleAppCommand(cmd: string, store: AppStore): boolean {
+  const app = APP_COMMANDS[cmd];
+  if (!app) return false;
+  store.setCurrentApp(app);
+  return true;
+}
+
+function handleAskCommand(args: string, handlers: SlashHandlers): boolean {
+  if (!args) {
+    showNotice("Usage: /ask <question>", "info");
+    return true;
+  }
+  // TUI's cmdAsk always routes to the team lead. Mirror that by
+  // prefixing an @mention so the broker's routing picks up the lead.
+  handlers.sendAsMessage(askPrefix(handlers.leadSlug) + args);
+  return true;
+}
+
+function handleLookupCommand(args: string, store: AppStore): boolean {
+  if (!args) {
+    showNotice("Usage: /lookup <question>", "info");
+    return true;
+  }
+  const channel = store.currentChannel;
+  showNotice("Looking up in wiki…", "info");
+  get("/wiki/lookup", { q: args, channel }).catch((e: Error) => {
+    showNotice(`Wiki lookup failed: ${e.message}`, "error");
+  });
+  return true;
+}
+
+function handleRememberCommand(args: string): boolean {
+  if (!args) {
+    showNotice("Usage: /remember <fact>", "info");
+    return true;
+  }
+  // Broker /memory requires namespace + key + value. Use a stable
+  // human-owned namespace and a short timestamp key so repeated
+  // /remember calls do not collide.
+  const key = `note-${Date.now().toString(36)}`;
+  setMemory("human-notes", key, args)
+    .then(() =>
+      showNotice(
+        "Stored in memory: " +
+          (args.length > 40 ? `${args.slice(0, 40)}…` : args),
+        "success",
+      ),
+    )
+    .catch((e: Error) => showNotice(`Remember failed: ${e.message}`, "error"));
+  return true;
+}
+
+function handleTaskCommand(args: string, store: AppStore): boolean {
+  const taskParts = args.split(/\s+/);
+  const action = (taskParts[0] || "").toLowerCase();
+  const taskId = taskParts[1] || "";
+  const extra = taskParts.slice(2).join(" ");
+  if (!(action && taskId)) {
+    showNotice(
+      "Usage: /task <claim|release|complete|block|approve> <task-id>",
+      "info",
+    );
+    return true;
+  }
+  const body: Record<string, string> = {
+    action,
+    id: taskId,
+    channel: store.currentChannel,
+  };
+  if (action === "claim") body.owner = "human";
+  if (extra) body.details = extra;
+  post("/tasks", body)
+    .then(() => showNotice(`Task ${taskId} → ${action}`, "success"))
+    .catch((e: Error) =>
+      showNotice(`Task action failed: ${e.message}`, "error"),
+    );
+  return true;
+}
+
+function handleCancelCommand(args: string, store: AppStore): boolean {
+  if (!args) {
+    showNotice("Usage: /cancel <task-id>", "info");
+    return true;
+  }
+  post("/tasks", {
+    action: "release",
+    id: args.trim(),
+    channel: store.currentChannel,
+  })
+    .then(() => showNotice(`Task ${args.trim()} cancelled`, "success"))
+    .catch(() => showNotice("Cancel failed", "error"));
+  return true;
+}
+
+const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
+  "/clear": () => {
+    showNotice("Messages cleared", "info");
+    return true;
+  },
+  "/help": (_args, store) => {
+    store.setComposerHelpOpen(true);
+    return true;
+  },
+  "/provider": () => {
+    openProviderSwitcher();
+    return true;
+  },
+  "/search": (args, store) => {
+    store.setComposerSearchInitialQuery(args);
+    store.setSearchOpen(true);
+    return true;
+  },
+  "/ask": (args, _store, handlers) => handleAskCommand(args, handlers),
+  "/lookup": (args, store) => handleLookupCommand(args, store),
+  "/lint": (_args, store) => {
+    store.setCurrentApp("wiki");
+    store.setWikiPath("_lint");
+    return true;
+  },
+  "/remember": (args) => handleRememberCommand(args),
+  "/focus": () => {
+    post("/focus-mode", { focus_mode: true })
+      .then(() => showNotice("Switched to delegation mode", "success"))
+      .catch(() => showNotice("Failed to switch mode", "error"));
+    return true;
+  },
+  "/collab": () => {
+    post("/focus-mode", { focus_mode: false })
+      .then(() => showNotice("Switched to collaborative mode", "success"))
+      .catch(() => showNotice("Failed to switch mode", "error"));
+    return true;
+  },
+  "/pause": () => {
+    post("/signals", { kind: "pause", summary: "Human paused all agents" })
+      .then(() => showNotice("All agents paused", "success"))
+      .catch((e: Error) => showNotice(`Pause failed: ${e.message}`, "error"));
+    return true;
+  },
+  "/resume": () => {
+    post("/signals", { kind: "resume", summary: "Human resumed agents" })
+      .then(() => showNotice("Agents resumed", "success"))
+      .catch((e: Error) => showNotice(`Resume failed: ${e.message}`, "error"));
+    return true;
+  },
+  "/reset": (_args, store) => {
+    confirm({
+      title: "Reset the office?",
+      message:
+        "Clears channels back to #general and drops in-memory state. Persisted tasks and requests stay on the broker.",
+      confirmLabel: "Reset",
+      danger: true,
+      onConfirm: () =>
+        post("/reset", {})
+          .then(() => {
+            store.setLastMessageId(null);
+            store.setCurrentChannel("general");
+            showNotice("Office reset", "success");
+          })
+          .catch((e: Error) =>
+            showNotice(`Reset failed: ${e.message}`, "error"),
+          ),
+    });
+    return true;
+  },
+  "/1o1": (args, store) => {
+    if (!args) {
+      showNotice("Usage: /1o1 <agent-slug>", "info");
+      return true;
+    }
+    const slug = args.trim().toLowerCase();
+    createDM(slug)
+      .then((data) => {
+        const ch = data.slug || directChannelSlug(slug);
+        store.enterDM(slug, ch);
+      })
+      .catch(() => showNotice(`Agent not found: ${args.trim()}`, "error"));
+    return true;
+  },
+  "/task": (args, store) => handleTaskCommand(args, store),
+  "/cancel": (args, store) => handleCancelCommand(args, store),
+};
+
 /**
  * Handle slash commands. Returns true if the input was consumed as a command.
  *
@@ -110,194 +334,10 @@ interface OutboundMessage {
  * the broker sees a normal user message with the right @mention routing.
  */
 function handleSlashCommand(input: string, handlers: SlashHandlers): boolean {
-  const parts = input.split(/\s+/);
-  const cmd = parts[0].toLowerCase();
-  const args = parts.slice(1).join(" ").trim();
+  const { cmd, args } = parseSlashCommand(input);
   const store = useAppStore.getState();
-
-  switch (cmd) {
-    case "/clear":
-      showNotice("Messages cleared", "info");
-      return true;
-    case "/help":
-      store.setComposerHelpOpen(true);
-      return true;
-    case "/requests":
-      store.setCurrentApp("requests");
-      return true;
-    case "/policies":
-      store.setCurrentApp("policies");
-      return true;
-    case "/skills":
-      store.setCurrentApp("skills");
-      return true;
-    case "/calendar":
-      store.setCurrentApp("calendar");
-      return true;
-    case "/tasks":
-      store.setCurrentApp("tasks");
-      return true;
-    case "/recover":
-    case "/doctor":
-      store.setCurrentApp("health-check");
-      return true;
-    case "/threads":
-      store.setCurrentApp("threads");
-      return true;
-    case "/provider":
-      openProviderSwitcher();
-      return true;
-    case "/search":
-      store.setComposerSearchInitialQuery(args);
-      store.setSearchOpen(true);
-      return true;
-    case "/ask": {
-      if (!args) {
-        showNotice("Usage: /ask <question>", "info");
-        return true;
-      }
-      // TUI's cmdAsk always routes to the team lead. Mirror that by
-      // prefixing an @mention so the broker's routing picks up the lead.
-      handlers.sendAsMessage(askPrefix(handlers.leadSlug) + args);
-      return true;
-    }
-    case "/lookup": {
-      if (!args) {
-        showNotice("Usage: /lookup <question>", "info");
-        return true;
-      }
-      const channel = store.currentChannel;
-      showNotice("Looking up in wiki…", "info");
-      get("/wiki/lookup", { q: args, channel }).catch((e: Error) => {
-        showNotice(`Wiki lookup failed: ${e.message}`, "error");
-      });
-      return true;
-    }
-    case "/lint": {
-      store.setCurrentApp("wiki");
-      store.setWikiPath("_lint");
-      return true;
-    }
-    case "/remember": {
-      if (!args) {
-        showNotice("Usage: /remember <fact>", "info");
-        return true;
-      }
-      // Broker /memory requires namespace + key + value. Use a stable
-      // human-owned namespace and a short timestamp key so repeated
-      // /remember calls do not collide.
-      const key = `note-${Date.now().toString(36)}`;
-      setMemory("human-notes", key, args)
-        .then(() =>
-          showNotice(
-            "Stored in memory: " +
-              (args.length > 40 ? `${args.slice(0, 40)}…` : args),
-            "success",
-          ),
-        )
-        .catch((e: Error) =>
-          showNotice(`Remember failed: ${e.message}`, "error"),
-        );
-      return true;
-    }
-    case "/focus":
-      post("/focus-mode", { focus_mode: true })
-        .then(() => showNotice("Switched to delegation mode", "success"))
-        .catch(() => showNotice("Failed to switch mode", "error"));
-      return true;
-    case "/collab":
-      post("/focus-mode", { focus_mode: false })
-        .then(() => showNotice("Switched to collaborative mode", "success"))
-        .catch(() => showNotice("Failed to switch mode", "error"));
-      return true;
-    case "/pause":
-      post("/signals", { kind: "pause", summary: "Human paused all agents" })
-        .then(() => showNotice("All agents paused", "success"))
-        .catch((e: Error) => showNotice(`Pause failed: ${e.message}`, "error"));
-      return true;
-    case "/resume":
-      post("/signals", { kind: "resume", summary: "Human resumed agents" })
-        .then(() => showNotice("Agents resumed", "success"))
-        .catch((e: Error) =>
-          showNotice(`Resume failed: ${e.message}`, "error"),
-        );
-      return true;
-    case "/reset":
-      confirm({
-        title: "Reset the office?",
-        message:
-          "Clears channels back to #general and drops in-memory state. Persisted tasks and requests stay on the broker.",
-        confirmLabel: "Reset",
-        danger: true,
-        onConfirm: () =>
-          post("/reset", {})
-            .then(() => {
-              store.setLastMessageId(null);
-              store.setCurrentChannel("general");
-              showNotice("Office reset", "success");
-            })
-            .catch((e: Error) =>
-              showNotice(`Reset failed: ${e.message}`, "error"),
-            ),
-      });
-      return true;
-    case "/1o1": {
-      if (!args) {
-        showNotice("Usage: /1o1 <agent-slug>", "info");
-        return true;
-      }
-      const slug = args.trim().toLowerCase();
-      createDM(slug)
-        .then((data) => {
-          const ch = data.slug || directChannelSlug(slug);
-          store.enterDM(slug, ch);
-        })
-        .catch(() => showNotice(`Agent not found: ${args.trim()}`, "error"));
-      return true;
-    }
-    case "/task": {
-      const taskParts = args.split(/\s+/);
-      const action = (taskParts[0] || "").toLowerCase();
-      const taskId = taskParts[1] || "";
-      const extra = taskParts.slice(2).join(" ");
-      if (!(action && taskId)) {
-        showNotice(
-          "Usage: /task <claim|release|complete|block|approve> <task-id>",
-          "info",
-        );
-        return true;
-      }
-      const body: Record<string, string> = {
-        action,
-        id: taskId,
-        channel: store.currentChannel,
-      };
-      if (action === "claim") body.owner = "human";
-      if (extra) body.details = extra;
-      post("/tasks", body)
-        .then(() => showNotice(`Task ${taskId} → ${action}`, "success"))
-        .catch((e: Error) =>
-          showNotice(`Task action failed: ${e.message}`, "error"),
-        );
-      return true;
-    }
-    case "/cancel": {
-      if (!args) {
-        showNotice("Usage: /cancel <task-id>", "info");
-        return true;
-      }
-      post("/tasks", {
-        action: "release",
-        id: args.trim(),
-        channel: store.currentChannel,
-      })
-        .then(() => showNotice(`Task ${args.trim()} cancelled`, "success"))
-        .catch(() => showNotice("Cancel failed", "error"));
-      return true;
-    }
-    default:
-      return false;
-  }
+  if (handleAppCommand(cmd, store)) return true;
+  return SLASH_COMMANDS[cmd]?.(args, store, handlers) ?? false;
 }
 
 /**
@@ -316,6 +356,101 @@ interface HistoryState {
 
 function emptyHistoryState(): HistoryState {
   return { index: -1, draftStash: null, entries: [] };
+}
+
+interface AutocompleteKeyContext {
+  items: AutocompleteItem[];
+  selectedIdx: number;
+  setSelectedIdx: Dispatch<SetStateAction<number>>;
+  pickAutocomplete: (item: AutocompleteItem) => void;
+  clearAutocomplete: () => void;
+}
+
+function handleAutocompleteKey(
+  e: React.KeyboardEvent,
+  context: AutocompleteKeyContext,
+): boolean {
+  const { items, selectedIdx, setSelectedIdx, pickAutocomplete } = context;
+  if (items.length === 0) return false;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    setSelectedIdx((i) => (i + 1) % items.length);
+    return true;
+  }
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    setSelectedIdx((i) => (i - 1 + items.length) % items.length);
+    return true;
+  }
+  if (e.key === "Enter" || e.key === "Tab") {
+    e.preventDefault();
+    const pick = items[selectedIdx] ?? items[0];
+    if (pick) pickAutocomplete(pick);
+    return true;
+  }
+  if (e.key === "Escape") {
+    e.preventDefault();
+    context.clearAutocomplete();
+    return true;
+  }
+
+  return false;
+}
+
+interface HistoryKeyContext {
+  recallPrevious: () => boolean;
+  recallNext: () => boolean;
+  moveCaretToEnd: () => void;
+}
+
+function handleHistoryRecallKey(
+  e: React.KeyboardEvent,
+  context: HistoryKeyContext,
+): boolean {
+  if (!(e.ctrlKey && !e.metaKey && !e.altKey)) return false;
+
+  if ((e.key === "p" || e.key === "P") && context.recallPrevious()) {
+    e.preventDefault();
+    context.moveCaretToEnd();
+    return true;
+  }
+  if ((e.key === "n" || e.key === "N") && context.recallNext()) {
+    e.preventDefault();
+    context.moveCaretToEnd();
+    return true;
+  }
+
+  return false;
+}
+
+function isPlainArrowUp(e: React.KeyboardEvent): boolean {
+  return (
+    e.key === "ArrowUp" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+  );
+}
+
+function handleEmptyDraftRecallKey(
+  e: React.KeyboardEvent,
+  text: string,
+  context: Pick<HistoryKeyContext, "recallPrevious" | "moveCaretToEnd">,
+): boolean {
+  if (!(isPlainArrowUp(e) && text === "" && context.recallPrevious())) {
+    return false;
+  }
+  e.preventDefault();
+  context.moveCaretToEnd();
+  return true;
+}
+
+function handleComposerSubmitKey(
+  e: React.KeyboardEvent,
+  handleSend: () => void,
+): boolean {
+  if (e.key !== "Enter" || e.shiftKey) return false;
+  e.preventDefault();
+  handleSend();
+  return true;
 }
 
 export function Composer() {
@@ -489,64 +624,40 @@ export function Composer() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      // Autocomplete navigation runs first
-      if (acItems.length > 0) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setAcIdx((i) => (i + 1) % acItems.length);
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setAcIdx((i) => (i - 1 + acItems.length) % acItems.length);
-          return;
-        }
-        if (e.key === "Enter" || e.key === "Tab") {
-          e.preventDefault();
-          const pick = acItems[acIdx] ?? acItems[0];
-          if (pick) pickAutocomplete(pick);
-          return;
-        }
-        if (e.key === "Escape") {
-          e.preventDefault();
-          setAcItems([]);
-          return;
-        }
+      if (
+        handleAutocompleteKey(e, {
+          items: acItems,
+          selectedIdx: acIdx,
+          setSelectedIdx: setAcIdx,
+          pickAutocomplete,
+          clearAutocomplete: () => setAcItems([]),
+        })
+      ) {
+        return;
       }
 
       // History recall — Ctrl+P / Ctrl+N (TUI parity: internal/tui/interaction.go:56-58)
-      if (e.ctrlKey && !e.metaKey && !e.altKey) {
-        if ((e.key === "p" || e.key === "P") && recallPrevious()) {
-          e.preventDefault();
-          moveCaretToEnd();
-          return;
-        }
-        if ((e.key === "n" || e.key === "N") && recallNext()) {
-          e.preventDefault();
-          moveCaretToEnd();
-          return;
-        }
+      if (
+        handleHistoryRecallKey(e, {
+          recallPrevious,
+          recallNext,
+          moveCaretToEnd,
+        })
+      ) {
+        return;
       }
 
       // Slack-style: empty-draft ArrowUp recalls the last message.
       if (
-        e.key === "ArrowUp" &&
-        !e.shiftKey &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        text === "" &&
-        recallPrevious()
+        handleEmptyDraftRecallKey(e, text, {
+          recallPrevious,
+          moveCaretToEnd,
+        })
       ) {
-        e.preventDefault();
-        moveCaretToEnd();
         return;
       }
 
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
+      handleComposerSubmitKey(e, handleSend);
     },
     [
       handleSend,

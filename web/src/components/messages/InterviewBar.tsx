@@ -1,10 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { NavArrowLeft, NavArrowRight, Xmark } from "iconoir-react";
 
 import { answerRequest, type InterviewOption, post } from "../../api/client";
 import { useRequests } from "../../hooks/useRequests";
 import { showNotice } from "../ui/Toast";
+
+type TextMode = { option: InterviewOption };
+
+function cleanQuestion(question: string): string {
+  return question.replace(/\*\*/g, "").replace(/^\s*\d+\.\s*/, "");
+}
+
+function sortInterviewOptions(
+  options: InterviewOption[],
+  recommendedId?: string | null,
+): InterviewOption[] {
+  return [...options].sort((a, b) => {
+    const ar = a.id === recommendedId ? 0 : 1;
+    const br = b.id === recommendedId ? 0 : 1;
+    return ar - br;
+  });
+}
 
 /**
  * Inline interview bar shown above the Composer. Mirrors the TUI behavior:
@@ -29,9 +46,7 @@ export function InterviewBar() {
   }, [pending]);
 
   const [cursor, setCursor] = useState(0);
-  const [textMode, setTextMode] = useState<{ option: InterviewOption } | null>(
-    null,
-  );
+  const [textMode, setTextMode] = useState<TextMode | null>(null);
   const [customText, setCustomText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
@@ -57,11 +72,7 @@ export function InterviewBar() {
   if (!current) return null;
 
   const rawOptions = current.options ?? current.choices ?? [];
-  const options = [...rawOptions].sort((a, b) => {
-    const ar = a.id === current.recommended_id ? 0 : 1;
-    const br = b.id === current.recommended_id ? 0 : 1;
-    return ar - br;
-  });
+  const options = sortInterviewOptions(rawOptions, current.recommended_id);
 
   const submit = async (option: InterviewOption, text?: string) => {
     if (submitting) return;
@@ -164,77 +175,172 @@ export function InterviewBar() {
           <div className="interview-bar-title">{current.title}</div>
         ) : null}
         <div className="interview-bar-question">
-          {(current.question || "")
-            .replace(/\*\*/g, "")
-            .replace(/^\s*\d+\.\s*/, "")}
+          {cleanQuestion(current.question || "")}
         </div>
         {current.context ? (
           <div className="interview-bar-context">{current.context}</div>
         ) : null}
       </div>
 
-      {textMode ? (
-        <div className="interview-bar-text">
-          <textarea
-            ref={textareaRef}
-            className="interview-bar-textarea"
-            placeholder={textMode.option.text_hint || "Type your answer..."}
-            value={customText}
-            onChange={(e) => setCustomText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setTextMode(null);
-              }
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                if (customText.trim())
-                  submit(textMode.option, customText.trim());
-              }
-            }}
-            rows={3}
-          />
-          <div className="interview-bar-text-actions">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setTextMode(null)}
-              disabled={submitting}
-            >
-              Back
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => submit(textMode.option, customText.trim())}
-              disabled={submitting || !customText.trim()}
-            >
-              {submitting ? "Sending..." : `Send as ${textMode.option.label}`}
-            </button>
-          </div>
-        </div>
-      ) : options.length > 0 ? (
-        <div className="interview-bar-actions">
-          {options.map((opt, i) => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`btn btn-sm ${opt.id === current.recommended_id ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => handleOption(opt)}
-              disabled={submitting}
-              title={opt.description}
-            >
-              <span className="interview-bar-opt-num">{i + 1}</span>
-              <span className="interview-bar-opt-label">{opt.label}</span>
-              {opt.requires_text ? (
-                <span className="interview-bar-text-hint"> · type</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="interview-bar-empty">No options provided.</div>
-      )}
+      <InterviewBarActions
+        textMode={textMode}
+        textareaRef={textareaRef}
+        customText={customText}
+        setCustomText={setCustomText}
+        setTextMode={setTextMode}
+        submit={submit}
+        options={options}
+        recommendedId={current.recommended_id}
+        handleOption={handleOption}
+        submitting={submitting}
+      />
     </section>
+  );
+}
+
+interface InterviewBarActionsProps {
+  textMode: TextMode | null;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  customText: string;
+  setCustomText: (text: string) => void;
+  setTextMode: (mode: TextMode | null) => void;
+  submit: (option: InterviewOption, text?: string) => void;
+  options: InterviewOption[];
+  recommendedId?: string | null;
+  handleOption: (option: InterviewOption) => void;
+  submitting: boolean;
+}
+
+function InterviewBarActions({
+  textMode,
+  textareaRef,
+  customText,
+  setCustomText,
+  setTextMode,
+  submit,
+  options,
+  recommendedId,
+  handleOption,
+  submitting,
+}: InterviewBarActionsProps) {
+  if (textMode) {
+    return (
+      <TextAnswerForm
+        textMode={textMode}
+        textareaRef={textareaRef}
+        customText={customText}
+        setCustomText={setCustomText}
+        setTextMode={setTextMode}
+        submit={submit}
+        submitting={submitting}
+      />
+    );
+  }
+  if (options.length > 0) {
+    return (
+      <OptionButtons
+        options={options}
+        recommendedId={recommendedId}
+        handleOption={handleOption}
+        submitting={submitting}
+      />
+    );
+  }
+  return <div className="interview-bar-empty">No options provided.</div>;
+}
+
+interface TextAnswerFormProps {
+  textMode: TextMode;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  customText: string;
+  setCustomText: (text: string) => void;
+  setTextMode: (mode: TextMode | null) => void;
+  submit: (option: InterviewOption, text?: string) => void;
+  submitting: boolean;
+}
+
+function TextAnswerForm({
+  textMode,
+  textareaRef,
+  customText,
+  setCustomText,
+  setTextMode,
+  submit,
+  submitting,
+}: TextAnswerFormProps) {
+  return (
+    <div className="interview-bar-text">
+      <textarea
+        ref={textareaRef}
+        className="interview-bar-textarea"
+        placeholder={textMode.option.text_hint || "Type your answer..."}
+        value={customText}
+        onChange={(e) => setCustomText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setTextMode(null);
+          }
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            if (customText.trim()) submit(textMode.option, customText.trim());
+          }
+        }}
+        rows={3}
+      />
+      <div className="interview-bar-text-actions">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setTextMode(null)}
+          disabled={submitting}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => submit(textMode.option, customText.trim())}
+          disabled={submitting || !customText.trim()}
+        >
+          {submitting ? "Sending..." : `Send as ${textMode.option.label}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface OptionButtonsProps {
+  options: InterviewOption[];
+  recommendedId?: string | null;
+  handleOption: (option: InterviewOption) => void;
+  submitting: boolean;
+}
+
+function OptionButtons({
+  options,
+  recommendedId,
+  handleOption,
+  submitting,
+}: OptionButtonsProps) {
+  return (
+    <div className="interview-bar-actions">
+      {options.map((opt, i) => (
+        <button
+          key={opt.id}
+          type="button"
+          className={`btn btn-sm ${opt.id === recommendedId ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => handleOption(opt)}
+          disabled={submitting}
+          title={opt.description}
+        >
+          <span className="interview-bar-opt-num">{i + 1}</span>
+          <span className="interview-bar-opt-label">{opt.label}</span>
+          {opt.requires_text ? (
+            <span className="interview-bar-text-hint"> · type</span>
+          ) : null}
+        </button>
+      ))}
+    </div>
   );
 }

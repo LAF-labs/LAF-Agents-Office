@@ -93,109 +93,156 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
       data-testid="wk-facts-on-file"
     >
       <h2 id="wk-facts-heading">Facts on file</h2>
-      {loading ? (
-        <p className="wk-facts-loading">loading facts…</p>
-      ) : error ? (
-        <p className="wk-facts-error">{error}</p>
-      ) : facts.length === 0 ? (
-        <p className="wk-facts-empty">
-          0 facts recorded yet. Agents will add facts as they work.
-        </p>
-      ) : (
-        <>
-          <ol className="wk-facts-items">
-            {visibleFacts.map((f) => (
-              <li
-                key={f.id}
-                className="wk-facts-item"
-                data-fact-type={f.type ?? "observation"}
-                data-superseded={isSuperseded(f) ? "true" : undefined}
-              >
-                <PixelAvatar slug={f.recorded_by} size={14} />
-                <div className="wk-facts-body">
-                  <span className="wk-facts-text">{f.text}</span>
-                  {f.triplet ? (
-                    <span className="wk-facts-triplet">
-                      <code>{f.triplet.subject}</code>
-                      {" — "}
-                      <code>{f.triplet.predicate}</code>
-                      {" → "}
-                      <code>{f.triplet.object}</code>
-                    </span>
-                  ) : null}
-                  <span className="wk-facts-meta">
-                    {f.type ? (
-                      <span className="wk-facts-type">{f.type}</span>
-                    ) : null}
-                    {typeof f.confidence === "number" ? (
-                      <>
-                        {f.type ? " · " : null}
-                        <span className="wk-facts-confidence">
-                          {f.confidence.toFixed(2)}
-                        </span>
-                      </>
-                    ) : null}
-                    {(f.type || typeof f.confidence === "number") && " · "}
-                    {formatAgentName(f.recorded_by)}
-                    {" · "}
-                    <time dateTime={f.created_at}>
-                      {formatShortTs(f.created_at)}
-                    </time>
-                    {formatValidity(f) ? (
-                      <>
-                        {" · "}
-                        <span className="wk-facts-validity">
-                          {formatValidity(f)}
-                        </span>
-                      </>
-                    ) : null}
-                    {f.reinforced_at ? (
-                      <>
-                        {" · "}
-                        <span className="wk-facts-reinforced">
-                          reinforced {formatShortTs(f.reinforced_at)}
-                        </span>
-                      </>
-                    ) : null}
-                    {isWikiSource(f.source_path) ? (
-                      <>
-                        {" · "}
-                        <a
-                          className="wk-facts-source"
-                          href={`#/wiki/${f.source_path}`}
-                          data-wikilink="true"
-                        >
-                          {sourceLabel(f.source_path as string)}
-                        </a>
-                      </>
-                    ) : null}
-                    {f.supersedes && f.supersedes.length > 0 ? (
-                      <>
-                        {" · "}
-                        <span className="wk-facts-supersedes">
-                          supersedes {f.supersedes.length} prior
-                        </span>
-                      </>
-                    ) : null}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ol>
-          {facts.length > INITIAL_LIMIT ? (
-            <button
-              type="button"
-              className="wk-facts-showall"
-              onClick={() => setShowAll((v) => !v)}
-            >
-              {showAll
-                ? "show recent only"
-                : `show all (${facts.length - INITIAL_LIMIT} more)`}
-            </button>
-          ) : null}
-        </>
-      )}
+      <FactsBody
+        loading={loading}
+        error={error}
+        facts={facts}
+        visibleFacts={visibleFacts}
+        showAll={showAll}
+        onToggleShowAll={() => setShowAll((v) => !v)}
+      />
     </section>
+  );
+}
+
+interface FactsBodyProps {
+  loading: boolean;
+  error: string | null;
+  facts: Fact[];
+  visibleFacts: Fact[];
+  showAll: boolean;
+  onToggleShowAll: () => void;
+}
+
+function FactsBody({
+  loading,
+  error,
+  facts,
+  visibleFacts,
+  showAll,
+  onToggleShowAll,
+}: FactsBodyProps) {
+  if (loading) return <p className="wk-facts-loading">loading facts…</p>;
+  if (error) return <p className="wk-facts-error">{error}</p>;
+  if (facts.length === 0) {
+    return (
+      <p className="wk-facts-empty">
+        0 facts recorded yet. Agents will add facts as they work.
+      </p>
+    );
+  }
+  return (
+    <>
+      <ol className="wk-facts-items">
+        {visibleFacts.map((fact) => (
+          <FactItem fact={fact} key={fact.id} />
+        ))}
+      </ol>
+      {facts.length > INITIAL_LIMIT ? (
+        <button
+          type="button"
+          className="wk-facts-showall"
+          onClick={onToggleShowAll}
+        >
+          {showAll
+            ? "show recent only"
+            : `show all (${facts.length - INITIAL_LIMIT} more)`}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function FactItem({ fact }: { fact: Fact }) {
+  return (
+    <li
+      className="wk-facts-item"
+      data-fact-type={fact.type ?? "observation"}
+      data-superseded={isSuperseded(fact) ? "true" : undefined}
+    >
+      <PixelAvatar slug={fact.recorded_by} size={14} />
+      <div className="wk-facts-body">
+        <span className="wk-facts-text">{fact.text}</span>
+        {fact.triplet ? <FactTriplet fact={fact} /> : null}
+        <FactMeta fact={fact} />
+      </div>
+    </li>
+  );
+}
+
+function FactTriplet({ fact }: { fact: Fact }) {
+  return (
+    <span className="wk-facts-triplet">
+      <code>{fact.triplet?.subject}</code>
+      {" — "}
+      <code>{fact.triplet?.predicate}</code>
+      {" → "}
+      <code>{fact.triplet?.object}</code>
+    </span>
+  );
+}
+
+function FactMeta({ fact }: { fact: Fact }) {
+  const validity = formatValidity(fact);
+  const hasFactStats = Boolean(
+    fact.type || typeof fact.confidence === "number",
+  );
+  return (
+    <span className="wk-facts-meta">
+      {fact.type ? <span className="wk-facts-type">{fact.type}</span> : null}
+      {typeof fact.confidence === "number" ? (
+        <>
+          {fact.type ? " · " : null}
+          <span className="wk-facts-confidence">
+            {fact.confidence.toFixed(2)}
+          </span>
+        </>
+      ) : null}
+      {hasFactStats && " · "}
+      {formatAgentName(fact.recorded_by)}
+      {" · "}
+      <time dateTime={fact.created_at}>{formatShortTs(fact.created_at)}</time>
+      {validity ? (
+        <>
+          {" · "}
+          <span className="wk-facts-validity">{validity}</span>
+        </>
+      ) : null}
+      {fact.reinforced_at ? (
+        <>
+          {" · "}
+          <span className="wk-facts-reinforced">
+            reinforced {formatShortTs(fact.reinforced_at)}
+          </span>
+        </>
+      ) : null}
+      {isWikiSource(fact.source_path) ? (
+        <FactSource path={fact.source_path} />
+      ) : null}
+      {fact.supersedes && fact.supersedes.length > 0 ? (
+        <>
+          {" · "}
+          <span className="wk-facts-supersedes">
+            supersedes {fact.supersedes.length} prior
+          </span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+function FactSource({ path }: { path: string }) {
+  return (
+    <>
+      {" · "}
+      <a
+        className="wk-facts-source"
+        href={`#/wiki/${path}`}
+        data-wikilink="true"
+      >
+        {sourceLabel(path)}
+      </a>
+    </>
   );
 }
 

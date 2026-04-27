@@ -14,137 +14,126 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+type ListType = "" | "ul" | "ol";
+
+interface MarkdownFormatState {
+  result: string[];
+  inCodeBlock: boolean;
+  codeLines: string[];
+  listType: ListType;
+}
+
 export function formatMarkdown(raw: string): string {
   if (!raw) return "";
 
-  const lines = raw.split("\n");
-  const result: string[] = [];
-  let inCodeBlock = false;
-  let codeLines: string[] = [];
-  let inList = false;
-  let listType = "";
+  const state: MarkdownFormatState = {
+    result: [],
+    inCodeBlock: false,
+    codeLines: [],
+    listType: "",
+  };
 
-  for (const line of lines) {
-    // Code blocks
-    if (line.trimStart().startsWith("```")) {
-      if (inCodeBlock) {
-        result.push(
-          `<div class="msg-codeblock"><code>${escapeHtml(codeLines.join("\n"))}</code></div>`,
-        );
-        codeLines = [];
-        inCodeBlock = false;
-      } else {
-        if (inList) {
-          result.push(`</${listType}>`);
-          inList = false;
-        }
-        inCodeBlock = true;
-      }
-      continue;
-    }
+  for (const line of raw.split("\n")) formatMarkdownLine(line, state);
 
-    if (inCodeBlock) {
-      codeLines.push(line);
-      continue;
-    }
+  if (state.inCodeBlock) flushCodeBlock(state);
+  closeList(state);
 
-    // Close open list if current line is not a list item
-    const isUl = /^\s*[-*]\s/.test(line);
-    const isOl = /^\s*\d+\.\s/.test(line);
-    if (inList && !isUl && !isOl && line.trim() !== "") {
-      result.push(`</${listType}>`);
-      inList = false;
-    }
+  return state.result.join("");
+}
 
-    const trimmed = line.trim();
-
-    // Empty line
-    if (trimmed === "") {
-      if (inList) {
-        result.push(`</${listType}>`);
-        inList = false;
-      }
-      result.push("<br/>");
-      continue;
-    }
-
-    // Headings
-    if (trimmed.startsWith("### ")) {
-      result.push(
-        `<div class="msg-h3">${formatInline(trimmed.slice(4))}</div>`,
-      );
-      continue;
-    }
-    if (trimmed.startsWith("## ")) {
-      result.push(
-        `<div class="msg-h2">${formatInline(trimmed.slice(3))}</div>`,
-      );
-      continue;
-    }
-    if (trimmed.startsWith("# ")) {
-      result.push(
-        `<div class="msg-h1">${formatInline(trimmed.slice(2))}</div>`,
-      );
-      continue;
-    }
-
-    // Horizontal rule
-    if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
-      result.push('<hr class="msg-hr"/>');
-      continue;
-    }
-
-    // Blockquote
-    if (trimmed.startsWith("> ")) {
-      result.push(
-        `<div class="msg-blockquote">${formatInline(trimmed.slice(2))}</div>`,
-      );
-      continue;
-    }
-
-    // Unordered list
-    if (isUl) {
-      if (!inList || listType !== "ul") {
-        if (inList) result.push(`</${listType}>`);
-        result.push('<ul class="msg-ul">');
-        inList = true;
-        listType = "ul";
-      }
-      result.push(
-        `<li>${formatInline(trimmed.replace(/^\s*[-*]\s/, ""))}</li>`,
-      );
-      continue;
-    }
-
-    // Ordered list
-    if (isOl) {
-      if (!inList || listType !== "ol") {
-        if (inList) result.push(`</${listType}>`);
-        result.push('<ol class="msg-ol">');
-        inList = true;
-        listType = "ol";
-      }
-      result.push(
-        `<li>${formatInline(trimmed.replace(/^\s*\d+\.\s/, ""))}</li>`,
-      );
-      continue;
-    }
-
-    // Regular paragraph
-    result.push(`<span>${formatInline(trimmed)}</span><br/>`);
+function formatMarkdownLine(line: string, state: MarkdownFormatState) {
+  if (line.trimStart().startsWith("```")) {
+    toggleCodeBlock(state);
+    return;
+  }
+  if (state.inCodeBlock) {
+    state.codeLines.push(line);
+    return;
   }
 
-  // Close any open blocks
-  if (inCodeBlock) {
-    result.push(
-      `<div class="msg-codeblock"><code>${escapeHtml(codeLines.join("\n"))}</code></div>`,
-    );
+  const isUl = /^\s*[-*]\s/.test(line);
+  const isOl = /^\s*\d+\.\s/.test(line);
+  const trimmed = line.trim();
+  if (state.listType && !isUl && !isOl && trimmed !== "") closeList(state);
+  if (appendEmptyLine(trimmed, state)) return;
+
+  const block = formatBlock(trimmed);
+  if (block) {
+    state.result.push(block);
+    return;
   }
-  if (inList) {
-    result.push(`</${listType}>`);
+  if (isUl) {
+    appendListItem(state, "ul", trimmed.replace(/^\s*[-*]\s/, ""));
+    return;
+  }
+  if (isOl) {
+    appendListItem(state, "ol", trimmed.replace(/^\s*\d+\.\s/, ""));
+    return;
   }
 
-  return result.join("");
+  state.result.push(`<span>${formatInline(trimmed)}</span><br/>`);
+}
+
+function toggleCodeBlock(state: MarkdownFormatState) {
+  if (state.inCodeBlock) {
+    flushCodeBlock(state);
+    state.inCodeBlock = false;
+    return;
+  }
+  closeList(state);
+  state.inCodeBlock = true;
+}
+
+function flushCodeBlock(state: MarkdownFormatState) {
+  state.result.push(
+    `<div class="msg-codeblock"><code>${escapeHtml(state.codeLines.join("\n"))}</code></div>`,
+  );
+  state.codeLines = [];
+}
+
+function closeList(state: MarkdownFormatState) {
+  if (!state.listType) return;
+  state.result.push(`</${state.listType}>`);
+  state.listType = "";
+}
+
+function appendEmptyLine(trimmed: string, state: MarkdownFormatState): boolean {
+  if (trimmed !== "") return false;
+  closeList(state);
+  state.result.push("<br/>");
+  return true;
+}
+
+function appendListItem(
+  state: MarkdownFormatState,
+  listType: Exclude<ListType, "">,
+  text: string,
+) {
+  if (state.listType !== listType) {
+    closeList(state);
+    state.result.push(`<${listType} class="msg-${listType}">`);
+    state.listType = listType;
+  }
+  state.result.push(`<li>${formatInline(text)}</li>`);
+}
+
+function formatBlock(trimmed: string): string | null {
+  if (trimmed.startsWith("### ")) {
+    return `<div class="msg-h3">${formatInline(trimmed.slice(4))}</div>`;
+  }
+  if (trimmed.startsWith("## ")) {
+    return `<div class="msg-h2">${formatInline(trimmed.slice(3))}</div>`;
+  }
+  if (trimmed.startsWith("# ")) {
+    return `<div class="msg-h1">${formatInline(trimmed.slice(2))}</div>`;
+  }
+  if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+    return '<hr class="msg-hr"/>';
+  }
+  if (trimmed.startsWith("> ")) {
+    return `<div class="msg-blockquote">${formatInline(trimmed.slice(2))}</div>`;
+  }
+  return null;
 }
 
 function formatInline(text: string): string {

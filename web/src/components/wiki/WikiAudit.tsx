@@ -99,11 +99,7 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
           </p>
         </div>
         <div className="wk-audit-stats" aria-live="polite">
-          {loading
-            ? "Loading…"
-            : error
-              ? "Error"
-              : `${stats.total} entries · ${stats.authors} authors · ${stats.paths} paths touched`}
+          {auditStatsLabel(loading, error, stats)}
         </div>
       </header>
 
@@ -171,78 +167,141 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
         </button>
       </section>
 
-      {loading && !entries ? (
-        <div className="wk-loading">Loading audit log…</div>
-      ) : error ? (
-        <div className="wk-error">Error: {error}</div>
-      ) : filtered.length === 0 ? (
-        <div className="wk-audit-empty">
-          {entries && entries.length === 0
-            ? "No edits yet. This page will populate as soon as any agent (or bootstrap pass) commits to the wiki."
-            : "No entries match your filters."}
-        </div>
-      ) : (
-        <table className="wk-audit-table">
-          <thead>
-            <tr>
-              <th scope="col">When</th>
-              <th scope="col">Author</th>
-              <th scope="col">Message</th>
-              <th scope="col">Paths</th>
-              <th scope="col">SHA</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((e) => (
-              <tr
-                key={e.sha}
-                className={`wk-audit-row ${rowClass(e.author_slug)}`}
-              >
-                <td className="wk-audit-when" title={e.timestamp}>
-                  {safeRelative(e.timestamp)}
-                </td>
-                <td className="wk-audit-author">
-                  <PixelAvatar slug={e.author_slug} size={16} />
-                  <span>{formatAgentName(e.author_slug)}</span>
-                  {authorTag(e.author_slug) && (
-                    <span className="wk-audit-tag">
-                      {authorTag(e.author_slug)}
-                    </span>
-                  )}
-                </td>
-                <td className="wk-audit-msg">{e.message}</td>
-                <td className="wk-audit-paths">
-                  {e.paths.length === 0 ? (
-                    <span className="wk-audit-paths-empty">—</span>
-                  ) : (
-                    <ul>
-                      {e.paths.map((p) => (
-                        <li key={p}>
-                          {isArticlePath(p) ? (
-                            <a
-                              href={`#/wiki/${encodeURI(p)}`}
-                              onClick={(ev) => {
-                                ev.preventDefault();
-                                onNavigate(p);
-                              }}
-                            >
-                              {p}
-                            </a>
-                          ) : (
-                            <span>{p}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
-                <td className="wk-audit-sha">{e.sha}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <AuditResults
+        loading={loading}
+        entries={entries}
+        error={error}
+        filtered={filtered}
+        onNavigate={onNavigate}
+      />
     </main>
+  );
+}
+
+function auditStatsLabel(
+  loading: boolean,
+  error: string | null,
+  stats: ReturnType<typeof summarize>,
+): string {
+  if (loading) return "Loading…";
+  if (error) return "Error";
+  return `${stats.total} entries · ${stats.authors} authors · ${stats.paths} paths touched`;
+}
+
+interface AuditResultsProps {
+  loading: boolean;
+  entries: WikiAuditEntry[] | null;
+  error: string | null;
+  filtered: WikiAuditEntry[];
+  onNavigate: (path: string | null) => void;
+}
+
+function AuditResults({
+  loading,
+  entries,
+  error,
+  filtered,
+  onNavigate,
+}: AuditResultsProps) {
+  if (loading && !entries)
+    return <div className="wk-loading">Loading audit log…</div>;
+  if (error) return <div className="wk-error">Error: {error}</div>;
+  if (filtered.length === 0) {
+    return (
+      <div className="wk-audit-empty">
+        {entries && entries.length === 0
+          ? "No edits yet. This page will populate as soon as any agent (or bootstrap pass) commits to the wiki."
+          : "No entries match your filters."}
+      </div>
+    );
+  }
+  return <AuditTable entries={filtered} onNavigate={onNavigate} />;
+}
+
+function AuditTable({
+  entries,
+  onNavigate,
+}: {
+  entries: WikiAuditEntry[];
+  onNavigate: (path: string | null) => void;
+}) {
+  return (
+    <table className="wk-audit-table">
+      <thead>
+        <tr>
+          <th scope="col">When</th>
+          <th scope="col">Author</th>
+          <th scope="col">Message</th>
+          <th scope="col">Paths</th>
+          <th scope="col">SHA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map((entry) => (
+          <AuditRow entry={entry} key={entry.sha} onNavigate={onNavigate} />
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function AuditRow({
+  entry,
+  onNavigate,
+}: {
+  entry: WikiAuditEntry;
+  onNavigate: (path: string | null) => void;
+}) {
+  const tag = authorTag(entry.author_slug);
+  return (
+    <tr className={`wk-audit-row ${rowClass(entry.author_slug)}`}>
+      <td className="wk-audit-when" title={entry.timestamp}>
+        {safeRelative(entry.timestamp)}
+      </td>
+      <td className="wk-audit-author">
+        <PixelAvatar slug={entry.author_slug} size={16} />
+        <span>{formatAgentName(entry.author_slug)}</span>
+        {tag ? <span className="wk-audit-tag">{tag}</span> : null}
+      </td>
+      <td className="wk-audit-msg">{entry.message}</td>
+      <td className="wk-audit-paths">
+        <AuditPaths paths={entry.paths} onNavigate={onNavigate} />
+      </td>
+      <td className="wk-audit-sha">{entry.sha}</td>
+    </tr>
+  );
+}
+
+function AuditPaths({
+  paths,
+  onNavigate,
+}: {
+  paths: string[];
+  onNavigate: (path: string | null) => void;
+}) {
+  if (paths.length === 0) {
+    return <span className="wk-audit-paths-empty">—</span>;
+  }
+  return (
+    <ul>
+      {paths.map((path) => (
+        <li key={path}>
+          {isArticlePath(path) ? (
+            <a
+              href={`#/wiki/${encodeURI(path)}`}
+              onClick={(ev) => {
+                ev.preventDefault();
+                onNavigate(path);
+              }}
+            >
+              {path}
+            </a>
+          ) : (
+            <span>{path}</span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

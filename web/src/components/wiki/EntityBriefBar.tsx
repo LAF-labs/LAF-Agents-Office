@@ -21,6 +21,18 @@ interface EntityBriefBarProps {
 
 type BarState = "idle" | "synthesizing";
 
+async function fetchBriefSummary(
+  kind: EntityKind,
+  slug: string,
+): Promise<BriefSummary | null> {
+  const rows = await fetchBriefs();
+  return rows.find((row) => row.kind === kind && row.slug === slug) ?? null;
+}
+
+function briefErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Failed to load brief status";
+}
+
 export default function EntityBriefBar({
   kind,
   slug,
@@ -34,16 +46,12 @@ export default function EntityBriefBar({
 
   const loadBrief = useCallback(async () => {
     try {
-      const rows = await fetchBriefs();
-      const match =
-        rows.find((r) => r.kind === kind && r.slug === slug) ?? null;
+      const match = await fetchBriefSummary(kind, slug);
       setBrief(match);
       setPendingOverride(null);
       setError(null);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load brief status",
-      );
+      setError(briefErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -52,24 +60,18 @@ export default function EntityBriefBar({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    (async () => {
-      try {
-        const rows = await fetchBriefs();
+    fetchBriefSummary(kind, slug)
+      .then((match) => {
         if (cancelled) return;
-        const match =
-          rows.find((r) => r.kind === kind && r.slug === slug) ?? null;
         setBrief(match);
         setPendingOverride(null);
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load brief status",
-          );
-        }
-      } finally {
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(briefErrorMessage(err));
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
@@ -131,8 +133,40 @@ export default function EntityBriefBar({
     : "wk-entity-brief-bar wk-entity-brief-bar--clean";
 
   return (
-    <div
+    <EntityBriefStatus
       className={cls}
+      hasPending={hasPending}
+      pending={pending}
+      relativeSynth={relativeSynth}
+      state={state}
+      error={error}
+      onRefresh={handleRefresh}
+    />
+  );
+}
+
+interface EntityBriefStatusProps {
+  className: string;
+  hasPending: boolean;
+  pending: number;
+  relativeSynth: string;
+  state: BarState;
+  error: string | null;
+  onRefresh: () => void;
+}
+
+function EntityBriefStatus({
+  className,
+  hasPending,
+  pending,
+  relativeSynth,
+  state,
+  error,
+  onRefresh,
+}: EntityBriefStatusProps) {
+  return (
+    <div
+      className={className}
       role="status"
       aria-live="polite"
       data-testid="wk-entity-brief-bar"
@@ -151,7 +185,7 @@ export default function EntityBriefBar({
         <button
           type="button"
           className="wk-entity-brief-bar__action"
-          onClick={handleRefresh}
+          onClick={onRefresh}
           disabled={state === "synthesizing"}
         >
           {state === "synthesizing" ? "Synthesizing…" : "Refresh brief"}
@@ -169,16 +203,19 @@ function formatRelativeTime(iso: string): string {
   if (Number.isNaN(t)) return iso;
   const diffMs = Date.now() - t;
   if (diffMs < 0) return "just now";
-  const sec = Math.floor(diffMs / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} hour${hr === 1 ? "" : "s"} ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 30) return `${day} day${day === 1 ? "" : "s"} ago`;
-  const mo = Math.floor(day / 30);
-  if (mo < 12) return `${mo} month${mo === 1 ? "" : "s"} ago`;
-  const yr = Math.floor(day / 365);
-  return `${yr} year${yr === 1 ? "" : "s"} ago`;
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return "just now";
+  const units = [
+    { name: "minute", value: Math.floor(seconds / 60), max: 60 },
+    { name: "hour", value: Math.floor(seconds / 3600), max: 24 },
+    { name: "day", value: Math.floor(seconds / 86400), max: 30 },
+    { name: "month", value: Math.floor(seconds / 2592000), max: 12 },
+  ];
+  const unit = units.find((candidate) => candidate.value < candidate.max);
+  if (unit) return formatAgo(unit.value, unit.name);
+  return formatAgo(Math.floor(seconds / 31536000), "year");
+}
+
+function formatAgo(value: number, unit: string): string {
+  return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
 }

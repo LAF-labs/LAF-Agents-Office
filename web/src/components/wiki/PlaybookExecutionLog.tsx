@@ -128,61 +128,13 @@ export default function PlaybookExecutionLog({
       </button>
       {expanded ? (
         <div className="wk-playbook-executions__body">
-          {loading ? (
-            <p className="wk-playbook-executions__loading">
-              loading executions…
-            </p>
-          ) : entries.length === 0 ? (
-            <p className="wk-playbook-executions__empty">
-              No executions recorded yet. Agents will log outcomes here as they
-              run the playbook.
-            </p>
-          ) : (
-            <>
-              <ol className="wk-playbook-executions__list">
-                {visible.map((e) => (
-                  <li
-                    key={e.id}
-                    className={`wk-playbook-execution wk-playbook-execution--${e.outcome}`}
-                  >
-                    <span
-                      className={`wk-playbook-execution__pill wk-playbook-execution__pill--${e.outcome}`}
-                    >
-                      {e.outcome}
-                    </span>
-                    <div className="wk-playbook-execution__body">
-                      <p className="wk-playbook-execution__summary">
-                        {e.summary}
-                      </p>
-                      {e.notes ? (
-                        <p className="wk-playbook-execution__notes">
-                          {e.notes}
-                        </p>
-                      ) : null}
-                      <span className="wk-playbook-execution__meta">
-                        {formatAgentName(e.recorded_by)}
-                        {" · "}
-                        <time dateTime={e.created_at}>
-                          {formatShortTs(e.created_at)}
-                        </time>
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              {entries.length > INITIAL_LIMIT ? (
-                <button
-                  type="button"
-                  className="wk-playbook-executions__more"
-                  onClick={() => setShowAll((v) => !v)}
-                >
-                  {showAll
-                    ? "show recent only"
-                    : `show all (${entries.length - INITIAL_LIMIT} more)`}
-                </button>
-              ) : null}
-            </>
-          )}
+          <ExecutionEntries
+            loading={loading}
+            entries={entries}
+            visible={visible}
+            showAll={showAll}
+            onToggleShowAll={() => setShowAll((v) => !v)}
+          />
           <SynthesisFooter
             status={status}
             synthState={synthState}
@@ -191,6 +143,83 @@ export default function PlaybookExecutionLog({
         </div>
       ) : null}
     </section>
+  );
+}
+
+interface ExecutionEntriesProps {
+  loading: boolean;
+  entries: PlaybookExecution[];
+  visible: PlaybookExecution[];
+  showAll: boolean;
+  onToggleShowAll: () => void;
+}
+
+function ExecutionEntries({
+  loading,
+  entries,
+  visible,
+  showAll,
+  onToggleShowAll,
+}: ExecutionEntriesProps) {
+  if (loading) {
+    return (
+      <p className="wk-playbook-executions__loading">loading executions…</p>
+    );
+  }
+  if (entries.length === 0) {
+    return (
+      <p className="wk-playbook-executions__empty">
+        No executions recorded yet. Agents will log outcomes here as they run
+        the playbook.
+      </p>
+    );
+  }
+  return (
+    <>
+      <ol className="wk-playbook-executions__list">
+        {visible.map((entry) => (
+          <ExecutionEntry entry={entry} key={entry.id} />
+        ))}
+      </ol>
+      {entries.length > INITIAL_LIMIT ? (
+        <button
+          type="button"
+          className="wk-playbook-executions__more"
+          onClick={onToggleShowAll}
+        >
+          {showAll
+            ? "show recent only"
+            : `show all (${entries.length - INITIAL_LIMIT} more)`}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function ExecutionEntry({ entry }: { entry: PlaybookExecution }) {
+  return (
+    <li
+      className={`wk-playbook-execution wk-playbook-execution--${entry.outcome}`}
+    >
+      <span
+        className={`wk-playbook-execution__pill wk-playbook-execution__pill--${entry.outcome}`}
+      >
+        {entry.outcome}
+      </span>
+      <div className="wk-playbook-execution__body">
+        <p className="wk-playbook-execution__summary">{entry.summary}</p>
+        {entry.notes ? (
+          <p className="wk-playbook-execution__notes">{entry.notes}</p>
+        ) : null}
+        <span className="wk-playbook-execution__meta">
+          {formatAgentName(entry.recorded_by)}
+          {" · "}
+          <time dateTime={entry.created_at}>
+            {formatShortTs(entry.created_at)}
+          </time>
+        </span>
+      </div>
+    </li>
   );
 }
 

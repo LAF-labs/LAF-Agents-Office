@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 
 import type { WikiCatalogEntry } from "../../api/wiki";
@@ -279,120 +286,32 @@ export default function WikiEditor({
       className={`wk-editor${previewOn ? " wk-editor--with-preview" : ""}`}
       data-testid="wk-editor"
     >
-      {draft ? (
-        <div
-          className="wk-editor-banner wk-editor-banner--draft"
-          role="alert"
-          data-testid="wk-editor-draft-banner"
-        >
-          Unsaved draft from {formatAgo(draft.saved_at)}.
-          <div className="wk-editor-banner-actions">
-            <button
-              type="button"
-              onClick={handleRestoreDraft}
-              data-testid="wk-editor-draft-restore"
-            >
-              Restore draft
-            </button>
-            <button
-              type="button"
-              onClick={handleDiscardDraft}
-              data-testid="wk-editor-draft-discard"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {conflict ? (
-        <div
-          className="wk-editor-banner wk-editor-banner--conflict"
-          role="alert"
-        >
-          <strong>Someone else edited this article.</strong> Your save was
-          rejected because the article changed since you opened it.
-          <div className="wk-editor-banner-actions">
-            <button type="button" onClick={handleReloadConflict}>
-              Reload latest &amp; re-apply
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {error && !conflict ? (
-        <div className="wk-editor-banner wk-editor-banner--error" role="alert">
-          {error}
-        </div>
-      ) : null}
-      {previewOn && isMobile ? (
-        <div
-          className="wk-editor-mobile-tabs"
-          role="tablist"
-          data-testid="wk-editor-mobile-tabs"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mobileView === "source"}
-            className={
-              "wk-editor-mobile-tab" +
-              (mobileView === "source" ? " is-active" : "")
-            }
-            onClick={() => setMobileView("source")}
-            data-testid="wk-editor-mobile-source"
-          >
-            Source
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mobileView === "preview"}
-            className={
-              "wk-editor-mobile-tab" +
-              (mobileView === "preview" ? " is-active" : "")
-            }
-            onClick={() => setMobileView("preview")}
-            data-testid="wk-editor-mobile-preview"
-          >
-            Preview
-          </button>
-        </div>
-      ) : null}
-      <div className="wk-editor-panes">
-        {showSource ? (
-          <div className="wk-editor-pane wk-editor-pane--source">
-            <label className="wk-editor-label" htmlFor="wk-editor-textarea">
-              Article source ({path})
-            </label>
-            <textarea
-              id="wk-editor-textarea"
-              ref={textareaRef}
-              className="wk-editor-textarea"
-              data-testid="wk-editor-textarea"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              spellCheck={true}
-              rows={28}
-            />
-          </div>
-        ) : null}
-        {showPreview ? (
-          <section
-            className="wk-editor-pane wk-editor-pane--preview"
-            data-testid="wk-editor-preview"
-            aria-label="Live preview"
-          >
-            <div className="wk-editor-preview-body wk-article-body">
-              <ReactMarkdown
-                remarkPlugins={remarkPlugins}
-                rehypePlugins={rehypePlugins}
-                components={markdownComponents}
-              >
-                {content}
-              </ReactMarkdown>
-            </div>
-          </section>
-        ) : null}
-      </div>
+      <EditorDraftBanner
+        draft={draft}
+        onRestore={handleRestoreDraft}
+        onDiscard={handleDiscardDraft}
+      />
+      <EditorConflictBanner
+        conflict={conflict}
+        onReload={handleReloadConflict}
+      />
+      <EditorErrorBanner error={error} conflict={conflict} />
+      <EditorMobileTabs
+        visible={previewOn && isMobile}
+        mobileView={mobileView}
+        onChange={setMobileView}
+      />
+      <EditorPanes
+        path={path}
+        content={content}
+        setContent={setContent}
+        textareaRef={textareaRef}
+        showSource={showSource}
+        showPreview={showPreview}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
+        markdownComponents={markdownComponents}
+      />
       <label className="wk-editor-label" htmlFor="wk-editor-commit-msg">
         Edit summary
       </label>
@@ -405,38 +324,254 @@ export default function WikiEditor({
         value={commitMessage}
         onChange={(e) => setCommitMessage(e.target.value)}
       />
-      <div className="wk-editor-actions">
-        <button
-          type="button"
-          className="wk-editor-save"
-          data-testid="wk-editor-save"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? "Saving…" : "Save changes"}
-        </button>
-        <button
-          type="button"
-          className="wk-editor-cancel"
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          className={`wk-editor-preview-toggle${previewOn ? " is-on" : ""}`}
-          data-testid="wk-editor-preview-toggle"
-          aria-pressed={previewOn}
-          onClick={() => setPreviewOn((v) => !v)}
-        >
-          {previewOn ? "Hide preview" : "Preview"}
-        </button>
-      </div>
+      <EditorActions
+        saving={saving}
+        previewOn={previewOn}
+        onSave={handleSave}
+        onCancel={onCancel}
+        onTogglePreview={() => setPreviewOn((v) => !v)}
+      />
       <p className="wk-editor-help">
         Plain markdown. <code>[[slug]]</code> creates a wikilink. Saved as
         commit author <strong>Human &lt;human@wuphf.local&gt;</strong>.
       </p>
+    </div>
+  );
+}
+
+interface EditorDraftBannerProps {
+  draft: DraftPayload | null;
+  onRestore: () => void;
+  onDiscard: () => void;
+}
+
+function EditorDraftBanner({
+  draft,
+  onRestore,
+  onDiscard,
+}: EditorDraftBannerProps) {
+  if (!draft) return null;
+
+  return (
+    <div
+      className="wk-editor-banner wk-editor-banner--draft"
+      role="alert"
+      data-testid="wk-editor-draft-banner"
+    >
+      Unsaved draft from {formatAgo(draft.saved_at)}.
+      <div className="wk-editor-banner-actions">
+        <button
+          type="button"
+          onClick={onRestore}
+          data-testid="wk-editor-draft-restore"
+        >
+          Restore draft
+        </button>
+        <button
+          type="button"
+          onClick={onDiscard}
+          data-testid="wk-editor-draft-discard"
+        >
+          Discard
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface EditorConflictBannerProps {
+  conflict: WriteHumanConflict | null;
+  onReload: () => void;
+}
+
+function EditorConflictBanner({
+  conflict,
+  onReload,
+}: EditorConflictBannerProps) {
+  if (!conflict) return null;
+
+  return (
+    <div className="wk-editor-banner wk-editor-banner--conflict" role="alert">
+      <strong>Someone else edited this article.</strong> Your save was rejected
+      because the article changed since you opened it.
+      <div className="wk-editor-banner-actions">
+        <button type="button" onClick={onReload}>
+          Reload latest &amp; re-apply
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface EditorErrorBannerProps {
+  error: string | null;
+  conflict: WriteHumanConflict | null;
+}
+
+function EditorErrorBanner({ error, conflict }: EditorErrorBannerProps) {
+  if (!(error && !conflict)) return null;
+
+  return (
+    <div className="wk-editor-banner wk-editor-banner--error" role="alert">
+      {error}
+    </div>
+  );
+}
+
+interface EditorMobileTabsProps {
+  visible: boolean;
+  mobileView: "source" | "preview";
+  onChange: (view: "source" | "preview") => void;
+}
+
+function EditorMobileTabs({
+  visible,
+  mobileView,
+  onChange,
+}: EditorMobileTabsProps) {
+  if (!visible) return null;
+
+  return (
+    <div
+      className="wk-editor-mobile-tabs"
+      role="tablist"
+      data-testid="wk-editor-mobile-tabs"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mobileView === "source"}
+        className={
+          "wk-editor-mobile-tab" + (mobileView === "source" ? " is-active" : "")
+        }
+        onClick={() => onChange("source")}
+        data-testid="wk-editor-mobile-source"
+      >
+        Source
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mobileView === "preview"}
+        className={
+          "wk-editor-mobile-tab" +
+          (mobileView === "preview" ? " is-active" : "")
+        }
+        onClick={() => onChange("preview")}
+        data-testid="wk-editor-mobile-preview"
+      >
+        Preview
+      </button>
+    </div>
+  );
+}
+
+interface EditorPanesProps {
+  path: string;
+  content: string;
+  setContent: (content: string) => void;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  showSource: boolean;
+  showPreview: boolean;
+  remarkPlugins: ReturnType<typeof buildRemarkPlugins>;
+  rehypePlugins: ReturnType<typeof buildRehypePlugins>;
+  markdownComponents: ReturnType<typeof buildMarkdownComponents>;
+}
+
+function EditorPanes({
+  path,
+  content,
+  setContent,
+  textareaRef,
+  showSource,
+  showPreview,
+  remarkPlugins,
+  rehypePlugins,
+  markdownComponents,
+}: EditorPanesProps) {
+  return (
+    <div className="wk-editor-panes">
+      {showSource ? (
+        <div className="wk-editor-pane wk-editor-pane--source">
+          <label className="wk-editor-label" htmlFor="wk-editor-textarea">
+            Article source ({path})
+          </label>
+          <textarea
+            id="wk-editor-textarea"
+            ref={textareaRef}
+            className="wk-editor-textarea"
+            data-testid="wk-editor-textarea"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            spellCheck={true}
+            rows={28}
+          />
+        </div>
+      ) : null}
+      {showPreview ? (
+        <section
+          className="wk-editor-pane wk-editor-pane--preview"
+          data-testid="wk-editor-preview"
+          aria-label="Live preview"
+        >
+          <div className="wk-editor-preview-body wk-article-body">
+            <ReactMarkdown
+              remarkPlugins={remarkPlugins}
+              rehypePlugins={rehypePlugins}
+              components={markdownComponents}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+interface EditorActionsProps {
+  saving: boolean;
+  previewOn: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+  onTogglePreview: () => void;
+}
+
+function EditorActions({
+  saving,
+  previewOn,
+  onSave,
+  onCancel,
+  onTogglePreview,
+}: EditorActionsProps) {
+  return (
+    <div className="wk-editor-actions">
+      <button
+        type="button"
+        className="wk-editor-save"
+        data-testid="wk-editor-save"
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? "Saving…" : "Save changes"}
+      </button>
+      <button
+        type="button"
+        className="wk-editor-cancel"
+        onClick={onCancel}
+        disabled={saving}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        className={`wk-editor-preview-toggle${previewOn ? " is-on" : ""}`}
+        data-testid="wk-editor-preview-toggle"
+        aria-pressed={previewOn}
+        onClick={onTogglePreview}
+      >
+        {previewOn ? "Hide preview" : "Preview"}
+      </button>
     </div>
   );
 }

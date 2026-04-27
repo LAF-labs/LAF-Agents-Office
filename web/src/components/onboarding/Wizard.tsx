@@ -755,39 +755,13 @@ function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
           </div>
         ) : (
           <div className="wiz-team-grid">
-            {agents.map((a) => {
-              // Lead agent is always included and cannot be unchecked here.
-              // The backend also refuses to remove or disable any BuiltIn
-              // member, so this is UI belt + server-side braces.
-              const locked = a.built_in === true;
-              return (
-                <button
-                  key={a.slug}
-                  className={`wiz-team-tile ${a.checked ? "selected" : ""} ${locked ? "locked" : ""}`}
-                  onClick={() => !locked && onToggle(a.slug)}
-                  type="button"
-                  disabled={locked}
-                  aria-disabled={locked}
-                  title={locked ? "Lead agent — always included" : undefined}
-                >
-                  <div className="wiz-team-check">
-                    {a.checked ? <CheckIcon /> : null}
-                  </div>
-                  <div>
-                    {a.emoji ? (
-                      <span style={{ marginRight: 6 }}>{a.emoji}</span>
-                    ) : null}
-                    <span className="wiz-team-name">{a.name}</span>
-                    {locked ? (
-                      <span className="wiz-team-lead-badge">Lead</span>
-                    ) : null}
-                    {a.role ? (
-                      <div className="wiz-team-role">{a.role}</div>
-                    ) : null}
-                  </div>
-                </button>
-              );
-            })}
+            {agents.map((agent) => (
+              <TeamAgentTile
+                key={agent.slug}
+                agent={agent}
+                onToggle={onToggle}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -803,6 +777,41 @@ function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
         </button>
       </div>
     </div>
+  );
+}
+
+function TeamAgentTile({
+  agent,
+  onToggle,
+}: {
+  agent: BlueprintAgent;
+  onToggle: (slug: string) => void;
+}) {
+  // Lead agent is always included and cannot be unchecked here.
+  // The backend also refuses to remove or disable any BuiltIn
+  // member, so this is UI belt + server-side braces.
+  const locked = agent.built_in === true;
+  return (
+    <button
+      className={`wiz-team-tile ${agent.checked ? "selected" : ""} ${locked ? "locked" : ""}`}
+      onClick={() => !locked && onToggle(agent.slug)}
+      type="button"
+      disabled={locked}
+      aria-disabled={locked}
+      title={locked ? "Lead agent — always included" : undefined}
+    >
+      <div className="wiz-team-check">
+        {agent.checked ? <CheckIcon /> : null}
+      </div>
+      <div>
+        {agent.emoji ? (
+          <span style={{ marginRight: 6 }}>{agent.emoji}</span>
+        ) : null}
+        <span className="wiz-team-name">{agent.name}</span>
+        {locked ? <span className="wiz-team-lead-badge">Lead</span> : null}
+        {agent.role ? <div className="wiz-team-role">{agent.role}</div> : null}
+      </div>
+    </button>
   );
 }
 
@@ -833,6 +842,148 @@ function detectedBinary(
   binary: string,
 ): PrereqResult | undefined {
   return prereqs.find((p) => p.name === binary);
+}
+
+function RuntimeGrid({
+  prereqsLoading,
+  prereqs,
+  runtimePriority,
+  onToggleRuntime,
+}: {
+  prereqsLoading: boolean;
+  prereqs: PrereqResult[];
+  runtimePriority: string[];
+  onToggleRuntime: (label: string) => void;
+}) {
+  if (prereqsLoading) {
+    return (
+      <div
+        style={{
+          color: "var(--text-tertiary)",
+          fontSize: 13,
+          padding: "8px 0",
+        }}
+      >
+        Checking which CLIs are installed&hellip;
+      </div>
+    );
+  }
+
+  return (
+    <div className="runtime-grid">
+      {RUNTIMES.map((spec) => (
+        <RuntimeTile
+          key={spec.label}
+          spec={spec}
+          detection={detectedBinary(prereqs, spec.binary)}
+          priorityIdx={runtimePriority.indexOf(spec.label)}
+          onToggleRuntime={onToggleRuntime}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RuntimeTile({
+  spec,
+  detection,
+  priorityIdx,
+  onToggleRuntime,
+}: {
+  spec: RuntimeSpec;
+  detection: PrereqResult | undefined;
+  priorityIdx: number;
+  onToggleRuntime: (label: string) => void;
+}) {
+  const installed = Boolean(detection?.found);
+  const selected = priorityIdx >= 0;
+  const classes = [
+    "runtime-tile",
+    selected ? "selected" : "",
+    installed ? "" : "disabled",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button
+      className={classes}
+      onClick={() => {
+        if (!installed) return;
+        onToggleRuntime(spec.label);
+      }}
+      type="button"
+      disabled={!installed}
+      aria-disabled={!installed}
+      aria-pressed={selected}
+      title={runtimeTileTitle(spec, detection, installed)}
+    >
+      {selected ? (
+        <span
+          className="runtime-priority-badge"
+          title={`Priority ${priorityIdx + 1}`}
+        >
+          {priorityIdx + 1}
+        </span>
+      ) : null}
+      <div className="runtime-tile-head">
+        <span
+          className={`runtime-tile-status ${installed ? "installed" : ""}`}
+          aria-hidden="true"
+        />
+        {spec.label}
+      </div>
+      <RuntimeTileMeta
+        spec={spec}
+        detection={detection}
+        installed={installed}
+      />
+    </button>
+  );
+}
+
+function runtimeTileTitle(
+  spec: RuntimeSpec,
+  detection: PrereqResult | undefined,
+  installed: boolean,
+): string {
+  if (!installed) return `${spec.label} — not installed`;
+  return detection?.version
+    ? `${spec.label} — ${detection.version}`
+    : spec.label;
+}
+
+function RuntimeTileMeta({
+  spec,
+  detection,
+  installed,
+}: {
+  spec: RuntimeSpec;
+  detection: PrereqResult | undefined;
+  installed: boolean;
+}) {
+  if (installed) {
+    return (
+      <div className="runtime-tile-meta">
+        {detection?.version ? detection.version : "Installed"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="runtime-tile-meta">
+      Not installed{" · "}
+      <a
+        className="runtime-tile-install-link"
+        href={spec.installUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        install
+      </a>
+    </div>
+  );
 }
 
 function SetupStep({
@@ -889,92 +1040,12 @@ function SetupStep({
           next.
         </p>
 
-        {prereqsLoading ? (
-          <div
-            style={{
-              color: "var(--text-tertiary)",
-              fontSize: 13,
-              padding: "8px 0",
-            }}
-          >
-            Checking which CLIs are installed&hellip;
-          </div>
-        ) : (
-          <div className="runtime-grid">
-            {RUNTIMES.map((spec) => {
-              const detection = detectedBinary(prereqs, spec.binary);
-              const installed = Boolean(detection?.found);
-              const priorityIdx = runtimePriority.indexOf(spec.label);
-              const selected = priorityIdx >= 0;
-              const classes = [
-                "runtime-tile",
-                selected ? "selected" : "",
-                installed ? "" : "disabled",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <button
-                  key={spec.label}
-                  className={classes}
-                  onClick={() => {
-                    if (!installed) return;
-                    onToggleRuntime(spec.label);
-                  }}
-                  type="button"
-                  disabled={!installed}
-                  aria-disabled={!installed}
-                  aria-pressed={selected}
-                  title={
-                    installed
-                      ? detection?.version
-                        ? `${spec.label} — ${detection.version}`
-                        : spec.label
-                      : `${spec.label} — not installed`
-                  }
-                >
-                  {selected && (
-                    <span
-                      className="runtime-priority-badge"
-                      title={`Priority ${priorityIdx + 1}`}
-                    >
-                      {priorityIdx + 1}
-                    </span>
-                  )}
-                  <div className="runtime-tile-head">
-                    <span
-                      className={`runtime-tile-status ${installed ? "installed" : ""}`}
-                      aria-hidden="true"
-                    />
-                    {spec.label}
-                  </div>
-                  <div className="runtime-tile-meta">
-                    {installed ? (
-                      detection?.version ? (
-                        detection.version
-                      ) : (
-                        "Installed"
-                      )
-                    ) : (
-                      <>
-                        Not installed{" · "}
-                        <a
-                          className="runtime-tile-install-link"
-                          href={spec.installUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          install
-                        </a>
-                      </>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <RuntimeGrid
+          prereqsLoading={prereqsLoading}
+          prereqs={prereqs}
+          runtimePriority={runtimePriority}
+          onToggleRuntime={onToggleRuntime}
+        />
 
         {runtimePriority.length > 1 && (
           <div className="runtime-priority-controls">
@@ -1402,6 +1473,388 @@ function ReadyStep({
   );
 }
 
+interface ReadinessOptions {
+  nexApiKey: string;
+  runtimePriority: string[];
+  prereqs: PrereqResult[];
+  apiKeys: Record<string, string>;
+  gbrainOpenAIKey: string;
+  gbrainAnthropicKey: string;
+  memoryBackend: MemoryBackend;
+  selectedBlueprint: string | null;
+  blueprints: BlueprintTemplate[];
+}
+
+function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
+  const hasNexKey = options.nexApiKey.trim().length > 0;
+  return [
+    nexReadinessCheck(hasNexKey),
+    {
+      label: "Session runtime",
+      status: "ready",
+      detail: "Web session. No tmux required in the browser.",
+    },
+    runtimeReadinessCheck(options),
+    memoryReadinessCheck(
+      options.memoryBackend,
+      hasNexKey,
+      options.gbrainOpenAIKey,
+    ),
+    blueprintReadinessCheck(options.selectedBlueprint, options.blueprints),
+    integrationsReadinessCheck(options),
+  ];
+}
+
+function nexReadinessCheck(hasNexKey: boolean): ReadinessCheck {
+  return {
+    label: "Nex API key",
+    status: hasNexKey ? "ready" : "next",
+    detail: hasNexKey
+      ? "Configured. Hosted memory and integrations unlocked."
+      : "Skipped. Paste a key later from Settings to enable hosted memory.",
+  };
+}
+
+function runtimeReadinessCheck(options: ReadinessOptions): ReadinessCheck {
+  const [primaryLabel] = options.runtimePriority;
+  const primarySpec = primaryLabel
+    ? RUNTIMES.find((runtime) => runtime.label === primaryLabel)
+    : undefined;
+  const primaryDetection = primarySpec
+    ? detectedBinary(options.prereqs, primarySpec.binary)
+    : undefined;
+
+  if (primarySpec && primaryDetection?.found) {
+    return {
+      label: "LLM runtime",
+      status: "ready",
+      detail: primaryDetection.version
+        ? `${primarySpec.label} — ${primaryDetection.version}`
+        : `${primarySpec.label} installed`,
+    };
+  }
+  if (primarySpec) {
+    return {
+      label: "LLM runtime",
+      status: "next",
+      detail: `${primarySpec.label} selected but not installed. Install before agents can reason.`,
+    };
+  }
+  return apiKeyRuntimeReadiness(options.apiKeys);
+}
+
+function apiKeyRuntimeReadiness(
+  apiKeys: Record<string, string>,
+): ReadinessCheck {
+  const hasAnyKey = Object.values(apiKeys).some(
+    (value) => value.trim().length > 0,
+  );
+  return {
+    label: "LLM runtime",
+    status: hasAnyKey ? "ready" : "missing",
+    detail: hasAnyKey
+      ? "Provider API key will drive agent runs."
+      : "Pick a CLI or add a provider key on the Setup step.",
+  };
+}
+
+function memoryReadinessCheck(
+  memoryBackend: MemoryBackend,
+  hasNexKey: boolean,
+  gbrainOpenAIKey: string,
+): ReadinessCheck {
+  const memoryLabel =
+    MEMORY_BACKEND_OPTIONS.find((option) => option.value === memoryBackend)
+      ?.label ?? memoryBackend;
+  if (memoryBackend === "gbrain") {
+    return gbrainMemoryReadiness(memoryLabel, gbrainOpenAIKey);
+  }
+  if (memoryBackend === "nex") {
+    return nexMemoryReadiness(memoryLabel, hasNexKey);
+  }
+  if (memoryBackend === "markdown") {
+    return {
+      label: "Memory backend",
+      status: "ready",
+      detail: "Git-native team wiki in ~/.wuphf/wiki.",
+    };
+  }
+  return {
+    label: "Memory backend",
+    status: "next",
+    detail: "No shared memory — agents only see per-turn context.",
+  };
+}
+
+function gbrainMemoryReadiness(
+  memoryLabel: string,
+  gbrainOpenAIKey: string,
+): ReadinessCheck {
+  if (gbrainOpenAIKey.trim().length === 0) {
+    return {
+      label: "Memory backend",
+      status: "missing",
+      detail: "GBrain selected but OpenAI key is missing.",
+    };
+  }
+  return {
+    label: "Memory backend",
+    status: "ready",
+    detail:
+      memoryLabel === "GBrain" ? "GBrain with OpenAI embeddings." : memoryLabel,
+  };
+}
+
+function nexMemoryReadiness(
+  memoryLabel: string,
+  hasNexKey: boolean,
+): ReadinessCheck {
+  if (!hasNexKey) {
+    return {
+      label: "Memory backend",
+      status: "next",
+      detail: "Nex selected — add a Nex API key to enable hosted memory.",
+    };
+  }
+  return {
+    label: "Memory backend",
+    status: "ready",
+    detail: memoryLabel === "Nex" ? "Hosted memory via Nex." : memoryLabel,
+  };
+}
+
+function blueprintReadinessCheck(
+  selectedBlueprint: string | null,
+  blueprints: BlueprintTemplate[],
+): ReadinessCheck {
+  if (selectedBlueprint === null) {
+    return {
+      label: "Blueprint",
+      status: "ready",
+      detail: "Start from scratch (5-person founding team).",
+    };
+  }
+  const blueprint = blueprints.find((item) => item.id === selectedBlueprint);
+  return {
+    label: "Blueprint",
+    status: "ready",
+    detail: blueprint?.name ?? selectedBlueprint,
+  };
+}
+
+function integrationsReadinessCheck(options: ReadinessOptions): ReadinessCheck {
+  const keyCount =
+    Object.values(options.apiKeys).filter((value) => value.trim().length > 0)
+      .length +
+    (options.gbrainOpenAIKey.trim().length > 0 ? 1 : 0) +
+    (options.gbrainAnthropicKey.trim().length > 0 ? 1 : 0);
+  return {
+    label: "Integrations",
+    status: keyCount > 0 ? "ready" : "next",
+    detail:
+      keyCount > 0
+        ? `${keyCount} provider key${keyCount === 1 ? "" : "s"} configured.`
+        : "None configured. Add providers later from Settings.",
+  };
+}
+
+type SupportedProvider = "claude-code" | "codex" | "opencode";
+
+function providerPriorityFromLabels(
+  runtimePriority: string[],
+): SupportedProvider[] {
+  return runtimePriority
+    .map(
+      (label) => RUNTIMES.find((runtime) => runtime.label === label)?.provider,
+    )
+    .filter((provider): provider is SupportedProvider => provider !== null);
+}
+
+interface ConfigPayloadOptions {
+  memoryBackend: MemoryBackend;
+  providerPriority: SupportedProvider[];
+  nexApiKey: string;
+  gbrainOpenAIKey: string;
+  gbrainAnthropicKey: string;
+  apiKeys: Record<string, string>;
+}
+
+function buildOnboardingConfigPayload({
+  memoryBackend,
+  providerPriority,
+  nexApiKey,
+  gbrainOpenAIKey,
+  gbrainAnthropicKey,
+  apiKeys,
+}: ConfigPayloadOptions): Record<string, unknown> {
+  const payload: Record<string, unknown> = { memory_backend: memoryBackend };
+  addProviderConfig(payload, providerPriority);
+  addTrimmedValue(payload, "api_key", nexApiKey);
+  addMemoryKeys(payload, memoryBackend, gbrainOpenAIKey, gbrainAnthropicKey);
+  addGenericApiKeys(payload, memoryBackend, apiKeys);
+  return payload;
+}
+
+function addProviderConfig(
+  payload: Record<string, unknown>,
+  providerPriority: SupportedProvider[],
+) {
+  if (providerPriority.length === 0) return;
+  payload.llm_provider = providerPriority[0];
+  payload.llm_provider_priority = providerPriority;
+}
+
+function addTrimmedValue(
+  payload: Record<string, unknown>,
+  field: string,
+  value: string,
+) {
+  const trimmed = value.trim();
+  if (trimmed.length > 0) payload[field] = trimmed;
+}
+
+function addMemoryKeys(
+  payload: Record<string, unknown>,
+  memoryBackend: MemoryBackend,
+  gbrainOpenAIKey: string,
+  gbrainAnthropicKey: string,
+) {
+  if (memoryBackend !== "gbrain") return;
+  addTrimmedValue(payload, "openai_api_key", gbrainOpenAIKey);
+  addTrimmedValue(payload, "anthropic_api_key", gbrainAnthropicKey);
+}
+
+function addGenericApiKeys(
+  payload: Record<string, unknown>,
+  memoryBackend: MemoryBackend,
+  apiKeys: Record<string, string>,
+) {
+  if (memoryBackend !== "gbrain") {
+    addTrimmedValue(
+      payload,
+      "anthropic_api_key",
+      apiKeys.ANTHROPIC_API_KEY ?? "",
+    );
+    addTrimmedValue(payload, "openai_api_key", apiKeys.OPENAI_API_KEY ?? "");
+  }
+  addTrimmedValue(payload, "gemini_api_key", apiKeys.GOOGLE_API_KEY ?? "");
+}
+
+interface WizardKeyContext {
+  step: WizardStep;
+  company: string;
+  description: string;
+  runtimePriority: string[];
+  prereqs: PrereqResult[];
+  apiKeys: Record<string, string>;
+  memoryBackend: MemoryBackend;
+  gbrainOpenAIKey: string;
+  submitting: boolean;
+  taskText: string;
+  goTo: (step: WizardStep) => void;
+  nextStep: () => void;
+  finishOnboarding: (skipTask: boolean) => void | Promise<void>;
+  closeNexSignup: () => void;
+}
+
+function handleWizardKey(e: KeyboardEvent, context: WizardKeyContext) {
+  if (e.key === "Escape") {
+    context.closeNexSignup();
+    return;
+  }
+  if (!shouldHandleWizardEnter(e)) return;
+
+  const canIdentityContinue =
+    context.company.trim().length > 0 && context.description.trim().length > 0;
+  const canSetupContinue = canContinueSetup(context);
+  advanceWizardFromKey(e, context, canIdentityContinue, canSetupContinue);
+}
+
+function shouldHandleWizardEnter(e: KeyboardEvent): boolean {
+  if (e.key !== "Enter") return false;
+  if (e.repeat) return false;
+  const target = e.target as HTMLElement | null;
+  if (target?.id === "wiz-nex-email") return false;
+  const tag = target?.tagName;
+  if (tag === "BUTTON" || tag === "A" || tag === "SELECT") return false;
+  const inTextarea = tag === "TEXTAREA";
+  const isSubmitCombo = e.metaKey || e.ctrlKey;
+  return !(inTextarea && !isSubmitCombo);
+}
+
+function canContinueSetup(context: WizardKeyContext): boolean {
+  const hasInstalledSelection = hasInstalledRuntimeSelection(
+    context.runtimePriority,
+    context.prereqs,
+  );
+  const hasAnyApiKey = Object.values(context.apiKeys).some(
+    (value) => value.trim().length > 0,
+  );
+  const gbrainOpenAIMissing =
+    context.memoryBackend === "gbrain" &&
+    context.gbrainOpenAIKey.trim().length === 0;
+  return (hasInstalledSelection || hasAnyApiKey) && !gbrainOpenAIMissing;
+}
+
+function hasInstalledRuntimeSelection(
+  runtimePriority: string[],
+  prereqs: PrereqResult[],
+): boolean {
+  return runtimePriority.some((label) => {
+    const spec = RUNTIMES.find((runtime) => runtime.label === label);
+    if (!spec) return false;
+    return Boolean(detectedBinary(prereqs, spec.binary)?.found);
+  });
+}
+
+function advanceWizardFromKey(
+  e: KeyboardEvent,
+  context: WizardKeyContext,
+  canIdentityContinue: boolean,
+  canSetupContinue: boolean,
+) {
+  const isSubmitCombo = e.metaKey || e.ctrlKey;
+  switch (context.step) {
+    case "welcome":
+      e.preventDefault();
+      context.goTo("identity");
+      return;
+    case "templates":
+    case "team":
+      e.preventDefault();
+      context.nextStep();
+      return;
+    case "identity":
+      advanceIfAllowed(e, canIdentityContinue, context.nextStep);
+      return;
+    case "setup":
+      advanceIfAllowed(e, canSetupContinue, context.nextStep);
+      return;
+    case "task":
+      advanceIfAllowed(e, isSubmitCombo, context.nextStep);
+      return;
+    case "ready":
+      submitReadyFromKey(e, context);
+      return;
+  }
+}
+
+function advanceIfAllowed(
+  e: KeyboardEvent,
+  allowed: boolean,
+  nextStep: () => void,
+) {
+  if (!allowed) return;
+  e.preventDefault();
+  nextStep();
+}
+
+function submitReadyFromKey(e: KeyboardEvent, context: WizardKeyContext) {
+  if (context.submitting || context.taskText.trim().length === 0) return;
+  e.preventDefault();
+  void context.finishOnboarding(false);
+}
+
 /* ═══════════════════════════════════════════
    Main Wizard
    ═══════════════════════════════════════════ */
@@ -1674,131 +2127,17 @@ export function Wizard({ onComplete }: WizardProps) {
     }
   }, [nexSignupStatus]);
 
-  // Compute readiness checks. Runs at render time for the 'ready' step — no
-  // useMemo because the surface is small (6 checks) and recomputation only
-  // happens when one of these inputs changes. Matches the TUI's six-item
-  // list in init_flow.go readinessChecks().
-  const readinessChecks: ReadinessCheck[] = (() => {
-    const checks: ReadinessCheck[] = [];
-
-    // 1. Nex API key
-    const hasNexKey = nexApiKey.trim().length > 0;
-    checks.push({
-      label: "Nex API key",
-      status: hasNexKey ? "ready" : "next",
-      detail: hasNexKey
-        ? "Configured. Hosted memory and integrations unlocked."
-        : "Skipped. Paste a key later from Settings to enable hosted memory.",
-    });
-
-    // 2. Tmux / web session. The web app doesn't need tmux — that's the
-    // TUI's office runtime. Surface it as a positive "web session" rather
-    // than flagging a missing dependency.
-    checks.push({
-      label: "Session runtime",
-      status: "ready",
-      detail: "Web session. No tmux required in the browser.",
-    });
-
-    // 3. LLM runtime — whatever CLI the user picked as primary, if installed.
-    const primaryLabel = runtimePriority[0];
-    const primarySpec = primaryLabel
-      ? RUNTIMES.find((r) => r.label === primaryLabel)
-      : undefined;
-    const primaryDetection = primarySpec
-      ? detectedBinary(prereqs, primarySpec.binary)
-      : undefined;
-    if (primarySpec && primaryDetection?.found) {
-      checks.push({
-        label: "LLM runtime",
-        status: "ready",
-        detail: primaryDetection.version
-          ? `${primarySpec.label} — ${primaryDetection.version}`
-          : `${primarySpec.label} installed`,
-      });
-    } else if (primarySpec) {
-      checks.push({
-        label: "LLM runtime",
-        status: "next",
-        detail: `${primarySpec.label} selected but not installed. Install before agents can reason.`,
-      });
-    } else {
-      // No runtime picked — check if any API key is set so the user has a path.
-      const hasAnyKey = Object.values(apiKeys).some((v) => v.trim().length > 0);
-      checks.push({
-        label: "LLM runtime",
-        status: hasAnyKey ? "ready" : "missing",
-        detail: hasAnyKey
-          ? "Provider API key will drive agent runs."
-          : "Pick a CLI or add a provider key on the Setup step.",
-      });
-    }
-
-    // 4. Memory backend
-    const memoryLabel =
-      MEMORY_BACKEND_OPTIONS.find((o) => o.value === memoryBackend)?.label ??
-      memoryBackend;
-    let memoryStatus: ReadinessStatus = "ready";
-    let memoryDetail = memoryLabel;
-    if (memoryBackend === "gbrain") {
-      if (gbrainOpenAIKey.trim().length === 0) {
-        memoryStatus = "missing";
-        memoryDetail = "GBrain selected but OpenAI key is missing.";
-      } else {
-        memoryDetail = "GBrain with OpenAI embeddings.";
-      }
-    } else if (memoryBackend === "nex") {
-      if (!hasNexKey) {
-        memoryStatus = "next";
-        memoryDetail =
-          "Nex selected — add a Nex API key to enable hosted memory.";
-      } else {
-        memoryDetail = "Hosted memory via Nex.";
-      }
-    } else if (memoryBackend === "markdown") {
-      memoryDetail = "Git-native team wiki in ~/.wuphf/wiki.";
-    } else {
-      memoryStatus = "next";
-      memoryDetail = "No shared memory — agents only see per-turn context.";
-    }
-    checks.push({
-      label: "Memory backend",
-      status: memoryStatus,
-      detail: memoryDetail,
-    });
-
-    // 5. Blueprint
-    if (selectedBlueprint === null) {
-      checks.push({
-        label: "Blueprint",
-        status: "ready",
-        detail: "Start from scratch (5-person founding team).",
-      });
-    } else {
-      const bp = blueprints.find((b) => b.id === selectedBlueprint);
-      checks.push({
-        label: "Blueprint",
-        status: "ready",
-        detail: bp?.name ?? selectedBlueprint,
-      });
-    }
-
-    // 6. Integrations count
-    const keyCount =
-      Object.values(apiKeys).filter((v) => v.trim().length > 0).length +
-      (gbrainOpenAIKey.trim().length > 0 ? 1 : 0) +
-      (gbrainAnthropicKey.trim().length > 0 ? 1 : 0);
-    checks.push({
-      label: "Integrations",
-      status: keyCount > 0 ? "ready" : "next",
-      detail:
-        keyCount > 0
-          ? `${keyCount} provider key${keyCount === 1 ? "" : "s"} configured.`
-          : "None configured. Add providers later from Settings.",
-    });
-
-    return checks;
-  })();
+  const readinessChecks = buildReadinessChecks({
+    nexApiKey,
+    runtimePriority,
+    prereqs,
+    apiKeys,
+    gbrainOpenAIKey,
+    gbrainAnthropicKey,
+    memoryBackend,
+    selectedBlueprint,
+    blueprints,
+  });
 
   // Complete onboarding
   const finishOnboarding = useCallback(
@@ -1810,9 +2149,7 @@ export function Wizard({ onComplete }: WizardProps) {
         // "opencode") are persisted — aspirational runtimes (Cursor, Windsurf)
         // are shown in the UI but can't yet be dispatched, so we drop them
         // from the priority list we send to the server.
-        const providerPriority = runtimePriority
-          .map((label) => RUNTIMES.find((r) => r.label === label)?.provider)
-          .filter((p): p is "claude-code" | "codex" | "opencode" => p !== null);
+        const providerPriority = providerPriorityFromLabels(runtimePriority);
 
         // Persist memory backend + LLM provider choice + priority fallback
         // list + API keys so the broker reads them on next launch. Send as a
@@ -1821,48 +2158,14 @@ export function Wizard({ onComplete }: WizardProps) {
         // Keys go through this path (not /onboarding/complete) because the
         // broker's /config endpoint is the canonical persistence surface
         // for config.APIKey, OpenAIAPIKey, AnthropicAPIKey, etc.
-        const configPayload: Record<string, unknown> = {
-          memory_backend: memoryBackend,
-        };
-        if (providerPriority.length > 0) {
-          configPayload.llm_provider = providerPriority[0];
-          configPayload.llm_provider_priority = providerPriority;
-        }
-        // Nex API key (optional — empty string not sent so we don't clobber
-        // an existing value with a blank one).
-        const trimmedNex = nexApiKey.trim();
-        if (trimmedNex.length > 0) {
-          configPayload.api_key = trimmedNex;
-        }
-        // GBrain-conditional keys. Only forwarded when GBrain is the active
-        // backend; other backends don't need these and sending would
-        // overwrite any user-configured values on GET.
-        if (memoryBackend === "gbrain") {
-          const trimmedOAI = gbrainOpenAIKey.trim();
-          if (trimmedOAI.length > 0) {
-            configPayload.openai_api_key = trimmedOAI;
-          }
-          const trimmedAnthropic = gbrainAnthropicKey.trim();
-          if (trimmedAnthropic.length > 0) {
-            configPayload.anthropic_api_key = trimmedAnthropic;
-          }
-        }
-        // Generic per-provider API keys from the fallback grid. Legacy
-        // env-var-style keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY)
-        // mapped to the broker's config field names. Google key has no
-        // /config field yet — drop it silently rather than fail.
-        const genericAnthropic = (apiKeys.ANTHROPIC_API_KEY ?? "").trim();
-        if (genericAnthropic.length > 0 && memoryBackend !== "gbrain") {
-          configPayload.anthropic_api_key = genericAnthropic;
-        }
-        const genericOpenAI = (apiKeys.OPENAI_API_KEY ?? "").trim();
-        if (genericOpenAI.length > 0 && memoryBackend !== "gbrain") {
-          configPayload.openai_api_key = genericOpenAI;
-        }
-        const genericGemini = (apiKeys.GOOGLE_API_KEY ?? "").trim();
-        if (genericGemini.length > 0) {
-          configPayload.gemini_api_key = genericGemini;
-        }
+        const configPayload = buildOnboardingConfigPayload({
+          memoryBackend,
+          providerPriority,
+          nexApiKey,
+          gbrainOpenAIKey,
+          gbrainAnthropicKey,
+          apiKeys,
+        });
         post("/config", configPayload).catch(() => {});
 
         // Primary runtime label for the onboarding payload (best-effort;
@@ -1916,80 +2219,22 @@ export function Wizard({ onComplete }: WizardProps) {
   // onKeyDown below, so we bail out when that's the focused target.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        closeNexSignup();
-        return;
-      }
-      if (e.key !== "Enter") return;
-      // Guard against hold-Enter spamming onSubmit before React commits
-      // setSubmitting(true). The broker's /config endpoint races on
-      // parallel writes, so a repeat-fire on the 'ready' step could
-      // corrupt config.json.
-      if (e.repeat) return;
-      const target = e.target as HTMLElement | null;
-      if (target?.id === "wiz-nex-email") return;
-      // Don't hijack Enter on interactive controls — Enter on a focused
-      // Back button should go back, not advance; Enter on a runtime
-      // reorder button should reorder, not advance.
-      const tag = target?.tagName;
-      if (tag === "BUTTON" || tag === "A" || tag === "SELECT") return;
-      const inTextarea = tag === "TEXTAREA";
-      const isSubmitCombo = e.metaKey || e.ctrlKey;
-      if (inTextarea && !isSubmitCombo) return;
-
-      const canIdentityContinue =
-        company.trim().length > 0 && description.trim().length > 0;
-      const hasInstalledSelection = runtimePriority.some((label) => {
-        const spec = RUNTIMES.find((r) => r.label === label);
-        if (!spec) return false;
-        return Boolean(detectedBinary(prereqs, spec.binary)?.found);
+      handleWizardKey(e, {
+        step,
+        company,
+        description,
+        runtimePriority,
+        prereqs,
+        apiKeys,
+        memoryBackend,
+        gbrainOpenAIKey,
+        submitting,
+        taskText,
+        goTo,
+        nextStep,
+        finishOnboarding,
+        closeNexSignup,
       });
-      const hasAnyApiKey = Object.values(apiKeys).some(
-        (v) => v.trim().length > 0,
-      );
-      const gbrainOpenAIMissing =
-        memoryBackend === "gbrain" && gbrainOpenAIKey.trim().length === 0;
-      const canSetupContinue =
-        (hasInstalledSelection || hasAnyApiKey) && !gbrainOpenAIMissing;
-
-      switch (step) {
-        case "welcome":
-          e.preventDefault();
-          goTo("identity");
-          return;
-        case "templates":
-          e.preventDefault();
-          nextStep();
-          return;
-        case "identity":
-          if (canIdentityContinue) {
-            e.preventDefault();
-            nextStep();
-          }
-          return;
-        case "team":
-          e.preventDefault();
-          nextStep();
-          return;
-        case "setup":
-          if (canSetupContinue) {
-            e.preventDefault();
-            nextStep();
-          }
-          return;
-        case "task":
-          if (isSubmitCombo) {
-            e.preventDefault();
-            nextStep();
-          }
-          return;
-        case "ready":
-          if (!submitting && taskText.trim().length > 0) {
-            e.preventDefault();
-            finishOnboarding(false);
-          }
-          return;
-      }
     }
     window.addEventListener("keydown", onKey);
     return () => {
