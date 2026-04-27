@@ -155,6 +155,15 @@ func Save(s *State) error {
 	return nil
 }
 
+// Reset removes the completed-onboarding marker. Missing state is already the
+// fresh-install shape, so it is treated as success.
+func Reset() error {
+	if err := os.Remove(StatePath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("onboarding: reset state: %w", err)
+	}
+	return nil
+}
+
 // SaveProgress loads the current state, updates the partial-progress record
 // for the given step, and saves it back atomically.
 func SaveProgress(step string, answers map[string]interface{}) error {

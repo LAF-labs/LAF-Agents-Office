@@ -1453,6 +1453,7 @@ function DangerZoneSection() {
       queryClient.clear();
       window.history.replaceState(null, "", "#/channels/general");
       resetForOnboarding();
+      window.dispatchEvent(new Event("laf-office:workspace-shredded"));
       setOpen(null);
       setBusy(false);
       showNotice(t("settings.danger.shredSuccess"), "success");

@@ -52,7 +52,7 @@ async function advanceToSetupStep() {
   await waitFor(() => screen.getByText(/What should your office run\?/i));
   pressEnterOn(window);
   await waitFor(() => screen.getByText(/Your team/i));
-  pressEnterOn(window);
+  fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
   await waitFor(() => screen.getByText(/How should agents run\?/i));
 }
 
@@ -94,7 +94,7 @@ describe("Wizard keyboard advancement", () => {
     render(<Wizard onComplete={vi.fn()} />);
 
     expect(
-      screen.getByText("공유 두뇌를 가진 AI 직원용 오피스."),
+      screen.getByText("기획·개발 에이전트가 함께 일하는 팀 오피스."),
     ).toBeInTheDocument();
 
     pressEnterOn(window);
@@ -174,6 +174,39 @@ describe("Wizard keyboard advancement", () => {
         }),
       );
     }
+  });
+
+  it("shows GitHub repository connection as a post-onboarding setup item", async () => {
+    getMock.mockImplementation(async (path: string) => {
+      if (path === "/onboarding/prereqs") {
+        return {
+          prereqs: [
+            {
+              name: "codex",
+              required: false,
+              found: true,
+              version: "codex-cli 0.125.0-alpha.3",
+            },
+          ],
+        };
+      }
+      if (path === "/onboarding/blueprints") return { templates: [] };
+      return {};
+    });
+    render(<Wizard onComplete={vi.fn()} />);
+    await advanceToSetupStep();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ready/i }));
+    await waitFor(() =>
+      screen.getByText(/What should the team work on first\?/i),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
+
+    await waitFor(() => screen.getByText(/You're set/i));
+    expect(screen.getByText("GitHub repository")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Connect the project repo after deployment settings/i),
+    ).toBeInTheDocument();
   });
 
   it("Enter on the welcome step advances to the Identity step", async () => {

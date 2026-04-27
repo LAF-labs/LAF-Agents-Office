@@ -2977,8 +2977,16 @@ func (b *Broker) dueSchedulerJobsLocked(now time.Time) []schedulerJob {
 
 func (b *Broker) Reset() {
 	b.mu.Lock()
+	b.resetWorkspaceStateLocked()
+	_ = b.saveLocked()
+	_ = os.Remove(b.stateSnapshotPath())
+	b.mu.Unlock()
+}
+
+func (b *Broker) resetWorkspaceStateLocked() {
 	mode := b.sessionMode
 	agent := b.oneOnOneAgent
+	b.channelStore = channel.NewStore()
 	b.messages = nil
 	b.members = defaultOfficeMembers()
 	b.channels = defaultTeamChannels()
@@ -3010,9 +3018,6 @@ func (b *Broker) Reset() {
 	// current default member list (which may differ from the active pack).
 	b.sessionMode = mode
 	b.oneOnOneAgent = agent
-	_ = b.saveLocked()
-	_ = os.Remove(b.stateSnapshotPath())
-	b.mu.Unlock()
 }
 
 func defaultBrokerStatePath() string {

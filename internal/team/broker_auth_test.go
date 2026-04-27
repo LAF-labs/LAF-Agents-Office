@@ -6,7 +6,51 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/channel"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
+
+func TestAuthSignupCreateClearsStaleWorkspaceWhenNoAccountsRemain(t *testing.T) {
+	t.Setenv(product.Env("RUNTIME_HOME"), t.TempDir())
+	b := newTestBroker(t)
+	if _, err := b.ChannelStore().GetOrCreateDirect("human", "ceo"); err != nil {
+		t.Fatalf("seed direct channel: %v", err)
+	}
+	b.mu.Lock()
+	b.messages = []channelMessage{{
+		ID:      "old-dm",
+		From:    "human",
+		Channel: channel.DirectSlug("human", "ceo"),
+		Content: "old private context",
+	}}
+	b.mu.Unlock()
+	s, err := onboarding.Load()
+	if err != nil {
+		t.Fatalf("load onboarding state: %v", err)
+	}
+	s.CompletedAt = "2026-04-27T00:00:00Z"
+	if err := onboarding.Save(s); err != nil {
+		t.Fatalf("save onboarding state: %v", err)
+	}
+
+	signupForTest(t, b, "fresh@example.com", "Fresh Founder", "create", "Fresh Team", "")
+
+	if got := len(b.Messages()); got != 0 {
+		t.Fatalf("new workspace inherited %d stale messages", got)
+	}
+	if _, ok := b.ChannelStore().GetBySlug(channel.DirectSlug("human", "ceo")); ok {
+		t.Fatalf("new workspace inherited stale direct channel")
+	}
+	reloaded, err := onboarding.Load()
+	if err != nil {
+		t.Fatalf("reload onboarding state: %v", err)
+	}
+	if reloaded.Onboarded() {
+		t.Fatalf("new workspace inherited completed onboarding state")
+	}
+}
 
 func TestAuthSignupCanCreateTeamAndSession(t *testing.T) {
 	b := newTestBroker(t)

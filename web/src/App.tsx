@@ -5,6 +5,7 @@ import {
   lazy,
   type ReactNode,
   Suspense,
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -352,6 +353,7 @@ export default function App() {
   const onboardingComplete = useAppStore((s) => s.onboardingComplete);
   const setBrokerConnected = useAppStore((s) => s.setBrokerConnected);
   const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
+  const resetForOnboarding = useAppStore((s) => s.resetForOnboarding);
   const inviteToken = window.location.pathname.startsWith("/invite/")
     ? decodeURIComponent(window.location.pathname.replace(/^\/invite\//, ""))
     : "";
@@ -359,6 +361,44 @@ export default function App() {
   useKeyboardShortcuts();
   useHashRouter();
   useBrokerEvents(apiReady && authSession.authenticated);
+
+  const loadOnboardingState = useCallback(async () => {
+    try {
+      const s = await get<{ onboarded?: boolean }>("/onboarding/state");
+      setOnboardingComplete(s.onboarded === true);
+    } catch {
+      setOnboardingComplete(false);
+    }
+  }, [setOnboardingComplete]);
+
+  const handleAuthenticated = useCallback(
+    (session: AuthSessionResponse) => {
+      resetForOnboarding();
+      setAuthSession(session);
+      if (session.authenticated) {
+        void loadOnboardingState();
+      }
+    },
+    [loadOnboardingState, resetForOnboarding],
+  );
+
+  useEffect(() => {
+    const handleWorkspaceShredded = () => {
+      resetForOnboarding();
+      setShowSplash(false);
+      setAuthSession({ authenticated: false });
+    };
+    window.addEventListener(
+      "laf-office:workspace-shredded",
+      handleWorkspaceShredded,
+    );
+    return () => {
+      window.removeEventListener(
+        "laf-office:workspace-shredded",
+        handleWorkspaceShredded,
+      );
+    };
+  }, [resetForOnboarding]);
 
   // Load theme CSS when theme changes
   useEffect(() => {
@@ -392,17 +432,22 @@ export default function App() {
       .then((session) => {
         if (cancelled || !session) return null;
         setAuthSession(session);
+        if (!session.authenticated) {
+          setOnboardingComplete(false);
+          return null;
+        }
         return get<{ onboarded?: boolean }>("/onboarding/state");
       })
       .then((s) => {
         if (cancelled || !s) return;
-        if (s.onboarded === true) {
-          setOnboardingComplete(true);
-        }
+        setOnboardingComplete(s.onboarded === true);
       })
       .catch(() => {
         // Endpoint unreachable — fall through to wizard. Safer default for
         // fresh installs where the broker may not have mounted onboarding yet.
+        if (!cancelled) {
+          setOnboardingComplete(false);
+        }
       })
       .finally(() => {
         if (!cancelled) setApiReady(true);
@@ -435,7 +480,7 @@ export default function App() {
   } else if (inviteToken) {
     body = <InviteAcceptPage token={inviteToken} />;
   } else if (!authSession.authenticated) {
-    body = <AuthScreen onAuthenticated={setAuthSession} />;
+    body = <AuthScreen onAuthenticated={handleAuthenticated} />;
   } else if (showSplash) {
     body = <SplashScreen onDone={() => setShowSplash(false)} />;
   } else if (!onboardingComplete) {
@@ -452,6 +497,7 @@ export default function App() {
         userEmail={authSession.user?.email}
         onLogout={async () => {
           await logout().catch(() => undefined);
+          resetForOnboarding();
           setAuthSession({ authenticated: false });
         }}
       >

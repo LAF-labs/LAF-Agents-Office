@@ -311,6 +311,8 @@ interface WizardCopy {
     runtimeMissing: string;
     memoryLabel: string;
     memoryMarkdown: string;
+    githubLabel: string;
+    githubConnectLater: string;
     blueprintLabel: string;
     blueprintScratch: string;
   };
@@ -479,8 +481,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         `${label} selected but not installed. Install before agents can reason.`,
       runtimeKeyReady: "Provider API key will drive agent runs.",
       runtimeMissing: "Pick a CLI or add a provider key on the Setup step.",
-      memoryLabel: "Memory backend",
+      memoryLabel: "Team wiki",
       memoryMarkdown: "Git-native team wiki in ~/.laf-office/wiki.",
+      githubLabel: "GitHub repository",
+      githubConnectLater:
+        "Connect the project repo after deployment settings are ready. Agents will use it for implementation tasks.",
       blueprintLabel: "Blueprint",
       blueprintScratch: "Start from scratch (5-person founding team).",
     },
@@ -502,9 +507,9 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     welcome: {
       eyebrow: "설정 준비 완료",
-      headline: "공유 두뇌를 가진 AI 직원용 오피스.",
+      headline: "기획·개발 에이전트가 함께 일하는 팀 오피스.",
       subhead:
-        "에이전트가 채널에서 협업하고, 중요한 맥락을 기억하며, 일을 눈에 보이는 진행 상황으로 바꾸는 협업 오피스입니다.",
+        "소규모 창업팀이 에이전트와 함께 제품을 기획하고, 팀 위키로 맥락을 이어가며, GitHub 기반 개발 작업까지 연결하는 로컬 오피스입니다.",
       cta: "오피스 열기",
     },
     templates: {
@@ -648,8 +653,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         `${label}을 선택했지만 설치되어 있지 않습니다. 에이전트가 추론하려면 먼저 설치해야 합니다.`,
       runtimeKeyReady: "제공자 API 키로 에이전트를 실행합니다.",
       runtimeMissing: "CLI를 선택하거나 설정 단계에서 제공자 키를 추가하세요.",
-      memoryLabel: "메모리 백엔드",
+      memoryLabel: "팀 위키",
       memoryMarkdown: "git 기반 팀 위키를 ~/.laf-office/wiki에 저장합니다.",
+      githubLabel: "GitHub 저장소",
+      githubConnectLater:
+        "배포 설정이 준비되면 프로젝트 저장소를 연결합니다. 에이전트는 실제 개발 작업에 이 저장소를 사용합니다.",
       blueprintLabel: "블루프린트",
       blueprintScratch: "처음부터 시작 (5명 창업팀).",
     },
@@ -1742,6 +1750,7 @@ function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
     },
     runtimeReadinessCheck(options),
     memoryReadinessCheck(options.copy),
+    githubReadinessCheck(options.copy),
     blueprintReadinessCheck(
       options.selectedBlueprint,
       options.blueprints,
@@ -1799,6 +1808,14 @@ function memoryReadinessCheck(copy: WizardCopy): ReadinessCheck {
     label: copy.readiness.memoryLabel,
     status: "ready",
     detail: copy.readiness.memoryMarkdown,
+  };
+}
+
+function githubReadinessCheck(copy: WizardCopy): ReadinessCheck {
+  return {
+    label: copy.readiness.githubLabel,
+    status: "next",
+    detail: copy.readiness.githubConnectLater,
   };
 }
 
@@ -2261,7 +2278,6 @@ export function Wizard({ onComplete }: WizardProps) {
       description,
       priority,
       runtimePriority,
-      memoryBackend,
       selectedBlueprint,
       agents,
       apiKeys,

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 )
 
 const authSessionCookieName = "laf_office_session"
@@ -326,6 +328,13 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 	nowText := now.Format(time.RFC3339)
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if action == "create" && len(b.authUsers) == 0 {
+		b.resetWorkspaceStateLocked()
+		if err := onboarding.Reset(); err != nil {
+			http.Error(w, "failed to reset onboarding state", http.StatusInternalServerError)
+			return
+		}
+	}
 	if b.findAuthUserByEmailLocked(email) != nil {
 		http.Error(w, "user already exists", http.StatusConflict)
 		return

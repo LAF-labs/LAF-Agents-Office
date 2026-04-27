@@ -78,6 +78,12 @@ describe("DM channel helpers", () => {
       wikiLookupQuery: "who owns renewal?",
       notebookAgentSlug: "ceo",
       notebookEntrySlug: "handoff",
+      channelMeta: {
+        ceo__human: { type: "D", agentSlug: "ceo" },
+      },
+      collapsedThreads: { "thread-1": true },
+      sidebarAgentsOpen: false,
+      sidebarCollapsed: true,
     });
 
     useAppStore.getState().resetForOnboarding();
@@ -97,6 +103,10 @@ describe("DM channel helpers", () => {
       wikiLookupQuery: null,
       notebookAgentSlug: null,
       notebookEntrySlug: null,
+      channelMeta: {},
+      collapsedThreads: {},
+      sidebarAgentsOpen: true,
+      sidebarCollapsed: false,
     });
   });
 });
@@ -117,7 +127,10 @@ describe("setTheme", () => {
     try {
       useAppStore.getState().setTheme("office-dark");
 
-      expect(setItemSpy).toHaveBeenCalledWith("laf-office-theme", "office-dark");
+      expect(setItemSpy).toHaveBeenCalledWith(
+        "laf-office-theme",
+        "office-dark",
+      );
       expect(useAppStore.getState().theme).toBe("office-dark");
       expect(document.documentElement.getAttribute("data-theme")).toBe(
         "office-dark",
