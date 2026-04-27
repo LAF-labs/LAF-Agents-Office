@@ -28,6 +28,7 @@ export function ChannelList() {
                 : ch.name || ch.slug;
             return (
               <button
+                type="button"
                 key={ch.slug}
                 className={`sidebar-item${isActive ? " active" : ""}`}
                 onClick={() => setCurrentChannel(ch.slug)}
@@ -53,6 +54,7 @@ export function ChannelList() {
             );
           })}
           <button
+            type="button"
             className="sidebar-item sidebar-add-btn"
             onClick={wizard.show}
             title="Create a new channel"

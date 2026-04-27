@@ -41,25 +41,32 @@ export function InsightsList({
 
   return (
     <div className="insight-list">
-      {visible.map((ins, i) => (
-        <div key={i} className={`insight-row insight-${ins.priority}`}>
+      {visible.map((ins) => (
+        <div
+          key={`${ins.priority}-${ins.title}-${ins.time ?? ""}`}
+          className={`insight-row insight-${ins.priority}`}
+        >
           <div className="insight-head">
             <span className={`insight-badge insight-badge-${ins.priority}`}>
               [{PRIORITY_LABEL[ins.priority]}]
             </span>
-            {ins.category && (
+            {ins.category ? (
               <span className="insight-category">[{ins.category}]</span>
-            )}
+            ) : null}
             <span className="insight-title">{ins.title}</span>
-            {ins.time && <span className="insight-time">{ins.time}</span>}
+            {ins.time ? <span className="insight-time">{ins.time}</span> : null}
           </div>
-          {ins.body && (
+          {ins.body ? (
             <div className="insight-body">{truncate(ins.body, 220)}</div>
-          )}
-          {ins.target && <div className="insight-target">({ins.target})</div>}
+          ) : null}
+          {ins.target ? (
+            <div className="insight-target">({ins.target})</div>
+          ) : null}
         </div>
       ))}
-      {overflow > 0 && <div className="insight-more">+ {overflow} more</div>}
+      {overflow > 0 ? (
+        <div className="insight-more">+ {overflow} more</div>
+      ) : null}
     </div>
   );
 }

@@ -214,7 +214,7 @@ export default function WikiArticle({
   return (
     <>
       <main className="wk-article-col">
-        {liveAgent && (
+        {liveAgent ? (
           <ArticleStatusBanner
             message={`${formatAgentName(liveAgent)} is editing this article right now.`}
             liveAgent={liveAgent}
@@ -222,7 +222,7 @@ export default function WikiArticle({
             contributors={article.contributors.length}
             wordCount={article.word_count}
           />
-        )}
+        ) : null}
         {entity && (
           <EntityBriefBar
             kind={entity.kind}

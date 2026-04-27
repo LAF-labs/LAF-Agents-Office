@@ -152,7 +152,9 @@ describe("entity api client", () => {
       constructor(public url: string) {}
       onerror: ((ev: Event) => void) | null = null;
       addEventListener(name: string, cb: Listener) {
-        (listeners[name] ??= []).push(cb);
+        const list = listeners[name] ?? [];
+        list.push(cb);
+        listeners[name] = list;
       }
       removeEventListener(name: string, cb: Listener) {
         listeners[name] = (listeners[name] ?? []).filter((l) => l !== cb);

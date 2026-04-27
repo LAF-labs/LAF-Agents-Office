@@ -162,7 +162,7 @@ function JobCard({ job }: { job: SchedulerJob }) {
         <span className="app-card-title" style={{ marginBottom: 0 }}>
           {job.label || job.name || job.slug || "Job"}
         </span>
-        {job.status && (
+        {job.status ? (
           <span
             className={
               job.status === "active"
@@ -172,9 +172,9 @@ function JobCard({ job }: { job: SchedulerJob }) {
           >
             {job.status.toUpperCase()}
           </span>
-        )}
+        ) : null}
       </div>
-      {job.next_run && (
+      {job.next_run ? (
         <div
           className="app-card-meta"
           style={{
@@ -185,10 +185,10 @@ function JobCard({ job }: { job: SchedulerJob }) {
         >
           {formatRelativeTime(job.next_run)}
         </div>
-      )}
-      {metaParts.length > 0 && (
+      ) : null}
+      {metaParts.length > 0 ? (
         <div className="app-card-meta">{metaParts.join(" \u2022 ")}</div>
-      )}
+      ) : null}
     </div>
   );
 }

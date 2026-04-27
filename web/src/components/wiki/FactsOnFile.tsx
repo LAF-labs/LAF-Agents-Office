@@ -114,57 +114,50 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
                 <PixelAvatar slug={f.recorded_by} size={14} />
                 <div className="wk-facts-body">
                   <span className="wk-facts-text">{f.text}</span>
-                  {f.triplet && (
-                    <span
-                      className="wk-facts-triplet"
-                      aria-label="Typed triplet"
-                    >
+                  {f.triplet ? (
+                    <span className="wk-facts-triplet">
                       <code>{f.triplet.subject}</code>
                       {" — "}
                       <code>{f.triplet.predicate}</code>
                       {" → "}
                       <code>{f.triplet.object}</code>
                     </span>
-                  )}
+                  ) : null}
                   <span className="wk-facts-meta">
-                    {f.type && <span className="wk-facts-type">{f.type}</span>}
-                    {typeof f.confidence === "number" && (
+                    {f.type ? (
+                      <span className="wk-facts-type">{f.type}</span>
+                    ) : null}
+                    {typeof f.confidence === "number" ? (
                       <>
-                        {f.type && " · "}
-                        <span
-                          className="wk-facts-confidence"
-                          aria-label={`Confidence ${(f.confidence * 100).toFixed(0)} percent`}
-                        >
+                        {f.type ? " · " : null}
+                        <span className="wk-facts-confidence">
                           {f.confidence.toFixed(2)}
                         </span>
                       </>
-                    )}
+                    ) : null}
                     {(f.type || typeof f.confidence === "number") && " · "}
                     {formatAgentName(f.recorded_by)}
                     {" · "}
                     <time dateTime={f.created_at}>
                       {formatShortTs(f.created_at)}
                     </time>
-                    {formatValidity(f) && (
+                    {formatValidity(f) ? (
                       <>
                         {" · "}
                         <span className="wk-facts-validity">
                           {formatValidity(f)}
                         </span>
                       </>
-                    )}
-                    {f.reinforced_at && (
+                    ) : null}
+                    {f.reinforced_at ? (
                       <>
                         {" · "}
-                        <span
-                          className="wk-facts-reinforced"
-                          aria-label={`Reinforced ${formatShortTs(f.reinforced_at)}`}
-                        >
+                        <span className="wk-facts-reinforced">
                           reinforced {formatShortTs(f.reinforced_at)}
                         </span>
                       </>
-                    )}
-                    {isWikiSource(f.source_path) && (
+                    ) : null}
+                    {isWikiSource(f.source_path) ? (
                       <>
                         {" · "}
                         <a
@@ -175,24 +168,21 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
                           {sourceLabel(f.source_path as string)}
                         </a>
                       </>
-                    )}
-                    {f.supersedes && f.supersedes.length > 0 && (
+                    ) : null}
+                    {f.supersedes && f.supersedes.length > 0 ? (
                       <>
                         {" · "}
-                        <span
-                          className="wk-facts-supersedes"
-                          aria-label={`Supersedes ${f.supersedes.length} prior fact${f.supersedes.length === 1 ? "" : "s"}`}
-                        >
+                        <span className="wk-facts-supersedes">
                           supersedes {f.supersedes.length} prior
                         </span>
                       </>
-                    )}
+                    ) : null}
                   </span>
                 </div>
               </li>
             ))}
           </ol>
-          {facts.length > INITIAL_LIMIT && (
+          {facts.length > INITIAL_LIMIT ? (
             <button
               type="button"
               className="wk-facts-showall"
@@ -202,7 +192,7 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
                 ? "show recent only"
                 : `show all (${facts.length - INITIAL_LIMIT} more)`}
             </button>
-          )}
+          ) : null}
         </>
       )}
     </section>

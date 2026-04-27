@@ -92,6 +92,8 @@ describe("<ChannelList> keyboard shortcut badges", () => {
     setChannels(3);
     const { container } = render(<ChannelList />);
     const spans = container.querySelectorAll(".sidebar-shortcut");
-    spans.forEach((s) => expect(s.getAttribute("aria-hidden")).toBe("true"));
+    for (const span of spans) {
+      expect(span.getAttribute("aria-hidden")).toBe("true");
+    }
   });
 });

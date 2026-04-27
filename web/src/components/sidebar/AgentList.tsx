@@ -89,9 +89,9 @@ export function AgentList() {
                     <span className="sidebar-agent-name">
                       {agent.name || agent.slug}
                     </span>
-                    {agent.task && (
+                    {agent.task ? (
                       <span className="sidebar-agent-task">{agent.task}</span>
-                    )}
+                    ) : null}
                   </div>
                   <span className={`status-dot ${ac.dotClass}`} />
                 </button>

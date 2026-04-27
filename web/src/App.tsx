@@ -1,7 +1,10 @@
 import {
   Component,
   type ComponentType,
+  type LazyExoticComponent,
+  lazy,
   type ReactNode,
+  Suspense,
   useEffect,
   useState,
 } from "react";
@@ -13,17 +16,6 @@ import {
   initApi,
   logout,
 } from "./api/client";
-import { ArtifactsApp } from "./components/apps/ArtifactsApp";
-import { CalendarApp } from "./components/apps/CalendarApp";
-import { GraphApp } from "./components/apps/GraphApp";
-import { HealthCheckApp } from "./components/apps/HealthCheckApp";
-import { PoliciesApp } from "./components/apps/PoliciesApp";
-import { ReceiptsApp } from "./components/apps/ReceiptsApp";
-import { RequestsApp } from "./components/apps/RequestsApp";
-import { SettingsApp } from "./components/apps/SettingsApp";
-import { SkillsApp } from "./components/apps/SkillsApp";
-import { TasksApp } from "./components/apps/TasksApp";
-import { ThreadsApp } from "./components/apps/ThreadsApp";
 import { AuthScreen } from "./components/auth/AuthScreen";
 import { InviteAcceptPage } from "./components/invites/InviteAcceptPage";
 import { Shell } from "./components/layout/Shell";
@@ -32,15 +24,11 @@ import { DMView } from "./components/messages/DMView";
 import { InterviewBar } from "./components/messages/InterviewBar";
 import { MessageFeed } from "./components/messages/MessageFeed";
 import { TypingIndicator } from "./components/messages/TypingIndicator";
-import Notebook from "./components/notebook/Notebook";
 import { SplashScreen } from "./components/onboarding/SplashScreen";
 import { Wizard } from "./components/onboarding/Wizard";
-import ReviewQueueKanban from "./components/review/ReviewQueueKanban";
 import { ConfirmHost } from "./components/ui/ConfirmDialog";
 import { ProviderSwitcherHost } from "./components/ui/ProviderSwitcher";
 import { ToastContainer } from "./components/ui/Toast";
-import CitedAnswer from "./components/wiki/CitedAnswer";
-import Wiki from "./components/wiki/Wiki";
 import type { WikiTab } from "./components/wiki/WikiTabs";
 import WikiTabs from "./components/wiki/WikiTabs";
 import { useBrokerEvents } from "./hooks/useBrokerEvents";
@@ -55,6 +43,72 @@ import "./styles/agents.css";
 import "./styles/search.css";
 import "./styles/wiki-shell.css";
 import "./styles/kbd.css";
+
+type PanelComponent =
+  | ComponentType<Record<string, never>>
+  | LazyExoticComponent<ComponentType<Record<string, never>>>;
+
+const ArtifactsApp = lazy(() =>
+  import("./components/apps/ArtifactsApp").then((module) => ({
+    default: module.ArtifactsApp,
+  })),
+);
+const CalendarApp = lazy(() =>
+  import("./components/apps/CalendarApp").then((module) => ({
+    default: module.CalendarApp,
+  })),
+);
+const GraphApp = lazy(() =>
+  import("./components/apps/GraphApp").then((module) => ({
+    default: module.GraphApp,
+  })),
+);
+const HealthCheckApp = lazy(() =>
+  import("./components/apps/HealthCheckApp").then((module) => ({
+    default: module.HealthCheckApp,
+  })),
+);
+const PoliciesApp = lazy(() =>
+  import("./components/apps/PoliciesApp").then((module) => ({
+    default: module.PoliciesApp,
+  })),
+);
+const ReceiptsApp = lazy(() =>
+  import("./components/apps/ReceiptsApp").then((module) => ({
+    default: module.ReceiptsApp,
+  })),
+);
+const RequestsApp = lazy(() =>
+  import("./components/apps/RequestsApp").then((module) => ({
+    default: module.RequestsApp,
+  })),
+);
+const SettingsApp = lazy(() =>
+  import("./components/apps/SettingsApp").then((module) => ({
+    default: module.SettingsApp,
+  })),
+);
+const SkillsApp = lazy(() =>
+  import("./components/apps/SkillsApp").then((module) => ({
+    default: module.SkillsApp,
+  })),
+);
+const TasksApp = lazy(() =>
+  import("./components/apps/TasksApp").then((module) => ({
+    default: module.TasksApp,
+  })),
+);
+const ThreadsApp = lazy(() =>
+  import("./components/apps/ThreadsApp").then((module) => ({
+    default: module.ThreadsApp,
+  })),
+);
+const CitedAnswer = lazy(() => import("./components/wiki/CitedAnswer"));
+const Notebook = lazy(() => import("./components/notebook/Notebook"));
+const ReviewQueueKanban = lazy(
+  () => import("./components/review/ReviewQueueKanban"),
+);
+const Wiki = lazy(() => import("./components/wiki/Wiki"));
 
 // ── Error boundary ─────────────────────────────────────────────
 
@@ -129,6 +183,23 @@ class ErrorBoundary extends Component<
     }
     return this.props.children;
   }
+}
+
+function AppLoadingFallback() {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text-tertiary)",
+        fontSize: 14,
+      }}
+    >
+      Loading...
+    </div>
+  );
 }
 
 // ── Routed main content ─────────────────────────────────────────
@@ -239,7 +310,7 @@ function MainContent() {
   }
 
   if (currentApp) {
-    const panels: Record<string, ComponentType> = {
+    const panels: Record<string, PanelComponent> = {
       tasks: TasksApp,
       requests: RequestsApp,
       graph: GraphApp,
@@ -408,7 +479,9 @@ export default function App() {
           setAuthSession({ authenticated: false });
         }}
       >
-        <MainContent />
+        <Suspense fallback={<AppLoadingFallback />}>
+          <MainContent />
+        </Suspense>
       </Shell>
     );
   }

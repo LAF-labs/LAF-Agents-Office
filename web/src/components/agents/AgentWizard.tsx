@@ -223,7 +223,7 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
               </span>
             </div>
 
-            {error && <div className="agent-wizard-error">{error}</div>}
+            {error ? <div className="agent-wizard-error">{error}</div> : null}
 
             <div className="agent-wizard-footer">
               <button
@@ -349,7 +349,7 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
                 value={form.expertise}
                 onChange={(e) => updateField("expertise", e.target.value)}
               />
-              {expertiseTags.length > 0 && (
+              {expertiseTags.length > 0 ? (
                 <div className="agent-panel-tags" style={{ marginTop: 6 }}>
                   {expertiseTags.map((tag) => (
                     <span key={tag} className="agent-panel-tag">
@@ -357,10 +357,10 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
                     </span>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
 
-            {error && <div className="agent-wizard-error">{error}</div>}
+            {error ? <div className="agent-wizard-error">{error}</div> : null}
 
             {/* Footer */}
             <div className="agent-wizard-footer">

@@ -250,6 +250,8 @@ const MEMORY_BACKEND_OPTIONS: ReadonlyArray<{
 function ArrowIcon() {
   return (
     <svg
+      aria-hidden="true"
+      focusable="false"
       width="14"
       height="14"
       viewBox="0 0 24 24"
@@ -268,6 +270,8 @@ function ArrowIcon() {
 function CheckIcon() {
   return (
     <svg
+      aria-hidden="true"
+      focusable="false"
       width="12"
       height="12"
       viewBox="0 0 24 24"
@@ -291,11 +295,11 @@ function CheckIcon() {
 function EnterHint({ modifier }: { modifier?: string } = {}) {
   return (
     <span className="kbd-hint" aria-hidden="true">
-      {modifier && (
+      {modifier ? (
         <Kbd size="sm" variant="inverse">
           {modifier}
         </Kbd>
-      )}
+      ) : null}
       <Kbd size="sm" variant="inverse">
         ↵
       </Kbd>
@@ -338,7 +342,7 @@ function WelcomeStep({ onNext }: WelcomeStepProps) {
         <p className="wizard-subhead">{ONBOARDING_COPY.step1_subhead}</p>
       </div>
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <button className="btn btn-primary" onClick={onNext}>
+        <button type="button" className="btn btn-primary" onClick={onNext}>
           {ONBOARDING_COPY.step1_cta}
           <ArrowIcon />
           <EnterHint />
@@ -394,7 +398,7 @@ function TemplatesStep({
         onClick={() => onSelect(t.id)}
         type="button"
       >
-        {icon && <div className="template-card-emoji">{icon}</div>}
+        {icon ? <div className="template-card-emoji">{icon}</div> : null}
         <div className="template-card-name">{t.name}</div>
         <div className="template-card-desc">{desc}</div>
       </button>
@@ -705,14 +709,14 @@ function NexSignupPanel({
               {status === "submitting" ? "Registering..." : "Register"}
             </button>
           </div>
-          {error && (
+          {error ? (
             <p
               style={{ color: "var(--red)", fontSize: 12, marginTop: 6 }}
               role="alert"
             >
               {error}
             </p>
-          )}
+          ) : null}
         </div>
       )}
     </div>
@@ -767,19 +771,19 @@ function TeamStep({ agents, onToggle, onNext, onBack }: TeamStepProps) {
                   title={locked ? "Lead agent — always included" : undefined}
                 >
                   <div className="wiz-team-check">
-                    {a.checked && <CheckIcon />}
+                    {a.checked ? <CheckIcon /> : null}
                   </div>
                   <div>
-                    {a.emoji && (
+                    {a.emoji ? (
                       <span style={{ marginRight: 6 }}>{a.emoji}</span>
-                    )}
+                    ) : null}
                     <span className="wiz-team-name">{a.name}</span>
-                    {locked && (
-                      <span className="wiz-team-lead-badge" aria-label="Lead">
-                        Lead
-                      </span>
-                    )}
-                    {a.role && <div className="wiz-team-role">{a.role}</div>}
+                    {locked ? (
+                      <span className="wiz-team-lead-badge">Lead</span>
+                    ) : null}
+                    {a.role ? (
+                      <div className="wiz-team-role">{a.role}</div>
+                    ) : null}
                   </div>
                 </button>
               );
@@ -1120,12 +1124,12 @@ function SetupStep({
                 onChange={(e) => onChangeGBrainOpenAIKey(e.target.value)}
                 autoComplete="off"
               />
-              {gbrainOpenAIMissing && (
+              {gbrainOpenAIMissing ? (
                 <p style={{ color: "var(--red)", fontSize: 11, marginTop: 4 }}>
                   Required: GBrain can&apos;t create embeddings without an
                   OpenAI key.
                 </p>
-              )}
+              ) : null}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="label" htmlFor="wiz-gbrain-anthropic">

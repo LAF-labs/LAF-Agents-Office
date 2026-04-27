@@ -317,7 +317,7 @@ export function TasksApp() {
           selectedProjectId={selectedProjectId}
           onSelect={setSelectedProjectId}
         />
-        {isCreatingProject && (
+        {isCreatingProject ? (
           <form className="task-project-form" onSubmit={handleCreateProject}>
             <input
               type="text"
@@ -330,10 +330,10 @@ export function TasksApp() {
               Create
             </button>
           </form>
-        )}
-        {projectError && (
+        ) : null}
+        {projectError ? (
           <div className="task-project-error">{projectError}</div>
-        )}
+        ) : null}
       </div>
 
       {tasks.length === 0 ? (
@@ -384,12 +384,12 @@ export function TasksApp() {
           })}
         </div>
       )}
-      {selectedTask && (
+      {selectedTask ? (
         <TaskDetailModal
           task={selectedTask}
           onClose={() => setSelectedTaskId(null)}
         />
-      )}
+      ) : null}
     </>
   );
 }
@@ -470,12 +470,12 @@ function TaskCard({
       style={{ marginBottom: 8, cursor: "pointer" }}
     >
       <div className="app-card-title">{task.title || "Untitled"}</div>
-      {task.project_id && (
+      {task.project_id ? (
         <div className="task-project-chip">
           {projectName || task.project_id}
         </div>
-      )}
-      {task.description && (
+      ) : null}
+      {task.description ? (
         <div
           style={{
             fontSize: 12,
@@ -486,7 +486,7 @@ function TaskCard({
         >
           {task.description.slice(0, 160)}
         </div>
-      )}
+      ) : null}
       <div
         style={{
           display: "flex",
@@ -496,11 +496,15 @@ function TaskCard({
         }}
       >
         <span className={statusBadgeClass(status)}>{COLUMN_LABEL[status]}</span>
-        {task.owner && <span className="app-card-meta">@{task.owner}</span>}
-        {task.channel && <span className="app-card-meta">#{task.channel}</span>}
-        {timestamp && (
+        {task.owner ? (
+          <span className="app-card-meta">@{task.owner}</span>
+        ) : null}
+        {task.channel ? (
+          <span className="app-card-meta">#{task.channel}</span>
+        ) : null}
+        {timestamp ? (
           <span className="app-card-meta">{formatRelativeTime(timestamp)}</span>
-        )}
+        ) : null}
       </div>
     </div>
   );

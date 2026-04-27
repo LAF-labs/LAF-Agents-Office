@@ -29,17 +29,18 @@ export default function TocBox({ entries }: TocBoxProps) {
             [{hidden ? "show" : "hide"}]
           </button>
         </div>
-        {!hidden &&
-          entries.map((entry) => (
-            <a
-              key={`${entry.anchor}-${entry.num}`}
-              href={`#${entry.anchor}`}
-              className={`wk-lvl-${entry.level}`}
-            >
-              {entry.num && <span className="wk-num">{entry.num}</span>}
-              {entry.title}
-            </a>
-          ))}
+        {!hidden
+          ? entries.map((entry) => (
+              <a
+                key={`${entry.anchor}-${entry.num}`}
+                href={`#${entry.anchor}`}
+                className={`wk-lvl-${entry.level}`}
+              >
+                {entry.num ? <span className="wk-num">{entry.num}</span> : null}
+                {entry.title}
+              </a>
+            ))
+          : null}
       </div>
     </div>
   );

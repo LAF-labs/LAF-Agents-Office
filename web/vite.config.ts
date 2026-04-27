@@ -34,6 +34,32 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          minSize: 20_000,
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /node_modules\/(react|react-dom|scheduler)\//,
+            },
+            {
+              name: 'query-vendor',
+              test: /node_modules\/@tanstack\//,
+            },
+            {
+              name: 'markdown-vendor',
+              test:
+                /node_modules\/(react-markdown|remark-|rehype-|unified|micromark|mdast-|hast-|vfile|github-slugger|dompurify)\//,
+            },
+            {
+              name: 'vendor',
+              test: /node_modules\//,
+            },
+          ],
+        },
+      },
+    },
   },
   test: {
     environment: 'happy-dom',

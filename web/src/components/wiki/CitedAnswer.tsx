@@ -142,12 +142,12 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
       {/* Hatnote — always present, coverage context */}
       <Hatnote>
         <em>From the wiki</em>
-        {answer.coverage === "partial" && " (partial match)"}
-        {answer.coverage === "none" && " (no match)"}
+        {answer.coverage === "partial" ? " (partial match)" : null}
+        {answer.coverage === "none" ? " (no match)" : null}
       </Hatnote>
 
       {/* Body — only when there is an answer */}
-      {answer.answer_markdown && (
+      {answer.answer_markdown ? (
         <div className="wk-article-body" data-testid="wk-cited-answer-body">
           <ReactMarkdown
             remarkPlugins={remarkPlugins}
@@ -157,21 +157,21 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
             {answer.answer_markdown}
           </ReactMarkdown>
         </div>
-      )}
+      ) : null}
 
       {/* Out-of-scope: no sources block */}
-      {isOutOfScope && (
+      {isOutOfScope ? (
         <p className="wk-cited-answer-oos">
           I can help with questions about people, companies, and activities in
           your workspace.
         </p>
-      )}
+      ) : null}
 
       {/* Sources — only cited entries, only when not out-of-scope.
           Each <li> carries an explicit `value` so browser numbering matches
           the [n] citations in the body even when gaps exist (e.g. cited [3, 5]
           drops sources 1, 2, 4 entirely). */}
-      {!isOutOfScope && citedSources.length > 0 && (
+      {!isOutOfScope && citedSources.length > 0 ? (
         <section className="wk-sources" aria-labelledby="ca-sources-heading">
           <h2 id="ca-sources-heading">Sources</h2>
           <ol>
@@ -190,33 +190,35 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
                     value={n}
                   >
                     <span className="wk-commit-msg">{excerpt}</span>
-                    {src.title && <span className="wk-agent">{src.title}</span>}
-                    {src.valid_from && (
+                    {src.title ? (
+                      <span className="wk-agent">{src.title}</span>
+                    ) : null}
+                    {src.valid_from ? (
                       <span className="wk-dim">
                         {" "}
                         · {src.valid_from.slice(0, 10)}
                       </span>
-                    )}
+                    ) : null}
                   </li>
                 );
               })}
           </ol>
         </section>
-      )}
+      ) : null}
 
       {/* PageFooter — action-links style, no article git metadata */}
       <div className="wk-page-footer">
         <div className="wk-actions">
-          {mostRecentValidFrom && (
+          {mostRecentValidFrom ? (
             <span>Last updated: {mostRecentValidFrom}</span>
-          )}
-          <span aria-label="Answer latency">{answer.latency_ms}ms</span>
-          {answer.sources.length > 0 && (
+          ) : null}
+          <span>{answer.latency_ms}ms</span>
+          {answer.sources.length > 0 ? (
             <span>
               {answer.sources.length}{" "}
               {answer.sources.length === 1 ? "source" : "sources"}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     </article>

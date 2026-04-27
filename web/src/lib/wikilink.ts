@@ -55,9 +55,16 @@ export function parseWikiLinkInner(raw: string): WikiLink | null {
   if (slug.includes("..")) return null;
   if (slug.startsWith("/")) return null;
   // Control chars / NUL.
-  if (/[\x00-\x1f]/.test(slug)) return null;
+  if (hasControlChar(slug)) return null;
 
   return { slug, display };
+}
+
+function hasControlChar(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) <= 0x1f) return true;
+  }
+  return false;
 }
 
 // ── AST types (minimal mdast surface for the remark plugin) ──
@@ -93,26 +100,34 @@ interface MdParent {
 export function wikiLinkRemarkPlugin(resolver: (slug: string) => boolean) {
   return function plugin() {
     return function transformer(tree: unknown) {
-      walk(tree as MdAnyNode, (parent) => {
-        const children = parent.children;
-        for (let i = 0; i < children.length; i++) {
-          const child = children[i];
-          if (
-            child.type !== "text" ||
-            typeof (child as MdTextNode).value !== "string"
-          )
-            continue;
-          const value = (child as MdTextNode).value;
-          if (!value.includes("[[")) continue;
-
-          const replacements = buildReplacements(value, resolver);
-          if (replacements.length === 0) continue;
-          children.splice(i, 1, ...replacements);
-          i += replacements.length - 1;
-        }
-      });
+      walk(tree as MdAnyNode, (parent) =>
+        rewriteWikiLinksInParent(parent, resolver),
+      );
     };
   };
+}
+
+function rewriteWikiLinksInParent(
+  parent: MdParent,
+  resolver: (slug: string) => boolean,
+) {
+  const { children } = parent;
+  for (let i = 0; i < children.length; i++) {
+    const replacements = replacementsForTextNode(children[i], resolver);
+    if (replacements.length === 0) continue;
+    children.splice(i, 1, ...replacements);
+    i += replacements.length - 1;
+  }
+}
+
+function replacementsForTextNode(
+  node: MdAnyNode,
+  resolver: (slug: string) => boolean,
+): MdAnyNode[] {
+  if (node.type !== "text") return [];
+  const { value } = node as MdTextNode;
+  if (typeof value !== "string" || !value.includes("[[")) return [];
+  return buildReplacements(value, resolver);
 }
 
 function buildReplacements(
@@ -122,9 +137,8 @@ function buildReplacements(
   const re = /\[\[([^\]\n]+)\]\]/g;
   const out: MdAnyNode[] = [];
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
   let changed = false;
-  while ((match = re.exec(value)) !== null) {
+  for (let match = re.exec(value); match !== null; match = re.exec(value)) {
     const link = parseWikiLinkInner(match[1]);
     if (!link) continue;
     changed = true;
@@ -145,7 +159,8 @@ function buildReplacements(
         },
       },
     });
-    lastIndex = re.lastIndex;
+    const { lastIndex: nextLastIndex } = re;
+    lastIndex = nextLastIndex;
   }
   if (!changed) return [];
   if (lastIndex < value.length) {
@@ -156,7 +171,7 @@ function buildReplacements(
 
 function walk(node: MdAnyNode, onParent: (parent: MdParent) => void) {
   const maybeParent = node as { children?: MdAnyNode[] };
-  const children = maybeParent.children;
+  const { children } = maybeParent;
   if (!Array.isArray(children)) return;
   onParent(node as MdParent);
   // Walk a snapshot because onParent may have mutated children.

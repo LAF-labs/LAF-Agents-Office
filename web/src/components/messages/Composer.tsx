@@ -635,6 +635,7 @@ export function Composer() {
           />
         </div>
         <button
+          type="button"
           className="composer-send"
           disabled={!text.trim() || sendMutation.isPending}
           onClick={handleSend}

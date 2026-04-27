@@ -15,7 +15,10 @@ export function useMessages(channel: string, sinceId?: string | null) {
 export function useThreadMessages(channel: string, threadId: string | null) {
   return useQuery({
     queryKey: ["thread-messages", channel, threadId],
-    queryFn: () => getThreadMessages(channel, threadId!),
+    queryFn: () =>
+      threadId
+        ? getThreadMessages(channel, threadId)
+        : Promise.resolve({ messages: [] }),
     enabled: !!threadId,
     refetchInterval: 3000,
     select: (data) => data.messages ?? [],

@@ -75,9 +75,9 @@ function BlockingInterview({
         <div className="interview-meta">
           <span className="badge badge-yellow">BLOCKING</span>
           <span className="interview-from">@{request.from || "agent"}</span>
-          {request.channel && (
+          {request.channel ? (
             <span className="interview-channel">in #{request.channel}</span>
-          )}
+          ) : null}
         </div>
         <h2 id="interview-title" className="interview-title">
           {request.title && request.title !== "Request"
@@ -85,9 +85,9 @@ function BlockingInterview({
             : "Human input required"}
         </h2>
         <p className="interview-question">{request.question}</p>
-        {request.context && (
+        {request.context ? (
           <p className="interview-context">{request.context}</p>
-        )}
+        ) : null}
         {options.length > 0 ? (
           <div className="interview-actions">
             {options.map((opt) => (

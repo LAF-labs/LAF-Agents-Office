@@ -387,50 +387,52 @@ function ToolCallCard({
       >
         <span className={`cc-tool-chevron${open ? " open" : ""}`}>▸</span>
         <span className="cc-tool-name">{toolName}</span>
-        {summaryArg && <span className="cc-tool-summary">{summaryArg}</span>}
+        {summaryArg ? (
+          <span className="cc-tool-summary">{summaryArg}</span>
+        ) : null}
       </button>
-      {summaryResult && !open && (
+      {summaryResult && !open ? (
         <div className="cc-tool-result-summary">
           {"\u2713 "}
           {summaryResult}
         </div>
-      )}
-      {summaryError && !open && (
+      ) : null}
+      {summaryError && !open ? (
         <div className="cc-tool-error">
           {"\u2717 "}
           {summaryError}
         </div>
-      )}
-      {open && (
+      ) : null}
+      {open ? (
         <div className="cc-tool-body">
-          {Object.keys(cleanArgs).length > 0 && (
+          {Object.keys(cleanArgs).length > 0 ? (
             <>
               <div className="cc-tool-section-label">Args</div>
               <Value value={cleanArgs} depth={1} compact={compact} />
             </>
-          )}
+          ) : null}
           {result &&
-            Array.isArray(result.content) &&
-            result.content.length > 0 && (
-              <>
-                <div className="cc-tool-section-label cc-tool-result-label">
-                  {"\u2713 Response"}
-                </div>
-                {result.content.map((c, i) => (
-                  <ToolResultContent key={i} text={c.text} compact={compact} />
-                ))}
-              </>
-            )}
-          {errorField !== null && (
+          Array.isArray(result.content) &&
+          result.content.length > 0 ? (
+            <>
+              <div className="cc-tool-section-label cc-tool-result-label">
+                {"\u2713 Response"}
+              </div>
+              {result.content.map((c, i) => (
+                <ToolResultContent key={i} text={c.text} compact={compact} />
+              ))}
+            </>
+          ) : null}
+          {errorField !== null ? (
             <>
               <div className="cc-tool-section-label cc-tool-error">
                 {"\u2717 Error"}
               </div>
               <ToolErrorContent error={errorField} compact={compact} />
             </>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -553,6 +555,8 @@ function GenericEventCard({
       parsed.text ??
       parsed.summary,
   );
+  const detailText =
+    detail.length > 300 ? `${detail.slice(0, 300)}\u2026` : detail;
 
   const extras = useMemo<Record<string, unknown>>(() => {
     const out: Record<string, unknown> = {};
@@ -566,28 +570,28 @@ function GenericEventCard({
 
   return (
     <div className="stream-card">
-      {(phase || agent) && (
+      {phase || agent ? (
         <div className="stream-card-header">
-          {phase && (
+          {phase ? (
             <span
               className={`stream-card-phase stream-phase-${phase.replace(/[^a-z]/gi, "").toLowerCase()}`}
             >
               {phase}
             </span>
-          )}
-          {agent && <span className="stream-card-agent">{agent}</span>}
+          ) : null}
+          {agent ? <span className="stream-card-agent">{agent}</span> : null}
         </div>
-      )}
-      {detail && (
+      ) : null}
+      {detail ? (
         <div className="stream-card-detail">
-          {detail.length > 300 ? `${detail.slice(0, 300)}\u2026` : detail}
+          <span>{detailText}</span>
         </div>
-      )}
-      {Object.keys(extras).length > 0 && Object.keys(extras).length <= 8 && (
+      ) : null}
+      {Object.keys(extras).length > 0 && Object.keys(extras).length <= 8 ? (
         <div className="stream-line-json">
           <Value value={extras} depth={0} compact={compact} />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

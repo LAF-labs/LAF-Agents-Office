@@ -147,7 +147,7 @@ export default function EntityBriefBar({
           <>Brief synthesized {relativeSynth}. 0 new facts since.</>
         )}
       </span>
-      {hasPending && (
+      {hasPending ? (
         <button
           type="button"
           className="wk-entity-brief-bar__action"
@@ -156,8 +156,10 @@ export default function EntityBriefBar({
         >
           {state === "synthesizing" ? "Synthesizing…" : "Refresh brief"}
         </button>
-      )}
-      {error && <span className="wk-entity-brief-bar__error">{error}</span>}
+      ) : null}
+      {error ? (
+        <span className="wk-entity-brief-bar__error">{error}</span>
+      ) : null}
     </div>
   );
 }

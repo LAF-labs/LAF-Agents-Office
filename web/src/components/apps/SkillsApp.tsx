@@ -115,7 +115,7 @@ function SkillCard({ skill }: { skill: Skill }) {
         </span>
       </div>
 
-      {skill.description && (
+      {skill.description ? (
         <div
           style={{
             fontSize: 13,
@@ -126,16 +126,17 @@ function SkillCard({ skill }: { skill: Skill }) {
         >
           {skill.description}
         </div>
-      )}
+      ) : null}
 
-      {skill.source && (
+      {skill.source ? (
         <div className="app-card-meta" style={{ marginBottom: 8 }}>
           Source: {skill.source}
         </div>
-      )}
+      ) : null}
 
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <button
+          type="button"
           className="btn btn-primary btn-sm"
           disabled={invokeState !== "idle"}
           onClick={handleInvoke}

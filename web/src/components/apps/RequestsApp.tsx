@@ -74,7 +74,7 @@ export function RequestsApp() {
 
   return (
     <>
-      {pending.length > 0 && (
+      {pending.length > 0 ? (
         <>
           <div
             style={{
@@ -103,9 +103,9 @@ export function RequestsApp() {
             />
           ))}
         </>
-      )}
+      ) : null}
 
-      {answered.length > 0 && (
+      {answered.length > 0 ? (
         <>
           <div
             style={{
@@ -121,7 +121,7 @@ export function RequestsApp() {
             <RequestItem key={req.id} request={req} isPending={false} />
           ))}
         </>
-      )}
+      ) : null}
     </>
   );
 }
@@ -162,27 +162,27 @@ function RequestItem({ request, isPending, onAnswer }: RequestItemProps) {
         <span style={{ fontWeight: 600, fontSize: 13 }}>
           {request.from || "Unknown"}
         </span>
-        {request.status && (
+        {request.status ? (
           <span className="badge badge-accent">
             {request.status.toUpperCase()}
           </span>
-        )}
-        {request.blocking && (
+        ) : null}
+        {request.blocking ? (
           <span className="badge badge-yellow">BLOCKING</span>
-        )}
+        ) : null}
       </div>
 
-      {request.title && request.title !== "Request" && (
+      {request.title && request.title !== "Request" ? (
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
           {request.title}
         </div>
-      )}
+      ) : null}
 
       <div style={{ fontSize: 14, marginBottom: 8 }}>
         {request.question || ""}
       </div>
 
-      {request.context && (
+      {request.context ? (
         <div
           style={{
             fontSize: 12,
@@ -193,18 +193,19 @@ function RequestItem({ request, isPending, onAnswer }: RequestItemProps) {
         >
           {request.context}
         </div>
-      )}
+      ) : null}
 
-      {ts && (
+      {ts ? (
         <div className="app-card-meta" style={{ marginBottom: 6 }}>
           {formatRelativeTime(ts)}
         </div>
-      )}
+      ) : null}
 
-      {isPending && options.length > 0 && (
+      {isPending && options.length > 0 ? (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {options.map((opt) => (
             <button
+              type="button"
               key={opt.id}
               className={`btn btn-sm ${opt.id === request.recommended_id ? "btn-primary" : "btn-ghost"}`}
               title={opt.description}
@@ -214,13 +215,13 @@ function RequestItem({ request, isPending, onAnswer }: RequestItemProps) {
             </button>
           ))}
         </div>
-      )}
+      ) : null}
 
-      {!isPending && (
+      {!isPending ? (
         <div style={{ fontSize: 12, color: "var(--green)", fontWeight: 500 }}>
           Answered
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

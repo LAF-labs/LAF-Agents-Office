@@ -47,13 +47,13 @@ function ReceiptList({
         </div>
       </div>
 
-      {isLoading && (
+      {isLoading ? (
         <div style={{ padding: 20, color: "var(--text-tertiary)" }}>
           Loading...
         </div>
-      )}
+      ) : null}
 
-      {error && (
+      {error ? (
         <div
           style={{
             padding: "40px 20px",
@@ -64,11 +64,11 @@ function ReceiptList({
         >
           Could not load receipts.
         </div>
-      )}
+      ) : null}
 
-      {!(isLoading || error) && (
+      {!(isLoading || error) ? (
         <LogTable logs={data?.logs ?? []} onSelectTask={onSelectTask} />
-      )}
+      ) : null}
     </>
   );
 }
@@ -194,6 +194,7 @@ function ReceiptDetail({
   return (
     <>
       <button
+        type="button"
         className="btn btn-secondary btn-sm"
         style={{ margin: "12px 20px 0" }}
         onClick={onBack}
@@ -218,13 +219,13 @@ function ReceiptDetail({
         </div>
       </div>
 
-      {isLoading && (
+      {isLoading ? (
         <div style={{ padding: "16px 20px", color: "var(--text-tertiary)" }}>
           Loading...
         </div>
-      )}
+      ) : null}
 
-      {error && (
+      {error ? (
         <div
           style={{
             padding: "40px 20px",
@@ -235,9 +236,9 @@ function ReceiptDetail({
         >
           Could not load task trace.
         </div>
-      )}
+      ) : null}
 
-      {!(isLoading || error) && logs.length === 0 && (
+      {!(isLoading || error) && logs.length === 0 ? (
         <div
           style={{
             padding: "40px 20px",
@@ -248,9 +249,9 @@ function ReceiptDetail({
         >
           No tool calls in this task yet.
         </div>
-      )}
+      ) : null}
 
-      {!(isLoading || error) && logs.length > 0 && (
+      {!(isLoading || error) && logs.length > 0 ? (
         <div style={{ overflow: "auto", flex: 1, padding: "0 20px 20px" }}>
           {logs.map((entry, i) => (
             <div
@@ -282,15 +283,15 @@ function ReceiptDetail({
                 >
                   {entry.action || "(unknown)"}
                 </span>
-                {entry.agent && (
+                {entry.agent ? (
                   <span
                     style={{ fontSize: 11, color: "var(--text-secondary)" }}
                   >
                     @{entry.agent}
                   </span>
-                )}
+                ) : null}
               </div>
-              {entry.content && (
+              {entry.content ? (
                 <div
                   style={{
                     fontSize: 12,
@@ -300,11 +301,11 @@ function ReceiptDetail({
                 >
                   {entry.content.slice(0, 200)}
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </>
   );
 }
