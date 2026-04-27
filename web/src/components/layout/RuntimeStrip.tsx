@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getOfficeTasks } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useRequests } from "../../hooks/useRequests";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Thin strip under the channel header with pills for "N active",
@@ -10,6 +11,7 @@ import { useRequests } from "../../hooks/useRequests";
  */
 export function RuntimeStrip() {
   const { data: members = [] } = useOfficeMembers();
+  const { t: tr } = useI18n();
   const { data: tasksData } = useQuery({
     queryKey: ["office-tasks"],
     queryFn: () => getOfficeTasks({ includeDone: false }),
@@ -32,7 +34,9 @@ export function RuntimeStrip() {
   if (active === 0 && blocked === 0 && needYou === 0) {
     return (
       <div className="runtime-strip">
-        <span className="runtime-pill runtime-pill-idle">all quiet</span>
+        <span className="runtime-pill runtime-pill-idle">
+          {tr("runtime.allQuiet")}
+        </span>
       </div>
     );
   }
@@ -41,17 +45,17 @@ export function RuntimeStrip() {
     <div className="runtime-strip">
       {needYou > 0 && (
         <span className="runtime-pill runtime-pill-needyou">
-          {needYou} need you
+          {needYou} {tr("runtime.needYou")}
         </span>
       )}
       {active > 0 && (
         <span className="runtime-pill runtime-pill-active">
-          {active} active
+          {active} {tr("runtime.active")}
         </span>
       )}
       {blocked > 0 && (
         <span className="runtime-pill runtime-pill-blocked">
-          {blocked} blocked
+          {blocked} {tr("runtime.blocked")}
         </span>
       )}
     </div>

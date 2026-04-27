@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getUsage } from "../../api/client";
 import { formatTokens, formatUSD } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 
 export function UsagePanel() {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const { data: usage } = useQuery({
     queryKey: ["usage"],
     queryFn: () => getUsage(),
@@ -38,7 +40,7 @@ export function UsagePanel() {
         >
           <path d="m9 18 6-6-6-6" />
         </svg>
-        Usage
+        {t("sidebar.usage")}
         <span style={{ marginLeft: "auto", fontWeight: 400 }}>
           {formatUSD(totalCost)}
         </span>
@@ -53,14 +55,20 @@ export function UsagePanel() {
                 padding: "4px 0",
               }}
             >
-              No usage recorded yet.
+              {t("sidebar.noUsage")}
             </p>
           ) : (
             <>
               <table className="usage-table">
                 <thead>
                   <tr>
-                    {["Agent", "In", "Out", "Cache", "Cost"].map((h) => (
+                    {[
+                      t("sidebar.usageAgent"),
+                      t("sidebar.usageIn"),
+                      t("sidebar.usageOut"),
+                      t("sidebar.usageCache"),
+                      t("sidebar.usageCost"),
+                    ].map((h) => (
                       <th key={h}>{h}</th>
                     ))}
                   </tr>
@@ -82,8 +90,8 @@ export function UsagePanel() {
               </table>
               <div className="usage-total">
                 <span>
-                  Session: {formatTokens(usage?.session?.total_tokens ?? 0)}{" "}
-                  tokens
+                  {t("sidebar.usageSession")}:{" "}
+                  {formatTokens(usage?.session?.total_tokens ?? 0)} tokens
                 </span>
                 <span className="usage-total-cost">{formatUSD(totalCost)}</span>
               </div>

@@ -104,6 +104,19 @@ describe("Wizard keyboard advancement", () => {
         screen.getByLabelText(/회사 또는 프로젝트 이름/i),
       ).toBeInTheDocument();
     });
+    expect(
+      screen.getByPlaceholderText("LAF-Office 또는 실제 프로젝트 이름"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(
+        "이 오피스가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("첫 GitHub 연결 개발 작업 만들기"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Acme Operations/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/첫 실제 고객 루프/i)).not.toBeInTheDocument();
   });
 
   it("keeps API key fallback collapsed when Codex CLI is detected", async () => {
@@ -364,5 +377,56 @@ describe("Wizard keyboard advancement", () => {
         screen.getByText(/What should your office run\?/i),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("Wizard product copy", () => {
+  it("does not show customer-launch placeholder copy in Korean first-task step", async () => {
+    useAppStore.setState({ language: "ko" });
+    getMock.mockImplementation(async (path: string) => {
+      if (path === "/onboarding/prereqs") {
+        return {
+          prereqs: [
+            {
+              name: "codex",
+              required: false,
+              found: true,
+              version: "codex-cli 0.125.0-alpha.3",
+            },
+          ],
+        };
+      }
+      if (path === "/onboarding/blueprints") return { templates: [] };
+      return {};
+    });
+
+    render(<Wizard onComplete={vi.fn()} />);
+
+    pressEnterOn(window);
+    await waitFor(() => screen.getByLabelText(/회사 또는 프로젝트 이름/i));
+    fireEvent.change(screen.getByLabelText(/회사 또는 프로젝트 이름/i), {
+      target: { value: "LAF" },
+    });
+    fireEvent.change(screen.getByLabelText(/한 줄 설명/i), {
+      target: { value: "창업팀의 제품 개발을 돕는 오피스" },
+    });
+    pressEnterOn(window);
+    await waitFor(() => screen.getByText(/어떤 일을 하게 할까요/i));
+    pressEnterOn(window);
+    await waitFor(() => screen.getByText(/팀 구성/i));
+    fireEvent.click(screen.getByRole("button", { name: /계속/i }));
+    await waitFor(() => screen.getByText(/어떻게 실행할까요/i));
+    fireEvent.click(screen.getByRole("button", { name: /준비 완료/i }));
+
+    await waitFor(() =>
+      screen.getByPlaceholderText(
+        "예: 프로젝트 저장소를 연결하고 첫 개발 작업을 만들기",
+      ),
+    );
+    expect(
+      screen.queryByPlaceholderText(
+        "예: 첫 고객 세그먼트를 위한 출시 계획 초안 작성",
+      ),
+    ).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { Message } from "../../api/client";
 import { useMessages } from "../../hooks/useMessages";
 import { formatDateLabel } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { MessageBubble } from "./MessageBubble";
 
@@ -124,6 +125,7 @@ export function MessageFeed() {
   const toggleThreadCollapsed = useAppStore((s) => s.toggleThreadCollapsed);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
+  const { t } = useI18n();
 
   const copyMessageLink = (id: string) => {
     const url = new URL(window.location.href);
@@ -148,7 +150,7 @@ export function MessageFeed() {
         style={{ alignItems: "center", justifyContent: "center" }}
       >
         <span style={{ color: "var(--text-tertiary)", fontSize: 13 }}>
-          Loading messages...
+          {t("messages.loading")}
         </span>
       </div>
     );
@@ -158,24 +160,23 @@ export function MessageFeed() {
     return (
       <div className="messages">
         <div className="channel-empty-state">
-          <span className="eyebrow">quiet before the standup</span>
-          <span className="title">#{currentChannel} is empty. For now.</span>
-          <span className="body">
-            This is where your agents will argue, claim tasks, and show progress
-            on planning, implementation, and review.
+          <span className="eyebrow">{t("messages.emptyEyebrow")}</span>
+          <span className="title">
+            #{currentChannel} {t("messages.emptyTitleTail")}
           </span>
+          <span className="body">{t("messages.emptyBody")}</span>
           <div className="channel-empty-hints">
             <div>
-              Try <code>@ceo what should we build this week?</code>
+              {t("messages.emptyTry")}{" "}
+              <code>@ceo what should we build this week?</code>
             </div>
             <div>
-              Type <code>/</code> for commands, <code>@</code> to mention an
-              agent.
+              {t("messages.emptyType")} <code>/</code>{" "}
+              {t("messages.emptyForCommands")} <code>@</code>{" "}
+              {t("messages.emptyMention")}
             </div>
           </div>
-          <span className="channel-empty-foot">
-            Connect GitHub when the team is ready to build.
-          </span>
+          <span className="channel-empty-foot">{t("messages.emptyFoot")}</span>
         </div>
       </div>
     );

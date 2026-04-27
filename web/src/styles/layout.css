@@ -2093,8 +2093,75 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 240px;
+  .office {
+    min-width: 0;
+  }
+  .sidebar:not(.sidebar-collapsed) {
+    width: 64px;
+    --sidebar-pad-x: 8px;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-header {
+    justify-content: center;
+    padding: 0 8px;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-logo,
+  .sidebar:not(.sidebar-collapsed) .sidebar-section-title,
+  .sidebar:not(.sidebar-collapsed) .sidebar-agent-wrap,
+  .sidebar:not(.sidebar-collapsed) .sidebar-summary,
+  .sidebar:not(.sidebar-collapsed) .sidebar-hint,
+  .sidebar:not(.sidebar-collapsed) .sidebar-rail-usage-value,
+  .sidebar:not(.sidebar-collapsed)
+    .sidebar-item
+    > span:not(.sidebar-badge):not(:first-child) {
+    display: none;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-header-actions {
+    margin-left: 0;
+    justify-content: center;
+  }
+  .sidebar:not(.sidebar-collapsed)
+    .sidebar-header-actions
+    .sidebar-icon-btn:first-child {
+    display: none;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-section {
+    padding: 12px 8px 4px;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-agents,
+  .sidebar:not(.sidebar-collapsed) .sidebar-channels,
+  .sidebar:not(.sidebar-collapsed) .sidebar-apps {
+    padding: 4px 8px 12px;
+    overflow-x: hidden;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-agent,
+  .sidebar:not(.sidebar-collapsed) .sidebar-item {
+    justify-content: center;
+    gap: 0;
+    padding: 7px 0;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-agent {
+    position: relative;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-agent .status-dot {
+    position: absolute;
+    right: 1px;
+  }
+  .sidebar:not(.sidebar-collapsed) .sidebar-scroll-wrap.is-agents {
+    max-height: 42vh;
+  }
+  .main {
+    min-width: 0;
+  }
+  .channel-header {
+    padding: 0 12px;
+  }
+  .channel-desc {
+    display: none;
+  }
+  .status-bar {
+    padding: 0 12px;
+    gap: 8px;
+    overflow: hidden;
   }
   .thread-panel {
     width: 100%;

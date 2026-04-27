@@ -19,6 +19,7 @@ import {
 } from "../../api/client";
 import { useCommands } from "../../hooks/useCommands";
 import { useOfficeMembers } from "../../hooks/useMembers";
+import { useI18n } from "../../lib/i18n";
 import {
   extractTaggedMentions,
   parseMentions,
@@ -118,6 +119,16 @@ interface OutboundMessage {
 interface SlashCommand {
   cmd: string;
   args: string;
+}
+
+function useComposerChromeText() {
+  const commands = useCommands();
+  const { t } = useI18n();
+  return {
+    commands,
+    placeholderPrefix: t("composer.messagePrefix"),
+    sendLabel: t("composer.send"),
+  };
 }
 
 type SlashCommandHandler = (
@@ -468,9 +479,7 @@ export function Composer() {
     () => resolveLeadSlug(cfg?.team_lead_slug, members),
     [cfg?.team_lead_slug, members],
   );
-  // Slugs the mirror-overlay recognises as mention chips. Memoed against
-  // the member list reference so the token parse downstream doesn't
-  // re-allocate on every Composer render.
+  // Slugs the mirror-overlay recognises as mention chips.
   const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const mentionTokens = useMemo(
     () => parseMentions(text, knownSlugs),
@@ -479,7 +488,7 @@ export function Composer() {
   // Broker-backed slash-command registry. Falls back to the hardcoded
   // list if the broker is unreachable so the composer is never worse
   // than before this plumbing landed.
-  const commands = useCommands();
+  const { commands, placeholderPrefix, sendLabel } = useComposerChromeText();
 
   const historyRef = useRef<HistoryState>(emptyHistoryState());
 
@@ -707,22 +716,16 @@ export function Composer() {
       />
       <div className="composer-inner">
         <div className="composer-field">
-          {/* Mirror overlay: renders the same text as the textarea but with
-              mention chips. The textarea sits on top with transparent text
-              and a visible caret so the user still sees and edits the raw
-              string — only the chips are styled. aria-hidden because the
-              textarea is the interactive source of truth. */}
+          {/* Mirror overlay renders mention chips while textarea stays editable. */}
           <div ref={mirrorRef} className="composer-mirror" aria-hidden="true">
             {renderMentionTokens(mentionTokens)}
-            {/* Trailing newline so the mirror height matches a textarea
-                that ends on a blank line (otherwise the chip layout
-                truncates by one row). */}
+            {/* Trailing newline keeps mirror height aligned with the textarea. */}
             {"\n"}
           </div>
           <textarea
             ref={textareaRef}
             className="composer-input"
-            placeholder={`Message #${currentChannel}`}
+            placeholder={`${placeholderPrefix} #${currentChannel}`}
             value={text}
             onChange={(e) => {
               setText(e.target.value);
@@ -746,7 +749,7 @@ export function Composer() {
           className="composer-send"
           disabled={!text.trim() || sendMutation.isPending}
           onClick={handleSend}
-          aria-label="Send message"
+          aria-label={sendLabel}
         >
           <svg
             aria-hidden="true"

@@ -24,7 +24,7 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
   const theme = useAppStore((s) => s.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const { data: channels = [] } = useChannels();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
 
   const channel = channels.find((c) => c.slug === currentChannel);
   const title = currentApp
@@ -33,6 +33,19 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
       : currentApp.charAt(0).toUpperCase() + currentApp.slice(1)
     : `# ${currentChannel}`;
   const desc = currentApp ? "" : channel?.description || "";
+  const signOutLabel = t("auth.signOut");
+  const signOutTitle = userEmail
+    ? language === "ko"
+      ? `${userEmail} ${signOutLabel}`
+      : `${signOutLabel} ${userEmail}`
+    : signOutLabel;
+  const themeTitle =
+    theme === "office-dark" ? t("theme.light") : t("theme.dark");
+  const themeAria =
+    theme === "office-dark"
+      ? t("theme.switchToLight")
+      : t("theme.switchToDark");
+  const searchLabel = t("common.search");
 
   return (
     <div className="channel-header">
@@ -44,8 +57,8 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
         {onLogout ? (
           <button
             className="sidebar-btn"
-            title={userEmail ? `Sign out ${userEmail}` : "Sign out"}
-            aria-label="Sign out"
+            title={signOutTitle}
+            aria-label={signOutLabel}
             onClick={onLogout}
             type="button"
           >
@@ -68,12 +81,8 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
         ) : null}
         <button
           className="sidebar-btn"
-          title={theme === "office-dark" ? "Light mode" : "Dark mode"}
-          aria-label={
-            theme === "office-dark"
-              ? "Switch to light mode"
-              : "Switch to dark mode"
-          }
+          title={themeTitle}
+          aria-label={themeAria}
           onClick={() =>
             setTheme(theme === "office-dark" ? "office" : "office-dark")
           }
@@ -112,8 +121,8 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
         </button>
         <button
           className="sidebar-btn"
-          title="Search"
-          aria-label="Search"
+          title={searchLabel}
+          aria-label={searchLabel}
           onClick={() => setSearchOpen(true)}
           type="button"
         >

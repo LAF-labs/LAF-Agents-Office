@@ -192,11 +192,11 @@ func synthesizeBlueprintFromState(task string) operations.Blueprint {
 func scratchFoundingTeamBlueprint(companyName, description, directive string) operations.Blueprint {
 	displayName := companyName
 	if displayName == "" {
-		displayName = "Your company"
+		displayName = "Your project"
 	}
 	agents := []operations.StarterAgent{
 		{Slug: "ceo", Name: "CEO", Role: "lead", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"strategy", "prioritization", "delegation"}, Personality: "Sets direction, breaks directives into specialist assignments, and owns the outcome."},
-		{Slug: "gtm-lead", Name: "GTM Lead", Role: "go-to-market", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"positioning", "sales", "marketing", "growth"}, Personality: "Turns the product into pipeline — messaging, outbound, launches, and early revenue."},
+		{Slug: "gtm-lead", Name: "GTM Lead", Role: "go-to-market", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"positioning", "launches", "customer-discovery", "growth"}, Personality: "Turns product work into launch learning — positioning, experiments, and early customer feedback."},
 		{Slug: "founding-engineer", Name: "Founding Engineer", Role: "engineering", PermissionMode: "auto", Checked: true, Type: "assistant", Expertise: []string{"full-stack", "architecture", "infrastructure", "shipping"}, Personality: "Full-stack engineer who ships end-to-end and makes pragmatic architectural calls."},
 		{Slug: "pm", Name: "Product Manager", Role: "product", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"roadmap", "user-stories", "requirements", "specs"}, Personality: "Translates business goals into specs the engineering and design functions can execute against."},
 		{Slug: "designer", Name: "Designer", Role: "design", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"UI-UX-design", "branding", "prototyping"}, Personality: "Owns the look, feel, and flow — from first sketch to shipped interface."},
@@ -334,7 +334,7 @@ func (b *Broker) postKickoffLocked(bp operations.Blueprint, selectedAgents []str
 				From:      "system",
 				Channel:   "general",
 				Kind:      "synthesized_blueprint",
-				Content:   fmt.Sprintf("Synthesized operation: %s (%s)", bp.Name, bp.Kind),
+				Content:   fmt.Sprintf("Project workspace: %s (%s)", bp.Name, bp.Kind),
 				Timestamp: now,
 			})
 		}
@@ -344,7 +344,7 @@ func (b *Broker) postKickoffLocked(bp operations.Blueprint, selectedAgents []str
 			From:      "system",
 			Channel:   "general",
 			Kind:      "from_scratch_contract",
-			Content:   "Run this as a real business workflow. If a needed specialist, channel, skill, or tooling path is missing, create it and keep going. Local proof packets, review bundles, and other internal substitute artifacts do not count when a live business step is possible.",
+			Content:   "Run this as a planning, development, and automation workspace. If a needed specialist, channel, skill, repository, or tooling path is missing, create it and keep moving. Keep durable decisions in the markdown wiki and track implementation work on the project board.",
 			Timestamp: now,
 		})
 	}

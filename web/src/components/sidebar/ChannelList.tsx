@@ -1,5 +1,6 @@
 import { useChannels } from "../../hooks/useChannels";
 import { useOverflow } from "../../hooks/useOverflow";
+import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { ChannelWizard, useChannelWizard } from "../channels/ChannelWizard";
 import { Kbd, MOD_KEY } from "../ui/Kbd";
@@ -12,6 +13,7 @@ export function ChannelList() {
   const currentApp = useAppStore((s) => s.currentApp);
   const wizard = useChannelWizard();
   const overflowRef = useOverflow<HTMLDivElement>();
+  const { t } = useI18n();
 
   return (
     <>
@@ -57,7 +59,8 @@ export function ChannelList() {
             type="button"
             className="sidebar-item sidebar-add-btn"
             onClick={wizard.show}
-            title="Create a new channel"
+            title={t("sidebar.createChannel")}
+            aria-label={t("sidebar.createChannel")}
           >
             <span
               style={{
@@ -69,7 +72,7 @@ export function ChannelList() {
             >
               +
             </span>
-            <span>New Channel</span>
+            <span>{t("sidebar.newChannel")}</span>
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { useAppStore } from "../../stores/app";
 import { MOD_KEY } from "../ui/Kbd";
 import { ChannelList } from "./ChannelList";
 
@@ -95,5 +96,17 @@ describe("<ChannelList> keyboard shortcut badges", () => {
     for (const span of spans) {
       expect(span.getAttribute("aria-hidden")).toBe("true");
     }
+  });
+
+  it("localizes the new-channel action", () => {
+    useAppStore.setState({ language: "ko" });
+    setChannels(0);
+
+    render(<ChannelList />);
+
+    const newChannel = screen.getByRole("button", { name: "새 채널 만들기" });
+    expect(newChannel).toHaveAttribute("title", "새 채널 만들기");
+    expect(newChannel).toHaveTextContent("+새 채널");
+    expect(screen.queryByText("New Channel")).not.toBeInTheDocument();
   });
 });

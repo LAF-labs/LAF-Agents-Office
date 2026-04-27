@@ -332,12 +332,12 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     identity: {
       title: "Tell us about this office",
       companyLabel: "Company or project name",
-      companyPlaceholder: "Acme Operations, or your real project name",
+      companyPlaceholder: "LAF-Office, or your real project name",
       descriptionLabel: "One-liner description",
       descriptionPlaceholder:
-        "What real business or workflow should this office run?",
+        "What product, development work, or automation flow should this office own?",
       priorityLabel: "Top priority right now",
-      priorityPlaceholder: "Win the first real customer loop",
+      priorityPlaceholder: "Create the first GitHub-backed development task",
       next: "Choose a starter",
     },
     team: {
@@ -394,7 +394,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       title: "What should the team work on first?",
       subhead:
         "Type your own first task, or pick from the starter's suggested sequence below.",
-      placeholder: "e.g. Draft the launch plan for our first customer segment",
+      placeholder:
+        "e.g. Connect the project repo and create the first implementation task",
       newLineHint: "new line",
       reviewSetupHint: "review setup",
       suggestions: "Suggested starter sequence",
@@ -470,12 +471,12 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     identity: {
       title: "이 오피스에 대해 알려주세요",
       companyLabel: "회사 또는 프로젝트 이름",
-      companyPlaceholder: "Acme Operations 또는 실제 프로젝트 이름",
+      companyPlaceholder: "LAF-Office 또는 실제 프로젝트 이름",
       descriptionLabel: "한 줄 설명",
       descriptionPlaceholder:
-        "이 오피스가 맡을 실제 비즈니스나 워크플로는 무엇인가요?",
+        "이 오피스가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
       priorityLabel: "지금 가장 중요한 목표",
-      priorityPlaceholder: "첫 실제 고객 루프 만들기",
+      priorityPlaceholder: "첫 GitHub 연결 개발 작업 만들기",
       next: "시작 방식 선택",
     },
     team: {
@@ -533,7 +534,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       title: "팀이 가장 먼저 할 일은 무엇인가요?",
       subhead:
         "첫 작업을 직접 입력하거나 시작 방식이 제안한 순서에서 고르세요.",
-      placeholder: "예: 첫 고객 세그먼트를 위한 출시 계획 초안 작성",
+      placeholder: "예: 프로젝트 저장소를 연결하고 첫 개발 작업을 만들기",
       newLineHint: "줄바꿈",
       reviewSetupHint: "설정 검토",
       suggestions: "추천 시작 작업 순서",

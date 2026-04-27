@@ -23,4 +23,15 @@ describe("ChannelHeader", () => {
     expect(screen.getByText("프로젝트")).toBeInTheDocument();
     expect(screen.queryByText("Tasks")).not.toBeInTheDocument();
   });
+
+  it("localizes header action labels", () => {
+    render(<ChannelHeader onLogout={vi.fn()} userEmail="me@example.com" />);
+
+    expect(screen.getByLabelText("로그아웃")).toHaveAttribute(
+      "title",
+      "me@example.com 로그아웃",
+    );
+    expect(screen.getByLabelText("다크 모드로 전환")).toBeInTheDocument();
+    expect(screen.getByLabelText("검색")).toBeInTheDocument();
+  });
 });

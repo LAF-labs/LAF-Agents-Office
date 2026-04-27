@@ -3,6 +3,7 @@ import { useDefaultHarness } from "../../hooks/useConfig";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useOverflow } from "../../hooks/useOverflow";
 import { resolveHarness } from "../../lib/harness";
+import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { AgentWizard, useAgentWizard } from "../agents/AgentWizard";
 import { HarnessBadge } from "../ui/HarnessBadge";
@@ -39,6 +40,7 @@ export function AgentList() {
   const wizard = useAgentWizard();
   const overflowRef = useOverflow<HTMLDivElement>();
   const defaultHarness = useDefaultHarness();
+  const { t } = useI18n();
 
   const agents = members.filter((m) => m.slug && m.slug !== "human");
 
@@ -54,7 +56,7 @@ export function AgentList() {
                 padding: "4px 8px",
               }}
             >
-              No agents online
+              {t("sidebar.noAgentsOnline")}
             </div>
           ) : (
             agents.map((agent) => {
@@ -102,12 +104,13 @@ export function AgentList() {
             type="button"
             className="sidebar-item sidebar-add-btn"
             onClick={wizard.show}
-            title="Create a new agent"
+            title={t("sidebar.createAgent")}
+            aria-label={t("sidebar.createAgent")}
           >
             <span style={{ width: 18, textAlign: "center", flexShrink: 0 }}>
               +
             </span>
-            <span>New Agent</span>
+            <span>{t("sidebar.newAgent")}</span>
           </button>
           <button
             type="button"
@@ -116,12 +119,13 @@ export function AgentList() {
               setSettingsSection("team");
               setCurrentApp("settings");
             }}
-            title="Invite a person"
+            title={t("sidebar.invitePersonTitle")}
+            aria-label={t("sidebar.invitePersonTitle")}
           >
             <span style={{ width: 18, textAlign: "center", flexShrink: 0 }}>
               @
             </span>
-            <span>Invite Person</span>
+            <span>{t("sidebar.invitePerson")}</span>
           </button>
         </div>
       </div>

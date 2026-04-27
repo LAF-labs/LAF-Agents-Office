@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getHealth } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
+import { useI18n } from "../../lib/i18n";
 import { isDMChannel, useAppStore } from "../../stores/app";
 import { Kbd } from "../ui/Kbd";
 
@@ -22,6 +23,7 @@ export function StatusBar() {
   const channelMeta = useAppStore((s) => s.channelMeta);
   const brokerConnected = useAppStore((s) => s.brokerConnected);
   const setComposerHelpOpen = useAppStore((s) => s.setComposerHelpOpen);
+  const { t } = useI18n();
   const { data: members = [] } = useOfficeMembers();
   const dm = !currentApp ? isDMChannel(currentChannel, channelMeta) : null;
 
@@ -42,7 +44,7 @@ export function StatusBar() {
     : dm
       ? `@${dm.agentSlug}`
       : `# ${currentChannel}`;
-  const modeLabel = dm ? "1:1" : "office";
+  const modeLabel = dm ? "1:1" : t("status.office");
   const provider = health?.provider;
   const providerModel = health?.provider_model?.trim();
 
@@ -55,22 +57,22 @@ export function StatusBar() {
         type="button"
         className="status-bar-shortcut"
         onClick={() => setComposerHelpOpen(true)}
-        title="Keyboard shortcuts"
-        aria-label="Open keyboard shortcuts"
+        title={t("status.openShortcuts")}
+        aria-label={t("status.openShortcuts")}
       >
         <Kbd size="sm">?</Kbd>
-        <span>shortcuts</span>
+        <span>{t("status.shortcuts")}</span>
       </button>
       <span className="status-bar-item">
-        {agentCount} agent{agentCount === 1 ? "" : "s"}
+        {agentCount} {agentCount === 1 ? t("status.agent") : t("status.agents")}
       </span>
       {provider ? (
         <span
           className="status-bar-item"
           title={
             providerModel
-              ? `Runtime: ${provider} · ${providerModel}`
-              : `Runtime provider: ${provider}`
+              ? `${t("status.runtime")}: ${provider} · ${providerModel}`
+              : `${t("status.runtimeProvider")}: ${provider}`
           }
         >
           {"⚙ "}
@@ -86,7 +88,7 @@ export function StatusBar() {
       <span
         className={`status-bar-item status-bar-conn${brokerConnected ? "" : " disconnected"}`}
       >
-        {brokerConnected ? "connected" : "disconnected"}
+        {brokerConnected ? t("common.connected") : t("common.disconnected")}
       </span>
     </div>
   );

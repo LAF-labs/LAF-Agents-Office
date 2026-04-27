@@ -197,6 +197,48 @@ func TestOnboardingCompleteFromScratchSynthesizes(t *testing.T) {
 	}
 }
 
+func TestOnboardingCompleteFromScratchPostsProjectWorkspaceMessages(t *testing.T) {
+	ensureOperationsFallbackFS(t)
+	b := newTestBroker(t)
+	if err := b.onboardingCompleteFn("Connect the project repository and create the first implementation task", false, "", nil); err != nil {
+		t.Fatalf("onboardingCompleteFn: %v", err)
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	var sawSummary bool
+	var sawContract bool
+	for _, msg := range b.messages {
+		switch msg.Kind {
+		case "synthesized_blueprint":
+			sawSummary = true
+			if strings.Contains(msg.Content, "Synthesized operation") {
+				t.Fatalf("summary still uses operation language: %q", msg.Content)
+			}
+			if !strings.Contains(msg.Content, "Project workspace") {
+				t.Fatalf("summary should describe a project workspace, got %q", msg.Content)
+			}
+		case "from_scratch_contract":
+			sawContract = true
+			for _, banned := range []string{"real business workflow", "live business step"} {
+				if strings.Contains(msg.Content, banned) {
+					t.Fatalf("contract still uses old business-workflow language %q: %q", banned, msg.Content)
+				}
+			}
+			if !strings.Contains(msg.Content, "planning, development, and automation") {
+				t.Fatalf("contract should describe the project-building workflow, got %q", msg.Content)
+			}
+		}
+	}
+	if !sawSummary {
+		t.Fatalf("expected synthesized_blueprint message")
+	}
+	if !sawContract {
+		t.Fatalf("expected from_scratch_contract message")
+	}
+}
+
 func TestOnboardingCompleteFromScratchHonorsSelectedFoundingAgents(t *testing.T) {
 	ensureOperationsFallbackFS(t)
 	b := newTestBroker(t)
