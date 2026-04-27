@@ -35,8 +35,70 @@ func (b *Broker) materializeProjectWiki(ctx context.Context, project teamProject
 	return err
 }
 
+func (b *Broker) syncProjectWikiGitHubRepo(ctx context.Context, project teamProject) error {
+	worker := b.WikiWorker()
+	if worker == nil {
+		return nil
+	}
+
+	path := projectWikiArticlePath(project.ID)
+	raw, err := worker.ReadArticle(path)
+	if os.IsNotExist(err) {
+		return b.materializeProjectWiki(ctx, project)
+	}
+	if err != nil {
+		return err
+	}
+
+	next, changed := replaceProjectWikiGitHubRepoLine(string(raw), project)
+	if !changed {
+		return nil
+	}
+
+	author := strings.TrimSpace(project.CreatedBy)
+	if author == "" {
+		author = "human"
+	}
+	_, _, err = worker.Enqueue(
+		ctx,
+		author,
+		path,
+		next,
+		"replace",
+		"project: update github repo "+project.ID,
+	)
+	return err
+}
+
 func projectWikiArticlePath(projectID string) string {
 	return fmt.Sprintf("team/projects/%s.md", normalizeProjectID(projectID))
+}
+
+func renderProjectWikiGitHubRepoLine(project teamProject) string {
+	if repo := strings.TrimSpace(project.GitHubRepoURL); repo != "" {
+		return fmt.Sprintf("- GitHub repo: %s", repo)
+	}
+	return "- GitHub repo: _not connected_"
+}
+
+func replaceProjectWikiGitHubRepoLine(content string, project teamProject) (string, bool) {
+	nextLine := renderProjectWikiGitHubRepoLine(project)
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "- GitHub repo:") {
+			if line == nextLine {
+				return content, false
+			}
+			lines[i] = nextLine
+			return strings.Join(lines, "\n"), true
+		}
+	}
+	next := strings.TrimRight(content, "\n")
+	if next != "" {
+		next += "\n"
+	}
+	next += nextLine + "\n"
+	return next, true
 }
 
 func renderProjectWikiArticle(project teamProject) string {
@@ -56,11 +118,7 @@ func renderProjectWikiArticle(project teamProject) string {
 	if channel := strings.TrimSpace(project.Channel); channel != "" {
 		fmt.Fprintf(&sb, "- Channel: `#%s`\n", channel)
 	}
-	if repo := strings.TrimSpace(project.GitHubRepoURL); repo != "" {
-		fmt.Fprintf(&sb, "- GitHub repo: %s\n", repo)
-	} else {
-		sb.WriteString("- GitHub repo: _not connected_\n")
-	}
+	sb.WriteString(renderProjectWikiGitHubRepoLine(project) + "\n")
 	if status := strings.TrimSpace(project.Status); status != "" {
 		fmt.Fprintf(&sb, "- Status: `%s`\n", status)
 	}

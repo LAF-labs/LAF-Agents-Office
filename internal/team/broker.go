@@ -8624,6 +8624,13 @@ func normalizeGitHubRepoURL(raw string) string {
 	return strings.TrimSpace(raw)
 }
 
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
 func (b *Broker) findProjectLocked(id string) *teamProject {
 	id = normalizeProjectID(id)
 	if id == "" {
@@ -8667,14 +8674,14 @@ func (b *Broker) handleProjects(w http.ResponseWriter, r *http.Request) {
 
 func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Action        string `json:"action"`
-		ID            string `json:"id"`
-		Name          string `json:"name"`
-		Description   string `json:"description"`
-		Channel       string `json:"channel"`
-		GitHubRepoURL string `json:"github_repo_url"`
-		Status        string `json:"status"`
-		CreatedBy     string `json:"created_by"`
+		Action        string  `json:"action"`
+		ID            string  `json:"id"`
+		Name          *string `json:"name"`
+		Description   *string `json:"description"`
+		Channel       *string `json:"channel"`
+		GitHubRepoURL *string `json:"github_repo_url"`
+		Status        *string `json:"status"`
+		CreatedBy     string  `json:"created_by"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -8686,7 +8693,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		action = "create"
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	channel := normalizeChannelSlug(body.Channel)
+	channel := normalizeChannelSlug(optionalString(body.Channel))
 
 	b.mu.Lock()
 	if channel != "" {
@@ -8704,7 +8711,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 
 	switch action {
 	case "create":
-		name := strings.TrimSpace(body.Name)
+		name := strings.TrimSpace(optionalString(body.Name))
 		id := normalizeProjectID(body.ID)
 		if id == "" {
 			id = normalizeProjectID(name)
@@ -8719,16 +8726,16 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "project already exists", http.StatusConflict)
 			return
 		}
-		status := strings.TrimSpace(body.Status)
+		status := strings.TrimSpace(optionalString(body.Status))
 		if status == "" {
 			status = "active"
 		}
 		project := teamProject{
 			ID:            id,
 			Name:          name,
-			Description:   strings.TrimSpace(body.Description),
+			Description:   strings.TrimSpace(optionalString(body.Description)),
 			Channel:       channel,
-			GitHubRepoURL: normalizeGitHubRepoURL(body.GitHubRepoURL),
+			GitHubRepoURL: normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL)),
 			Status:        status,
 			CreatedBy:     strings.TrimSpace(body.CreatedBy),
 			CreatedAt:     now,
@@ -8764,16 +8771,20 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "channel access denied", http.StatusForbidden)
 			return
 		}
-		if name := strings.TrimSpace(body.Name); name != "" {
+		if name := strings.TrimSpace(optionalString(body.Name)); name != "" {
 			project.Name = name
 		}
 		if action == "archive" {
 			project.Status = "archived"
-		} else if status := strings.TrimSpace(body.Status); status != "" {
+		} else if status := strings.TrimSpace(optionalString(body.Status)); status != "" {
 			project.Status = status
 		}
-		project.Description = strings.TrimSpace(body.Description)
-		project.GitHubRepoURL = normalizeGitHubRepoURL(body.GitHubRepoURL)
+		if body.Description != nil {
+			project.Description = strings.TrimSpace(optionalString(body.Description))
+		}
+		if body.GitHubRepoURL != nil {
+			project.GitHubRepoURL = normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL))
+		}
 		project.UpdatedAt = now
 		actionChannel := project.Channel
 		if actionChannel == "" {
@@ -8786,7 +8797,14 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		responseProject := *project
+		shouldSyncGitHubRepo := body.GitHubRepoURL != nil
 		b.mu.Unlock()
+		if shouldSyncGitHubRepo {
+			if err := b.syncProjectWikiGitHubRepo(r.Context(), responseProject); err != nil {
+				http.Error(w, "failed to sync project wiki", http.StatusInternalServerError)
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"project": responseProject})
 	default:

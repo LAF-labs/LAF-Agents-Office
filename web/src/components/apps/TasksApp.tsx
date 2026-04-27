@@ -19,6 +19,7 @@ import {
   type Project,
   post,
   type Task,
+  updateProject,
 } from "../../api/client";
 import { formatRelativeTime } from "../../lib/format";
 import { useAppStore } from "../../stores/app";
@@ -38,6 +39,7 @@ const STATUS_ORDER = [
 type StatusGroup = (typeof STATUS_ORDER)[number];
 type TaskMove = (task: Task, toStatus: StatusGroup) => Promise<void>;
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
+type ProjectGitHubConnectorState = ReturnType<typeof useProjectGitHubConnector>;
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -246,6 +248,97 @@ function useProjectCreator(
   };
 }
 
+function buildProjectGitHubUpdate(
+  project: Project,
+  githubRepoURL: string,
+): Parameters<typeof updateProject>[0] {
+  const body: Parameters<typeof updateProject>[0] = {
+    id: project.id,
+    name: project.name,
+    github_repo_url: githubRepoURL,
+    created_by: HUMAN_SLUG,
+  };
+  if (project.description !== undefined) body.description = project.description;
+  if (project.channel !== undefined) body.channel = project.channel;
+  if (project.status !== undefined) body.status = project.status;
+  return body;
+}
+
+function useProjectGitHubConnector(queryClient: QueryClient) {
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [repoURL, setRepoURL] = useState("");
+  const [savingProjectId, setSavingProjectId] = useState<string | null>(null);
+  const [githubError, setGitHubError] = useState<string | null>(null);
+
+  function begin(project: Project) {
+    setEditingProjectId(project.id);
+    setRepoURL(project.github_repo_url?.trim() ?? "");
+    setGitHubError(null);
+  }
+
+  function cancel() {
+    setEditingProjectId(null);
+    setRepoURL("");
+    setGitHubError(null);
+  }
+
+  async function refreshProjects() {
+    await queryClient.invalidateQueries({ queryKey: ["projects"] });
+  }
+
+  async function save(project: Project, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextRepoURL = repoURL.trim();
+    if (!nextRepoURL) {
+      setGitHubError("Enter a GitHub repo URL.");
+      return;
+    }
+    setSavingProjectId(project.id);
+    setGitHubError(null);
+    try {
+      await updateProject(buildProjectGitHubUpdate(project, nextRepoURL));
+      setEditingProjectId(null);
+      setRepoURL("");
+      await refreshProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not connect GitHub repo";
+      setGitHubError(message);
+    } finally {
+      setSavingProjectId(null);
+    }
+  }
+
+  async function disconnect(project: Project) {
+    setSavingProjectId(project.id);
+    setGitHubError(null);
+    try {
+      await updateProject(buildProjectGitHubUpdate(project, ""));
+      setEditingProjectId(null);
+      setRepoURL("");
+      await refreshProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not disconnect GitHub repo";
+      setGitHubError(message);
+    } finally {
+      setSavingProjectId(null);
+    }
+  }
+
+  return {
+    begin,
+    cancel,
+    disconnect,
+    editingProjectId,
+    githubError,
+    isSaving: (projectId: string) => savingProjectId === projectId,
+    repoURL,
+    save,
+    setRepoURL,
+  };
+}
+
 function useTaskBoardDrag(tasksById: Map<string, Task>, moveTask: TaskMove) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragoverStatus, setDragoverStatus] = useState<StatusGroup | null>(
@@ -311,6 +404,7 @@ export function TasksApp() {
   const setWikiPath = useAppStore((s) => s.setWikiPath);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const projectCreator = useProjectCreator(queryClient, setSelectedProjectId);
+  const githubConnector = useProjectGitHubConnector(queryClient);
   const selectedProjectFilter =
     selectedProjectId && selectedProjectId !== "all"
       ? selectedProjectId
@@ -406,6 +500,7 @@ export function TasksApp() {
       <ProjectWorkspaceOverview
         project={selectedProject}
         projectCount={projects.length}
+        githubConnector={githubConnector}
         isLoadingTasks={isTaskLoading}
         tasks={tasks}
         onOpenWiki={handleOpenProjectWiki}
@@ -527,7 +622,7 @@ function ProjectCreateForm({
         aria-label="Project name"
       />
       <input
-        type="url"
+        type="text"
         value={projectCreator.newProjectGitHubRepoURL}
         onChange={(event) =>
           projectCreator.setNewProjectGitHubRepoURL(event.currentTarget.value)
@@ -583,6 +678,7 @@ function TaskWorkArea({
 interface ProjectWorkspaceOverviewProps {
   project: Project | null;
   projectCount: number;
+  githubConnector: ProjectGitHubConnectorState;
   isLoadingTasks: boolean;
   tasks: Task[];
   onOpenWiki: () => void;
@@ -591,6 +687,7 @@ interface ProjectWorkspaceOverviewProps {
 function ProjectWorkspaceOverview({
   project,
   projectCount,
+  githubConnector,
   isLoadingTasks,
   tasks,
   onOpenWiki,
@@ -656,21 +753,126 @@ function ProjectWorkspaceOverview({
         </strong>
         <span>Work currently assigned away from the human owner.</span>
       </article>
-      <article className="task-workspace-card">
-        <span className="task-workspace-kicker">GitHub</span>
-        <strong>{repoURL ? "Repo connected" : "Repo not connected"}</strong>
-        <span>
-          {repoURL
-            ? "Ready for project-scoped coding work."
-            : "Connect it only when code work starts."}
-        </span>
-        {repoURL ? (
-          <a href={repoURL} target="_blank" rel="noreferrer">
-            Open GitHub repo
-          </a>
-        ) : null}
-      </article>
+      <ProjectGitHubCard
+        connector={githubConnector}
+        project={project}
+        repoURL={repoURL}
+      />
     </section>
+  );
+}
+
+interface ProjectGitHubCardProps {
+  connector: ProjectGitHubConnectorState;
+  project: Project;
+  repoURL?: string;
+}
+
+function ProjectGitHubCard({
+  connector,
+  project,
+  repoURL,
+}: ProjectGitHubCardProps) {
+  const isEditing = connector.editingProjectId === project.id;
+  const isSaving = connector.isSaving(project.id);
+
+  return (
+    <article className="task-workspace-card">
+      <span className="task-workspace-kicker">GitHub</span>
+      <strong>{repoURL ? "Repo connected" : "Repo not connected"}</strong>
+      <span>
+        {repoURL
+          ? "Ready for project-scoped coding work."
+          : "Connect it only when code work starts."}
+      </span>
+      {isEditing ? (
+        <ProjectGitHubEditForm
+          connector={connector}
+          isSaving={isSaving}
+          project={project}
+        />
+      ) : (
+        <ProjectGitHubActions
+          connector={connector}
+          isSaving={isSaving}
+          project={project}
+          repoURL={repoURL}
+        />
+      )}
+    </article>
+  );
+}
+
+interface ProjectGitHubChildProps {
+  connector: ProjectGitHubConnectorState;
+  isSaving: boolean;
+  project: Project;
+}
+
+function ProjectGitHubEditForm({
+  connector,
+  isSaving,
+  project,
+}: ProjectGitHubChildProps) {
+  return (
+    <form
+      className="task-github-form"
+      onSubmit={(event) => connector.save(project, event)}
+    >
+      <input
+        type="text"
+        value={connector.repoURL}
+        onChange={(event) => connector.setRepoURL(event.currentTarget.value)}
+        placeholder="https://github.com/org/repo"
+        aria-label="GitHub repository URL"
+      />
+      <div className="task-github-actions">
+        <button
+          type="submit"
+          disabled={isSaving || connector.repoURL.trim() === ""}
+        >
+          {isSaving ? "Saving..." : "Save GitHub repo"}
+        </button>
+        <button type="button" onClick={connector.cancel}>
+          Cancel
+        </button>
+      </div>
+      {connector.githubError ? (
+        <span className="task-github-error">{connector.githubError}</span>
+      ) : null}
+    </form>
+  );
+}
+
+function ProjectGitHubActions({
+  connector,
+  isSaving,
+  project,
+  repoURL,
+}: ProjectGitHubChildProps & { repoURL?: string }) {
+  return (
+    <div className="task-github-actions">
+      {repoURL ? (
+        <a href={repoURL} target="_blank" rel="noreferrer">
+          Open GitHub repo
+        </a>
+      ) : null}
+      <button type="button" onClick={() => connector.begin(project)}>
+        {repoURL ? "Change GitHub repo" : "Connect GitHub repo"}
+      </button>
+      {repoURL ? (
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={() => void connector.disconnect(project)}
+        >
+          {isSaving ? "Saving..." : "Disconnect"}
+        </button>
+      ) : null}
+      {connector.githubError ? (
+        <span className="task-github-error">{connector.githubError}</span>
+      ) : null}
+    </div>
   );
 }
 

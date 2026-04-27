@@ -169,6 +169,44 @@ func TestProjectGitHubRepoURLCanBeUpdatedAndCleared(t *testing.T) {
 	}
 }
 
+func TestProjectGitHubRepoURLUpdatePreservesOmittedFields(t *testing.T) {
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":        "Repo Setup",
+		"description": "Project memory should survive repo edits.",
+		"created_by":  "human",
+	})
+
+	updateRec := httptest.NewRecorder()
+	b.handleProjects(updateRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":          "update",
+		"id":              project.ID,
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/repo-setup",
+	}))
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update project status = %d, want %d: %s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+	var updated struct {
+		Project teamProject `json:"project"`
+	}
+	if err := json.NewDecoder(updateRec.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode updated project: %v", err)
+	}
+	if updated.Project.Name != project.Name {
+		t.Fatalf("updated name = %q, want %q", updated.Project.Name, project.Name)
+	}
+	if updated.Project.Description != project.Description {
+		t.Fatalf("updated description = %q, want %q", updated.Project.Description, project.Description)
+	}
+	if updated.Project.Status != project.Status {
+		t.Fatalf("updated status = %q, want %q", updated.Project.Status, project.Status)
+	}
+	if updated.Project.GitHubRepoURL != "https://github.com/laf-labs/repo-setup" {
+		t.Fatalf("updated github_repo_url = %q", updated.Project.GitHubRepoURL)
+	}
+}
+
 func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "wiki")
 	backup := filepath.Join(t.TempDir(), "wiki.bak")
@@ -218,6 +256,58 @@ func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	b.handleWikiArticle(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("wiki article status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+func TestProjectGitHubUpdateSyncsMaterializedWikiArticle(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":       "Agent Lab",
+		"created_by": "human",
+	})
+	worker.WaitForIdle()
+
+	updateRec := httptest.NewRecorder()
+	b.handleProjects(updateRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":          "update",
+		"id":              project.ID,
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/agent-lab",
+	}))
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update project status = %d, want %d: %s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+	worker.WaitForIdle()
+
+	articlePath := filepath.Join(root, "team", "projects", project.ID+".md")
+	raw, err := os.ReadFile(articlePath)
+	if err != nil {
+		t.Fatalf("read materialized project wiki: %v", err)
+	}
+	content := string(raw)
+	if !strings.Contains(content, "- GitHub repo: https://github.com/laf-labs/agent-lab") {
+		t.Fatalf("project wiki did not sync github repo:\n%s", content)
+	}
+	if strings.Contains(content, "- GitHub repo: _not connected_") {
+		t.Fatalf("project wiki still says repo is not connected:\n%s", content)
 	}
 }
 

@@ -648,6 +648,22 @@ export function createProject(body: {
   });
 }
 
+export function updateProject(body: {
+  id: string;
+  name?: string;
+  description?: string;
+  channel?: string;
+  github_repo_url?: string;
+  status?: string;
+  created_by?: string;
+}) {
+  return post<{ project: Project }>("/projects", {
+    action: "update",
+    created_by: "human",
+    ...body,
+  });
+}
+
 export function reassignTask(
   taskId: string,
   newOwner: string,

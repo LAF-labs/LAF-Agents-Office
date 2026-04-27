@@ -11,6 +11,7 @@ const apiMocks = vi.hoisted(() => ({
   getOfficeTasks: vi.fn(),
   getProjects: vi.fn(),
   post: vi.fn(),
+  updateProject: vi.fn(),
 }));
 
 vi.mock("../../api/client", () => apiMocks);
@@ -113,6 +114,64 @@ describe("TasksApp project workspace", () => {
     expect(
       screen.getByText("Connect it only when code work starts."),
     ).toBeInTheDocument();
+  });
+
+  it("connects a GitHub repo to the selected project after project creation", async () => {
+    const user = userEvent.setup();
+    apiMocks.getProjects
+      .mockResolvedValueOnce({
+        projects: [
+          {
+            id: "agent-lab",
+            name: "Agent Lab",
+            description: "Build agents for implementation work.",
+          },
+        ],
+      })
+      .mockResolvedValue({
+        projects: [
+          {
+            id: "agent-lab",
+            name: "Agent Lab",
+            description: "Build agents for implementation work.",
+            github_repo_url: "https://github.com/laf-labs/agent-lab",
+          },
+        ],
+      });
+    apiMocks.getOfficeTasks.mockResolvedValue({ tasks: [] });
+    apiMocks.updateProject.mockResolvedValue({
+      project: {
+        id: "agent-lab",
+        name: "Agent Lab",
+        description: "Build agents for implementation work.",
+        github_repo_url: "https://github.com/laf-labs/agent-lab",
+      },
+    });
+
+    renderTasksApp();
+
+    expect(await screen.findByText("Agent Lab workspace")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Connect GitHub repo" }),
+    );
+    await user.type(
+      screen.getByLabelText("GitHub repository URL"),
+      "https://github.com/laf-labs/agent-lab",
+    );
+    await user.click(screen.getByRole("button", { name: "Save GitHub repo" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateProject).toHaveBeenCalledWith({
+        id: "agent-lab",
+        name: "Agent Lab",
+        description: "Build agents for implementation work.",
+        github_repo_url: "https://github.com/laf-labs/agent-lab",
+        created_by: "human",
+      });
+    });
+    expect(
+      await screen.findByRole("link", { name: "Open GitHub repo" }),
+    ).toHaveAttribute("href", "https://github.com/laf-labs/agent-lab");
   });
 
   it("opens the wiki route for a newly created project workspace", async () => {

@@ -1406,6 +1406,37 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
 .task-workspace-card button:hover {
   text-decoration: underline;
 }
+.task-workspace-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  text-decoration: none;
+}
+.task-github-form,
+.task-github-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+.task-github-form input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  padding: 0 9px;
+  font-size: 12px;
+}
+.task-github-error {
+  width: 100%;
+  color: var(--red);
+  font-size: 11px;
+  line-height: 1.35;
+}
 .task-empty-state {
   padding: 40px 20px;
   text-align: center;
