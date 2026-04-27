@@ -1,10 +1,21 @@
 import { useChannels } from "../../hooks/useChannels";
+import { type I18nKey, useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 
 interface ChannelHeaderProps {
   onLogout?: () => void;
   userEmail?: string;
 }
+
+const APP_TITLE_KEYS: Record<string, I18nKey> = {
+  wiki: "app.wiki",
+  tasks: "app.tasks",
+  requests: "app.requests",
+  skills: "app.skills",
+  activity: "app.activity",
+  receipts: "app.receipts",
+  settings: "app.settings",
+};
 
 export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
   const currentChannel = useAppStore((s) => s.currentChannel);
@@ -13,10 +24,13 @@ export function ChannelHeader({ onLogout, userEmail }: ChannelHeaderProps) {
   const theme = useAppStore((s) => s.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const { data: channels = [] } = useChannels();
+  const { t } = useI18n();
 
   const channel = channels.find((c) => c.slug === currentChannel);
   const title = currentApp
-    ? currentApp.charAt(0).toUpperCase() + currentApp.slice(1)
+    ? APP_TITLE_KEYS[currentApp]
+      ? t(APP_TITLE_KEYS[currentApp])
+      : currentApp.charAt(0).toUpperCase() + currentApp.slice(1)
     : `# ${currentChannel}`;
   const desc = currentApp ? "" : channel?.description || "";
 

@@ -339,7 +339,7 @@ assert_human_quality() {
 
 # ═══════════════════════════════════════════════════════════════════════
 echo "================================================================"
-echo "  NEX Human Judgment UAT Test Suite"
+echo "  LAF-Office Human Judgment UAT Test Suite"
 echo "  Office Channel View"
 echo "  5 Personas / Readability / Density / Layout / Junk-free"
 echo "================================================================"

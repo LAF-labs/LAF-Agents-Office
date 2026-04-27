@@ -134,14 +134,20 @@ const SCRATCH_FOUNDING_TEAM: readonly BlueprintAgent[] = [
   { slug: "designer", name: "Designer", role: "design", checked: true },
 ];
 
-// Display overrides for blueprints. Backend names/descriptions are long-form
-// ("Bookkeeping and Invoicing Service", "Template for a bookkeeping operation
-// that handles recurring books..."). For the onboarding picker we want short,
-// scannable copy and visible categorization. Overrides are keyed by blueprint
-// id (see templates/operations/*/blueprint.yaml). If a blueprint isn't in the
-// map we fall back to the backend name + description, so new blueprints still
-// render without frontend changes.
-type BlueprintCategoryKey = "services" | "media" | "product";
+// Only show onboarding presets that match the current startup product-work
+// wedge. Older operation templates remain loadable by id for backwards
+// compatibility, but they should not appear in the first-run picker.
+const ONBOARDING_BLUEPRINT_ALLOWLIST = new Set<string>();
+
+function visibleOnboardingBlueprints(
+  templates: BlueprintTemplate[],
+): BlueprintTemplate[] {
+  return templates.filter((template) =>
+    ONBOARDING_BLUEPRINT_ALLOWLIST.has(template.id),
+  );
+}
+
+type BlueprintCategoryKey = "project";
 
 interface BlueprintDisplay {
   category: BlueprintCategoryKey;
@@ -155,50 +161,13 @@ const BLUEPRINT_CATEGORIES: ReadonlyArray<{
   hint: string;
 }> = [
   {
-    key: "services",
-    label: "Services",
-    hint: "Client work, done by your office",
+    key: "project",
+    label: "Startup Projects",
+    hint: "Planning, development, and workflow automation",
   },
-  {
-    key: "media",
-    label: "Media & Community",
-    hint: "Content or community as the business",
-  },
-  { key: "product", label: "Products", hint: "Software you build and sell" },
 ] as const;
 
-const BLUEPRINT_DISPLAY: Record<string, BlueprintDisplay> = {
-  "bookkeeping-invoicing-service": {
-    category: "services",
-    shortDescription: "Books · invoices · monthly close",
-    icon: "📊",
-  },
-  "local-business-ai-package": {
-    category: "services",
-    shortDescription: "Intake · booking · follow-up",
-    icon: "🏪",
-  },
-  "multi-agent-workflow-consulting": {
-    category: "services",
-    shortDescription: "Client engagements · workflow delivery",
-    icon: "💼",
-  },
-  "niche-crm": {
-    category: "product",
-    shortDescription: "Build & launch a focused CRM",
-    icon: "🎯",
-  },
-  "paid-discord-community": {
-    category: "media",
-    shortDescription: "Moderation · onboarding · engagement",
-    icon: "💬",
-  },
-  "youtube-factory": {
-    category: "media",
-    shortDescription: "Script · film · publish · analyze",
-    icon: "📹",
-  },
-};
+const BLUEPRINT_DISPLAY: Record<string, BlueprintDisplay> = {};
 
 const API_KEY_FIELDS = [
   {
@@ -328,7 +297,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     progress: {
       welcome: "Start",
       identity: "Office",
-      templates: "Blueprint",
+      templates: "Starter",
       team: "Team",
       setup: "Run",
       task: "Task",
@@ -342,56 +311,23 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       cta: "Open the office",
     },
     templates: {
-      eyebrow: "Start with a preset, or build from scratch",
+      eyebrow: "Start with a focused project team",
       headline: "What should your office run?",
       subhead:
-        "Pick the shape of work. We'll assemble the team, channels, and first tasks around it. You can change anything later.",
-      loading: "Loading blueprints...",
+        "Start from a founding team built for planning, development, and automation. You can add custom specialists later.",
+      loading: "Loading starters...",
       other: "Other",
       scratchTitle: "Start from scratch",
       scratchSubhead:
         "5-person founding team: CEO, GTM Lead, Founding Engineer, PM, Designer",
       next: "Review the team",
       categories: {
-        services: {
-          label: "Services",
-          hint: "Client work, done by your office",
-        },
-        media: {
-          label: "Media & Community",
-          hint: "Content or community as the business",
-        },
-        product: {
-          label: "Products",
-          hint: "Software you build and sell",
+        project: {
+          label: "Startup Projects",
+          hint: "Planning, development, and workflow automation",
         },
       },
-      display: {
-        "bookkeeping-invoicing-service": {
-          name: "Bookkeeping and Invoicing Service",
-          shortDescription: "Books · invoices · monthly close",
-        },
-        "local-business-ai-package": {
-          name: "Local Business AI Package",
-          shortDescription: "Intake · booking · follow-up",
-        },
-        "multi-agent-workflow-consulting": {
-          name: "Multi-Agent Workflow Consulting",
-          shortDescription: "Client engagements · workflow delivery",
-        },
-        "niche-crm": {
-          name: "Niche CRM",
-          shortDescription: "Build & launch a focused CRM",
-        },
-        "paid-discord-community": {
-          name: "Paid Discord Community",
-          shortDescription: "Moderation · onboarding · engagement",
-        },
-        "youtube-factory": {
-          name: "YouTube Factory",
-          shortDescription: "Script · film · publish · analyze",
-        },
-      },
+      display: {},
     },
     identity: {
       title: "Tell us about this office",
@@ -402,14 +338,14 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         "What real business or workflow should this office run?",
       priorityLabel: "Top priority right now",
       priorityPlaceholder: "Win the first real customer loop",
-      next: "Choose a blueprint",
+      next: "Choose a starter",
     },
     team: {
       title: "Your team",
       description:
-        "These are the specialists your blueprint assembled. Toggle anyone you don't need.",
+        "These are the specialists your starter assembled. Toggle anyone you don't need.",
       empty:
-        "No teammates yet. Go back and pick a blueprint, or open the office and add agents from the team panel.",
+        "No teammates yet. Go back and pick a starter, or open the office and add agents from the team panel.",
       leadTitle: "Lead agent — always included",
       leadBadge: "Lead",
     },
@@ -457,11 +393,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     task: {
       title: "What should the team work on first?",
       subhead:
-        "Type your own first task, or pick from the blueprint's suggested sequence below.",
+        "Type your own first task, or pick from the starter's suggested sequence below.",
       placeholder: "e.g. Draft the launch plan for our first customer segment",
       newLineHint: "new line",
       reviewSetupHint: "review setup",
-      suggestions: "Suggested sequence for this blueprint",
+      suggestions: "Suggested starter sequence",
       skip: "Skip for now",
       next: "Review setup",
     },
@@ -486,7 +422,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       githubLabel: "GitHub repository",
       githubConnectLater:
         "Connect the project repo after deployment settings are ready. Agents will use it for implementation tasks.",
-      blueprintLabel: "Blueprint",
+      blueprintLabel: "Starter",
       blueprintScratch: "Start from scratch (5-person founding team).",
     },
   },
@@ -499,7 +435,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     progress: {
       welcome: "시작",
       identity: "오피스",
-      templates: "블루프린트",
+      templates: "시작 방식",
       team: "팀",
       setup: "실행",
       task: "첫 작업",
@@ -513,56 +449,23 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       cta: "오피스 열기",
     },
     templates: {
-      eyebrow: "프리셋으로 시작하거나 직접 구성하기",
+      eyebrow: "프로젝트 팀으로 시작하기",
       headline: "이 오피스는 어떤 일을 하게 할까요?",
       subhead:
-        "업무의 형태를 고르면 팀, 채널, 첫 작업을 그에 맞춰 구성합니다. 나중에 언제든 바꿀 수 있습니다.",
-      loading: "블루프린트 불러오는 중...",
+        "기획, 개발, 자동화에 맞춘 창업팀 구성으로 시작합니다. 필요한 전문가는 나중에 추가할 수 있습니다.",
+      loading: "시작 방식 불러오는 중...",
       other: "기타",
       scratchTitle: "처음부터 시작",
       scratchSubhead:
         "5명 창업팀: CEO, GTM 리드, 파운딩 엔지니어, PM, 디자이너",
       next: "팀 검토",
       categories: {
-        services: {
-          label: "서비스",
-          hint: "오피스가 수행하는 클라이언트 업무",
-        },
-        media: {
-          label: "미디어와 커뮤니티",
-          hint: "콘텐츠나 커뮤니티가 비즈니스인 경우",
-        },
-        product: {
-          label: "제품",
-          hint: "만들고 판매할 소프트웨어",
+        project: {
+          label: "창업팀 프로젝트",
+          hint: "기획, 개발, 업무 자동화",
         },
       },
-      display: {
-        "bookkeeping-invoicing-service": {
-          name: "장부·청구 자동화 서비스",
-          shortDescription: "장부 · 청구서 · 월마감",
-        },
-        "local-business-ai-package": {
-          name: "지역 비즈니스 AI 패키지",
-          shortDescription: "접수 · 예약 · 후속 연락",
-        },
-        "multi-agent-workflow-consulting": {
-          name: "멀티 에이전트 워크플로 컨설팅",
-          shortDescription: "클라이언트 프로젝트 · 워크플로 납품",
-        },
-        "niche-crm": {
-          name: "니치 CRM",
-          shortDescription: "특정 시장용 CRM 구축과 출시",
-        },
-        "paid-discord-community": {
-          name: "유료 디스코드 커뮤니티",
-          shortDescription: "운영 · 온보딩 · 참여도 관리",
-        },
-        "youtube-factory": {
-          name: "유튜브 팩토리",
-          shortDescription: "대본 · 촬영 · 발행 · 분석",
-        },
-      },
+      display: {},
     },
     identity: {
       title: "이 오피스에 대해 알려주세요",
@@ -573,14 +476,14 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         "이 오피스가 맡을 실제 비즈니스나 워크플로는 무엇인가요?",
       priorityLabel: "지금 가장 중요한 목표",
       priorityPlaceholder: "첫 실제 고객 루프 만들기",
-      next: "블루프린트 선택",
+      next: "시작 방식 선택",
     },
     team: {
       title: "팀 구성",
       description:
-        "선택한 블루프린트가 구성한 전문가들입니다. 필요 없는 구성원은 끌 수 있습니다.",
+        "선택한 시작 방식이 구성한 전문가들입니다. 필요 없는 구성원은 끌 수 있습니다.",
       empty:
-        "아직 팀원이 없습니다. 뒤로 가서 블루프린트를 고르거나, 오피스를 연 뒤 팀 패널에서 에이전트를 추가하세요.",
+        "아직 팀원이 없습니다. 뒤로 가서 시작 방식을 고르거나, 오피스를 연 뒤 팀 패널에서 에이전트를 추가하세요.",
       leadTitle: "리드 에이전트 - 항상 포함됨",
       leadBadge: "리드",
     },
@@ -629,11 +532,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     task: {
       title: "팀이 가장 먼저 할 일은 무엇인가요?",
       subhead:
-        "첫 작업을 직접 입력하거나 블루프린트가 제안한 순서에서 고르세요.",
+        "첫 작업을 직접 입력하거나 시작 방식이 제안한 순서에서 고르세요.",
       placeholder: "예: 첫 고객 세그먼트를 위한 출시 계획 초안 작성",
       newLineHint: "줄바꿈",
       reviewSetupHint: "설정 검토",
-      suggestions: "이 블루프린트의 추천 작업 순서",
+      suggestions: "추천 시작 작업 순서",
       skip: "지금은 건너뛰기",
       next: "설정 검토",
     },
@@ -658,7 +561,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       githubLabel: "GitHub 저장소",
       githubConnectLater:
         "배포 설정이 준비되면 프로젝트 저장소를 연결합니다. 에이전트는 실제 개발 작업에 이 저장소를 사용합니다.",
-      blueprintLabel: "블루프린트",
+      blueprintLabel: "시작 방식",
       blueprintScratch: "처음부터 시작 (5명 창업팀).",
     },
   },
@@ -2068,7 +1971,7 @@ export function Wizard({ onComplete }: WizardProps) {
       .then((data) => {
         if (cancelled) return;
         const tpls = data.templates ?? [];
-        setBlueprints(tpls);
+        setBlueprints(visibleOnboardingBlueprints(tpls));
       })
       .catch(() => {
         // Endpoint may not exist yet; continue with empty list
@@ -2164,10 +2067,9 @@ export function Wizard({ onComplete }: WizardProps) {
       ?.tasks;
     setTaskTemplates(Array.isArray(bpTasks) ? bpTasks : []);
     // Clear any task-template selection and suggestion-derived text when the
-    // blueprint changes. Without this, switching from (say) Consulting to
-    // YouTube Factory leaves "Turn the directive..." stuck in the textarea —
-    // nonsensical in the new context. User-typed custom text is preserved,
-    // since selectedTaskTemplate is null for that path.
+    // starter changes. Without this, switching presets leaves a suggestion
+    // stuck in the textarea that no longer matches the new context. User-typed
+    // custom text is preserved, since selectedTaskTemplate is null for that path.
     setSelectedTaskTemplate((prevSel) => {
       if (prevSel !== null) setTaskText("");
       return null;

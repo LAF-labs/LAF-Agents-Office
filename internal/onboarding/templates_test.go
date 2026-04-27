@@ -31,7 +31,7 @@ func TestDefaultTemplatesNonEmptyFields(t *testing.T) {
 }
 
 func TestDefaultTemplatesExpectedIDs(t *testing.T) {
-	wantIDs := []string{"landing", "repo", "spec", "readme", "audit"}
+	wantIDs := []string{"product-plan", "repo", "implementation-task", "project-wiki", "automation-map"}
 	templates := DefaultTemplates()
 	for i, want := range wantIDs {
 		if templates[i].ID != want {
@@ -75,7 +75,7 @@ func TestRevOpsTemplatesReturnsFiveItems(t *testing.T) {
 }
 
 func TestRevOpsTemplatesExpectedIDs(t *testing.T) {
-	wantIDs := []string{"pipeline_audit", "meeting_prep", "revive_closed_lost", "score_inbound", "stalled_deals"}
+	wantIDs := []string{"work-audit", "next-build-brief", "reopen-paused-work", "triage-inbound-work", "unstick-blocked-work"}
 	templates := RevOpsTemplates()
 	for i, want := range wantIDs {
 		if templates[i].ID != want {
@@ -107,12 +107,12 @@ func TestTemplatesForPackRouting(t *testing.T) {
 		slug    string
 		firstID string
 	}{
-		{"", "landing"},                  // fallback to default
-		{"founding-team", "landing"},     // explicit default
-		{"revops", "pipeline_audit"},     // revops-specific
-		{"from-scratch", "objective"},    // explicit blank-slate selector
-		{"__blank_slate__", "objective"}, // current runtime selector
-		{"unknown-pack", "landing"},      // unknown falls through to default
+		{"", "product-plan"},              // fallback to default
+		{"founding-team", "product-plan"}, // explicit default
+		{"revops", "work-audit"},          // legacy alias
+		{"from-scratch", "objective"},     // explicit blank-slate selector
+		{"__blank_slate__", "objective"},  // current runtime selector
+		{"unknown-pack", "product-plan"},  // unknown falls through to default
 	}
 	for _, tc := range cases {
 		got := TemplatesForPack(tc.slug)

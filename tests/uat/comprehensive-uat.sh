@@ -259,7 +259,7 @@ fail() {
 
 # ═══════════════════════════════════════════════════════════════════════
 echo "================================================================"
-echo "  NEX Comprehensive UAT Test Suite"
+echo "  LAF-Office Comprehensive UAT Test Suite"
 echo "  Embedded Terminal Mode (pane-per-agent)"
 echo "  5 Personas / Quality Checks / Screenshots"
 echo "================================================================"

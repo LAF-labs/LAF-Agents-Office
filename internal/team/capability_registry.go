@@ -339,7 +339,7 @@ func buildConnectionsDescriptor(opts CapabilityProbeOptions) CapabilityDescripto
 			Level:     CapabilityWarn,
 			Lifecycle: CapabilityLifecycleNeedsSetup,
 			Detail:    fmt.Sprintf("%s is configured, but no connected accounts are available.", provider.Name()),
-			NextStep:  "Connect Gmail, CRM, or another provider-backed account.",
+			NextStep:  "Connect the required provider-backed account when this project supports it.",
 		}
 	}
 	return CapabilityDescriptor{

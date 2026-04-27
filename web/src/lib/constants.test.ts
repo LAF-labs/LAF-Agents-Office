@@ -8,9 +8,6 @@ describe("SIDEBAR_APPS", () => {
       "wiki",
       "tasks",
       "requests",
-      "skills",
-      "activity",
-      "receipts",
       "settings",
     ]);
   });

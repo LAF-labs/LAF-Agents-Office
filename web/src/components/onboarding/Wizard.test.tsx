@@ -176,6 +176,55 @@ describe("Wizard keyboard advancement", () => {
     }
   });
 
+  it("does not show old CRM, media, or community presets in onboarding", async () => {
+    getMock.mockImplementation(async (path: string) => {
+      if (path === "/onboarding/prereqs") return { prereqs: [] };
+      if (path === "/onboarding/blueprints") {
+        return {
+          templates: [
+            {
+              id: "niche-crm",
+              name: "Niche CRM",
+              description: "Build and launch a focused CRM",
+            },
+            {
+              id: "youtube-factory",
+              name: "YouTube Factory",
+              description: "Script, film, publish, and analyze",
+            },
+            {
+              id: "paid-discord-community",
+              name: "Paid Discord Community",
+              description: "Moderation and onboarding",
+            },
+          ],
+        };
+      }
+      return {};
+    });
+
+    render(<Wizard onComplete={vi.fn()} />);
+    pressEnterOn(window);
+    await waitFor(() => screen.getByLabelText(/Company or project name/i));
+    fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+      target: { value: "LAF" },
+    });
+    fireEvent.change(screen.getByLabelText(/One-liner description/i), {
+      target: { value: "Agents help us plan and build software" },
+    });
+
+    pressEnterOn(window);
+
+    await waitFor(() => screen.getByText(/What should your office run\?/i));
+    expect(screen.getByText("Start from scratch")).toBeInTheDocument();
+    expect(screen.queryByText("Niche CRM")).not.toBeInTheDocument();
+    expect(screen.queryByText("YouTube Factory")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Paid Discord Community"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Media & Community")).not.toBeInTheDocument();
+  });
+
   it("shows GitHub repository connection as a post-onboarding setup item", async () => {
     getMock.mockImplementation(async (path: string) => {
       if (path === "/onboarding/prereqs") {

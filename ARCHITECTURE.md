@@ -36,7 +36,6 @@ How LAF-Office works under the hood, anchored to files you can open. One page. R
 | `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |
 | `internal/agent/packs.go` | The team compositions (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) — packs can also pre-seed default skills |
 | `web/index.html` | The office UI — channels, composer, live streams |
-| `mcp/` | MCP servers LAF-Office ships for team tools, human-in-the-loop approvals, etc. |
 
 ## Three load-bearing choices
 

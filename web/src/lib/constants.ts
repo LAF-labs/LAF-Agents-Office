@@ -6,9 +6,6 @@ export const SIDEBAR_APPS = [
   { id: "wiki", icon: "\uD83D\uDCD6", name: "Wiki" },
   { id: "tasks", icon: "\u2705", name: "Projects" },
   { id: "requests", icon: "\uD83D\uDCCB", name: "Requests" },
-  { id: "skills", icon: "\u26A1", name: "Skills" },
-  { id: "activity", icon: "\uD83D\uDCE6", name: "Activity" },
-  { id: "receipts", icon: "\uD83E\uDDFE", name: "Receipts" },
   { id: "settings", icon: "\u2699", name: "Settings" },
 ] as const;
 

@@ -12603,8 +12603,8 @@ export const KNOWN_AVATAR_SPRITES: Record<string, KnownAvatarSprite> = {
     ],
     "sourceIndex": 22
   },
-  "hybridNex": {
-    "id": "hybridNex",
+  "hybridOffice": {
+    "id": "hybridOffice",
     "palette": [
       "#201713",
       "#34251f",
@@ -14835,7 +14835,7 @@ export const KNOWN_AVATAR_SLUG_MAP: Record<string, string> = {
   "pam-legacy": "hybridPamCute",
   "human": "hybridHuman",
   "you": "hybridHuman",
-  "office": "hybridNex",
+  "office": "hybridOffice",
   "generic": "hybridGeneric",
   "qa": "hybridQa",
   "ae": "hybridAe",

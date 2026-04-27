@@ -11,7 +11,7 @@ if [ -z "$TERMWRIGHT" ]; then
   exit 1
 fi
 SOCKET="/tmp/laf-office-go-e2e.sock"
-NEX="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
+LAF_OFFICE_BIN_PATH="${LAF_OFFICE_BIN:-$REPO_ROOT/laf-office}"
 ARTIFACTS="${ARTIFACTS:-$REPO_ROOT/termwright-artifacts/e2e-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$ARTIFACTS"
 
@@ -27,7 +27,7 @@ cleanup() {
 
 start_daemon() {
   cleanup
-  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$NEX" &
+  "$TERMWRIGHT" daemon --socket "$SOCKET" --cols 120 --rows 40 -- "$LAF_OFFICE_BIN_PATH" &
   sleep 2
 }
 
@@ -94,7 +94,7 @@ assert_screen_not_contains() {
 }
 
 echo "=== LAF-Office CLI E2E Acceptance Tests ==="
-echo "Binary: $NEX"
+echo "Binary: $LAF_OFFICE_BIN_PATH"
 echo "Artifacts: $ARTIFACTS"
 echo ""
 

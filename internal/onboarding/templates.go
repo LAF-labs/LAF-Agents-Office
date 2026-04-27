@@ -30,22 +30,23 @@ const blankSlateStarterTemplateID = "__blank_slate__"
 // blueprint-specific task list can be resolved.
 func DefaultTemplates() []TaskTemplate {
 	return []TaskTemplate{
-		{ID: "landing", Title: "Draft the landing page", Description: "Hero, value props, one clear CTA. Not the LAF-Office.com approach.", OwnerSlug: "executor"},
-		{ID: "repo", Title: "Set up repo structure", Description: "Folders, README, CI scaffold. Dwight would document everything.", OwnerSlug: "executor"},
-		{ID: "spec", Title: "Write the product spec", Description: "What we're building, why, and what done looks like. Michael would skip this step.", OwnerSlug: "planner"},
-		{ID: "readme", Title: "Write the README", Description: "Installation, usage, one example. Short enough that someone actually reads it.", OwnerSlug: "planner"},
-		{ID: "audit", Title: "Audit the competition", Description: "What they do, what they miss, where we win. No memos. Just findings.", OwnerSlug: "ceo"},
+		{ID: "product-plan", Title: "Write the product work plan", Description: "Define the user problem, target workflow, and first shippable slice.", OwnerSlug: "planner"},
+		{ID: "repo", Title: "Prepare the project repository", Description: "Confirm the repo, branch, local setup, and test command agents should use.", OwnerSlug: "executor"},
+		{ID: "implementation-task", Title: "Open the first implementation task", Description: "Turn the plan into one concrete coding task with acceptance checks.", OwnerSlug: "executor"},
+		{ID: "project-wiki", Title: "Seed the project wiki", Description: "Record decisions, repo notes, and current constraints where agents can reuse them.", OwnerSlug: "planner"},
+		{ID: "automation-map", Title: "Map the first automation candidate", Description: "Pick one repeated startup workflow that can be safely automated after the core loop works.", OwnerSlug: "ceo"},
 	}
 }
 
-// RevOpsTemplates preserves the existing legacy pack-specific starter set.
+// RevOpsTemplates preserves the legacy pack route without exposing
+// domain-specific starter work in new local workspaces.
 func RevOpsTemplates() []TaskTemplate {
 	return []TaskTemplate{
-		{ID: "pipeline_audit", Title: "Run a pipeline audit", Description: "CRM hygiene sweep — stale deals, missing fields, bad data. Find the leaks before forecast.", OwnerSlug: "analyst"},
-		{ID: "meeting_prep", Title: "Prep me for my next call", Description: "One-page brief on the account, deal stage, stakeholders, and the ask. No fluff.", OwnerSlug: "ae"},
-		{ID: "revive_closed_lost", Title: "Revive closed-lost leads", Description: "Surface deals lost 3–18 months ago with trigger events. Draft re-engagement outreach.", OwnerSlug: "sdr"},
-		{ID: "score_inbound", Title: "Score new inbound", Description: "Rate unworked leads on fit and intent. Route Tier 1 to the AE within 24 hours.", OwnerSlug: "analyst"},
-		{ID: "stalled_deals", Title: "Find stalled deals", Description: "Open pipeline with no activity in 10+ days. Diagnose the cause and recommend a next step.", OwnerSlug: "ops-lead"},
+		{ID: "work-audit", Title: "Audit the active work queue", Description: "Find stale tasks, missing owners, unclear next steps, and blocked delivery lanes.", OwnerSlug: "analyst"},
+		{ID: "next-build-brief", Title: "Prepare the next build brief", Description: "Summarize the goal, constraints, owner, and acceptance checks for the next project task.", OwnerSlug: "ae"},
+		{ID: "reopen-paused-work", Title: "Reopen paused work", Description: "Identify useful paused work and propose the smallest next action to restart it.", OwnerSlug: "sdr"},
+		{ID: "triage-inbound-work", Title: "Triage inbound work", Description: "Sort new requests by urgency, product value, and whether they need human approval.", OwnerSlug: "analyst"},
+		{ID: "unstick-blocked-work", Title: "Unstick blocked work", Description: "Find blocked project tasks, diagnose the blocker, and recommend the next owner action.", OwnerSlug: "ops-lead"},
 	}
 }
 
