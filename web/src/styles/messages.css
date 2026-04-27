@@ -11,13 +11,6 @@
 .message-grouped {
   padding-top: 2px;
 }
-.message-grouped .message-avatar {
-  visibility: hidden;
-  height: 0;
-}
-.message-grouped .message-header {
-  display: none;
-}
 
 /* ─── Inline threaded replies ───────────────────────────────────
    Editorial discussion-forum treatment. A top-level message and its
@@ -59,59 +52,6 @@
 }
 .thread-group-has-replies + .thread-group {
   margin-top: 6px;
-}
-
-.message-reply {
-  position: relative;
-  gap: 10px;
-  /* Pull reply flush with the -24px page margin the nex theme puts on
-     .message so hover highlights bleed edge-to-edge like top-level
-     messages — not orphaned in a smaller box. */
-  margin-left: -56px;
-  padding-left: 56px;
-}
-.message-reply .message-avatar {
-  width: 28px;
-  height: 28px;
-  padding: 4px;
-  border-radius: 7px;
-}
-.message-reply .message-header {
-  margin-bottom: 2px;
-  gap: 6px;
-}
-.message-reply .message-author {
-  /* Stay primary color + regular-bold weight so the agent's name
-     reads as a first-class actor. Size drops one step for subordination. */
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text);
-}
-.message-reply .message-time {
-  font-size: 10.5px;
-}
-.message-reply .message-token-badge {
-  font-size: 10px;
-  padding: 0 5px;
-}
-.message-reply .message-text {
-  /* Readability is non-negotiable. Match parent size; tighten leading
-     one notch so the reply feels dense without being cramped. */
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-/* Consecutive replies from the same agent collapse into a tight cluster:
-   the avatar and header disappear, the body indents to line up with the
-   header above, the rail stays continuous. */
-.message-reply.message-grouped {
-  margin-top: 0;
-  padding-top: 0;
-}
-.message-reply.message-grouped .message-content {
-  /* Left-align the continuation under the header text (avatar-width +
-     gap = 28 + 10 = 38px). */
-  margin-left: 38px;
 }
 
 .message-avatar {
@@ -176,6 +116,67 @@
   padding: 1px 5px;
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.message-grouped .message-avatar {
+  visibility: hidden;
+  height: 0;
+}
+.message-grouped .message-header {
+  display: none;
+}
+
+.message-reply {
+  position: relative;
+  gap: 10px;
+  /* Pull reply flush with the -24px page margin the nex theme puts on
+     .message so hover highlights bleed edge-to-edge like top-level
+     messages — not orphaned in a smaller box. */
+  margin-left: -56px;
+  padding-left: 56px;
+}
+.message-reply .message-avatar {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border-radius: 7px;
+}
+.message-reply .message-header {
+  margin-bottom: 2px;
+  gap: 6px;
+}
+.message-reply .message-author {
+  /* Stay primary color + regular-bold weight so the agent's name
+     reads as a first-class actor. Size drops one step for subordination. */
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.message-reply .message-time {
+  font-size: 10.5px;
+}
+.message-reply .message-token-badge {
+  font-size: 10px;
+  padding: 0 5px;
+}
+.message-reply .message-text {
+  /* Readability is non-negotiable. Match parent size; tighten leading
+     one notch so the reply feels dense without being cramped. */
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Consecutive replies from the same agent collapse into a tight cluster:
+   the avatar and header disappear, the body indents to line up with the
+   header above, the rail stays continuous. */
+.message-reply.message-grouped {
+  margin-top: 0;
+  padding-top: 0;
+}
+.message-reply.message-grouped .message-content {
+  /* Left-align the continuation under the header text (avatar-width +
+     gap = 28 + 10 = 38px). */
+  margin-left: 38px;
 }
 
 /* ─── Date separator ─── */

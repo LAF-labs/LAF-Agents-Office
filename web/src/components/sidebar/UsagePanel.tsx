@@ -24,6 +24,7 @@ export function UsagePanel() {
         onClick={() => setOpen((v) => !v)}
       >
         <svg
+          className="usage-toggle-icon"
           aria-hidden="true"
           focusable="false"
           width="10"

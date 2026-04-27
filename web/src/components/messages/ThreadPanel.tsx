@@ -182,6 +182,7 @@ export function ThreadPanel() {
         {quoting ? (
           <div className="thread-quote-chip">
             <svg
+              className="thread-quote-icon"
               width="12"
               height="12"
               viewBox="0 0 24 24"

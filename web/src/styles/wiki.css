@@ -54,9 +54,9 @@
   min-height: 0;
   overflow: hidden;
 }
-.wiki-layout > .wk-catalog,
-.wiki-layout > .wk-article-col,
-.wiki-layout > .wk-toc-col {
+:where(.wiki-layout) > .wk-catalog,
+:where(.wiki-layout) > .wk-article-col,
+:where(.wiki-layout) > .wk-toc-col {
   min-height: 0;
   overflow-y: auto;
 }
@@ -125,7 +125,7 @@
   line-height: 1.3;
   cursor: pointer;
 }
-.wk-nav-sidebar li a:hover {
+.wk-nav-sidebar a:hover {
   background: var(--wk-paper-dark);
   color: var(--wk-text);
 }
@@ -910,7 +910,7 @@
   color: var(--wk-wikilink);
   cursor: pointer;
 }
-.wk-edit-log .wk-entry .wk-when {
+:where(.wk-edit-log .wk-entry) .wk-when {
   color: var(--wk-text-tertiary);
   font-family: var(--wk-mono);
   font-size: 11px;
