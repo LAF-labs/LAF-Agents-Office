@@ -386,6 +386,56 @@ func TestDefaultPrepareTaskWorktreeSkipsDuplicateAndMissingCompletedSiblingSourc
 	}
 }
 
+func TestDefaultPrepareProjectTaskWorktreeUsesProjectRepoCheckout(t *testing.T) {
+	allowRealTaskWorktreeForTest(t)
+	sourceRepo := t.TempDir()
+	runtimeHome := t.TempDir()
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", runtimeHome)
+
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		cmd.Env = gitexec.CleanEnv()
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%s failed: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+
+	run(sourceRepo, "git", "init", "-b", "main")
+	run(sourceRepo, "git", "config", "user.name", "LAF-Office Test")
+	run(sourceRepo, "git", "config", "user.email", "laf-office@example.com")
+	if err := os.WriteFile(filepath.Join(sourceRepo, "README.md"), []byte("# Agent Lab\n"), 0o644); err != nil {
+		t.Fatalf("write source readme: %v", err)
+	}
+	run(sourceRepo, "git", "add", "README.md")
+	run(sourceRepo, "git", "commit", "-m", "base")
+
+	path, branch, err := defaultPrepareProjectTaskWorktree("agent-lab", sourceRepo, "task-project")
+	if err != nil {
+		t.Fatalf("defaultPrepareProjectTaskWorktree: %v", err)
+	}
+	defer func() {
+		if err := defaultCleanupTaskWorktree(path, branch); err != nil {
+			t.Fatalf("cleanup project task worktree: %v", err)
+		}
+	}()
+
+	raw, err := os.ReadFile(filepath.Join(path, "README.md"))
+	if err != nil {
+		t.Fatalf("read project repo file from worktree: %v", err)
+	}
+	if string(raw) != "# Agent Lab\n" {
+		t.Fatalf("unexpected project repo file content: %q", raw)
+	}
+	if strings.Contains(path, "LAF-Agents-Office") {
+		t.Fatalf("project worktree should not be rooted in the LAF-Office repo: %q", path)
+	}
+	if !strings.Contains(path, "agent-lab") {
+		t.Fatalf("project worktree path should include project repo token, got %q", path)
+	}
+}
+
 func TestWorktreePathLooksSafeAllowsManagedAndLegacyRoots(t *testing.T) {
 	oldTaskRoot := taskWorktreeRootDir
 	defer func() { taskWorktreeRootDir = oldTaskRoot }()

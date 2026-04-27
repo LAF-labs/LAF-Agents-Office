@@ -541,12 +541,25 @@ func (b *Broker) taskProjectAllowsCodeExecutionLocked(task *teamTask) bool {
 	if task == nil {
 		return true
 	}
-	projectID := normalizeProjectID(task.ProjectID)
-	if projectID == "" {
+	if normalizeProjectID(task.ProjectID) == "" {
 		return true
 	}
+	return strings.TrimSpace(b.taskProjectRepoURLLocked(task)) != ""
+}
+
+func (b *Broker) taskProjectRepoURLLocked(task *teamTask) string {
+	if task == nil {
+		return ""
+	}
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return ""
+	}
 	project := b.findProjectLocked(projectID)
-	return project != nil && strings.TrimSpace(project.GitHubRepoURL) != ""
+	if project == nil {
+		return ""
+	}
+	return strings.TrimSpace(project.GitHubRepoURL)
 }
 
 func taskBlockReasonLooksLikeWorkspaceWriteIssue(reason string) bool {
@@ -694,7 +707,14 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 			task.WorktreeBranch = branch
 			return nil
 		}
-		path, branch, err := prepareTaskWorktree(task.ID)
+		repoURL := b.taskProjectRepoURLLocked(task)
+		var path, branch string
+		var err error
+		if repoURL != "" {
+			path, branch, err = prepareProjectTaskWorktree(normalizeProjectID(task.ProjectID), repoURL, task.ID)
+		} else {
+			path, branch, err = prepareTaskWorktree(task.ID)
+		}
 		if err != nil {
 			return err
 		}

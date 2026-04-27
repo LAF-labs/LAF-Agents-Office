@@ -378,6 +378,56 @@ func TestProjectTaskWithGitHubRepoKeepsLocalWorktree(t *testing.T) {
 	}
 }
 
+func TestProjectTaskWithGitHubRepoUsesProjectRepoWorktree(t *testing.T) {
+	oldProjectPrepare := prepareProjectTaskWorktree
+	oldPrepare := prepareTaskWorktree
+	t.Cleanup(func() {
+		prepareProjectTaskWorktree = oldProjectPrepare
+		prepareTaskWorktree = oldPrepare
+	})
+
+	var gotProjectID, gotRepoURL, gotTaskID string
+	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+		gotProjectID = projectID
+		gotRepoURL = repoURL
+		gotTaskID = taskID
+		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+	}
+	prepareTaskWorktree = func(taskID string) (string, string, error) {
+		t.Fatalf("unexpected default LAF-Office worktree for project task %s", taskID)
+		return "", "", nil
+	}
+
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:LAF-labs/agent-lab.git",
+	})
+
+	rec := httptest.NewRecorder()
+	b.handlePostTask(rec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "create",
+		"title":      "Implement the signup flow",
+		"details":    "Build the code path and tests.",
+		"owner":      "eng",
+		"created_by": "human",
+		"project_id": project.ID,
+	}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create project task status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if gotProjectID != project.ID {
+		t.Fatalf("prepareProjectTaskWorktree projectID = %q, want %q", gotProjectID, project.ID)
+	}
+	if gotRepoURL != "git@github.com:LAF-labs/agent-lab.git" {
+		t.Fatalf("prepareProjectTaskWorktree repoURL = %q", gotRepoURL)
+	}
+	if gotTaskID == "" {
+		t.Fatal("expected task ID to be passed to project worktree preparation")
+	}
+}
+
 func createProjectForTest(t *testing.T, b *Broker, body map[string]string) teamProject {
 	t.Helper()
 	rec := httptest.NewRecorder()

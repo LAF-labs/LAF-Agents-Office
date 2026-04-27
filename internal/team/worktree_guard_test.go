@@ -32,6 +32,7 @@ func init() {
 	allowRealTaskWorktree = false
 	unscopedWikiRootAllowed = false
 	prepareTaskWorktree = stubPrepareTaskWorktree
+	prepareProjectTaskWorktree = stubPrepareProjectTaskWorktree
 	cleanupTaskWorktree = stubCleanupTaskWorktree
 	skipBrokerStateLoadOnConstruct = true
 
@@ -59,6 +60,10 @@ func stubPrepareTaskWorktree(taskID string) (string, string, error) {
 	return path, branch, nil
 }
 
+func stubPrepareProjectTaskWorktree(_, _, taskID string) (string, string, error) {
+	return stubPrepareTaskWorktree(taskID)
+}
+
 func stubCleanupTaskWorktree(string, string) error { return nil }
 
 // allowRealTaskWorktreeForTest opts the current test into the real
@@ -75,13 +80,16 @@ func allowRealTaskWorktreeForTest(t *testing.T) {
 	t.Helper()
 	prevAllow := allowRealTaskWorktree
 	prevPrepare := prepareTaskWorktree
+	prevProjectPrepare := prepareProjectTaskWorktree
 	prevCleanup := cleanupTaskWorktree
 	allowRealTaskWorktree = true
 	prepareTaskWorktree = defaultPrepareTaskWorktree
+	prepareProjectTaskWorktree = defaultPrepareProjectTaskWorktree
 	cleanupTaskWorktree = defaultCleanupTaskWorktree
 	t.Cleanup(func() {
 		allowRealTaskWorktree = prevAllow
 		prepareTaskWorktree = prevPrepare
+		prepareProjectTaskWorktree = prevProjectPrepare
 		cleanupTaskWorktree = prevCleanup
 	})
 }

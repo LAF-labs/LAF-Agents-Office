@@ -17,6 +17,7 @@ import (
 )
 
 var prepareTaskWorktree = defaultPrepareTaskWorktree
+var prepareProjectTaskWorktree = defaultPrepareProjectTaskWorktree
 var cleanupTaskWorktree = defaultCleanupTaskWorktree
 var taskWorktreeRootDir = defaultTaskWorktreeRootDir
 var verifyTaskWorktreeWritable = defaultVerifyTaskWorktreeWritable
@@ -56,7 +57,21 @@ func defaultPrepareTaskWorktree(taskID string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	return prepareTaskWorktreeAtRepoRoot(taskID, repoRoot, "")
+}
 
+func defaultPrepareProjectTaskWorktree(projectID, repoURL, taskID string) (string, string, error) {
+	if !allowRealTaskWorktree {
+		return "", "", errRealTaskWorktreeDisabled
+	}
+	repoRoot, err := ensureProjectRepoCheckout(projectID, repoURL)
+	if err != nil {
+		return "", "", err
+	}
+	return prepareTaskWorktreeAtRepoRoot(taskID, repoRoot, normalizeProjectID(projectID))
+}
+
+func prepareTaskWorktreeAtRepoRoot(taskID, repoRoot, projectID string) (string, string, error) {
 	branch := worktreeBranchNameForRepo(taskID, repoRoot)
 	root := taskWorktreeRootDir(repoRoot)
 	if strings.TrimSpace(root) == "" {
@@ -74,7 +89,7 @@ func defaultPrepareTaskWorktree(taskID string) (string, string, error) {
 			_ = cleanupTaskWorktreeAtRepoRoot(repoRoot, path, branch)
 			return "", "", fmt.Errorf("overlay source workspace: %w", err)
 		}
-		if err := overlayPersistedTaskWorktrees(path, taskID); err != nil {
+		if err := overlayPersistedTaskWorktrees(path, taskID, projectID); err != nil {
 			_ = cleanupTaskWorktreeAtRepoRoot(repoRoot, path, branch)
 			return "", "", fmt.Errorf("overlay prior task worktrees: %w", err)
 		}
@@ -97,6 +112,59 @@ func defaultPrepareTaskWorktree(taskID string) (string, string, error) {
 	return "", "", fmt.Errorf("create git worktree for %s: %w", taskID, firstErr)
 }
 
+func ensureProjectRepoCheckout(projectID, repoURL string) (string, error) {
+	repoURL = strings.TrimSpace(repoURL)
+	if repoURL == "" {
+		return "", fmt.Errorf("project repo url required")
+	}
+	root := projectRepoCheckoutRoot(projectID, repoURL)
+	if projectCheckoutLooksUsable(root) {
+		_ = runGit(root, "fetch", "--all", "--prune")
+		return root, nil
+	}
+	if _, err := os.Stat(root); err == nil {
+		return "", fmt.Errorf("project repo checkout exists but is not a git repository: %s", root)
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("stat project repo checkout: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
+		return "", fmt.Errorf("prepare project repo checkout root: %w", err)
+	}
+	if err := runGit("", "clone", repoURL, root); err != nil {
+		return "", fmt.Errorf("clone project repo %q: %w", repoURL, err)
+	}
+	return root, nil
+}
+
+func projectCheckoutLooksUsable(path string) bool {
+	out, err := runGitOutput(path, "rev-parse", "--is-inside-work-tree")
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(string(out)), "true")
+}
+
+func projectRepoCheckoutRoot(projectID, repoURL string) string {
+	token := projectRepoToken(projectID, repoURL)
+	if home := strings.TrimSpace(config.RuntimeHomeDir()); home != "" {
+		return product.RuntimePath(home, "project-repos", token)
+	}
+	return filepath.Join(os.TempDir(), product.CLIName+"-project-repos", token)
+}
+
+func projectRepoToken(projectID, repoURL string) string {
+	base := sanitizeWorktreeToken(projectID)
+	if base == "" || base == "task" {
+		base = sanitizeWorktreeToken(strings.TrimSuffix(filepath.Base(strings.TrimSpace(repoURL)), ".git"))
+	}
+	if base == "" || base == "task" {
+		base = "project"
+	}
+	sum := fnv.New32a()
+	_, _ = sum.Write([]byte(strings.TrimSpace(repoURL)))
+	return fmt.Sprintf("%s-%08x", base, sum.Sum32())
+}
+
 func clearStaleTaskBranch(repoRoot, branch string) error {
 	branch = strings.TrimSpace(branch)
 	if branch == "" || !gitRefExists(repoRoot, "refs/heads/"+branch) {
@@ -113,11 +181,30 @@ func clearStaleTaskBranch(repoRoot, branch string) error {
 }
 
 func defaultCleanupTaskWorktree(path, branch string) error {
-	repoRoot, err := gitRepoRoot()
-	if err != nil {
-		return err
+	repoRoot, err := repoRootForTaskWorktree(path)
+	if err != nil || strings.TrimSpace(repoRoot) == "" {
+		repoRoot, err = gitRepoRoot()
+		if err != nil {
+			return err
+		}
 	}
 	return cleanupTaskWorktreeAtRepoRoot(repoRoot, path, branch)
+}
+
+func repoRootForTaskWorktree(path string) (string, error) {
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "" {
+		return "", fmt.Errorf("task worktree path required")
+	}
+	raw, err := runGitOutput(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return "", err
+	}
+	commonDir := filepath.Clean(strings.TrimSpace(string(raw)))
+	if filepath.Base(commonDir) == ".git" {
+		return filepath.Dir(commonDir), nil
+	}
+	return "", fmt.Errorf("unsupported git common dir for task worktree: %s", commonDir)
 }
 
 func defaultVerifyTaskWorktreeWritable(path string) error {
@@ -280,7 +367,7 @@ func overlayWorkspaceChanges(sourceRoot, worktreePath string) error {
 	return nil
 }
 
-func overlayPersistedTaskWorktrees(worktreePath string, currentTaskID string) error {
+func overlayPersistedTaskWorktrees(worktreePath string, currentTaskID string, currentProjectID string) error {
 	raw, err := os.ReadFile(defaultBrokerStatePath())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -297,8 +384,12 @@ func overlayPersistedTaskWorktrees(worktreePath string, currentTaskID string) er
 	}
 
 	seenSources := make(map[string]struct{})
+	currentProjectID = normalizeProjectID(currentProjectID)
 	for _, task := range state.Tasks {
 		if strings.TrimSpace(task.ID) == strings.TrimSpace(currentTaskID) {
+			continue
+		}
+		if currentProjectID != "" && normalizeProjectID(task.ProjectID) != currentProjectID {
 			continue
 		}
 		if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
