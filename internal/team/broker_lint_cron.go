@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // startLintCron launches a goroutine that sleeps until the next HH:MM in the
@@ -30,7 +32,7 @@ import (
 // Unset / empty / "disabled" all mean no cron — no LLM calls happen unless
 // a human explicitly clicks "Check wiki health" in the UI.
 func (b *Broker) startLintCron(ctx context.Context, idx *WikiIndex, worker *WikiWorker) {
-	schedule := strings.TrimSpace(os.Getenv("LAF_OFFICE_LINT_CRON"))
+	schedule := strings.TrimSpace(os.Getenv(product.Env("LINT_CRON")))
 	if schedule == "" || schedule == "disabled" {
 		log.Printf("wiki lint cron: disabled (set LAF_OFFICE_LINT_CRON=HH:MM to enable a daily run)")
 		return

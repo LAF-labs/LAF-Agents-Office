@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -230,7 +231,7 @@ func brokerPostOfficeMembers(body map[string]any) (map[string]any, error) {
 }
 
 func resolveBrokerBaseURL() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_TEAM_BROKER_URL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("TEAM_BROKER_URL"))); v != "" {
 		return strings.TrimRight(v, "/")
 	}
 	if v := strings.TrimSpace(os.Getenv("NEX_TEAM_BROKER_URL")); v != "" {
@@ -240,13 +241,13 @@ func resolveBrokerBaseURL() string {
 }
 
 func resolveBrokerToken() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN")); v != "" {
 		return v
 	}
-	if path := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN_FILE")); path != "" {
+	if path := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN_FILE"))); path != "" {
 		if raw, err := os.ReadFile(path); err == nil {
 			return strings.TrimSpace(string(raw))
 		}

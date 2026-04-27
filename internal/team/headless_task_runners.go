@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 var listHeadlessTaskRunnerProcesses = func() ([]byte, error) {
@@ -72,6 +74,6 @@ func isHeadlessTaskRunnerCommand(command string) bool {
 		return false
 	}
 	return strings.Contains(command, "codex") &&
-		strings.Contains(command, "laf-office-task-") &&
-		strings.Contains(command, "mcp_servers.laf-office.command=")
+		strings.Contains(command, product.TaskPrefix) &&
+		strings.Contains(command, "mcp_servers."+product.CLIName+".command=")
 }

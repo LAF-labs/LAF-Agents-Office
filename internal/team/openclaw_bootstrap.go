@@ -8,6 +8,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -67,7 +68,7 @@ func StartOpenclawBridgeFromConfig(ctx context.Context, broker *Broker) (*Opencl
 	// first openclaw hire on a fresh install would fail with "bridge not
 	// active," which is exactly the chicken-and-egg we want to avoid.
 	cfg, _ := config.Load()
-	gatewayConfigured := strings.TrimSpace(cfg.OpenclawGatewayURL) != "" || strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_GATEWAY_URL")) != "" || strings.TrimSpace(os.Getenv("NEX_OPENCLAW_GATEWAY_URL")) != ""
+	gatewayConfigured := strings.TrimSpace(cfg.OpenclawGatewayURL) != "" || strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_GATEWAY_URL"))) != "" || strings.TrimSpace(os.Getenv("NEX_OPENCLAW_GATEWAY_URL")) != ""
 	if len(bridged) == 0 && !gatewayConfigured {
 		return nil, nil
 	}

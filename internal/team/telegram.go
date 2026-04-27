@@ -294,7 +294,7 @@ func formatTelegramOutbound(msg channelMessage) string {
 	case msg.Kind == "skill_proposal":
 		return fmt.Sprintf("💡 <b>Skill proposed</b>: %s", escapeTelegramHTML(msg.Content))
 
-	case msg.Kind == "automation":
+	case msg.Kind == messageKindAutomation:
 		source := msg.Source
 		if msg.SourceLabel != "" {
 			source = msg.SourceLabel

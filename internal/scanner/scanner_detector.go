@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // ChangeDetector decides whether a file needs re-ingestion and records
@@ -208,7 +210,7 @@ func LoadScanExtensions(override []string) map[string]struct{} {
 	case len(override) > 0:
 		list = override
 	default:
-		if env := strings.TrimSpace(os.Getenv("LAF_OFFICE_SCAN_EXTENSIONS")); env != "" {
+		if env := strings.TrimSpace(os.Getenv(product.Env("SCAN_EXTENSIONS"))); env != "" {
 			for _, raw := range strings.Split(env, ",") {
 				raw = strings.TrimSpace(raw)
 				if raw == "" {

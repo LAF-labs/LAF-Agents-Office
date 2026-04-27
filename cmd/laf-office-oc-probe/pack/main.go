@@ -18,12 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
@@ -87,13 +87,13 @@ func main() {
 	if err := os.Setenv("HOME", tmpHome); err != nil {
 		die("setenv HOME: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(tmpHome, ".laf-office"), 0o700); err != nil {
+	if err := os.MkdirAll(product.RuntimePath(tmpHome), 0o700); err != nil {
 		die("mkdir .laf-office: %v", err)
 	}
-	if err := os.Setenv("LAF_OFFICE_OPENCLAW_IDENTITY_PATH", realIdentityPath); err != nil {
+	if err := os.Setenv(product.Env("OPENCLAW_IDENTITY_PATH"), realIdentityPath); err != nil {
 		die("setenv identity path: %v", err)
 	}
-	if err := os.Setenv("LAF_OFFICE_OPENCLAW_TOKEN", token); err != nil {
+	if err := os.Setenv(product.Env("OPENCLAW_TOKEN"), token); err != nil {
 		die("setenv token: %v", err)
 	}
 

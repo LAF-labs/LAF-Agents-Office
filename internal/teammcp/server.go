@@ -16,6 +16,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
@@ -442,12 +443,12 @@ type TeamTaskStatusArgs struct {
 
 func Run(ctx context.Context) error {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "laf-office-team",
+		Name:    product.CLIName + "-team",
 		Version: "0.1.0",
 	}, nil)
 
 	server.AddReceivingMiddleware(agentToolEventMiddleware)
-	configureServerTools(server, resolveSlugOptional(""), strings.TrimSpace(os.Getenv("LAF_OFFICE_CHANNEL")), isOneOnOneMode())
+	configureServerTools(server, resolveSlugOptional(""), strings.TrimSpace(os.Getenv(product.Env("CHANNEL"))), isOneOnOneMode())
 	return server.Run(ctx, &mcp.StdioTransport{})
 }
 
@@ -534,7 +535,7 @@ func postAgentToolEvent(ctx context.Context, slug, phase, tool, args, result, er
 // nex/gbrain installs expose the legacy team_memory_* tools; `none` skips
 // them entirely. Both tool sets NEVER coexist — agents see exactly one.
 func registerSharedMemoryTools(server *mcp.Server) {
-	switch strings.TrimSpace(os.Getenv("LAF_OFFICE_MEMORY_BACKEND")) {
+	switch strings.TrimSpace(os.Getenv(product.Env("MEMORY_BACKEND"))) {
 	case "markdown":
 		mcp.AddTool(server, officeWriteTool(
 			"team_wiki_write",
@@ -1310,7 +1311,7 @@ func handleTeamRuntimeState(ctx context.Context, _ *mcp.CallToolRequest, args Te
 	directAgent := ""
 	if isOneOnOneMode() {
 		mode = team.SessionModeOneOnOne
-		directAgent = team.NormalizeOneOnOneAgent(os.Getenv("LAF_OFFICE_ONE_ON_ONE_AGENT"))
+		directAgent = team.NormalizeOneOnOneAgent(os.Getenv(product.Env("ONE_ON_ONE_AGENT")))
 	}
 
 	snapshot := team.BuildRuntimeSnapshot(team.RuntimeSnapshotInput{
@@ -2442,7 +2443,7 @@ func reconfigureLiveOffice() error {
 }
 
 func brokerBaseURL() string {
-	base := strings.TrimSpace(os.Getenv("LAF_OFFICE_TEAM_BROKER_URL"))
+	base := strings.TrimSpace(os.Getenv(product.Env("TEAM_BROKER_URL")))
 	if base == "" {
 		base = strings.TrimSpace(os.Getenv("NEX_TEAM_BROKER_URL"))
 	}
@@ -2454,7 +2455,7 @@ func brokerBaseURL() string {
 
 func authHeaders() http.Header {
 	headers := http.Header{}
-	token := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN"))
+	token := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN")))
 	if token == "" {
 		token = strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN"))
 	}
@@ -2468,7 +2469,7 @@ func authHeaders() http.Header {
 	// per-agent rate limit. A prompt-injected agent that loops on tool calls
 	// will otherwise bypass the IP-scoped limiter because it holds the broker
 	// token. Operator traffic from the web UI never sets this header.
-	if slug := strings.TrimSpace(os.Getenv("LAF_OFFICE_AGENT_SLUG")); slug != "" {
+	if slug := strings.TrimSpace(os.Getenv(product.Env("AGENT_SLUG"))); slug != "" {
 		headers.Set("X-LAF-Office-Agent", slug)
 	} else if slug := strings.TrimSpace(os.Getenv("NEX_AGENT_SLUG")); slug != "" {
 		headers.Set("X-LAF-Office-Agent", slug)
@@ -2477,7 +2478,7 @@ func authHeaders() http.Header {
 }
 
 func readBrokerTokenFile() string {
-	path := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN_FILE"))
+	path := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN_FILE")))
 	if path == "" {
 		path = strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN_FILE"))
 	}
@@ -2492,7 +2493,7 @@ func readBrokerTokenFile() string {
 }
 
 func isOneOnOneMode() bool {
-	value := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ON_ONE"))
+	value := strings.TrimSpace(os.Getenv(product.Env("ONE_ON_ONE")))
 	return strings.EqualFold(value, "1") || strings.EqualFold(value, "true") || strings.EqualFold(value, "yes")
 }
 
@@ -2507,7 +2508,7 @@ func resolveSlugOptional(input string) string {
 	if slug := strings.TrimSpace(input); slug != "" {
 		return slug
 	}
-	if slug := strings.TrimSpace(os.Getenv("LAF_OFFICE_AGENT_SLUG")); slug != "" {
+	if slug := strings.TrimSpace(os.Getenv(product.Env("AGENT_SLUG"))); slug != "" {
 		return slug
 	}
 	return strings.TrimSpace(os.Getenv("NEX_AGENT_SLUG"))
@@ -2525,7 +2526,7 @@ func normalizeChannelInput(input string) string {
 func resolveChannelHint(input string) string {
 	channel := normalizeChannelInput(input)
 	if channel == "" {
-		channel = normalizeChannelInput(os.Getenv("LAF_OFFICE_CHANNEL"))
+		channel = normalizeChannelInput(os.Getenv(product.Env("CHANNEL")))
 	}
 	if channel == "" {
 		channel = normalizeChannelInput(os.Getenv("NEX_CHANNEL"))
@@ -3210,7 +3211,7 @@ func formatMessages(messages []brokerMessage, mySlug string) string {
 		// team_poll is background context; agents who need the full output can read
 		// it directly from the thread via a targeted team_poll with thread_id.
 		const pollContentLimit = 800
-		if msg.Kind == "automation" || msg.From == "laf-office" || msg.From == "nex" {
+		if msg.Kind == "automation" || msg.From == product.CLIName || msg.From == "nex" {
 			source := msg.Source
 			if source == "" {
 				source = "context_graph"

@@ -3,15 +3,16 @@ package agent
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 const (
-	taskLogRootEnv          = "LAF_OFFICE_TASK_LOG_ROOT"
-	compactionTokenLimitEnv = "LAF_OFFICE_COMPACTION_TOKEN_LIMIT"
+	taskLogRootEnv          = product.EnvPrefix + "_TASK_LOG_ROOT"
+	compactionTokenLimitEnv = product.EnvPrefix + "_COMPACTION_TOKEN_LIMIT"
 	defaultTokenLimit       = 100000
 	// CEO routes work for the whole office and burns through context faster
 	// than any specialist, so it gets a much larger working window before the
@@ -28,9 +29,9 @@ func defaultTaskLogRoot() string {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".laf-office", "office", "tasks")
+		return product.RuntimePath("", "office", "tasks")
 	}
-	return filepath.Join(home, ".laf-office", "office", "tasks")
+	return product.RuntimePath(home, "office", "tasks")
 }
 
 func nextTaskID(slug string) string {

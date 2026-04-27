@@ -13,11 +13,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 func currentBrokerAuthToken() string {
-	if token := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN")); token != "" {
+	if token := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN"))); token != "" {
 		return token
 	}
 	if token := strings.TrimSpace(os.Getenv("NEX_BROKER_TOKEN")); token != "" {

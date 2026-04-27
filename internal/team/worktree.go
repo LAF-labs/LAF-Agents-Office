@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 var prepareTaskWorktree = defaultPrepareTaskWorktree
@@ -58,12 +60,12 @@ func defaultPrepareTaskWorktree(taskID string) (string, string, error) {
 	branch := worktreeBranchNameForRepo(taskID, repoRoot)
 	root := taskWorktreeRootDir(repoRoot)
 	if strings.TrimSpace(root) == "" {
-		root = filepath.Join(os.TempDir(), "laf-office-task-worktrees")
+		root = filepath.Join(os.TempDir(), product.TaskRootName)
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", "", fmt.Errorf("prepare task worktree root: %w", err)
 	}
-	path := filepath.Join(root, "laf-office-task-"+sanitizeWorktreeToken(taskID))
+	path := filepath.Join(root, product.TaskPrefix+sanitizeWorktreeToken(taskID))
 	_ = runGit(repoRoot, "worktree", "prune")
 	_ = cleanupTaskWorktreeAtRepoRoot(repoRoot, path, branch)
 	_ = clearStaleTaskBranch(repoRoot, branch)
@@ -201,10 +203,10 @@ func defaultTaskWorktreeRootDir(repoRoot string) string {
 		repoToken = "workspace"
 	}
 
-	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-		return filepath.Join(home, ".laf-office", "task-worktrees", repoToken)
+	if home := strings.TrimSpace(config.RuntimeHomeDir()); home != "" {
+		return product.RuntimePath(home, "task-worktrees", repoToken)
 	}
-	return filepath.Join(os.TempDir(), "laf-office-task-worktrees", repoToken)
+	return filepath.Join(os.TempDir(), product.TaskRootName, repoToken)
 }
 
 func runGit(dir string, args ...string) error {
@@ -299,11 +301,11 @@ func overlayPersistedTaskWorktrees(worktreePath string, currentTaskID string) er
 		if strings.TrimSpace(task.ID) == strings.TrimSpace(currentTaskID) {
 			continue
 		}
-		if !strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+		if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
 			continue
 		}
 		status := strings.ToLower(strings.TrimSpace(task.Status))
-		if status != "done" && status != "review" {
+		if status != taskStatusDone && status != taskStatusReview {
 			continue
 		}
 		sourcePath := strings.TrimSpace(task.WorktreePath)
@@ -466,7 +468,7 @@ func worktreePathLooksSafe(path string) bool {
 	if path == "" {
 		return false
 	}
-	if !strings.Contains(filepath.Base(path), "laf-office-task-") {
+	if !strings.Contains(filepath.Base(path), product.TaskPrefix) {
 		return false
 	}
 	for _, root := range managedWorktreeRoots() {
@@ -480,10 +482,10 @@ func worktreePathLooksSafe(path string) bool {
 
 func managedWorktreeRoots() []string {
 	roots := make([]string, 0, 2)
-	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-		roots = append(roots, filepath.Join(home, ".laf-office", "task-worktrees"))
+	if home := strings.TrimSpace(config.RuntimeHomeDir()); home != "" {
+		roots = append(roots, product.RuntimePath(home, "task-worktrees"))
 	}
-	roots = append(roots, filepath.Join(os.TempDir(), "laf-office-task-worktrees"))
+	roots = append(roots, filepath.Join(os.TempDir(), product.TaskRootName))
 	return roots
 }
 

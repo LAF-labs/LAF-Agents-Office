@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // currentStateVersion is the schema version written to onboarded.json.
@@ -79,9 +80,9 @@ type ChecklistItem struct {
 func StatePath() string {
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".laf-office", "onboarded.json")
+		return product.RuntimePath("", "onboarded.json")
 	}
-	return filepath.Join(home, ".laf-office", "onboarded.json")
+	return product.RuntimePath(home, "onboarded.json")
 }
 
 // Load reads and parses ~/.laf-office/onboarded.json.

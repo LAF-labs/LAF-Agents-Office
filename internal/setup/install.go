@@ -5,18 +5,20 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
-const defaultCLIPackage = "@nex-ai/nex"
+const defaultCLIPackage = product.NpmPackageName
 
 // InstallLatestCLI installs the latest published CLI from npm.
 // The package and installer binary can be overridden for tests via env vars.
 func InstallLatestCLI() (string, error) {
-	bin := strings.TrimSpace(os.Getenv("LAF_OFFICE_CLI_INSTALL_BIN"))
+	bin := strings.TrimSpace(os.Getenv(product.Env("CLI_INSTALL_BIN")))
 	if bin == "" {
 		bin = "npm"
 	}
-	pkg := strings.TrimSpace(os.Getenv("LAF_OFFICE_CLI_PACKAGE"))
+	pkg := strings.TrimSpace(os.Getenv(product.Env("CLI_PACKAGE")))
 	if pkg == "" {
 		pkg = defaultCLIPackage
 	}

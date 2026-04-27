@@ -11,13 +11,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // RuntimeHomeDir returns the home directory LAF-Office should use for persisted
 // runtime state. Inventive runs may override this with LAF_OFFICE_RUNTIME_HOME so
 // they don't inherit an existing office from the user's global ~/.laf-office.
 func RuntimeHomeDir() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_RUNTIME_HOME")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("RUNTIME_HOME"))); v != "" {
 		return v
 	}
 	home, err := os.UserHomeDir()
@@ -109,14 +111,14 @@ func ConfigPath() string {
 	// Env override for test harnesses that need to isolate config state from
 	// the user's real ~/.laf-office/config.json without remapping HOME (which
 	// breaks macOS keychain-backed CLI auth).
-	if p := strings.TrimSpace(os.Getenv("LAF_OFFICE_CONFIG_PATH")); p != "" {
+	if p := strings.TrimSpace(os.Getenv(product.Env("CONFIG_PATH"))); p != "" {
 		return p
 	}
 	home := RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".laf-office", "config.json")
+		return product.RuntimePath("", "config.json")
 	}
-	newPath := filepath.Join(home, ".laf-office", "config.json")
+	newPath := product.RuntimePath(home, "config.json")
 	legacyPath := filepath.Join(home, ".nex", "config.json")
 	if _, err := os.Stat(newPath); err == nil {
 		return newPath
@@ -135,7 +137,7 @@ func ConfigPath() string {
 // engine's /v1/insights and /v1/context/ask calls. New Nex integrations
 // should shell out via the internal/nex package instead.
 func BaseURL() string {
-	if v := os.Getenv("LAF_OFFICE_DEV_URL"); v != "" {
+	if v := os.Getenv(product.Env("DEV_URL")); v != "" {
 		return v
 	}
 	if v := os.Getenv("NEX_DEV_URL"); v != "" {
@@ -188,7 +190,7 @@ func Save(cfg Config) error {
 
 // ResolveNoNex reports whether Nex-backed tools are disabled for this run.
 func ResolveNoNex() bool {
-	v := strings.TrimSpace(os.Getenv("LAF_OFFICE_NO_NEX"))
+	v := strings.TrimSpace(os.Getenv(product.Env("NO_NEX")))
 	if v == "" {
 		return false
 	}
@@ -226,7 +228,7 @@ func NormalizeMemoryBackend(value string) string {
 func ResolveMemoryBackend(flagValue string) string {
 	backend := NormalizeMemoryBackend(flagValue)
 	if backend == "" {
-		backend = NormalizeMemoryBackend(os.Getenv("LAF_OFFICE_MEMORY_BACKEND"))
+		backend = NormalizeMemoryBackend(os.Getenv(product.Env("MEMORY_BACKEND")))
 	}
 	if backend == "" {
 		cfg, _ := Load()
@@ -262,7 +264,7 @@ func ResolveLLMProvider(flagValue string) string {
 	if v := normalizeLLMProvider(flagValue); v != "" {
 		return v
 	}
-	if v := normalizeLLMProvider(os.Getenv("LAF_OFFICE_LLM_PROVIDER")); v != "" {
+	if v := normalizeLLMProvider(os.Getenv(product.Env("LLM_PROVIDER"))); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -320,7 +322,7 @@ var codexModelLinePattern = regexp.MustCompile(`(?m)^\s*model\s*=\s*("([^"\\]|\\
 // directory, following the documented Codex config layering:
 // LAF_OFFICE_CODEX_MODEL/CODEX_MODEL env > nearest .codex/config.toml > ~/.codex/config.toml.
 func ResolveCodexModel(cwd string) string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_CODEX_MODEL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("CODEX_MODEL"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("CODEX_MODEL")); v != "" {
@@ -393,7 +395,7 @@ func codexModelFromFile(path string) string {
 // file layout LAF-Office needs to inspect — users configure their Opencode
 // ~/.config/opencode settings directly, so there is no cwd-relative search.
 func ResolveOpencodeModel() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCODE_MODEL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCODE_MODEL"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("OPENCODE_MODEL")); v != "" {
@@ -410,7 +412,7 @@ func ResolveAPIKey(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	if v := os.Getenv("LAF_OFFICE_API_KEY"); v != "" {
+	if v := os.Getenv(product.Env("API_KEY")); v != "" {
 		return v
 	}
 	if v := os.Getenv("NEX_API_KEY"); v != "" {
@@ -427,7 +429,7 @@ func ResolveOneSecret() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_SECRET")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("ONE_SECRET"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ONE_SECRET")); v != "" {
@@ -443,7 +445,7 @@ func ResolveOneIdentity() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_IDENTITY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("ONE_IDENTITY"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ONE_IDENTITY")); v != "" {
@@ -459,7 +461,7 @@ func ResolveOneIdentityType() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_IDENTITY_TYPE")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("ONE_IDENTITY_TYPE"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ONE_IDENTITY_TYPE")); v != "" {
@@ -508,7 +510,7 @@ func ResolveComposioAPIKey() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_COMPOSIO_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("COMPOSIO_API_KEY"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("COMPOSIO_API_KEY")); v != "" {
@@ -520,7 +522,7 @@ func ResolveComposioAPIKey() string {
 
 // ResolveTelegramBotToken returns the stored Telegram bot token from config.
 func ResolveTelegramBotToken() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_TELEGRAM_BOT_TOKEN")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("TELEGRAM_BOT_TOKEN"))); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -561,7 +563,7 @@ func CompanyContextBlock() string {
 // ResolveGeminiAPIKey resolves the Gemini API key.
 // Resolution: LAF_OFFICE_GEMINI_API_KEY env > GEMINI_API_KEY env > config file.
 func ResolveGeminiAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_GEMINI_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("GEMINI_API_KEY"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("GEMINI_API_KEY")); v != "" {
@@ -574,7 +576,7 @@ func ResolveGeminiAPIKey() string {
 // ResolveAnthropicAPIKey resolves the Anthropic API key.
 // Resolution: LAF_OFFICE_ANTHROPIC_API_KEY env > ANTHROPIC_API_KEY env > config file.
 func ResolveAnthropicAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ANTHROPIC_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("ANTHROPIC_API_KEY"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")); v != "" {
@@ -587,7 +589,7 @@ func ResolveAnthropicAPIKey() string {
 // ResolveOpenAIAPIKey resolves the OpenAI API key.
 // Resolution: LAF_OFFICE_OPENAI_API_KEY env > OPENAI_API_KEY env > config file.
 func ResolveOpenAIAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENAI_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("OPENAI_API_KEY"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("OPENAI_API_KEY")); v != "" {
@@ -600,7 +602,7 @@ func ResolveOpenAIAPIKey() string {
 // ResolveMinimaxAPIKey resolves the Minimax API key.
 // Resolution: LAF_OFFICE_MINIMAX_API_KEY env > MINIMAX_API_KEY env > config file.
 func ResolveMinimaxAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_MINIMAX_API_KEY")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("MINIMAX_API_KEY"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("MINIMAX_API_KEY")); v != "" {
@@ -616,7 +618,7 @@ func ResolveComposioUserID() string {
 	if ResolveNoNex() {
 		return ""
 	}
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_COMPOSIO_USER_ID")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("COMPOSIO_USER_ID"))); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(os.Getenv("COMPOSIO_USER_ID")); v != "" {
@@ -629,7 +631,7 @@ func ResolveComposioUserID() string {
 // ResolveActionProvider resolves the preferred external action provider.
 // Resolution: LAF_OFFICE_ACTION_PROVIDER env > ACTION_PROVIDER env > config file > auto.
 func ResolveActionProvider() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_ACTION_PROVIDER")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("ACTION_PROVIDER"))); v != "" {
 		return strings.ToLower(v)
 	}
 	if v := strings.TrimSpace(os.Getenv("ACTION_PROVIDER")); v != "" {
@@ -690,7 +692,7 @@ func PersistRegistration(data map[string]interface{}) error {
 
 func ResolveInsightsPollInterval() int {
 	minutes := 15
-	if raw := os.Getenv("LAF_OFFICE_INSIGHTS_INTERVAL_MINUTES"); raw != "" {
+	if raw := os.Getenv(product.Env("INSIGHTS_INTERVAL_MINUTES")); raw != "" {
 		if n, err := strconv.Atoi(raw); err == nil {
 			minutes = n
 		}
@@ -709,7 +711,7 @@ func ResolveInsightsPollInterval() int {
 
 func ResolveTaskFollowUpInterval() int {
 	return resolveTaskInterval(
-		"LAF_OFFICE_TASK_FOLLOWUP_MINUTES",
+		product.Env("TASK_FOLLOWUP_MINUTES"),
 		"NEX_TASK_FOLLOWUP_MINUTES",
 		func(cfg Config) int { return cfg.TaskFollowUpMinutes },
 		60,
@@ -718,7 +720,7 @@ func ResolveTaskFollowUpInterval() int {
 
 func ResolveTaskReminderInterval() int {
 	return resolveTaskInterval(
-		"LAF_OFFICE_TASK_REMINDER_MINUTES",
+		product.Env("TASK_REMINDER_MINUTES"),
 		"NEX_TASK_REMINDER_MINUTES",
 		func(cfg Config) int { return cfg.TaskReminderMinutes },
 		30,
@@ -727,7 +729,7 @@ func ResolveTaskReminderInterval() int {
 
 func ResolveTaskRecheckInterval() int {
 	return resolveTaskInterval(
-		"LAF_OFFICE_TASK_RECHECK_MINUTES",
+		product.Env("TASK_RECHECK_MINUTES"),
 		"NEX_TASK_RECHECK_MINUTES",
 		func(cfg Config) int { return cfg.TaskRecheckMinutes },
 		15,
@@ -755,7 +757,7 @@ func resolveTaskInterval(envKey, legacyEnvKey string, fromConfig func(Config) in
 
 // ResolveOpenclawToken returns the OpenClaw gateway auth token from env > config.
 func ResolveOpenclawToken() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_TOKEN")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_TOKEN"))); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -764,7 +766,7 @@ func ResolveOpenclawToken() string {
 
 // ResolveOpenclawGatewayURL returns the OpenClaw gateway URL from env > config > default loopback.
 func ResolveOpenclawGatewayURL() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_GATEWAY_URL")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_GATEWAY_URL"))); v != "" {
 		return v
 	}
 	cfg, _ := Load()
@@ -779,12 +781,12 @@ func ResolveOpenclawGatewayURL() string {
 // zero scopes — so this keypair is effectively credentials: write only to a
 // user-scoped 0600 file under the LAF-Office home.
 func ResolveOpenclawIdentityPath() string {
-	if v := strings.TrimSpace(os.Getenv("LAF_OFFICE_OPENCLAW_IDENTITY_PATH")); v != "" {
+	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_IDENTITY_PATH"))); v != "" {
 		return v
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".laf-office", "openclaw", "identity.json")
+	home := RuntimeHomeDir()
+	if home == "" {
+		return product.RuntimePath("", "openclaw", "identity.json")
 	}
-	return filepath.Join(home, ".laf-office", "openclaw", "identity.json")
+	return product.RuntimePath(home, "openclaw", "identity.json")
 }

@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // ToolRegistry manages a set of named AgentTools.
@@ -417,11 +419,11 @@ func localToolDefinitions() []AgentTool {
 				if strings.TrimSpace(message) == "" {
 					return "", fmt.Errorf("message is required")
 				}
-				home, err := os.UserHomeDir()
-				if err != nil {
-					return "", err
+				home := strings.TrimSpace(config.RuntimeHomeDir())
+				if home == "" {
+					return "", fmt.Errorf("resolve runtime home")
 				}
-				outboxDir := filepath.Join(home, ".laf-office", "office", "messages")
+				outboxDir := product.RuntimePath(home, "office", "messages")
 				if err := os.MkdirAll(outboxDir, 0o755); err != nil {
 					return "", err
 				}

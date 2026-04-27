@@ -113,6 +113,7 @@ func TestSubmitPromotion_InvalidPaths(t *testing.T) {
 		{"source not under agent", SubmitPromotionRequest{SourceSlug: "pm", SourcePath: "agents/other/notebook/x.md", TargetPath: "team/x.md"}},
 		{"target not under team", SubmitPromotionRequest{SourceSlug: "pm", SourcePath: "agents/pm/notebook/x.md", TargetPath: "wrong/x.md"}},
 		{"target no .md", SubmitPromotionRequest{SourceSlug: "pm", SourcePath: "agents/pm/notebook/x.md", TargetPath: "team/x"}},
+		{"missing rationale", SubmitPromotionRequest{SourceSlug: "pm", SourcePath: "agents/pm/notebook/x.md", TargetPath: "team/x.md"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -339,10 +340,10 @@ func TestList_ScopeFiltering(t *testing.T) {
 		return "ceo"
 	}, time.Now)
 	p1, _ := rl.SubmitPromotion(SubmitPromotionRequest{
-		SourceSlug: "pm", SourcePath: "agents/pm/notebook/a.md", TargetPath: "team/playbooks/a.md",
+		SourceSlug: "pm", SourcePath: "agents/pm/notebook/a.md", TargetPath: "team/playbooks/a.md", Rationale: "Promote reviewed playbook note.",
 	})
 	rl.SubmitPromotion(SubmitPromotionRequest{
-		SourceSlug: "pm", SourcePath: "agents/pm/notebook/b.md", TargetPath: "team/people/b.md",
+		SourceSlug: "pm", SourcePath: "agents/pm/notebook/b.md", TargetPath: "team/people/b.md", Rationale: "Promote reviewed people note.",
 	})
 
 	allList := rl.List("all")

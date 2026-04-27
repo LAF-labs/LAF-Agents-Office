@@ -241,6 +241,9 @@ func (l *ReviewLog) SubmitPromotion(req SubmitPromotionRequest) (*Promotion, err
 	if err := validateArticlePath(req.TargetPath); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(req.Rationale) == "" {
+		return nil, fmt.Errorf("promotion: rationale is required")
+	}
 	reviewer := strings.TrimSpace(req.ReviewerOverride)
 	if reviewer == "" {
 		reviewer = l.resolver(req.TargetPath)

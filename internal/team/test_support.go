@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // stubTaskWorktreePath returns the canonical stub path + branch shape used
@@ -18,7 +20,7 @@ import (
 func stubTaskWorktreePath(taskID string) (string, string) {
 	id := sanitizeWorktreeToken(taskID)
 	root := defaultTaskWorktreeRootDir("stub")
-	return filepath.Join(root, "laf-office-task-"+id), "laf-office-" + id
+	return filepath.Join(root, product.TaskPrefix+id), product.CLIName + "-" + id
 }
 
 // DisableRealTaskWorktreeForTests replaces the package-level
@@ -64,9 +66,10 @@ func DisableRealTaskWorktreeForTests() {
 	// real home. Matches worktree_guard_test.go's init for the team
 	// package's own tests. Tests that override with t.Setenv take
 	// precedence and their restore lands on this safe default.
-	if os.Getenv("LAF_OFFICE_RUNTIME_HOME") == "" {
-		if dir, err := os.MkdirTemp("", "laf-office-disable-real-worktree-home-*"); err == nil {
-			_ = os.Setenv("LAF_OFFICE_RUNTIME_HOME", dir)
+	runtimeHomeEnv := product.Env("RUNTIME_HOME")
+	if os.Getenv(runtimeHomeEnv) == "" {
+		if dir, err := os.MkdirTemp("", product.CLIName+"-disable-real-worktree-home-*"); err == nil {
+			_ = os.Setenv(runtimeHomeEnv, dir)
 		}
 	}
 }

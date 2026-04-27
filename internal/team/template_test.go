@@ -23,3 +23,29 @@ func TestParseGeneratedMemberTemplateAppliesDefaults(t *testing.T) {
 		t.Fatalf("expected default permission mode plan, got %q", tmpl.PermissionMode)
 	}
 }
+
+func TestParseGeneratedMemberTemplateNormalizesPermissionMode(t *testing.T) {
+	tmpl, err := parseGeneratedMemberTemplate(`{"slug":"qa","name":"QA","permission_mode":"root"}`)
+	if err != nil {
+		t.Fatalf("parseGeneratedMemberTemplate: %v", err)
+	}
+	if tmpl.PermissionMode != "plan" {
+		t.Fatalf("unsafe permission mode should normalize to plan, got %q", tmpl.PermissionMode)
+	}
+}
+
+func TestParseGeneratedChannelTemplateNormalizesMembers(t *testing.T) {
+	tmpl, err := parseGeneratedChannelTemplate(`{"slug":"Launch Room","members":[" PM ","pm","","CEO"]}`)
+	if err != nil {
+		t.Fatalf("parseGeneratedChannelTemplate: %v", err)
+	}
+	want := []string{"pm", "ceo"}
+	if len(tmpl.Members) != len(want) {
+		t.Fatalf("members len: got %#v want %#v", tmpl.Members, want)
+	}
+	for i := range want {
+		if tmpl.Members[i] != want[i] {
+			t.Fatalf("member %d: got %#v want %#v", i, tmpl.Members, want)
+		}
+	}
+}

@@ -6,18 +6,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/commands"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/teammcp"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/workspace"
 )
 
-const appName = "laf-office"
+const appName = product.CLIName
 
 // subcommandWantsHelp reports whether the remaining args after the subcommand
 // name request help. We intercept this BEFORE invoking the subcommand so that
@@ -171,10 +171,10 @@ func main() {
 	}
 
 	if *noNex {
-		_ = os.Setenv("LAF_OFFICE_NO_NEX", "1")
+		_ = os.Setenv(product.Env("NO_NEX"), "1")
 	}
 	if *brokerPort > 0 {
-		_ = os.Setenv("LAF_OFFICE_BROKER_PORT", fmt.Sprintf("%d", *brokerPort))
+		_ = os.Setenv(product.Env("BROKER_PORT"), fmt.Sprintf("%d", *brokerPort))
 	}
 	if backend := strings.TrimSpace(*memoryBackend); backend != "" {
 		normalized := config.NormalizeMemoryBackend(backend)
@@ -182,12 +182,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: unsupported memory backend %q (expected nex, gbrain, or none)\n", backend)
 			os.Exit(1)
 		}
-		_ = os.Setenv("LAF_OFFICE_MEMORY_BACKEND", normalized)
+		_ = os.Setenv(product.Env("MEMORY_BACKEND"), normalized)
 	}
 	if provider := strings.TrimSpace(*providerFlag); provider != "" {
 		switch provider {
 		case "claude-code", "codex", "opencode":
-			_ = os.Setenv("LAF_OFFICE_LLM_PROVIDER", provider)
+			_ = os.Setenv(product.Env("LLM_PROVIDER"), provider)
 		default:
 			fmt.Fprintf(os.Stderr, "error: unsupported provider %q (expected claude-code, codex, or opencode)\n", provider)
 			os.Exit(1)
@@ -195,12 +195,12 @@ func main() {
 	}
 	startFromScratch := *fromScratchFlag
 	if startFromScratch {
-		_ = os.Setenv("LAF_OFFICE_START_FROM_SCRATCH", "1")
+		_ = os.Setenv(product.Env("START_FROM_SCRATCH"), "1")
 		if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-			_ = os.Setenv("LAF_OFFICE_GLOBAL_HOME", home)
+			_ = os.Setenv(product.Env("GLOBAL_HOME"), home)
 		}
 		if runtimeHome := fromScratchRuntimeHome(); runtimeHome != "" {
-			_ = os.Setenv("LAF_OFFICE_RUNTIME_HOME", runtimeHome)
+			_ = os.Setenv(product.Env("RUNTIME_HOME"), runtimeHome)
 		}
 	}
 
@@ -337,7 +337,7 @@ func runTeam(args []string, packSlug string, unsafe bool, oneOnOne bool, opusCEO
 		// Propagate the flag to child MCP processes so they can skip the
 		// per-action human approval gate. The broker and teammcp servers read
 		// this env var directly; the flag is deliberately local-only.
-		_ = os.Setenv("LAF_OFFICE_UNSAFE", "1")
+		_ = os.Setenv(product.Env("UNSAFE"), "1")
 		fmt.Fprintf(os.Stderr, "\n\u26a0\ufe0f  UNSAFE MODE: All agents have unrestricted permissions.\n")
 		fmt.Fprintf(os.Stderr, "   Prison Mike would be proud. Use for local dev only.\n\n")
 	}
@@ -355,13 +355,13 @@ func runTeam(args []string, packSlug string, unsafe bool, oneOnOne bool, opusCEO
 	}
 	if !l.UsesTmuxRuntime() {
 		if token := strings.TrimSpace(l.BrokerToken()); token != "" {
-			_ = os.Setenv("LAF_OFFICE_BROKER_TOKEN", token)
+			_ = os.Setenv(product.Env("BROKER_TOKEN"), token)
 		}
-		_ = os.Setenv("LAF_OFFICE_BROKER_BASE_URL", l.BrokerBaseURL())
-		_ = os.Setenv("LAF_OFFICE_HEADLESS_PROVIDER", "codex")
+		_ = os.Setenv(product.Env("BROKER_BASE_URL"), l.BrokerBaseURL())
+		_ = os.Setenv(product.Env("HEADLESS_PROVIDER"), "codex")
 		if oneOnOne {
-			_ = os.Setenv("LAF_OFFICE_ONE_ON_ONE", "1")
-			_ = os.Setenv("LAF_OFFICE_ONE_ON_ONE_AGENT", l.OneOnOneAgent())
+			_ = os.Setenv(product.Env("ONE_ON_ONE"), "1")
+			_ = os.Setenv(product.Env("ONE_ON_ONE_AGENT"), l.OneOnOneAgent())
 		}
 		defer func() { _ = l.Kill() }()
 		runChannelView(false, resolveInitialOfficeApp(""), false)
@@ -383,7 +383,7 @@ func runTeam(args []string, packSlug string, unsafe bool, oneOnOne bool, opusCEO
 		// Keep the process alive to maintain the broker.
 		fmt.Fprintf(os.Stderr, "Could not attach to tmux (not a terminal?). The office is running without you — like when Michael went to New York.\n")
 		fmt.Fprintf(os.Stderr, "Team is running in background. Attach manually:\n")
-		fmt.Fprintf(os.Stderr, "  tmux -L laf-office attach -t laf-office-team\n")
+		fmt.Fprintf(os.Stderr, "  tmux -L %s attach -t %s\n", team.TmuxSocketName(), team.SessionName)
 		fmt.Fprintf(os.Stderr, "Broker running on %s\n", l.BrokerBaseURL())
 		fmt.Fprintf(os.Stderr, "Press Ctrl+C to stop.\n")
 		// Block forever — broker + notification loop stay alive
@@ -400,7 +400,7 @@ func runWeb(args []string, packSlug string, unsafe bool, webPort int, opusCEO bo
 	if unsafe {
 		l.SetUnsafe(true)
 		// Propagate so child MCP processes skip the per-action approval gate.
-		_ = os.Setenv("LAF_OFFICE_UNSAFE", "1")
+		_ = os.Setenv(product.Env("UNSAFE"), "1")
 	}
 	if opusCEO {
 		l.SetOpusCEO(true)
@@ -427,7 +427,7 @@ func fromScratchRuntimeHome() string {
 	if cwd == "" {
 		return ""
 	}
-	base := filepath.Join(cwd, ".laf-office")
+	base := product.RuntimePath(cwd)
 	if err := os.MkdirAll(base, 0o700); err != nil {
 		return ""
 	}

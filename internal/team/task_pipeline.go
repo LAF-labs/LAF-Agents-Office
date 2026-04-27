@@ -52,8 +52,7 @@ func taskNeedsStructuredReview(task *teamTask) bool {
 	if task == nil {
 		return false
 	}
-	if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") ||
-		strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "live_external") {
+	if isLocalWorktreeExecutionMode(task.ExecutionMode) || isLiveExternalExecutionMode(task.ExecutionMode) {
 		return true
 	}
 	template := pipelineTemplate(task.TaskType)
@@ -66,25 +65,25 @@ func taskNeedsStructuredReview(task *teamTask) bool {
 func taskDefaultExecutionMode(owner, taskType, title, details string) string {
 	task := &teamTask{Owner: owner, TaskType: taskType, Title: title, Details: details}
 	if taskRequiresRealExternalExecution(task) {
-		return "live_external"
+		return executionModeLiveExternal
 	}
 	switch strings.TrimSpace(strings.ToLower(taskType)) {
 	case "feature", "bugfix", "incident":
 		if taskWorkRequiresLocalExecution(owner, title, details) {
-			return "local_worktree"
+			return executionModeLocalWorktree
 		}
 	}
-	return "office"
+	return executionModeOffice
 }
 
 func taskStageForStatus(task *teamTask) string {
 	template := pipelineTemplate(task.TaskType)
 	switch strings.TrimSpace(task.Status) {
-	case "in_progress":
+	case taskStatusInProgress:
 		return template.ActiveStage
-	case "review":
+	case taskStatusReview:
 		return template.ReviewStage
-	case "done":
+	case taskStatusDone:
 		return template.DoneStage
 	default:
 		return template.OpenStage
@@ -106,17 +105,17 @@ func normalizeTaskPlan(task *teamTask) {
 	}
 	if strings.TrimSpace(task.ReviewState) == "" {
 		if taskNeedsStructuredReview(task) {
-			task.ReviewState = "pending_review"
+			task.ReviewState = reviewStatePendingReview
 		} else {
-			task.ReviewState = "not_required"
+			task.ReviewState = reviewStateNotRequired
 		}
 	}
-	if strings.TrimSpace(task.Status) == "review" {
-		task.ReviewState = "ready_for_review"
+	if strings.TrimSpace(task.Status) == taskStatusReview {
+		task.ReviewState = reviewStateReadyForReview
 	}
-	if strings.TrimSpace(task.Status) == "done" &&
-		(task.ReviewState == "pending_review" || task.ReviewState == "ready_for_review") {
-		task.ReviewState = "approved"
+	if strings.TrimSpace(task.Status) == taskStatusDone &&
+		(task.ReviewState == reviewStatePendingReview || task.ReviewState == reviewStateReadyForReview) {
+		task.ReviewState = reviewStateApproved
 	}
 	task.PipelineStage = taskStageForStatus(task)
 }
@@ -163,7 +162,7 @@ func taskRequiresRealExternalExecution(task *teamTask) bool {
 	if task == nil {
 		return false
 	}
-	if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return false
 	}
 	text := strings.ToLower(strings.TrimSpace(strings.Join([]string{task.Owner, task.Title, task.Details}, " ")))

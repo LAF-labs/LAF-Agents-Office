@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -23,7 +24,7 @@ func (l *Launcher) GenerateMemberTemplateFromPrompt(request string) (generatedMe
 	if request == "" {
 		return generatedMemberTemplate{}, fmt.Errorf("prompt is required")
 	}
-	if stub := strings.TrimSpace(os.Getenv("LAF_OFFICE_AGENT_TEMPLATE_STUB")); stub != "" {
+	if stub := strings.TrimSpace(os.Getenv(product.Env("AGENT_TEMPLATE_STUB"))); stub != "" {
 		return parseGeneratedMemberTemplate(stub)
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
@@ -85,8 +86,19 @@ func parseGeneratedMemberTemplate(raw string) (generatedMemberTemplate, error) {
 	}
 	if tmpl.PermissionMode == "" {
 		tmpl.PermissionMode = "plan"
+	} else {
+		tmpl.PermissionMode = normalizeGeneratedPermissionMode(tmpl.PermissionMode)
 	}
 	return tmpl, nil
+}
+
+func normalizeGeneratedPermissionMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "auto":
+		return "auto"
+	default:
+		return "plan"
+	}
 }
 
 type generatedChannelTemplate struct {
@@ -101,7 +113,7 @@ func (l *Launcher) GenerateChannelTemplateFromPrompt(request string) (generatedC
 	if request == "" {
 		return generatedChannelTemplate{}, fmt.Errorf("prompt is required")
 	}
-	if stub := strings.TrimSpace(os.Getenv("LAF_OFFICE_CHANNEL_TEMPLATE_STUB")); stub != "" {
+	if stub := strings.TrimSpace(os.Getenv(product.Env("CHANNEL_TEMPLATE_STUB"))); stub != "" {
 		return parseGeneratedChannelTemplate(stub)
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
@@ -153,16 +165,23 @@ func parseGeneratedChannelTemplate(raw string) (generatedChannelTemplate, error)
 	if tmpl.Description == "" {
 		tmpl.Description = defaultTeamChannelDescription(tmpl.Slug, tmpl.Name)
 	}
-	hasCEO := false
+	members := make([]string, 0, len(tmpl.Members)+1)
+	seen := map[string]struct{}{}
 	for _, m := range tmpl.Members {
-		if m == "ceo" {
-			hasCEO = true
-			break
+		slug := normalizeActorSlug(m)
+		if slug == "" {
+			continue
 		}
+		if _, ok := seen[slug]; ok {
+			continue
+		}
+		seen[slug] = struct{}{}
+		members = append(members, slug)
 	}
-	if !hasCEO {
-		tmpl.Members = append([]string{"ceo"}, tmpl.Members...)
+	if _, ok := seen["ceo"]; !ok {
+		members = append([]string{"ceo"}, members...)
 	}
+	tmpl.Members = members
 	return tmpl, nil
 }
 

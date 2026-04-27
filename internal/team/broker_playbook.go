@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // playbookSubscribersMu guards lazy init of the subscriber map. We do NOT
@@ -393,7 +395,7 @@ func (b *Broker) ensurePlaybookSynthesizer() {
 }
 
 func resolvePlaybookSynthThresholdFromEnv() int {
-	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_PLAYBOOK_SYNTHESIS_THRESHOLD"))
+	raw := strings.TrimSpace(os.Getenv(product.Env("PLAYBOOK_SYNTHESIS_THRESHOLD")))
 	if raw == "" {
 		return DefaultPlaybookSynthesisThreshold
 	}
@@ -405,7 +407,7 @@ func resolvePlaybookSynthThresholdFromEnv() int {
 }
 
 func resolvePlaybookSynthTimeoutFromEnv() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_PLAYBOOK_SYNTHESIS_TIMEOUT"))
+	raw := strings.TrimSpace(os.Getenv(product.Env("PLAYBOOK_SYNTHESIS_TIMEOUT")))
 	if raw == "" {
 		return DefaultPlaybookSynthesisTimeout
 	}

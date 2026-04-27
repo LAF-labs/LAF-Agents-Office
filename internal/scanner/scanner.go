@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // ScannerSlug is the reserved git identity for scanner-authored commits.
@@ -336,7 +337,7 @@ func rootAlreadyScanned(detector ChangeDetector, root string) bool {
 func ScannerWikiRoot() string {
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".laf-office", "wiki")
+		return product.RuntimePath("", "wiki")
 	}
-	return filepath.Join(home, ".laf-office", "wiki")
+	return product.RuntimePath(home, "wiki")
 }

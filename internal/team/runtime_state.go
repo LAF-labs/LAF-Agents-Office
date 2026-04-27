@@ -217,16 +217,14 @@ func (s RuntimeSnapshot) pendingRequestCount() int {
 
 func runtimeTaskIsRunning(task RuntimeTask) bool {
 	status := strings.ToLower(strings.TrimSpace(task.Status))
-	switch status {
-	case "", "done", "completed", "canceled", "cancelled":
+	if status == "" || isTerminalTeamTaskStatus(status) {
 		return false
-	default:
-		return true
 	}
+	return true
 }
 
 func runtimeTaskUsesIsolation(task RuntimeTask) bool {
-	return strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") ||
+	return isLocalWorktreeExecutionMode(task.ExecutionMode) ||
 		strings.TrimSpace(task.WorktreePath) != "" ||
 		strings.TrimSpace(task.WorktreeBranch) != ""
 }

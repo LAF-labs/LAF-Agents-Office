@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 const DefaultTimeout = 8 * time.Second
@@ -32,7 +33,7 @@ type SearchResult struct {
 }
 
 func BinaryPath() string {
-	if candidate := strings.TrimSpace(os.Getenv("LAF_OFFICE_GBRAIN_COMMAND")); candidate != "" {
+	if candidate := strings.TrimSpace(os.Getenv(product.Env("GBRAIN_COMMAND"))); candidate != "" {
 		if path, err := exec.LookPath(candidate); err == nil {
 			return path
 		}

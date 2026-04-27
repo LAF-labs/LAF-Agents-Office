@@ -25,6 +25,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // Result reports which paths the operation actually removed and collects any
@@ -82,11 +83,11 @@ func lafOfficeHome() (string, error) {
 	if home == "" {
 		return "", errors.New("workspace: could not resolve home directory")
 	}
-	return filepath.Join(home, ".laf-office"), nil
+	return product.RuntimePath(home), nil
 }
 
 func brokerStatePaths() (string, string, error) {
-	if p := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_STATE_PATH")); p != "" {
+	if p := strings.TrimSpace(os.Getenv(product.Env("BROKER_STATE_PATH"))); p != "" {
 		return p, p + ".last-good", nil
 	}
 	home, err := lafOfficeHome()

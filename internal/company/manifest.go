@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -85,14 +86,14 @@ func (m Manifest) BlueprintRefsByKind(kind string) []BlueprintRef {
 }
 
 func ManifestPath() string {
-	if path := strings.TrimSpace(os.Getenv("LAF_OFFICE_COMPANY_FILE")); path != "" {
+	if path := strings.TrimSpace(os.Getenv(product.Env("COMPANY_FILE"))); path != "" {
 		return path
 	}
 	if path := strings.TrimSpace(os.Getenv("NEX_COMPANY_FILE")); path != "" {
 		return path
 	}
 
-	if strings.TrimSpace(os.Getenv("LAF_OFFICE_RUNTIME_HOME")) == "" {
+	if strings.TrimSpace(os.Getenv(product.Env("RUNTIME_HOME"))) == "" {
 		if cwd, err := os.Getwd(); err == nil {
 			local := filepath.Join(cwd, "laf-office.company.json")
 			if _, err := os.Stat(local); err == nil {
@@ -103,9 +104,9 @@ func ManifestPath() string {
 
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".laf-office", "company.json")
+		return product.RuntimePath("", "company.json")
 	}
-	return filepath.Join(home, ".laf-office", "company.json")
+	return product.RuntimePath(home, "company.json")
 }
 
 func LoadManifest() (Manifest, error) {
@@ -214,7 +215,7 @@ func DefaultManifest() Manifest {
 }
 
 func launchFromScratchRequested() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("LAF_OFFICE_START_FROM_SCRATCH"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(product.Env("START_FROM_SCRATCH")))) {
 	case "1", "true", "yes":
 		return true
 	default:

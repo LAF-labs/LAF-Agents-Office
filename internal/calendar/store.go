@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // storeData is the on-disk JSON structure.
@@ -24,8 +27,7 @@ type CalendarStore struct {
 // If path is empty, defaults to ~/.laf-office/calendar.json.
 func NewCalendarStore(path string) *CalendarStore {
 	if path == "" {
-		home, _ := os.UserHomeDir()
-		path = filepath.Join(home, ".laf-office", "calendar.json")
+		path = product.RuntimePath(config.RuntimeHomeDir(), "calendar.json")
 	}
 	s := &CalendarStore{path: path}
 	s.load()

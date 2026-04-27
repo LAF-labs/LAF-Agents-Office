@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 type claudeSessionRecord struct {
@@ -52,11 +55,7 @@ func ResetClaudeSessions() error {
 }
 
 func newClaudeSessionStore() *claudeSessionStore {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return newClaudeSessionStoreAt("")
-	}
-	return newClaudeSessionStoreAt(filepath.Join(home, ".laf-office", "providers", "claude-sessions.json"))
+	return newClaudeSessionStoreAt(product.RuntimePath(config.RuntimeHomeDir(), "providers", "claude-sessions.json"))
 }
 
 func newClaudeSessionStoreAt(path string) *claudeSessionStore {

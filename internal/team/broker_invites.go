@@ -13,6 +13,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 var errInviteEmailNotConfigured = errors.New("invite email is not configured")
@@ -44,7 +46,7 @@ func humanMemberIDForEmail(email string) string {
 func (b *Broker) inviteURLForToken(baseURL, token string) string {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
-		if env := strings.TrimSpace(os.Getenv("LAF_OFFICE_PUBLIC_URL")); env != "" {
+		if env := strings.TrimSpace(os.Getenv(product.Env("PUBLIC_URL"))); env != "" {
 			baseURL = strings.TrimRight(env, "/")
 		}
 	}
@@ -369,17 +371,17 @@ func (b *Broker) handleInviteAccept(w http.ResponseWriter, r *http.Request) {
 }
 
 func defaultSendInviteEmail(ctx context.Context, invite teamInvite, inviteURL string) error {
-	host := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_HOST"))
+	host := strings.TrimSpace(os.Getenv(product.Env("SMTP_HOST")))
 	if host == "" {
 		return errInviteEmailNotConfigured
 	}
-	port := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_PORT"))
+	port := strings.TrimSpace(os.Getenv(product.Env("SMTP_PORT")))
 	if port == "" {
 		port = "587"
 	}
-	from := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_FROM"))
-	username := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_USERNAME"))
-	password := strings.TrimSpace(os.Getenv("LAF_OFFICE_SMTP_PASSWORD"))
+	from := strings.TrimSpace(os.Getenv(product.Env("SMTP_FROM")))
+	username := strings.TrimSpace(os.Getenv(product.Env("SMTP_USERNAME")))
+	password := strings.TrimSpace(os.Getenv(product.Env("SMTP_PASSWORD")))
 	if from == "" {
 		from = username
 	}

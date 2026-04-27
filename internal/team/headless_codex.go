@@ -17,6 +17,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -346,7 +347,7 @@ func (l *Launcher) headlessLeadTurnNeedsImmediateWakeLocked(slug, prompt string)
 		}
 		status := strings.ToLower(strings.TrimSpace(task.Status))
 		review := strings.ToLower(strings.TrimSpace(task.ReviewState))
-		return status == "review" || review == "ready_for_review" || status == "blocked"
+		return status == taskStatusReview || review == reviewStateReadyForReview || status == taskStatusBlocked
 	}
 	return false
 }
@@ -476,11 +477,11 @@ func taskHasDurableCompletionState(task *teamTask) bool {
 	status := strings.ToLower(strings.TrimSpace(task.Status))
 	review := strings.ToLower(strings.TrimSpace(task.ReviewState))
 	switch status {
-	case "done", "completed", "blocked", "cancelled", "canceled", "review":
+	case taskStatusDone, taskStatusCompleted, taskStatusBlocked, taskStatusCancelled, taskStatusCanceled, taskStatusReview:
 		return true
 	}
 	switch review {
-	case "ready_for_review", "approved":
+	case reviewStateReadyForReview, reviewStateApproved:
 		return true
 	}
 	return false
@@ -493,7 +494,7 @@ func (l *Launcher) headlessTurnCompletedDurably(slug string, active *headlessCod
 	task := l.timedOutTaskForTurn(slug, active.Turn)
 	requiresDurableGuard := codingAgentSlugs[slug]
 	requiresExternalExecution := taskRequiresRealExternalExecution(task)
-	if task != nil && strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if task != nil && isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		requiresDurableGuard = true
 	}
 	if requiresExternalExecution {
@@ -507,12 +508,12 @@ func (l *Launcher) headlessTurnCompletedDurably(slug string, active *headlessCod
 		if taskHasDurableCompletionState(task) {
 			status := strings.ToLower(strings.TrimSpace(task.Status))
 			switch status {
-			case "done", "completed", "review":
+			case taskStatusDone, taskStatusCompleted, taskStatusReview:
 				if executed {
 					return true, ""
 				}
 				return false, fmt.Sprintf("external-action turn for #%s marked %s/%s without recorded external execution evidence", task.ID, strings.TrimSpace(task.Status), strings.TrimSpace(task.ReviewState))
-			case "blocked", "cancelled", "canceled":
+			case taskStatusBlocked, taskStatusCancelled, taskStatusCanceled:
 				if attempted {
 					return true, ""
 				}
@@ -869,7 +870,7 @@ func (l *Launcher) shouldRetryTimedOutHeadlessTurn(task *teamTask, turn headless
 	if task == nil {
 		return false
 	}
-	if !strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return false
 	}
 	return turn.Attempts < headlessCodexLocalWorktreeRetryLimit
@@ -908,7 +909,7 @@ func shouldRetryHeadlessTurn(task *teamTask, turn headlessCodexTurn) bool {
 	if task == nil {
 		return false
 	}
-	if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return turn.Attempts < headlessCodexLocalWorktreeRetryLimit
 	}
 	if taskRequiresRealExternalExecution(task) {
@@ -1004,11 +1005,11 @@ func (l *Launcher) timedOutTurnAlreadyRecovered(task *teamTask, slug string, sta
 	if task == nil {
 		return false
 	}
-	if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		status := strings.ToLower(strings.TrimSpace(task.Status))
 		review := strings.ToLower(strings.TrimSpace(task.ReviewState))
-		return status == "done" || status == "review" || status == "blocked" ||
-			review == "ready_for_review" || review == "approved"
+		return status == taskStatusDone || status == taskStatusReview || status == taskStatusBlocked ||
+			review == reviewStateReadyForReview || review == reviewStateApproved
 	}
 	return l.agentPostedSubstantiveMessageSince(slug, startedAt)
 }
@@ -1061,10 +1062,10 @@ func (l *Launcher) beginHeadlessCodexTurn(slug string) (headlessCodexTurn, conte
 
 func (l *Launcher) headlessCodexTurnTimeoutForTurn(turn headlessCodexTurn) time.Duration {
 	if task := l.timedOutTaskForTurn("", turn); task != nil {
-		if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+		if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 			return headlessCodexLocalWorktreeTurnTimeout
 		}
-		if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "office") &&
+		if isOfficeExecutionMode(task.ExecutionMode) &&
 			strings.EqualFold(strings.TrimSpace(task.TaskType), "launch") {
 			return headlessCodexOfficeLaunchTurnTimeout
 		}
@@ -1074,10 +1075,10 @@ func (l *Launcher) headlessCodexTurnTimeoutForTurn(turn headlessCodexTurn) time.
 
 func (l *Launcher) headlessCodexStaleCancelAfterForTurn(turn headlessCodexTurn) time.Duration {
 	if task := l.timedOutTaskForTurn("", turn); task != nil {
-		if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+		if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 			return l.headlessCodexTurnTimeoutForTurn(turn)
 		}
-		if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "office") &&
+		if isOfficeExecutionMode(task.ExecutionMode) &&
 			strings.EqualFold(strings.TrimSpace(task.TaskType), "launch") {
 			return l.headlessCodexTurnTimeoutForTurn(turn)
 		}
@@ -1141,7 +1142,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	cmd.Dir = workspaceDir
 	cmd.Env = l.buildHeadlessCodexEnv(slug, workspaceDir, firstNonEmpty(channel...))
 	if workspaceDir != strings.TrimSpace(l.cwd) {
-		cmd.Env = append(cmd.Env, "LAF_OFFICE_WORKTREE_PATH="+workspaceDir)
+		cmd.Env = append(cmd.Env, product.Env("WORKTREE_PATH")+"="+workspaceDir)
 	}
 	stdinText := buildHeadlessCodexPrompt(l.buildPrompt(slug), notification)
 	cmd.Stdin = strings.NewReader(stdinText)
@@ -1316,7 +1317,7 @@ func (l *Launcher) headlessCodexNeedsDangerousBypass(slug string) bool {
 	if task == nil {
 		return false
 	}
-	return strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree")
+	return isLocalWorktreeExecutionMode(task.ExecutionMode)
 }
 
 func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, channel string) []string {
@@ -1349,19 +1350,19 @@ func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, chann
 		env = setEnvValue(env, "GOCACHE", goCache)
 		env = setEnvValue(env, "GOTMPDIR", goTmp)
 	}
-	env = setEnvValue(env, "LAF_OFFICE_AGENT_SLUG", slug)
+	env = setEnvValue(env, product.Env("AGENT_SLUG"), slug)
 	if channel = strings.TrimSpace(channel); channel != "" {
-		env = setEnvValue(env, "LAF_OFFICE_CHANNEL", channel)
+		env = setEnvValue(env, product.Env("CHANNEL"), channel)
 	}
-	env = setEnvValue(env, "LAF_OFFICE_BROKER_TOKEN", l.broker.Token())
-	env = setEnvValue(env, "LAF_OFFICE_BROKER_BASE_URL", l.BrokerBaseURL())
-	env = setEnvValue(env, "LAF_OFFICE_HEADLESS_PROVIDER", "codex")
+	env = setEnvValue(env, product.Env("BROKER_TOKEN"), l.broker.Token())
+	env = setEnvValue(env, product.Env("BROKER_BASE_URL"), l.BrokerBaseURL())
+	env = setEnvValue(env, product.Env("HEADLESS_PROVIDER"), "codex")
 	if config.ResolveNoNex() {
-		env = setEnvValue(env, "LAF_OFFICE_NO_NEX", "1")
+		env = setEnvValue(env, product.Env("NO_NEX"), "1")
 	}
 	if l.isOneOnOne() {
-		env = setEnvValue(env, "LAF_OFFICE_ONE_ON_ONE", "1")
-		env = setEnvValue(env, "LAF_OFFICE_ONE_ON_ONE_AGENT", l.oneOnOneAgent())
+		env = setEnvValue(env, product.Env("ONE_ON_ONE"), "1")
+		env = setEnvValue(env, product.Env("ONE_ON_ONE_AGENT"), l.oneOnOneAgent())
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
 		env = setEnvValue(env, "ONE_SECRET", secret)
@@ -1373,11 +1374,11 @@ func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, chann
 		}
 	}
 	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
-		env = setEnvValue(env, "LAF_OFFICE_API_KEY", apiKey)
+		env = setEnvValue(env, product.Env("API_KEY"), apiKey)
 		env = setEnvValue(env, "NEX_API_KEY", apiKey)
 	}
 	if openAIKey := strings.TrimSpace(config.ResolveOpenAIAPIKey()); openAIKey != "" {
-		env = setEnvValue(env, "LAF_OFFICE_OPENAI_API_KEY", openAIKey)
+		env = setEnvValue(env, product.Env("OPENAI_API_KEY"), openAIKey)
 		env = setEnvValue(env, "OPENAI_API_KEY", openAIKey)
 	}
 	return env
@@ -1401,7 +1402,7 @@ func headlessCodexHomeDir() string {
 }
 
 func headlessCodexGlobalHomeDir() string {
-	if raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_GLOBAL_HOME")); raw != "" {
+	if raw := strings.TrimSpace(os.Getenv(product.Env("GLOBAL_HOME"))); raw != "" {
 		if abs, err := filepath.Abs(raw); err == nil && strings.TrimSpace(abs) != "" {
 			return abs
 		}
@@ -1423,7 +1424,7 @@ func headlessCodexRuntimeHomeDir() string {
 	if home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".laf-office", "codex-headless")
+	return product.RuntimePath(home, "codex-headless")
 }
 
 func prepareHeadlessCodexHome() string {
@@ -1510,7 +1511,7 @@ func (l *Launcher) headlessCodexWorkspaceCacheDir(workspaceDir string) string {
 	if base == "" {
 		return ""
 	}
-	return filepath.Join(base, ".laf-office", "cache")
+	return product.RuntimePath(base, "cache")
 }
 
 func (l *Launcher) headlessTaskWorkspaceDir(slug string) string {
@@ -1521,7 +1522,7 @@ func (l *Launcher) headlessTaskWorkspaceDir(slug string) string {
 	if task == nil {
 		return ""
 	}
-	if !strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return ""
 	}
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {
@@ -1543,17 +1544,17 @@ func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error
 		return nil, err
 	}
 	lafOfficeEnvVars := []string{
-		"LAF_OFFICE_AGENT_SLUG",
-		"LAF_OFFICE_BROKER_TOKEN",
-		"LAF_OFFICE_BROKER_BASE_URL",
+		product.Env("AGENT_SLUG"),
+		product.Env("BROKER_TOKEN"),
+		product.Env("BROKER_BASE_URL"),
 	}
 	if config.ResolveNoNex() {
-		lafOfficeEnvVars = append(lafOfficeEnvVars, "LAF_OFFICE_NO_NEX")
+		lafOfficeEnvVars = append(lafOfficeEnvVars, product.Env("NO_NEX"))
 	}
 	if l.isOneOnOne() {
 		lafOfficeEnvVars = append(lafOfficeEnvVars,
-			"LAF_OFFICE_ONE_ON_ONE",
-			"LAF_OFFICE_ONE_ON_ONE_AGENT",
+			product.Env("ONE_ON_ONE"),
+			product.Env("ONE_ON_ONE_AGENT"),
 		)
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
@@ -1567,9 +1568,9 @@ func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error
 	}
 
 	overrides := []string{
-		fmt.Sprintf(`mcp_servers.laf-office.command=%s`, tomlQuote(lafOfficeBinary)),
-		`mcp_servers.laf-office.args=["mcp-team"]`,
-		fmt.Sprintf(`mcp_servers.laf-office.env_vars=%s`, tomlStringArray(lafOfficeEnvVars)),
+		fmt.Sprintf(`mcp_servers.%s.command=%s`, product.CLIName, tomlQuote(lafOfficeBinary)),
+		fmt.Sprintf(`mcp_servers.%s.args=["mcp-team"]`, product.CLIName),
+		fmt.Sprintf(`mcp_servers.%s.env_vars=%s`, product.CLIName, tomlStringArray(lafOfficeEnvVars)),
 	}
 
 	if !config.ResolveNoNex() {
@@ -1577,7 +1578,7 @@ func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error
 			overrides = append(overrides, fmt.Sprintf(`mcp_servers.nex.command=%s`, tomlQuote(nexMCP)))
 			if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
 				overrides = append(overrides, fmt.Sprintf(`mcp_servers.nex.env_vars=%s`, tomlStringArray([]string{
-					"LAF_OFFICE_API_KEY",
+					product.Env("API_KEY"),
 					"NEX_API_KEY",
 				})))
 			}
@@ -1605,7 +1606,8 @@ func lafOfficeLogDir() string {
 	// would race with go's test-scoped RemoveAll ("directory not empty" on
 	// unlinkat). Tests set this to a package-owned leaked dir so writes
 	// from leaked goroutines land harmlessly. Unset in production → HOME.
-	if override := strings.TrimSpace(os.Getenv("LAF_OFFICE_LOG_DIR")); override != "" {
+	logDirEnv := product.Env("LOG_DIR")
+	if override := strings.TrimSpace(os.Getenv(logDirEnv)); override != "" {
 		// Fail loudly on a broken override instead of silently falling
 		// through — a misconfigured LAF_OFFICE_LOG_DIR path otherwise surfaces
 		// as confusing "file open failed" errors far from the root cause.
@@ -1613,16 +1615,16 @@ func lafOfficeLogDir() string {
 		// appendHeadless*Log helpers no-op on empty dir), which matches
 		// the HOME-lookup graceful-degradation path below.
 		if err := os.MkdirAll(override, 0o700); err != nil {
-			fmt.Fprintf(os.Stderr, "laf-office: LAF_OFFICE_LOG_DIR=%q unwritable: %v — headless logging disabled\n", override, err)
+			fmt.Fprintf(os.Stderr, "laf-office: %s=%q unwritable: %v — headless logging disabled\n", logDirEnv, override, err)
 			return ""
 		}
 		return override
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
+	home := strings.TrimSpace(config.RuntimeHomeDir())
+	if home == "" {
 		return ""
 	}
-	dir := filepath.Join(home, ".laf-office", "logs")
+	dir := product.RuntimePath(home, "logs")
 	_ = os.MkdirAll(dir, 0o700)
 	return dir
 }
@@ -1703,7 +1705,7 @@ func (l *Launcher) preflightHeadlessCodexAuth(slug string, channel string) error
 // shell script in $LAF_OFFICE_DEBUG_CODEX_DUMP when that env var is set. Off by
 // default. Used to reproduce a failing turn outside LAF-Office in a few seconds.
 func dumpHeadlessCodexInvocation(slug, workspaceDir string, args []string, env []string, stdinText string) {
-	dumpDir := strings.TrimSpace(os.Getenv("LAF_OFFICE_DEBUG_CODEX_DUMP"))
+	dumpDir := strings.TrimSpace(os.Getenv(product.Env("DEBUG_CODEX_DUMP")))
 	if dumpDir == "" {
 		return
 	}

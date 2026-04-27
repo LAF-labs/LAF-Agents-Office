@@ -62,7 +62,7 @@ func (b *Broker) requestSelfHealingLocked(agentSlug, taskID string, reason agent
 		}
 		if existing.Owner == "" && owner != "" {
 			existing.Owner = owner
-			existing.Status = "in_progress"
+			existing.Status = taskStatusInProgress
 		}
 		if existing.TaskType == "" {
 			existing.TaskType = "incident"
@@ -71,7 +71,7 @@ func (b *Broker) requestSelfHealingLocked(agentSlug, taskID string, reason agent
 			existing.PipelineID = "incident"
 		}
 		if existing.ExecutionMode == "" {
-			existing.ExecutionMode = "office"
+			existing.ExecutionMode = executionModeOffice
 		}
 		b.ensureTaskOwnerChannelMembershipLocked(channel, existing.Owner)
 		existing.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
@@ -102,12 +102,12 @@ func (b *Broker) requestSelfHealingLocked(agentSlug, taskID string, reason agent
 		CreatedBy:     createdBy,
 		TaskType:      "incident",
 		PipelineID:    "incident",
-		ExecutionMode: "office",
+		ExecutionMode: executionModeOffice,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
 	if task.Owner != "" {
-		task.Status = "in_progress"
+		task.Status = taskStatusInProgress
 	}
 	b.ensureTaskOwnerChannelMembershipLocked(channel, task.Owner)
 	b.queueTaskBehindActiveOwnerLaneLocked(&task)

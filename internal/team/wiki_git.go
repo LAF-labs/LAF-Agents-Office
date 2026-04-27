@@ -52,6 +52,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // ErrGitUnavailable is returned by Init when the `git` binary cannot be
@@ -101,16 +102,17 @@ func WikiBackupDir() string {
 }
 
 func wikiDirForSegment(segment string) string {
-	runtimeOverride := strings.TrimSpace(os.Getenv("LAF_OFFICE_RUNTIME_HOME"))
+	runtimeEnv := product.Env("RUNTIME_HOME")
+	runtimeOverride := strings.TrimSpace(os.Getenv(runtimeEnv))
 	if runtimeOverride == "" && !unscopedWikiRootAllowed {
-		panic(fmt.Sprintf("team: wiki %q resolved under tests without LAF_OFFICE_RUNTIME_HOME set — "+
-			"set t.Setenv(%q, t.TempDir()) or inject a Repo via NewRepoAt(...)", segment, "LAF_OFFICE_RUNTIME_HOME"))
+		panic(fmt.Sprintf("team: wiki %q resolved under tests without %s set — "+
+			"set t.Setenv(%q, t.TempDir()) or inject a Repo via NewRepoAt(...)", segment, runtimeEnv, runtimeEnv))
 	}
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".laf-office", segment)
+		return product.RuntimePath("", segment)
 	}
-	return filepath.Join(home, ".laf-office", segment)
+	return product.RuntimePath(home, segment)
 }
 
 // NewRepo returns a Repo rooted at the resolved wiki path.

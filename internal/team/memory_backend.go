@@ -13,6 +13,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gbrain"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 type MemoryBackendStatus struct {
@@ -94,10 +95,10 @@ func (nexMemoryBackend) MCPServer() (*memoryMCPServer, error) {
 		Name:    "nex",
 		Command: bin,
 		Env: map[string]string{
-			"LAF_OFFICE_API_KEY": apiKey,
-			"NEX_API_KEY":        apiKey,
+			product.Env("API_KEY"): apiKey,
+			"NEX_API_KEY":          apiKey,
 		},
-		EnvVars: []string{"LAF_OFFICE_API_KEY", "NEX_API_KEY"},
+		EnvVars: []string{product.Env("API_KEY"), "NEX_API_KEY"},
 	}, nil
 }
 func (nexMemoryBackend) FetchBrief(ctx context.Context, notification string) string {

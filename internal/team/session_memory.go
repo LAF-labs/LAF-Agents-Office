@@ -42,7 +42,7 @@ func buildSessionRecovery(sessionMode, directAgent string, tasks []RuntimeTask, 
 		if runtimeTaskUsesIsolation(task) && strings.TrimSpace(task.WorktreePath) != "" {
 			recovery.NextSteps = appendUnique(recovery.NextSteps, fmt.Sprintf("Use working_directory %s for local file and bash tools.", task.WorktreePath))
 		}
-		if strings.TrimSpace(task.ReviewState) != "" && task.ReviewState != "not_required" && task.ReviewState != "approved" {
+		if strings.TrimSpace(task.ReviewState) != "" && task.ReviewState != reviewStateNotRequired && task.ReviewState != reviewStateApproved {
 			recovery.NextSteps = appendUnique(recovery.NextSteps, fmt.Sprintf("Review flow is active on %s (%s).", task.ID, task.ReviewState))
 		}
 		if task.Blocked {

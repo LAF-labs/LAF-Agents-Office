@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 const defaultComposioBaseURL = "https://backend.composio.dev/api/v3"
@@ -497,7 +498,7 @@ func composioCompactStrings(items []string) []string {
 }
 
 func configResolveComposioBaseURL() string {
-	if v := strings.TrimSpace(strings.TrimRight(os.Getenv("LAF_OFFICE_COMPOSIO_BASE_URL"), "/")); v != "" {
+	if v := strings.TrimSpace(strings.TrimRight(os.Getenv(product.Env("COMPOSIO_BASE_URL")), "/")); v != "" {
 		return v
 	}
 	if v := strings.TrimSpace(strings.TrimRight(os.Getenv("COMPOSIO_BASE_URL"), "/")); v != "" {

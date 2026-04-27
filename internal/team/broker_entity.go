@@ -29,6 +29,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // graphRecordFactRefs is the test seam for the cross-entity graph hook in
@@ -183,7 +185,7 @@ func (b *Broker) SetEntitySynthesizer(factLog *FactLog, synth *EntitySynthesizer
 }
 
 func resolveThresholdFromEnv() int {
-	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_ENTITY_BRIEF_THRESHOLD"))
+	raw := strings.TrimSpace(os.Getenv(product.Env("ENTITY_BRIEF_THRESHOLD")))
 	if raw == "" {
 		return DefaultSynthesisThreshold
 	}
@@ -195,7 +197,7 @@ func resolveThresholdFromEnv() int {
 }
 
 func resolveTimeoutFromEnv() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("LAF_OFFICE_ENTITY_BRIEF_TIMEOUT"))
+	raw := strings.TrimSpace(os.Getenv(product.Env("ENTITY_BRIEF_TIMEOUT")))
 	if raw == "" {
 		return DefaultSynthesisTimeout
 	}

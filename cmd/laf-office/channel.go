@@ -23,8 +23,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
@@ -444,7 +446,7 @@ type channelMemberDraft struct {
 
 var mentionPattern = regexp.MustCompile(`@([A-Za-z0-9_-]+)`)
 
-var brokerTokenPath = "/tmp/laf-office-broker-token"
+var brokerTokenPath = brokeraddr.DefaultTokenFile
 var officeDirectory = map[string]officeMemberInfo{}
 
 var channelSlashCommands = []tui.SlashCommand{
@@ -699,9 +701,9 @@ func newChannelModelWithApp(threadsCollapsed bool, initialApp officeApp) channel
 	channels := channelInfosFromManifest(manifest)
 	sessionMode := team.SessionModeOffice
 	oneOnOneAgent := ""
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ON_ONE")), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ON_ONE")), "true") {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv(product.Env("ONE_ON_ONE"))), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv(product.Env("ONE_ON_ONE"))), "true") {
 		sessionMode = team.SessionModeOneOnOne
-		oneOnOneAgent = strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ON_ONE_AGENT"))
+		oneOnOneAgent = strings.TrimSpace(os.Getenv(product.Env("ONE_ON_ONE_AGENT")))
 		if oneOnOneAgent == "" {
 			oneOnOneAgent = team.DefaultOneOnOneAgent
 		}
@@ -2052,7 +2054,7 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.notice = "Telegram connection canceled."
 				return m, nil
 			}
-			_ = os.Setenv("LAF_OFFICE_TELEGRAM_BOT_TOKEN", token)
+			_ = os.Setenv(product.Env("TELEGRAM_BOT_TOKEN"), token)
 			config.SaveTelegramBotToken(token)
 			m.posting = true
 			m.notice = "Verifying bot token..."
@@ -5667,7 +5669,7 @@ func applyTeamSetup() tea.Cmd {
 			return channelInitDoneMsg{err: err}
 		}
 		cfg, _ := config.Load()
-		if current := strings.TrimSpace(os.Getenv("LAF_OFFICE_HEADLESS_PROVIDER")); current != "" {
+		if current := strings.TrimSpace(os.Getenv(product.Env("HEADLESS_PROVIDER"))); current != "" {
 			return channelInitDoneMsg{notice: notice + " Setup saved. Restart LAF-Office to reload the " + current + " office runtime with the new configuration."}
 		}
 		if config.ResolveLLMProvider("") == "codex" || strings.TrimSpace(cfg.LLMProvider) == "codex" {
@@ -5701,7 +5703,7 @@ func applyProviderSelection(providerName string) tea.Cmd {
 			return channelInitDoneMsg{err: err}
 		}
 
-		if current := strings.TrimSpace(os.Getenv("LAF_OFFICE_HEADLESS_PROVIDER")); current != "" {
+		if current := strings.TrimSpace(os.Getenv(product.Env("HEADLESS_PROVIDER"))); current != "" {
 			return channelInitDoneMsg{notice: "Provider switched to " + providerName + ". Restart LAF-Office to reload the office runtime with the new configuration."}
 		}
 		if providerName == "codex" {
@@ -5785,7 +5787,7 @@ func isWindows() bool { return runtime.GOOS == "windows" }
 // killTeamSession kills the entire laf-office-team tmux session and all agent processes.
 func killTeamSession() {
 	// Kill tmux session (kills all agent processes in all panes/windows)
-	_ = exec.Command("tmux", "-L", "laf-office", "kill-session", "-t", "laf-office-team").Run()
+	_ = exec.Command("tmux", "-L", team.TmuxSocketName(), "kill-session", "-t", team.SessionName).Run()
 	// Stop the broker
 	if resp, err := http.Get(brokerURL("/health")); err == nil {
 		_ = resp.Body.Close()
@@ -5813,7 +5815,7 @@ func runChannelView(threadsCollapsed bool, initialApp officeApp, skipSplash bool
 	}()
 
 	// Check if onboarding is needed before launching the channel view.
-	if os.Getenv("LAF_OFFICE_SKIP_ONBOARDING") == "" {
+	if os.Getenv(product.Env("SKIP_ONBOARDING")) == "" {
 		state, err := fetchOnboardingState(brokerBaseURL())
 		if err == nil && !state.Onboarded {
 			om := newOnboardingModel(brokerBaseURL(), 0, 0)
@@ -5826,7 +5828,7 @@ func runChannelView(threadsCollapsed bool, initialApp officeApp, skipSplash bool
 		}
 	}
 
-	if !skipSplash && os.Getenv("LAF_OFFICE_NO_SPLASH") == "" {
+	if !skipSplash && os.Getenv(product.Env("NO_SPLASH")) == "" {
 		splash := tea.NewProgram(newSplashModel(), tea.WithAltScreen())
 		if _, err := splash.Run(); err != nil {
 			reportChannelCrash(fmt.Sprintf("splash error: %v\n", err))
@@ -5846,10 +5848,10 @@ func reportChannelCrash(details string) {
 	fmt.Fprintln(os.Stderr, "Log:", channelCrashLogPath())
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "The rest of the team is still running.")
-	if strings.TrimSpace(os.Getenv("LAF_OFFICE_HEADLESS_PROVIDER")) != "" {
+	if strings.TrimSpace(os.Getenv(product.Env("HEADLESS_PROVIDER"))) != "" {
 		fmt.Fprintln(os.Stderr, "Restart LAF-Office when ready to reconnect to the headless office runtime.")
 	} else {
-		fmt.Fprintln(os.Stderr, "Use `tmux -L laf-office attach -t laf-office-team` to inspect panes,")
+		fmt.Fprintf(os.Stderr, "Use `tmux -L %s attach -t %s` to inspect panes,\n", team.TmuxSocketName(), team.SessionName)
 		fmt.Fprintln(os.Stderr, "then restart LAF-Office when ready.")
 	}
 	select {}
@@ -5872,9 +5874,9 @@ func appendChannelCrashLog(details string) error {
 }
 
 func channelCrashLogPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
+	home := strings.TrimSpace(config.RuntimeHomeDir())
+	if home == "" {
 		return ".laf-office-channel-crash.log"
 	}
-	return filepath.Join(home, ".laf-office", "logs", "channel-crash.log")
+	return product.RuntimePath(home, "logs", "channel-crash.log")
 }

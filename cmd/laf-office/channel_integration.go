@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/openclaw"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
 )
@@ -103,7 +103,7 @@ func connectIntegration(spec channelIntegrationSpec) tea.Cmd {
 }
 
 func (m *channelModel) startTelegramConnect() tea.Cmd {
-	token := os.Getenv("LAF_OFFICE_TELEGRAM_BOT_TOKEN")
+	token := os.Getenv(product.Env("TELEGRAM_BOT_TOKEN"))
 	if token == "" {
 		token = config.ResolveTelegramBotToken()
 	}
@@ -212,7 +212,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 				Provider:    "telegram",
 				RemoteID:    fmt.Sprintf("%d", group.ChatID),
 				RemoteTitle: group.Title,
-				BotTokenEnv: "LAF_OFFICE_TELEGRAM_BOT_TOKEN",
+				BotTokenEnv: product.Env("TELEGRAM_BOT_TOKEN"),
 			},
 		}
 		manifest.Channels = append(manifest.Channels, newChannel)
@@ -233,7 +233,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 				"remote_id":     fmt.Sprintf("%d", group.ChatID),
 				"remote_title":  group.Title,
 				"mode":          group.Type,
-				"bot_token_env": "LAF_OFFICE_TELEGRAM_BOT_TOKEN",
+				"bot_token_env": product.Env("TELEGRAM_BOT_TOKEN"),
 			},
 		})
 		req, reqErr := newBrokerRequest(http.MethodPost, "http://127.0.0.1:7890/channels", bytes.NewReader(body))
@@ -252,7 +252,7 @@ func connectTelegramGroup(token string, group team.TelegramGroup) tea.Cmd {
 		}
 
 		// Clear broker state so next restart picks up the manifest with surfaces
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".laf-office", "team", "broker-state.json"))
+		_ = os.Remove(product.RuntimePath(config.RuntimeHomeDir(), "team", "broker-state.json"))
 
 		return telegramConnectDoneMsg{
 			channelSlug: slug,

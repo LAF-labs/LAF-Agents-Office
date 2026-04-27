@@ -16,6 +16,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/calendar"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
@@ -109,7 +110,7 @@ func requireTeamActionApproval(ctx context.Context, slug, channel string, args T
 	if args.DryRun {
 		return nil
 	}
-	if os.Getenv("LAF_OFFICE_UNSAFE") == "1" {
+	if os.Getenv(product.Env("UNSAFE")) == "1" {
 		return nil
 	}
 	if actionIsReadOnly(args.ActionID) {

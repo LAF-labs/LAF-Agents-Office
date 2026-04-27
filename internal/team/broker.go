@@ -31,8 +31,10 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/workspace"
 )
@@ -111,36 +113,6 @@ func (s *agentStreamBuffer) recent() []string {
 	return out
 }
 
-type messageReaction struct {
-	Emoji string `json:"emoji"`
-	From  string `json:"from"`
-}
-
-type channelMessage struct {
-	ID          string            `json:"id"`
-	From        string            `json:"from"`
-	Channel     string            `json:"channel,omitempty"`
-	Kind        string            `json:"kind,omitempty"`
-	Source      string            `json:"source,omitempty"`
-	SourceLabel string            `json:"source_label,omitempty"`
-	EventID     string            `json:"event_id,omitempty"`
-	Title       string            `json:"title,omitempty"`
-	Content     string            `json:"content"`
-	Tagged      []string          `json:"tagged"`
-	ReplyTo     string            `json:"reply_to,omitempty"`
-	Timestamp   string            `json:"timestamp"`
-	Usage       *messageUsage     `json:"usage,omitempty"`
-	Reactions   []messageReaction `json:"reactions,omitempty"`
-}
-
-type messageUsage struct {
-	InputTokens         int `json:"input_tokens,omitempty"`
-	OutputTokens        int `json:"output_tokens,omitempty"`
-	CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
-	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
-	TotalTokens         int `json:"total_tokens,omitempty"`
-}
-
 type interviewOption struct {
 	ID           string `json:"id"`
 	Label        string `json:"label"`
@@ -178,47 +150,6 @@ type humanInterview struct {
 	CreatedAt     string            `json:"created_at"`
 	UpdatedAt     string            `json:"updated_at,omitempty"`
 	Answered      *interviewAnswer  `json:"answered,omitempty"`
-}
-
-type teamTask struct {
-	ID               string   `json:"id"`
-	ProjectID        string   `json:"project_id,omitempty"`
-	Channel          string   `json:"channel,omitempty"`
-	Title            string   `json:"title"`
-	Details          string   `json:"details,omitempty"`
-	Owner            string   `json:"owner,omitempty"`
-	Status           string   `json:"status"`
-	CreatedBy        string   `json:"created_by"`
-	ThreadID         string   `json:"thread_id,omitempty"`
-	TaskType         string   `json:"task_type,omitempty"`
-	PipelineID       string   `json:"pipeline_id,omitempty"`
-	PipelineStage    string   `json:"pipeline_stage,omitempty"`
-	ExecutionMode    string   `json:"execution_mode,omitempty"`
-	ReviewState      string   `json:"review_state,omitempty"`
-	SourceSignalID   string   `json:"source_signal_id,omitempty"`
-	SourceDecisionID string   `json:"source_decision_id,omitempty"`
-	WorktreePath     string   `json:"worktree_path,omitempty"`
-	WorktreeBranch   string   `json:"worktree_branch,omitempty"`
-	DependsOn        []string `json:"depends_on,omitempty"`
-	Blocked          bool     `json:"blocked,omitempty"`
-	AckedAt          string   `json:"acked_at,omitempty"`
-	DueAt            string   `json:"due_at,omitempty"`
-	FollowUpAt       string   `json:"follow_up_at,omitempty"`
-	ReminderAt       string   `json:"reminder_at,omitempty"`
-	RecheckAt        string   `json:"recheck_at,omitempty"`
-	CreatedAt        string   `json:"created_at"`
-	UpdatedAt        string   `json:"updated_at"`
-}
-
-type teamProject struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Channel     string `json:"channel,omitempty"`
-	Status      string `json:"status,omitempty"`
-	CreatedBy   string `json:"created_by,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
 }
 
 type humanTeamMember struct {
@@ -367,61 +298,6 @@ type officeMember struct {
 	CreatedAt      string                   `json:"created_at,omitempty"`
 	BuiltIn        bool                     `json:"built_in,omitempty"`
 	Provider       provider.ProviderBinding `json:"provider,omitempty"`
-}
-
-type officeActionLog struct {
-	ID         string   `json:"id"`
-	Kind       string   `json:"kind"`
-	Source     string   `json:"source,omitempty"`
-	Channel    string   `json:"channel,omitempty"`
-	Actor      string   `json:"actor,omitempty"`
-	Summary    string   `json:"summary"`
-	RelatedID  string   `json:"related_id,omitempty"`
-	SignalIDs  []string `json:"signal_ids,omitempty"`
-	DecisionID string   `json:"decision_id,omitempty"`
-	CreatedAt  string   `json:"created_at"`
-}
-
-type agentActivitySnapshot struct {
-	Slug         string `json:"slug"`
-	Status       string `json:"status,omitempty"`
-	Activity     string `json:"activity,omitempty"`
-	Detail       string `json:"detail,omitempty"`
-	LastTime     string `json:"lastTime,omitempty"`
-	TotalMs      int64  `json:"totalMs,omitempty"`
-	FirstEventMs int64  `json:"firstEventMs,omitempty"`
-	FirstTextMs  int64  `json:"firstTextMs,omitempty"`
-	FirstToolMs  int64  `json:"firstToolMs,omitempty"`
-}
-
-type officeSignalRecord struct {
-	ID            string `json:"id"`
-	Source        string `json:"source"`
-	SourceRef     string `json:"source_ref,omitempty"`
-	Kind          string `json:"kind,omitempty"`
-	Title         string `json:"title,omitempty"`
-	Content       string `json:"content"`
-	Channel       string `json:"channel,omitempty"`
-	Owner         string `json:"owner,omitempty"`
-	Confidence    string `json:"confidence,omitempty"`
-	Urgency       string `json:"urgency,omitempty"`
-	DedupeKey     string `json:"dedupe_key,omitempty"`
-	RequiresHuman bool   `json:"requires_human,omitempty"`
-	Blocking      bool   `json:"blocking,omitempty"`
-	CreatedAt     string `json:"created_at"`
-}
-
-type officeDecisionRecord struct {
-	ID            string   `json:"id"`
-	Kind          string   `json:"kind"`
-	Channel       string   `json:"channel,omitempty"`
-	Summary       string   `json:"summary"`
-	Reason        string   `json:"reason,omitempty"`
-	Owner         string   `json:"owner,omitempty"`
-	SignalIDs     []string `json:"signal_ids,omitempty"`
-	RequiresHuman bool     `json:"requires_human,omitempty"`
-	Blocking      bool     `json:"blocking,omitempty"`
-	CreatedAt     string   `json:"created_at"`
 }
 
 type watchdogAlert struct {
@@ -646,7 +522,7 @@ func taskNeedsLocalWorktree(task *teamTask) bool {
 	if task == nil {
 		return false
 	}
-	if !strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return false
 	}
 	if strings.TrimSpace(task.Owner) == "" {
@@ -655,7 +531,7 @@ func taskNeedsLocalWorktree(task *teamTask) bool {
 	switch strings.TrimSpace(task.Status) {
 	case "", "open":
 		return false
-	case "done":
+	case taskStatusDone:
 		return strings.TrimSpace(task.WorktreePath) != "" || strings.TrimSpace(task.WorktreeBranch) != ""
 	default:
 		return true
@@ -689,7 +565,7 @@ func rejectFalseLocalWorktreeBlock(task *teamTask, reason string) error {
 	if task == nil {
 		return nil
 	}
-	if !strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return nil
 	}
 	if !taskBlockReasonLooksLikeWorkspaceWriteIssue(reason) {
@@ -712,8 +588,8 @@ func taskRequiresExclusiveOwnerTurn(task *teamTask) bool {
 	if strings.TrimSpace(task.Owner) == "" {
 		return false
 	}
-	switch strings.ToLower(strings.TrimSpace(task.ExecutionMode)) {
-	case "local_worktree", "live_external":
+	switch {
+	case isLocalWorktreeExecutionMode(task.ExecutionMode), isLiveExternalExecutionMode(task.ExecutionMode):
 		return true
 	default:
 		return false
@@ -722,7 +598,7 @@ func taskRequiresExclusiveOwnerTurn(task *teamTask) bool {
 
 func taskStatusConsumesExclusiveOwnerTurn(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "in_progress", "review":
+	case taskStatusInProgress, taskStatusReview:
 		return true
 	default:
 		return false
@@ -772,10 +648,10 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 	// Automatically assign local_worktree mode when a coding agent claims a task.
 	if task.ExecutionMode == "" && codingAgentSlugs[strings.TrimSpace(task.Owner)] {
 		switch strings.TrimSpace(task.Status) {
-		case "", "open", "done":
+		case "", "open", taskStatusDone:
 			// not yet in-progress; leave mode unset
 		default:
-			task.ExecutionMode = "local_worktree"
+			task.ExecutionMode = executionModeLocalWorktree
 		}
 	}
 	if taskNeedsLocalWorktree(task) {
@@ -831,7 +707,7 @@ func (b *Broker) reusableDependencyWorktreeLocked(task *teamTask) (string, strin
 			if strings.TrimSpace(dep.ID) != depID {
 				continue
 			}
-			if !strings.EqualFold(strings.TrimSpace(dep.ExecutionMode), "local_worktree") {
+			if !isLocalWorktreeExecutionMode(dep.ExecutionMode) {
 				continue
 			}
 			path := strings.TrimSpace(dep.WorktreePath)
@@ -841,7 +717,7 @@ func (b *Broker) reusableDependencyWorktreeLocked(task *teamTask) (string, strin
 			}
 			status := strings.ToLower(strings.TrimSpace(dep.Status))
 			review := strings.ToLower(strings.TrimSpace(dep.ReviewState))
-			if status != "review" && status != "done" && review != "ready_for_review" && review != "approved" {
+			if status != taskStatusReview && status != taskStatusDone && review != reviewStateReadyForReview && review != reviewStateApproved {
 				continue
 			}
 			if owner != "" && strings.TrimSpace(dep.Owner) == owner {
@@ -3137,14 +3013,14 @@ func defaultBrokerStatePath() string {
 	// Env override lets probes and test harnesses isolate broker state from
 	// the user's real ~/.laf-office/team/ dir without needing to remap HOME (which
 	// breaks macOS keychain-backed auth for bundled CLIs like Claude Code).
-	if p := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_STATE_PATH")); p != "" {
+	if p := strings.TrimSpace(os.Getenv(product.Env("BROKER_STATE_PATH"))); p != "" {
 		return p
 	}
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".laf-office", "team", "broker-state.json")
+		return product.RuntimePath("", "team", "broker-state.json")
 	}
-	return filepath.Join(home, ".laf-office", "team", "broker-state.json")
+	return product.RuntimePath(home, "team", "broker-state.json")
 }
 
 // stateSnapshotPath returns the path the Broker writes its last-good
@@ -5036,14 +4912,14 @@ func respawnAgentPane(slug string) {
 	for i, agent := range manifest.Members {
 		if agent.Slug == slug {
 			paneIdx := i + 1 // pane 0 is channel view
-			target := fmt.Sprintf("laf-office-team:team.%d", paneIdx)
+			target := fmt.Sprintf("%s:team.%d", SessionName, paneIdx)
 			// Send Ctrl+C to interrupt, then exit to terminate
-			_ = exec.Command("tmux", "-L", "laf-office", "send-keys", "-t", target, "C-c", "").Run()
+			_ = exec.Command("tmux", "-L", tmuxSocketName, "send-keys", "-t", target, "C-c", "").Run()
 			time.Sleep(500 * time.Millisecond)
-			_ = exec.Command("tmux", "-L", "laf-office", "send-keys", "-t", target, "C-c", "").Run()
+			_ = exec.Command("tmux", "-L", tmuxSocketName, "send-keys", "-t", target, "C-c", "").Run()
 			time.Sleep(500 * time.Millisecond)
 			// Respawn the pane with a fresh claude session
-			_ = exec.Command("tmux", "-L", "laf-office", "respawn-pane", "-k", "-t", target).Run()
+			_ = exec.Command("tmux", "-L", tmuxSocketName, "respawn-pane", "-k", "-t", target).Run()
 			return
 		}
 	}
@@ -8121,7 +7997,7 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 	if b.lastTaggedAt != nil {
 		delete(b.lastTaggedAt, msg.From)
 	}
-	b.appendActionLocked("automation", msg.Source, channel, msg.From, truncateSummary(msg.Title+" "+msg.Content, 140), msg.ID)
+	b.appendActionLocked(messageKindAutomation, msg.Source, channel, msg.From, truncateSummary(msg.Title+" "+msg.Content, 140), msg.ID)
 	if err := b.saveLocked(); err != nil {
 		return channelMessage{}, err
 	}
@@ -8149,7 +8025,7 @@ func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, s
 		ID:          fmt.Sprintf("msg-%d", b.counter),
 		From:        from,
 		Channel:     channel,
-		Kind:        "automation",
+		Kind:        messageKindAutomation,
 		Source:      strings.TrimSpace(source),
 		SourceLabel: strings.TrimSpace(sourceLabel),
 		EventID:     strings.TrimSpace(eventID),
@@ -8479,7 +8355,7 @@ func (b *Broker) capturePaneActivity(slugOverride string) map[string]string {
 		for i, agent := range manifest.Members {
 			checks = append(checks, paneCheck{
 				slug:   agent.Slug,
-				target: fmt.Sprintf("laf-office-team:team.%d", i+1),
+				target: fmt.Sprintf("%s:team.%d", SessionName, i+1),
 			})
 		}
 	}
@@ -8491,7 +8367,7 @@ func (b *Broker) capturePaneActivity(slugOverride string) map[string]string {
 	b.mu.Unlock()
 
 	for _, check := range checks {
-		paneOut, err := exec.Command("tmux", "-L", "laf-office", "capture-pane",
+		paneOut, err := exec.Command("tmux", "-L", tmuxSocketName, "capture-pane",
 			"-p", "-J",
 			"-t", check.target).CombinedOutput()
 		if err != nil {
@@ -8572,7 +8448,7 @@ func (b *Broker) handleMembers(w http.ResponseWriter, r *http.Request) {
 		if b.sessionMode == SessionModeOneOnOne && msg.From != b.oneOnOneAgent {
 			continue
 		}
-		if msg.Kind == "automation" || msg.From == "nex" {
+		if msg.Kind == messageKindAutomation || msg.From == "nex" {
 			continue
 		}
 		content := msg.Content
@@ -8998,6 +8874,16 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
+	executionMode, err := normalizeTaskExecutionModeInput(body.ExecutionMode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	reviewState, err := normalizeTaskReviewStateInput(body.ReviewState)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	action := strings.TrimSpace(body.Action)
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -9053,10 +8939,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if projectID != "" {
 				existing.ProjectID = projectID
 			}
-			if executionMode := strings.TrimSpace(body.ExecutionMode); executionMode != "" {
+			if executionMode != "" {
 				existing.ExecutionMode = executionMode
 			}
-			if reviewState := strings.TrimSpace(body.ReviewState); reviewState != "" {
+			if reviewState != "" {
 				existing.ReviewState = reviewState
 			}
 			if sourceSignalID := strings.TrimSpace(body.SourceSignalID); sourceSignalID != "" {
@@ -9103,8 +8989,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			ThreadID:         strings.TrimSpace(body.ThreadID),
 			TaskType:         strings.TrimSpace(body.TaskType),
 			PipelineID:       strings.TrimSpace(body.PipelineID),
-			ExecutionMode:    strings.TrimSpace(body.ExecutionMode),
-			ReviewState:      strings.TrimSpace(body.ReviewState),
+			ExecutionMode:    executionMode,
+			ReviewState:      reviewState,
 			SourceSignalID:   strings.TrimSpace(body.SourceSignalID),
 			SourceDecisionID: strings.TrimSpace(body.SourceDecisionID),
 			WorktreePath:     strings.TrimSpace(body.WorktreePath),
@@ -9159,11 +9045,11 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			task.Owner = strings.TrimSpace(body.Owner)
-			task.Status = "in_progress"
+			task.Status = taskStatusInProgress
 			if taskNeedsStructuredReview(task) {
-				task.ReviewState = "pending_review"
+				task.ReviewState = reviewStatePendingReview
 			} else {
-				task.ReviewState = "not_required"
+				task.ReviewState = reviewStateNotRequired
 			}
 		case "reassign":
 			if strings.TrimSpace(body.Owner) == "" {
@@ -9174,54 +9060,54 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			newOwner := strings.TrimSpace(body.Owner)
 			task.Owner = newOwner
 			status := strings.ToLower(strings.TrimSpace(task.Status))
-			if status != "done" && status != "review" {
-				task.Status = "in_progress"
+			if status != taskStatusDone && status != taskStatusReview {
+				task.Status = taskStatusInProgress
 			}
 			if taskNeedsStructuredReview(task) && strings.TrimSpace(task.ReviewState) == "" {
-				task.ReviewState = "pending_review"
+				task.ReviewState = reviewStatePendingReview
 			}
 			reassignTriggered = reassignPrevOwner != newOwner
 		case "complete":
-			if strings.EqualFold(strings.TrimSpace(task.Status), "done") {
+			if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusDone) {
 				if taskNeedsStructuredReview(task) {
-					task.ReviewState = "approved"
+					task.ReviewState = reviewStateApproved
 				}
 				task.Blocked = false
-			} else if strings.EqualFold(strings.TrimSpace(task.Status), "review") ||
-				strings.EqualFold(strings.TrimSpace(task.ReviewState), "ready_for_review") {
-				task.Status = "done"
+			} else if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusReview) ||
+				strings.EqualFold(strings.TrimSpace(task.ReviewState), reviewStateReadyForReview) {
+				task.Status = taskStatusDone
 				if taskNeedsStructuredReview(task) {
-					task.ReviewState = "approved"
+					task.ReviewState = reviewStateApproved
 				}
 				task.Blocked = false
 			} else if taskNeedsStructuredReview(task) {
-				task.Status = "review"
-				task.ReviewState = "ready_for_review"
+				task.Status = taskStatusReview
+				task.ReviewState = reviewStateReadyForReview
 			} else {
-				task.Status = "done"
+				task.Status = taskStatusDone
 			}
 		case "review":
-			task.Status = "review"
-			task.ReviewState = "ready_for_review"
+			task.Status = taskStatusReview
+			task.ReviewState = reviewStateReadyForReview
 		case "approve":
-			task.Status = "done"
+			task.Status = taskStatusDone
 			if taskNeedsStructuredReview(task) {
-				task.ReviewState = "approved"
+				task.ReviewState = reviewStateApproved
 			}
 		case "block":
 			if err := rejectFalseLocalWorktreeBlock(task, body.Details); err != nil {
 				http.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
-			task.Status = "blocked"
+			task.Status = taskStatusBlocked
 			task.Blocked = true
 		case "resume":
 			if task.Blocked {
 				task.Blocked = false
 			}
-			if strings.EqualFold(strings.TrimSpace(task.Status), "blocked") {
+			if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusBlocked) {
 				if strings.TrimSpace(task.Owner) != "" {
-					task.Status = "in_progress"
+					task.Status = taskStatusInProgress
 				} else {
 					task.Status = "open"
 				}
@@ -9233,7 +9119,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			task.Blocked = false
 		case "cancel":
 			cancelPrevOwner = strings.TrimSpace(task.Owner)
-			task.Status = "canceled"
+			task.Status = taskStatusCanceled
 			task.Blocked = false
 			task.FollowUpAt = ""
 			task.ReminderAt = ""
@@ -9262,10 +9148,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if pipelineID := strings.TrimSpace(body.PipelineID); pipelineID != "" {
 			task.PipelineID = pipelineID
 		}
-		if executionMode := strings.TrimSpace(body.ExecutionMode); executionMode != "" {
+		if executionMode != "" {
 			task.ExecutionMode = executionMode
 		}
-		if reviewState := strings.TrimSpace(body.ReviewState); reviewState != "" {
+		if reviewState != "" {
 			task.ReviewState = reviewState
 		}
 		if sourceSignalID := strings.TrimSpace(body.SourceSignalID); sourceSignalID != "" {
@@ -9651,6 +9537,11 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 	created := make([]teamTask, 0, len(body.Tasks))
 
 	for _, item := range body.Tasks {
+		executionMode, err := normalizeTaskExecutionModeInput(item.ExecutionMode)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		taskChannel := b.preferredTaskChannelLocked(channel, createdBy, item.Assignee, item.Title, item.Details)
 		if b.findChannelLocked(taskChannel) == nil {
 			http.Error(w, "channel not found", http.StatusNotFound)
@@ -9679,7 +9570,7 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			if taskType := strings.TrimSpace(item.TaskType); taskType != "" {
 				existing.TaskType = taskType
 			}
-			if executionMode := strings.TrimSpace(item.ExecutionMode); executionMode != "" {
+			if executionMode != "" {
 				existing.ExecutionMode = executionMode
 			}
 			existing.DependsOn = resolvedDeps
@@ -9720,7 +9611,7 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			Status:        "open",
 			CreatedBy:     createdBy,
 			TaskType:      strings.TrimSpace(item.TaskType),
-			ExecutionMode: strings.TrimSpace(item.ExecutionMode),
+			ExecutionMode: executionMode,
 			DependsOn:     resolvedDeps,
 			CreatedAt:     now,
 			UpdatedAt:     now,
@@ -10335,12 +10226,7 @@ func (b *Broker) findReusableTaskLocked(match taskReuseMatch) *teamTask {
 }
 
 func isTerminalTeamTaskStatus(status string) bool {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "done", "completed", "canceled", "cancelled":
-		return true
-	default:
-		return false
-	}
+	return office.IsTerminalTaskStatus(status)
 }
 
 func (b *Broker) handleRequests(w http.ResponseWriter, r *http.Request) {
@@ -10810,7 +10696,7 @@ func FormatChannelView(messages []channelMessage) string {
 		}
 
 		prefix := m.From
-		if m.Kind == "automation" || m.From == "nex" {
+		if m.Kind == messageKindAutomation || m.From == "nex" {
 			source := m.Source
 			if source == "" {
 				source = "context_graph"

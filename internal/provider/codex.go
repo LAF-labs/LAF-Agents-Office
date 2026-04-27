@@ -10,6 +10,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 var (
@@ -201,11 +202,11 @@ func describeCodexFailure(err error) string {
 }
 
 func appendCodexLatencyLog(agentSlug string, line string) {
-	home, err := os.UserHomeDir()
-	if err != nil {
+	home := strings.TrimSpace(config.RuntimeHomeDir())
+	if home == "" {
 		return
 	}
-	logDir := filepath.Join(home, ".laf-office", "logs")
+	logDir := product.RuntimePath(home, "logs")
 	if err := os.MkdirAll(logDir, 0o700); err != nil {
 		return
 	}

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
 )
 
@@ -34,9 +35,9 @@ var (
 // opencode.json's per-server `environment` block, where they are scoped to the
 // laf-office MCP server and never reach the model backend.
 var headlessOpencodeSecretEnvVars = []string{
-	"LAF_OFFICE_BROKER_TOKEN",
-	"LAF_OFFICE_API_KEY",
-	"LAF_OFFICE_OPENAI_API_KEY",
+	product.Env("BROKER_TOKEN"),
+	product.Env("API_KEY"),
+	product.Env("OPENAI_API_KEY"),
 	"NEX_API_KEY",
 	"ONE_SECRET",
 }
@@ -75,7 +76,7 @@ func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, not
 	// config so agents can claim tasks / post status / update wiki, and flip
 	// the provider tag + NO_COLOR.
 	env := l.buildHeadlessCodexEnv(slug, workspaceDir, firstNonEmpty(channel...))
-	env = setEnvValue(env, "LAF_OFFICE_HEADLESS_PROVIDER", "opencode")
+	env = setEnvValue(env, product.Env("HEADLESS_PROVIDER"), "opencode")
 	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
 		env = setEnvValue(env, "HOME", home)
 	}
@@ -83,7 +84,7 @@ func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, not
 	env = stripEnvKeys(env, headlessOpencodeSecretEnvVars)
 	env = setEnvValue(env, "NO_COLOR", "1")
 	if workspaceDir != strings.TrimSpace(l.cwd) {
-		env = append(env, "LAF_OFFICE_WORKTREE_PATH="+workspaceDir)
+		env = append(env, product.Env("WORKTREE_PATH")+"="+workspaceDir)
 	}
 	opencodeConfigPath, err := l.writeHeadlessOpencodeMCPConfig(slug)
 	if err != nil {

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/google/uuid"
 )
 
@@ -19,11 +21,11 @@ type SessionStore struct {
 
 // NewSessionStore creates a store rooted at ~/.laf-office/sessions by default.
 func NewSessionStore() (*SessionStore, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("get home dir: %w", err)
+	home := strings.TrimSpace(config.RuntimeHomeDir())
+	if home == "" {
+		return nil, fmt.Errorf("resolve runtime home")
 	}
-	return &SessionStore{baseDir: filepath.Join(home, ".laf-office", "sessions")}, nil
+	return &SessionStore{baseDir: product.RuntimePath(home, "sessions")}, nil
 }
 
 // NewSessionStoreAt creates a store rooted at a specific directory (useful for tests).

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // onboardingCompleteFn is invoked by the onboarding package when the user
@@ -71,7 +71,7 @@ func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID st
 		// earlier team.
 		if !skipTask && task != "" {
 			for _, existing := range b.messages {
-				if existing.Channel == "general" && existing.Kind == "onboarding_origin" && existing.Content == task {
+				if existing.Channel == "general" && existing.Kind == messageKindOnboardingOrigin && existing.Content == task {
 					return b.saveLocked()
 				}
 			}
@@ -117,7 +117,7 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 		log.Printf("onboarding: resolve home for wiki materialization: %v", err)
 		return
 	}
-	wikiRoot := filepath.Join(home, ".laf-office", "wiki")
+	wikiRoot := product.RuntimePath(home, "wiki")
 	result, err := operations.MaterializeWiki(context.Background(), wikiRoot, bp.WikiSchema)
 	if err != nil {
 		log.Printf("onboarding: wiki materialize failed (wiki left empty): %v", err)
@@ -313,7 +313,7 @@ func (b *Broker) postKickoffLocked(bp operations.Blueprint, selectedAgents []str
 		ID:        fmt.Sprintf("msg-%d", b.counter),
 		From:      "human",
 		Channel:   "general",
-		Kind:      "onboarding_origin",
+		Kind:      messageKindOnboardingOrigin,
 		Content:   task,
 		Tagged:    []string{lead},
 		Timestamp: now,

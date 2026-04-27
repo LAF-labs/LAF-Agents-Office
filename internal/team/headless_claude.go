@@ -13,6 +13,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -69,7 +70,7 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 	configureHeadlessProcess(cmd)
 	env := l.buildHeadlessClaudeEnv(slug)
 	if worktreeDir != "" {
-		env = append(env, "LAF_OFFICE_WORKTREE_PATH="+worktreeDir)
+		env = append(env, product.Env("WORKTREE_PATH")+"="+worktreeDir)
 	}
 	cmd.Env = env
 
@@ -258,18 +259,18 @@ func (l *Launcher) buildHeadlessClaudeEnv(slug string) []string {
 	// silently retarget the outer repo.
 	env := gitexec.CleanEnv()
 	env = append(env,
-		"LAF_OFFICE_AGENT_SLUG="+slug,
-		"LAF_OFFICE_BROKER_TOKEN="+l.broker.Token(),
-		"LAF_OFFICE_BROKER_BASE_URL="+l.BrokerBaseURL(),
-		"LAF_OFFICE_HEADLESS_PROVIDER=claude",
-		"LAF_OFFICE_MEMORY_BACKEND="+config.ResolveMemoryBackend(""),
-		fmt.Sprintf("LAF_OFFICE_NO_NEX=%t", config.ResolveNoNex()),
+		product.Env("AGENT_SLUG")+"="+slug,
+		product.Env("BROKER_TOKEN")+"="+l.broker.Token(),
+		product.Env("BROKER_BASE_URL")+"="+l.BrokerBaseURL(),
+		product.Env("HEADLESS_PROVIDER")+"=claude",
+		product.Env("MEMORY_BACKEND")+"="+config.ResolveMemoryBackend(""),
+		fmt.Sprintf("%s=%t", product.Env("NO_NEX"), config.ResolveNoNex()),
 		"ANTHROPIC_PROMPT_CACHING=1",
 	)
 	if l.isOneOnOne() {
 		env = append(env,
-			"LAF_OFFICE_ONE_ON_ONE=1",
-			"LAF_OFFICE_ONE_ON_ONE_AGENT="+l.oneOnOneAgent(),
+			product.Env("ONE_ON_ONE")+"=1",
+			product.Env("ONE_ON_ONE_AGENT")+"="+l.oneOnOneAgent(),
 		)
 	}
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
@@ -283,7 +284,7 @@ func (l *Launcher) buildHeadlessClaudeEnv(slug string) []string {
 	}
 	if apiKey := strings.TrimSpace(config.ResolveAPIKey("")); apiKey != "" {
 		env = append(env,
-			"LAF_OFFICE_API_KEY="+apiKey,
+			product.Env("API_KEY")+"="+apiKey,
 			"NEX_API_KEY="+apiKey,
 		)
 	}

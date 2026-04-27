@@ -69,6 +69,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // HumanIdentity is the cached git identity for a single human.
@@ -119,9 +120,9 @@ func NewHumanIdentityRegistryAt(dir string) *HumanIdentityRegistry {
 func humansDir() string {
 	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
-		return filepath.Join(".laf-office", "humans")
+		return product.RuntimePath("", "humans")
 	}
-	return filepath.Join(home, ".laf-office", "humans")
+	return product.RuntimePath(home, "humans")
 }
 
 // Dir returns the on-disk directory the registry reads/writes. Useful

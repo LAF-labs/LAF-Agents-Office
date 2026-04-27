@@ -6,11 +6,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 const (
 	DefaultPort      = 7890
-	DefaultTokenFile = "/tmp/laf-office-broker-token"
+	DefaultTokenFile = "/tmp/" + product.CLIName + "-broker-token"
 )
 
 func ResolveBaseURL() string {
@@ -21,7 +23,7 @@ func ResolveBaseURL() string {
 }
 
 func ResolvePort() int {
-	for _, key := range []string{"LAF_OFFICE_BROKER_PORT", "NEX_BROKER_PORT"} {
+	for _, key := range []string{product.Env("BROKER_PORT"), "NEX_BROKER_PORT"} {
 		if port := parsePort(os.Getenv(key)); port > 0 {
 			return port
 		}
@@ -33,7 +35,7 @@ func ResolvePort() int {
 }
 
 func ResolveTokenFile() string {
-	for _, key := range []string{"LAF_OFFICE_BROKER_TOKEN_FILE", "NEX_BROKER_TOKEN_FILE"} {
+	for _, key := range []string{product.Env("BROKER_TOKEN_FILE"), "NEX_BROKER_TOKEN_FILE"} {
 		if path := strings.TrimSpace(os.Getenv(key)); path != "" {
 			return path
 		}
@@ -42,7 +44,7 @@ func ResolveTokenFile() string {
 	if port == DefaultPort {
 		return DefaultTokenFile
 	}
-	return fmt.Sprintf("/tmp/laf-office-broker-token-%d", port)
+	return fmt.Sprintf("/tmp/%s-broker-token-%d", product.CLIName, port)
 }
 
 func parsePort(raw string) int {
@@ -59,9 +61,9 @@ func parsePort(raw string) int {
 
 func envBaseURL() string {
 	for _, key := range []string{
-		"LAF_OFFICE_BROKER_BASE_URL",
+		product.Env("BROKER_BASE_URL"),
 		"NEX_BROKER_BASE_URL",
-		"LAF_OFFICE_TEAM_BROKER_URL",
+		product.Env("TEAM_BROKER_URL"),
 		"NEX_TEAM_BROKER_URL",
 	} {
 		if base := strings.TrimSpace(os.Getenv(key)); base != "" {

@@ -19,6 +19,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/api"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 // ---------------------------------------------------------------------------
@@ -103,7 +104,7 @@ func (l *Launcher) pollNexNotificationsLoop() {
 }
 
 func notificationPollInterval() time.Duration {
-	if raw := os.Getenv("LAF_OFFICE_NOTIFY_INTERVAL_MINUTES"); raw != "" {
+	if raw := os.Getenv(product.Env("NOTIFY_INTERVAL_MINUTES")); raw != "" {
 		if minutes, err := strconv.Atoi(raw); err == nil && minutes > 0 {
 			return time.Duration(minutes) * time.Minute
 		}

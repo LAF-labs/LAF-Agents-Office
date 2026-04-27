@@ -35,6 +35,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/nex"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/runtimebin"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
@@ -52,8 +53,8 @@ const (
 	// when a non-default broker port is configured, so concurrent prod, dev,
 	// and worktree launches cannot collide on a shared tmux socket or
 	// session name. See nameWithPortSuffix for the suffixing rule.
-	baseSessionName    = "laf-office-team"
-	baseTmuxSocketName = "laf-office"
+	baseSessionName    = product.CLIName + "-team"
+	baseTmuxSocketName = product.CLIName
 )
 
 // SessionName and tmuxSocketName are derived at package init from the
@@ -66,6 +67,10 @@ var (
 	SessionName    = nameWithPortSuffix(baseSessionName)
 	tmuxSocketName = nameWithPortSuffix(baseTmuxSocketName)
 )
+
+func TmuxSocketName() string {
+	return tmuxSocketName
+}
 
 func nameWithPortSuffix(base string) string {
 	return nameWithPortSuffixForPort(base, brokeraddr.ResolvePort())
@@ -177,7 +182,7 @@ func isBlankSlateLaunchSlug(value string) bool {
 func NewLauncher(packSlug string) (*Launcher, error) {
 	cfg, _ := config.Load()
 	explicitPack := packSlug != "" // true when user passed --pack explicitly
-	blankSlateLaunch := isBlankSlateLaunchSlug(packSlug) || strings.TrimSpace(os.Getenv("LAF_OFFICE_START_FROM_SCRATCH")) == "1"
+	blankSlateLaunch := isBlankSlateLaunchSlug(packSlug) || strings.TrimSpace(os.Getenv(product.Env("START_FROM_SCRATCH"))) == "1"
 	if isBlankSlateLaunchSlug(packSlug) {
 		packSlug = ""
 	}
@@ -363,13 +368,13 @@ func (l *Launcher) Launch() error {
 	// Window 0 "team": channel on the left
 	// Pass broker token via env so channel view + agents can authenticate
 	channelEnv := []string{
-		fmt.Sprintf("LAF_OFFICE_BROKER_TOKEN=%s", l.broker.Token()),
-		fmt.Sprintf("LAF_OFFICE_BROKER_BASE_URL=%s", l.BrokerBaseURL()),
+		fmt.Sprintf("%s=%s", product.Env("BROKER_TOKEN"), l.broker.Token()),
+		fmt.Sprintf("%s=%s", product.Env("BROKER_BASE_URL"), l.BrokerBaseURL()),
 	}
 	if l.isOneOnOne() {
 		channelEnv = append(channelEnv,
-			"LAF_OFFICE_ONE_ON_ONE=1",
-			fmt.Sprintf("LAF_OFFICE_ONE_ON_ONE_AGENT=%s", l.oneOnOneAgent()),
+			fmt.Sprintf("%s=1", product.Env("ONE_ON_ONE")),
+			fmt.Sprintf("%s=%s", product.Env("ONE_ON_ONE_AGENT"), l.oneOnOneAgent()),
 		)
 	}
 	channelCmd := fmt.Sprintf("%s %s --channel-view 2>>%s", strings.Join(channelEnv, " "), lafOfficeBinary, shellQuote(channelStderrLogPath()))
@@ -485,8 +490,8 @@ func recoverPanicTo(site, extra string) {
 	buf := make([]byte, 16<<10)
 	n := runtime.Stack(buf, false)
 	fmt.Fprintf(os.Stderr, "panic in %s: %v\n%s\n%s\n", site, r, extra, buf[:n])
-	if home, err := os.UserHomeDir(); err == nil {
-		if f, ferr := os.OpenFile(filepath.Join(home, ".laf-office", "logs", "panics.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
+	if home := strings.TrimSpace(config.RuntimeHomeDir()); home != "" {
+		if f, ferr := os.OpenFile(product.RuntimePath(home, "logs", "panics.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
 			_, _ = fmt.Fprintf(f, "%s panic in %s: %v\n%s\n%s\n\n", time.Now().UTC().Format(time.RFC3339), site, r, extra, buf[:n])
 			_ = f.Close()
 		}
@@ -859,10 +864,10 @@ func shouldWakeLeadForTaskAction(action officeActionLog, task teamTask) bool {
 	}
 	status := strings.ToLower(strings.TrimSpace(task.Status))
 	review := strings.ToLower(strings.TrimSpace(task.ReviewState))
-	if status == "review" || status == "done" || status == "blocked" {
+	if status == taskStatusReview || status == taskStatusDone || status == taskStatusBlocked {
 		return true
 	}
-	if review == "ready_for_review" || review == "approved" {
+	if review == reviewStateReadyForReview || review == reviewStateApproved {
 		return true
 	}
 	return false
@@ -1125,9 +1130,9 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 
 	// Focus mode (delegation): CEO routes all work. Specialists only wake
 	// when explicitly tagged by CEO or human. No cross-agent chatter.
-	if l.isFocusModeEnabled() {
+	if l.CollaborationMode() == CollaborationModeFocus {
 		switch {
-		case msg.From == "you" || msg.From == "human" || msg.Kind == "automation" || msg.From == "nex":
+		case messageComesFromHumanOrSystem(msg):
 			// When the human explicitly @tags one or more specialists, deliver directly
 			// to those specialists only. CEO does not need to re-route explicit assignments —
 			// the specialist is already awake and acting. CEO only sees untagged human messages
@@ -1165,8 +1170,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 		default:
 			// Specialist message: wake CEO only if it is a substantive update (not a status ping).
 			// [STATUS] lines are internal progress markers — CEO does not need to re-route on them.
-			isStatusOnly := strings.HasPrefix(strings.TrimSpace(msg.Content), "[STATUS]")
-			if !isStatusOnly {
+			if specialistUpdateNeedsLeadAttention(msg) {
 				addImmediate(lead)
 			}
 		}
@@ -1175,7 +1179,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 
 	// Collaborative mode: all agents can see domain-relevant messages
 	switch {
-	case msg.From == "you" || msg.From == "human" || msg.Kind == "automation" || msg.From == "nex":
+	case messageComesFromHumanOrSystem(msg):
 		// @all: notify every agent immediately.
 		if containsSlug(msg.Tagged, "all") {
 			addImmediate(lead)
@@ -1212,7 +1216,9 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 	default:
 		// Specialist-to-channel message in collaborative mode: CEO stays in the loop
 		// plus any tagged agents and the task owner.
-		addImmediate(lead)
+		if specialistUpdateNeedsLeadAttention(msg) {
+			addImmediate(lead)
+		}
 		if owner != "" && owner != lead && allowTarget(owner) {
 			addImmediate(owner)
 		}
@@ -1328,7 +1334,7 @@ func channelStderrLogPath() string {
 	if home == "" {
 		return ".laf-office-channel-stderr.log"
 	}
-	return filepath.Join(home, ".laf-office", "logs", "channel-stderr.log")
+	return product.RuntimePath(home, "logs", "channel-stderr.log")
 }
 
 func channelPaneSnapshotPath() string {
@@ -1336,7 +1342,7 @@ func channelPaneSnapshotPath() string {
 	if home == "" {
 		return ".laf-office-channel-pane.log"
 	}
-	return filepath.Join(home, ".laf-office", "logs", "channel-pane.log")
+	return product.RuntimePath(home, "logs", "channel-pane.log")
 }
 
 func shellQuote(s string) string {
@@ -2855,7 +2861,7 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {
 		lines = append(lines, fmt.Sprintf("- Working directory: %q", path))
 	}
-	if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") {
+	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		lines = append(lines, "Execution rule: this is a local_worktree build task. Work inside the assigned working_directory and default to direct implementation. Do not spend this turn on another repo audit, architecture memo, or nested office launch unless the packet explicitly asks for that.")
 		lines = append(lines, "First-turn rule: choose the smallest shippable implementation slice you can finish in this turn and edit files for that slice now. If the overall MVP is broad, narrow it yourself and ship the first runnable sub-piece instead of trying to map the whole system.")
 		lines = append(lines, "Time rule: cut scope to something you can plausibly ship in under five minutes of focused work. If the chosen slice still needs broad exploration, cut it down again before you continue.")
@@ -3148,7 +3154,7 @@ func (l *Launcher) capturePaneContent(paneIdx int) (string, error) {
 }
 
 func ResetBrokerState() error {
-	token := os.Getenv("LAF_OFFICE_BROKER_TOKEN")
+	token := os.Getenv(product.Env("BROKER_TOKEN"))
 	if token == "" {
 		token = os.Getenv("NEX_BROKER_TOKEN")
 	}
@@ -3166,9 +3172,9 @@ func ClearPersistedBrokerState() error {
 func officePIDFilePath() string {
 	home := config.RuntimeHomeDir()
 	if home == "" {
-		return filepath.Join(".laf-office", "team", "office.pid")
+		return product.RuntimePath("", "team", "office.pid")
 	}
-	return filepath.Join(home, ".laf-office", "team", "office.pid")
+	return product.RuntimePath(home, "team", "office.pid")
 }
 
 func writeOfficePIDFile() error {
@@ -4025,7 +4031,7 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 
 	oneOnOneEnv := ""
 	if l.isOneOnOne() {
-		oneOnOneEnv = fmt.Sprintf("LAF_OFFICE_ONE_ON_ONE=1 LAF_OFFICE_ONE_ON_ONE_AGENT=%s ", l.oneOnOneAgent())
+		oneOnOneEnv = fmt.Sprintf("%s=1 %s=%s ", product.Env("ONE_ON_ONE"), product.Env("ONE_ON_ONE_AGENT"), l.oneOnOneAgent())
 	}
 	oneSecretEnv := ""
 	if secret := strings.TrimSpace(config.ResolveOneSecret()); secret != "" {
@@ -4042,13 +4048,17 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 	model := l.headlessClaudeModel(slug)
 
 	return fmt.Sprintf(
-		"%s%s%sLAF_OFFICE_AGENT_SLUG=%s LAF_OFFICE_BROKER_TOKEN=%s LAF_OFFICE_BROKER_BASE_URL=%s LAF_OFFICE_NO_NEX=%t ANTHROPIC_PROMPT_CACHING=1 CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=otlp OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=%s/v1/logs OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer %s' OTEL_RESOURCE_ATTRIBUTES='agent.slug=%s,laf-office.channel=office' claude --model %s %s --append-system-prompt-file '%s' --mcp-config '%s' --strict-mcp-config -n '%s'",
+		"%s%s%s%s=%s %s=%s %s=%s %s=%t ANTHROPIC_PROMPT_CACHING=1 CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=otlp OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=%s/v1/logs OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer %s' OTEL_RESOURCE_ATTRIBUTES='agent.slug=%s,laf-office.channel=office' claude --model %s %s --append-system-prompt-file '%s' --mcp-config '%s' --strict-mcp-config -n '%s'",
 		oneOnOneEnv,
 		oneSecretEnv,
 		oneIdentityEnv,
+		product.Env("AGENT_SLUG"),
 		slug,
+		product.Env("BROKER_TOKEN"),
 		brokerToken,
+		product.Env("BROKER_BASE_URL"),
 		l.BrokerBaseURL(),
+		product.Env("NO_NEX"),
 		config.ResolveNoNex(),
 		l.BrokerBaseURL(),
 		brokerToken,
@@ -4069,7 +4079,7 @@ func (l *Launcher) claudeCommand(slug, systemPrompt string) (string, error) {
 // artifacts are easy to clean up together. Perms are 0o600 because the prompt
 // can contain team-internal instructions and tool lists.
 func (l *Launcher) writeAgentPromptFile(slug, prompt string) (string, error) {
-	path := filepath.Join(os.TempDir(), "laf-office-prompt-"+slug+".txt")
+	path := filepath.Join(os.TempDir(), product.CLIName+"-prompt-"+slug+".txt")
 	if err := os.WriteFile(path, []byte(prompt), 0o600); err != nil {
 		return "", err
 	}
@@ -4084,8 +4094,8 @@ func (l *Launcher) cleanupAgentTempFiles() {
 	tmp := os.TempDir()
 	for _, m := range l.officeMembersSnapshot() {
 		for _, path := range []string{
-			filepath.Join(tmp, "laf-office-mcp-"+m.Slug+".json"),
-			filepath.Join(tmp, "laf-office-prompt-"+m.Slug+".txt"),
+			filepath.Join(tmp, product.CLIName+"-mcp-"+m.Slug+".json"),
+			filepath.Join(tmp, product.CLIName+"-prompt-"+m.Slug+".txt"),
 		} {
 			_ = os.Remove(path)
 		}
@@ -4111,15 +4121,15 @@ var codingAgentSlugs = map[string]bool{
 
 // agentMCPServers returns the MCP server keys that a given agent should receive.
 func agentMCPServers(slug string) []string {
-	channel := strings.TrimSpace(os.Getenv("LAF_OFFICE_CHANNEL"))
+	channel := strings.TrimSpace(os.Getenv(product.Env("CHANNEL")))
 	// DM mode: only laf-office (minimal tool set, no nex overhead)
 	if strings.HasPrefix(channel, "dm-") {
-		return []string{"laf-office"}
+		return []string{product.CLIName}
 	}
 	if codingAgentSlugs[slug] {
-		return []string{"laf-office"}
+		return []string{product.CLIName}
 	}
-	return []string{"laf-office", "nex"}
+	return []string{product.CLIName, "nex"}
 }
 
 // buildMCPServerMap constructs the full set of MCP server entries.
@@ -4136,7 +4146,7 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 		"command": lafOfficeBinary,
 		"args":    []string{"mcp-team"},
 	}
-	servers["laf-office"] = office
+	servers[product.CLIName] = office
 	if oneSecret := strings.TrimSpace(config.ResolveOneSecret()); oneSecret != "" {
 		office["env"] = map[string]string{
 			"ONE_SECRET": oneSecret,
@@ -4161,7 +4171,7 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 			if env == nil {
 				env = map[string]string{}
 			}
-			env["LAF_OFFICE_API_KEY"] = apiKey
+			env[product.Env("API_KEY")] = apiKey
 			env["NEX_API_KEY"] = apiKey
 			office["env"] = env
 		}
@@ -4194,8 +4204,8 @@ func (l *Launcher) buildMCPServerMap() (map[string]any, error) {
 			servers["nex"] = map[string]any{
 				"command": nexMCP,
 				"env": map[string]string{
-					"LAF_OFFICE_API_KEY": apiKey,
-					"NEX_API_KEY":        apiKey,
+					product.Env("API_KEY"): apiKey,
+					"NEX_API_KEY":          apiKey,
 				},
 			}
 		}
@@ -4218,7 +4228,7 @@ func (l *Launcher) ensureMCPConfig() (string, error) {
 		return "", err
 	}
 
-	path := filepath.Join(os.TempDir(), "laf-office-team-mcp.json")
+	path := filepath.Join(os.TempDir(), product.CLIName+"-team-mcp.json")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return "", err
 	}
@@ -4249,7 +4259,7 @@ func (l *Launcher) ensureAgentMCPConfig(slug string) (string, error) {
 		return "", err
 	}
 
-	path := filepath.Join(os.TempDir(), "laf-office-mcp-"+slug+".json")
+	path := filepath.Join(os.TempDir(), product.CLIName+"-mcp-"+slug+".json")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return "", err
 	}
@@ -4452,7 +4462,7 @@ func resolveRepoRoot(start string) string {
 }
 
 func loadRunningSessionMode() (string, string) {
-	token := strings.TrimSpace(os.Getenv("LAF_OFFICE_BROKER_TOKEN"))
+	token := strings.TrimSpace(os.Getenv(product.Env("BROKER_TOKEN")))
 	if token == "" {
 		return SessionModeOffice, DefaultOneOnOneAgent
 	}

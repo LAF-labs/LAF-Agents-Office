@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 const defaultOneBin = "one"
@@ -27,8 +28,8 @@ type OneCLI struct {
 }
 
 func NewOneCLIFromEnv() *OneCLI {
-	bin := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_BIN"))
-	workDir := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_WORKDIR"))
+	bin := strings.TrimSpace(os.Getenv(product.Env("ONE_BIN")))
+	workDir := strings.TrimSpace(os.Getenv(product.Env("ONE_WORKDIR")))
 	if workDir == "" {
 		cfgDir := filepath.Dir(config.ConfigPath())
 		workDir = filepath.Join(cfgDir, "one")
@@ -636,7 +637,7 @@ func (o *OneCLI) run(ctx context.Context, args []string) ([]byte, error) {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if ee, ok := err.(*exec.Error); ok && ee.Err == exec.ErrNotFound {
-			return nil, fmt.Errorf("one CLI not found. Install One, make npx available, or set LAF_OFFICE_ONE_BIN")
+			return nil, fmt.Errorf("one CLI not found. Install One, make npx available, or set %s", product.Env("ONE_BIN"))
 		}
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
@@ -656,7 +657,7 @@ func (o *OneCLI) commandWorkDir(args []string) string {
 			return dir
 		}
 	}
-	if dir := strings.TrimSpace(os.Getenv("LAF_OFFICE_ONE_ACTION_WORKDIR")); dir != "" {
+	if dir := strings.TrimSpace(os.Getenv(product.Env("ONE_ACTION_WORKDIR"))); dir != "" {
 		return dir
 	}
 	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {

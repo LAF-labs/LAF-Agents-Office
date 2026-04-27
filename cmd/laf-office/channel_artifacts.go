@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
@@ -442,14 +443,10 @@ func recentExecutionArtifactActions(actions []channelAction, limit int) []channe
 }
 
 func taskLogRoot() string {
-	if root := strings.TrimSpace(os.Getenv("LAF_OFFICE_TASK_LOG_ROOT")); root != "" {
+	if root := strings.TrimSpace(os.Getenv(product.Env("TASK_LOG_ROOT"))); root != "" {
 		return root
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".laf-office", "office", "tasks")
-	}
-	return filepath.Join(home, ".laf-office", "office", "tasks")
+	return product.RuntimePath(config.RuntimeHomeDir(), "office", "tasks")
 }
 
 func artifactClock(timestamp string, fallback time.Time) string {

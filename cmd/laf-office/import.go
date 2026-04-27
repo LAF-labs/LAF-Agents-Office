@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -470,9 +472,5 @@ func mapTaskStatus(status string) string {
 
 // lafOfficeBrokerStatePath mirrors defaultBrokerStatePath in internal/team/broker.go.
 func lafOfficeBrokerStatePath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".laf-office", "team", "broker-state.json")
-	}
-	return filepath.Join(home, ".laf-office", "team", "broker-state.json")
+	return product.RuntimePath(config.RuntimeHomeDir(), "team", "broker-state.json")
 }
