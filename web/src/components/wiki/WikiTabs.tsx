@@ -74,10 +74,7 @@ export default function WikiTabs({
           >
             <span className="wiki-tab-label">{tab.label}</span>
             {tab.badge !== undefined && (
-              <span
-                className="wiki-tab-badge"
-                aria-label={`${tab.badge} pending`}
-              >
+              <span className="wiki-tab-badge" title={`${tab.badge} pending`}>
                 {tab.badge}
               </span>
             )}

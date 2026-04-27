@@ -116,7 +116,7 @@ export function ThreadPanel() {
   if (!activeThreadId) return null;
 
   return (
-    <div className="thread-panel open" role="complementary" aria-label="Thread">
+    <aside className="thread-panel open" aria-label="Thread">
       <div className="thread-panel-header">
         <div className="thread-panel-title-group">
           <span className="thread-panel-title">Thread</span>
@@ -130,6 +130,8 @@ export function ThreadPanel() {
           title="Close (Esc)"
         >
           <svg
+            aria-hidden="true"
+            focusable="false"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -183,6 +185,8 @@ export function ThreadPanel() {
           <div className="thread-quote-chip">
             <svg
               className="thread-quote-icon"
+              aria-hidden="true"
+              focusable="false"
               width="12"
               height="12"
               viewBox="0 0 24 24"
@@ -209,6 +213,8 @@ export function ThreadPanel() {
               title="Cancel quote"
             >
               <svg
+                aria-hidden="true"
+                focusable="false"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -253,6 +259,8 @@ export function ThreadPanel() {
             aria-label="Send reply"
           >
             <svg
+              aria-hidden="true"
+              focusable="false"
               width="16"
               height="16"
               viewBox="0 0 24 24"
@@ -268,7 +276,7 @@ export function ThreadPanel() {
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 

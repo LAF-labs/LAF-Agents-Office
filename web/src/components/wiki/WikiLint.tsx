@@ -130,7 +130,7 @@ export default function WikiLint({ onNavigate }: WikiLintProps) {
                 <td className="wk-audit-when">
                   <span
                     className={`wk-lint-severity wk-lint-severity--${f.severity}`}
-                    aria-label={`${severityLabel(f.severity)} finding`}
+                    title={`${severityLabel(f.severity)} finding`}
                   >
                     {severityLabel(f.severity)}
                   </span>

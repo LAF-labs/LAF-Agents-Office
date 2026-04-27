@@ -63,6 +63,7 @@ export function buildMarkdownComponents(
         return (
           <a
             {...props}
+            href={slug ? `#/wiki/${encodeURI(slug)}` : props.href}
             onClick={(e) => {
               if (slug) {
                 e.preventDefault();

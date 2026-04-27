@@ -199,6 +199,8 @@ export function MessageFeed() {
               >
                 <svg
                   className="thread-collapse-chevron"
+                  aria-hidden="true"
+                  focusable="false"
                   width="10"
                   height="10"
                   viewBox="0 0 24 24"

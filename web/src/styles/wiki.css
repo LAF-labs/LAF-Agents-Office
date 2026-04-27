@@ -263,11 +263,19 @@
   align-items: center;
   gap: 6px;
 }
-.wk-breadcrumb a {
+.wk-breadcrumb a,
+.wk-breadcrumb button {
   color: var(--wk-text-muted);
   cursor: pointer;
 }
-.wk-breadcrumb a:hover {
+.wk-breadcrumb button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+}
+.wk-breadcrumb a:hover,
+.wk-breadcrumb button:hover {
   color: var(--wk-wikilink);
 }
 .wk-breadcrumb .sep {
@@ -643,9 +651,13 @@
   flex-wrap: wrap;
   gap: 0 14px;
 }
-.wk-page-footer .wk-actions a {
+.wk-actions button {
+  border: 0;
+  background: none;
+  padding: 0;
   color: var(--wk-wikilink);
   cursor: pointer;
+  font: inherit;
 }
 .wk-page-footer .wk-dim {
   color: var(--wk-text-tertiary);
@@ -1049,6 +1061,9 @@
   align-self: center;
 }
 .wk-catalog-card li .wk-title {
+  border: 0;
+  background: none;
+  padding: 0;
   font-family: var(--wk-body-serif);
   color: var(--wk-text);
   cursor: pointer;
@@ -1056,6 +1071,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 .wk-catalog-card li .wk-title:hover {
   color: var(--wk-wikilink);
@@ -1387,10 +1403,24 @@
   cursor: default;
 }
 .wk-section-discovered {
-  cursor: pointer;
+  cursor: default;
 }
 .wk-section-discovered:hover .wk-section-title {
   color: var(--wk-text);
+}
+.wk-section-header-button,
+.wk-section-header-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.wk-section-header-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
 }
 .wk-section-marker {
   display: inline-block;

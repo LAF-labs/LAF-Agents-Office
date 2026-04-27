@@ -150,6 +150,10 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
       aria-modal="true"
       aria-label="Help — slash commands and keyboard shortcuts"
       onClick={handleOverlayClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      tabIndex={-1}
     >
       <div className="help-modal card">
         <header className="help-header">

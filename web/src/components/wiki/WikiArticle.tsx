@@ -243,20 +243,16 @@ export default function WikiArticle({
           rightRail={context ? [context] : undefined}
         />
         <div className="wk-breadcrumb">
-          <a
-            href="#/wiki"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate("");
-            }}
-          >
+          <button type="button" onClick={() => onNavigate("")}>
             Team Wiki
-          </a>
+          </button>
           {breadcrumbItems.map(({ seg, path }) => (
             <span key={path} style={{ display: "contents" }}>
               <span className="sep">›</span>
               {path !== lastBreadcrumbPath ? (
-                <a href="#">{seg}</a>
+                <button type="button" onClick={() => onNavigate(path)}>
+                  {seg}
+                </button>
               ) : (
                 <span>{article.title}</span>
               )}

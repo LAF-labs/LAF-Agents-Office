@@ -1387,6 +1387,18 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   justify-content: space-between;
   margin-bottom: 4px;
 }
+.task-column-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.task-column-item {
+  margin: 0;
+  padding: 0;
+}
 .task-column-count {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1396,6 +1408,13 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
 }
 .task-card {
   cursor: grab;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.task-card .app-card-title {
+  display: block;
 }
 .task-project-chip {
   display: inline-flex;

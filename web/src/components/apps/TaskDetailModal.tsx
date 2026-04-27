@@ -159,9 +159,13 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
     <div
       className="task-detail-overlay"
       onClick={handleOverlayClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={`Task ${task.id}`}
+      tabIndex={-1}
     >
       <div className="task-detail-modal card">
         <header className="task-detail-header">

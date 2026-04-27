@@ -159,10 +159,18 @@ export function AgentWizard({ open, onClose, onCreated }: AgentWizardProps) {
   if (!open) return null;
 
   return (
-    <div className="agent-wizard-overlay" onClick={handleOverlayClick}>
+    <div
+      className="agent-wizard-overlay"
+      role="dialog"
+      aria-label="Create agent"
+      tabIndex={-1}
+      onClick={handleOverlayClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") handleCancel();
+      }}
+    >
       <div className="agent-wizard-modal card">
         <div className="agent-wizard-title">Create agent</div>
-
         {/* Mode toggle */}
         <div className="channel-wizard-tabs" style={{ marginBottom: 16 }}>
           <button

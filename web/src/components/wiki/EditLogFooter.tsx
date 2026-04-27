@@ -34,7 +34,7 @@ export default function EditLogFooter({
   }, []);
 
   return (
-    <div className="wk-edit-log" aria-label="Live wiki edit log">
+    <section className="wk-edit-log" aria-label="Live wiki edit log">
       <span className="wk-label">Live</span>
       {entries.map((entry, idx) => {
         const isLive = idx === 0;
@@ -65,7 +65,7 @@ export default function EditLogFooter({
           </span>
         );
       })}
-    </div>
+    </section>
   );
 }
 

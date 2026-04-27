@@ -108,10 +108,7 @@ export default function EntityRelatedPanel({
                   {target}
                 </a>
                 {edge.occurrence_count > 1 && (
-                  <span
-                    className="wk-related-count"
-                    aria-label="occurrence count"
-                  >
+                  <span className="wk-related-count" title="Occurrence count">
                     ×{edge.occurrence_count}
                   </span>
                 )}

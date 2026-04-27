@@ -114,11 +114,7 @@ export function InterviewBar() {
   const handlePrev = () => setCursor((i) => Math.max(i - 1, 0));
 
   return (
-    <div
-      className="interview-bar"
-      role="region"
-      aria-label="Pending agent interview"
-    >
+    <section className="interview-bar" aria-label="Pending agent interview">
       <div className="interview-bar-head">
         <span className="badge badge-yellow">BLOCKING</span>
         <span className="interview-bar-from">
@@ -239,6 +235,6 @@ export function InterviewBar() {
       ) : (
         <div className="interview-bar-empty">No options provided.</div>
       )}
-    </div>
+    </section>
   );
 }

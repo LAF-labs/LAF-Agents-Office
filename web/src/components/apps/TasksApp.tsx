@@ -1,10 +1,4 @@
-import {
-  type DragEvent,
-  type FormEvent,
-  type KeyboardEvent,
-  useCallback,
-  useState,
-} from "react";
+import { type DragEvent, type FormEvent, useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -209,7 +203,7 @@ export function TasksApp() {
     : null;
 
   const handleDragStart =
-    (taskId: string) => (event: DragEvent<HTMLDivElement>) => {
+    (taskId: string) => (event: DragEvent<HTMLButtonElement>) => {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(DND_MIME, taskId);
       // Fallback for browsers that restrict custom MIME reads during dragover.
@@ -223,14 +217,14 @@ export function TasksApp() {
   };
 
   const handleColumnDragOver =
-    (status: StatusGroup) => (event: DragEvent<HTMLDivElement>) => {
+    (status: StatusGroup) => (event: DragEvent<HTMLElement>) => {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
       if (dragoverStatus !== status) setDragoverStatus(status);
     };
 
   const handleColumnDragLeave =
-    (status: StatusGroup) => (event: DragEvent<HTMLDivElement>) => {
+    (status: StatusGroup) => (event: DragEvent<HTMLElement>) => {
       // Only clear when leaving the column itself, not a nested child.
       if (event.currentTarget.contains(event.relatedTarget as Node | null))
         return;
@@ -238,7 +232,7 @@ export function TasksApp() {
     };
 
   const handleColumnDrop =
-    (status: StatusGroup) => (event: DragEvent<HTMLDivElement>) => {
+    (status: StatusGroup) => (event: DragEvent<HTMLElement>) => {
       event.preventDefault();
       const taskId =
         event.dataTransfer.getData(DND_MIME) ||
@@ -355,31 +349,40 @@ export function TasksApp() {
             }
             const columnClass = `task-column${dragoverStatus === status ? " dragover" : ""}`;
             return (
-              <div
+              <section
                 className={columnClass}
                 key={status}
                 onDragOver={handleColumnDragOver(status)}
                 onDragLeave={handleColumnDragLeave(status)}
                 onDrop={handleColumnDrop(status)}
+                aria-labelledby={`task-column-${status}`}
               >
-                <div className="task-column-header">
+                <div
+                  className="task-column-header"
+                  id={`task-column-${status}`}
+                >
                   <span>{COLUMN_LABEL[status]}</span>
                   <span className="task-column-count">{column.length}</span>
                 </div>
-                {column.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    projectName={
-                      task.project_id ? projectNames.get(task.project_id) : null
-                    }
-                    isDragging={draggingId === task.id}
-                    onDragStart={handleDragStart(task.id)}
-                    onDragEnd={handleDragEnd}
-                    onOpen={() => setSelectedTaskId(task.id)}
-                  />
-                ))}
-              </div>
+                <ul className="task-column-list">
+                  {column.map((task) => (
+                    <li className="task-column-item" key={task.id}>
+                      <TaskCard
+                        task={task}
+                        projectName={
+                          task.project_id
+                            ? projectNames.get(task.project_id)
+                            : null
+                        }
+                        isDragging={draggingId === task.id}
+                        onDragStart={handleDragStart(task.id)}
+                        onDragEnd={handleDragEnd}
+                        onOpen={() => setSelectedTaskId(task.id)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
             );
           })}
         </div>
@@ -433,8 +436,8 @@ interface TaskCardProps {
   task: Task;
   projectName?: string | null;
   isDragging: boolean;
-  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
-  onDragEnd: (event: DragEvent<HTMLDivElement>) => void;
+  onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: (event: DragEvent<HTMLButtonElement>) => void;
   onOpen: () => void;
 }
 
@@ -450,34 +453,26 @@ function TaskCard({
   const timestamp = task.updated_at ?? task.created_at;
   const className = `app-card task-card${isDragging ? " dragging" : ""}`;
 
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onOpen();
-    }
-  }
-
   return (
-    <div
+    <button
+      type="button"
       className={className}
       draggable={true}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onOpen}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
       style={{ marginBottom: 8, cursor: "pointer" }}
     >
-      <div className="app-card-title">{task.title || "Untitled"}</div>
+      <span className="app-card-title">{task.title || "Untitled"}</span>
       {task.project_id ? (
-        <div className="task-project-chip">
+        <span className="task-project-chip">
           {projectName || task.project_id}
-        </div>
+        </span>
       ) : null}
       {task.description ? (
-        <div
+        <span
           style={{
+            display: "block",
             fontSize: 12,
             color: "var(--text-secondary)",
             marginBottom: 8,
@@ -485,9 +480,9 @@ function TaskCard({
           }}
         >
           {task.description.slice(0, 160)}
-        </div>
+        </span>
       ) : null}
-      <div
+      <span
         style={{
           display: "flex",
           alignItems: "center",
@@ -505,7 +500,7 @@ function TaskCard({
         {timestamp ? (
           <span className="app-card-meta">{formatRelativeTime(timestamp)}</span>
         ) : null}
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }

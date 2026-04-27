@@ -48,7 +48,8 @@ export function ToastContainer() {
       }}
     >
       {toasts.map((t) => (
-        <div
+        <button
+          type="button"
           key={t.id}
           className="animate-fade"
           style={{
@@ -61,6 +62,8 @@ export function ToastContainer() {
             pointerEvents: "auto",
             cursor: "pointer",
             maxWidth: 360,
+            border: "none",
+            textAlign: "left",
             background:
               t.type === "error"
                 ? "var(--red)"
@@ -72,7 +75,7 @@ export function ToastContainer() {
           onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
         >
           {t.message}
-        </div>
+        </button>
       ))}
     </div>
   );

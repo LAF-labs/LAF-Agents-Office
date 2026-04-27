@@ -38,13 +38,11 @@ describe("<WikiLint>", () => {
     expect(screen.getByText(/all clear/i)).toBeInTheDocument();
   });
 
-  it('critical finding row has aria-label="Needs attention finding"', async () => {
+  it('critical finding row has title="Needs attention finding"', async () => {
     vi.spyOn(wikiApi, "runLint").mockResolvedValue(REPORT_WITH_CRITICAL);
     render(<WikiLint onNavigate={vi.fn()} />);
     // Wait for the findings table to appear.
-    const severityBadge = await screen.findByLabelText(
-      "Needs attention finding",
-    );
+    const severityBadge = await screen.findByTitle("Needs attention finding");
     expect(severityBadge).toBeInTheDocument();
     expect(severityBadge.textContent).toBe("Needs attention");
   });

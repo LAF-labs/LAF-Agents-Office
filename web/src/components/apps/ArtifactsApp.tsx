@@ -494,37 +494,14 @@ interface StatCardProps {
 }
 
 function StatCard({ kicker, value, copy, anchorId }: StatCardProps) {
-  const clickable = Boolean(anchorId);
-
   const activate = () => {
     if (!anchorId) return;
     const target = document.getElementById(anchorId);
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (!clickable) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      activate();
-    }
-  }
-
-  return (
-    <div
-      className="app-card"
-      style={{
-        padding: "12px 14px",
-        cursor: clickable ? "pointer" : "default",
-      }}
-      onClick={clickable ? activate : undefined}
-      onKeyDown={clickable ? handleKeyDown : undefined}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      aria-label={
-        clickable ? `${kicker}: ${value}. Scroll to details.` : undefined
-      }
-    >
+  const content = (
+    <>
       <div
         style={{
           fontSize: 10,
@@ -540,7 +517,35 @@ function StatCard({ kicker, value, copy, anchorId }: StatCardProps) {
         {value}
       </div>
       <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{copy}</div>
-    </div>
+    </>
+  );
+
+  if (!anchorId) {
+    return (
+      <div className="app-card" style={{ padding: "12px 14px" }}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      className="app-card"
+      href={`#${anchorId}`}
+      style={{
+        padding: "12px 14px",
+        cursor: "pointer",
+        display: "block",
+        textDecoration: "none",
+      }}
+      onClick={(e) => {
+        e.preventDefault();
+        activate();
+      }}
+      aria-label={`${kicker}: ${value}. Scroll to details.`}
+    >
+      {content}
+    </a>
   );
 }
 

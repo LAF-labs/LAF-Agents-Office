@@ -11,7 +11,7 @@ export default function CategoriesFooter({
 }: CategoriesFooterProps) {
   if (tags.length === 0) return null;
   return (
-    <div className="wk-categories" aria-label="Categories">
+    <section className="wk-categories" aria-label="Categories">
       <span className="wk-label">Categories:</span>
       {tags.map((tag) => (
         <a
@@ -27,6 +27,6 @@ export default function CategoriesFooter({
           {tag}
         </a>
       ))}
-    </div>
+    </section>
   );
 }

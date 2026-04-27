@@ -110,6 +110,10 @@ export default function ResolveContradictionModal({
       aria-labelledby="wk-resolve-title"
       ref={backdropRef}
       onClick={handleBackdropClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      tabIndex={-1}
     >
       <div className="wk-modal">
         <h2 id="wk-resolve-title">Resolve contradiction</h2>
@@ -121,7 +125,7 @@ export default function ResolveContradictionModal({
           )}
         </p>
 
-        <div className="wk-resolve-facts" aria-label="Conflicting facts">
+        <section className="wk-resolve-facts" aria-label="Conflicting facts">
           <div className="wk-resolve-fact">
             <span className="wk-resolve-fact-label">Fact A</span>
             <p>{factA}</p>
@@ -130,7 +134,7 @@ export default function ResolveContradictionModal({
             <span className="wk-resolve-fact-label">Fact B</span>
             <p>{factB}</p>
           </div>
-        </div>
+        </section>
 
         {error ? (
           <div

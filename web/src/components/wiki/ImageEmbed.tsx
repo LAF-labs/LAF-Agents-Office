@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface ImageEmbedProps {
   /** Absolute URL the agent embedded in markdown. */
@@ -34,15 +34,6 @@ export function ImageEmbed({
     return () => window.removeEventListener("keydown", handler);
   }, [open]);
 
-  const onImgClick = useCallback(
-    (ev: React.MouseEvent) => {
-      if (!editorial) return;
-      ev.preventDefault();
-      setOpen(true);
-    },
-    [editorial],
-  );
-
   if (!editorial) {
     return (
       <img
@@ -75,7 +66,6 @@ export function ImageEmbed({
             loading="lazy"
             decoding="async"
             referrerPolicy="no-referrer"
-            onClick={onImgClick}
             className="image-embed__img"
           />
         </button>
@@ -89,7 +79,13 @@ export function ImageEmbed({
           role="dialog"
           aria-modal="true"
           aria-label={alt || "Image viewer"}
-          onClick={() => setOpen(false)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+          }}
+          tabIndex={-1}
         >
           <button
             ref={closeButtonRef}
@@ -108,7 +104,6 @@ export function ImageEmbed({
             alt={alt}
             referrerPolicy="no-referrer"
             className="image-embed__full"
-            onClick={(e) => e.stopPropagation()}
           />
         </div>
       ) : null}

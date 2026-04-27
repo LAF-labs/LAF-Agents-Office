@@ -137,7 +137,7 @@ export default function ReviewQueueKanban() {
             </button>
           </>
         ) : (
-          <div className="nb-review-columns" role="list">
+          <div className="nb-review-columns">
             {STATE_ORDER.map((state) => (
               <ReviewColumn
                 key={state}

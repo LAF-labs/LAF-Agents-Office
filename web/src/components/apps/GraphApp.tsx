@@ -220,7 +220,6 @@ export function GraphApp() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [hoveredEdge, setHoveredEdge] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery<GraphAllResponse>({
     queryKey: ["entity-graph-all"],
@@ -395,6 +394,8 @@ export function GraphApp() {
         ) : (
           <>
             <svg
+              role="img"
+              aria-label="Entity graph"
               width={size.width}
               height={size.height}
               style={{ display: "block", userSelect: "none" }}
@@ -414,14 +415,11 @@ export function GraphApp() {
               </defs>
 
               {/* Edges first so nodes paint on top. */}
-              {simResult.edges.map((e, i) => {
+              {simResult.edges.map((e) => {
                 const a = nodesById.get(e.from);
                 const b = nodesById.get(e.to);
                 if (!(a && b)) return null;
-                const active =
-                  hoveredEdge === i ||
-                  hoveredNode === a.id ||
-                  hoveredNode === b.id;
+                const active = hoveredNode === a.id || hoveredNode === b.id;
                 // Shrink the line ends so the arrow doesn't plunge into the node.
                 const dx = b.x - a.x;
                 const dy = b.y - a.y;
@@ -432,11 +430,11 @@ export function GraphApp() {
                 const x2 = b.x - (dx / dist) * shrink;
                 const y2 = b.y - (dy / dist) * shrink;
                 return (
-                  <g
-                    key={`${e.from}->${e.to}:${e.label}`}
-                    onMouseEnter={() => setHoveredEdge(i)}
-                    onMouseLeave={() => setHoveredEdge(null)}
-                  >
+                  <g key={`${e.from}->${e.to}:${e.label}`}>
+                    <title>
+                      {e.occurrenceCount}x{" "}
+                      {e.label ? e.label.slice(0, 24) : "mention"}
+                    </title>
                     <line
                       x1={x1}
                       y1={y1}
@@ -461,30 +459,6 @@ export function GraphApp() {
                       strokeWidth={12}
                       style={{ cursor: "default" }}
                     />
-                    {hoveredEdge === i && (
-                      <g>
-                        <rect
-                          x={(x1 + x2) / 2 - 60}
-                          y={(y1 + y2) / 2 - 12}
-                          width={120}
-                          height={20}
-                          rx={4}
-                          fill="var(--text)"
-                          opacity={0.9}
-                        />
-                        <text
-                          x={(x1 + x2) / 2}
-                          y={(y1 + y2) / 2 + 2}
-                          fontSize={10}
-                          fill="#fff"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                        >
-                          {e.occurrenceCount}× ·{" "}
-                          {e.label ? e.label.slice(0, 12) : "mention"}
-                        </text>
-                      </g>
-                    )}
                   </g>
                 );
               })}
@@ -494,46 +468,54 @@ export function GraphApp() {
                 const s = styleFor(n.kind);
                 const active = hoveredNode === n.id;
                 return (
-                  <g
+                  <a
                     key={n.id}
-                    transform={`translate(${n.x},${n.y})`}
-                    style={{ cursor: "pointer" }}
+                    href={`#/wiki/team/${n.kind}/${encodeURIComponent(n.slug)}.md`}
+                    aria-label={`Open ${n.title}`}
                     onMouseEnter={() => setHoveredNode(n.id)}
                     onMouseLeave={() => setHoveredNode(null)}
-                    onClick={() => handleNodeClick(n)}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      handleNodeClick(n);
+                    }}
                   >
-                    <circle
-                      r={NODE_RADIUS}
-                      fill={s.fill}
-                      stroke={s.stroke}
-                      strokeWidth={active ? 3 : 2}
-                      filter={
-                        active
-                          ? "drop-shadow(0 4px 12px rgba(0,0,0,0.12))"
-                          : undefined
-                      }
-                    />
-                    <text
-                      y={-2}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize={20}
-                      pointerEvents="none"
+                    <g
+                      transform={`translate(${n.x},${n.y})`}
+                      style={{ cursor: "pointer" }}
                     >
-                      {s.icon}
-                    </text>
-                    <text
-                      y={NODE_RADIUS + 14}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize={11}
-                      fontWeight={active ? 600 : 500}
-                      fill="var(--text)"
-                      style={{ pointerEvents: "none" }}
-                    >
-                      {truncateLabel(n.title)}
-                    </text>
-                  </g>
+                      <circle
+                        r={NODE_RADIUS}
+                        fill={s.fill}
+                        stroke={s.stroke}
+                        strokeWidth={active ? 3 : 2}
+                        filter={
+                          active
+                            ? "drop-shadow(0 4px 12px rgba(0,0,0,0.12))"
+                            : undefined
+                        }
+                      />
+                      <text
+                        y={-2}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize={20}
+                        pointerEvents="none"
+                      >
+                        {s.icon}
+                      </text>
+                      <text
+                        y={NODE_RADIUS + 14}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize={11}
+                        fontWeight={active ? 600 : 500}
+                        fill="var(--text)"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        {truncateLabel(n.title)}
+                      </text>
+                    </g>
+                  </a>
                 );
               })}
             </svg>

@@ -66,7 +66,7 @@ export default function ByLineStrip({
   const meta = statusMeta(status);
   const aria = `Entry by ${formatAgentName(authorSlug)}, ${meta.aria}`;
   return (
-    <div className="nb-byline" aria-label={aria}>
+    <section className="nb-byline" aria-label={aria}>
       <PixelAvatar slug={authorSlug} size={14} />
       <span className={meta.className} aria-hidden="true">
         {meta.label}
@@ -86,6 +86,6 @@ export default function ByLineStrip({
               ? "Changes requested"
               : "Not yet reviewed"}
       </span>
-    </div>
+    </section>
   );
 }

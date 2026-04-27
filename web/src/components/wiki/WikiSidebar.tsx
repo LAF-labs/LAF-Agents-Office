@@ -186,29 +186,41 @@ function SectionGroup({
   onNavigate,
   onSectionHeaderClick,
 }: SectionGroupProps) {
+  const content = (
+    <>
+      <span className="wk-section-title">{section.slug}</span>
+      {!section.from_schema ? (
+        <span className="wk-section-marker" aria-hidden="true" />
+      ) : null}
+      {isNew ? (
+        <span className="wk-section-new" role="status" aria-label="New section">
+          new
+        </span>
+      ) : null}
+    </>
+  );
+
   return (
     <div className="wk-section-group" data-section-slug={section.slug}>
       <h3
         className={`wk-section-header wk-section-${section.from_schema ? "schema" : "discovered"}`}
-        onClick={onSectionHeaderClick}
         title={
           section.from_schema
             ? "Declared in your blueprint"
             : "Discovered from articles your team has written"
         }
       >
-        <span className="wk-section-title">{section.slug}</span>
-        {!section.from_schema ? (
-          <span className="wk-section-marker" aria-hidden="true" />
+        {section.from_schema ? (
+          <span className="wk-section-header-static">{content}</span>
         ) : null}
-        {isNew ? (
-          <span
-            className="wk-section-new"
-            role="status"
-            aria-label="New section"
+        {!section.from_schema ? (
+          <button
+            type="button"
+            className="wk-section-header-button"
+            onClick={onSectionHeaderClick}
           >
-            new
-          </span>
+            {content}
+          </button>
         ) : null}
       </h3>
       <ul>

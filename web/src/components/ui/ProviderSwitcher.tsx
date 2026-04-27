@@ -99,8 +99,12 @@ export function ProviderSwitcherHost() {
       onClick={(e) => {
         if (e.target === e.currentTarget) setOpen(false);
       }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
       role="dialog"
       aria-modal="true"
+      tabIndex={-1}
       aria-labelledby="provider-title"
     >
       <div className="provider-panel card">

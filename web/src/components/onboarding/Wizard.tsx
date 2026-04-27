@@ -936,7 +936,7 @@ function SetupStep({
                   {selected && (
                     <span
                       className="runtime-priority-badge"
-                      aria-label={`Priority ${priorityIdx + 1}`}
+                      title={`Priority ${priorityIdx + 1}`}
                     >
                       {priorityIdx + 1}
                     </span>

@@ -87,29 +87,26 @@ export default function NotebookEntryView({
       id="nb-entry-main"
     >
       <nav className="nb-crumb" aria-label="Breadcrumb">
-        <a
-          href="#/apps/notebooks"
-          onClick={(e) => {
-            if (onNavigateCatalog) {
-              e.preventDefault();
-              onNavigateCatalog();
-            }
-          }}
-        >
-          Notebooks
-        </a>{" "}
+        {onNavigateCatalog ? (
+          <button type="button" onClick={onNavigateCatalog}>
+            Notebooks
+          </button>
+        ) : (
+          <a href="/#/apps/notebooks">Notebooks</a>
+        )}{" "}
         /{" "}
-        <a
-          href={`#/notebooks/${encodeURIComponent(entry.agent_slug)}`}
-          onClick={(e) => {
-            if (onNavigateAgent) {
-              e.preventDefault();
-              onNavigateAgent(entry.agent_slug);
-            }
-          }}
-        >
-          {entry.agent_slug}
-        </a>{" "}
+        {onNavigateAgent ? (
+          <button
+            type="button"
+            onClick={() => onNavigateAgent(entry.agent_slug)}
+          >
+            {entry.agent_slug}
+          </button>
+        ) : (
+          <a href={`/#/notebooks/${encodeURIComponent(entry.agent_slug)}`}>
+            {entry.agent_slug}
+          </a>
+        )}{" "}
         / <strong>{entry.entry_slug}</strong>
       </nav>
 

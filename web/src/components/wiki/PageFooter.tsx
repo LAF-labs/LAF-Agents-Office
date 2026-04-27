@@ -32,18 +32,9 @@ export default function PageFooter({
       </div>
       <div className="wk-actions">
         {actions.map((action) => (
-          <a
-            key={action.label}
-            href="#"
-            onClick={(e) => {
-              if (action.onClick) {
-                e.preventDefault();
-                action.onClick();
-              }
-            }}
-          >
+          <button key={action.label} type="button" onClick={action.onClick}>
             {action.label}
-          </a>
+          </button>
         ))}
       </div>
       <div className="wk-dim">

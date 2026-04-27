@@ -44,6 +44,7 @@ export default function EntryBody({
               return (
                 <a
                   {...props}
+                  href={slug ? `#/wiki/${encodeURI(slug)}` : props.href}
                   className={`nb-wikilink${broken ? " is-broken" : ""}`}
                   onClick={(e) => {
                     if (slug && onWikiNavigate) {

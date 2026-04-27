@@ -405,11 +405,23 @@ export function SearchModal() {
   if (!searchOpen) return null;
 
   return (
-    <div className="search-overlay" onClick={handleOverlayClick}>
+    <div
+      className="search-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search"
+      tabIndex={-1}
+      onClick={handleOverlayClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") close();
+      }}
+    >
       <div className="search-modal card cmd-palette">
         <div className="search-input-wrap">
           <svg
             className="search-input-icon"
+            aria-hidden="true"
+            focusable="false"
             width="16"
             height="16"
             viewBox="0 0 24 24"

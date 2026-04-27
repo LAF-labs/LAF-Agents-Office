@@ -79,8 +79,12 @@ export function ConfirmHost() {
   return (
     <div
       className="confirm-overlay"
+      tabIndex={-1}
       onClick={(e) => {
         if (e.target === e.currentTarget) close();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") close();
       }}
       role="dialog"
       aria-modal="true"

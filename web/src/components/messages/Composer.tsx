@@ -642,6 +642,8 @@ export function Composer() {
           aria-label="Send message"
         >
           <svg
+            aria-hidden="true"
+            focusable="false"
             width="16"
             height="16"
             viewBox="0 0 24 24"
