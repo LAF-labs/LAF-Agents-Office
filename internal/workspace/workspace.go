@@ -51,7 +51,7 @@ func ClearRuntime() (Result, error) {
 }
 
 // Shred performs a full workspace wipe. Runs ClearRuntime first, then removes
-// onboarding state, company identity, office task receipts, workflows, logs,
+// onboarding state, company identity, project task receipts, workflows, logs,
 // provider session state, and local markdown memory.
 func Shred() (Result, error) {
 	home, err := lafOfficeHome()

@@ -5259,15 +5259,15 @@ func (m channelModel) buildChannelPickerOptions() []tui.PickerOption {
 
 func (m channelModel) buildSwitchChannelPickerOptions() []tui.PickerOption {
 	options := []tui.PickerOption{
-		{Label: "Main office feed", Value: "app:messages", Description: "Return to the shared message stream"},
+		{Label: "Workspace feed", Value: "app:messages", Description: "Return to the shared message stream"},
 		{Label: "Tasks", Value: "app:tasks", Description: "Review active work for this channel"},
 		{Label: "Requests", Value: "app:requests", Description: "Open pending approvals and interviews"},
 	}
 	if m.isOneOnOne() {
 		options = append(options, tui.PickerOption{
-			Label:       "Return to main office",
+			Label:       "Return to workspace",
 			Value:       "session:office",
-			Description: "Leave direct mode and restore the shared office session",
+			Description: "Leave direct mode and restore the shared workspace session",
 		})
 	} else {
 		for _, member := range m.officeMembers {

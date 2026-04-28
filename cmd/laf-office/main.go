@@ -51,7 +51,7 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "laf-office shred — burn the whole workspace down")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Stops the running session, clears broker state, and deletes the team")
-		fmt.Fprintln(os.Stderr, "roster, company identity, office task receipts, saved workflows, logs,")
+		fmt.Fprintln(os.Stderr, "roster, company identity, project task receipts, saved workflows, logs,")
 		fmt.Fprintln(os.Stderr, "sessions, provider state, and local wiki memory.")
 		fmt.Fprintln(os.Stderr, "Next launch reopens onboarding.")
 		fmt.Fprintln(os.Stderr, "")
@@ -242,7 +242,7 @@ func main() {
 			return
 		case "shred", "kill":
 			if !confirmDestructive(args[1:], "shred", shredSummary) {
-				fmt.Println("Cancelled. The office lives to serve another day.")
+				fmt.Println("Cancelled. Workspace left untouched.")
 				return
 			}
 			if err := killRunningSession(selectedBlueprint); err != nil {
@@ -372,7 +372,7 @@ func runTeam(args []string, packSlug string, unsafe bool, oneOnOne bool, opusCEO
 	if err := l.Attach(); err != nil {
 		// Attach failed (not a terminal, or tmux error).
 		// Keep the process alive to maintain the broker.
-		fmt.Fprintf(os.Stderr, "Could not attach to tmux (not a terminal?). The office is still running in the background.\n")
+		fmt.Fprintf(os.Stderr, "Could not attach to tmux (not a terminal?). The workspace is still running in the background.\n")
 		fmt.Fprintf(os.Stderr, "Team is running in background. Attach manually:\n")
 		fmt.Fprintf(os.Stderr, "  tmux -L %s attach -t %s\n", team.TmuxSocketName(), team.SessionName)
 		fmt.Fprintf(os.Stderr, "Broker running on %s\n", l.BrokerBaseURL())
@@ -402,7 +402,7 @@ func runWeb(args []string, packSlug string, unsafe bool, webPort int, opusCEO bo
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Launching %s web view (%d agents)... the browser is the office now.\n", l.PackName(), l.AgentCount())
+	fmt.Printf("Launching %s web view (%d agents)... the browser opens the project workspace.\n", l.PackName(), l.AgentCount())
 	if err := l.LaunchWeb(webPort); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -473,7 +473,7 @@ func isPiped() bool {
 // promises match.
 const shredSummary = `This will:
   • Stop the running LAF-Office session
-  • Delete your team, company identity, office task receipts, workflows
+  • Delete your team, company identity, project task receipts, workflows
   • Delete logs, sessions, provider state, and local wiki memory
   • Wipe broker runtime state
   • Reopen onboarding on next launch
