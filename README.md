@@ -12,9 +12,9 @@
 
 LAF-Office is a local-first workspace where founder teams plan product work with AI agents, keep durable context in a markdown LLM wiki, and hand implementation tasks to connected coding runtimes.
 
-One command. One shared project workspace. Product, planning, engineering, and review agents are visible in channels, claiming tasks and producing work instead of disappearing behind an API.
+One command. One shared project workspace. Product, planning, engineering, and review agents are visible in the project flow, claiming tasks and producing work instead of disappearing behind an API.
 
-> _30-second teaser — what the office feels like when the agents are actually working._
+> _30-second teaser — what the project workspace feels like when the agents are actually working._
 
 <video width="630" height="300" src="https://github.com/user-attachments/assets/36661391-a0ee-43d6-80d9-177776a53bc9"></video>
 
@@ -30,7 +30,7 @@ One command. One shared project workspace. Product, planning, engineering, and r
 npx laf-office
 ```
 
-That's it. The browser opens automatically and you're in the office.
+That's it. The browser opens automatically and you're in the project workspace.
 
 Prefer a global install?
 
@@ -57,12 +57,13 @@ Paste this into Claude Code, Codex, or Cursor and let your agent drive the insta
 
 ```text
 Set up https://github.com/LAF-labs/LAF-Agents-Office for me. Read `README.md` first, then run
-`npx laf-office` to install and launch the office — the web UI opens at
+`npx laf-office` to install and launch the project workspace — the web UI opens at
 http://localhost:7891 automatically.
 
-Once it is running, confirm you can see #general, the team of agents, and the
-composer. If anything looks off, re-read the "What You Should See" and "Other
-Commands" sections of README.md before retrying — do not skip to flags.
+Once it is running, confirm you can open Projects, see the project workspace,
+and use the composer. If anything looks off, re-read the "What You Should See"
+and "Other Commands" sections of README.md before retrying — do not skip to
+flags.
 
 For agent conventions and the MCP tools each teammate gets, read `AGENTS.md`.
 For internals and how the broker, workspaces, and memory fit together, read
@@ -117,12 +118,12 @@ laf-office --1o1 pm      # 1:1 with a specific agent
 
 ## What You Should See
 
-- A browser tab at `localhost:7891` with the office
-- `#general` as the shared channel
-- The team visible and working
+- A browser tab at `localhost:7891` with the project workspace
+- The Projects view with project wiki, task queue, agents, and repo status
+- The team visible and ready to claim work
 - A composer to send messages and slash commands
 
-If it feels like a hidden agent loop, something is wrong. The work should be visible in channels, tasks, receipts, and the wiki.
+If it feels like a hidden agent loop, something is wrong. The work should be visible in projects, tasks, receipts, and the wiki.
 
 ## Project Task Boards
 
@@ -165,7 +166,7 @@ See [docs/specs/HUMAN-INVITES-MVP.md](docs/specs/HUMAN-INVITES-MVP.md).
 | Feature | How it works |
 |---|---|
 | Sessions | Fresh per turn (no accumulated context) |
-| Tools | Per-agent scoped (DM loads 4, full office loads 27) |
+| Tools | Per-agent scoped (DM loads 4, full workspace loads 27) |
 | Agent wakes | Push-driven (zero idle burn) |
 | Live visibility | Stdout streaming |
 | Mid-task steering | DM any agent, no restart |
@@ -232,7 +233,7 @@ Before you fork, run this prompt against the codebase with any AI coding assista
 
 ```
 You are a cynical senior engineer evaluating whether to fork this repo as the
-base for a multi-agent terminal office product. No prior context — explore it
+base for a multi-agent project workspace product. No prior context — explore it
 as you naturally would. Tell me: should I fork this, and what's your honest
 take? Be specific: file paths, line numbers, actual evidence. "The docs are
 bad" is useless. Under 500 words.

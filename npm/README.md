@@ -52,7 +52,7 @@ Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-
 
 ## Memory: Notebooks and the Wiki
 
-Every agent gets its own **notebook**. The team shares a local markdown **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole office benefits.
+Every agent gets its own **notebook**. The team shares a local markdown **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole workspace benefits.
 
 **Backends for the wiki:**
 
@@ -79,17 +79,17 @@ laf-office --1o1 pm      # 1:1 with a specific agent
 
 ## What You Should See
 
-- A browser tab at `localhost:7891` with the office
-- `#general` as the shared channel
-- The team visible and working
+- A browser tab at `localhost:7891` with the project workspace
+- The Projects view with project wiki, task queue, agents, and repo status
+- The team visible and ready to claim work
 - A composer to send messages and slash commands
 
-If it feels like a hidden agent loop, something is wrong. The work should be visible in channels, tasks, and the project wiki.
+If it feels like a hidden agent loop, something is wrong. The work should be visible in projects, tasks, and the project wiki.
 
 ## Bridges
 
 - **Telegram:** `/connect` → pick Telegram → paste bot token from [@BotFather](https://t.me/BotFather).
-- **OpenClaw:** `/connect openclaw` → paste your gateway URL and `gateway.auth.token` from `~/.openclaw/openclaw.json`. Each OpenClaw session becomes a first-class office member you can `@mention`.
+- **OpenClaw:** `/connect openclaw` → paste your gateway URL and `gateway.auth.token` from `~/.openclaw/openclaw.json`. Each OpenClaw session becomes a first-class workspace member you can `@mention`.
 
 ## External Actions
 
@@ -101,11 +101,11 @@ integrations are not available in this build yet.
 | Feature | How it works |
 |---|---|
 | Sessions | Fresh per turn (no accumulated context) |
-| Tools | Per-agent scoped (DM loads 4, full office loads 27) |
+| Tools | Per-agent scoped (DM loads 4, full workspace loads 27) |
 | Agent wakes | Push-driven (zero idle burn) |
 | Live visibility | Stdout streaming |
 | Mid-task steering | DM any agent, no restart |
-| Runtimes | Mix Claude Code, Codex, and OpenClaw in one channel |
+| Runtimes | Mix Claude Code, Codex, and OpenClaw in one workspace |
 | Memory | Per-agent notebook + shared markdown workspace wiki |
 | Price | Free and open source (MIT, self-hosted, your API keys) |
 
