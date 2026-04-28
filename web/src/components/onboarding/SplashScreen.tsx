@@ -28,8 +28,8 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
     >
       <div className="launch-logo">LAF-Office</div>
       <div className="launch-spinner" />
-      <p className="launch-text">Opening the office&hellip;</p>
-      <p className="launch-sub">Preparing a live operating loop</p>
+      <p className="launch-text">Opening project workspace&hellip;</p>
+      <p className="launch-sub">Preparing agents and wiki memory</p>
     </button>
   );
 }

@@ -108,7 +108,7 @@ const messages = {
     "settings.team.copyFailed": "Could not copy invite link.",
     "settings.team.roleUpdated": "Role updated.",
     "settings.team.roleUpdateFailed": "Role update failed",
-    "settings.team.localOffice": "Local Office",
+    "settings.team.localOffice": "Local workspace",
     "settings.team.statusActive": "active",
     "settings.company.title": "Company",
     "settings.company.desc":
@@ -153,13 +153,13 @@ const messages = {
     "settings.danger.resetButton": "Reset broker state...",
     "settings.danger.shredTitle": "Shred workspace",
     "settings.danger.shredSubtitle":
-      "Full wipe. Deletes your team, company identity, office task receipts, saved workflows, local memory, logs, and provider session state, then returns you to onboarding.",
+      "Full wipe. Deletes your team, company identity, project task receipts, saved workflows, local memory, logs, and provider session state, then returns you to onboarding.",
     "settings.danger.deletes": "Deletes",
     "settings.danger.shredDeleteOnboarding":
       "Onboarding flag so the wizard reopens",
     "settings.danger.shredDeleteCompany": "Company identity",
     "settings.danger.shredDeleteRuntime":
-      "Team runtime state, office, and workflows under",
+      "Team runtime state, workspace data, and workflows under",
     "settings.danger.shredDeleteLogs":
       "Logs, sessions, provider state, and local wiki memory",
     "settings.danger.shredDeleteBroker": "Broker runtime state (same as Reset)",
@@ -172,11 +172,11 @@ const messages = {
     "settings.danger.confirmTail": "to confirm",
     "settings.danger.resetModalTitle": "Reset broker state?",
     "settings.danger.resetModalIntro":
-      "This clears the broker's on-disk runtime state and reboots the office from a clean slate. Your team, company, tasks, and workflows are all kept. If this does not unblock things, try Shred workspace instead.",
+      "This clears the broker's on-disk runtime state and reboots the workspace from a clean slate. Your team, company, tasks, and workflows are all kept. If this does not unblock things, try Shred workspace instead.",
     "settings.danger.resetConfirm": "Reset broker state",
     "settings.danger.shredModalTitle": "Shred this workspace?",
     "settings.danger.shredModalIntro":
-      "This permanently deletes your team, company identity, office task receipts, and saved workflows, plus local logs, sessions, provider state, and wiki memory. Onboarding will reopen immediately. Task worktrees, config, and device identity are kept. This cannot be undone.",
+      "This permanently deletes your team, company identity, project task receipts, and saved workflows, plus local logs, sessions, provider state, and wiki memory. Onboarding will reopen immediately. Task worktrees, config, and device identity are kept. This cannot be undone.",
     "settings.danger.shredConfirm": "Shred workspace",
     "settings.danger.resetFailed": "Reset failed",
     "settings.danger.resetSuccess": "Broker state cleared. Reloading...",
@@ -386,7 +386,7 @@ const messages = {
     "runtime.needYou": "need you",
     "runtime.active": "active",
     "runtime.blocked": "blocked",
-    "status.office": "office",
+    "status.office": "workspace",
     "status.shortcuts": "shortcuts",
     "status.openShortcuts": "Open keyboard shortcuts",
     "status.agent": "agent",
@@ -394,11 +394,11 @@ const messages = {
     "status.runtime": "Runtime",
     "status.runtimeProvider": "Runtime provider",
     "invite.kicker": "LAF-Office invite",
-    "invite.title": "Join the office",
+    "invite.title": "Join the project team",
     "invite.checking": "Checking invite...",
     "invite.done":
-      "You're in. Open the LAF-Office tab to start working with the team.",
-    "invite.openOffice": "Open office",
+      "You're in. Open the project workspace to start working with the team.",
+    "invite.openOffice": "Open workspace",
     "invite.notFound": "Invite not found",
     "invite.acceptFailed": "Could not accept invite",
   },
@@ -507,7 +507,7 @@ const messages = {
     "settings.team.copyFailed": "초대 링크를 복사하지 못했습니다.",
     "settings.team.roleUpdated": "역할을 변경했습니다.",
     "settings.team.roleUpdateFailed": "역할 변경에 실패했습니다",
-    "settings.team.localOffice": "로컬 오피스",
+    "settings.team.localOffice": "로컬 워크스페이스",
     "settings.team.statusActive": "활성",
     "settings.company.title": "회사",
     "settings.company.desc":
@@ -551,13 +551,13 @@ const messages = {
     "settings.danger.resetButton": "브로커 상태 재설정...",
     "settings.danger.shredTitle": "워크스페이스 완전 삭제",
     "settings.danger.shredSubtitle":
-      "전체 삭제입니다. 팀, 회사 정보, 오피스 태스크 영수증, 저장된 워크플로, 로컬 메모리, 로그, 공급자 세션 상태를 삭제한 뒤 온보딩으로 돌아갑니다.",
+      "전체 삭제입니다. 팀, 회사 정보, 프로젝트 태스크 영수증, 저장된 워크플로, 로컬 메모리, 로그, 공급자 세션 상태를 삭제한 뒤 온보딩으로 돌아갑니다.",
     "settings.danger.deletes": "삭제됨",
     "settings.danger.shredDeleteOnboarding":
       "온보딩 플래그, 그래서 마법사가 다시 열림",
     "settings.danger.shredDeleteCompany": "회사 정보",
     "settings.danger.shredDeleteRuntime":
-      "아래 경로의 팀 런타임 상태, 오피스, 워크플로",
+      "아래 경로의 팀 런타임 상태, 워크스페이스 데이터, 워크플로",
     "settings.danger.shredDeleteLogs":
       "로그, 세션, 공급자 상태, 로컬 위키 메모리",
     "settings.danger.shredDeleteBroker": "브로커 런타임 상태 (재설정과 동일)",
@@ -570,11 +570,11 @@ const messages = {
     "settings.danger.confirmTail": "를 입력하세요",
     "settings.danger.resetModalTitle": "브로커 상태를 재설정할까요?",
     "settings.danger.resetModalIntro":
-      "브로커의 디스크 런타임 상태를 지우고 오피스를 깨끗한 상태에서 다시 시작합니다. 팀, 회사, 태스크, 워크플로는 유지됩니다. 그래도 풀리지 않으면 워크스페이스 완전 삭제를 시도하세요.",
+      "브로커의 디스크 런타임 상태를 지우고 워크스페이스를 깨끗한 상태에서 다시 시작합니다. 팀, 회사, 태스크, 워크플로는 유지됩니다. 그래도 풀리지 않으면 워크스페이스 완전 삭제를 시도하세요.",
     "settings.danger.resetConfirm": "브로커 상태 재설정",
     "settings.danger.shredModalTitle": "이 워크스페이스를 완전 삭제할까요?",
     "settings.danger.shredModalIntro":
-      "팀, 회사 정보, 오피스 태스크 영수증, 저장된 워크플로와 로컬 로그, 세션, 공급자 상태, 위키 메모리를 영구 삭제합니다. 온보딩이 즉시 다시 열립니다. 태스크 worktree, 설정, 디바이스 ID는 유지됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "팀, 회사 정보, 프로젝트 태스크 영수증, 저장된 워크플로와 로컬 로그, 세션, 공급자 상태, 위키 메모리를 영구 삭제합니다. 온보딩이 즉시 다시 열립니다. 태스크 worktree, 설정, 디바이스 ID는 유지됩니다. 이 작업은 되돌릴 수 없습니다.",
     "settings.danger.shredConfirm": "워크스페이스 완전 삭제",
     "settings.danger.resetFailed": "재설정 실패",
     "settings.danger.resetSuccess":
@@ -786,7 +786,7 @@ const messages = {
     "runtime.needYou": "확인 필요",
     "runtime.active": "활성",
     "runtime.blocked": "막힘",
-    "status.office": "오피스",
+    "status.office": "워크스페이스",
     "status.shortcuts": "단축키",
     "status.openShortcuts": "키보드 단축키 열기",
     "status.agent": "에이전트",
@@ -794,11 +794,11 @@ const messages = {
     "status.runtime": "런타임",
     "status.runtimeProvider": "런타임 제공자",
     "invite.kicker": "LAF-Office 초대",
-    "invite.title": "오피스 합류",
+    "invite.title": "프로젝트 팀 합류",
     "invite.checking": "초대를 확인하는 중...",
     "invite.done":
-      "합류했습니다. LAF-Office 오피스를 열고 팀과 함께 일할 수 있습니다.",
-    "invite.openOffice": "오피스 열기",
+      "합류했습니다. 프로젝트 워크스페이스를 열고 팀과 함께 일할 수 있습니다.",
+    "invite.openOffice": "워크스페이스 열기",
     "invite.notFound": "초대를 찾을 수 없습니다",
     "invite.acceptFailed": "초대를 수락하지 못했습니다",
   },
