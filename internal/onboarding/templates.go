@@ -38,18 +38,6 @@ func DefaultTemplates() []TaskTemplate {
 	}
 }
 
-// RevOpsTemplates preserves the legacy pack route without exposing
-// domain-specific starter work in new local workspaces.
-func RevOpsTemplates() []TaskTemplate {
-	return []TaskTemplate{
-		{ID: "work-audit", Title: "Audit the active work queue", Description: "Find stale tasks, missing owners, unclear next steps, and blocked delivery lanes.", OwnerSlug: "analyst"},
-		{ID: "next-build-brief", Title: "Prepare the next build brief", Description: "Summarize the goal, constraints, owner, and acceptance checks for the next project task.", OwnerSlug: "ae"},
-		{ID: "reopen-paused-work", Title: "Reopen paused work", Description: "Identify useful paused work and propose the smallest next action to restart it.", OwnerSlug: "sdr"},
-		{ID: "triage-inbound-work", Title: "Triage inbound work", Description: "Sort new requests by urgency, product value, and whether they need human approval.", OwnerSlug: "analyst"},
-		{ID: "unstick-blocked-work", Title: "Unstick blocked work", Description: "Find blocked project tasks, diagnose the blocker, and recommend the next owner action.", OwnerSlug: "ops-lead"},
-	}
-}
-
 func BlankSlateTemplates() []TaskTemplate {
 	return []TaskTemplate{
 		{ID: "objective", Title: "Choose the first real business win", Description: "Turn the directive into one concrete outcome for a real customer, audience, or internal operation this week.", OwnerSlug: "founder"},
@@ -80,12 +68,7 @@ func TemplatesForSelection(repoRoot, selection string) []TaskTemplate {
 			}
 		}
 	}
-	switch selection {
-	case "revops":
-		return RevOpsTemplates()
-	default:
-		return DefaultTemplates()
-	}
+	return DefaultTemplates()
 }
 
 func templatesFromBlueprint(blueprint operations.Blueprint) []TaskTemplate {

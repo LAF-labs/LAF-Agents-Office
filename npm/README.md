@@ -12,7 +12,7 @@ A collaborative office for AI employees with a shared brain, running your work 2
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
 [![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](https://github.com/LAF-labs/LAF-Agents-Office/blob/main/LICENSE)
 
-One command. One shared office. CEO, PM, engineers, designer, CMO, CRO — all visible, arguing, claiming tasks, and shipping work instead of disappearing behind an API. Unlike the original LAF-Office.com, this one works.
+One command. One shared project workspace. CEO, PM, engineers, AI engineer, and designer — all visible, claiming tasks, updating the wiki, and shipping work instead of disappearing behind an API.
 
 > *"LAF-Office. When you type it in, it contacts someone via phone, text, email, IM, Facebook, Twitter, and then... LAF-Office."*
 > — Ryan Howard, Season 7
@@ -46,7 +46,7 @@ Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-
 | `--memory-backend <name>` | Pick the organizational memory backend (`markdown`, `gbrain`, `none`) |
 | `--tui` | Use the tmux TUI instead of the web UI |
 | `--no-open` | Don't auto-open the browser |
-| `--pack <name>` | Pick an agent pack (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) |
+| `--pack <name>` | Pick a legacy project agent pack (`starter`, `founding-team`, `coding-team`) |
 | `--opus-ceo` | Upgrade CEO from Sonnet to Opus |
 | `--provider <name>` | LLM provider override (`claude-code`, `codex`) |
 | `--collab` | Start in collaborative mode — all agents see all messages (this is the default) |

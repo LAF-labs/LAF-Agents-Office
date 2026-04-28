@@ -299,29 +299,11 @@ func MemoryOptions() []PickerOption {
 	}
 }
 
-// BlueprintOptions returns the picker options for operation blueprint selection.
+// BlueprintOptions returns the picker options for the local project-team
+// starter. Older operation blueprints remain loadable by explicit id for
+// compatibility, but setup should not present CRM, email, calendar, or hosted
+// integration templates as first-run choices.
 func BlueprintOptions() []PickerOption {
-	if repoRoot := resolveInitRepoRoot(); repoRoot != "" {
-		if blueprints, err := operations.ListBlueprints(repoRoot); err == nil && len(blueprints) > 0 {
-			options := make([]PickerOption, len(blueprints))
-			for i, bp := range blueprints {
-				label := bp.Name
-				if i == 0 {
-					label += " (default)"
-				}
-				desc := strings.TrimSpace(bp.Description)
-				if desc == "" {
-					desc = strings.TrimSpace(bp.Objective)
-				}
-				options[i] = PickerOption{
-					Label:       label,
-					Value:       bp.ID,
-					Description: desc,
-				}
-			}
-			return options
-		}
-	}
 	return legacyPackOptions()
 }
 
@@ -525,7 +507,7 @@ func blueprintReadinessDetail(blueprint string) string {
 			return "Selected " + name + "."
 		}
 	}
-	return "Choose which operation template or blueprint should open after setup."
+	return "Choose which project agent team should open after setup."
 }
 
 func memoryReadinessStatus(backend string) string {
@@ -605,7 +587,7 @@ func (f InitFlowModel) phaseText() (heading, instructions string) {
 	case InitGBrainAnthropKey:
 		return "Enter Anthropic API Key (optional)", "Press Enter to skip, or paste your key."
 	case InitBlueprintChoice, InitPackChoice:
-		return "Choose Operation Template", "Select the blueprint or template that will seed your startup."
+		return "Choose Project Team", "Select the project-focused agent team that will seed your workspace."
 	case InitDone:
 		blueprintName := blueprintDisplayName(f.blueprint)
 		memoryName := config.MemoryBackendLabel(f.memory)

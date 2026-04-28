@@ -42,6 +42,7 @@ export default function Notebook({
   const [refreshTick, setRefreshTick] = useState(0);
 
   // Fetch catalog when rendering the bookshelf.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshTick intentionally refetches the catalog after notebook events.
   useEffect(() => {
     if (agentSlug) return;
     let cancelled = false;

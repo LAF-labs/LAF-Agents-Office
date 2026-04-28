@@ -164,13 +164,13 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 // it does not mutate broker state — the caller feeds the returned
 // Blueprint to seedFromBlueprintLocked.
 //
-// The starter roster is a fixed 5-agent founding team (CEO lead plus GTM
-// Lead, Founding Engineer, Product Manager, Designer) rather than the
-// generic operator/planner/executor/reviewer shape. This is the product
-// default for a brand-new LAF-Office workspace: it covers the four functions a
-// real early-stage team needs (strategy, revenue, build, design) with a
-// named CEO as the human-facing lead. Users can still uncheck agents in
-// the wizard's Team step; unchecked ones are dropped via the filter.
+// The starter roster is a fixed 5-agent project team (CEO lead plus Product
+// Manager, Founding Engineer, AI Engineer, Designer) rather than the generic
+// operator/planner/executor/reviewer shape. This is the product default for a
+// brand-new LAF-Office workspace: it covers planning, implementation, agent
+// systems, and design with a named CEO as the human-facing lead. Users can
+// still uncheck agents in the wizard's Team step; unchecked ones are dropped
+// via the filter.
 func synthesizeBlueprintFromState(task string) operations.Blueprint {
 	state, err := onboarding.Load()
 	if err != nil {
@@ -186,7 +186,7 @@ func synthesizeBlueprintFromState(task string) operations.Blueprint {
 }
 
 // scratchFoundingTeamBlueprint returns the fixed "From scratch" starter
-// roster: CEO (lead), GTM Lead, Founding Engineer, Product Manager,
+// roster: CEO (lead), Product Manager, Founding Engineer, AI Engineer,
 // Designer. Extracted so tests can assert the shape without rebuilding
 // onboarding state.
 func scratchFoundingTeamBlueprint(companyName, description, directive string) operations.Blueprint {
@@ -196,15 +196,15 @@ func scratchFoundingTeamBlueprint(companyName, description, directive string) op
 	}
 	agents := []operations.StarterAgent{
 		{Slug: "ceo", Name: "CEO", Role: "lead", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"strategy", "prioritization", "delegation"}, Personality: "Sets direction, breaks directives into specialist assignments, and owns the outcome."},
-		{Slug: "gtm-lead", Name: "GTM Lead", Role: "go-to-market", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"positioning", "launches", "customer-discovery", "growth"}, Personality: "Turns product work into launch learning — positioning, experiments, and early customer feedback."},
-		{Slug: "founding-engineer", Name: "Founding Engineer", Role: "engineering", PermissionMode: "auto", Checked: true, Type: "assistant", Expertise: []string{"full-stack", "architecture", "infrastructure", "shipping"}, Personality: "Full-stack engineer who ships end-to-end and makes pragmatic architectural calls."},
 		{Slug: "pm", Name: "Product Manager", Role: "product", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"roadmap", "user-stories", "requirements", "specs"}, Personality: "Translates business goals into specs the engineering and design functions can execute against."},
+		{Slug: "founding-engineer", Name: "Founding Engineer", Role: "engineering", PermissionMode: "auto", Checked: true, Type: "assistant", Expertise: []string{"full-stack", "architecture", "infrastructure", "shipping"}, Personality: "Full-stack engineer who ships end-to-end and makes pragmatic architectural calls."},
+		{Slug: "ai-engineer", Name: "AI Engineer", Role: "agent-systems", PermissionMode: "auto", Checked: true, Type: "assistant", Expertise: []string{"LLMs", "agents", "tool-use", "retrieval", "evaluations"}, Personality: "Builds reliable agent workflows, memory use, and automation paths around the project."},
 		{Slug: "designer", Name: "Designer", Role: "design", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"UI-UX-design", "branding", "prototyping"}, Personality: "Owns the look, feel, and flow — from first sketch to shipped interface."},
 	}
 	channels := []operations.StarterChannel{
-		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{"ceo", "gtm-lead", "founding-engineer", "pm", "designer"}},
+		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{"ceo", "pm", "founding-engineer", "ai-engineer", "designer"}},
 		{Slug: "product", Name: "product", Description: "Roadmap, specs, and design reviews.", Members: []string{"ceo", "pm", "designer", "founding-engineer"}},
-		{Slug: "gtm", Name: "gtm", Description: "Positioning, pipeline, and launches.", Members: []string{"ceo", "gtm-lead", "pm"}},
+		{Slug: "development", Name: "development", Description: "Implementation, agent workflows, and repo-connected delivery.", Members: []string{"ceo", "pm", "founding-engineer", "ai-engineer"}},
 	}
 	var tasks []operations.StarterTask
 	if directive != "" {

@@ -20,6 +20,7 @@ let requestConfirm: ((opts: ConfirmOptions) => void) | null = null;
 export function confirm(opts: ConfirmOptions) {
   if (!requestConfirm) {
     // Host never mounted; fall back to native confirm so work isn't silently dropped.
+    // biome-ignore lint/suspicious/noAlert: fallback only runs when the custom dialog host is absent.
     if (window.confirm(opts.message)) {
       void opts.onConfirm();
     }

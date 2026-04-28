@@ -25,6 +25,7 @@ function setLocalStorageDraft(
   );
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: editor behavior shares one setup-heavy integration suite.
 describe("<WikiEditor>", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -366,7 +367,9 @@ describe("<WikiEditor>", () => {
     fireEvent.click(screen.getByTestId("wk-editor-preview-toggle"));
     const preview = screen.getByTestId("wk-editor-preview");
     // ImageEmbed wraps the <img> in a <figure class="image-embed">.
-    expect(preview.querySelector("figure.image-embed")).not.toBeNull();
+    const figure = preview.querySelector("figure.image-embed");
+    expect(figure).not.toBeNull();
+    expect(figure?.parentElement?.tagName.toLowerCase()).not.toBe("p");
     const img = preview.querySelector("img") as HTMLImageElement | null;
     expect(img?.getAttribute("src")).toBe("https://cdn.example.com/logo.png");
     expect(img?.getAttribute("referrerpolicy")).toBe("no-referrer");

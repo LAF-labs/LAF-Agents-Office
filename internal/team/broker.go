@@ -482,7 +482,7 @@ type Broker struct {
 	addr               string          // actual listen address (useful when port=0)
 	webUIOrigins       []string        // allowed CORS origins for web UI (set by ServeWebUI)
 	runtimeProvider    string          // "codex" or "claude" — set by launcher
-	packSlug           string          // active agent pack slug ("founding-team", "revops", ...) — set by launcher
+	packSlug           string          // active legacy agent pack slug ("founding-team", "coding-team", ...) — set by launcher
 	blankSlateLaunch   bool            // start without a saved blueprint and synthesize the first operation
 	openclawBridge     *OpenclawBridge // nil until the bridge attaches itself; used by handleOfficeMembers for live add/remove
 	generateMemberFn   func(prompt string) (generatedMemberTemplate, error)

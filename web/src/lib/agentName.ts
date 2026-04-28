@@ -1,7 +1,7 @@
 /**
  * Format an agent slug for display.
  *
- * Short role abbreviations (ceo, pm, cro, cmo, seo, api, ux — up to 3 chars)
+ * Short role abbreviations (ceo, pm, api, ux — up to 3 chars)
  * render UPPERCASE: matches how the LAF-Office app treats short agent identifiers.
  *
  * Longer slugs (operator, planner, builder, reviewer, eng-1) render Title Case:

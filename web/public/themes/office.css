@@ -16,8 +16,8 @@ html[data-theme="office"] {
   --neutral-300: #aeb1b2;
   --neutral-200: #cfd1d2;
   --neutral-100: #e9eaeb;
-  --neutral-50:  #f2f2f3;
-  --neutral-10:  #f8f8f9;
+  --neutral-50: #f2f2f3;
+  --neutral-10: #f8f8f9;
 
   --tertiary-500: #7a5a18;
   --tertiary-400: #c49020;
@@ -50,71 +50,73 @@ html[data-theme="office"] {
   --warning-100: #fbf5dc;
 
   /* ── Overlays (unified) ── */
-  --overlay-soft:         rgba(0, 0, 0, 0.04);
-  --overlay:              rgba(0, 0, 0, 0.08);
-  --overlay-strong:       rgba(0, 0, 0, 0.16);
-  --scrim:                rgba(0, 0, 0, 0.5);
-  --overlay-white-soft:   rgba(255, 255, 255, 0.08);
-  --overlay-white:        rgba(255, 255, 255, 0.16);
+  --overlay-soft: rgba(0, 0, 0, 0.04);
+  --overlay: rgba(0, 0, 0, 0.08);
+  --overlay-strong: rgba(0, 0, 0, 0.16);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --overlay-white-soft: rgba(255, 255, 255, 0.08);
+  --overlay-white: rgba(255, 255, 255, 0.16);
   --overlay-white-strong: rgba(255, 255, 255, 0.45);
 
   /* ── Semantic aliases ── */
-  --bg:             #FFFFFF;
-  --bg-warm:        var(--neutral-50);
-  --bg-subtle:      var(--neutral-10);
-  --bg-card:        #FFFFFF;
-  --text:           var(--neutral-900);
+  --bg: #ffffff;
+  --bg-warm: var(--neutral-50);
+  --bg-subtle: var(--neutral-10);
+  --bg-card: #ffffff;
+  --text: var(--neutral-900);
   --text-secondary: var(--neutral-500);
-  --text-tertiary:  var(--neutral-400);
-  --text-disabled:  var(--neutral-300);
+  --text-tertiary: var(--neutral-400);
+  --text-disabled: var(--neutral-300);
 
-  --accent:         #ecb22e;
-  --accent-warm:    #c49020;
-  --accent-bg:      rgba(236, 178, 46, 0.16);
+  --accent: #ecb22e;
+  --accent-warm: #c49020;
+  --accent-bg: rgba(236, 178, 46, 0.16);
 
-  --border:         var(--neutral-100);
-  --border-light:   var(--neutral-50);
-  --border-dark:    var(--neutral-200);
-  --border-strong:  var(--neutral-300);
+  --border: var(--neutral-100);
+  --border-light: var(--neutral-50);
+  --border-dark: var(--neutral-200);
+  --border-strong: var(--neutral-300);
 
-  --green:          var(--success-400);
-  --green-dark:     var(--success-500);
-  --green-bg:       var(--success-100);
+  --green: var(--success-400);
+  --green-dark: var(--success-500);
+  --green-bg: var(--success-100);
 
-  --red:            var(--error-400);
-  --red-dark:       var(--error-500);
-  --red-bg:         var(--error-100);
+  --red: var(--error-400);
+  --red-dark: var(--error-500);
+  --red-bg: var(--error-100);
 
-  --yellow:         var(--warning-400);
-  --yellow-dark:    var(--warning-500);
-  --yellow-bg:      var(--warning-100);
+  --yellow: var(--warning-400);
+  --yellow-dark: var(--warning-500);
+  --yellow-bg: var(--warning-100);
 
-  --blue:           #1264a3;
-  --blue-bg:        #edf5fa;
+  --blue: #1264a3;
+  --blue-bg: #edf5fa;
 
   /* ── Typography ── */
-  --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
-  --font-logo:  -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono:  'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  --font-logo:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
   /* ── Radii ── */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-xl:   16px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
   /* ── Sidebar ── */
-  --office-sidebar:             #1a1610;
-  --office-sidebar-hover:       rgba(236, 178, 46, 0.12);
-  --office-sidebar-active:      #ecb22e;
-  --office-sidebar-text:        rgba(240, 235, 216, 0.72);
+  --office-sidebar: #1a1610;
+  --office-sidebar-hover: rgba(236, 178, 46, 0.12);
+  --office-sidebar-active: #ecb22e;
+  --office-sidebar-text: rgba(240, 235, 216, 0.72);
   --office-sidebar-text-active: #f0ebd8;
-  --office-presence:            #5aaa7a;
+  --office-presence: #5aaa7a;
 
   /* ── Request kind accents ── */
-  --input-kind:    #c49020;
+  --input-kind: #c49020;
   --input-kind-bg: rgba(236, 178, 46, 0.16);
 }
 
@@ -126,13 +128,20 @@ html[data-theme^="office"] body {
 }
 
 /* ═══ SCROLLBAR ═══ */
-html[data-theme^="office"] ::-webkit-scrollbar { width: 6px; height: 6px; }
-html[data-theme^="office"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-theme^="office"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html[data-theme^="office"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
 html[data-theme^="office"] ::-webkit-scrollbar-thumb {
   background: var(--border-dark);
   border-radius: 3px;
 }
-html[data-theme^="office"] ::-webkit-scrollbar-thumb:hover { background: var(--border-dark); }
+html[data-theme^="office"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--border-dark);
+}
 
 /* ═══ SELECTION ═══ */
 html[data-theme^="office"] ::selection {
@@ -150,43 +159,101 @@ html[data-theme^="office"] .sidebar {
   flex-direction: column;
   overflow: hidden;
 }
-html[data-theme^="office"] .sidebar .sidebar-logo { color: #FFFFFF; }
-html[data-theme^="office"] .sidebar .sidebar-section-title { color: rgba(255, 255, 255, 0.55); }
-html[data-theme^="office"] .sidebar .sidebar-section-toggle:hover { color: #FFFFFF; }
-html[data-theme^="office"] .sidebar .sidebar-icon-btn { color: rgba(255, 255, 255, 0.78); }
-html[data-theme^="office"] .sidebar .sidebar-icon-btn:hover { background: rgba(236, 178, 46, 0.14); color: #FFFFFF; }
-html[data-theme^="office"] .sidebar .sidebar-icon-btn.active { background: rgba(255, 255, 255, 0.16); color: #FFFFFF; }
-html[data-theme^="office"] .sidebar .sidebar-icon-btn.active:hover { background: rgba(255, 255, 255, 0.22); }
-html[data-theme^="office"] .sidebar .sidebar-header { border-bottom-color: rgba(255, 255, 255, 0.08); }
-html[data-theme^="office"] .sidebar .sidebar-scroll-wrap.is-agents { border-bottom-color: rgba(255, 255, 255, 0.08); }
+html[data-theme^="office"] .sidebar .sidebar-logo {
+  color: #ffffff;
+}
+html[data-theme^="office"] .sidebar .sidebar-section-title {
+  color: rgba(255, 255, 255, 0.55);
+}
+html[data-theme^="office"] .sidebar .sidebar-section-toggle:hover {
+  color: #ffffff;
+}
+html[data-theme^="office"] .sidebar .sidebar-icon-btn {
+  color: rgba(255, 255, 255, 0.78);
+}
+html[data-theme^="office"] .sidebar .sidebar-icon-btn:hover {
+  background: rgba(236, 178, 46, 0.14);
+  color: #ffffff;
+}
+html[data-theme^="office"] .sidebar .sidebar-icon-btn.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+html[data-theme^="office"] .sidebar .sidebar-icon-btn.active:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+html[data-theme^="office"] .sidebar .sidebar-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
 html[data-theme^="office"] .sidebar .sidebar-section + .sidebar-section,
-html[data-theme^="office"] .sidebar .sidebar-agents + .sidebar-section,
-html[data-theme^="office"] .sidebar .sidebar-channels + .sidebar-section,
-html[data-theme^="office"] .sidebar .sidebar-apps + .sidebar-section { border-top-color: rgba(255, 255, 255, 0.08); }
-html[data-theme^="office"] .sidebar .sidebar-agent-task,
-html[data-theme^="office"] .sidebar .sidebar-agent-activity { color: rgba(255, 255, 255, 0.45); }
-html[data-theme^="office"] .sidebar .usage-toggle { color: rgba(255, 255, 255, 0.78); border-top-color: rgba(255, 255, 255, 0.08); }
-html[data-theme^="office"] .sidebar .usage-toggle:hover { color: #FFFFFF; background: rgba(236, 178, 46, 0.14); }
-html[data-theme^="office"] .sidebar .usage-toggle.open { background: var(--accent); color: #1a1610; border-top-color: rgba(0, 0, 0, 0.08); }
+html[data-theme^="office"] .sidebar .sidebar-apps + .sidebar-section {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+html[data-theme^="office"] .sidebar .usage-toggle {
+  color: rgba(255, 255, 255, 0.78);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+html[data-theme^="office"] .sidebar .usage-toggle:hover {
+  color: #ffffff;
+  background: rgba(236, 178, 46, 0.14);
+}
+html[data-theme^="office"] .sidebar .usage-toggle.open {
+  background: var(--accent);
+  color: #1a1610;
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
 html[data-theme^="office"] .sidebar .usage-toggle.open > span,
-html[data-theme^="office"] .sidebar .usage-toggle.open > svg { color: #1a1610; stroke: #1a1610; }
-html[data-theme^="office"] .sidebar .sidebar-add-btn { color: rgba(255, 255, 255, 0.55); }
-html[data-theme^="office"] .sidebar .sidebar-add-btn:hover { color: #FFFFFF; }
-html[data-theme^="office"] .sidebar { --sidebar-fade-color: #1a1610; }
-html[data-theme^="office"] .sidebar .usage-panel { color: rgba(255, 255, 255, 0.78); }
-html[data-theme^="office"] .sidebar .usage-table th { color: rgba(255, 255, 255, 0.55); border-bottom-color: rgba(255, 255, 255, 0.12); }
-html[data-theme^="office"] .sidebar .usage-table td { color: rgba(255, 255, 255, 0.78); }
-html[data-theme^="office"] .sidebar .usage-total { color: #FFFFFF; border-top-color: rgba(255, 255, 255, 0.12); }
-html[data-theme^="office"] .sidebar .usage-total-cost { color: #FFFFFF; }
-html[data-theme^="office"] .sidebar .usage-toggle > span { color: #FFFFFF; }
-html[data-theme^="office"] .sidebar .usage-panel.open { background: var(--accent); color: #1a1610; }
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-table th { color: rgba(26, 22, 16, 0.65); border-bottom-color: rgba(26, 22, 16, 0.18); }
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-table td { color: #1a1610; }
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-total { color: #1a1610; border-top-color: rgba(26, 22, 16, 0.18); }
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-total-cost { color: #1a1610; }
-html[data-theme^="office"] .sidebar .sidebar-summary { color: rgba(255, 255, 255, 0.55); }
-html[data-theme^="office"] .sidebar .sidebar-hint { color: rgba(255, 255, 255, 0.55); }
-html[data-theme^="office"] .sidebar .sidebar-agent-name { color: inherit; }
+html[data-theme^="office"] .sidebar .usage-toggle.open > svg {
+  color: #1a1610;
+  stroke: #1a1610;
+}
+html[data-theme^="office"] .sidebar {
+  --sidebar-fade-color: #1a1610;
+}
+html[data-theme^="office"] .sidebar .usage-panel {
+  color: rgba(255, 255, 255, 0.78);
+}
+html[data-theme^="office"] .sidebar .usage-table th {
+  color: rgba(255, 255, 255, 0.55);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme^="office"] .sidebar .usage-table td {
+  color: rgba(255, 255, 255, 0.78);
+}
+html[data-theme^="office"] .sidebar .usage-total {
+  color: #ffffff;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme^="office"] .sidebar .usage-total-cost {
+  color: #ffffff;
+}
+html[data-theme^="office"] .sidebar .usage-toggle > span {
+  color: #ffffff;
+}
+html[data-theme^="office"] .sidebar .usage-panel.open {
+  background: var(--accent);
+  color: #1a1610;
+}
+html[data-theme^="office"] .sidebar .usage-panel.open .usage-table th {
+  color: rgba(26, 22, 16, 0.65);
+  border-bottom-color: rgba(26, 22, 16, 0.18);
+}
+html[data-theme^="office"] .sidebar .usage-panel.open .usage-table td {
+  color: #1a1610;
+}
+html[data-theme^="office"] .sidebar .usage-panel.open .usage-total {
+  color: #1a1610;
+  border-top-color: rgba(26, 22, 16, 0.18);
+}
+html[data-theme^="office"] .sidebar .usage-panel.open .usage-total-cost {
+  color: #1a1610;
+}
+html[data-theme^="office"] .sidebar .sidebar-summary {
+  color: rgba(255, 255, 255, 0.55);
+}
+html[data-theme^="office"] .sidebar .sidebar-hint {
+  color: rgba(255, 255, 255, 0.55);
+}
 
 /* ── Sticky header ── */
 html[data-theme^="office"] .sidebar-header {
@@ -242,25 +309,24 @@ html[data-theme^="office"] .sidebar-section-title {
   margin-bottom: 2px;
 }
 html[data-theme^="office"] .sidebar .sidebar-section-title:hover {
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 /* ── Scrollable middle area (layout.css owns padding + overflow) ── */
 
-/* ── Sidebar items & agents (color/typography only; layout in layout.css) ── */
-html[data-theme^="office"] .sidebar-item,
-html[data-theme^="office"] .sidebar-agent {
+/* ── Sidebar items (color/typography only; layout in layout.css) ── */
+html[data-theme^="office"] .sidebar-item {
   color: var(--office-sidebar-text);
   font-family: var(--font-sans);
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
-html[data-theme^="office"] .sidebar-item:hover,
-html[data-theme^="office"] .sidebar-agent:hover {
+html[data-theme^="office"] .sidebar-item:hover {
   background: var(--office-sidebar-hover);
   color: var(--office-sidebar-text-active);
 }
-html[data-theme^="office"] .sidebar-item.active,
-html[data-theme^="office"] .sidebar-agent.active {
+html[data-theme^="office"] .sidebar-item.active {
   background: var(--office-sidebar-active);
   color: #1a1610;
   font-weight: 600;
@@ -281,22 +347,6 @@ html[data-theme^="office"] .sidebar-item-emoji {
   flex-shrink: 0;
 }
 
-/* ── Agent row internals (layout from layout.css) ── */
-html[data-theme^="office"] .sidebar-agent-name {
-  white-space: nowrap;
-}
-html[data-theme^="office"] .sidebar-agent-task,
-html[data-theme^="office"] .sidebar-agent-activity {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  max-width: none;
-}
-html[data-theme^="office"] .sidebar-agent-stream {
-  font-size: 11px;
-  color: var(--accent);
-  max-width: none;
-}
-
 /* ── Status dot ── */
 html[data-theme^="office"] .status-dot {
   width: 6px;
@@ -304,78 +354,9 @@ html[data-theme^="office"] .status-dot {
   flex-shrink: 0;
   margin-left: auto;
 }
-html[data-theme^="office"] .status-dot.active { background: var(--office-presence); border: none; }
-/* In the dark sidebar, drop status category colors and show a single
-   presence dot (green = active, translucent white = lurking). */
-html[data-theme^="office"] .sidebar-agent .status-dot { background: rgba(255, 255, 255, 0.35); }
-html[data-theme^="office"] .sidebar-agent .status-dot.active,
-html[data-theme^="office"] .sidebar-agent .status-dot.shipping,
-html[data-theme^="office"] .sidebar-agent .status-dot.plotting { background: var(--office-presence); }
-html[data-theme^="office"] .sidebar-agent .status-dot.lurking { background: rgba(255, 255, 255, 0.35); }
-
-/* ── DM button on agent rows ── */
-html[data-theme^="office"] .sidebar-agent-dm-btn {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  border-color: var(--border);
-  margin-left: auto;
-}
-
-/* ── Thought indicator (inline, between name and dot) ── */
-html[data-theme^="office"] .sidebar-agent:has(.thought-bubble) {
-  margin-top: 0;
-}
-@keyframes office-thought-shimmer {
-  0%   { left: -50%; }
-  100% { left: 150%; }
-}
-html[data-theme^="office"] .thought-bubble {
-  all: unset;
-  display: block;
-  position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  font-size: 11px;
-  font-weight: 400;
-  font-family: var(--font-sans);
-  white-space: nowrap;
-  overflow: hidden;
-  pointer-events: none;
-  text-align: left;
-  color: #9B9DA0;
-  opacity: 1;
-  transition: opacity 0.3s ease;
-  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 70%, transparent 100%);
-  mask-image: linear-gradient(to right, #000 0%, #000 70%, transparent 100%);
-}
-/* Light sweep overlay via pseudo-element */
-html[data-theme^="office"] .thought-bubble::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -50%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
+html[data-theme^="office"] .status-dot.active {
+  background: var(--office-presence);
   border: none;
-  border-radius: 0;
-  animation: office-thought-shimmer 2s linear infinite;
-  mix-blend-mode: overlay;
-}
-html[data-theme^="office"] .sidebar-agent:hover .thought-bubble {
-  opacity: 0;
-}
-
-/* ── Add buttons (New Agent / New Channel) ── */
-html[data-theme^="office"] .sidebar-add-btn {
-  color: var(--text-tertiary);
-  font-size: 13px;
-  gap: 10px;
-}
-html[data-theme^="office"] .sidebar-add-btn:hover {
-  color: var(--text-secondary);
-  background: var(--office-sidebar-hover);
 }
 
 /* ── Header button sizes ── */
@@ -423,7 +404,9 @@ html[data-theme^="office"] .sidebar-section-chevron {
   text-align: center;
   flex-shrink: 0;
 }
-html[data-theme^="office"] .sidebar-section-chevron.collapsed { transform: rotate(0deg); }
+html[data-theme^="office"] .sidebar-section-chevron.collapsed {
+  transform: rotate(0deg);
+}
 
 /* ── Unread channel ── */
 html[data-theme^="office"] .sidebar-item.unread {
@@ -432,7 +415,7 @@ html[data-theme^="office"] .sidebar-item.unread {
   position: relative;
 }
 html[data-theme^="office"] .sidebar-item.unread::before {
-  content: '';
+  content: "";
   width: 5px;
   height: 5px;
   border-radius: 50%;
@@ -458,7 +441,9 @@ html[data-theme^="office"] .workspace-dropdown {
   display: none;
   font-family: var(--font-sans);
 }
-html[data-theme^="office"] .workspace-dropdown.open { display: block; }
+html[data-theme^="office"] .workspace-dropdown.open {
+  display: block;
+}
 html[data-theme^="office"] .workspace-dropdown-item {
   display: flex;
   align-items: center;
@@ -503,7 +488,9 @@ html[data-theme^="office"] .sidebar-star {
   padding: 0 2px;
   line-height: 1;
 }
-html[data-theme^="office"] .sidebar-item:hover .sidebar-star { opacity: 1; }
+html[data-theme^="office"] .sidebar-item:hover .sidebar-star {
+  opacity: 1;
+}
 html[data-theme^="office"] .sidebar-star.starred {
   opacity: 1;
   color: var(--yellow);
@@ -587,7 +574,7 @@ html[data-theme^="office"] .message-text {
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.5;
-  color: #3B3B3E;
+  color: #3b3b3e;
 }
 html[data-theme^="office"] .message-text strong {
   color: var(--text);
@@ -745,7 +732,9 @@ html[data-theme^="office"] .composer-send {
   border-radius: var(--radius-md);
   width: 32px;
   height: 32px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 html[data-theme^="office"] .composer-send:hover:not(:disabled) {
   background: var(--accent-warm);
@@ -840,9 +829,11 @@ html[data-theme^="office"] .btn-primary {
   border-radius: var(--radius-md);
   font-weight: 600;
   box-shadow: none;
-  color: #FFFFFF;
+  color: #ffffff;
 }
-html[data-theme^="office"] .btn-primary:hover { background: var(--accent-warm); }
+html[data-theme^="office"] .btn-primary:hover {
+  background: var(--accent-warm);
+}
 html[data-theme^="office"] .btn-ghost {
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-md);
@@ -858,10 +849,18 @@ html[data-theme^="office"] .btn-ghost:hover {
 /* ═══════════════════════════════════════
    ONBOARDING
    ═══════════════════════════════════════ */
-html[data-theme^="office"] .onboarding { background: var(--bg); }
-html[data-theme^="office"] .dot-grid { background-image: none; }
-html[data-theme^="office"] .progress-dot.active { background: var(--accent); }
-html[data-theme^="office"] .progress-dot { background: var(--border-dark); }
+html[data-theme^="office"] .onboarding {
+  background: var(--bg);
+}
+html[data-theme^="office"] .dot-grid {
+  background-image: none;
+}
+html[data-theme^="office"] .progress-dot.active {
+  background: var(--accent);
+}
+html[data-theme^="office"] .progress-dot {
+  background: var(--border-dark);
+}
 html[data-theme^="office"] .dict-word {
   font-family: var(--font-sans);
   font-style: normal;
@@ -885,7 +884,9 @@ html[data-theme^="office"] .step-title {
 html[data-theme^="office"] .step-desc {
   color: var(--text-secondary);
 }
-html[data-theme^="office"] .emoji-backdrop { display: none; }
+html[data-theme^="office"] .emoji-backdrop {
+  display: none;
+}
 html[data-theme^="office"] .card {
   border-radius: var(--radius-lg);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -938,7 +939,9 @@ html[data-theme^="office"] .size-btn.selected {
 }
 
 /* Launch screen */
-html[data-theme^="office"] .launch-screen { background: var(--bg-warm); }
+html[data-theme^="office"] .launch-screen {
+  background: var(--bg-warm);
+}
 html[data-theme^="office"] .launch-spinner {
   border-color: var(--border);
   border-top-color: var(--accent);
@@ -949,7 +952,9 @@ html[data-theme^="office"] .launch-text {
   color: var(--text);
   font-weight: 800;
 }
-html[data-theme^="office"] .launch-sub { color: var(--text-tertiary); }
+html[data-theme^="office"] .launch-sub {
+  color: var(--text-tertiary);
+}
 
 /* ═══════════════════════════════════════
    COMMAND PALETTE
@@ -1068,10 +1073,22 @@ html[data-theme^="office"] .request-item:hover {
 html[data-theme^="office"] .request-item-from {
   color: var(--text);
 }
-html[data-theme^="office"] .request-kind-approval { background: var(--yellow-bg); color: var(--yellow); }
-html[data-theme^="office"] .request-kind-confirm  { background: var(--accent-bg); color: var(--accent); }
-html[data-theme^="office"] .request-kind-secret   { background: var(--red-bg); color: var(--red); }
-html[data-theme^="office"] .request-kind-input    { background: var(--input-kind-bg); color: var(--input-kind); }
+html[data-theme^="office"] .request-kind-approval {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+html[data-theme^="office"] .request-kind-confirm {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+html[data-theme^="office"] .request-kind-secret {
+  background: var(--red-bg);
+  color: var(--red);
+}
+html[data-theme^="office"] .request-kind-input {
+  background: var(--input-kind-bg);
+  color: var(--input-kind);
+}
 html[data-theme^="office"] .request-item-question {
   color: var(--text);
 }

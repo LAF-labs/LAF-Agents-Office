@@ -34,7 +34,7 @@ How LAF-Office works under the hood, anchored to files you can open. One page. R
 | `internal/team/worktree.go` | Per-agent isolated git worktree so agents can't corrupt each other |
 | `internal/team/resume.go` | On restart, replays unfinished tasks + unanswered messages to the right agents |
 | `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |
-| `internal/agent/packs.go` | The team compositions (`starter`, `founding-team`, `coding-team`, `lead-gen-agency`, `revops`) — packs can also pre-seed default skills |
+| `internal/agent/packs.go` | Legacy project-team compositions (`starter`, `founding-team`, `coding-team`) retained for compatibility while onboarding defaults to the project starter |
 | `web/index.html` | The office UI — channels, composer, live streams |
 
 ## Three load-bearing choices

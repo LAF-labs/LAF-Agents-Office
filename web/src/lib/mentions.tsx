@@ -54,7 +54,7 @@ export function parseMentions(
   // matchAll over a fresh regex avoids lastIndex leaking between invocations.
   const re = new RegExp(MENTION_RE.source, "g");
   for (const m of content.matchAll(re)) {
-    const slug = m[1];
+    const [, slug] = m;
     if (m.index === undefined) continue;
     if (!known.has(slug.toLowerCase())) continue;
     // The pattern captures an optional leading boundary char; preserve it

@@ -402,6 +402,7 @@ export default function App() {
 
   // Load theme CSS when theme changes
   useEffect(() => {
+    if (import.meta.env.MODE === "test" || import.meta.env.VITEST) return;
     const existing = document.getElementById(
       "theme-css",
     ) as HTMLLinkElement | null;

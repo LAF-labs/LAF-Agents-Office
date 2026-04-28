@@ -497,146 +497,101 @@ export function subscribeEditLog(
 
 export const MOCK_CATALOG: WikiCatalogEntry[] = [
   {
-    path: "people/customer-x",
-    title: "Customer X",
+    path: "projects/agent-workspace",
+    title: "Agent Workspace",
     author_slug: "ceo",
     last_edited_ts: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    group: "people",
-  },
-  {
-    path: "people/nazz",
-    title: "Nazz (founder)",
-    author_slug: "pm",
-    last_edited_ts: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    group: "people",
-  },
-  {
-    path: "people/sarah-chen",
-    title: "Sarah Chen",
-    author_slug: "ceo",
-    last_edited_ts: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-    group: "people",
-  },
-  {
-    path: "people/david-kim",
-    title: "David Kim",
-    author_slug: "cmo",
-    last_edited_ts: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
-    group: "people",
-  },
-  {
-    path: "companies/acme-logistics",
-    title: "Acme Logistics",
-    author_slug: "cro",
-    last_edited_ts: new Date(Date.now() - 26 * 3600 * 1000).toISOString(),
-    group: "companies",
-  },
-  {
-    path: "companies/meridian-freight",
-    title: "Meridian Freight",
-    author_slug: "cro",
-    last_edited_ts: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-    group: "companies",
-  },
-  {
-    path: "projects/customer-x-onboarding",
-    title: "Customer X — Onboarding",
-    author_slug: "pm",
-    last_edited_ts: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
     group: "projects",
   },
   {
-    path: "projects/q1-pilot-retrospective",
-    title: "Q1 Pilot Retrospective",
+    path: "decisions/project-memory-contract",
+    title: "Project memory contract",
     author_slug: "pm",
+    last_edited_ts: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    group: "decisions",
+  },
+  {
+    path: "playbooks/repo-connected-task",
+    title: "Repo-connected task",
+    author_slug: "ai",
+    last_edited_ts: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
+    group: "playbooks",
+  },
+  {
+    path: "facts/runtime-constraints",
+    title: "Runtime constraints",
+    author_slug: "be",
+    last_edited_ts: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
+    group: "facts",
+  },
+  {
+    path: "projects/agent-workspace-log",
+    title: "Agent workspace log",
+    author_slug: "founding-engineer",
     last_edited_ts: new Date(Date.now() - 6 * 86400 * 1000).toISOString(),
     group: "projects",
   },
   {
-    path: "playbooks/churn-prevention",
-    title: "Churn prevention",
-    author_slug: "cmo",
+    path: "playbooks/task-review",
+    title: "Task review",
+    author_slug: "designer",
     last_edited_ts: new Date(Date.now() - 2 * 86400 * 1000).toISOString(),
     group: "playbooks",
   },
   {
-    path: "playbooks/mid-market-onboarding",
-    title: "Mid-market onboarding",
+    path: "decisions/github-is-optional",
+    title: "GitHub is optional",
     author_slug: "pm",
     last_edited_ts: new Date(Date.now() - 9 * 86400 * 1000).toISOString(),
-    group: "playbooks",
+    group: "decisions",
   },
   {
-    path: "playbooks/pricing-negotiations",
-    title: "Pricing negotiations",
-    author_slug: "cro",
+    path: "inbox/raw-agent-task-review",
+    title: "raw — Agent task review",
+    author_slug: "ai",
     last_edited_ts: new Date(Date.now() - 14 * 86400 * 1000).toISOString(),
-    group: "playbooks",
-  },
-  {
-    path: "decisions/2026-q1-pricing",
-    title: "2026-Q1 pricing",
-    author_slug: "ceo",
-    last_edited_ts: new Date(Date.now() - 31 * 86400 * 1000).toISOString(),
-    group: "decisions",
-  },
-  {
-    path: "decisions/migration-v1-1",
-    title: "Migration to v1.1",
-    author_slug: "be",
-    last_edited_ts: new Date(Date.now() - 22 * 86400 * 1000).toISOString(),
-    group: "decisions",
-  },
-  {
-    path: "inbox/raw-customer-x-transcript",
-    title: "raw — Customer X call transcript",
-    author_slug: "pm",
-    last_edited_ts: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
     group: "inbox",
   },
 ];
 
 export function mockArticle(path: string): WikiArticle {
   if (
-    path === "people/customer-x" ||
+    path === "projects/agent-workspace" ||
     path === "" ||
-    path === "customer-x" ||
-    path === "team/people/customer-x.md"
+    path === "agent-workspace" ||
+    path === "team/projects/agent-workspace.md"
   ) {
     return {
-      path: "people/customer-x",
-      title: "Customer X",
-      content: MOCK_CUSTOMER_X_MD,
+      path: "projects/agent-workspace",
+      title: "Agent Workspace",
+      content: MOCK_PROJECT_MEMORY_MD,
       last_edited_by: "ceo",
       last_edited_ts: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-      revisions: 47,
-      contributors: ["ceo", "pm", "cro", "cmo", "designer", "be"],
+      revisions: 12,
+      contributors: ["ceo", "pm", "ai", "designer", "founding-engineer"],
       backlinks: [
         {
-          path: "playbooks/churn-prevention",
-          title: "Playbook — Churn prevention",
-          author_slug: "cmo",
-        },
-        {
-          path: "projects/q1-pilot-retrospective",
-          title: "Q1 Pilot Retrospective",
+          path: "decisions/project-memory-contract",
+          title: "Project memory contract",
           author_slug: "pm",
         },
         {
-          path: "playbooks/pricing-negotiations",
-          title: "Pricing negotiations",
-          author_slug: "cro",
+          path: "playbooks/repo-connected-task",
+          title: "Repo-connected task",
+          author_slug: "ai",
         },
-        { path: "people/sarah-chen", title: "Sarah Chen", author_slug: "ceo" },
+        {
+          path: "facts/runtime-constraints",
+          title: "Runtime constraints",
+          author_slug: "be",
+        },
       ],
-      word_count: 2347,
+      word_count: 746,
       categories: [
-        "Active pilot",
-        "Mid-market",
-        "Logistics",
-        "Q1 2026",
-        "North America",
-        "Sarah Chen",
+        "Project memory",
+        "Agent workflow",
+        "GitHub optional",
+        "Local runtime",
       ],
     };
   }
@@ -656,50 +611,51 @@ export function mockArticle(path: string): WikiArticle {
   };
 }
 
-const MOCK_CUSTOMER_X_MD = `**Customer X** is a mid-market logistics company running a 47-person operations team out of Cincinnati. They came to us through our [[projects/q1-outbound|Q1 outbound pipeline]] after [[people/sarah-chen|Sarah Chen]] (Director of Ops) saw a demo at the March logistics summit. Signed the pilot three weeks later.
+const MOCK_PROJECT_MEMORY_MD = `**Agent Workspace** is the project memory surface agents read before planning or changing work. It keeps the current objective, repo notes, delivery rules, and decisions in markdown so humans can review the same context.
 
-Sarah is the champion. Her boss is Mike Reyes, VP Operations, who has seen the product twice but doesn't engage directly. The procurement process went through their legal team ([[templates/msa|MSA template we haven't written yet]]) — contract took nine days, which is fast for this segment.
+## Current objective
 
-## What they want
+- Make project work the default surface after login.
+- Keep durable context in the local team wiki.
+- Let GitHub stay optional until a project is ready for implementation.
+- Require delivery receipts before repo-connected coding tasks are marked done.
 
-Their primary pain is route optimization at the dispatcher level: six dispatchers, each manually rebuilding route schedules every morning in spreadsheets. They've looked at three competitors; the deal-breaker with each was onboarding friction, not feature gaps. That confirms the [[playbooks/onboarding-wedge|onboarding-wedge thesis]] we developed in Q4.
+## Agent rules
 
-### Stated goals
+- Read this project memory before work starts.
+- Use [[decisions/project-memory-contract|Project memory contract]] as the source of truth for task packets.
+- If the excerpt is missing needed detail, call \`team_wiki_read\` for the full article.
+- After work, append meaningful decisions, changed files, and delivery evidence.
 
-- Cut dispatcher morning prep from 2 hours to 20 minutes
-- Reduce route reshuffle thrash (currently 4-7 reshuffles/day per dispatcher)
-- Surface exception patterns to Sarah weekly (their "ops review" meeting)
+## Repo connection
 
-### Unstated goals (inferred)
+GitHub connection is optional. Before a repo is connected, agents can plan, document, split tasks, and update the wiki. After a repo is connected, implementation tasks need a branch or PR receipt before completion.
 
-Sarah wants this to be a visible win for her team before her Q3 performance review. See [[playbooks/churn-prevention|Churn prevention]].
+## Open decisions
 
-## Open issues
-
-Two things are currently blocking expansion past the pilot seat count:
-
-- **Training data boundary.** Their ops data is classified as internal-sensitive; they need a signed addendum specifying no cross-tenant training. Legal has a template we're close to finalizing, see [[templates/data-handling|data handling addendum]].
-- **Pricing model for dispatcher seats vs viewer seats.** Sarah asked about read-only seats at 30% of dispatcher price. Depends on [[decisions/q2-pricing|Q2 pricing review]].
+- Should the project board make wiki freshness visible on every task?
+- Should delivery receipts accept local branch names before hosted PR automation exists?
+- Which project-level facts should be promoted into structured fields?
 
 ## Next steps
 
-Sarah's next check-in is on \`2026-05-02\`. CEO will send a renewal-prep email two weeks before. If the addendum lands by mid-April we can expand seats at the same meeting. If not, we renew as-is and expand at Q3.
+PM should keep the next implementation task specific enough that the engineer can run it without re-discovering product intent.
 `;
 
 export const MOCK_EDIT_LOG: WikiEditLogEntry[] = [
   {
     who: "CEO",
     action: "edited",
-    article_path: "people/customer-x",
-    article_title: "Customer X",
+    article_path: "projects/agent-workspace",
+    article_title: "Agent Workspace",
     timestamp: new Date().toISOString(),
     commit_sha: "9a0f113",
   },
   {
     who: "PM",
     action: "updated",
-    article_path: "playbooks/churn-prevention",
-    article_title: "Playbook — Churn",
+    article_path: "decisions/project-memory-contract",
+    article_title: "Project memory contract",
     timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     commit_sha: "b1d5e22",
   },

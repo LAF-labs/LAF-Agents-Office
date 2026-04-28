@@ -19,7 +19,7 @@ export function StreamLineView({ line, compact = false }: StreamLineViewProps) {
     return <RawStreamLine data={line.data} />;
   }
 
-  const parsed = line.parsed;
+  const { parsed } = line;
   const evtType = typeof parsed.type === "string" ? parsed.type : "";
   const knownEvent = renderKnownStreamEvent(evtType, parsed, compact);
   if (knownEvent !== undefined) return knownEvent;
@@ -203,7 +203,7 @@ function ClaudeUserEvent({
   )
     .map(({ item: block, key }) => {
       if (stringish(block.type) !== "tool_result") return null;
-      const content = block.content;
+      const { content } = block;
       return (
         <div key={key} className="cc-tool-call">
           <div className="cc-tool-section-label">Tool result</div>
@@ -275,9 +275,9 @@ function safeStringify(value: unknown): string {
 function messageContentBlocks(
   parsed: Record<string, unknown>,
 ): Record<string, unknown>[] {
-  const message = parsed.message;
+  const { message } = parsed;
   if (!message || typeof message !== "object") return [];
-  const content = (message as Record<string, unknown>).content;
+  const { content } = message as Record<string, unknown>;
   if (!Array.isArray(content)) return [];
   return content.filter(
     (block): block is Record<string, unknown> =>
@@ -288,7 +288,7 @@ function messageContentBlocks(
 function codexItemText(item: Record<string, unknown>): string {
   const direct = stringish(item.text).trim();
   if (direct) return direct;
-  const content = item.content;
+  const { content } = item;
   if (!Array.isArray(content)) return "";
   return content
     .map((part) => {

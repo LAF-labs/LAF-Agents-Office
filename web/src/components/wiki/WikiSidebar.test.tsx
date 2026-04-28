@@ -183,7 +183,8 @@ describe("<WikiSidebar> — dynamic sections", () => {
         onNavigate={() => {}}
       />,
     );
-    const peopleHeader = screen.getByText(/people/i).closest("h3")!;
+    const peopleHeader = screen.getByText(/people/i).closest("h3");
+    if (!peopleHeader) throw new Error("Expected people section header");
     fireEvent.click(peopleHeader);
     expect(screen.queryByTestId("section-banner")).toBeNull();
   });

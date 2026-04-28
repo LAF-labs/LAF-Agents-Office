@@ -32,8 +32,8 @@ describe("wiki api client", () => {
 
   it("fetchArticle falls back to a mock on network error", async () => {
     vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
-    const result = await api.fetchArticle("people/customer-x");
-    expect(result.title).toBe("Customer X");
+    const result = await api.fetchArticle("projects/agent-workspace");
+    expect(result.title).toBe("Agent Workspace");
   });
 
   it("fetchArticle resolves a bare slug by trying the standard group dirs", async () => {
@@ -134,9 +134,9 @@ describe("wiki api client", () => {
     expect(result.commits).toEqual(commits);
   });
 
-  it("mockArticle generates the Customer X fixture for the canonical path", () => {
-    const result = api.mockArticle("customer-x");
-    expect(result.title).toBe("Customer X");
+  it("mockArticle generates the project memory fixture for the canonical path", () => {
+    const result = api.mockArticle("agent-workspace");
+    expect(result.title).toBe("Agent Workspace");
     expect(result.contributors.length).toBeGreaterThan(0);
   });
 

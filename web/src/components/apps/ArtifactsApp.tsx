@@ -9,6 +9,7 @@ import {
   getUsage,
   getWatchdogs,
   type OfficeMember,
+  type Task,
 } from "../../api/client";
 import { formatTokens } from "../../lib/format";
 import { type Insight, InsightsList } from "../activity/InsightsList";
@@ -248,243 +249,315 @@ export function ArtifactsApp() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Hero */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
-        <div>
-          <h3 style={{ fontSize: 18, fontWeight: 700 }}>Office activity</h3>
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              marginTop: 4,
-            }}
-          >
-            Which lanes are moving, which agents are active, what decisions just
-            got made, and where work is blocked.
-          </div>
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-tertiary)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {new Date().toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </div>
-      </div>
-
-      {/* Stat grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-          gap: 10,
-        }}
-      >
-        <StatCard
-          kicker="Active lanes"
-          value={String(activeTasks.length)}
-          copy="Live tasks currently moving."
-        />
-        <StatCard
-          kicker="Blocked lanes"
-          value={String(blockedTasks.length)}
-          copy="Tasks needing operator attention."
-          anchorId="needs-attention"
-        />
-        <StatCard
-          kicker="Watchdog alerts"
-          value={String(allWatchdogs.length)}
-          copy="Watchdogs firing right now."
-          anchorId="needs-attention"
-        />
-        <StatCard
-          kicker="Agents in motion"
-          value={String(liveAgents.length)}
-          copy="Specialists currently shipping or plotting."
-        />
-        <StatCard
-          kicker="Recent actions"
-          value={String(allActions.length)}
-          copy="Automation and system actions logged."
-        />
-        <StatCard
-          kicker="Due automations"
-          value={String(allJobs.length)}
-          copy="Scheduled jobs that are due now."
-        />
-        <StatCard
-          kicker="Session tokens"
-          value={formatTokens(usageData?.session?.total_tokens ?? 0)}
-          copy="Live token burn this session."
-        />
-      </div>
-
-      {/* Two-column grid */}
+      <ActivityHero />
+      <StatsGrid
+        activeTasks={activeTasks.length}
+        blockedTasks={blockedTasks.length}
+        watchdogs={allWatchdogs.length}
+        liveAgents={liveAgents.length}
+        actions={allActions.length}
+        jobs={allJobs.length}
+        sessionTokens={formatTokens(usageData?.session?.total_tokens ?? 0)}
+      />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {/* Left column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <ActivitySection
-            title="Active lanes"
-            meta={`${activeTasks.length} open or moving`}
-          >
-            {activeTasks.length === 0 ? (
-              <EmptyState>No active lanes right now.</EmptyState>
-            ) : (
-              activeTasks
-                .slice(0, 10)
-                .map((task) => (
-                  <ActivityItem
-                    key={task.id}
-                    title={task.title || task.id || "Untitled task"}
-                    body={task.description ?? ""}
-                    meta={[
-                      task.channel ? `#${task.channel}` : "",
-                      task.owner ? `@${task.owner}` : "",
-                    ].filter(Boolean)}
-                    kindLabel={normalizeStatus(task.status).replace(/_/g, " ")}
-                  />
-                ))
-            )}
-          </ActivitySection>
-
-          <ActivitySection
-            title="Agent pulse"
-            meta={`${liveAgents.length} active right now`}
-          >
-            {liveAgents.length === 0 ? (
-              <EmptyState>No agents are visibly moving right now.</EmptyState>
-            ) : (
-              liveAgents.slice(0, 10).map((member) => {
-                const activity = classifyMemberActivity(member);
-                return (
-                  <div
-                    key={member.slug}
-                    className="app-card"
-                    style={{
-                      marginBottom: 6,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span className={`status-dot ${activity.state}`} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>
-                        {member.name || member.slug}
-                      </div>
-                      <div className="app-card-meta">
-                        {member.task || activity.label}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </ActivitySection>
-
-          <ActivitySection
-            title="Recent actions"
-            meta={`${allActions.length} recorded`}
-          >
-            {allActions.length === 0 ? (
-              <EmptyState>No actions recorded yet.</EmptyState>
-            ) : (
-              allActions
-                .slice(0, 12)
-                .map((action) => (
-                  <ActivityItem
-                    key={actionKey(action)}
-                    title={
-                      action.summary || action.name || action.title || "Action"
-                    }
-                    body={
-                      action.related_id ? `Related: ${action.related_id}` : ""
-                    }
-                    meta={[
-                      action.channel ? `#${action.channel}` : "",
-                      action.actor ? `@${action.actor}` : "",
-                      action.created_at
-                        ? new Date(action.created_at).toLocaleString()
-                        : "",
-                    ].filter(Boolean)}
-                    kindLabel={action.kind || action.type || "action"}
-                  />
-                ))
-            )}
-          </ActivitySection>
-        </div>
-
-        {/* Right column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <ActivitySection
-            title="Needs attention"
-            meta={`${insights.length} items`}
-            anchorId="needs-attention"
-          >
-            <InsightsList
-              insights={insights}
-              emptyLabel="No active blockers or watchdog alerts."
-              limit={12}
-            />
-          </ActivitySection>
-
-          <ActivitySection
-            title="Recent activity"
-            meta={`${timelineEvents.length} events`}
-          >
-            <Timeline
-              events={timelineEvents}
-              emptyLabel="No decisions or actions logged yet."
-              limit={14}
-            />
-          </ActivitySection>
-
-          <ActivitySection
-            title="Due automations"
-            meta={`${allJobs.length} due now`}
-          >
-            {allJobs.length === 0 ? (
-              <EmptyState>No jobs are due right now.</EmptyState>
-            ) : (
-              allJobs
-                .slice(0, 6)
-                .map((job, idx) => (
-                  <ActivityItem
-                    key={job.slug ?? job.id ?? `due-${idx}`}
-                    title={job.label || job.slug || "Scheduled job"}
-                    body={job.workflow_key || job.skill_name || job.kind || ""}
-                    meta={[
-                      job.channel ? `#${job.channel}` : "",
-                      job.provider ?? "",
-                      job.next_run || job.due_at
-                        ? new Date(
-                            job.next_run || job.due_at || "",
-                          ).toLocaleString()
-                        : "",
-                    ].filter(Boolean)}
-                    kindLabel={job.status || "scheduled"}
-                  />
-                ))
-            )}
-          </ActivitySection>
-        </div>
+        <LeftActivityColumn
+          activeTasks={activeTasks}
+          liveAgents={liveAgents}
+          actions={allActions}
+        />
+        <RightActivityColumn
+          insights={insights}
+          timelineEvents={timelineEvents}
+          jobs={allJobs}
+        />
       </div>
     </div>
   );
 }
 
 /* ── Shared sub-components ── */
+
+function ActivityHero() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+      }}
+    >
+      <div>
+        <h3 style={{ fontSize: 18, fontWeight: 700 }}>Office activity</h3>
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            marginTop: 4,
+          }}
+        >
+          Which lanes are moving, which agents are active, what decisions just
+          got made, and where work is blocked.
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--text-tertiary)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {new Date().toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StatsGrid({
+  activeTasks,
+  blockedTasks,
+  watchdogs,
+  liveAgents,
+  actions,
+  jobs,
+  sessionTokens,
+}: {
+  activeTasks: number;
+  blockedTasks: number;
+  watchdogs: number;
+  liveAgents: number;
+  actions: number;
+  jobs: number;
+  sessionTokens: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+        gap: 10,
+      }}
+    >
+      <StatCard
+        kicker="Active lanes"
+        value={String(activeTasks)}
+        copy="Live tasks currently moving."
+      />
+      <StatCard
+        kicker="Blocked lanes"
+        value={String(blockedTasks)}
+        copy="Tasks needing operator attention."
+        anchorId="needs-attention"
+      />
+      <StatCard
+        kicker="Watchdog alerts"
+        value={String(watchdogs)}
+        copy="Watchdogs firing right now."
+        anchorId="needs-attention"
+      />
+      <StatCard
+        kicker="Agents in motion"
+        value={String(liveAgents)}
+        copy="Specialists currently shipping or plotting."
+      />
+      <StatCard
+        kicker="Recent actions"
+        value={String(actions)}
+        copy="Automation and system actions logged."
+      />
+      <StatCard
+        kicker="Due automations"
+        value={String(jobs)}
+        copy="Scheduled jobs that are due now."
+      />
+      <StatCard
+        kicker="Session tokens"
+        value={sessionTokens}
+        copy="Live token burn this session."
+      />
+    </div>
+  );
+}
+
+function LeftActivityColumn({
+  activeTasks,
+  liveAgents,
+  actions,
+}: {
+  activeTasks: Task[];
+  liveAgents: OfficeMember[];
+  actions: ActionRecord[];
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <ActiveLanesSection activeTasks={activeTasks} />
+      <AgentPulseSection liveAgents={liveAgents} />
+      <RecentActionsSection actions={actions} />
+    </div>
+  );
+}
+
+function RightActivityColumn({
+  insights,
+  timelineEvents,
+  jobs,
+}: {
+  insights: Insight[];
+  timelineEvents: TimelineEvent[];
+  jobs: SchedulerJobRaw[];
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <ActivitySection
+        title="Needs attention"
+        meta={`${insights.length} items`}
+        anchorId="needs-attention"
+      >
+        <InsightsList
+          insights={insights}
+          emptyLabel="No active blockers or watchdog alerts."
+          limit={12}
+        />
+      </ActivitySection>
+      <ActivitySection
+        title="Recent activity"
+        meta={`${timelineEvents.length} events`}
+      >
+        <Timeline
+          events={timelineEvents}
+          emptyLabel="No decisions or actions logged yet."
+          limit={14}
+        />
+      </ActivitySection>
+      <DueAutomationsSection jobs={jobs} />
+    </div>
+  );
+}
+
+function ActiveLanesSection({ activeTasks }: { activeTasks: Task[] }) {
+  return (
+    <ActivitySection
+      title="Active lanes"
+      meta={`${activeTasks.length} open or moving`}
+    >
+      {activeTasks.length === 0 ? (
+        <EmptyState>No active lanes right now.</EmptyState>
+      ) : (
+        activeTasks
+          .slice(0, 10)
+          .map((task) => (
+            <ActivityItem
+              key={task.id}
+              title={task.title || task.id || "Untitled task"}
+              body={task.description ?? ""}
+              meta={[
+                task.channel ? `#${task.channel}` : "",
+                task.owner ? `@${task.owner}` : "",
+              ].filter(Boolean)}
+              kindLabel={normalizeStatus(task.status).replace(/_/g, " ")}
+            />
+          ))
+      )}
+    </ActivitySection>
+  );
+}
+
+function AgentPulseSection({ liveAgents }: { liveAgents: OfficeMember[] }) {
+  return (
+    <ActivitySection
+      title="Agent pulse"
+      meta={`${liveAgents.length} active right now`}
+    >
+      {liveAgents.length === 0 ? (
+        <EmptyState>No agents are visibly moving right now.</EmptyState>
+      ) : (
+        liveAgents.slice(0, 10).map((member) => {
+          const activity = classifyMemberActivity(member);
+          return (
+            <div
+              key={member.slug}
+              className="app-card"
+              style={{
+                marginBottom: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span className={`status-dot ${activity.state}`} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>
+                  {member.name || member.slug}
+                </div>
+                <div className="app-card-meta">
+                  {member.task || activity.label}
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </ActivitySection>
+  );
+}
+
+function RecentActionsSection({ actions }: { actions: ActionRecord[] }) {
+  return (
+    <ActivitySection title="Recent actions" meta={`${actions.length} recorded`}>
+      {actions.length === 0 ? (
+        <EmptyState>No actions recorded yet.</EmptyState>
+      ) : (
+        actions
+          .slice(0, 12)
+          .map((action) => (
+            <ActivityItem
+              key={actionKey(action)}
+              title={action.summary || action.name || action.title || "Action"}
+              body={action.related_id ? `Related: ${action.related_id}` : ""}
+              meta={[
+                action.channel ? `#${action.channel}` : "",
+                action.actor ? `@${action.actor}` : "",
+                action.created_at
+                  ? new Date(action.created_at).toLocaleString()
+                  : "",
+              ].filter(Boolean)}
+              kindLabel={action.kind || action.type || "action"}
+            />
+          ))
+      )}
+    </ActivitySection>
+  );
+}
+
+function DueAutomationsSection({ jobs }: { jobs: SchedulerJobRaw[] }) {
+  return (
+    <ActivitySection title="Due automations" meta={`${jobs.length} due now`}>
+      {jobs.length === 0 ? (
+        <EmptyState>No jobs are due right now.</EmptyState>
+      ) : (
+        jobs
+          .slice(0, 6)
+          .map((job, idx) => (
+            <ActivityItem
+              key={job.slug ?? job.id ?? `due-${idx}`}
+              title={job.label || job.slug || "Scheduled job"}
+              body={job.workflow_key || job.skill_name || job.kind || ""}
+              meta={[
+                job.channel ? `#${job.channel}` : "",
+                job.provider ?? "",
+                job.next_run || job.due_at
+                  ? new Date(job.next_run || job.due_at || "").toLocaleString()
+                  : "",
+              ].filter(Boolean)}
+              kindLabel={job.status || "scheduled"}
+            />
+          ))
+      )}
+    </ActivitySection>
+  );
+}
 
 interface StatCardProps {
   kicker: string;

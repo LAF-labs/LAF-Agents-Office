@@ -146,42 +146,6 @@ var spriteDesigner = pixelSprite{
 	{0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0},
 }
 
-// CMO: energetic pose, arms up, megaphone
-var spriteCMO = pixelSprite{
-	{0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-	{0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 1, 0, 0, 0},
-	{0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-	{0, 0, 0, 1, 2, 1, 2, 2, 1, 2, 1, 0, 0, 0},
-	{0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-	{0, 0, 0, 0, 1, 2, 3, 3, 2, 1, 0, 0, 0, 0},
-	{0, 0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0},
-	{5, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 1, 0},
-	{5, 5, 2, 2, 3, 3, 3, 3, 3, 3, 2, 2, 0, 0},
-	{5, 0, 1, 2, 1, 3, 3, 3, 3, 1, 2, 1, 0, 0},
-	{0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0},
-	{0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0},
-	{0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-	{0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0},
-}
-
-// CRO: sharp look, briefcase, power stance
-var spriteCRO = pixelSprite{
-	{0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-	{0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 1, 0, 0, 0},
-	{0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-	{0, 0, 0, 1, 2, 1, 2, 2, 1, 2, 1, 0, 0, 0},
-	{0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-	{0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 0, 0, 0, 0},
-	{0, 0, 1, 3, 6, 3, 3, 3, 3, 6, 3, 1, 0, 0},
-	{0, 1, 2, 3, 6, 3, 3, 3, 3, 6, 3, 2, 1, 0},
-	{0, 0, 2, 2, 3, 3, 3, 3, 3, 3, 2, 2, 0, 0},
-	{0, 0, 1, 2, 1, 3, 3, 3, 3, 1, 2, 1, 0, 0},
-	{0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0},
-	{0, 0, 0, 1, 0, 0, 1, 1, 0, 5, 5, 5, 0, 0},
-	{0, 0, 0, 0, 1, 0, 0, 0, 0, 5, 1, 5, 0, 0},
-	{0, 0, 0, 1, 1, 0, 0, 0, 0, 5, 5, 5, 0, 0},
-}
-
 // spriteForSlug returns the generated avatar sprite for mapped roles,
 // or a seeded procedural variation for dynamic slugs. frame alternates 0/1.
 func spriteForSlug(slug string, frame ...int) pixelSprite {
@@ -209,10 +173,6 @@ func spriteForSlug(slug string, frame ...int) pixelSprite {
 		sprite = cloneSprite(spriteAI)
 	case "designer":
 		sprite = cloneSprite(spriteDesigner)
-	case "cmo":
-		sprite = cloneSprite(spriteCMO)
-	case "cro":
-		sprite = cloneSprite(spriteCRO)
 	default:
 		// Unknown slug — compose from modular layers so every agent is unique.
 		sprite = proceduralSpriteForSlug(slug)
@@ -233,8 +193,6 @@ func spriteForSlug(slug string, frame ...int) pixelSprite {
 //	BE:      tightens crossed arms
 //	AI:      antenna blinks (accent toggles)
 //	Designer: pencil moves (prop shifts position)
-//	CMO:      megaphone raised higher
-//	CRO:      briefcase swings
 func animateFrame(sprite pixelSprite, slug string) {
 	if len(sprite) < 14 {
 		return
@@ -292,29 +250,6 @@ func animateFrame(sprite pixelSprite, slug string) {
 		sprite[10][13] = pxLine
 		// Smirk
 		sprite[5][7] = pxLine
-	case "cmo":
-		// Megaphone raised higher
-		sprite[6][0] = pxProp
-		sprite[6][1] = pxProp
-		sprite[7][0] = pxClear
-		sprite[7][1] = pxSkin
-		sprite[8][0] = pxClear
-		sprite[8][1] = pxClear
-		// Mouth open (yelling)
-		sprite[4][6] = pxClear
-		sprite[4][7] = pxClear
-	case "cro":
-		// Briefcase swings forward
-		sprite[11][9] = pxClear
-		sprite[11][10] = pxProp
-		sprite[11][11] = pxProp
-		sprite[11][12] = pxProp
-		sprite[12][10] = pxLine
-		sprite[12][11] = pxProp
-		sprite[12][12] = pxLine
-		sprite[13][10] = pxProp
-		sprite[13][11] = pxProp
-		sprite[13][12] = pxProp
 	default:
 		// Generic: wave (arm up)
 		sprite[7][1] = pxSkin

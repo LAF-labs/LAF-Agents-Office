@@ -123,7 +123,12 @@ interface PrereqResult {
 // empty roster before confirming.
 const SCRATCH_FOUNDING_TEAM: readonly BlueprintAgent[] = [
   { slug: "ceo", name: "CEO", role: "lead", checked: true, built_in: true },
-  { slug: "gtm-lead", name: "GTM Lead", role: "go-to-market", checked: true },
+  {
+    slug: "ai-engineer",
+    name: "AI Engineer",
+    role: "agent-systems",
+    checked: true,
+  },
   {
     slug: "founding-engineer",
     name: "Founding Engineer",
@@ -319,7 +324,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       other: "Other",
       scratchTitle: "Start from scratch",
       scratchSubhead:
-        "5-person founding team: CEO, GTM Lead, Founding Engineer, PM, Designer",
+        "5-person project team: CEO, PM, Founding Engineer, AI Engineer, Designer",
       next: "Review the team",
       categories: {
         project: {
@@ -424,7 +429,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       githubConnectLater:
         "Connect the project repo after deployment settings are ready. Agents will use it for implementation tasks.",
       blueprintLabel: "Starter",
-      blueprintScratch: "Start from scratch (5-person founding team).",
+      blueprintScratch: "Start from scratch (5-person project team).",
     },
   },
   ko: {
@@ -458,7 +463,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       other: "기타",
       scratchTitle: "처음부터 시작",
       scratchSubhead:
-        "5명 창업팀: CEO, GTM 리드, 파운딩 엔지니어, PM, 디자이너",
+        "5명 프로젝트 팀: CEO, PM, 파운딩 엔지니어, AI 엔지니어, 디자이너",
       next: "팀 검토",
       categories: {
         project: {
@@ -563,7 +568,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       githubConnectLater:
         "배포 설정이 준비되면 프로젝트 저장소를 연결합니다. 에이전트는 실제 개발 작업에 이 저장소를 사용합니다.",
       blueprintLabel: "시작 방식",
-      blueprintScratch: "처음부터 시작 (5명 창업팀).",
+      blueprintScratch: "처음부터 시작 (5명 프로젝트 팀).",
     },
   },
 };

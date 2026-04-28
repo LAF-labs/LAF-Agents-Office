@@ -84,14 +84,16 @@ describe("<EntityRelatedPanel>", () => {
   // with the new edge. Without this, the SSE wiring is structurally
   // present but behaviorally unverified.
   it("re-fetches the graph on entity:fact_recorded for this entity", async () => {
-    let capturedOnFact: (() => void) | null = null;
-    let capturedKind: unknown = null;
-    let capturedSlug: unknown = null;
+    const captured: {
+      onFact?: () => void;
+      kind?: unknown;
+      slug?: unknown;
+    } = {};
     vi.spyOn(api, "subscribeEntityEvents").mockImplementation(
       (kind, slug, onFact) => {
-        capturedKind = kind;
-        capturedSlug = slug;
-        capturedOnFact = onFact as () => void;
+        captured.kind = kind;
+        captured.slug = slug;
+        captured.onFact = onFact as () => void;
         return () => {};
       },
     );
@@ -131,12 +133,14 @@ describe("<EntityRelatedPanel>", () => {
 
     // Confirm the subscriber was scoped to this entity's kind+slug, so the
     // broker-side filter will only hand us events for sarah/people.
-    expect(capturedKind).toBe("people");
-    expect(capturedSlug).toBe("sarah");
+    expect(captured.kind).toBe("people");
+    expect(captured.slug).toBe("sarah");
 
     // Fire the fact_recorded callback as the SSE layer would.
-    expect(capturedOnFact).not.toBeNull();
-    capturedOnFact!();
+    const fireCapturedFact = captured.onFact;
+    expect(fireCapturedFact).not.toBeNull();
+    if (!fireCapturedFact) throw new Error("Expected fact_recorded callback");
+    fireCapturedFact();
 
     await screen.findByText("customers/globex");
     expect(fetchSpy).toHaveBeenCalledTimes(2);

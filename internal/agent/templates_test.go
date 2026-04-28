@@ -7,13 +7,12 @@ func TestTemplateLookup(t *testing.T) {
 		slug string
 		name string
 	}{
-		{"seo-agent", "SEO Analyst"},
-		{"lead-gen", "Lead Generator"},
-		{"enrichment", "Data Enricher"},
-		{"research", "Research Analyst"},
-		{"customer-success", "Customer Success"},
 		{"team-lead", "Team Lead"},
 		{"founding-agent", "Team Lead"},
+		{"product-manager", "Product Manager"},
+		{"founding-engineer", "Founding Engineer"},
+		{"ai-engineer", "AI Engineer"},
+		{"designer", "Designer"},
 	}
 
 	for _, tc := range cases {
@@ -35,7 +34,7 @@ func TestTemplateLookup(t *testing.T) {
 }
 
 func TestTemplateCount(t *testing.T) {
-	if got := len(LegacyTemplateNames()); got != 7 {
-		t.Errorf("expected 7 templates, got %d", got)
+	if got := len(LegacyTemplateNames()); got != 6 {
+		t.Errorf("expected 6 templates, got %d", got)
 	}
 }

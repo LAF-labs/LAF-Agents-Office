@@ -1,6 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as entityApi from "../../api/entity";
+import * as playbookApi from "../../api/playbook";
 import * as api from "../../api/wiki";
 import WikiArticle from "./WikiArticle";
 
@@ -32,6 +35,24 @@ describe("<WikiArticle>", () => {
     vi.restoreAllMocks();
     // Default history stub — individual tests override as needed.
     vi.spyOn(api, "fetchHistory").mockResolvedValue({ commits: [] });
+    vi.spyOn(api, "fetchHumans").mockResolvedValue([]);
+    vi.spyOn(api, "subscribeEditLog").mockImplementation(() => () => {});
+    vi.spyOn(entityApi, "fetchBriefs").mockResolvedValue([]);
+    vi.spyOn(entityApi, "fetchFacts").mockResolvedValue([]);
+    vi.spyOn(entityApi, "fetchEntityGraph").mockResolvedValue([]);
+    vi.spyOn(entityApi, "subscribeEntityEvents").mockImplementation(
+      () => () => {},
+    );
+    vi.spyOn(playbookApi, "fetchPlaybooks").mockResolvedValue([]);
+    vi.spyOn(playbookApi, "fetchPlaybookExecutions").mockResolvedValue([]);
+    vi.spyOn(playbookApi, "fetchSynthesisStatus").mockResolvedValue(null);
+    vi.spyOn(playbookApi, "subscribePlaybookEvents").mockImplementation(
+      () => () => {},
+    );
+    vi.spyOn(
+      playbookApi,
+      "subscribePlaybookSynthesizedEvents",
+    ).mockImplementation(() => () => {});
   });
 
   it("fetches an article, renders its markdown, and distinguishes broken wikilinks", async () => {
@@ -78,6 +99,7 @@ describe("<WikiArticle>", () => {
   });
 
   it("switches to raw markdown tab and shows the source", async () => {
+    const user = userEvent.setup();
     vi.spyOn(api, "fetchArticle").mockResolvedValue({
       path: "a/b",
       title: "A",
@@ -94,10 +116,12 @@ describe("<WikiArticle>", () => {
       <WikiArticle path="a/b" catalog={[]} onNavigate={() => {}} />,
     );
     await findByText(/Body\./);
-    getByRole("button", { name: "Raw markdown" }).click();
+    await user.click(getByRole("button", { name: "Raw markdown" }));
     await waitFor(() => expect(getByText(/## Heading A/)).toBeInTheDocument());
-    getByRole("button", { name: "History" }).click();
-    await waitFor(() => expect(getByText(/streams from/)).toBeInTheDocument());
+    await user.click(getByRole("button", { name: "History" }));
+    await waitFor(() =>
+      expect(getByText(/Memory history for this page/i)).toBeInTheDocument(),
+    );
   });
 
   it("renders an error state when fetchArticle rejects", async () => {
@@ -123,17 +147,19 @@ describe("<WikiArticle>", () => {
     expect(screen.getByText(/Loading article/i)).toBeInTheDocument();
     // Finalize
     const finish = resolveFn as Resolve | null;
-    finish?.({
-      path: "a",
-      title: "A",
-      content: "body",
-      last_edited_by: "pm",
-      last_edited_ts: new Date().toISOString(),
-      revisions: 1,
-      contributors: ["pm"],
-      backlinks: [],
-      word_count: 1,
-      categories: [],
+    await act(async () => {
+      finish?.({
+        path: "a",
+        title: "A",
+        content: "body",
+        last_edited_by: "pm",
+        last_edited_ts: new Date().toISOString(),
+        revisions: 1,
+        contributors: ["pm"],
+        backlinks: [],
+        word_count: 1,
+        categories: [],
+      });
     });
     await waitFor(() =>
       expect(screen.queryByText(/Loading article/i)).not.toBeInTheDocument(),
@@ -159,8 +185,8 @@ describe("<WikiArticle>", () => {
         },
         {
           sha: "ccccccc3333",
-          author_slug: "cro",
-          msg: "Pricing note",
+          author_slug: "ai",
+          msg: "Agent memory note",
           date: "2026-01-18T00:00:00Z",
         },
       ],
@@ -183,11 +209,11 @@ describe("<WikiArticle>", () => {
     expect(sourcesSection).not.toBeNull();
     expect(sourcesSection.textContent).toContain("Initial brief");
     expect(sourcesSection.textContent).toContain("Add pilot scope");
-    expect(sourcesSection.textContent).toContain("Pricing note");
+    expect(sourcesSection.textContent).toContain("Agent memory note");
     // Author slugs surface as upper-cased names inside the Sources list.
     expect(sourcesSection.textContent).toContain("CEO");
     expect(sourcesSection.textContent).toContain("PM");
-    expect(sourcesSection.textContent).toContain("CRO");
+    expect(sourcesSection.textContent).toContain("AI");
     // Short SHA rendering (first 7 chars).
     expect(sourcesSection.textContent).toContain("aaaaaaa");
   });
@@ -223,7 +249,9 @@ describe("<WikiArticle>", () => {
 
     // Finalize so cleanup is clean
     const finish = resolveHistory as Resolve | null;
-    finish?.({ commits: [] });
+    await act(async () => {
+      finish?.({ commits: [] });
+    });
   });
 
   it("renders nothing for Sources when fetchHistory rejects", async () => {

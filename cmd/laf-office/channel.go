@@ -2255,7 +2255,7 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.picker.SetActive(true)
 			m.pickerMode = channelPickerInitProvider
 		case tui.InitBlueprintChoice, tui.InitPackChoice:
-			m.picker = tui.NewPicker("Choose Operation Template", tui.BlueprintOptions())
+			m.picker = tui.NewPicker("Choose Project Team", tui.BlueprintOptions())
 			m.picker.SetActive(true)
 			m.pickerMode = channelPickerInitBlueprint
 		case tui.InitDone:
@@ -4044,10 +4044,6 @@ func displayName(slug string) string {
 		return "AI Engineer"
 	case "designer":
 		return "Designer"
-	case "cmo":
-		return "CMO"
-	case "cro":
-		return "CRO"
 	case "automation":
 		return "Automation"
 	case "you":
@@ -4074,10 +4070,6 @@ func roleLabel(slug string) string {
 		return "AI Engineer"
 	case "designer":
 		return "design"
-	case "cmo":
-		return "marketing"
-	case "cro":
-		return "revenue"
 	case "automation":
 		return "context graph"
 	case "you":
@@ -4259,8 +4251,6 @@ func channelMentionAgents(members []channelMember) []tui.AgentMention {
 		{Slug: "be", Name: "Backend Engineer"},
 		{Slug: "ai", Name: "AI Engineer"},
 		{Slug: "designer", Name: "Designer"},
-		{Slug: "cmo", Name: "CMO"},
-		{Slug: "cro", Name: "CRO"},
 	}
 	seen := make(map[string]bool, len(defaults))
 	mentions := make([]tui.AgentMention, 0, len(defaults)+len(members))

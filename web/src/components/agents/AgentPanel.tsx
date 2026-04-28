@@ -406,6 +406,7 @@ export function AgentPanel() {
   // activeAgentSlug and closed whenever one was set, so clicking any agent
   // instantly un-selected it and the panel never mounted (React #31 guard
   // e2e regression).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentChannel/currentApp are the navigation-change signal.
   useEffect(() => {
     close();
   }, [currentChannel, currentApp, close]);

@@ -107,8 +107,6 @@ func defaultSidebarRoster() []channelMember {
 		{Slug: "be", Name: "Backend Engineer", Role: "backend"},
 		{Slug: "ai", Name: "AI Engineer", Role: "AI Engineer"},
 		{Slug: "designer", Name: "Designer", Role: "design"},
-		{Slug: "cmo", Name: "CMO", Role: "marketing"},
-		{Slug: "cro", Name: "CRO", Role: "revenue"},
 	}
 }
 

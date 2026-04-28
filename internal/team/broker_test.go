@@ -788,7 +788,7 @@ func TestBrokerMessagesCanScopeToAgentInbox(t *testing.T) {
 }
 
 func TestNewBrokerSeedsDefaultOfficeRosterOnFreshState(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // isolate from ~/.laf-office company.json (e.g. RevOps pack)
+	t.Setenv("HOME", t.TempDir()) // isolate from ~/.laf-office company.json
 	b := newTestBroker(t)
 	members := b.OfficeMembers()
 	if len(members) < 2 {

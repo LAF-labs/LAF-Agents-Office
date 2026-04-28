@@ -269,7 +269,7 @@ func TestBlankSlateMembersStaleScratchSelectionDoesNotCollapseToOperator(t *test
 
 	members := blankSlateOfficeMembersFromBlueprint(blueprint, []string{
 		"ceo",
-		"gtm-lead",
+		"ai-engineer",
 		"founding-engineer",
 		"pm",
 		"designer",

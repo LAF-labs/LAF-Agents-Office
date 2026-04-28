@@ -4,8 +4,8 @@ import "testing"
 
 func TestPacksRegistered(t *testing.T) {
 	packs := ListLegacyPacks()
-	if len(packs) != 5 {
-		t.Fatalf("expected 5 packs, got %d", len(packs))
+	if len(packs) != 3 {
+		t.Fatalf("expected 3 packs, got %d", len(packs))
 	}
 	founding := LookupLegacyPack("founding-team")
 	if founding == nil {
@@ -14,8 +14,8 @@ func TestPacksRegistered(t *testing.T) {
 	if founding.LeadSlug != "ceo" {
 		t.Errorf("expected lead slug 'ceo', got '%s'", founding.LeadSlug)
 	}
-	if len(founding.Agents) != 8 {
-		t.Errorf("expected 8 agents in founding team, got %d", len(founding.Agents))
+	if len(founding.Agents) != 6 {
+		t.Errorf("expected 6 agents in founding team, got %d", len(founding.Agents))
 	}
 	foundAI := false
 	for _, a := range founding.Agents {
@@ -63,55 +63,10 @@ func TestCodingTeamPack(t *testing.T) {
 	}
 }
 
-func TestLeadGenAgencyPack(t *testing.T) {
-	p := LookupLegacyPack("lead-gen-agency")
-	if p == nil {
-		t.Fatal("lead-gen-agency pack not found")
-	}
-	if p.LeadSlug != "ceo" {
-		t.Errorf("expected lead 'ceo', got '%s'", p.LeadSlug)
-	}
-	if len(p.Agents) != 4 {
-		t.Errorf("expected 4 agents, got %d", len(p.Agents))
-	}
-}
-
-func TestRevOpsPack(t *testing.T) {
-	p := LookupLegacyPack("revops")
-	if p == nil {
-		t.Fatal("revops pack not found")
-	}
-	if p.LeadSlug != "ceo" {
-		t.Errorf("expected lead 'ceo', got '%s'", p.LeadSlug)
-	}
-	if len(p.Agents) != 5 {
-		t.Errorf("expected 5 agents, got %d", len(p.Agents))
-	}
-	// CEO (Chief Revenue Officer) must be present so the broker's CEO-routed
-	// delegation and hardcoded "ceo" checks keep working.
-	hasCEO := false
-	for _, a := range p.Agents {
-		if a.Slug == "ceo" {
-			hasCEO = true
-			break
-		}
-	}
-	if !hasCEO {
-		t.Error("revops pack missing required 'ceo' agent")
-	}
-	if len(p.DefaultSkills) != 5 {
-		t.Errorf("expected 5 default skills, got %d", len(p.DefaultSkills))
-	}
-	// Every default skill must have non-empty Name, Title, and Content.
-	for i, s := range p.DefaultSkills {
-		if s.Name == "" {
-			t.Errorf("skill[%d]: empty Name", i)
-		}
-		if s.Title == "" {
-			t.Errorf("skill[%d]: empty Title", i)
-		}
-		if s.Content == "" {
-			t.Errorf("skill[%d]: empty Content", i)
+func TestRetiredBusinessPacksAreNotRegistered(t *testing.T) {
+	for _, slug := range []string{"lead-gen-agency", "revops"} {
+		if LookupLegacyPack(slug) != nil {
+			t.Fatalf("retired business pack %q should not be registered", slug)
 		}
 	}
 }

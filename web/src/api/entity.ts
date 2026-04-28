@@ -29,7 +29,7 @@ export type SchemaKind =
 /** Bridge helper — maps the legacy plural (people/companies/customers) to
  *  the schema singular (person/company). customers → company per §4.1 (no
  *  separate "customer" kind at the schema level; customers are companies
- *  with a sales-relationship signal). */
+ *  with project-relationship context). */
 export function toSchemaKind(k: EntityKind): SchemaKind {
   switch (k) {
     case "people":

@@ -45,6 +45,7 @@ export default function ReviewQueueKanban() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshTick intentionally refetches review data after broker events and manual refresh.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);

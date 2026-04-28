@@ -137,14 +137,14 @@ func TestChannelViewShowsThreadReplyLabel(t *testing.T) {
 	m.expandedThreads["msg-1"] = true
 	m.messages = []brokerMessage{
 		{ID: "msg-1", From: "ceo", Content: "Should we target founders first?", Timestamp: "2026-03-24T10:00:00Z"},
-		{ID: "msg-2", From: "cmo", Content: "Yes, wedge is stronger there.", ReplyTo: "msg-1", Timestamp: "2026-03-24T10:01:00Z"},
+		{ID: "msg-2", From: "pm", Content: "Yes, the project wedge is stronger there.", ReplyTo: "msg-1", Timestamp: "2026-03-24T10:01:00Z"},
 	}
 
 	view := stripANSI(m.View())
 	if !strings.Contains(view, "thread reply to @ceo") {
 		t.Fatalf("expected threaded reply label in view, got %q", view)
 	}
-	if !strings.Contains(view, "↳ ✶ CMO") {
+	if !strings.Contains(view, "↳ ▣ Product Manager") {
 		t.Fatalf("expected threaded reply header marker, got %q", view)
 	}
 }

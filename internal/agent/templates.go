@@ -4,41 +4,6 @@ package agent
 // compatibility fallback. Blueprint-backed startup is the preferred source of
 // truth.
 var legacyTemplates = map[string]AgentConfig{
-	"seo-agent": {
-		Name:          "SEO Analyst",
-		Expertise:     []string{"seo", "content-analysis", "keyword-research"},
-		Personality:   "Analytical and data-driven...",
-		HeartbeatCron: "daily",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"lead-gen": {
-		Name:          "Lead Generator",
-		Expertise:     []string{"prospecting", "enrichment", "outreach"},
-		Personality:   "Proactive hunter...",
-		HeartbeatCron: "0 */6 * * *",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"enrichment": {
-		Name:          "Data Enricher",
-		Expertise:     []string{"data-enrichment", "research", "validation"},
-		Personality:   "Thorough researcher...",
-		HeartbeatCron: "0 */4 * * *",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"research": {
-		Name:          "Research Analyst",
-		Expertise:     []string{"market-research", "competitive-analysis", "trend-analysis"},
-		Personality:   "Curious and systematic...",
-		HeartbeatCron: "daily",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"customer-success": {
-		Name:          "Customer Success",
-		Expertise:     []string{"relationship-management", "health-scoring", "renewal-tracking"},
-		Personality:   "Empathetic and proactive...",
-		HeartbeatCron: "0 */8 * * *",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
 	"team-lead": {
 		Name:          "Team Lead",
 		Expertise:     []string{"general", "research", "analysis", "communication", "planning", "orchestration"},
@@ -51,6 +16,34 @@ var legacyTemplates = map[string]AgentConfig{
 		Expertise:     []string{"general", "research", "analysis", "communication", "planning", "orchestration"},
 		Personality:   "Versatile and proactive...",
 		HeartbeatCron: "daily",
+		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
+	},
+	"product-manager": {
+		Name:          "Product Manager",
+		Expertise:     []string{"requirements", "prioritization", "task-breakdown", "acceptance-checks"},
+		Personality:   "Turns fuzzy product goals into clear project tasks and reviewable decisions.",
+		HeartbeatCron: "manual",
+		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
+	},
+	"founding-engineer": {
+		Name:          "Founding Engineer",
+		Expertise:     []string{"full-stack", "architecture", "testing", "delivery"},
+		Personality:   "Ships the smallest solid implementation and keeps project context current.",
+		HeartbeatCron: "manual",
+		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
+	},
+	"ai-engineer": {
+		Name:          "AI Engineer",
+		Expertise:     []string{"LLMs", "agents", "tool-use", "retrieval", "evaluations"},
+		Personality:   "Builds reliable agent workflows and memory-aware automation around the project.",
+		HeartbeatCron: "manual",
+		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
+	},
+	"designer": {
+		Name:          "Designer",
+		Expertise:     []string{"UI-UX-design", "flows", "prototyping", "visual-systems"},
+		Personality:   "Keeps the interface clear, focused, and aligned with the project workflow.",
+		HeartbeatCron: "manual",
 		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
 	},
 }

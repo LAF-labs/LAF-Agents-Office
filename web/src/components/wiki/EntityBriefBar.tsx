@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   type BriefSummary,
@@ -43,6 +43,7 @@ export default function EntityBriefBar({
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<BarState>("idle");
   const [pendingOverride, setPendingOverride] = useState<number | null>(null);
+  const pendingRef = useRef(0);
 
   const loadBrief = useCallback(async () => {
     try {
@@ -84,7 +85,7 @@ export default function EntityBriefBar({
       () => {
         // New fact for this entity — bump pending without refetching.
         setPendingOverride((prev) => {
-          const base = prev ?? brief?.pending_delta ?? 0;
+          const base = prev ?? pendingRef.current;
           return base + 1;
         });
       },
@@ -97,7 +98,7 @@ export default function EntityBriefBar({
       },
     );
     return unsubscribe;
-  }, [kind, slug, loadBrief, onSynthesized, brief?.pending_delta]);
+  }, [kind, slug, loadBrief, onSynthesized]);
 
   const handleRefresh = useCallback(async () => {
     setState("synthesizing");
@@ -117,6 +118,10 @@ export default function EntityBriefBar({
     if (pendingOverride !== null) return pendingOverride;
     return brief?.pending_delta ?? 0;
   }, [pendingOverride, brief?.pending_delta]);
+
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
 
   if (loading) return null;
 

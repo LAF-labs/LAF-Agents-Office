@@ -6,8 +6,8 @@ describe("formatAgentName", () => {
   it("uppercases 2-3 character slugs (role abbreviations)", () => {
     expect(formatAgentName("ceo")).toBe("CEO");
     expect(formatAgentName("pm")).toBe("PM");
-    expect(formatAgentName("cro")).toBe("CRO");
-    expect(formatAgentName("seo")).toBe("SEO");
+    expect(formatAgentName("api")).toBe("API");
+    expect(formatAgentName("ux")).toBe("UX");
   });
 
   it("title-cases longer slugs", () => {

@@ -295,7 +295,6 @@ body {
    Without `image-rendering: pixelated` the browser bilinearly smooths the
    upscale and the sprites lose their pixel-art edges. */
 .pixel-avatar {
-  image-rendering: crisp-edges;
   image-rendering: pixelated;
   border-radius: 4px;
   display: block;

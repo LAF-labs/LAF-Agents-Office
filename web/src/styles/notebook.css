@@ -886,8 +886,6 @@
 /* Avatars — reuse pixel-art canvas convention. */
 .notebook-surface canvas {
   image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
 }
 
 /* ── Reviews Kanban ──────────────────────────────────────────── */

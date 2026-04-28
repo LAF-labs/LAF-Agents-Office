@@ -6,7 +6,12 @@
  * this file small — it's pure config, not logic.
  */
 
-import type { ComponentProps, ReactElement } from "react";
+import {
+  Children,
+  type ComponentProps,
+  isValidElement,
+  type ReactElement,
+} from "react";
 import type { Components } from "react-markdown";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
@@ -44,6 +49,28 @@ export function buildRehypePlugins(): PluggableList {
 
 type AnchorProps = ComponentProps<"a">;
 type ImageProps = ComponentProps<"img">;
+type ParagraphProps = ComponentProps<"p"> & { node?: unknown };
+
+function isStandaloneImageParagraph(children: ParagraphProps["children"]) {
+  const childList = Children.toArray(children);
+  return (
+    childList.length === 1 &&
+    isValidElement(childList[0]) &&
+    (childList[0].type === ImageEmbed || childList[0].type === "img")
+  );
+}
+
+function isImageOnlyParagraphNode(node: unknown): boolean {
+  if (!node || typeof node !== "object") return false;
+  const { children } = node as { children?: unknown };
+  if (!Array.isArray(children) || children.length !== 1) return false;
+  const [child] = children;
+  return (
+    Boolean(child) &&
+    typeof child === "object" &&
+    (child as { tagName?: unknown }).tagName === "img"
+  );
+}
 
 /**
  * React-markdown component overrides:
@@ -55,6 +82,15 @@ export function buildMarkdownComponents(
 ): Partial<Components> {
   const { onNavigate } = options;
   return {
+    p: ({ node, children, ...props }: ParagraphProps): ReactElement => {
+      if (
+        isImageOnlyParagraphNode(node) ||
+        isStandaloneImageParagraph(children)
+      ) {
+        return <>{children}</>;
+      }
+      return <p {...props}>{children}</p>;
+    },
     a: (props: AnchorProps): ReactElement => {
       const record = props as Record<string, unknown>;
       const isWikilink = record["data-wikilink"] === "true";

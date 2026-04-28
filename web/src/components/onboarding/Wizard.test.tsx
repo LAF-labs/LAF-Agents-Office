@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAppStore } from "../../stores/app";
@@ -34,7 +40,9 @@ function pressEnterOn(
     ...opts,
   });
   Object.defineProperty(ev, "target", { value: target, configurable: true });
-  window.dispatchEvent(ev);
+  act(() => {
+    window.dispatchEvent(ev);
+  });
 }
 
 async function advanceToSetupStep() {

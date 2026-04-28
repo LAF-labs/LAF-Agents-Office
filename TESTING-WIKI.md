@@ -137,7 +137,7 @@ Either drive the UI:
 
 1. "Open the office"
 2. Fill company name + description + priority → "Choose a blueprint"
-3. Pick **Niche CRM** (richest wiki schema for the demo) → "Review the team"
+3. Choose the project starter path → "Review the team"
 4. Continue past team review
 5. Pick **Markdown (default)** memory backend → paste any value into `ANTHROPIC_API_KEY` → "Ready"
 6. Click "Open the office without a first task"
@@ -233,8 +233,8 @@ The script:
 
 - The rolling edit-log at the bottom of the wiki pulses amber as each commit lands
 - The "X articles" stat ticks up from 5 → 13
-- New cards appear on the catalog grid (CUSTOMERS, PEOPLE)
-- Navigate to `/#/wiki/team/customers/customer-x.md` before the demo and watch the "Referenced by" panel fill in live as later articles link to it
+- New cards appear on the catalog grid (PROJECTS, DECISIONS, PLAYBOOKS)
+- Navigate to `/#/wiki/team/projects/agent-workspace.md` before the demo and watch the "Referenced by" panel fill in live as later articles link to it
 - `git -C ~/.laf-office/wiki log --oneline` after the demo shows all 9 commits with per-agent authorship
 
 **Reproducibility check** — run the demo twice against the same dev home:
@@ -264,20 +264,20 @@ export ANTHROPIC_API_KEY=sk-ant-...
 In the `#general` channel, paste:
 
 ```
-Welcome to the team. We just signed two mid-market logistics customers
-(Customer X in Cincinnati, Meridian Freight in Columbus).
+Welcome to the project. We are building a project-centered development
+agent workspace for a small startup team.
 
 I want each of you to contribute one wiki article based on your role.
 
-@operator — write team/people/sarah-chen.md. Sarah is the Customer X
-            champion, Director of Ops.
-@planner  — update team/playbooks/churn-prevention.md with the new
-            dispatcher-burnout signal we noticed across both accounts.
-@growth   — write team/decisions/2026-q2-pricing.md. We are adding
-            read-only seats at 30% of full seat price.
-@reviewer — append an "Update — 2026-04-20" section to
-            team/customers/customer-x.md summarizing what you see.
-@builder  — write team/decisions/wiki-as-default.md. Explain why new
+@ceo      — write team/projects/agent-workspace.md. Capture the product
+            objective, current constraints, and what "done" means.
+@pm       — write team/decisions/project-memory-contract.md. Explain what
+            agents must read before work and what they must append after work.
+@ai       — write team/playbooks/repo-connected-task.md. Describe the flow
+            from task packet to GitHub branch or delivery receipt.
+@designer — append an "Update — 2026-04-20" section to
+            team/projects/agent-workspace.md summarizing the UX risks.
+@fe       — write team/decisions/wiki-as-default.md. Explain why new
             installs default to markdown wiki.
 
 Each of you commits one article in parallel. Use [[wikilinks]] to
@@ -303,8 +303,8 @@ Walk through these by hand after any change that touches wiki code:
 ### Catalog view (`/wiki`)
 
 - [ ] Correct article count in header
-- [ ] Thematic group cards render (at least PLAYBOOKS + DECISIONS on a fresh niche-crm install)
-- [ ] Blueprint-specific groups show (e.g. CUSTOMERS for niche-crm, VIDEOS for youtube-factory)
+- [ ] Thematic group cards render (at least PROJECTS + PLAYBOOKS + DECISIONS on a fresh install)
+- [ ] Project-specific groups show when project wiki articles exist
 - [ ] Article titles visible in full, not truncated
 - [ ] Pixel avatars match agent slugs (Operator ≠ Planner visually)
 - [ ] Clicking an article navigates to `/wiki/<path>`
@@ -333,7 +333,7 @@ Walk through these by hand after any change that touches wiki code:
 
 - [ ] `curl http://127.0.0.1:7899/web-token` returns a token
 - [ ] `GET /wiki/catalog` with token returns `{articles: [...]}` with real data
-- [ ] `GET /wiki/article?path=team/customers/customer-x.md` returns `{path, title, content, last_edited_by, revisions, contributors, backlinks, ...}`
+- [ ] `GET /wiki/article?path=team/projects/agent-workspace.md` returns `{path, title, content, last_edited_by, revisions, contributors, backlinks, ...}`
 - [ ] `GET /wiki/read?path=...` returns raw markdown bytes
 - [ ] `GET /wiki/list` returns raw markdown index (not JSON)
 - [ ] `POST /wiki/write` with a body creates/replaces/appends + commits
@@ -376,12 +376,12 @@ Target: <2 MB. For Reddit, 4 MB hard cap.
 
 ### Longer demo (60-90s) for YouTube / launch post
 
-1. Navigate to `/wiki/team/customers/customer-x.md` (article view, not catalog)
+1. Navigate to `/wiki/team/projects/agent-workspace.md` (article view, not catalog)
 2. Start recording
-3. Run demo script — the "Referenced by" panel on Customer X fills live
+3. Run demo script — the "Referenced by" panel on Agent Workspace fills live
 4. After the script finishes, click back to the catalog and show the populated groups
-5. Click into `team/playbooks/churn-prevention.md` — show the wikilinks back to Customer X and Meridian Freight
-6. Drop to a terminal, run `cat ~/.laf-office/wiki/team/customers/customer-x.md` — real markdown on disk
+5. Click into `team/playbooks/repo-connected-task.md` — show the wikilinks back to Agent Workspace
+6. Drop to a terminal, run `cat ~/.laf-office/wiki/team/projects/agent-workspace.md` — real markdown on disk
 7. Run `git -C ~/.laf-office/wiki log --oneline` — show per-agent authorship
 8. Stop recording
 
@@ -403,7 +403,7 @@ Export as MP4, 1080p. The "file on disk + git log" reveal at the end is the mone
 **Problem:** Demo script prints `broker not reachable at http://127.0.0.1:7899`
 **Fix:** laf-office-dev isn't running, or it bound to different ports. Check with `lsof -i :7899`. If empty, relaunch. If your broker is on a different port, set `BROKER=http://127.0.0.1:<port>`.
 
-**Problem:** Catalog shows fake names (Sarah Chen / David Kim / Nazz) I never wrote
+**Problem:** Catalog shows fixture project-memory articles I never wrote
 **Fix:** `fetchCatalog()` is hitting its fixture fallback. That means `/wiki/catalog` returned an error. Check:
 ```bash
 TOKEN=$(curl -s http://127.0.0.1:7899/web-token | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))")
