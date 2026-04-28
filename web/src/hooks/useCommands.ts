@@ -84,7 +84,7 @@ const COMMAND_ICONS: Record<string, string> = {
 };
 
 const DEFAULT_ICON = "›";
-const DEFERRED_WEB_COMMANDS = new Set(["calendar", "policies", "recover"]);
+const DEFERRED_WEB_COMMANDS = new Set(["policies", "recover"]);
 
 /**
  * Convert the broker's payload into the shape the autocomplete renderer

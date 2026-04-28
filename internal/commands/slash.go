@@ -28,7 +28,6 @@ func RegisterAllCommands(r *Registry) {
 	// Views
 	r.Register(SlashCommand{Name: "graph", Description: "View context graph", Execute: cmdGraph})
 	r.Register(SlashCommand{Name: "insights", Description: "View insights", Execute: cmdInsights})
-	r.Register(SlashCommand{Name: "calendar", Description: "View schedule", Execute: cmdCalendar})
 	r.Register(SlashCommand{Name: "chat", Description: "Switch to chat view"})
 
 	// Agents

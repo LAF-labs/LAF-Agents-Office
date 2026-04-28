@@ -72,7 +72,7 @@ func TestRegisterAllCommands(t *testing.T) {
 	expected := []string{
 		"ask", "search", "remember", "youtube-pack",
 		"object", "record", "note", "task", "list", "rel", "attribute",
-		"agent", "graph", "insights", "calendar", "chat",
+		"agent", "graph", "insights", "chat",
 		"config", "detect", "init", "provider",
 		"help", "clear", "quit",
 	}
@@ -80,6 +80,9 @@ func TestRegisterAllCommands(t *testing.T) {
 		if _, ok := r.Get(name); !ok {
 			t.Errorf("expected command %q to be registered", name)
 		}
+	}
+	if _, ok := r.Get("calendar"); ok {
+		t.Error("calendar command should stay out of the public registry")
 	}
 }
 

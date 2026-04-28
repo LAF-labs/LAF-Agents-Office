@@ -1870,10 +1870,10 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.syncSidebarCursorToActive()
 					return m, pollOfficeLedger()
 				case officeAppCalendar:
-					m.activeApp = officeAppCalendar
-					m.notice = "Viewing the office calendar."
+					m.activeApp = officeAppTasks
+					m.notice = "Calendar is not available in this build. Use Tasks for dated work."
 					m.syncSidebarCursorToActive()
-					return m, nil
+					return m, pollTasks(m.activeChannel)
 				}
 			case strings.HasPrefix(msg.Value, "session:1o1:"):
 				agent := strings.TrimSpace(strings.TrimPrefix(msg.Value, "session:1o1:"))
@@ -4890,55 +4890,18 @@ func (m channelModel) runCommand(trimmed, threadTarget string) (tea.Model, tea.C
 		m.syncSidebarCursorToActive()
 		m.notice = "Viewing wiki and office insights."
 		return m, pollOfficeLedger()
-	case trimmed == "/calendar" || trimmed == "/queue":
+	case trimmed == "/queue":
 		clearCurrent()
-		m.activeApp = officeAppCalendar
+		m.activeApp = officeAppTasks
 		m.syncSidebarCursorToActive()
-		m.notice = "Viewing the office calendar."
-		return m, pollOfficeLedger()
-	case strings.HasPrefix(trimmed, "/calendar "):
+		m.notice = "Viewing the project queue."
+		return m, pollTasks(m.activeChannel)
+	case trimmed == "/calendar" || strings.HasPrefix(trimmed, "/calendar "):
 		clearCurrent()
-		parts := strings.Fields(trimmed)
-		m.activeApp = officeAppCalendar
+		m.activeApp = officeAppTasks
 		m.syncSidebarCursorToActive()
-		if len(parts) < 2 {
-			m.notice = "Usage: /calendar [day|week|all|@agent|agent]"
-			return m, nil
-		}
-		arg := strings.TrimSpace(parts[1])
-		switch {
-		case arg == "day" || arg == "today":
-			m.calendarRange = calendarRangeDay
-			m.notice = "Calendar now shows today."
-			return m, pollOfficeLedger()
-		case arg == "week":
-			m.calendarRange = calendarRangeWeek
-			m.notice = "Calendar now shows this week."
-			return m, pollOfficeLedger()
-		case arg == "all":
-			m.calendarFilter = ""
-			m.notice = "Showing all teammate calendars."
-			return m, pollOfficeLedger()
-		case arg == "filter":
-			options := m.buildCalendarAgentPickerOptions()
-			if len(options) == 0 {
-				m.notice = "No teammate filters available."
-				return m, nil
-			}
-			m.picker = tui.NewPicker("Filter Calendar", options)
-			m.picker.SetActive(true)
-			m.pickerMode = channelPickerCalendarAgent
-			return m, nil
-		default:
-			filter := strings.TrimPrefix(arg, "@")
-			if filter == "" {
-				m.notice = "Usage: /calendar [day|week|all|@agent|agent]"
-				return m, nil
-			}
-			m.calendarFilter = filter
-			m.notice = "Filtering calendar for " + displayName(filter) + "."
-			return m, pollOfficeLedger()
-		}
+		m.notice = "Calendar is not available in this build. Use Tasks for dated work."
+		return m, pollTasks(m.activeChannel)
 	case trimmed == "/skills":
 		clearCurrent()
 		m.activeApp = officeAppSkills
@@ -5729,7 +5692,7 @@ func resolveInitialOfficeApp(name string) officeApp {
 		return officeAppPolicies
 	}
 	switch officeApp(normalized) {
-	case officeAppMessages, officeAppInbox, officeAppOutbox, officeAppRecovery, officeAppTasks, officeAppRequests, officeAppPolicies, officeAppCalendar, officeAppArtifacts:
+	case officeAppMessages, officeAppInbox, officeAppOutbox, officeAppRecovery, officeAppTasks, officeAppRequests, officeAppPolicies, officeAppArtifacts:
 		return officeApp(normalized)
 	default:
 		return officeAppMessages

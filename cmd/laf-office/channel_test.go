@@ -686,8 +686,8 @@ func TestResolveInitialOfficeAppFallsBackToMessages(t *testing.T) {
 	if got := resolveInitialOfficeApp("insights"); got != officeAppPolicies {
 		t.Fatalf("expected policies app, got %q", got)
 	}
-	if got := resolveInitialOfficeApp("calendar"); got != officeAppCalendar {
-		t.Fatalf("expected calendar app, got %q", got)
+	if got := resolveInitialOfficeApp("calendar"); got != officeAppMessages {
+		t.Fatalf("expected calendar to fall back to messages, got %q", got)
 	}
 	if got := resolveInitialOfficeApp("not-real"); got != officeAppMessages {
 		t.Fatalf("expected invalid app to fall back to messages, got %q", got)
@@ -2013,6 +2013,22 @@ func TestCalendarSlashCommandCanChangeRangeAndFilter(t *testing.T) {
 	got = next.(channelModel)
 	if got.calendarFilter != "fe" {
 		t.Fatalf("expected /calendar @fe to filter calendar, got %q", got.calendarFilter)
+	}
+}
+
+func TestCalendarSlashCommandRedirectsToTasks(t *testing.T) {
+	m := newChannelModel(false)
+	m.input = []rune("/calendar day")
+	m.inputPos = len(m.input)
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := next.(channelModel)
+
+	if got.activeApp != officeAppTasks {
+		t.Fatalf("expected calendar command to redirect to tasks, got %q", got.activeApp)
+	}
+	if !strings.Contains(got.notice, "Calendar is not available") {
+		t.Fatalf("expected unavailable notice, got %q", got.notice)
 	}
 }
 
