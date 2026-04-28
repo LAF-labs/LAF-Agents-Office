@@ -3536,8 +3536,9 @@ func (m *channelModel) selectSidebarItem(item sidebarItem) tea.Cmd {
 			m.notice = "Viewing wiki and office insights."
 			return pollOfficeLedger()
 		case officeAppCalendar:
-			m.notice = "Viewing the office calendar."
-			return pollOfficeLedger()
+			m.activeApp = officeAppTasks
+			m.notice = "Calendar is not available in this build. Use Tasks for dated work."
+			return pollTasks(m.activeChannel)
 		case officeAppArtifacts:
 			m.notice = "Viewing recent execution artifacts."
 			return m.pollCurrentState()
@@ -5372,7 +5373,7 @@ func (m channelModel) buildCalendarAgentPickerOptions() []tui.PickerOption {
 	options := []tui.PickerOption{{
 		Label:       "All teammates",
 		Value:       "all",
-		Description: "Show every participant across the office calendar",
+		Description: "Show every participant across the workspace calendar",
 	}}
 	for _, member := range m.members {
 		name := member.Name
