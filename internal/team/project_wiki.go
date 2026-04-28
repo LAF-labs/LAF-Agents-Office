@@ -248,11 +248,21 @@ func renderProjectWikiArticle(project teamProject) string {
 	}
 
 	sb.WriteString("\n## Goals\n\n")
-	sb.WriteString("- TODO: Capture the project goal.\n")
+	if description := strings.TrimSpace(project.Description); description != "" {
+		fmt.Fprintf(&sb, "- Use the project description as the current working goal: %s\n", description)
+	} else {
+		sb.WriteString("- Define the smallest useful project outcome before creating implementation tasks.\n")
+	}
+	sb.WriteString("- Keep planning, implementation, and automation work tied to this project page.\n")
+
 	sb.WriteString("\n## Decisions\n\n")
-	sb.WriteString("- TODO: Record durable project decisions here.\n")
+	sb.WriteString("- Record durable product, technical, and workflow decisions here as they are made.\n")
+	sb.WriteString("- Include the reason for each decision and link any task, branch, PR, or wiki page that changed because of it.\n")
+
 	sb.WriteString("\n## Agent work\n\n")
-	sb.WriteString("- TODO: Link tasks, branches, handoffs, and shipped changes.\n")
+	sb.WriteString("- Before work: read this page or the project memory excerpt in the task packet.\n")
+	sb.WriteString("- During work: keep task status, blockers, and ownership visible on the project board.\n")
+	sb.WriteString("- After work: append meaningful changes, delivery receipts, and follow-up decisions here.\n")
 	return sb.String()
 }
 

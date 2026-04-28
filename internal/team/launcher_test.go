@@ -1071,6 +1071,7 @@ func TestBuildTaskExecutionPacketMaterializesMissingProjectWiki(t *testing.T) {
 		"# Agent Lab",
 		"Project ID: `agent-lab`",
 		"Plan and ship the first useful agent collaboration loop.",
+		"Before work: read this page or the project memory excerpt in the task packet.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected materialized project memory %q in packet:\n%s", want, got)

@@ -245,10 +245,14 @@ func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 		"Project ID: `customer-portal`",
 		"https://github.com/laf-labs/customer-portal",
 		"## Agent work",
+		"Before work: read this page or the project memory excerpt in the task packet.",
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("project wiki missing %q in:\n%s", want, content)
 		}
+	}
+	if strings.Contains(content, "TODO:") {
+		t.Fatalf("project wiki should not ship TODO placeholders:\n%s", content)
 	}
 
 	rec := httptest.NewRecorder()
