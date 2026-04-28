@@ -1451,7 +1451,7 @@ function DangerZoneSection() {
         return;
       }
       queryClient.clear();
-      window.history.replaceState(null, "", "#/channels/general");
+      window.history.replaceState(null, "", "#/projects");
       resetForOnboarding();
       window.dispatchEvent(new Event("laf-office:workspace-shredded"));
       setOpen(null);

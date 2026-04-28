@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -116,7 +116,9 @@ describe("App auth and onboarding gates", () => {
     render(<App />);
     expect(await screen.findByTestId("shell")).toBeInTheDocument();
 
-    window.dispatchEvent(new Event("laf-office:workspace-shredded"));
+    act(() => {
+      window.dispatchEvent(new Event("laf-office:workspace-shredded"));
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId("auth-screen")).toBeInTheDocument();
