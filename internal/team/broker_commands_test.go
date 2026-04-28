@@ -94,7 +94,7 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 	// must never leak into the web autocomplete.
 	tuiOnly := []string{
 		"object", "record", "list", "rel", "attribute", "agent",
-		"config", "detect", "init", "graph", "insights", "calendar",
+		"config", "detect", "init", "graph", "insights",
 		"policies", "recover",
 		"youtube-pack", "quit", "note", "chat",
 	}
@@ -107,6 +107,9 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 		if c.WebSupported {
 			t.Errorf("command %q: webSupported=true, want false (TUI-only)", name)
 		}
+	}
+	if _, ok := byName["calendar"]; ok {
+		t.Error("calendar command should not be exposed by the broker command registry")
 	}
 }
 
