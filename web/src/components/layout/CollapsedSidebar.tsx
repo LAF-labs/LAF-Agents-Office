@@ -119,35 +119,6 @@ export function CollapsedSidebar() {
         </button>
       </div>
 
-      <div className="sidebar-rail-middle">
-        <button
-          type="button"
-          className={`sidebar-icon-btn${popover === "team" ? " is-open" : ""}`}
-          aria-label={t("sidebar.team")}
-          aria-haspopup="dialog"
-          aria-expanded={popover === "team"}
-          onMouseEnter={() => openPopover("team")}
-          onMouseLeave={scheduleClose}
-          onFocus={() => openPopover("team")}
-          onBlur={scheduleClose}
-        >
-          <Group />
-        </button>
-        <button
-          type="button"
-          className={`sidebar-icon-btn${popover === "channels" ? " is-open" : ""}`}
-          aria-label={t("sidebar.channels")}
-          aria-haspopup="dialog"
-          aria-expanded={popover === "channels"}
-          onMouseEnter={() => openPopover("channels")}
-          onMouseLeave={scheduleClose}
-          onFocus={() => openPopover("channels")}
-          onBlur={scheduleClose}
-        >
-          <ChatBubble />
-        </button>
-      </div>
-
       <div className="sidebar-rail-apps">
         {SIDEBAR_APPS.filter((a) => a.id !== "settings").map((app) => {
           const Icon = APP_ICONS[app.id];
@@ -178,6 +149,35 @@ export function CollapsedSidebar() {
             </button>
           );
         })}
+      </div>
+
+      <div className="sidebar-rail-middle">
+        <button
+          type="button"
+          className={`sidebar-icon-btn${popover === "team" ? " is-open" : ""}`}
+          aria-label={t("sidebar.team")}
+          aria-haspopup="dialog"
+          aria-expanded={popover === "team"}
+          onMouseEnter={() => openPopover("team")}
+          onMouseLeave={scheduleClose}
+          onFocus={() => openPopover("team")}
+          onBlur={scheduleClose}
+        >
+          <Group />
+        </button>
+        <button
+          type="button"
+          className={`sidebar-icon-btn${popover === "channels" ? " is-open" : ""}`}
+          aria-label={t("sidebar.channels")}
+          aria-haspopup="dialog"
+          aria-expanded={popover === "channels"}
+          onMouseEnter={() => openPopover("channels")}
+          onMouseLeave={scheduleClose}
+          onFocus={() => openPopover("channels")}
+          onBlur={scheduleClose}
+        >
+          <ChatBubble />
+        </button>
       </div>
 
       <UsageRail

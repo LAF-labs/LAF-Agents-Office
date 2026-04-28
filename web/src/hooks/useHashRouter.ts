@@ -16,7 +16,12 @@ type Route =
   | { view: "notebooks"; agentSlug: string | null; entrySlug: string | null }
   | { view: "reviews" };
 
-const DEFAULT_ROUTE: Route = { view: "channel", channel: "general" };
+const PROJECTS_ROUTE: Route = { view: "app", app: "tasks" };
+const DEFAULT_ROUTE: Route = PROJECTS_ROUTE;
+
+function appRoute(app: string): Route {
+  return { view: "app", app: app === "projects" ? "tasks" : app };
+}
 
 function parseHash(hash: string): Route {
   const cleaned = hash.replace(/^#\/?/, "");
@@ -32,9 +37,9 @@ function parseHash(hash: string): Route {
         ? { view: "dm", agent: decodeURIComponent(parts[1]) }
         : DEFAULT_ROUTE;
     case "apps":
-      return parts[1]
-        ? { view: "app", app: decodeURIComponent(parts[1]) }
-        : DEFAULT_ROUTE;
+      return parts[1] ? appRoute(decodeURIComponent(parts[1])) : DEFAULT_ROUTE;
+    case "projects":
+      return PROJECTS_ROUTE;
     case "threads":
       return { view: "app", app: "threads" };
     case "wiki":
@@ -104,6 +109,8 @@ function appStateToHash(state: {
       return notebookStateToHash(state);
     case "reviews":
       return "#/reviews";
+    case "tasks":
+      return "#/projects";
     case null:
       return null;
     default:
@@ -266,3 +273,8 @@ export function useHashRouter() {
     notebookEntrySlug,
   ]);
 }
+
+export const __test__ = {
+  parseHash,
+  stateToHash,
+};

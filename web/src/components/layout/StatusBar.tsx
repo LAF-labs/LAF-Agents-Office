@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getHealth } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
-import { useI18n } from "../../lib/i18n";
+import { type I18nKey, useI18n } from "../../lib/i18n";
 import { isDMChannel, useAppStore } from "../../stores/app";
 import { Kbd } from "../ui/Kbd";
 
@@ -12,6 +12,17 @@ interface HealthSnapshot {
   provider_model?: string;
   agents?: Record<string, unknown>;
 }
+
+const STATUS_APP_TITLE_KEYS: Record<string, I18nKey> = {
+  wiki: "app.wiki",
+  tasks: "app.tasks",
+  requests: "app.requests",
+  skills: "app.skills",
+  activity: "app.activity",
+  receipts: "app.receipts",
+  settings: "app.settings",
+  threads: "app.threads",
+};
 
 /**
  * Bottom status bar mirroring the legacy IIFE: shows the active channel/app,
@@ -40,7 +51,9 @@ export function StatusBar() {
   ).length;
 
   const channelLabel = currentApp
-    ? currentApp
+    ? STATUS_APP_TITLE_KEYS[currentApp]
+      ? t(STATUS_APP_TITLE_KEYS[currentApp])
+      : currentApp
     : dm
       ? `@${dm.agentSlug}`
       : `# ${currentChannel}`;

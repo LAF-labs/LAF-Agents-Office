@@ -48,6 +48,11 @@ export function Sidebar() {
             </div>
           </div>
 
+          <div className="sidebar-section">
+            <p className="sidebar-section-title">{t("sidebar.workspace")}</p>
+          </div>
+          <AppList />
+
           <div
             className={`sidebar-section is-team${sidebarAgentsOpen ? "" : " is-collapsed"}`}
           >
@@ -90,11 +95,6 @@ export function Sidebar() {
             <p className="sidebar-section-title">{t("sidebar.channels")}</p>
           </div>
           <ChannelList />
-
-          <div className="sidebar-section">
-            <p className="sidebar-section-title">{t("sidebar.apps")}</p>
-          </div>
-          <AppList />
 
           <WorkspaceSummary />
           <UsagePanel />

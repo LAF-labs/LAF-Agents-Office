@@ -5,11 +5,15 @@ import { SIDEBAR_APPS } from "./constants";
 describe("SIDEBAR_APPS", () => {
   it("keeps the product surface focused on agent collaboration and the wiki", () => {
     expect(SIDEBAR_APPS.map((app) => app.id)).toEqual([
-      "wiki",
       "tasks",
+      "wiki",
       "requests",
       "settings",
     ]);
+  });
+
+  it("puts projects first because the workspace is project-centered", () => {
+    expect(SIDEBAR_APPS[0].id).toBe("tasks");
   });
 
   it("does not expose deferred CRM-style or operator-only surfaces", () => {

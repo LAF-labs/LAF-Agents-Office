@@ -23,6 +23,8 @@ import {
   updateProject,
 } from "../../api/client";
 import { formatRelativeTime } from "../../lib/format";
+import { type I18nKey, useI18n } from "../../lib/i18n";
+import type { Language } from "../../stores/app";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 import { TaskDetailModal } from "./TaskDetailModal";
@@ -43,6 +45,7 @@ type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type ProjectGitHubConnectorState = ReturnType<typeof useProjectGitHubConnector>;
 type ProjectTaskCreatorState = ReturnType<typeof useProjectTaskCreator>;
 type TasksQueryData = { tasks: Task[] };
+type TranslationFn = (key: I18nKey) => string;
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -52,14 +55,14 @@ const HIDDEN_EMPTY_COLUMNS = new Set<StatusGroup>([
   "canceled",
 ]);
 
-const COLUMN_LABEL: Record<StatusGroup, string> = {
-  in_progress: "in progress",
-  open: "open",
-  review: "review",
-  pending: "pending",
-  blocked: "blocked",
-  done: "done",
-  canceled: "won't do",
+const COLUMN_LABEL_KEYS: Record<StatusGroup, I18nKey> = {
+  in_progress: "tasks.status.inProgress",
+  open: "tasks.status.open",
+  review: "tasks.status.review",
+  pending: "tasks.status.pending",
+  blocked: "tasks.status.blocked",
+  done: "tasks.status.done",
+  canceled: "tasks.status.canceled",
 };
 
 function normalizeStatus(raw: string): StatusGroup {
@@ -100,7 +103,13 @@ function groupTasks(tasks: Task[]): Record<StatusGroup, Task[]> {
 function selectedProjectLabel(
   selectedProjectId: string,
   projectNames: Map<string, string>,
+  language: Language,
 ): string {
+  if (language === "ko") {
+    if (selectedProjectId === "") return "프로젝트 워크스페이스를 여세요.";
+    if (selectedProjectId === "all") return "오피스 전체의 활성 작업을 봅니다.";
+    return `${projectNames.get(selectedProjectId) ?? selectedProjectId} 프로젝트에 집중합니다.`;
+  }
   if (selectedProjectId === "") return "Open a project workspace.";
   if (selectedProjectId === "all") return "All active lanes across the office.";
   return `Focused project: ${projectNames.get(selectedProjectId) ?? selectedProjectId}`;
@@ -135,8 +144,20 @@ function countAgentOwnedTasks(tasks: Task[]): number {
   }).length;
 }
 
-function taskCountLabel(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+function countLabel(
+  count: number,
+  singular: string,
+  plural: string,
+  koreanNoun: string,
+  language: Language,
+): string {
+  if (language === "ko") return `${count} ${koreanNoun}`;
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function projectWorkspaceName(project: Project, language: Language): string {
+  const name = project.name || project.id;
+  return language === "ko" ? `${name} 워크스페이스` : `${name} workspace`;
 }
 
 function shouldHideTaskColumn(
@@ -490,6 +511,7 @@ export function TasksApp() {
   const queryClient = useQueryClient();
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const setWikiPath = useAppStore((s) => s.setWikiPath);
+  const { language, t } = useI18n();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<Task | null>(
@@ -539,7 +561,7 @@ export function TasksApp() {
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
   const selectedProject = findSelectedProject(projects, selectedProjectId);
   const grouped = groupTasks(tasks);
-  const tasksById = new Map(tasks.map((t) => [t.id, t]));
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const boardDrag = useTaskBoardDrag(tasksById, moveTask);
   const selectedTask = selectedTaskId
     ? (tasksById.get(selectedTaskId) ??
@@ -559,7 +581,7 @@ export function TasksApp() {
           fontSize: 14,
         }}
       >
-        Loading tasks...
+        {t("tasks.loading")}
       </div>
     );
   }
@@ -574,7 +596,7 @@ export function TasksApp() {
           fontSize: 14,
         }}
       >
-        Could not load tasks.
+        {t("tasks.loadError")}
       </div>
     );
   }
@@ -584,6 +606,10 @@ export function TasksApp() {
     setWikiPath(`projects/${selectedProject.id}`);
     setCurrentApp("wiki");
   };
+  const handleOpenProjectCreator = () => {
+    projectCreator.setProjectError(null);
+    projectCreator.setIsCreatingProject(true);
+  };
 
   return (
     <>
@@ -592,6 +618,8 @@ export function TasksApp() {
         projectNames={projectNames}
         projects={projects}
         selectedProjectId={selectedProjectId}
+        language={language}
+        t={t}
         onSelectProject={setSelectedProjectId}
       />
 
@@ -600,17 +628,25 @@ export function TasksApp() {
         projectCount={projects.length}
         githubConnector={githubConnector}
         isLoadingTasks={isTaskLoading}
+        language={language}
         tasks={tasks}
+        t={t}
+        onCreateProject={handleOpenProjectCreator}
         onOpenWiki={handleOpenProjectWiki}
       />
 
-      <ProjectWorkRequest project={selectedProject} taskCreator={taskCreator} />
+      <ProjectWorkRequest
+        project={selectedProject}
+        taskCreator={taskCreator}
+        t={t}
+      />
 
       <TaskWorkArea
         error={error}
         isTaskLoading={isTaskLoading}
         selectedProject={selectedProject}
         tasks={tasks}
+        t={t}
       >
         <TaskBoard
           grouped={grouped}
@@ -618,6 +654,7 @@ export function TasksApp() {
           dragoverStatus={boardDrag.dragoverStatus}
           draggingId={boardDrag.draggingId}
           projectNames={projectNames}
+          t={t}
           onColumnDragOver={boardDrag.handleColumnDragOver}
           onColumnDragLeave={boardDrag.handleColumnDragLeave}
           onColumnDrop={boardDrag.handleColumnDrop}
@@ -640,18 +677,22 @@ export function TasksApp() {
 }
 
 interface ProjectToolbarProps {
+  language: Language;
   projectCreator: ProjectCreatorState;
   projectNames: Map<string, string>;
   projects: Project[];
   selectedProjectId: string;
+  t: TranslationFn;
   onSelectProject: (projectId: string) => void;
 }
 
 function ProjectToolbar({
+  language,
   projectCreator,
   projectNames,
   projects,
   selectedProjectId,
+  t,
   onSelectProject,
 }: ProjectToolbarProps) {
   const toggleProjectForm = () => {
@@ -668,7 +709,9 @@ function ProjectToolbar({
     >
       <div className="task-heading-row">
         <div>
-          <h3 style={{ fontSize: 16, fontWeight: 600 }}>Project workspace</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600 }}>
+            {t("tasks.workspace.title")}
+          </h3>
           <div
             style={{
               fontSize: 12,
@@ -676,15 +719,15 @@ function ProjectToolbar({
               marginTop: 4,
             }}
           >
-            {selectedProjectLabel(selectedProjectId, projectNames)}
+            {selectedProjectLabel(selectedProjectId, projectNames, language)}
           </div>
         </div>
         <button
           type="button"
           className="task-project-new"
           onClick={toggleProjectForm}
-          aria-label="New project"
-          title="New project"
+          aria-label={t("tasks.newProject")}
+          title={t("tasks.newProject")}
         >
           +
         </button>
@@ -693,10 +736,11 @@ function ProjectToolbar({
       <ProjectTabs
         projects={projects}
         selectedProjectId={selectedProjectId || "all"}
+        t={t}
         onSelect={onSelectProject}
       />
       {projectCreator.isCreatingProject ? (
-        <ProjectCreateForm projectCreator={projectCreator} />
+        <ProjectCreateForm projectCreator={projectCreator} t={t} />
       ) : null}
       {projectCreator.projectError ? (
         <div className="task-project-error">{projectCreator.projectError}</div>
@@ -707,8 +751,10 @@ function ProjectToolbar({
 
 function ProjectCreateForm({
   projectCreator,
+  t,
 }: {
   projectCreator: ProjectCreatorState;
+  t: TranslationFn;
 }) {
   return (
     <form
@@ -721,8 +767,8 @@ function ProjectCreateForm({
         onChange={(event) =>
           projectCreator.setNewProjectName(event.currentTarget.value)
         }
-        placeholder="Project name"
-        aria-label="Project name"
+        placeholder={t("tasks.projectName")}
+        aria-label={t("tasks.projectName")}
       />
       <input
         type="text"
@@ -730,14 +776,14 @@ function ProjectCreateForm({
         onChange={(event) =>
           projectCreator.setNewProjectGitHubRepoURL(event.currentTarget.value)
         }
-        placeholder="GitHub repo URL (optional)"
-        aria-label="GitHub repo URL"
+        placeholder={t("tasks.githubRepoUrlOptional")}
+        aria-label={t("tasks.githubRepoUrl")}
       />
       <button
         type="submit"
         disabled={projectCreator.newProjectName.trim() === ""}
       >
-        Create
+        {t("tasks.create")}
       </button>
     </form>
   );
@@ -749,6 +795,7 @@ interface TaskWorkAreaProps {
   isTaskLoading: boolean;
   selectedProject: Project | null;
   tasks: Task[];
+  t: TranslationFn;
 }
 
 function TaskWorkArea({
@@ -757,21 +804,22 @@ function TaskWorkArea({
   isTaskLoading,
   selectedProject,
   tasks,
+  t,
 }: TaskWorkAreaProps) {
   if (error) {
     return (
-      <div className="task-empty-state">Could not load project tasks.</div>
+      <div className="task-empty-state">{t("tasks.loadProjectTasksError")}</div>
     );
   }
   if (isTaskLoading) {
-    return <div className="task-empty-state">Loading project tasks...</div>;
+    return (
+      <div className="task-empty-state">{t("tasks.loadingProjectTasks")}</div>
+    );
   }
   if (tasks.length === 0) {
     return (
       <div className="task-empty-state">
-        {selectedProject
-          ? "No work queued in this project yet."
-          : "Create or select a project to open its workspace."}
+        {selectedProject ? t("tasks.emptyProject") : t("tasks.emptyNoProject")}
       </div>
     );
   }
@@ -783,7 +831,10 @@ interface ProjectWorkspaceOverviewProps {
   projectCount: number;
   githubConnector: ProjectGitHubConnectorState;
   isLoadingTasks: boolean;
+  language: Language;
   tasks: Task[];
+  t: TranslationFn;
+  onCreateProject: () => void;
   onOpenWiki: () => void;
 }
 
@@ -792,25 +843,35 @@ function ProjectWorkspaceOverview({
   projectCount,
   githubConnector,
   isLoadingTasks,
+  language,
   tasks,
+  t,
+  onCreateProject,
   onOpenWiki,
 }: ProjectWorkspaceOverviewProps) {
   if (!project) {
     return (
       <section
         className="task-workspace-overview"
-        aria-label="Project workspace overview"
+        aria-label={t("tasks.overview.label")}
       >
         <article className="task-workspace-card task-workspace-card-wide">
-          <span className="task-workspace-kicker">Projects</span>
+          <span className="task-workspace-kicker">{t("app.tasks")}</span>
           <strong>
             {projectCount === 0
-              ? "Create the first project"
-              : taskCountLabel(projectCount, "project")}
+              ? t("tasks.firstProject")
+              : countLabel(
+                  projectCount,
+                  "project",
+                  "projects",
+                  "프로젝트",
+                  language,
+                )}
           </strong>
-          <span>
-            Open one project to see its wiki, queue, agents, and repo.
-          </span>
+          <span>{t("tasks.openProjectWorkspace")}</span>
+          <button type="button" onClick={onCreateProject}>
+            {t("tasks.newProjectCta")}
+          </button>
         </article>
       </section>
     );
@@ -823,41 +884,54 @@ function ProjectWorkspaceOverview({
   return (
     <section
       className="task-workspace-overview"
-      aria-label="Project workspace overview"
+      aria-label={t("tasks.overview.label")}
     >
       <article className="task-workspace-card task-workspace-card-wide">
-        <span className="task-workspace-kicker">Project</span>
-        <strong>{project.name || project.id} workspace</strong>
-        <span>Goals, decisions, constraints, and handoff notes live here.</span>
+        <span className="task-workspace-kicker">{t("tasks.project")}</span>
+        <strong>{projectWorkspaceName(project, language)}</strong>
+        <span>{t("tasks.projectSummary")}</span>
       </article>
       <article className="task-workspace-card">
-        <span className="task-workspace-kicker">Wiki context</span>
-        <strong>Project wiki</strong>
-        <span>Planning memory for humans and agents.</span>
+        <span className="task-workspace-kicker">{t("tasks.wikiContext")}</span>
+        <strong>{t("tasks.projectWiki")}</strong>
+        <span>{t("tasks.wikiContextDesc")}</span>
         <button type="button" onClick={onOpenWiki}>
-          Open project wiki
+          {t("tasks.openProjectWiki")}
         </button>
       </article>
       <article className="task-workspace-card">
-        <span className="task-workspace-kicker">Task queue</span>
+        <span className="task-workspace-kicker">{t("tasks.taskQueue")}</span>
         <strong>
           {isLoadingTasks
-            ? "Loading tasks..."
-            : taskCountLabel(activeTaskCount, "active task")}
+            ? t("tasks.loadingTasks")
+            : countLabel(
+                activeTaskCount,
+                "active task",
+                "active tasks",
+                "활성 작업",
+                language,
+              )}
         </strong>
-        <span>Open, in-progress, review, pending, and blocked work.</span>
+        <span>{t("tasks.taskQueueDesc")}</span>
       </article>
       <article className="task-workspace-card">
-        <span className="task-workspace-kicker">Agent work</span>
+        <span className="task-workspace-kicker">{t("tasks.agentWork")}</span>
         <strong>
           {isLoadingTasks
-            ? "Loading assignments..."
-            : taskCountLabel(agentOwnedTaskCount, "agent-owned task")}
+            ? t("tasks.loadingAssignments")
+            : countLabel(
+                agentOwnedTaskCount,
+                "agent-owned task",
+                "agent-owned tasks",
+                "에이전트 담당 작업",
+                language,
+              )}
         </strong>
-        <span>Work currently assigned away from the human owner.</span>
+        <span>{t("tasks.agentWorkDesc")}</span>
       </article>
       <ProjectGitHubCard
         connector={githubConnector}
+        t={t}
         project={project}
         repoURL={repoURL}
       />
@@ -869,12 +943,14 @@ interface ProjectGitHubCardProps {
   connector: ProjectGitHubConnectorState;
   project: Project;
   repoURL?: string;
+  t: TranslationFn;
 }
 
 function ProjectGitHubCard({
   connector,
   project,
   repoURL,
+  t,
 }: ProjectGitHubCardProps) {
   const isEditing = connector.editingProjectId === project.id;
   const isSaving = connector.isSaving(project.id);
@@ -882,17 +958,20 @@ function ProjectGitHubCard({
   return (
     <article className="task-workspace-card">
       <span className="task-workspace-kicker">GitHub</span>
-      <strong>{repoURL ? "Repo connected" : "Repo not connected"}</strong>
+      <strong>
+        {repoURL ? t("tasks.repoConnected") : t("tasks.repoNotConnected")}
+      </strong>
       <span>
         {repoURL
-          ? "Ready for project-scoped coding work."
-          : "Connect it only when code work starts."}
+          ? t("tasks.repoConnectedDesc")
+          : t("tasks.repoNotConnectedDesc")}
       </span>
       {isEditing ? (
         <ProjectGitHubEditForm
           connector={connector}
           isSaving={isSaving}
           project={project}
+          t={t}
         />
       ) : (
         <ProjectGitHubActions
@@ -900,6 +979,7 @@ function ProjectGitHubCard({
           isSaving={isSaving}
           project={project}
           repoURL={repoURL}
+          t={t}
         />
       )}
     </article>
@@ -910,12 +990,14 @@ interface ProjectGitHubChildProps {
   connector: ProjectGitHubConnectorState;
   isSaving: boolean;
   project: Project;
+  t: TranslationFn;
 }
 
 function ProjectGitHubEditForm({
   connector,
   isSaving,
   project,
+  t,
 }: ProjectGitHubChildProps) {
   return (
     <form
@@ -927,17 +1009,17 @@ function ProjectGitHubEditForm({
         value={connector.repoURL}
         onChange={(event) => connector.setRepoURL(event.currentTarget.value)}
         placeholder="https://github.com/org/repo"
-        aria-label="GitHub repository URL"
+        aria-label={t("tasks.githubRepoUrl")}
       />
       <div className="task-github-actions">
         <button
           type="submit"
           disabled={isSaving || connector.repoURL.trim() === ""}
         >
-          {isSaving ? "Saving..." : "Save GitHub repo"}
+          {isSaving ? t("tasks.saving") : t("tasks.saveGithubRepo")}
         </button>
         <button type="button" onClick={connector.cancel}>
-          Cancel
+          {t("tasks.cancel")}
         </button>
       </div>
       {connector.githubError ? (
@@ -952,16 +1034,17 @@ function ProjectGitHubActions({
   isSaving,
   project,
   repoURL,
+  t,
 }: ProjectGitHubChildProps & { repoURL?: string }) {
   return (
     <div className="task-github-actions">
       {repoURL ? (
         <a href={repoURL} target="_blank" rel="noreferrer">
-          Open GitHub repo
+          {t("tasks.openGithubRepo")}
         </a>
       ) : null}
       <button type="button" onClick={() => connector.begin(project)}>
-        {repoURL ? "Change GitHub repo" : "Connect GitHub repo"}
+        {repoURL ? t("tasks.changeGithubRepo") : t("tasks.connectGithubRepo")}
       </button>
       {repoURL ? (
         <button
@@ -969,7 +1052,7 @@ function ProjectGitHubActions({
           disabled={isSaving}
           onClick={() => void connector.disconnect(project)}
         >
-          {isSaving ? "Saving..." : "Disconnect"}
+          {isSaving ? t("tasks.saving") : t("tasks.disconnect")}
         </button>
       ) : null}
       {connector.githubError ? (
@@ -982,21 +1065,29 @@ function ProjectGitHubActions({
 interface ProjectWorkRequestProps {
   project: Project | null;
   taskCreator: ProjectTaskCreatorState;
+  t: TranslationFn;
 }
 
-function ProjectWorkRequest({ project, taskCreator }: ProjectWorkRequestProps) {
+function ProjectWorkRequest({
+  project,
+  taskCreator,
+  t,
+}: ProjectWorkRequestProps) {
   if (!project) return null;
 
   return (
-    <section className="task-request-panel" aria-label="Project task composer">
+    <section
+      className="task-request-panel"
+      aria-label={t("tasks.requestComposer")}
+    >
       <form onSubmit={(event) => taskCreator.handleCreateTask(project, event)}>
         <textarea
           value={taskCreator.requestText}
           onChange={(event) =>
             taskCreator.setRequestText(event.currentTarget.value)
           }
-          placeholder="Ask for the next project task"
-          aria-label="Project work request"
+          placeholder={t("tasks.requestPlaceholder")}
+          aria-label={t("tasks.workRequest")}
           rows={2}
         />
         <button
@@ -1006,7 +1097,9 @@ function ProjectWorkRequest({ project, taskCreator }: ProjectWorkRequestProps) {
             taskCreator.requestText.trim() === ""
           }
         >
-          {taskCreator.isSubmittingTask ? "Creating..." : "Create task"}
+          {taskCreator.isSubmittingTask
+            ? t("tasks.creating")
+            : t("tasks.createTask")}
         </button>
       </form>
       {taskCreator.taskError ? (
@@ -1022,6 +1115,7 @@ interface TaskBoardProps {
   dragoverStatus: StatusGroup | null;
   draggingId: string | null;
   projectNames: Map<string, string>;
+  t: TranslationFn;
   onColumnDragOver: (
     status: StatusGroup,
   ) => (event: DragEvent<HTMLElement>) => void;
@@ -1044,6 +1138,7 @@ function TaskBoard({
   dragoverStatus,
   draggingId,
   projectNames,
+  t,
   onColumnDragOver,
   onColumnDragLeave,
   onColumnDrop,
@@ -1068,7 +1163,7 @@ function TaskBoard({
             aria-labelledby={`task-column-${status}`}
           >
             <div className="task-column-header" id={`task-column-${status}`}>
-              <span>{COLUMN_LABEL[status]}</span>
+              <span>{t(COLUMN_LABEL_KEYS[status])}</span>
               <span className="task-column-count">{column.length}</span>
             </div>
             <ul className="task-column-list">
@@ -1080,6 +1175,7 @@ function TaskBoard({
                       task.project_id ? projectNames.get(task.project_id) : null
                     }
                     isDragging={draggingId === task.id}
+                    t={t}
                     onDragStart={onTaskDragStart(task.id)}
                     onDragEnd={onTaskDragEnd}
                     onOpen={() => onOpenTask(task.id)}
@@ -1097,22 +1193,28 @@ function TaskBoard({
 interface ProjectTabsProps {
   projects: Project[];
   selectedProjectId: string;
+  t: TranslationFn;
   onSelect: (projectId: string) => void;
 }
 
 function ProjectTabs({
   projects,
   selectedProjectId,
+  t,
   onSelect,
 }: ProjectTabsProps) {
   return (
-    <div className="task-project-tabs" role="tablist" aria-label="Projects">
+    <div
+      className="task-project-tabs"
+      role="tablist"
+      aria-label={t("app.tasks")}
+    >
       <button
         type="button"
         className={selectedProjectId === "all" ? "active" : ""}
         onClick={() => onSelect("all")}
       >
-        All projects
+        {t("tasks.allProjects")}
       </button>
       {projects.map((project) => (
         <button
@@ -1133,6 +1235,7 @@ interface TaskCardProps {
   task: Task;
   projectName?: string | null;
   isDragging: boolean;
+  t: TranslationFn;
   onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
   onDragEnd: (event: DragEvent<HTMLButtonElement>) => void;
   onOpen: () => void;
@@ -1142,6 +1245,7 @@ function TaskCard({
   task,
   projectName,
   isDragging,
+  t,
   onDragStart,
   onDragEnd,
   onOpen,
@@ -1160,7 +1264,9 @@ function TaskCard({
       onClick={onOpen}
       style={{ marginBottom: 8, cursor: "pointer" }}
     >
-      <span className="app-card-title">{task.title || "Untitled"}</span>
+      <span className="app-card-title">
+        {task.title || t("tasks.untitled")}
+      </span>
       {task.project_id ? (
         <span className="task-project-chip">
           {projectName || task.project_id}
@@ -1187,7 +1293,9 @@ function TaskCard({
           flexWrap: "wrap",
         }}
       >
-        <span className={statusBadgeClass(status)}>{COLUMN_LABEL[status]}</span>
+        <span className={statusBadgeClass(status)}>
+          {t(COLUMN_LABEL_KEYS[status])}
+        </span>
         {task.owner ? (
           <span className="app-card-meta">@{task.owner}</span>
         ) : null}

@@ -40,7 +40,7 @@ function renderTasksApp() {
 describe("TasksApp project workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ currentApp: null, wikiPath: null });
+    useAppStore.setState({ currentApp: null, language: "en", wikiPath: null });
     apiMocks.getProjects.mockResolvedValue({
       projects: [
         {
@@ -296,5 +296,44 @@ describe("TasksApp project workspace", () => {
 
     expect(useAppStore.getState().currentApp).toBe("wiki");
     expect(useAppStore.getState().wikiPath).toBe("projects/mobile-app");
+  });
+});
+
+describe("TasksApp localization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState({ currentApp: null, language: "ko", wikiPath: null });
+    apiMocks.getProjects.mockResolvedValue({ projects: [] });
+    apiMocks.getOfficeTasks.mockResolvedValue({ tasks: [] });
+    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+    apiMocks.getActions.mockResolvedValue({ actions: [] });
+  });
+
+  it("renders the empty project workspace in Korean", async () => {
+    renderTasksApp();
+
+    expect(
+      await screen.findByText("프로젝트 워크스페이스"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("첫 프로젝트 만들기")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "프로젝트를 만들거나 선택해 워크스페이스를 여세요.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Project workspace")).not.toBeInTheDocument();
+  });
+
+  it("opens the project creation form from the empty workspace CTA", async () => {
+    const user = userEvent.setup();
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: "새 프로젝트 만들기" }),
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: "프로젝트 이름" }),
+    ).toBeInTheDocument();
   });
 });
