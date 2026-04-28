@@ -1440,6 +1440,24 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
 .task-request-panel {
   padding: 12px 20px 0;
 }
+.task-request-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.task-request-panel-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.task-request-panel-head p {
+  margin: 3px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
 .task-request-panel form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

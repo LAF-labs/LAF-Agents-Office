@@ -1080,6 +1080,16 @@ function ProjectWorkRequest({
       className="task-request-panel"
       aria-label={t("tasks.requestComposer")}
     >
+      <div className="task-request-panel-head">
+        <div>
+          <h4>{t("tasks.firstTask")}</h4>
+          <p>
+            {project.github_repo_url?.trim()
+              ? t("tasks.requestModeCoding")
+              : t("tasks.requestModePlanning")}
+          </p>
+        </div>
+      </div>
       <form onSubmit={(event) => taskCreator.handleCreateTask(project, event)}>
         <textarea
           value={taskCreator.requestText}

@@ -260,6 +260,11 @@ const messages = {
     "tasks.connectGithubRepo": "Connect GitHub repo",
     "tasks.disconnect": "Disconnect",
     "tasks.requestComposer": "Project task composer",
+    "tasks.firstTask": "First task",
+    "tasks.requestModePlanning":
+      "No GitHub repo is connected yet. This creates a planning, documentation, or task-breakdown request.",
+    "tasks.requestModeCoding":
+      "A GitHub repo is connected. This can create a coding task with branch and PR work.",
     "tasks.requestPlaceholder": "Ask for the next project task",
     "tasks.workRequest": "Project work request",
     "tasks.creating": "Creating...",
@@ -600,6 +605,11 @@ const messages = {
     "tasks.connectGithubRepo": "GitHub 저장소 연결",
     "tasks.disconnect": "연결 해제",
     "tasks.requestComposer": "프로젝트 작업 작성기",
+    "tasks.firstTask": "첫 작업",
+    "tasks.requestModePlanning":
+      "아직 GitHub 저장소가 연결되지 않았습니다. 기획, 문서, 작업 분해 요청으로 생성합니다.",
+    "tasks.requestModeCoding":
+      "GitHub 저장소가 연결되어 있습니다. 브랜치와 PR 작업으로 이어지는 개발 작업을 만들 수 있습니다.",
     "tasks.requestPlaceholder": "다음 프로젝트 작업을 요청하세요",
     "tasks.workRequest": "프로젝트 작업 요청",
     "tasks.creating": "만드는 중...",

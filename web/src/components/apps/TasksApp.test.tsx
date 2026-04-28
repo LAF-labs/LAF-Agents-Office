@@ -299,6 +299,45 @@ describe("TasksApp project workspace", () => {
   });
 });
 
+describe("TasksApp project creation handoff", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState({ currentApp: null, language: "en", wikiPath: null });
+    apiMocks.getProjects
+      .mockResolvedValueOnce({ projects: [] })
+      .mockResolvedValue({
+        projects: [{ id: "mobile-app", name: "Mobile App" }],
+      });
+    apiMocks.getOfficeTasks.mockResolvedValue({ tasks: [] });
+    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+    apiMocks.getActions.mockResolvedValue({ actions: [] });
+    apiMocks.createProject.mockResolvedValue({
+      project: { id: "mobile-app", name: "Mobile App" },
+    });
+  });
+
+  it("guides a newly created project into the first planning task request", async () => {
+    const user = userEvent.setup();
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: "New project" }),
+    );
+    await user.type(screen.getByLabelText("Project name"), "Mobile App");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(await screen.findByText("Mobile App workspace")).toBeInTheDocument();
+    expect(screen.getByText("First task")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No GitHub repo is connected yet. This creates a planning, documentation, or task-breakdown request.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Project work request")).toBeInTheDocument();
+  });
+});
+
 describe("TasksApp localization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
