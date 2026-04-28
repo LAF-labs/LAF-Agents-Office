@@ -40,10 +40,8 @@ Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-
 
 | Flag | What it does |
 |------|-------------|
-| `--memory-backend <name>` | Pick the organizational memory backend (`markdown`, `gbrain`, `none`) |
 | `--tui` | Use the tmux TUI instead of the web UI |
 | `--no-open` | Don't auto-open the browser |
-| `--pack <name>` | Pick a legacy project agent pack (`starter`, `founding-team`, `coding-team`) |
 | `--opus-ceo` | Upgrade CEO from Sonnet to Opus |
 | `--provider <name>` | LLM provider override (`claude-code`, `codex`) |
 | `--collab` | Start in collaborative mode — all agents see all messages (this is the default) |
@@ -53,18 +51,6 @@ Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-
 ## Memory: Notebooks and the Wiki
 
 Every agent gets its own **notebook**. The team shares a local markdown **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole workspace benefits.
-
-**Backends for the wiki:**
-
-- `markdown` is the default local team wiki.
-- `gbrain` mounts `gbrain serve` as the wiki backend.
-- `none` disables the external wiki entirely. Notebooks still work locally.
-
-```bash
-laf-office --memory-backend markdown
-laf-office --memory-backend gbrain
-laf-office --memory-backend none
-```
 
 Internal naming for code spelunkers: notebook = `private` memory, wiki = `shared` memory.
 

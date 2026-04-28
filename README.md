@@ -200,7 +200,7 @@ Accumulated-session orchestrators grow from 124k to 484k input per turn over the
 ### Reproduce it
 
 ```bash
-laf-office --pack starter &
+laf-office &
 ./scripts/benchmark.sh
 ```
 
