@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -335,6 +335,75 @@ describe("TasksApp project creation handoff", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project work request")).toBeInTheDocument();
+  });
+});
+
+describe("TasksApp project activity", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState({ currentApp: null, language: "en", wikiPath: null });
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [{ id: "customer-portal", name: "Customer Portal" }],
+    });
+    apiMocks.getOfficeTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: "task-build",
+          title: "Implement signup flow",
+          status: "in_progress",
+          project_id: "customer-portal",
+          owner: "engineer",
+        },
+      ],
+    });
+    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+    apiMocks.getActions.mockResolvedValue({
+      actions: [
+        {
+          id: "project-action",
+          kind: "project_created",
+          summary: "Customer Portal",
+          related_id: "customer-portal",
+          actor: "human",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: "task-action",
+          kind: "task_created",
+          summary: "Implement signup flow",
+          related_id: "task-build",
+          actor: "human",
+          created_at: "2026-01-02T00:00:00Z",
+        },
+        {
+          id: "other-action",
+          kind: "task_created",
+          summary: "Other project task",
+          related_id: "other-task",
+          actor: "human",
+          created_at: "2026-01-03T00:00:00Z",
+        },
+      ],
+    });
+  });
+
+  it("shows project-scoped activity from project and task actions", async () => {
+    renderTasksApp();
+
+    expect(
+      await screen.findByText("Customer Portal workspace"),
+    ).toBeInTheDocument();
+    const activity = await screen.findByRole("region", {
+      name: "Activity log",
+    });
+
+    expect(within(activity).getByText("Customer Portal")).toBeInTheDocument();
+    expect(
+      within(activity).getByText("Implement signup flow"),
+    ).toBeInTheDocument();
+    expect(
+      within(activity).queryByText("Other project task"),
+    ).not.toBeInTheDocument();
   });
 });
 

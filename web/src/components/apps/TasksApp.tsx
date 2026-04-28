@@ -13,8 +13,10 @@ import {
 } from "@tanstack/react-query";
 
 import {
+  type ActionRecord,
   createProject,
   createTask,
+  getActions,
   getOfficeTasks,
   getProjects,
   type Project,
@@ -160,6 +162,75 @@ function projectWorkspaceName(project: Project, language: Language): string {
   return language === "ko" ? `${name} 워크스페이스` : `${name} workspace`;
 }
 
+function actionTime(action: ActionRecord): number {
+  if (!action.created_at) return 0;
+  const time = Date.parse(action.created_at);
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function projectActivityEvents(
+  actions: ActionRecord[],
+  projectID: string,
+  tasks: Task[],
+): ActionRecord[] {
+  const taskIDs = new Set(tasks.map((task) => task.id).filter(Boolean));
+  return actions
+    .filter((action) => {
+      const relatedID = action.related_id?.trim();
+      if (!relatedID) return false;
+      return relatedID === projectID || taskIDs.has(relatedID);
+    })
+    .sort((a, b) => actionTime(b) - actionTime(a))
+    .slice(0, 8);
+}
+
+function humanizeActionKind(kind?: string): string {
+  if (!kind) return "Activity";
+  const label = kind.replace(/_/g, " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function activityKindLabel(kind: string | undefined, language: Language) {
+  if (language === "ko") {
+    switch (kind) {
+      case "project_created":
+        return "프로젝트 생성";
+      case "project_updated":
+        return "프로젝트 변경";
+      case "task_created":
+        return "작업 생성";
+      case "task_updated":
+        return "작업 변경";
+      default:
+        return "활동";
+    }
+  }
+  switch (kind) {
+    case "project_created":
+      return "Project created";
+    case "project_updated":
+      return "Project updated";
+    case "task_created":
+      return "Task created";
+    case "task_updated":
+      return "Task updated";
+    default:
+      return humanizeActionKind(kind);
+  }
+}
+
+function activitySummary(action: ActionRecord, language: Language): string {
+  return action.summary?.trim() || activityKindLabel(action.kind, language);
+}
+
+function activityMeta(action: ActionRecord, language: Language): string {
+  const parts = [activityKindLabel(action.kind, language)];
+  const actor = action.actor?.trim();
+  if (actor) parts.push(`@${actor}`);
+  if (action.created_at) parts.push(formatRelativeTime(action.created_at));
+  return parts.join(" / ");
+}
+
 function shouldHideTaskColumn(
   status: StatusGroup,
   column: Task[],
@@ -217,7 +288,10 @@ function useTaskMove() {
         const message = err instanceof Error ? err.message : "Move failed";
         showNotice(message, "error");
       } finally {
-        await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["actions"] }),
+          queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
+        ]);
       }
     },
     [queryClient],
@@ -249,6 +323,7 @@ function useProjectCreator(
       setIsCreatingProject(false);
       onProjectCreated(project.id);
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["actions"] }),
         queryClient.invalidateQueries({ queryKey: ["projects"] }),
         queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
       ]);
@@ -307,7 +382,10 @@ function useProjectGitHubConnector(queryClient: QueryClient) {
   }
 
   async function refreshProjects() {
-    await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["actions"] }),
+      queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    ]);
   }
 
   async function save(project: Project, event: FormEvent<HTMLFormElement>) {
@@ -429,7 +507,10 @@ function useProjectTaskCreator(
       seedCreatedTask(queryClient, project.id, task);
       setRequestText("");
       onTaskCreated?.(task);
-      await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["actions"] }),
+        queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
+      ]);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not create task";
@@ -556,10 +637,24 @@ export function TasksApp() {
     refetchInterval: 10_000,
   });
 
+  const actionsQuery = useQuery({
+    queryKey: ["actions"],
+    queryFn: () => getActions(),
+    enabled: Boolean(selectedProjectFilter),
+    refetchInterval: 15_000,
+  });
+
   const moveTask = useTaskMove();
   const tasks = data?.tasks ?? [];
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
   const selectedProject = findSelectedProject(projects, selectedProjectId);
+  const projectActivities = selectedProject
+    ? projectActivityEvents(
+        actionsQuery.data?.actions ?? [],
+        selectedProject.id,
+        tasks,
+      )
+    : [];
   const grouped = groupTasks(tasks);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const boardDrag = useTaskBoardDrag(tasksById, moveTask);
@@ -638,6 +733,14 @@ export function TasksApp() {
       <ProjectWorkRequest
         project={selectedProject}
         taskCreator={taskCreator}
+        t={t}
+      />
+
+      <ProjectActivityLog
+        activities={projectActivities}
+        isLoading={actionsQuery.isLoading}
+        language={language}
+        project={selectedProject}
         t={t}
       />
 
@@ -786,6 +889,68 @@ function ProjectCreateForm({
         {t("tasks.create")}
       </button>
     </form>
+  );
+}
+
+interface ProjectActivityLogProps {
+  activities: ActionRecord[];
+  isLoading: boolean;
+  language: Language;
+  project: Project | null;
+  t: TranslationFn;
+}
+
+function ProjectActivityLog({
+  activities,
+  isLoading,
+  language,
+  project,
+  t,
+}: ProjectActivityLogProps) {
+  if (!project) return null;
+
+  return (
+    <section className="task-activity-log" aria-label={t("tasks.activityLog")}>
+      <div className="task-activity-log-inner">
+        <div className="task-activity-log-head">
+          <h4>{t("tasks.activityLog")}</h4>
+          <span>
+            {isLoading
+              ? t("tasks.activityLoading")
+              : countLabel(
+                  activities.length,
+                  "event",
+                  "events",
+                  "활동",
+                  language,
+                )}
+          </span>
+        </div>
+        {activities.length === 0 ? (
+          <p className="task-activity-empty">
+            {isLoading ? t("tasks.activityLoading") : t("tasks.activityEmpty")}
+          </p>
+        ) : (
+          <ol className="task-activity-list">
+            {activities.map((activity) => (
+              <li
+                className="task-activity-item"
+                key={
+                  activity.id ??
+                  `${activity.kind}-${activity.related_id}-${activity.created_at}`
+                }
+              >
+                <span className="task-activity-dot" aria-hidden="true" />
+                <div>
+                  <strong>{activitySummary(activity, language)}</strong>
+                  <span>{activityMeta(activity, language)}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </section>
   );
 }
 
