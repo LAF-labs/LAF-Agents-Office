@@ -85,6 +85,71 @@ function statusBadgeClass(status: StatusGroup): string {
   return "badge badge-accent";
 }
 
+function taskRequiresDeliveryReceipt(task: Task): boolean {
+  return Boolean(
+    task.project_id?.trim() &&
+      task.execution_mode?.trim() === "local_worktree" &&
+      task.worktree_branch?.trim(),
+  );
+}
+
+function taskDeliveryBadge(
+  task: Task,
+  status: StatusGroup,
+): { className: string; labelKey: I18nKey } | null {
+  if (task.delivery_url?.trim()) {
+    return { className: "badge badge-green", labelKey: "tasks.deliveryReady" };
+  }
+  if (status === "review" && taskRequiresDeliveryReceipt(task)) {
+    return {
+      className: "badge badge-yellow",
+      labelKey: "tasks.deliveryNeeded",
+    };
+  }
+  return null;
+}
+
+function projectLoadMessage(
+  isLoading: boolean,
+  error: unknown,
+  t: TranslationFn,
+): string | null {
+  if (isLoading) {
+    return t("tasks.loading");
+  }
+  if (error) {
+    return t("tasks.loadError");
+  }
+  return null;
+}
+
+function TaskWorkspaceState({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        padding: "40px 20px",
+        textAlign: "center",
+        color: "var(--text-tertiary)",
+        fontSize: 14,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function selectedTaskForModal(
+  selectedTaskId: string | null,
+  tasksById: Map<string, Task>,
+  selectedTaskSnapshot: Task | null,
+): Task | null {
+  if (!selectedTaskId) return null;
+  return (
+    tasksById.get(selectedTaskId) ??
+    (selectedTaskSnapshot?.id === selectedTaskId ? selectedTaskSnapshot : null)
+  );
+}
+
 function groupTasks(tasks: Task[]): Record<StatusGroup, Task[]> {
   const groups: Record<StatusGroup, Task[]> = {
     in_progress: [],
@@ -658,42 +723,20 @@ export function TasksApp() {
   const grouped = groupTasks(tasks);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const boardDrag = useTaskBoardDrag(tasksById, moveTask);
-  const selectedTask = selectedTaskId
-    ? (tasksById.get(selectedTaskId) ??
-      (selectedTaskSnapshot?.id === selectedTaskId
-        ? selectedTaskSnapshot
-        : null))
-    : null;
+  const selectedTask = selectedTaskForModal(
+    selectedTaskId,
+    tasksById,
+    selectedTaskSnapshot,
+  );
   const isTaskLoading = shouldLoadTasks && isLoading;
+  const projectMessage = projectLoadMessage(
+    projectsQuery.isLoading,
+    projectsQuery.error,
+    t,
+  );
 
-  if (projectsQuery.isLoading) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        {t("tasks.loading")}
-      </div>
-    );
-  }
-
-  if (projectsQuery.error) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        {t("tasks.loadError")}
-      </div>
-    );
+  if (projectMessage) {
+    return <TaskWorkspaceState>{projectMessage}</TaskWorkspaceState>;
   }
 
   const handleOpenProjectWiki = () => {
@@ -705,6 +748,31 @@ export function TasksApp() {
     projectCreator.setProjectError(null);
     projectCreator.setIsCreatingProject(true);
   };
+
+  const taskWorkArea = (
+    <TaskWorkArea
+      error={error}
+      isTaskLoading={isTaskLoading}
+      selectedProject={selectedProject}
+      tasks={tasks}
+      t={t}
+    >
+      <TaskBoard
+        grouped={grouped}
+        isDragging={boardDrag.isDragging}
+        dragoverStatus={boardDrag.dragoverStatus}
+        draggingId={boardDrag.draggingId}
+        projectNames={projectNames}
+        t={t}
+        onColumnDragOver={boardDrag.handleColumnDragOver}
+        onColumnDragLeave={boardDrag.handleColumnDragLeave}
+        onColumnDrop={boardDrag.handleColumnDrop}
+        onTaskDragStart={boardDrag.handleDragStart}
+        onTaskDragEnd={boardDrag.handleDragEnd}
+        onOpenTask={setSelectedTaskId}
+      />
+    </TaskWorkArea>
+  );
 
   return (
     <>
@@ -718,56 +786,52 @@ export function TasksApp() {
         onSelectProject={setSelectedProjectId}
       />
 
-      <ProjectWorkspaceOverview
-        project={selectedProject}
-        projectCount={projects.length}
-        githubConnector={githubConnector}
-        isLoadingTasks={isTaskLoading}
-        language={language}
-        tasks={tasks}
-        t={t}
-        onCreateProject={handleOpenProjectCreator}
-        onOpenWiki={handleOpenProjectWiki}
-      />
-
-      <ProjectWorkRequest
-        project={selectedProject}
-        taskCreator={taskCreator}
-        t={t}
-      />
-
-      <ProjectActivityLog
-        activities={projectActivities}
-        isLoading={actionsQuery.isLoading}
-        language={language}
-        project={selectedProject}
-        t={t}
-      />
-
-      <TaskWorkArea
-        error={error}
-        isTaskLoading={isTaskLoading}
-        selectedProject={selectedProject}
-        tasks={tasks}
-        t={t}
-      >
-        <TaskBoard
-          grouped={grouped}
-          isDragging={boardDrag.isDragging}
-          dragoverStatus={boardDrag.dragoverStatus}
-          draggingId={boardDrag.draggingId}
-          projectNames={projectNames}
-          t={t}
-          onColumnDragOver={boardDrag.handleColumnDragOver}
-          onColumnDragLeave={boardDrag.handleColumnDragLeave}
-          onColumnDrop={boardDrag.handleColumnDrop}
-          onTaskDragStart={boardDrag.handleDragStart}
-          onTaskDragEnd={boardDrag.handleDragEnd}
-          onOpenTask={setSelectedTaskId}
-        />
-      </TaskWorkArea>
+      {selectedProject ? (
+        <>
+          <ProjectWorkRequest
+            project={selectedProject}
+            taskCreator={taskCreator}
+            t={t}
+          />
+          {taskWorkArea}
+          <ProjectWorkspaceOverview
+            project={selectedProject}
+            projectCount={projects.length}
+            githubConnector={githubConnector}
+            isLoadingTasks={isTaskLoading}
+            language={language}
+            tasks={tasks}
+            t={t}
+            onCreateProject={handleOpenProjectCreator}
+            onOpenWiki={handleOpenProjectWiki}
+          />
+          <ProjectActivityLog
+            activities={projectActivities}
+            isLoading={actionsQuery.isLoading}
+            language={language}
+            project={selectedProject}
+            t={t}
+          />
+        </>
+      ) : (
+        <>
+          <ProjectWorkspaceOverview
+            project={selectedProject}
+            projectCount={projects.length}
+            githubConnector={githubConnector}
+            isLoadingTasks={isTaskLoading}
+            language={language}
+            tasks={tasks}
+            t={t}
+            onCreateProject={handleOpenProjectCreator}
+            onOpenWiki={handleOpenProjectWiki}
+          />
+          {taskWorkArea}
+        </>
+      )}
       {selectedTask ? (
         <TaskDetailModal
+          key={selectedTask.id}
           task={selectedTask}
           onClose={() => {
             setSelectedTaskId(null);
@@ -1428,6 +1492,7 @@ function TaskCard({
   const status = normalizeStatus(task.status);
   const timestamp = task.updated_at ?? task.created_at;
   const className = `app-card task-card${isDragging ? " dragging" : ""}`;
+  const deliveryBadge = taskDeliveryBadge(task, status);
 
   return (
     <button
@@ -1471,6 +1536,11 @@ function TaskCard({
         <span className={statusBadgeClass(status)}>
           {t(COLUMN_LABEL_KEYS[status])}
         </span>
+        {deliveryBadge ? (
+          <span className={deliveryBadge.className}>
+            {t(deliveryBadge.labelKey)}
+          </span>
+        ) : null}
         {task.owner ? (
           <span className="app-card-meta">@{task.owner}</span>
         ) : null}

@@ -22,7 +22,6 @@ export default function WikiCatalog({
   onNavigate,
   onOpenAudit,
   articlesCount,
-  commitsCount,
   agentsCount,
 }: WikiCatalogProps) {
   const [showNew, setShowNew] = useState(false);
@@ -35,24 +34,20 @@ export default function WikiCatalog({
     () =>
       [
         `${articlesCount ?? catalog.length} articles`,
-        typeof commitsCount === "number" ? `${commitsCount} commits` : null,
-        typeof agentsCount === "number"
-          ? `${agentsCount} agents writing`
-          : null,
+        typeof agentsCount === "number" ? `${agentsCount} agent updates` : null,
       ]
         .filter(Boolean)
         .join(" · "),
-    [catalog.length, articlesCount, commitsCount, agentsCount],
+    [catalog.length, articlesCount, agentsCount],
   );
 
   return (
     <main className="wk-catalog" data-testid="wk-catalog">
       <header className="wk-catalog-header">
-        <h1 className="wk-catalog-title">Team Wiki</h1>
+        <h1 className="wk-catalog-title">Project memory</h1>
         <div className="wk-catalog-stats">{stats}</div>
         <div className="wk-catalog-clone">
-          Your wiki lives on your disk.{" "}
-          <code>git clone ~/.laf-office/wiki</code>
+          Decisions and delivery notes from project work.
           {" · "}
           <button
             type="button"
@@ -60,7 +55,7 @@ export default function WikiCatalog({
             data-testid="wk-catalog-new"
             onClick={() => setShowNew(true)}
           >
-            + New article
+            + New memory page
           </button>
           {onOpenAudit ? (
             <>
@@ -73,7 +68,7 @@ export default function WikiCatalog({
                   onOpenAudit();
                 }}
               >
-                Audit log
+                History
               </button>
             </>
           ) : null}

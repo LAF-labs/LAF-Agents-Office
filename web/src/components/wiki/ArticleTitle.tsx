@@ -1,11 +1,10 @@
-/** Fraunces article title + italic strapline + thick horizontal divider. */
-
 interface ArticleTitleProps {
   title: string;
   strapline?: string;
 }
 
-const DEFAULT_STRAPLINE = "From Team Wiki, your team's encyclopedia.";
+const DEFAULT_STRAPLINE =
+  "Project memory for decisions, constraints, and delivery notes.";
 
 export default function ArticleTitle({
   title,

@@ -14,7 +14,7 @@ describe("<PageFooter>", () => {
     );
     expect(screen.getByText(/CEO/)).toBeInTheDocument();
     expect(screen.getByText(/2026-04-19 at 16:24 UTC/)).toBeInTheDocument();
-    expect(screen.getByText("View git history")).toBeInTheDocument();
+    expect(screen.getByText("View memory history")).toBeInTheDocument();
   });
 
   it("invokes custom action handlers", () => {

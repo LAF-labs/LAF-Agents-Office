@@ -10,11 +10,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   BookStack,
-  ChatBubble,
   CheckCircle,
   ClipboardCheck,
   Flash,
-  Group,
   Package,
   Page,
   Play,
@@ -27,8 +25,6 @@ import { SIDEBAR_APPS } from "../../lib/constants";
 import { formatTokens, formatUSD } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
-import { AgentList } from "../sidebar/AgentList";
-import { ChannelList } from "../sidebar/ChannelList";
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   studio: Play,
@@ -41,7 +37,7 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   settings: SettingsIcon,
 };
 
-type Popover = "team" | "channels" | "usage" | null;
+type Popover = "usage" | null;
 type HintState = { label: string; y: number } | null;
 
 export function CollapsedSidebar() {
@@ -151,35 +147,6 @@ export function CollapsedSidebar() {
         })}
       </div>
 
-      <div className="sidebar-rail-middle">
-        <button
-          type="button"
-          className={`sidebar-icon-btn${popover === "team" ? " is-open" : ""}`}
-          aria-label={t("sidebar.team")}
-          aria-haspopup="dialog"
-          aria-expanded={popover === "team"}
-          onMouseEnter={() => openPopover("team")}
-          onMouseLeave={scheduleClose}
-          onFocus={() => openPopover("team")}
-          onBlur={scheduleClose}
-        >
-          <Group />
-        </button>
-        <button
-          type="button"
-          className={`sidebar-icon-btn${popover === "channels" ? " is-open" : ""}`}
-          aria-label={t("sidebar.channels")}
-          aria-haspopup="dialog"
-          aria-expanded={popover === "channels"}
-          onMouseEnter={() => openPopover("channels")}
-          onMouseLeave={scheduleClose}
-          onFocus={() => openPopover("channels")}
-          onBlur={scheduleClose}
-        >
-          <ChatBubble />
-        </button>
-      </div>
-
       <UsageRail
         onEnter={() => openPopover("usage")}
         onLeave={scheduleClose}
@@ -196,15 +163,9 @@ export function CollapsedSidebar() {
               onMouseLeave={scheduleClose}
             >
               <div className="sidebar-rail-popover-title">
-                {popover === "team"
-                  ? t("sidebar.team")
-                  : popover === "channels"
-                    ? t("sidebar.channels")
-                    : t("sidebar.usage")}
+                {t("sidebar.usage")}
               </div>
               <div className="sidebar-rail-popover-body">
-                {popover === "team" && <AgentList />}
-                {popover === "channels" && <ChannelList />}
                 {popover === "usage" && <UsageBody />}
               </div>
             </div>,

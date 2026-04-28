@@ -82,7 +82,6 @@ describe("DM channel helpers", () => {
         ceo__human: { type: "D", agentSlug: "ceo" },
       },
       collapsedThreads: { "thread-1": true },
-      sidebarAgentsOpen: false,
       sidebarCollapsed: true,
     });
 
@@ -105,7 +104,6 @@ describe("DM channel helpers", () => {
       notebookEntrySlug: null,
       channelMeta: {},
       collapsedThreads: {},
-      sidebarAgentsOpen: true,
       sidebarCollapsed: false,
     });
   });

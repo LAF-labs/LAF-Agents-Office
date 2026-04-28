@@ -1,5 +1,3 @@
-/** Wikipedia-style page footer: last-edited line + actions + dim git note. */
-
 interface PageFooterProps {
   lastEditedBy: string;
   lastEditedTs: string;
@@ -8,11 +6,10 @@ interface PageFooterProps {
 }
 
 const DEFAULT_ACTIONS = [
-  { label: "View git history" },
-  { label: "Cite this page" },
-  { label: "Download as markdown" },
+  { label: "View memory history" },
+  { label: "Copy page link" },
+  { label: "Download markdown" },
   { label: "Export PDF" },
-  { label: "Clone wiki locally" },
 ];
 
 export default function PageFooter({
@@ -38,8 +35,8 @@ export default function PageFooter({
         ))}
       </div>
       <div className="wk-dim">
-        Every edit is a real git commit authored by the named agent.{" "}
-        <code>git log team/{articlePath}.md</code> shows the full trail.
+        Changes to {articlePath} are attributed to the person or agent that
+        saved them.
       </div>
     </div>
   );

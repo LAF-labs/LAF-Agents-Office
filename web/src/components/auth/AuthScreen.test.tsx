@@ -22,23 +22,30 @@ describe("AuthScreen", () => {
     useAppStore.setState({ language: "en" });
   });
 
-  it("separates account details from workspace setup on signup", async () => {
+  it("frames signup around project agents instead of a generic office", async () => {
     render(<AuthScreen onAuthenticated={vi.fn()} />);
 
     expect(
       screen.getByRole("heading", { name: "Create your account" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Workspace setup" }),
+      screen.getByRole("heading", { name: "Project setup" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Create a workspace/i }),
+      screen.getByRole("heading", {
+        name: "Project agents that keep context and ship work",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/keep decisions in the wiki/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Create a project team/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Join with an invite/i }),
+      screen.getByRole("button", { name: /Join by invite/i }),
     ).toBeInTheDocument();
 
     await waitFor(() => {
+      expect(screen.queryByText(/AI office/i)).not.toBeInTheDocument();
       expect(screen.queryByText("Existing teams")).not.toBeInTheDocument();
     });
   });
@@ -54,7 +61,7 @@ describe("AuthScreen", () => {
       screen.getByRole("heading", { name: "Welcome back" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Workspace setup" }),
+      screen.queryByRole("heading", { name: "Project setup" }),
     ).not.toBeInTheDocument();
   });
 });

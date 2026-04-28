@@ -331,8 +331,7 @@ export default function WikiArticle({
         )}
         {tab === "history" && (
           <div className="wk-loading">
-            History view streams from <code>git log</code>. Wiring pending Lane
-            A.
+            Memory history for this page is being prepared.
           </div>
         )}
         <ArticleSupplementPanels
@@ -472,7 +471,7 @@ function ArticleBreadcrumb({ article, onNavigate }: ArticleBreadcrumbProps) {
   return (
     <div className="wk-breadcrumb">
       <button type="button" onClick={() => onNavigate("")}>
-        Team Wiki
+        Project memory
       </button>
       {breadcrumbItems.map(({ segment, path: itemPath }) => (
         <span key={itemPath} style={{ display: "contents" }}>

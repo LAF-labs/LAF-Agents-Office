@@ -119,8 +119,6 @@ export interface AppStore {
   setLanguage: (language: Language) => void;
 
   // Sidebar
-  sidebarAgentsOpen: boolean;
-  toggleSidebarAgents: () => void;
   sidebarCollapsed: boolean;
   toggleSidebarCollapsed: () => void;
 
@@ -241,9 +239,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ language });
   },
 
-  sidebarAgentsOpen: true,
-  toggleSidebarAgents: () =>
-    set({ sidebarAgentsOpen: !get().sidebarAgentsOpen }),
   sidebarCollapsed: false,
   toggleSidebarCollapsed: () =>
     set({ sidebarCollapsed: !get().sidebarCollapsed }),
@@ -293,7 +288,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       currentApp: null,
       settingsSection: null,
       channelMeta: {},
-      sidebarAgentsOpen: true,
       sidebarCollapsed: false,
       activeThreadId: null,
       collapsedThreads: {},

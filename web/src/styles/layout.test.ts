@@ -16,8 +16,6 @@ describe("office shell responsive CSS", () => {
     expect(css).toContain("@media (max-width: 768px)");
     expect(css).toContain(".sidebar:not(.sidebar-collapsed)");
     expect(css).toContain("width: 64px;");
-    expect(css).toContain(
-      ".sidebar:not(.sidebar-collapsed) .sidebar-agent-wrap",
-    );
+    expect(css).toContain(".sidebar:not(.sidebar-collapsed) .sidebar-apps");
   });
 });

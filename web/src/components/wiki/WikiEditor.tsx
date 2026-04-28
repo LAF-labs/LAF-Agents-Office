@@ -332,8 +332,7 @@ export default function WikiEditor({
         onTogglePreview={() => setPreviewOn((v) => !v)}
       />
       <p className="wk-editor-help">
-        Plain markdown. <code>[[slug]]</code> creates a wikilink. Saved as
-        commit author <strong>Human &lt;human@laf-office.local&gt;</strong>.
+        Markdown is supported. <code>[[slug]]</code> links another memory page.
       </p>
     </div>
   );
@@ -441,9 +440,7 @@ function EditorMobileTabs({
         type="button"
         role="tab"
         aria-selected={mobileView === "source"}
-        className={
-          "wk-editor-mobile-tab" + (mobileView === "source" ? " is-active" : "")
-        }
+        className={`wk-editor-mobile-tab${mobileView === "source" ? " is-active" : ""}`}
         onClick={() => onChange("source")}
         data-testid="wk-editor-mobile-source"
       >
@@ -453,10 +450,7 @@ function EditorMobileTabs({
         type="button"
         role="tab"
         aria-selected={mobileView === "preview"}
-        className={
-          "wk-editor-mobile-tab" +
-          (mobileView === "preview" ? " is-active" : "")
-        }
+        className={`wk-editor-mobile-tab${mobileView === "preview" ? " is-active" : ""}`}
         onClick={() => onChange("preview")}
         data-testid="wk-editor-mobile-preview"
       >

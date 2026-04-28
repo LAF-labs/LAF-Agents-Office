@@ -53,7 +53,7 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(
-          err instanceof Error ? err.message : "Failed to load audit log",
+          err instanceof Error ? err.message : "Failed to load memory history",
         );
       })
       .finally(() => {
@@ -91,11 +91,10 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
     <main className="wk-audit" data-testid="wk-audit">
       <header className="wk-audit-header">
         <div>
-          <h1 className="wk-audit-title">Audit log</h1>
+          <h1 className="wk-audit-title">Memory history</h1>
           <p className="wk-audit-strapline">
-            Every edit to the team wiki, newest first. Attribution comes from
-            per-commit git identity — same data `git log` would give you on
-            disk.
+            Every project memory update, newest first. Use this to check what
+            changed, who changed it, and which pages were touched.
           </p>
         </div>
         <div className="wk-audit-stats" aria-live="polite">
@@ -204,13 +203,13 @@ function AuditResults({
   onNavigate,
 }: AuditResultsProps) {
   if (loading && !entries)
-    return <div className="wk-loading">Loading audit log…</div>;
+    return <div className="wk-loading">Loading memory history...</div>;
   if (error) return <div className="wk-error">Error: {error}</div>;
   if (filtered.length === 0) {
     return (
       <div className="wk-audit-empty">
         {entries && entries.length === 0
-          ? "No edits yet. This page will populate as soon as any agent (or bootstrap pass) commits to the wiki."
+          ? "No edits yet. Project memory updates will appear here."
           : "No entries match your filters."}
       </div>
     );

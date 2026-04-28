@@ -143,7 +143,7 @@ export default function WikiSidebar({
               onNavigateAudit();
             }}
           >
-            View audit log →
+            View history →
           </button>
         </div>
       ) : null}

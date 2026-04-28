@@ -33,8 +33,12 @@ describe("<WikiCatalog>", () => {
   it("renders thematic groups with article counts", () => {
     render(<WikiCatalog catalog={CATALOG} onNavigate={() => {}} />);
     expect(
-      screen.getByRole("heading", { name: "Team Wiki" }),
+      screen.getByRole("heading", { name: "Project memory" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/decisions and delivery notes/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/git clone/)).not.toBeInTheDocument();
     expect(screen.getByText("people")).toBeInTheDocument();
     expect(screen.getByText("playbooks")).toBeInTheDocument();
     expect(screen.getByText("Nazz")).toBeInTheDocument();
@@ -60,7 +64,7 @@ describe("<WikiCatalog>", () => {
       />,
     );
     expect(screen.getByText(/32 articles/)).toBeInTheDocument();
-    expect(screen.getByText(/128 commits/)).toBeInTheDocument();
-    expect(screen.getByText(/6 agents writing/)).toBeInTheDocument();
+    expect(screen.queryByText(/128 commits/)).not.toBeInTheDocument();
+    expect(screen.getByText(/6 agent updates/)).toBeInTheDocument();
   });
 });

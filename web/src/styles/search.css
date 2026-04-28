@@ -236,127 +236,6 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Channel Wizard
-   ═══════════════════════════════════════════════════════════════ */
-
-.channel-wizard-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  animation: fadeIn 0.15s ease-out;
-}
-
-.channel-wizard-modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
-  width: 100%;
-  max-width: 480px;
-  padding: 24px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.channel-wizard-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 16px;
-}
-
-/* ─── Tab toggle ─── */
-.channel-wizard-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.channel-wizard-tab {
-  flex: 1;
-  padding: 8px 0;
-  border: none;
-  background: transparent;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.channel-wizard-tab:first-child {
-  border-right: 1px solid var(--border);
-}
-.channel-wizard-tab:hover {
-  background: var(--bg-warm);
-}
-.channel-wizard-tab.active {
-  background: var(--accent-bg);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* ─── Form ─── */
-.channel-wizard-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.channel-wizard-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.channel-wizard-field .label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.channel-wizard-field .input {
-  height: 40px;
-  font-size: 14px;
-}
-
-.channel-wizard-field .channel-wizard-textarea {
-  height: auto;
-  min-height: 80px;
-  padding: 10px 14px;
-  resize: vertical;
-  line-height: 1.5;
-}
-
-.channel-wizard-hint {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-style: italic;
-}
-
-.channel-wizard-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.channel-wizard-error {
-  font-size: 12px;
-  color: var(--red);
-  padding: 8px 12px;
-  background: var(--red-bg);
-  border-radius: var(--radius-sm);
-}
-
-/* ═══════════════════════════════════════════════════════════════
    Disconnect Banner
    ═══════════════════════════════════════════════════════════════ */
 
@@ -423,11 +302,6 @@
   .search-modal {
     width: 95%;
     max-height: 85vh;
-  }
-
-  .channel-wizard-modal {
-    margin: 16px;
-    max-width: none;
   }
 }
 

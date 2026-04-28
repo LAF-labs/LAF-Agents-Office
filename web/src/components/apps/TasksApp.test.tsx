@@ -37,64 +37,66 @@ function renderTasksApp() {
   );
 }
 
+function mockCustomerPortalWorkspace() {
+  vi.clearAllMocks();
+  useAppStore.setState({ currentApp: null, language: "en", wikiPath: null });
+  apiMocks.getProjects.mockResolvedValue({
+    projects: [
+      {
+        id: "customer-portal",
+        name: "Customer Portal",
+        github_repo_url: "https://github.com/laf-labs/customer-portal",
+      },
+    ],
+  });
+  apiMocks.getOfficeTasks.mockResolvedValue({
+    tasks: [
+      {
+        id: "task-open",
+        title: "Draft launch brief",
+        status: "open",
+        project_id: "customer-portal",
+        channel: "general",
+        owner: "human",
+      },
+      {
+        id: "task-build",
+        title: "Implement signup flow",
+        status: "in_progress",
+        project_id: "customer-portal",
+        owner: "engineer",
+      },
+      {
+        id: "task-done",
+        title: "Pick wedge",
+        status: "done",
+        project_id: "customer-portal",
+        owner: "ceo",
+      },
+    ],
+  });
+  apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+  apiMocks.getActions.mockResolvedValue({ actions: [] });
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("TasksApp project workspace", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useAppStore.setState({ currentApp: null, language: "en", wikiPath: null });
-    apiMocks.getProjects.mockResolvedValue({
-      projects: [
-        {
-          id: "customer-portal",
-          name: "Customer Portal",
-          github_repo_url: "https://github.com/laf-labs/customer-portal",
-        },
-      ],
-    });
-    apiMocks.getOfficeTasks.mockResolvedValue({
-      tasks: [
-        {
-          id: "task-open",
-          title: "Draft launch brief",
-          status: "open",
-          project_id: "customer-portal",
-          channel: "general",
-          owner: "human",
-        },
-        {
-          id: "task-build",
-          title: "Implement signup flow",
-          status: "in_progress",
-          project_id: "customer-portal",
-          owner: "engineer",
-        },
-        {
-          id: "task-done",
-          title: "Pick wedge",
-          status: "done",
-          project_id: "customer-portal",
-          owner: "ceo",
-        },
-      ],
-    });
-    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
-    apiMocks.getActions.mockResolvedValue({ actions: [] });
-  });
+  beforeEach(mockCustomerPortalWorkspace);
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("opens the first project as a workspace with wiki, task, agent, and GitHub status", async () => {
-    renderTasksApp();
+  it("opens the first project with request and board before supporting context", async () => {
+    const { container } = renderTasksApp();
 
     expect(
       await screen.findByRole("heading", { name: "Project workspace" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Customer Portal workspace")).toBeInTheDocument();
-    expect(screen.getByText("Wiki context")).toBeInTheDocument();
+    expect(screen.getByText("Project memory")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Project memory agents read before work and update after decisions and changes.",
+        "Agents read this before work and append decisions, constraints, and delivery notes after work.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Task queue")).toBeInTheDocument();
@@ -106,6 +108,13 @@ describe("TasksApp project workspace", () => {
     expect(
       screen.getByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/customer-portal");
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Next task")).toBeLessThan(
+      text.indexOf("Customer Portal workspace"),
+    );
+    expect(text.indexOf("Draft launch brief")).toBeLessThan(
+      text.indexOf("Activity log"),
+    );
 
     await waitFor(() => {
       expect(apiMocks.getOfficeTasks).toHaveBeenLastCalledWith({
@@ -187,6 +196,10 @@ describe("TasksApp project workspace", () => {
       await screen.findByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/agent-lab");
   });
+});
+
+describe("TasksApp project task request flow", () => {
+  beforeEach(mockCustomerPortalWorkspace);
 
   it("creates a local worktree task from the selected project request box when a repo is connected", async () => {
     const user = userEvent.setup();
@@ -230,12 +243,12 @@ describe("TasksApp project workspace", () => {
     expect(
       await screen.findByRole("dialog", { name: "Task task-request" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Execution")).toBeInTheDocument();
+    expect(screen.getByText("Work state")).toBeInTheDocument();
     expect(screen.getByText("Agent is working")).toBeInTheDocument();
     expect(screen.getAllByText("@eng").length).toBeGreaterThan(0);
     expect(
-      screen.getAllByText("/tmp/customer-portal-task-request").length,
-    ).toBeGreaterThan(0);
+      screen.queryByText("/tmp/customer-portal-task-request"),
+    ).not.toBeInTheDocument();
   });
 
   it("creates an office planning task from the request box when no repo is connected", async () => {
@@ -335,7 +348,7 @@ describe("TasksApp project creation handoff", () => {
     await user.click(screen.getByRole("button", { name: "Create" }));
 
     expect(await screen.findByText("Mobile App workspace")).toBeInTheDocument();
-    expect(screen.getByText("First task")).toBeInTheDocument();
+    expect(screen.getByText("Next task")).toBeInTheDocument();
     expect(
       screen.getByText(
         "No GitHub repo is connected yet. This creates a planning, documentation, or task-breakdown request.",
@@ -411,6 +424,40 @@ describe("TasksApp project activity", () => {
     expect(
       within(activity).queryByText("Other project task"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows delivery receipt state on project task cards", async () => {
+    apiMocks.getOfficeTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: "task-needs-receipt",
+          title: "Implement signup flow",
+          status: "review",
+          project_id: "customer-portal",
+          owner: "engineer",
+          execution_mode: "local_worktree",
+          worktree_branch: "laf-office-task-task-needs-receipt",
+        },
+        {
+          id: "task-has-pr",
+          title: "Implement invite flow",
+          status: "review",
+          project_id: "customer-portal",
+          owner: "engineer",
+          execution_mode: "local_worktree",
+          worktree_branch: "laf-office-task-task-has-pr",
+          delivery_url: "https://github.com/laf-labs/customer-portal/pull/42",
+        },
+      ],
+    });
+
+    renderTasksApp();
+
+    expect(
+      await screen.findByText("Customer Portal workspace"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Receipt needed")).toBeInTheDocument();
+    expect(await screen.findByText("PR ready")).toBeInTheDocument();
   });
 });
 

@@ -8,14 +8,6 @@ vi.mock("../sidebar/AppList", () => ({
   AppList: () => <div data-testid="workspace-nav" />,
 }));
 
-vi.mock("../sidebar/AgentList", () => ({
-  AgentList: () => <div data-testid="team-nav" />,
-}));
-
-vi.mock("../sidebar/ChannelList", () => ({
-  ChannelList: () => <div data-testid="channel-nav" />,
-}));
-
 vi.mock("../sidebar/UsagePanel", () => ({
   UsagePanel: () => <div data-testid="usage-panel" />,
 }));
@@ -29,20 +21,19 @@ describe("Sidebar navigation hierarchy", () => {
     useAppStore.setState({
       currentApp: null,
       language: "ko",
-      sidebarAgentsOpen: true,
       sidebarCollapsed: false,
     });
   });
 
-  it("puts the project workspace navigation before team and channel context", () => {
+  it("keeps project navigation as the only primary navigation surface", () => {
     const { container } = render(<Sidebar />);
 
     expect(screen.getByText("워크스페이스")).toBeInTheDocument();
     expect(screen.queryByText("앱")).not.toBeInTheDocument();
-
-    const text = container.textContent ?? "";
-    expect(text.indexOf("워크스페이스")).toBeLessThan(text.indexOf("팀"));
-    expect(text.indexOf("팀")).toBeLessThan(text.indexOf("채널"));
     expect(screen.getByTestId("workspace-nav")).toBeInTheDocument();
+    expect(screen.queryByText("팀")).not.toBeInTheDocument();
+    expect(screen.queryByText("채널")).not.toBeInTheDocument();
+    expect(container.textContent).not.toContain("새 에이전트");
+    expect(container.textContent).not.toContain("새 채널");
   });
 });

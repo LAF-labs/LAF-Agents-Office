@@ -16,7 +16,7 @@ describe("<PromotedBackCallout>", () => {
     render(<PromotedBackCallout link={LINK} />);
     expect(screen.getByText("onboarding gotchas")).toBeInTheDocument();
     expect(
-      screen.getByText(/Team Wiki · playbooks\/customer-onboarding/),
+      screen.getByText(/Project memory · playbooks\/customer-onboarding/),
     ).toBeInTheDocument();
     expect(screen.getByText(/by CEO/)).toBeInTheDocument();
   });
@@ -24,7 +24,9 @@ describe("<PromotedBackCallout>", () => {
   it("invokes onNavigate when the wiki link is clicked", async () => {
     const onNavigate = vi.fn();
     render(<PromotedBackCallout link={LINK} onNavigate={onNavigate} />);
-    await userEvent.setup().click(screen.getByText(/Team Wiki · playbooks/));
+    await userEvent
+      .setup()
+      .click(screen.getByText(/Project memory · playbooks/));
     expect(onNavigate).toHaveBeenCalledWith("playbooks/customer-onboarding");
   });
 

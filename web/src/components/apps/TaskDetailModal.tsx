@@ -16,6 +16,7 @@ import {
   updateTaskStatus,
 } from "../../api/client";
 import { formatRelativeTime } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import { confirm } from "../ui/ConfirmDialog";
 
 interface TaskDetailModalProps {
@@ -24,6 +25,7 @@ interface TaskDetailModalProps {
 }
 
 const HUMAN_SLUG = "human";
+type TaskTranslator = ReturnType<typeof useI18n>["t"];
 
 interface StatusActionOptions {
   action: TaskStatusAction;
@@ -32,6 +34,7 @@ interface StatusActionOptions {
   onClose: () => void;
   setStatusBusy: (action: TaskStatusAction | null) => void;
   setErrorMsg: (message: string | null) => void;
+  delivery?: TaskDeliveryPayload;
 }
 
 async function runTaskStatusAction({
@@ -41,6 +44,7 @@ async function runTaskStatusAction({
   onClose,
   setStatusBusy,
   setErrorMsg,
+  delivery,
 }: StatusActionOptions) {
   setStatusBusy(action);
   setErrorMsg(null);
@@ -50,6 +54,7 @@ async function runTaskStatusAction({
       action,
       task.channel || "general",
       HUMAN_SLUG,
+      delivery,
     );
     await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
     if (action === "cancel" || action === "complete") {
@@ -63,9 +68,15 @@ async function runTaskStatusAction({
   }
 }
 
+interface TaskDeliveryPayload {
+  delivery_url?: string;
+  delivery_summary?: string;
+}
+
 function confirmTaskStatusAction(
   action: TaskStatusAction,
   task: Task,
+  t: TaskTranslator,
   runAction: () => void,
 ) {
   if (action !== "cancel") {
@@ -74,9 +85,9 @@ function confirmTaskStatusAction(
   }
 
   confirm({
-    title: "Mark task as won't do?",
-    message: `"${task.title || task.id}" will move to the Won't Do column. Owners are notified.`,
-    confirmLabel: "Won't do",
+    title: t("tasks.statusAction.cancelConfirmTitle"),
+    message: `${task.title || task.id} ${t("tasks.statusAction.cancelConfirmMessage")}`,
+    confirmLabel: t("tasks.statusAction.cancel"),
     danger: true,
     onConfirm: runAction,
   });
@@ -122,33 +133,16 @@ async function reassignSelectedOwner({
 
 function buildTaskMetaRows(
   task: Task,
-  status: string,
-  reviewState: string,
+  t: TaskTranslator,
 ): Array<[string, string | null | undefined]> {
   const rows: Array<[string, string | null | undefined]> = [
-    ["Owner", ownerMeta(task.owner)],
-    ["Project", optionalMeta(task.project_id)],
-    ["Status", status || "—"],
-    ["Review state", optionalMeta(reviewState)],
-    ["Task type", optionalMeta(task.task_type)],
-    ["Execution mode", optionalMeta(task.execution_mode)],
-    ["Pipeline", optionalMeta(task.pipeline_id)],
-    ["Pipeline stage", optionalMeta(task.pipeline_stage)],
-    ["Worktree branch", optionalMeta(task.worktree_branch)],
-    ["Worktree path", optionalMeta(task.worktree_path)],
-    ["Source signal", optionalMeta(task.source_signal_id)],
-    ["Source decision", optionalMeta(task.source_decision_id)],
-    ["Thread", optionalMeta(task.thread_id)],
-    ["Created by", prefixedMeta("@", task.created_by)],
-    ["Created", relativeMeta(task.created_at)],
-    ["Updated", relativeMeta(task.updated_at)],
-    ["Due", relativeMeta(task.due_at)],
-    ["Follow up", relativeMeta(task.follow_up_at)],
-    ["Reminder", relativeMeta(task.reminder_at)],
-    ["Recheck", relativeMeta(task.recheck_at)],
+    [t("tasks.detail.createdBy"), prefixedMeta("@", task.created_by)],
+    [t("tasks.detail.created"), relativeMeta(task.created_at)],
+    [t("tasks.detail.updated"), relativeMeta(task.updated_at)],
+    [t("tasks.detail.due"), relativeMeta(task.due_at)],
   ];
   if (!task.project_id) {
-    rows.splice(2, 0, ["Channel", channelMeta(task.channel)]);
+    rows.splice(2, 0, [t("tasks.detail.channel"), channelMeta(task.channel)]);
   }
   return rows;
 }
@@ -176,23 +170,86 @@ function relativeMeta(value: string | null | undefined): string | null {
   return value ? formatRelativeTime(value) : null;
 }
 
-function taskExecutionLabel(status: string): string {
+function taskRequiresDeliveryReceipt(task: Task): boolean {
+  return Boolean(
+    task.project_id?.trim() &&
+      task.execution_mode?.trim() === "local_worktree" &&
+      task.worktree_branch?.trim(),
+  );
+}
+
+function terminalTaskStatus(status: string | null | undefined): boolean {
+  const s = (status ?? "").trim().toLowerCase();
+  return (
+    s === "done" || s === "completed" || s === "canceled" || s === "cancelled"
+  );
+}
+
+function deliveryPayloadFromDraft(
+  deliveryURL: string,
+  deliverySummary: string,
+): TaskDeliveryPayload | undefined {
+  const payload: TaskDeliveryPayload = {};
+  const url = deliveryURL.trim();
+  const summary = deliverySummary.trim();
+  if (url) payload.delivery_url = url;
+  if (summary) payload.delivery_summary = summary;
+  return Object.keys(payload).length > 0 ? payload : undefined;
+}
+
+function pullRequestNumber(deliveryURL: string): string | null {
+  const match = deliveryURL.match(/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/i);
+  return match?.[1] ?? null;
+}
+
+function taskExecutionLabel(status: string, t: TaskTranslator): string {
   switch (status) {
     case "in_progress":
-      return "Agent is working";
+      return t("tasks.execution.working");
     case "review":
-      return "Ready for review";
+      return t("tasks.execution.review");
     case "done":
     case "completed":
-      return "Completed";
+      return t("tasks.execution.done");
     case "blocked":
-      return "Blocked";
+      return t("tasks.execution.blocked");
     case "canceled":
     case "cancelled":
-      return "Canceled";
+      return t("tasks.execution.canceled");
     default:
-      return "Queued";
+      return t("tasks.execution.queued");
   }
+}
+
+function taskStatusDisplay(status: string, t: TaskTranslator): string {
+  switch (status) {
+    case "in_progress":
+      return t("tasks.status.inProgress");
+    case "review":
+      return t("tasks.status.review");
+    case "pending":
+      return t("tasks.status.pending");
+    case "blocked":
+      return t("tasks.status.blocked");
+    case "done":
+    case "completed":
+      return t("tasks.status.done");
+    case "canceled":
+    case "cancelled":
+      return t("tasks.status.canceled");
+    default:
+      return t("tasks.status.open");
+  }
+}
+
+function taskTypeLabel(task: Task, t: TaskTranslator): string | null {
+  if (task.execution_mode?.trim() === "local_worktree") {
+    return t("tasks.detail.codingTask");
+  }
+  if (task.project_id?.trim()) {
+    return t("tasks.detail.planningTask");
+  }
+  return optionalMeta(task.task_type);
 }
 
 function actionTimestamp(action: ActionRecord): number {
@@ -210,6 +267,7 @@ function relatedTaskActions(actions: ActionRecord[], taskID: string) {
 
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const { data: memberData } = useQuery({
     queryKey: ["office-members"],
     queryFn: getOfficeMembers,
@@ -226,12 +284,25 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const [selectedOwner, setSelectedOwner] = useState<string>(currentOwner);
   const [submitting, setSubmitting] = useState(false);
   const [statusBusy, setStatusBusy] = useState<TaskStatusAction | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [statusErrorMsg, setStatusErrorMsg] = useState<string | null>(null);
+  const [ownerErrorMsg, setOwnerErrorMsg] = useState<string | null>(null);
+  const [deliveryURL, setDeliveryURL] = useState(
+    task.delivery_url?.trim() ?? "",
+  );
+  const [deliverySummary, setDeliverySummary] = useState(
+    task.delivery_summary?.trim() ?? "",
+  );
 
   useEffect(() => {
     setSelectedOwner((task.owner ?? "").trim());
-    setErrorMsg(null);
+    setStatusErrorMsg(null);
+    setOwnerErrorMsg(null);
   }, [task.owner]);
+
+  useEffect(() => {
+    setDeliveryURL(task.delivery_url?.trim() ?? "");
+    setDeliverySummary(task.delivery_summary?.trim() ?? "");
+  }, [task.delivery_url, task.delivery_summary]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -250,14 +321,25 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   }, [memberData]);
 
   function handleStatusAction(action: TaskStatusAction) {
-    confirmTaskStatusAction(action, task, () => {
+    const delivery = deliveryPayloadFromDraft(deliveryURL, deliverySummary);
+    if (
+      action === "complete" &&
+      taskRequiresDeliveryReceipt(task) &&
+      !task.delivery_url?.trim() &&
+      !delivery?.delivery_url
+    ) {
+      setStatusErrorMsg(t("tasks.deliveryRequiredBeforeDone"));
+      return;
+    }
+    confirmTaskStatusAction(action, task, t, () => {
       void runTaskStatusAction({
         action,
         task,
         queryClient,
         onClose,
         setStatusBusy,
-        setErrorMsg,
+        setErrorMsg: setStatusErrorMsg,
+        delivery: action === "complete" ? delivery : undefined,
       });
     });
   }
@@ -266,12 +348,10 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
     if (e.target === e.currentTarget) onClose();
   }
 
-  const status = (task.status || "").replace(/_/g, " ");
-  const reviewState = (task.review_state || "").replace(/_/g, " ");
   const description = task.description?.trim() || "";
   const details = task.details?.trim() || "";
 
-  const metaRows = buildTaskMetaRows(task, status, reviewState);
+  const metaRows = buildTaskMetaRows(task, t);
   const dependsOn = task.depends_on ?? [];
   const taskActions = useMemo(
     () => relatedTaskActions(actionData?.actions ?? [], task.id),
@@ -289,7 +369,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
       queryClient,
       onClose,
       setSubmitting,
-      setErrorMsg,
+      setErrorMsg: setOwnerErrorMsg,
     });
   };
 
@@ -306,10 +386,12 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
       tabIndex={-1}
     >
       <div className="task-detail-modal card">
-        <TaskDetailHeader task={task} onClose={onClose} />
+        <TaskDetailHeader task={task} onClose={onClose} t={t} />
         <TaskStatusSection
           currentStatus={currentStatus}
+          errorMsg={statusErrorMsg}
           statusBusy={statusBusy}
+          t={t}
           onStatusAction={handleStatusAction}
         />
         <TaskExecutionSection
@@ -317,8 +399,16 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           isActionLoading={isActionLoading}
           status={currentStatus}
           task={task}
+          t={t}
         />
-        <TaskDeliverySection task={task} />
+        <TaskDeliverySection
+          deliverySummary={deliverySummary}
+          deliveryURL={deliveryURL}
+          setDeliverySummary={setDeliverySummary}
+          setDeliveryURL={setDeliveryURL}
+          task={task}
+          t={t}
+        />
 
         <TaskOwnershipSection
           task={task}
@@ -327,50 +417,115 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           setSelectedOwner={setSelectedOwner}
           submitting={submitting}
           ownerChanged={ownerChanged}
-          errorMsg={errorMsg}
+          errorMsg={ownerErrorMsg}
           onReassign={handleReassign}
+          t={t}
         />
 
-        <TaskNarrativeSection description={description} details={details} />
-        <TaskDependenciesSection dependsOn={dependsOn} />
-        <TaskMetadataSection metaRows={metaRows} />
+        <TaskNarrativeSection
+          description={description}
+          details={details}
+          t={t}
+        />
+        <TaskDependenciesSection dependsOn={dependsOn} t={t} />
+        <TaskMetadataSection metaRows={metaRows} t={t} />
       </div>
     </div>
   );
 }
 
-function TaskDeliverySection({ task }: { task: Task }) {
-  const deliveryURL = task.delivery_url?.trim();
-  const deliverySummary = task.delivery_summary?.trim();
+interface TaskDeliverySectionProps {
+  deliverySummary: string;
+  deliveryURL: string;
+  setDeliverySummary: (value: string) => void;
+  setDeliveryURL: (value: string) => void;
+  task: Task;
+  t: ReturnType<typeof useI18n>["t"];
+}
+
+function TaskDeliverySection({
+  deliverySummary,
+  deliveryURL,
+  setDeliverySummary,
+  setDeliveryURL,
+  task,
+  t,
+}: TaskDeliverySectionProps) {
+  const savedDeliveryURL = task.delivery_url?.trim();
+  const savedDeliverySummary = task.delivery_summary?.trim();
   const deliveredAt = relativeMeta(task.delivered_at);
-  if (!deliveryURL && !deliverySummary && !deliveredAt) {
+  const requiresReceipt = taskRequiresDeliveryReceipt(task);
+  const canEditReceipt = requiresReceipt && !terminalTaskStatus(task.status);
+  const hasSavedDelivery = Boolean(
+    savedDeliveryURL || savedDeliverySummary || deliveredAt,
+  );
+  const prNumber = savedDeliveryURL
+    ? pullRequestNumber(savedDeliveryURL)
+    : null;
+  if (!(hasSavedDelivery || canEditReceipt)) {
     return null;
   }
 
   return (
     <section className="task-detail-section">
-      <div className="task-detail-label">Delivery</div>
-      <section className="task-detail-delivery" aria-label="Delivery receipt">
-        {deliveryURL ? (
+      <div className="task-detail-label">{t("tasks.delivery")}</div>
+      <section
+        className="task-detail-delivery"
+        aria-label={t("tasks.deliveryReceipt")}
+      >
+        {savedDeliveryURL ? (
           <a
             className="task-detail-delivery-link"
-            href={deliveryURL}
+            href={savedDeliveryURL}
             target="_blank"
             rel="noreferrer"
           >
-            Open delivery
+            {prNumber
+              ? `${t("tasks.openPullRequestPrefix")}${prNumber}${t("tasks.openPullRequestSuffix")}`
+              : t("tasks.openDelivery")}
           </a>
         ) : null}
-        {deliverySummary ? (
-          <p className="task-detail-delivery-summary">{deliverySummary}</p>
+        {savedDeliverySummary ? (
+          <p className="task-detail-delivery-summary">{savedDeliverySummary}</p>
         ) : null}
         {deliveredAt ? (
           <dl className="task-detail-execution-facts">
             <div>
-              <dt>Delivered</dt>
+              <dt>{t("tasks.deliveredAt")}</dt>
               <dd>{deliveredAt}</dd>
             </div>
           </dl>
+        ) : null}
+        {canEditReceipt ? (
+          <div className="task-detail-delivery-form">
+            <label className="sr-only" htmlFor={`delivery-url-${task.id}`}>
+              {t("tasks.deliveryURL")}
+            </label>
+            <input
+              id={`delivery-url-${task.id}`}
+              className="input task-detail-delivery-input"
+              value={deliveryURL}
+              onChange={(event) => setDeliveryURL(event.currentTarget.value)}
+              placeholder={t("tasks.deliveryURLPlaceholder")}
+            />
+            <label className="sr-only" htmlFor={`delivery-summary-${task.id}`}>
+              {t("tasks.deliverySummary")}
+            </label>
+            <input
+              id={`delivery-summary-${task.id}`}
+              className="input task-detail-delivery-input"
+              value={deliverySummary}
+              onChange={(event) =>
+                setDeliverySummary(event.currentTarget.value)
+              }
+              placeholder={t("tasks.deliverySummaryPlaceholder")}
+            />
+            {!savedDeliveryURL ? (
+              <span className="task-detail-delivery-hint">
+                {t("tasks.deliveryRequiredHint")}
+              </span>
+            ) : null}
+          </div>
         ) : null}
       </section>
     </section>
@@ -382,6 +537,7 @@ interface TaskExecutionSectionProps {
   isActionLoading: boolean;
   status: string;
   task: Task;
+  t: TaskTranslator;
 }
 
 function TaskExecutionSection({
@@ -389,20 +545,20 @@ function TaskExecutionSection({
   isActionLoading,
   status,
   task,
+  t,
 }: TaskExecutionSectionProps) {
   const facts = [
-    ["Owner", ownerMeta(task.owner)],
-    ["Mode", optionalMeta(task.execution_mode)],
-    ["Branch", optionalMeta(task.worktree_branch)],
-    ["Working directory", optionalMeta(task.worktree_path)],
+    [t("tasks.detail.assignedTo"), ownerMeta(task.owner)],
+    [t("tasks.detail.taskType"), taskTypeLabel(task, t)],
+    [t("tasks.detail.branch"), optionalMeta(task.worktree_branch)],
   ].filter(([, value]) => value);
 
   return (
     <section className="task-detail-section">
-      <div className="task-detail-label">Execution</div>
+      <div className="task-detail-label">{t("tasks.detail.workState")}</div>
       <div className="task-detail-execution">
         <div className="task-detail-execution-state">
-          {taskExecutionLabel(status)}
+          {taskExecutionLabel(status, t)}
         </div>
         {facts.length > 0 ? (
           <dl className="task-detail-execution-facts">
@@ -414,7 +570,11 @@ function TaskExecutionSection({
             ))}
           </dl>
         ) : null}
-        <TaskActionTimeline actions={actions} isLoading={isActionLoading} />
+        <TaskActionTimeline
+          actions={actions}
+          isLoading={isActionLoading}
+          t={t}
+        />
       </div>
     </section>
   );
@@ -423,19 +583,28 @@ function TaskExecutionSection({
 interface TaskActionTimelineProps {
   actions: ActionRecord[];
   isLoading: boolean;
+  t: TaskTranslator;
 }
 
-function TaskActionTimeline({ actions, isLoading }: TaskActionTimelineProps) {
+function TaskActionTimeline({
+  actions,
+  isLoading,
+  t,
+}: TaskActionTimelineProps) {
   return (
     <section
       className="task-detail-timeline"
-      aria-label="Task execution timeline"
+      aria-label={t("tasks.detail.timeline")}
     >
       {isLoading ? (
-        <div className="task-detail-timeline-empty">Loading activity...</div>
+        <div className="task-detail-timeline-empty">
+          {t("tasks.detail.timelineLoading")}
+        </div>
       ) : null}
       {!isLoading && actions.length === 0 ? (
-        <div className="task-detail-timeline-empty">No activity yet.</div>
+        <div className="task-detail-timeline-empty">
+          {t("tasks.detail.timelineEmpty")}
+        </div>
       ) : null}
       {!isLoading && actions.length > 0
         ? actions.map((action) => (
@@ -467,20 +636,23 @@ function TaskActionTimeline({ actions, isLoading }: TaskActionTimelineProps) {
 interface TaskDetailHeaderProps {
   task: Task;
   onClose: () => void;
+  t: TaskTranslator;
 }
 
-function TaskDetailHeader({ task, onClose }: TaskDetailHeaderProps) {
+function TaskDetailHeader({ task, onClose, t }: TaskDetailHeaderProps) {
   return (
     <header className="task-detail-header">
       <div>
         <div className="task-detail-id">#{task.id}</div>
-        <h2 className="task-detail-title">{task.title || "Untitled task"}</h2>
+        <h2 className="task-detail-title">
+          {task.title || t("tasks.detail.untitled")}
+        </h2>
       </div>
       <button
         type="button"
         className="task-detail-close"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={t("tasks.detail.close")}
       >
         ×
       </button>
@@ -490,68 +662,78 @@ function TaskDetailHeader({ task, onClose }: TaskDetailHeaderProps) {
 
 interface TaskStatusSectionProps {
   currentStatus: string;
+  errorMsg: string | null;
   statusBusy: TaskStatusAction | null;
+  t: ReturnType<typeof useI18n>["t"];
   onStatusAction: (action: TaskStatusAction) => void;
 }
 
 function TaskStatusSection({
   currentStatus,
+  errorMsg,
   statusBusy,
+  t,
   onStatusAction,
 }: TaskStatusSectionProps) {
   return (
-    <section className="task-detail-section">
-      <div className="task-detail-label">Status</div>
+    <section className="task-detail-section" aria-label={t("tasks.status")}>
+      <div className="task-detail-label">{t("tasks.status")}</div>
       <div className="task-detail-status">
         <span
           className={`task-detail-status-badge status-${currentStatus || "open"}`}
         >
-          {currentStatus ? currentStatus.replace(/_/g, " ") : "open"}
+          {taskStatusDisplay(currentStatus || "open", t)}
         </span>
         <div className="task-detail-status-actions">
           <StatusButton
             action="release"
-            label="Release"
+            label={t("tasks.statusAction.release")}
             busy={statusBusy}
             disabledFor={["open"]}
             currentStatus={currentStatus}
+            disabledTitle={t("tasks.statusAction.already")}
             onClick={onStatusAction}
           />
           <StatusButton
             action="review"
-            label="Mark review"
+            label={t("tasks.statusAction.review")}
             busy={statusBusy}
             disabledFor={["review"]}
             currentStatus={currentStatus}
+            disabledTitle={t("tasks.statusAction.already")}
             onClick={onStatusAction}
           />
           <StatusButton
             action="block"
-            label="Block"
+            label={t("tasks.statusAction.block")}
             busy={statusBusy}
             disabledFor={["blocked"]}
             currentStatus={currentStatus}
+            disabledTitle={t("tasks.statusAction.already")}
             onClick={onStatusAction}
           />
           <StatusButton
             action="complete"
-            label="Mark done"
+            label={t("tasks.statusAction.complete")}
             busy={statusBusy}
-            disabledFor={["done"]}
+            disabledFor={["done", "completed"]}
             currentStatus={currentStatus}
+            disabledTitle={t("tasks.statusAction.already")}
             onClick={onStatusAction}
           />
           <StatusButton
             action="cancel"
-            label="Won't do"
+            label={t("tasks.statusAction.cancel")}
             busy={statusBusy}
             disabledFor={["canceled", "cancelled"]}
             currentStatus={currentStatus}
+            disabledTitle={t("tasks.statusAction.already")}
             onClick={onStatusAction}
             danger={true}
           />
         </div>
       </div>
+      {errorMsg ? <div className="task-detail-error">{errorMsg}</div> : null}
     </section>
   );
 }
@@ -565,6 +747,7 @@ interface TaskOwnershipSectionProps {
   ownerChanged: boolean;
   errorMsg: string | null;
   onReassign: () => void;
+  t: TaskTranslator;
 }
 
 function TaskOwnershipSection({
@@ -576,19 +759,20 @@ function TaskOwnershipSection({
   ownerChanged,
   errorMsg,
   onReassign,
+  t,
 }: TaskOwnershipSectionProps) {
   return (
     <section className="task-detail-section">
-      <div className="task-detail-label">Ownership</div>
+      <div className="task-detail-label">{t("tasks.detail.owner")}</div>
       <div className="task-detail-ownership">
         <div className="task-detail-owner-current">
           <span className="task-detail-owner-badge">
-            {task.owner ? `@${task.owner}` : "(unassigned)"}
+            {task.owner ? `@${task.owner}` : t("common.notSet")}
           </span>
           <span className="task-detail-hint">
             {task.project_id
-              ? "Reassigning updates the project task owner. CEO is cc'd."
-              : `Reassigning posts to #${task.channel || "general"} and DMs both owners. CEO is cc'd.`}
+              ? t("tasks.detail.ownerHintProject")
+              : t("tasks.detail.ownerHintGeneral")}
           </span>
         </div>
         <div className="task-detail-owner-controls">
@@ -598,11 +782,11 @@ function TaskOwnershipSection({
             onChange={(e) => setSelectedOwner(e.target.value)}
             disabled={submitting}
           >
-            <option value="">(pick an owner)</option>
+            <option value="">{t("tasks.detail.pickOwner")}</option>
             {assignableMembers.map((member) => (
               <option key={member.slug} value={member.slug}>
                 {member.name
-                  ? `${member.name} — @${member.slug}`
+                  ? `${member.name} / @${member.slug}`
                   : `@${member.slug}`}
               </option>
             ))}
@@ -613,7 +797,9 @@ function TaskOwnershipSection({
             onClick={onReassign}
             disabled={!ownerChanged || submitting}
           >
-            {submitting ? "Reassigning..." : "Reassign"}
+            {submitting
+              ? t("tasks.detail.reassigning")
+              : t("tasks.detail.reassign")}
           </button>
         </div>
         {errorMsg ? <div className="task-detail-error">{errorMsg}</div> : null}
@@ -625,11 +811,13 @@ function TaskOwnershipSection({
 interface TaskNarrativeSectionProps {
   description: string;
   details: string;
+  t: TaskTranslator;
 }
 
 function TaskNarrativeSection({
   description,
   details,
+  t,
 }: TaskNarrativeSectionProps) {
   if (!(description || details)) return null;
 
@@ -637,7 +825,9 @@ function TaskNarrativeSection({
     <section className="task-detail-section">
       {description ? (
         <>
-          <div className="task-detail-label">Description</div>
+          <div className="task-detail-label">
+            {t("tasks.detail.description")}
+          </div>
           <div className="task-detail-body">{description}</div>
         </>
       ) : null}
@@ -647,7 +837,7 @@ function TaskNarrativeSection({
             className="task-detail-label"
             style={{ marginTop: description ? 12 : 0 }}
           >
-            Details
+            {t("tasks.detail.details")}
           </div>
           <div className="task-detail-body">{details}</div>
         </>
@@ -658,14 +848,18 @@ function TaskNarrativeSection({
 
 interface TaskDependenciesSectionProps {
   dependsOn: string[];
+  t: TaskTranslator;
 }
 
-function TaskDependenciesSection({ dependsOn }: TaskDependenciesSectionProps) {
+function TaskDependenciesSection({
+  dependsOn,
+  t,
+}: TaskDependenciesSectionProps) {
   if (dependsOn.length === 0) return null;
 
   return (
     <section className="task-detail-section">
-      <div className="task-detail-label">Depends on</div>
+      <div className="task-detail-label">{t("tasks.detail.dependsOn")}</div>
       <ul className="task-detail-deps">
         {dependsOn.map((dep) => (
           <li key={dep}>#{dep}</li>
@@ -677,21 +871,25 @@ function TaskDependenciesSection({ dependsOn }: TaskDependenciesSectionProps) {
 
 interface TaskMetadataSectionProps {
   metaRows: Array<[string, string | null | undefined]>;
+  t: TaskTranslator;
 }
 
-function TaskMetadataSection({ metaRows }: TaskMetadataSectionProps) {
+function TaskMetadataSection({ metaRows, t }: TaskMetadataSectionProps) {
+  const visibleRows = metaRows.filter(
+    ([, value]) => value !== null && value !== "",
+  );
+  if (visibleRows.length === 0) return null;
+
   return (
     <section className="task-detail-section">
-      <div className="task-detail-label">Metadata</div>
+      <div className="task-detail-label">{t("tasks.detail.metadata")}</div>
       <dl className="task-detail-meta">
-        {metaRows
-          .filter(([, value]) => value !== null && value !== "")
-          .map(([key, value]) => (
-            <div key={key} className="task-detail-meta-row">
-              <dt>{key}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
+        {visibleRows.map(([key, value]) => (
+          <div key={key} className="task-detail-meta-row">
+            <dt>{key}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
       </dl>
     </section>
   );
@@ -703,6 +901,7 @@ interface StatusButtonProps {
   busy: TaskStatusAction | null;
   disabledFor: string[];
   currentStatus: string;
+  disabledTitle: string;
   onClick: (action: TaskStatusAction) => void;
   danger?: boolean;
 }
@@ -713,6 +912,7 @@ function StatusButton({
   busy,
   disabledFor,
   currentStatus,
+  disabledTitle,
   onClick,
   danger,
 }: StatusButtonProps) {
@@ -728,7 +928,7 @@ function StatusButton({
       className={className}
       onClick={() => onClick(action)}
       disabled={isCurrent || anyBusy}
-      title={isCurrent ? "Task is already in this state" : undefined}
+      title={isCurrent ? disabledTitle : undefined}
     >
       {isBusy ? "..." : <span>{label}</span>}
     </button>

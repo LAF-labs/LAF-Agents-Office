@@ -7,7 +7,13 @@ import Wiki from "./Wiki";
 describe("<Wiki>", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(api, "fetchSections").mockResolvedValue([]);
+    vi.spyOn(api, "fetchHistory").mockResolvedValue({ commits: [] });
+    vi.spyOn(api, "fetchHumans").mockResolvedValue([]);
     vi.spyOn(api, "subscribeEditLog").mockImplementation(() => () => {});
+    vi.spyOn(api, "subscribeSectionsUpdated").mockImplementation(
+      () => () => {},
+    );
   });
 
   it("shows the catalog when no article is selected", async () => {
@@ -25,14 +31,14 @@ describe("<Wiki>", () => {
       expect(screen.getByTestId("wk-catalog")).toBeInTheDocument(),
     );
     expect(
-      screen.getByRole("heading", { name: "Team Wiki" }),
+      screen.getByRole("heading", { name: "Project memory" }),
     ).toBeInTheDocument();
   });
 
   it("shows an article when a path is provided", async () => {
     vi.spyOn(api, "fetchCatalog").mockResolvedValue([]);
     vi.spyOn(api, "fetchArticle").mockResolvedValue({
-      path: "people/customer-x",
+      path: "projects/customer-x",
       title: "Customer X",
       content: "Body text.",
       last_edited_by: "ceo",
@@ -43,7 +49,7 @@ describe("<Wiki>", () => {
       word_count: 10,
       categories: [],
     });
-    render(<Wiki articlePath="people/customer-x" onNavigate={() => {}} />);
+    render(<Wiki articlePath="projects/customer-x" onNavigate={() => {}} />);
     await waitFor(() =>
       expect(
         screen.getByRole("heading", { name: "Customer X" }),
