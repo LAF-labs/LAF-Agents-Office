@@ -297,17 +297,19 @@ type TeamRuntimeStateArgs struct {
 }
 
 type TeamTaskArgs struct {
-	Action        string   `json:"action" jsonschema:"One of: create, claim, assign, complete, block, resume, release"`
-	Channel       string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
-	ID            string   `json:"id,omitempty" jsonschema:"Task ID for non-create actions"`
-	Title         string   `json:"title,omitempty" jsonschema:"Task title when creating a task"`
-	Details       string   `json:"details,omitempty" jsonschema:"Optional detail or update"`
-	Owner         string   `json:"owner,omitempty" jsonschema:"Owner slug for claim or assign"`
-	ThreadID      string   `json:"thread_id,omitempty" jsonschema:"Related thread or message id"`
-	TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-	ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
-	DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Task IDs this task must wait for before starting (create action only)"`
-	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+	Action          string   `json:"action" jsonschema:"One of: create, claim, assign, reassign, review, approve, complete, block, resume, release, cancel"`
+	Channel         string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
+	ID              string   `json:"id,omitempty" jsonschema:"Task ID for non-create actions"`
+	Title           string   `json:"title,omitempty" jsonschema:"Task title when creating a task"`
+	Details         string   `json:"details,omitempty" jsonschema:"Optional detail or update"`
+	Owner           string   `json:"owner,omitempty" jsonschema:"Owner slug for claim or assign"`
+	ThreadID        string   `json:"thread_id,omitempty" jsonschema:"Related thread or message id"`
+	TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
+	ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
+	DeliveryURL     string   `json:"delivery_url,omitempty" jsonschema:"GitHub PR or other durable delivery URL for review/complete actions"`
+	DeliverySummary string   `json:"delivery_summary,omitempty" jsonschema:"Short summary of what the delivery URL contains"`
+	DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Task IDs this task must wait for before starting (create action only)"`
+	MySlug          string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamChannelsArgs struct{}
@@ -1351,6 +1353,12 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 	if executionMode := strings.TrimSpace(args.ExecutionMode); executionMode != "" {
 		payload["execution_mode"] = executionMode
 	}
+	if deliveryURL := strings.TrimSpace(args.DeliveryURL); deliveryURL != "" {
+		payload["delivery_url"] = deliveryURL
+	}
+	if deliverySummary := strings.TrimSpace(args.DeliverySummary); deliverySummary != "" {
+		payload["delivery_summary"] = deliverySummary
+	}
 	if action == "create" && len(args.DependsOn) > 0 {
 		payload["depends_on"] = args.DependsOn
 	}
@@ -1374,6 +1382,7 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 			ExecutionMode  string `json:"execution_mode"`
 			WorktreePath   string `json:"worktree_path"`
 			WorktreeBranch string `json:"worktree_branch"`
+			DeliveryURL    string `json:"delivery_url"`
 		} `json:"task"`
 	}
 	if err := brokerPostJSON(ctx, "/tasks", payload, &result); err != nil {
@@ -1385,6 +1394,9 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 	}
 	if branch := strings.TrimSpace(result.Task.WorktreeBranch); branch != "" {
 		text += " · branch " + branch
+	}
+	if deliveryURL := strings.TrimSpace(result.Task.DeliveryURL); deliveryURL != "" {
+		text += " · delivery " + deliveryURL
 	}
 	if path := strings.TrimSpace(result.Task.WorktreePath); path != "" {
 		text += " · working_directory " + path

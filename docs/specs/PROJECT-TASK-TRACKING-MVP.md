@@ -27,6 +27,12 @@ For coding tasks in a project with a connected GitHub repo, the task packet also
 names the assigned branch and requires the agent to open a GitHub PR before
 marking the task complete.
 
+Coding task delivery receipts live on the task as `delivery_url`,
+`delivery_summary`, and `delivered_at`. A project-scoped `local_worktree` task
+with a connected repo may enter review without a receipt, but it cannot move to
+`done` until a `delivery_url` is present. Delivery receipts are also appended to
+the project wiki work log.
+
 ## Status flow
 
 The existing task states remain unchanged:

@@ -49,6 +49,9 @@ type TeamTask struct {
 	SourceDecisionID string   `json:"source_decision_id,omitempty"`
 	WorktreePath     string   `json:"worktree_path,omitempty"`
 	WorktreeBranch   string   `json:"worktree_branch,omitempty"`
+	DeliveryURL      string   `json:"delivery_url,omitempty"`
+	DeliverySummary  string   `json:"delivery_summary,omitempty"`
+	DeliveredAt      string   `json:"delivered_at,omitempty"`
 	DependsOn        []string `json:"depends_on,omitempty"`
 	Blocked          bool     `json:"blocked,omitempty"`
 	AckedAt          string   `json:"acked_at,omitempty"`

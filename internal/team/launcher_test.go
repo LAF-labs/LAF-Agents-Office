@@ -999,6 +999,7 @@ func TestBuildTaskExecutionPacketIncludesConnectedProjectContext(t *testing.T) {
 		"- Working branch: laf-office-task-12",
 		"Project delivery rule: commit changes on branch `laf-office-task-12` and open a GitHub PR before marking #task-12 complete",
 		"gh pr create --head \"laf-office-task-12\" --base main",
+		"include delivery_url and delivery_summary when calling team_task review or complete",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected project context %q in packet:\n%s", want, got)

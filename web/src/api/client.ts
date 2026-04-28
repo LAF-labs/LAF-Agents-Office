@@ -602,6 +602,9 @@ export interface Task {
   source_decision_id?: string;
   worktree_path?: string;
   worktree_branch?: string;
+  delivery_url?: string;
+  delivery_summary?: string;
+  delivered_at?: string;
   depends_on?: string[];
   blocked?: boolean;
   acked_at?: string;
@@ -708,12 +711,17 @@ export function updateTaskStatus(
   action: TaskStatusAction,
   channel: string,
   actor = "human",
+  delivery?: {
+    delivery_url?: string;
+    delivery_summary?: string;
+  },
 ) {
   return post<{ task: Task }>("/tasks", {
     action,
     id: taskId,
     channel: channel || "general",
     created_by: actor,
+    ...delivery,
   });
 }
 

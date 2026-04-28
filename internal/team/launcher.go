@@ -1019,7 +1019,7 @@ func projectPacketDeliveryRule(project teamProject, task teamTask) string {
 		return ""
 	}
 	taskID := strings.TrimSpace(task.ID)
-	return fmt.Sprintf("Project delivery rule: commit changes on branch `%s` and open a GitHub PR before marking #%s complete. Run `gh pr create --head %q --base main` and include the returned URL.", branch, taskID, branch)
+	return fmt.Sprintf("Project delivery rule: commit changes on branch `%s` and open a GitHub PR before marking #%s complete. Run `gh pr create --head %q --base main`, include the returned URL, and include delivery_url and delivery_summary when calling team_task review or complete.", branch, taskID, branch)
 }
 
 func (l *Launcher) taskProjectPacketLines(task teamTask) []string {

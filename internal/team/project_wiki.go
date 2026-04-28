@@ -283,6 +283,9 @@ func renderProjectTaskWikiEvent(task teamTask, verb string) string {
 	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
 		parts = append(parts, fmt.Sprintf("branch `%s`", branch))
 	}
+	if deliveryURL := strings.TrimSpace(task.DeliveryURL); deliveryURL != "" {
+		parts = append(parts, fmt.Sprintf("delivery `%s`", deliveryURL))
+	}
 
 	line := "- " + strings.Join(parts, " — ")
 	if timestamp != "" {
@@ -290,6 +293,9 @@ func renderProjectTaskWikiEvent(task teamTask, verb string) string {
 	}
 	if details := oneLineTaskWikiText(task.Details); details != "" {
 		line += "\n  - Details: " + truncateSummary(details, 220)
+	}
+	if deliverySummary := oneLineTaskWikiText(task.DeliverySummary); deliverySummary != "" {
+		line += "\n  - Delivery: " + truncateSummary(deliverySummary, 220)
 	}
 	return line + "\n"
 }

@@ -136,6 +136,8 @@ Each project also gets a wiki article at `team/projects/{project_id}.md`.
 Project creation materializes the article, task lifecycle updates append to it,
 and project task packets include a bounded excerpt so agents read the project
 memory before work without a separate lookup unless they need the full article.
+For connected coding projects, completed work records a delivery receipt
+(`delivery_url`, summary, timestamp) so the board and wiki point back to the PR.
 
 See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md).
 

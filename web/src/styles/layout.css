@@ -1884,6 +1884,28 @@ html[data-theme] body .sidebar-rail-popover .sidebar-agent-name {
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
+.task-detail-delivery {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.task-detail-delivery-link {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.task-detail-delivery-link:hover {
+  text-decoration: underline;
+}
+.task-detail-delivery-summary {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
 .task-detail-timeline {
   display: flex;
   flex-direction: column;

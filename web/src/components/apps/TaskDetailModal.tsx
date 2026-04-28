@@ -318,6 +318,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           status={currentStatus}
           task={task}
         />
+        <TaskDeliverySection task={task} />
 
         <TaskOwnershipSection
           task={task}
@@ -335,6 +336,44 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         <TaskMetadataSection metaRows={metaRows} />
       </div>
     </div>
+  );
+}
+
+function TaskDeliverySection({ task }: { task: Task }) {
+  const deliveryURL = task.delivery_url?.trim();
+  const deliverySummary = task.delivery_summary?.trim();
+  const deliveredAt = relativeMeta(task.delivered_at);
+  if (!deliveryURL && !deliverySummary && !deliveredAt) {
+    return null;
+  }
+
+  return (
+    <section className="task-detail-section">
+      <div className="task-detail-label">Delivery</div>
+      <section className="task-detail-delivery" aria-label="Delivery receipt">
+        {deliveryURL ? (
+          <a
+            className="task-detail-delivery-link"
+            href={deliveryURL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open delivery
+          </a>
+        ) : null}
+        {deliverySummary ? (
+          <p className="task-detail-delivery-summary">{deliverySummary}</p>
+        ) : null}
+        {deliveredAt ? (
+          <dl className="task-detail-execution-facts">
+            <div>
+              <dt>Delivered</dt>
+              <dd>{deliveredAt}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </section>
+    </section>
   );
 }
 

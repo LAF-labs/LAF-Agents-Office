@@ -605,6 +605,73 @@ func rejectFalseLocalWorktreeBlock(task *teamTask, reason string) error {
 	return nil
 }
 
+func (b *Broker) taskRequiresDeliveryReceiptLocked(task *teamTask) bool {
+	if task == nil {
+		return false
+	}
+	if normalizeProjectID(task.ProjectID) == "" {
+		return false
+	}
+	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
+		return false
+	}
+	return strings.TrimSpace(b.taskProjectRepoURLLocked(task)) != ""
+}
+
+func applyTaskDeliveryReceipt(task *teamTask, deliveryURL, deliverySummary, now string) {
+	if task == nil {
+		return
+	}
+	if url := strings.TrimSpace(deliveryURL); url != "" {
+		task.DeliveryURL = url
+		if strings.TrimSpace(task.DeliveredAt) == "" {
+			task.DeliveredAt = now
+		}
+	}
+	if summary := strings.TrimSpace(deliverySummary); summary != "" {
+		task.DeliverySummary = summary
+	}
+}
+
+func (b *Broker) validateTaskDeliveryBeforeDoneLocked(task *teamTask) error {
+	if task == nil {
+		return nil
+	}
+	if !strings.EqualFold(strings.TrimSpace(task.Status), taskStatusDone) {
+		return nil
+	}
+	if !b.taskRequiresDeliveryReceiptLocked(task) {
+		return nil
+	}
+	return b.requireTaskDeliveryReceiptLocked(task)
+}
+
+func (b *Broker) requireTaskDeliveryReceiptLocked(task *teamTask) error {
+	if task == nil {
+		return nil
+	}
+	if !b.taskRequiresDeliveryReceiptLocked(task) {
+		return nil
+	}
+	if strings.TrimSpace(task.DeliveryURL) != "" {
+		return nil
+	}
+	return fmt.Errorf("delivery_url required before completing project coding task %s", task.ID)
+}
+
+func (b *Broker) requireTaskDeliveryReceiptWithPendingLocked(task *teamTask, deliveryURL string) error {
+	if task == nil {
+		return nil
+	}
+	if !b.taskRequiresDeliveryReceiptLocked(task) {
+		return nil
+	}
+	if strings.TrimSpace(task.DeliveryURL) != "" || strings.TrimSpace(deliveryURL) != "" {
+		return nil
+	}
+	return fmt.Errorf("delivery_url required before completing project coding task %s", task.ID)
+}
+
 func taskRequiresExclusiveOwnerTurn(task *teamTask) bool {
 	if task == nil {
 		return false
@@ -8977,6 +9044,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		SourceDecisionID string   `json:"source_decision_id"`
 		WorktreePath     string   `json:"worktree_path"`
 		WorktreeBranch   string   `json:"worktree_branch"`
+		DeliveryURL      string   `json:"delivery_url"`
+		DeliverySummary  string   `json:"delivery_summary"`
 		DependsOn        []string `json:"depends_on"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -9077,6 +9146,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if worktreeBranch := strings.TrimSpace(body.WorktreeBranch); worktreeBranch != "" {
 				existing.WorktreeBranch = worktreeBranch
 			}
+			applyTaskDeliveryReceipt(existing, body.DeliveryURL, body.DeliverySummary, now)
 			if existing.ThreadID == "" && strings.TrimSpace(body.ThreadID) != "" {
 				existing.ThreadID = strings.TrimSpace(body.ThreadID)
 			}
@@ -9121,9 +9191,14 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			SourceDecisionID: strings.TrimSpace(body.SourceDecisionID),
 			WorktreePath:     strings.TrimSpace(body.WorktreePath),
 			WorktreeBranch:   strings.TrimSpace(body.WorktreeBranch),
+			DeliveryURL:      strings.TrimSpace(body.DeliveryURL),
+			DeliverySummary:  strings.TrimSpace(body.DeliverySummary),
 			DependsOn:        body.DependsOn,
 			CreatedAt:        now,
 			UpdatedAt:        now,
+		}
+		if strings.TrimSpace(task.DeliveryURL) != "" {
+			task.DeliveredAt = now
 		}
 		if len(task.DependsOn) > 0 && b.hasUnresolvedDepsLocked(&task) {
 			task.Blocked = true
@@ -9201,12 +9276,20 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			reassignTriggered = reassignPrevOwner != newOwner
 		case "complete":
 			if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusDone) {
+				if err := b.requireTaskDeliveryReceiptWithPendingLocked(task, body.DeliveryURL); err != nil {
+					http.Error(w, err.Error(), http.StatusConflict)
+					return
+				}
 				if taskNeedsStructuredReview(task) {
 					task.ReviewState = reviewStateApproved
 				}
 				task.Blocked = false
 			} else if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusReview) ||
 				strings.EqualFold(strings.TrimSpace(task.ReviewState), reviewStateReadyForReview) {
+				if err := b.requireTaskDeliveryReceiptWithPendingLocked(task, body.DeliveryURL); err != nil {
+					http.Error(w, err.Error(), http.StatusConflict)
+					return
+				}
 				task.Status = taskStatusDone
 				if taskNeedsStructuredReview(task) {
 					task.ReviewState = reviewStateApproved
@@ -9216,12 +9299,20 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				task.Status = taskStatusReview
 				task.ReviewState = reviewStateReadyForReview
 			} else {
+				if err := b.requireTaskDeliveryReceiptWithPendingLocked(task, body.DeliveryURL); err != nil {
+					http.Error(w, err.Error(), http.StatusConflict)
+					return
+				}
 				task.Status = taskStatusDone
 			}
 		case "review":
 			task.Status = taskStatusReview
 			task.ReviewState = reviewStateReadyForReview
 		case "approve":
+			if err := b.requireTaskDeliveryReceiptWithPendingLocked(task, body.DeliveryURL); err != nil {
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
 			task.Status = taskStatusDone
 			if taskNeedsStructuredReview(task) {
 				task.ReviewState = reviewStateApproved
@@ -9298,6 +9389,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if worktreeBranch := strings.TrimSpace(body.WorktreeBranch); worktreeBranch != "" {
 			task.WorktreeBranch = worktreeBranch
 		}
+		applyTaskDeliveryReceipt(task, body.DeliveryURL, body.DeliverySummary, now)
 		b.ensureTaskOwnerChannelMembershipLocked(taskChannel, task.Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(task)
 		task.UpdatedAt = now
@@ -9306,6 +9398,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if task.Status == "done" {
+			if err := b.validateTaskDeliveryBeforeDoneLocked(task); err != nil {
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
 			b.unblockDependentsLocked(task.ID)
 		}
 		b.scheduleTaskLifecycleLocked(task)

@@ -105,6 +105,36 @@ describe("TaskDetailModal execution view", () => {
     expect(within(timeline).queryByText("Unrelated [done]")).toBeNull();
   });
 
+  it("shows delivery receipt details when a task has a PR", async () => {
+    apiMocks.getActions.mockResolvedValue({ actions: [] });
+
+    renderTaskDetail({
+      id: "task-request",
+      title: "Implement project invite flow",
+      status: "review",
+      owner: "eng",
+      project_id: "customer-portal",
+      channel: "general",
+      execution_mode: "local_worktree",
+      worktree_branch: "laf-office-task-task-request",
+      delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
+      delivery_summary: "Implemented invite form validation.",
+      delivered_at: "2026-04-28T00:10:00Z",
+    });
+
+    const delivery = screen.getByRole("region", { name: "Delivery receipt" });
+    expect(
+      within(delivery).getByRole("link", { name: "Open delivery" }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/LAF-labs/customer-portal/pull/42",
+    );
+    expect(
+      within(delivery).getByText("Implemented invite form validation."),
+    ).toBeInTheDocument();
+    expect(within(delivery).getByText("Delivered")).toBeInTheDocument();
+  });
+
   it("does not surface channel metadata for project-scoped tasks", () => {
     apiMocks.getActions.mockResolvedValue({ actions: [] });
 
