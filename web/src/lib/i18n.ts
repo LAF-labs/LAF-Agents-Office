@@ -239,7 +239,8 @@ const messages = {
       "Goals, decisions, constraints, and handoff notes live here.",
     "tasks.wikiContext": "Wiki context",
     "tasks.projectWiki": "Project wiki",
-    "tasks.wikiContextDesc": "Planning memory for humans and agents.",
+    "tasks.wikiContextDesc":
+      "Project memory agents read before work and update after decisions and changes.",
     "tasks.openProjectWiki": "Open project wiki",
     "tasks.taskQueue": "Task queue",
     "tasks.loadingTasks": "Loading tasks...",
@@ -588,7 +589,8 @@ const messages = {
       "목표, 결정, 제약, 인수인계 메모를 이곳에 모읍니다.",
     "tasks.wikiContext": "위키 맥락",
     "tasks.projectWiki": "프로젝트 위키",
-    "tasks.wikiContextDesc": "사람과 에이전트가 함께 쓰는 기획 메모리입니다.",
+    "tasks.wikiContextDesc":
+      "에이전트가 작업 전 읽고, 작업 후 결정과 변경사항을 남기는 프로젝트 메모리입니다.",
     "tasks.openProjectWiki": "프로젝트 위키 열기",
     "tasks.taskQueue": "작업 큐",
     "tasks.loadingTasks": "작업을 불러오는 중...",

@@ -1007,6 +1007,21 @@ func projectPacketRepoRule(project teamProject) string {
 	return "Project repo rule: no GitHub repo is connected for this project; do not claim branch, PR, or code execution. Limit this turn to planning, task, and project wiki updates until a repo is connected."
 }
 
+func projectPacketDeliveryRule(project teamProject, task teamTask) string {
+	if strings.TrimSpace(project.GitHubRepoURL) == "" {
+		return ""
+	}
+	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
+		return ""
+	}
+	branch := strings.TrimSpace(task.WorktreeBranch)
+	if branch == "" {
+		return ""
+	}
+	taskID := strings.TrimSpace(task.ID)
+	return fmt.Sprintf("Project delivery rule: commit changes on branch `%s` and open a GitHub PR before marking #%s complete. Run `gh pr create --head %q --base main` and include the returned URL.", branch, taskID, branch)
+}
+
 func (l *Launcher) taskProjectPacketLines(task teamTask) []string {
 	project, ok := l.taskProjectForPacket(task)
 	if !ok {
@@ -1017,12 +1032,18 @@ func (l *Launcher) taskProjectPacketLines(task teamTask) []string {
 		repo = "not connected"
 	}
 	projectID := normalizeProjectID(project.ID)
-	return []string{
+	lines := []string{
 		fmt.Sprintf("- Project: %s (%s)", projectPacketName(project), projectID),
 		fmt.Sprintf("- Project wiki: %s", projectWikiArticlePath(projectID)),
 		fmt.Sprintf("- GitHub repo: %s", repo),
-		projectPacketRepoRule(project),
+		"Project memory rule: read the project wiki before work. Durable task lifecycle updates are appended to that project wiki.",
 	}
+	lines = append(lines, renderProjectMemoryPacket(l.broker.projectMemoryForTaskPacket(task))...)
+	lines = append(lines, projectPacketRepoRule(project))
+	if deliveryRule := projectPacketDeliveryRule(project, task); deliveryRule != "" {
+		lines = append(lines, deliveryRule)
+	}
+	return lines
 }
 
 func (l *Launcher) taskProjectNotificationFragment(task teamTask) string {
@@ -2917,6 +2938,9 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 	lines = append(lines, fmt.Sprintf("- Mutation channel: use #%s when claiming or completing #%s", channel, task.ID))
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {
 		lines = append(lines, fmt.Sprintf("- Working directory: %q", path))
+	}
+	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
+		lines = append(lines, fmt.Sprintf("- Working branch: %s", branch))
 	}
 	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		lines = append(lines, "Execution rule: this is a local_worktree build task. Work inside the assigned working_directory and default to direct implementation. Do not spend this turn on another repo audit, architecture memo, or nested office launch unless the packet explicitly asks for that.")

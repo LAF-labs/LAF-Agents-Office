@@ -12,6 +12,21 @@ office task lifecycle and adds a lightweight Jira-style project filter on top.
 - The Tasks app can create projects, switch between projects, and show project
   labels on task cards.
 
+## Project Memory Contract
+
+Every project owns a wiki article at `team/projects/{project_id}.md`. Creating a
+project materializes that article, and project task create/update/review events
+append durable work history to it.
+
+When an agent receives a project task packet, the broker includes the project
+wiki path plus a bounded excerpt of the article. Agents should use that excerpt
+as the first memory read for the task and call `team_wiki_read` only when the
+excerpt is truncated or missing a section they need.
+
+For coding tasks in a project with a connected GitHub repo, the task packet also
+names the assigned branch and requires the agent to open a GitHub PR before
+marking the task complete.
+
 ## Status flow
 
 The existing task states remain unchanged:

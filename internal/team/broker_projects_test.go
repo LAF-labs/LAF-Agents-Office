@@ -311,6 +311,80 @@ func TestProjectGitHubUpdateSyncsMaterializedWikiArticle(t *testing.T) {
 	}
 }
 
+func TestProjectTaskLifecycleAppendsToProjectWiki(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":       "Agent Lab",
+		"created_by": "human",
+	})
+	worker.WaitForIdle()
+
+	createRec := httptest.NewRecorder()
+	b.handlePostTask(createRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":         "create",
+		"title":          "Implement the signup flow",
+		"owner":          "eng",
+		"created_by":     "human",
+		"project_id":     project.ID,
+		"execution_mode": "office",
+	}))
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("create project task status = %d, want %d: %s", createRec.Code, http.StatusOK, createRec.Body.String())
+	}
+	var created struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(createRec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode task: %v", err)
+	}
+
+	reviewRec := httptest.NewRecorder()
+	b.handlePostTask(reviewRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "review",
+		"id":         created.Task.ID,
+		"created_by": "human",
+	}))
+	if reviewRec.Code != http.StatusOK {
+		t.Fatalf("review project task status = %d, want %d: %s", reviewRec.Code, http.StatusOK, reviewRec.Body.String())
+	}
+	worker.WaitForIdle()
+
+	raw, err := os.ReadFile(filepath.Join(root, "team", "projects", project.ID+".md"))
+	if err != nil {
+		t.Fatalf("read project wiki: %v", err)
+	}
+	content := string(raw)
+	for _, want := range []string{
+		"Task `" + created.Task.ID + "` created: Implement the signup flow",
+		"Task `" + created.Task.ID + "` updated: Implement the signup flow",
+		"status `review`",
+		"owner `@eng`",
+		"mode `office`",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("project wiki missing %q in:\n%s", want, content)
+		}
+	}
+}
+
 func TestProjectTaskWithoutGitHubRepoDoesNotGetLocalWorktree(t *testing.T) {
 	b := newTestBroker(t)
 	project := createProjectForTest(t, b, map[string]string{

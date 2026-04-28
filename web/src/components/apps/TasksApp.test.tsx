@@ -92,6 +92,11 @@ describe("TasksApp project workspace", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Customer Portal workspace")).toBeInTheDocument();
     expect(screen.getByText("Wiki context")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Project memory agents read before work and update after decisions and changes.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("Task queue")).toBeInTheDocument();
     expect(screen.getByText("Agent work")).toBeInTheDocument();
     expect(screen.getByText("GitHub")).toBeInTheDocument();

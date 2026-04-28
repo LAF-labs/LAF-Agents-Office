@@ -7,6 +7,15 @@ import (
 	"strings"
 )
 
+const maxProjectMemoryPacketChars = 2400
+
+type projectMemoryPacket struct {
+	Path        string
+	Excerpt     string
+	Truncated   bool
+	Unavailable string
+}
+
 func (b *Broker) materializeProjectWiki(ctx context.Context, project teamProject) error {
 	worker := b.WikiWorker()
 	if worker == nil {
@@ -70,6 +79,121 @@ func (b *Broker) syncProjectWikiGitHubRepo(ctx context.Context, project teamProj
 	return err
 }
 
+func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return projectMemoryPacket{}
+	}
+	path := projectWikiArticlePath(projectID)
+	packet := projectMemoryPacket{Path: path}
+	if b == nil {
+		packet.Unavailable = "wiki backend is not active"
+		return packet
+	}
+	worker := b.WikiWorker()
+	if worker == nil {
+		packet.Unavailable = fmt.Sprintf("wiki backend is not active for %s", path)
+		return packet
+	}
+
+	raw, err := worker.ReadArticle(path)
+	if os.IsNotExist(err) {
+		project := b.projectSnapshot(projectID)
+		if project.ID == "" {
+			packet.Unavailable = fmt.Sprintf("%s is missing and project %q was not found", path, projectID)
+			return packet
+		}
+		if err := b.materializeProjectWiki(context.Background(), project); err != nil {
+			packet.Unavailable = fmt.Sprintf("failed to materialize %s: %v", path, err)
+			return packet
+		}
+		raw, err = worker.ReadArticle(path)
+	}
+	if err != nil {
+		packet.Unavailable = fmt.Sprintf("failed to read %s: %v", path, err)
+		return packet
+	}
+
+	excerpt := strings.TrimSpace(string(raw))
+	if excerpt == "" {
+		packet.Unavailable = fmt.Sprintf("%s is empty", path)
+		return packet
+	}
+	runes := []rune(excerpt)
+	if len(runes) > maxProjectMemoryPacketChars {
+		excerpt = string(runes[:maxProjectMemoryPacketChars])
+		packet.Truncated = true
+	}
+	packet.Excerpt = excerpt
+	return packet
+}
+
+func renderProjectMemoryPacket(packet projectMemoryPacket) []string {
+	if packet.Path == "" {
+		return nil
+	}
+	if packet.Unavailable != "" {
+		return []string{"Project memory unavailable: " + packet.Unavailable}
+	}
+	lines := []string{
+		"Project memory excerpt (read before work):",
+		"---",
+		packet.Excerpt,
+		"---",
+		"Project memory rule: this excerpt is already loaded; call team_wiki_read only if it is truncated or missing the section you need.",
+	}
+	if packet.Truncated {
+		lines = append(lines, fmt.Sprintf("Project memory excerpt truncated; call team_wiki_read for full article with article_path=%q.", packet.Path))
+	}
+	return lines
+}
+
+func (b *Broker) appendProjectTaskWikiEvent(ctx context.Context, task teamTask, actor, verb string) error {
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return nil
+	}
+	worker := b.WikiWorker()
+	if worker == nil {
+		return nil
+	}
+
+	path := projectWikiArticlePath(projectID)
+	if _, err := worker.ReadArticle(path); os.IsNotExist(err) {
+		if project := b.projectSnapshot(projectID); project.ID != "" {
+			if err := b.materializeProjectWiki(ctx, project); err != nil {
+				return err
+			}
+		}
+	} else if err != nil {
+		return err
+	}
+
+	author := strings.TrimSpace(actor)
+	if author == "" {
+		author = "system"
+	}
+	_, _, err := worker.Enqueue(
+		ctx,
+		author,
+		path,
+		renderProjectTaskWikiEvent(task, verb),
+		"append_section",
+		"project: record task "+task.ID,
+	)
+	return err
+}
+
+func (b *Broker) projectSnapshot(projectID string) teamProject {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	project := b.findProjectLocked(projectID)
+	if project == nil {
+		return teamProject{}
+	}
+	return *project
+}
+
 func projectWikiArticlePath(projectID string) string {
 	return fmt.Sprintf("team/projects/%s.md", normalizeProjectID(projectID))
 }
@@ -130,4 +254,49 @@ func renderProjectWikiArticle(project teamProject) string {
 	sb.WriteString("\n## Agent work\n\n")
 	sb.WriteString("- TODO: Link tasks, branches, handoffs, and shipped changes.\n")
 	return sb.String()
+}
+
+func renderProjectTaskWikiEvent(task teamTask, verb string) string {
+	verb = strings.TrimSpace(verb)
+	if verb == "" {
+		verb = "updated"
+	}
+	timestamp := strings.TrimSpace(task.UpdatedAt)
+	if timestamp == "" {
+		timestamp = strings.TrimSpace(task.CreatedAt)
+	}
+	title := oneLineTaskWikiText(task.Title)
+	if title == "" {
+		title = task.ID
+	}
+
+	parts := []string{fmt.Sprintf("Task `%s` %s: %s", task.ID, verb, title)}
+	if status := strings.TrimSpace(task.Status); status != "" {
+		parts = append(parts, fmt.Sprintf("status `%s`", status))
+	}
+	if owner := strings.TrimSpace(task.Owner); owner != "" {
+		parts = append(parts, fmt.Sprintf("owner `@%s`", owner))
+	}
+	if mode := strings.TrimSpace(task.ExecutionMode); mode != "" {
+		parts = append(parts, fmt.Sprintf("mode `%s`", mode))
+	}
+	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
+		parts = append(parts, fmt.Sprintf("branch `%s`", branch))
+	}
+
+	line := "- " + strings.Join(parts, " — ")
+	if timestamp != "" {
+		line = "- " + timestamp + " — " + strings.Join(parts, " — ")
+	}
+	if details := oneLineTaskWikiText(task.Details); details != "" {
+		line += "\n  - Details: " + truncateSummary(details, 220)
+	}
+	return line + "\n"
+}
+
+func oneLineTaskWikiText(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	return strings.Join(strings.Fields(value), " ")
 }

@@ -132,6 +132,11 @@ switch the board by project, and keep the existing LAF-Office task lifecycle
 project. The same project tasks are available through `/projects` and
 `/tasks?project_id=<id>` for local automation.
 
+Each project also gets a wiki article at `team/projects/{project_id}.md`.
+Project creation materializes the article, task lifecycle updates append to it,
+and project task packets include a bounded excerpt so agents read the project
+memory before work without a separate lookup unless they need the full article.
+
 See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md).
 
 ## Login and Team Sessions

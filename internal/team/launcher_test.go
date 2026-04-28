@@ -979,7 +979,49 @@ func TestBuildTaskExecutionPacketIncludesConnectedProjectContext(t *testing.T) {
 		Kind:  "task_updated",
 		Actor: "ceo",
 	}, teamTask{
-		ID:            "task-12",
+		ID:             "task-12",
+		ProjectID:      "agent-lab",
+		Channel:        "general",
+		Title:          "Implement the signup flow",
+		Owner:          "eng",
+		Status:         "in_progress",
+		ExecutionMode:  executionModeLocalWorktree,
+		WorktreePath:   "/tmp/laf-office-project-agent-lab/task-12",
+		WorktreeBranch: "laf-office-task-12",
+	}, "Start the implementation.")
+
+	for _, want := range []string{
+		"- Project: Agent Lab (agent-lab)",
+		"- Project wiki: team/projects/agent-lab.md",
+		"- GitHub repo: https://github.com/laf-labs/agent-lab",
+		"Project memory rule: read the project wiki before work",
+		"Project repo rule: use this project repo as the coding boundary",
+		"- Working branch: laf-office-task-12",
+		"Project delivery rule: commit changes on branch `laf-office-task-12` and open a GitHub PR before marking #task-12 complete",
+		"gh pr create --head \"laf-office-task-12\" --base main",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected project context %q in packet:\n%s", want, got)
+		}
+	}
+}
+
+func TestBuildTaskExecutionPacketIncludesProjectWikiExcerpt(t *testing.T) {
+	l, worker, _ := newLauncherWithProjectWikiForTest(t, teamProject{
+		ID:            "agent-lab",
+		Name:          "Agent Lab",
+		GitHubRepoURL: "https://github.com/laf-labs/agent-lab",
+		CreatedBy:     "human",
+	})
+	if _, _, err := worker.Enqueue(context.Background(), "human", "team/projects/agent-lab.md", "# Agent Lab\n\n## Decisions\n\n- Use Supabase later.\n", "create", "seed project wiki"); err != nil {
+		t.Fatalf("seed project wiki: %v", err)
+	}
+
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:            "task-14",
 		ProjectID:     "agent-lab",
 		Channel:       "general",
 		Title:         "Implement the signup flow",
@@ -989,14 +1031,115 @@ func TestBuildTaskExecutionPacketIncludesConnectedProjectContext(t *testing.T) {
 	}, "Start the implementation.")
 
 	for _, want := range []string{
-		"- Project: Agent Lab (agent-lab)",
-		"- Project wiki: team/projects/agent-lab.md",
-		"- GitHub repo: https://github.com/laf-labs/agent-lab",
-		"Project repo rule: use this project repo as the coding boundary",
+		"Project memory excerpt (read before work):",
+		"# Agent Lab",
+		"- Use Supabase later.",
+		"this excerpt is already loaded",
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("expected project context %q in packet:\n%s", want, got)
+			t.Fatalf("expected project memory %q in packet:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "Project memory unavailable") {
+		t.Fatalf("did not expect project memory to be unavailable:\n%s", got)
+	}
+}
+
+func TestBuildTaskExecutionPacketMaterializesMissingProjectWiki(t *testing.T) {
+	l, _, root := newLauncherWithProjectWikiForTest(t, teamProject{
+		ID:          "agent-lab",
+		Name:        "Agent Lab",
+		Description: "Plan and ship the first useful agent collaboration loop.",
+		CreatedBy:   "human",
+	})
+
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:        "task-15",
+		ProjectID: "agent-lab",
+		Channel:   "general",
+		Title:     "Prepare the project plan",
+		Owner:     "eng",
+		Status:    "in_progress",
+	}, "Start planning.")
+
+	for _, want := range []string{
+		"Project memory excerpt (read before work):",
+		"# Agent Lab",
+		"Project ID: `agent-lab`",
+		"Plan and ship the first useful agent collaboration loop.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected materialized project memory %q in packet:\n%s", want, got)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "team", "projects", "agent-lab.md")); err != nil {
+		t.Fatalf("expected project wiki to be materialized: %v", err)
+	}
+}
+
+func TestBuildTaskExecutionPacketShowsUnavailableProjectMemoryWithoutWikiWorker(t *testing.T) {
+	b := &Broker{
+		projects: []teamProject{{
+			ID:   "agent-lab",
+			Name: "Agent Lab",
+		}},
+	}
+	l := &Launcher{broker: b}
+
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:        "task-16",
+		ProjectID: "agent-lab",
+		Channel:   "general",
+		Title:     "Prepare the project plan",
+		Owner:     "eng",
+		Status:    "in_progress",
+	}, "Start planning.")
+
+	if !strings.Contains(got, "Project memory unavailable:") {
+		t.Fatalf("expected unavailable project memory notice in packet:\n%s", got)
+	}
+}
+
+func TestBuildTaskExecutionPacketTruncatesLongProjectWikiExcerpt(t *testing.T) {
+	l, worker, _ := newLauncherWithProjectWikiForTest(t, teamProject{
+		ID:        "agent-lab",
+		Name:      "Agent Lab",
+		CreatedBy: "human",
+	})
+	longBody := "# Agent Lab\n\n" + strings.Repeat("a", 2600) + "TAIL-MARKER"
+	if _, _, err := worker.Enqueue(context.Background(), "human", "team/projects/agent-lab.md", longBody, "create", "seed long project wiki"); err != nil {
+		t.Fatalf("seed project wiki: %v", err)
+	}
+
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:        "task-17",
+		ProjectID: "agent-lab",
+		Channel:   "general",
+		Title:     "Prepare the project plan",
+		Owner:     "eng",
+		Status:    "in_progress",
+	}, "Start planning.")
+
+	for _, want := range []string{
+		"Project memory excerpt (read before work):",
+		"Project memory excerpt truncated; call team_wiki_read for full article",
+		`article_path="team/projects/agent-lab.md"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected truncated project memory %q in packet:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "TAIL-MARKER") {
+		t.Fatalf("expected long project memory tail to be truncated:\n%s", got)
 	}
 }
 
@@ -1025,12 +1168,38 @@ func TestBuildTaskExecutionPacketBlocksCodeClaimsWithoutProjectRepo(t *testing.T
 		"- Project: Agent Lab (agent-lab)",
 		"- Project wiki: team/projects/agent-lab.md",
 		"- GitHub repo: not connected",
+		"Project memory rule: read the project wiki before work",
 		"Project repo rule: no GitHub repo is connected for this project; do not claim branch, PR, or code execution",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected repo-missing project context %q in packet:\n%s", want, got)
 		}
 	}
+}
+
+func newLauncherWithProjectWikiForTest(t *testing.T, project teamProject) (*Launcher, *WikiWorker, string) {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.projects = []teamProject{project}
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	return &Launcher{broker: b}, worker, root
 }
 
 func TestBuildTaskExecutionPacketRequiresRealExternalExecution(t *testing.T) {

@@ -9003,7 +9003,18 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	projectID := normalizeProjectID(body.ProjectID)
 
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	locked := true
+	defer func() {
+		if locked {
+			b.mu.Unlock()
+		}
+	}()
+	unlock := func() {
+		if locked {
+			b.mu.Unlock()
+			locked = false
+		}
+	}
 	if b.findChannelLocked(channel) == nil {
 		http.Error(w, "channel not found", http.StatusNotFound)
 		return
@@ -9081,8 +9092,14 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 				return
 			}
+			responseTask := *existing
+			unlock()
+			if err := b.appendProjectTaskWikiEvent(r.Context(), responseTask, body.CreatedBy, "updated"); err != nil {
+				http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{"task": *existing})
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
 			return
 		}
 		b.counter++
@@ -9130,8 +9147,14 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 			return
 		}
+		responseTask := task
+		unlock()
+		if err := b.appendProjectTaskWikiEvent(r.Context(), responseTask, body.CreatedBy, "created"); err != nil {
+			http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"task": task})
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
 		return
 	}
 
@@ -9304,8 +9327,14 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 			return
 		}
+		responseTask := *task
+		unlock()
+		if err := b.appendProjectTaskWikiEvent(r.Context(), responseTask, body.CreatedBy, "updated"); err != nil {
+			http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"task": *task})
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
 		return
 	}
 
