@@ -140,7 +140,7 @@ func main() {
 	// specialist's reply, both in #general.
 	fmt.Println("\n═══ PHASE 4: CEO assigns work ═══")
 	ceoPrompt := "@ceo please ask one of your product managers (pm-alpha or pm-beta) to give us a one-sentence " +
-		"positioning statement for a new CRM tool. Just delegate it; they'll answer."
+		"implementation objective for a repo-connected project task. Just delegate it; they'll answer."
 	beforeCEO := len(fetchMessages())
 	mustPost(postMessage("general", ceoPrompt, []string{"ceo"}))
 	fmt.Printf("→ #general (@ceo): %q\n", truncate(ceoPrompt, 120))

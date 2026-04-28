@@ -12,7 +12,7 @@
 
 LAF-Office is a local-first workspace where founder teams plan product work with AI agents, keep durable context in a markdown LLM wiki, and hand implementation tasks to connected coding runtimes.
 
-One command. One shared office. Product, planning, engineering, and review agents are visible in channels, claiming tasks and producing work instead of disappearing behind an API.
+One command. One shared project workspace. Product, planning, engineering, and review agents are visible in channels, claiming tasks and producing work instead of disappearing behind an API.
 
 > _30-second teaser — what the office feels like when the agents are actually working._
 
@@ -112,7 +112,7 @@ The examples below assume `laf-office` is on your `PATH`. If you just built the 
 laf-office init          # First-time setup
 laf-office shred         # Kill a running session
 laf-office --1o1         # 1:1 with the CEO
-laf-office --1o1 cro     # 1:1 with a specific agent
+laf-office --1o1 pm      # 1:1 with a specific agent
 ```
 
 ## What You Should See

@@ -271,10 +271,10 @@ func TestHandleCompleteDecodesBlueprintAndAgents(t *testing.T) {
 		}
 
 		body := map[string]interface{}{
-			"task":      "Stand up niche CRM",
+			"task":      "Set up the project workspace",
 			"skip_task": false,
-			"blueprint": "niche-crm",
-			"agents":    []string{"operator", "builder"},
+			"blueprint": "project-workspace",
+			"agents":    []string{"pm", "founding-engineer"},
 		}
 		data, _ := json.Marshal(body)
 		req := httptest.NewRequest(http.MethodPost, "/onboarding/complete", bytes.NewReader(data))
@@ -284,17 +284,17 @@ func TestHandleCompleteDecodesBlueprintAndAgents(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("status: got %d, want %d\nbody: %s", w.Code, http.StatusOK, w.Body.String())
 		}
-		if gotTask != "Stand up niche CRM" {
-			t.Errorf("task: got %q want %q", gotTask, "Stand up niche CRM")
+		if gotTask != "Set up the project workspace" {
+			t.Errorf("task: got %q want %q", gotTask, "Set up the project workspace")
 		}
 		if gotSkipTask {
 			t.Errorf("skipTask: got true want false")
 		}
-		if gotBlueprint != "niche-crm" {
-			t.Errorf("blueprint: got %q want %q", gotBlueprint, "niche-crm")
+		if gotBlueprint != "project-workspace" {
+			t.Errorf("blueprint: got %q want %q", gotBlueprint, "project-workspace")
 		}
-		if len(gotAgents) != 2 || gotAgents[0] != "operator" || gotAgents[1] != "builder" {
-			t.Errorf("agents: got %v want [operator builder]", gotAgents)
+		if len(gotAgents) != 2 || gotAgents[0] != "pm" || gotAgents[1] != "founding-engineer" {
+			t.Errorf("agents: got %v want [pm founding-engineer]", gotAgents)
 		}
 	})
 }
