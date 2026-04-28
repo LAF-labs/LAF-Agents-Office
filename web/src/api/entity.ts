@@ -8,7 +8,7 @@
  *
  * SSE: the shared broker stream at `/events` emits named events. We use
  * `addEventListener` on the two entity event names so we do not pay the cost
- * of parsing every broker message (office changes, wiki writes, notebook
+ * of parsing every broker message (workspace changes, wiki writes, notebook
  * writes, etc.) in every article view.
  */
 

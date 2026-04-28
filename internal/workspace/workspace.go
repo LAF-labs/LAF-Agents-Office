@@ -1,11 +1,11 @@
 // Package workspace wipes LAF-Office's on-disk state for two distinct blast radii:
 //
-//   - Reset: narrow. Clears broker runtime state so a stuck office can restart
-//     clean. Preserves task worktrees, team, company, office history, and
+//   - Reset: narrow. Clears broker runtime state so a stuck workspace can restart
+//     clean. Preserves task worktrees, team, company, workspace history, and
 //     workflows. Equivalent to what `laf-office shred` did before the verb swap.
 //
 //   - Shred: full. Everything Reset does, plus deletes the team roster, company
-//     identity, the office's task receipts, saved workflows, logs, sessions,
+//     identity, project task receipts, saved workflows, logs, sessions,
 //     provider state, calendar, and local markdown memory. The next load shows
 //     the onboarding wizard.
 //

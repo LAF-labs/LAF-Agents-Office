@@ -138,7 +138,7 @@ func backfillFromConfig(manifest Manifest) Manifest {
 		if desc := strings.TrimSpace(cfg.CompanyDescription); desc != "" {
 			manifest.Description = desc
 		} else {
-			manifest.Description = "Autonomous office runtime."
+			manifest.Description = "Project workspace runtime."
 		}
 	}
 	if len(normalizeBlueprintRefs(manifest.BlueprintRefs)) == 0 {
@@ -177,7 +177,7 @@ func DefaultManifest() Manifest {
 	blueprintID := normalizeSlug(cfg.ActiveBlueprint())
 	manifest := Manifest{
 		Name:        "LAF-Office",
-		Description: "Autonomous office runtime.",
+		Description: "Project workspace runtime.",
 		Lead:        "ceo",
 		UpdatedAt:   now,
 	}
@@ -233,7 +233,7 @@ func fromScratchDefaultManifest(now string) Manifest {
 	}
 	return Manifest{
 		Name:        "LAF-Office",
-		Description: "Autonomous office runtime that starts from a directive instead of a saved blueprint.",
+		Description: "Project workspace runtime that starts from a directive instead of a saved blueprint.",
 		Lead:        "founder",
 		Members:     members,
 		Channels: []ChannelSpec{{

@@ -86,7 +86,7 @@ func main() {
 		live = append(live, testAgent{spec: spec, sessionID: extractSessionKey(resp)})
 	}
 
-	time.Sleep(3 * time.Second) // let office changes propagate
+	time.Sleep(3 * time.Second) // let workspace changes propagate
 
 	if len(live) == 0 {
 		die("no agents hired; aborting")
