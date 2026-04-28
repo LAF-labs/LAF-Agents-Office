@@ -301,7 +301,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     progress: {
       welcome: "Start",
-      identity: "Office",
+      identity: "Project",
       templates: "Starter",
       team: "Team",
       setup: "Run",
@@ -312,14 +312,14 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       eyebrow: "Ready to set up",
       headline: "Plan, build, and automate with your startup agent team.",
       subhead:
-        "A local workspace where agents coordinate in channels, keep a shared wiki, and turn product work into visible progress.",
-      cta: "Open the office",
+        "A local project workspace where agents keep shared context in the wiki and turn product work into visible tasks.",
+      cta: "Open project setup",
     },
     templates: {
       eyebrow: "Start with a focused project team",
-      headline: "What should your office run?",
+      headline: "What project should the team start with?",
       subhead:
-        "Start from a founding team built for planning, development, and automation. You can add custom specialists later.",
+        "Start with a project team built for planning, development, and automation. You can add custom specialists later.",
       loading: "Loading starters...",
       other: "Other",
       scratchTitle: "Start from scratch",
@@ -335,12 +335,12 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       display: {},
     },
     identity: {
-      title: "Tell us about this office",
+      title: "Tell us about this project",
       companyLabel: "Company or project name",
       companyPlaceholder: "LAF-Office, or your real project name",
       descriptionLabel: "One-liner description",
       descriptionPlaceholder:
-        "What product, development work, or automation flow should this office own?",
+        "What product, development work, or automation flow should this project own?",
       priorityLabel: "Top priority right now",
       priorityPlaceholder: "Create the first GitHub-backed development task",
       next: "Choose a starter",
@@ -348,9 +348,9 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     team: {
       title: "Your team",
       description:
-        "These are the specialists your starter assembled. Toggle anyone you don't need.",
+        "These are the specialists for the project starter. Toggle anyone you don't need.",
       empty:
-        "No teammates yet. Go back and pick a starter, or open the office and add agents from the team panel.",
+        "No teammates yet. Go back and pick a starter, or open the workspace and add agents from the team panel.",
       leadTitle: "Lead agent — always included",
       leadBadge: "Lead",
     },
@@ -384,19 +384,19 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         OPENAI_API_KEY: "Powers GPT-based agents",
         GOOGLE_API_KEY: "Powers Gemini-based agents",
       },
-      memoryTitle: "Team wiki",
+      memoryTitle: "Project wiki",
       memoryDescription:
         "Shared context is stored in the local LLM wiki. Agents use it for durable project decisions, facts, and playbooks.",
       memoryOptions: {
         markdown: {
-          label: "Team wiki (default)",
+          label: "Project wiki (default)",
           hint: "Local git-backed wiki with sourced facts and /lookup. No API key.",
         },
       },
       next: "Ready",
     },
     task: {
-      title: "What should the team work on first?",
+      title: "What should the project team do first?",
       subhead:
         "Type your own first task, or pick from the starter's suggested sequence below.",
       placeholder:
@@ -423,8 +423,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         `${label} selected but not installed. Install before agents can reason.`,
       runtimeKeyReady: "Provider API key will drive agent runs.",
       runtimeMissing: "Pick a CLI or add a provider key on the Setup step.",
-      memoryLabel: "Team wiki",
-      memoryMarkdown: "Git-native team wiki in ~/.laf-office/wiki.",
+      memoryLabel: "Project wiki",
+      memoryMarkdown: "Git-native project wiki in ~/.laf-office/wiki.",
       githubLabel: "GitHub repository",
       githubConnectLater:
         "Connect the project repo after deployment settings are ready. Agents will use it for implementation tasks.",
@@ -440,7 +440,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     progress: {
       welcome: "시작",
-      identity: "오피스",
+      identity: "프로젝트",
       templates: "시작 방식",
       team: "팀",
       setup: "실행",
@@ -449,14 +449,14 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     welcome: {
       eyebrow: "설정 준비 완료",
-      headline: "기획·개발 에이전트가 함께 일하는 팀 오피스.",
+      headline: "기획·개발 에이전트가 함께 일하는 프로젝트 워크스페이스.",
       subhead:
-        "소규모 창업팀이 에이전트와 함께 제품을 기획하고, 팀 위키로 맥락을 이어가며, GitHub 기반 개발 작업까지 연결하는 로컬 오피스입니다.",
-      cta: "오피스 열기",
+        "소규모 창업팀이 에이전트와 함께 제품을 기획하고, 위키로 맥락을 이어가며, GitHub 기반 개발 작업까지 연결하는 로컬 워크스페이스입니다.",
+      cta: "프로젝트 설정 열기",
     },
     templates: {
       eyebrow: "프로젝트 팀으로 시작하기",
-      headline: "이 오피스는 어떤 일을 하게 할까요?",
+      headline: "어떤 프로젝트로 시작할까요?",
       subhead:
         "기획, 개발, 자동화에 맞춘 창업팀 구성으로 시작합니다. 필요한 전문가는 나중에 추가할 수 있습니다.",
       loading: "시작 방식 불러오는 중...",
@@ -474,12 +474,12 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       display: {},
     },
     identity: {
-      title: "이 오피스에 대해 알려주세요",
+      title: "이 프로젝트에 대해 알려주세요",
       companyLabel: "회사 또는 프로젝트 이름",
       companyPlaceholder: "LAF-Office 또는 실제 프로젝트 이름",
       descriptionLabel: "한 줄 설명",
       descriptionPlaceholder:
-        "이 오피스가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
+        "이 프로젝트가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
       priorityLabel: "지금 가장 중요한 목표",
       priorityPlaceholder: "첫 GitHub 연결 개발 작업 만들기",
       next: "시작 방식 선택",
@@ -489,7 +489,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       description:
         "선택한 시작 방식이 구성한 전문가들입니다. 필요 없는 구성원은 끌 수 있습니다.",
       empty:
-        "아직 팀원이 없습니다. 뒤로 가서 시작 방식을 고르거나, 오피스를 연 뒤 팀 패널에서 에이전트를 추가하세요.",
+        "아직 팀원이 없습니다. 뒤로 가서 시작 방식을 고르거나, 워크스페이스를 연 뒤 팀 패널에서 에이전트를 추가하세요.",
       leadTitle: "리드 에이전트 - 항상 포함됨",
       leadBadge: "리드",
     },
@@ -524,19 +524,19 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         OPENAI_API_KEY: "GPT 기반 에이전트 실행",
         GOOGLE_API_KEY: "Gemini 기반 에이전트 실행",
       },
-      memoryTitle: "팀 위키",
+      memoryTitle: "프로젝트 위키",
       memoryDescription:
         "공유 맥락은 로컬 LLM 위키에 저장합니다. 에이전트는 프로젝트 결정, 사실, 플레이북을 여기서 이어받습니다.",
       memoryOptions: {
         markdown: {
-          label: "팀 위키 (기본값)",
+          label: "프로젝트 위키 (기본값)",
           hint: "출처가 붙는 로컬 git 위키입니다. /lookup을 지원하며 API 키가 필요 없습니다.",
         },
       },
       next: "준비 완료",
     },
     task: {
-      title: "팀이 가장 먼저 할 일은 무엇인가요?",
+      title: "프로젝트 팀이 가장 먼저 할 일은 무엇인가요?",
       subhead:
         "첫 작업을 직접 입력하거나 시작 방식이 제안한 순서에서 고르세요.",
       placeholder: "예: 프로젝트 저장소를 연결하고 첫 개발 작업을 만들기",
@@ -562,8 +562,9 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         `${label}을 선택했지만 설치되어 있지 않습니다. 에이전트가 추론하려면 먼저 설치해야 합니다.`,
       runtimeKeyReady: "제공자 API 키로 에이전트를 실행합니다.",
       runtimeMissing: "CLI를 선택하거나 설정 단계에서 제공자 키를 추가하세요.",
-      memoryLabel: "팀 위키",
-      memoryMarkdown: "git 기반 팀 위키를 ~/.laf-office/wiki에 저장합니다.",
+      memoryLabel: "프로젝트 위키",
+      memoryMarkdown:
+        "git 기반 프로젝트 위키를 ~/.laf-office/wiki에 저장합니다.",
       githubLabel: "GitHub 저장소",
       githubConnectLater:
         "배포 설정이 준비되면 프로젝트 저장소를 연결합니다. 에이전트는 실제 개발 작업에 이 저장소를 사용합니다.",

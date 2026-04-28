@@ -57,7 +57,9 @@ async function advanceToSetupStep() {
   });
 
   pressEnterOn(window);
-  await waitFor(() => screen.getByText(/What should your office run\?/i));
+  await waitFor(() =>
+    screen.getByText(/What project should the team start with\?/i),
+  );
   pressEnterOn(window);
   await waitFor(() => screen.getByText(/Your team/i));
   fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
@@ -67,7 +69,7 @@ async function advanceToSetupStep() {
 async function finishFromSetupWithoutTask() {
   fireEvent.click(screen.getByRole("button", { name: /Ready/i }));
   await waitFor(() =>
-    screen.getByText(/What should the team work on first\?/i),
+    screen.getByText(/What should the project team do first\?/i),
   );
   fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
   await waitFor(() => screen.getByText(/You're set/i));
@@ -102,7 +104,9 @@ describe("Wizard keyboard advancement", () => {
     render(<Wizard onComplete={vi.fn()} />);
 
     expect(
-      screen.getByText("기획·개발 에이전트가 함께 일하는 팀 오피스."),
+      screen.getByText(
+        "기획·개발 에이전트가 함께 일하는 프로젝트 워크스페이스.",
+      ),
     ).toBeInTheDocument();
 
     pressEnterOn(window);
@@ -117,7 +121,7 @@ describe("Wizard keyboard advancement", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(
-        "이 오피스가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
+        "이 프로젝트가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
       ),
     ).toBeInTheDocument();
     expect(
@@ -236,7 +240,9 @@ describe("Wizard keyboard advancement", () => {
 
     pressEnterOn(window);
 
-    await waitFor(() => screen.getByText(/What should your office run\?/i));
+    await waitFor(() =>
+      screen.getByText(/What project should the team start with\?/i),
+    );
     expect(screen.getByText("Start from scratch")).toBeInTheDocument();
     expect(screen.queryByText("Niche CRM")).not.toBeInTheDocument();
     expect(screen.queryByText("YouTube Factory")).not.toBeInTheDocument();
@@ -268,7 +274,7 @@ describe("Wizard keyboard advancement", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Ready/i }));
     await waitFor(() =>
-      screen.getByText(/What should the team work on first\?/i),
+      screen.getByText(/What should the project team do first\?/i),
     );
     fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
 
@@ -282,7 +288,7 @@ describe("Wizard keyboard advancement", () => {
   it("Enter on the welcome step advances to the Identity step", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     // Welcome CTA is visible
-    expect(screen.getByText(/Open the office/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open project setup/i)).toBeInTheDocument();
 
     pressEnterOn(window);
 
@@ -322,11 +328,10 @@ describe("Wizard keyboard advancement", () => {
 
     pressEnterOn(window);
 
-    // Should move to templates step — "What should your office run?" is the
-    // templates headline.
+    // Should move to templates step — this is the templates headline.
     await waitFor(() => {
       expect(
-        screen.getByText(/What should your office run\?/i),
+        screen.getByText(/What project should the team start with\?/i),
       ).toBeInTheDocument();
     });
   });
@@ -382,7 +387,7 @@ describe("Wizard keyboard advancement", () => {
     // but not have double-jumped past templates.
     await waitFor(() => {
       expect(
-        screen.getByText(/What should your office run\?/i),
+        screen.getByText(/What project should the team start with\?/i),
       ).toBeInTheDocument();
     });
   });
@@ -416,10 +421,10 @@ describe("Wizard product copy", () => {
       target: { value: "LAF" },
     });
     fireEvent.change(screen.getByLabelText(/한 줄 설명/i), {
-      target: { value: "창업팀의 제품 개발을 돕는 오피스" },
+      target: { value: "창업팀의 제품 개발을 돕는 프로젝트" },
     });
     pressEnterOn(window);
-    await waitFor(() => screen.getByText(/어떤 일을 하게 할까요/i));
+    await waitFor(() => screen.getByText(/어떤 프로젝트로 시작할까요/i));
     pressEnterOn(window);
     await waitFor(() => screen.getByText(/팀 구성/i));
     fireEvent.click(screen.getByRole("button", { name: /계속/i }));
