@@ -57,6 +57,7 @@ describe("TasksApp project workspace", () => {
           title: "Draft launch brief",
           status: "open",
           project_id: "customer-portal",
+          channel: "general",
           owner: "human",
         },
         {
@@ -96,6 +97,7 @@ describe("TasksApp project workspace", () => {
     expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(await screen.findByText("2 active tasks")).toBeInTheDocument();
     expect(screen.getByText("1 agent-owned task")).toBeInTheDocument();
+    expect(screen.queryByText("#general")).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/customer-portal");

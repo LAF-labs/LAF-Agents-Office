@@ -1474,9 +1474,6 @@ function TaskCard({
         {task.owner ? (
           <span className="app-card-meta">@{task.owner}</span>
         ) : null}
-        {task.channel ? (
-          <span className="app-card-meta">#{task.channel}</span>
-        ) : null}
         {timestamp ? (
           <span className="app-card-meta">{formatRelativeTime(timestamp)}</span>
         ) : null}

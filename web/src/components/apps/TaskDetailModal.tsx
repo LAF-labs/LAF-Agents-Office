@@ -125,10 +125,9 @@ function buildTaskMetaRows(
   status: string,
   reviewState: string,
 ): Array<[string, string | null | undefined]> {
-  return [
+  const rows: Array<[string, string | null | undefined]> = [
     ["Owner", ownerMeta(task.owner)],
     ["Project", optionalMeta(task.project_id)],
-    ["Channel", channelMeta(task.channel)],
     ["Status", status || "—"],
     ["Review state", optionalMeta(reviewState)],
     ["Task type", optionalMeta(task.task_type)],
@@ -148,6 +147,10 @@ function buildTaskMetaRows(
     ["Reminder", relativeMeta(task.reminder_at)],
     ["Recheck", relativeMeta(task.recheck_at)],
   ];
+  if (!task.project_id) {
+    rows.splice(2, 0, ["Channel", channelMeta(task.channel)]);
+  }
+  return rows;
 }
 
 function optionalMeta(value: string | null | undefined): string | null {
@@ -544,8 +547,9 @@ function TaskOwnershipSection({
             {task.owner ? `@${task.owner}` : "(unassigned)"}
           </span>
           <span className="task-detail-hint">
-            Reassigning posts to #{task.channel || "general"} and DMs both
-            owners. CEO is cc'd.
+            {task.project_id
+              ? "Reassigning updates the project task owner. CEO is cc'd."
+              : `Reassigning posts to #${task.channel || "general"} and DMs both owners. CEO is cc'd.`}
           </span>
         </div>
         <div className="task-detail-owner-controls">

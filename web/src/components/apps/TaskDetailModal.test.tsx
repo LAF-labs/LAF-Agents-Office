@@ -104,4 +104,21 @@ describe("TaskDetailModal execution view", () => {
     expect(within(timeline).getByText("@eng")).toBeInTheDocument();
     expect(within(timeline).queryByText("Unrelated [done]")).toBeNull();
   });
+
+  it("does not surface channel metadata for project-scoped tasks", () => {
+    apiMocks.getActions.mockResolvedValue({ actions: [] });
+
+    renderTaskDetail({
+      id: "task-request",
+      title: "Implement project invite flow",
+      status: "review",
+      owner: "eng",
+      project_id: "customer-portal",
+      channel: "general",
+      execution_mode: "local_worktree",
+    });
+
+    expect(screen.queryByText("Channel")).not.toBeInTheDocument();
+    expect(screen.queryByText(/#general/)).not.toBeInTheDocument();
+  });
 });
