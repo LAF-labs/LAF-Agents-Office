@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
 // CompleteFunc is the side-effect hook invoked by HandleComplete when the
@@ -420,95 +418,19 @@ func HandleTemplates(w http.ResponseWriter, r *http.Request, packSlug string) {
 	_ = json.NewEncoder(w).Encode(TemplatesForSelection("", packSlug))
 }
 
-// blueprintSummary is the wizard-facing shape returned by HandleBlueprints.
-// Keep the field names in sync with BlueprintTemplate in
-// web/src/components/onboarding/Wizard.tsx.
-type blueprintSummary struct {
-	ID          string                  `json:"id"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description,omitempty"`
-	Emoji       string                  `json:"emoji,omitempty"`
-	Agents      []blueprintAgentSummary `json:"agents,omitempty"`
-	Tasks       []blueprintTaskSummary  `json:"tasks,omitempty"`
-}
-
-type blueprintAgentSummary struct {
-	Slug    string `json:"slug"`
-	Name    string `json:"name"`
-	Role    string `json:"role,omitempty"`
-	Emoji   string `json:"emoji,omitempty"`
-	Checked bool   `json:"checked"`
-	// BuiltIn marks the blueprint's lead agent (type: lead or built_in:
-	// true in the yaml). The wizard uses this to prevent the user from
-	// unchecking the lead in the Team step — downstream broker guards
-	// also refuse to disable or remove a BuiltIn member.
-	BuiltIn bool `json:"built_in,omitempty"`
-}
-
-type blueprintTaskSummary struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Prompt      string `json:"prompt,omitempty"`
-}
-
 // HandleBlueprints handles GET /onboarding/blueprints.
-// Returns {"templates": [...]} in the shape the Wizard expects for its
-// blueprint picker. Passes "" to ListBlueprints when the filesystem walk
-// finds no repo — the loader falls back to the binary's embedded
-// templates (wired in the root laf-office package's init), so installs without
-// a checkout still see the shipped blueprints.
+// Returns an empty template list by default. The current onboarding product
+// starts from the fixed project-agent roster; older operation templates remain
+// loadable only by explicit ID for compatibility and should not appear in the
+// first-run picker.
 func HandleBlueprints(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	summaries := []blueprintSummary{}
-	blueprints, err := operations.ListBlueprints(resolveTemplatesRepoRoot(""))
-	if err == nil {
-		for _, bp := range blueprints {
-			summaries = append(summaries, summarizeBlueprint(bp))
-		}
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"templates": summaries})
-}
-
-func summarizeBlueprint(bp operations.Blueprint) blueprintSummary {
-	s := blueprintSummary{
-		ID:          bp.ID,
-		Name:        bp.Name,
-		Description: bp.Description,
-	}
-	leadSlug := strings.TrimSpace(bp.Starter.LeadSlug)
-	for _, a := range bp.Starter.Agents {
-		// Mark the lead as BuiltIn so the wizard's Team step can disable
-		// its checkbox. We trust three signals from the blueprint yaml:
-		// explicit built_in, type=lead, or slug matching starter.lead_slug.
-		builtIn := a.BuiltIn || strings.EqualFold(strings.TrimSpace(a.Type), "lead") || (leadSlug != "" && a.Slug == leadSlug)
-		s.Agents = append(s.Agents, blueprintAgentSummary{
-			Slug:    a.Slug,
-			Name:    a.Name,
-			Role:    a.Role,
-			Emoji:   a.Emoji,
-			Checked: a.Checked,
-			BuiltIn: builtIn,
-		})
-	}
-	for _, t := range bp.Starter.Tasks {
-		title := strings.TrimSpace(t.Title)
-		if title == "" {
-			continue
-		}
-		s.Tasks = append(s.Tasks, blueprintTaskSummary{
-			ID:          onboardingTemplateID(title),
-			Name:        title,
-			Description: strings.TrimSpace(t.Details),
-		})
-	}
-	return s
+	_ = json.NewEncoder(w).Encode(map[string]any{"templates": []any{}})
 }
 
 // HandleChecklistDismiss handles POST /onboarding/checklist/dismiss.

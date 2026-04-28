@@ -389,13 +389,11 @@ func TestHandleCompleteSkipTaskPersistsOnboardedState(t *testing.T) {
 	})
 }
 
-// TestHandleBlueprintsMarksLeadBuiltIn verifies that GET /onboarding/blueprints
-// surfaces built_in=true for the blueprint's lead agent. The wizard UI
-// uses this flag to lock the lead's checkbox so it cannot be unchecked
-// on the Team step. Without this, a user could uncheck the lead, the POST
-// body would carry an empty agents list, and the broker would fall back
-// to lead-only — the opposite of what the user asked for, silently.
-func TestHandleBlueprintsMarksLeadBuiltIn(t *testing.T) {
+// TestHandleBlueprintsDoesNotExposeLegacyOperationTemplates verifies that
+// GET /onboarding/blueprints no longer exposes the old operation-template
+// catalog. The wizard starts from the project-agent roster; curated operation
+// YAML remains loadable only by explicit ID for compatibility.
+func TestHandleBlueprintsDoesNotExposeLegacyOperationTemplates(t *testing.T) {
 	withTempHome(t, func(_ string) {
 		withOperationsFallbackFS(t)
 
@@ -408,44 +406,13 @@ func TestHandleBlueprintsMarksLeadBuiltIn(t *testing.T) {
 		}
 
 		var resp struct {
-			Templates []struct {
-				ID     string `json:"id"`
-				Agents []struct {
-					Slug    string `json:"slug"`
-					BuiltIn bool   `json:"built_in"`
-				} `json:"agents"`
-			} `json:"templates"`
+			Templates []map[string]any `json:"templates"`
 		}
 		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
-
-		// niche-crm's blueprint yaml names `ceo` as type: lead with
-		// built_in: true. Any shipped blueprint must mark exactly one lead.
-		var found bool
-		for _, tpl := range resp.Templates {
-			if tpl.ID != "niche-crm" {
-				continue
-			}
-			var leadCount int
-			for _, a := range tpl.Agents {
-				if a.BuiltIn {
-					leadCount++
-					if a.Slug != "ceo" {
-						t.Errorf("niche-crm lead should be ceo, got %q (built_in=true)", a.Slug)
-					}
-				}
-			}
-			if leadCount == 0 {
-				t.Error("niche-crm has no built_in lead agent — wizard would allow unchecking the lead")
-			}
-			if leadCount > 1 {
-				t.Errorf("niche-crm has %d built_in leads; expected exactly 1", leadCount)
-			}
-			found = true
-		}
-		if !found {
-			t.Fatalf("niche-crm not found in response templates: %+v", resp.Templates)
+		if len(resp.Templates) != 0 {
+			t.Fatalf("expected no default blueprint templates, got %+v", resp.Templates)
 		}
 	})
 }
