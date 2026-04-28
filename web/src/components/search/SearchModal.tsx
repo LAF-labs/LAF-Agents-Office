@@ -780,7 +780,7 @@ const PALETTE_COMMAND_HANDLERS: Record<string, (deps: CommandDeps) => void> = {
       .then(() => {
         deps.setLastMessageId(null);
         deps.setCurrentChannel("general");
-        showNotice("Office reset", "success");
+        showNotice("Workspace reset", "success");
       })
       .catch((e: Error) => showNotice(`Reset failed: ${e.message}`, "error"));
   },

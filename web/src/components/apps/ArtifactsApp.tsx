@@ -145,7 +145,7 @@ export function ArtifactsApp() {
           fontSize: 14,
         }}
       >
-        Loading office activity...
+        Loading workspace activity...
       </div>
     );
   }

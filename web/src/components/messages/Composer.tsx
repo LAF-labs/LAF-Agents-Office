@@ -298,9 +298,9 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
   },
   "/reset": (_args, store) => {
     confirm({
-      title: "Reset the office?",
+      title: "Reset the workspace?",
       message:
-        "Clears channels back to #general and drops in-memory state. Persisted tasks and requests stay on the broker.",
+        "Clears the live message view and drops in-memory state. Persisted tasks and requests stay on the broker.",
       confirmLabel: "Reset",
       danger: true,
       onConfirm: () =>
@@ -308,7 +308,7 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
           .then(() => {
             store.setLastMessageId(null);
             store.setCurrentChannel("general");
-            showNotice("Office reset", "success");
+            showNotice("Workspace reset", "success");
           })
           .catch((e: Error) =>
             showNotice(`Reset failed: ${e.message}`, "error"),

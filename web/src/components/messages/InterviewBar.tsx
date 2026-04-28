@@ -29,7 +29,7 @@ function sortInterviewOptions(
  * - Allows cycling through queued requests with prev/next
  * - Renders option buttons; if the picked option requires custom text,
  *   switches to a text input mode using the option's hint as placeholder
- * - Skip / close pauses the office (POST /signals kind=pause) and dismisses
+ * - Skip / close pauses agents (POST /signals kind=pause) and dismisses
  */
 export function InterviewBar() {
   const { pending } = useRequests();
@@ -100,7 +100,7 @@ export function InterviewBar() {
   };
 
   const handlePause = async () => {
-    // Skip = pause the office. Matches the TUI Esc behavior.
+    // Skip = pause agents. Matches the TUI Esc behavior.
     setDismissedIds((prev) => {
       const next = new Set(prev);
       next.add(current.id);
@@ -112,10 +112,10 @@ export function InterviewBar() {
         kind: "pause",
         summary: "Human skipped a blocking interview",
       });
-      showNotice("Office paused. Use /resume when ready.", "info");
+      showNotice("Agents paused. Use /resume when ready.", "info");
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Failed to pause office";
+        err instanceof Error ? err.message : "Failed to pause agents";
       showNotice(message, "error");
     }
   };
@@ -163,8 +163,8 @@ export function InterviewBar() {
           type="button"
           className="interview-bar-close"
           onClick={handlePause}
-          aria-label="Skip and pause office"
-          title="Skip — pause office"
+          aria-label="Skip and pause agents"
+          title="Skip - pause agents"
         >
           <Xmark width={20} height={20} />
         </button>

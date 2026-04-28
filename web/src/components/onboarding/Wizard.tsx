@@ -48,7 +48,7 @@ type WizardStep =
   | "ready";
 
 // Step order: company info before blueprint. The blueprint picker is a
-// decision about how the office starts; it makes more sense after the
+// decision about how the project workspace starts; it makes more sense after the
 // user has anchored who they are than as the very first question.
 // `ready` is the final-step readiness summary matching the TUI's InitDone
 // phase (see internal/tui/init_flow.go readinessChecks()) — shows the user

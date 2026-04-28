@@ -174,11 +174,12 @@ function selectedProjectLabel(
 ): string {
   if (language === "ko") {
     if (selectedProjectId === "") return "프로젝트 워크스페이스를 여세요.";
-    if (selectedProjectId === "all") return "오피스 전체의 활성 작업을 봅니다.";
+    if (selectedProjectId === "all")
+      return "모든 프로젝트의 활성 작업을 봅니다.";
     return `${projectNames.get(selectedProjectId) ?? selectedProjectId} 프로젝트에 집중합니다.`;
   }
   if (selectedProjectId === "") return "Open a project workspace.";
-  if (selectedProjectId === "all") return "All active lanes across the office.";
+  if (selectedProjectId === "all") return "All active lanes across projects.";
   return `Focused project: ${projectNames.get(selectedProjectId) ?? selectedProjectId}`;
 }
 
