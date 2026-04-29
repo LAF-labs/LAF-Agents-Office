@@ -67,9 +67,11 @@
   color: var(--nb-text);
   font-family: var(--nb-body-serif);
   line-height: 1.6;
-  height: calc(100% - 8px);
-  margin: 0 8px 8px;
-  border-radius: 16px;
+  height: calc(100% - 16px);
+  margin: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;

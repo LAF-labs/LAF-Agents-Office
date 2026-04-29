@@ -124,18 +124,7 @@ function projectLoadMessage(
 }
 
 function TaskWorkspaceState({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        padding: "40px 20px",
-        textAlign: "center",
-        color: "var(--text-tertiary)",
-        fontSize: 14,
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="app-empty-state">{children}</div>;
 }
 
 function selectedTaskForModal(

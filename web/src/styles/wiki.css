@@ -1,24 +1,24 @@
 /* Wiki surface — scoped to .wiki-root.
- * Per DESIGN-WIKI.md: warm paper reference surface with blue wikilinks,
- * amber notices, and editorial serif hierarchy for articles only.
+ * The chrome follows the app design tokens; article bodies keep the editorial
+ * hierarchy and wikilink treatment that make markdown memory readable.
  */
 .wiki-root {
-  --wk-paper: #faf8f2;
-  --wk-paper-dark: #f5f1e6;
-  --wk-surface: #ffffff;
-  --wk-surface-alt: #f5f1e6;
-  --wk-text: #1d1c1d;
-  --wk-text-muted: #616061;
-  --wk-text-tertiary: #8a8680;
-  --wk-border: #e8e4d8;
-  --wk-border-light: #f0ece0;
-  --wk-border-strong: #b8b0a0;
+  --wk-paper: var(--app-bg);
+  --wk-paper-dark: var(--bg-subtle);
+  --wk-surface: var(--bg-card);
+  --wk-surface-alt: var(--bg-subtle);
+  --wk-text: var(--text-primary);
+  --wk-text-muted: var(--text-secondary);
+  --wk-text-tertiary: var(--text-tertiary);
+  --wk-border: var(--border);
+  --wk-border-light: var(--border-light);
+  --wk-border-strong: var(--border-dark);
   --wk-wikilink: #1264a3;
   --wk-wikilink-broken: #c94a4a;
-  --wk-amber: #ecb22e;
-  --wk-amber-bg: rgba(236, 178, 46, 0.15);
-  --wk-amber-banner: #fdf6dc;
-  --wk-code-bg: #f5f1e6;
+  --wk-amber: var(--accent);
+  --wk-amber-bg: var(--accent-bg);
+  --wk-amber-banner: var(--yellow-bg);
+  --wk-code-bg: var(--bg-subtle);
   --wk-accent: var(--wk-wikilink);
   --wk-accent-ink: var(--wk-wikilink);
   --wk-body: "Source Serif 4", ui-serif, Georgia, serif;
@@ -76,7 +76,7 @@
 .wk-nav-sidebar {
   display: flex;
   flex-direction: column;
-  background: var(--wk-surface);
+  background: color-mix(in srgb, var(--wk-surface) 92%, var(--wk-paper));
   border-right: 1px solid var(--wk-border);
   padding: 20px 12px 0;
   font-family: var(--wk-chrome);
@@ -901,7 +901,7 @@
 
 /* ─── Catalog (landing) ─── */
 .wk-catalog {
-  padding: 40px 64px 120px;
+  padding: 32px 40px 96px;
   /* Fill the grid cell. A prior `margin: 0 auto` was causing the element
      to auto-shrink to its content width (the header text) inside a grid
      cell, squeezing the catalog grid below to one-letter wide cards. */
@@ -917,9 +917,12 @@
   row-gap: 10px;
   column-gap: 16px;
   align-items: baseline;
-  margin-bottom: 32px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--wk-border);
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  background: var(--wk-surface);
+  border: 1px solid var(--wk-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
 }
 .wk-catalog-title {
   grid-area: title;
@@ -929,7 +932,7 @@
 }
 .wk-catalog-clone {
   grid-area: clone;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--wk-text-muted);
 }
 .wk-catalog-clone code {
@@ -938,17 +941,18 @@
   background: var(--wk-code-bg);
   border: 1px solid var(--wk-border);
   padding: 2px 6px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--wk-text);
   user-select: all;
 }
 .wk-catalog-title {
-  font-family: var(--wk-display);
-  font-size: 48px;
-  font-weight: 500;
-  font-variation-settings: "opsz" 100;
+  font-family: var(--wk-chrome);
+  font-size: 24px;
+  font-weight: 720;
+  font-variation-settings: normal;
   color: var(--wk-text);
   margin: 0;
+  line-height: 1.2;
 }
 .wk-catalog-stats {
   font-family: var(--wk-mono);
@@ -958,7 +962,7 @@
 .wk-catalog-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  gap: 14px;
 }
 @media (max-width: 1024px) {
   .wk-catalog-grid {
@@ -973,7 +977,9 @@
 .wk-catalog-card {
   background: var(--wk-surface);
   border: 1px solid var(--wk-border);
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  padding: 16px;
 }
 .wk-catalog-card h3 {
   font-family: var(--wk-chrome);
@@ -991,7 +997,7 @@
   color: var(--wk-text);
   background: var(--wk-paper-dark);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-full);
   font-family: var(--wk-mono);
   font-size: 11px;
 }

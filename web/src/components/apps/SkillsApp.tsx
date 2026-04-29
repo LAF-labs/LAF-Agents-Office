@@ -12,60 +12,24 @@ export function SkillsApp() {
   });
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Loading skills...
-      </div>
-    );
+    return <div className="app-loading-state">Loading skills...</div>;
   }
 
   if (error) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Could not load skills.
-      </div>
-    );
+    return <div className="app-empty-state">Could not load skills.</div>;
   }
 
   const skills = data?.skills ?? [];
 
   return (
     <>
-      <div
-        style={{
-          padding: "0 0 12px",
-          borderBottom: "1px solid var(--border)",
-          marginBottom: 12,
-        }}
-      >
-        <h3 style={{ fontSize: 16, fontWeight: 600 }}>Skills</h3>
+      <div className="app-section-heading">
+        <h3>Skills</h3>
+        <p>Reusable local agent capabilities available in this workspace.</p>
       </div>
 
       {skills.length === 0 ? (
-        <div
-          style={{
-            padding: "40px 20px",
-            textAlign: "center",
-            color: "var(--text-tertiary)",
-            fontSize: 14,
-          }}
-        >
-          No skills registered yet.
-        </div>
+        <div className="app-empty-state">No skills registered yet.</div>
       ) : (
         skills.map((skill) => <SkillCard key={skill.name} skill={skill} />)
       )}
@@ -100,7 +64,7 @@ function SkillCard({ skill }: { skill: Skill }) {
         : "\u26A1 Invoke";
 
   return (
-    <div className="app-card" style={{ marginBottom: 8 }}>
+    <div className="app-card">
       <div
         style={{
           display: "flex",

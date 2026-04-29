@@ -98,19 +98,24 @@ const styles = {
     flex: 1,
     minHeight: 0,
     alignItems: "flex-start",
+    gap: 16,
+    flexWrap: "wrap",
   } as const,
   nav: {
-    width: 260,
+    width: "min(248px, 100%)",
     flexShrink: 0,
     padding: "14px 12px",
     position: "sticky" as const,
-    top: 0,
-    maxHeight: "100vh",
+    top: 20,
+    maxHeight: "calc(100vh - 96px)",
     overflowY: "auto" as const,
     display: "flex",
     flexDirection: "column" as const,
     gap: 14,
     background: "var(--bg-card)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-lg)",
+    boxShadow: "var(--shadow-xs)",
   } as const,
   navGroupLabel: {
     fontSize: 10,
@@ -126,16 +131,18 @@ const styles = {
     gap: 10,
     padding: "8px 10px",
     fontSize: 12,
-    borderRadius: 6,
-    color: active ? "var(--text)" : "var(--text-secondary)",
+    borderRadius: "var(--radius-md)",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
     cursor: "pointer",
-    border: "none",
-    background: active ? "rgba(0, 0, 0, 0.06)" : "transparent",
+    border: active
+      ? "1px solid color-mix(in srgb, var(--accent) 34%, var(--border))"
+      : "1px solid transparent",
+    background: active ? "var(--accent-bg)" : "transparent",
     width: "100%",
     textAlign: "left" as const,
     fontFamily: "var(--font-sans)",
-    fontWeight: active ? 600 : 400,
-    transition: "all 0.15s",
+    fontWeight: active ? 700 : 500,
+    transition: "background 0.15s, border-color 0.15s, color 0.15s",
   }),
   navIcon: {
     width: 16,
@@ -145,8 +152,9 @@ const styles = {
   } as const,
   body: {
     flex: 1,
-    padding: "24px 32px",
-    maxWidth: 680,
+    minWidth: 0,
+    padding: "2px 4px 32px",
+    maxWidth: 720,
   } as const,
   sectionTitle: { fontSize: 18, fontWeight: 700, marginBottom: 4 } as const,
   sectionDesc: {
@@ -186,7 +194,7 @@ const styles = {
   } as const,
   rowField: { flex: 1, minWidth: 0 } as const,
   input: {
-    background: "var(--bg-card)",
+    background: "var(--bg-subtle)",
     border: "1px solid var(--border)",
     color: "var(--text)",
     borderRadius: "var(--radius-sm)",
@@ -198,7 +206,7 @@ const styles = {
     fontFamily: "var(--font-sans)",
   } as const,
   textarea: {
-    background: "var(--bg-card)",
+    background: "var(--bg-subtle)",
     border: "1px solid var(--border)",
     color: "var(--text)",
     borderRadius: "var(--radius-sm)",
@@ -1631,30 +1639,12 @@ export function SettingsApp() {
   };
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          padding: 40,
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        {t("settings.loading")}
-      </div>
-    );
+    return <div className="app-loading-state">{t("settings.loading")}</div>;
   }
 
   if (error || !data) {
     return (
-      <div
-        style={{
-          padding: 40,
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
+      <div className="app-empty-state">
         {t("settings.loadFailed")}{" "}
         {error instanceof Error ? error.message : String(error)}
       </div>

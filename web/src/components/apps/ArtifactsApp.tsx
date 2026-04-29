@@ -137,16 +137,7 @@ export function ArtifactsApp() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Loading workspace activity...
-      </div>
+      <div className="app-loading-state">Loading workspace activity...</div>
     );
   }
 
@@ -480,7 +471,6 @@ function AgentPulseSection({ liveAgents }: { liveAgents: OfficeMember[] }) {
               key={member.slug}
               className="app-card"
               style={{
-                marginBottom: 6,
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
@@ -646,7 +636,7 @@ function ActivitySection({
         <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
         {meta ? <div className="app-card-meta">{meta}</div> : null}
       </div>
-      {children}
+      <div className="app-section-stack">{children}</div>
     </section>
   );
 }
@@ -663,7 +653,7 @@ function ActivityItem({
   kindLabel: string;
 }) {
   return (
-    <div className="app-card" style={{ marginBottom: 6 }}>
+    <div className="app-card">
       <div
         style={{
           display: "flex",
@@ -696,18 +686,7 @@ function ActivityItem({
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        padding: "20px 0",
-        textAlign: "center",
-        color: "var(--text-tertiary)",
-        fontSize: 13,
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="app-empty-state">{children}</div>;
 }
 
 function actionKey(action: ActionRecord): string {

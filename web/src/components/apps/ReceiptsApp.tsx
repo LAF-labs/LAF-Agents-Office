@@ -32,38 +32,18 @@ function ReceiptList({
 
   return (
     <>
-      <div
-        style={{
-          padding: "16px 20px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <h3 style={{ fontSize: 16, fontWeight: 600 }}>Receipts</h3>
-        <div
-          style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 4 }}
-        >
+      <div className="app-section-heading">
+        <h3>Receipts</h3>
+        <p>
           What each agent actually did, tool by tool. No claims {"\u2014"} just
           the log.
-        </div>
+        </p>
       </div>
 
-      {isLoading ? (
-        <div style={{ padding: 20, color: "var(--text-tertiary)" }}>
-          Loading...
-        </div>
-      ) : null}
+      {isLoading ? <div className="app-loading-state">Loading...</div> : null}
 
       {error ? (
-        <div
-          style={{
-            padding: "40px 20px",
-            textAlign: "center",
-            color: "var(--text-tertiary)",
-            fontSize: 14,
-          }}
-        >
-          Could not load receipts.
-        </div>
+        <div className="app-empty-state">Could not load receipts.</div>
       ) : null}
 
       {!(isLoading || error) ? (
@@ -82,38 +62,22 @@ function LogTable({
 }) {
   if (logs.length === 0) {
     return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
+      <div className="app-empty-state">
         No receipts yet. Agents write one when they use a tool.
       </div>
     );
   }
 
   return (
-    <div style={{ overflow: "auto", flex: 1 }}>
-      <table
-        style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
-      >
+    <div className="app-table-shell">
+      <table className="app-table">
         <thead>
-          <tr
-            style={{
-              textAlign: "left",
-              color: "var(--text-tertiary)",
-              fontSize: 11,
-              textTransform: "uppercase",
-            }}
-          >
-            <th style={{ padding: "8px 20px" }}>Agent</th>
-            <th style={{ padding: "8px 12px" }}>Action</th>
-            <th style={{ padding: "8px 12px" }}>Time</th>
-            <th style={{ padding: "8px 12px", textAlign: "right" }}>Tokens</th>
-            <th style={{ padding: "8px 12px", textAlign: "right" }}>Cost</th>
+          <tr>
+            <th>Agent</th>
+            <th>Action</th>
+            <th>Time</th>
+            <th style={{ textAlign: "right" }}>Tokens</th>
+            <th style={{ textAlign: "right" }}>Cost</th>
           </tr>
         </thead>
         <tbody>
@@ -123,18 +87,12 @@ function LogTable({
             return (
               <tr
                 key={log.id}
-                style={{
-                  borderTop: "1px solid var(--border-light)",
-                  cursor: log.task ? "pointer" : "default",
-                }}
+                data-clickable={log.task ? "true" : undefined}
                 onClick={() => log.task && onSelectTask(log.task)}
               >
-                <td style={{ padding: "10px 20px", fontWeight: 500 }}>
-                  {log.agent || "\u2014"}
-                </td>
+                <td style={{ fontWeight: 600 }}>{log.agent || "\u2014"}</td>
                 <td
                   style={{
-                    padding: "10px 12px",
                     color: "var(--text-secondary)",
                   }}
                 >
@@ -142,7 +100,6 @@ function LogTable({
                 </td>
                 <td
                   style={{
-                    padding: "10px 12px",
                     color: "var(--text-secondary)",
                   }}
                 >
@@ -150,7 +107,6 @@ function LogTable({
                 </td>
                 <td
                   style={{
-                    padding: "10px 12px",
                     textAlign: "right",
                     fontFamily: "var(--font-mono)",
                     fontSize: 12,
@@ -160,7 +116,6 @@ function LogTable({
                 </td>
                 <td
                   style={{
-                    padding: "10px 12px",
                     textAlign: "right",
                     fontFamily: "var(--font-mono)",
                     fontSize: 12,
@@ -195,110 +150,47 @@ function ReceiptDetail({
     <>
       <button
         type="button"
-        className="btn btn-secondary btn-sm"
-        style={{ margin: "12px 20px 0" }}
+        className="btn btn-secondary btn-sm app-back-button"
         onClick={onBack}
       >
         {"\u2190"} Back to receipts
       </button>
 
-      <div style={{ padding: "12px 20px 8px" }}>
-        <h3
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {taskId}
-        </h3>
-        <div
-          style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 4 }}
-        >
-          Tool-by-tool trace of this task.
-        </div>
+      <div className="app-section-heading">
+        <h3 style={{ fontFamily: "var(--font-mono)" }}>{taskId}</h3>
+        <p>Tool-by-tool trace of this task.</p>
       </div>
 
-      {isLoading ? (
-        <div style={{ padding: "16px 20px", color: "var(--text-tertiary)" }}>
-          Loading...
-        </div>
-      ) : null}
+      {isLoading ? <div className="app-loading-state">Loading...</div> : null}
 
       {error ? (
-        <div
-          style={{
-            padding: "40px 20px",
-            textAlign: "center",
-            color: "var(--text-tertiary)",
-            fontSize: 14,
-          }}
-        >
-          Could not load task trace.
-        </div>
+        <div className="app-empty-state">Could not load task trace.</div>
       ) : null}
 
       {!(isLoading || error) && logs.length === 0 ? (
-        <div
-          style={{
-            padding: "40px 20px",
-            textAlign: "center",
-            color: "var(--text-tertiary)",
-            fontSize: 14,
-          }}
-        >
-          No tool calls in this task yet.
-        </div>
+        <div className="app-empty-state">No tool calls in this task yet.</div>
       ) : null}
 
       {!(isLoading || error) && logs.length > 0 ? (
-        <div style={{ overflow: "auto", flex: 1, padding: "0 20px 20px" }}>
+        <div className="app-table-shell app-trace-list">
           {logs.map((entry, i) => (
-            <div
-              key={entry.id}
-              style={{
-                padding: "10px 0",
-                borderBottom: "1px solid var(--border-light)",
-                fontSize: 13,
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <div style={{ display: "flex", gap: 12, alignItems: "baseline" }}>
-                <span
-                  style={{
-                    color: "var(--text-tertiary)",
-                    fontSize: 11,
-                    minWidth: 64,
-                  }}
-                >
+            <div key={entry.id} className="app-trace-entry">
+              <div className="app-trace-entry-head">
+                <span className="app-trace-index">
                   #{i + 1}{" "}
                   {entry.timestamp
                     ? new Date(entry.timestamp).toLocaleTimeString()
                     : "\u2014"}
                 </span>
-                <span
-                  style={{ fontWeight: 600, fontFamily: "var(--font-mono)" }}
-                >
+                <span className="app-trace-action">
                   {entry.action || "(unknown)"}
                 </span>
                 {entry.agent ? (
-                  <span
-                    style={{ fontSize: 11, color: "var(--text-secondary)" }}
-                  >
-                    @{entry.agent}
-                  </span>
+                  <span className="app-trace-agent">@{entry.agent}</span>
                 ) : null}
               </div>
               {entry.content ? (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    paddingLeft: 76,
-                  }}
-                >
+                <div className="app-trace-content">
                   {entry.content.slice(0, 200)}
                 </div>
               ) : null}

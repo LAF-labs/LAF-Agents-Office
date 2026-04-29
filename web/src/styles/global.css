@@ -72,6 +72,7 @@
   --bg-subtle: var(--neutral-10);
   --bg-card: #ffffff;
   --bg-elevated: var(--bg-card);
+  --app-bg: color-mix(in srgb, var(--bg-subtle) 74%, var(--bg));
   --text: var(--neutral-900);
   --text-primary: var(--text);
   --text-secondary: var(--neutral-500);
@@ -95,6 +96,12 @@
   --yellow-bg: var(--warning-100);
   --blue: #1264a3;
   --blue-bg: #edf5fa;
+  --focus-ring: color-mix(in srgb, var(--accent) 34%, transparent);
+  --shadow-xs: 0 1px 2px rgba(30, 31, 31, 0.04);
+  --shadow-sm:
+    0 1px 2px rgba(30, 31, 31, 0.04), 0 8px 24px rgba(30, 31, 31, 0.05);
+  --shadow-md:
+    0 1px 3px rgba(30, 31, 31, 0.05), 0 16px 44px rgba(30, 31, 31, 0.08);
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-serif:
@@ -231,9 +238,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 1px 3px rgba(59, 47, 47, 0.04),
-    0 8px 30px rgba(59, 47, 47, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ─── Inputs ─── */

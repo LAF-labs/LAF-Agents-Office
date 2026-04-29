@@ -20,33 +20,11 @@ export function RequestsApp() {
   });
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Loading requests...
-      </div>
-    );
+    return <div className="app-loading-state">Loading requests...</div>;
   }
 
   if (error) {
-    return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Failed to load requests.
-      </div>
-    );
+    return <div className="app-empty-state">Failed to load requests.</div>;
   }
 
   const allRequests = dedupeRequests(data);
@@ -59,33 +37,21 @@ export function RequestsApp() {
 
   if (allRequests.length === 0) {
     return (
-      <div
-        style={{
-          padding: "40px 20px",
-          textAlign: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        No requests right now. Your agents are working independently.
-      </div>
+      <>
+        <RequestsHeader />
+        <div className="app-empty-state">
+          No requests right now. Your agents are working independently.
+        </div>
+      </>
     );
   }
 
   return (
     <>
+      <RequestsHeader />
       {pending.length > 0 ? (
         <>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-              padding: "8px 0 4px",
-            }}
-          >
-            Pending ({pending.length})
-          </div>
+          <div className="app-section-title">Pending ({pending.length})</div>
           {pending.map((req) => (
             <RequestItem
               key={req.id}
@@ -107,22 +73,22 @@ export function RequestsApp() {
 
       {answered.length > 0 ? (
         <>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-              padding: "12px 0 4px",
-            }}
-          >
-            Answered ({answered.length})
-          </div>
+          <div className="app-section-title">Answered ({answered.length})</div>
           {answered.map((req) => (
             <RequestItem key={req.id} request={req} isPending={false} />
           ))}
         </>
       ) : null}
     </>
+  );
+}
+
+function RequestsHeader() {
+  return (
+    <div className="app-section-heading">
+      <h3>Requests</h3>
+      <p>Questions that need a human decision before agent work continues.</p>
+    </div>
   );
 }
 
@@ -150,7 +116,7 @@ function RequestItem({ request, isPending, onAnswer }: RequestItemProps) {
   const ts = request.updated_at ?? request.created_at ?? request.timestamp;
 
   return (
-    <div className="app-card" style={{ marginBottom: 8 }}>
+    <div className="app-card">
       <div
         style={{
           display: "flex",

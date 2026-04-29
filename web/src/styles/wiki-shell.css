@@ -13,6 +13,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  background: var(--app-bg);
 }
 
 .wiki-shell > .wiki-shell-body {
@@ -26,11 +27,12 @@
 .wiki-tabs {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 6px;
   padding: 0 20px;
-  height: 42px;
-  background: var(--surface, #ffffff);
-  border-bottom: 1px solid var(--border, rgba(29, 28, 29, 0.08));
+  height: 50px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
     sans-serif;
@@ -38,43 +40,48 @@
 }
 
 .wiki-shell:has(.notebook-surface) .wiki-tabs {
-  border-bottom: none;
+  border-bottom: 1px solid var(--border);
 }
 
 .wiki-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 100%;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  color: var(--text-muted, #616061);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition:
+    background 120ms ease,
+    border-color 120ms ease,
     color 120ms ease,
-    border-color 120ms ease;
+    box-shadow 120ms ease;
 }
 
 .wiki-tab:hover {
-  color: var(--text, #1d1c1d);
+  background: var(--bg-subtle);
+  color: var(--text-primary);
 }
 
 .wiki-tab:focus-visible {
-  outline: 2px solid #1264a3;
-  outline-offset: -2px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .wiki-tab.is-active {
-  color: var(--text, #1d1c1d);
-  border-bottom-color: #1264a3;
+  background: var(--accent-bg);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
 }
 
 .wiki-tab-label {
-  letter-spacing: 0.005em;
+  letter-spacing: 0;
 }
 
 .wiki-tab-badge {
@@ -84,22 +91,23 @@
   min-width: 18px;
   height: 18px;
   padding: 0 6px;
-  background: #fdf6dc;
-  color: #1d1c1d;
+  background: var(--bg-card);
+  color: var(--text-primary);
   font-family: "Geist Mono", "SFMono-Regular", Menlo, monospace;
   font-size: 11px;
   font-weight: 500;
   line-height: 1;
-  border: 1px solid #e8e4d8;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
 }
 
 .wiki-shell:has(.notebook-surface) .wiki-tab.is-active {
-  border-bottom-color: #274472;
+  background: var(--accent-bg);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
 }
 
 .wiki-shell:has(.notebook-surface) .wiki-tab-badge {
-  background: rgba(199, 138, 31, 0.1);
-  border-color: #d9ceb5;
-  color: #2a2721;
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-primary);
 }
