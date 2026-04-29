@@ -628,12 +628,29 @@ export interface Project {
   updated_at?: string;
 }
 
+export interface ProjectRepoReadiness {
+  project_id: string;
+  repo_url?: string;
+  status: string;
+  message: string;
+  can_create_coding_tasks: boolean;
+  default_branch?: string;
+  checked_at?: string;
+}
+
 export function getProjects(opts?: { includeArchived?: boolean }) {
   const params: Record<string, string> = {
     viewer_slug: "human",
   };
   if (opts?.includeArchived) params.include_archived = "true";
   return get<{ projects: Project[] }>("/projects", params);
+}
+
+export function getProjectRepoReadiness(projectId: string) {
+  return get<{ readiness: ProjectRepoReadiness }>("/projects/repo-readiness", {
+    id: projectId,
+    viewer_slug: "human",
+  });
 }
 
 export function createProject(body: {

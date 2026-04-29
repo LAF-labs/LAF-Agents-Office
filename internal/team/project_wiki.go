@@ -198,6 +198,16 @@ func projectWikiArticlePath(projectID string) string {
 	return fmt.Sprintf("team/projects/%s.md", normalizeProjectID(projectID))
 }
 
+func projectIDFromWikiArticlePath(articlePath string) string {
+	articlePath = strings.TrimSpace(articlePath)
+	articlePath = strings.TrimPrefix(articlePath, "/")
+	if !strings.HasPrefix(articlePath, "team/projects/") || !strings.HasSuffix(articlePath, ".md") {
+		return ""
+	}
+	projectID := strings.TrimSuffix(strings.TrimPrefix(articlePath, "team/projects/"), ".md")
+	return normalizeProjectID(projectID)
+}
+
 func renderProjectWikiGitHubRepoLine(project teamProject) string {
 	if repo := strings.TrimSpace(project.GitHubRepoURL); repo != "" {
 		return fmt.Sprintf("- GitHub repo: %s", repo)

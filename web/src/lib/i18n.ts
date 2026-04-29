@@ -246,6 +246,32 @@ const messages = {
     "tasks.repoNotConnected": "Repo not connected",
     "tasks.repoConnectedDesc": "Ready for project-scoped coding work.",
     "tasks.repoNotConnectedDesc": "Connect it only when code work starts.",
+    "tasks.repoReady": "Repo ready",
+    "tasks.repoReadyDesc":
+      "GitHub access, PR delivery, and local worktrees are ready.",
+    "tasks.repoChecking": "Checking repo",
+    "tasks.repoCheckingDesc": "Checking GitHub CLI auth and repository access.",
+    "tasks.repoNeedsSetup": "Repo setup needed",
+    "tasks.repoNeedsSetupDesc":
+      "Planning tasks still work; coding tasks wait until GitHub is ready.",
+    "tasks.repoInvalid": "Repo URL needs fixing",
+    "tasks.repoInvalidDesc":
+      "Use https://github.com/org/repo or git@github.com:org/repo.git.",
+    "tasks.repoToolMissing": "GitHub CLI needed",
+    "tasks.repoToolMissingDesc": "Install gh so agents can open pull requests.",
+    "tasks.repoAuthRequired": "GitHub login needed",
+    "tasks.repoAuthRequiredDesc":
+      "Run gh auth login before assigning coding tasks.",
+    "tasks.repoReachabilityFailed": "Repo access failed",
+    "tasks.repoReachabilityFailedDesc":
+      "Check repo permissions, URL, and GitHub CLI authentication.",
+    "tasks.repoCheckUnavailable": "Repo check unavailable",
+    "tasks.repoCheckUnavailableDesc":
+      "The project stays in planning mode until the check succeeds.",
+    "tasks.checkGitHubReadiness": "Check readiness",
+    "tasks.defaultBranch": "Default branch: ",
+    "tasks.repoCodingEnabled": "Coding tasks create branches and PR receipts.",
+    "tasks.repoCodingBlocked": "Coding tasks are held until setup is fixed.",
     "tasks.saving": "Saving...",
     "tasks.saveGithubRepo": "Save GitHub repo",
     "tasks.cancel": "Cancel",
@@ -259,6 +285,10 @@ const messages = {
       "No GitHub repo is connected yet. This creates a planning, documentation, or task-breakdown request.",
     "tasks.requestModeCoding":
       "A GitHub repo is connected. This can create a coding task with branch and PR work.",
+    "tasks.requestModeRepoChecking":
+      "Checking GitHub readiness before coding tasks.",
+    "tasks.requestModeRepoSetupNeeded":
+      "GitHub is connected but not ready. This creates planning, documentation, or task-breakdown work until setup is fixed.",
     "tasks.requestPlaceholder": "Ask for the next project task",
     "tasks.workRequest": "Project work request",
     "tasks.creating": "Creating...",
@@ -326,6 +356,21 @@ const messages = {
     "tasks.detail.action.taskUnblocked": "Task resumed",
     "tasks.detail.action.taskReassigned": "Owner changed",
     "tasks.detail.action.taskCanceled": "Task canceled",
+    "tasks.detail.step.created": "Task created",
+    "tasks.detail.step.ownerReady": "Owner assigned",
+    "tasks.detail.step.ownerNeeded": "Assign owner",
+    "tasks.detail.step.branchReady": "Branch ready",
+    "tasks.detail.step.branchNeeded": "Branch needed",
+    "tasks.detail.step.deliveryReady": "Delivery receipt ready",
+    "tasks.detail.step.deliveryNeeded": "Delivery receipt needed",
+    "tasks.detail.step.projectMemory": "Project memory update",
+    "tasks.detail.step.projectMemoryDetail":
+      "Planning work should update the project wiki.",
+    "tasks.detail.step.blocked": "Blocked",
+    "tasks.detail.step.review": "Review",
+    "tasks.detail.step.reviewCurrent": "Waiting for human review.",
+    "tasks.detail.step.done": "Done",
+    "tasks.detail.step.doneDetail": "Work accepted.",
     "tasks.execution.working": "Agent is working",
     "tasks.execution.review": "Ready for review",
     "tasks.execution.done": "Completed",
@@ -656,6 +701,34 @@ const messages = {
     "tasks.repoNotConnected": "저장소 미연결",
     "tasks.repoConnectedDesc": "프로젝트 단위 개발 작업을 시작할 수 있습니다.",
     "tasks.repoNotConnectedDesc": "코드 작업을 시작할 때만 연결하면 됩니다.",
+    "tasks.repoReady": "저장소 준비됨",
+    "tasks.repoReadyDesc":
+      "GitHub 접근, PR 전달, 로컬 worktree가 준비되었습니다.",
+    "tasks.repoChecking": "저장소 확인 중",
+    "tasks.repoCheckingDesc":
+      "GitHub CLI 로그인과 저장소 접근 권한을 확인합니다.",
+    "tasks.repoNeedsSetup": "저장소 설정 필요",
+    "tasks.repoNeedsSetupDesc":
+      "기획 작업은 가능하지만, 개발 작업은 GitHub 준비가 끝난 뒤 시작합니다.",
+    "tasks.repoInvalid": "저장소 URL 수정 필요",
+    "tasks.repoInvalidDesc":
+      "https://github.com/org/repo 또는 git@github.com:org/repo.git 형식으로 입력하세요.",
+    "tasks.repoToolMissing": "GitHub CLI 필요",
+    "tasks.repoToolMissingDesc":
+      "에이전트가 PR을 열 수 있도록 gh를 설치하세요.",
+    "tasks.repoAuthRequired": "GitHub 로그인 필요",
+    "tasks.repoAuthRequiredDesc":
+      "개발 작업을 맡기기 전에 gh auth login을 실행하세요.",
+    "tasks.repoReachabilityFailed": "저장소 접근 실패",
+    "tasks.repoReachabilityFailedDesc":
+      "저장소 권한, URL, GitHub CLI 로그인을 확인하세요.",
+    "tasks.repoCheckUnavailable": "저장소 확인 불가",
+    "tasks.repoCheckUnavailableDesc":
+      "확인이 성공할 때까지 프로젝트는 기획 모드로 유지됩니다.",
+    "tasks.checkGitHubReadiness": "준비 상태 확인",
+    "tasks.defaultBranch": "기본 브랜치: ",
+    "tasks.repoCodingEnabled": "개발 작업은 브랜치와 PR 전달로 생성됩니다.",
+    "tasks.repoCodingBlocked": "설정이 해결될 때까지 개발 작업을 보류합니다.",
     "tasks.saving": "저장 중...",
     "tasks.saveGithubRepo": "GitHub 저장소 저장",
     "tasks.cancel": "취소",
@@ -669,6 +742,10 @@ const messages = {
       "아직 GitHub 저장소가 연결되지 않았습니다. 기획, 문서, 작업 분해 요청으로 생성합니다.",
     "tasks.requestModeCoding":
       "GitHub 저장소가 연결되어 있습니다. 브랜치와 PR 작업으로 이어지는 개발 작업을 만들 수 있습니다.",
+    "tasks.requestModeRepoChecking":
+      "개발 작업을 만들기 전에 GitHub 준비 상태를 확인합니다.",
+    "tasks.requestModeRepoSetupNeeded":
+      "GitHub 저장소는 연결됐지만 아직 준비되지 않았습니다. 설정이 해결될 때까지 기획, 문서, 작업 분해 요청으로 생성합니다.",
     "tasks.requestPlaceholder": "다음 프로젝트 작업을 요청하세요",
     "tasks.workRequest": "프로젝트 작업 요청",
     "tasks.creating": "만드는 중...",
@@ -735,6 +812,21 @@ const messages = {
     "tasks.detail.action.taskUnblocked": "작업 재개",
     "tasks.detail.action.taskReassigned": "담당 변경",
     "tasks.detail.action.taskCanceled": "작업 취소",
+    "tasks.detail.step.created": "작업 생성",
+    "tasks.detail.step.ownerReady": "담당 지정됨",
+    "tasks.detail.step.ownerNeeded": "담당 지정 필요",
+    "tasks.detail.step.branchReady": "브랜치 준비됨",
+    "tasks.detail.step.branchNeeded": "브랜치 필요",
+    "tasks.detail.step.deliveryReady": "전달 결과 준비됨",
+    "tasks.detail.step.deliveryNeeded": "전달 결과 필요",
+    "tasks.detail.step.projectMemory": "프로젝트 메모리 업데이트",
+    "tasks.detail.step.projectMemoryDetail":
+      "기획 작업은 프로젝트 위키에 남겨야 합니다.",
+    "tasks.detail.step.blocked": "막힘",
+    "tasks.detail.step.review": "리뷰",
+    "tasks.detail.step.reviewCurrent": "사람 리뷰 대기 중입니다.",
+    "tasks.detail.step.done": "완료",
+    "tasks.detail.step.doneDetail": "작업이 승인되었습니다.",
     "tasks.execution.working": "에이전트 작업 중",
     "tasks.execution.review": "리뷰 준비됨",
     "tasks.execution.done": "완료됨",

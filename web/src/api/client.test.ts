@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createProject, createTask, updateProject } from "./client";
+import {
+  createProject,
+  createTask,
+  getProjectRepoReadiness,
+  updateProject,
+} from "./client";
 
 describe("project api client", () => {
   afterEach(() => {
@@ -129,5 +134,35 @@ describe("project api client", () => {
       }),
     );
     expect(result.task.project_id).toBe("customer-portal");
+  });
+
+  it("checks project-scoped GitHub readiness without using a team-wide repo", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          readiness: {
+            project_id: "customer-portal",
+            repo_url: "https://github.com/laf-labs/customer-portal",
+            status: "ready",
+            message: "GitHub CLI can access this repository.",
+            can_create_coding_tasks: true,
+            default_branch: "main",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getProjectRepoReadiness("customer-portal");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/projects/repo-readiness?id=customer-portal&viewer_slug=human",
+      expect.objectContaining({
+        credentials: "include",
+      }),
+    );
+    expect(result.readiness.can_create_coding_tasks).toBe(true);
+    expect(result.readiness.default_branch).toBe("main");
   });
 });

@@ -944,6 +944,19 @@ func (b *Broker) handleWikiArticle(w http.ResponseWriter, r *http.Request) {
 	}
 	meta, err := worker.Repo().BuildArticle(r.Context(), relPath)
 	if err != nil {
+		if projectID := projectIDFromWikiArticlePath(relPath); projectID != "" {
+			if project := b.projectSnapshot(projectID); project.ID != "" {
+				if materializeErr := b.materializeProjectWiki(r.Context(), project); materializeErr != nil {
+					writeJSON(w, http.StatusInternalServerError, map[string]string{"error": materializeErr.Error()})
+					return
+				}
+				meta, err = worker.Repo().BuildArticle(r.Context(), relPath)
+				if err == nil {
+					writeJSON(w, http.StatusOK, meta)
+					return
+				}
+			}
+		}
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}

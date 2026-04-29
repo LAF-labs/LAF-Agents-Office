@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -207,6 +208,121 @@ func TestProjectGitHubRepoURLUpdatePreservesOmittedFields(t *testing.T) {
 	}
 }
 
+func TestProjectRepoReadinessReportsNotConnected(t *testing.T) {
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":       "Planning Only",
+		"created_by": "human",
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/projects/repo-readiness?id="+project.ID+"&viewer_slug=human", nil)
+	b.handleProjectRepoReadiness(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repo readiness status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Readiness projectRepoReadiness `json:"readiness"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if body.Readiness.Status != "not_connected" || body.Readiness.CanCreateCodingTasks {
+		t.Fatalf("unexpected readiness: %+v", body.Readiness)
+	}
+}
+
+func TestProjectRepoReadinessRequiresGitHubAuth(t *testing.T) {
+	oldLookPath := projectRepoLookPath
+	oldRunGH := projectRepoRunGH
+	t.Cleanup(func() {
+		projectRepoLookPath = oldLookPath
+		projectRepoRunGH = oldRunGH
+	})
+	projectRepoLookPath = func(file string) (string, error) {
+		return "/usr/local/bin/gh", nil
+	}
+	projectRepoRunGH = func(args ...string) ([]byte, error) {
+		if strings.Join(args, " ") == "auth status" {
+			return nil, errors.New("not logged in")
+		}
+		t.Fatalf("unexpected gh call before auth succeeds: %v", args)
+		return nil, nil
+	}
+
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/agent-lab",
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/projects/repo-readiness?id="+project.ID+"&viewer_slug=human", nil)
+	b.handleProjectRepoReadiness(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repo readiness status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Readiness projectRepoReadiness `json:"readiness"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if body.Readiness.Status != "auth_required" || body.Readiness.CanCreateCodingTasks {
+		t.Fatalf("unexpected readiness: %+v", body.Readiness)
+	}
+}
+
+func TestProjectRepoReadinessReadyIncludesDefaultBranch(t *testing.T) {
+	oldLookPath := projectRepoLookPath
+	oldRunGH := projectRepoRunGH
+	t.Cleanup(func() {
+		projectRepoLookPath = oldLookPath
+		projectRepoRunGH = oldRunGH
+	})
+	projectRepoLookPath = func(file string) (string, error) {
+		return "/usr/local/bin/gh", nil
+	}
+	projectRepoRunGH = func(args ...string) ([]byte, error) {
+		switch strings.Join(args, " ") {
+		case "auth status":
+			return []byte("Logged in\n"), nil
+		case "repo view laf-labs/agent-lab --json defaultBranchRef --jq .defaultBranchRef.name":
+			return []byte("main\n"), nil
+		default:
+			t.Fatalf("unexpected gh call: %v", args)
+			return nil, nil
+		}
+	}
+
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:laf-labs/agent-lab.git",
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/projects/repo-readiness?id="+project.ID+"&viewer_slug=human", nil)
+	b.handleProjectRepoReadiness(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repo readiness status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Readiness projectRepoReadiness `json:"readiness"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if body.Readiness.Status != "ready" || !body.Readiness.CanCreateCodingTasks {
+		t.Fatalf("unexpected readiness: %+v", body.Readiness)
+	}
+	if body.Readiness.DefaultBranch != "main" {
+		t.Fatalf("default branch = %q, want main", body.Readiness.DefaultBranch)
+	}
+}
+
 func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "wiki")
 	backup := filepath.Join(t.TempDir(), "wiki.bak")
@@ -260,6 +376,52 @@ func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	b.handleWikiArticle(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("wiki article status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+func TestProjectWikiArticleGetMaterializesMissingArticle(t *testing.T) {
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":       "Delayed Wiki",
+		"created_by": "human",
+	})
+
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/wiki/article?path=team/projects/"+project.ID+".md", nil)
+	b.handleWikiArticle(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("wiki article status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Path    string `json:"path"`
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode article: %v", err)
+	}
+	if body.Path != "team/projects/"+project.ID+".md" {
+		t.Fatalf("article path = %q", body.Path)
+	}
+	if !strings.Contains(body.Content, "Project ID: `"+project.ID+"`") {
+		t.Fatalf("materialized article missing project snapshot:\n%s", body.Content)
 	}
 }
 
@@ -662,6 +824,143 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("project wiki missing delivery receipt %q in:\n%s", want, content)
+		}
+	}
+}
+
+func TestLocalProductLoopProjectWikiPacketAndDelivery(t *testing.T) {
+	oldProjectPrepare := prepareProjectTaskWorktree
+	t.Cleanup(func() {
+		prepareProjectTaskWorktree = oldProjectPrepare
+	})
+	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+		return "/tmp/laf-office-" + projectID + "-" + taskID, "laf-office-" + taskID, nil
+	}
+
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	signup := signupForTest(t, b, "founder@example.com", "Founder", "create", "Founder Team", "")
+	if signup.Team.ID == "" || signup.User.ID == "" {
+		t.Fatalf("signup did not create team/user: %+v", signup)
+	}
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Customer Portal",
+		"description":     "Ship the first customer onboarding loop.",
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/customer-portal",
+	})
+	worker.WaitForIdle()
+
+	createRec := httptest.NewRecorder()
+	b.handlePostTask(createRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "create",
+		"title":      "Implement signup validation",
+		"details":    "Add validation and tests.",
+		"owner":      "eng",
+		"created_by": "human",
+		"project_id": project.ID,
+	}))
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("create project coding task status = %d, want %d: %s", createRec.Code, http.StatusOK, createRec.Body.String())
+	}
+	var created struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(createRec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created task: %v", err)
+	}
+	if created.Task.ExecutionMode != executionModeLocalWorktree || created.Task.WorktreeBranch == "" {
+		t.Fatalf("expected local worktree coding task, got %+v", created.Task)
+	}
+
+	packet := (&Launcher{broker: b}).buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_created",
+		Actor: "human",
+	}, created.Task, "Start the implementation.")
+	for _, want := range []string{
+		"- Project wiki: team/projects/" + project.ID + ".md",
+		"Project memory excerpt (read before work):",
+		"Ship the first customer onboarding loop.",
+		"Project repo rule: use this project repo as the coding boundary",
+		"Project delivery rule: commit changes on branch",
+	} {
+		if !strings.Contains(packet, want) {
+			t.Fatalf("packet missing %q:\n%s", want, packet)
+		}
+	}
+
+	reviewRec := httptest.NewRecorder()
+	b.handlePostTask(reviewRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":           "complete",
+		"id":               created.Task.ID,
+		"created_by":       "human",
+		"delivery_url":     "https://github.com/laf-labs/customer-portal/pull/7",
+		"delivery_summary": "Implemented signup validation.",
+	}))
+	if reviewRec.Code != http.StatusOK {
+		t.Fatalf("deliver task status = %d, want %d: %s", reviewRec.Code, http.StatusOK, reviewRec.Body.String())
+	}
+	var delivered struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(reviewRec.Body).Decode(&delivered); err != nil {
+		t.Fatalf("decode delivered task: %v", err)
+	}
+	if delivered.Task.Status != taskStatusReview || delivered.Task.DeliveryURL == "" {
+		t.Fatalf("expected delivered task in review, got %+v", delivered.Task)
+	}
+
+	doneRec := httptest.NewRecorder()
+	b.handlePostTask(doneRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "complete",
+		"id":         created.Task.ID,
+		"created_by": "human",
+	}))
+	if doneRec.Code != http.StatusOK {
+		t.Fatalf("approve delivered task status = %d, want %d: %s", doneRec.Code, http.StatusOK, doneRec.Body.String())
+	}
+	var done struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(doneRec.Body).Decode(&done); err != nil {
+		t.Fatalf("decode done task: %v", err)
+	}
+	if done.Task.Status != taskStatusDone {
+		t.Fatalf("expected done task, got %+v", done.Task)
+	}
+	worker.WaitForIdle()
+
+	raw, err := os.ReadFile(filepath.Join(root, "team", "projects", project.ID+".md"))
+	if err != nil {
+		t.Fatalf("read project wiki: %v", err)
+	}
+	content := string(raw)
+	for _, want := range []string{
+		"Project ID: `customer-portal`",
+		"Task `" + created.Task.ID + "` created: Implement signup validation",
+		"delivery `https://github.com/laf-labs/customer-portal/pull/7`",
+		"Delivery: Implemented signup validation.",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("project wiki missing %q in:\n%s", want, content)
 		}
 	}
 }

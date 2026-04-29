@@ -1596,6 +1596,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/channel-members", b.requireAuth(b.handleChannelMembers))
 	mux.HandleFunc("/members", b.requireAuth(b.handleMembers))
 	mux.HandleFunc("/projects", b.requireAuth(b.handleProjects))
+	mux.HandleFunc("/projects/repo-readiness", b.requireAuth(b.handleProjectRepoReadiness))
 	mux.HandleFunc("/invites", b.requireAuth(b.handleInvites))
 	mux.HandleFunc("/invites/lookup", b.handleInviteLookup)
 	mux.HandleFunc("/invites/accept", b.handleInviteAccept)
@@ -8782,6 +8783,38 @@ func (b *Broker) handleProjects(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (b *Broker) handleProjectRepoReadiness(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	projectID := normalizeProjectID(r.URL.Query().Get("id"))
+	if projectID == "" {
+		http.Error(w, "project id required", http.StatusBadRequest)
+		return
+	}
+	viewerSlug := strings.TrimSpace(r.URL.Query().Get("viewer_slug"))
+
+	b.mu.Lock()
+	project := b.findProjectLocked(projectID)
+	if project == nil {
+		b.mu.Unlock()
+		http.Error(w, "project not found", http.StatusNotFound)
+		return
+	}
+	if project.Channel != "" && !b.canAccessChannelLocked(viewerSlug, project.Channel) {
+		b.mu.Unlock()
+		http.Error(w, "channel access denied", http.StatusForbidden)
+		return
+	}
+	projectSnapshot := *project
+	b.mu.Unlock()
+
+	readiness := projectRepoReadinessForProject(projectSnapshot)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"readiness": readiness})
 }
 
 func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {

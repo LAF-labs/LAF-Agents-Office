@@ -246,6 +246,155 @@ function taskStatusDisplay(status: string, t: TaskTranslator): string {
   }
 }
 
+type ExecutionStepState = "done" | "current" | "pending" | "blocked";
+
+interface TaskExecutionStep {
+  id: string;
+  label: string;
+  detail?: string | null;
+  state: ExecutionStepState;
+}
+
+function taskStatusHasStarted(status: string): boolean {
+  return ["in_progress", "review", "blocked", "done", "completed"].includes(
+    status,
+  );
+}
+
+function taskStatusIsDone(status: string): boolean {
+  return status === "done" || status === "completed";
+}
+
+function taskStatusIsReview(status: string): boolean {
+  return status === "review";
+}
+
+function baseTaskExecutionSteps(
+  task: Task,
+  t: TaskTranslator,
+): TaskExecutionStep[] {
+  const hasOwner = Boolean(task.owner?.trim());
+  return [
+    {
+      id: "created",
+      label: t("tasks.detail.step.created"),
+      detail: relativeMeta(task.created_at),
+      state: "done",
+    },
+    {
+      id: "owner",
+      label: hasOwner
+        ? t("tasks.detail.step.ownerReady")
+        : t("tasks.detail.step.ownerNeeded"),
+      detail: ownerMeta(task.owner),
+      state: hasOwner ? "done" : "current",
+    },
+  ];
+}
+
+function branchExecutionStep(
+  task: Task,
+  hasStarted: boolean,
+  t: TaskTranslator,
+): TaskExecutionStep {
+  const branch = task.worktree_branch?.trim();
+  return {
+    id: "branch",
+    label: branch
+      ? t("tasks.detail.step.branchReady")
+      : t("tasks.detail.step.branchNeeded"),
+    detail: optionalMeta(branch),
+    state: branch ? "done" : hasStarted ? "current" : "pending",
+  };
+}
+
+function deliveryExecutionStep(
+  task: Task,
+  hasStarted: boolean,
+  isReview: boolean,
+  t: TaskTranslator,
+): TaskExecutionStep {
+  const deliveryURL = task.delivery_url?.trim();
+  return {
+    id: "delivery",
+    label: deliveryURL
+      ? t("tasks.detail.step.deliveryReady")
+      : t("tasks.detail.step.deliveryNeeded"),
+    detail: deliveryURL
+      ? (pullRequestNumber(deliveryURL) ?? deliveryURL)
+      : null,
+    state: deliveryURL
+      ? "done"
+      : isReview || hasStarted
+        ? "current"
+        : "pending",
+  };
+}
+
+function projectMemoryExecutionStep(
+  isDone: boolean,
+  hasStarted: boolean,
+  t: TaskTranslator,
+): TaskExecutionStep {
+  return {
+    id: "memory",
+    label: t("tasks.detail.step.projectMemory"),
+    detail: t("tasks.detail.step.projectMemoryDetail"),
+    state: isDone ? "done" : hasStarted ? "current" : "pending",
+  };
+}
+
+function reviewExecutionStep(
+  isDone: boolean,
+  isReview: boolean,
+  t: TaskTranslator,
+): TaskExecutionStep {
+  return {
+    id: "review",
+    label: isDone ? t("tasks.detail.step.done") : t("tasks.detail.step.review"),
+    detail: isReview
+      ? t("tasks.detail.step.reviewCurrent")
+      : isDone
+        ? t("tasks.detail.step.doneDetail")
+        : null,
+    state: isDone ? "done" : isReview ? "current" : "pending",
+  };
+}
+
+function taskExecutionSteps(
+  task: Task,
+  status: string,
+  t: TaskTranslator,
+): TaskExecutionStep[] {
+  const isCodingTask = task.execution_mode?.trim() === "local_worktree";
+  const requiresReceipt = taskRequiresDeliveryReceipt(task);
+  const hasStarted = taskStatusHasStarted(status);
+  const isDone = taskStatusIsDone(status);
+  const isReview = taskStatusIsReview(status);
+  const steps = baseTaskExecutionSteps(task, t);
+
+  if (isCodingTask) {
+    steps.push(branchExecutionStep(task, hasStarted, t));
+    if (requiresReceipt) {
+      steps.push(deliveryExecutionStep(task, hasStarted, isReview, t));
+    }
+  } else if (task.project_id?.trim()) {
+    steps.push(projectMemoryExecutionStep(isDone, hasStarted, t));
+  }
+
+  if (status === "blocked") {
+    steps.push({
+      id: "blocked",
+      label: t("tasks.detail.step.blocked"),
+      state: "blocked",
+    });
+  }
+
+  steps.push(reviewExecutionStep(isDone, isReview, t));
+
+  return steps;
+}
+
 function taskTypeLabel(task: Task, t: TaskTranslator): string | null {
   if (task.execution_mode?.trim() === "local_worktree") {
     return t("tasks.detail.codingTask");
@@ -580,6 +729,7 @@ function TaskExecutionSection({
     [t("tasks.detail.taskType"), taskTypeLabel(task, t)],
     [t("tasks.detail.branch"), optionalMeta(task.worktree_branch)],
   ].filter(([, value]) => value);
+  const steps = taskExecutionSteps(task, status, t);
 
   return (
     <section className="task-detail-section">
@@ -598,6 +748,7 @@ function TaskExecutionSection({
             ))}
           </dl>
         ) : null}
+        <TaskExecutionProgress steps={steps} />
         <TaskActionTimeline
           actions={actions}
           isLoading={isActionLoading}
@@ -605,6 +756,27 @@ function TaskExecutionSection({
         />
       </div>
     </section>
+  );
+}
+
+function TaskExecutionProgress({ steps }: { steps: TaskExecutionStep[] }) {
+  return (
+    <ol className="task-detail-progress">
+      {steps.map((step) => (
+        <li
+          className={`task-detail-progress-step task-detail-progress-step-${step.state}`}
+          key={step.id}
+        >
+          <span className="task-detail-progress-dot" aria-hidden="true" />
+          <span className="task-detail-progress-copy">
+            <span className="task-detail-progress-label">{step.label}</span>
+            {step.detail ? (
+              <span className="task-detail-progress-detail">{step.detail}</span>
+            ) : null}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

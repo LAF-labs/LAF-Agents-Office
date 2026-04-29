@@ -12,6 +12,7 @@ const apiMocks = vi.hoisted(() => ({
   getActions: vi.fn(),
   getOfficeMembers: vi.fn(),
   getOfficeTasks: vi.fn(),
+  getProjectRepoReadiness: vi.fn(),
   getProjects: vi.fn(),
   post: vi.fn(),
   reassignTask: vi.fn(),
@@ -40,6 +41,16 @@ function renderTasksApp() {
 function mockCustomerPortalWorkspace() {
   vi.clearAllMocks();
   useAppStore.setState({ currentApp: null, language: "en", wikiPath: null });
+  apiMocks.getProjectRepoReadiness.mockResolvedValue({
+    readiness: {
+      project_id: "customer-portal",
+      repo_url: "https://github.com/laf-labs/customer-portal",
+      status: "ready",
+      message: "GitHub CLI can access this repository.",
+      can_create_coding_tasks: true,
+      default_branch: "main",
+    },
+  });
   apiMocks.getProjects.mockResolvedValue({
     projects: [
       {
@@ -98,6 +109,7 @@ describe("TasksApp project workspace", () => {
     expect(screen.getByText("Task queue")).toBeInTheDocument();
     expect(screen.getByText("Agent work")).toBeInTheDocument();
     expect(screen.getByText("GitHub")).toBeInTheDocument();
+    expect(await screen.findByText("Repo ready")).toBeInTheDocument();
     expect(await screen.findByText("2 active tasks")).toBeInTheDocument();
     expect(screen.getByText("1 agent-owned task")).toBeInTheDocument();
     expect(screen.queryByText("#general")).not.toBeInTheDocument();
@@ -158,6 +170,16 @@ describe("TasksApp project workspace", () => {
         ],
       });
     apiMocks.getOfficeTasks.mockResolvedValue({ tasks: [] });
+    apiMocks.getProjectRepoReadiness.mockResolvedValue({
+      readiness: {
+        project_id: "agent-lab",
+        repo_url: "https://github.com/laf-labs/agent-lab",
+        status: "ready",
+        message: "GitHub CLI can access this repository.",
+        can_create_coding_tasks: true,
+        default_branch: "main",
+      },
+    });
     apiMocks.updateProject.mockResolvedValue({
       project: {
         id: "agent-lab",
@@ -191,6 +213,7 @@ describe("TasksApp project workspace", () => {
     expect(
       await screen.findByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/agent-lab");
+    expect(await screen.findByText("Repo ready")).toBeInTheDocument();
   });
 });
 
@@ -277,6 +300,55 @@ describe("TasksApp project task request flow", () => {
         title: "Plan the first implementation slice",
         details: "Plan the first implementation slice",
         project_id: "agent-lab",
+        channel: "general",
+        owner: "ceo",
+        task_type: "research",
+        execution_mode: "office",
+        created_by: "human",
+      });
+    });
+  });
+
+  it("keeps a connected project in planning mode until GitHub readiness passes", async () => {
+    const user = userEvent.setup();
+    apiMocks.getProjectRepoReadiness.mockResolvedValue({
+      readiness: {
+        project_id: "customer-portal",
+        repo_url: "https://github.com/laf-labs/customer-portal",
+        status: "auth_required",
+        message: "Run gh auth login.",
+        can_create_coding_tasks: false,
+      },
+    });
+    apiMocks.createTask.mockResolvedValue({
+      task: {
+        id: "task-request",
+        title: "Break down the signup implementation",
+        project_id: "customer-portal",
+        owner: "ceo",
+        execution_mode: "office",
+      },
+    });
+
+    renderTasksApp();
+
+    expect(await screen.findByText("GitHub login needed")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "GitHub is connected but not ready. This creates planning, documentation, or task-breakdown work until setup is fixed.",
+      ),
+    ).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("Project work request"),
+      "Break down the signup implementation",
+    );
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+
+    await waitFor(() => {
+      expect(apiMocks.createTask).toHaveBeenCalledWith({
+        title: "Break down the signup implementation",
+        details: "Break down the signup implementation",
+        project_id: "customer-portal",
         channel: "general",
         owner: "ceo",
         task_type: "research",
@@ -454,6 +526,7 @@ describe("TasksApp project activity", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("Receipt needed")).toBeInTheDocument();
     expect(await screen.findByText("PR ready")).toBeInTheDocument();
+    expect(await screen.findAllByText("Coding task")).toHaveLength(2);
   });
 });
 

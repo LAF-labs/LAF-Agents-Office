@@ -139,8 +139,24 @@ and project task packets include a bounded excerpt so agents read the project
 memory before work without a separate lookup unless they need the full article.
 For connected coding projects, completed work records a delivery receipt
 (`delivery_url`, summary, timestamp) so the board and wiki point back to the PR.
+The project workspace checks repository readiness with the GitHub CLI before
+creating coding work: missing `gh`, missing `gh auth login`, invalid repo URLs,
+or inaccessible repos keep the request composer in planning/task-breakdown mode
+instead of failing later during worktree or PR setup.
 
 See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md).
+
+## Hosted Boundary
+
+The current runtime is local-first, but the product is being shaped around the
+same hosted boundary: Supabase owns auth and durable team/project/task records,
+Vercel owns the web/API request layer, and a separate runner owns agent
+execution, git checkouts, wiki writes, and GitHub PR creation. GitHub remains
+optional and project-scoped. CRM, email, calendar, notification, and managed
+integration state stay out of the product until LAF-Office ships its own
+implementation.
+
+See [docs/specs/HOSTED-PRODUCT-BOUNDARY.md](docs/specs/HOSTED-PRODUCT-BOUNDARY.md).
 
 ## Login and Team Sessions
 

@@ -19,8 +19,10 @@ import {
   createTask,
   getActions,
   getOfficeTasks,
+  getProjectRepoReadiness,
   getProjects,
   type Project,
+  type ProjectRepoReadiness,
   post,
   type Task,
   updateProject,
@@ -53,6 +55,12 @@ type TaskMove = (task: Task, toStatus: StatusGroup) => Promise<void>;
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type ProjectGitHubConnectorState = ReturnType<typeof useProjectGitHubConnector>;
 type ProjectTaskCreatorState = ReturnType<typeof useProjectTaskCreator>;
+type ProjectRepoReadinessQueryState = {
+  readiness?: ProjectRepoReadiness;
+  isError: boolean;
+  isLoading: boolean;
+  refetch: () => void;
+};
 type TasksQueryData = { tasks: Task[] };
 type TranslationFn = (key: I18nKey) => string;
 
@@ -114,6 +122,87 @@ function taskDeliveryBadge(
     };
   }
   return null;
+}
+
+function taskExecutionBadge(
+  task: Task,
+): { className: string; labelKey: I18nKey } | null {
+  if (task.execution_mode?.trim() === "local_worktree") {
+    return {
+      className: "badge badge-accent",
+      labelKey: "tasks.detail.codingTask",
+    };
+  }
+  if (task.project_id?.trim()) {
+    return {
+      className: "badge badge-muted",
+      labelKey: "tasks.detail.planningTask",
+    };
+  }
+  return null;
+}
+
+function projectCanCreateCodingTask(
+  project: Project,
+  readiness?: ProjectRepoReadiness,
+): boolean {
+  return Boolean(
+    project.github_repo_url?.trim() && readiness?.can_create_coding_tasks,
+  );
+}
+
+function repoReadinessTitleKey(
+  repoURL: string | undefined,
+  readiness: ProjectRepoReadiness | undefined,
+  isLoading: boolean,
+  isError: boolean,
+): I18nKey {
+  if (!repoURL) return "tasks.repoNotConnected";
+  if (isLoading) return "tasks.repoChecking";
+  if (isError) return "tasks.repoCheckUnavailable";
+  switch (readiness?.status) {
+    case "ready":
+      return "tasks.repoReady";
+    case "invalid_url":
+      return "tasks.repoInvalid";
+    case "gh_missing":
+      return "tasks.repoToolMissing";
+    case "auth_required":
+      return "tasks.repoAuthRequired";
+    case "repo_unreachable":
+      return "tasks.repoReachabilityFailed";
+    case "not_connected":
+      return "tasks.repoNotConnected";
+    default:
+      return "tasks.repoNeedsSetup";
+  }
+}
+
+function repoReadinessDetailKey(
+  repoURL: string | undefined,
+  readiness: ProjectRepoReadiness | undefined,
+  isLoading: boolean,
+  isError: boolean,
+): I18nKey {
+  if (!repoURL) return "tasks.repoNotConnectedDesc";
+  if (isLoading) return "tasks.repoCheckingDesc";
+  if (isError) return "tasks.repoCheckUnavailableDesc";
+  switch (readiness?.status) {
+    case "ready":
+      return "tasks.repoReadyDesc";
+    case "invalid_url":
+      return "tasks.repoInvalidDesc";
+    case "gh_missing":
+      return "tasks.repoToolMissingDesc";
+    case "auth_required":
+      return "tasks.repoAuthRequiredDesc";
+    case "repo_unreachable":
+      return "tasks.repoReachabilityFailedDesc";
+    case "not_connected":
+      return "tasks.repoNotConnectedDesc";
+    default:
+      return "tasks.repoNeedsSetupDesc";
+  }
 }
 
 function projectLoadMessage(
@@ -447,6 +536,7 @@ function useProjectGitHubConnector(queryClient: QueryClient) {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["actions"] }),
       queryClient.invalidateQueries({ queryKey: ["projects"] }),
+      queryClient.invalidateQueries({ queryKey: ["project-repo-readiness"] }),
     ]);
   }
 
@@ -503,16 +593,19 @@ function useProjectGitHubConnector(queryClient: QueryClient) {
   };
 }
 
-function buildProjectTaskRequest(project: Project, request: string) {
-  const repoURL = project.github_repo_url?.trim();
+function buildProjectTaskRequest(
+  project: Project,
+  request: string,
+  canCreateCodingTask: boolean,
+) {
   return {
     title: request,
     details: request,
     project_id: project.id,
     channel: project.channel || "general",
-    owner: repoURL ? "eng" : "ceo",
-    task_type: repoURL ? "feature" : "research",
-    execution_mode: repoURL ? "local_worktree" : "office",
+    owner: canCreateCodingTask ? "eng" : "ceo",
+    task_type: canCreateCodingTask ? "feature" : "research",
+    execution_mode: canCreateCodingTask ? "local_worktree" : "office",
     created_by: HUMAN_SLUG,
   };
 }
@@ -555,6 +648,7 @@ function useProjectTaskCreator(
 
   async function handleCreateTask(
     project: Project,
+    canCreateCodingTask: boolean,
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
@@ -564,7 +658,7 @@ function useProjectTaskCreator(
     setIsSubmittingTask(true);
     try {
       const { task } = await createTask(
-        buildProjectTaskRequest(project, request),
+        buildProjectTaskRequest(project, request, canCreateCodingTask),
       );
       seedCreatedTask(queryClient, project.id, task);
       setRequestText("");
@@ -716,6 +810,26 @@ export function TasksApp() {
     () => findSelectedProject(projects, selectedProjectId),
     [projects, selectedProjectId],
   );
+  const selectedProjectRepoURL = selectedProject?.github_repo_url?.trim() ?? "";
+  const repoReadinessQuery = useQuery({
+    queryKey: [
+      "project-repo-readiness",
+      selectedProject?.id ?? "",
+      selectedProjectRepoURL,
+    ],
+    queryFn: () => getProjectRepoReadiness(selectedProject?.id ?? ""),
+    enabled: Boolean(selectedProject?.id && selectedProjectRepoURL),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const repoReadinessState: ProjectRepoReadinessQueryState = {
+    readiness: repoReadinessQuery.data?.readiness,
+    isError: repoReadinessQuery.isError,
+    isLoading: repoReadinessQuery.isLoading,
+    refetch: () => {
+      void repoReadinessQuery.refetch();
+    },
+  };
   const projectActivities = useMemo(
     () =>
       selectedProject
@@ -804,6 +918,7 @@ export function TasksApp() {
             githubConnector={githubConnector}
             isLoadingTasks={isTaskLoading}
             language={language}
+            repoReadinessState={repoReadinessState}
             tasks={tasks}
             t={t}
             onCreateProject={handleOpenProjectCreator}
@@ -811,6 +926,7 @@ export function TasksApp() {
           />
           <ProjectWorkRequest
             project={selectedProject}
+            repoReadinessState={repoReadinessState}
             taskCreator={taskCreator}
             t={t}
           />
@@ -831,6 +947,7 @@ export function TasksApp() {
             githubConnector={githubConnector}
             isLoadingTasks={isTaskLoading}
             language={language}
+            repoReadinessState={repoReadinessState}
             tasks={tasks}
             t={t}
             onCreateProject={handleOpenProjectCreator}
@@ -1058,6 +1175,7 @@ interface ProjectWorkspaceOverviewProps {
   githubConnector: ProjectGitHubConnectorState;
   isLoadingTasks: boolean;
   language: Language;
+  repoReadinessState: ProjectRepoReadinessQueryState;
   tasks: Task[];
   t: TranslationFn;
   onCreateProject: () => void;
@@ -1070,6 +1188,7 @@ function ProjectWorkspaceOverview({
   githubConnector,
   isLoadingTasks,
   language,
+  repoReadinessState,
   tasks,
   t,
   onCreateProject,
@@ -1163,6 +1282,7 @@ function ProjectWorkspaceOverview({
         t={t}
         project={project}
         repoURL={repoURL}
+        repoReadinessState={repoReadinessState}
       />
     </section>
   );
@@ -1171,6 +1291,7 @@ function ProjectWorkspaceOverview({
 interface ProjectGitHubStripItemProps {
   connector: ProjectGitHubConnectorState;
   project: Project;
+  repoReadinessState: ProjectRepoReadinessQueryState;
   repoURL?: string;
   t: TranslationFn;
 }
@@ -1178,28 +1299,52 @@ interface ProjectGitHubStripItemProps {
 function ProjectGitHubStripItem({
   connector,
   project,
+  repoReadinessState,
   repoURL,
   t,
 }: ProjectGitHubStripItemProps) {
   const isEditing = connector.editingProjectId === project.id;
   const isSaving = connector.isSaving(project.id);
+  const titleKey = repoReadinessTitleKey(
+    repoURL,
+    repoReadinessState.readiness,
+    repoReadinessState.isLoading,
+    repoReadinessState.isError,
+  );
+  const detailKey = repoReadinessDetailKey(
+    repoURL,
+    repoReadinessState.readiness,
+    repoReadinessState.isLoading,
+    repoReadinessState.isError,
+  );
 
   return (
     <div className="task-workspace-strip-item task-workspace-strip-github">
       <span className="task-workspace-kicker">GitHub</span>
-      <strong>
-        {repoURL ? t("tasks.repoConnected") : t("tasks.repoNotConnected")}
-      </strong>
-      <span>
-        {repoURL
-          ? t("tasks.repoConnectedDesc")
-          : t("tasks.repoNotConnectedDesc")}
+      <strong>{t(titleKey)}</strong>
+      <span className="task-github-readiness-detail">{t(detailKey)}</span>
+      {repoReadinessState.readiness?.default_branch ? (
+        <span className="task-github-readiness-meta">
+          {t("tasks.defaultBranch")}
+          {repoReadinessState.readiness.default_branch}
+        </span>
+      ) : null}
+      {repoURL && !isEditing ? (
+        <span className="task-github-readiness-detail">
+          {repoReadinessState.readiness?.can_create_coding_tasks
+            ? t("tasks.repoCodingEnabled")
+            : t("tasks.repoCodingBlocked")}
+        </span>
+      ) : null}
+      <span className="sr-only" aria-live="polite">
+        {repoReadinessState.isLoading ? t("tasks.repoChecking") : ""}
       </span>
       {isEditing ? (
         <ProjectGitHubEditForm
           connector={connector}
           isSaving={isSaving}
           project={project}
+          repoReadinessState={repoReadinessState}
           t={t}
         />
       ) : (
@@ -1207,6 +1352,7 @@ function ProjectGitHubStripItem({
           connector={connector}
           isSaving={isSaving}
           project={project}
+          repoReadinessState={repoReadinessState}
           repoURL={repoURL}
           t={t}
         />
@@ -1219,6 +1365,7 @@ interface ProjectGitHubChildProps {
   connector: ProjectGitHubConnectorState;
   isSaving: boolean;
   project: Project;
+  repoReadinessState: ProjectRepoReadinessQueryState;
   t: TranslationFn;
 }
 
@@ -1262,6 +1409,7 @@ function ProjectGitHubActions({
   connector,
   isSaving,
   project,
+  repoReadinessState,
   repoURL,
   t,
 }: ProjectGitHubChildProps & { repoURL?: string }) {
@@ -1275,6 +1423,17 @@ function ProjectGitHubActions({
       <button type="button" onClick={() => connector.begin(project)}>
         {repoURL ? t("tasks.changeGithubRepo") : t("tasks.connectGithubRepo")}
       </button>
+      {repoURL ? (
+        <button
+          type="button"
+          disabled={repoReadinessState.isLoading}
+          onClick={repoReadinessState.refetch}
+        >
+          {repoReadinessState.isLoading
+            ? t("tasks.repoChecking")
+            : t("tasks.checkGitHubReadiness")}
+        </button>
+      ) : null}
       {repoURL ? (
         <button
           type="button"
@@ -1293,16 +1452,31 @@ function ProjectGitHubActions({
 
 interface ProjectWorkRequestProps {
   project: Project | null;
+  repoReadinessState: ProjectRepoReadinessQueryState;
   taskCreator: ProjectTaskCreatorState;
   t: TranslationFn;
 }
 
 function ProjectWorkRequest({
   project,
+  repoReadinessState,
   taskCreator,
   t,
 }: ProjectWorkRequestProps) {
   if (!project) return null;
+  const repoURL = project.github_repo_url?.trim();
+  const canCreateCodingTask = projectCanCreateCodingTask(
+    project,
+    repoReadinessState.readiness,
+  );
+  const isCheckingRepo = Boolean(repoURL && repoReadinessState.isLoading);
+  const requestModeKey: I18nKey = !repoURL
+    ? "tasks.requestModePlanning"
+    : isCheckingRepo
+      ? "tasks.requestModeRepoChecking"
+      : canCreateCodingTask
+        ? "tasks.requestModeCoding"
+        : "tasks.requestModeRepoSetupNeeded";
 
   return (
     <section
@@ -1312,14 +1486,14 @@ function ProjectWorkRequest({
       <div className="task-request-panel-head">
         <div>
           <h4>{t("tasks.firstTask")}</h4>
-          <p>
-            {project.github_repo_url?.trim()
-              ? t("tasks.requestModeCoding")
-              : t("tasks.requestModePlanning")}
-          </p>
+          <p>{t(requestModeKey)}</p>
         </div>
       </div>
-      <form onSubmit={(event) => taskCreator.handleCreateTask(project, event)}>
+      <form
+        onSubmit={(event) =>
+          taskCreator.handleCreateTask(project, canCreateCodingTask, event)
+        }
+      >
         <textarea
           value={taskCreator.requestText}
           onChange={(event) =>
@@ -1333,12 +1507,15 @@ function ProjectWorkRequest({
           type="submit"
           disabled={
             taskCreator.isSubmittingTask ||
+            isCheckingRepo ||
             taskCreator.requestText.trim() === ""
           }
         >
-          {taskCreator.isSubmittingTask
-            ? t("tasks.creating")
-            : t("tasks.createTask")}
+          {isCheckingRepo
+            ? t("tasks.repoChecking")
+            : taskCreator.isSubmittingTask
+              ? t("tasks.creating")
+              : t("tasks.createTask")}
         </button>
       </form>
       {taskCreator.taskError ? (
@@ -1492,6 +1669,7 @@ function TaskCard({
   const status = normalizeStatus(task.status);
   const timestamp = task.updated_at ?? task.created_at;
   const className = `app-card task-card${isDragging ? " dragging" : ""}`;
+  const executionBadge = taskExecutionBadge(task);
   const deliveryBadge = taskDeliveryBadge(task, status);
 
   return (
@@ -1536,6 +1714,11 @@ function TaskCard({
         <span className={statusBadgeClass(status)}>
           {t(COLUMN_LABEL_KEYS[status])}
         </span>
+        {executionBadge ? (
+          <span className={executionBadge.className}>
+            {t(executionBadge.labelKey)}
+          </span>
+        ) : null}
         {deliveryBadge ? (
           <span className={deliveryBadge.className}>
             {t(deliveryBadge.labelKey)}

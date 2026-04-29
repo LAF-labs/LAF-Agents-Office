@@ -1,7 +1,8 @@
 /**
  * Wiki API client — thin wrapper over the shared fetch helper in `client.ts`.
- * Falls back to local mock fixtures when Lane A's endpoints are not yet wired,
- * so the UI renders during development.
+ * Uses the live broker by default. Legacy demo fixtures remain for non-project
+ * preview paths, but canonical project memory paths never fall back to mock
+ * content because agents and humans rely on them as durable state.
  */
 
 import { get, post, sseURL } from "./client";
@@ -182,19 +183,31 @@ function candidatePaths(pathOrSlug: string): string[] {
   ];
 }
 
+function isExplicitProjectArticlePath(pathOrSlug: string): boolean {
+  const trimmed = pathOrSlug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  return (
+    trimmed.startsWith("projects/") || trimmed.startsWith("team/projects/")
+  );
+}
+
 export async function fetchArticle(path: string): Promise<WikiArticle> {
   const tried: string[] = [];
+  const explicitProjectArticle = isExplicitProjectArticlePath(path);
+  let lastError: unknown = null;
   for (const candidate of candidatePaths(path)) {
     tried.push(candidate);
     try {
       return await get<WikiArticle>(
         `/wiki/article?path=${encodeURIComponent(candidate)}`,
       );
-    } catch {
+    } catch (err) {
+      lastError = err;
+      if (explicitProjectArticle) throw err;
       // Try next candidate. Real 404s and bare-slug misses look identical
       // from the client — fall through and mock at the end.
     }
   }
+  if (explicitProjectArticle && lastError) throw lastError;
   return mockArticle(tried[tried.length - 1] ?? path);
 }
 
@@ -412,7 +425,8 @@ export async function fetchHistory(
     return await get<{ commits: WikiHistoryCommit[] }>(
       `/wiki/history/${encodeURI(path)}`,
     );
-  } catch {
+  } catch (err) {
+    if (isExplicitProjectArticlePath(path)) throw err;
     return {
       commits: mockArticle(path).contributors.map((slug, i) => ({
         sha: `mock${i}`,

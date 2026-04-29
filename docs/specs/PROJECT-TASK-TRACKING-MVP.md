@@ -7,6 +7,8 @@ office task lifecycle and adds a lightweight Jira-style project filter on top.
 
 - `POST /projects` creates an active project.
 - `GET /projects` lists active projects visible to the viewer.
+- `GET /projects/repo-readiness?id=<project_id>` checks the selected project's
+  GitHub CLI readiness without storing team-wide repository state.
 - `POST /tasks` accepts `project_id` when creating or updating a task.
 - `GET /tasks?project_id=<id>` returns only tasks for that project.
 - The Tasks app can create projects, switch between projects, and show project
@@ -18,6 +20,12 @@ Every project owns a wiki article at `team/projects/{project_id}.md`. Creating a
 project materializes that article, and project task create/update/review events
 append durable work history to it.
 
+The UI never substitutes mock content for explicit project wiki routes such as
+`projects/{project_id}` or `team/projects/{project_id}.md`. If the article is
+missing but the project exists, `GET /wiki/article` materializes the canonical
+project article and returns the real markdown. If materialization fails, the UI
+shows the error instead of pretending a memory page exists.
+
 When an agent receives a project task packet, the broker includes the project
 wiki path plus a bounded excerpt of the article. Agents should use that excerpt
 as the first memory read for the task and call `team_wiki_read` only when the
@@ -27,11 +35,24 @@ For coding tasks in a project with a connected GitHub repo, the task packet also
 names the assigned branch and requires the agent to open a GitHub PR before
 marking the task complete.
 
+The UI treats a repo URL as a prerequisite, not a guarantee. Before creating a
+coding task, it checks that the repo URL is a GitHub repo, `gh` is installed,
+`gh auth status` succeeds, and `gh repo view <owner>/<repo>` can read the default
+branch. If any check fails, the project still accepts planning, documentation,
+and task-breakdown requests, but it does not create `local_worktree` coding
+tasks from the request box.
+
 Coding task delivery receipts live on the task as `delivery_url`,
 `delivery_summary`, and `delivered_at`. A project-scoped `local_worktree` task
 with a connected repo may enter review without a receipt, but it cannot move to
 `done` until a `delivery_url` is present. Delivery receipts are also appended to
 the project wiki work log.
+
+Task cards expose whether a project task is planning or coding work, and review
+cards show whether a PR receipt is ready or missing. The task detail modal shows
+a compact execution progress list plus the project-scoped activity log so humans
+can see owner, branch, delivery, review, and completion state without reading
+raw broker actions.
 
 ## Status flow
 

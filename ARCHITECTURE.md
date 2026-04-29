@@ -63,7 +63,8 @@ With the file that implements each:
 - No conversation-persistent sessions. Persistence is in the channel log, not the model.
 - No production SaaS backend yet. The current runtime is local-first; hosted
   deployment will be designed around this project's workspace/auth needs before
-  Supabase/Vercel are wired in.
+  Supabase/Vercel are wired in. The intended hosted split is documented in
+  [`docs/specs/HOSTED-PRODUCT-BOUNDARY.md`](docs/specs/HOSTED-PRODUCT-BOUNDARY.md).
 
 ## Next stops
 

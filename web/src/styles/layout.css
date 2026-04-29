@@ -1580,6 +1580,14 @@ html[data-theme="office"]
   font-size: 11px;
   line-height: 1.35;
 }
+.task-workspace-strip-item span.task-github-readiness-detail,
+.task-workspace-strip-item span.task-github-readiness-meta {
+  white-space: normal;
+}
+.task-github-readiness-meta {
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
 .task-workspace-strip .task-github-actions {
   margin-top: 4px;
   gap: 6px;
@@ -2108,6 +2116,58 @@ html[data-theme="office"]
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.task-detail-progress {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.task-detail-progress-step {
+  display: grid;
+  grid-template-columns: 10px 1fr;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+.task-detail-progress-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--text-tertiary);
+}
+.task-detail-progress-step-done .task-detail-progress-dot {
+  background: var(--green);
+}
+.task-detail-progress-step-current .task-detail-progress-dot {
+  background: var(--accent);
+}
+.task-detail-progress-step-blocked .task-detail-progress-dot {
+  background: var(--yellow);
+}
+.task-detail-progress-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-detail-progress-label {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.task-detail-progress-detail {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .task-detail-delivery {

@@ -96,6 +96,10 @@ describe("TaskDetailModal execution view", () => {
     expect(
       screen.queryByText("/tmp/customer-portal-task-request"),
     ).not.toBeInTheDocument();
+    expect(screen.getByText("Owner assigned")).toBeInTheDocument();
+    expect(screen.getByText("Branch ready")).toBeInTheDocument();
+    expect(screen.getByText("Delivery receipt needed")).toBeInTheDocument();
+    expect(screen.getByText("Waiting for human review.")).toBeInTheDocument();
 
     const timeline = await screen.findByRole("region", {
       name: "Task activity",
