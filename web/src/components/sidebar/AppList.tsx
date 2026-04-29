@@ -14,6 +14,7 @@ import {
 import { getRequests } from "../../api/client";
 import { fetchReviews } from "../../api/notebook";
 import { useOverflow } from "../../hooks/useOverflow";
+import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
@@ -21,6 +22,10 @@ import { useAppStore } from "../../stores/app";
 // Notebooks and reviews render inside the Wiki app shell via tabs, so the
 // 'Wiki' sidebar entry lights up for any of those three currentApp values.
 const WIKI_SURFACE_APPS = new Set(["wiki", "notebooks", "reviews"]);
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+const REVIEW_BADGE_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   studio: Play,
@@ -42,13 +47,13 @@ export function AppList() {
   const { data: requestsData } = useQuery({
     queryKey: ["requests-badge", currentChannel],
     queryFn: () => getRequests(currentChannel),
-    refetchInterval: 5_000,
+    refetchInterval: REQUEST_REFETCH_MS,
   });
 
   const { data: reviewsData } = useQuery({
     queryKey: ["reviews-badge"],
     queryFn: fetchReviews,
-    refetchInterval: 15_000,
+    refetchInterval: REVIEW_BADGE_REFETCH_MS,
   });
 
   const pendingCount = (requestsData?.requests ?? []).filter(

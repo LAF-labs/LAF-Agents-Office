@@ -25,6 +25,10 @@ interface TaskDetailModalProps {
 }
 
 const HUMAN_SLUG = "human";
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+const TASK_DETAIL_ACTION_REFETCH_MS = liveEventsSupported ? 20_000 : 5_000;
 type TaskTranslator = ReturnType<typeof useI18n>["t"];
 
 interface StatusActionOptions {
@@ -300,7 +304,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const { data: actionData, isLoading: isActionLoading } = useQuery({
     queryKey: ["task-actions", task.id],
     queryFn: getActions,
-    refetchInterval: 5_000,
+    refetchInterval: TASK_DETAIL_ACTION_REFETCH_MS,
   });
 
   const currentOwner = (task.owner ?? "").trim();

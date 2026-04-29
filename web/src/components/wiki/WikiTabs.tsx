@@ -4,6 +4,10 @@ import { fetchReviews } from "../../api/notebook";
 import Pam from "./Pam";
 
 export type WikiTab = "wiki" | "notebooks" | "reviews";
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+const REVIEW_TAB_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
 
 interface WikiTabsProps {
   current: WikiTab;
@@ -39,7 +43,7 @@ export default function WikiTabs({
   const { data: reviews } = useQuery({
     queryKey: ["reviews-tab-badge"],
     queryFn: fetchReviews,
-    refetchInterval: 15_000,
+    refetchInterval: REVIEW_TAB_REFETCH_MS,
   });
 
   const pendingReviews = (reviews ?? []).filter(

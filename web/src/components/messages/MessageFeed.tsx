@@ -1,11 +1,14 @@
-import { useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 
-import type { Message } from "../../api/client";
+import type { Message, OfficeMember } from "../../api/client";
+import { useDefaultHarness } from "../../hooks/useConfig";
+import { useOfficeMembers } from "../../hooks/useMembers";
 import { useMessages } from "../../hooks/useMessages";
 import { formatDateLabel } from "../../lib/format";
+import type { HarnessKind } from "../../lib/harness";
 import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
-import { MessageBubble } from "./MessageBubble";
+import { MessageBubbleView } from "./MessageBubble";
 
 function dateDayKey(ts: string): string {
   const d = new Date(ts);
@@ -126,14 +129,25 @@ export function MessageFeed() {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
   const { t } = useI18n();
+  const { data: members = [] } = useOfficeMembers();
+  const defaultHarness = useDefaultHarness();
+  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
+  const membersBySlug = useMemo(
+    () => new Map(members.map((m) => [m.slug, m])),
+    [members],
+  );
 
-  const copyMessageLink = (id: string) => {
+  const { data: messages = [], isLoading } = useMessages(currentChannel);
+  const elements = useMemo(() => buildFeedElements(messages), [messages]);
+  const handleOpenThread = useCallback(
+    (id: string | null) => setActiveThreadId(id),
+    [setActiveThreadId],
+  );
+  const handleCopyMessageLink = useCallback((id: string) => {
     const url = new URL(window.location.href);
     url.hash = `#msg-${id}`;
     navigator.clipboard?.writeText(url.toString()).catch(() => {});
-  };
-
-  const { data: messages = [], isLoading } = useMessages(currentChannel);
+  }, []);
 
   // Auto-scroll when new messages arrive
   useEffect(() => {
@@ -182,8 +196,6 @@ export function MessageFeed() {
     );
   }
 
-  const elements = buildFeedElements(messages);
-
   return (
     <div className="messages" ref={containerRef}>
       {elements.map((element) => (
@@ -192,8 +204,12 @@ export function MessageFeed() {
           key={element.key}
           collapsedThreads={collapsedThreads}
           toggleThreadCollapsed={toggleThreadCollapsed}
-          setActiveThreadId={setActiveThreadId}
-          copyMessageLink={copyMessageLink}
+          setActiveThreadId={handleOpenThread}
+          copyMessageLink={handleCopyMessageLink}
+          currentChannel={currentChannel}
+          defaultHarness={defaultHarness}
+          knownSlugs={knownSlugs}
+          membersBySlug={membersBySlug}
         />
       ))}
     </div>
@@ -206,6 +222,10 @@ interface FeedElementViewProps {
   toggleThreadCollapsed: (id: string) => void;
   setActiveThreadId: (id: string | null) => void;
   copyMessageLink: (id: string) => void;
+  currentChannel: string;
+  defaultHarness: HarnessKind;
+  knownSlugs: string[];
+  membersBySlug: Map<string, OfficeMember>;
 }
 
 function FeedElementView({
@@ -214,6 +234,10 @@ function FeedElementView({
   toggleThreadCollapsed,
   setActiveThreadId,
   copyMessageLink,
+  currentChannel,
+  defaultHarness,
+  knownSlugs,
+  membersBySlug,
 }: FeedElementViewProps) {
   if (element.type === "date") return <DateSeparator label={element.label} />;
   return (
@@ -223,11 +247,19 @@ function FeedElementView({
       toggleThreadCollapsed={toggleThreadCollapsed}
       setActiveThreadId={setActiveThreadId}
       copyMessageLink={copyMessageLink}
+      currentChannel={currentChannel}
+      defaultHarness={defaultHarness}
+      knownSlugs={knownSlugs}
+      membersBySlug={membersBySlug}
     />
   );
 }
 
-function DateSeparator({ label }: { label: string }) {
+const DateSeparator = memo(function DateSeparatorView({
+  label,
+}: {
+  label: string;
+}) {
   return (
     <div className="date-separator">
       <div className="date-separator-line" />
@@ -235,14 +267,18 @@ function DateSeparator({ label }: { label: string }) {
       <div className="date-separator-line" />
     </div>
   );
-}
+});
 
-function ThreadElement({
+const ThreadElement = memo(function ThreadElementView({
   element,
   collapsedThreads,
   toggleThreadCollapsed,
   setActiveThreadId,
   copyMessageLink,
+  currentChannel,
+  defaultHarness,
+  knownSlugs,
+  membersBySlug,
 }: Omit<FeedElementViewProps, "element"> & {
   element: Extract<FeedElement, { type: "thread" }>;
 }) {
@@ -253,9 +289,13 @@ function ThreadElement({
     <div
       className={`thread-group${hasReplies ? " thread-group-has-replies" : ""}${isCollapsed ? " thread-group-collapsed" : ""}`}
     >
-      <MessageBubble
+      <MessageBubbleView
         message={element.parent.message}
+        currentChannel={currentChannel}
+        defaultHarness={defaultHarness}
         grouped={element.parent.grouped}
+        knownSlugs={knownSlugs}
+        membersBySlug={membersBySlug}
         replyCount={element.replies.length}
         onOpenThread={(id) => setActiveThreadId(id)}
         onCopyLink={copyMessageLink}
@@ -271,11 +311,15 @@ function ThreadElement({
       {hasReplies && !isCollapsed ? (
         <div className="thread-replies" id={`thread-${parentId}-replies`}>
           {element.replies.map((reply) => (
-            <MessageBubble
+            <MessageBubbleView
               key={reply.message.id}
               message={reply.message}
+              currentChannel={currentChannel}
+              defaultHarness={defaultHarness}
               grouped={reply.grouped}
               isReply={true}
+              knownSlugs={knownSlugs}
+              membersBySlug={membersBySlug}
               onOpenThread={(id) => setActiveThreadId(id)}
               onCopyLink={copyMessageLink}
             />
@@ -284,7 +328,7 @@ function ThreadElement({
       ) : null}
     </div>
   );
-}
+});
 
 function ThreadCollapseToggle({
   parentId,

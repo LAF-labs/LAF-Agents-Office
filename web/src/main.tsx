@@ -10,7 +10,12 @@ import App from "./App";
 // got a chance to mount.
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 2000 },
+    queries: {
+      retry: 1,
+      staleTime: 5_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+    },
   },
 });
 

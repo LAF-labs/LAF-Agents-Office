@@ -5,6 +5,11 @@ import { useOfficeMembers } from "../../hooks/useMembers";
 import { useRequests } from "../../hooks/useRequests";
 import { useI18n } from "../../lib/i18n";
 
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+const RUNTIME_TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
+
 /**
  * Thin strip under the channel header with pills for "N active",
  * "M blocked", "K need you". Mirrors the legacy runtime-strip.
@@ -15,7 +20,7 @@ export function RuntimeStrip() {
   const { data: tasksData } = useQuery({
     queryKey: ["office-tasks"],
     queryFn: () => getOfficeTasks({ includeDone: false }),
-    refetchInterval: 15_000,
+    refetchInterval: RUNTIME_TASK_REFETCH_MS,
   });
   const { pending } = useRequests();
 

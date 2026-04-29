@@ -1,11 +1,11 @@
 import { type ReactNode, useMemo } from "react";
 
-import type { Message } from "../../api/client";
+import type { Message, OfficeMember } from "../../api/client";
 import { toggleReaction } from "../../api/client";
 import { useDefaultHarness } from "../../hooks/useConfig";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { formatTime, formatTokens } from "../../lib/format";
-import { resolveHarness } from "../../lib/harness";
+import { type HarnessKind, resolveHarness } from "../../lib/harness";
 import { formatMarkdown } from "../../lib/markdown";
 import { renderMentions } from "../../lib/mentions";
 import { useAppStore } from "../../stores/app";
@@ -55,27 +55,52 @@ function messageReactions(message: Message): MessageReaction[] {
   }));
 }
 
-export function MessageBubble({
+export function MessageBubble(props: MessageBubbleProps) {
+  const { data: members = [] } = useOfficeMembers();
+  const defaultHarness = useDefaultHarness();
+  const currentChannel = useAppStore((s) => s.currentChannel);
+  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
+  const membersBySlug = useMemo(
+    () => new Map(members.map((m) => [m.slug, m])),
+    [members],
+  );
+  return (
+    <MessageBubbleView
+      {...props}
+      currentChannel={currentChannel}
+      defaultHarness={defaultHarness}
+      knownSlugs={knownSlugs}
+      membersBySlug={membersBySlug}
+    />
+  );
+}
+
+export function MessageBubbleView({
   message,
+  membersBySlug,
+  knownSlugs,
+  defaultHarness,
+  currentChannel,
   grouped = false,
   isReply = false,
   replyCount = 0,
   onOpenThread,
   onQuoteReply,
   onCopyLink,
-}: MessageBubbleProps) {
-  const currentChannel = useAppStore((s) => s.currentChannel);
-  const { data: members = [] } = useOfficeMembers();
+}: MessageBubbleProps & {
+  membersBySlug: Map<string, OfficeMember>;
+  knownSlugs: string[];
+  defaultHarness: HarnessKind;
+  currentChannel: string;
+}) {
   const isHuman = message.from === "you" || message.from === "human";
-  const agent = members.find((m) => m.slug === message.from);
-  const defaultHarness = useDefaultHarness();
+  const agent = membersBySlug.get(message.from);
   const harness = !isHuman
     ? resolveHarness(agent?.provider, defaultHarness)
     : null;
   // Turn human text like "@pm when are you free?" into mention chips for
   // registered agent slugs. Non-agent @-references stay plain text. The
   // memo keys on content + the slug list so rapid renders don't re-parse.
-  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const humanRendered = useMemo(
     () => (isHuman ? renderMentions(message.content || "", knownSlugs) : null),
     [isHuman, message.content, knownSlugs],

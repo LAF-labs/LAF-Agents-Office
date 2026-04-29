@@ -4,6 +4,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import {
@@ -30,6 +31,12 @@ import type { Language } from "../../stores/app";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 import { TaskDetailModal } from "./TaskDetailModal";
+
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
+const ACTION_REFETCH_MS = liveEventsSupported ? 45_000 : 15_000;
 
 const STATUS_ORDER = [
   "in_progress",
@@ -689,29 +696,42 @@ export function TasksApp() {
         projectId: selectedProjectFilter,
       }),
     enabled: shouldLoadTasks,
-    refetchInterval: 10_000,
+    refetchInterval: TASK_REFETCH_MS,
   });
 
   const actionsQuery = useQuery({
     queryKey: ["actions"],
     queryFn: () => getActions(),
     enabled: Boolean(selectedProjectFilter),
-    refetchInterval: 15_000,
+    refetchInterval: ACTION_REFETCH_MS,
   });
 
   const moveTask = useTaskMove();
   const tasks = data?.tasks ?? [];
-  const projectNames = new Map(projects.map((p) => [p.id, p.name]));
-  const selectedProject = findSelectedProject(projects, selectedProjectId);
-  const projectActivities = selectedProject
-    ? projectActivityEvents(
-        actionsQuery.data?.actions ?? [],
-        selectedProject.id,
-        tasks,
-      )
-    : [];
-  const grouped = groupTasks(tasks);
-  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const projectNames = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name])),
+    [projects],
+  );
+  const selectedProject = useMemo(
+    () => findSelectedProject(projects, selectedProjectId),
+    [projects, selectedProjectId],
+  );
+  const projectActivities = useMemo(
+    () =>
+      selectedProject
+        ? projectActivityEvents(
+            actionsQuery.data?.actions ?? [],
+            selectedProject.id,
+            tasks,
+          )
+        : [],
+    [actionsQuery.data?.actions, selectedProject, tasks],
+  );
+  const grouped = useMemo(() => groupTasks(tasks), [tasks]);
+  const tasksById = useMemo(
+    () => new Map(tasks.map((task) => [task.id, task])),
+    [tasks],
+  );
   const boardDrag = useTaskBoardDrag(tasksById, moveTask);
   const selectedTask = selectedTaskForModal(
     selectedTaskId,

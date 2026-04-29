@@ -3,12 +3,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Message } from "../../api/client";
 import { postMessage } from "../../api/client";
+import { useDefaultHarness } from "../../hooks/useConfig";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useThreadMessages } from "../../hooks/useMessages";
 import { extractTaggedMentions } from "../../lib/mentions";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
-import { MessageBubble } from "./MessageBubble";
+import { MessageBubbleView } from "./MessageBubble";
 
 export function ThreadPanel() {
   const activeThreadId = useAppStore((s) => s.activeThreadId);
@@ -20,7 +21,12 @@ export function ThreadPanel() {
   const messagesRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { data: members = [] } = useOfficeMembers();
+  const defaultHarness = useDefaultHarness();
   const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
+  const membersBySlug = useMemo(
+    () => new Map(members.map((m) => [m.slug, m])),
+    [members],
+  );
 
   const { data: messages = [] } = useThreadMessages(
     currentChannel,
@@ -150,7 +156,13 @@ export function ThreadPanel() {
       <div ref={messagesRef} className="thread-panel-body">
         {parent ? (
           <div className="thread-panel-parent">
-            <MessageBubble message={parent} />
+            <MessageBubbleView
+              currentChannel={currentChannel}
+              defaultHarness={defaultHarness}
+              knownSlugs={knownSlugs}
+              membersBySlug={membersBySlug}
+              message={parent}
+            />
           </div>
         ) : null}
         {replies.length > 0 ? (
@@ -164,8 +176,12 @@ export function ThreadPanel() {
           </div>
         ) : (
           replies.map((msg) => (
-            <MessageBubble
+            <MessageBubbleView
               key={msg.id}
+              currentChannel={currentChannel}
+              defaultHarness={defaultHarness}
+              knownSlugs={knownSlugs}
+              membersBySlug={membersBySlug}
               message={msg}
               onQuoteReply={(m) => {
                 setQuoting(m);

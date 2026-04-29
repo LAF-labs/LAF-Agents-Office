@@ -15,6 +15,11 @@ import { formatTokens } from "../../lib/format";
 import { type Insight, InsightsList } from "../activity/InsightsList";
 import { Timeline, type TimelineEvent } from "../activity/Timeline";
 
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+const ACTIVITY_LIVE_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
+
 /** Minimal action/decision/watchdog shapes from the untyped endpoints. */
 interface ActionRecord {
   id?: string;
@@ -87,13 +92,13 @@ export function ArtifactsApp() {
   const tasks = useQuery({
     queryKey: ["activity-tasks"],
     queryFn: () => getOfficeTasks({ includeDone: true }),
-    refetchInterval: 15_000,
+    refetchInterval: ACTIVITY_LIVE_REFETCH_MS,
   });
 
   const actions = useQuery({
     queryKey: ["activity-actions"],
     queryFn: () => getActions() as Promise<{ actions: ActionRecord[] }>,
-    refetchInterval: 15_000,
+    refetchInterval: ACTIVITY_LIVE_REFETCH_MS,
   });
 
   const decisions = useQuery({
@@ -123,7 +128,7 @@ export function ArtifactsApp() {
   const members = useQuery({
     queryKey: ["activity-members"],
     queryFn: () => getOfficeMembers(),
-    refetchInterval: 15_000,
+    refetchInterval: ACTIVITY_LIVE_REFETCH_MS,
   });
 
   const isLoading =

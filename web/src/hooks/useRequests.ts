@@ -8,7 +8,10 @@ export interface RequestsState {
   blockingPending: AgentRequest | null;
 }
 
-const REQUEST_REFETCH_MS = 5_000;
+const liveEventsSupported =
+  typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
+  "undefined";
+export const REQUEST_REFETCH_MS = liveEventsSupported ? 15_000 : 5_000;
 
 // Global view of requests across every channel the human can access. The
 // broker rejects new messages with 409 whenever ANY blocking request is

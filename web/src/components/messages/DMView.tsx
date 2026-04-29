@@ -1,11 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { useAgentStream } from "../../hooks/useAgentStream";
+import { useDefaultHarness } from "../../hooks/useConfig";
+import { useOfficeMembers } from "../../hooks/useMembers";
 import { useMessages } from "../../hooks/useMessages";
 import { isDMChannel, useAppStore } from "../../stores/app";
 import { Composer } from "./Composer";
 import { InterviewBar } from "./InterviewBar";
-import { MessageBubble } from "./MessageBubble";
+import { MessageBubbleView } from "./MessageBubble";
 import { StreamLineView } from "./StreamLineView";
 import { TypingIndicator } from "./TypingIndicator";
 
@@ -15,6 +17,13 @@ export function DMView() {
   const dm = isDMChannel(currentChannel, channelMeta);
   const dmAgentSlug = dm?.agentSlug ?? null;
   const { data: messages = [] } = useMessages(currentChannel);
+  const { data: members = [] } = useOfficeMembers();
+  const defaultHarness = useDefaultHarness();
+  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
+  const membersBySlug = useMemo(
+    () => new Map(members.map((m) => [m.slug, m])),
+    [members],
+  );
   const { lines, connected } = useAgentStream(dmAgentSlug);
   const messagesRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
@@ -48,7 +57,14 @@ export function DMView() {
         >
           <div ref={messagesRef} className="messages">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubbleView
+                key={msg.id}
+                currentChannel={currentChannel}
+                defaultHarness={defaultHarness}
+                knownSlugs={knownSlugs}
+                membersBySlug={membersBySlug}
+                message={msg}
+              />
             ))}
           </div>
           <TypingIndicator />

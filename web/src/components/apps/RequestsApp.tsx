@@ -5,6 +5,7 @@ import {
   answerRequest,
   getRequests,
 } from "../../api/client";
+import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
 import { formatRelativeTime } from "../../lib/format";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
@@ -16,7 +17,7 @@ export function RequestsApp() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["requests", currentChannel],
     queryFn: () => getRequests(currentChannel),
-    refetchInterval: 5_000,
+    refetchInterval: REQUEST_REFETCH_MS,
   });
 
   if (isLoading) {

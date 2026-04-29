@@ -7,6 +7,12 @@ import { MessageFeed } from "./MessageFeed";
 vi.mock("../../hooks/useMessages", () => ({
   useMessages: () => ({ data: [], isLoading: false }),
 }));
+vi.mock("../../hooks/useConfig", () => ({
+  useDefaultHarness: () => "claude-code",
+}));
+vi.mock("../../hooks/useMembers", () => ({
+  useOfficeMembers: () => ({ data: [] }),
+}));
 
 describe("MessageFeed", () => {
   beforeEach(() => {
