@@ -47,6 +47,9 @@ vi.mock("./components/invites/InviteAcceptPage", () => ({
 vi.mock("./components/layout/Shell", () => ({
   Shell: () => <div data-testid="shell" />,
 }));
+vi.mock("./components/workspace/WorkspaceApp", () => ({
+  default: () => <div data-testid="shell" />,
+}));
 vi.mock("./components/onboarding/SplashScreen", () => ({
   SplashScreen: () => <div data-testid="splash" />,
 }));

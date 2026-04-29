@@ -1,7 +1,5 @@
 import {
   Component,
-  type ComponentType,
-  type LazyExoticComponent,
   lazy,
   type ReactNode,
   Suspense,
@@ -15,81 +13,35 @@ import {
   get,
   getAuthSession,
   initApi,
-  logout,
 } from "./api/client";
 import { AuthScreen } from "./components/auth/AuthScreen";
-import { InviteAcceptPage } from "./components/invites/InviteAcceptPage";
-import { Shell } from "./components/layout/Shell";
-import { Composer } from "./components/messages/Composer";
-import { DMView } from "./components/messages/DMView";
-import { InterviewBar } from "./components/messages/InterviewBar";
-import { MessageFeed } from "./components/messages/MessageFeed";
-import { TypingIndicator } from "./components/messages/TypingIndicator";
-import { SplashScreen } from "./components/onboarding/SplashScreen";
-import { Wizard } from "./components/onboarding/Wizard";
 import { ConfirmHost } from "./components/ui/ConfirmDialog";
 import { ProviderSwitcherHost } from "./components/ui/ProviderSwitcher";
 import { ToastContainer } from "./components/ui/Toast";
-import type { WikiTab } from "./components/wiki/WikiTabs";
-import WikiTabs from "./components/wiki/WikiTabs";
 import { useBrokerEvents } from "./hooks/useBrokerEvents";
 import { useHashRouter } from "./hooks/useHashRouter";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { isDMChannel, useAppStore } from "./stores/app";
+import { useAppStore } from "./stores/app";
 import "./styles/shadcn.css";
 import "./styles/global.css";
-import "./styles/layout.css";
-import "./styles/messages.css";
 import "./styles/agents.css";
-import "./styles/search.css";
-import "./styles/wiki-shell.css";
-import "./styles/kbd.css";
 
-type PanelComponent =
-  | ComponentType<Record<string, never>>
-  | LazyExoticComponent<ComponentType<Record<string, never>>>;
-
-const ArtifactsApp = lazy(() =>
-  import("./components/apps/ArtifactsApp").then((module) => ({
-    default: module.ArtifactsApp,
+const InviteAcceptPage = lazy(() =>
+  import("./components/invites/InviteAcceptPage").then((module) => ({
+    default: module.InviteAcceptPage,
   })),
 );
-const ReceiptsApp = lazy(() =>
-  import("./components/apps/ReceiptsApp").then((module) => ({
-    default: module.ReceiptsApp,
+const SplashScreen = lazy(() =>
+  import("./components/onboarding/SplashScreen").then((module) => ({
+    default: module.SplashScreen,
   })),
 );
-const RequestsApp = lazy(() =>
-  import("./components/apps/RequestsApp").then((module) => ({
-    default: module.RequestsApp,
+const Wizard = lazy(() =>
+  import("./components/onboarding/Wizard").then((module) => ({
+    default: module.Wizard,
   })),
 );
-const SettingsApp = lazy(() =>
-  import("./components/apps/SettingsApp").then((module) => ({
-    default: module.SettingsApp,
-  })),
-);
-const SkillsApp = lazy(() =>
-  import("./components/apps/SkillsApp").then((module) => ({
-    default: module.SkillsApp,
-  })),
-);
-const TasksApp = lazy(() =>
-  import("./components/apps/TasksApp").then((module) => ({
-    default: module.TasksApp,
-  })),
-);
-const ThreadsApp = lazy(() =>
-  import("./components/apps/ThreadsApp").then((module) => ({
-    default: module.ThreadsApp,
-  })),
-);
-const CitedAnswer = lazy(() => import("./components/wiki/CitedAnswer"));
-const Notebook = lazy(() => import("./components/notebook/Notebook"));
-const ReviewQueueKanban = lazy(
-  () => import("./components/review/ReviewQueueKanban"),
-);
-const Wiki = lazy(() => import("./components/wiki/Wiki"));
+const WorkspaceApp = lazy(() => import("./components/workspace/WorkspaceApp"));
 
 // ── Error boundary ─────────────────────────────────────────────
 
@@ -180,156 +132,6 @@ function AppLoadingFallback() {
     >
       Loading...
     </div>
-  );
-}
-
-// ── Routed main content ─────────────────────────────────────────
-
-function MainContent() {
-  const currentApp = useAppStore((s) => s.currentApp);
-  const currentChannel = useAppStore((s) => s.currentChannel);
-  const channelMeta = useAppStore((s) => s.channelMeta);
-  const wikiPath = useAppStore((s) => s.wikiPath);
-  const setWikiPath = useAppStore((s) => s.setWikiPath);
-  const wikiLookupQuery = useAppStore((s) => s.wikiLookupQuery);
-  const setCurrentApp = useAppStore((s) => s.setCurrentApp);
-  const notebookAgentSlug = useAppStore((s) => s.notebookAgentSlug);
-  const notebookEntrySlug = useAppStore((s) => s.notebookEntrySlug);
-  const setNotebookRoute = useAppStore((s) => s.setNotebookRoute);
-  // Pam's onActionDone bumps this; Wiki re-fetches article + history when
-  // the prop changes. Lifted up here because Pam lives inside the tab bar
-  // (so her desk can rest on the divider line).
-  const [articleRefreshNonce, setArticleRefreshNonce] = useState(0);
-
-  if (!currentApp && isDMChannel(currentChannel, channelMeta)) {
-    return <DMView />;
-  }
-
-  // Wiki, Notebooks, and Reviews share one app shell with a tab bar on top.
-  // The surfaces underneath keep their own design systems (.wiki-surface vs
-  // .notebook-surface) but the parent chrome is unified.
-  if (currentApp === "wiki-lookup") {
-    return (
-      <div className="wiki-shell">
-        <WikiTabs
-          current="wiki"
-          onSelect={(tab) => {
-            if (tab === "wiki") setCurrentApp("wiki");
-            else if (tab === "notebooks") {
-              setNotebookRoute(null, null);
-              setCurrentApp("notebooks");
-            } else setCurrentApp("reviews");
-          }}
-        />
-        <div className="wiki-shell-body">
-          <CitedAnswer query={wikiLookupQuery || ""} />
-        </div>
-      </div>
-    );
-  }
-
-  if (
-    currentApp === "wiki" ||
-    currentApp === "notebooks" ||
-    currentApp === "reviews"
-  ) {
-    const handleTabChange = (tab: WikiTab) => {
-      if (tab === "wiki") {
-        setCurrentApp("wiki");
-      } else if (tab === "notebooks") {
-        setNotebookRoute(null, null);
-        setCurrentApp("notebooks");
-      } else {
-        setCurrentApp("reviews");
-      }
-    };
-
-    // Pam only belongs on the wiki surface (notebooks + reviews are
-    // separate contexts). When we're not on the wiki tab, articlePath is
-    // null so she renders as disabled scenery without actionable state.
-    const pamArticlePath = currentApp === "wiki" ? (wikiPath ?? null) : null;
-
-    return (
-      <div className="wiki-shell">
-        <WikiTabs
-          current={currentApp}
-          onSelect={handleTabChange}
-          pamArticlePath={pamArticlePath}
-          onPamActionDone={() => setArticleRefreshNonce((n) => n + 1)}
-        />
-        <div className="wiki-shell-body">
-          {currentApp === "wiki" && (
-            <Wiki
-              articlePath={wikiPath}
-              externalRefreshNonce={articleRefreshNonce}
-              onNavigate={(path) => {
-                if (path === null) {
-                  setWikiPath(null);
-                } else {
-                  setWikiPath(path || null);
-                }
-              }}
-            />
-          )}
-          {currentApp === "notebooks" && (
-            <Notebook
-              agentSlug={notebookAgentSlug}
-              entrySlug={notebookEntrySlug}
-              onOpenCatalog={() => setNotebookRoute(null, null)}
-              onOpenAgent={(slug) => setNotebookRoute(slug, null)}
-              onOpenEntry={(slug, entry) => setNotebookRoute(slug, entry)}
-              onNavigateWiki={(path) => {
-                setCurrentApp("wiki");
-                setWikiPath(path || null);
-              }}
-            />
-          )}
-          {currentApp === "reviews" && <ReviewQueueKanban />}
-        </div>
-      </div>
-    );
-  }
-
-  if (currentApp) {
-    const panels: Record<string, PanelComponent> = {
-      tasks: TasksApp,
-      requests: RequestsApp,
-      skills: SkillsApp,
-      activity: ArtifactsApp,
-      receipts: ReceiptsApp,
-      settings: SettingsApp,
-      threads: ThreadsApp,
-    };
-    const Panel = panels[currentApp];
-    return (
-      <div className="app-panel active">
-        {Panel ? (
-          <Panel />
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flex: 1,
-              color: "var(--text-tertiary)",
-              fontSize: 14,
-            }}
-          >
-            Unknown app: {currentApp}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <MessageFeed />
-      <TypingIndicator />
-      <InterviewBar />
-      <Composer />
-    </>
   );
 }
 
@@ -494,24 +296,18 @@ export default function App() {
     );
   } else {
     body = (
-      <Shell
+      <WorkspaceApp
         userEmail={authSession.user?.email}
-        onLogout={async () => {
-          await logout().catch(() => undefined);
-          resetForOnboarding();
+        onLoggedOut={() => {
           setAuthSession({ authenticated: false });
         }}
-      >
-        <Suspense fallback={<AppLoadingFallback />}>
-          <MainContent />
-        </Suspense>
-      </Shell>
+      />
     );
   }
 
   return (
     <ErrorBoundary>
-      {body}
+      <Suspense fallback={<AppLoadingFallback />}>{body}</Suspense>
       <ToastContainer />
       <ConfirmHost />
       <ProviderSwitcherHost />
