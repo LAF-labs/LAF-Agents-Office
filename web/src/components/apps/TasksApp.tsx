@@ -789,12 +789,6 @@ export function TasksApp() {
 
       {selectedProject ? (
         <>
-          <ProjectWorkRequest
-            project={selectedProject}
-            taskCreator={taskCreator}
-            t={t}
-          />
-          {taskWorkArea}
           <ProjectWorkspaceOverview
             project={selectedProject}
             projectCount={projects.length}
@@ -806,6 +800,12 @@ export function TasksApp() {
             onCreateProject={handleOpenProjectCreator}
             onOpenWiki={handleOpenProjectWiki}
           />
+          <ProjectWorkRequest
+            project={selectedProject}
+            taskCreator={taskCreator}
+            t={t}
+          />
+          {taskWorkArea}
           <ProjectActivityLog
             activities={projectActivities}
             isLoading={actionsQuery.isLoading}
@@ -1113,23 +1113,26 @@ function ProjectWorkspaceOverview({
 
   return (
     <section
-      className="task-workspace-overview"
+      className="task-workspace-strip"
       aria-label={t("tasks.overview.label")}
     >
-      <article className="task-workspace-card task-workspace-card-wide">
+      <div className="task-workspace-strip-main">
         <span className="task-workspace-kicker">{t("tasks.project")}</span>
         <strong>{projectWorkspaceName(project, language)}</strong>
         <span>{t("tasks.projectSummary")}</span>
-      </article>
-      <article className="task-workspace-card">
+      </div>
+      <button
+        type="button"
+        className="task-workspace-strip-item task-workspace-strip-button"
+        aria-label={t("tasks.openProjectWiki")}
+        title={t("tasks.openProjectWiki")}
+        onClick={onOpenWiki}
+      >
         <span className="task-workspace-kicker">{t("tasks.wikiContext")}</span>
         <strong>{t("tasks.projectWiki")}</strong>
-        <span>{t("tasks.wikiContextDesc")}</span>
-        <button type="button" onClick={onOpenWiki}>
-          {t("tasks.openProjectWiki")}
-        </button>
-      </article>
-      <article className="task-workspace-card">
+        <span>{t("tasks.wikiContextShort")}</span>
+      </button>
+      <div className="task-workspace-strip-item">
         <span className="task-workspace-kicker">{t("tasks.taskQueue")}</span>
         <strong>
           {isLoadingTasks
@@ -1142,9 +1145,9 @@ function ProjectWorkspaceOverview({
                 language,
               )}
         </strong>
-        <span>{t("tasks.taskQueueDesc")}</span>
-      </article>
-      <article className="task-workspace-card">
+        <span>{t("tasks.taskQueueShort")}</span>
+      </div>
+      <div className="task-workspace-strip-item">
         <span className="task-workspace-kicker">{t("tasks.agentWork")}</span>
         <strong>
           {isLoadingTasks
@@ -1157,9 +1160,9 @@ function ProjectWorkspaceOverview({
                 language,
               )}
         </strong>
-        <span>{t("tasks.agentWorkDesc")}</span>
-      </article>
-      <ProjectGitHubCard
+        <span>{t("tasks.agentWorkShort")}</span>
+      </div>
+      <ProjectGitHubStripItem
         connector={githubConnector}
         t={t}
         project={project}
@@ -1169,24 +1172,24 @@ function ProjectWorkspaceOverview({
   );
 }
 
-interface ProjectGitHubCardProps {
+interface ProjectGitHubStripItemProps {
   connector: ProjectGitHubConnectorState;
   project: Project;
   repoURL?: string;
   t: TranslationFn;
 }
 
-function ProjectGitHubCard({
+function ProjectGitHubStripItem({
   connector,
   project,
   repoURL,
   t,
-}: ProjectGitHubCardProps) {
+}: ProjectGitHubStripItemProps) {
   const isEditing = connector.editingProjectId === project.id;
   const isSaving = connector.isSaving(project.id);
 
   return (
-    <article className="task-workspace-card">
+    <div className="task-workspace-strip-item task-workspace-strip-github">
       <span className="task-workspace-kicker">GitHub</span>
       <strong>
         {repoURL ? t("tasks.repoConnected") : t("tasks.repoNotConnected")}
@@ -1212,7 +1215,7 @@ function ProjectGitHubCard({
           t={t}
         />
       )}
-    </article>
+    </div>
   );
 }
 

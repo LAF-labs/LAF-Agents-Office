@@ -94,11 +94,7 @@ describe("TasksApp project workspace", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Customer Portal workspace")).toBeInTheDocument();
     expect(screen.getByText("Project memory")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Agents read this before work and append decisions, constraints, and delivery notes after work.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Read/write memory")).toBeInTheDocument();
     expect(screen.getByText("Task queue")).toBeInTheDocument();
     expect(screen.getByText("Agent work")).toBeInTheDocument();
     expect(screen.getByText("GitHub")).toBeInTheDocument();
@@ -109,8 +105,8 @@ describe("TasksApp project workspace", () => {
       screen.getByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/customer-portal");
     const text = container.textContent ?? "";
-    expect(text.indexOf("Next task")).toBeLessThan(
-      text.indexOf("Customer Portal workspace"),
+    expect(text.indexOf("Customer Portal workspace")).toBeLessThan(
+      text.indexOf("Next task"),
     );
     expect(text.indexOf("Draft launch brief")).toBeLessThan(
       text.indexOf("Activity log"),

@@ -101,11 +101,12 @@ describe("TaskDetailModal execution view", () => {
       name: "Task activity",
     });
     expect(
-      await within(timeline).findByText("task_created"),
+      await within(timeline).findByText("Task created"),
     ).toBeInTheDocument();
-    expect(within(timeline).getByText("task_updated")).toBeInTheDocument();
+    expect(within(timeline).getByText("Task updated")).toBeInTheDocument();
     expect(within(timeline).getByText("@eng")).toBeInTheDocument();
     expect(within(timeline).queryByText("Unrelated [done]")).toBeNull();
+    expect(within(timeline).queryByText("task_created")).toBeNull();
   });
 
   it("shows delivery receipt details when a task has a PR", async () => {

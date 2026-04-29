@@ -252,6 +252,30 @@ function taskTypeLabel(task: Task, t: TaskTranslator): string | null {
   return optionalMeta(task.task_type);
 }
 
+function taskActionKindLabel(
+  kind: string | null | undefined,
+  t: TaskTranslator,
+): string {
+  switch ((kind ?? "").trim()) {
+    case "project_created":
+      return t("tasks.detail.action.projectCreated");
+    case "project_updated":
+      return t("tasks.detail.action.projectUpdated");
+    case "task_created":
+      return t("tasks.detail.action.taskCreated");
+    case "task_updated":
+      return t("tasks.detail.action.taskUpdated");
+    case "task_unblocked":
+      return t("tasks.detail.action.taskUnblocked");
+    case "task_reassigned":
+      return t("tasks.detail.action.taskReassigned");
+    case "task_canceled":
+      return t("tasks.detail.action.taskCanceled");
+    default:
+      return t("tasks.detail.action.generic");
+  }
+}
+
 function actionTimestamp(action: ActionRecord): number {
   const raw = action.created_at ?? "";
   const parsed = Date.parse(raw);
@@ -614,7 +638,7 @@ function TaskActionTimeline({
             >
               <div className="task-detail-timeline-topline">
                 <span className="task-detail-timeline-kind">
-                  {action.kind || "action"}
+                  {taskActionKindLabel(action.kind, t)}
                 </span>
                 {action.actor ? <span>@{action.actor}</span> : null}
                 {action.created_at ? (
