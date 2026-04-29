@@ -394,6 +394,7 @@ export function AgentPanel() {
   const currentApp = useAppStore((s) => s.currentApp);
   const { data: members = [] } = useOfficeMembers();
   const panelRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(false);
 
   const close = useCallback(
     () => setActiveAgentSlug(null),
@@ -408,6 +409,10 @@ export function AgentPanel() {
   // e2e regression).
   // biome-ignore lint/correctness/useExhaustiveDependencies: currentChannel/currentApp are the navigation-change signal.
   useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
     close();
   }, [currentChannel, currentApp, close]);
 

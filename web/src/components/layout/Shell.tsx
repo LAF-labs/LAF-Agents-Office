@@ -1,15 +1,32 @@
-import type { ReactNode } from "react";
+import { lazy, type ReactNode, Suspense } from "react";
 
 import { isDMChannel, useAppStore } from "../../stores/app";
-import { AgentPanel } from "../agents/AgentPanel";
-import { ThreadPanel } from "../messages/ThreadPanel";
-import { SearchModal } from "../search/SearchModal";
-import { HelpModalHost } from "../ui/HelpModal";
 import { ChannelHeader } from "./ChannelHeader";
 import { DisconnectBanner } from "./DisconnectBanner";
 import { RuntimeStrip } from "./RuntimeStrip";
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
+
+const AgentPanel = lazy(() =>
+  import("../agents/AgentPanel").then((module) => ({
+    default: module.AgentPanel,
+  })),
+);
+const ThreadPanel = lazy(() =>
+  import("../messages/ThreadPanel").then((module) => ({
+    default: module.ThreadPanel,
+  })),
+);
+const SearchModal = lazy(() =>
+  import("../search/SearchModal").then((module) => ({
+    default: module.SearchModal,
+  })),
+);
+const HelpModalHost = lazy(() =>
+  import("../ui/HelpModal").then((module) => ({
+    default: module.HelpModalHost,
+  })),
+);
 
 interface ShellProps {
   children: ReactNode;
@@ -21,6 +38,10 @@ export function Shell({ children, onLogout, userEmail }: ShellProps) {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const currentApp = useAppStore((s) => s.currentApp);
   const channelMeta = useAppStore((s) => s.channelMeta);
+  const activeAgentSlug = useAppStore((s) => s.activeAgentSlug);
+  const activeThreadId = useAppStore((s) => s.activeThreadId);
+  const searchOpen = useAppStore((s) => s.searchOpen);
+  const composerHelpOpen = useAppStore((s) => s.composerHelpOpen);
   const inDM = !currentApp && !!isDMChannel(currentChannel, channelMeta);
 
   return (
@@ -33,10 +54,12 @@ export function Shell({ children, onLogout, userEmail }: ShellProps) {
         {children}
         <StatusBar />
       </main>
-      <ThreadPanel />
-      <AgentPanel />
-      <SearchModal />
-      <HelpModalHost />
+      <Suspense fallback={null}>
+        {activeThreadId ? <ThreadPanel /> : null}
+        {activeAgentSlug ? <AgentPanel /> : null}
+        {searchOpen ? <SearchModal /> : null}
+        {composerHelpOpen ? <HelpModalHost /> : null}
+      </Suspense>
     </div>
   );
 }

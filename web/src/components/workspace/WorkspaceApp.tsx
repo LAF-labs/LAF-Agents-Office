@@ -7,6 +7,9 @@ import {
 } from "react";
 
 import { logout } from "../../api/client";
+import { useBrokerEvents } from "../../hooks/useBrokerEvents";
+import { useHashRouter } from "../../hooks/useHashRouter";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { isDMChannel, useAppStore } from "../../stores/app";
 import { Shell } from "../layout/Shell";
 import { Composer } from "../messages/Composer";
@@ -14,8 +17,12 @@ import { DMView } from "../messages/DMView";
 import { InterviewBar } from "../messages/InterviewBar";
 import { MessageFeed } from "../messages/MessageFeed";
 import { TypingIndicator } from "../messages/TypingIndicator";
+import { ConfirmHost } from "../ui/ConfirmDialog";
+import { ProviderSwitcherHost } from "../ui/ProviderSwitcher";
+import { ToastContainer } from "../ui/Toast";
 import type { WikiTab } from "../wiki/WikiTabs";
 import WikiTabs from "../wiki/WikiTabs";
+import "../../styles/agents.css";
 import "../../styles/layout.css";
 import "../../styles/messages.css";
 import "../../styles/search.css";
@@ -231,19 +238,27 @@ export default function WorkspaceApp({
   onLoggedOut,
 }: WorkspaceAppProps) {
   const resetForOnboarding = useAppStore((s) => s.resetForOnboarding);
+  useKeyboardShortcuts();
+  useHashRouter();
+  useBrokerEvents(true);
 
   return (
-    <Shell
-      userEmail={userEmail}
-      onLogout={async () => {
-        await logout().catch(() => undefined);
-        resetForOnboarding();
-        onLoggedOut();
-      }}
-    >
-      <Suspense fallback={<WorkspaceLoadingFallback />}>
-        <MainContent />
-      </Suspense>
-    </Shell>
+    <>
+      <Shell
+        userEmail={userEmail}
+        onLogout={async () => {
+          await logout().catch(() => undefined);
+          resetForOnboarding();
+          onLoggedOut();
+        }}
+      >
+        <Suspense fallback={<WorkspaceLoadingFallback />}>
+          <MainContent />
+        </Suspense>
+      </Shell>
+      <ToastContainer />
+      <ConfirmHost />
+      <ProviderSwitcherHost />
+    </>
   );
 }

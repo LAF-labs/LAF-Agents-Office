@@ -15,16 +15,10 @@ import {
   initApi,
 } from "./api/client";
 import { AuthScreen } from "./components/auth/AuthScreen";
-import { ConfirmHost } from "./components/ui/ConfirmDialog";
-import { ProviderSwitcherHost } from "./components/ui/ProviderSwitcher";
-import { ToastContainer } from "./components/ui/Toast";
-import { useBrokerEvents } from "./hooks/useBrokerEvents";
-import { useHashRouter } from "./hooks/useHashRouter";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAppStore } from "./stores/app";
 import "./styles/shadcn.css";
 import "./styles/global.css";
-import "./styles/agents.css";
+import "./styles/auth.css";
 
 const InviteAcceptPage = lazy(() =>
   import("./components/invites/InviteAcceptPage").then((module) => ({
@@ -159,10 +153,6 @@ export default function App() {
   const inviteToken = window.location.pathname.startsWith("/invite/")
     ? decodeURIComponent(window.location.pathname.replace(/^\/invite\//, ""))
     : "";
-
-  useKeyboardShortcuts();
-  useHashRouter();
-  useBrokerEvents(apiReady && authSession.authenticated);
 
   const loadOnboardingState = useCallback(async () => {
     try {
@@ -308,9 +298,6 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Suspense fallback={<AppLoadingFallback />}>{body}</Suspense>
-      <ToastContainer />
-      <ConfirmHost />
-      <ProviderSwitcherHost />
     </ErrorBoundary>
   );
 }
