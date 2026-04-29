@@ -14,7 +14,13 @@ import { showNotice } from "../ui/Toast";
 
 interface PaletteItem {
   id: string;
-  group: "Channels" | "Agents" | "Commands" | "Messages" | "Wiki" | "Notebooks";
+  group:
+    | "Project activity"
+    | "Project agents"
+    | "Actions"
+    | "Messages"
+    | "Wiki"
+    | "Notebooks";
   icon: string;
   label: string;
   desc?: string;
@@ -201,7 +207,7 @@ function buildChannelItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     if (q && !hay.includes(searchTerm(q, "#"))) continue;
     items.push({
       id: `ch:${channel.slug}`,
-      group: "Channels",
+      group: "Project activity",
       icon: "#",
       label: channel.name || channel.slug,
       desc: channel.description || undefined,
@@ -227,7 +233,7 @@ function buildAgentItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     if (q && !hay.includes(searchTerm(q, "@"))) continue;
     items.push({
       id: `ag:${slug}`,
-      group: "Agents",
+      group: "Project agents",
       icon: member.emoji || "🤖",
       label: member.name || slug,
       desc: member.role || undefined,
@@ -248,7 +254,7 @@ function buildCommandItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     if (q && !hay.includes(searchTerm(q, "/"))) continue;
     items.push({
       id: `cmd:${command.name}`,
-      group: "Commands",
+      group: "Actions",
       icon: command.icon,
       label: command.name,
       desc: command.desc,

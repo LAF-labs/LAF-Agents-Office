@@ -320,16 +320,16 @@ function AgentPanelView({ agent, onClose }: AgentPanelViewProps) {
         </div>
       </div>
 
-      {/* Enable/disable — controls whether this agent participates in #{currentChannel} */}
+      {/* Enable/disable — backed by the current activity channel. */}
       {canToggle && (
         <div className="agent-panel-section">
           <div className="agent-panel-stat">
             <span className="agent-panel-stat-label">
-              Enabled in <strong>#{currentChannel}</strong>
+              Available for current project activity
             </span>
             <label
               className="agent-toggle"
-              aria-label={`Toggle ${agent.name || agent.slug} in #${currentChannel}`}
+              aria-label={`Toggle ${agent.name || agent.slug} for current activity`}
             >
               <input
                 type="checkbox"
@@ -351,7 +351,7 @@ function AgentPanelView({ agent, onClose }: AgentPanelViewProps) {
           onClick={handleOpenDM}
           disabled={dmLoading}
         >
-          {dmLoading ? "Opening..." : "Open DM"}
+          {dmLoading ? "Opening..." : "Open agent thread"}
         </button>
         <button
           type="button"

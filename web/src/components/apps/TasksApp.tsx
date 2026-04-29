@@ -971,6 +971,12 @@ export function TasksApp() {
 
       {selectedProject ? (
         <>
+          <ProjectWorkRequest
+            project={selectedProject}
+            repoReadinessState={repoReadinessState}
+            taskCreator={taskCreator}
+            t={t}
+          />
           <ProjectWorkspaceOverview
             project={selectedProject}
             projectCount={projects.length}
@@ -982,12 +988,6 @@ export function TasksApp() {
             t={t}
             onCreateProject={handleOpenProjectCreator}
             onOpenWiki={handleOpenProjectWiki}
-          />
-          <ProjectWorkRequest
-            project={selectedProject}
-            repoReadinessState={repoReadinessState}
-            taskCreator={taskCreator}
-            t={t}
           />
           {taskWorkArea}
           <ProjectActivityLog

@@ -28,7 +28,7 @@ describe("Sidebar navigation hierarchy", () => {
   it("keeps project navigation as the only primary navigation surface", () => {
     const { container } = render(<Sidebar />);
 
-    expect(screen.getByText("워크스페이스")).toBeInTheDocument();
+    expect(screen.getByText("프로젝트 작업")).toBeInTheDocument();
     expect(screen.queryByText("앱")).not.toBeInTheDocument();
     expect(screen.getByTestId("workspace-nav")).toBeInTheDocument();
     expect(screen.queryByText("팀")).not.toBeInTheDocument();

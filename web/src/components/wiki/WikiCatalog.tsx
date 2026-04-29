@@ -30,6 +30,14 @@ export default function WikiCatalog({
     () => resolveGroupOrder(catalog.map((c) => c.group)),
     [catalog],
   );
+  const projectPages = useMemo(
+    () => catalog.filter(isProjectMemoryPage).sort(sortRecentFirst).slice(0, 5),
+    [catalog],
+  );
+  const recentPages = useMemo(
+    () => [...catalog].sort(sortRecentFirst).slice(0, 5),
+    [catalog],
+  );
   const stats = useMemo(
     () =>
       [
@@ -47,7 +55,8 @@ export default function WikiCatalog({
         <h1 className="wk-catalog-title">Project memory</h1>
         <div className="wk-catalog-stats">{stats}</div>
         <div className="wk-catalog-clone">
-          Decisions and delivery notes from project work.
+          Project goals, decisions, task history, and delivery notes that agents
+          read before work.
           {" · "}
           <button
             type="button"
@@ -74,6 +83,60 @@ export default function WikiCatalog({
           ) : null}
         </div>
       </header>
+      <section
+        className="wk-memory-overview"
+        aria-label="Project memory overview"
+      >
+        <section className="wk-memory-panel wk-memory-panel-primary">
+          <div>
+            <h2>Project pages</h2>
+            <p>
+              Start from the project page when you need goals, constraints, and
+              the latest task decisions.
+            </p>
+          </div>
+          {projectPages.length > 0 ? (
+            <ul>
+              {projectPages.map((item) => (
+                <li key={item.path}>
+                  <button type="button" onClick={() => onNavigate(item.path)}>
+                    {item.title}
+                  </button>
+                  <span className="wk-memory-when">
+                    {safeRelative(item.last_edited_ts)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="wk-memory-empty">
+              Create a project first; its memory page will appear here.
+            </p>
+          )}
+        </section>
+        <section className="wk-memory-panel">
+          <div>
+            <h2>Recent updates</h2>
+            <p>Use this to scan what changed before starting new work.</p>
+          </div>
+          {recentPages.length > 0 ? (
+            <ul>
+              {recentPages.map((item) => (
+                <li key={item.path}>
+                  <button type="button" onClick={() => onNavigate(item.path)}>
+                    {item.title}
+                  </button>
+                  <span className="wk-memory-when">
+                    {safeRelative(item.last_edited_ts)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="wk-memory-empty">No memory pages yet.</p>
+          )}
+        </section>
+      </section>
       {showNew ? (
         <NewArticleModal
           catalog={catalog}
@@ -131,6 +194,18 @@ function groupByGroup(
     out[k].sort((a, b) => (a.last_edited_ts < b.last_edited_ts ? 1 : -1));
   }
   return out;
+}
+
+function isProjectMemoryPage(entry: WikiCatalogEntry): boolean {
+  return (
+    entry.path.startsWith("projects/") ||
+    entry.path.startsWith("team/projects/") ||
+    entry.group.toLowerCase() === "projects"
+  );
+}
+
+function sortRecentFirst(a: WikiCatalogEntry, b: WikiCatalogEntry): number {
+  return Date.parse(b.last_edited_ts) - Date.parse(a.last_edited_ts);
 }
 
 function safeRelative(iso: string): string {

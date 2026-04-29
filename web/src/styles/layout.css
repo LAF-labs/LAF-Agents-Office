@@ -1493,10 +1493,10 @@ html[data-theme="office"]
   display: grid;
   grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(128px, 1fr));
   gap: 8px;
-  margin: 0;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-subtle) 72%, var(--bg));
+  margin: 10px 20px 0;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
 }
 .task-workspace-strip-main,
 .task-workspace-strip-item {
@@ -1894,7 +1894,8 @@ html[data-theme="office"]
   }
   .task-workspace-strip {
     grid-template-columns: minmax(0, 1fr);
-    padding: 10px 16px;
+    margin: 10px 16px 0;
+    padding: 0;
   }
   .task-workspace-strip-main {
     grid-column: auto;

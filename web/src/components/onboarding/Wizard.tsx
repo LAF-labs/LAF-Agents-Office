@@ -310,9 +310,9 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     welcome: {
       eyebrow: "Ready to set up",
-      headline: "Plan, build, and automate with your startup agent team.",
+      headline: "Create one project, preserve context, and ship with agents.",
       subhead:
-        "A local project workspace where agents keep shared context in the wiki and turn product work into visible tasks.",
+        "Start with one project workspace for planning and development. GitHub is optional; before it is connected, agents can plan, document, and break down work.",
       cta: "Open project setup",
     },
     templates: {
@@ -357,7 +357,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     setup: {
       title: "How should agents run?",
       description:
-        "Use local coding CLIs first. API keys stay as a fallback for agents that need provider access.",
+        "Choose the local coding runtime agents should use. API keys are only a fallback when a selected runtime cannot run.",
       checkingRuntimes: "Checking which CLIs are installed...",
       installed: "Installed",
       notInstalled: "Not installed",
@@ -386,11 +386,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       },
       memoryTitle: "Project wiki",
       memoryDescription:
-        "Shared context is stored in the local LLM wiki. Agents use it for durable project decisions, facts, and playbooks.",
+        "Project wiki is the shared memory agents read before work and update after decisions, constraints, or delivery.",
       memoryOptions: {
         markdown: {
           label: "Project wiki (default)",
-          hint: "Local git-backed wiki with sourced facts and /lookup. No API key.",
+          hint: "Markdown project memory with decisions, task history, and lookups. No hosted CRM state.",
         },
       },
       next: "Ready",
@@ -424,10 +424,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       runtimeKeyReady: "Provider API key will drive agent runs.",
       runtimeMissing: "Pick a CLI or add a provider key on the Setup step.",
       memoryLabel: "Project wiki",
-      memoryMarkdown: "Git-native project wiki in ~/.laf-office/wiki.",
+      memoryMarkdown:
+        "Project wiki stores goals, decisions, and task history for agents.",
       githubLabel: "GitHub repository",
       githubConnectLater:
-        "Connect the project repo after deployment settings are ready. Agents will use it for implementation tasks.",
+        "Optional. Connect when you want agents to create branches, code, and open PRs.",
       blueprintLabel: "Starter",
       blueprintScratch: "Start from scratch (5-person project team).",
     },
@@ -449,9 +450,10 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     welcome: {
       eyebrow: "설정 준비 완료",
-      headline: "기획·개발 에이전트가 함께 일하는 프로젝트 워크스페이스.",
+      headline:
+        "프로젝트 하나를 만들고, 맥락을 남기고, 에이전트와 배포까지 이어갑니다.",
       subhead:
-        "소규모 창업팀이 에이전트와 함께 제품을 기획하고, 위키로 맥락을 이어가며, GitHub 기반 개발 작업까지 연결하는 로컬 워크스페이스입니다.",
+        "먼저 하나의 프로젝트 워크스페이스에서 기획과 개발을 시작합니다. GitHub 연결은 선택 사항이며, 연결 전에도 에이전트는 기획, 문서화, 작업 분해를 도울 수 있습니다.",
       cta: "프로젝트 설정 열기",
     },
     templates: {
@@ -496,7 +498,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     setup: {
       title: "에이전트를 어떻게 실행할까요?",
       description:
-        "로컬 코딩 CLI를 우선 사용합니다. API 키는 제공자 접근이 필요할 때 쓰는 대체 수단입니다.",
+        "에이전트가 사용할 로컬 코딩 런타임을 고릅니다. API 키는 선택한 런타임이 실행되지 않을 때 쓰는 대체 수단입니다.",
       checkingRuntimes: "설치된 CLI 확인 중...",
       installed: "설치됨",
       notInstalled: "설치되지 않음",
@@ -526,11 +528,11 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       },
       memoryTitle: "프로젝트 위키",
       memoryDescription:
-        "공유 맥락은 로컬 LLM 위키에 저장합니다. 에이전트는 프로젝트 결정, 사실, 플레이북을 여기서 이어받습니다.",
+        "프로젝트 위키는 에이전트가 작업 전 읽고, 결정, 제약, 전달 기록을 작업 후 남기는 공유 메모리입니다.",
       memoryOptions: {
         markdown: {
           label: "프로젝트 위키 (기본값)",
-          hint: "출처가 붙는 로컬 git 위키입니다. /lookup을 지원하며 API 키가 필요 없습니다.",
+          hint: "결정, 작업 기록, lookup을 담는 마크다운 프로젝트 메모리입니다. hosted CRM 상태는 쓰지 않습니다.",
         },
       },
       next: "준비 완료",
@@ -564,10 +566,10 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       runtimeMissing: "CLI를 선택하거나 설정 단계에서 제공자 키를 추가하세요.",
       memoryLabel: "프로젝트 위키",
       memoryMarkdown:
-        "git 기반 프로젝트 위키를 ~/.laf-office/wiki에 저장합니다.",
+        "프로젝트 목표, 결정, 작업 기록을 에이전트가 읽는 위키에 저장합니다.",
       githubLabel: "GitHub 저장소",
       githubConnectLater:
-        "배포 설정이 준비되면 프로젝트 저장소를 연결합니다. 에이전트는 실제 개발 작업에 이 저장소를 사용합니다.",
+        "선택 사항입니다. 에이전트가 브랜치를 만들고 코드 수정과 PR까지 맡을 때 연결하세요.",
       blueprintLabel: "시작 방식",
       blueprintScratch: "처음부터 시작 (5명 프로젝트 팀).",
     },

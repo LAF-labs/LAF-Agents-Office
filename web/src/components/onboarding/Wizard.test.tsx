@@ -105,7 +105,7 @@ describe("Wizard keyboard advancement", () => {
 
     expect(
       screen.getByText(
-        "기획·개발 에이전트가 함께 일하는 프로젝트 워크스페이스.",
+        "프로젝트 하나를 만들고, 맥락을 남기고, 에이전트와 배포까지 이어갑니다.",
       ),
     ).toBeInTheDocument();
 
@@ -281,7 +281,7 @@ describe("Wizard keyboard advancement", () => {
     await waitFor(() => screen.getByText(/You're set/i));
     expect(screen.getByText("GitHub repository")).toBeInTheDocument();
     expect(
-      screen.getByText(/Connect the project repo after deployment settings/i),
+      screen.getByText(/Optional\. Connect when you want agents/i),
     ).toBeInTheDocument();
   });
 

@@ -117,8 +117,8 @@ describe("TasksApp project workspace", () => {
       screen.getByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/customer-portal");
     const text = container.textContent ?? "";
-    expect(text.indexOf("Customer Portal workspace")).toBeLessThan(
-      text.indexOf("Next task"),
+    expect(text.indexOf("Next task")).toBeLessThan(
+      text.indexOf("Customer Portal workspace"),
     );
     expect(text.indexOf("Draft launch brief")).toBeLessThan(
       text.indexOf("Activity log"),

@@ -36,20 +36,20 @@ describe("<WikiCatalog>", () => {
       screen.getByRole("heading", { name: "Project memory" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/decisions and delivery notes/i),
+      screen.getByText(/project goals, decisions, task history/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/git clone/)).not.toBeInTheDocument();
     expect(screen.getByText("people")).toBeInTheDocument();
     expect(screen.getByText("playbooks")).toBeInTheDocument();
-    expect(screen.getByText("Nazz")).toBeInTheDocument();
-    expect(screen.getByText("Churn")).toBeInTheDocument();
+    expect(screen.getAllByText("Nazz").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Churn").length).toBeGreaterThan(0);
   });
 
   it("invokes onNavigate when an article title is clicked", async () => {
     const onNavigate = vi.fn();
     const user = userEvent.setup();
     render(<WikiCatalog catalog={CATALOG} onNavigate={onNavigate} />);
-    await user.click(screen.getByText("Nazz"));
+    await user.click(screen.getAllByRole("button", { name: "Nazz" })[0]);
     expect(onNavigate).toHaveBeenCalledWith("people/nazz");
   });
 
