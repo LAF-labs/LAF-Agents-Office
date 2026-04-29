@@ -24,6 +24,7 @@ import { getUsage } from "../../api/client";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { formatTokens, formatUSD } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
+import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import { useAppStore } from "../../stores/app";
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
@@ -108,7 +109,11 @@ export function CollapsedSidebar() {
           className={`sidebar-icon-btn${currentApp === "settings" ? " active" : ""}`}
           aria-label={t("sidebar.settings")}
           onClick={() => setCurrentApp("settings")}
-          onMouseEnter={(e) => showHint(e, t("sidebar.settings"))}
+          onFocus={() => preloadWorkspaceSurface("settings")}
+          onMouseEnter={(e) => {
+            preloadWorkspaceSurface("settings");
+            showHint(e, t("sidebar.settings"));
+          }}
           onMouseLeave={hideHint}
         >
           <SettingsIcon />
@@ -134,7 +139,11 @@ export function CollapsedSidebar() {
               className={`sidebar-icon-btn${isActive ? " active" : ""}`}
               aria-label={appName}
               onClick={() => setCurrentApp(app.id)}
-              onMouseEnter={(e) => showHint(e, appName)}
+              onFocus={() => preloadWorkspaceSurface(app.id)}
+              onMouseEnter={(e) => {
+                preloadWorkspaceSurface(app.id);
+                showHint(e, appName);
+              }}
               onMouseLeave={hideHint}
             >
               {Icon ? (

@@ -10,6 +10,19 @@ import { logout } from "../../api/client";
 import { useBrokerEvents } from "../../hooks/useBrokerEvents";
 import { useHashRouter } from "../../hooks/useHashRouter";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import {
+  loadArtifactsApp,
+  loadCitedAnswer,
+  loadNotebook,
+  loadReceiptsApp,
+  loadRequestsApp,
+  loadReviewQueueKanban,
+  loadSettingsApp,
+  loadSkillsApp,
+  loadTasksApp,
+  loadThreadsApp,
+  loadWiki,
+} from "../../lib/workspacePreload";
 import { isDMChannel, useAppStore } from "../../stores/app";
 import { Shell } from "../layout/Shell";
 import { Composer } from "../messages/Composer";
@@ -33,45 +46,17 @@ type PanelComponent =
   | ComponentType<Record<string, never>>
   | LazyExoticComponent<ComponentType<Record<string, never>>>;
 
-const ArtifactsApp = lazy(() =>
-  import("../apps/ArtifactsApp").then((module) => ({
-    default: module.ArtifactsApp,
-  })),
-);
-const ReceiptsApp = lazy(() =>
-  import("../apps/ReceiptsApp").then((module) => ({
-    default: module.ReceiptsApp,
-  })),
-);
-const RequestsApp = lazy(() =>
-  import("../apps/RequestsApp").then((module) => ({
-    default: module.RequestsApp,
-  })),
-);
-const SettingsApp = lazy(() =>
-  import("../apps/SettingsApp").then((module) => ({
-    default: module.SettingsApp,
-  })),
-);
-const SkillsApp = lazy(() =>
-  import("../apps/SkillsApp").then((module) => ({
-    default: module.SkillsApp,
-  })),
-);
-const TasksApp = lazy(() =>
-  import("../apps/TasksApp").then((module) => ({
-    default: module.TasksApp,
-  })),
-);
-const ThreadsApp = lazy(() =>
-  import("../apps/ThreadsApp").then((module) => ({
-    default: module.ThreadsApp,
-  })),
-);
-const CitedAnswer = lazy(() => import("../wiki/CitedAnswer"));
-const Notebook = lazy(() => import("../notebook/Notebook"));
-const ReviewQueueKanban = lazy(() => import("../review/ReviewQueueKanban"));
-const Wiki = lazy(() => import("../wiki/Wiki"));
+const ArtifactsApp = lazy(loadArtifactsApp);
+const ReceiptsApp = lazy(loadReceiptsApp);
+const RequestsApp = lazy(loadRequestsApp);
+const SettingsApp = lazy(loadSettingsApp);
+const SkillsApp = lazy(loadSkillsApp);
+const TasksApp = lazy(loadTasksApp);
+const ThreadsApp = lazy(loadThreadsApp);
+const CitedAnswer = lazy(loadCitedAnswer);
+const Notebook = lazy(loadNotebook);
+const ReviewQueueKanban = lazy(loadReviewQueueKanban);
+const Wiki = lazy(loadWiki);
 
 interface WorkspaceAppProps {
   userEmail?: string;
@@ -81,16 +66,25 @@ interface WorkspaceAppProps {
 function WorkspaceLoadingFallback() {
   return (
     <div
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "var(--text-tertiary)",
-        fontSize: 14,
-      }}
+      className="workspace-route-skeleton"
+      role="status"
+      aria-label="Loading workspace view"
+      aria-busy="true"
     >
-      Loading...
+      <div className="workspace-route-skeleton-header">
+        <span />
+        <span />
+      </div>
+      <div className="workspace-route-skeleton-row">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="workspace-route-skeleton-board">
+        <span />
+        <span />
+        <span />
+      </div>
     </div>
   );
 }

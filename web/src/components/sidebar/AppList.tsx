@@ -17,6 +17,7 @@ import { useOverflow } from "../../hooks/useOverflow";
 import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { type I18nKey, useI18n } from "../../lib/i18n";
+import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import { useAppStore } from "../../stores/app";
 
 // Notebooks and reviews render inside the Wiki app shell via tabs, so the
@@ -89,6 +90,8 @@ export function AppList() {
               key={app.id}
               className={`sidebar-item${isActive ? " active" : ""}`}
               onClick={() => setCurrentApp(app.id)}
+              onFocus={() => preloadWorkspaceSurface(app.id)}
+              onMouseEnter={() => preloadWorkspaceSurface(app.id)}
             >
               {Icon ? (
                 <Icon className="sidebar-item-icon" />

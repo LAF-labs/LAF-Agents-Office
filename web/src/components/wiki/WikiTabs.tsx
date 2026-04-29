@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchReviews } from "../../api/notebook";
+import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import Pam from "./Pam";
 
 export type WikiTab = "wiki" | "notebooks" | "reviews";
@@ -74,6 +75,8 @@ export default function WikiTabs({
             type="button"
             aria-selected={isActive}
             className={`wiki-tab${isActive ? " is-active" : ""}`}
+            onFocus={() => preloadWorkspaceSurface(tab.id)}
+            onMouseEnter={() => preloadWorkspaceSurface(tab.id)}
             onClick={() => onSelect(tab.id)}
           >
             <span className="wiki-tab-label">{tab.label}</span>
