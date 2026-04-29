@@ -869,24 +869,11 @@ function ProjectToolbar({
   };
 
   return (
-    <div
-      style={{
-        padding: "16px 20px 0",
-        borderBottom: "1px solid var(--border)",
-      }}
-    >
+    <div className="task-toolbar">
       <div className="task-heading-row">
         <div>
-          <h3 style={{ fontSize: 16, fontWeight: 600 }}>
-            {t("tasks.workspace.title")}
-          </h3>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--text-tertiary)",
-              marginTop: 4,
-            }}
-          >
+          <h3 className="task-heading-title">{t("tasks.workspace.title")}</h3>
+          <div className="task-heading-subtitle">
             {selectedProjectLabel(selectedProjectId, projectNames, language)}
           </div>
         </div>

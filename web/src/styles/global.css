@@ -71,7 +71,9 @@
   --bg-warm: var(--neutral-50);
   --bg-subtle: var(--neutral-10);
   --bg-card: #ffffff;
+  --bg-elevated: var(--bg-card);
   --text: var(--neutral-900);
+  --text-primary: var(--text);
   --text-secondary: var(--neutral-500);
   --text-tertiary: var(--neutral-400);
   --text-disabled: var(--neutral-300);
