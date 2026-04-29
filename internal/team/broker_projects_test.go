@@ -668,13 +668,36 @@ func TestProjectTaskWithGitHubRepoUsesProjectRepoWorktree(t *testing.T) {
 	}
 }
 
-func TestProjectCodingTaskRequiresDeliveryURLBeforeDone(t *testing.T) {
+func TestProjectCodingTaskAutoCreatesPullRequestReceipt(t *testing.T) {
 	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGit := projectTaskRunGit
+	oldRunGH := projectTaskRunGH
 	t.Cleanup(func() {
 		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGit = oldRunGit
+		projectTaskRunGH = oldRunGH
 	})
 	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
 		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+	}
+	var gitCalls []string
+	projectTaskRunGit = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		gitCalls = append(gitCalls, strings.Join(args, " "))
+		switch strings.Join(args, " ") {
+		case "push -u origin laf-office-project-task":
+			return []byte("pushed\n"), nil
+		case "symbolic-ref --short refs/remotes/origin/HEAD":
+			return []byte("origin/main\n"), nil
+		default:
+			t.Fatalf("unexpected git call in %s: %v", dir, args)
+			return nil, nil
+		}
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		if got, want := strings.Join(args, " "), "pr create --title Implement the signup flow --body Task: #task-1\n\nBuild the code path and tests.\n\nCreated by LAF-Office project task delivery. --head laf-office-project-task --base main"; got != want {
+			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
+		}
+		return []byte("https://github.com/LAF-labs/agent-lab/pull/7\n"), nil
 	}
 
 	b := newTestBroker(t)
@@ -694,6 +717,24 @@ func TestProjectCodingTaskRequiresDeliveryURLBeforeDone(t *testing.T) {
 	if reviewRec.Code != http.StatusOK {
 		t.Fatalf("review project coding task status = %d, want %d: %s", reviewRec.Code, http.StatusOK, reviewRec.Body.String())
 	}
+	var delivered struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(reviewRec.Body).Decode(&delivered); err != nil {
+		t.Fatalf("decode delivered task: %v", err)
+	}
+	if delivered.Task.Status != taskStatusReview {
+		t.Fatalf("review should keep structured task in review, got %+v", delivered.Task)
+	}
+	if delivered.Task.DeliveryURL != "https://github.com/LAF-labs/agent-lab/pull/7" {
+		t.Fatalf("delivery_url = %q", delivered.Task.DeliveryURL)
+	}
+	if !strings.Contains(delivered.Task.DeliverySummary, "Opened PR for Implement the signup flow") {
+		t.Fatalf("delivery_summary = %q", delivered.Task.DeliverySummary)
+	}
+	if strings.Join(gitCalls, "\n") != "push -u origin laf-office-project-task\nsymbolic-ref --short refs/remotes/origin/HEAD" {
+		t.Fatalf("unexpected git calls: %v", gitCalls)
+	}
 
 	doneRec := httptest.NewRecorder()
 	b.handlePostTask(doneRec, jsonRequestForTest(t, "/tasks", map[string]string{
@@ -701,26 +742,102 @@ func TestProjectCodingTaskRequiresDeliveryURLBeforeDone(t *testing.T) {
 		"id":         task.ID,
 		"created_by": "human",
 	}))
-	if doneRec.Code != http.StatusConflict {
-		t.Fatalf("complete without delivery URL status = %d, want %d: %s", doneRec.Code, http.StatusConflict, doneRec.Body.String())
+	if doneRec.Code != http.StatusOK {
+		t.Fatalf("complete delivered task status = %d, want %d: %s", doneRec.Code, http.StatusOK, doneRec.Body.String())
 	}
-	if !strings.Contains(doneRec.Body.String(), "delivery_url required") {
-		t.Fatalf("expected delivery_url error, got %q", doneRec.Body.String())
+	var done struct {
+		Task teamTask `json:"task"`
 	}
+	if err := json.NewDecoder(doneRec.Body).Decode(&done); err != nil {
+		t.Fatalf("decode done task: %v", err)
+	}
+	if done.Task.Status != taskStatusDone || done.Task.DeliveryURL != delivered.Task.DeliveryURL {
+		t.Fatalf("expected delivered task to close cleanly, got %+v", done.Task)
+	}
+}
+
+func TestProjectCodingTaskAutoPullRequestFailureBlocksAndWritesWiki(t *testing.T) {
+	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGit := projectTaskRunGit
+	oldRunGH := projectTaskRunGH
+	t.Cleanup(func() {
+		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGit = oldRunGit
+		projectTaskRunGH = oldRunGH
+	})
+	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+	}
+	projectTaskRunGit = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		return nil, errors.New("push rejected")
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		t.Fatalf("gh should not run when branch push fails: %v", args)
+		return nil, nil
+	}
+
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
 	b.mu.Lock()
-	defer b.mu.Unlock()
-	var stored *teamTask
-	for i := range b.tasks {
-		if b.tasks[i].ID == task.ID {
-			stored = &b.tasks[i]
-			break
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:LAF-labs/agent-lab.git",
+	})
+	worker.WaitForIdle()
+	task := createProjectCodingTaskForTest(t, b, project.ID)
+
+	doneRec := httptest.NewRecorder()
+	b.handlePostTask(doneRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "complete",
+		"id":         task.ID,
+		"created_by": "human",
+	}))
+	if doneRec.Code != http.StatusOK {
+		t.Fatalf("auto PR failure status = %d, want %d: %s", doneRec.Code, http.StatusOK, doneRec.Body.String())
+	}
+	var blocked struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(doneRec.Body).Decode(&blocked); err != nil {
+		t.Fatalf("decode blocked task: %v", err)
+	}
+	if blocked.Task.Status != taskStatusBlocked || !blocked.Task.Blocked {
+		t.Fatalf("expected blocked task after PR failure, got %+v", blocked.Task)
+	}
+	if !strings.Contains(blocked.Task.Details, "PR delivery failed: push rejected") {
+		t.Fatalf("expected PR failure detail, got %q", blocked.Task.Details)
+	}
+	worker.WaitForIdle()
+	raw, err := os.ReadFile(filepath.Join(root, "team", "projects", project.ID+".md"))
+	if err != nil {
+		t.Fatalf("read project wiki: %v", err)
+	}
+	content := string(raw)
+	for _, want := range []string{
+		"Task `" + task.ID + "` updated: Implement the signup flow",
+		"status `blocked`",
+		"PR delivery failed: push rejected",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("project wiki missing %q in:\n%s", want, content)
 		}
-	}
-	if stored == nil {
-		t.Fatal("expected task to remain stored after failed completion")
-	}
-	if stored.Status != taskStatusReview {
-		t.Fatalf("failed completion mutated task status = %q, want %q", stored.Status, taskStatusReview)
 	}
 }
 

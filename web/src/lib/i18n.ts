@@ -307,7 +307,8 @@ const messages = {
     "tasks.deliverySummary": "Delivery summary",
     "tasks.deliveryURLPlaceholder": "Paste PR URL",
     "tasks.deliverySummaryPlaceholder": "Short delivery summary",
-    "tasks.deliveryRequiredHint": "Required before Done.",
+    "tasks.deliveryRequiredHint":
+      "Review/Done will create the PR automatically when possible. Paste a URL only for a manual PR.",
     "tasks.deliveryRequiredBeforeDone":
       "Add a delivery URL before marking done.",
     "tasks.deliveryReady": "PR ready",
@@ -764,7 +765,8 @@ const messages = {
     "tasks.deliverySummary": "전달 요약",
     "tasks.deliveryURLPlaceholder": "PR URL 붙여넣기",
     "tasks.deliverySummaryPlaceholder": "짧은 전달 요약",
-    "tasks.deliveryRequiredHint": "완료 전에 필요합니다.",
+    "tasks.deliveryRequiredHint":
+      "가능하면 리뷰/완료 시 PR을 자동 생성합니다. 직접 만든 PR만 URL을 붙여넣으세요.",
     "tasks.deliveryRequiredBeforeDone": "완료 전에 전달 URL을 추가하세요.",
     "tasks.deliveryReady": "PR 준비됨",
     "tasks.deliveryNeeded": "전달 필요",

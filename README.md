@@ -137,8 +137,11 @@ Each project also gets a wiki article at `team/projects/{project_id}.md`.
 Project creation materializes the article, task lifecycle updates append to it,
 and project task packets include a bounded excerpt so agents read the project
 memory before work without a separate lookup unless they need the full article.
-For connected coding projects, completed work records a delivery receipt
-(`delivery_url`, summary, timestamp) so the board and wiki point back to the PR.
+For connected coding projects, review or completion pushes the assigned branch
+and creates a GitHub PR when no manual delivery receipt was supplied. The task
+stores the resulting `delivery_url`, summary, and timestamp so the board and
+wiki point back to the PR; PR creation failures block the task and are written
+to project memory.
 The project workspace checks repository readiness with the GitHub CLI before
 creating coding work: missing `gh`, missing `gh auth login`, invalid repo URLs,
 or inaccessible repos keep the request composer in planning/task-breakdown mode

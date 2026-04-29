@@ -9104,6 +9104,29 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	}
 	projectID := normalizeProjectID(body.ProjectID)
 
+	if strings.TrimSpace(body.DeliveryURL) == "" && actionMayNeedProjectAutoDelivery(action) {
+		autoDelivery, err := b.prepareProjectTaskAutoDelivery(r.Context(), body.ID, body.CreatedBy, action, now)
+		if err != nil {
+			http.Error(w, "failed to prepare project delivery", http.StatusInternalServerError)
+			return
+		}
+		if autoDelivery.BlockedTask != nil {
+			if err := b.appendProjectTaskWikiEvent(r.Context(), *autoDelivery.BlockedTask, body.CreatedBy, "updated"); err != nil {
+				http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": *autoDelivery.BlockedTask})
+			return
+		}
+		if strings.TrimSpace(autoDelivery.DeliveryURL) != "" {
+			body.DeliveryURL = autoDelivery.DeliveryURL
+			if strings.TrimSpace(body.DeliverySummary) == "" {
+				body.DeliverySummary = autoDelivery.DeliverySummary
+			}
+		}
+	}
+
 	b.mu.Lock()
 	locked := true
 	defer func() {

@@ -40,12 +40,14 @@ function renderTaskDetail(task: Task, onClose = () => {}) {
   );
 }
 
+function resetTaskDetailModalTest() {
+  vi.clearAllMocks();
+  useAppStore.setState({ language: "en" });
+  apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+}
+
 describe("TaskDetailModal execution view", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useAppStore.setState({ language: "en" });
-    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
-  });
+  beforeEach(resetTaskDetailModalTest);
 
   it("shows the task execution state and related action timeline", async () => {
     apiMocks.getActions.mockResolvedValue({
@@ -143,28 +145,40 @@ describe("TaskDetailModal execution view", () => {
     expect(within(delivery).getByText("Delivered")).toBeInTheDocument();
   });
 
-  it("requires a delivery URL before completing a project coding task", async () => {
+  it("lets the broker create the PR receipt when completing without a manual URL", async () => {
     const user = userEvent.setup();
+    const onClose = vi.fn();
     apiMocks.getActions.mockResolvedValue({ actions: [] });
-
-    renderTaskDetail({
-      id: "task-request",
-      title: "Implement project invite flow",
-      status: "review",
-      owner: "eng",
-      project_id: "customer-portal",
-      channel: "general",
-      execution_mode: "local_worktree",
-      worktree_branch: "laf-office-task-task-request",
+    apiMocks.updateTaskStatus.mockResolvedValue({
+      task: { id: "task-request", status: "review" },
     });
+
+    renderTaskDetail(
+      {
+        id: "task-request",
+        title: "Implement project invite flow",
+        status: "review",
+        owner: "eng",
+        project_id: "customer-portal",
+        channel: "general",
+        execution_mode: "local_worktree",
+        worktree_branch: "laf-office-task-task-request",
+      },
+      onClose,
+    );
 
     await user.click(screen.getByRole("button", { name: "Mark done" }));
 
-    expect(apiMocks.updateTaskStatus).not.toHaveBeenCalled();
-    const status = screen.getByRole("region", { name: "Status" });
-    expect(
-      within(status).getByText("Add a delivery URL before marking done."),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(apiMocks.updateTaskStatus).toHaveBeenCalledWith(
+        "task-request",
+        "complete",
+        "general",
+        "human",
+        undefined,
+      );
+    });
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("sends the delivery receipt when marking a project coding task done", async () => {
@@ -241,6 +255,10 @@ describe("TaskDetailModal execution view", () => {
     );
     expect(within(delivery).getByText("전달 시각")).toBeInTheDocument();
   });
+});
+
+describe("TaskDetailModal project copy", () => {
+  beforeEach(resetTaskDetailModalTest);
 
   it("localizes workflow sections and removes office-internal guidance in Korean", () => {
     useAppStore.setState({ language: "ko" });

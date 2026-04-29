@@ -997,9 +997,9 @@ func TestBuildTaskExecutionPacketIncludesConnectedProjectContext(t *testing.T) {
 		"Project memory rule: read the project wiki before work",
 		"Project repo rule: use this project repo as the coding boundary",
 		"- Working branch: laf-office-task-12",
-		"Project delivery rule: commit changes on branch `laf-office-task-12` and open a GitHub PR before marking #task-12 complete",
-		"gh pr create --head \"laf-office-task-12\" --base main",
-		"include delivery_url and delivery_summary when calling team_task review or complete",
+		"Project delivery rule: commit changes on branch `laf-office-task-12` before marking #task-12 review-ready or complete",
+		"broker will push the branch and run `gh pr create --head \"laf-office-task-12\"`",
+		"include delivery_url and delivery_summary only if you already created the PR yourself",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected project context %q in packet:\n%s", want, got)

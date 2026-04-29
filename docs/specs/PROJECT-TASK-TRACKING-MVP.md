@@ -32,8 +32,12 @@ as the first memory read for the task and call `team_wiki_read` only when the
 excerpt is truncated or missing a section they need.
 
 For coding tasks in a project with a connected GitHub repo, the task packet also
-names the assigned branch and requires the agent to open a GitHub PR before
-marking the task complete.
+names the assigned branch and requires committed work before review or
+completion. If `team_task review`, `complete`, or `approve` is called without a
+`delivery_url`, the broker pushes the assigned branch and runs `gh pr create`.
+The returned GitHub PR URL is stored as the delivery receipt. If PR creation
+fails, the task is moved to `blocked` and the failure is appended to the project
+wiki instead of reporting a misleading completion.
 
 The UI treats a repo URL as a prerequisite, not a guarantee. Before creating a
 coding task, it checks that the repo URL is a GitHub repo, `gh` is installed,
@@ -44,9 +48,10 @@ tasks from the request box.
 
 Coding task delivery receipts live on the task as `delivery_url`,
 `delivery_summary`, and `delivered_at`. A project-scoped `local_worktree` task
-with a connected repo may enter review without a receipt, but it cannot move to
-`done` until a `delivery_url` is present. Delivery receipts are also appended to
-the project wiki work log.
+with a connected repo can still accept a manually supplied receipt, but the
+default path is automatic PR creation from the assigned branch. It cannot move
+to `done` until a `delivery_url` is present. Delivery receipts and PR creation
+failures are also appended to the project wiki work log.
 
 Task cards expose whether a project task is planning or coding work, and review
 cards show whether a PR receipt is ready or missing. The task detail modal shows

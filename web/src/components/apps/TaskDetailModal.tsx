@@ -499,15 +499,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   function handleStatusAction(action: TaskStatusAction) {
     const delivery = deliveryPayloadFromDraft(deliveryURL, deliverySummary);
-    if (
-      action === "complete" &&
-      taskRequiresDeliveryReceipt(task) &&
-      !task.delivery_url?.trim() &&
-      !delivery?.delivery_url
-    ) {
-      setStatusErrorMsg(t("tasks.deliveryRequiredBeforeDone"));
-      return;
-    }
+    const shouldSendDelivery = action === "complete" || action === "review";
     confirmTaskStatusAction(action, task, t, () => {
       void runTaskStatusAction({
         action,
@@ -516,7 +508,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         onClose,
         setStatusBusy,
         setErrorMsg: setStatusErrorMsg,
-        delivery: action === "complete" ? delivery : undefined,
+        delivery: shouldSendDelivery ? delivery : undefined,
       });
     });
   }
