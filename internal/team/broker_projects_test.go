@@ -694,10 +694,15 @@ func TestProjectCodingTaskAutoCreatesPullRequestReceipt(t *testing.T) {
 		}
 	}
 	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
-		if got, want := strings.Join(args, " "), "pr create --title Implement the signup flow --body Task: #task-1\n\nBuild the code path and tests.\n\nCreated by LAF-Office project task delivery. --head laf-office-project-task --base main"; got != want {
-			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
+		switch got := strings.Join(args, " "); got {
+		case "pr create --title Implement the signup flow --body Task: #task-1\n\nBuild the code path and tests.\n\nCreated by LAF-Office project task delivery. --head laf-office-project-task --base main":
+			return []byte("https://github.com/LAF-labs/agent-lab/pull/7\n"), nil
+		case "pr view https://github.com/LAF-labs/agent-lab/pull/7 --json state --jq .state":
+			return []byte("OPEN\n"), nil
+		default:
+			t.Fatalf("unexpected gh call in %s: %q", dir, got)
+			return nil, nil
 		}
-		return []byte("https://github.com/LAF-labs/agent-lab/pull/7\n"), nil
 	}
 
 	b := newTestBroker(t)
@@ -731,6 +736,9 @@ func TestProjectCodingTaskAutoCreatesPullRequestReceipt(t *testing.T) {
 	}
 	if !strings.Contains(delivered.Task.DeliverySummary, "Opened PR for Implement the signup flow") {
 		t.Fatalf("delivery_summary = %q", delivered.Task.DeliverySummary)
+	}
+	if delivered.Task.DeliveryStatus != "open" || strings.TrimSpace(delivered.Task.DeliveryCheckedAt) == "" {
+		t.Fatalf("delivery verification = %q at %q", delivered.Task.DeliveryStatus, delivered.Task.DeliveryCheckedAt)
 	}
 	if strings.Join(gitCalls, "\n") != "push -u origin laf-office-project-task\nsymbolic-ref --short refs/remotes/origin/HEAD" {
 		t.Fatalf("unexpected git calls: %v", gitCalls)
@@ -843,11 +851,19 @@ func TestProjectCodingTaskAutoPullRequestFailureBlocksAndWritesWiki(t *testing.T
 
 func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGH := projectTaskRunGH
 	t.Cleanup(func() {
 		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGH = oldRunGH
 	})
 	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
 		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		if got, want := strings.Join(args, " "), "pr view https://github.com/LAF-labs/agent-lab/pull/42 --json state --jq .state"; got != want {
+			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
+		}
+		return []byte("OPEN\n"), nil
 	}
 
 	root := filepath.Join(t.TempDir(), "wiki")
@@ -906,6 +922,9 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	if strings.TrimSpace(done.Task.DeliveredAt) == "" {
 		t.Fatal("expected delivered_at to be set")
 	}
+	if done.Task.DeliveryStatus != "open" || strings.TrimSpace(done.Task.DeliveryCheckedAt) == "" {
+		t.Fatalf("delivery verification = %q at %q", done.Task.DeliveryStatus, done.Task.DeliveryCheckedAt)
+	}
 
 	approveRec := httptest.NewRecorder()
 	b.handlePostTask(approveRec, jsonRequestForTest(t, "/tasks", map[string]string{
@@ -928,6 +947,9 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	if approved.Task.DeliveryURL != done.Task.DeliveryURL {
 		t.Fatalf("delivery_url was not preserved on completion: %q", approved.Task.DeliveryURL)
 	}
+	if approved.Task.DeliveryStatus != "open" || strings.TrimSpace(approved.Task.DeliveryCheckedAt) == "" {
+		t.Fatalf("approved delivery verification = %q at %q", approved.Task.DeliveryStatus, approved.Task.DeliveryCheckedAt)
+	}
 	worker.WaitForIdle()
 
 	raw, err := os.ReadFile(filepath.Join(root, "team", "projects", project.ID+".md"))
@@ -945,13 +967,118 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	}
 }
 
-func TestLocalProductLoopProjectWikiPacketAndDelivery(t *testing.T) {
+func TestProjectCodingTaskRejectsDeliveryURLFromAnotherRepo(t *testing.T) {
 	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGH := projectTaskRunGH
 	t.Cleanup(func() {
 		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGH = oldRunGH
+	})
+	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		t.Fatalf("gh should not run for a PR URL from another repo: %v", args)
+		return nil, nil
+	}
+
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:LAF-labs/agent-lab.git",
+	})
+	task := createProjectCodingTaskForTest(t, b, project.ID)
+
+	rec := httptest.NewRecorder()
+	b.handlePostTask(rec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":       "complete",
+		"id":           task.ID,
+		"created_by":   "human",
+		"delivery_url": "https://github.com/LAF-labs/other-repo/pull/42",
+	}))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("wrong repo delivery URL status = %d, want %d: %s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "delivery_url must point to project repo LAF-labs/agent-lab") {
+		t.Fatalf("unexpected wrong repo error: %s", rec.Body.String())
+	}
+}
+
+func TestProjectCodingTaskRejectsClosedDeliveryPRBeforeDone(t *testing.T) {
+	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGH := projectTaskRunGH
+	t.Cleanup(func() {
+		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGH = oldRunGH
+	})
+	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		if got, want := strings.Join(args, " "), "pr view https://github.com/LAF-labs/agent-lab/pull/42 --json state --jq .state"; got != want {
+			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
+		}
+		return []byte("CLOSED\n"), nil
+	}
+
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:LAF-labs/agent-lab.git",
+	})
+	task := createProjectCodingTaskForTest(t, b, project.ID)
+
+	reviewRec := httptest.NewRecorder()
+	b.handlePostTask(reviewRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":       "complete",
+		"id":           task.ID,
+		"created_by":   "human",
+		"delivery_url": "https://github.com/LAF-labs/agent-lab/pull/42",
+	}))
+	if reviewRec.Code != http.StatusOK {
+		t.Fatalf("review closed PR task status = %d, want %d: %s", reviewRec.Code, http.StatusOK, reviewRec.Body.String())
+	}
+	var reviewed struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(reviewRec.Body).Decode(&reviewed); err != nil {
+		t.Fatalf("decode reviewed task: %v", err)
+	}
+	if reviewed.Task.Status != taskStatusReview || reviewed.Task.DeliveryStatus != "closed" {
+		t.Fatalf("expected closed PR to stay reviewable, got %+v", reviewed.Task)
+	}
+
+	doneRec := httptest.NewRecorder()
+	b.handlePostTask(doneRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "complete",
+		"id":         task.ID,
+		"created_by": "human",
+	}))
+	if doneRec.Code != http.StatusConflict {
+		t.Fatalf("complete closed PR task status = %d, want %d: %s", doneRec.Code, http.StatusConflict, doneRec.Body.String())
+	}
+	if !strings.Contains(doneRec.Body.String(), "delivery_url PR is closed") {
+		t.Fatalf("unexpected closed PR error: %s", doneRec.Body.String())
+	}
+}
+
+func TestLocalProductLoopProjectWikiPacketAndDelivery(t *testing.T) {
+	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGH := projectTaskRunGH
+	t.Cleanup(func() {
+		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGH = oldRunGH
 	})
 	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
 		return "/tmp/laf-office-" + projectID + "-" + taskID, "laf-office-" + taskID, nil
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		if got, want := strings.Join(args, " "), "pr view https://github.com/laf-labs/customer-portal/pull/7 --json state --jq .state"; got != want {
+			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
+		}
+		return []byte("OPEN\n"), nil
 	}
 
 	root := filepath.Join(t.TempDir(), "wiki")

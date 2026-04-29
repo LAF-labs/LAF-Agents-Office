@@ -206,6 +206,33 @@ function pullRequestNumber(deliveryURL: string): string | null {
   return match?.[1] ?? null;
 }
 
+function deliveryStatusLabel(
+  status: string | null | undefined,
+  t: TaskTranslator,
+): string | null {
+  switch ((status ?? "").trim().toLowerCase()) {
+    case "open":
+      return t("tasks.deliveryOpen");
+    case "merged":
+      return t("tasks.deliveryMerged");
+    case "closed":
+      return t("tasks.deliveryClosed");
+    case "verified":
+      return t("tasks.deliveryVerified");
+    default:
+      return null;
+  }
+}
+
+function deliveryReference(task: Task, t: TaskTranslator): string | null {
+  const deliveryURL = task.delivery_url?.trim();
+  if (!deliveryURL) return null;
+  const prNumber = pullRequestNumber(deliveryURL);
+  const reference = prNumber ? `PR #${prNumber}` : deliveryURL;
+  const status = deliveryStatusLabel(task.delivery_status, t);
+  return status ? `${reference} · ${status}` : reference;
+}
+
 function taskExecutionLabel(status: string, t: TaskTranslator): string {
   switch (status) {
     case "in_progress":
@@ -320,9 +347,7 @@ function deliveryExecutionStep(
     label: deliveryURL
       ? t("tasks.detail.step.deliveryReady")
       : t("tasks.detail.step.deliveryNeeded"),
-    detail: deliveryURL
-      ? (pullRequestNumber(deliveryURL) ?? deliveryURL)
-      : null,
+    detail: deliveryURL ? deliveryReference(task, t) : null,
     state: deliveryURL
       ? "done"
       : isReview || hasStarted
@@ -623,14 +648,28 @@ function TaskDeliverySection({
   const savedDeliveryURL = task.delivery_url?.trim();
   const savedDeliverySummary = task.delivery_summary?.trim();
   const deliveredAt = relativeMeta(task.delivered_at);
+  const deliveryCheckedAt = relativeMeta(task.delivery_checked_at);
+  const deliveryStatus = deliveryStatusLabel(task.delivery_status, t);
   const requiresReceipt = taskRequiresDeliveryReceipt(task);
   const canEditReceipt = requiresReceipt && !terminalTaskStatus(task.status);
   const hasSavedDelivery = Boolean(
-    savedDeliveryURL || savedDeliverySummary || deliveredAt,
+    savedDeliveryURL ||
+      savedDeliverySummary ||
+      deliveredAt ||
+      deliveryStatus ||
+      deliveryCheckedAt,
   );
   const prNumber = savedDeliveryURL
     ? pullRequestNumber(savedDeliveryURL)
     : null;
+  const deliveryFacts: Array<[string, string | null]> = [
+    [t("tasks.deliveryStatus"), deliveryStatus],
+    [t("tasks.deliveryCheckedAt"), deliveryCheckedAt],
+    [t("tasks.deliveredAt"), deliveredAt],
+  ];
+  const visibleDeliveryFacts = deliveryFacts.filter(
+    (row): row is [string, string] => Boolean(row[1]),
+  );
   if (!(hasSavedDelivery || canEditReceipt)) {
     return null;
   }
@@ -657,12 +696,14 @@ function TaskDeliverySection({
         {savedDeliverySummary ? (
           <p className="task-detail-delivery-summary">{savedDeliverySummary}</p>
         ) : null}
-        {deliveredAt ? (
+        {visibleDeliveryFacts.length > 0 ? (
           <dl className="task-detail-execution-facts">
-            <div>
-              <dt>{t("tasks.deliveredAt")}</dt>
-              <dd>{deliveredAt}</dd>
-            </div>
+            {visibleDeliveryFacts.map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
           </dl>
         ) : null}
         {canEditReceipt ? (

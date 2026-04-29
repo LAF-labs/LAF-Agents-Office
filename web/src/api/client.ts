@@ -604,6 +604,8 @@ export interface Task {
   worktree_branch?: string;
   delivery_url?: string;
   delivery_summary?: string;
+  delivery_status?: string;
+  delivery_checked_at?: string;
   delivered_at?: string;
   depends_on?: string[];
   blocked?: boolean;

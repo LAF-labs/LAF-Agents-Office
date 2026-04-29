@@ -32,6 +32,8 @@ func TestCreateProjectTaskPullRequestUsesExistingPRWhenCreateConflicts(t *testin
 			return nil, errors.New("pull request already exists")
 		case "pr view --head laf-office-task-1 --json url --jq .url":
 			return []byte("https://github.com/LAF-labs/customer-portal/pull/9\n"), nil
+		case "pr view https://github.com/LAF-labs/customer-portal/pull/9 --json state --jq .state":
+			return []byte("MERGED\n"), nil
 		default:
 			t.Fatalf("unexpected gh call: %v", args)
 			return nil, nil
@@ -54,5 +56,24 @@ func TestCreateProjectTaskPullRequestUsesExistingPRWhenCreateConflicts(t *testin
 	}
 	if !strings.Contains(receipt.DeliverySummary, "laf-office-task-1") {
 		t.Fatalf("delivery summary = %q", receipt.DeliverySummary)
+	}
+	if receipt.DeliveryStatus != "merged" || strings.TrimSpace(receipt.CheckedAt) == "" {
+		t.Fatalf("delivery verification = %q at %q", receipt.DeliveryStatus, receipt.CheckedAt)
+	}
+}
+
+func TestParseGitHubPullRequestURL(t *testing.T) {
+	ref, ok := parseGitHubPullRequestURL("https://github.com/LAF-labs/customer-portal/pull/42")
+	if !ok {
+		t.Fatal("expected GitHub PR URL to parse")
+	}
+	if ref.Owner != "LAF-labs" || ref.Repo != "customer-portal" || ref.Number != "42" {
+		t.Fatalf("unexpected PR ref: %+v", ref)
+	}
+	if _, ok := parseGitHubPullRequestURL("https://github.com/LAF-labs/customer-portal/issues/42"); ok {
+		t.Fatal("expected non-PR URL to be rejected")
+	}
+	if _, ok := parseGitHubPullRequestURL("http://github.com/LAF-labs/customer-portal/pull/42"); ok {
+		t.Fatal("expected non-HTTPS PR URL to be rejected")
 	}
 }

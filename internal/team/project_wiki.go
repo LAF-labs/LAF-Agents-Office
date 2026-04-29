@@ -306,6 +306,9 @@ func renderProjectTaskWikiEvent(task teamTask, verb string) string {
 	if deliveryURL := strings.TrimSpace(task.DeliveryURL); deliveryURL != "" {
 		parts = append(parts, fmt.Sprintf("delivery `%s`", deliveryURL))
 	}
+	if deliveryStatus := strings.TrimSpace(task.DeliveryStatus); deliveryStatus != "" {
+		parts = append(parts, fmt.Sprintf("PR `%s`", deliveryStatus))
+	}
 
 	line := "- " + strings.Join(parts, " — ")
 	if timestamp != "" {
@@ -316,6 +319,9 @@ func renderProjectTaskWikiEvent(task teamTask, verb string) string {
 	}
 	if deliverySummary := oneLineTaskWikiText(task.DeliverySummary); deliverySummary != "" {
 		line += "\n  - Delivery: " + truncateSummary(deliverySummary, 220)
+	}
+	if checkedAt := strings.TrimSpace(task.DeliveryCheckedAt); checkedAt != "" {
+		line += "\n  - Delivery verified: " + checkedAt
 	}
 	return line + "\n"
 }

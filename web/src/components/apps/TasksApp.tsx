@@ -113,7 +113,33 @@ function taskDeliveryBadge(
   status: StatusGroup,
 ): { className: string; labelKey: I18nKey } | null {
   if (task.delivery_url?.trim()) {
-    return { className: "badge badge-green", labelKey: "tasks.deliveryReady" };
+    switch ((task.delivery_status ?? "").trim().toLowerCase()) {
+      case "merged":
+        return {
+          className: "badge badge-green",
+          labelKey: "tasks.deliveryMerged",
+        };
+      case "open":
+        return {
+          className: "badge badge-green",
+          labelKey: "tasks.deliveryOpen",
+        };
+      case "closed":
+        return {
+          className: "badge badge-yellow",
+          labelKey: "tasks.deliveryClosed",
+        };
+      case "verified":
+        return {
+          className: "badge badge-green",
+          labelKey: "tasks.deliveryVerified",
+        };
+      default:
+        return {
+          className: "badge badge-green",
+          labelKey: "tasks.deliveryReady",
+        };
+    }
   }
   if (status === "review" && taskRequiresDeliveryReceipt(task)) {
     return {

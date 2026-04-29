@@ -129,6 +129,8 @@ describe("TaskDetailModal execution view", () => {
       worktree_branch: "laf-office-task-task-request",
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "Implemented invite form validation.",
+      delivery_status: "open",
+      delivery_checked_at: "2026-04-28T00:11:00Z",
       delivered_at: "2026-04-28T00:10:00Z",
     });
 
@@ -142,6 +144,9 @@ describe("TaskDetailModal execution view", () => {
     expect(
       within(delivery).getByText("Implemented invite form validation."),
     ).toBeInTheDocument();
+    expect(within(delivery).getByText("PR status")).toBeInTheDocument();
+    expect(within(delivery).getByText("PR open")).toBeInTheDocument();
+    expect(within(delivery).getByText("Verified")).toBeInTheDocument();
     expect(within(delivery).getByText("Delivered")).toBeInTheDocument();
   });
 
@@ -243,6 +248,8 @@ describe("TaskDetailModal execution view", () => {
       worktree_branch: "laf-office-task-task-request",
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "초대 폼 검증을 구현했습니다.",
+      delivery_status: "merged",
+      delivery_checked_at: "2026-04-28T00:11:00Z",
       delivered_at: "2026-04-28T00:10:00Z",
     });
 
@@ -253,6 +260,9 @@ describe("TaskDetailModal execution view", () => {
       "href",
       "https://github.com/LAF-labs/customer-portal/pull/42",
     );
+    expect(within(delivery).getByText("PR 상태")).toBeInTheDocument();
+    expect(within(delivery).getByText("PR 병합됨")).toBeInTheDocument();
+    expect(within(delivery).getByText("검증 시각")).toBeInTheDocument();
     expect(within(delivery).getByText("전달 시각")).toBeInTheDocument();
   });
 });

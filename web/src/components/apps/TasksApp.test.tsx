@@ -515,6 +515,7 @@ describe("TasksApp project activity", () => {
           execution_mode: "local_worktree",
           worktree_branch: "laf-office-task-task-has-pr",
           delivery_url: "https://github.com/laf-labs/customer-portal/pull/42",
+          delivery_status: "open",
         },
       ],
     });
@@ -525,7 +526,7 @@ describe("TasksApp project activity", () => {
       await screen.findByText("Customer Portal workspace"),
     ).toBeInTheDocument();
     expect(await screen.findByText("Receipt needed")).toBeInTheDocument();
-    expect(await screen.findByText("PR ready")).toBeInTheDocument();
+    expect(await screen.findByText("PR open")).toBeInTheDocument();
     expect(await screen.findAllByText("Coding task")).toHaveLength(2);
   });
 });
