@@ -20,10 +20,9 @@ export default function PixelAvatar({
   className = "wk-avatar",
   title,
 }: PixelAvatarProps) {
-  // The underlying component is aria-hidden; the wiki uses avatars purely
-  // decorative next to agent slug labels, so no extra role/title is needed.
-  // `title` is accepted for API compatibility with the legacy stub and set
-  // via a wrapping span when provided.
+  // The wiki uses avatars next to agent slug labels, so no extra label is
+  // needed. `title` is accepted for API compatibility with the legacy stub and
+  // set via a wrapping span when provided.
   const avatar = (
     <CanvasPixelAvatar slug={slug} size={size} className={className} />
   );

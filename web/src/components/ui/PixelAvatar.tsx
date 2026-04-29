@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
 
-import { drawPixelAvatar } from "../../lib/pixelAvatar";
-
 interface PixelAvatarProps {
   slug: string;
   size: number;
@@ -19,12 +17,27 @@ export function PixelAvatar({ slug, size, className }: PixelAvatarProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    drawPixelAvatar(canvas, slug, size);
+    let cancelled = false;
+    import("../../lib/pixelAvatar")
+      .then(({ drawPixelAvatar }) => {
+        if (cancelled || canvasRef.current !== canvas) return;
+        drawPixelAvatar(canvas, slug, size);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [slug, size]);
 
   const composedClassName = ["pixel-avatar", className]
     .filter(Boolean)
     .join(" ");
 
-  return <canvas ref={canvasRef} className={composedClassName} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className={composedClassName}
+      style={{ width: size, height: size }}
+    />
+  );
 }
