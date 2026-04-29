@@ -224,12 +224,75 @@ function deliveryStatusLabel(
   }
 }
 
+function deliveryReviewLabel(
+  review: string | null | undefined,
+  t: TaskTranslator,
+): string | null {
+  switch ((review ?? "").trim().toLowerCase()) {
+    case "approved":
+      return t("tasks.deliveryReviewApproved");
+    case "changes_requested":
+      return t("tasks.deliveryReviewChangesRequested");
+    case "review_required":
+      return t("tasks.deliveryReviewRequired");
+    default:
+      return null;
+  }
+}
+
+function deliveryChecksLabel(
+  checks: string | null | undefined,
+  t: TaskTranslator,
+): string | null {
+  switch ((checks ?? "").trim().toLowerCase()) {
+    case "passing":
+      return t("tasks.deliveryChecksPassing");
+    case "pending":
+      return t("tasks.deliveryChecksPending");
+    case "failing":
+      return t("tasks.deliveryChecksFailing");
+    case "none":
+      return t("tasks.deliveryChecksNone");
+    case "unknown":
+      return t("tasks.deliveryChecksUnknown");
+    default:
+      return null;
+  }
+}
+
+function deliveryMergeLabel(
+  mergeState: string | null | undefined,
+  t: TaskTranslator,
+): string | null {
+  switch ((mergeState ?? "").trim().toLowerCase()) {
+    case "clean":
+      return t("tasks.deliveryMergeClean");
+    case "dirty":
+      return t("tasks.deliveryMergeDirty");
+    case "blocked":
+      return t("tasks.deliveryMergeBlocked");
+    case "behind":
+      return t("tasks.deliveryMergeBehind");
+    case "draft":
+      return t("tasks.deliveryMergeDraft");
+    case "unstable":
+      return t("tasks.deliveryMergeUnstable");
+    case "unknown":
+      return t("tasks.deliveryMergeUnknown");
+    default:
+      return null;
+  }
+}
+
 function deliveryReference(task: Task, t: TaskTranslator): string | null {
   const deliveryURL = task.delivery_url?.trim();
   if (!deliveryURL) return null;
   const prNumber = pullRequestNumber(deliveryURL);
   const reference = prNumber ? `PR #${prNumber}` : deliveryURL;
-  const status = deliveryStatusLabel(task.delivery_status, t);
+  const status = task.delivery_draft
+    ? t("tasks.deliveryDraft")
+    : (deliveryChecksLabel(task.delivery_checks_status, t) ??
+      deliveryStatusLabel(task.delivery_status, t));
   return status ? `${reference} · ${status}` : reference;
 }
 
@@ -650,6 +713,10 @@ function TaskDeliverySection({
   const deliveredAt = relativeMeta(task.delivered_at);
   const deliveryCheckedAt = relativeMeta(task.delivery_checked_at);
   const deliveryStatus = deliveryStatusLabel(task.delivery_status, t);
+  const deliveryReview = deliveryReviewLabel(task.delivery_review_decision, t);
+  const deliveryChecks = deliveryChecksLabel(task.delivery_checks_status, t);
+  const deliveryMerge = deliveryMergeLabel(task.delivery_merge_state, t);
+  const deliveryDraft = task.delivery_draft ? t("tasks.deliveryDraft") : null;
   const requiresReceipt = taskRequiresDeliveryReceipt(task);
   const canEditReceipt = requiresReceipt && !terminalTaskStatus(task.status);
   const hasSavedDelivery = Boolean(
@@ -657,6 +724,10 @@ function TaskDeliverySection({
       savedDeliverySummary ||
       deliveredAt ||
       deliveryStatus ||
+      deliveryReview ||
+      deliveryChecks ||
+      deliveryMerge ||
+      deliveryDraft ||
       deliveryCheckedAt,
   );
   const prNumber = savedDeliveryURL
@@ -664,6 +735,10 @@ function TaskDeliverySection({
     : null;
   const deliveryFacts: Array<[string, string | null]> = [
     [t("tasks.deliveryStatus"), deliveryStatus],
+    [t("tasks.deliveryReviewDecision"), deliveryReview],
+    [t("tasks.deliveryChecksStatus"), deliveryChecks],
+    [t("tasks.deliveryMergeState"), deliveryMerge],
+    [t("tasks.deliveryDraftState"), deliveryDraft],
     [t("tasks.deliveryCheckedAt"), deliveryCheckedAt],
     [t("tasks.deliveredAt"), deliveredAt],
   ];

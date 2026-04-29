@@ -3,6 +3,7 @@ package team
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os/exec"
@@ -24,7 +25,11 @@ type projectTaskAutoDeliveryResult struct {
 	DeliveryURL     string
 	DeliverySummary string
 	DeliveryStatus  string
+	ReviewDecision  string
+	ChecksStatus    string
+	MergeState      string
 	CheckedAt       string
+	Draft           bool
 	BlockedTask     *teamTask
 }
 
@@ -33,8 +38,12 @@ type projectTaskDeliverySnapshot struct {
 }
 
 type projectTaskDeliveryVerification struct {
-	Status    string
-	CheckedAt string
+	Status         string
+	ReviewDecision string
+	ChecksStatus   string
+	MergeState     string
+	CheckedAt      string
+	Draft          bool
 }
 
 type githubPullRequestRef struct {
@@ -42,6 +51,14 @@ type githubPullRequestRef struct {
 	Repo   string
 	Number string
 	URL    string
+}
+
+type projectTaskPullRequestSnapshot struct {
+	Status         string
+	ReviewDecision string
+	ChecksStatus   string
+	MergeState     string
+	Draft          bool
 }
 
 func (b *Broker) findTaskLocked(id string) *teamTask {
@@ -94,7 +111,11 @@ func (b *Broker) prepareProjectTaskAutoDelivery(ctx context.Context, taskID, act
 			DeliveryURL:     receipt.DeliveryURL,
 			DeliverySummary: receipt.DeliverySummary,
 			DeliveryStatus:  receipt.DeliveryStatus,
+			ReviewDecision:  receipt.ReviewDecision,
+			ChecksStatus:    receipt.ChecksStatus,
+			MergeState:      receipt.MergeState,
 			CheckedAt:       receipt.CheckedAt,
+			Draft:           receipt.Draft,
 		}, nil
 	}
 
@@ -135,14 +156,15 @@ func (b *Broker) prepareProjectTaskDeliveryVerification(ctx context.Context, tas
 	}
 	b.mu.Unlock()
 
-	status, err := verifyProjectTaskDeliveryURL(ctx, repoURL, worktreePath, deliveryURL)
+	verification, err := verifyProjectTaskDeliveryURL(ctx, repoURL, worktreePath, deliveryURL)
 	if err != nil {
 		return projectTaskDeliveryVerification{}, err
 	}
 	if now = strings.TrimSpace(now); now == "" {
 		now = time.Now().UTC().Format(time.RFC3339)
 	}
-	return projectTaskDeliveryVerification{Status: status, CheckedAt: now}, nil
+	verification.CheckedAt = now
+	return verification, nil
 }
 
 func (b *Broker) blockTaskForProjectDeliveryFailure(taskID, actor, now string, cause error) (teamTask, error) {
@@ -201,15 +223,19 @@ func createProjectTaskPullRequest(ctx context.Context, snapshot projectTaskDeliv
 	)
 	if err != nil {
 		if url, viewErr := existingProjectTaskPullRequestURL(ctx, worktreePath, branch); viewErr == nil && url != "" {
-			status, err := projectTaskPullRequestState(ctx, worktreePath, url)
+			prSnapshot, err := projectTaskPullRequestSnapshotForURL(ctx, worktreePath, url)
 			if err != nil {
 				return projectTaskAutoDeliveryResult{}, err
 			}
 			return projectTaskAutoDeliveryResult{
 				DeliveryURL:     url,
 				DeliverySummary: projectTaskDeliverySummary(task, branch),
-				DeliveryStatus:  status,
+				DeliveryStatus:  prSnapshot.Status,
+				ReviewDecision:  prSnapshot.ReviewDecision,
+				ChecksStatus:    prSnapshot.ChecksStatus,
+				MergeState:      prSnapshot.MergeState,
 				CheckedAt:       time.Now().UTC().Format(time.RFC3339),
+				Draft:           prSnapshot.Draft,
 			}, nil
 		}
 		return projectTaskAutoDeliveryResult{}, err
@@ -218,46 +244,84 @@ func createProjectTaskPullRequest(ctx context.Context, snapshot projectTaskDeliv
 	if url == "" {
 		return projectTaskAutoDeliveryResult{}, fmt.Errorf("gh pr create did not return a GitHub PR URL")
 	}
-	status, err := projectTaskPullRequestState(ctx, worktreePath, url)
+	prSnapshot, err := projectTaskPullRequestSnapshotForURL(ctx, worktreePath, url)
 	if err != nil {
 		return projectTaskAutoDeliveryResult{}, err
 	}
 	return projectTaskAutoDeliveryResult{
 		DeliveryURL:     url,
 		DeliverySummary: projectTaskDeliverySummary(task, branch),
-		DeliveryStatus:  status,
+		DeliveryStatus:  prSnapshot.Status,
+		ReviewDecision:  prSnapshot.ReviewDecision,
+		ChecksStatus:    prSnapshot.ChecksStatus,
+		MergeState:      prSnapshot.MergeState,
 		CheckedAt:       time.Now().UTC().Format(time.RFC3339),
+		Draft:           prSnapshot.Draft,
 	}, nil
 }
 
-func verifyProjectTaskDeliveryURL(ctx context.Context, repoURL, worktreePath, deliveryURL string) (string, error) {
+func verifyProjectTaskDeliveryURL(ctx context.Context, repoURL, worktreePath, deliveryURL string) (projectTaskDeliveryVerification, error) {
 	repoRef, ok := parseGitHubRepoRef(repoURL)
 	if !ok {
-		return "", fmt.Errorf("project GitHub repo URL is invalid")
+		return projectTaskDeliveryVerification{}, fmt.Errorf("project GitHub repo URL is invalid")
 	}
 	prRef, ok := parseGitHubPullRequestURL(deliveryURL)
 	if !ok {
-		return "", fmt.Errorf("delivery_url must be a GitHub pull request URL")
+		return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url must be a GitHub pull request URL")
 	}
 	if !strings.EqualFold(repoRef.Owner, prRef.Owner) || !strings.EqualFold(repoRef.Name, prRef.Repo) {
-		return "", fmt.Errorf("delivery_url must point to project repo %s", repoRef.fullName())
+		return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url must point to project repo %s", repoRef.fullName())
 	}
-	status, err := projectTaskPullRequestState(ctx, worktreePath, prRef.URL)
+	snapshot, err := projectTaskPullRequestSnapshotForURL(ctx, worktreePath, prRef.URL)
 	if err != nil {
-		return "", fmt.Errorf("delivery_url PR could not be verified: %w", err)
+		return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url PR could not be verified: %w", err)
 	}
-	if status == "" {
-		status = "verified"
+	if snapshot.Status == "" {
+		snapshot.Status = "verified"
 	}
-	return status, nil
+	return projectTaskDeliveryVerification{
+		Status:         snapshot.Status,
+		ReviewDecision: snapshot.ReviewDecision,
+		ChecksStatus:   snapshot.ChecksStatus,
+		MergeState:     snapshot.MergeState,
+		Draft:          snapshot.Draft,
+	}, nil
 }
 
 func projectTaskPullRequestState(ctx context.Context, worktreePath, prURL string) (string, error) {
-	out, err := projectTaskRunGH(ctx, worktreePath, "pr", "view", prURL, "--json", "state", "--jq", ".state")
+	snapshot, err := projectTaskPullRequestSnapshotForURL(ctx, worktreePath, prURL)
 	if err != nil {
 		return "", err
 	}
-	return normalizeProjectTaskDeliveryStatus(string(out)), nil
+	return snapshot.Status, nil
+}
+
+func projectTaskPullRequestSnapshotForURL(ctx context.Context, worktreePath, prURL string) (projectTaskPullRequestSnapshot, error) {
+	out, err := projectTaskRunGH(ctx, worktreePath, "pr", "view", prURL, "--json", "state,reviewDecision,mergeStateStatus,statusCheckRollup,isDraft")
+	if err != nil {
+		return projectTaskPullRequestSnapshot{}, err
+	}
+	var response struct {
+		State             string           `json:"state"`
+		ReviewDecision    string           `json:"reviewDecision"`
+		MergeStateStatus  string           `json:"mergeStateStatus"`
+		StatusCheckRollup []map[string]any `json:"statusCheckRollup"`
+		IsDraft           bool             `json:"isDraft"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out), &response); err != nil {
+		status := normalizeProjectTaskDeliveryStatus(string(out))
+		if status == "" {
+			return projectTaskPullRequestSnapshot{}, fmt.Errorf("parse gh pr view: %w", err)
+		}
+		return projectTaskPullRequestSnapshot{Status: status}, nil
+	}
+	return projectTaskPullRequestSnapshot{
+		Status:         normalizeProjectTaskDeliveryStatus(response.State),
+		ReviewDecision: normalizeProjectTaskReviewDecision(response.ReviewDecision),
+		ChecksStatus:   normalizeProjectTaskChecksStatus(response.StatusCheckRollup),
+		MergeState:     normalizeProjectTaskMergeState(response.MergeStateStatus),
+		Draft:          response.IsDraft,
+	}, nil
 }
 
 func normalizeProjectTaskDeliveryStatus(raw string) string {
@@ -265,6 +329,106 @@ func normalizeProjectTaskDeliveryStatus(raw string) string {
 	switch status {
 	case "open", "merged", "closed":
 		return status
+	default:
+		return ""
+	}
+}
+
+func normalizeProjectTaskReviewDecision(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "approved", "changes_requested", "review_required":
+		return value
+	default:
+		return ""
+	}
+}
+
+func normalizeProjectTaskMergeState(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "clean", "dirty", "blocked", "behind", "draft", "unstable", "unknown":
+		return value
+	default:
+		return ""
+	}
+}
+
+func normalizeProjectTaskChecksStatus(rollup []map[string]any) string {
+	if len(rollup) == 0 {
+		return "none"
+	}
+	hasPending := false
+	hasUnknown := false
+	for _, check := range rollup {
+		state := projectTaskStringField(check, "state")
+		status := projectTaskStringField(check, "status")
+		conclusion := projectTaskStringField(check, "conclusion")
+		if state == "" && status == "" && conclusion == "" {
+			hasUnknown = true
+			continue
+		}
+		switch normalizeProjectTaskCheckValue(state) {
+		case "failure":
+			return "failing"
+		case "pending":
+			hasPending = true
+		case "unknown":
+			hasUnknown = true
+		}
+		switch normalizeProjectTaskCheckValue(status) {
+		case "failure":
+			return "failing"
+		case "pending":
+			hasPending = true
+		case "unknown":
+			hasUnknown = true
+		}
+		switch normalizeProjectTaskCheckValue(conclusion) {
+		case "failure":
+			return "failing"
+		case "pending":
+			hasPending = true
+		case "unknown":
+			hasUnknown = true
+		}
+	}
+	if hasPending {
+		return "pending"
+	}
+	if hasUnknown {
+		return "unknown"
+	}
+	return "passing"
+}
+
+func normalizeProjectTaskCheckValue(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	switch value {
+	case "":
+		return ""
+	case "success", "successful", "passed", "completed", "neutral", "skipped":
+		return "passing"
+	case "failure", "failed", "error", "timed_out", "cancelled", "canceled", "action_required", "startup_failure", "stale":
+		return "failure"
+	case "pending", "queued", "requested", "waiting", "in_progress", "expected":
+		return "pending"
+	default:
+		return "unknown"
+	}
+}
+
+func projectTaskStringField(values map[string]any, key string) string {
+	if values == nil {
+		return ""
+	}
+	switch v := values[key].(type) {
+	case string:
+		return v
 	default:
 		return ""
 	}

@@ -627,6 +627,10 @@ func applyTaskDeliveryReceipt(task *teamTask, deliveryURL, deliverySummary, now 
 		urlChanged := previousURL != "" && !strings.EqualFold(previousURL, url)
 		if urlChanged {
 			task.DeliveryStatus = ""
+			task.DeliveryReviewDecision = ""
+			task.DeliveryChecksStatus = ""
+			task.DeliveryMergeState = ""
+			task.DeliveryDraft = false
 			task.DeliveryCheckedAt = ""
 		}
 		task.DeliveryURL = url
@@ -639,15 +643,22 @@ func applyTaskDeliveryReceipt(task *teamTask, deliveryURL, deliverySummary, now 
 	}
 }
 
-func applyTaskDeliveryVerification(task *teamTask, status, checkedAt string) {
+func applyTaskDeliveryVerification(task *teamTask, verification projectTaskDeliveryVerification) {
 	if task == nil {
 		return
 	}
-	if status = strings.TrimSpace(status); status != "" {
-		task.DeliveryStatus = status
+	if verification.Status = strings.TrimSpace(verification.Status); verification.Status != "" {
+		task.DeliveryStatus = verification.Status
+		task.DeliveryDraft = verification.Draft
+		verification.ReviewDecision = strings.TrimSpace(verification.ReviewDecision)
+		task.DeliveryReviewDecision = verification.ReviewDecision
+		verification.ChecksStatus = strings.TrimSpace(verification.ChecksStatus)
+		task.DeliveryChecksStatus = verification.ChecksStatus
+		verification.MergeState = strings.TrimSpace(verification.MergeState)
+		task.DeliveryMergeState = verification.MergeState
 	}
-	if checkedAt = strings.TrimSpace(checkedAt); checkedAt != "" {
-		task.DeliveryCheckedAt = checkedAt
+	if verification.CheckedAt = strings.TrimSpace(verification.CheckedAt); verification.CheckedAt != "" {
+		task.DeliveryCheckedAt = verification.CheckedAt
 	}
 }
 
@@ -690,12 +701,24 @@ func (b *Broker) requireTaskDeliveryReceiptWithPendingLocked(task *teamTask, del
 	return fmt.Errorf("delivery_url required before completing project coding task %s", task.ID)
 }
 
-func rejectClosedProjectDeliveryBeforeDone(task *teamTask, deliveryStatus string) error {
+func rejectUnreadyProjectDeliveryBeforeDone(task *teamTask, delivery projectTaskDeliveryVerification) error {
 	if task == nil {
 		return nil
 	}
-	if strings.EqualFold(strings.TrimSpace(deliveryStatus), "closed") {
+	if strings.EqualFold(strings.TrimSpace(delivery.Status), "closed") {
 		return fmt.Errorf("delivery_url PR is closed; reopen or replace it before completing project coding task %s", task.ID)
+	}
+	if delivery.Draft {
+		return fmt.Errorf("delivery_url PR is draft; mark it ready for review before completing project coding task %s", task.ID)
+	}
+	if strings.EqualFold(strings.TrimSpace(delivery.ReviewDecision), "changes_requested") {
+		return fmt.Errorf("delivery_url PR has requested changes; resolve review feedback before completing project coding task %s", task.ID)
+	}
+	if strings.EqualFold(strings.TrimSpace(delivery.ChecksStatus), "failing") {
+		return fmt.Errorf("delivery_url PR checks are failing; fix checks before completing project coding task %s", task.ID)
+	}
+	if strings.EqualFold(strings.TrimSpace(delivery.MergeState), "dirty") {
+		return fmt.Errorf("delivery_url PR has merge conflicts; resolve conflicts before completing project coding task %s", task.ID)
 	}
 	return nil
 }
@@ -9131,8 +9154,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		channel = "general"
 	}
 	projectID := normalizeProjectID(body.ProjectID)
-	deliveryStatus := ""
-	deliveryCheckedAt := ""
+	deliveryVerification := projectTaskDeliveryVerification{}
 
 	if strings.TrimSpace(body.DeliveryURL) == "" && actionMayNeedProjectAutoDelivery(action) {
 		autoDelivery, err := b.prepareProjectTaskAutoDelivery(r.Context(), body.ID, body.CreatedBy, action, now)
@@ -9154,18 +9176,23 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(body.DeliverySummary) == "" {
 				body.DeliverySummary = autoDelivery.DeliverySummary
 			}
-			deliveryStatus = strings.TrimSpace(autoDelivery.DeliveryStatus)
-			deliveryCheckedAt = strings.TrimSpace(autoDelivery.CheckedAt)
+			deliveryVerification = projectTaskDeliveryVerification{
+				Status:         autoDelivery.DeliveryStatus,
+				ReviewDecision: autoDelivery.ReviewDecision,
+				ChecksStatus:   autoDelivery.ChecksStatus,
+				MergeState:     autoDelivery.MergeState,
+				CheckedAt:      autoDelivery.CheckedAt,
+				Draft:          autoDelivery.Draft,
+			}
 		}
 	}
-	if actionMayNeedProjectAutoDelivery(action) && deliveryStatus == "" {
+	if actionMayNeedProjectAutoDelivery(action) && strings.TrimSpace(deliveryVerification.Status) == "" {
 		verification, err := b.prepareProjectTaskDeliveryVerification(r.Context(), body.ID, body.CreatedBy, body.DeliveryURL, now)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
-		deliveryStatus = strings.TrimSpace(verification.Status)
-		deliveryCheckedAt = strings.TrimSpace(verification.CheckedAt)
+		deliveryVerification = verification
 	}
 
 	b.mu.Lock()
@@ -9244,7 +9271,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				existing.WorktreeBranch = worktreeBranch
 			}
 			applyTaskDeliveryReceipt(existing, body.DeliveryURL, body.DeliverySummary, now)
-			applyTaskDeliveryVerification(existing, deliveryStatus, deliveryCheckedAt)
+			applyTaskDeliveryVerification(existing, deliveryVerification)
 			if existing.ThreadID == "" && strings.TrimSpace(body.ThreadID) != "" {
 				existing.ThreadID = strings.TrimSpace(body.ThreadID)
 			}
@@ -9388,7 +9415,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, err.Error(), http.StatusConflict)
 					return
 				}
-				if err := rejectClosedProjectDeliveryBeforeDone(task, deliveryStatus); err != nil {
+				if err := rejectUnreadyProjectDeliveryBeforeDone(task, deliveryVerification); err != nil {
 					http.Error(w, err.Error(), http.StatusConflict)
 					return
 				}
@@ -9405,7 +9432,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, err.Error(), http.StatusConflict)
 					return
 				}
-				if err := rejectClosedProjectDeliveryBeforeDone(task, deliveryStatus); err != nil {
+				if err := rejectUnreadyProjectDeliveryBeforeDone(task, deliveryVerification); err != nil {
 					http.Error(w, err.Error(), http.StatusConflict)
 					return
 				}
@@ -9419,7 +9446,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
-			if err := rejectClosedProjectDeliveryBeforeDone(task, deliveryStatus); err != nil {
+			if err := rejectUnreadyProjectDeliveryBeforeDone(task, deliveryVerification); err != nil {
 				http.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
@@ -9500,7 +9527,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			task.WorktreeBranch = worktreeBranch
 		}
 		applyTaskDeliveryReceipt(task, body.DeliveryURL, body.DeliverySummary, now)
-		applyTaskDeliveryVerification(task, deliveryStatus, deliveryCheckedAt)
+		applyTaskDeliveryVerification(task, deliveryVerification)
 		b.ensureTaskOwnerChannelMembershipLocked(taskChannel, task.Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(task)
 		task.UpdatedAt = now

@@ -605,6 +605,10 @@ export interface Task {
   delivery_url?: string;
   delivery_summary?: string;
   delivery_status?: string;
+  delivery_review_decision?: string;
+  delivery_checks_status?: string;
+  delivery_merge_state?: string;
+  delivery_draft?: boolean;
   delivery_checked_at?: string;
   delivered_at?: string;
   depends_on?: string[];

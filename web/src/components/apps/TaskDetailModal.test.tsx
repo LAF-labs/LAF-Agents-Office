@@ -130,6 +130,9 @@ describe("TaskDetailModal execution view", () => {
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "Implemented invite form validation.",
       delivery_status: "open",
+      delivery_review_decision: "approved",
+      delivery_checks_status: "passing",
+      delivery_merge_state: "clean",
       delivery_checked_at: "2026-04-28T00:11:00Z",
       delivered_at: "2026-04-28T00:10:00Z",
     });
@@ -146,6 +149,12 @@ describe("TaskDetailModal execution view", () => {
     ).toBeInTheDocument();
     expect(within(delivery).getByText("PR status")).toBeInTheDocument();
     expect(within(delivery).getByText("PR open")).toBeInTheDocument();
+    expect(within(delivery).getByText("Review")).toBeInTheDocument();
+    expect(within(delivery).getByText("Approved")).toBeInTheDocument();
+    expect(within(delivery).getByText("Checks")).toBeInTheDocument();
+    expect(within(delivery).getByText("Checks passing")).toBeInTheDocument();
+    expect(within(delivery).getByText("Merge")).toBeInTheDocument();
+    expect(within(delivery).getByText("Merge clean")).toBeInTheDocument();
     expect(within(delivery).getByText("Verified")).toBeInTheDocument();
     expect(within(delivery).getByText("Delivered")).toBeInTheDocument();
   });
@@ -249,6 +258,9 @@ describe("TaskDetailModal execution view", () => {
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "초대 폼 검증을 구현했습니다.",
       delivery_status: "merged",
+      delivery_review_decision: "approved",
+      delivery_checks_status: "passing",
+      delivery_merge_state: "clean",
       delivery_checked_at: "2026-04-28T00:11:00Z",
       delivered_at: "2026-04-28T00:10:00Z",
     });
@@ -262,6 +274,12 @@ describe("TaskDetailModal execution view", () => {
     );
     expect(within(delivery).getByText("PR 상태")).toBeInTheDocument();
     expect(within(delivery).getByText("PR 병합됨")).toBeInTheDocument();
+    expect(within(delivery).getByText("리뷰")).toBeInTheDocument();
+    expect(within(delivery).getByText("승인됨")).toBeInTheDocument();
+    expect(within(delivery).getByText("체크")).toBeInTheDocument();
+    expect(within(delivery).getByText("체크 통과")).toBeInTheDocument();
+    expect(within(delivery).getByText("머지")).toBeInTheDocument();
+    expect(within(delivery).getByText("머지 가능")).toBeInTheDocument();
     expect(within(delivery).getByText("검증 시각")).toBeInTheDocument();
     expect(within(delivery).getByText("전달 시각")).toBeInTheDocument();
   });

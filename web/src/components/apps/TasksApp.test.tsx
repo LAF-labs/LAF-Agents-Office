@@ -517,6 +517,18 @@ describe("TasksApp project activity", () => {
           delivery_url: "https://github.com/laf-labs/customer-portal/pull/42",
           delivery_status: "open",
         },
+        {
+          id: "task-failing-pr",
+          title: "Implement billing flow",
+          status: "review",
+          project_id: "customer-portal",
+          owner: "engineer",
+          execution_mode: "local_worktree",
+          worktree_branch: "laf-office-task-task-failing-pr",
+          delivery_url: "https://github.com/laf-labs/customer-portal/pull/43",
+          delivery_status: "open",
+          delivery_checks_status: "failing",
+        },
       ],
     });
 
@@ -527,7 +539,8 @@ describe("TasksApp project activity", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("Receipt needed")).toBeInTheDocument();
     expect(await screen.findByText("PR open")).toBeInTheDocument();
-    expect(await screen.findAllByText("Coding task")).toHaveLength(2);
+    expect(await screen.findByText("Checks failing")).toBeInTheDocument();
+    expect(await screen.findAllByText("Coding task")).toHaveLength(3);
   });
 });
 

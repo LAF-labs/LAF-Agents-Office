@@ -35,10 +35,10 @@ For coding tasks in a project with a connected GitHub repo, the task packet also
 names the assigned branch and requires committed work before review or
 completion. If `team_task review`, `complete`, or `approve` is called without a
 `delivery_url`, the broker pushes the assigned branch and runs `gh pr create`.
-The returned GitHub PR URL is verified with `gh pr view` and stored as the
-delivery receipt. If PR creation or verification fails, the task is moved to
-`blocked` and the failure is appended to the project wiki instead of reporting a
-misleading completion.
+The returned GitHub PR URL is verified with `gh pr view`, including PR state,
+review decision, check rollup, draft state, and merge state. If PR creation or
+verification fails, the task is moved to `blocked` and the failure is appended
+to the project wiki instead of reporting a misleading completion.
 
 The UI treats a repo URL as a prerequisite, not a guarantee. Before creating a
 coding task, it checks that the repo URL is a GitHub repo, `gh` is installed,
@@ -48,20 +48,23 @@ and task-breakdown requests, but it does not create `local_worktree` coding
 tasks from the request box.
 
 Coding task delivery receipts live on the task as `delivery_url`,
-`delivery_summary`, `delivery_status`, `delivery_checked_at`, and
-`delivered_at`. A project-scoped `local_worktree` task with a connected repo can
-still accept a manually supplied receipt, but the URL must be a GitHub PR in the
-connected project repo and `gh pr view` must confirm it exists. The default path
-is automatic PR creation from the assigned branch. It cannot move to `done`
-until the PR receipt is present and verifiable; closed, unmerged PRs must be
-reopened or replaced before completion. Delivery receipts and PR creation
-failures are also appended to the project wiki work log.
+`delivery_summary`, `delivery_status`, `delivery_review_decision`,
+`delivery_checks_status`, `delivery_merge_state`, `delivery_draft`,
+`delivery_checked_at`, and `delivered_at`. A project-scoped `local_worktree`
+task with a connected repo can still accept a manually supplied receipt, but the
+URL must be a GitHub PR in the connected project repo and `gh pr view` must
+confirm it exists. The default path is automatic PR creation from the assigned
+branch. It cannot move to `done` until the PR receipt is present and verifiable;
+closed, draft, changes-requested, failing-check, and merge-conflict PRs must be
+fixed or replaced before completion. Delivery receipts and PR creation failures
+are also appended to the project wiki work log.
 
 Task cards expose whether a project task is planning or coding work, and review
-cards show whether a PR receipt is missing, open, merged, closed, or verified.
-The task detail modal shows a compact execution progress list plus the
+cards prioritize actionable PR state such as missing receipt, draft, requested
+changes, failing checks, merge conflicts, pending checks, open, or merged. The
+task detail modal shows a compact execution progress list plus the
 project-scoped activity log so humans can see owner, branch, delivery, review,
-and completion state without reading raw broker actions.
+checks, merge, and completion state without reading raw broker actions.
 
 ## Status flow
 

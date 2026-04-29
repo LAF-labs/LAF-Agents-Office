@@ -697,8 +697,8 @@ func TestProjectCodingTaskAutoCreatesPullRequestReceipt(t *testing.T) {
 		switch got := strings.Join(args, " "); got {
 		case "pr create --title Implement the signup flow --body Task: #task-1\n\nBuild the code path and tests.\n\nCreated by LAF-Office project task delivery. --head laf-office-project-task --base main":
 			return []byte("https://github.com/LAF-labs/agent-lab/pull/7\n"), nil
-		case "pr view https://github.com/LAF-labs/agent-lab/pull/7 --json state --jq .state":
-			return []byte("OPEN\n"), nil
+		case projectTaskPRViewCommand("https://github.com/LAF-labs/agent-lab/pull/7"):
+			return projectTaskPRViewResponse("OPEN", "APPROVED", "CLEAN", false, "SUCCESS"), nil
 		default:
 			t.Fatalf("unexpected gh call in %s: %q", dir, got)
 			return nil, nil
@@ -739,6 +739,9 @@ func TestProjectCodingTaskAutoCreatesPullRequestReceipt(t *testing.T) {
 	}
 	if delivered.Task.DeliveryStatus != "open" || strings.TrimSpace(delivered.Task.DeliveryCheckedAt) == "" {
 		t.Fatalf("delivery verification = %q at %q", delivered.Task.DeliveryStatus, delivered.Task.DeliveryCheckedAt)
+	}
+	if delivered.Task.DeliveryReviewDecision != "approved" || delivered.Task.DeliveryChecksStatus != "passing" || delivered.Task.DeliveryMergeState != "clean" {
+		t.Fatalf("delivery readiness = review %q checks %q merge %q", delivered.Task.DeliveryReviewDecision, delivered.Task.DeliveryChecksStatus, delivered.Task.DeliveryMergeState)
 	}
 	if strings.Join(gitCalls, "\n") != "push -u origin laf-office-project-task\nsymbolic-ref --short refs/remotes/origin/HEAD" {
 		t.Fatalf("unexpected git calls: %v", gitCalls)
@@ -860,10 +863,10 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
 	}
 	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
-		if got, want := strings.Join(args, " "), "pr view https://github.com/LAF-labs/agent-lab/pull/42 --json state --jq .state"; got != want {
+		if got, want := strings.Join(args, " "), projectTaskPRViewCommand("https://github.com/LAF-labs/agent-lab/pull/42"); got != want {
 			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
 		}
-		return []byte("OPEN\n"), nil
+		return projectTaskPRViewResponse("OPEN", "APPROVED", "CLEAN", false, "SUCCESS"), nil
 	}
 
 	root := filepath.Join(t.TempDir(), "wiki")
@@ -925,6 +928,9 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	if done.Task.DeliveryStatus != "open" || strings.TrimSpace(done.Task.DeliveryCheckedAt) == "" {
 		t.Fatalf("delivery verification = %q at %q", done.Task.DeliveryStatus, done.Task.DeliveryCheckedAt)
 	}
+	if done.Task.DeliveryReviewDecision != "approved" || done.Task.DeliveryChecksStatus != "passing" || done.Task.DeliveryMergeState != "clean" {
+		t.Fatalf("delivery readiness = review %q checks %q merge %q", done.Task.DeliveryReviewDecision, done.Task.DeliveryChecksStatus, done.Task.DeliveryMergeState)
+	}
 
 	approveRec := httptest.NewRecorder()
 	b.handlePostTask(approveRec, jsonRequestForTest(t, "/tasks", map[string]string{
@@ -949,6 +955,9 @@ func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	}
 	if approved.Task.DeliveryStatus != "open" || strings.TrimSpace(approved.Task.DeliveryCheckedAt) == "" {
 		t.Fatalf("approved delivery verification = %q at %q", approved.Task.DeliveryStatus, approved.Task.DeliveryCheckedAt)
+	}
+	if approved.Task.DeliveryReviewDecision != "approved" || approved.Task.DeliveryChecksStatus != "passing" || approved.Task.DeliveryMergeState != "clean" {
+		t.Fatalf("approved delivery readiness = review %q checks %q merge %q", approved.Task.DeliveryReviewDecision, approved.Task.DeliveryChecksStatus, approved.Task.DeliveryMergeState)
 	}
 	worker.WaitForIdle()
 
@@ -1016,10 +1025,10 @@ func TestProjectCodingTaskRejectsClosedDeliveryPRBeforeDone(t *testing.T) {
 		return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
 	}
 	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
-		if got, want := strings.Join(args, " "), "pr view https://github.com/LAF-labs/agent-lab/pull/42 --json state --jq .state"; got != want {
+		if got, want := strings.Join(args, " "), projectTaskPRViewCommand("https://github.com/LAF-labs/agent-lab/pull/42"); got != want {
 			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
 		}
-		return []byte("CLOSED\n"), nil
+		return projectTaskPRViewResponse("CLOSED", "APPROVED", "CLEAN", false, "SUCCESS"), nil
 	}
 
 	b := newTestBroker(t)
@@ -1064,6 +1073,86 @@ func TestProjectCodingTaskRejectsClosedDeliveryPRBeforeDone(t *testing.T) {
 	}
 }
 
+func TestProjectCodingTaskRejectsUnreadyDeliveryPRBeforeDone(t *testing.T) {
+	cases := []struct {
+		name      string
+		response  []byte
+		wantError string
+	}{
+		{
+			name:      "draft",
+			response:  projectTaskPRViewResponse("OPEN", "", "DRAFT", true, "SUCCESS"),
+			wantError: "delivery_url PR is draft",
+		},
+		{
+			name:      "changes requested",
+			response:  projectTaskPRViewResponse("OPEN", "CHANGES_REQUESTED", "CLEAN", false, "SUCCESS"),
+			wantError: "delivery_url PR has requested changes",
+		},
+		{
+			name:      "failing checks",
+			response:  projectTaskPRViewResponse("OPEN", "APPROVED", "CLEAN", false, "FAILURE"),
+			wantError: "delivery_url PR checks are failing",
+		},
+		{
+			name:      "merge conflicts",
+			response:  projectTaskPRViewResponse("OPEN", "APPROVED", "DIRTY", false, "SUCCESS"),
+			wantError: "delivery_url PR has merge conflicts",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			oldProjectPrepare := prepareProjectTaskWorktree
+			oldRunGH := projectTaskRunGH
+			t.Cleanup(func() {
+				prepareProjectTaskWorktree = oldProjectPrepare
+				projectTaskRunGH = oldRunGH
+			})
+			prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+				return "/tmp/laf-office-task-project-task", "laf-office-project-task", nil
+			}
+			projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+				if got, want := strings.Join(args, " "), projectTaskPRViewCommand("https://github.com/LAF-labs/agent-lab/pull/42"); got != want {
+					t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
+				}
+				return tc.response, nil
+			}
+
+			b := newTestBroker(t)
+			project := createProjectForTest(t, b, map[string]string{
+				"name":            "Agent Lab",
+				"created_by":      "human",
+				"github_repo_url": "git@github.com:LAF-labs/agent-lab.git",
+			})
+			task := createProjectCodingTaskForTest(t, b, project.ID)
+
+			reviewRec := httptest.NewRecorder()
+			b.handlePostTask(reviewRec, jsonRequestForTest(t, "/tasks", map[string]string{
+				"action":       "complete",
+				"id":           task.ID,
+				"created_by":   "human",
+				"delivery_url": "https://github.com/LAF-labs/agent-lab/pull/42",
+			}))
+			if reviewRec.Code != http.StatusOK {
+				t.Fatalf("review unready PR task status = %d, want %d: %s", reviewRec.Code, http.StatusOK, reviewRec.Body.String())
+			}
+
+			doneRec := httptest.NewRecorder()
+			b.handlePostTask(doneRec, jsonRequestForTest(t, "/tasks", map[string]string{
+				"action":     "complete",
+				"id":         task.ID,
+				"created_by": "human",
+			}))
+			if doneRec.Code != http.StatusConflict {
+				t.Fatalf("complete unready PR task status = %d, want %d: %s", doneRec.Code, http.StatusConflict, doneRec.Body.String())
+			}
+			if !strings.Contains(doneRec.Body.String(), tc.wantError) {
+				t.Fatalf("unexpected unready PR error: %s", doneRec.Body.String())
+			}
+		})
+	}
+}
+
 func TestLocalProductLoopProjectWikiPacketAndDelivery(t *testing.T) {
 	oldProjectPrepare := prepareProjectTaskWorktree
 	oldRunGH := projectTaskRunGH
@@ -1075,10 +1164,10 @@ func TestLocalProductLoopProjectWikiPacketAndDelivery(t *testing.T) {
 		return "/tmp/laf-office-" + projectID + "-" + taskID, "laf-office-" + taskID, nil
 	}
 	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
-		if got, want := strings.Join(args, " "), "pr view https://github.com/laf-labs/customer-portal/pull/7 --json state --jq .state"; got != want {
+		if got, want := strings.Join(args, " "), projectTaskPRViewCommand("https://github.com/laf-labs/customer-portal/pull/7"); got != want {
 			t.Fatalf("unexpected gh call in %s:\n got: %q\nwant: %q", dir, got, want)
 		}
-		return []byte("OPEN\n"), nil
+		return projectTaskPRViewResponse("OPEN", "APPROVED", "CLEAN", false, "SUCCESS"), nil
 	}
 
 	root := filepath.Join(t.TempDir(), "wiki")
@@ -1269,6 +1358,28 @@ func createProjectForTest(t *testing.T, b *Broker, body map[string]string) teamP
 		t.Fatalf("decode project: %v", err)
 	}
 	return response.Project
+}
+
+func projectTaskPRViewCommand(url string) string {
+	return "pr view " + url + " --json state,reviewDecision,mergeStateStatus,statusCheckRollup,isDraft"
+}
+
+func projectTaskPRViewResponse(state, reviewDecision, mergeState string, draft bool, checks ...string) []byte {
+	rollup := make([]map[string]any, 0, len(checks))
+	for _, check := range checks {
+		rollup = append(rollup, map[string]any{"state": check})
+	}
+	out, err := json.Marshal(map[string]any{
+		"state":             state,
+		"reviewDecision":    reviewDecision,
+		"mergeStateStatus":  mergeState,
+		"statusCheckRollup": rollup,
+		"isDraft":           draft,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
 
 func createTaskForProjectTest(t *testing.T, b *Broker, title, projectID string) teamTask {

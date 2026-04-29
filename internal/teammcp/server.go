@@ -1375,14 +1375,18 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 
 	var result struct {
 		Task struct {
-			ID             string `json:"id"`
-			Title          string `json:"title"`
-			Owner          string `json:"owner"`
-			Status         string `json:"status"`
-			ExecutionMode  string `json:"execution_mode"`
-			WorktreePath   string `json:"worktree_path"`
-			WorktreeBranch string `json:"worktree_branch"`
-			DeliveryURL    string `json:"delivery_url"`
+			ID                     string `json:"id"`
+			Title                  string `json:"title"`
+			Owner                  string `json:"owner"`
+			Status                 string `json:"status"`
+			ExecutionMode          string `json:"execution_mode"`
+			WorktreePath           string `json:"worktree_path"`
+			WorktreeBranch         string `json:"worktree_branch"`
+			DeliveryURL            string `json:"delivery_url"`
+			DeliveryStatus         string `json:"delivery_status"`
+			DeliveryReviewDecision string `json:"delivery_review_decision"`
+			DeliveryChecksStatus   string `json:"delivery_checks_status"`
+			DeliveryMergeState     string `json:"delivery_merge_state"`
 		} `json:"task"`
 	}
 	if err := brokerPostJSON(ctx, "/tasks", payload, &result); err != nil {
@@ -1397,6 +1401,18 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 	}
 	if deliveryURL := strings.TrimSpace(result.Task.DeliveryURL); deliveryURL != "" {
 		text += " · delivery " + deliveryURL
+	}
+	if deliveryStatus := strings.TrimSpace(result.Task.DeliveryStatus); deliveryStatus != "" {
+		text += " · PR " + deliveryStatus
+	}
+	if checks := strings.TrimSpace(result.Task.DeliveryChecksStatus); checks != "" {
+		text += " · checks " + checks
+	}
+	if review := strings.TrimSpace(result.Task.DeliveryReviewDecision); review != "" {
+		text += " · review " + review
+	}
+	if mergeState := strings.TrimSpace(result.Task.DeliveryMergeState); mergeState != "" {
+		text += " · merge " + mergeState
 	}
 	if path := strings.TrimSpace(result.Task.WorktreePath); path != "" {
 		text += " · working_directory " + path

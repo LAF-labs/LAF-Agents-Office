@@ -32,8 +32,8 @@ func TestCreateProjectTaskPullRequestUsesExistingPRWhenCreateConflicts(t *testin
 			return nil, errors.New("pull request already exists")
 		case "pr view --head laf-office-task-1 --json url --jq .url":
 			return []byte("https://github.com/LAF-labs/customer-portal/pull/9\n"), nil
-		case "pr view https://github.com/LAF-labs/customer-portal/pull/9 --json state --jq .state":
-			return []byte("MERGED\n"), nil
+		case projectTaskPRViewCommand("https://github.com/LAF-labs/customer-portal/pull/9"):
+			return projectTaskPRViewResponse("MERGED", "APPROVED", "CLEAN", false, "SUCCESS"), nil
 		default:
 			t.Fatalf("unexpected gh call: %v", args)
 			return nil, nil
@@ -60,6 +60,9 @@ func TestCreateProjectTaskPullRequestUsesExistingPRWhenCreateConflicts(t *testin
 	if receipt.DeliveryStatus != "merged" || strings.TrimSpace(receipt.CheckedAt) == "" {
 		t.Fatalf("delivery verification = %q at %q", receipt.DeliveryStatus, receipt.CheckedAt)
 	}
+	if receipt.ReviewDecision != "approved" || receipt.ChecksStatus != "passing" || receipt.MergeState != "clean" {
+		t.Fatalf("delivery readiness = review %q checks %q merge %q", receipt.ReviewDecision, receipt.ChecksStatus, receipt.MergeState)
+	}
 }
 
 func TestParseGitHubPullRequestURL(t *testing.T) {
@@ -75,5 +78,27 @@ func TestParseGitHubPullRequestURL(t *testing.T) {
 	}
 	if _, ok := parseGitHubPullRequestURL("http://github.com/LAF-labs/customer-portal/pull/42"); ok {
 		t.Fatal("expected non-HTTPS PR URL to be rejected")
+	}
+}
+
+func TestNormalizeProjectTaskChecksStatus(t *testing.T) {
+	cases := []struct {
+		name   string
+		rollup []map[string]any
+		want   string
+	}{
+		{name: "none", want: "none"},
+		{name: "passing", rollup: []map[string]any{{"state": "SUCCESS"}}, want: "passing"},
+		{name: "pending", rollup: []map[string]any{{"status": "IN_PROGRESS"}}, want: "pending"},
+		{name: "failing", rollup: []map[string]any{{"conclusion": "FAILURE"}}, want: "failing"},
+		{name: "empty entry", rollup: []map[string]any{{}}, want: "unknown"},
+		{name: "unknown", rollup: []map[string]any{{"state": "SOMETHING_NEW"}}, want: "unknown"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := normalizeProjectTaskChecksStatus(tc.rollup); got != tc.want {
+				t.Fatalf("checks status = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

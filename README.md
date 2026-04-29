@@ -139,11 +139,12 @@ and project task packets include a bounded excerpt so agents read the project
 memory before work without a separate lookup unless they need the full article.
 For connected coding projects, review or completion pushes the assigned branch
 and creates a GitHub PR when no manual delivery receipt was supplied. The task
-stores the resulting `delivery_url`, summary, timestamp, and verified PR state
-so the board and wiki point back to a real PR in the connected repo; PR creation
-or verification failures block completion and are written to project memory.
-Closed, unmerged PRs stay visible as receipts but cannot complete the task until
-they are reopened or replaced.
+stores the resulting `delivery_url`, summary, timestamp, PR state, review
+decision, check status, and merge state so the board and wiki point back to a
+real PR in the connected repo; PR creation or verification failures block
+completion and are written to project memory. Closed, draft, failing-check,
+changes-requested, and merge-conflict PRs stay visible as receipts but cannot
+complete the task until they are fixed or replaced.
 The project workspace checks repository readiness with the GitHub CLI before
 creating coding work: missing `gh`, missing `gh auth login`, invalid repo URLs,
 or inaccessible repos keep the request composer in planning/task-breakdown mode

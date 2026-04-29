@@ -309,6 +309,18 @@ func renderProjectTaskWikiEvent(task teamTask, verb string) string {
 	if deliveryStatus := strings.TrimSpace(task.DeliveryStatus); deliveryStatus != "" {
 		parts = append(parts, fmt.Sprintf("PR `%s`", deliveryStatus))
 	}
+	if review := strings.TrimSpace(task.DeliveryReviewDecision); review != "" {
+		parts = append(parts, fmt.Sprintf("review `%s`", review))
+	}
+	if checks := strings.TrimSpace(task.DeliveryChecksStatus); checks != "" {
+		parts = append(parts, fmt.Sprintf("checks `%s`", checks))
+	}
+	if mergeState := strings.TrimSpace(task.DeliveryMergeState); mergeState != "" {
+		parts = append(parts, fmt.Sprintf("merge `%s`", mergeState))
+	}
+	if task.DeliveryDraft {
+		parts = append(parts, "draft PR")
+	}
 
 	line := "- " + strings.Join(parts, " — ")
 	if timestamp != "" {

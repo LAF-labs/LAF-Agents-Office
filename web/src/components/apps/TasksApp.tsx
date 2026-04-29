@@ -63,6 +63,7 @@ type ProjectRepoReadinessQueryState = {
 };
 type TasksQueryData = { tasks: Task[] };
 type TranslationFn = (key: I18nKey) => string;
+type TaskBadge = { className: string; labelKey: I18nKey };
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -108,38 +109,9 @@ function taskRequiresDeliveryReceipt(task: Task): boolean {
   );
 }
 
-function taskDeliveryBadge(
-  task: Task,
-  status: StatusGroup,
-): { className: string; labelKey: I18nKey } | null {
+function taskDeliveryBadge(task: Task, status: StatusGroup): TaskBadge | null {
   if (task.delivery_url?.trim()) {
-    switch ((task.delivery_status ?? "").trim().toLowerCase()) {
-      case "merged":
-        return {
-          className: "badge badge-green",
-          labelKey: "tasks.deliveryMerged",
-        };
-      case "open":
-        return {
-          className: "badge badge-green",
-          labelKey: "tasks.deliveryOpen",
-        };
-      case "closed":
-        return {
-          className: "badge badge-yellow",
-          labelKey: "tasks.deliveryClosed",
-        };
-      case "verified":
-        return {
-          className: "badge badge-green",
-          labelKey: "tasks.deliveryVerified",
-        };
-      default:
-        return {
-          className: "badge badge-green",
-          labelKey: "tasks.deliveryReady",
-        };
-    }
+    return taskDeliveryAttentionBadge(task) ?? taskDeliveryStateBadge(task);
   }
   if (status === "review" && taskRequiresDeliveryReceipt(task)) {
     return {
@@ -150,9 +122,70 @@ function taskDeliveryBadge(
   return null;
 }
 
-function taskExecutionBadge(
-  task: Task,
-): { className: string; labelKey: I18nKey } | null {
+function taskDeliveryAttentionBadge(task: Task): TaskBadge | null {
+  const reviewDecision = (task.delivery_review_decision ?? "")
+    .trim()
+    .toLowerCase();
+  const checksStatus = (task.delivery_checks_status ?? "").trim().toLowerCase();
+  const mergeState = (task.delivery_merge_state ?? "").trim().toLowerCase();
+  if (task.delivery_draft) {
+    return { className: "badge badge-yellow", labelKey: "tasks.deliveryDraft" };
+  }
+  if (reviewDecision === "changes_requested") {
+    return {
+      className: "badge badge-yellow",
+      labelKey: "tasks.deliveryReviewChangesRequested",
+    };
+  }
+  if (checksStatus === "failing") {
+    return {
+      className: "badge badge-yellow",
+      labelKey: "tasks.deliveryChecksFailing",
+    };
+  }
+  if (mergeState === "dirty") {
+    return {
+      className: "badge badge-yellow",
+      labelKey: "tasks.deliveryMergeDirty",
+    };
+  }
+  if (checksStatus === "pending") {
+    return {
+      className: "badge badge-yellow",
+      labelKey: "tasks.deliveryChecksPending",
+    };
+  }
+  return null;
+}
+
+function taskDeliveryStateBadge(task: Task): TaskBadge {
+  switch ((task.delivery_status ?? "").trim().toLowerCase()) {
+    case "merged":
+      return {
+        className: "badge badge-green",
+        labelKey: "tasks.deliveryMerged",
+      };
+    case "open":
+      return { className: "badge badge-green", labelKey: "tasks.deliveryOpen" };
+    case "closed":
+      return {
+        className: "badge badge-yellow",
+        labelKey: "tasks.deliveryClosed",
+      };
+    case "verified":
+      return {
+        className: "badge badge-green",
+        labelKey: "tasks.deliveryVerified",
+      };
+    default:
+      return {
+        className: "badge badge-green",
+        labelKey: "tasks.deliveryReady",
+      };
+  }
+}
+
+function taskExecutionBadge(task: Task): TaskBadge | null {
   if (task.execution_mode?.trim() === "local_worktree") {
     return {
       className: "badge badge-accent",
