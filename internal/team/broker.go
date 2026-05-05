@@ -202,8 +202,8 @@ type authUser struct {
 	TeamID       string `json:"team_id"`
 	Role         string `json:"role"`
 	Status       string `json:"status"`
-	PasswordSalt string `json:"-"`
-	PasswordHash string `json:"-"`
+	PasswordSalt string `json:"password_salt,omitempty"`
+	PasswordHash string `json:"password_hash,omitempty"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at,omitempty"`
 	LastLoginAt  string `json:"last_login_at,omitempty"`

@@ -182,6 +182,41 @@ func TestAuthLoginAndLogout(t *testing.T) {
 	}
 }
 
+func TestAuthLoginSurvivesBrokerReload(t *testing.T) {
+	b := newTestBroker(t)
+	signupForTest(t, b, "reload@example.com", "Reload User", "create", "Reload Team", "")
+
+	reloaded := reloadedBroker(t, b)
+	loginRec := httptest.NewRecorder()
+	reloaded.handleAuthLogin(loginRec, jsonRequestForTest(t, "/auth/login", map[string]string{
+		"email":    "reload@example.com",
+		"password": "local-password",
+	}))
+	if loginRec.Code != http.StatusOK {
+		t.Fatalf("login after reload status = %d, want %d: %s", loginRec.Code, http.StatusOK, loginRec.Body.String())
+	}
+	if cookie := authCookieFromRecorder(loginRec); cookie == nil || cookie.Value == "" {
+		t.Fatalf("login after reload did not set session cookie")
+	}
+
+	usersRec := httptest.NewRecorder()
+	usersReq := httptest.NewRequest(http.MethodGet, "/auth/users", nil)
+	usersReq.AddCookie(authCookieFromRecorder(loginRec))
+	reloaded.handleAuthUsers(usersRec, usersReq)
+	if usersRec.Code != http.StatusOK {
+		t.Fatalf("list users status = %d, want %d: %s", usersRec.Code, http.StatusOK, usersRec.Body.String())
+	}
+	var body struct {
+		Users []authUser `json:"users"`
+	}
+	if err := json.NewDecoder(usersRec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode users: %v", err)
+	}
+	if len(body.Users) != 1 || body.Users[0].PasswordHash != "" || body.Users[0].PasswordSalt != "" {
+		t.Fatalf("public auth users leaked password fields: %+v", body.Users)
+	}
+}
+
 func TestAuthUsersListsAndUpdatesCurrentTeamRoles(t *testing.T) {
 	b := newTestBroker(t)
 	owner := signupForTest(t, b, "owner@example.com", "Owner", "create", "Ops Team", "")
