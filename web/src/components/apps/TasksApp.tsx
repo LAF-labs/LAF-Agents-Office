@@ -347,18 +347,13 @@ function findSelectedProject(
   return projects.find((project) => project.id === selectedProjectId) ?? null;
 }
 
-function countAgentOwnedTasks(tasks: Task[]): number {
-  return tasks.filter((task) => {
-    const status = normalizeStatus(task.status);
-    const owner = task.owner?.trim().toLowerCase();
-    return Boolean(
-      status !== "done" &&
-        status !== "canceled" &&
-        owner &&
-        owner !== "human" &&
-        owner !== "you",
-    );
-  }).length;
+function allProjectsEmptyMessage(
+  selectedProject: Project | null,
+  projectCount: number,
+  t: TranslationFn,
+): string | undefined {
+  if (selectedProject || projectCount === 0) return undefined;
+  return t("tasks.emptyAllProjects");
 }
 
 function isAgentSlug(slug: string | undefined): slug is string {
@@ -1120,6 +1115,11 @@ export function TasksApp() {
             <SelectedTaskWorkArea
               boardDrag={boardDrag}
               error={error}
+              emptyMessage={allProjectsEmptyMessage(
+                selectedProject,
+                projects.length,
+                t,
+              )}
               grouped={grouped}
               isTaskLoading={isTaskLoading}
               projectNames={projectNames}
@@ -1194,6 +1194,12 @@ function ProjectWorkspaceMain({
   onOpenWiki,
   onTaskViewChange,
 }: ProjectWorkspaceMainProps) {
+  const issueScopeLabel = selectedProject
+    ? projectWorkspaceName(selectedProject, language)
+    : projectCount > 0
+      ? t("tasks.allProjects")
+      : undefined;
+
   return (
     <div className="project-workspace-main">
       {selectedProject ? (
@@ -1212,19 +1218,20 @@ function ProjectWorkspaceMain({
             onCreateProject={onCreateProject}
             onOpenWiki={onOpenWiki}
           />
-          <ProjectWorkRequest
-            project={selectedProject}
-            repoReadinessState={repoReadinessState}
-            taskCreator={taskCreator}
-            t={t}
-          />
           <ProjectIssueToolbar
+            scopeLabel={issueScopeLabel}
             taskCount={tasks.length}
             taskView={taskView}
             t={t}
             onTaskViewChange={onTaskViewChange}
           />
           {taskWorkArea}
+          <ProjectWorkRequest
+            project={selectedProject}
+            repoReadinessState={repoReadinessState}
+            taskCreator={taskCreator}
+            t={t}
+          />
           <ProjectActivityLog
             activities={projectActivities}
             isLoading={isActivityLoading}
@@ -1249,6 +1256,15 @@ function ProjectWorkspaceMain({
             onCreateProject={onCreateProject}
             onOpenWiki={onOpenWiki}
           />
+          {projectCount > 0 ? (
+            <ProjectIssueToolbar
+              scopeLabel={issueScopeLabel}
+              taskCount={tasks.length}
+              taskView={taskView}
+              t={t}
+              onTaskViewChange={onTaskViewChange}
+            />
+          ) : null}
           {taskWorkArea}
         </>
       )}
@@ -1592,6 +1608,7 @@ function ProjectActivityLog({
 
 interface TaskWorkAreaProps {
   children: ReactNode;
+  emptyMessage?: string;
   error: unknown;
   isTaskLoading: boolean;
   selectedProject: Project | null;
@@ -1601,6 +1618,7 @@ interface TaskWorkAreaProps {
 
 function TaskWorkArea({
   children,
+  emptyMessage,
   error,
   isTaskLoading,
   selectedProject,
@@ -1620,7 +1638,10 @@ function TaskWorkArea({
   if (tasks.length === 0) {
     return (
       <div className="task-empty-state">
-        {selectedProject ? t("tasks.emptyProject") : t("tasks.emptyNoProject")}
+        {emptyMessage ??
+          (selectedProject
+            ? t("tasks.emptyProject")
+            : t("tasks.emptyNoProject"))}
       </div>
     );
   }
@@ -1629,6 +1650,7 @@ function TaskWorkArea({
 
 interface SelectedTaskWorkAreaProps {
   boardDrag: TaskBoardDragState;
+  emptyMessage?: string;
   error: unknown;
   grouped: Record<StatusGroup, Task[]>;
   isTaskLoading: boolean;
@@ -1642,6 +1664,7 @@ interface SelectedTaskWorkAreaProps {
 
 function SelectedTaskWorkArea({
   boardDrag,
+  emptyMessage,
   error,
   grouped,
   isTaskLoading,
@@ -1654,6 +1677,7 @@ function SelectedTaskWorkArea({
 }: SelectedTaskWorkAreaProps) {
   return (
     <TaskWorkArea
+      emptyMessage={emptyMessage}
       error={error}
       isTaskLoading={isTaskLoading}
       selectedProject={selectedProject}
@@ -1717,6 +1741,32 @@ function ProjectWorkspaceOverview({
   onOpenWiki,
 }: ProjectWorkspaceOverviewProps) {
   if (!project) {
+    if (projectCount > 0) {
+      return (
+        <section
+          className="task-workspace-strip task-workspace-header"
+          aria-label={t("tasks.overview.label")}
+        >
+          <div className="task-workspace-strip-main">
+            <span className="task-workspace-kicker">
+              {t("tasks.allProjects")}
+            </span>
+            <strong>{t("tasks.issueList")}</strong>
+            <span>{t("tasks.allProjectsSummary")}</span>
+          </div>
+          <div className="task-workspace-actions">
+            <button
+              type="button"
+              className="task-workspace-action task-workspace-action-primary"
+              onClick={onCreateProject}
+            >
+              <strong>{t("tasks.newProjectCta")}</strong>
+            </button>
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section
         className="task-workspace-overview"
@@ -1746,105 +1796,78 @@ function ProjectWorkspaceOverview({
 
   const stats = projectTaskStats(tasks);
   const activeTaskCount = stats.active;
-  const agentOwnedTaskCount = countAgentOwnedTasks(tasks);
   const repoURL = project.github_repo_url?.trim();
+  const projectSummary = isLoadingTasks
+    ? t("tasks.loadingTasks")
+    : `${t("tasks.progress")} ${projectProgressPercent(stats)}% · ${countLabel(
+        activeTaskCount,
+        "active task",
+        "active tasks",
+        "활성 작업",
+        language,
+      )} · ${countLabel(
+        stats.done,
+        "done task",
+        "done tasks",
+        "완료 작업",
+        language,
+      )} · ${countLabel(
+        stats.review,
+        "review task",
+        "review tasks",
+        "리뷰 작업",
+        language,
+      )} / ${countLabel(
+        stats.blocked,
+        "blocked task",
+        "blocked tasks",
+        "막힌 작업",
+        language,
+      )}`;
 
   return (
     <section
-      className="task-workspace-strip"
+      className="task-workspace-strip task-workspace-header"
       aria-label={t("tasks.overview.label")}
     >
       <div className="task-workspace-strip-main">
         <span className="task-workspace-kicker">{t("tasks.project")}</span>
         <strong>{projectWorkspaceName(project, language)}</strong>
-        <span>
-          {t("tasks.progress")} {projectProgressPercent(stats)}% /{" "}
-          {countLabel(
-            stats.done,
-            "done task",
-            "done tasks",
-            "완료 작업",
-            language,
-          )}
-        </span>
+        <span>{projectSummary}</span>
       </div>
-      <button
-        type="button"
-        className="task-workspace-strip-item task-workspace-strip-button"
-        aria-label={t("tasks.openProjectWiki")}
-        title={t("tasks.openProjectWiki")}
-        onClick={onOpenWiki}
-      >
-        <span className="task-workspace-kicker">{t("tasks.wikiContext")}</span>
-        <strong>{t("tasks.projectWiki")}</strong>
-        <span>{t("tasks.wikiContextShort")}</span>
-      </button>
-      <div className="task-workspace-strip-item">
-        <span className="task-workspace-kicker">{t("tasks.taskQueue")}</span>
-        <strong>
-          {isLoadingTasks
-            ? t("tasks.loadingTasks")
-            : countLabel(
-                activeTaskCount,
-                "active task",
-                "active tasks",
-                "활성 작업",
-                language,
-              )}
-        </strong>
-        <span>{t("tasks.taskQueueShort")}</span>
-        <span>
-          {countLabel(
-            stats.review,
-            "review task",
-            "review tasks",
-            "리뷰 작업",
-            language,
-          )}
-          {" / "}
-          {countLabel(
-            stats.blocked,
-            "blocked task",
-            "blocked tasks",
-            "막힌 작업",
-            language,
-          )}
-        </span>
-      </div>
-      <div className="task-workspace-strip-item">
-        <span className="task-workspace-kicker">{t("tasks.projectLead")}</span>
-        <strong>
-          {isLoadingTasks ? t("tasks.loadingAssignments") : `@${leadAgent}`}
-        </strong>
-        <span>
-          {countLabel(
-            agentOwnedTaskCount,
-            "agent-owned task",
-            "agent-owned tasks",
-            "에이전트 담당 작업",
-            language,
-          )}
-        </span>
+      <div className="task-workspace-actions">
         <button
           type="button"
-          className="task-lead-chat"
+          className="task-workspace-action"
+          aria-label={t("tasks.openProjectWiki")}
+          title={t("tasks.openProjectWiki")}
+          onClick={onOpenWiki}
+        >
+          <strong>{t("tasks.projectWiki")}</strong>
+        </button>
+        <button
+          type="button"
+          className="task-workspace-action task-workspace-action-chat"
           onClick={() => onChatAgent(leadAgent)}
         >
-          {t("tasks.chatLead")}
+          <strong>@{leadAgent}</strong>
+          <span>{t("tasks.chatLead")}</span>
         </button>
+        <ProjectGitHubStripItem
+          compact={true}
+          connector={githubConnector}
+          t={t}
+          project={project}
+          repoURL={repoURL}
+          repoReadinessState={repoReadinessState}
+        />
       </div>
-      <ProjectGitHubStripItem
-        connector={githubConnector}
-        t={t}
-        project={project}
-        repoURL={repoURL}
-        repoReadinessState={repoReadinessState}
-      />
     </section>
   );
 }
 
 interface ProjectGitHubStripItemProps {
+  compact?: boolean;
   connector: ProjectGitHubConnectorState;
   project: Project;
   repoReadinessState: ProjectRepoReadinessQueryState;
@@ -1853,6 +1876,7 @@ interface ProjectGitHubStripItemProps {
 }
 
 function ProjectGitHubStripItem({
+  compact = false,
   connector,
   project,
   repoReadinessState,
@@ -1873,19 +1897,24 @@ function ProjectGitHubStripItem({
     repoReadinessState.isLoading,
     repoReadinessState.isError,
   );
+  const className = compact
+    ? "task-workspace-github-action"
+    : "task-workspace-strip-item task-workspace-strip-github";
 
   return (
-    <div className="task-workspace-strip-item task-workspace-strip-github">
+    <div className={className}>
       <span className="task-workspace-kicker">GitHub</span>
       <strong>{t(titleKey)}</strong>
-      <span className="task-github-readiness-detail">{t(detailKey)}</span>
-      {repoReadinessState.readiness?.default_branch ? (
+      {compact ? null : (
+        <span className="task-github-readiness-detail">{t(detailKey)}</span>
+      )}
+      {!compact && repoReadinessState.readiness?.default_branch ? (
         <span className="task-github-readiness-meta">
           {t("tasks.defaultBranch")}
           {repoReadinessState.readiness.default_branch}
         </span>
       ) : null}
-      {repoURL && !isEditing ? (
+      {repoURL && !isEditing && !compact ? (
         <span className="task-github-readiness-detail">
           {repoReadinessState.readiness?.can_create_coding_tasks
             ? t("tasks.repoCodingEnabled")
@@ -2082,6 +2111,7 @@ function ProjectWorkRequest({
 }
 
 interface ProjectIssueToolbarProps {
+  scopeLabel?: string;
   taskCount: number;
   taskView: TaskViewMode;
   t: TranslationFn;
@@ -2089,6 +2119,7 @@ interface ProjectIssueToolbarProps {
 }
 
 function ProjectIssueToolbar({
+  scopeLabel,
   taskCount,
   taskView,
   t,
@@ -2099,6 +2130,7 @@ function ProjectIssueToolbar({
       <div>
         <h4>{t("tasks.issueList")}</h4>
         <span>
+          {scopeLabel ? `${scopeLabel} · ` : ""}
           {taskCount} {t("tasks.issueCount")}
         </span>
       </div>
@@ -2154,7 +2186,7 @@ function IssueList({ projectNames, tasks, t, onOpenTask }: IssueListProps) {
             const updated = task.updated_at ?? task.created_at;
             return (
               <tr key={task.id}>
-                <td>
+                <td data-label={t("tasks.issue")}>
                   <button
                     type="button"
                     className="issue-title-button"
@@ -2168,19 +2200,19 @@ function IssueList({ projectNames, tasks, t, onOpenTask }: IssueListProps) {
                     ) : null}
                   </button>
                 </td>
-                <td>
+                <td data-label={t("tasks.status")}>
                   <span className={statusBadgeClass(status)}>
                     {t(COLUMN_LABEL_KEYS[status])}
                   </span>
                 </td>
-                <td>
+                <td data-label={t("tasks.detail.owner")}>
                   <span className="issue-owner">
                     {task.owner
                       ? `@${task.owner}`
                       : t("tasks.detail.pickOwner")}
                   </span>
                 </td>
-                <td>
+                <td data-label={t("tasks.delivery")}>
                   <span className="issue-badges">
                     {executionBadge ? (
                       <span className={executionBadge.className}>
@@ -2194,7 +2226,7 @@ function IssueList({ projectNames, tasks, t, onOpenTask }: IssueListProps) {
                     ) : null}
                   </span>
                 </td>
-                <td>
+                <td data-label={t("tasks.detail.updated")}>
                   <span className="issue-updated">
                     {updated ? formatRelativeTime(updated) : "-"}
                   </span>

@@ -106,14 +106,15 @@ describe("TasksApp project workspace", () => {
       await screen.findByRole("heading", { name: "Project workspace" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Customer Portal workspace")).toBeInTheDocument();
-    expect(screen.getByText("Project memory")).toBeInTheDocument();
-    expect(screen.getByText("Read/write memory")).toBeInTheDocument();
-    expect(screen.getByText("Task queue")).toBeInTheDocument();
-    expect(screen.getByText("Project lead")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open project wiki" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /@engineer/ }).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(await screen.findByText("Repo ready")).toBeInTheDocument();
-    expect(await screen.findByText("2 active tasks")).toBeInTheDocument();
-    expect(screen.getByText("1 agent-owned task")).toBeInTheDocument();
+    expect(await screen.findByText(/2 active tasks/)).toBeInTheDocument();
     expect(screen.getByText("Issues")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "List" })).toHaveClass("active");
     expect(screen.queryByText("#general")).not.toBeInTheDocument();
@@ -125,6 +126,9 @@ describe("TasksApp project workspace", () => {
       text.indexOf("Codex command"),
     );
     expect(text.indexOf("Draft launch brief")).toBeLessThan(
+      text.indexOf("Codex command"),
+    );
+    expect(text.indexOf("Codex command")).toBeLessThan(
       text.indexOf("Activity log"),
     );
 
@@ -167,6 +171,73 @@ describe("TasksApp project workspace", () => {
     expect(useAppStore.getState().currentChannel).toBe("engineer__human");
   });
 
+  it("keeps issue controls available in the All projects dashboard", async () => {
+    const user = userEvent.setup();
+    const allTasks = [
+      {
+        id: "task-open",
+        title: "Draft launch brief",
+        status: "open",
+        project_id: "customer-portal",
+        channel: "general",
+        owner: "human",
+      },
+      {
+        id: "task-build",
+        title: "Implement signup flow",
+        status: "in_progress",
+        project_id: "customer-portal",
+        owner: "engineer",
+      },
+      {
+        id: "task-done",
+        title: "Pick wedge",
+        status: "done",
+        project_id: "customer-portal",
+        owner: "ceo",
+      },
+      {
+        id: "task-support",
+        title: "Plan support queue",
+        status: "review",
+        project_id: "agent-lab",
+        owner: "planner",
+      },
+    ];
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [
+        {
+          id: "customer-portal",
+          name: "Customer Portal",
+          github_repo_url: "https://github.com/laf-labs/customer-portal",
+        },
+        { id: "agent-lab", name: "Agent Lab" },
+      ],
+    });
+    apiMocks.getOfficeTasks.mockImplementation(
+      ({ projectId }: { projectId?: string }) =>
+        Promise.resolve({
+          tasks: projectId
+            ? allTasks.filter((task) => task.project_id === projectId)
+            : allTasks,
+        }),
+    );
+
+    renderTasksApp();
+
+    const projectList = await screen.findByRole("complementary", {
+      name: "Projects",
+    });
+    await user.click(
+      within(projectList).getByRole("button", { name: /All projects/ }),
+    );
+
+    expect(screen.getByText("All projects · 4 issues")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "List" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Board" })).toBeInTheDocument();
+    expect(screen.getByText("Plan support queue")).toBeInTheDocument();
+  });
+
   it("keeps GitHub optional when the selected project has no repo", async () => {
     apiMocks.getProjects.mockResolvedValue({
       projects: [{ id: "agent-lab", name: "Agent Lab" }],
@@ -179,7 +250,7 @@ describe("TasksApp project workspace", () => {
     expect(screen.getByText("Repo not connected")).toBeInTheDocument();
     expect(screen.getAllByText("@ceo").length).toBeGreaterThan(0);
     expect(
-      screen.getByText("Connect it only when code work starts."),
+      screen.getByRole("button", { name: "Connect GitHub repo" }),
     ).toBeInTheDocument();
   });
 
@@ -192,6 +263,10 @@ describe("TasksApp project workspace", () => {
     expect(
       screen.getByRole("columnheader", { name: "Issue" }),
     ).toBeInTheDocument();
+    const issueList = screen.getByRole("region", { name: "Issues" });
+    expect(
+      within(issueList).getAllByText("@engineer")[0].closest("td"),
+    ).toHaveAttribute("data-label", "Owner");
     await user.click(screen.getByRole("button", { name: "Board" }));
     expect(screen.getAllByText("in progress").length).toBeGreaterThan(0);
     expect(screen.getAllByText("open").length).toBeGreaterThan(0);

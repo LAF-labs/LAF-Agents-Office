@@ -84,6 +84,7 @@ describe("RequestsApp", () => {
     expect(
       screen.getByText("Should signup launch before billing?"),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Accept the PR?")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Chat @ceo" }));
 
@@ -91,6 +92,9 @@ describe("RequestsApp", () => {
       expect(apiMocks.createDM).toHaveBeenCalledWith("ceo");
     });
     expect(useAppStore.getState().currentChannel).toBe("ceo__human");
+
+    await user.click(screen.getByRole("button", { name: /Show history/ }));
+    expect(screen.getByText("Accept the PR?")).toBeInTheDocument();
   });
 
   it("captures required text before answering a blocking request", async () => {

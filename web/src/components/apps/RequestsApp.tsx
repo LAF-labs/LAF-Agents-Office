@@ -20,6 +20,7 @@ export function RequestsApp() {
   const enterDM = useAppStore((s) => s.enterDM);
   const queryClient = useQueryClient();
   const { t } = useI18n();
+  const [showAnswered, setShowAnswered] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["requests", "all"],
@@ -115,21 +116,35 @@ export function RequestsApp() {
       ) : null}
 
       {answered.length > 0 ? (
-        <section className="request-list-section">
-          <div className="app-section-title">
-            {t("requests.answered")} ({answered.length})
-          </div>
-          <div className="request-list">
-            {answered.map((req) => (
-              <RequestItem
-                key={req.id}
-                request={req}
-                isPending={false}
-                onChatAgent={openAgentChat}
-                t={t}
-              />
-            ))}
-          </div>
+        <section className="request-list-section request-list-section-muted">
+          <button
+            type="button"
+            className="request-history-toggle"
+            aria-expanded={showAnswered}
+            onClick={() => setShowAnswered((value) => !value)}
+          >
+            <span>
+              {t("requests.answered")} ({answered.length})
+            </span>
+            <strong>
+              {showAnswered
+                ? t("requests.hideAnswered")
+                : t("requests.showAnswered")}
+            </strong>
+          </button>
+          {showAnswered ? (
+            <div className="request-list">
+              {answered.map((req) => (
+                <RequestItem
+                  key={req.id}
+                  request={req}
+                  isPending={false}
+                  onChatAgent={openAgentChat}
+                  t={t}
+                />
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
     </div>
