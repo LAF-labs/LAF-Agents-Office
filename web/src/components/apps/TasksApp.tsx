@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { Plus, Xmark } from "iconoir-react";
 
 import {
   createProject,
@@ -23,10 +24,32 @@ import { type Language, useAppStore } from "../../stores/app";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge, type BadgeProps } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { Select } from "../ui/select";
 import { Separator } from "../ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 import { Textarea } from "../ui/textarea";
 
 const liveEventsSupported =
@@ -513,7 +536,7 @@ export function TasksApp() {
   }
 
   return (
-    <div className="project-directory">
+    <main className="project-app">
       <ProjectDirectoryToolbar
         isLoadingTasks={allTasksQuery.isLoading}
         language={language}
@@ -532,14 +555,16 @@ export function TasksApp() {
         t={t}
         onFocusProject={setProjectFocusId}
       />
-    </div>
+    </main>
   );
 }
 
 function TaskWorkspaceState({ children }: { children: string }) {
   return (
-    <Card className="task-empty-state">
-      <CardContent>{children}</CardContent>
+    <Card className="m-5">
+      <CardContent className="py-10 text-center text-sm text-muted-foreground">
+        {children}
+      </CardContent>
     </Card>
   );
 }
@@ -564,41 +589,52 @@ function ProjectDirectoryToolbar({
   onCreateProject,
 }: ProjectDirectoryToolbarProps) {
   return (
-    <div className="project-directory-toolbar">
-      <div>
-        <h3>{t("tasks.projectDirectory.title")}</h3>
-        <span>
-          {countLabel(
-            projectCount,
-            "project",
-            "projects",
-            "프로젝트",
-            language,
-          )}
-          {" · "}
-          {isLoadingTasks
-            ? t("tasks.loadingTasks")
-            : countLabel(taskCount, "ticket", "tickets", "티켓", language)}
-        </span>
-      </div>
-      <Button
-        type="button"
-        className="project-directory-add"
-        size="icon"
-        variant="outline"
-        onClick={onCreateProject}
-        aria-label={t("tasks.newProject")}
-        title={t("tasks.newProject")}
-      >
-        +
-      </Button>
-      {projectCreator.isCreatingProject ? (
-        <ProjectCreateForm projectCreator={projectCreator} t={t} />
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 p-4">
+        <div className="min-w-0">
+          <CardTitle>
+            <h3 className="text-base font-semibold leading-none">
+              {t("tasks.projectDirectory.title")}
+            </h3>
+          </CardTitle>
+          <CardDescription className="mt-1">
+            {countLabel(
+              projectCount,
+              "project",
+              "projects",
+              "프로젝트",
+              language,
+            )}
+            {" · "}
+            {isLoadingTasks
+              ? t("tasks.loadingTasks")
+              : countLabel(taskCount, "ticket", "tickets", "티켓", language)}
+          </CardDescription>
+        </div>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={onCreateProject}
+          aria-label={t("tasks.newProject")}
+          title={t("tasks.newProject")}
+        >
+          <Plus width={16} height={16} />
+        </Button>
+      </CardHeader>
+      {projectCreator.isCreatingProject || projectCreator.projectError ? (
+        <CardContent className="space-y-3 pt-0">
+          {projectCreator.isCreatingProject ? (
+            <ProjectCreateForm projectCreator={projectCreator} t={t} />
+          ) : null}
+          {projectCreator.projectError ? (
+            <p className="text-sm text-destructive">
+              {projectCreator.projectError}
+            </p>
+          ) : null}
+        </CardContent>
       ) : null}
-      {projectCreator.projectError ? (
-        <div className="task-project-error">{projectCreator.projectError}</div>
-      ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -611,18 +647,22 @@ function ProjectCreateForm({
 }) {
   return (
     <form
-      className="task-project-form"
+      className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
       onSubmit={projectCreator.handleCreateProject}
     >
-      <Input
-        type="text"
-        value={projectCreator.newProjectName}
-        onChange={(event) =>
-          projectCreator.setNewProjectName(event.currentTarget.value)
-        }
-        placeholder={t("tasks.projectName")}
-        aria-label={t("tasks.projectName")}
-      />
+      <div className="grid gap-2">
+        <Label htmlFor="project-name">{t("tasks.projectName")}</Label>
+        <Input
+          id="project-name"
+          type="text"
+          value={projectCreator.newProjectName}
+          onChange={(event) =>
+            projectCreator.setNewProjectName(event.currentTarget.value)
+          }
+          placeholder={t("tasks.projectName")}
+          aria-label={t("tasks.projectName")}
+        />
+      </div>
       <Button
         type="submit"
         disabled={projectCreator.newProjectName.trim() === ""}
@@ -661,45 +701,60 @@ function ProjectDirectoryList({
 
   if (projects.length === 0) {
     return (
-      <div className="project-directory-empty">
-        <strong>{t("tasks.noProjects")}</strong>
-        <span>{t("tasks.projectListEmpty")}</span>
-      </div>
+      <Card>
+        <CardContent className="grid gap-1 py-8 text-center">
+          <p className="text-sm font-medium text-foreground">
+            {t("tasks.noProjects")}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t("tasks.projectListEmpty")}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <section
-      className="project-directory-list"
-      aria-label={t("tasks.projectList")}
-    >
-      <div className="project-directory-row project-directory-head">
-        <span>{t("tasks.projectTable.name")}</span>
-        <span>{t("tasks.projectTable.status")}</span>
-        <span>{t("tasks.projectTable.tickets")}</span>
-      </div>
-      {projects.map((project) => {
-        const projectTasks = tasks.filter(
-          (task) => task.project_id === project.id,
-        );
-        const counts = projectTicketCounts(projectTasks);
-        const lifecycle = projectLifecycle(project, counts);
-        return (
-          <ProjectDirectoryRow
-            key={project.id}
-            counts={counts}
-            id={projectRowDOMId(project.id)}
-            isFocused={focusedProjectId === project.id}
-            isStatsReady={isStatsReady}
-            language={language}
-            project={project}
-            status={lifecycle}
-            t={t}
-            onFocus={() => onFocusProject(project.id)}
-          />
-        );
-      })}
-    </section>
+    <Card>
+      <CardContent className="p-0">
+        <section aria-label={t("tasks.projectList")}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("tasks.projectTable.name")}</TableHead>
+                <TableHead className="w-[132px]">
+                  {t("tasks.projectTable.status")}
+                </TableHead>
+                <TableHead>{t("tasks.projectTable.tickets")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projects.map((project) => {
+                const projectTasks = tasks.filter(
+                  (task) => task.project_id === project.id,
+                );
+                const counts = projectTicketCounts(projectTasks);
+                const lifecycle = projectLifecycle(project, counts);
+                return (
+                  <ProjectDirectoryRow
+                    key={project.id}
+                    counts={counts}
+                    id={projectRowDOMId(project.id)}
+                    isFocused={focusedProjectId === project.id}
+                    isStatsReady={isStatsReady}
+                    language={language}
+                    project={project}
+                    status={lifecycle}
+                    t={t}
+                    onFocus={() => onFocusProject(project.id)}
+                  />
+                );
+              })}
+            </TableBody>
+          </Table>
+        </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -728,50 +783,56 @@ function ProjectDirectoryRow({
 }: ProjectDirectoryRowProps) {
   const countValue = (value: number) => (isStatsReady ? value : "...");
   return (
-    <Button
-      type="button"
-      id={id}
-      className={`project-directory-row project-directory-item${
-        isFocused ? " active" : ""
-      }`}
-      variant="ghost"
-      onClick={onFocus}
-      aria-current={isFocused ? "true" : undefined}
-    >
-      <span className="project-directory-name">
-        <strong>{project.name || project.id}</strong>
-        <small>{project.id}</small>
-      </span>
-      <Badge
-        className="project-status-pill"
-        variant={projectLifecycleBadgeVariant(status)}
-      >
-        {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-      </Badge>
-      <span className="project-ticket-counts">
-        <span>
-          <strong>{countValue(counts.notStarted)}</strong>{" "}
-          {t("tasks.projectTickets.notStarted")}
-        </span>
-        <span>
-          <strong>{countValue(counts.inProgress)}</strong>{" "}
-          {t("tasks.projectTickets.inProgress")}
-        </span>
-        <span>
-          <strong>{countValue(counts.waiting)}</strong>{" "}
-          {t("tasks.projectTickets.waiting")}
-        </span>
-        <span>
-          <strong>{countValue(counts.done)}</strong>{" "}
-          {t("tasks.projectTickets.done")}
-        </span>
-        <span className="project-ticket-total">
-          {isStatsReady
-            ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
-            : "..."}
-        </span>
-      </span>
-    </Button>
+    <TableRow id={id} data-state={isFocused ? "selected" : undefined}>
+      <TableCell className="min-w-[220px]">
+        <Button
+          type="button"
+          className="h-auto w-full justify-start p-0 text-left font-normal hover:bg-transparent"
+          variant="ghost"
+          onClick={onFocus}
+          aria-current={isFocused ? "true" : undefined}
+        >
+          <span className="grid min-w-0 gap-1">
+            <strong className="truncate text-sm font-medium text-foreground">
+              {project.name || project.id}
+            </strong>
+            <small className="truncate text-xs text-muted-foreground">
+              {project.id}
+            </small>
+          </span>
+        </Button>
+      </TableCell>
+      <TableCell>
+        <Badge variant={projectLifecycleBadgeVariant(status)}>
+          {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="flex min-w-[320px] flex-wrap gap-1.5">
+          <Badge className="gap-1 font-normal" variant="outline">
+            <strong>{countValue(counts.notStarted)}</strong>
+            {t("tasks.projectTickets.notStarted")}
+          </Badge>
+          <Badge className="gap-1 font-normal" variant="outline">
+            <strong>{countValue(counts.inProgress)}</strong>
+            {t("tasks.projectTickets.inProgress")}
+          </Badge>
+          <Badge className="gap-1 font-normal" variant="outline">
+            <strong>{countValue(counts.waiting)}</strong>
+            {t("tasks.projectTickets.waiting")}
+          </Badge>
+          <Badge className="gap-1 font-normal" variant="outline">
+            <strong>{countValue(counts.done)}</strong>
+            {t("tasks.projectTickets.done")}
+          </Badge>
+          <Badge className="gap-1 font-normal" variant="secondary">
+            {isStatsReady
+              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              : "..."}
+          </Badge>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -811,11 +872,7 @@ function ProjectDetailView({
   const lifecycle = projectLifecycle(project, counts);
 
   return (
-    <div
-      className={`project-detail-surface${
-        selectedTask ? " has-ticket-panel" : ""
-      }`}
-    >
+    <main className="project-app">
       <ProjectDetailHeader
         counts={counts}
         isStatsReady={isStatsReady}
@@ -851,7 +908,7 @@ function ProjectDetailView({
           onClose={onCloseTask}
         />
       ) : null}
-    </div>
+    </main>
   );
 }
 
@@ -873,32 +930,31 @@ function ProjectDetailHeader({
   onBack: () => void;
 }) {
   return (
-    <header className="project-detail-header">
-      <Button
-        type="button"
-        className="project-back-button"
-        variant="outline"
-        size="sm"
-        onClick={onBack}
-      >
-        {t("tasks.backToProjects")}
-      </Button>
-      <div className="project-detail-title">
-        <h3>{project.name || project.id}</h3>
-        <span>{project.id}</span>
-      </div>
-      <Badge
-        className="project-status-pill"
-        variant={projectLifecycleBadgeVariant(status)}
-      >
-        {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-      </Badge>
-      <span className="project-detail-total">
-        {isStatsReady
-          ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
-          : t("tasks.loadingTasks")}
-      </span>
-    </header>
+    <Card>
+      <CardHeader className="grid gap-4 p-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+        <Button type="button" variant="outline" size="sm" onClick={onBack}>
+          {t("tasks.backToProjects")}
+        </Button>
+        <div className="min-w-0">
+          <CardTitle>
+            <h3 className="truncate text-lg font-semibold leading-none">
+              {project.name || project.id}
+            </h3>
+          </CardTitle>
+          <CardDescription className="mt-1">{project.id}</CardDescription>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+          <Badge variant={projectLifecycleBadgeVariant(status)}>
+            {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
+          </Badge>
+          <Badge variant="outline">
+            {isStatsReady
+              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              : t("tasks.loadingTasks")}
+          </Badge>
+        </div>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -918,39 +974,50 @@ function ProjectTicketToolbar({
   ticketCount: number;
 }) {
   return (
-    <section className="project-ticket-toolbar">
-      <div>
-        <h4>{t("tasks.tickets")}</h4>
-        <span>
-          {countLabel(ticketCount, "ticket", "tickets", "티켓", language)}
-        </span>
-      </div>
-      <Button
-        type="button"
-        className="project-directory-add"
-        size="icon"
-        variant="outline"
-        onClick={() => {
-          ticketCreator.setTicketError(null);
-          ticketCreator.setIsCreatingTicket(true);
-        }}
-        aria-label={t("tasks.newTicket")}
-        title={t("tasks.newTicket")}
-      >
-        +
-      </Button>
-      {ticketCreator.isCreatingTicket ? (
-        <TicketCreateForm
-          members={members}
-          project={project}
-          ticketCreator={ticketCreator}
-          t={t}
-        />
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 p-4">
+        <div>
+          <CardTitle>
+            <h4 className="text-sm font-semibold leading-none">
+              {t("tasks.tickets")}
+            </h4>
+          </CardTitle>
+          <CardDescription className="mt-1">
+            {countLabel(ticketCount, "ticket", "tickets", "티켓", language)}
+          </CardDescription>
+        </div>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={() => {
+            ticketCreator.setTicketError(null);
+            ticketCreator.setIsCreatingTicket(true);
+          }}
+          aria-label={t("tasks.newTicket")}
+          title={t("tasks.newTicket")}
+        >
+          <Plus width={16} height={16} />
+        </Button>
+      </CardHeader>
+      {ticketCreator.isCreatingTicket || ticketCreator.ticketError ? (
+        <CardContent className="space-y-3 pt-0">
+          {ticketCreator.isCreatingTicket ? (
+            <TicketCreateForm
+              members={members}
+              project={project}
+              ticketCreator={ticketCreator}
+              t={t}
+            />
+          ) : null}
+          {ticketCreator.ticketError ? (
+            <p className="text-sm text-destructive">
+              {ticketCreator.ticketError}
+            </p>
+          ) : null}
+        </CardContent>
       ) : null}
-      {ticketCreator.ticketError ? (
-        <div className="task-project-error">{ticketCreator.ticketError}</div>
-      ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -967,35 +1034,49 @@ function TicketCreateForm({
 }) {
   return (
     <form
-      className="ticket-create-form"
+      className="grid gap-3 rounded-md border bg-muted/20 p-3"
       onSubmit={ticketCreator.handleCreateTicket}
     >
-      <Input
-        type="text"
-        value={ticketCreator.ticketTitle}
-        onChange={(event) =>
-          ticketCreator.setTicketTitle(event.currentTarget.value)
-        }
-        placeholder={t("tasks.ticketTitle")}
-        aria-label={t("tasks.ticketTitle")}
-      />
-      <AgentSelect
-        agent={ticketCreator.ticketOwner}
-        label={t("tasks.detail.owner")}
-        members={members}
-        preferred={project.lead_agent}
-        onChange={ticketCreator.setTicketOwner}
-      />
-      <Textarea
-        value={ticketCreator.ticketDetails}
-        onChange={(event) =>
-          ticketCreator.setTicketDetails(event.currentTarget.value)
-        }
-        placeholder={t("tasks.ticketDetails")}
-        aria-label={t("tasks.ticketDetails")}
-        rows={3}
-      />
-      <div className="ticket-create-actions">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="grid gap-2">
+          <Label htmlFor="ticket-title">{t("tasks.ticketTitle")}</Label>
+          <Input
+            id="ticket-title"
+            type="text"
+            value={ticketCreator.ticketTitle}
+            onChange={(event) =>
+              ticketCreator.setTicketTitle(event.currentTarget.value)
+            }
+            placeholder={t("tasks.ticketTitle")}
+            aria-label={t("tasks.ticketTitle")}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="ticket-owner">{t("tasks.detail.owner")}</Label>
+          <AgentSelect
+            id="ticket-owner"
+            agent={ticketCreator.ticketOwner}
+            label={t("tasks.detail.owner")}
+            members={members}
+            preferred={project.lead_agent}
+            onChange={ticketCreator.setTicketOwner}
+          />
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="ticket-details">{t("tasks.ticketDetails")}</Label>
+        <Textarea
+          id="ticket-details"
+          value={ticketCreator.ticketDetails}
+          onChange={(event) =>
+            ticketCreator.setTicketDetails(event.currentTarget.value)
+          }
+          placeholder={t("tasks.ticketDetails")}
+          aria-label={t("tasks.ticketDetails")}
+          rows={3}
+        />
+      </div>
+      <div className="flex justify-end gap-2">
         <Button
           type="submit"
           disabled={ticketCreator.ticketTitle.trim() === ""}
@@ -1029,31 +1110,49 @@ function ProjectTicketList({
 }) {
   if (tasks.length === 0) {
     return (
-      <div className="project-directory-empty">
-        <strong>{t("tasks.noTickets")}</strong>
-        <span>{t("tasks.noTicketsDesc")}</span>
-      </div>
+      <Card>
+        <CardContent className="grid gap-1 py-8 text-center">
+          <p className="text-sm font-medium text-foreground">
+            {t("tasks.noTickets")}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t("tasks.noTicketsDesc")}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <section className="ticket-list" aria-label={t("tasks.tickets")}>
-      <div className="ticket-row ticket-head">
-        <span>{t("tasks.ticket")}</span>
-        <span>{t("tasks.status")}</span>
-        <span>{t("tasks.detail.owner")}</span>
-      </div>
-      {tasks.map((task) => (
-        <TicketRow
-          isSelected={selectedTaskId === task.id}
-          key={task.id}
-          members={members}
-          task={task}
-          t={t}
-          onSelect={() => onSelectTask(task.id)}
-        />
-      ))}
-    </section>
+    <Card>
+      <CardContent className="p-0">
+        <section aria-label={t("tasks.tickets")}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("tasks.ticket")}</TableHead>
+                <TableHead className="w-[132px]">{t("tasks.status")}</TableHead>
+                <TableHead className="w-[220px]">
+                  {t("tasks.detail.owner")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map((task) => (
+                <TicketRow
+                  isSelected={selectedTaskId === task.id}
+                  key={task.id}
+                  members={members}
+                  task={task}
+                  t={t}
+                  onSelect={() => onSelectTask(task.id)}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1073,28 +1172,41 @@ function TicketRow({
   const status = normalizeStatus(task.status);
   const detail = userEnteredTaskDetails(task);
   return (
-    <Button
-      type="button"
-      className={`ticket-row ticket-item${isSelected ? " active" : ""}`}
-      variant="ghost"
-      onClick={onSelect}
-      aria-current={isSelected ? "true" : undefined}
-    >
-      <span className="ticket-title-cell">
-        <strong>{task.title || t("tasks.untitled")}</strong>
-        <small>{task.id}</small>
-        {detail ? <em>{detail}</em> : null}
-      </span>
-      <Badge
-        className="ticket-status-pill"
-        variant={taskStatusBadgeVariant(status)}
-      >
-        {t(STATUS_LABEL_KEYS[status])}
-      </Badge>
-      <span className="ticket-owner-cell">
-        {taskOwnerLabel(task, members, t)}
-      </span>
-    </Button>
+    <TableRow data-state={isSelected ? "selected" : undefined}>
+      <TableCell className="min-w-[280px]">
+        <Button
+          type="button"
+          className="h-auto w-full justify-start p-0 text-left font-normal hover:bg-transparent"
+          variant="ghost"
+          onClick={onSelect}
+          aria-current={isSelected ? "true" : undefined}
+        >
+          <span className="grid min-w-0 gap-1">
+            <strong className="truncate text-sm font-medium text-foreground">
+              {task.title || t("tasks.untitled")}
+            </strong>
+            <small className="truncate text-xs text-muted-foreground">
+              {task.id}
+            </small>
+            {detail ? (
+              <em className="truncate text-xs not-italic text-muted-foreground">
+                {detail}
+              </em>
+            ) : null}
+          </span>
+        </Button>
+      </TableCell>
+      <TableCell>
+        <Badge variant={taskStatusBadgeVariant(status)}>
+          {t(STATUS_LABEL_KEYS[status])}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <span className="block truncate text-sm text-muted-foreground">
+          {taskOwnerLabel(task, members, t)}
+        </span>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -1154,80 +1266,103 @@ function TicketSidePanel({
   }
 
   return (
-    <aside className="ticket-side-panel" aria-label={t("tasks.ticketDetails")}>
-      <header className="ticket-panel-header">
-        <div>
-          <span>{task.id}</span>
-          <h4>{task.title || t("tasks.untitled")}</h4>
+    <Sheet>
+      <SheetContent
+        className="h-auto w-full gap-4 p-5 sm:max-w-xl"
+        style={{ top: "var(--topbar-height, 0px)" }}
+        aria-label={t("tasks.ticketDetails")}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <SheetHeader className="min-w-0">
+            <SheetDescription>{task.id}</SheetDescription>
+            <SheetTitle className="truncate">
+              {task.title || t("tasks.untitled")}
+            </SheetTitle>
+          </SheetHeader>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={onClose}
+            aria-label={t("tasks.close")}
+          >
+            <Xmark width={18} height={18} />
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          onClick={onClose}
-          aria-label={t("tasks.close")}
-        >
-          x
-        </Button>
-      </header>
-      <dl className="ticket-panel-meta">
-        <div>
-          <dt>{t("tasks.status")}</dt>
-          <dd>
-            <Badge
-              className="ticket-status-pill"
-              variant={taskStatusBadgeVariant(status)}
-            >
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("tasks.status")}
+            </span>
+            <Badge className="w-fit" variant={taskStatusBadgeVariant(status)}>
               {t(STATUS_LABEL_KEYS[status])}
             </Badge>
-          </dd>
-        </div>
-        <div>
-          <dt>{t("tasks.detail.owner")}</dt>
-          <dd>{taskOwnerLabel(task, members, t)}</dd>
-        </div>
-      </dl>
-      <Separator />
-      <section className="ticket-panel-section">
-        <h5>{t("tasks.ticketDetails")}</h5>
-        <p>{detail}</p>
-      </section>
-      <form className="ticket-chat" onSubmit={handleSendInstruction}>
-        <div className="ticket-chat-head">
-          <h5>{t("tasks.agentInstruction")}</h5>
-        </div>
-        <TicketChatFeed
-          isLoading={threadMessagesQuery.isLoading}
-          members={members}
-          messages={threadMessages}
-          t={t}
-        />
-        <div className="ticket-chat-composer">
-          <Textarea
-            value={instruction}
-            onChange={(event) => {
-              setInstruction(event.currentTarget.value);
-              setSent(false);
-            }}
-            placeholder={t("tasks.agentInstructionPlaceholder")}
-            aria-label={t("tasks.agentInstruction")}
-            rows={4}
-          />
-          <div className="ticket-chat-actions">
-            <span>
-              {sendError
-                ? sendError
-                : sent
-                  ? t("tasks.sent")
-                  : t("tasks.mentionHint")}
+          </div>
+          <div className="grid min-w-0 gap-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("tasks.detail.owner")}
             </span>
-            <Button type="submit" disabled={!instruction.trim() || isSending}>
-              {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
-            </Button>
+            <span className="truncate text-sm font-medium text-foreground">
+              {taskOwnerLabel(task, members, t)}
+            </span>
           </div>
         </div>
-      </form>
-    </aside>
+
+        <Separator />
+
+        <section className="grid max-h-36 gap-2 overflow-auto rounded-md border bg-muted/20 p-3">
+          <h5 className="text-xs font-medium text-muted-foreground">
+            {t("tasks.ticketDetails")}
+          </h5>
+          <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+            {detail}
+          </p>
+        </section>
+
+        <form
+          className="flex min-h-0 flex-1 flex-col gap-3"
+          onSubmit={handleSendInstruction}
+        >
+          <div className="flex items-center justify-between">
+            <h5 className="text-sm font-medium text-foreground">
+              {t("tasks.agentInstruction")}
+            </h5>
+          </div>
+          <TicketChatFeed
+            isLoading={threadMessagesQuery.isLoading}
+            members={members}
+            messages={threadMessages}
+            t={t}
+          />
+          <div className="overflow-hidden rounded-md border bg-background shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+            <Textarea
+              className="min-h-24 resize-y rounded-none border-0 shadow-none focus-visible:ring-0"
+              value={instruction}
+              onChange={(event) => {
+                setInstruction(event.currentTarget.value);
+                setSent(false);
+              }}
+              placeholder={t("tasks.agentInstructionPlaceholder")}
+              aria-label={t("tasks.agentInstruction")}
+              rows={4}
+            />
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t p-2">
+              <span className="truncate text-xs text-muted-foreground">
+                {sendError
+                  ? sendError
+                  : sent
+                    ? t("tasks.sent")
+                    : t("tasks.mentionHint")}
+              </span>
+              <Button type="submit" disabled={!instruction.trim() || isSending}>
+                {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -1243,7 +1378,11 @@ function TicketChatFeed({
   t: TranslationFn;
 }) {
   if (isLoading) {
-    return <div className="ticket-chat-empty">{t("tasks.loadingChat")}</div>;
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+        {t("tasks.loadingChat")}
+      </div>
+    );
   }
 
   const visibleMessages = messages.filter(
@@ -1251,22 +1390,36 @@ function TicketChatFeed({
   );
 
   if (visibleMessages.length === 0) {
-    return <div className="ticket-chat-empty">{t("tasks.noTicketChat")}</div>;
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+        {t("tasks.noTicketChat")}
+      </div>
+    );
   }
 
   return (
-    <div className="ticket-chat-feed" aria-live="polite">
+    <div
+      className="min-h-0 flex-1 space-y-4 overflow-auto rounded-md border bg-muted/20 p-4"
+      aria-live="polite"
+    >
       {visibleMessages.map((message) => {
         return (
-          <article className="ticket-chat-message" key={message.id}>
-            <Avatar className="ticket-chat-avatar">
+          <article
+            className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3"
+            key={message.id}
+          >
+            <Avatar>
               <AvatarFallback>
                 {messageAuthorInitial(message, members, t)}
               </AvatarFallback>
             </Avatar>
-            <div className="ticket-chat-bubble">
-              <strong>{messageAuthorLabel(message, members, t)}</strong>
-              <p>{message.content}</p>
+            <div className="min-w-0 space-y-1">
+              <strong className="text-xs font-medium text-muted-foreground">
+                {messageAuthorLabel(message, members, t)}
+              </strong>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                {message.content}
+              </p>
             </div>
           </article>
         );
@@ -1277,12 +1430,14 @@ function TicketChatFeed({
 
 function AgentSelect({
   agent,
+  id,
   label,
   members,
   preferred,
   onChange,
 }: {
   agent: string;
+  id?: string;
   label: string;
   members: OfficeMember[];
   preferred?: string;
@@ -1291,7 +1446,7 @@ function AgentSelect({
   const options = agentSlugs(members, agent || preferred || DEFAULT_AGENT);
   return (
     <Select
-      className="agent-select"
+      id={id}
       value={agent || options[0] || ""}
       onChange={(event) => onChange(event.currentTarget.value)}
       aria-label={label}
