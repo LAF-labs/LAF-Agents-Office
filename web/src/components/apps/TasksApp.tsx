@@ -1179,7 +1179,6 @@ export function TasksApp() {
           selectedProjectId={selectedProjectId || "all"}
           tasks={allProjectTasks}
           t={t}
-          onChatAgent={handleOpenAgentChat}
           onCreateProject={handleOpenProjectCreator}
           onSelectProject={setSelectedProjectId}
         />
@@ -1476,7 +1475,6 @@ interface ProjectListPanelProps {
   selectedProjectId: string;
   tasks: Task[];
   t: TranslationFn;
-  onChatAgent: (agentSlug: string) => void;
   onCreateProject: () => void;
   onSelectProject: (projectId: string) => void;
 }
@@ -1489,7 +1487,6 @@ function ProjectListPanel({
   selectedProjectId,
   tasks,
   t,
-  onChatAgent,
   onCreateProject,
   onSelectProject,
 }: ProjectListPanelProps) {
@@ -1540,7 +1537,6 @@ function ProjectListPanel({
               name={t("tasks.allProjects")}
               stats={allStats}
               t={t}
-              onChatAgent={onChatAgent}
               onSelect={() => onSelectProject("all")}
             />
           ) : null}
@@ -1551,7 +1547,7 @@ function ProjectListPanel({
             return (
               <ProjectListRow
                 key={project.id}
-                description={project.description || project.id}
+                description={project.description}
                 isActive={selectedProjectId === project.id}
                 isLoadingStats={!isStatsReady}
                 language={language}
@@ -1559,7 +1555,6 @@ function ProjectListPanel({
                 name={project.name || project.id}
                 stats={projectTaskStats(projectTasks)}
                 t={t}
-                onChatAgent={onChatAgent}
                 onSelect={() => onSelectProject(project.id)}
               />
             );
@@ -1579,7 +1574,6 @@ interface ProjectListRowProps {
   name: string;
   stats: ProjectTaskStats;
   t: TranslationFn;
-  onChatAgent: (agentSlug: string) => void;
   onSelect: () => void;
 }
 
@@ -1592,11 +1586,15 @@ function ProjectListRow({
   name,
   stats,
   t,
-  onChatAgent,
   onSelect,
 }: ProjectListRowProps) {
   const progress = projectProgressPercent(stats);
   const countValue = (value: number) => (isLoadingStats ? "..." : value);
+  const visibleDescription =
+    description &&
+    description.trim().toLowerCase() !== name.trim().toLowerCase()
+      ? description
+      : undefined;
 
   return (
     <div className={`project-list-row${isActive ? " active" : ""}`}>
@@ -1607,27 +1605,35 @@ function ProjectListRow({
             <span className="project-list-lead">@{leadAgent}</span>
           ) : null}
         </span>
-        {description ? (
-          <span className="project-list-description">{description}</span>
+        {visibleDescription ? (
+          <span className="project-list-description">{visibleDescription}</span>
         ) : null}
         <span className="project-list-counts">
           <span>
             <strong>{countValue(stats.active)}</strong> {t("tasks.activeCount")}
           </span>
+          <span aria-hidden="true">·</span>
           <span>
             <strong>{countValue(stats.done)}</strong> {t("tasks.doneCount")}
           </span>
-          <span>
-            <strong>{countValue(stats.review)}</strong> {t("tasks.reviewCount")}
-          </span>
-          <span>
-            <strong>{countValue(stats.blocked)}</strong>{" "}
-            {t("tasks.blockedCount")}
-          </span>
-        </span>
-        <span className="project-list-progress-line">
-          <span>{t("tasks.progress")}</span>
-          <strong>{isLoadingStats ? "..." : `${progress}%`}</strong>
+          {isLoadingStats || stats.review > 0 ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>
+                <strong>{countValue(stats.review)}</strong>{" "}
+                {t("tasks.reviewCount")}
+              </span>
+            </>
+          ) : null}
+          {isLoadingStats || stats.blocked > 0 ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>
+                <strong>{countValue(stats.blocked)}</strong>{" "}
+                {t("tasks.blockedCount")}
+              </span>
+            </>
+          ) : null}
         </span>
         <span
           className="project-list-progress"
@@ -1647,19 +1653,6 @@ function ProjectListRow({
               : countLabel(stats.total, "task", "tasks", "작업", language)}
         </span>
       </button>
-      {leadAgent ? (
-        <div className="project-list-agents">
-          <button
-            type="button"
-            className="project-agent-chat"
-            onClick={() => onChatAgent(leadAgent)}
-            aria-label={`${t("tasks.chatWithAgent")} @${leadAgent}`}
-            title={`${t("tasks.chatWithAgent")} @${leadAgent}`}
-          >
-            {t("tasks.chatLead")}
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1956,19 +1949,18 @@ function ProjectWorkspaceOverview({
     >
       <div className="task-workspace-strip-main">
         <span className="task-workspace-kicker">{t("tasks.project")}</span>
-        <strong>{projectWorkspaceName(project, language)}</strong>
-        <span>{projectSummary}</span>
-      </div>
-      <div className="task-workspace-actions">
         <button
           type="button"
-          className="task-workspace-action"
+          className="task-workspace-title-button"
           aria-label={t("tasks.openProjectWiki")}
           title={t("tasks.openProjectWiki")}
           onClick={onOpenWiki}
         >
-          <strong>{t("tasks.projectWiki")}</strong>
+          <strong>{projectWorkspaceName(project, language)}</strong>
         </button>
+        <span>{projectSummary}</span>
+      </div>
+      <div className="task-workspace-actions">
         <ProjectLeadControl
           editor={leadAgentEditor}
           fallbackLeadAgent={leadAgent}
@@ -2026,7 +2018,7 @@ function ProjectLeadControl({
       >
         {leadOptions.map((option) => (
           <option key={option.slug} value={option.slug}>
-            {option.label}
+            @{option.slug}
           </option>
         ))}
       </select>
@@ -2077,6 +2069,36 @@ function ProjectGitHubStripItem({
     ? "task-workspace-github-action"
     : "task-workspace-strip-item task-workspace-strip-github";
 
+  if (compact) {
+    return (
+      <div className={className}>
+        <span className="task-github-status-dot" aria-hidden="true" />
+        <strong>{t(titleKey)}</strong>
+        <span className="sr-only" aria-live="polite">
+          {repoReadinessState.isLoading ? t("tasks.repoChecking") : ""}
+        </span>
+        {isEditing ? (
+          <ProjectGitHubEditForm
+            connector={connector}
+            isSaving={isSaving}
+            project={project}
+            repoReadinessState={repoReadinessState}
+            t={t}
+          />
+        ) : (
+          <ProjectGitHubCompactActions
+            connector={connector}
+            isSaving={isSaving}
+            project={project}
+            repoReadinessState={repoReadinessState}
+            repoURL={repoURL}
+            t={t}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
       <span className="task-workspace-kicker">GitHub</span>
@@ -2118,6 +2140,69 @@ function ProjectGitHubStripItem({
           t={t}
         />
       )}
+    </div>
+  );
+}
+
+function ProjectGitHubCompactActions({
+  connector,
+  isSaving,
+  project,
+  repoReadinessState,
+  repoURL,
+  t,
+}: ProjectGitHubChildProps & { repoURL?: string }) {
+  if (!repoURL) {
+    return (
+      <button
+        type="button"
+        className="task-github-compact-link"
+        onClick={() => connector.begin(project)}
+        aria-label={t("tasks.connectGithubRepo")}
+      >
+        {t("tasks.githubConnectShort")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="task-github-compact-actions">
+      <a
+        className="task-github-compact-link"
+        href={repoURL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={t("tasks.openGithubRepo")}
+      >
+        {t("tasks.githubOpenShort")}
+      </a>
+      <details className="task-github-menu">
+        <summary aria-label={t("tasks.moreActions")}>...</summary>
+        <div className="task-github-menu-popover">
+          <button type="button" onClick={() => connector.begin(project)}>
+            {t("tasks.changeGithubRepo")}
+          </button>
+          <button
+            type="button"
+            disabled={repoReadinessState.isLoading}
+            onClick={repoReadinessState.refetch}
+          >
+            {repoReadinessState.isLoading
+              ? t("tasks.repoChecking")
+              : t("tasks.checkGitHubReadiness")}
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void connector.disconnect(project)}
+          >
+            {isSaving ? t("tasks.saving") : t("tasks.disconnect")}
+          </button>
+        </div>
+      </details>
+      {connector.githubError ? (
+        <span className="task-github-error">{connector.githubError}</span>
+      ) : null}
     </div>
   );
 }

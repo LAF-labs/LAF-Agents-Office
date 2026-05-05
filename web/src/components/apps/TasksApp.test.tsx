@@ -118,7 +118,6 @@ describe("TasksApp project workspace", () => {
     expect(
       screen.getAllByRole("button", { name: /@engineer/ }).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(await screen.findByText("Repo ready")).toBeInTheDocument();
     expect(await screen.findByText(/2 active tasks/)).toBeInTheDocument();
     expect(screen.getByText("Issues")).toBeInTheDocument();
@@ -194,9 +193,7 @@ describe("TasksApp project workspace", () => {
     ).toBeGreaterThan(0);
 
     await user.click(
-      within(projectList).getAllByRole("button", {
-        name: "Chat with agent @engineer",
-      })[0],
+      screen.getByRole("button", { name: "Chat with agent @engineer" }),
     );
 
     await waitFor(() => {

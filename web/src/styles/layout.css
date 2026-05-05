@@ -1403,8 +1403,8 @@ html[data-theme="office"]
 }
 .project-workspace-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 18px;
   padding: 14px 20px 0;
 }
 .project-workspace-main {
@@ -1413,17 +1413,17 @@ html[data-theme="office"]
 .project-list-panel {
   align-self: start;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  padding: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 .project-list-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 7px;
+  padding: 0 2px;
 }
 .project-list-head h4 {
   margin: 0;
@@ -1432,8 +1432,7 @@ html[data-theme="office"]
   font-weight: 740;
 }
 .project-list-head span,
-.project-list-empty span,
-.project-list-agents span {
+.project-list-empty span {
   color: var(--text-tertiary);
   font-size: 11px;
   line-height: 1.4;
@@ -1468,25 +1467,25 @@ html[data-theme="office"]
 }
 .project-list-stack {
   display: grid;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid var(--border);
 }
 .project-list-row {
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
   overflow: hidden;
 }
 .project-list-row.active {
-  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
-  background: color-mix(in srgb, var(--accent-bg) 38%, var(--bg));
+  background: color-mix(in srgb, var(--accent-bg) 34%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .project-list-main {
   width: 100%;
   border: 0;
   background: transparent;
   color: inherit;
-  padding: 9px 10px 7px;
+  padding: 8px 8px 9px;
   text-align: left;
   cursor: pointer;
 }
@@ -1530,15 +1529,14 @@ html[data-theme="office"]
 .project-list-counts {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 7px;
+  gap: 5px;
+  margin-top: 5px;
 }
 .project-list-counts span {
   min-width: 0;
   color: var(--text-tertiary);
   font-size: 11px;
   line-height: 1.25;
-  text-align: center;
   white-space: nowrap;
 }
 .project-list-counts strong {
@@ -1547,22 +1545,10 @@ html[data-theme="office"]
   font-size: 11px;
   line-height: inherit;
 }
-.project-list-progress-line {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 9px;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 1.2;
-}
-.project-list-progress-line strong {
-  color: var(--text-primary);
-}
 .project-list-progress {
   display: block;
-  height: 6px;
-  margin-top: 5px;
+  height: 2px;
+  margin-top: 6px;
   border-radius: var(--radius-full);
   background: var(--bg-subtle);
   overflow: hidden;
@@ -1575,31 +1561,10 @@ html[data-theme="office"]
 }
 .project-list-meta {
   display: block;
-  margin-top: 6px;
+  margin-top: 5px;
   color: var(--text-tertiary);
   font-size: 11px;
   line-height: 1.3;
-}
-.project-list-agents {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 10px 8px;
-}
-.project-agent-chat {
-  min-height: 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-card);
-  color: var(--accent);
-  padding: 0 9px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.project-agent-chat:hover {
-  border-color: var(--accent);
-  background: var(--accent-bg);
 }
 .task-workspace-overview {
   display: grid;
@@ -1664,12 +1629,13 @@ html[data-theme="office"]
 .task-workspace-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 10px 20px 0;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
+  gap: 12px;
+  margin: 0 20px 10px;
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
 }
 .task-workspace-strip-main,
 .task-workspace-strip-item {
@@ -1688,10 +1654,10 @@ html[data-theme="office"]
 }
 .task-workspace-strip-main {
   flex: 1 1 auto;
-  min-height: 46px;
+  min-height: 40px;
   border: 0;
   background: transparent;
-  padding: 4px 6px;
+  padding: 0;
   box-shadow: none;
 }
 .task-workspace-strip-main strong,
@@ -1724,7 +1690,7 @@ html[data-theme="office"]
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
 }
 .task-workspace-action,
 .task-workspace-github-action {
@@ -1760,8 +1726,21 @@ html[data-theme="office"]
 .task-workspace-action:hover strong {
   color: var(--accent);
 }
+.task-workspace-title-button {
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.task-workspace-title-button:hover strong {
+  color: var(--accent);
+}
 .task-workspace-lead-control {
-  min-height: 38px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   gap: 0;
@@ -1772,21 +1751,21 @@ html[data-theme="office"]
 }
 .task-workspace-lead-control select,
 .task-workspace-lead-control button {
-  min-height: 38px;
+  min-height: 30px;
   border: 0;
   background: transparent;
   color: var(--text-primary);
   font: inherit;
 }
 .task-workspace-lead-control select {
-  max-width: 190px;
+  max-width: 145px;
   padding: 0 26px 0 9px;
   font-size: 12px;
   font-weight: 700;
 }
 .task-workspace-lead-control button {
   border-left: 1px solid var(--border);
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--text-tertiary);
   cursor: pointer;
   font-size: 11px;
@@ -1805,10 +1784,91 @@ html[data-theme="office"]
   opacity: 0.55;
 }
 .task-workspace-github-action {
-  min-width: 190px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  min-width: 0;
+  min-height: 30px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.task-workspace-github-action strong {
+  max-width: 150px;
+  font-size: 12px;
+}
+.task-github-status-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+.task-github-compact-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.task-github-compact-link,
+.task-github-menu summary {
+  min-height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+.task-github-compact-link:hover,
+.task-github-menu summary:hover {
+  color: var(--text-primary);
+}
+.task-github-menu {
+  position: relative;
+}
+.task-github-menu summary {
+  list-style: none;
+}
+.task-github-menu summary::-webkit-details-marker {
+  display: none;
+}
+.task-github-menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 170px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  padding: 6px;
+  box-shadow: 0 10px 28px rgba(30, 31, 31, 0.12);
+}
+.task-github-menu-popover button {
+  min-height: 28px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.task-github-menu-popover button:hover {
+  background: var(--accent-bg);
+}
+.task-github-menu-popover button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 .task-workspace-strip-button {
   color: inherit;
@@ -1845,6 +1905,9 @@ html[data-theme="office"]
   color: var(--text-primary);
   padding: 0 9px;
   font-size: 12px;
+}
+.task-workspace-github-action .task-github-form {
+  min-width: min(360px, 48vw);
 }
 .task-github-error {
   width: 100%;
@@ -2466,8 +2529,8 @@ html[data-theme="office"]
   .task-workspace-strip {
     flex-direction: column;
     align-items: stretch;
-    margin: 10px 16px 0;
-    padding: 8px;
+    margin: 0 16px 10px;
+    padding: 0 0 10px;
   }
   .task-workspace-strip-main {
     grid-column: auto;
