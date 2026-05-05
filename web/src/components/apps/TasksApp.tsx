@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   type QueryClient,
   useQuery,
@@ -19,7 +19,10 @@ import {
   type Task,
 } from "../../api/client";
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
+import { formatTime } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
+import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
+import { cn } from "../../lib/utils";
 import { type Language, useAppStore } from "../../stores/app";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge, type BadgeProps } from "../ui/badge";
@@ -298,13 +301,25 @@ function looksGeneratedTaskDetail(raw: string): boolean {
   return (
     /^Still blocked:/i.test(raw) ||
     /^Automatic error recovery:/i.test(raw) ||
-    raw.includes("Automatic error recovery:")
+    raw.includes("Automatic error recovery:") ||
+    (/^Picking up the reported /i.test(raw) && /bugfix lane/i.test(raw)) ||
+    (/^Pick up the .* issue:/i.test(raw) && /Treat this as/i.test(raw)) ||
+    (/^No isolated .* worktree/i.test(raw) &&
+      /Ticket chat now routes/i.test(raw)) ||
+    (/^No isolated .* worktree/i.test(raw) &&
+      /The narrow repo fix/i.test(raw)) ||
+    (/Inspect the .* flow/i.test(raw) &&
+      /report the exact verification/i.test(raw))
   );
 }
 
 function userEnteredTaskDetails(task: Task): string {
   const humanDetails = task.human_details?.trim();
-  if (humanDetails) return humanDetails;
+  if (humanDetails) {
+    const extracted = extractQuotedHumanDetail(humanDetails);
+    if (extracted) return extracted;
+    return looksGeneratedTaskDetail(humanDetails) ? "" : humanDetails;
+  }
   const raw = (task.details || task.description || "").trim();
   if (!raw) return "";
   const extracted = extractQuotedHumanDetail(raw);
@@ -349,6 +364,22 @@ function messageAuthorInitial(
 ): string {
   const label = messageAuthorLabel(message, members, t).replace(/^@/, "");
   return label.trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function isHumanMessage(message: Message): boolean {
+  return message.from === "you" || message.from === "human";
+}
+
+function ticketCommentTargets(
+  content: string,
+  task: Task,
+  members: OfficeMember[],
+): string[] {
+  const knownSlugs = agentSlugs(members, task.owner || DEFAULT_AGENT);
+  const explicitTargets = extractTaggedMentions(content, knownSlugs);
+  if (explicitTargets.length > 0) return explicitTargets;
+  const owner = task.owner?.trim();
+  return owner && !isHumanSlug(owner) ? [owner] : [];
 }
 
 function useProjectCreator(
@@ -1254,16 +1285,22 @@ function TicketSidePanel({
     refetchInterval: TASK_REFETCH_MS,
   });
   const threadMessages = threadMessagesQuery.data?.messages ?? [];
+  const commentTargets = ticketCommentTargets(instruction, task, members);
+  const routeHint =
+    instruction.trim() && commentTargets.length > 0
+      ? `${t("tasks.notify")} ${commentTargets.map((slug) => agentLabel(slug, members)).join(", ")}`
+      : t("tasks.mentionHint");
 
   async function handleSendInstruction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = instruction.trim();
     if (!text || isSending) return;
+    const taggedTargets = ticketCommentTargets(text, task, members);
     setIsSending(true);
     setSendError(null);
     setSent(false);
     try {
-      await postMessage(text, channel, threadId);
+      await postMessage(text, channel, threadId, taggedTargets);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["messages", channel] }),
         queryClient.invalidateQueries({
@@ -1282,11 +1319,15 @@ function TicketSidePanel({
   return (
     <Sheet>
       <SheetContent
-        className="h-auto w-full gap-4 p-5 sm:max-w-xl"
-        style={{ top: "var(--topbar-height, 0px)" }}
+        className="h-auto w-full gap-0 p-0 sm:max-w-2xl"
+        style={{
+          maxWidth: "44rem",
+          top: "var(--topbar-height, 0px)",
+          width: "min(100vw, 44rem)",
+        }}
         aria-label={t("tasks.ticketDetails")}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4 border-b px-6 py-5">
           <SheetHeader className="min-w-0">
             <SheetDescription>{task.id}</SheetDescription>
             <SheetTitle className="truncate">
@@ -1304,77 +1345,87 @@ function TicketSidePanel({
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1">
-            <span className="text-xs font-medium text-muted-foreground">
-              {t("tasks.status")}
-            </span>
-            <Badge className="w-fit" variant={taskStatusBadgeVariant(status)}>
-              {t(STATUS_LABEL_KEYS[status])}
-            </Badge>
-          </div>
-          <div className="grid min-w-0 gap-1">
-            <span className="text-xs font-medium text-muted-foreground">
-              {t("tasks.detail.owner")}
-            </span>
-            <span className="truncate text-sm font-medium text-foreground">
-              {taskOwnerLabel(task, members, t)}
-            </span>
-          </div>
-        </div>
-
-        <Separator />
-
-        <section className="grid max-h-36 gap-2 overflow-auto rounded-md border bg-muted/20 p-3">
-          <h5 className="text-xs font-medium text-muted-foreground">
-            {t("tasks.ticketDetails")}
-          </h5>
-          <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-            {detail}
-          </p>
-        </section>
-
-        <form
-          className="flex min-h-0 flex-1 flex-col gap-3"
-          onSubmit={handleSendInstruction}
-        >
-          <div className="flex items-center justify-between">
-            <h5 className="text-sm font-medium text-foreground">
-              {t("tasks.agentInstruction")}
-            </h5>
-          </div>
-          <TicketChatFeed
-            isLoading={threadMessagesQuery.isLoading}
-            members={members}
-            messages={threadMessages}
-            t={t}
-          />
-          <div className="overflow-hidden rounded-md border bg-background shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-            <Textarea
-              className="min-h-24 resize-y rounded-none border-0 shadow-none focus-visible:ring-0"
-              value={instruction}
-              onChange={(event) => {
-                setInstruction(event.currentTarget.value);
-                setSent(false);
-              }}
-              placeholder={t("tasks.agentInstructionPlaceholder")}
-              aria-label={t("tasks.agentInstruction")}
-              rows={4}
-            />
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t p-2">
-              <span className="truncate text-xs text-muted-foreground">
-                {sendError
-                  ? sendError
-                  : sent
-                    ? t("tasks.sent")
-                    : t("tasks.mentionHint")}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="grid grid-cols-2 gap-4 px-6 py-4">
+            <div className="grid gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("tasks.status")}
               </span>
-              <Button type="submit" disabled={!instruction.trim() || isSending}>
-                {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
-              </Button>
+              <Badge className="w-fit" variant={taskStatusBadgeVariant(status)}>
+                {t(STATUS_LABEL_KEYS[status])}
+              </Badge>
+            </div>
+            <div className="grid min-w-0 gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("tasks.detail.owner")}
+              </span>
+              <span className="truncate text-sm font-medium text-foreground">
+                {taskOwnerLabel(task, members, t)}
+              </span>
             </div>
           </div>
-        </form>
+
+          <section className="mx-6 mb-5 grid max-h-32 gap-2 overflow-auto rounded-md bg-muted/40 p-3">
+            <h5 className="text-xs font-medium text-muted-foreground">
+              {t("tasks.ticketDetails")}
+            </h5>
+            <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+              {detail}
+            </p>
+          </section>
+
+          <Separator />
+
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={handleSendInstruction}
+          >
+            <div className="px-6 py-4">
+              <h5 className="text-sm font-medium text-foreground">
+                {t("tasks.agentInstruction")}
+              </h5>
+            </div>
+            <TicketChatFeed
+              isLoading={threadMessagesQuery.isLoading}
+              members={members}
+              messages={threadMessages}
+              t={t}
+            />
+            <div className="border-t bg-background p-4">
+              <div className="overflow-hidden rounded-md border bg-card shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+                <Textarea
+                  className="min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                  value={instruction}
+                  onChange={(event) => {
+                    setInstruction(event.currentTarget.value);
+                    setSent(false);
+                  }}
+                  placeholder={t("tasks.agentInstructionPlaceholder")}
+                  aria-label={t("tasks.agentInstruction")}
+                  rows={4}
+                />
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-muted/20 p-2">
+                  <span
+                    className={cn(
+                      "truncate text-xs",
+                      sendError ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {sendError ? sendError : sent ? t("tasks.sent") : routeHint}
+                  </span>
+                  <Button
+                    type="submit"
+                    disabled={!instruction.trim() || isSending}
+                  >
+                    {isSending
+                      ? t("tasks.sending")
+                      : t("tasks.sendInstruction")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
       </SheetContent>
     </Sheet>
   );
@@ -1391,53 +1442,83 @@ function TicketChatFeed({
   messages: Message[];
   t: TranslationFn;
 }) {
+  const visibleMessages = messages.filter(
+    (message) => !message.content?.startsWith("[STATUS]"),
+  );
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  });
+
   if (isLoading) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+      <div className="mx-6 flex min-h-72 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
         {t("tasks.loadingChat")}
       </div>
     );
   }
 
-  const visibleMessages = messages.filter(
-    (message) => !message.content?.startsWith("[STATUS]"),
-  );
-
   if (visibleMessages.length === 0) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
-        {t("tasks.noTicketChat")}
+      <div className="mx-6 flex min-h-72 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+        <div className="grid gap-1">
+          <strong className="font-medium text-foreground">
+            {t("tasks.noTicketChat")}
+          </strong>
+          <span>{t("tasks.noTicketChatHint")}</span>
+        </div>
       </div>
     );
   }
 
+  const knownSlugs = agentSlugs(members);
+
   return (
-    <div
-      className="min-h-0 flex-1 space-y-4 overflow-auto rounded-md border bg-muted/20 p-4"
-      aria-live="polite"
-    >
+    <div className="min-h-0 flex-1 overflow-auto px-6 pb-5" aria-live="polite">
       {visibleMessages.map((message) => {
+        const isHuman = isHumanMessage(message);
+        const timestamp = message.timestamp
+          ? formatTime(message.timestamp)
+          : "";
         return (
           <article
-            className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3"
+            className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b py-4 last:border-b-0"
             key={message.id}
           >
-            <Avatar>
+            <Avatar className={cn(isHuman ? "bg-primary/10" : "bg-muted")}>
               <AvatarFallback>
                 {messageAuthorInitial(message, members, t)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 space-y-1">
-              <strong className="text-xs font-medium text-muted-foreground">
-                {messageAuthorLabel(message, members, t)}
-              </strong>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                {message.content}
-              </p>
+              <div className="flex min-w-0 items-center gap-2">
+                <strong className="truncate text-sm font-medium text-foreground">
+                  {messageAuthorLabel(message, members, t)}
+                </strong>
+                {timestamp ? (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {timestamp}
+                  </span>
+                ) : null}
+              </div>
+              <div
+                className={cn(
+                  "w-fit max-w-full rounded-md border px-3 py-2 text-sm leading-6",
+                  isHuman
+                    ? "border-primary/15 bg-primary/5 text-foreground"
+                    : "bg-muted/30 text-foreground",
+                )}
+              >
+                <p className="whitespace-pre-wrap break-words">
+                  {renderMentions(message.content || "", knownSlugs)}
+                </p>
+              </div>
             </div>
           </article>
         );
       })}
+      <div ref={endRef} />
     </div>
   );
 }

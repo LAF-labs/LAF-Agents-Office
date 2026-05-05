@@ -378,9 +378,11 @@ const messages = {
     "tasks.agentInstruction": "Ticket chat",
     "tasks.loadingChat": "Loading conversation...",
     "tasks.noTicketChat": "No comments yet.",
+    "tasks.noTicketChatHint": "Mention an agent or leave a note for the team.",
     "tasks.agentInstructionPlaceholder":
       "Leave a comment. Mention @agent when you need someone.",
     "tasks.mentionHint": "Mention @agent to bring someone in.",
+    "tasks.notify": "Notify",
     "tasks.sendInstruction": "Send",
     "tasks.sending": "Sending...",
     "tasks.sent": "Sent",
@@ -944,10 +946,13 @@ const messages = {
     "tasks.agentInstruction": "티켓 채팅",
     "tasks.loadingChat": "대화를 불러오는 중...",
     "tasks.noTicketChat": "아직 댓글이 없습니다.",
+    "tasks.noTicketChatHint":
+      "에이전트를 멘션하거나 팀 댓글을 남길 수 있습니다.",
     "tasks.agentInstructionPlaceholder":
       "댓글을 남기세요. 누군가 필요하면 @agent로 멘션하세요.",
     "tasks.mentionHint":
       "@agent로 필요한 사람이나 에이전트를 부를 수 있습니다.",
+    "tasks.notify": "전달",
     "tasks.sendInstruction": "보내기",
     "tasks.sending": "보내는 중...",
     "tasks.sent": "전송됨",

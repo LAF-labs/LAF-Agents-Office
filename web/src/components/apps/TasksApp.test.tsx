@@ -77,6 +77,8 @@ function mockProjectDirectory() {
         created_by: "ceo",
         details:
           "Pick up the Korean user-reported latency issue: `유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.` Treat this as a bugfix lane.",
+        human_details:
+          "Pick up the Korean user-reported latency issue: `유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.` Treat this as a bugfix lane.",
         owner: "engineer",
         project_id: "customer-portal",
         status: "in_progress",
@@ -273,6 +275,7 @@ describe("TasksApp project directory", () => {
         "Please finish this ticket and report blockers.",
         "general",
         "thread-build",
+        ["engineer"],
       );
     });
   });

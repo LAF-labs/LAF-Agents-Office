@@ -685,6 +685,41 @@ func TestNotificationTargetsExplicitTagsAlwaysDeliverRegardlessOfDomain(t *testi
 	}
 }
 
+func TestTicketThreadCommentsBypassPendingInterviewGate(t *testing.T) {
+	if !messageBypassesPendingInterview(channelMessage{
+		From:    "you",
+		ReplyTo: "task-7",
+		Content: "@engineer any update?",
+	}) {
+		t.Fatal("expected human ticket-thread comment to bypass the pending interview gate")
+	}
+	if messageBypassesPendingInterview(channelMessage{
+		From:    "you",
+		Content: "top-level channel message",
+	}) {
+		t.Fatal("top-level messages should still pause behind a pending interview")
+	}
+	if messageBypassesPendingInterview(channelMessage{
+		From:    "engineer",
+		ReplyTo: "task-7",
+		Content: "agent reply",
+	}) {
+		t.Fatal("agent replies should not bypass the pending interview gate")
+	}
+}
+
+func TestTaskCreationBypassesPendingInterviewGate(t *testing.T) {
+	if !taskActionBypassesPendingInterview(officeActionLog{Kind: "task_created"}) {
+		t.Fatal("new tickets should still wake their assignee when an old request is pending")
+	}
+	if !taskActionBypassesPendingInterview(officeActionLog{Kind: "task_unblocked"}) {
+		t.Fatal("unblocked tickets should still wake their assignee when an old request is pending")
+	}
+	if taskActionBypassesPendingInterview(officeActionLog{Kind: "task_updated"}) {
+		t.Fatal("ordinary task updates should still pause behind a pending interview")
+	}
+}
+
 func TestNotificationTargetsTaggedSpecialistsGetImmediateDelivery(t *testing.T) {
 	l := &Launcher{
 		pack: &agent.PackDefinition{
@@ -962,6 +997,24 @@ func TestBuildTaskExecutionPacketLocalWorktreeForbidsNestedOffice(t *testing.T) 
 	}
 	if !strings.Contains(got, "not satisfied by another plan, architecture memo, or audit summary") {
 		t.Fatalf("expected deliverable guidance in packet: %q", got)
+	}
+}
+
+func TestBuildTaskExecutionPacketRoutesFallbackToTicketChat(t *testing.T) {
+	l := &Launcher{}
+	got := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_created",
+		Actor: "human",
+	}, teamTask{
+		ID:       "task-42",
+		Channel:  "general",
+		ThreadID: "task-42",
+		Title:    "Fix payment delay",
+		Owner:    "eng",
+		Status:   "in_progress",
+	}, "Start this ticket.")
+	if !strings.Contains(got, `reply_to_id "task-42"`) {
+		t.Fatalf("expected ticket chat reply_to_id in task packet: %q", got)
 	}
 }
 

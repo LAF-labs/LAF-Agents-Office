@@ -457,7 +457,7 @@ func (l *Launcher) notifyAgentsLoop() {
 	defer unsubscribe()
 
 	for msg := range msgs {
-		if l.broker.HasPendingInterview() {
+		if l.broker.HasPendingInterview() && !messageBypassesPendingInterview(msg) {
 			continue
 		}
 		if msg.From == "system" {
@@ -465,6 +465,10 @@ func (l *Launcher) notifyAgentsLoop() {
 		}
 		l.safeDeliverMessage(msg)
 	}
+}
+
+func messageBypassesPendingInterview(msg channelMessage) bool {
+	return messageComesFromHumanOrSystem(msg) && strings.TrimSpace(msg.ReplyTo) != ""
 }
 
 // safeDeliverMessage wraps deliverMessageNotification in a panic recover so a
@@ -503,7 +507,7 @@ func (l *Launcher) notifyTaskActionsLoop() {
 	defer unsubscribe()
 
 	for action := range actions {
-		if l.broker.HasPendingInterview() {
+		if l.broker.HasPendingInterview() && !taskActionBypassesPendingInterview(action) {
 			continue
 		}
 		if action.Kind != "task_created" && action.Kind != "task_updated" && action.Kind != "task_unblocked" {
@@ -525,6 +529,10 @@ func (l *Launcher) notifyTaskActionsLoop() {
 			l.deliverTaskNotification(action, task)
 		}()
 	}
+}
+
+func taskActionBypassesPendingInterview(action officeActionLog) bool {
+	return action.Kind == "task_created" || action.Kind == "task_unblocked"
 }
 
 func (l *Launcher) notifyOfficeChangesLoop() {
@@ -2934,6 +2942,13 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 		lines = append(lines, fmt.Sprintf("- Thread: #%s reply_to %s", channel, task.ThreadID))
 	} else {
 		lines = append(lines, fmt.Sprintf("- Channel: #%s", channel))
+	}
+	replyToID := strings.TrimSpace(task.ThreadID)
+	if replyToID == "" {
+		replyToID = strings.TrimSpace(task.ID)
+	}
+	if replyToID != "" {
+		lines = append(lines, fmt.Sprintf("- Ticket chat reply: use team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\" for human-visible progress and blockers.", slug, channel, replyToID))
 	}
 	lines = append(lines, fmt.Sprintf("- Mutation channel: use #%s when claiming or completing #%s", channel, task.ID))
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {
