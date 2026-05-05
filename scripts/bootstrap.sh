@@ -66,4 +66,11 @@ else
   ok "golangci-lint present"
 fi
 
+if ! command -v tmux >/dev/null 2>&1; then
+  warn "tmux not installed — 24/7 squad helper is unavailable."
+  warn "  install: brew install tmux"
+else
+  ok "tmux present"
+fi
+
 printf "\n%sYou're ready%s — try \`git commit\`.\n" "$bold" "$reset"

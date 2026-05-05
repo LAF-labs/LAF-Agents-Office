@@ -347,6 +347,15 @@ export function fetchCommands() {
   return get<SlashCommandDescriptor[]>("/commands");
 }
 
+export interface RunSlashCommandResponse {
+  output: string;
+  message: Message;
+}
+
+export function runSlashCommand(input: string, channel: string) {
+  return post<RunSlashCommandResponse>("/commands/run", { input, channel });
+}
+
 // ── Members ──
 
 export interface ProviderBinding {

@@ -52,6 +52,41 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/resume", desc: "Resume all agents", icon: "▶" },
   { name: "/threads", desc: "See every active thread", icon: "🧵" },
   { name: "/provider", desc: "Switch runtime provider", icon: "⚙" },
+  {
+    name: "/hire-agent",
+    desc: "Workflow for hiring a Claude/Codex-backed LAF agent",
+    icon: "＋",
+  },
+  {
+    name: "/assign-task",
+    desc: "Workflow for assigning task-board work to an agent",
+    icon: "▣",
+  },
+  {
+    name: "/daily-standup",
+    desc: "Run the LAF office daily standup workflow",
+    icon: "☷",
+  },
+  {
+    name: "/review-office",
+    desc: "Run Reviewer checks for Office Rule, security, and memory consistency",
+    icon: "✓",
+  },
+  {
+    name: "/promote-to-wiki",
+    desc: "Review Notebook drafts for manual Wiki promotion",
+    icon: "↑",
+  },
+  {
+    name: "/fix-bug",
+    desc: "TDD bug-fix workflow with review and memory capture",
+    icon: "!",
+  },
+  {
+    name: "/deploy-simulation",
+    desc: "Local deployment/simulation workflow for Claude or Codex mode",
+    icon: "▸",
+  },
 ];
 
 /**
@@ -81,6 +116,13 @@ const COMMAND_ICONS: Record<string, string> = {
   resume: "▶",
   threads: "🧵",
   provider: "⚙",
+  "hire-agent": "＋",
+  "assign-task": "▣",
+  "daily-standup": "☷",
+  "review-office": "✓",
+  "promote-to-wiki": "↑",
+  "fix-bug": "!",
+  "deploy-simulation": "▸",
 };
 
 const DEFAULT_ICON = "›";

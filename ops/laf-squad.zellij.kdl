@@ -1,0 +1,28 @@
+layout {
+    tab name="architect" cwd="." {
+        pane command="bash" {
+            args "-lc" "printf 'LAF architect. Read CLAUDE.md and .laf-office/subagents/architect.md.\\n'; exec bash"
+        }
+    }
+    tab name="coder" cwd="." {
+        pane command="bash" {
+            args "-lc" "printf 'LAF coder. Read CLAUDE.md and .laf-office/subagents/coder.md.\\n'; exec bash"
+        }
+    }
+    tab name="reviewer" cwd="." {
+        pane command="bash" {
+            args "-lc" "printf 'LAF reviewer. Run ./scripts/laf-superworkflow-check.sh reviewer.\\n'; exec bash"
+        }
+    }
+    tab name="tester" cwd="." {
+        pane command="bash" {
+            args "-lc" "printf 'LAF tester. Run ./scripts/laf-superworkflow-check.sh tester.\\n'; exec bash"
+        }
+    }
+    tab name="ops" cwd="." {
+        pane command="bash" {
+            args "-lc" "printf 'LAF ops. Keep provider, hooks, wiki sync, and deployment healthy.\\n'; exec bash"
+        }
+    }
+}
+

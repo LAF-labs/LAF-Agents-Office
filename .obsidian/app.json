@@ -1,0 +1,11 @@
+{
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "docs/wiki-mirror/assets",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "docs/wiki-mirror/inbox",
+  "promptDelete": false,
+  "showLineNumber": true,
+  "showUnsupportedFiles": true,
+  "useMarkdownLinks": true
+}
+

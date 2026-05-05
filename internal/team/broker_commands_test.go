@@ -1,9 +1,11 @@
 package team
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/commands"
@@ -17,6 +19,7 @@ func newCommandsHTTPTest(t *testing.T) (*httptest.Server, string) {
 	b := newTestBroker(t)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/commands", b.requireAuth(b.handleCommands))
+	mux.HandleFunc("/commands/run", b.requireAuth(b.handleCommandRun))
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	return ts, b.Token()
@@ -78,6 +81,8 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 		"requests", "skills", "tasks",
 		"threads", "provider", "focus", "collab",
 		"pause", "resume", "1o1", "task", "cancel",
+		"hire-agent", "assign-task", "daily-standup", "review-office",
+		"promote-to-wiki", "fix-bug", "deploy-simulation",
 	}
 	for _, name := range webSupported {
 		c, ok := byName[name]
@@ -110,6 +115,58 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 	}
 	if _, ok := byName["calendar"]; ok {
 		t.Error("calendar command should not be exposed by the broker command registry")
+	}
+}
+
+func TestHandleCommandRun_PostsWorkflowOutput(t *testing.T) {
+	ts, token := newCommandsHTTPTest(t)
+
+	body := bytes.NewBufferString(`{"input":"/hire-agent","channel":"general"}`)
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/commands/run", body)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("do: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+
+	var out commandRunResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !strings.Contains(out.Output, "Claude-powered or Codex-powered") {
+		t.Fatalf("unexpected output:\n%s", out.Output)
+	}
+	if out.Message.Source != "slash-command" {
+		t.Fatalf("message source=%q, want slash-command", out.Message.Source)
+	}
+	if out.Message.Channel != "general" {
+		t.Fatalf("message channel=%q, want general", out.Message.Channel)
+	}
+}
+
+func TestHandleCommandRun_RejectsNonAllowlistedCommands(t *testing.T) {
+	ts, token := newCommandsHTTPTest(t)
+
+	body := bytes.NewBufferString(`{"input":"/init","channel":"general"}`)
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/commands/run", body)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("do: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status=%d, want %d", resp.StatusCode, http.StatusForbidden)
 	}
 }
 

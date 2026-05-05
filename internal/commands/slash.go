@@ -32,6 +32,8 @@ func RegisterAllCommands(r *Registry) {
 
 	// Agents
 	r.Register(SlashCommand{Name: "agent", Description: "Agent commands (list/details)", Execute: cmdAgent})
+	r.Register(SlashCommand{Name: "hire-agent", Description: "Workflow for hiring a Claude/Codex-backed LAF agent", WebSupported: true, Execute: cmdHireAgent})
+	r.Register(SlashCommand{Name: "assign-task", Description: "Workflow for assigning task-board work to an agent", WebSupported: true, Execute: cmdAssignTask})
 
 	// Config
 	r.Register(SlashCommand{Name: "config", Description: "Config commands (show/set/path)", Execute: cmdConfig})
@@ -46,6 +48,11 @@ func RegisterAllCommands(r *Registry) {
 
 	// Wiki intelligence
 	r.Register(SlashCommand{Name: "lint", Description: "Run wiki lint — checks contradictions, orphans, stale claims, cross-refs", WebSupported: true})
+	r.Register(SlashCommand{Name: "daily-standup", Description: "Run the LAF office daily standup workflow", WebSupported: true, Execute: cmdDailyStandup})
+	r.Register(SlashCommand{Name: "review-office", Description: "Run Reviewer checks for Office Rule, security, and memory consistency", WebSupported: true, Execute: cmdReviewOffice})
+	r.Register(SlashCommand{Name: "promote-to-wiki", Description: "Review Notebook drafts for manual Wiki promotion", WebSupported: true, Execute: cmdPromoteToWiki})
+	r.Register(SlashCommand{Name: "fix-bug", Description: "TDD bug-fix workflow with review and memory capture", WebSupported: true, Execute: cmdFixBug})
+	r.Register(SlashCommand{Name: "deploy-simulation", Description: "Local deployment/simulation workflow for Claude or Codex mode", WebSupported: true, Execute: cmdDeploySimulation})
 
 	// Web-only surfaces. No TUI Execute handler yet; the web composer owns the
 	// behaviour (navigate to a view, post to /signals, etc). Listed here so

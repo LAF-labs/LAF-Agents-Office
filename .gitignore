@@ -10,6 +10,10 @@
 !/docs/specs/**
 !/docs/evals/
 !/docs/evals/**
+!/docs/wiki-mirror/
+/docs/wiki-mirror/*
+!/docs/wiki-mirror/README.md
+!/docs/specs/claude-codex-squad.md
 !/docs/REVOPS_TEST_PLAN.md
 /termwright-artifacts/
 .worktrees/

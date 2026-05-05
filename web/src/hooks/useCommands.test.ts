@@ -101,6 +101,13 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
       "/resume",
       "/threads",
       "/provider",
+      "/hire-agent",
+      "/assign-task",
+      "/daily-standup",
+      "/review-office",
+      "/promote-to-wiki",
+      "/fix-bug",
+      "/deploy-simulation",
     ].sort(sortText);
     expect(FALLBACK_SLASH_COMMANDS.map((c) => c.name).sort(sortText)).toEqual(
       expected,
@@ -134,6 +141,13 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
     const lint = FALLBACK_SLASH_COMMANDS.find((c) => c.name === "/lint");
     expect(lint).toBeDefined();
     expect(lint?.desc).toBe("Review wiki for contradictions and stale facts");
+  });
+
+  it("includes provider-selectable LAF workflow commands", () => {
+    const names = FALLBACK_SLASH_COMMANDS.map((c) => c.name);
+    expect(names).toContain("/hire-agent");
+    expect(names).toContain("/review-office");
+    expect(names).toContain("/deploy-simulation");
   });
 
   // Real-world bug: useCommands returned a fresh array on every render, so

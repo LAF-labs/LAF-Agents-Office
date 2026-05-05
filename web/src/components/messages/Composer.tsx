@@ -15,6 +15,7 @@ import {
   getConfig,
   post,
   postMessage,
+  runSlashCommand,
   setMemory,
 } from "../../api/client";
 import { useCommands } from "../../hooks/useCommands";
@@ -109,6 +110,8 @@ interface SlashHandlers {
   leadSlug: string | undefined;
   /** Send the given text as a normal message (bypasses slash parsing). */
   sendAsMessage: (text: string) => void;
+  /** Refresh the active message list after a command posts output. */
+  refreshMessages: () => void;
 }
 
 interface OutboundMessage {
@@ -246,6 +249,23 @@ function handleCancelCommand(args: string, store: AppStore): boolean {
   return true;
 }
 
+function handleWorkflowCommand(
+  cmd: string,
+  args: string,
+  store: AppStore,
+  handlers: SlashHandlers,
+): boolean {
+  const input = [cmd, args].filter(Boolean).join(" ");
+  showNotice(`Running ${cmd}…`, "info");
+  runSlashCommand(input, store.currentChannel)
+    .then(() => {
+      handlers.refreshMessages();
+      showNotice(`${cmd} posted to channel`, "success");
+    })
+    .catch((e: Error) => showNotice(`${cmd} failed: ${e.message}`, "error"));
+  return true;
+}
+
 const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
   "/clear": () => {
     showNotice("Messages cleared", "info");
@@ -332,6 +352,20 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
   },
   "/task": (args, store) => handleTaskCommand(args, store),
   "/cancel": (args, store) => handleCancelCommand(args, store),
+  "/hire-agent": (args, store, handlers) =>
+    handleWorkflowCommand("/hire-agent", args, store, handlers),
+  "/assign-task": (args, store, handlers) =>
+    handleWorkflowCommand("/assign-task", args, store, handlers),
+  "/daily-standup": (args, store, handlers) =>
+    handleWorkflowCommand("/daily-standup", args, store, handlers),
+  "/review-office": (args, store, handlers) =>
+    handleWorkflowCommand("/review-office", args, store, handlers),
+  "/promote-to-wiki": (args, store, handlers) =>
+    handleWorkflowCommand("/promote-to-wiki", args, store, handlers),
+  "/fix-bug": (args, store, handlers) =>
+    handleWorkflowCommand("/fix-bug", args, store, handlers),
+  "/deploy-simulation": (args, store, handlers) =>
+    handleWorkflowCommand("/deploy-simulation", args, store, handlers),
 };
 
 /**
@@ -561,6 +595,11 @@ export function Composer() {
           sendMutation.mutate({
             content: rewritten,
             tagged: extractTaggedMentions(rewritten, knownSlugs),
+          });
+        },
+        refreshMessages: () => {
+          queryClient.invalidateQueries({
+            queryKey: ["messages", currentChannel],
           });
         },
       });

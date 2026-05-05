@@ -22,6 +22,7 @@ package team
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/commands"
 )
@@ -32,6 +33,16 @@ type commandDescriptor struct {
 	Name         string `json:"name"`
 	Description  string `json:"description"`
 	WebSupported bool   `json:"webSupported"`
+}
+
+type commandRunRequest struct {
+	Input   string `json:"input"`
+	Channel string `json:"channel"`
+}
+
+type commandRunResponse struct {
+	Output  string         `json:"output"`
+	Message channelMessage `json:"message"`
 }
 
 // registryLister is the narrow interface GET /commands depends on. Tests
@@ -76,4 +87,84 @@ func (b *Broker) handleCommands(w http.ResponseWriter, r *http.Request) {
 	// thrash the broker. The only way the list changes is a rebuild.
 	w.Header().Set("Cache-Control", "private, max-age=60")
 	_ = json.NewEncoder(w).Encode(out)
+}
+
+var webRunnableCommands = map[string]struct{}{
+	"hire-agent":        {},
+	"assign-task":       {},
+	"daily-standup":     {},
+	"review-office":     {},
+	"promote-to-wiki":   {},
+	"fix-bug":           {},
+	"deploy-simulation": {},
+}
+
+// handleCommandRun executes a small allowlist of web-safe workflow commands
+// through the canonical slash-command dispatcher, then posts the result back
+// into the active channel as an automation message. It intentionally does not
+// expose arbitrary slash dispatch over HTTP: commands such as /init, /quit, and
+// future mutating commands belong in the TUI/CLI unless explicitly reviewed for
+// web execution.
+func (b *Broker) handleCommandRun(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req commandRunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	input := strings.TrimSpace(req.Input)
+	if input == "" {
+		http.Error(w, "input required", http.StatusBadRequest)
+		return
+	}
+	if !strings.HasPrefix(input, "/") {
+		input = "/" + input
+	}
+	name, _, ok := commands.ParseSlashInput(input)
+	if !ok {
+		http.Error(w, "slash command required", http.StatusBadRequest)
+		return
+	}
+	if _, allowed := webRunnableCommands[name]; !allowed {
+		http.Error(w, "command is not web-runnable", http.StatusForbidden)
+		return
+	}
+
+	result := commands.Dispatch(input, "", "text", 0)
+	if result.Error != "" {
+		http.Error(w, result.Error, http.StatusInternalServerError)
+		return
+	}
+	output := strings.TrimSpace(result.Output)
+	if output == "" {
+		output = "/" + name + " completed."
+	}
+
+	channel := normalizeChannelSlug(req.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	msg, _, err := b.PostAutomationMessage(
+		"laf-office",
+		channel,
+		"/"+name,
+		output,
+		"",
+		"slash-command",
+		"Slash Command",
+		nil,
+		"",
+	)
+	if err != nil {
+		http.Error(w, "failed to post command output", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(commandRunResponse{Output: output, Message: msg})
 }

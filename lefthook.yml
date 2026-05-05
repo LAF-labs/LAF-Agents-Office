@@ -77,6 +77,12 @@ pre-commit:
         done
         [ "$fail" -eq 0 ]
 
+    laf-superworkflow-reviewer:
+      run: ./scripts/laf-superworkflow-check.sh reviewer --staged
+
+    laf-superworkflow-tester:
+      run: ./scripts/laf-superworkflow-check.sh tester --staged
+
 pre-push:
   # Serial, not parallel: running `go build ./...`, `go vet ./...`, and
   # `vhs` concurrently contends for disk/CPU on workstations, and
@@ -99,6 +105,8 @@ pre-push:
       run: go build ./... && go vet ./...
     build:
       run: go build -o /dev/null ./cmd/laf-office
+    laf-superworkflow:
+      run: ./scripts/laf-superworkflow-check.sh all
     vhs:
       run: |
         if ! command -v vhs >/dev/null 2>&1; then

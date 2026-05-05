@@ -20,3 +20,12 @@ Search for the entity, then use `compile_brief` with the context_id.
 
 **"history <id>" → show version history:**
 Use `get_brief_history` with the ID.
+
+**LAF memory rule:**
+Briefs may quote or summarize canonical Wiki pages, but new durable observations
+must first go to the responsible agent Notebook. Promote to Wiki only through
+the reviewed Notebook-to-Wiki flow.
+
+**Provider rule:**
+Brief generation must be provider-neutral. It may run in Claude-powered or
+Codex-powered mode, and must not assume Claude-only runtime state.

@@ -29,11 +29,18 @@ func cmdHelp(ctx *SlashContext, args string) error {
 		"  /rel <sub>             list-defs | create-def | create | delete\n" +
 		"  /attribute <sub>       create | update | delete\n\n" +
 		"  /agent                 list | <slug>\n" +
+		"  /hire-agent            Hire a Claude/Codex-backed LAF agent\n" +
+		"  /assign-task           Assign task-board work to an agent\n" +
 		"  /insights              View insights\n\n" +
 		"  /config <sub>          show | set | path\n" +
 		"  /detect                Detect AI platforms\n" +
 		"  /init                  Run setup\n" +
 		"  /provider              Switch LLM provider\n\n" +
+		"  /daily-standup         Run the office standup workflow\n" +
+		"  /review-office         Review Office Rule, security, memory\n" +
+		"  /promote-to-wiki       Manual Notebook-to-Wiki promotion flow\n" +
+		"  /fix-bug               TDD bug-fix workflow\n" +
+		"  /deploy-simulation     Local simulation/deploy workflow\n\n" +
 		"  /help                  This help\n" +
 		"  /clear                 Clear messages\n" +
 		"  /quit                  Exit LAF-Office"
