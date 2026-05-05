@@ -165,9 +165,7 @@ describe("Wizard keyboard advancement", () => {
     await advanceToSetupStep();
 
     expect(screen.queryByText("Project wiki (default)")).toBeNull();
-    expect(
-      screen.queryByText(/Project wiki is the shared memory/i),
-    ).toBeNull();
+    expect(screen.queryByText(/Project wiki is the shared memory/i)).toBeNull();
   });
 
   it("does not expose the deferred GPT OAuth gateway during onboarding", async () => {

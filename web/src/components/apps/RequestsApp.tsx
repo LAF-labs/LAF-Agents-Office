@@ -3,29 +3,34 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type AgentRequest,
   answerRequest,
-  getRequests,
+  createDM,
+  getAllRequests,
 } from "../../api/client";
 import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
 import { formatRelativeTime } from "../../lib/format";
-import { useAppStore } from "../../stores/app";
+import { type I18nKey, useI18n } from "../../lib/i18n";
+import { directChannelSlug, useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 
+type TranslationFn = (key: I18nKey) => string;
+
 export function RequestsApp() {
-  const currentChannel = useAppStore((s) => s.currentChannel);
+  const enterDM = useAppStore((s) => s.enterDM);
   const queryClient = useQueryClient();
+  const { t } = useI18n();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["requests", currentChannel],
-    queryFn: () => getRequests(currentChannel),
+    queryKey: ["requests", "all"],
+    queryFn: () => getAllRequests(),
     refetchInterval: REQUEST_REFETCH_MS,
   });
 
   if (isLoading) {
-    return <div className="app-loading-state">Loading requests...</div>;
+    return <div className="app-loading-state">{t("requests.loading")}</div>;
   }
 
   if (error) {
-    return <div className="app-empty-state">Failed to load requests.</div>;
+    return <div className="app-empty-state">{t("requests.failed")}</div>;
   }
 
   const allRequests = dedupeRequests(data);
@@ -35,62 +40,127 @@ export function RequestsApp() {
   const answered = allRequests.filter(
     (r) => r.status && r.status !== "open" && r.status !== "pending",
   );
+  const blocking = pending.filter((r) => r.blocking);
+
+  const openAgentChat = (agentSlug: string) => {
+    const slug = agentSlug.trim().toLowerCase();
+    if (!isChatableAgent(slug)) return;
+    createDM(slug)
+      .then((dm) => {
+        enterDM(slug, dm.slug || directChannelSlug(slug));
+      })
+      .catch((err: Error) => {
+        showNotice(`Could not open @${slug}: ${err.message}`, "error");
+      });
+  };
 
   if (allRequests.length === 0) {
     return (
-      <>
-        <RequestsHeader />
-        <div className="app-empty-state">
-          No requests right now. Your agents are working independently.
-        </div>
-      </>
+      <div className="requests-dashboard">
+        <RequestsHeader t={t} />
+        <div className="app-empty-state">{t("requests.empty")}</div>
+      </div>
     );
   }
 
   return (
-    <>
-      <RequestsHeader />
+    <div className="requests-dashboard">
+      <RequestsHeader t={t} />
+      <section
+        className="request-summary-strip"
+        aria-label={t("requests.summary")}
+      >
+        <RequestSummaryItem
+          label={t("requests.pending")}
+          value={pending.length}
+        />
+        <RequestSummaryItem
+          label={t("requests.blocking")}
+          value={blocking.length}
+        />
+        <RequestSummaryItem
+          label={t("requests.answered")}
+          value={answered.length}
+        />
+      </section>
+
       {pending.length > 0 ? (
-        <>
-          <div className="app-section-title">Pending ({pending.length})</div>
-          {pending.map((req) => (
-            <RequestItem
-              key={req.id}
-              request={req}
-              isPending={true}
-              onAnswer={(choiceId) => {
-                answerRequest(req.id, choiceId)
-                  .then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["requests"] });
-                  })
-                  .catch((e: Error) =>
-                    showNotice(`Answer failed: ${e.message}`, "error"),
-                  );
-              }}
-            />
-          ))}
-        </>
+        <section className="request-list-section">
+          <div className="app-section-title">
+            {t("requests.pending")} ({pending.length})
+          </div>
+          <div className="request-list">
+            {pending.map((req) => (
+              <RequestItem
+                key={req.id}
+                request={req}
+                isPending={true}
+                onAnswer={(choiceId) => {
+                  answerRequest(req.id, choiceId)
+                    .then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["requests"] });
+                    })
+                    .catch((e: Error) =>
+                      showNotice(`Answer failed: ${e.message}`, "error"),
+                    );
+                }}
+                onChatAgent={openAgentChat}
+                t={t}
+              />
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {answered.length > 0 ? (
-        <>
-          <div className="app-section-title">Answered ({answered.length})</div>
-          {answered.map((req) => (
-            <RequestItem key={req.id} request={req} isPending={false} />
-          ))}
-        </>
+        <section className="request-list-section">
+          <div className="app-section-title">
+            {t("requests.answered")} ({answered.length})
+          </div>
+          <div className="request-list">
+            {answered.map((req) => (
+              <RequestItem
+                key={req.id}
+                request={req}
+                isPending={false}
+                onChatAgent={openAgentChat}
+                t={t}
+              />
+            ))}
+          </div>
+        </section>
       ) : null}
-    </>
+    </div>
   );
 }
 
-function RequestsHeader() {
+function RequestsHeader({ t }: { t: TranslationFn }) {
   return (
     <div className="app-section-heading">
-      <h3>Requests</h3>
-      <p>Questions that need a human decision before agent work continues.</p>
+      <h3>{t("requests.title")}</h3>
+      <p>{t("requests.description")}</p>
     </div>
   );
+}
+
+function RequestSummaryItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="request-summary-item">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function isChatableAgent(slug: string | undefined): slug is string {
+  const normalized = slug?.trim().toLowerCase();
+  return Boolean(normalized && normalized !== "human" && normalized !== "you");
 }
 
 function dedupeRequests(
@@ -109,67 +179,57 @@ interface RequestItemProps {
   request: AgentRequest;
   isPending: boolean;
   onAnswer?: (choiceId: string) => void;
+  onChatAgent?: (agentSlug: string) => void;
+  t: TranslationFn;
 }
 
-function RequestItem({ request, isPending, onAnswer }: RequestItemProps) {
+function RequestItem({
+  request,
+  isPending,
+  onAnswer,
+  onChatAgent,
+  t,
+}: RequestItemProps) {
   // Broker uses `options`; legacy used `choices`. Accept either.
   const options = request.options ?? request.choices ?? [];
   const ts = request.updated_at ?? request.created_at ?? request.timestamp;
+  const from = request.from || "unknown";
 
   return (
-    <div className="app-card">
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 4,
-        }}
-      >
-        <span style={{ fontWeight: 600, fontSize: 13 }}>
-          {request.from || "Unknown"}
-        </span>
+    <article className="request-row">
+      <div className="request-row-head">
+        <div>
+          <strong>@{from}</strong>
+          {request.channel ? <span>#{request.channel}</span> : null}
+        </div>
         {request.status ? (
           <span className="badge badge-accent">
             {request.status.toUpperCase()}
           </span>
         ) : null}
         {request.blocking ? (
-          <span className="badge badge-yellow">BLOCKING</span>
+          <span className="badge badge-yellow">{t("requests.blocking")}</span>
         ) : null}
       </div>
 
       {request.title && request.title !== "Request" ? (
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-          {request.title}
-        </div>
+        <div className="request-row-title">{request.title}</div>
       ) : null}
 
-      <div style={{ fontSize: 14, marginBottom: 8 }}>
-        {request.question || ""}
-      </div>
+      <div className="request-row-question">{request.question || ""}</div>
 
       {request.context ? (
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            marginBottom: 8,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {request.context}
-        </div>
+        <div className="request-row-context">{request.context}</div>
       ) : null}
 
       {ts ? (
-        <div className="app-card-meta" style={{ marginBottom: 6 }}>
+        <div className="app-card-meta request-row-time">
           {formatRelativeTime(ts)}
         </div>
       ) : null}
 
       {isPending && options.length > 0 ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="request-row-actions">
           {options.map((opt) => (
             <button
               type="button"
@@ -184,11 +244,21 @@ function RequestItem({ request, isPending, onAnswer }: RequestItemProps) {
         </div>
       ) : null}
 
-      {!isPending ? (
-        <div style={{ fontSize: 12, color: "var(--green)", fontWeight: 500 }}>
-          Answered
+      {isChatableAgent(from) ? (
+        <div className="request-row-chat">
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={() => onChatAgent?.(from)}
+          >
+            {t("requests.chatWithAgent")} @{from}
+          </button>
         </div>
       ) : null}
-    </div>
+
+      {!isPending ? (
+        <div className="request-row-answered">{t("requests.answered")}</div>
+      ) : null}
+    </article>
   );
 }

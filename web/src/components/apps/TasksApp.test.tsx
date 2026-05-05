@@ -7,6 +7,7 @@ import { useAppStore } from "../../stores/app";
 import { TasksApp } from "./TasksApp";
 
 const apiMocks = vi.hoisted(() => ({
+  createDM: vi.fn(),
   createProject: vi.fn(),
   createTask: vi.fn(),
   getActions: vi.fn(),
@@ -88,6 +89,7 @@ function mockCustomerPortalWorkspace() {
   });
   apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
   apiMocks.getActions.mockResolvedValue({ actions: [] });
+  apiMocks.createDM.mockResolvedValue({ slug: "engineer__human" });
 }
 
 afterEach(() => {
@@ -125,11 +127,42 @@ describe("TasksApp project workspace", () => {
     );
 
     await waitFor(() => {
-      expect(apiMocks.getOfficeTasks).toHaveBeenLastCalledWith({
+      expect(apiMocks.getOfficeTasks).toHaveBeenCalledWith({
         includeDone: true,
         projectId: "customer-portal",
       });
     });
+  });
+
+  it("shows a project list with status totals and opens the assigned agent chat", async () => {
+    const user = userEvent.setup();
+
+    renderTasksApp();
+
+    const projectList = await screen.findByRole("complementary", {
+      name: "Projects",
+    });
+    expect(
+      within(projectList).getByText("Customer Portal"),
+    ).toBeInTheDocument();
+    expect(within(projectList).getAllByText("active").length).toBeGreaterThan(
+      0,
+    );
+    expect(within(projectList).getAllByText("done").length).toBeGreaterThan(0);
+    expect(
+      within(projectList).getAllByText("@engineer").length,
+    ).toBeGreaterThan(0);
+
+    await user.click(
+      within(projectList).getAllByRole("button", {
+        name: "Chat with agent @engineer",
+      })[0],
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.createDM).toHaveBeenCalledWith("engineer");
+    });
+    expect(useAppStore.getState().currentChannel).toBe("engineer__human");
   });
 
   it("keeps GitHub optional when the selected project has no repo", async () => {

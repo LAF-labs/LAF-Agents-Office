@@ -15,6 +15,7 @@ import {
 
 import {
   type ActionRecord,
+  createDM,
   createProject,
   createTask,
   getActions,
@@ -30,7 +31,7 @@ import {
 import { formatRelativeTime } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import type { Language } from "../../stores/app";
-import { useAppStore } from "../../stores/app";
+import { directChannelSlug, useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 import { TaskDetailModal } from "./TaskDetailModal";
 
@@ -64,6 +65,15 @@ type ProjectRepoReadinessQueryState = {
 type TasksQueryData = { tasks: Task[] };
 type TranslationFn = (key: I18nKey) => string;
 type TaskBadge = { className: string; labelKey: I18nKey };
+type ProjectTaskStats = {
+  active: number;
+  blocked: number;
+  done: number;
+  latestAt?: string;
+  owners: string[];
+  review: number;
+  total: number;
+};
 
 const DND_MIME = "application/x-laf-office-task-id";
 const HUMAN_SLUG = "human";
@@ -335,13 +345,6 @@ function findSelectedProject(
   return projects.find((project) => project.id === selectedProjectId) ?? null;
 }
 
-function countActiveTasks(tasks: Task[]): number {
-  return tasks.filter((task) => {
-    const status = normalizeStatus(task.status);
-    return status !== "done" && status !== "canceled";
-  }).length;
-}
-
 function countAgentOwnedTasks(tasks: Task[]): number {
   return tasks.filter((task) => {
     const status = normalizeStatus(task.status);
@@ -354,6 +357,65 @@ function countAgentOwnedTasks(tasks: Task[]): number {
         owner !== "you",
     );
   }).length;
+}
+
+function isAgentSlug(slug: string | undefined): slug is string {
+  const owner = slug?.trim().toLowerCase();
+  return Boolean(owner && owner !== "human" && owner !== "you");
+}
+
+function isActiveStatus(status: StatusGroup): boolean {
+  return status !== "done" && status !== "canceled";
+}
+
+function taskTimestamp(task: Task): { at: string; time: number } | null {
+  const at = task.updated_at ?? task.created_at;
+  if (!at) return null;
+  const time = Date.parse(at);
+  return Number.isNaN(time) ? null : { at, time };
+}
+
+function latestTaskTimestamp(
+  current: { at: string | undefined; time: number },
+  task: Task,
+) {
+  const next = taskTimestamp(task);
+  if (!next || next.time <= current.time) return current;
+  return { at: next.at, time: next.time };
+}
+
+function projectTaskStats(tasks: Task[]): ProjectTaskStats {
+  const owners = new Set<string>();
+  let active = 0;
+  let blocked = 0;
+  let done = 0;
+  let review = 0;
+  let latest = { at: undefined as string | undefined, time: 0 };
+
+  for (const task of tasks) {
+    const status = normalizeStatus(task.status);
+    if (isActiveStatus(status)) active += 1;
+    if (status === "blocked" || task.blocked) blocked += 1;
+    if (status === "done") done += 1;
+    if (status === "review") review += 1;
+    if (isAgentSlug(task.owner)) owners.add(task.owner.trim().toLowerCase());
+    latest = latestTaskTimestamp(latest, task);
+  }
+
+  return {
+    active,
+    blocked,
+    done,
+    latestAt: latest.at,
+    owners: [...owners].sort(),
+    review,
+    total: tasks.length,
+  };
+}
+
+function projectProgressPercent(stats: ProjectTaskStats): number {
+  if (stats.total === 0) return 0;
+  return Math.round((stats.done / stats.total) * 100);
 }
 
 function countLabel(
@@ -695,6 +757,10 @@ function seedCreatedTask(
   queryClient.setQueryData<TasksQueryData>(["office-tasks", "all"], (data) =>
     upsertTaskData(data, task),
   );
+  queryClient.setQueryData<TasksQueryData>(
+    ["office-tasks", "project-list"],
+    (data) => upsertTaskData(data, task),
+  );
 }
 
 function useProjectTaskCreator(
@@ -805,6 +871,7 @@ function useTaskBoardDrag(tasksById: Map<string, Task>, moveTask: TaskMove) {
 
 export function TasksApp() {
   const queryClient = useQueryClient();
+  const enterDM = useAppStore((s) => s.enterDM);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const setWikiPath = useAppStore((s) => s.setWikiPath);
   const { language, t } = useI18n();
@@ -851,6 +918,12 @@ export function TasksApp() {
     enabled: shouldLoadTasks,
     refetchInterval: TASK_REFETCH_MS,
   });
+  const allTasksQuery = useQuery({
+    queryKey: ["office-tasks", "project-list"],
+    queryFn: () => getOfficeTasks({ includeDone: true }),
+    enabled: projectsQuery.isSuccess,
+    refetchInterval: TASK_REFETCH_MS,
+  });
 
   const actionsQuery = useQuery({
     queryKey: ["actions"],
@@ -861,6 +934,7 @@ export function TasksApp() {
 
   const moveTask = useTaskMove();
   const tasks = data?.tasks ?? [];
+  const allProjectTasks = allTasksQuery.data?.tasks ?? tasks;
   const projectNames = useMemo(
     () => new Map(projects.map((p) => [p.id, p.name])),
     [projects],
@@ -931,6 +1005,17 @@ export function TasksApp() {
     projectCreator.setProjectError(null);
     projectCreator.setIsCreatingProject(true);
   };
+  const handleOpenAgentChat = (agentSlug: string) => {
+    const slug = agentSlug.trim().toLowerCase();
+    if (!isAgentSlug(slug)) return;
+    createDM(slug)
+      .then((dm) => {
+        enterDM(slug, dm.slug || directChannelSlug(slug));
+      })
+      .catch((err: Error) => {
+        showNotice(`Could not open @${slug}: ${err.message}`, "error");
+      });
+  };
 
   const taskWorkArea = (
     <TaskWorkArea
@@ -962,59 +1047,40 @@ export function TasksApp() {
       <ProjectToolbar
         projectCreator={projectCreator}
         projectNames={projectNames}
-        projects={projects}
         selectedProjectId={selectedProjectId}
         language={language}
         t={t}
-        onSelectProject={setSelectedProjectId}
       />
 
-      {selectedProject ? (
-        <>
-          <ProjectWorkRequest
-            project={selectedProject}
-            repoReadinessState={repoReadinessState}
-            taskCreator={taskCreator}
-            t={t}
-          />
-          <ProjectWorkspaceOverview
-            project={selectedProject}
-            projectCount={projects.length}
-            githubConnector={githubConnector}
-            isLoadingTasks={isTaskLoading}
-            language={language}
-            repoReadinessState={repoReadinessState}
-            tasks={tasks}
-            t={t}
-            onCreateProject={handleOpenProjectCreator}
-            onOpenWiki={handleOpenProjectWiki}
-          />
-          {taskWorkArea}
-          <ProjectActivityLog
-            activities={projectActivities}
-            isLoading={actionsQuery.isLoading}
-            language={language}
-            project={selectedProject}
-            t={t}
-          />
-        </>
-      ) : (
-        <>
-          <ProjectWorkspaceOverview
-            project={selectedProject}
-            projectCount={projects.length}
-            githubConnector={githubConnector}
-            isLoadingTasks={isTaskLoading}
-            language={language}
-            repoReadinessState={repoReadinessState}
-            tasks={tasks}
-            t={t}
-            onCreateProject={handleOpenProjectCreator}
-            onOpenWiki={handleOpenProjectWiki}
-          />
-          {taskWorkArea}
-        </>
-      )}
+      <div className="project-workspace-layout">
+        <ProjectListPanel
+          isLoadingTasks={allTasksQuery.isLoading}
+          language={language}
+          projects={projects}
+          selectedProjectId={selectedProjectId || "all"}
+          tasks={allProjectTasks}
+          t={t}
+          onChatAgent={handleOpenAgentChat}
+          onCreateProject={handleOpenProjectCreator}
+          onSelectProject={setSelectedProjectId}
+        />
+        <ProjectWorkspaceMain
+          githubConnector={githubConnector}
+          isActivityLoading={actionsQuery.isLoading}
+          isTaskLoading={isTaskLoading}
+          language={language}
+          projectActivities={projectActivities}
+          projectCount={projects.length}
+          repoReadinessState={repoReadinessState}
+          selectedProject={selectedProject}
+          taskCreator={taskCreator}
+          taskWorkArea={taskWorkArea}
+          tasks={tasks}
+          t={t}
+          onCreateProject={handleOpenProjectCreator}
+          onOpenWiki={handleOpenProjectWiki}
+        />
+      </div>
       {selectedTask ? (
         <TaskDetailModal
           key={selectedTask.id}
@@ -1029,30 +1095,106 @@ export function TasksApp() {
   );
 }
 
+interface ProjectWorkspaceMainProps {
+  githubConnector: ProjectGitHubConnectorState;
+  isActivityLoading: boolean;
+  isTaskLoading: boolean;
+  language: Language;
+  projectActivities: ActionRecord[];
+  projectCount: number;
+  repoReadinessState: ProjectRepoReadinessQueryState;
+  selectedProject: Project | null;
+  taskCreator: ProjectTaskCreatorState;
+  taskWorkArea: ReactNode;
+  tasks: Task[];
+  t: TranslationFn;
+  onCreateProject: () => void;
+  onOpenWiki: () => void;
+}
+
+function ProjectWorkspaceMain({
+  githubConnector,
+  isActivityLoading,
+  isTaskLoading,
+  language,
+  projectActivities,
+  projectCount,
+  repoReadinessState,
+  selectedProject,
+  taskCreator,
+  taskWorkArea,
+  tasks,
+  t,
+  onCreateProject,
+  onOpenWiki,
+}: ProjectWorkspaceMainProps) {
+  return (
+    <div className="project-workspace-main">
+      {selectedProject ? (
+        <>
+          <ProjectWorkRequest
+            project={selectedProject}
+            repoReadinessState={repoReadinessState}
+            taskCreator={taskCreator}
+            t={t}
+          />
+          <ProjectWorkspaceOverview
+            project={selectedProject}
+            projectCount={projectCount}
+            githubConnector={githubConnector}
+            isLoadingTasks={isTaskLoading}
+            language={language}
+            repoReadinessState={repoReadinessState}
+            tasks={tasks}
+            t={t}
+            onCreateProject={onCreateProject}
+            onOpenWiki={onOpenWiki}
+          />
+          {taskWorkArea}
+          <ProjectActivityLog
+            activities={projectActivities}
+            isLoading={isActivityLoading}
+            language={language}
+            project={selectedProject}
+            t={t}
+          />
+        </>
+      ) : (
+        <>
+          <ProjectWorkspaceOverview
+            project={selectedProject}
+            projectCount={projectCount}
+            githubConnector={githubConnector}
+            isLoadingTasks={isTaskLoading}
+            language={language}
+            repoReadinessState={repoReadinessState}
+            tasks={tasks}
+            t={t}
+            onCreateProject={onCreateProject}
+            onOpenWiki={onOpenWiki}
+          />
+          {taskWorkArea}
+        </>
+      )}
+    </div>
+  );
+}
+
 interface ProjectToolbarProps {
   language: Language;
   projectCreator: ProjectCreatorState;
   projectNames: Map<string, string>;
-  projects: Project[];
   selectedProjectId: string;
   t: TranslationFn;
-  onSelectProject: (projectId: string) => void;
 }
 
 function ProjectToolbar({
   language,
   projectCreator,
   projectNames,
-  projects,
   selectedProjectId,
   t,
-  onSelectProject,
 }: ProjectToolbarProps) {
-  const toggleProjectForm = () => {
-    projectCreator.setProjectError(null);
-    projectCreator.setIsCreatingProject((current) => !current);
-  };
-
   return (
     <div className="task-toolbar">
       <div className="task-heading-row">
@@ -1062,23 +1204,8 @@ function ProjectToolbar({
             {selectedProjectLabel(selectedProjectId, projectNames, language)}
           </div>
         </div>
-        <button
-          type="button"
-          className="task-project-new"
-          onClick={toggleProjectForm}
-          aria-label={t("tasks.newProject")}
-          title={t("tasks.newProject")}
-        >
-          +
-        </button>
       </div>
 
-      <ProjectTabs
-        projects={projects}
-        selectedProjectId={selectedProjectId || "all"}
-        t={t}
-        onSelect={onSelectProject}
-      />
       {projectCreator.isCreatingProject ? (
         <ProjectCreateForm projectCreator={projectCreator} t={t} />
       ) : null}
@@ -1126,6 +1253,185 @@ function ProjectCreateForm({
         {t("tasks.create")}
       </button>
     </form>
+  );
+}
+
+interface ProjectListPanelProps {
+  isLoadingTasks: boolean;
+  language: Language;
+  projects: Project[];
+  selectedProjectId: string;
+  tasks: Task[];
+  t: TranslationFn;
+  onChatAgent: (agentSlug: string) => void;
+  onCreateProject: () => void;
+  onSelectProject: (projectId: string) => void;
+}
+
+function ProjectListPanel({
+  isLoadingTasks,
+  language,
+  projects,
+  selectedProjectId,
+  tasks,
+  t,
+  onChatAgent,
+  onCreateProject,
+  onSelectProject,
+}: ProjectListPanelProps) {
+  const allStats = projectTaskStats(tasks);
+
+  return (
+    <aside className="project-list-panel" aria-label={t("tasks.projectList")}>
+      <div className="project-list-head">
+        <div>
+          <h4>{t("tasks.projectList")}</h4>
+          <span>
+            {isLoadingTasks
+              ? t("tasks.loadingTasks")
+              : countLabel(
+                  projects.length,
+                  "project",
+                  "projects",
+                  "프로젝트",
+                  language,
+                )}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="project-list-new"
+          onClick={onCreateProject}
+          aria-label={t("tasks.newProject")}
+          title={t("tasks.newProject")}
+        >
+          +
+        </button>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="project-list-empty">
+          <strong>{t("tasks.noProjects")}</strong>
+          <span>{t("tasks.projectListEmpty")}</span>
+        </div>
+      ) : (
+        <div className="project-list-stack">
+          <ProjectListRow
+            isActive={selectedProjectId === "all"}
+            language={language}
+            name={t("tasks.allProjects")}
+            stats={allStats}
+            t={t}
+            onChatAgent={onChatAgent}
+            onSelect={() => onSelectProject("all")}
+          />
+          {projects.map((project) => {
+            const projectTasks = tasks.filter(
+              (task) => task.project_id === project.id,
+            );
+            return (
+              <ProjectListRow
+                key={project.id}
+                description={project.description || project.id}
+                isActive={selectedProjectId === project.id}
+                language={language}
+                name={project.name || project.id}
+                stats={projectTaskStats(projectTasks)}
+                t={t}
+                onChatAgent={onChatAgent}
+                onSelect={() => onSelectProject(project.id)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </aside>
+  );
+}
+
+interface ProjectListRowProps {
+  description?: string;
+  isActive: boolean;
+  language: Language;
+  name: string;
+  stats: ProjectTaskStats;
+  t: TranslationFn;
+  onChatAgent: (agentSlug: string) => void;
+  onSelect: () => void;
+}
+
+function ProjectListRow({
+  description,
+  isActive,
+  language,
+  name,
+  stats,
+  t,
+  onChatAgent,
+  onSelect,
+}: ProjectListRowProps) {
+  const progress = projectProgressPercent(stats);
+
+  return (
+    <div className={`project-list-row${isActive ? " active" : ""}`}>
+      <button type="button" className="project-list-main" onClick={onSelect}>
+        <span className="project-list-title">{name}</span>
+        {description ? (
+          <span className="project-list-description">{description}</span>
+        ) : null}
+        <span className="project-list-counts">
+          <span>
+            <strong>{stats.active}</strong> {t("tasks.activeCount")}
+          </span>
+          <span>
+            <strong>{stats.done}</strong> {t("tasks.doneCount")}
+          </span>
+          <span>
+            <strong>{stats.review}</strong> {t("tasks.reviewCount")}
+          </span>
+          <span>
+            <strong>{stats.blocked}</strong> {t("tasks.blockedCount")}
+          </span>
+        </span>
+        <span className="project-list-progress-line">
+          <span>{t("tasks.progress")}</span>
+          <strong>{progress}%</strong>
+        </span>
+        <span
+          className="project-list-progress"
+          role="progressbar"
+          aria-label={`${t("tasks.progress")} ${progress}%`}
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={progress}
+        >
+          <span style={{ width: `${progress}%` }} />
+        </span>
+        <span className="project-list-meta">
+          {stats.latestAt
+            ? `${t("tasks.latestActivity")} ${formatRelativeTime(stats.latestAt)}`
+            : countLabel(stats.total, "task", "tasks", "작업", language)}
+        </span>
+      </button>
+      <div className="project-list-agents">
+        {stats.owners.length > 0 ? (
+          stats.owners.slice(0, 4).map((owner) => (
+            <button
+              key={owner}
+              type="button"
+              className="project-agent-chat"
+              onClick={() => onChatAgent(owner)}
+              aria-label={`${t("tasks.chatWithAgent")} @${owner}`}
+              title={`${t("tasks.chatWithAgent")} @${owner}`}
+            >
+              @{owner}
+            </button>
+          ))
+        ) : (
+          <span>{t("tasks.noAgentOwners")}</span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1281,7 +1587,8 @@ function ProjectWorkspaceOverview({
     );
   }
 
-  const activeTaskCount = countActiveTasks(tasks);
+  const stats = projectTaskStats(tasks);
+  const activeTaskCount = stats.active;
   const agentOwnedTaskCount = countAgentOwnedTasks(tasks);
   const repoURL = project.github_repo_url?.trim();
 
@@ -1293,7 +1600,16 @@ function ProjectWorkspaceOverview({
       <div className="task-workspace-strip-main">
         <span className="task-workspace-kicker">{t("tasks.project")}</span>
         <strong>{projectWorkspaceName(project, language)}</strong>
-        <span>{t("tasks.projectSummary")}</span>
+        <span>
+          {t("tasks.progress")} {projectProgressPercent(stats)}% /{" "}
+          {countLabel(
+            stats.done,
+            "done task",
+            "done tasks",
+            "완료 작업",
+            language,
+          )}
+        </span>
       </div>
       <button
         type="button"
@@ -1320,6 +1636,23 @@ function ProjectWorkspaceOverview({
               )}
         </strong>
         <span>{t("tasks.taskQueueShort")}</span>
+        <span>
+          {countLabel(
+            stats.review,
+            "review task",
+            "review tasks",
+            "리뷰 작업",
+            language,
+          )}
+          {" / "}
+          {countLabel(
+            stats.blocked,
+            "blocked task",
+            "blocked tasks",
+            "막힌 작업",
+            language,
+          )}
+        </span>
       </div>
       <div className="task-workspace-strip-item">
         <span className="task-workspace-kicker">{t("tasks.agentWork")}</span>
@@ -1661,47 +1994,6 @@ function TaskBoard({
           </section>
         );
       })}
-    </div>
-  );
-}
-
-interface ProjectTabsProps {
-  projects: Project[];
-  selectedProjectId: string;
-  t: TranslationFn;
-  onSelect: (projectId: string) => void;
-}
-
-function ProjectTabs({
-  projects,
-  selectedProjectId,
-  t,
-  onSelect,
-}: ProjectTabsProps) {
-  return (
-    <div
-      className="task-project-tabs"
-      role="tablist"
-      aria-label={t("app.tasks")}
-    >
-      <button
-        type="button"
-        className={selectedProjectId === "all" ? "active" : ""}
-        onClick={() => onSelect("all")}
-      >
-        {t("tasks.allProjects")}
-      </button>
-      {projects.map((project) => (
-        <button
-          key={project.id}
-          type="button"
-          className={selectedProjectId === project.id ? "active" : ""}
-          onClick={() => onSelect(project.id)}
-          title={project.id}
-        >
-          {project.name || project.id}
-        </button>
-      ))}
     </div>
   );
 }
