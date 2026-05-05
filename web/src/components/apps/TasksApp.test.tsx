@@ -99,7 +99,7 @@ afterEach(() => {
 describe("TasksApp project workspace", () => {
   beforeEach(mockCustomerPortalWorkspace);
 
-  it("opens the first project with request and board before supporting context", async () => {
+  it("opens the first project with issue state before the Codex command bar", async () => {
     const { container } = renderTasksApp();
 
     expect(
@@ -109,18 +109,20 @@ describe("TasksApp project workspace", () => {
     expect(screen.getByText("Project memory")).toBeInTheDocument();
     expect(screen.getByText("Read/write memory")).toBeInTheDocument();
     expect(screen.getByText("Task queue")).toBeInTheDocument();
-    expect(screen.getByText("Agent work")).toBeInTheDocument();
+    expect(screen.getByText("Project lead")).toBeInTheDocument();
     expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(await screen.findByText("Repo ready")).toBeInTheDocument();
     expect(await screen.findByText("2 active tasks")).toBeInTheDocument();
     expect(screen.getByText("1 agent-owned task")).toBeInTheDocument();
+    expect(screen.getByText("Issues")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "List" })).toHaveClass("active");
     expect(screen.queryByText("#general")).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open GitHub repo" }),
     ).toHaveAttribute("href", "https://github.com/laf-labs/customer-portal");
     const text = container.textContent ?? "";
-    expect(text.indexOf("Next task")).toBeLessThan(
-      text.indexOf("Customer Portal workspace"),
+    expect(text.indexOf("Customer Portal workspace")).toBeLessThan(
+      text.indexOf("Codex command"),
     );
     expect(text.indexOf("Draft launch brief")).toBeLessThan(
       text.indexOf("Activity log"),
@@ -175,9 +177,24 @@ describe("TasksApp project workspace", () => {
 
     expect(await screen.findByText("Agent Lab workspace")).toBeInTheDocument();
     expect(screen.getByText("Repo not connected")).toBeInTheDocument();
+    expect(screen.getAllByText("@ceo").length).toBeGreaterThan(0);
     expect(
       screen.getByText("Connect it only when code work starts."),
     ).toBeInTheDocument();
+  });
+
+  it("switches between dense issue list and board view", async () => {
+    const user = userEvent.setup();
+
+    renderTasksApp();
+
+    expect(await screen.findByText("Draft launch brief")).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Issue" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Board" }));
+    expect(screen.getAllByText("in progress").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("open").length).toBeGreaterThan(0);
   });
 
   it("connects a GitHub repo to the selected project after project creation", async () => {
@@ -449,7 +466,7 @@ describe("TasksApp project creation handoff", () => {
     await user.click(screen.getByRole("button", { name: "Create" }));
 
     expect(await screen.findByText("Mobile App workspace")).toBeInTheDocument();
-    expect(screen.getByText("Next task")).toBeInTheDocument();
+    expect(screen.getByText("Codex command")).toBeInTheDocument();
     expect(
       screen.getByText(
         "No GitHub repo is connected yet. This creates a planning, documentation, or task-breakdown request.",

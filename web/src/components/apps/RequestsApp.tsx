@@ -1,3 +1,4 @@
+import { type FormEvent, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -5,6 +6,7 @@ import {
   answerRequest,
   createDM,
   getAllRequests,
+  type InterviewOption,
 } from "../../api/client";
 import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
 import { formatRelativeTime } from "../../lib/format";
@@ -34,12 +36,12 @@ export function RequestsApp() {
   }
 
   const allRequests = dedupeRequests(data);
-  const pending = allRequests.filter(
-    (r) => !r.status || r.status === "open" || r.status === "pending",
-  );
-  const answered = allRequests.filter(
-    (r) => r.status && r.status !== "open" && r.status !== "pending",
-  );
+  const pending = allRequests
+    .filter((r) => !r.status || r.status === "open" || r.status === "pending")
+    .sort(requestSort);
+  const answered = allRequests
+    .filter((r) => r.status && r.status !== "open" && r.status !== "pending")
+    .sort(requestSort);
   const blocking = pending.filter((r) => r.blocking);
 
   const openAgentChat = (agentSlug: string) => {
@@ -95,8 +97,8 @@ export function RequestsApp() {
                 key={req.id}
                 request={req}
                 isPending={true}
-                onAnswer={(choiceId) => {
-                  answerRequest(req.id, choiceId)
+                onAnswer={(choiceId, customText) => {
+                  answerRequest(req.id, choiceId, customText)
                     .then(() => {
                       queryClient.invalidateQueries({ queryKey: ["requests"] });
                     })
@@ -163,6 +165,18 @@ function isChatableAgent(slug: string | undefined): slug is string {
   return Boolean(normalized && normalized !== "human" && normalized !== "you");
 }
 
+function requestTime(request: AgentRequest): number {
+  const ts = request.updated_at ?? request.created_at ?? request.timestamp;
+  if (!ts) return 0;
+  const time = Date.parse(ts);
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function requestSort(a: AgentRequest, b: AgentRequest): number {
+  if (a.blocking !== b.blocking) return a.blocking ? -1 : 1;
+  return requestTime(b) - requestTime(a);
+}
+
 function dedupeRequests(
   data: { requests: AgentRequest[] } | undefined,
 ): AgentRequest[] {
@@ -178,7 +192,7 @@ function dedupeRequests(
 interface RequestItemProps {
   request: AgentRequest;
   isPending: boolean;
-  onAnswer?: (choiceId: string) => void;
+  onAnswer?: (choiceId: string, customText?: string) => void;
   onChatAgent?: (agentSlug: string) => void;
   t: TranslationFn;
 }
@@ -228,21 +242,13 @@ function RequestItem({
         </div>
       ) : null}
 
-      {isPending && options.length > 0 ? (
-        <div className="request-row-actions">
-          {options.map((opt) => (
-            <button
-              type="button"
-              key={opt.id}
-              className={`btn btn-sm ${opt.id === request.recommended_id ? "btn-primary" : "btn-ghost"}`}
-              title={opt.description}
-              onClick={() => onAnswer?.(opt.id)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <RequestAnswerControls
+        isPending={isPending}
+        onAnswer={onAnswer}
+        options={options}
+        recommendedId={request.recommended_id}
+        t={t}
+      />
 
       {isChatableAgent(from) ? (
         <div className="request-row-chat">
@@ -260,5 +266,116 @@ function RequestItem({
         <div className="request-row-answered">{t("requests.answered")}</div>
       ) : null}
     </article>
+  );
+}
+
+interface RequestAnswerControlsProps {
+  isPending: boolean;
+  onAnswer?: (choiceId: string, customText?: string) => void;
+  options: InterviewOption[];
+  recommendedId?: string;
+  t: TranslationFn;
+}
+
+function RequestAnswerControls({
+  isPending,
+  onAnswer,
+  options,
+  recommendedId,
+  t,
+}: RequestAnswerControlsProps) {
+  const [textChoiceId, setTextChoiceId] = useState<string | null>(null);
+  const [customText, setCustomText] = useState("");
+  const textChoice = options.find((opt) => opt.id === textChoiceId);
+  if (!isPending || options.length === 0) return null;
+
+  const chooseOption = (opt: InterviewOption) => {
+    if (opt.requires_text) {
+      setTextChoiceId(opt.id);
+      setCustomText("");
+      return;
+    }
+    onAnswer?.(opt.id);
+  };
+  const submitTextChoice = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = customText.trim();
+    if (!(textChoiceId && value)) return;
+    onAnswer?.(textChoiceId, value);
+  };
+  const clearTextChoice = () => {
+    setTextChoiceId(null);
+    setCustomText("");
+  };
+
+  return (
+    <>
+      <div className="request-row-actions">
+        {options.map((opt) => (
+          <button
+            type="button"
+            key={opt.id}
+            className={`btn btn-sm ${opt.id === recommendedId ? "btn-primary" : "btn-ghost"}`}
+            title={opt.description}
+            onClick={() => chooseOption(opt)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {textChoice ? (
+        <RequestTextAnswer
+          customText={customText}
+          onCancel={clearTextChoice}
+          onCustomTextChange={setCustomText}
+          onSubmit={submitTextChoice}
+          t={t}
+          textChoice={textChoice}
+        />
+      ) : null}
+    </>
+  );
+}
+
+interface RequestTextAnswerProps {
+  customText: string;
+  onCancel: () => void;
+  onCustomTextChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  t: TranslationFn;
+  textChoice: InterviewOption;
+}
+
+function RequestTextAnswer({
+  customText,
+  onCancel,
+  onCustomTextChange,
+  onSubmit,
+  t,
+  textChoice,
+}: RequestTextAnswerProps) {
+  const inputLabel = textChoice.text_hint || t("requests.customText");
+  return (
+    <form className="request-text-answer" onSubmit={onSubmit}>
+      <input
+        type="text"
+        value={customText}
+        onChange={(event) => onCustomTextChange(event.currentTarget.value)}
+        placeholder={
+          textChoice.text_hint || t("requests.customTextPlaceholder")
+        }
+        aria-label={inputLabel}
+      />
+      <button
+        type="submit"
+        className="btn btn-sm btn-primary"
+        disabled={customText.trim() === ""}
+      >
+        {t("requests.submitText")}
+      </button>
+      <button type="button" className="btn btn-sm btn-ghost" onClick={onCancel}>
+        {t("requests.cancelText")}
+      </button>
+    </form>
   );
 }

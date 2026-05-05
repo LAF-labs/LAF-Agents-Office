@@ -34,6 +34,7 @@ describe("RequestsApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAppStore.setState({ currentApp: "requests", language: "en" });
+    apiMocks.answerRequest.mockResolvedValue({});
     apiMocks.createDM.mockResolvedValue({ slug: "ceo__human" });
     apiMocks.getAllRequests.mockResolvedValue({
       requests: [
@@ -48,6 +49,12 @@ describe("RequestsApp", () => {
           options: [
             { id: "yes", label: "Yes" },
             { id: "no", label: "No" },
+            {
+              id: "custom",
+              label: "Custom",
+              requires_text: true,
+              text_hint: "Describe scope",
+            },
           ],
         },
         {
@@ -84,5 +91,26 @@ describe("RequestsApp", () => {
       expect(apiMocks.createDM).toHaveBeenCalledWith("ceo");
     });
     expect(useAppStore.getState().currentChannel).toBe("ceo__human");
+  });
+
+  it("captures required text before answering a blocking request", async () => {
+    const user = userEvent.setup();
+
+    renderRequestsApp();
+
+    await user.click(await screen.findByRole("button", { name: "Custom" }));
+    await user.type(
+      screen.getByLabelText("Describe scope"),
+      "Launch signup first.",
+    );
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(apiMocks.answerRequest).toHaveBeenCalledWith(
+        "req-1",
+        "custom",
+        "Launch signup first.",
+      );
+    });
   });
 });
