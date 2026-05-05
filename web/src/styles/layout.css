@@ -1367,7 +1367,8 @@ html[data-theme="office"]
   gap: 8px;
   padding: 0 0 12px;
 }
-.task-project-form input {
+.task-project-form input,
+.task-project-form select {
   min-width: 220px;
   max-width: 320px;
   height: 32px;
@@ -1377,6 +1378,9 @@ html[data-theme="office"]
   color: var(--text-primary);
   padding: 0 10px;
   font-size: 13px;
+}
+.task-project-form select {
+  min-width: 160px;
 }
 .task-project-form button {
   height: 32px;
@@ -1755,6 +1759,50 @@ html[data-theme="office"]
 }
 .task-workspace-action:hover strong {
   color: var(--accent);
+}
+.task-workspace-lead-control {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.task-workspace-lead-control select,
+.task-workspace-lead-control button {
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+.task-workspace-lead-control select {
+  max-width: 190px;
+  padding: 0 26px 0 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.task-workspace-lead-control button {
+  border-left: 1px solid var(--border);
+  padding: 0 9px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.task-workspace-lead-control:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--accent-bg) 18%, var(--bg-card));
+}
+.task-workspace-lead-control button:hover {
+  color: var(--accent);
+}
+.task-workspace-lead-control select:disabled,
+.task-workspace-lead-control button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 .task-workspace-github-action {
   min-width: 190px;
@@ -2433,8 +2481,13 @@ html[data-theme="office"]
     justify-content: flex-start;
   }
   .task-workspace-action,
+  .task-workspace-lead-control,
   .task-workspace-github-action {
     width: 100%;
+  }
+  .task-workspace-lead-control select {
+    flex: 1 1 auto;
+    max-width: none;
   }
   .task-workspace-card-wide {
     grid-column: auto;

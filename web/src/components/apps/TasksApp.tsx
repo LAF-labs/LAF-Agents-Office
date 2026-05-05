@@ -28,6 +28,8 @@ import {
   type Task,
   updateProject,
 } from "../../api/client";
+import type { OfficeMember } from "../../hooks/useMembers";
+import { useOfficeMembers } from "../../hooks/useMembers";
 import { formatRelativeTime } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import type { Language } from "../../stores/app";
@@ -57,6 +59,7 @@ type TaskMove = (task: Task, toStatus: StatusGroup) => Promise<void>;
 type TaskBoardDragState = ReturnType<typeof useTaskBoardDrag>;
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type ProjectGitHubConnectorState = ReturnType<typeof useProjectGitHubConnector>;
+type ProjectLeadAgentEditorState = ReturnType<typeof useProjectLeadAgentEditor>;
 type ProjectTaskCreatorState = ReturnType<typeof useProjectTaskCreator>;
 type ProjectRepoReadinessQueryState = {
   readiness?: ProjectRepoReadiness;
@@ -67,6 +70,7 @@ type ProjectRepoReadinessQueryState = {
 type TasksQueryData = { tasks: Task[] };
 type TranslationFn = (key: I18nKey) => string;
 type TaskBadge = { className: string; labelKey: I18nKey };
+type ProjectLeadOption = { label: string; slug: string };
 type ProjectTaskStats = {
   active: number;
   blocked: number;
@@ -419,6 +423,36 @@ function normalizedAgentSlug(slug: string | undefined): string | null {
   return isAgentSlug(slug) ? slug.trim().toLowerCase() : null;
 }
 
+function assignableOfficeMembers(members: OfficeMember[]): ProjectLeadOption[] {
+  const seen = new Set<string>();
+  const options: ProjectLeadOption[] = [];
+
+  for (const member of members) {
+    const slug = normalizedAgentSlug(member.slug);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    const name = member.name?.trim();
+    options.push({
+      slug,
+      label:
+        name && name.toLowerCase() !== slug ? `${name} @${slug}` : `@${slug}`,
+    });
+  }
+
+  return options.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+function projectLeadOptions(
+  members: ProjectLeadOption[],
+  currentLead?: string,
+): ProjectLeadOption[] {
+  const current = normalizedAgentSlug(currentLead);
+  if (!current || members.some((member) => member.slug === current)) {
+    return members;
+  }
+  return [{ slug: current, label: `@${current}` }, ...members];
+}
+
 function leadAgentForProject(
   project: Project | null,
   tasks: Task[],
@@ -631,6 +665,7 @@ function useProjectCreator(
   onProjectCreated: (projectId: string) => void,
 ) {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [newProjectLeadAgent, setNewProjectLeadAgent] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectGitHubRepoURL, setNewProjectGitHubRepoURL] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
@@ -643,9 +678,11 @@ function useProjectCreator(
     try {
       const { project } = await createProject({
         name,
+        lead_agent: newProjectLeadAgent.trim() || undefined,
         github_repo_url: newProjectGitHubRepoURL.trim() || undefined,
         created_by: HUMAN_SLUG,
       });
+      setNewProjectLeadAgent("");
       setNewProjectName("");
       setNewProjectGitHubRepoURL("");
       setIsCreatingProject(false);
@@ -666,13 +703,49 @@ function useProjectCreator(
     handleCreateProject,
     isCreatingProject,
     newProjectGitHubRepoURL,
+    newProjectLeadAgent,
     newProjectName,
     projectError,
     setIsCreatingProject,
     setNewProjectGitHubRepoURL,
+    setNewProjectLeadAgent,
     setNewProjectName,
     setProjectError,
   };
+}
+
+function useProjectLeadAgentEditor(queryClient: QueryClient) {
+  const [savingProjectId, setSavingProjectId] = useState<string | null>(null);
+
+  const assign = useCallback(
+    async (project: Project, nextLeadAgent: string) => {
+      const leadAgent = normalizedAgentSlug(nextLeadAgent);
+      const currentLead = normalizedAgentSlug(project.lead_agent);
+      if (!leadAgent || leadAgent === currentLead) return;
+
+      setSavingProjectId(project.id);
+      try {
+        await updateProject({
+          id: project.id,
+          lead_agent: leadAgent,
+          created_by: HUMAN_SLUG,
+        });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["actions"] }),
+          queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        ]);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Could not update project lead";
+        showNotice(`Lead update failed: ${message}`, "error");
+      } finally {
+        setSavingProjectId(null);
+      }
+    },
+    [queryClient],
+  );
+
+  return { assign, savingProjectId };
 }
 
 function buildProjectGitHubUpdate(
@@ -940,10 +1013,16 @@ export function TasksApp() {
   const [taskView, setTaskView] = useState<TaskViewMode>("list");
   const projectCreator = useProjectCreator(queryClient, setSelectedProjectId);
   const githubConnector = useProjectGitHubConnector(queryClient);
+  const leadAgentEditor = useProjectLeadAgentEditor(queryClient);
   const taskCreator = useProjectTaskCreator(queryClient, (task) => {
     setSelectedTaskSnapshot(task);
     setSelectedTaskId(task.id);
   });
+  const officeMembersQuery = useOfficeMembers();
+  const leadMembers = useMemo(
+    () => assignableOfficeMembers(officeMembersQuery.data ?? []),
+    [officeMembersQuery.data],
+  );
   const selectedProjectFilter =
     selectedProjectId && selectedProjectId !== "all"
       ? selectedProjectId
@@ -1084,6 +1163,7 @@ export function TasksApp() {
     <>
       <ProjectToolbar
         projectCreator={projectCreator}
+        leadMembers={leadMembers}
         projectNames={projectNames}
         selectedProjectId={selectedProjectId}
         language={language}
@@ -1109,6 +1189,8 @@ export function TasksApp() {
           isTaskLoading={isTaskLoading}
           language={language}
           leadAgent={leadAgent}
+          leadAgentEditor={leadAgentEditor}
+          leadMembers={leadMembers}
           projectActivities={projectActivities}
           projectCount={projects.length}
           repoReadinessState={repoReadinessState}
@@ -1162,6 +1244,8 @@ interface ProjectWorkspaceMainProps {
   isTaskLoading: boolean;
   language: Language;
   leadAgent: string;
+  leadAgentEditor: ProjectLeadAgentEditorState;
+  leadMembers: ProjectLeadOption[];
   projectActivities: ActionRecord[];
   projectCount: number;
   repoReadinessState: ProjectRepoReadinessQueryState;
@@ -1183,6 +1267,8 @@ function ProjectWorkspaceMain({
   isTaskLoading,
   language,
   leadAgent,
+  leadAgentEditor,
+  leadMembers,
   projectActivities,
   projectCount,
   repoReadinessState,
@@ -1214,6 +1300,8 @@ function ProjectWorkspaceMain({
             isLoadingTasks={isTaskLoading}
             language={language}
             leadAgent={leadAgent}
+            leadAgentEditor={leadAgentEditor}
+            leadMembers={leadMembers}
             repoReadinessState={repoReadinessState}
             tasks={tasks}
             t={t}
@@ -1252,6 +1340,8 @@ function ProjectWorkspaceMain({
             isLoadingTasks={isTaskLoading}
             language={language}
             leadAgent={leadAgent}
+            leadAgentEditor={leadAgentEditor}
+            leadMembers={leadMembers}
             repoReadinessState={repoReadinessState}
             tasks={tasks}
             t={t}
@@ -1276,6 +1366,7 @@ function ProjectWorkspaceMain({
 }
 
 interface ProjectToolbarProps {
+  leadMembers: ProjectLeadOption[];
   language: Language;
   projectCreator: ProjectCreatorState;
   projectNames: Map<string, string>;
@@ -1284,6 +1375,7 @@ interface ProjectToolbarProps {
 }
 
 function ProjectToolbar({
+  leadMembers,
   language,
   projectCreator,
   projectNames,
@@ -1302,7 +1394,11 @@ function ProjectToolbar({
       </div>
 
       {projectCreator.isCreatingProject ? (
-        <ProjectCreateForm projectCreator={projectCreator} t={t} />
+        <ProjectCreateForm
+          leadMembers={leadMembers}
+          projectCreator={projectCreator}
+          t={t}
+        />
       ) : null}
       {projectCreator.projectError ? (
         <div className="task-project-error">{projectCreator.projectError}</div>
@@ -1312,12 +1408,19 @@ function ProjectToolbar({
 }
 
 function ProjectCreateForm({
+  leadMembers,
   projectCreator,
   t,
 }: {
+  leadMembers: ProjectLeadOption[];
   projectCreator: ProjectCreatorState;
   t: TranslationFn;
 }) {
+  const leadOptions = projectLeadOptions(
+    leadMembers,
+    projectCreator.newProjectLeadAgent,
+  );
+
   return (
     <form
       className="task-project-form"
@@ -1341,6 +1444,20 @@ function ProjectCreateForm({
         placeholder={t("tasks.githubRepoUrlOptional")}
         aria-label={t("tasks.githubRepoUrl")}
       />
+      <select
+        value={projectCreator.newProjectLeadAgent}
+        onChange={(event) =>
+          projectCreator.setNewProjectLeadAgent(event.currentTarget.value)
+        }
+        aria-label={t("tasks.projectLead")}
+      >
+        <option value="">{t("tasks.leadAgentAuto")}</option>
+        {leadOptions.map((option) => (
+          <option key={option.slug} value={option.slug}>
+            {option.label}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
         disabled={projectCreator.newProjectName.trim() === ""}
@@ -1721,6 +1838,8 @@ interface ProjectWorkspaceOverviewProps {
   isLoadingTasks: boolean;
   language: Language;
   leadAgent: string;
+  leadAgentEditor: ProjectLeadAgentEditorState;
+  leadMembers: ProjectLeadOption[];
   repoReadinessState: ProjectRepoReadinessQueryState;
   tasks: Task[];
   t: TranslationFn;
@@ -1736,6 +1855,8 @@ function ProjectWorkspaceOverview({
   isLoadingTasks,
   language,
   leadAgent,
+  leadAgentEditor,
+  leadMembers,
   repoReadinessState,
   tasks,
   t,
@@ -1848,14 +1969,14 @@ function ProjectWorkspaceOverview({
         >
           <strong>{t("tasks.projectWiki")}</strong>
         </button>
-        <button
-          type="button"
-          className="task-workspace-action task-workspace-action-chat"
-          onClick={() => onChatAgent(leadAgent)}
-        >
-          <strong>@{leadAgent}</strong>
-          <span>{t("tasks.chatLead")}</span>
-        </button>
+        <ProjectLeadControl
+          editor={leadAgentEditor}
+          fallbackLeadAgent={leadAgent}
+          leadMembers={leadMembers}
+          project={project}
+          t={t}
+          onChatAgent={onChatAgent}
+        />
         <ProjectGitHubStripItem
           compact={true}
           connector={githubConnector}
@@ -1866,6 +1987,58 @@ function ProjectWorkspaceOverview({
         />
       </div>
     </section>
+  );
+}
+
+interface ProjectLeadControlProps {
+  editor: ProjectLeadAgentEditorState;
+  fallbackLeadAgent: string;
+  leadMembers: ProjectLeadOption[];
+  project: Project;
+  t: TranslationFn;
+  onChatAgent: (agentSlug: string) => void;
+}
+
+function ProjectLeadControl({
+  editor,
+  fallbackLeadAgent,
+  leadMembers,
+  project,
+  t,
+  onChatAgent,
+}: ProjectLeadControlProps) {
+  const currentLead =
+    normalizedAgentSlug(project.lead_agent) ??
+    normalizedAgentSlug(fallbackLeadAgent) ??
+    "ceo";
+  const leadOptions = projectLeadOptions(leadMembers, currentLead);
+  const isSaving = editor.savingProjectId === project.id;
+
+  return (
+    <div className="task-workspace-lead-control">
+      <select
+        value={currentLead}
+        disabled={isSaving}
+        onChange={(event) => {
+          void editor.assign(project, event.currentTarget.value);
+        }}
+        aria-label={t("tasks.projectLead")}
+      >
+        {leadOptions.map((option) => (
+          <option key={option.slug} value={option.slug}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={isSaving}
+        onClick={() => onChatAgent(currentLead)}
+        aria-label={`${t("tasks.chatWithAgent")} @${currentLead}`}
+      >
+        {t("tasks.chatLead")}
+      </button>
+    </div>
   );
 }
 

@@ -88,7 +88,12 @@ function mockCustomerPortalWorkspace() {
       },
     ],
   });
-  apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+  apiMocks.getOfficeMembers.mockResolvedValue({
+    members: [
+      { slug: "engineer", name: "Engineer", role: "engineering" },
+      { slug: "pm", name: "PM", role: "product" },
+    ],
+  });
   apiMocks.getActions.mockResolvedValue({ actions: [] });
   apiMocks.createDM.mockResolvedValue({ slug: "engineer__human" });
 }
@@ -137,6 +142,34 @@ describe("TasksApp project workspace", () => {
       expect(apiMocks.getOfficeTasks).toHaveBeenCalledWith({
         includeDone: true,
         projectId: "customer-portal",
+      });
+    });
+  });
+
+  it("updates the selected project's lead agent from the header", async () => {
+    const user = userEvent.setup();
+    apiMocks.updateProject.mockResolvedValue({
+      project: {
+        id: "customer-portal",
+        name: "Customer Portal",
+        lead_agent: "pm",
+      },
+    });
+
+    renderTasksApp();
+
+    const leadSelect = await screen.findByRole("combobox", {
+      name: "Project lead",
+    });
+    expect(leadSelect).toHaveValue("engineer");
+
+    await user.selectOptions(leadSelect, "pm");
+
+    await waitFor(() => {
+      expect(apiMocks.updateProject).toHaveBeenCalledWith({
+        id: "customer-portal",
+        lead_agent: "pm",
+        created_by: "human",
       });
     });
   });
@@ -239,6 +272,10 @@ describe("TasksApp project workspace", () => {
     expect(screen.getByRole("button", { name: "Board" })).toBeInTheDocument();
     expect(screen.getByText("Plan support queue")).toBeInTheDocument();
   });
+});
+
+describe("TasksApp project workspace controls", () => {
+  beforeEach(mockCustomerPortalWorkspace);
 
   it("keeps GitHub optional when the selected project has no repo", async () => {
     apiMocks.getProjects.mockResolvedValue({
@@ -524,7 +561,9 @@ describe("TasksApp project creation handoff", () => {
         projects: [{ id: "mobile-app", name: "Mobile App" }],
       });
     apiMocks.getOfficeTasks.mockResolvedValue({ tasks: [] });
-    apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+    apiMocks.getOfficeMembers.mockResolvedValue({
+      members: [{ slug: "designer", name: "Designer", role: "design" }],
+    });
     apiMocks.getActions.mockResolvedValue({ actions: [] });
     apiMocks.createProject.mockResolvedValue({
       project: { id: "mobile-app", name: "Mobile App" },
@@ -540,8 +579,15 @@ describe("TasksApp project creation handoff", () => {
       await screen.findByRole("button", { name: "New project" }),
     );
     await user.type(screen.getByLabelText("Project name"), "Mobile App");
+    await user.selectOptions(screen.getByLabelText("Project lead"), "designer");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
+    expect(apiMocks.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Mobile App",
+        lead_agent: "designer",
+      }),
+    );
     expect(await screen.findByText("Mobile App workspace")).toBeInTheDocument();
     expect(screen.getByText("Codex command")).toBeInTheDocument();
     expect(
