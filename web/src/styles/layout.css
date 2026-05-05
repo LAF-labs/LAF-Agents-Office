@@ -311,38 +311,6 @@ html[data-theme="office"] .sidebar-rail-bottom {
   text-overflow: ellipsis;
   display: block;
 }
-.sidebar-item-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  display: block;
-}
-.sidebar-item-label-inner {
-  display: inline-block;
-  white-space: nowrap;
-}
-.sidebar-item:hover
-  .sidebar-item-label[data-overflow="true"]
-  .sidebar-item-label-inner {
-  animation: sidebar-item-scroll 3s linear 0.2s infinite;
-}
-@keyframes sidebar-item-scroll {
-  0%,
-  10% {
-    transform: translateX(0);
-  }
-  90%,
-  100% {
-    transform: translateX(calc(-100% + 140px));
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-item:hover
-    .sidebar-item-label[data-overflow="true"]
-    .sidebar-item-label-inner {
-    animation: none;
-  }
-}
 .sidebar-item:hover {
   background: rgba(0, 0, 0, 0.04);
   color: var(--text);

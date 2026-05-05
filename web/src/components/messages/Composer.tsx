@@ -494,6 +494,44 @@ function handleComposerSubmitKey(
   return true;
 }
 
+interface ComposerSendButtonProps {
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}
+
+function ComposerSendButton({
+  disabled,
+  label,
+  onClick,
+}: ComposerSendButtonProps) {
+  return (
+    <button
+      type="button"
+      className="composer-send"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+    >
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m22 2-7 20-4-9-9-4Z" />
+        <path d="M22 2 11 13" />
+      </svg>
+    </button>
+  );
+}
+
 export function Composer() {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const [text, setText] = useState("");
@@ -525,6 +563,9 @@ export function Composer() {
   const { commands, placeholderPrefix, sendLabel } = useComposerChromeText();
 
   const historyRef = useRef<HistoryState>(emptyHistoryState());
+  const refreshMessages = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["messages", currentChannel] });
+  }, [queryClient, currentChannel]);
 
   // Reset recall when switching channels so Ctrl+P replays *this* channel.
   useEffect(() => {
@@ -553,9 +594,7 @@ export function Composer() {
   const sendMutation = useMutation({
     mutationFn: ({ content, tagged }: OutboundMessage) =>
       postMessage(content, currentChannel, undefined, tagged),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["messages", currentChannel] });
-    },
+    onSuccess: refreshMessages,
     onError: (err: unknown) => {
       const message =
         err instanceof Error ? err.message : "Failed to send message";
@@ -571,10 +610,6 @@ export function Composer() {
     },
   });
 
-  /**
-   * Clear the composer, shrink the textarea, and cancel any pending recall.
-   * Called after every successful send or consumed command.
-   */
   const resetComposer = useCallback(() => {
     setText("");
     resetRecall();
@@ -597,11 +632,7 @@ export function Composer() {
             tagged: extractTaggedMentions(rewritten, knownSlugs),
           });
         },
-        refreshMessages: () => {
-          queryClient.invalidateQueries({
-            queryKey: ["messages", currentChannel],
-          });
-        },
+        refreshMessages,
       });
       if (consumed) {
         // Persist the *raw* command to history so Ctrl+P replays `/ask foo`,
@@ -618,7 +649,15 @@ export function Composer() {
       tagged: extractTaggedMentions(trimmed, knownSlugs),
     });
     resetComposer();
-  }, [text, sendMutation, leadSlug, currentChannel, resetComposer, knownSlugs]);
+  }, [
+    text,
+    sendMutation,
+    leadSlug,
+    currentChannel,
+    resetComposer,
+    knownSlugs,
+    refreshMessages,
+  ]);
 
   /**
    * Walk backward through history. On first invocation, snapshot the live
@@ -783,29 +822,11 @@ export function Composer() {
             rows={1}
           />
         </div>
-        <button
-          type="button"
-          className="composer-send"
+        <ComposerSendButton
           disabled={!text.trim() || sendMutation.isPending}
+          label={sendLabel}
           onClick={handleSend}
-          aria-label={sendLabel}
-        >
-          <svg
-            aria-hidden="true"
-            focusable="false"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m22 2-7 20-4-9-9-4Z" />
-            <path d="M22 2 11 13" />
-          </svg>
-        </button>
+        />
       </div>
     </div>
   );
