@@ -1596,7 +1596,7 @@ html[data-theme="office"]
   padding: 18px 20px 0;
 }
 .project-detail-surface.has-ticket-panel {
-  padding-right: min(430px, 34vw);
+  padding-right: min(530px, 42vw);
 }
 .project-detail-header {
   display: grid;
@@ -1852,10 +1852,10 @@ html[data-theme="office"]
   right: 0;
   bottom: 0;
   z-index: 160;
-  width: min(420px, 38vw);
-  min-width: 360px;
+  width: min(520px, 42vw);
+  min-width: 400px;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 14px;
   border-left: 1px solid var(--border);
   background: var(--bg-card);
@@ -1925,7 +1925,7 @@ html[data-theme="office"]
   white-space: nowrap;
 }
 .ticket-panel-section {
-  min-height: 0;
+  max-height: 118px;
   display: grid;
   align-content: start;
   gap: 7px;
@@ -1939,7 +1939,9 @@ html[data-theme="office"]
   white-space: pre-wrap;
 }
 .ticket-chat {
+  min-height: 0;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
@@ -1951,26 +1953,21 @@ html[data-theme="office"]
   gap: 10px;
 }
 .ticket-chat-feed {
-  min-height: 110px;
-  max-height: 220px;
+  min-height: 0;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 10px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--bg);
-  padding: 10px;
+  padding: 12px;
 }
 .ticket-chat-message {
-  max-width: 92%;
+  max-width: 100%;
   justify-self: start;
   display: grid;
-  gap: 3px;
-}
-.ticket-chat-message.human {
-  justify-self: end;
-  text-align: right;
+  gap: 4px;
 }
 .ticket-chat-message strong {
   color: var(--text-tertiary);
@@ -1979,20 +1976,13 @@ html[data-theme="office"]
 }
 .ticket-chat-message p {
   margin: 0;
-  border-radius: var(--radius-md);
-  background: var(--bg-subtle);
   color: var(--text-secondary);
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.48;
   white-space: pre-wrap;
 }
-.ticket-chat-message.human p {
-  background: var(--accent-bg);
-  color: var(--text-primary);
-}
 .ticket-chat-empty {
-  min-height: 92px;
+  min-height: 0;
   display: grid;
   place-items: center;
   border: 1px dashed var(--border-dark);
@@ -2003,7 +1993,7 @@ html[data-theme="office"]
   text-align: center;
 }
 .ticket-chat textarea {
-  min-height: 156px;
+  min-height: 118px;
 }
 .ticket-chat button {
   justify-self: end;

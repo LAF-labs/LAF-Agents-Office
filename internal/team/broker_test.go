@@ -4699,6 +4699,90 @@ func TestBrokerGetRequestsScopeAllSeesCrossChannelBlocker(t *testing.T) {
 	}
 }
 
+func TestBrokerAllowsThreadedTicketChatWithPendingRequest(t *testing.T) {
+	b := newTestBroker(t)
+	ensureTestMemberAccess(b, "general", "ceo", "CEO")
+	ensureTestMemberAccess(b, "general", "human", "Human")
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	createBody, _ := json.Marshal(map[string]any{
+		"kind":     "approval",
+		"from":     "ceo",
+		"channel":  "general",
+		"title":    "Decision",
+		"question": "Approve?",
+		"blocking": true,
+		"required": true,
+	})
+	req, _ := http.NewRequest(http.MethodPost, base+"/requests", bytes.NewReader(createBody))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("create request failed: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 creating request, got %d", resp.StatusCode)
+	}
+
+	plainBody, _ := json.Marshal(map[string]any{
+		"from":    "human",
+		"channel": "general",
+		"content": "This broad channel message should still be blocked.",
+	})
+	req, _ = http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(plainBody))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post plain message failed: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected pending request to block unthreaded chat, got %d", resp.StatusCode)
+	}
+
+	threadBody, _ := json.Marshal(map[string]any{
+		"from":     "human",
+		"channel":  "general",
+		"content":  "This belongs to the ticket thread.",
+		"reply_to": "task-123",
+	})
+	req, _ = http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(threadBody))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post threaded message failed: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for threaded ticket chat, got %d", resp.StatusCode)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, base+"/messages?channel=general&thread_id=task-123", nil)
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get thread messages failed: %v", err)
+	}
+	defer resp.Body.Close()
+	var messages struct {
+		Messages []channelMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&messages); err != nil {
+		t.Fatalf("decode thread messages: %v", err)
+	}
+	if len(messages.Messages) != 1 || messages.Messages[0].Content != "This belongs to the ticket thread." {
+		t.Fatalf("expected threaded ticket message, got %+v", messages.Messages)
+	}
+}
+
 func TestBrokerRequestAnswerUnblocksDependentTask(t *testing.T) {
 	b := newTestBroker(t)
 	ensureTestMemberAccess(b, "general", "ceo", "CEO")

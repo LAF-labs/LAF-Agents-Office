@@ -297,8 +297,18 @@ export function postMessage(
   replyTo?: string,
   tagged?: string[],
 ) {
+  return postMessageAs("you", content, channel, replyTo, tagged);
+}
+
+export function postMessageAs(
+  from: string,
+  content: string,
+  channel: string,
+  replyTo?: string,
+  tagged?: string[],
+) {
   const body: Record<string, string | string[]> = {
-    from: "you",
+    from,
     channel: channel || "general",
     content,
   };

@@ -18,6 +18,7 @@ const apiMocks = vi.hoisted(() => ({
   getThreadMessages: vi.fn(),
   post: vi.fn(),
   postMessage: vi.fn(),
+  postMessageAs: vi.fn(),
   reassignTask: vi.fn(),
   updateProject: vi.fn(),
   updateTaskStatus: vi.fn(),
@@ -129,6 +130,11 @@ function mockProjectDirectory() {
     content: "sent",
     id: "message-1",
   });
+  apiMocks.postMessageAs.mockResolvedValue({
+    channel: "general",
+    content: "ack",
+    id: "message-ack",
+  });
 }
 
 describe("TasksApp project directory", () => {
@@ -221,6 +227,12 @@ describe("TasksApp project directory", () => {
         }),
       );
     });
+    expect(apiMocks.postMessageAs).toHaveBeenCalledWith(
+      "engineer",
+      "I've got this ticket and I'm starting now.",
+      "general",
+      "task-new",
+    );
   });
 
   it("opens ticket details in a right-side panel with agent chat", async () => {
@@ -245,16 +257,14 @@ describe("TasksApp project directory", () => {
     ).toBeInTheDocument();
 
     await user.type(
-      within(panel).getByLabelText("Agent instruction"),
+      within(panel).getByLabelText("Ticket chat"),
       "Please finish this ticket and report blockers.",
     );
-    await user.click(
-      within(panel).getByRole("button", { name: "Send instruction" }),
-    );
+    await user.click(within(panel).getByRole("button", { name: "Send" }));
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        expect.stringContaining("@engineer"),
+        expect.stringContaining("@engineer\nPlease finish"),
         "general",
         "thread-build",
         ["engineer"],

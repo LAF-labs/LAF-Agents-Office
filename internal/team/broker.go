@@ -7851,8 +7851,10 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	replyTo := strings.TrimSpace(body.ReplyTo)
+
 	b.mu.Lock()
-	if firstBlockingRequest(b.requests) != nil {
+	if firstBlockingRequest(b.requests) != nil && replyTo == "" {
 		b.mu.Unlock()
 		http.Error(w, "request pending; answer required before chat resumes", http.StatusConflict)
 		return
@@ -7948,7 +7950,6 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// Agent-to-agent auto-tagging is intentionally skipped: focus mode
 	// routing (specialist → lead only) already handles that path, and
 	// auto-tagging agent replies causes broadcast loops.
-	replyTo := strings.TrimSpace(body.ReplyTo)
 	isHumanSender := body.From == "you" || body.From == "human"
 	if replyTo != "" && isHumanSender {
 		threadRoot := replyTo
@@ -8150,7 +8151,8 @@ func (b *Broker) PostSystemMessage(channel, content, kind string) {
 func (b *Broker) PostMessage(from, channel, content string, tagged []string, replyTo string) (channelMessage, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if firstBlockingRequest(b.requests) != nil {
+	replyTo = strings.TrimSpace(replyTo)
+	if firstBlockingRequest(b.requests) != nil && replyTo == "" {
 		return channelMessage{}, fmt.Errorf("request pending; answer required before chat resumes")
 	}
 	channel = normalizeChannelSlug(channel)
@@ -8179,7 +8181,7 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 		Title:     "",
 		Content:   strings.TrimSpace(content),
 		Tagged:    uniqueSlugs(tagged),
-		ReplyTo:   strings.TrimSpace(replyTo),
+		ReplyTo:   replyTo,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)

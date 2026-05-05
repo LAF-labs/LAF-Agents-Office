@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BookStack,
   CheckCircle,
-  ClipboardCheck,
   Flash,
   NavArrowDown,
   NavArrowRight,
@@ -13,10 +12,9 @@ import {
   Settings,
 } from "iconoir-react";
 
-import { getProjects, getRequests, type Project } from "../../api/client";
+import { getProjects, type Project } from "../../api/client";
 import { fetchReviews } from "../../api/notebook";
 import { useOverflow } from "../../hooks/useOverflow";
-import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
@@ -34,7 +32,6 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   studio: Play,
   wiki: BookStack,
   tasks: CheckCircle,
-  requests: ClipboardCheck,
   skills: Flash,
   activity: Package,
   receipts: Page,
@@ -45,10 +42,8 @@ type SidebarApp = (typeof SIDEBAR_APPS)[number];
 
 function badgeForApp(
   appId: string,
-  pendingCount: number,
   pendingReviewsCount: number,
 ): number | null {
-  if (appId === "requests" && pendingCount > 0) return pendingCount;
   if (appId === "wiki" && pendingReviewsCount > 0) return pendingReviewsCount;
   return null;
 }
@@ -188,14 +183,7 @@ export function AppList() {
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const projectFocusId = useAppStore((s) => s.projectFocusId);
   const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
-  const currentChannel = useAppStore((s) => s.currentChannel);
   const { t } = useI18n();
-
-  const { data: requestsData } = useQuery({
-    queryKey: ["requests-badge", currentChannel],
-    queryFn: () => getRequests(currentChannel),
-    refetchInterval: REQUEST_REFETCH_MS,
-  });
 
   const { data: reviewsData } = useQuery({
     queryKey: ["reviews-badge"],
@@ -207,10 +195,6 @@ export function AppList() {
     queryFn: () => getProjects(),
     staleTime: 30_000,
   });
-
-  const pendingCount = (requestsData?.requests ?? []).filter(
-    (r) => !r.status || r.status === "open" || r.status === "pending",
-  ).length;
 
   const pendingReviewsCount = (reviewsData ?? []).filter(
     (r) =>
@@ -228,7 +212,7 @@ export function AppList() {
           <SidebarAppGroup
             key={app.id}
             app={app}
-            badge={badgeForApp(app.id, pendingCount, pendingReviewsCount)}
+            badge={badgeForApp(app.id, pendingReviewsCount)}
             currentApp={currentApp}
             projectFocusId={projectFocusId}
             projects={projectsData?.projects ?? []}

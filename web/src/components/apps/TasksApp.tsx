@@ -14,6 +14,7 @@ import {
   type Message,
   type Project,
   postMessage,
+  postMessageAs,
   type Task,
 } from "../../api/client";
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
@@ -26,6 +27,7 @@ const liveEventsSupported =
 const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 const HUMAN_SLUG = "human";
 const DEFAULT_AGENT = "ceo";
+const ALL_AGENTS = "__all_agents__";
 
 const STATUS_ORDER = [
   "in_progress",
@@ -256,6 +258,42 @@ function taskChannel(task: Task, project: Project): string {
   return task.channel || project.channel || "general";
 }
 
+function isHumanSlug(slug: string): boolean {
+  return slug === "human" || slug === "you";
+}
+
+function assignmentAck(t: TranslationFn): string {
+  return t("tasks.assignmentAck");
+}
+
+function chatTargetSlugs(
+  targetAgent: string,
+  members: OfficeMember[],
+  defaultAgent: string,
+): string[] {
+  if (targetAgent === ALL_AGENTS) return agentSlugs(members, defaultAgent);
+  return targetAgent ? [targetAgent] : [];
+}
+
+async function postTicketAssignmentAck(
+  task: Task,
+  project: Project,
+  owner: string,
+  t: TranslationFn,
+) {
+  if (!owner || isHumanSlug(owner)) return;
+  try {
+    await postMessageAs(
+      owner,
+      assignmentAck(t),
+      taskChannel(task, project),
+      task.thread_id || task.id,
+    );
+  } catch {
+    // Ticket creation should not fail if the lightweight ack cannot post.
+  }
+}
+
 function messageAuthorLabel(
   message: Message,
   members: OfficeMember[],
@@ -312,6 +350,7 @@ function useTicketCreator(
   queryClient: QueryClient,
   project: Project | null,
   members: OfficeMember[],
+  t: TranslationFn,
   onTicketCreated: (ticketId: string) => void,
 ) {
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
@@ -344,11 +383,20 @@ function useTicketCreator(
         project_id: project.id,
         title,
       });
+      const channel = taskChannel(task, project);
+      const threadId = task.thread_id || task.id;
+      await postTicketAssignmentAck(task, project, owner, t);
       setTicketTitle("");
       setTicketDetails("");
       setIsCreatingTicket(false);
       onTicketCreated(task.id);
-      await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["messages", channel] }),
+        queryClient.invalidateQueries({
+          queryKey: ["thread-messages", channel, threadId],
+        }),
+      ]);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not create ticket";
@@ -408,6 +456,7 @@ export function TasksApp() {
     queryClient,
     selectedProject,
     members,
+    t,
     setSelectedTaskId,
   );
 
@@ -1054,16 +1103,10 @@ function TicketSidePanel({
     setSendError(null);
     setSent(false);
     try {
-      const message = [
-        `@${targetAgent}`,
-        "",
-        `Project: ${project.name || project.id} (${project.id})`,
-        `Ticket: ${task.title || task.id} (${task.id})`,
-        `Status: ${t(STATUS_LABEL_KEYS[status])}`,
-        "",
-        text,
-      ].join("\n");
-      await postMessage(message, channel, task.thread_id, [targetAgent]);
+      const targets = chatTargetSlugs(targetAgent, members, defaultAgent);
+      const mentions = targets.map((slug) => `@${slug}`).join(" ");
+      const message = mentions ? `${mentions}\n${text}` : text;
+      await postMessage(message, channel, threadId, targets);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["messages", channel] }),
         queryClient.invalidateQueries({
@@ -1113,6 +1156,8 @@ function TicketSidePanel({
           <h5>{t("tasks.agentInstruction")}</h5>
           <AgentSelect
             agent={targetAgent}
+            allLabel={t("tasks.allAgents")}
+            includeAll={true}
             label={t("tasks.agentTarget")}
             members={members}
             preferred={defaultAgent}
@@ -1192,18 +1237,23 @@ function TicketChatFeed({
 
 function AgentSelect({
   agent,
+  allLabel,
+  includeAll = false,
   label,
   members,
   preferred,
   onChange,
 }: {
   agent: string;
+  allLabel?: string;
+  includeAll?: boolean;
   label: string;
   members: OfficeMember[];
   preferred?: string;
   onChange: (agent: string) => void;
 }) {
-  const options = agentSlugs(members, agent || preferred || DEFAULT_AGENT);
+  const preferredAgent = agent === ALL_AGENTS ? preferred : agent || preferred;
+  const options = agentSlugs(members, preferredAgent || DEFAULT_AGENT);
   return (
     <select
       className="agent-select"
@@ -1211,6 +1261,9 @@ function AgentSelect({
       onChange={(event) => onChange(event.currentTarget.value)}
       aria-label={label}
     >
+      {includeAll && allLabel ? (
+        <option value={ALL_AGENTS}>{allLabel}</option>
+      ) : null}
       {options.map((slug) => (
         <option key={slug} value={slug}>
           {agentLabel(slug, members)}
