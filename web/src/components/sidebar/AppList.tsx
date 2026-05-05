@@ -1,10 +1,12 @@
-import type { ComponentType } from "react";
+import { type ComponentType, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookStack,
   CheckCircle,
   ClipboardCheck,
   Flash,
+  NavArrowDown,
+  NavArrowRight,
   Package,
   Page,
   Play,
@@ -72,38 +74,69 @@ function SidebarAppGroup({
   setProjectFocusId,
   t,
 }: SidebarAppGroupProps) {
+  const [projectsExpanded, setProjectsExpanded] = useState(true);
   const Icon = APP_ICONS[app.id];
   const isActive =
     app.id === "wiki"
       ? WIKI_SURFACE_APPS.has(currentApp ?? "")
       : currentApp === app.id;
   const appName = t(`app.${app.id}` as I18nKey);
+  const showProjects = app.id === "tasks" && isActive;
 
   return (
     <div className="sidebar-app-group">
-      <button
-        type="button"
-        className={`sidebar-item${isActive ? " active" : ""}`}
-        onClick={() => {
-          if (app.id === "tasks") setProjectFocusId(null);
-          setCurrentApp(app.id);
-        }}
-        onFocus={() => preloadWorkspaceSurface(app.id)}
-        onMouseEnter={() => preloadWorkspaceSurface(app.id)}
-      >
-        {Icon ? (
-          <Icon className="sidebar-item-icon" />
-        ) : (
-          <span className="sidebar-item-emoji">{app.icon}</span>
-        )}
-        <span style={{ flex: 1 }}>{appName}</span>
-        {badge !== null ? (
-          <span className="sidebar-badge" title={`${badge} pending`}>
-            {badge}
-          </span>
+      <div className="sidebar-app-row">
+        <button
+          type="button"
+          className={`sidebar-item${isActive ? " active" : ""}`}
+          onClick={() => {
+            if (app.id === "tasks") {
+              setProjectFocusId(null);
+              setProjectsExpanded(true);
+            }
+            setCurrentApp(app.id);
+          }}
+          onFocus={() => preloadWorkspaceSurface(app.id)}
+          onMouseEnter={() => preloadWorkspaceSurface(app.id)}
+        >
+          {Icon ? (
+            <Icon className="sidebar-item-icon" />
+          ) : (
+            <span className="sidebar-item-emoji">{app.icon}</span>
+          )}
+          <span style={{ flex: 1 }}>{appName}</span>
+          {badge !== null ? (
+            <span className="sidebar-badge" title={`${badge} pending`}>
+              {badge}
+            </span>
+          ) : null}
+        </button>
+        {showProjects ? (
+          <button
+            type="button"
+            className="sidebar-project-toggle"
+            aria-expanded={projectsExpanded}
+            aria-label={
+              projectsExpanded
+                ? t("tasks.sidebar.collapseProjects")
+                : t("tasks.sidebar.expandProjects")
+            }
+            title={
+              projectsExpanded
+                ? t("tasks.sidebar.collapseProjects")
+                : t("tasks.sidebar.expandProjects")
+            }
+            onClick={() => setProjectsExpanded((value) => !value)}
+          >
+            {projectsExpanded ? (
+              <NavArrowDown width={15} height={15} />
+            ) : (
+              <NavArrowRight width={15} height={15} />
+            )}
+          </button>
         ) : null}
-      </button>
-      {app.id === "tasks" && isActive ? (
+      </div>
+      {showProjects && projectsExpanded ? (
         <SidebarProjectsList
           projectFocusId={projectFocusId}
           projects={projects}

@@ -15,7 +15,9 @@ const apiMocks = vi.hoisted(() => ({
   getOfficeTasks: vi.fn(),
   getProjectRepoReadiness: vi.fn(),
   getProjects: vi.fn(),
+  getThreadMessages: vi.fn(),
   post: vi.fn(),
+  postMessage: vi.fn(),
   reassignTask: vi.fn(),
   updateProject: vi.fn(),
   updateTaskStatus: vi.fn(),
@@ -49,7 +51,11 @@ function mockProjectDirectory() {
   });
   apiMocks.getProjects.mockResolvedValue({
     projects: [
-      { id: "customer-portal", name: "Customer Portal" },
+      {
+        id: "customer-portal",
+        lead_agent: "engineer",
+        name: "Customer Portal",
+      },
       { id: "agent-lab", name: "Agent Lab" },
       { id: "billing", name: "Billing", status: "waiting" },
     ],
@@ -58,6 +64,7 @@ function mockProjectDirectory() {
     tasks: [
       {
         id: "task-open",
+        details: "Write the first release narrative.",
         owner: "human",
         project_id: "customer-portal",
         status: "open",
@@ -65,9 +72,12 @@ function mockProjectDirectory() {
       },
       {
         id: "task-build",
+        channel: "general",
+        details: "Ship the core signup path.",
         owner: "engineer",
         project_id: "customer-portal",
         status: "in_progress",
+        thread_id: "thread-build",
         title: "Implement signup flow",
       },
       {
@@ -94,8 +104,31 @@ function mockProjectDirectory() {
     ],
   });
   apiMocks.getActions.mockResolvedValue({ actions: [] });
-  apiMocks.getOfficeMembers.mockResolvedValue({ members: [] });
+  apiMocks.getOfficeMembers.mockResolvedValue({
+    members: [
+      { name: "CEO", slug: "ceo" },
+      { name: "Engineer", slug: "engineer" },
+      { name: "Product", slug: "pm" },
+    ],
+  });
   apiMocks.getProjectRepoReadiness.mockResolvedValue({ readiness: null });
+  apiMocks.getThreadMessages.mockResolvedValue({
+    messages: [
+      {
+        channel: "general",
+        content: "I am on the signup flow.",
+        from: "engineer",
+        id: "message-agent",
+        timestamp: "2026-05-05T01:00:00Z",
+        thread_id: "thread-build",
+      },
+    ],
+  });
+  apiMocks.postMessage.mockResolvedValue({
+    channel: "general",
+    content: "sent",
+    id: "message-1",
+  });
 }
 
 describe("TasksApp project directory", () => {
@@ -131,7 +164,7 @@ describe("TasksApp project directory", () => {
     expect(screen.queryByText("Issues")).not.toBeInTheDocument();
   });
 
-  it("focuses a project row for sidebar/deep-link navigation", async () => {
+  it("opens a project detail view with its ticket list", async () => {
     const user = userEvent.setup();
     renderTasksApp();
 
@@ -141,7 +174,92 @@ describe("TasksApp project directory", () => {
     await user.click(customerPortal);
 
     expect(useAppStore.getState().projectFocusId).toBe("customer-portal");
-    expect(customerPortal).toHaveAttribute("aria-current", "true");
+    expect(
+      await screen.findByRole("heading", { name: "Customer Portal" }),
+    ).toBeInTheDocument();
+
+    const ticketList = screen.getByRole("region", { name: "Tickets" });
+    expect(
+      within(ticketList).getByText("Implement signup flow"),
+    ).toBeInTheDocument();
+    expect(
+      within(ticketList).getByText("Review signup flow"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
+  });
+
+  it("creates a ticket inside the selected project", async () => {
+    const user = userEvent.setup();
+    apiMocks.createTask.mockResolvedValue({
+      task: {
+        id: "task-new",
+        owner: "engineer",
+        project_id: "customer-portal",
+        status: "open",
+        title: "Instrument funnel",
+      },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "New ticket" }));
+    await user.type(screen.getByLabelText("Ticket title"), "Instrument funnel");
+    await user.type(screen.getByLabelText("Details"), "Track signup drop-off.");
+    await user.click(screen.getByRole("button", { name: "Create ticket" }));
+
+    await waitFor(() => {
+      expect(apiMocks.createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          created_by: "human",
+          details: "Track signup drop-off.",
+          owner: "engineer",
+          project_id: "customer-portal",
+          title: "Instrument funnel",
+        }),
+      );
+    });
+  });
+
+  it("opens ticket details in a right-side panel with agent chat", async () => {
+    const user = userEvent.setup();
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    expect(
+      within(panel).getByText("Ship the core signup path."),
+    ).toBeInTheDocument();
+    expect(
+      await within(panel).findByText("I am on the signup flow."),
+    ).toBeInTheDocument();
+
+    await user.type(
+      within(panel).getByLabelText("Agent instruction"),
+      "Please finish this ticket and report blockers.",
+    );
+    await user.click(
+      within(panel).getByRole("button", { name: "Send instruction" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.postMessage).toHaveBeenCalledWith(
+        expect.stringContaining("@engineer"),
+        "general",
+        "thread-build",
+        ["engineer"],
+      );
+    });
   });
 
   it("creates a new project from the plus button", async () => {
