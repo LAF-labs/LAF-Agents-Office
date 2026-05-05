@@ -20,6 +20,14 @@ import {
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { type Language, useAppStore } from "../../stores/app";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Badge, type BadgeProps } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Select } from "../ui/select";
+import { Separator } from "../ui/separator";
+import { Textarea } from "../ui/textarea";
 
 const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
@@ -60,6 +68,7 @@ type ProjectTicketCounts = {
   total: number;
   waiting: number;
 };
+type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
 function normalizeStatus(raw: string): StatusGroup {
   const status = raw.toLowerCase().replace(/[\s-]+/g, "_");
@@ -136,16 +145,16 @@ function projectLifecycle(
   return "not_started";
 }
 
-function projectLifecycleClass(status: ProjectLifecycle): string {
+function projectLifecycleBadgeVariant(status: ProjectLifecycle): BadgeVariant {
   switch (status) {
     case "done":
-      return "project-status-done";
+      return "secondary";
     case "in_progress":
-      return "project-status-progress";
+      return "default";
     case "waiting":
-      return "project-status-waiting";
+      return "destructive";
     case "not_started":
-      return "project-status-not-started";
+      return "outline";
   }
 }
 
@@ -197,14 +206,11 @@ function sortProjectTasks(tasks: Task[]): Task[] {
   });
 }
 
-function taskStatusClass(status: StatusGroup): string {
-  if (status === "done") return "ticket-status-done";
-  if (status === "blocked" || status === "pending")
-    return "ticket-status-waiting";
-  if (status === "review") return "ticket-status-review";
-  if (status === "in_progress") return "ticket-status-progress";
-  if (status === "canceled") return "ticket-status-canceled";
-  return "ticket-status-open";
+function taskStatusBadgeVariant(status: StatusGroup): BadgeVariant {
+  if (status === "blocked" || status === "pending") return "destructive";
+  if (status === "in_progress") return "default";
+  if (status === "done" || status === "canceled") return "secondary";
+  return "outline";
 }
 
 function agentSlugs(members: OfficeMember[], preferred?: string): string[] {
@@ -266,6 +272,8 @@ function extractQuotedHumanDetail(raw: string): string {
 }
 
 function userEnteredTaskDetails(task: Task): string {
+  const humanDetails = task.human_details?.trim();
+  if (humanDetails) return humanDetails;
   const raw = (task.details || task.description || "").trim();
   if (!raw) return "";
   const creator = (task.created_by || "").trim();
@@ -380,12 +388,14 @@ function useTicketCreator(
     const title = ticketTitle.trim();
     if (!title) return;
     const owner = ticketOwner.trim() || defaultProjectAgent(project, members);
+    const details = ticketDetails.trim();
     setTicketError(null);
     try {
       const { task } = await createTask({
         channel: project.channel || "general",
         created_by: HUMAN_SLUG,
-        details: ticketDetails.trim() || undefined,
+        details: details || undefined,
+        human_details: details || undefined,
         owner,
         project_id: project.id,
         title,
@@ -527,7 +537,11 @@ export function TasksApp() {
 }
 
 function TaskWorkspaceState({ children }: { children: string }) {
-  return <div className="task-empty-state">{children}</div>;
+  return (
+    <Card className="task-empty-state">
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
 }
 
 interface ProjectDirectoryToolbarProps {
@@ -567,15 +581,17 @@ function ProjectDirectoryToolbar({
             : countLabel(taskCount, "ticket", "tickets", "티켓", language)}
         </span>
       </div>
-      <button
+      <Button
         type="button"
         className="project-directory-add"
+        size="icon"
+        variant="outline"
         onClick={onCreateProject}
         aria-label={t("tasks.newProject")}
         title={t("tasks.newProject")}
       >
         +
-      </button>
+      </Button>
       {projectCreator.isCreatingProject ? (
         <ProjectCreateForm projectCreator={projectCreator} t={t} />
       ) : null}
@@ -598,7 +614,7 @@ function ProjectCreateForm({
       className="task-project-form"
       onSubmit={projectCreator.handleCreateProject}
     >
-      <input
+      <Input
         type="text"
         value={projectCreator.newProjectName}
         onChange={(event) =>
@@ -607,12 +623,12 @@ function ProjectCreateForm({
         placeholder={t("tasks.projectName")}
         aria-label={t("tasks.projectName")}
       />
-      <button
+      <Button
         type="submit"
         disabled={projectCreator.newProjectName.trim() === ""}
       >
         {t("tasks.create")}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -712,12 +728,13 @@ function ProjectDirectoryRow({
 }: ProjectDirectoryRowProps) {
   const countValue = (value: number) => (isStatsReady ? value : "...");
   return (
-    <button
+    <Button
       type="button"
       id={id}
       className={`project-directory-row project-directory-item${
         isFocused ? " active" : ""
       }`}
+      variant="ghost"
       onClick={onFocus}
       aria-current={isFocused ? "true" : undefined}
     >
@@ -725,9 +742,12 @@ function ProjectDirectoryRow({
         <strong>{project.name || project.id}</strong>
         <small>{project.id}</small>
       </span>
-      <span className={`project-status-pill ${projectLifecycleClass(status)}`}>
+      <Badge
+        className="project-status-pill"
+        variant={projectLifecycleBadgeVariant(status)}
+      >
         {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-      </span>
+      </Badge>
       <span className="project-ticket-counts">
         <span>
           <strong>{countValue(counts.notStarted)}</strong>{" "}
@@ -751,7 +771,7 @@ function ProjectDirectoryRow({
             : "..."}
         </span>
       </span>
-    </button>
+    </Button>
   );
 }
 
@@ -854,16 +874,25 @@ function ProjectDetailHeader({
 }) {
   return (
     <header className="project-detail-header">
-      <button type="button" className="project-back-button" onClick={onBack}>
+      <Button
+        type="button"
+        className="project-back-button"
+        variant="outline"
+        size="sm"
+        onClick={onBack}
+      >
         {t("tasks.backToProjects")}
-      </button>
+      </Button>
       <div className="project-detail-title">
         <h3>{project.name || project.id}</h3>
         <span>{project.id}</span>
       </div>
-      <span className={`project-status-pill ${projectLifecycleClass(status)}`}>
+      <Badge
+        className="project-status-pill"
+        variant={projectLifecycleBadgeVariant(status)}
+      >
         {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-      </span>
+      </Badge>
       <span className="project-detail-total">
         {isStatsReady
           ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
@@ -896,9 +925,11 @@ function ProjectTicketToolbar({
           {countLabel(ticketCount, "ticket", "tickets", "티켓", language)}
         </span>
       </div>
-      <button
+      <Button
         type="button"
         className="project-directory-add"
+        size="icon"
+        variant="outline"
         onClick={() => {
           ticketCreator.setTicketError(null);
           ticketCreator.setIsCreatingTicket(true);
@@ -907,7 +938,7 @@ function ProjectTicketToolbar({
         title={t("tasks.newTicket")}
       >
         +
-      </button>
+      </Button>
       {ticketCreator.isCreatingTicket ? (
         <TicketCreateForm
           members={members}
@@ -939,7 +970,7 @@ function TicketCreateForm({
       className="ticket-create-form"
       onSubmit={ticketCreator.handleCreateTicket}
     >
-      <input
+      <Input
         type="text"
         value={ticketCreator.ticketTitle}
         onChange={(event) =>
@@ -955,7 +986,7 @@ function TicketCreateForm({
         preferred={project.lead_agent}
         onChange={ticketCreator.setTicketOwner}
       />
-      <textarea
+      <Textarea
         value={ticketCreator.ticketDetails}
         onChange={(event) =>
           ticketCreator.setTicketDetails(event.currentTarget.value)
@@ -965,18 +996,19 @@ function TicketCreateForm({
         rows={3}
       />
       <div className="ticket-create-actions">
-        <button
+        <Button
           type="submit"
           disabled={ticketCreator.ticketTitle.trim() === ""}
         >
           {t("tasks.createTicket")}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => ticketCreator.setIsCreatingTicket(false)}
         >
           {t("tasks.cancel")}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -1041,9 +1073,10 @@ function TicketRow({
   const status = normalizeStatus(task.status);
   const detail = userEnteredTaskDetails(task);
   return (
-    <button
+    <Button
       type="button"
       className={`ticket-row ticket-item${isSelected ? " active" : ""}`}
+      variant="ghost"
       onClick={onSelect}
       aria-current={isSelected ? "true" : undefined}
     >
@@ -1052,13 +1085,16 @@ function TicketRow({
         <small>{task.id}</small>
         {detail ? <em>{detail}</em> : null}
       </span>
-      <span className={`ticket-status-pill ${taskStatusClass(status)}`}>
+      <Badge
+        className="ticket-status-pill"
+        variant={taskStatusBadgeVariant(status)}
+      >
         {t(STATUS_LABEL_KEYS[status])}
-      </span>
+      </Badge>
       <span className="ticket-owner-cell">
         {taskOwnerLabel(task, members, t)}
       </span>
-    </button>
+    </Button>
   );
 }
 
@@ -1124,17 +1160,26 @@ function TicketSidePanel({
           <span>{task.id}</span>
           <h4>{task.title || t("tasks.untitled")}</h4>
         </div>
-        <button type="button" onClick={onClose} aria-label={t("tasks.close")}>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={onClose}
+          aria-label={t("tasks.close")}
+        >
           x
-        </button>
+        </Button>
       </header>
       <dl className="ticket-panel-meta">
         <div>
           <dt>{t("tasks.status")}</dt>
           <dd>
-            <span className={`ticket-status-pill ${taskStatusClass(status)}`}>
+            <Badge
+              className="ticket-status-pill"
+              variant={taskStatusBadgeVariant(status)}
+            >
               {t(STATUS_LABEL_KEYS[status])}
-            </span>
+            </Badge>
           </dd>
         </div>
         <div>
@@ -1142,6 +1187,7 @@ function TicketSidePanel({
           <dd>{taskOwnerLabel(task, members, t)}</dd>
         </div>
       </dl>
+      <Separator />
       <section className="ticket-panel-section">
         <h5>{t("tasks.ticketDetails")}</h5>
         <p>{detail}</p>
@@ -1157,7 +1203,7 @@ function TicketSidePanel({
           t={t}
         />
         <div className="ticket-chat-composer">
-          <textarea
+          <Textarea
             value={instruction}
             onChange={(event) => {
               setInstruction(event.currentTarget.value);
@@ -1175,9 +1221,9 @@ function TicketSidePanel({
                   ? t("tasks.sent")
                   : t("tasks.mentionHint")}
             </span>
-            <button type="submit" disabled={!instruction.trim() || isSending}>
+            <Button type="submit" disabled={!instruction.trim() || isSending}>
               {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
-            </button>
+            </Button>
           </div>
         </div>
       </form>
@@ -1213,9 +1259,11 @@ function TicketChatFeed({
       {visibleMessages.map((message) => {
         return (
           <article className="ticket-chat-message" key={message.id}>
-            <span className="ticket-chat-avatar">
-              {messageAuthorInitial(message, members, t)}
-            </span>
+            <Avatar className="ticket-chat-avatar">
+              <AvatarFallback>
+                {messageAuthorInitial(message, members, t)}
+              </AvatarFallback>
+            </Avatar>
             <div className="ticket-chat-bubble">
               <strong>{messageAuthorLabel(message, members, t)}</strong>
               <p>{message.content}</p>
@@ -1242,7 +1290,7 @@ function AgentSelect({
 }) {
   const options = agentSlugs(members, agent || preferred || DEFAULT_AGENT);
   return (
-    <select
+    <Select
       className="agent-select"
       value={agent || options[0] || ""}
       onChange={(event) => onChange(event.currentTarget.value)}
@@ -1253,6 +1301,6 @@ function AgentSelect({
           {agentLabel(slug, members)}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

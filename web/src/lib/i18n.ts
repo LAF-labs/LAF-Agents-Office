@@ -951,7 +951,7 @@ const messages = {
     "tasks.sendInstruction": "보내기",
     "tasks.sending": "보내는 중...",
     "tasks.sent": "전송됨",
-    "tasks.chatFailed": "지시를 보내지 못했습니다.",
+    "tasks.chatFailed": "댓글을 보내지 못했습니다.",
     "tasks.assignmentAck": "확인했습니다. 이 티켓 작업을 시작하겠습니다.",
     "tasks.activeCount": "진행",
     "tasks.doneCount": "완료",

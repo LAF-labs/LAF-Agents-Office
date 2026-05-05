@@ -3603,6 +3603,11 @@ func normalizeActorSlug(slug string) string {
 	return slug
 }
 
+func isHumanActorSlug(slug string) bool {
+	slug = normalizeActorSlug(slug)
+	return slug == "human" || slug == "you"
+}
+
 func (b *Broker) ensureDefaultChannelsLocked() {
 	if len(b.channels) == 0 {
 		b.channels = defaultTeamChannels()
@@ -9167,6 +9172,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		ProjectID        string   `json:"project_id"`
 		Title            string   `json:"title"`
 		Details          string   `json:"details"`
+		HumanDetails     string   `json:"human_details"`
 		Owner            string   `json:"owner"`
 		CreatedBy        string   `json:"created_by"`
 		ThreadID         string   `json:"thread_id"`
@@ -9270,6 +9276,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "project not found", http.StatusNotFound)
 		return
 	}
+	humanDetails := strings.TrimSpace(body.HumanDetails)
+	if humanDetails == "" && isHumanActorSlug(body.CreatedBy) {
+		humanDetails = strings.TrimSpace(body.Details)
+	}
 
 	if action == "create" {
 		if strings.TrimSpace(body.Title) == "" || strings.TrimSpace(body.CreatedBy) == "" {
@@ -9288,6 +9298,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		}); existing != nil {
 			if details := strings.TrimSpace(body.Details); details != "" {
 				existing.Details = details
+			}
+			if humanDetails != "" {
+				existing.HumanDetails = humanDetails
 			}
 			if owner := strings.TrimSpace(body.Owner); owner != "" {
 				existing.Owner = owner
@@ -9354,6 +9367,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			Channel:          channel,
 			Title:            strings.TrimSpace(body.Title),
 			Details:          strings.TrimSpace(body.Details),
+			HumanDetails:     humanDetails,
 			Owner:            strings.TrimSpace(body.Owner),
 			Status:           "open",
 			CreatedBy:        strings.TrimSpace(body.CreatedBy),
@@ -9988,6 +10002,9 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			titleToID[strings.TrimSpace(item.Title)] = existing.ID
 			if details := strings.TrimSpace(item.Details); details != "" {
 				existing.Details = details
+				if existing.HumanDetails == "" && isHumanActorSlug(createdBy) {
+					existing.HumanDetails = details
+				}
 			}
 			if taskType := strings.TrimSpace(item.TaskType); taskType != "" {
 				existing.TaskType = taskType
@@ -10037,6 +10054,9 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			DependsOn:     resolvedDeps,
 			CreatedAt:     now,
 			UpdatedAt:     now,
+		}
+		if isHumanActorSlug(createdBy) {
+			task.HumanDetails = strings.TrimSpace(item.Details)
 		}
 		if task.Owner != "" && len(resolvedDeps) == 0 {
 			task.Status = "in_progress"
@@ -10234,6 +10254,10 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 		return teamTask{}, false, fmt.Errorf("channel access denied")
 	}
 	title = strings.TrimSpace(title)
+	humanDetails := ""
+	if isHumanActorSlug(createdBy) {
+		humanDetails = strings.TrimSpace(details)
+	}
 	if existing := b.findReusableTaskLocked(taskReuseMatch{
 		Channel:  channel,
 		Title:    title,
@@ -10242,6 +10266,9 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 	}); existing != nil {
 		if existing.Details == "" && strings.TrimSpace(details) != "" {
 			existing.Details = strings.TrimSpace(details)
+		}
+		if existing.HumanDetails == "" && humanDetails != "" {
+			existing.HumanDetails = humanDetails
 		}
 		if existing.Owner == "" && strings.TrimSpace(owner) != "" {
 			existing.Owner = strings.TrimSpace(owner)
@@ -10270,17 +10297,18 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 	now := time.Now().UTC().Format(time.RFC3339)
 	b.counter++
 	task := teamTask{
-		ID:        fmt.Sprintf("task-%d", b.counter),
-		Channel:   channel,
-		Title:     title,
-		Details:   strings.TrimSpace(details),
-		Owner:     strings.TrimSpace(owner),
-		Status:    "open",
-		CreatedBy: strings.TrimSpace(createdBy),
-		ThreadID:  strings.TrimSpace(threadID),
-		DependsOn: dependsOn,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:           fmt.Sprintf("task-%d", b.counter),
+		Channel:      channel,
+		Title:        title,
+		Details:      strings.TrimSpace(details),
+		HumanDetails: humanDetails,
+		Owner:        strings.TrimSpace(owner),
+		Status:       "open",
+		CreatedBy:    strings.TrimSpace(createdBy),
+		ThreadID:     strings.TrimSpace(threadID),
+		DependsOn:    dependsOn,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	if len(task.DependsOn) > 0 && b.hasUnresolvedDepsLocked(&task) {
 		task.Blocked = true
@@ -10331,6 +10359,10 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		return teamTask{}, false, fmt.Errorf("channel access denied")
 	}
 	title := strings.TrimSpace(input.Title)
+	humanDetails := ""
+	if isHumanActorSlug(input.CreatedBy) {
+		humanDetails = strings.TrimSpace(input.Details)
+	}
 	if existing := b.findReusableTaskLocked(taskReuseMatch{
 		Channel:          channel,
 		Title:            title,
@@ -10342,6 +10374,9 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 	}); existing != nil {
 		if existing.Details == "" && strings.TrimSpace(input.Details) != "" {
 			existing.Details = strings.TrimSpace(input.Details)
+		}
+		if existing.HumanDetails == "" && humanDetails != "" {
+			existing.HumanDetails = humanDetails
 		}
 		if existing.Owner == "" && strings.TrimSpace(input.Owner) != "" {
 			existing.Owner = strings.TrimSpace(input.Owner)
@@ -10390,6 +10425,7 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		Channel:          channel,
 		Title:            title,
 		Details:          strings.TrimSpace(input.Details),
+		HumanDetails:     humanDetails,
 		Owner:            strings.TrimSpace(input.Owner),
 		Status:           "open",
 		CreatedBy:        strings.TrimSpace(input.CreatedBy),

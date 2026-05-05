@@ -223,6 +223,7 @@ describe("TasksApp project directory", () => {
         expect.objectContaining({
           created_by: "human",
           details: "Track signup drop-off.",
+          human_details: "Track signup drop-off.",
           owner: "engineer",
           project_id: "customer-portal",
           title: "Instrument funnel",

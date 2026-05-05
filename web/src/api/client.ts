@@ -606,6 +606,7 @@ export interface Task {
   title: string;
   description?: string;
   details?: string;
+  human_details?: string;
   status: string;
   owner?: string;
   created_by?: string;
@@ -715,6 +716,7 @@ export function updateProject(body: {
 export function createTask(body: {
   title: string;
   details?: string;
+  human_details?: string;
   project_id?: string;
   channel?: string;
   owner?: string;

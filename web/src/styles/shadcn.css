@@ -48,4 +48,32 @@
 
     --radius: 8px;
   }
+
+  html[data-theme="office-dark"] {
+    --background: 210 6% 7%;
+    --foreground: 200 5% 92%;
+    --card: 210 5% 9%;
+    --card-foreground: 200 5% 92%;
+    --popover: 210 5% 9%;
+    --popover-foreground: 200 5% 92%;
+
+    --primary: 41 83% 55%;
+    --primary-foreground: 36 23% 8%;
+
+    --secondary: 210 4% 10%;
+    --secondary-foreground: 200 5% 92%;
+
+    --muted: 210 4% 10%;
+    --muted-foreground: 200 3% 69%;
+
+    --accent: 41 83% 55%;
+    --accent-foreground: 36 23% 8%;
+
+    --destructive: 4 76% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 6% 13%;
+    --input: 210 6% 18%;
+    --ring: 41 83% 55%;
+  }
 }

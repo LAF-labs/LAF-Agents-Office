@@ -36,6 +36,7 @@ type TeamTask struct {
 	Channel                string   `json:"channel,omitempty"`
 	Title                  string   `json:"title"`
 	Details                string   `json:"details,omitempty"`
+	HumanDetails           string   `json:"human_details,omitempty"`
 	Owner                  string   `json:"owner,omitempty"`
 	Status                 string   `json:"status"`
 	CreatedBy              string   `json:"created_by"`

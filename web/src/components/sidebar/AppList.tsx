@@ -19,6 +19,7 @@ import { SIDEBAR_APPS } from "../../lib/constants";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import { useAppStore } from "../../stores/app";
+import { Button } from "../ui/button";
 
 // Notebooks and reviews render inside the Wiki app shell via tabs, so the
 // 'Wiki' sidebar entry lights up for any of those three currentApp values.
@@ -81,9 +82,10 @@ function SidebarAppGroup({
   return (
     <div className="sidebar-app-group">
       <div className="sidebar-app-row">
-        <button
+        <Button
           type="button"
           className={`sidebar-item${isActive ? " active" : ""}`}
+          variant="ghost"
           onClick={() => {
             if (app.id === "tasks") {
               setProjectFocusId(null);
@@ -105,11 +107,13 @@ function SidebarAppGroup({
               {badge}
             </span>
           ) : null}
-        </button>
+        </Button>
         {showProjects ? (
-          <button
+          <Button
             type="button"
             className="sidebar-project-toggle"
+            size="icon"
+            variant="ghost"
             aria-expanded={projectsExpanded}
             aria-label={
               projectsExpanded
@@ -128,7 +132,7 @@ function SidebarAppGroup({
             ) : (
               <NavArrowRight width={15} height={15} />
             )}
-          </button>
+          </Button>
         ) : null}
       </div>
       {showProjects && projectsExpanded ? (
@@ -160,19 +164,20 @@ function SidebarProjectsList({
   return (
     <nav className="sidebar-projects-list" aria-label={t("tasks.projectList")}>
       {projects.map((project) => (
-        <button
+        <Button
           type="button"
           key={project.id}
           className={`sidebar-project-link${
             projectFocusId === project.id ? " active" : ""
           }`}
+          variant="ghost"
           onClick={() => {
             setProjectFocusId(project.id);
             setCurrentApp("tasks");
           }}
         >
           <span>{project.name || project.id}</span>
-        </button>
+        </Button>
       ))}
     </nav>
   );
