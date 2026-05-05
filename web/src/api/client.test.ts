@@ -19,6 +19,7 @@ describe("project api client", () => {
           project: {
             id: "customer-portal",
             name: "Customer Portal",
+            lead_agent: "founding-engineer",
             github_repo_url: "https://github.com/laf-labs/customer-portal",
           },
         }),
@@ -29,6 +30,7 @@ describe("project api client", () => {
 
     const result = await createProject({
       name: "Customer Portal",
+      lead_agent: "founding-engineer",
       github_repo_url: "https://github.com/laf-labs/customer-portal",
     });
 
@@ -40,10 +42,12 @@ describe("project api client", () => {
           action: "create",
           created_by: "human",
           name: "Customer Portal",
+          lead_agent: "founding-engineer",
           github_repo_url: "https://github.com/laf-labs/customer-portal",
         }),
       }),
     );
+    expect(result.project.lead_agent).toBe("founding-engineer");
     expect(result.project.github_repo_url).toBe(
       "https://github.com/laf-labs/customer-portal",
     );
@@ -56,6 +60,7 @@ describe("project api client", () => {
           project: {
             id: "customer-portal",
             name: "Customer Portal",
+            lead_agent: "pm",
             github_repo_url: "https://github.com/laf-labs/customer-portal",
           },
         }),
@@ -67,6 +72,7 @@ describe("project api client", () => {
     const result = await updateProject({
       id: "customer-portal",
       name: "Customer Portal",
+      lead_agent: "pm",
       github_repo_url: "https://github.com/laf-labs/customer-portal",
     });
 
@@ -79,10 +85,12 @@ describe("project api client", () => {
           created_by: "human",
           id: "customer-portal",
           name: "Customer Portal",
+          lead_agent: "pm",
           github_repo_url: "https://github.com/laf-labs/customer-portal",
         }),
       }),
     );
+    expect(result.project.lead_agent).toBe("pm");
     expect(result.project.github_repo_url).toBe(
       "https://github.com/laf-labs/customer-portal",
     );

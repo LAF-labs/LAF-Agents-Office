@@ -74,6 +74,7 @@ type TeamProject struct {
 	Name          string `json:"name"`
 	Description   string `json:"description,omitempty"`
 	Channel       string `json:"channel,omitempty"`
+	LeadAgent     string `json:"lead_agent,omitempty"`
 	GitHubRepoURL string `json:"github_repo_url,omitempty"`
 	Status        string `json:"status,omitempty"`
 	CreatedBy     string `json:"created_by,omitempty"`

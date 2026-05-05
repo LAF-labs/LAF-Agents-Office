@@ -636,6 +636,7 @@ export interface Project {
   name: string;
   description?: string;
   channel?: string;
+  lead_agent?: string;
   github_repo_url?: string;
   status?: string;
   created_by?: string;
@@ -673,6 +674,7 @@ export function createProject(body: {
   name: string;
   description?: string;
   channel?: string;
+  lead_agent?: string;
   github_repo_url?: string;
   created_by?: string;
 }) {
@@ -688,6 +690,7 @@ export function updateProject(body: {
   name?: string;
   description?: string;
   channel?: string;
+  lead_agent?: string;
   github_repo_url?: string;
   status?: string;
   created_by?: string;

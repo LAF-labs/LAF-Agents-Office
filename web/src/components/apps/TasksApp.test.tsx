@@ -57,6 +57,7 @@ function mockCustomerPortalWorkspace() {
       {
         id: "customer-portal",
         name: "Customer Portal",
+        lead_agent: "engineer",
         github_repo_url: "https://github.com/laf-labs/customer-portal",
       },
     ],
@@ -209,6 +210,7 @@ describe("TasksApp project workspace", () => {
         {
           id: "customer-portal",
           name: "Customer Portal",
+          lead_agent: "engineer",
           github_repo_url: "https://github.com/laf-labs/customer-portal",
         },
         { id: "agent-lab", name: "Agent Lab" },
@@ -354,7 +356,7 @@ describe("TasksApp project task request flow", () => {
         status: "in_progress",
         project_id: "customer-portal",
         channel: "general",
-        owner: "eng",
+        owner: "engineer",
         execution_mode: "local_worktree",
         worktree_branch: "laf-office-task-task-request",
         worktree_path: "/tmp/customer-portal-task-request",
@@ -378,7 +380,7 @@ describe("TasksApp project task request flow", () => {
         details: "Implement project invite flow",
         project_id: "customer-portal",
         channel: "general",
-        owner: "eng",
+        owner: "engineer",
         task_type: "feature",
         execution_mode: "local_worktree",
         created_by: "human",
@@ -389,7 +391,7 @@ describe("TasksApp project task request flow", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Work state")).toBeInTheDocument();
     expect(screen.getByText("Agent is working")).toBeInTheDocument();
-    expect(screen.getAllByText("@eng").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("@engineer").length).toBeGreaterThan(0);
     expect(
       screen.queryByText("/tmp/customer-portal-task-request"),
     ).not.toBeInTheDocument();
@@ -475,7 +477,7 @@ describe("TasksApp project task request flow", () => {
         details: "Break down the signup implementation",
         project_id: "customer-portal",
         channel: "general",
-        owner: "ceo",
+        owner: "engineer",
         task_type: "research",
         execution_mode: "office",
         created_by: "human",

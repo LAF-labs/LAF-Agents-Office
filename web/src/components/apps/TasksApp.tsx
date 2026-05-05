@@ -424,6 +424,8 @@ function leadAgentForProject(
   tasks: Task[],
   readiness?: ProjectRepoReadiness,
 ): string {
+  const projectLead = normalizedAgentSlug(project?.lead_agent);
+  if (projectLead) return projectLead;
   const activeOwner = tasks.find((task) => {
     const status = normalizeStatus(task.status);
     return isActiveStatus(status) && normalizedAgentSlug(task.owner);
@@ -431,7 +433,7 @@ function leadAgentForProject(
   const owner = normalizedAgentSlug(activeOwner);
   if (owner) return owner;
   if (readiness?.can_create_coding_tasks || project?.github_repo_url?.trim()) {
-    return "eng";
+    return "founding-engineer";
   }
   return "ceo";
 }
@@ -773,12 +775,13 @@ function buildProjectTaskRequest(
   request: string,
   canCreateCodingTask: boolean,
 ) {
+  const leadAgent = normalizedAgentSlug(project.lead_agent);
   return {
     title: request,
     details: request,
     project_id: project.id,
     channel: project.channel || "general",
-    owner: canCreateCodingTask ? "eng" : "ceo",
+    owner: leadAgent ?? (canCreateCodingTask ? "founding-engineer" : "ceo"),
     task_type: canCreateCodingTask ? "feature" : "research",
     execution_mode: canCreateCodingTask ? "local_worktree" : "office",
     created_by: HUMAN_SLUG,

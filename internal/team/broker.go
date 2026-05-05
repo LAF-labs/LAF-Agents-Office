@@ -3816,6 +3816,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 			project.Name = humanizeSlug(project.ID)
 		}
 		project.Channel = normalizeChannelSlug(project.Channel)
+		project.LeadAgent = normalizeProjectLeadAgent(project.LeadAgent)
 		project.GitHubRepoURL = normalizeGitHubRepoURL(project.GitHubRepoURL)
 		if project.Status == "" {
 			project.Status = "active"
@@ -8796,6 +8797,33 @@ func optionalString(value *string) string {
 	return *value
 }
 
+func normalizeProjectLeadAgent(raw string) string {
+	slug := normalizeActorSlug(raw)
+	if slug == "" || slug == "human" || slug == "you" {
+		return ""
+	}
+	return slug
+}
+
+func (b *Broker) defaultProjectLeadAgent(project teamProject) string {
+	projectID := normalizeProjectID(project.ID)
+	for _, task := range b.tasks {
+		if projectID == "" || normalizeProjectID(task.ProjectID) != projectID {
+			continue
+		}
+		if office.IsTerminalTaskStatus(task.Status) {
+			continue
+		}
+		if owner := normalizeProjectLeadAgent(task.Owner); owner != "" {
+			return owner
+		}
+	}
+	if strings.TrimSpace(project.GitHubRepoURL) != "" {
+		return "founding-engineer"
+	}
+	return "ceo"
+}
+
 func (b *Broker) findProjectLocked(id string) *teamProject {
 	id = normalizeProjectID(id)
 	if id == "" {
@@ -8876,6 +8904,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		Name          *string `json:"name"`
 		Description   *string `json:"description"`
 		Channel       *string `json:"channel"`
+		LeadAgent     *string `json:"lead_agent"`
 		GitHubRepoURL *string `json:"github_repo_url"`
 		Status        *string `json:"status"`
 		CreatedBy     string  `json:"created_by"`
@@ -8927,11 +8956,19 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if status == "" {
 			status = "active"
 		}
+		leadAgent := normalizeProjectLeadAgent(optionalString(body.LeadAgent))
+		if leadAgent == "" {
+			leadAgent = b.defaultProjectLeadAgent(teamProject{
+				ID:            id,
+				GitHubRepoURL: normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL)),
+			})
+		}
 		project := teamProject{
 			ID:            id,
 			Name:          name,
 			Description:   strings.TrimSpace(optionalString(body.Description)),
 			Channel:       channel,
+			LeadAgent:     leadAgent,
 			GitHubRepoURL: normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL)),
 			Status:        status,
 			CreatedBy:     strings.TrimSpace(body.CreatedBy),
@@ -8979,6 +9016,9 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if body.Description != nil {
 			project.Description = strings.TrimSpace(optionalString(body.Description))
 		}
+		if body.LeadAgent != nil {
+			project.LeadAgent = normalizeProjectLeadAgent(optionalString(body.LeadAgent))
+		}
 		if body.GitHubRepoURL != nil {
 			project.GitHubRepoURL = normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL))
 		}
@@ -8995,9 +9035,16 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		}
 		responseProject := *project
 		shouldSyncGitHubRepo := body.GitHubRepoURL != nil
+		shouldSyncLeadAgent := body.LeadAgent != nil
 		b.mu.Unlock()
 		if shouldSyncGitHubRepo {
 			if err := b.syncProjectWikiGitHubRepo(r.Context(), responseProject); err != nil {
+				http.Error(w, "failed to sync project wiki", http.StatusInternalServerError)
+				return
+			}
+		}
+		if shouldSyncLeadAgent {
+			if err := b.syncProjectWikiLeadAgent(r.Context(), responseProject); err != nil {
 				http.Error(w, "failed to sync project wiki", http.StatusInternalServerError)
 				return
 			}

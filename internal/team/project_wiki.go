@@ -79,6 +79,41 @@ func (b *Broker) syncProjectWikiGitHubRepo(ctx context.Context, project teamProj
 	return err
 }
 
+func (b *Broker) syncProjectWikiLeadAgent(ctx context.Context, project teamProject) error {
+	worker := b.WikiWorker()
+	if worker == nil {
+		return nil
+	}
+
+	path := projectWikiArticlePath(project.ID)
+	raw, err := worker.ReadArticle(path)
+	if os.IsNotExist(err) {
+		return b.materializeProjectWiki(ctx, project)
+	}
+	if err != nil {
+		return err
+	}
+
+	next, changed := replaceProjectWikiLeadAgentLine(string(raw), project)
+	if !changed {
+		return nil
+	}
+
+	author := strings.TrimSpace(project.CreatedBy)
+	if author == "" {
+		author = "human"
+	}
+	_, _, err = worker.Enqueue(
+		ctx,
+		author,
+		path,
+		next,
+		"replace",
+		"project: update lead agent "+project.ID,
+	)
+	return err
+}
+
 func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
 	projectID := normalizeProjectID(task.ProjectID)
 	if projectID == "" {
@@ -215,11 +250,27 @@ func renderProjectWikiGitHubRepoLine(project teamProject) string {
 	return "- GitHub repo: _not connected_"
 }
 
+func renderProjectWikiLeadAgentLine(project teamProject) string {
+	if leadAgent := strings.TrimSpace(project.LeadAgent); leadAgent != "" {
+		return fmt.Sprintf("- Lead agent: `@%s`", leadAgent)
+	}
+	return "- Lead agent: _not assigned_"
+}
+
 func replaceProjectWikiGitHubRepoLine(content string, project teamProject) (string, bool) {
 	nextLine := renderProjectWikiGitHubRepoLine(project)
+	return replaceProjectWikiSnapshotLine(content, "- GitHub repo:", nextLine)
+}
+
+func replaceProjectWikiLeadAgentLine(content string, project teamProject) (string, bool) {
+	nextLine := renderProjectWikiLeadAgentLine(project)
+	return replaceProjectWikiSnapshotLine(content, "- Lead agent:", nextLine)
+}
+
+func replaceProjectWikiSnapshotLine(content, prefix, nextLine string) (string, bool) {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "- GitHub repo:") {
+		if strings.HasPrefix(strings.TrimSpace(line), prefix) {
 			if line == nextLine {
 				return content, false
 			}
@@ -252,6 +303,7 @@ func renderProjectWikiArticle(project teamProject) string {
 	if channel := strings.TrimSpace(project.Channel); channel != "" {
 		fmt.Fprintf(&sb, "- Channel: `#%s`\n", channel)
 	}
+	sb.WriteString(renderProjectWikiLeadAgentLine(project) + "\n")
 	sb.WriteString(renderProjectWikiGitHubRepoLine(project) + "\n")
 	if status := strings.TrimSpace(project.Status); status != "" {
 		fmt.Fprintf(&sb, "- Status: `%s`\n", status)

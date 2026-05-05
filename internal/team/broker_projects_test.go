@@ -32,6 +32,12 @@ func TestProjectsAPIAndTaskFiltering(t *testing.T) {
 	if projectA.GitHubRepoURL != "https://github.com/laf-labs/customer-portal" {
 		t.Fatalf("project github_repo_url = %q", projectA.GitHubRepoURL)
 	}
+	if projectA.LeadAgent != "founding-engineer" {
+		t.Fatalf("project lead_agent = %q, want founding-engineer", projectA.LeadAgent)
+	}
+	if projectB.LeadAgent != "ceo" {
+		t.Fatalf("planning project lead_agent = %q, want ceo", projectB.LeadAgent)
+	}
 
 	createTaskForProjectTest(t, b, "Portal board", projectA.ID)
 	createTaskForProjectTest(t, b, "Portal oauth", projectA.ID)
@@ -167,6 +173,55 @@ func TestProjectGitHubRepoURLCanBeUpdatedAndCleared(t *testing.T) {
 	}
 	if cleared.Project.GitHubRepoURL != "" {
 		t.Fatalf("cleared github_repo_url = %q", cleared.Project.GitHubRepoURL)
+	}
+}
+
+func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "broker-state.json")
+	b := NewBrokerAt(statePath)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":       "Agent Runtime",
+		"created_by": "human",
+		"lead_agent": "PM",
+	})
+	if project.LeadAgent != "pm" {
+		t.Fatalf("created lead_agent = %q, want pm", project.LeadAgent)
+	}
+
+	updateRec := httptest.NewRecorder()
+	b.handleProjects(updateRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":     "update",
+		"id":         project.ID,
+		"created_by": "human",
+		"lead_agent": "founding_engineer",
+	}))
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update project lead status = %d, want %d: %s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+	var updated struct {
+		Project teamProject `json:"project"`
+	}
+	if err := json.NewDecoder(updateRec.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode updated project: %v", err)
+	}
+	if updated.Project.LeadAgent != "founding-engineer" {
+		t.Fatalf("updated lead_agent = %q, want founding-engineer", updated.Project.LeadAgent)
+	}
+
+	loaded := NewBrokerAt(statePath)
+	if err := loaded.loadState(); err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	loaded.mu.Lock()
+	loadedProject := loaded.findProjectLocked(project.ID)
+	if loadedProject == nil {
+		loaded.mu.Unlock()
+		t.Fatalf("loaded project %q not found", project.ID)
+	}
+	persistedLeadAgent := loadedProject.LeadAgent
+	loaded.mu.Unlock()
+	if persistedLeadAgent != "founding-engineer" {
+		t.Fatalf("persisted lead_agent = %q, want founding-engineer", persistedLeadAgent)
 	}
 }
 
@@ -359,6 +414,7 @@ func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	for _, want := range []string{
 		"# Customer Portal",
 		"Project ID: `customer-portal`",
+		"Lead agent: `@founding-engineer`",
 		"https://github.com/laf-labs/customer-portal",
 		"## Agent work",
 		"Before work: read this page or the project memory excerpt in the task packet.",
@@ -474,6 +530,27 @@ func TestProjectGitHubUpdateSyncsMaterializedWikiArticle(t *testing.T) {
 	}
 	if strings.Contains(content, "- GitHub repo: _not connected_") {
 		t.Fatalf("project wiki still says repo is not connected:\n%s", content)
+	}
+
+	leadRec := httptest.NewRecorder()
+	b.handleProjects(leadRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":     "update",
+		"id":         project.ID,
+		"created_by": "human",
+		"lead_agent": "ai_engineer",
+	}))
+	if leadRec.Code != http.StatusOK {
+		t.Fatalf("update project lead status = %d, want %d: %s", leadRec.Code, http.StatusOK, leadRec.Body.String())
+	}
+	worker.WaitForIdle()
+
+	raw, err = os.ReadFile(articlePath)
+	if err != nil {
+		t.Fatalf("read project wiki after lead sync: %v", err)
+	}
+	content = string(raw)
+	if !strings.Contains(content, "- Lead agent: `@ai-engineer`") {
+		t.Fatalf("project wiki did not sync lead agent:\n%s", content)
 	}
 }
 
