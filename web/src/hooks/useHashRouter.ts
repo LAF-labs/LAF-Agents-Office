@@ -10,13 +10,13 @@ import {
 type Route =
   | { view: "channel"; channel: string }
   | { view: "dm"; agent: string }
-  | { view: "app"; app: string }
+  | { view: "app"; app: string; projectId?: string | null }
   | { view: "wiki"; articlePath: string | null }
   | { view: "wiki-lookup"; query: string }
   | { view: "notebooks"; agentSlug: string | null; entrySlug: string | null }
   | { view: "reviews" };
 
-const PROJECTS_ROUTE: Route = { view: "app", app: "tasks" };
+const PROJECTS_ROUTE = { view: "app", app: "tasks" } as const;
 const DEFAULT_ROUTE: Route = PROJECTS_ROUTE;
 
 function appRoute(app: string): Route {
@@ -39,7 +39,10 @@ function parseHash(hash: string): Route {
     case "apps":
       return parts[1] ? appRoute(decodeURIComponent(parts[1])) : DEFAULT_ROUTE;
     case "projects":
-      return PROJECTS_ROUTE;
+      return {
+        ...PROJECTS_ROUTE,
+        projectId: parts[1] ? decodeURIComponent(parts[1]) : null,
+      };
     case "threads":
       return { view: "app", app: "threads" };
     case "wiki":
@@ -79,6 +82,7 @@ function stateToHash(state: {
   wikiLookupQuery: string | null;
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
+  projectFocusId: string | null;
 }): string {
   const appHash = appStateToHash(state);
   if (appHash) return appHash;
@@ -95,6 +99,7 @@ function appStateToHash(state: {
   wikiLookupQuery: string | null;
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
+  projectFocusId: string | null;
 }): string | null {
   switch (state.currentApp) {
     case "wiki-lookup":
@@ -110,7 +115,9 @@ function appStateToHash(state: {
     case "reviews":
       return "#/reviews";
     case "tasks":
-      return "#/projects";
+      return state.projectFocusId
+        ? `#/projects/${encodeURIComponent(state.projectFocusId)}`
+        : "#/projects";
     case null:
       return null;
     default:
@@ -136,6 +143,7 @@ interface HashRouteActions {
   setCurrentApp: (app: string | null) => void;
   setCurrentChannel: (channel: string) => void;
   setLastMessageId: (id: string | null) => void;
+  setProjectFocusId: (projectId: string | null) => void;
   setWikiPath: (path: string | null) => void;
   setWikiLookupQuery: (query: string) => void;
   setNotebookRoute: (
@@ -150,6 +158,9 @@ function applyRoute(route: Route, actions: HashRouteActions) {
       actions.enterDM(route.agent, directChannelSlug(route.agent));
       break;
     case "app":
+      actions.setProjectFocusId(
+        route.app === "tasks" ? (route.projectId ?? null) : null,
+      );
       actions.setCurrentApp(route.app);
       break;
     case "wiki-lookup":
@@ -193,6 +204,8 @@ export function useHashRouter() {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const channelMeta = useAppStore((s) => s.channelMeta);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const projectFocusId = useAppStore((s) => s.projectFocusId);
+  const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
   const enterDM = useAppStore((s) => s.enterDM);
   const setLastMessageId = useAppStore((s) => s.setLastMessageId);
@@ -223,6 +236,7 @@ export function useHashRouter() {
         setCurrentApp,
         setCurrentChannel,
         setLastMessageId,
+        setProjectFocusId,
         setWikiPath,
         setWikiLookupQuery,
         setNotebookRoute,
@@ -237,6 +251,7 @@ export function useHashRouter() {
     setCurrentApp,
     setCurrentChannel,
     setLastMessageId,
+    setProjectFocusId,
     setWikiPath,
     setWikiLookupQuery,
     setNotebookRoute,
@@ -256,6 +271,7 @@ export function useHashRouter() {
       wikiLookupQuery,
       notebookAgentSlug,
       notebookEntrySlug,
+      projectFocusId,
     });
     if (next !== window.location.hash) {
       ignoreNextHashChange.current = true;
@@ -271,6 +287,7 @@ export function useHashRouter() {
     wikiLookupQuery,
     notebookAgentSlug,
     notebookEntrySlug,
+    projectFocusId,
   ]);
 }
 

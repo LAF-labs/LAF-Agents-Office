@@ -11,7 +11,7 @@ import {
   Settings,
 } from "iconoir-react";
 
-import { getRequests } from "../../api/client";
+import { getProjects, getRequests, type Project } from "../../api/client";
 import { fetchReviews } from "../../api/notebook";
 import { useOverflow } from "../../hooks/useOverflow";
 import { REQUEST_REFETCH_MS } from "../../hooks/useRequests";
@@ -39,9 +39,122 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   settings: Settings,
 };
 
+type SidebarApp = (typeof SIDEBAR_APPS)[number];
+
+function badgeForApp(
+  appId: string,
+  pendingCount: number,
+  pendingReviewsCount: number,
+): number | null {
+  if (appId === "requests" && pendingCount > 0) return pendingCount;
+  if (appId === "wiki" && pendingReviewsCount > 0) return pendingReviewsCount;
+  return null;
+}
+
+interface SidebarAppGroupProps {
+  app: SidebarApp;
+  badge: number | null;
+  currentApp: string | null;
+  projectFocusId: string | null;
+  projects: Project[];
+  setCurrentApp: (app: string | null) => void;
+  setProjectFocusId: (projectId: string | null) => void;
+  t: (key: I18nKey) => string;
+}
+
+function SidebarAppGroup({
+  app,
+  badge,
+  currentApp,
+  projectFocusId,
+  projects,
+  setCurrentApp,
+  setProjectFocusId,
+  t,
+}: SidebarAppGroupProps) {
+  const Icon = APP_ICONS[app.id];
+  const isActive =
+    app.id === "wiki"
+      ? WIKI_SURFACE_APPS.has(currentApp ?? "")
+      : currentApp === app.id;
+  const appName = t(`app.${app.id}` as I18nKey);
+
+  return (
+    <div className="sidebar-app-group">
+      <button
+        type="button"
+        className={`sidebar-item${isActive ? " active" : ""}`}
+        onClick={() => {
+          if (app.id === "tasks") setProjectFocusId(null);
+          setCurrentApp(app.id);
+        }}
+        onFocus={() => preloadWorkspaceSurface(app.id)}
+        onMouseEnter={() => preloadWorkspaceSurface(app.id)}
+      >
+        {Icon ? (
+          <Icon className="sidebar-item-icon" />
+        ) : (
+          <span className="sidebar-item-emoji">{app.icon}</span>
+        )}
+        <span style={{ flex: 1 }}>{appName}</span>
+        {badge !== null ? (
+          <span className="sidebar-badge" title={`${badge} pending`}>
+            {badge}
+          </span>
+        ) : null}
+      </button>
+      {app.id === "tasks" && isActive ? (
+        <SidebarProjectsList
+          projectFocusId={projectFocusId}
+          projects={projects}
+          setCurrentApp={setCurrentApp}
+          setProjectFocusId={setProjectFocusId}
+          t={t}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SidebarProjectsList({
+  projectFocusId,
+  projects,
+  setCurrentApp,
+  setProjectFocusId,
+  t,
+}: {
+  projectFocusId: string | null;
+  projects: Project[];
+  setCurrentApp: (app: string | null) => void;
+  setProjectFocusId: (projectId: string | null) => void;
+  t: (key: I18nKey) => string;
+}) {
+  return (
+    <nav className="sidebar-projects-list" aria-label={t("tasks.projectList")}>
+      {projects.map((project) => (
+        <button
+          type="button"
+          key={project.id}
+          className={`sidebar-project-link${
+            projectFocusId === project.id ? " active" : ""
+          }`}
+          onClick={() => {
+            setProjectFocusId(project.id);
+            setCurrentApp("tasks");
+          }}
+        >
+          <span>{project.name || project.id}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 export function AppList() {
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const projectFocusId = useAppStore((s) => s.projectFocusId);
+  const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
   const currentChannel = useAppStore((s) => s.currentChannel);
   const { t } = useI18n();
 
@@ -55,6 +168,11 @@ export function AppList() {
     queryKey: ["reviews-badge"],
     queryFn: fetchReviews,
     refetchInterval: REVIEW_BADGE_REFETCH_MS,
+  });
+  const { data: projectsData } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => getProjects(),
+    staleTime: 30_000,
   });
 
   const pendingCount = (requestsData?.requests ?? []).filter(
@@ -73,40 +191,19 @@ export function AppList() {
   return (
     <div className="sidebar-scroll-wrap is-apps">
       <div className="sidebar-apps" ref={overflowRef}>
-        {SIDEBAR_APPS.filter((app) => app.id !== "settings").map((app) => {
-          let badge: number | null = null;
-          if (app.id === "requests" && pendingCount > 0) badge = pendingCount;
-          if (app.id === "wiki" && pendingReviewsCount > 0)
-            badge = pendingReviewsCount;
-          const Icon = APP_ICONS[app.id];
-          const isActive =
-            app.id === "wiki"
-              ? WIKI_SURFACE_APPS.has(currentApp ?? "")
-              : currentApp === app.id;
-          const appName = t(`app.${app.id}` as I18nKey);
-          return (
-            <button
-              type="button"
-              key={app.id}
-              className={`sidebar-item${isActive ? " active" : ""}`}
-              onClick={() => setCurrentApp(app.id)}
-              onFocus={() => preloadWorkspaceSurface(app.id)}
-              onMouseEnter={() => preloadWorkspaceSurface(app.id)}
-            >
-              {Icon ? (
-                <Icon className="sidebar-item-icon" />
-              ) : (
-                <span className="sidebar-item-emoji">{app.icon}</span>
-              )}
-              <span style={{ flex: 1 }}>{appName}</span>
-              {badge !== null ? (
-                <span className="sidebar-badge" title={`${badge} pending`}>
-                  {badge}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
+        {SIDEBAR_APPS.filter((app) => app.id !== "settings").map((app) => (
+          <SidebarAppGroup
+            key={app.id}
+            app={app}
+            badge={badgeForApp(app.id, pendingCount, pendingReviewsCount)}
+            currentApp={currentApp}
+            projectFocusId={projectFocusId}
+            projects={projectsData?.projects ?? []}
+            setCurrentApp={setCurrentApp}
+            setProjectFocusId={setProjectFocusId}
+            t={t}
+          />
+        ))}
       </div>
     </div>
   );

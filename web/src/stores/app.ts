@@ -103,6 +103,8 @@ export interface AppStore {
   setCurrentChannel: (ch: string) => void;
   currentApp: string | null; // null = messages view
   setCurrentApp: (app: string | null) => void;
+  projectFocusId: string | null;
+  setProjectFocusId: (projectId: string | null) => void;
   settingsSection: string | null;
   setSettingsSection: (section: string | null) => void;
 
@@ -185,6 +187,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   currentChannel: "general",
   setCurrentChannel: (ch) => set({ currentChannel: ch, currentApp: null }),
   currentApp: null,
+  projectFocusId: null,
   setCurrentApp: (app) => {
     if (!app) {
       set({ currentApp: null });
@@ -199,6 +202,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     set({ currentApp: app });
   },
+  setProjectFocusId: (projectId) => set({ projectFocusId: projectId }),
   settingsSection: null,
   setSettingsSection: (section) => set({ settingsSection: section }),
 
@@ -286,6 +290,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({
       currentChannel: "general",
       currentApp: null,
+      projectFocusId: null,
       settingsSection: null,
       channelMeta: {},
       sidebarCollapsed: false,

@@ -7,6 +7,7 @@ const baseState = {
   currentChannel: "general",
   notebookAgentSlug: null,
   notebookEntrySlug: null,
+  projectFocusId: null,
   wikiLookupQuery: null,
   wikiPath: null,
 };
@@ -20,6 +21,12 @@ describe("useHashRouter project routes", () => {
     expect(__test__.parseHash("#/projects")).toEqual({
       view: "app",
       app: "tasks",
+      projectId: null,
+    });
+    expect(__test__.parseHash("#/projects/customer-portal")).toEqual({
+      view: "app",
+      app: "tasks",
+      projectId: "customer-portal",
     });
     expect(__test__.parseHash("#/apps/projects")).toEqual({
       view: "app",
@@ -34,5 +41,15 @@ describe("useHashRouter project routes", () => {
         currentApp: "tasks",
       }),
     ).toBe("#/projects");
+  });
+
+  it("keeps the focused project in the project route", () => {
+    expect(
+      __test__.stateToHash({
+        ...baseState,
+        currentApp: "tasks",
+        projectFocusId: "customer-portal",
+      }),
+    ).toBe("#/projects/customer-portal");
   });
 });
