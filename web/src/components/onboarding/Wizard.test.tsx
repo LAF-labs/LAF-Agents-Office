@@ -160,6 +160,16 @@ describe("Wizard keyboard advancement", () => {
     expect(screen.getByPlaceholderText("OPENAI_API_KEY")).toBeInTheDocument();
   });
 
+  it("does not show a one-option project wiki selector on the setup step", async () => {
+    render(<Wizard onComplete={vi.fn()} />);
+    await advanceToSetupStep();
+
+    expect(screen.queryByText("Project wiki (default)")).toBeNull();
+    expect(
+      screen.queryByText(/Project wiki is the shared memory/i),
+    ).toBeNull();
+  });
+
   it("does not expose the deferred GPT OAuth gateway during onboarding", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     await advanceToSetupStep();

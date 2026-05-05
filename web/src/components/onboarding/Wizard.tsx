@@ -254,9 +254,6 @@ interface WizardCopy {
     apiKeysFallbackButton: string;
     apiKeysFallbackHide: string;
     apiKeyHints: Record<string, string>;
-    memoryTitle: string;
-    memoryDescription: string;
-    memoryOptions: { markdown: { label: string; hint: string } };
     next: string;
   };
   task: {
@@ -383,15 +380,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         ANTHROPIC_API_KEY: "Powers Claude-based agents",
         OPENAI_API_KEY: "Powers GPT-based agents",
         GOOGLE_API_KEY: "Powers Gemini-based agents",
-      },
-      memoryTitle: "Project wiki",
-      memoryDescription:
-        "Project wiki is the shared memory agents read before work and update after decisions, constraints, or delivery.",
-      memoryOptions: {
-        markdown: {
-          label: "Project wiki (default)",
-          hint: "Markdown project memory with decisions, task history, and lookups. No hosted CRM state.",
-        },
       },
       next: "Ready",
     },
@@ -525,15 +513,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         ANTHROPIC_API_KEY: "Claude 기반 에이전트 실행",
         OPENAI_API_KEY: "GPT 기반 에이전트 실행",
         GOOGLE_API_KEY: "Gemini 기반 에이전트 실행",
-      },
-      memoryTitle: "프로젝트 위키",
-      memoryDescription:
-        "프로젝트 위키는 에이전트가 작업 전 읽고, 결정, 제약, 전달 기록을 작업 후 남기는 공유 메모리입니다.",
-      memoryOptions: {
-        markdown: {
-          label: "프로젝트 위키 (기본값)",
-          hint: "결정, 작업 기록, lookup을 담는 마크다운 프로젝트 메모리입니다. hosted CRM 상태는 쓰지 않습니다.",
-        },
       },
       next: "준비 완료",
     },
@@ -1306,39 +1285,6 @@ function SetupStep({
         />
       </div>
 
-      <div className="wizard-panel">
-        <p className="wizard-panel-title">{copy.setup.memoryTitle}</p>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            margin: "-8px 0 12px 0",
-          }}
-        >
-          {copy.setup.memoryDescription}
-        </p>
-        <div className="runtime-grid">
-          <div
-            className="runtime-tile selected"
-            title={copy.setup.memoryOptions.markdown.hint}
-          >
-            <div style={{ fontWeight: 600 }}>
-              {copy.setup.memoryOptions.markdown.label}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--text-tertiary)",
-                marginTop: 4,
-                fontWeight: 400,
-              }}
-            >
-              {copy.setup.memoryOptions.markdown.hint}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
           {copy.common.back}
@@ -1959,8 +1905,8 @@ export function Wizard({ onComplete }: WizardProps) {
   // works with zero clicks.
   const [runtimePriority, setRuntimePriority] = useState<string[]>([]);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  // Matches the localized "Team wiki (default)" tile and the server-side
-  // `config.ResolveMemoryBackend` default.
+  // Project wiki is the only memory backend exposed in onboarding; keep it as
+  // an internal fixed value instead of rendering a one-choice selector.
   const memoryBackend: MemoryBackend = "markdown";
 
   // Step 6: first task
