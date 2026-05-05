@@ -1,7 +1,58 @@
 /* biome-ignore-all lint/suspicious/noUnknownAtRules: Tailwind directives are expanded by the build pipeline. */
-@tailwind base;
-@tailwind components;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@config "../../tailwind.config.js";
+@source "../";
 @tailwind utilities;
+
+@theme default {
+  --spacing: 0.25rem;
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+
+  --container-lg: 32rem;
+  --container-xl: 36rem;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --leading-6: 1.5rem;
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+    border-color: hsl(var(--shadcn-border));
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    shadcn/ui theme mapped onto LAF-Office design tokens.
@@ -14,66 +65,66 @@
   :root,
   html[data-theme="office"] {
     /* Surfaces */
-    --background: 0 0% 100%; /* #FFFFFF */
-    --foreground: 240 2% 15%; /* #252527 */
-    --card: 0 0% 100%;
-    --card-foreground: 240 2% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 2% 15%;
+    --shadcn-background: 0 0% 100%; /* #FFFFFF */
+    --shadcn-foreground: 240 2% 15%; /* #252527 */
+    --shadcn-card: 0 0% 100%;
+    --shadcn-card-foreground: 240 2% 15%;
+    --shadcn-popover: 0 0% 100%;
+    --shadcn-popover-foreground: 240 2% 15%;
 
     /* Brand — LAF-Office amber */
-    --primary: 41 83% 55%; /* #ECB22E */
-    --primary-foreground: 36 23% 8%; /* #1A1610 */
+    --shadcn-primary: 41 83% 55%; /* #ECB22E */
+    --shadcn-primary-foreground: 36 23% 8%; /* #1A1610 */
 
     /* Secondary surface — warm neutral */
-    --secondary: 240 6% 96%; /* #F5F5F6 */
-    --secondary-foreground: 240 2% 15%;
+    --shadcn-secondary: 240 6% 96%; /* #F5F5F6 */
+    --shadcn-secondary-foreground: 240 2% 15%;
 
     /* Muted */
-    --muted: 240 6% 96%;
-    --muted-foreground: 220 3% 47%; /* #686A6E */
+    --shadcn-muted: 240 6% 96%;
+    --shadcn-muted-foreground: 220 3% 47%; /* #686A6E */
 
     /* Accent (hover / subtle fill) */
-    --accent: 41 83% 55%;
-    --accent-foreground: 36 23% 8%;
+    --shadcn-accent: 41 83% 55%;
+    --shadcn-accent-foreground: 36 23% 8%;
 
     /* Destructive */
-    --destructive: 4 76% 52%; /* #E23428 */
-    --destructive-foreground: 0 0% 100%;
+    --shadcn-destructive: 4 76% 52%; /* #E23428 */
+    --shadcn-destructive-foreground: 0 0% 100%;
 
     /* Borders / inputs / focus */
-    --border: 240 5% 92%; /* #E9E9EB */
-    --input: 240 5% 92%;
-    --ring: 41 83% 55%;
+    --shadcn-border: 240 5% 92%; /* #E9E9EB */
+    --shadcn-input: 240 5% 92%;
+    --shadcn-ring: 41 83% 55%;
 
     --radius: 8px;
   }
 
   html[data-theme="office-dark"] {
-    --background: 210 6% 7%;
-    --foreground: 200 5% 92%;
-    --card: 210 5% 9%;
-    --card-foreground: 200 5% 92%;
-    --popover: 210 5% 9%;
-    --popover-foreground: 200 5% 92%;
+    --shadcn-background: 210 6% 7%;
+    --shadcn-foreground: 200 5% 92%;
+    --shadcn-card: 210 5% 9%;
+    --shadcn-card-foreground: 200 5% 92%;
+    --shadcn-popover: 210 5% 9%;
+    --shadcn-popover-foreground: 200 5% 92%;
 
-    --primary: 41 83% 55%;
-    --primary-foreground: 36 23% 8%;
+    --shadcn-primary: 41 83% 55%;
+    --shadcn-primary-foreground: 36 23% 8%;
 
-    --secondary: 210 4% 10%;
-    --secondary-foreground: 200 5% 92%;
+    --shadcn-secondary: 210 4% 10%;
+    --shadcn-secondary-foreground: 200 5% 92%;
 
-    --muted: 210 4% 10%;
-    --muted-foreground: 200 3% 69%;
+    --shadcn-muted: 210 4% 10%;
+    --shadcn-muted-foreground: 200 3% 69%;
 
-    --accent: 41 83% 55%;
-    --accent-foreground: 36 23% 8%;
+    --shadcn-accent: 41 83% 55%;
+    --shadcn-accent-foreground: 36 23% 8%;
 
-    --destructive: 4 76% 52%;
-    --destructive-foreground: 0 0% 100%;
+    --shadcn-destructive: 4 76% 52%;
+    --shadcn-destructive-foreground: 0 0% 100%;
 
-    --border: 210 6% 13%;
-    --input: 210 6% 18%;
-    --ring: 41 83% 55%;
+    --shadcn-border: 210 6% 13%;
+    --shadcn-input: 210 6% 18%;
+    --shadcn-ring: 41 83% 55%;
   }
 }

@@ -282,8 +282,8 @@ function assignmentAck(t: TranslationFn): string {
 }
 
 function extractQuotedHumanDetail(raw: string): string {
-  const backtick = raw.match(/`([^`]+)`/);
-  if (backtick?.[1]) return backtick[1].trim();
+  const reportedIssue = raw.match(/(?:reported .*? issue|issue):\s*`([^`]+)`/i);
+  if (reportedIssue?.[1]) return reportedIssue[1].trim();
 
   const quoted = raw.match(/[“"]([^”"]+)[”"]/);
   if (quoted?.[1]) return quoted[1].trim();
@@ -294,14 +294,24 @@ function extractQuotedHumanDetail(raw: string): string {
   return "";
 }
 
+function looksGeneratedTaskDetail(raw: string): boolean {
+  return (
+    /^Still blocked:/i.test(raw) ||
+    /^Automatic error recovery:/i.test(raw) ||
+    raw.includes("Automatic error recovery:")
+  );
+}
+
 function userEnteredTaskDetails(task: Task): string {
   const humanDetails = task.human_details?.trim();
   if (humanDetails) return humanDetails;
   const raw = (task.details || task.description || "").trim();
   if (!raw) return "";
+  const extracted = extractQuotedHumanDetail(raw);
+  if (extracted) return extracted;
   const creator = (task.created_by || "").trim();
-  if (isHumanSlug(creator)) return raw;
-  return extractQuotedHumanDetail(raw);
+  if (!isHumanSlug(creator)) return "";
+  return looksGeneratedTaskDetail(raw) ? "" : raw;
 }
 
 async function postTicketAssignmentAck(
@@ -484,6 +494,10 @@ export function TasksApp() {
 
   const projects = projectsQuery.data?.projects ?? [];
   const tasks = allTasksQuery.data?.tasks ?? [];
+  const projectIds = new Set(projects.map((project) => project.id));
+  const projectTaskCount = tasks.filter(
+    (task) => task.project_id && projectIds.has(task.project_id),
+  ).length;
   const selectedProject = projectFocusId
     ? (projects.find((project) => project.id === projectFocusId) ?? null)
     : null;
@@ -543,7 +557,7 @@ export function TasksApp() {
         projectCount={projects.length}
         projectCreator={projectCreator}
         t={t}
-        taskCount={tasks.length}
+        taskCount={projectTaskCount}
         onCreateProject={handleOpenProjectCreator}
       />
       <ProjectDirectoryList

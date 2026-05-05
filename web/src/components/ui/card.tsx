@@ -18,7 +18,7 @@ export function CardHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 py-4",
+        "@container/card-header flex flex-col gap-1.5 px-6 py-4",
         className,
       )}
       {...props}
