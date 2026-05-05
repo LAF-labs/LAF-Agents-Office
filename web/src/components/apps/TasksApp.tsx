@@ -27,7 +27,6 @@ const liveEventsSupported =
 const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 const HUMAN_SLUG = "human";
 const DEFAULT_AGENT = "ceo";
-const ALL_AGENTS = "__all_agents__";
 
 const STATUS_ORDER = [
   "in_progress",
@@ -230,19 +229,6 @@ function agentLabel(slug: string, members: OfficeMember[]): string {
   return `${member.name} @${slug}`;
 }
 
-function defaultTaskAgent(
-  task: Task | null,
-  project: Project | null,
-  members: OfficeMember[],
-): string {
-  const owner = task?.owner?.trim();
-  const preferred =
-    owner && owner !== "human" && owner !== "you"
-      ? owner
-      : project?.lead_agent || DEFAULT_AGENT;
-  return agentSlugs(members, preferred)[0] ?? DEFAULT_AGENT;
-}
-
 function defaultProjectAgent(
   project: Project | null,
   members: OfficeMember[],
@@ -266,13 +252,25 @@ function assignmentAck(t: TranslationFn): string {
   return t("tasks.assignmentAck");
 }
 
-function chatTargetSlugs(
-  targetAgent: string,
-  members: OfficeMember[],
-  defaultAgent: string,
-): string[] {
-  if (targetAgent === ALL_AGENTS) return agentSlugs(members, defaultAgent);
-  return targetAgent ? [targetAgent] : [];
+function extractQuotedHumanDetail(raw: string): string {
+  const backtick = raw.match(/`([^`]+)`/);
+  if (backtick?.[1]) return backtick[1].trim();
+
+  const quoted = raw.match(/[“"]([^”"]+)[”"]/);
+  if (quoted?.[1]) return quoted[1].trim();
+
+  const beforeTreat = raw.match(/issue:\s*(.+?)\s+Treat this as/i);
+  if (beforeTreat?.[1]) return beforeTreat[1].trim().replace(/^[:\s]+/, "");
+
+  return "";
+}
+
+function userEnteredTaskDetails(task: Task): string {
+  const raw = (task.details || task.description || "").trim();
+  if (!raw) return "";
+  const creator = (task.created_by || "").trim();
+  if (isHumanSlug(creator)) return raw;
+  return extractQuotedHumanDetail(raw);
 }
 
 async function postTicketAssignmentAck(
@@ -301,6 +299,15 @@ function messageAuthorLabel(
 ): string {
   if (message.from === "you" || message.from === "human") return t("tasks.you");
   return agentLabel(message.from, members);
+}
+
+function messageAuthorInitial(
+  message: Message,
+  members: OfficeMember[],
+  t: TranslationFn,
+): string {
+  const label = messageAuthorLabel(message, members, t).replace(/^@/, "");
+  return label.trim().slice(0, 1).toUpperCase() || "?";
 }
 
 function useProjectCreator(
@@ -1032,7 +1039,7 @@ function TicketRow({
   onSelect: () => void;
 }) {
   const status = normalizeStatus(task.status);
-  const detail = task.details || task.description;
+  const detail = userEnteredTaskDetails(task);
   return (
     <button
       type="button"
@@ -1070,14 +1077,12 @@ function TicketSidePanel({
   t: TranslationFn;
   onClose: () => void;
 }) {
-  const defaultAgent = defaultTaskAgent(task, project, members);
-  const [targetAgent, setTargetAgent] = useState(defaultAgent);
   const [instruction, setInstruction] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const status = normalizeStatus(task.status);
-  const detail = task.details || task.description || t("tasks.noTicketDetails");
+  const detail = userEnteredTaskDetails(task) || t("tasks.noTicketDetails");
   const channel = taskChannel(task, project);
   const threadId = task.thread_id || task.id;
   const threadMessagesQuery = useQuery({
@@ -1088,25 +1093,15 @@ function TicketSidePanel({
   });
   const threadMessages = threadMessagesQuery.data?.messages ?? [];
 
-  useEffect(() => {
-    setTargetAgent(defaultAgent);
-    setInstruction("");
-    setSendError(null);
-    setSent(false);
-  }, [defaultAgent]);
-
   async function handleSendInstruction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = instruction.trim();
-    if (!(text && targetAgent) || isSending) return;
+    if (!text || isSending) return;
     setIsSending(true);
     setSendError(null);
     setSent(false);
     try {
-      const targets = chatTargetSlugs(targetAgent, members, defaultAgent);
-      const mentions = targets.map((slug) => `@${slug}`).join(" ");
-      const message = mentions ? `${mentions}\n${text}` : text;
-      await postMessage(message, channel, threadId, targets);
+      await postMessage(text, channel, threadId);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["messages", channel] }),
         queryClient.invalidateQueries({
@@ -1154,15 +1149,6 @@ function TicketSidePanel({
       <form className="ticket-chat" onSubmit={handleSendInstruction}>
         <div className="ticket-chat-head">
           <h5>{t("tasks.agentInstruction")}</h5>
-          <AgentSelect
-            agent={targetAgent}
-            allLabel={t("tasks.allAgents")}
-            includeAll={true}
-            label={t("tasks.agentTarget")}
-            members={members}
-            preferred={defaultAgent}
-            onChange={setTargetAgent}
-          />
         </div>
         <TicketChatFeed
           isLoading={threadMessagesQuery.isLoading}
@@ -1170,25 +1156,30 @@ function TicketSidePanel({
           messages={threadMessages}
           t={t}
         />
-        <textarea
-          value={instruction}
-          onChange={(event) => {
-            setInstruction(event.currentTarget.value);
-            setSent(false);
-          }}
-          placeholder={t("tasks.agentInstructionPlaceholder")}
-          aria-label={t("tasks.agentInstruction")}
-          rows={8}
-        />
-        <button type="submit" disabled={!instruction.trim() || isSending}>
-          {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
-        </button>
-        {sent ? (
-          <span className="ticket-chat-ok">{t("tasks.sent")}</span>
-        ) : null}
-        {sendError ? (
-          <span className="task-project-error">{sendError}</span>
-        ) : null}
+        <div className="ticket-chat-composer">
+          <textarea
+            value={instruction}
+            onChange={(event) => {
+              setInstruction(event.currentTarget.value);
+              setSent(false);
+            }}
+            placeholder={t("tasks.agentInstructionPlaceholder")}
+            aria-label={t("tasks.agentInstruction")}
+            rows={4}
+          />
+          <div className="ticket-chat-actions">
+            <span>
+              {sendError
+                ? sendError
+                : sent
+                  ? t("tasks.sent")
+                  : t("tasks.mentionHint")}
+            </span>
+            <button type="submit" disabled={!instruction.trim() || isSending}>
+              {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
+            </button>
+          </div>
+        </div>
       </form>
     </aside>
   );
@@ -1220,14 +1211,15 @@ function TicketChatFeed({
   return (
     <div className="ticket-chat-feed" aria-live="polite">
       {visibleMessages.map((message) => {
-        const isHuman = message.from === "you" || message.from === "human";
         return (
-          <article
-            className={`ticket-chat-message${isHuman ? " human" : ""}`}
-            key={message.id}
-          >
-            <strong>{messageAuthorLabel(message, members, t)}</strong>
-            <p>{message.content}</p>
+          <article className="ticket-chat-message" key={message.id}>
+            <span className="ticket-chat-avatar">
+              {messageAuthorInitial(message, members, t)}
+            </span>
+            <div className="ticket-chat-bubble">
+              <strong>{messageAuthorLabel(message, members, t)}</strong>
+              <p>{message.content}</p>
+            </div>
           </article>
         );
       })}
@@ -1237,23 +1229,18 @@ function TicketChatFeed({
 
 function AgentSelect({
   agent,
-  allLabel,
-  includeAll = false,
   label,
   members,
   preferred,
   onChange,
 }: {
   agent: string;
-  allLabel?: string;
-  includeAll?: boolean;
   label: string;
   members: OfficeMember[];
   preferred?: string;
   onChange: (agent: string) => void;
 }) {
-  const preferredAgent = agent === ALL_AGENTS ? preferred : agent || preferred;
-  const options = agentSlugs(members, preferredAgent || DEFAULT_AGENT);
+  const options = agentSlugs(members, agent || preferred || DEFAULT_AGENT);
   return (
     <select
       className="agent-select"
@@ -1261,9 +1248,6 @@ function AgentSelect({
       onChange={(event) => onChange(event.currentTarget.value)}
       aria-label={label}
     >
-      {includeAll && allLabel ? (
-        <option value={ALL_AGENTS}>{allLabel}</option>
-      ) : null}
       {options.map((slug) => (
         <option key={slug} value={slug}>
           {agentLabel(slug, members)}

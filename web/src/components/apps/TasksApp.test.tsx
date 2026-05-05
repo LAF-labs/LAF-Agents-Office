@@ -74,7 +74,9 @@ function mockProjectDirectory() {
       {
         id: "task-build",
         channel: "general",
-        details: "Ship the core signup path.",
+        created_by: "ceo",
+        details:
+          "Pick up the Korean user-reported latency issue: `유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.` Treat this as a bugfix lane.",
         owner: "engineer",
         project_id: "customer-portal",
         status: "in_progress",
@@ -250,8 +252,11 @@ describe("TasksApp project directory", () => {
       name: "Details",
     });
     expect(
-      within(panel).getByText("Ship the core signup path."),
+      within(panel).getByText(
+        "유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.",
+      ),
     ).toBeInTheDocument();
+    expect(within(panel).queryByText(/Treat this as/)).not.toBeInTheDocument();
     expect(
       await within(panel).findByText("I am on the signup flow."),
     ).toBeInTheDocument();
@@ -264,10 +269,9 @@ describe("TasksApp project directory", () => {
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        expect.stringContaining("@engineer\nPlease finish"),
+        "Please finish this ticket and report blockers.",
         "general",
         "thread-build",
-        ["engineer"],
       );
     });
   });
