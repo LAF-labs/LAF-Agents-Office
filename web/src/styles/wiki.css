@@ -108,7 +108,7 @@
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--wk-text-tertiary);
   margin: 0 0 4px;
   padding: 0 10px;
@@ -644,7 +644,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--wk-text-tertiary);
   margin: 0 0 10px;
   display: flex;
@@ -845,7 +845,7 @@
   font-weight: 600;
   color: var(--wk-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   font-size: 10px;
   flex-shrink: 0;
 }
@@ -1066,7 +1066,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--wk-text-tertiary);
   margin: 0 0 10px;
   display: flex;
@@ -1568,7 +1568,7 @@ html[data-theme^="office"] .wk-cite-panel .wk-copy-btn {
   font-size: 11px;
   color: var(--wk-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 .wk-audit-filter input,
 .wk-audit-filter select {
@@ -1581,7 +1581,7 @@ html[data-theme^="office"] .wk-cite-panel .wk-copy-btn {
   padding: 5px 8px;
   min-width: 140px;
   text-transform: none;
-  letter-spacing: normal;
+  letter-spacing: 0;
 }
 .wk-audit-filter input[type="search"] {
   min-width: 220px;
@@ -1632,7 +1632,7 @@ html[data-theme^="office"] .wk-cite-panel .wk-copy-btn {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   color: var(--wk-text-muted);
   padding: 8px 12px;
   border-bottom: 2px solid var(--wk-border);
@@ -1673,7 +1673,7 @@ html[data-theme^="office"] .wk-cite-panel .wk-copy-btn {
   font-family: var(--wk-chrome);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--wk-text-muted);
   background: var(--wk-surface-alt);
@@ -1814,7 +1814,7 @@ html[data-theme^="office"] .wk-lint-table .wk-audit-msg {
     font-family: var(--wk-chrome);
     font-size: 10px;
     font-weight: 650;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     text-transform: uppercase;
   }
 
@@ -1915,7 +1915,7 @@ html[data-theme^="office"] .wk-lint-table .wk-audit-msg {
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   padding: 1px 5px;
   border-radius: 3px;
   background: var(--wk-amber-banner);
@@ -2435,7 +2435,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
   color: var(--wk-paper);
   border: 1px solid var(--wk-text);
   cursor: pointer;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 .wk-entity-brief-bar__action:hover:not(:disabled) {
   background: var(--wk-amber);
@@ -2463,7 +2463,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
   font-family: var(--wk-display);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
   margin: 0 0 12px;
   color: var(--wk-text-muted);
@@ -2554,7 +2554,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
   font-family: var(--wk-display);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
   margin: 0 0 10px;
   color: var(--wk-text-muted);
@@ -2669,7 +2669,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
   font-family: var(--wk-display);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
   margin: 0;
   color: var(--wk-text-muted);
@@ -2709,7 +2709,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
   font-family: var(--wk-chrome);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   padding: 2px 8px;
   border: 1px solid var(--wk-border);

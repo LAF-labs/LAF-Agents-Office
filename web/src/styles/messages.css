@@ -549,7 +549,7 @@
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 .interview-bar-question {
   font-size: 15px;
@@ -967,7 +967,7 @@ html[data-theme^="office"] .interview-bar-context {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
 }
 .cc-tool-result-label {
@@ -1018,7 +1018,7 @@ html[data-theme^="office"] .interview-bar-context {
 }
 .stream-card-phase {
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   font-weight: 700;
   color: var(--accent);
   background: var(--accent-bg);
@@ -1130,7 +1130,7 @@ html[data-theme^="office"] .interview-bar-context {
   max-height: 120px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  letter-spacing: inherit;
+  letter-spacing: 0;
 }
 .composer-mirror {
   position: absolute;
@@ -1226,7 +1226,7 @@ html[data-theme^="office"] .interview-bar-context {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
 }
 .channel-empty-state .title {
@@ -1567,7 +1567,7 @@ html[data-theme^="office"] .message-hover-actions {
 
 .channel-empty-state .eyebrow {
   color: var(--accent);
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 .channel-empty-state .title {

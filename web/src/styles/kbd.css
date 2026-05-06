@@ -68,7 +68,7 @@
   color: var(--text-tertiary, #888);
   padding: 0 4px;
   text-transform: lowercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 /* Primary-button Enter hint — sits inside a .btn-primary CTA. The button

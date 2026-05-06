@@ -109,7 +109,7 @@
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
   margin-bottom: 8px;
 }

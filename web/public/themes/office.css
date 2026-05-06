@@ -326,7 +326,7 @@ html[data-theme^="office"] .sidebar-section-title {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -832,7 +832,7 @@ html[data-theme^="office"] .agent-panel-section-title {
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
 }
 html[data-theme^="office"] .agent-panel-skill {
@@ -1008,7 +1008,7 @@ html[data-theme^="office"] .launch-logo {
   font-size: 11px;
   font-style: normal;
   font-weight: 760;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   line-height: 1.2;
   text-transform: uppercase;
 }
@@ -1060,7 +1060,7 @@ html[data-theme^="office"] .cmd-palette-group-title {
   color: var(--text-tertiary);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 html[data-theme^="office"] .cmd-palette-item:hover,
 html[data-theme^="office"] .cmd-palette-item.selected {
@@ -1099,7 +1099,7 @@ html[data-theme^="office"] .task-column-header {
   border-bottom-color: var(--border);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 html[data-theme^="office"] .task-column-count {
   background: var(--bg-warm);
@@ -1689,7 +1689,7 @@ html[data-theme^="office"] .app-section-title,
 html[data-theme^="office"] .request-history-toggle span,
 html[data-theme^="office"] .task-detail-label {
   color: var(--text-tertiary);
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
 html[data-theme^="office"] .project-directory-card {
@@ -1975,7 +1975,7 @@ html[data-theme^="office"] .nb-review-drawer-close:hover {
     content: "";
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0;
     line-height: 1.7;
     text-transform: uppercase;
   }
@@ -2917,7 +2917,7 @@ html[data-theme^="office"] .thread-list-item-meta {
     color: var(--text-tertiary);
     font-size: 10px;
     font-weight: 650;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     text-transform: uppercase;
   }
 
@@ -3614,7 +3614,7 @@ html[data-theme^="office"] .wiki-root .wk-section-new {
   background: transparent;
   color: var(--accent-strong);
   font-weight: 650;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   box-shadow: none;
 }
 

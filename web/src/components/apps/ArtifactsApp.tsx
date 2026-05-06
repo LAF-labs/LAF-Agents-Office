@@ -589,7 +589,7 @@ function StatCard({ kicker, value, copy, anchorId }: StatCardProps) {
           fontSize: 10,
           fontWeight: 600,
           textTransform: "uppercase",
-          letterSpacing: "0.06em",
+          letterSpacing: "0",
           color: "var(--text-tertiary)",
         }}
       >

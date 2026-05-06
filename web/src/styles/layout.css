@@ -117,7 +117,7 @@ html[data-theme="office"] .sidebar-rail-bottom {
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   white-space: nowrap;
   pointer-events: none;
   z-index: 50;
@@ -140,7 +140,7 @@ html[data-theme="office"] .sidebar-rail-bottom {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
 }
 .sidebar-rail-popover-body {
@@ -266,7 +266,7 @@ html[data-theme="office"] .sidebar-rail-bottom {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
   margin: 0 0 8px;
   padding-left: 10px;
@@ -564,7 +564,7 @@ html[data-theme="office"]
   border: 1px solid transparent;
   font-weight: 600;
   font-size: 10px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -892,7 +892,7 @@ html[data-theme="office"]
   padding: 3px 6px;
   border-bottom: 1px solid var(--border);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   font-size: 9px;
 }
 .sidebar-rail-popover-usage .usage-table td {
@@ -1017,7 +1017,7 @@ html[data-theme="office"]
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   line-height: 1.2;
   padding: 4px 2px 0;
   text-transform: uppercase;
@@ -1251,7 +1251,7 @@ html[data-theme="office"]
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -1574,7 +1574,7 @@ html[data-theme="office"]
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-tertiary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   text-transform: uppercase;
   margin-bottom: 4px;
 }
@@ -1611,7 +1611,7 @@ html[data-theme="office"]
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
   margin-bottom: 8px;
 }
@@ -1664,7 +1664,7 @@ html[data-theme="office"]
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   background: var(--bg);
   color: var(--text-secondary);
   border: 1px solid var(--border);
@@ -2011,7 +2011,7 @@ html[data-theme="office"]
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   margin: 0 0 4px;
   padding: 0 4px;
 }
@@ -2411,7 +2411,7 @@ html[data-theme="office"]
 }
 
 .app-table thead {
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
 .project-app,

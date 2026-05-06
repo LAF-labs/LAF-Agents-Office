@@ -293,7 +293,7 @@
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -517,7 +517,7 @@
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 760;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -602,7 +602,7 @@
 .auth-panel-header span,
 .invite-kicker {
   color: var(--accent);
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 .auth-panel-header h2,

@@ -136,7 +136,7 @@
   color: var(--wk-text-muted);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   border-bottom: 1px solid var(--wk-border-light);
   margin-bottom: 4px;
 }
