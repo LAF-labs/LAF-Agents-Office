@@ -1016,7 +1016,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Codex-like onboarding system
+   Apple gallery onboarding system
    ═══════════════════════════════════════════════════════════════ */
 
 .wizard-container,
@@ -1155,7 +1155,7 @@
   }
 }
 
-/* Final Codex pass: onboarding uses the same quiet app canvas. */
+/* Final Apple pass: onboarding uses the same quiet app canvas. */
 .wizard-headline {
   font-size: 42px;
   letter-spacing: 0;

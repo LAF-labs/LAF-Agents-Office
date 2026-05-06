@@ -399,7 +399,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Codex-like auth and invite surfaces
+   Apple gallery auth and invite surfaces
    ═══════════════════════════════════════════════════════════════ */
 
 .auth-page,
@@ -750,7 +750,7 @@
   }
 }
 
-/* ChatGPT/Codex minimal pass: auth is an entry surface, not a card landing page. */
+/* Apple gallery minimal pass: auth is an entry surface, not a card landing page. */
 html[data-theme^="office"] .auth-page {
   overflow-y: auto;
   background: var(--app-bg);
@@ -971,7 +971,7 @@ html[data-theme^="office"] .invite-primary:hover:not(:disabled) {
   }
 }
 
-/* Linear pass: auth is a compact entry task, not a split marketing screen. */
+/* Apple pass: auth is a compact entry task, not a split marketing screen. */
 html[data-theme^="office"] .auth-page {
   display: grid;
   place-items: center;

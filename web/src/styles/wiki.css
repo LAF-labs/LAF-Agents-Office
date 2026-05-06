@@ -1155,7 +1155,7 @@
   color: var(--wk-wikilink-broken);
 }
 
-/* ChatGPT/Codex pass: the catalog reads as a working surface, not a grid of cards. */
+/* Apple gallery pass: the catalog reads as a working surface, not a grid of cards. */
 html[data-theme^="office"] .wk-catalog {
   max-width: 1120px;
   padding: 34px 40px 96px;
@@ -1216,7 +1216,7 @@ html[data-theme^="office"] .wk-catalog .wk-avatar-wrap {
   display: none;
 }
 
-/* Codex product-document pass: article pages are app-native work surfaces,
+/* Apple product-document pass: article pages are app-native work surfaces,
    not encyclopedia pages. Keep hierarchy, remove editorial card/serif cues. */
 html[data-theme^="office"] .wiki-root {
   --wk-body: var(--wk-chrome);

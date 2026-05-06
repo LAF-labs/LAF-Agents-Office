@@ -123,7 +123,7 @@ export function MessageBubbleView({
 
   return (
     <div
-      className={`message animate-fade${grouped ? " message-grouped" : ""}${isReply ? " message-reply" : ""}`}
+      className={`message ${isHuman ? "message-human" : "message-agent"} animate-fade${grouped ? " message-grouped" : ""}${isReply ? " message-reply" : ""}`}
       data-msg-id={message.id}
     >
       {/* Avatar */}

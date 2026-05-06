@@ -112,7 +112,7 @@
   color: var(--text-primary);
 }
 
-/* Codex-like app chrome around the specialized wiki/notebook surfaces. */
+/* Apple gallery app chrome around the specialized wiki/notebook surfaces. */
 .wiki-shell {
   background: var(--app-bg);
 }
@@ -152,7 +152,7 @@
   border-color: var(--border);
 }
 
-/* ChatGPT/Codex pass: tabs are app chrome, not a frosted card strip. */
+/* Apple gallery pass: tabs are app chrome, not a frosted card strip. */
 html[data-theme^="office"] .wiki-tabs {
   height: 50px;
   background: var(--app-bg);

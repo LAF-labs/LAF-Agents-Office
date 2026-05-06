@@ -9,16 +9,16 @@ interface HarnessBadgeProps {
 
 const PALETTE: Record<HarnessKind, { bg: string; fg: string }> = {
   "claude-code": {
-    bg: "var(--color-deep-slate, #161718)",
-    fg: "var(--color-light-steel, #d0d6e0)",
+    bg: "var(--color-fog, #f5f5f7)",
+    fg: "var(--color-graphite, #707070)",
   },
   codex: {
-    bg: "var(--color-neon-lime, #e4f222)",
-    fg: "var(--color-pitch-black, #08090a)",
+    bg: "var(--color-azure, #0071e3)",
+    fg: "var(--color-snow, #ffffff)",
   },
   opencode: {
-    bg: "var(--color-graphite, #0f1011)",
-    fg: "var(--color-storm-cloud, #8a8f98)",
+    bg: "var(--color-silver-mist, #e8e8ed)",
+    fg: "var(--color-ash, #333333)",
   },
 };
 

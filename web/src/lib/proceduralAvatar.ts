@@ -219,15 +219,15 @@ const NECK_STYLES = [neckNone, neckNone, neckTie, neckBadge];
 // ── Palette pools ──────────────────────────────────────────────────────
 
 const ACCENT_POOL: string[] = [
-  "#e4f222", // primary action
-  "#5e6ad2", // aether blue
-  "#02b8cc", // cyan spark
-  "#27a644", // success
-  "#eb5757", // warning
-  "#383b3f", // gunmetal
-  "#62666d", // fog grey
-  "#8a8f98", // storm cloud
-  "#d0d6e0", // light steel
+  "#0071e3", // azure action
+  "#0066cc", // cobalt link
+  "#dddc8c", // citrus finish
+  "#e8d0d0", // blush finish
+  "#596680", // indigo finish
+  "#b64400", // caution
+  "#707070", // graphite
+  "#474747", // slate
+  "#e8e8ed", // silver mist
   "#f7f8f8", // porcelain
 ];
 

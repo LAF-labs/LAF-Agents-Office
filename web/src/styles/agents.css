@@ -308,7 +308,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Codex-like agent drawer
+   Apple gallery agent drawer
    ═══════════════════════════════════════════════════════════════ */
 
 .agent-panel {
@@ -368,72 +368,4 @@ html[data-theme^="office"] .agent-panel-actions {
   html[data-theme^="office"] .office.agent-panel-open .main {
     margin-right: 400px;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Linear Midnight Command Center agent drawer
-   ═══════════════════════════════════════════════════════════════ */
-
-html[data-theme="office-dark"] .agent-panel {
-  background: var(--color-graphite, var(--bg-card));
-  border-left: 1px solid var(--color-charcoal-grey, var(--border));
-  box-shadow: rgba(8, 9, 10, 0.6) 0px 4px 32px 0px;
-}
-
-html[data-theme="office-dark"] .agent-panel-header,
-html[data-theme="office-dark"] .agent-panel-section,
-html[data-theme="office-dark"] .agent-panel-actions,
-html[data-theme="office-dark"] .agent-panel-actions-stack,
-html[data-theme="office-dark"] .agent-log-item {
-  border-color: var(--color-charcoal-grey, var(--border));
-}
-
-html[data-theme="office-dark"] .agent-panel-title,
-html[data-theme="office-dark"] .agent-panel-name,
-html[data-theme="office-dark"] .agent-log-action {
-  color: var(--color-porcelain, var(--text-primary));
-  font-weight: 590;
-  letter-spacing: 0;
-}
-
-html[data-theme="office-dark"] .agent-panel-role,
-html[data-theme="office-dark"] .agent-panel-info-label,
-html[data-theme="office-dark"] .agent-log-time,
-html[data-theme="office-dark"] .agent-stream-empty {
-  color: var(--color-storm-cloud, var(--text-tertiary));
-}
-
-html[data-theme="office-dark"] .agent-panel-card,
-html[data-theme="office-dark"] .agent-stream-log {
-  background: var(--color-pitch-black, var(--app-bg));
-  border: 1px solid var(--color-charcoal-grey, var(--border));
-  border-radius: var(--radius-md);
-  box-shadow: none;
-}
-
-html[data-theme="office-dark"] .agent-log-item:hover {
-  background: rgba(228, 242, 34, 0.045);
-}
-
-html[data-theme="office-dark"] .agent-toggle-slider {
-  background: var(--color-gunmetal, var(--border-dark));
-  box-shadow: inset 0 0 0 1px var(--color-charcoal-grey, var(--border));
-}
-
-html[data-theme="office-dark"] .agent-toggle-slider::before {
-  background: var(--color-light-steel, var(--text-secondary));
-}
-
-html[data-theme="office-dark"]
-  .agent-toggle
-  input:checked
-  + .agent-toggle-slider {
-  background: var(--color-neon-lime, var(--accent));
-}
-
-html[data-theme="office-dark"]
-  .agent-toggle
-  input:checked
-  + .agent-toggle-slider::before {
-  background: var(--color-pitch-black, var(--accent-ink));
 }

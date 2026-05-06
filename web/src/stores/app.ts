@@ -3,6 +3,11 @@ import { create } from "zustand";
 export type Theme = "office" | "office-dark";
 export type Language = "en" | "ko";
 
+function canonicalTheme(theme: Theme | string | null | undefined): Theme {
+  if (theme === "office" || theme === "office-dark") return "office";
+  return "office";
+}
+
 function languageFromLocale(
   locale: string | null | undefined,
 ): Language | null {
@@ -21,10 +26,9 @@ function defaultLanguageFromSystem(): Language {
 const _storedTheme = ((): Theme => {
   try {
     const v = localStorage.getItem("laf-office-theme");
-    if (v === "office-dark") return "office-dark";
-    if (v === "office") return "office";
+    return canonicalTheme(v);
   } catch {}
-  return "office-dark";
+  return "office";
 })();
 if (typeof document !== "undefined") {
   document.documentElement.setAttribute("data-theme", _storedTheme);
@@ -213,6 +217,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   theme: _storedTheme,
   setTheme: (t) => {
+    const theme = canonicalTheme(t);
     // Same try/catch shape as the read path above. Safari private browsing
     // and sandboxed-iframe contexts both throw on localStorage writes; the
     // toggle should still update the DOM + store even if persistence fails,
@@ -220,15 +225,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // console.warn keeps a breadcrumb so a user reporting "theme doesn't
     // stick" has something diagnosable in DevTools.
     try {
-      localStorage.setItem("laf-office-theme", t);
+      localStorage.setItem("laf-office-theme", theme);
     } catch (err) {
       console.warn(
         "setTheme: localStorage.setItem failed; theme will not persist across reloads",
         err,
       );
     }
-    document.documentElement.setAttribute("data-theme", t);
-    set({ theme: t });
+    document.documentElement.setAttribute("data-theme", theme);
+    set({ theme });
   },
   language: _storedLanguage,
   setLanguage: (language) => {

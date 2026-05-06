@@ -125,13 +125,10 @@ describe("setTheme", () => {
     try {
       useAppStore.getState().setTheme("office-dark");
 
-      expect(setItemSpy).toHaveBeenCalledWith(
-        "laf-office-theme",
-        "office-dark",
-      );
-      expect(useAppStore.getState().theme).toBe("office-dark");
+      expect(setItemSpy).toHaveBeenCalledWith("laf-office-theme", "office");
+      expect(useAppStore.getState().theme).toBe("office");
       expect(document.documentElement.getAttribute("data-theme")).toBe(
-        "office-dark",
+        "office",
       );
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("setTheme: localStorage.setItem failed"),

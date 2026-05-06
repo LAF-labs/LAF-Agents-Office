@@ -8,53 +8,80 @@
 @theme default {
   --spacing: 0.25rem;
 
-  /* Linear-style Midnight Command Center tokens */
-  --color-pitch-black: #08090a;
-  --color-graphite: #0f1011;
-  --color-deep-slate: #161718;
-  --color-charcoal-grey: #23252a;
-  --color-muted-ash: #323334;
-  --color-gunmetal: #383b3f;
-  --color-porcelain: #f7f8f8;
-  --color-light-steel: #d0d6e0;
-  --color-storm-cloud: #8a8f98;
-  --color-fog-grey: #62666d;
-  --color-alabaster: #e5e5e6;
-  --color-neon-lime: #e4f222;
-  --color-aether-blue: #5e6ad2;
-  --color-forest-green: #008d2c;
-  --color-cyan-spark: #02b8cc;
-  --color-emerald: #27a644;
-  --color-warning-red: #eb5757;
-  --color-deep-violet: #6366f1;
-  --color-amethyst: #8b5cf6;
+  /* Apple-style gallery light tokens */
+  --color-ink: #1d1d1f;
+  --color-graphite: #707070;
+  --color-slate: #474747;
+  --color-ash: #333333;
+  --color-fog: #f5f5f7;
+  --color-snow: #ffffff;
+  --color-obsidian: #000000;
+  --color-silver-mist: #e8e8ed;
+  --color-azure: #0071e3;
+  --color-cobalt-link: #0066cc;
+  --color-citrus-finish: #dddc8c;
+  --color-blush-finish: #e8d0d0;
+  --color-indigo-finish: #596680;
+  --color-caution: #b64400;
 
-  --font-inter-variable:
-    "Inter Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Legacy token aliases kept so older components inherit the Apple palette. */
+  --color-pitch-black: var(--color-ink);
+  --color-deep-slate: var(--color-fog);
+  --color-charcoal-grey: var(--color-silver-mist);
+  --color-muted-ash: var(--color-silver-mist);
+  --color-gunmetal: var(--color-silver-mist);
+  --color-porcelain: var(--color-snow);
+  --color-light-steel: var(--color-graphite);
+  --color-storm-cloud: var(--color-graphite);
+  --color-fog-grey: var(--color-graphite);
+  --color-alabaster: var(--color-silver-mist);
+  --color-neon-lime: var(--color-azure);
+  --color-aether-blue: var(--color-cobalt-link);
+  --color-forest-green: #0a7f35;
+  --color-cyan-spark: var(--color-cobalt-link);
+  --color-emerald: #248a3d;
+  --color-warning-red: #d70015;
+  --color-deep-violet: var(--color-indigo-finish);
+  --color-amethyst: var(--color-blush-finish);
+
+  --font-sf-pro-display:
+    "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-sf-pro-text:
+    "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-inter-variable: var(--font-sf-pro-text);
   --font-berkeley-mono:
-    "Berkeley Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas,
-    monospace;
+    "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace;
 
   --font-weight-light: 300;
   --font-weight-regular: 400;
   --font-weight-w510: 510;
   --font-weight-w590: 590;
 
-  --text-caption: 10px;
-  --leading-caption: 1.4;
+  --text-caption: 12px;
+  --leading-caption: 1.33;
   --tracking-caption: 0px;
-  --text-body: 14px;
-  --leading-body: 1.4;
+  --text-body-sm: 14px;
+  --leading-body-sm: 1.43;
+  --tracking-body-sm: 0px;
+  --text-body: 17px;
+  --leading-body: 1.47;
   --tracking-body: 0px;
-  --text-heading: 24px;
-  --leading-heading: 1.33;
+  --text-subheading: 20px;
+  --leading-subheading: 1.4;
+  --tracking-subheading: 0px;
+  --text-heading-sm: 24px;
+  --leading-heading-sm: 1.29;
+  --tracking-heading-sm: 0px;
+  --text-heading: 40px;
+  --leading-heading: 1.17;
   --tracking-heading: 0px;
-  --text-heading-lg: 48px;
-  --leading-heading-lg: 1.2;
+  --text-heading-lg: 56px;
+  --leading-heading-lg: 1.07;
   --tracking-heading-lg: 0px;
-  --text-display: 72px;
-  --leading-display: 1;
+  --text-display: 96px;
+  --leading-display: 1.04;
   --tracking-display: 0px;
 
   --spacing-4: 4px;
@@ -67,44 +94,42 @@
   --spacing-32: 32px;
   --spacing-36: 36px;
   --spacing-40: 40px;
+  --spacing-44: 44px;
   --spacing-48: 48px;
-  --spacing-56: 56px;
-  --spacing-64: 64px;
+  --spacing-52: 52px;
+  --spacing-76: 76px;
   --spacing-80: 80px;
-  --spacing-96: 96px;
-  --spacing-128: 128px;
+  --spacing-120: 120px;
+  --spacing-144: 144px;
   --spacing-unit: 4px;
 
-  --radius-sm: 2px;
-  --radius-md: 6px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-2xl-2: 22px;
-  --radius-full: 400px;
-  --radius-full-2: 9999px;
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-xl: 28px;
+  --radius-2xl: 32px;
+  --radius-2xl-2: 36px;
+  --radius-full: 980px;
+  --radius-full-2: 999px;
 
-  --shadow-sm: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
-  --shadow-md: rgba(0, 0, 0, 0.2) 0px 0px 12px 0px inset;
-  --shadow-subtle: rgb(35, 37, 42) 0px 0px 0px 1px inset;
-  --shadow-subtle-2: rgba(0, 0, 0, 0.2) 0px 0px 0px 1px;
-  --shadow-subtle-3:
-    rgba(0, 0, 0, 0.01) 0px 5px 2px 0px,
-    rgba(0, 0, 0, 0.04) 0px 3px 2px 0px,
-    rgba(0, 0, 0, 0.07) 0px 1px 1px 0px,
-    rgba(0, 0, 0, 0.08) 0px 0px 1px 0px;
-  --shadow-xl: rgba(8, 9, 10, 0.6) 0px 4px 32px 0px;
-  --shadow-subtle-4: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;
-  --shadow-subtle-5: rgba(0, 0, 0, 0.33) 0px 0px 0px 1px;
-  --shadow-subtle-6:
-    rgba(255, 255, 255, 0.03) 0px 0px 0px 1px inset,
-    rgba(255, 255, 255, 0.04) 0px 1px 0px 0px inset,
-    rgba(0, 0, 0, 0.6) 0px 0px 0px 1px,
-    rgba(0, 0, 0, 0.1) 0px 4px 4px 0px;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-subtle: none;
+  --shadow-subtle-2: none;
+  --shadow-subtle-3: none;
+  --shadow-xl: none;
+  --shadow-subtle-4: none;
+  --shadow-subtle-5: none;
+  --shadow-subtle-6: none;
 
-  --surface-pitch-black-canvas: #08090a;
-  --surface-graphite-card: #0f1011;
-  --surface-deep-slate-elevated-card: #161718;
-  --surface-charcoal-grey-overlay: #23252a;
+  --surface-canvas: #f5f5f7;
+  --surface-card: #ffffff;
+  --surface-recessed: #f5f5f7;
+  --surface-frosted-control: #d2d2d7;
+  --surface-dark-stage: #000000;
+  --surface-pitch-black-canvas: var(--surface-canvas);
+  --surface-graphite-card: var(--surface-card);
+  --surface-deep-slate-elevated-card: var(--surface-recessed);
+  --surface-charcoal-grey-overlay: var(--color-silver-mist);
 
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;
@@ -153,74 +178,68 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   shadcn/ui theme mapped onto the Codex-like LAF design tokens.
+   shadcn/ui theme mapped onto the Apple-like LAF design tokens.
    ═══════════════════════════════════════════════════════════════ */
 
 @layer base {
   :root,
   html[data-theme="office"] {
     /* Surfaces */
-    --shadcn-background: 210 100% 99%;
-    --shadcn-foreground: 221 39% 11%;
+    --shadcn-background: 240 11% 96%;
+    --shadcn-foreground: 240 3% 12%;
     --shadcn-card: 0 0% 100%;
-    --shadcn-card-foreground: 221 39% 11%;
+    --shadcn-card-foreground: 240 3% 12%;
     --shadcn-popover: 0 0% 100%;
-    --shadcn-popover-foreground: 221 39% 11%;
+    --shadcn-popover-foreground: 240 3% 12%;
 
-    /* Legacy light primary */
-    --shadcn-primary: 210 100% 52%;
+    /* Apple CTA blue */
+    --shadcn-primary: 210 100% 45%;
     --shadcn-primary-foreground: 0 0% 100%;
 
     /* Secondary surface */
-    --shadcn-secondary: 213 44% 95%;
-    --shadcn-secondary-foreground: 221 39% 11%;
+    --shadcn-secondary: 240 11% 96%;
+    --shadcn-secondary-foreground: 240 3% 12%;
 
     /* Muted */
-    --shadcn-muted: 213 44% 95%;
-    --shadcn-muted-foreground: 218 15% 45%;
+    --shadcn-muted: 240 11% 96%;
+    --shadcn-muted-foreground: 0 0% 44%;
 
     /* Accent (hover / subtle fill) */
-    --shadcn-accent: 210 100% 96%;
-    --shadcn-accent-foreground: 212 100% 33%;
+    --shadcn-accent: 240 11% 96%;
+    --shadcn-accent-foreground: 210 100% 40%;
 
     /* Destructive */
     --shadcn-destructive: 4 86% 58%;
     --shadcn-destructive-foreground: 0 0% 100%;
 
     /* Borders / inputs / focus */
-    --shadcn-border: 214 32% 88%;
-    --shadcn-input: 214 32% 88%;
-    --shadcn-ring: 210 100% 52%;
+    --shadcn-border: 240 12% 92%;
+    --shadcn-input: 240 12% 92%;
+    --shadcn-ring: 210 100% 45%;
 
-    --radius: 14px;
+    --radius: 28px;
   }
 
   html[data-theme="office-dark"] {
-    --shadcn-background: 210 11% 4%;
-    --shadcn-foreground: 180 7% 97%;
-    --shadcn-card: 180 6% 6%;
-    --shadcn-card-foreground: 180 7% 97%;
-    --shadcn-popover: 180 4% 9%;
-    --shadcn-popover-foreground: 180 7% 97%;
-
-    --shadcn-primary: 65 89% 54%;
-    --shadcn-primary-foreground: 210 11% 4%;
-
-    --shadcn-secondary: 180 4% 9%;
-    --shadcn-secondary-foreground: 216 26% 85%;
-
-    --shadcn-muted: 220 9% 18%;
-    --shadcn-muted-foreground: 218 7% 57%;
-
-    --shadcn-accent: 238 58% 60%;
-    --shadcn-accent-foreground: 180 7% 97%;
-
-    --shadcn-destructive: 0 80% 63%;
+    --shadcn-background: 240 11% 96%;
+    --shadcn-foreground: 240 3% 12%;
+    --shadcn-card: 0 0% 100%;
+    --shadcn-card-foreground: 240 3% 12%;
+    --shadcn-popover: 0 0% 100%;
+    --shadcn-popover-foreground: 240 3% 12%;
+    --shadcn-primary: 210 100% 45%;
+    --shadcn-primary-foreground: 0 0% 100%;
+    --shadcn-secondary: 240 11% 96%;
+    --shadcn-secondary-foreground: 240 3% 12%;
+    --shadcn-muted: 240 11% 96%;
+    --shadcn-muted-foreground: 0 0% 44%;
+    --shadcn-accent: 240 11% 96%;
+    --shadcn-accent-foreground: 210 100% 40%;
+    --shadcn-destructive: 4 86% 58%;
     --shadcn-destructive-foreground: 0 0% 100%;
-
-    --shadcn-border: 225 9% 15%;
-    --shadcn-input: 210 6% 23%;
-    --shadcn-ring: 65 89% 54%;
-    --radius: 6px;
+    --shadcn-border: 240 12% 92%;
+    --shadcn-input: 240 12% 92%;
+    --shadcn-ring: 210 100% 45%;
+    --radius: 28px;
   }
 }

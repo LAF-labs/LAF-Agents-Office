@@ -734,13 +734,14 @@ function ProjectDirectoryToolbar({
         </div>
         <Button
           type="button"
-          size="icon"
           variant="outline"
+          className="project-create-button"
           onClick={onCreateProject}
           aria-label={t("tasks.newProject")}
           title={t("tasks.newProject")}
         >
           <Plus width={16} height={16} />
+          <span>{t("tasks.newProject")}</span>
         </Button>
       </CardHeader>
       {projectCreator.isCreatingProject || projectCreator.projectError ? (
@@ -1133,8 +1134,8 @@ function ProjectTicketToolbar({
         </div>
         <Button
           type="button"
-          size="icon"
           variant="outline"
+          className="project-create-button"
           onClick={() => {
             ticketCreator.setTicketError(null);
             ticketCreator.setIsCreatingTicket(true);
@@ -1143,6 +1144,7 @@ function ProjectTicketToolbar({
           title={t("tasks.newTicket")}
         >
           <Plus width={16} height={16} />
+          <span>{t("tasks.newTicket")}</span>
         </Button>
       </CardHeader>
       {ticketCreator.isCreatingTicket || ticketCreator.ticketError ? (

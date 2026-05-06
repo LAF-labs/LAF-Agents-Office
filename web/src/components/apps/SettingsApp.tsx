@@ -237,7 +237,7 @@ const styles = {
     border: "1px solid var(--accent-border)",
     background: "var(--accent)",
     color: "var(--accent-ink)",
-    borderRadius: "var(--radius-md)",
+    borderRadius: "var(--radius-full)",
     padding: "0 12px",
     fontSize: 12,
     fontWeight: 700,
@@ -1519,12 +1519,9 @@ const dangerStyles = {
     fontSize: 13,
     fontWeight: 600,
     border: "none",
-    borderRadius: "var(--radius-md)",
+    borderRadius: "var(--radius-full)",
     cursor: "pointer" as const,
-    color:
-      severity === "critical"
-        ? "#fff"
-        : "var(--color-pitch-black, var(--accent-ink))",
+    color: severity === "critical" ? "#fff" : "var(--accent-ink)",
     background:
       severity === "critical" ? "var(--red, #e5484d)" : "var(--accent)",
     fontFamily: "var(--font-sans)",
@@ -1532,8 +1529,8 @@ const dangerStyles = {
   modalBackdrop: {
     position: "fixed" as const,
     inset: 0,
-    background: "rgba(8, 9, 10, 0.58)",
-    backdropFilter: "none",
+    background: "rgba(245, 245, 247, 0.72)",
+    backdropFilter: "blur(20px) saturate(1.08)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1542,8 +1539,8 @@ const dangerStyles = {
   modalPanel: {
     width: "min(520px, calc(100vw - 40px))",
     background: "var(--surface-raised, var(--bg-elevated))",
-    border: "1px solid var(--border-dark)",
-    borderRadius: "var(--radius-md)",
+    border: "none",
+    borderRadius: "var(--radius-xl)",
     padding: 24,
     boxShadow: "none",
     backdropFilter: "none",
@@ -1571,10 +1568,10 @@ const dangerStyles = {
   } as const,
   modalInput: {
     width: "100%",
-    background: "transparent",
-    border: "1px solid var(--border)",
+    background: "var(--color-fog, var(--bg))",
+    border: "1px solid transparent",
     color: "var(--text)",
-    borderRadius: "var(--radius-md)",
+    borderRadius: "var(--radius-full)",
     height: 38,
     fontSize: 14,
     padding: "0 12px",
@@ -1592,7 +1589,7 @@ const dangerStyles = {
     fontSize: 13,
     fontWeight: 500,
     border: "1px solid var(--border)",
-    borderRadius: "var(--radius-md)",
+    borderRadius: "var(--radius-full)",
     cursor: "pointer" as const,
     color: "var(--text)",
     background: "transparent",
@@ -1603,13 +1600,13 @@ const dangerStyles = {
     fontSize: 13,
     fontWeight: 600,
     border: enabled ? "none" : "1px solid var(--border-light)",
-    borderRadius: "var(--radius-md)",
+    borderRadius: "var(--radius-full)",
     cursor: enabled ? "pointer" : ("not-allowed" as const),
     color: !enabled
       ? "var(--text-tertiary)"
       : severity === "critical"
         ? "#fff"
-        : "var(--color-pitch-black, var(--accent-ink))",
+        : "var(--accent-ink)",
     background: enabled
       ? severity === "critical"
         ? "var(--red, #e5484d)"

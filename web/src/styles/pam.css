@@ -233,7 +233,7 @@
   }
 }
 
-/* ChatGPT/Codex pass: Pam remains available, but stops reading as a mascot. */
+/* Apple gallery pass: Pam remains available, but stops reading as a mascot. */
 html[data-theme^="office"] .pam-wrap {
   right: 18px;
   bottom: 8px;

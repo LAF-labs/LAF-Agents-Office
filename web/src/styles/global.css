@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   LAF-Office Web — Codex-like Product System
+   LAF-Office Web — Apple Gallery Product System
    Theme-specific overrides live in public/themes/*.css.
    ═══════════════════════════════════════════════════════════════ */
 
@@ -644,75 +644,4 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Linear Midnight Command Center product controls
-   ═══════════════════════════════════════════════════════════════ */
-
-html[data-theme="office-dark"],
-html[data-theme="office-dark"] body,
-html[data-theme="office-dark"] #root {
-  background: var(--color-pitch-black, var(--app-bg));
-  color: var(--color-porcelain, var(--text-primary));
-}
-
-html[data-theme="office-dark"] .btn {
-  min-height: 32px;
-  border-radius: var(--radius-md);
-  font-weight: 590;
-  letter-spacing: 0;
-  box-shadow: none;
-  transform: none;
-}
-
-html[data-theme="office-dark"] .btn:not(.btn-sm):not(:disabled):hover {
-  transform: none;
-}
-
-html[data-theme="office-dark"] .btn-primary {
-  background: var(--color-neon-lime, var(--accent));
-  color: var(--color-pitch-black, var(--accent-ink));
-  border: 1px solid rgba(228, 242, 34, 0.48);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-}
-
-html[data-theme="office-dark"] .btn-primary:hover {
-  background: var(--accent-warm);
-  color: var(--color-pitch-black, var(--accent-ink));
-}
-
-html[data-theme="office-dark"] .btn-secondary,
-html[data-theme="office-dark"] .btn-ghost {
-  background: var(--color-deep-slate, var(--bg-subtle));
-  color: var(--color-light-steel, var(--text-secondary));
-  border: 1px solid var(--color-charcoal-grey, var(--border));
-  border-radius: var(--radius-md);
-}
-
-html[data-theme="office-dark"] .btn-secondary:hover,
-html[data-theme="office-dark"] .btn-ghost:hover {
-  background: var(--color-charcoal-grey, var(--border));
-  color: var(--color-porcelain, var(--text-primary));
-}
-
-html[data-theme="office-dark"] input,
-html[data-theme="office-dark"] select,
-html[data-theme="office-dark"] textarea,
-html[data-theme="office-dark"] .input {
-  background: var(--color-deep-slate, var(--bg-subtle));
-  color: var(--color-porcelain, var(--text-primary));
-  border-color: var(--color-charcoal-grey, var(--border));
-  border-radius: var(--radius-md);
-  letter-spacing: 0;
-}
-
-html[data-theme="office-dark"] input:focus,
-html[data-theme="office-dark"] select:focus,
-html[data-theme="office-dark"] textarea:focus,
-html[data-theme="office-dark"] .input:focus {
-  border-color: var(--color-neon-lime, var(--accent));
-  box-shadow: 0 0 0 1px rgba(228, 242, 34, 0.18);
-  outline: none;
 }
