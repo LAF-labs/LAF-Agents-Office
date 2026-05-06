@@ -86,6 +86,8 @@ function SidebarAppGroup({
           type="button"
           className={`sidebar-item${isActive ? " active" : ""}`}
           variant="ghost"
+          aria-label={appName}
+          title={appName}
           onClick={() => {
             if (app.id === "tasks") {
               setProjectFocusId(null);
@@ -171,6 +173,8 @@ function SidebarProjectsList({
             projectFocusId === project.id ? " active" : ""
           }`}
           variant="ghost"
+          aria-label={project.name || project.id}
+          title={project.name || project.id}
           onClick={() => {
             setProjectFocusId(project.id);
             setCurrentApp("tasks");

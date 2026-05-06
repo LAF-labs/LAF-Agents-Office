@@ -1430,3 +1430,517 @@
   scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
   background: transparent;
 }
+
+/* ────────────────────────────────────────────────────────────
+ * ChatGPT/Codex pass — notebooks and reviews become app surfaces.
+ * The old paper metaphor is intentionally neutralized here so Wiki,
+ * Notebooks, and Reviews all share one product DNA.
+ * ──────────────────────────────────────────────────────────── */
+
+html[data-theme^="office"] .notebook-surface {
+  --nb-paper: var(--app-bg);
+  --nb-paper-dark: var(--bg-subtle);
+  --nb-rule: var(--border-light);
+  --nb-surface: transparent;
+  --nb-text: var(--text-primary);
+  --nb-text-muted: var(--text-secondary);
+  --nb-text-tertiary: var(--text-tertiary);
+  --nb-border: var(--border-light);
+  --nb-border-light: var(--border-light);
+  --nb-ink-blue: var(--accent);
+  --nb-amber: var(--accent);
+  --nb-amber-bg: var(--accent-bg);
+  --nb-green-approve: var(--green);
+  --nb-green-bg: var(--green-bg);
+  --nb-display: var(--font-sans);
+  --nb-body-serif: var(--font-sans);
+  --nb-chrome: var(--font-sans);
+  --nb-mono: var(--font-mono);
+
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+html[data-theme^="office"] .notebook-surface::-webkit-scrollbar-thumb,
+html[data-theme^="office"]
+  .notebook-surface
+  .nb-shelf::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+}
+
+html[data-theme^="office"] .notebook-surface a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 54%, transparent);
+  text-underline-offset: 3px;
+}
+
+html[data-theme^="office"] .notebook-surface :focus-visible {
+  outline-color: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-appbar,
+html[data-theme^="office"] .notebook-surface .nb-shelf {
+  background: transparent;
+  background-image: none;
+  border-color: var(--border-light);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-shelf {
+  padding: 24px 18px 80px;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-shelf-head h2,
+html[data-theme^="office"] .notebook-surface .nb-catalog-title,
+html[data-theme^="office"] .notebook-surface .nb-entry-title,
+html[data-theme^="office"] .notebook-surface .nb-review-queue-title,
+html[data-theme^="office"] .notebook-surface .nb-review-col-head h3 {
+  font-family: var(--font-sans);
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-catalog-title,
+html[data-theme^="office"] .notebook-surface .nb-entry-title {
+  font-size: 40px;
+  font-weight: 740;
+}
+
+@media (max-width: 720px) {
+  html[data-theme^="office"] .notebook-surface .nb-catalog-title,
+  html[data-theme^="office"] .notebook-surface .nb-entry-title {
+    font-size: 31px;
+  }
+}
+
+html[data-theme^="office"] .notebook-surface .nb-catalog {
+  width: 100%;
+  box-sizing: border-box;
+  max-width: none;
+  margin: 0;
+  padding: 34px 20px 64px;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-catalog-header {
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 0 4px 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-catalog-title {
+  font-size: 18px;
+  font-weight: 720;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-catalog-meta {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-catalog-empty {
+  margin: 0 4px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-queue {
+  padding: 34px 20px 64px;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-queue-header {
+  padding: 0 4px 18px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-queue-title {
+  font-size: 18px;
+  font-weight: 720;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-queue-meta {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  padding: 18px 4px 12px;
+  overflow-x: visible;
+  overflow-y: visible;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-dark) transparent;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-col,
+html[data-theme^="office"]
+  .notebook-surface
+  .nb-review-col:has(.nb-review-col-empty) {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  max-width: none;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-col-head {
+  padding-bottom: 10px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-light);
+  background-image: none;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-col-head h3 {
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-col-count {
+  min-width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card,
+html[data-theme^="office"] .notebook-surface .nb-review {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card {
+  padding: 12px 0;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-shelf-row-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-shelf-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 0;
+  padding: 11px 0;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-shelf-card:first-child {
+  border-top: 0;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-shelf-card-meta {
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card:hover,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card:hover,
+html[data-theme^="office"] .notebook-surface .nb-shelf-item:hover,
+html[data-theme^="office"] .notebook-surface .nb-shelf-item.is-current {
+  background: var(--overlay-soft);
+  transform: none;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card.is-active {
+  outline: 0;
+  box-shadow: inset 2px 0 0 var(--accent);
+  background: var(--overlay-soft);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card-title,
+html[data-theme^="office"] .notebook-surface .nb-review-card-excerpt,
+html[data-theme^="office"] .notebook-surface .nb-review-card-path,
+html[data-theme^="office"] .notebook-surface .nb-review-card-updated,
+html[data-theme^="office"] .notebook-surface .nb-review-col-empty,
+html[data-theme^="office"] .notebook-surface .nb-body,
+html[data-theme^="office"] .notebook-surface .nb-body p {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card-excerpt,
+html[data-theme^="office"] .notebook-surface .nb-review-card-path,
+html[data-theme^="office"] .notebook-surface .nb-review-card-updated,
+html[data-theme^="office"] .notebook-surface .nb-review-col-empty {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card-meta {
+  min-width: 0;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card-updated {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+html[data-theme^="office"] .notebook-surface,
+html[data-theme^="office"] .notebook-surface .nb-catalog,
+html[data-theme^="office"] .notebook-surface .nb-review-queue,
+html[data-theme^="office"] .notebook-surface .nb-review-columns,
+html[data-theme^="office"] .notebook-surface .nb-review-col,
+html[data-theme^="office"] .notebook-surface .nb-review-card,
+html[data-theme^="office"] .notebook-surface .nb-review-card-meta,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row-head,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row-cards,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card-meta {
+  min-width: 0;
+  max-width: 100%;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card {
+  overflow-x: hidden;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card-title,
+html[data-theme^="office"] .notebook-surface .nb-review-card-excerpt,
+html[data-theme^="office"] .notebook-surface .nb-review-card-path,
+html[data-theme^="office"] .notebook-surface .nb-review-card-updated,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row-name,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row-role,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row-stats,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card-t,
+html[data-theme^="office"] .notebook-surface .nb-shelf-card-meta {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-card-avatars,
+html[data-theme^="office"] .notebook-surface .nb-draft-stamp {
+  display: none;
+}
+
+html[data-theme^="office"] .notebook-surface .nb-byline,
+html[data-theme^="office"] .notebook-surface .nb-body h2,
+html[data-theme^="office"] .notebook-surface .nb-actions,
+html[data-theme^="office"] .notebook-surface .nb-shelf-row {
+  background-image: none;
+  border-bottom: 1px solid var(--border-light);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-body code,
+html[data-theme^="office"] .notebook-surface .nb-body pre {
+  background: var(--overlay-soft);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-promote-btn,
+html[data-theme^="office"] .notebook-surface .nb-review-drawer-approve {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--radius-md);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-drawer {
+  background: color-mix(in srgb, var(--bg), var(--bg-elevated) 4%);
+  border-left: 1px solid var(--border-light);
+  box-shadow: -1px 0 0 var(--border-light);
+  color: var(--text-primary);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-drawer h2,
+html[data-theme^="office"]
+  .notebook-surface
+  .nb-review-drawer
+  .nb-review-comment
+  .nb-comment-body,
+html[data-theme^="office"]
+  .notebook-surface
+  .nb-review-drawer
+  .nb-review-comment
+  .nb-comment-author {
+  color: var(--text-primary);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-drawer-path,
+html[data-theme^="office"] .notebook-surface .nb-review-drawer-close,
+html[data-theme^="office"] .notebook-surface .nb-review-drawer .nb-review h3,
+html[data-theme^="office"]
+  .notebook-surface
+  .nb-review-drawer
+  .nb-review-comment
+  .nb-comment-ts {
+  color: var(--text-tertiary);
+}
+
+html[data-theme^="office"] .notebook-surface .nb-review-drawer-reject,
+html[data-theme^="office"] .notebook-surface .nb-retry-btn {
+  background: transparent;
+  border-color: var(--border-light);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 767px) {
+  html[data-theme^="office"] .notebook-surface .nb-catalog {
+    padding: 32px 20px 84px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-catalog-header {
+    display: block;
+    padding: 0 0 18px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-catalog-meta {
+    margin-top: 12px;
+    margin-left: 0;
+    white-space: normal;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-row {
+    display: block;
+    width: 100%;
+    padding: 28px 0 30px;
+    overflow-x: hidden;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-row-head {
+    margin-bottom: 18px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-row-name {
+    font-size: 24px;
+    line-height: 1.08;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-row-cards {
+    display: block;
+    width: 100%;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-card {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    padding: 13px 0;
+    overflow: visible;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-card-t {
+    display: block;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-shelf-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-queue {
+    padding: 32px 20px 84px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-queue-header {
+    display: block;
+    padding: 0 0 18px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-queue-meta {
+    margin-top: 12px;
+    margin-left: 0;
+    white-space: normal;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-columns {
+    display: block;
+    width: 100%;
+    padding: 18px 0 24px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-col,
+  html[data-theme^="office"]
+    .notebook-surface
+    .nb-review-col:has(.nb-review-col-empty) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 0;
+    margin: 0 0 30px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-col-head {
+    padding-bottom: 10px;
+    margin-bottom: 0;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-card {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    padding: 14px 0 16px;
+    overflow: visible;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-card-title,
+  html[data-theme^="office"] .notebook-surface .nb-review-card-excerpt {
+    display: block;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-card-excerpt {
+    margin-top: 8px;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-card-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-top: 10px;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-card-path,
+  html[data-theme^="office"] .notebook-surface .nb-review-card-updated {
+    min-width: 0;
+    margin-left: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  html[data-theme^="office"] .notebook-surface .nb-review-col-empty {
+    padding: 14px 0 0;
+  }
+}

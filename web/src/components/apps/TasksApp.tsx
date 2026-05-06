@@ -25,7 +25,6 @@ import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
 import { cn } from "../../lib/utils";
 import { type Language, useAppStore } from "../../stores/app";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { Badge, type BadgeProps } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
   Card,
@@ -60,7 +59,7 @@ const liveEventsSupported =
   "undefined";
 const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 const HUMAN_SLUG = "human";
-const DEFAULT_AGENT = "ceo";
+const DEFAULT_AGENT = "architect";
 
 const STATUS_ORDER = [
   "in_progress",
@@ -94,7 +93,6 @@ type ProjectTicketCounts = {
   total: number;
   waiting: number;
 };
-type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
 function normalizeStatus(raw: string): StatusGroup {
   const status = raw.toLowerCase().replace(/[\s-]+/g, "_");
@@ -171,19 +169,6 @@ function projectLifecycle(
   return "not_started";
 }
 
-function projectLifecycleBadgeVariant(status: ProjectLifecycle): BadgeVariant {
-  switch (status) {
-    case "done":
-      return "secondary";
-    case "in_progress":
-      return "default";
-    case "waiting":
-      return "destructive";
-    case "not_started":
-      return "outline";
-  }
-}
-
 function projectLifecycleLabelKey(status: ProjectLifecycle): I18nKey {
   switch (status) {
     case "done":
@@ -232,13 +217,6 @@ function sortProjectTasks(tasks: Task[]): Task[] {
   });
 }
 
-function taskStatusBadgeVariant(status: StatusGroup): BadgeVariant {
-  if (status === "blocked" || status === "pending") return "destructive";
-  if (status === "in_progress") return "default";
-  if (status === "done" || status === "canceled") return "secondary";
-  return "outline";
-}
-
 function agentSlugs(members: OfficeMember[], preferred?: string): string[] {
   const seen = new Set<string>();
   const slugs: string[] = [];
@@ -270,6 +248,11 @@ function defaultProjectAgent(
 
 function taskOwnerLabel(task: Task, members: OfficeMember[], t: TranslationFn) {
   return task.owner ? agentLabel(task.owner, members) : t("tasks.unassigned");
+}
+
+function agentDisplayName(slug: string, members: OfficeMember[]): string {
+  const member = members.find((candidate) => candidate.slug === slug);
+  return member?.name?.trim() || `@${slug}`;
 }
 
 function taskChannel(task: Task, project: Project): string {
@@ -370,6 +353,10 @@ function isHumanMessage(message: Message): boolean {
   return message.from === "you" || message.from === "human";
 }
 
+function isAgentMessage(message: Message): boolean {
+  return !isHumanMessage(message) && message.from !== "system";
+}
+
 function ticketCommentTargets(
   content: string,
   task: Task,
@@ -380,6 +367,94 @@ function ticketCommentTargets(
   if (explicitTargets.length > 0) return explicitTargets;
   const owner = task.owner?.trim();
   return owner && !isHumanSlug(owner) ? [owner] : [];
+}
+
+function uniqueTypingSlugs(slugs: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of slugs) {
+    const slug = raw.trim();
+    if (!slug || isHumanSlug(slug) || slug === "system" || seen.has(slug))
+      continue;
+    seen.add(slug);
+    result.push(slug);
+  }
+  return result;
+}
+
+function activeTicketTypingSlugs(
+  members: OfficeMember[],
+  task: Task,
+): string[] {
+  const owner = task.owner?.trim();
+  return uniqueTypingSlugs(
+    members
+      .filter((member) => {
+        if (member.status !== "active") return false;
+        if (!owner || isHumanSlug(owner)) return true;
+        return member.slug === owner;
+      })
+      .map((member) => member.slug),
+  );
+}
+
+function removeRespondedTypingSlugs(
+  pendingSlugs: string[],
+  messages: Message[],
+  afterMessageId: string | null,
+): string[] {
+  if (pendingSlugs.length === 0) return pendingSlugs;
+  const afterIndex = messages.findIndex(
+    (message) => message.id === afterMessageId,
+  );
+  if (afterIndex < 0) return pendingSlugs;
+  const responded = new Set<string>();
+  for (const message of messages.slice(afterIndex + 1)) {
+    if (isAgentMessage(message) && !message.content?.startsWith("[STATUS]")) {
+      responded.add(message.from);
+    }
+  }
+  return pendingSlugs.filter((slug) => !responded.has(slug));
+}
+
+interface TicketMessageGroup {
+  from: string;
+  id: string;
+  isHuman: boolean;
+  messages: Message[];
+  minuteKey: string;
+}
+
+function ticketMessageMinuteKey(message: Message): string {
+  if (!message.timestamp) return message.id;
+  const parsed = Date.parse(message.timestamp);
+  if (Number.isNaN(parsed)) return `${message.id}:${message.timestamp}`;
+  return new Date(parsed).toISOString().slice(0, 16);
+}
+
+function groupTicketMessages(messages: Message[]): TicketMessageGroup[] {
+  const groups: TicketMessageGroup[] = [];
+  for (const message of messages) {
+    const from = message.from || "";
+    const minuteKey = ticketMessageMinuteKey(message);
+    const previous = groups[groups.length - 1];
+    if (
+      previous &&
+      previous.from === from &&
+      previous.minuteKey === minuteKey
+    ) {
+      previous.messages.push(message);
+      continue;
+    }
+    groups.push({
+      from,
+      id: `${from}:${minuteKey}:${message.id}`,
+      isHuman: isHumanMessage(message),
+      messages: [message],
+      minuteKey,
+    });
+  }
+  return groups;
 }
 
 function useProjectCreator(
@@ -598,6 +673,7 @@ export function TasksApp() {
         projects={projects}
         tasks={tasks}
         t={t}
+        onCreateProject={handleOpenProjectCreator}
         onFocusProject={setProjectFocusId}
       />
     </main>
@@ -634,7 +710,7 @@ function ProjectDirectoryToolbar({
   onCreateProject,
 }: ProjectDirectoryToolbarProps) {
   return (
-    <Card>
+    <Card className="project-directory-card project-directory-toolbar">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 p-4">
         <div className="min-w-0">
           <CardTitle>
@@ -692,7 +768,7 @@ function ProjectCreateForm({
 }) {
   return (
     <form
-      className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+      className="project-create-form grid gap-3 border-y bg-transparent p-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
       onSubmit={projectCreator.handleCreateProject}
     >
       <div className="grid gap-2">
@@ -725,6 +801,7 @@ interface ProjectDirectoryListProps {
   projects: Project[];
   tasks: Task[];
   t: TranslationFn;
+  onCreateProject: () => void;
   onFocusProject: (projectId: string) => void;
 }
 
@@ -735,6 +812,7 @@ function ProjectDirectoryList({
   projects,
   tasks,
   t,
+  onCreateProject,
   onFocusProject,
 }: ProjectDirectoryListProps) {
   useEffect(() => {
@@ -746,21 +824,33 @@ function ProjectDirectoryList({
 
   if (projects.length === 0) {
     return (
-      <Card>
-        <CardContent className="grid gap-1 py-8 text-center">
+      <Card className="project-directory-card project-empty-card">
+        <CardContent className="grid gap-3 py-10 text-center">
+          <div className="project-empty-icon" aria-hidden="true">
+            <Plus width={18} height={18} />
+          </div>
           <p className="text-sm font-medium text-foreground">
             {t("tasks.noProjects")}
           </p>
           <p className="text-sm text-muted-foreground">
             {t("tasks.projectListEmpty")}
           </p>
+          <Button
+            className="project-empty-action"
+            type="button"
+            variant="outline"
+            onClick={onCreateProject}
+          >
+            <Plus width={16} height={16} />
+            {t("tasks.newProject")}
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
+    <Card className="project-directory-card">
       <CardContent className="p-0">
         <section aria-label={t("tasks.projectList")}>
           <Table>
@@ -848,33 +938,33 @@ function ProjectDirectoryRow({
         </Button>
       </TableCell>
       <TableCell>
-        <Badge variant={projectLifecycleBadgeVariant(status)}>
+        <span className={cn("project-inline-status", `is-${status}`)}>
           {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-        </Badge>
+        </span>
       </TableCell>
       <TableCell>
-        <div className="flex min-w-[320px] flex-wrap gap-1.5">
-          <Badge className="gap-1 font-normal" variant="outline">
+        <div className="project-ticket-metrics">
+          <span className="project-ticket-metric">
             <strong>{countValue(counts.notStarted)}</strong>
             {t("tasks.projectTickets.notStarted")}
-          </Badge>
-          <Badge className="gap-1 font-normal" variant="outline">
+          </span>
+          <span className="project-ticket-metric">
             <strong>{countValue(counts.inProgress)}</strong>
             {t("tasks.projectTickets.inProgress")}
-          </Badge>
-          <Badge className="gap-1 font-normal" variant="outline">
+          </span>
+          <span className="project-ticket-metric">
             <strong>{countValue(counts.waiting)}</strong>
             {t("tasks.projectTickets.waiting")}
-          </Badge>
-          <Badge className="gap-1 font-normal" variant="outline">
+          </span>
+          <span className="project-ticket-metric">
             <strong>{countValue(counts.done)}</strong>
             {t("tasks.projectTickets.done")}
-          </Badge>
-          <Badge className="gap-1 font-normal" variant="secondary">
+          </span>
+          <span className="project-ticket-metric is-total">
             {isStatsReady
               ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
               : "..."}
-          </Badge>
+          </span>
         </div>
       </TableCell>
     </TableRow>
@@ -940,6 +1030,10 @@ function ProjectDetailView({
         selectedTaskId={selectedTaskId}
         tasks={sortedTasks}
         t={t}
+        onCreateTicket={() => {
+          ticketCreator.setTicketError(null);
+          ticketCreator.setIsCreatingTicket(true);
+        }}
         onSelectTask={onSelectTask}
       />
       {selectedTask ? (
@@ -975,9 +1069,15 @@ function ProjectDetailHeader({
   onBack: () => void;
 }) {
   return (
-    <Card>
+    <Card className="project-directory-card project-detail-card">
       <CardHeader className="grid gap-4 p-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
-        <Button type="button" variant="outline" size="sm" onClick={onBack}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="project-back-button"
+          onClick={onBack}
+        >
           {t("tasks.backToProjects")}
         </Button>
         <div className="min-w-0">
@@ -988,15 +1088,15 @@ function ProjectDetailHeader({
           </CardTitle>
           <CardDescription className="mt-1">{project.id}</CardDescription>
         </div>
-        <div className="flex flex-wrap items-center gap-2 md:justify-end">
-          <Badge variant={projectLifecycleBadgeVariant(status)}>
+        <div className="project-detail-metrics md:justify-end">
+          <span className={cn("project-inline-status", `is-${status}`)}>
             {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-          </Badge>
-          <Badge variant="outline">
+          </span>
+          <span className="project-ticket-metric is-total">
             {isStatsReady
               ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
               : t("tasks.loadingTasks")}
-          </Badge>
+          </span>
         </div>
       </CardHeader>
     </Card>
@@ -1019,7 +1119,7 @@ function ProjectTicketToolbar({
   ticketCount: number;
 }) {
   return (
-    <Card>
+    <Card className="project-directory-card project-ticket-card">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 p-4">
         <div>
           <CardTitle>
@@ -1079,7 +1179,7 @@ function TicketCreateForm({
 }) {
   return (
     <form
-      className="grid gap-3 rounded-md border bg-muted/20 p-3"
+      className="ticket-create-form grid gap-3 border-y bg-transparent p-0"
       onSubmit={ticketCreator.handleCreateTicket}
     >
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_240px]">
@@ -1145,31 +1245,45 @@ function ProjectTicketList({
   selectedTaskId,
   tasks,
   t,
+  onCreateTicket,
   onSelectTask,
 }: {
   members: OfficeMember[];
   selectedTaskId: string | null;
   tasks: Task[];
   t: TranslationFn;
+  onCreateTicket: () => void;
   onSelectTask: (taskId: string) => void;
 }) {
   if (tasks.length === 0) {
     return (
-      <Card>
-        <CardContent className="grid gap-1 py-8 text-center">
+      <Card className="project-directory-card project-empty-card">
+        <CardContent className="grid gap-3 py-10 text-center">
+          <div className="project-empty-icon" aria-hidden="true">
+            <Plus width={18} height={18} />
+          </div>
           <p className="text-sm font-medium text-foreground">
             {t("tasks.noTickets")}
           </p>
           <p className="text-sm text-muted-foreground">
             {t("tasks.noTicketsDesc")}
           </p>
+          <Button
+            className="project-empty-action"
+            type="button"
+            variant="outline"
+            onClick={onCreateTicket}
+          >
+            <Plus width={16} height={16} />
+            {t("tasks.newTicket")}
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
+    <Card className="project-directory-card">
       <CardContent className="p-0">
         <section aria-label={t("tasks.tickets")}>
           <Table>
@@ -1242,9 +1356,9 @@ function TicketRow({
         </Button>
       </TableCell>
       <TableCell>
-        <Badge variant={taskStatusBadgeVariant(status)}>
+        <span className={cn("task-inline-status", `is-${status}`)}>
           {t(STATUS_LABEL_KEYS[status])}
-        </Badge>
+        </span>
       </TableCell>
       <TableCell>
         <span className="block truncate text-sm text-muted-foreground">
@@ -1274,6 +1388,11 @@ function TicketSidePanel({
   const [sendError, setSendError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [pendingReply, setPendingReply] = useState<{
+    afterMessageId: string | null;
+    slugs: string[];
+  }>({ afterMessageId: null, slugs: [] });
   const status = normalizeStatus(task.status);
   const detail = userEnteredTaskDetails(task) || t("tasks.noTicketDetails");
   const channel = taskChannel(task, project);
@@ -1284,12 +1403,39 @@ function TicketSidePanel({
     enabled: Boolean(threadId),
     refetchInterval: TASK_REFETCH_MS,
   });
-  const threadMessages = threadMessagesQuery.data?.messages ?? [];
+  const serverThreadMessages = threadMessagesQuery.data?.messages ?? [];
+  const threadMessages = useMemo(() => {
+    if (optimisticMessages.length === 0) return serverThreadMessages;
+    const seen = new Set(serverThreadMessages.map((message) => message.id));
+    return [
+      ...serverThreadMessages,
+      ...optimisticMessages.filter((message) => !seen.has(message.id)),
+    ];
+  }, [optimisticMessages, serverThreadMessages]);
+  const typingSlugs = uniqueTypingSlugs([
+    ...pendingReply.slugs,
+    ...activeTicketTypingSlugs(members, task),
+  ]);
   const commentTargets = ticketCommentTargets(instruction, task, members);
   const routeHint =
     instruction.trim() && commentTargets.length > 0
       ? `${t("tasks.notify")} ${commentTargets.map((slug) => agentLabel(slug, members)).join(", ")}`
       : t("tasks.mentionHint");
+
+  useEffect(() => {
+    setPendingReply((current) => {
+      const slugs = removeRespondedTypingSlugs(
+        current.slugs,
+        threadMessages,
+        current.afterMessageId,
+      );
+      if (slugs.length === current.slugs.length) return current;
+      return {
+        afterMessageId: slugs.length > 0 ? current.afterMessageId : null,
+        slugs,
+      };
+    });
+  }, [threadMessages]);
 
   async function handleSendInstruction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1300,13 +1446,39 @@ function TicketSidePanel({
     setSendError(null);
     setSent(false);
     try {
-      await postMessage(text, channel, threadId, taggedTargets);
-      await Promise.all([
+      const sentMessage = await postMessage(
+        text,
+        channel,
+        threadId,
+        taggedTargets,
+      );
+      const sentMessageId = sentMessage.id || `local-${Date.now()}`;
+      setOptimisticMessages((current) =>
+        current.some((message) => message.id === sentMessageId)
+          ? current
+          : [
+              ...current,
+              {
+                channel,
+                content: text,
+                from: "you",
+                id: sentMessageId,
+                reply_to: threadId,
+                thread_id: threadId,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+      );
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: ["messages", channel] }),
         queryClient.invalidateQueries({
           queryKey: ["thread-messages", channel, threadId],
         }),
       ]);
+      setPendingReply({
+        afterMessageId: sentMessageId,
+        slugs: taggedTargets,
+      });
       setInstruction("");
       setSent(true);
     } catch (err) {
@@ -1319,15 +1491,16 @@ function TicketSidePanel({
   return (
     <Sheet>
       <SheetContent
-        className="h-auto w-full gap-0 p-0 sm:max-w-2xl"
+        className="ticket-side-panel h-auto w-full gap-0 p-0 sm:max-w-2xl"
         style={{
-          maxWidth: "44rem",
+          maxWidth: "40rem",
           top: "var(--topbar-height, 0px)",
-          width: "min(100vw, 44rem)",
+          width: "min(100vw, 40rem)",
         }}
+        role="complementary"
         aria-label={t("tasks.ticketDetails")}
       >
-        <div className="flex items-start justify-between gap-4 border-b px-6 py-5">
+        <div className="ticket-side-panel-header flex items-start justify-between gap-4 border-b px-6 py-5">
           <SheetHeader className="min-w-0">
             <SheetDescription>{task.id}</SheetDescription>
             <SheetTitle className="truncate">
@@ -1345,15 +1518,15 @@ function TicketSidePanel({
           </Button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="grid grid-cols-2 gap-4 px-6 py-4">
+        <div className="ticket-side-panel-body flex min-h-0 flex-1 flex-col">
+          <div className="ticket-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">
                 {t("tasks.status")}
               </span>
-              <Badge className="w-fit" variant={taskStatusBadgeVariant(status)}>
+              <span className={cn("task-inline-status", `is-${status}`)}>
                 {t(STATUS_LABEL_KEYS[status])}
-              </Badge>
+              </span>
             </div>
             <div className="grid min-w-0 gap-1">
               <span className="text-xs font-medium text-muted-foreground">
@@ -1365,7 +1538,7 @@ function TicketSidePanel({
             </div>
           </div>
 
-          <section className="mx-6 mb-5 grid max-h-32 gap-2 overflow-auto rounded-md bg-muted/40 p-3">
+          <section className="ticket-side-panel-detail mx-6 mb-5 grid max-h-32 gap-2 overflow-y-auto overflow-x-hidden border-y bg-transparent py-3">
             <h5 className="text-xs font-medium text-muted-foreground">
               {t("tasks.ticketDetails")}
             </h5>
@@ -1377,10 +1550,10 @@ function TicketSidePanel({
           <Separator />
 
           <form
-            className="flex min-h-0 flex-1 flex-col"
+            className="ticket-side-panel-form flex min-h-0 flex-1 flex-col"
             onSubmit={handleSendInstruction}
           >
-            <div className="px-6 py-4">
+            <div className="ticket-chat-heading px-6 py-4">
               <h5 className="text-sm font-medium text-foreground">
                 {t("tasks.agentInstruction")}
               </h5>
@@ -1390,11 +1563,12 @@ function TicketSidePanel({
               members={members}
               messages={threadMessages}
               t={t}
+              typingSlugs={typingSlugs}
             />
-            <div className="border-t bg-background p-4">
-              <div className="overflow-hidden rounded-md border bg-card shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+            <div className="ticket-chat-composer-shell border-t bg-background p-4">
+              <div className="ticket-chat-composer overflow-hidden border-y bg-transparent shadow-none focus-within:border-ring">
                 <Textarea
-                  className="min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                  className="ticket-chat-input min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
                   value={instruction}
                   onChange={(event) => {
                     setInstruction(event.currentTarget.value);
@@ -1404,7 +1578,7 @@ function TicketSidePanel({
                   aria-label={t("tasks.agentInstruction")}
                   rows={4}
                 />
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-muted/20 p-2">
+                <div className="ticket-chat-composer-footer grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-transparent p-2">
                   <span
                     className={cn(
                       "truncate text-xs",
@@ -1436,11 +1610,13 @@ function TicketChatFeed({
   members,
   messages,
   t,
+  typingSlugs,
 }: {
   isLoading: boolean;
   members: OfficeMember[];
   messages: Message[];
   t: TranslationFn;
+  typingSlugs: string[];
 }) {
   const visibleMessages = messages.filter(
     (message) => !message.content?.startsWith("[STATUS]"),
@@ -1453,15 +1629,15 @@ function TicketChatFeed({
 
   if (isLoading) {
     return (
-      <div className="mx-6 flex min-h-72 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+      <div className="ticket-chat-empty mx-6 flex min-h-72 flex-1 items-center justify-center border-y border-dashed bg-transparent p-4 text-sm text-muted-foreground">
         {t("tasks.loadingChat")}
       </div>
     );
   }
 
-  if (visibleMessages.length === 0) {
+  if (visibleMessages.length === 0 && typingSlugs.length === 0) {
     return (
-      <div className="mx-6 flex min-h-72 flex-1 items-center justify-center rounded-md border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+      <div className="ticket-chat-empty mx-6 flex min-h-72 flex-1 items-center justify-center border-y border-dashed bg-transparent p-4 text-center text-sm text-muted-foreground">
         <div className="grid gap-1">
           <strong className="font-medium text-foreground">
             {t("tasks.noTicketChat")}
@@ -1473,52 +1649,152 @@ function TicketChatFeed({
   }
 
   const knownSlugs = agentSlugs(members);
+  const messageGroups = groupTicketMessages(visibleMessages);
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-6 pb-5" aria-live="polite">
-      {visibleMessages.map((message) => {
-        const isHuman = isHumanMessage(message);
-        const timestamp = message.timestamp
-          ? formatTime(message.timestamp)
-          : "";
-        return (
-          <article
-            className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b py-4 last:border-b-0"
-            key={message.id}
-          >
-            <Avatar className={cn(isHuman ? "bg-primary/10" : "bg-muted")}>
-              <AvatarFallback>
-                {messageAuthorInitial(message, members, t)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 space-y-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <strong className="truncate text-sm font-medium text-foreground">
-                  {messageAuthorLabel(message, members, t)}
-                </strong>
-                {timestamp ? (
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {timestamp}
-                  </span>
-                ) : null}
-              </div>
-              <div
-                className={cn(
-                  "w-fit max-w-full rounded-md border px-3 py-2 text-sm leading-6",
-                  isHuman
-                    ? "border-primary/15 bg-primary/5 text-foreground"
-                    : "bg-muted/30 text-foreground",
-                )}
-              >
-                <p className="whitespace-pre-wrap break-words">
-                  {renderMentions(message.content || "", knownSlugs)}
-                </p>
-              </div>
-            </div>
-          </article>
-        );
-      })}
+    <div
+      className="ticket-chat-feed min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-transparent px-6 py-5"
+      aria-live="polite"
+    >
+      <div className="ticket-chat-feed-inner grid gap-3">
+        {visibleMessages.length === 0 ? (
+          <div className="border-y border-dashed bg-transparent p-4 text-center text-sm text-muted-foreground">
+            {t("tasks.noTicketChatHint")}
+          </div>
+        ) : null}
+        {messageGroups.map((group) => (
+          <TicketMessageGroupView
+            group={group}
+            knownSlugs={knownSlugs}
+            key={group.id}
+            members={members}
+            t={t}
+          />
+        ))}
+        {typingSlugs.length > 0 ? (
+          <TicketTypingIndicator members={members} slugs={typingSlugs} t={t} />
+        ) : null}
+      </div>
       <div ref={endRef} />
+    </div>
+  );
+}
+
+function TicketMessageGroupView({
+  group,
+  knownSlugs,
+  members,
+  t,
+}: {
+  group: TicketMessageGroup;
+  knownSlugs: string[];
+  members: OfficeMember[];
+  t: TranslationFn;
+}) {
+  const [firstMessage] = group.messages;
+  const timestamp = firstMessage?.timestamp
+    ? formatTime(firstMessage.timestamp)
+    : "";
+
+  return (
+    <article
+      className={cn(
+        "ticket-message-group flex items-start gap-3",
+        group.isHuman ? "justify-end" : "justify-start",
+      )}
+    >
+      {group.isHuman || !firstMessage ? null : (
+        <Avatar className="h-8 w-8 bg-muted">
+          <AvatarFallback>
+            {messageAuthorInitial(firstMessage, members, t)}
+          </AvatarFallback>
+        </Avatar>
+      )}
+      <div
+        className={cn(
+          "ticket-message-stack grid min-w-0 max-w-[82%] gap-1",
+          group.isHuman ? "justify-items-end" : "justify-items-start",
+        )}
+      >
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-2",
+            group.isHuman ? "justify-end" : "justify-start",
+          )}
+        >
+          <strong className="truncate text-xs font-medium text-foreground">
+            {firstMessage ? messageAuthorLabel(firstMessage, members, t) : ""}
+          </strong>
+          {timestamp ? (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {timestamp}
+            </span>
+          ) : null}
+        </div>
+        <div
+          className={cn(
+            "grid gap-1",
+            group.isHuman ? "justify-items-end" : "justify-items-start",
+          )}
+        >
+          {group.messages.map((message) => (
+            <div
+              className={cn(
+                "ticket-message-bubble min-w-0 w-fit max-w-full rounded-2xl border px-3 py-2 text-sm leading-6 shadow-none",
+                group.isHuman
+                  ? "ticket-message-bubble-human rounded-br-md border-primary/30 bg-primary text-primary-foreground"
+                  : "ticket-message-bubble-agent rounded-bl-md bg-background text-foreground",
+              )}
+              key={message.id}
+            >
+              <p className="whitespace-pre-wrap break-words">
+                {renderMentions(message.content || "", knownSlugs)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function TicketTypingIndicator({
+  members,
+  slugs,
+  t,
+}: {
+  members: OfficeMember[];
+  slugs: string[];
+  t: TranslationFn;
+}) {
+  const names = slugs.map((slug) => agentDisplayName(slug, members));
+  const label =
+    names.length === 1
+      ? `${names[0]} ${t("tasks.isTyping")}`
+      : `${names.join(", ")} ${t("tasks.areTyping")}`;
+  const firstSlug = slugs[0] || "agent";
+
+  return (
+    <div className="flex items-end gap-3" role="status">
+      <Avatar className="h-8 w-8 bg-muted">
+        <AvatarFallback>
+          {(
+            agentDisplayName(firstSlug, members).trim().slice(0, 1) || "?"
+          ).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="grid min-w-0 max-w-[82%] justify-items-start gap-1">
+        <span className="text-xs font-medium text-muted-foreground">
+          {label}
+        </span>
+        <div className="ticket-typing-bubble w-fit rounded-2xl rounded-bl-md border bg-background px-3 py-2 shadow-none">
+          <div className="typing-dots" aria-hidden="true">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -65,4 +65,22 @@ describe("<BookshelfCatalog>", () => {
     expect(screen.getByText("PM's notebook")).toBeInTheDocument();
     expect(screen.getByText("CEO's notebook")).toBeInTheDocument();
   });
+
+  it("renders a quiet empty state when no agent notebooks exist", () => {
+    render(
+      <BookshelfCatalog
+        catalog={{
+          ...CATALOG,
+          total_agents: 0,
+          total_entries: 0,
+          pending_promotion: 0,
+          agents: [],
+        }}
+        onOpenAgent={() => {}}
+        onOpenEntry={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("No agent notebooks yet.")).toBeInTheDocument();
+  });
 });

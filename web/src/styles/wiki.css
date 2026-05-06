@@ -13,7 +13,7 @@
   --wk-border: var(--border);
   --wk-border-light: var(--border-light);
   --wk-border-strong: var(--border-dark);
-  --wk-wikilink: #1264a3;
+  --wk-wikilink: var(--accent);
   --wk-wikilink-broken: #c94a4a;
   --wk-amber: var(--accent);
   --wk-amber-bg: var(--accent-bg);
@@ -823,33 +823,23 @@
 /* ─── Edit-log footer ─── */
 .wk-edit-log {
   flex-shrink: 0;
-  background: var(--wk-surface);
+  background: transparent;
   border-top: 1px solid var(--wk-border);
-  padding: 10px 20px;
+  min-height: 34px;
+  padding: 0 20px;
   font-family: var(--wk-chrome);
   font-size: 12px;
   color: var(--wk-text-muted);
   display: flex;
   align-items: center;
-  gap: 24px;
-  overflow-x: auto;
+  gap: 16px;
+  overflow: hidden;
   white-space: nowrap;
-  scrollbar-width: thin;
-  scrollbar-color: var(--wk-border-strong) transparent;
+  scrollbar-width: none;
 }
 .wk-edit-log::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
-}
-.wk-edit-log::-webkit-scrollbar-track {
-  background: transparent;
-}
-.wk-edit-log::-webkit-scrollbar-thumb {
-  background: var(--wk-border-strong);
-  border-radius: 3px;
-}
-.wk-edit-log::-webkit-scrollbar-thumb:hover {
-  background: var(--wk-text-tertiary);
+  width: 0;
+  height: 0;
 }
 .wk-edit-log .wk-label {
   font-weight: 600;
@@ -863,13 +853,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 260px;
+  flex: 0 1 auto;
+  opacity: 0.78;
 }
-.wk-edit-log .wk-entry .wk-avatar {
-  image-rendering: pixelated;
-  border-radius: 3px;
-  width: 14px;
-  height: 14px;
+.wk-edit-log .wk-entry .wk-avatar,
+.wk-edit-log .wk-entry .wk-avatar-wrap {
+  display: none;
 }
 .wk-edit-log .wk-entry .wk-who {
   color: var(--wk-text);
@@ -879,8 +870,15 @@
   color: var(--wk-text-muted);
 }
 .wk-edit-log .wk-entry .wk-what {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   color: var(--wk-wikilink);
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 :where(.wk-edit-log .wk-entry) .wk-when {
   color: var(--wk-text-tertiary);
@@ -891,9 +889,9 @@
   content: "";
   width: 6px;
   height: 6px;
-  background: var(--wk-amber);
+  background: var(--wk-wikilink);
   border-radius: 50%;
-  margin-right: 4px;
+  margin-right: 2px;
   animation: wk-pulse 1.8s ease-in-out infinite;
   flex-shrink: 0;
   display: inline-block;
@@ -1157,6 +1155,327 @@
   color: var(--wk-wikilink-broken);
 }
 
+/* ChatGPT/Codex pass: the catalog reads as a working surface, not a grid of cards. */
+html[data-theme^="office"] .wk-catalog {
+  max-width: 1120px;
+  padding: 34px 40px 96px;
+}
+
+html[data-theme^="office"] .wk-catalog-header {
+  padding: 0 0 22px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--wk-border-light);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .wk-memory-overview,
+html[data-theme^="office"] .wk-catalog-grid {
+  gap: 28px;
+}
+
+html[data-theme^="office"] .wk-memory-panel,
+html[data-theme^="office"] .wk-catalog-card {
+  padding: 16px 0 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--wk-border-light);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .wk-memory-panel-primary {
+  background: transparent;
+  border-color: var(--wk-border-light);
+}
+
+html[data-theme^="office"] .wk-memory-panel li,
+html[data-theme^="office"] .wk-memory-panel .wk-memory-empty,
+html[data-theme^="office"] .wk-catalog-card li {
+  border-top-color: var(--wk-border-light);
+  border-bottom-color: var(--wk-border-light);
+}
+
+html[data-theme^="office"] .wk-catalog-card li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+html[data-theme^="office"] .wk-catalog-card h3 .wk-count {
+  background: var(--overlay-soft);
+}
+
+html[data-theme^="office"] .wk-avatar {
+  border-radius: var(--radius-full);
+  opacity: 0.84;
+  image-rendering: auto;
+}
+
+html[data-theme^="office"] .wk-catalog .wk-avatar,
+html[data-theme^="office"] .wk-catalog .wk-avatar-wrap {
+  display: none;
+}
+
+/* Codex product-document pass: article pages are app-native work surfaces,
+   not encyclopedia pages. Keep hierarchy, remove editorial card/serif cues. */
+html[data-theme^="office"] .wiki-root {
+  --wk-body: var(--wk-chrome);
+  --wk-display: var(--wk-chrome);
+  --wk-body-serif: var(--wk-chrome);
+  --wk-article-max: 720px;
+}
+
+html[data-theme^="office"] .wk-article-col {
+  padding: 0 clamp(36px, 5vw, 64px) 120px;
+  overflow-x: hidden;
+}
+
+html[data-theme^="office"] .wk-hatbar,
+html[data-theme^="office"] .wk-breadcrumb {
+  min-width: 0;
+  max-width: var(--wk-article-max);
+  overflow-x: hidden;
+}
+
+html[data-theme^="office"] .wk-hatbar {
+  flex-wrap: wrap;
+}
+
+html[data-theme^="office"] .wk-hatbar .wk-tab {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme^="office"] .wk-hatbar .wk-rail-right {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin-left: 0;
+  padding-top: 0;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme^="office"] .wk-breadcrumb {
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html[data-theme^="office"] .wk-article-title {
+  max-width: var(--wk-article-max);
+  font-family: var(--wk-chrome);
+  font-size: 44px;
+  font-weight: 720;
+  line-height: 1.08;
+  color: var(--wk-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  html[data-theme^="office"] .wk-article-title {
+    font-size: 30px;
+    line-height: 1.14;
+  }
+}
+
+html[data-theme^="office"] .wk-strapline {
+  max-width: var(--wk-article-max);
+  font-family: var(--wk-chrome);
+  font-size: 14px;
+  font-style: normal;
+}
+
+html[data-theme^="office"] .wk-title-divider {
+  max-width: var(--wk-article-max);
+  height: 0;
+  margin: 18px 0 24px;
+  border: 0;
+  border-top: 1px solid var(--wk-border-light);
+}
+
+html[data-theme^="office"] .wk-byline {
+  max-width: var(--wk-article-max);
+  margin-bottom: 24px;
+}
+
+html[data-theme^="office"] .wk-byline .wk-ts {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--wk-text-muted);
+}
+
+html[data-theme^="office"] .wk-hatnote {
+  max-width: var(--wk-article-max);
+  font-family: var(--wk-chrome);
+  font-size: 14px;
+  font-style: normal;
+  border-left: 1px solid var(--wk-border-strong);
+}
+
+html[data-theme^="office"] .wk-article-body {
+  max-width: var(--wk-article-max);
+  font-family: var(--wk-chrome);
+  font-size: 15px;
+  line-height: 1.72;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html[data-theme^="office"] .wk-article-body h2,
+html[data-theme^="office"] .wk-see-also h2 {
+  font-family: var(--wk-chrome);
+  font-size: 22px;
+  font-weight: 720;
+  color: var(--wk-text);
+  margin-top: 34px;
+  border-bottom-color: var(--wk-border-light);
+}
+
+html[data-theme^="office"] .wk-article-body h3 {
+  font-family: var(--wk-chrome);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--wk-text);
+}
+
+html[data-theme^="office"] .wk-article-body h2 a,
+html[data-theme^="office"] .wk-article-body h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+html[data-theme^="office"] .wk-article-body p,
+html[data-theme^="office"] .wk-see-also ul,
+html[data-theme^="office"] .wk-sources {
+  font-family: var(--wk-chrome);
+}
+
+html[data-theme^="office"] .wk-catalog-card li .wk-title {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html[data-theme^="office"] .wk-catalog-card li,
+html[data-theme^="office"] .wk-catalog-card li button,
+html[data-theme^="office"] .wk-catalog-card li .wk-title,
+html[data-theme^="office"] .wk-catalog-card h3,
+html[data-theme^="office"] .wk-memory-panel li,
+html[data-theme^="office"] .wk-memory-panel button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+html[data-theme^="office"] .wk-memory-panel button {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html[data-theme^="office"] .wk-toc-box,
+html[data-theme^="office"] .wk-cite-panel .wk-wikilink-code {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--wk-border-light);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .wk-toc-box {
+  padding: 12px 0 0;
+}
+
+html[data-theme^="office"] .wk-toc-title {
+  font-family: var(--wk-chrome);
+  font-weight: 700;
+}
+
+html[data-theme^="office"] .wk-cite-panel .wk-wikilink-code {
+  padding: 10px 0;
+}
+
+html[data-theme^="office"] .wk-cite-panel .wk-copy-btn {
+  border: 1px solid var(--wk-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--wk-text);
+}
+
+@media (max-width: 720px) {
+  html[data-theme^="office"] .wiki-layout,
+  html[data-theme^="office"] .wiki-layout[data-view="catalog"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"] .wk-nav-sidebar {
+    display: none;
+  }
+
+  html[data-theme^="office"] .wk-catalog {
+    max-width: none;
+    padding: 28px 20px 96px;
+  }
+
+  html[data-theme^="office"] .wk-catalog-header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "stats"
+      "clone";
+  }
+
+  html[data-theme^="office"] .wk-memory-overview,
+  html[data-theme^="office"] .wk-catalog-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  html[data-theme^="office"] .wk-catalog-card li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"] .wk-catalog-card li .wk-when {
+    display: none;
+  }
+
+  html[data-theme^="office"] .wiki-layout[data-view="article"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"]
+    .wiki-layout[data-view="article"]
+    .wk-right-sidebar {
+    display: none;
+  }
+
+  html[data-theme^="office"] .wiki-layout[data-view="article"] .wk-article-col {
+    padding: 0 20px 96px;
+  }
+
+  html[data-theme^="office"] .wk-article-title {
+    font-size: 34px;
+  }
+
+  html[data-theme^="office"] .wk-hatbar {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  html[data-theme^="office"] .wk-hatbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  html[data-theme^="office"] .wk-hatbar .wk-tab {
+    flex: 0 0 auto;
+  }
+}
+
 /* Subtle spinner used for in-flight modal actions. Sized to sit inline with
  * 13px button text without forcing a layout reflow. Wiki-surface scoped —
  * no amber, no accent gradient; it uses the neutral border tokens so the
@@ -1415,6 +1734,119 @@
   width: 80px;
 }
 
+html[data-theme^="office"] .wk-audit {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+html[data-theme^="office"] .wk-lint-table {
+  table-layout: fixed;
+}
+
+html[data-theme^="office"] .wk-lint-table th,
+html[data-theme^="office"] .wk-lint-table td {
+  overflow-wrap: anywhere;
+}
+
+html[data-theme^="office"] .wk-lint-table .wk-audit-when {
+  width: 112px;
+  white-space: normal;
+}
+
+html[data-theme^="office"] .wk-lint-table .wk-audit-author {
+  display: table-cell;
+  width: 28%;
+  white-space: normal;
+}
+
+html[data-theme^="office"] .wk-lint-table .wk-audit-msg {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  html[data-theme^="office"] .wk-audit {
+    padding: 28px 20px 72px;
+  }
+
+  html[data-theme^="office"] .wk-audit-header {
+    display: block;
+  }
+
+  html[data-theme^="office"] .wk-audit-title {
+    max-width: none;
+  }
+
+  html[data-theme^="office"] .wk-audit-stats {
+    margin-top: 10px;
+    white-space: normal;
+  }
+
+  html[data-theme^="office"] .wk-lint-table,
+  html[data-theme^="office"] .wk-lint-table thead,
+  html[data-theme^="office"] .wk-lint-table tbody,
+  html[data-theme^="office"] .wk-lint-table tr,
+  html[data-theme^="office"] .wk-lint-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  html[data-theme^="office"] .wk-lint-table thead {
+    display: none;
+  }
+
+  html[data-theme^="office"] .wk-lint-table tr {
+    padding: 14px 0;
+    border-top: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  html[data-theme^="office"] .wk-lint-table td {
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+  }
+
+  html[data-theme^="office"] .wk-lint-table td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text-tertiary);
+    font-family: var(--wk-chrome);
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  html[data-theme^="office"] .wk-lint-table td:nth-child(1)::before {
+    content: "Priority";
+  }
+
+  html[data-theme^="office"] .wk-lint-table td:nth-child(2)::before {
+    content: "Issue";
+  }
+
+  html[data-theme^="office"] .wk-lint-table td:nth-child(3)::before {
+    content: "Page";
+  }
+
+  html[data-theme^="office"] .wk-lint-table td:nth-child(4)::before {
+    content: "What's going on";
+  }
+
+  html[data-theme^="office"] .wk-lint-table td:nth-child(5)::before {
+    content: "Action";
+  }
+
+  html[data-theme^="office"] .wk-lint-table .wk-audit-author,
+  html[data-theme^="office"] .wk-lint-table .wk-audit-when,
+  html[data-theme^="office"] .wk-lint-table .wk-audit-msg {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
 /* ─── Sidebar audit link ─── */
 .wk-sidebar-audit {
   flex-shrink: 0;
@@ -1488,6 +1920,14 @@
   border-radius: 3px;
   background: var(--wk-amber-banner);
   color: var(--wk-text);
+}
+
+html[data-theme^="office"] .wk-section-new {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-weight: 650;
 }
 .wk-section-empty {
   padding: 4px 10px;
@@ -1744,6 +2184,13 @@
   font-weight: 600;
 }
 
+html[data-theme^="office"] .wk-human-pill {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--wk-text);
+}
+
 .wk-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1776,6 +2223,178 @@
   border: 1px solid var(--wk-border);
   background: var(--wk-paper);
   color: var(--wk-text);
+}
+
+html[data-theme^="office"] .wk-modal-backdrop {
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+html[data-theme^="office"] .wk-modal {
+  width: min(520px, calc(100vw - 32px));
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  background: var(--app-bg);
+  box-shadow: none;
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+html[data-theme^="office"] .wk-modal h2 {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+html[data-theme^="office"] .wk-modal select,
+html[data-theme^="office"] .wk-editor-commit {
+  min-height: 42px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border-dark);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .wk-modal select:focus,
+html[data-theme^="office"] .wk-editor-commit:focus {
+  border-bottom-color: var(--accent);
+  outline: 0;
+}
+
+html[data-theme^="office"] .wk-editor {
+  gap: 12px;
+}
+
+html[data-theme^="office"] .wk-editor-textarea {
+  min-height: 520px;
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html[data-theme^="office"] .wk-editor-textarea:focus {
+  border-bottom-color: var(--accent);
+  outline: 0;
+}
+
+html[data-theme^="office"] .wk-editor--with-preview .wk-editor-panes {
+  flex-direction: column;
+  gap: 18px;
+}
+
+html[data-theme^="office"] .wk-editor--with-preview .wk-editor-pane {
+  flex: 1 1 auto;
+}
+
+html[data-theme^="office"] .wk-editor-pane--preview {
+  min-height: 360px;
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow-x: hidden;
+}
+
+html[data-theme^="office"] .wk-editor-preview-body,
+html[data-theme^="office"] .wk-editor-preview-body * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme^="office"] .wk-editor-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+html[data-theme^="office"] .wk-editor-save,
+html[data-theme^="office"] .wk-editor-cancel,
+html[data-theme^="office"] .wk-editor-preview-toggle,
+html[data-theme^="office"] .wk-editor-banner-actions button {
+  min-height: 38px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+html[data-theme^="office"] .wk-editor-save {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+html[data-theme^="office"] .wk-editor-cancel,
+html[data-theme^="office"] .wk-editor-preview-toggle,
+html[data-theme^="office"] .wk-editor-banner-actions button {
+  border-color: var(--border-dark);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+html[data-theme^="office"] .wk-editor-preview-toggle.is-on {
+  border-color: var(--accent-border);
+  background: transparent;
+  color: var(--accent);
+}
+
+html[data-theme^="office"] .wk-editor-banner,
+html[data-theme^="office"] .wk-resolve-fact {
+  border: 0;
+  border-left: 2px solid var(--border-dark);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 8px 0 8px 12px;
+}
+
+html[data-theme^="office"] .wk-editor-banner--conflict,
+html[data-theme^="office"] .wk-editor-banner--draft {
+  border-left-color: var(--yellow);
+  background: transparent;
+}
+
+html[data-theme^="office"] .wk-editor-banner--error {
+  border-left-color: var(--red);
+}
+
+@media (max-width: 767px) {
+  html[data-theme^="office"] .wk-modal-backdrop {
+    justify-content: flex-start;
+    padding: 0 16px 0 82px;
+    background: rgba(0, 0, 0, 0.42);
+    box-sizing: border-box;
+  }
+
+  html[data-theme^="office"] .wk-modal {
+    align-self: flex-start;
+    width: 100%;
+    margin-top: 84px;
+    padding: 24px 28px;
+  }
+
+  html[data-theme^="office"] .wk-editor-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  html[data-theme^="office"] .wk-editor-preview-toggle {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
 }
 
 /* ─── Entity briefs (v1.2) ─── */
@@ -2286,4 +2905,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .wk-edit-log {
+    display: none;
+  }
+}
+
+/* Office wrap hardening sits last so it can safely override the wiki's
+   document-style defaults without tripping descending-specificity checks. */
+html[data-theme^="office"] .wk-breadcrumb a,
+html[data-theme^="office"] .wk-breadcrumb button,
+html[data-theme^="office"] .wk-breadcrumb span,
+html[data-theme^="office"] .wk-article-body *,
+html[data-theme^="office"] .wk-sources,
+html[data-theme^="office"] .wk-sources *,
+html[data-theme^="office"] .wk-related-panel,
+html[data-theme^="office"] .wk-related-panel *,
+html[data-theme^="office"] .wk-facts-list,
+html[data-theme^="office"] .wk-facts-list * {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }

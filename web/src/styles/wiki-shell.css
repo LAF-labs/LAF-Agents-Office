@@ -111,3 +111,69 @@
   border-color: var(--border);
   color: var(--text-primary);
 }
+
+/* Codex-like app chrome around the specialized wiki/notebook surfaces. */
+.wiki-shell {
+  background: var(--app-bg);
+}
+
+.wiki-tabs {
+  height: 54px;
+  padding: 0 18px;
+  gap: 8px;
+  background: var(--glass-bg);
+  border-bottom-color: var(--glass-border);
+  backdrop-filter: blur(22px) saturate(1.16);
+  -webkit-backdrop-filter: blur(22px) saturate(1.16);
+}
+
+.wiki-tab {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+}
+
+.wiki-tab:hover {
+  background: var(--overlay-soft);
+}
+
+.wiki-tab.is-active,
+.wiki-shell:has(.notebook-surface) .wiki-tab.is-active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 8px 18px rgba(10, 132, 255, 0.1);
+}
+
+.wiki-tab-badge,
+.wiki-shell:has(.notebook-surface) .wiki-tab-badge {
+  background: var(--glass-bg-strong);
+  border-color: var(--border);
+}
+
+/* ChatGPT/Codex pass: tabs are app chrome, not a frosted card strip. */
+html[data-theme^="office"] .wiki-tabs {
+  height: 50px;
+  background: var(--app-bg);
+  border-bottom-color: var(--border-light);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-theme^="office"] .wiki-tab {
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .wiki-tab.is-active,
+html[data-theme^="office"]
+  .wiki-shell:has(.notebook-surface)
+  .wiki-tab.is-active {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}

@@ -22,8 +22,9 @@ const _storedTheme = ((): Theme => {
   try {
     const v = localStorage.getItem("laf-office-theme");
     if (v === "office-dark") return "office-dark";
+    if (v === "office") return "office";
   } catch {}
-  return "office";
+  return "office-dark";
 })();
 if (typeof document !== "undefined") {
   document.documentElement.setAttribute("data-theme", _storedTheme);

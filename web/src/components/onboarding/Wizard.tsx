@@ -122,21 +122,15 @@ interface PrereqResult {
 // source of truth, this is just the Team-step preview so users don't see an
 // empty roster before confirming.
 const SCRATCH_FOUNDING_TEAM: readonly BlueprintAgent[] = [
-  { slug: "ceo", name: "CEO", role: "lead", checked: true, built_in: true },
   {
-    slug: "ai-engineer",
-    name: "AI Engineer",
-    role: "agent-systems",
+    slug: "architect",
+    name: "Architect",
+    role: "architect",
     checked: true,
+    built_in: true,
   },
-  {
-    slug: "founding-engineer",
-    name: "Founding Engineer",
-    role: "engineering",
-    checked: true,
-  },
-  { slug: "pm", name: "Product Manager", role: "product", checked: true },
-  { slug: "designer", name: "Designer", role: "design", checked: true },
+  { slug: "builder", name: "Builder", role: "builder", checked: true },
+  { slug: "reviewer", name: "Reviewer", role: "reviewer", checked: true },
 ];
 
 // Only show onboarding presets that match the current startup product-work
@@ -320,8 +314,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       loading: "Loading starters...",
       other: "Other",
       scratchTitle: "Start from scratch",
-      scratchSubhead:
-        "5-person project team: CEO, PM, Founding Engineer, AI Engineer, Designer",
+      scratchSubhead: "3-agent team: Architect, Builder, Reviewer",
       next: "Review the team",
       categories: {
         project: {
@@ -452,8 +445,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       loading: "시작 방식 불러오는 중...",
       other: "기타",
       scratchTitle: "처음부터 시작",
-      scratchSubhead:
-        "5명 프로젝트 팀: CEO, PM, 파운딩 엔지니어, AI 엔지니어, 디자이너",
+      scratchSubhead: "3인 에이전트 팀: Architect, Builder, Reviewer",
       next: "팀 검토",
       categories: {
         project: {
@@ -665,7 +657,7 @@ function WelcomeStep({ copy, onNext }: WelcomeStepProps) {
         <h1 className="wizard-headline">{copy.welcome.headline}</h1>
         <p className="wizard-subhead">{copy.welcome.subhead}</p>
       </div>
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div className="wizard-actions">
         <button type="button" className="btn btn-primary" onClick={onNext}>
           {copy.welcome.cta}
           <ArrowIcon />
@@ -2000,7 +1992,7 @@ export function Wizard({ onComplete }: WizardProps) {
   // blueprints the user never picked.
   useEffect(() => {
     if (selectedBlueprint === null) {
-      // "Start from scratch" — preview the same 5-agent founding team the
+      // "Start from scratch" — preview the same 3-agent execution team the
       // broker seeds via scratchFoundingTeamBlueprint. Keep the slugs and
       // built_in flag in sync with internal/team/broker_onboarding.go.
       setAgents(SCRATCH_FOUNDING_TEAM.map((a) => ({ ...a })));

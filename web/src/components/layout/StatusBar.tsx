@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Settings } from "iconoir-react";
 
 import { getHealth } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
@@ -88,7 +89,13 @@ export function StatusBar() {
               : `${t("status.runtimeProvider")}: ${provider}`
           }
         >
-          {"⚙ "}
+          <Settings
+            aria-hidden={true}
+            className="status-bar-icon"
+            width={12}
+            height={12}
+            strokeWidth={1.85}
+          />
           {provider}
           {providerModel && (
             <>

@@ -25,10 +25,14 @@ import {
   type ConfigSnapshot,
   type ConfigUpdate,
   createInvite,
+  createOfficeMember,
+  type GeneratedAgentTemplate,
+  generateAgent,
   getAuthSession,
   getAuthUsers,
   getConfig,
   getInvites,
+  getOfficeMembers,
   resetWorkspace,
   shredWorkspace,
   updateAuthUserRole,
@@ -39,13 +43,14 @@ import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 
-type SectionId = "general" | "team" | "company" | "keys" | "danger";
+type SectionId = "general" | "agents" | "team" | "company" | "keys" | "danger";
 
 interface Section {
   id: SectionId;
   Icon: ComponentType<{ className?: string; style?: CSSProperties }>;
   nameKey:
     | "settings.section.general"
+    | "settings.section.agents"
     | "settings.section.team"
     | "settings.section.company"
     | "settings.section.keys"
@@ -70,6 +75,7 @@ const SECTION_GROUPS: SectionGroup[] = [
         Icon: SettingsIcon,
         nameKey: "settings.section.general",
       },
+      { id: "agents", Icon: PeopleTag, nameKey: "settings.section.agents" },
       { id: "team", Icon: PeopleTag, nameKey: "settings.section.team" },
       { id: "company", Icon: Building, nameKey: "settings.section.company" },
     ],
@@ -98,24 +104,25 @@ const styles = {
     flex: 1,
     minHeight: 0,
     alignItems: "flex-start",
-    gap: 16,
+    gap: 20,
     flexWrap: "wrap",
   } as const,
   nav: {
-    width: "min(248px, 100%)",
+    width: "min(240px, 100%)",
     flexShrink: 0,
-    padding: "14px 12px",
+    padding: "6px 0 0",
     position: "sticky" as const,
-    top: 20,
+    top: 18,
     maxHeight: "calc(100vh - 96px)",
     overflowY: "auto" as const,
     display: "flex",
     flexDirection: "column" as const,
-    gap: 14,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    borderRadius: "var(--radius-lg)",
-    boxShadow: "var(--shadow-xs)",
+    gap: 12,
+    background: "transparent",
+    border: 0,
+    borderRadius: 0,
+    boxShadow: "none",
+    backdropFilter: "none",
   } as const,
   navGroupLabel: {
     fontSize: 10,
@@ -129,15 +136,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "8px 10px",
+    padding: "8px 10px 8px 14px",
     fontSize: 12,
-    borderRadius: "var(--radius-md)",
+    borderRadius: 0,
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
     cursor: "pointer",
-    border: active
-      ? "1px solid color-mix(in srgb, var(--accent) 34%, var(--border))"
-      : "1px solid transparent",
-    background: active ? "var(--accent-bg)" : "transparent",
+    border: 0,
+    background: "transparent",
+    boxShadow: active ? "inset 2px 0 0 var(--accent)" : "none",
     width: "100%",
     textAlign: "left" as const,
     fontFamily: "var(--font-sans)",
@@ -151,35 +157,37 @@ const styles = {
     strokeWidth: 2,
   } as const,
   body: {
-    flex: 1,
+    flex: "1 1 520px",
     minWidth: 0,
-    padding: "2px 4px 32px",
+    padding: "2px 4px 96px",
     maxWidth: 720,
   } as const,
   sectionTitle: { fontSize: 18, fontWeight: 700, marginBottom: 4 } as const,
   sectionDesc: {
     fontSize: 13,
     color: "var(--text-secondary)",
-    marginBottom: 20,
+    marginBottom: 16,
     lineHeight: 1.5,
   } as const,
   banner: {
     display: "flex",
     gap: 10,
     alignItems: "flex-start",
-    padding: "10px 14px",
+    padding: "10px 0",
     marginBottom: 16,
-    background: "var(--yellow-bg)",
-    borderRadius: "var(--radius-md)",
+    background: "transparent",
+    borderTop: "1px solid var(--border-light)",
+    borderBottom: "1px solid var(--border-light)",
+    borderRadius: 0,
     fontSize: 12,
     lineHeight: 1.5,
-    color: "var(--text)",
+    color: "var(--text-secondary)",
   } as const,
   row: {
     display: "flex",
     alignItems: "flex-start",
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 10,
   } as const,
   rowLabel: { width: 160, flexShrink: 0, paddingTop: 8 } as const,
   rowLabelName: {
@@ -194,57 +202,82 @@ const styles = {
   } as const,
   rowField: { flex: 1, minWidth: 0 } as const,
   input: {
-    background: "var(--bg-subtle)",
-    border: "1px solid var(--border)",
+    background: "transparent",
+    border: 0,
+    borderBottom: "1px solid var(--border-light)",
     color: "var(--text)",
-    borderRadius: "var(--radius-sm)",
+    borderRadius: 0,
+    boxShadow: "none",
     height: 36,
     fontSize: 13,
-    padding: "0 10px",
+    padding: "0 2px",
     outline: "none",
     width: "100%",
     fontFamily: "var(--font-sans)",
   } as const,
   textarea: {
-    background: "var(--bg-subtle)",
-    border: "1px solid var(--border)",
+    background: "transparent",
+    border: 0,
+    borderTop: "1px solid var(--border-light)",
+    borderBottom: "1px solid var(--border-light)",
     color: "var(--text)",
-    borderRadius: "var(--radius-sm)",
+    borderRadius: 0,
+    boxShadow: "none",
     minHeight: 60,
     fontSize: 13,
-    padding: "8px 10px",
+    padding: "8px 2px",
     outline: "none",
     width: "100%",
     fontFamily: "var(--font-sans)",
     lineHeight: 1.5,
     resize: "vertical" as const,
   },
+  primaryButton: {
+    minHeight: 34,
+    border: "1px solid var(--accent-border)",
+    background: "var(--accent)",
+    color: "var(--accent-ink)",
+    borderRadius: "var(--radius-md)",
+    padding: "0 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    fontFamily: "var(--font-sans)",
+    cursor: "pointer",
+  } as const,
   keyStatus: (set: boolean) => ({
     display: "inline-flex",
     alignItems: "center",
+    gap: 6,
     fontSize: 11,
     fontWeight: 500,
-    padding: "2px 8px",
-    borderRadius: "var(--radius-full)",
+    padding: 0,
+    borderRadius: 0,
     whiteSpace: "nowrap" as const,
-    background: set ? "var(--green-bg)" : "var(--bg-warm)",
+    background: "transparent",
     color: set ? "var(--green)" : "var(--text-tertiary)",
+  }),
+  statusDot: (color: string) => ({
+    width: 6,
+    height: 6,
+    flex: "0 0 auto",
+    borderRadius: "50%",
+    background: color,
   }),
   saveRow: {
     display: "flex",
     gap: 8,
-    marginTop: 20,
-    paddingTop: 16,
+    marginTop: 8,
+    paddingTop: 10,
     borderTop: "1px solid var(--border-light)",
   } as const,
   filePath: {
     fontFamily: "var(--font-mono)",
     fontSize: 11,
     color: "var(--text-tertiary)",
-    padding: "6px 10px",
-    background: "var(--bg-warm)",
-    borderRadius: "var(--radius-sm)",
-    border: "1px solid var(--border-light)",
+    padding: "6px 0",
+    background: "transparent",
+    borderRadius: 0,
+    border: 0,
     userSelect: "all" as const,
     wordBreak: "break-all" as const,
   },
@@ -288,18 +321,20 @@ const styles = {
     textTransform: "uppercase" as const,
     letterSpacing: "0.06em",
     color: "var(--text-tertiary)",
-    marginBottom: 10,
+    marginBottom: 8,
     paddingBottom: 6,
     borderBottom: "1px solid var(--border-light)",
   } as const,
   emptyState: {
-    border: "1px solid var(--border-light)",
-    borderRadius: 6,
-    background: "var(--bg-warm)",
+    border: 0,
+    borderTop: "1px solid var(--border-light)",
+    borderBottom: "1px solid var(--border-light)",
+    borderRadius: 0,
+    background: "transparent",
     color: "var(--text-secondary)",
     fontSize: 13,
     lineHeight: 1.5,
-    padding: "12px 14px",
+    padding: "12px 0",
     marginBottom: 20,
   } as const,
 };
@@ -314,12 +349,14 @@ interface FieldProps {
 
 function Field({ label, hint, children }: FieldProps) {
   return (
-    <div style={styles.row}>
-      <div style={styles.rowLabel}>
+    <div className="settings-field" style={styles.row}>
+      <div className="settings-field-label" style={styles.rowLabel}>
         <div style={styles.rowLabelName}>{label}</div>
         {hint ? <div style={styles.rowLabelHint}>{hint}</div> : null}
       </div>
-      <div style={styles.rowField}>{children}</div>
+      <div className="settings-field-control" style={styles.rowField}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -394,6 +431,12 @@ function KeyField({ hasValue, placeholder, value, onChange }: KeyFieldProps) {
         onChange={(e) => onChange(e.target.value)}
       />
       <span style={styles.keyStatus(hasValue)}>
+        <span
+          aria-hidden="true"
+          style={styles.statusDot(
+            hasValue ? "var(--green)" : "var(--text-tertiary)",
+          )}
+        />
         {hasValue ? t("common.set") : t("common.notSet")}
       </span>
     </div>
@@ -449,8 +492,8 @@ function GeneralSection({ cfg, save }: SectionProps) {
             style={{
               fontFamily: "var(--font-mono)",
               padding: "1px 6px",
-              background: "var(--warning-200)",
-              color: "var(--warning-500)",
+              background: "var(--accent-bg)",
+              color: "var(--accent-strong)",
               borderRadius: 3,
             }}
           >
@@ -605,33 +648,238 @@ function shortDate(value: string | undefined, language: "en" | "ko"): string {
 function RolePill({ role }: { role?: string }) {
   const { t } = useI18n();
   const normalized = editableRole(role);
+  const color =
+    normalized === "owner"
+      ? "var(--green)"
+      : normalized === "admin"
+        ? "var(--yellow)"
+        : "var(--text-secondary)";
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
-        height: 22,
-        borderRadius: "var(--radius-full)",
-        background:
-          normalized === "owner"
-            ? "var(--green-bg)"
-            : normalized === "admin"
-              ? "var(--yellow-bg)"
-              : "var(--bg-warm)",
-        color:
-          normalized === "owner"
-            ? "var(--green)"
-            : normalized === "admin"
-              ? "var(--warning-500)"
-              : "var(--text-secondary)",
-        padding: "0 8px",
+        gap: 6,
+        height: "auto",
+        borderRadius: 0,
+        background: "transparent",
+        color,
+        padding: 0,
         fontSize: 11,
         fontWeight: 700,
         textTransform: "capitalize",
       }}
     >
+      <span aria-hidden="true" style={styles.statusDot(color)} />
       {t(`settings.team.${normalized}`)}
     </span>
+  );
+}
+
+function normalizeDraft(template?: GeneratedAgentTemplate | null) {
+  return {
+    slug: template?.slug ?? "",
+    name: template?.name ?? "",
+    role: template?.role ?? "",
+    expertise: (template?.expertise ?? []).join(", "),
+    personality: template?.personality ?? "",
+  };
+}
+
+function AgentMakerSection() {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [prompt, setPrompt] = useState("");
+  const [draft, setDraft] = useState(normalizeDraft(null));
+
+  const { data: memberData } = useQuery({
+    queryKey: ["office-members"],
+    queryFn: getOfficeMembers,
+  });
+  const members = memberData?.members ?? [];
+
+  const generateMutation = useMutation({
+    mutationFn: () => generateAgent(prompt.trim()),
+    onSuccess: (template) => {
+      setDraft(normalizeDraft(template));
+      showNotice(t("settings.agents.generated"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error
+          ? err.message
+          : t("settings.agents.generateFailed"),
+        "error",
+      );
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createOfficeMember({
+        slug: draft.slug.trim(),
+        name: draft.name.trim(),
+        role: draft.role.trim(),
+        expertise: draft.expertise
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        personality: draft.personality.trim(),
+        permission_mode: "plan",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["office-members"] });
+      setPrompt("");
+      setDraft(normalizeDraft(null));
+      showNotice(t("settings.agents.created"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error ? err.message : t("settings.agents.createFailed"),
+        "error",
+      );
+    },
+  });
+
+  const canGenerate = prompt.trim() !== "" && !generateMutation.isPending;
+  const canCreate =
+    draft.slug.trim() !== "" &&
+    draft.name.trim() !== "" &&
+    !createMutation.isPending;
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>{t("settings.agents.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.agents.desc")}</p>
+
+      <div style={styles.groupTitle}>{t("settings.agents.coreTeam")}</div>
+      <div style={styles.emptyState}>
+        {members.map((member, index) => (
+          <div
+            key={member.slug}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "120px 1fr auto",
+              gap: 10,
+              alignItems: "center",
+              padding: "6px 0",
+              borderBottom:
+                index === members.length - 1
+                  ? "0"
+                  : "1px solid var(--border-light)",
+            }}
+          >
+            <strong style={{ color: "var(--text-primary)" }}>
+              @{member.slug}
+            </strong>
+            <span>{member.role || member.name}</span>
+            {member.built_in ? (
+              <span style={{ color: "var(--text-tertiary)", fontSize: 11 }}>
+                protected
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.groupTitle}>{t("settings.agents.maker")}</div>
+      <Field
+        label={t("settings.agents.prompt")}
+        hint={t("settings.agents.promptHint")}
+      >
+        <textarea
+          style={{ ...styles.textarea, minHeight: 86 }}
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder={t("settings.agents.promptPlaceholder")}
+        />
+      </Field>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 18,
+        }}
+      >
+        <button
+          type="button"
+          style={styles.primaryButton}
+          disabled={!canGenerate}
+          onClick={() => generateMutation.mutate()}
+        >
+          {generateMutation.isPending
+            ? t("settings.agents.generating")
+            : t("settings.agents.generate")}
+        </button>
+      </div>
+
+      <div style={styles.groupTitle}>{t("settings.agents.draft")}</div>
+      <Field label="Slug">
+        <input
+          style={styles.input}
+          value={draft.slug}
+          onChange={(event) =>
+            setDraft((current) => ({ ...current, slug: event.target.value }))
+          }
+          placeholder="domain-specialist"
+        />
+      </Field>
+      <Field label={t("settings.agents.name")}>
+        <input
+          style={styles.input}
+          value={draft.name}
+          onChange={(event) =>
+            setDraft((current) => ({ ...current, name: event.target.value }))
+          }
+        />
+      </Field>
+      <Field label={t("settings.agents.role")}>
+        <input
+          style={styles.input}
+          value={draft.role}
+          onChange={(event) =>
+            setDraft((current) => ({ ...current, role: event.target.value }))
+          }
+        />
+      </Field>
+      <Field label={t("settings.agents.expertise")}>
+        <input
+          style={styles.input}
+          value={draft.expertise}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              expertise: event.target.value,
+            }))
+          }
+          placeholder="research, finance, legal review"
+        />
+      </Field>
+      <Field label={t("settings.agents.personality")}>
+        <textarea
+          style={styles.textarea}
+          value={draft.personality}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              personality: event.target.value,
+            }))
+          }
+        />
+      </Field>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          style={styles.primaryButton}
+          disabled={!canCreate}
+          onClick={() => createMutation.mutate()}
+        >
+          {createMutation.isPending
+            ? t("settings.agents.creating")
+            : t("settings.agents.create")}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -753,6 +1001,7 @@ function TeamSection() {
       <p style={styles.sectionDesc}>{t("settings.team.desc")}</p>
 
       <div
+        className="settings-team-summary"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -770,10 +1019,13 @@ function TeamSection() {
         ].map(([label, value]) => (
           <div
             key={label}
+            className="settings-team-stat"
             style={{
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-md)",
-              background: "var(--bg-card)",
+              border: 0,
+              borderTop: "1px solid var(--border-light)",
+              borderBottom: "1px solid var(--border-light)",
+              borderRadius: 0,
+              background: "transparent",
               padding: "12px 14px",
               minWidth: 0,
             }}
@@ -813,6 +1065,7 @@ function TeamSection() {
 
       <div style={styles.groupTitle}>{t("settings.team.inviteGroup")}</div>
       <div
+        className="settings-team-invite"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr) 130px auto",
@@ -821,7 +1074,10 @@ function TeamSection() {
           marginBottom: 22,
         }}
       >
-        <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
+        <label
+          className="settings-team-invite-field"
+          style={{ display: "grid", gap: 5, minWidth: 0 }}
+        >
           <span style={styles.rowLabelName}>{t("settings.team.email")}</span>
           <input
             style={styles.input}
@@ -832,7 +1088,10 @@ function TeamSection() {
             onChange={(event) => setInviteEmail(event.currentTarget.value)}
           />
         </label>
-        <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
+        <label
+          className="settings-team-invite-field"
+          style={{ display: "grid", gap: 5, minWidth: 0 }}
+        >
           <span style={styles.rowLabelName}>{t("settings.team.name")}</span>
           <input
             style={styles.input}
@@ -843,7 +1102,10 @@ function TeamSection() {
             onChange={(event) => setInviteName(event.currentTarget.value)}
           />
         </label>
-        <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
+        <label
+          className="settings-team-invite-field"
+          style={{ display: "grid", gap: 5, minWidth: 0 }}
+        >
           <span style={styles.rowLabelName}>{t("settings.team.role")}</span>
           <select
             style={styles.input}
@@ -859,7 +1121,7 @@ function TeamSection() {
         </label>
         <button
           type="button"
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm settings-team-invite-button"
           disabled={!canSubmitInvite}
           onClick={() => inviteMutation.mutate()}
           style={{ minHeight: 36 }}
@@ -878,7 +1140,10 @@ function TeamSection() {
       ) : null}
 
       <div style={styles.groupTitle}>{t("settings.team.people")}</div>
-      <table style={{ ...styles.table, marginBottom: 24 }}>
+      <table
+        className="settings-team-table"
+        style={{ ...styles.table, marginBottom: 24 }}
+      >
         <thead>
           <tr>
             <th style={styles.th}>{t("settings.team.person")}</th>
@@ -911,6 +1176,7 @@ function TeamSection() {
                 <td style={styles.td}>
                   {canManage ? (
                     <select
+                      className="settings-team-role-select"
                       style={{ ...styles.input, height: 30, maxWidth: 126 }}
                       value={editableRole(member.role)}
                       disabled={disabled}
@@ -965,9 +1231,11 @@ function TeamSection() {
                 gridTemplateColumns: "minmax(0, 1fr) auto auto",
                 gap: 8,
                 alignItems: "center",
-                border: "1px solid var(--border-light)",
-                borderRadius: "var(--radius-sm)",
-                padding: "9px 10px",
+                borderTop: "1px solid var(--border-light)",
+                borderBottom: "1px solid var(--border-light)",
+                borderRadius: 0,
+                background: "transparent",
+                padding: "10px 0",
               }}
             >
               <div style={{ minWidth: 0 }}>
@@ -1202,9 +1470,17 @@ function KeysSection({ cfg, save }: SectionProps) {
 const dangerStyles = {
   card: (severity: "warn" | "critical") => ({
     marginBottom: 20,
-    padding: 20,
-    borderRadius: "var(--radius-md)",
-    background: severity === "critical" ? "var(--red-bg)" : "var(--yellow-bg)",
+    padding: "18px 0",
+    borderRadius: 0,
+    borderTop:
+      severity === "critical"
+        ? "1px solid color-mix(in srgb, var(--red) 24%, var(--border-light))"
+        : "1px solid var(--border-light)",
+    borderBottom:
+      severity === "critical"
+        ? "1px solid color-mix(in srgb, var(--red) 24%, var(--border-light))"
+        : "1px solid var(--border-light)",
+    background: "transparent",
   }),
   cardTitle: {
     display: "flex",
@@ -1243,19 +1519,21 @@ const dangerStyles = {
     fontSize: 13,
     fontWeight: 600,
     border: "none",
-    borderRadius: "var(--radius-sm)",
+    borderRadius: "var(--radius-md)",
     cursor: "pointer" as const,
-    color: "#fff",
-    background:
+    color:
       severity === "critical"
-        ? "var(--red, #e5484d)"
-        : "var(--yellow, #e5a00d)",
+        ? "#fff"
+        : "var(--color-pitch-black, var(--accent-ink))",
+    background:
+      severity === "critical" ? "var(--red, #e5484d)" : "var(--accent)",
     fontFamily: "var(--font-sans)",
   }),
   modalBackdrop: {
     position: "fixed" as const,
     inset: 0,
-    background: "rgba(0,0,0,0.6)",
+    background: "rgba(8,13,24,0.44)",
+    backdropFilter: "blur(8px)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1263,11 +1541,12 @@ const dangerStyles = {
   },
   modalPanel: {
     width: "min(520px, calc(100vw - 40px))",
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
+    background: "var(--glass-bg-strong)",
+    border: "1px solid var(--glass-border)",
     borderRadius: "var(--radius-md)",
     padding: 24,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+    boxShadow: "var(--shadow-lg, var(--shadow-md))",
+    backdropFilter: "blur(24px) saturate(1.16)",
   } as const,
   modalTitle: {
     fontSize: 17,
@@ -1292,10 +1571,10 @@ const dangerStyles = {
   } as const,
   modalInput: {
     width: "100%",
-    background: "var(--bg-warm)",
+    background: "var(--glass-bg-strong)",
     border: "1px solid var(--border)",
     color: "var(--text)",
-    borderRadius: "var(--radius-sm)",
+    borderRadius: "var(--radius-md)",
     height: 38,
     fontSize: 14,
     padding: "0 12px",
@@ -1313,7 +1592,7 @@ const dangerStyles = {
     fontSize: 13,
     fontWeight: 500,
     border: "1px solid var(--border)",
-    borderRadius: "var(--radius-sm)",
+    borderRadius: "var(--radius-md)",
     cursor: "pointer" as const,
     color: "var(--text)",
     background: "transparent",
@@ -1323,16 +1602,20 @@ const dangerStyles = {
     padding: "9px 16px",
     fontSize: 13,
     fontWeight: 600,
-    border: "none",
-    borderRadius: "var(--radius-sm)",
+    border: enabled ? "none" : "1px solid var(--border-light)",
+    borderRadius: "var(--radius-md)",
     cursor: enabled ? "pointer" : ("not-allowed" as const),
-    color: "#fff",
+    color: !enabled
+      ? "var(--text-tertiary)"
+      : severity === "critical"
+        ? "#fff"
+        : "var(--color-pitch-black, var(--accent-ink))",
     background: enabled
       ? severity === "critical"
         ? "var(--red, #e5484d)"
-        : "var(--yellow, #e5a00d)"
-      : "var(--bg-warm)",
-    opacity: enabled ? 1 : 0.6,
+        : "var(--accent)"
+      : "var(--overlay-soft)",
+    opacity: 1,
     fontFamily: "var(--font-sans)",
   }),
 };
@@ -1652,8 +1935,8 @@ export function SettingsApp() {
   }
 
   return (
-    <div style={styles.shell}>
-      <nav style={styles.nav}>
+    <div className="settings-shell" style={styles.shell}>
+      <nav className="settings-nav" style={styles.nav}>
         {SECTION_GROUPS.map((group) => (
           <div key={group.labelKey}>
             <p style={styles.navGroupLabel}>{t(group.labelKey)}</p>
@@ -1663,6 +1946,7 @@ export function SettingsApp() {
                 <button
                   type="button"
                   key={sec.id}
+                  className={`settings-nav-item${sec.id === section ? " is-active" : ""}`}
                   style={styles.navItem(sec.id === section)}
                   onClick={() => setSection(sec.id)}
                 >
@@ -1674,8 +1958,9 @@ export function SettingsApp() {
           </div>
         ))}
       </nav>
-      <div style={styles.body} key={dataKey}>
+      <div className="settings-body" style={styles.body} key={dataKey}>
         {section === "general" && <GeneralSection cfg={data} save={save} />}
+        {section === "agents" && <AgentMakerSection />}
         {section === "team" && <TeamSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}

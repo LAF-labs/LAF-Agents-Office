@@ -44,8 +44,16 @@ export function Shell({ children, onLogout, userEmail }: ShellProps) {
   const composerHelpOpen = useAppStore((s) => s.composerHelpOpen);
   const inDM = !currentApp && !!isDMChannel(currentChannel, channelMeta);
 
+  const shellClassName = [
+    "office",
+    activeAgentSlug ? "agent-panel-open" : "",
+    activeThreadId ? "thread-panel-open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="office">
+    <div className={shellClassName}>
       <Sidebar />
       <main className="main">
         <DisconnectBanner />

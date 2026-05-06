@@ -201,7 +201,7 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
         title="Pam — click for options"
         onClick={() => setMenuOpen((v) => !v)}
       >
-        <PixelAvatar slug="pam" size={56} className="pam-avatar" />
+        <PixelAvatar slug="pam" size={18} className="pam-avatar" />
       </button>
       <div className="pam-desk" aria-hidden="true" />
 

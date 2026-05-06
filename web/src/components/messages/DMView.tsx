@@ -24,6 +24,7 @@ export function DMView() {
     () => new Map(members.map((m) => [m.slug, m])),
     [members],
   );
+  const dmAgent = dmAgentSlug ? membersBySlug.get(dmAgentSlug) : null;
   const { lines, connected } = useAgentStream(dmAgentSlug);
   const messagesRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
@@ -45,16 +46,19 @@ export function DMView() {
   return (
     <>
       {/* Split layout: messages left, live stream right */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="dm-split">
         {/* Left: Messages + Composer */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
+        <div className="dm-message-pane">
+          <div className="dm-header">
+            <div className="dm-header-title">
+              <span>{dmAgent?.name || dmAgentSlug || "Agent"}</span>
+              <span className="dm-header-dot" />
+              <span>1:1</span>
+            </div>
+            <div className="dm-header-subtitle">
+              @{dmAgentSlug || "agent"} direct thread
+            </div>
+          </div>
           <div ref={messagesRef} className="messages">
             {messages.map((msg) => (
               <MessageBubbleView
@@ -73,46 +77,16 @@ export function DMView() {
         </div>
 
         {/* Right: Live stream */}
-        <div
-          style={{
-            width: 320,
-            flexShrink: 0,
-            borderLeft: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "8px 12px",
-              borderBottom: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
+        <div className="dm-live-stream">
+          <div className="dm-live-stream-header">
             <span
               className={`status-dot ${connected ? "active pulse" : "lurking"}`}
             />
             <span>Live output</span>
           </div>
-          <div
-            ref={streamRef}
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: 8,
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              lineHeight: 1.5,
-              color: "var(--text-secondary)",
-            }}
-          >
+          <div ref={streamRef} className="dm-live-stream-body">
             {lines.length === 0 ? (
-              <div style={{ color: "var(--text-tertiary)", padding: 8 }}>
+              <div className="dm-live-stream-empty">
                 {connected ? "Waiting for output..." : "Stream idle"}
               </div>
             ) : (

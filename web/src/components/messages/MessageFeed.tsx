@@ -182,7 +182,7 @@ export function MessageFeed() {
           <div className="channel-empty-hints">
             <div>
               {t("messages.emptyTry")}{" "}
-              <code>@ceo what should we build this week?</code>
+              <code>@architect what should we build this week?</code>
             </div>
             <div>
               {t("messages.emptyType")} <code>/</code>{" "}

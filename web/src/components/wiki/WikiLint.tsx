@@ -160,7 +160,7 @@ function LintTable({
   onResolve: (finding: LintFinding, idx: number) => void;
 }) {
   return (
-    <table className="wk-audit-table">
+    <table className="wk-audit-table wk-lint-table">
       <thead>
         <tr>
           <th scope="col">Priority</th>

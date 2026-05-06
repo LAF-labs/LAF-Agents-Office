@@ -146,12 +146,10 @@ function AgentPanelView({ agent, onClose }: AgentPanelViewProps) {
   const channelEntry = channelMembers.find((m) => m.slug === agent.slug);
   const enabled = Boolean(channelEntry) && channelEntry?.disabled !== true;
 
-  // Broker rejects remove / disable for any `built_in` member (lead agent).
+  // Broker rejects remove / disable for any `built_in` member (core team).
   // Use `!== true` (not `!agent.built_in`) so an absent field isn't silently
   // treated as "removable" — we want explicit permission, not optimistic.
-  // Keep the `ceo` literal as legacy fallback for stored rosters that
-  // predate the BuiltIn field getting serialized.
-  const isLead = agent.built_in === true || agent.slug === "ceo";
+  const isLead = agent.built_in === true;
   const canRemove = !isLead;
   const canToggle = !isLead;
 

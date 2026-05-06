@@ -8,6 +8,7 @@ import { useChannels } from "../../hooks/useChannels";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useAppStore } from "../../stores/app";
 import { SLASH_COMMANDS } from "../messages/Autocomplete";
+import { CommandGlyph } from "../ui/CommandGlyph";
 import { Kbd } from "../ui/Kbd";
 import { openProviderSwitcher } from "../ui/ProviderSwitcher";
 import { showNotice } from "../ui/Toast";
@@ -208,7 +209,7 @@ function buildChannelItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     items.push({
       id: `ch:${channel.slug}`,
       group: "Project activity",
-      icon: "#",
+      icon: "channel",
       label: channel.name || channel.slug,
       desc: channel.description || undefined,
       meta: `#${channel.slug}`,
@@ -234,7 +235,7 @@ function buildAgentItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     items.push({
       id: `ag:${slug}`,
       group: "Project agents",
-      icon: member.emoji || "🤖",
+      icon: "agent",
       label: member.name || slug,
       desc: member.role || undefined,
       meta: `@${slug}`,
@@ -288,7 +289,7 @@ function buildMessageItems(deps: PaletteBuildDeps): PaletteItem[] {
     return {
       id: `msg:${hit.id}:${hit.matchedChannel}`,
       group: "Messages",
-      icon: "💬",
+      icon: "message",
       label: `${hit.from}: ${snippet}`,
       desc: `#${hit.matchedChannel} · ${formatTime(hit.timestamp)}`,
       run: () => {
@@ -305,7 +306,7 @@ function buildWikiItems(deps: PaletteBuildDeps): PaletteItem[] {
   return deps.wikiHits.map((hit) => ({
     id: `wiki:${hit.path}:${hit.line}`,
     group: "Wiki",
-    icon: "📖",
+    icon: "wiki",
     label: prettyWikiPath(hit.path),
     desc: hit.snippet.trim().slice(0, 120),
     meta: `L${hit.line}`,
@@ -324,7 +325,7 @@ function buildNotebookItems(deps: PaletteBuildDeps): PaletteItem[] {
     return {
       id: `nb:${hit.path}:${hit.line}`,
       group: "Notebooks",
-      icon: "📓",
+      icon: "notebook",
       label,
       desc: hit.snippet.trim().slice(0, 120),
       meta: `L${hit.line}`,
@@ -691,7 +692,9 @@ function PaletteButton({
       onMouseEnter={() => setSelectedIdx(flatIdx)}
       onClick={item.run}
     >
-      <span className="cmd-palette-item-icon">{item.icon}</span>
+      <span className="cmd-palette-item-icon">
+        <CommandGlyph name={item.icon} />
+      </span>
       <span className="cmd-palette-item-text">
         <span className="cmd-palette-item-label">
           {renderPaletteLabel(item, trimmedQuery)}

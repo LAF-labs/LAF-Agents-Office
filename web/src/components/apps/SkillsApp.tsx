@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Flash } from "iconoir-react";
 
 import { getSkills, invokeSkill, type Skill } from "../../api/client";
 import { showNotice } from "../ui/Toast";
@@ -60,8 +61,8 @@ function SkillCard({ skill }: { skill: Skill }) {
     invokeState === "invoking"
       ? "Invoking..."
       : invokeState === "done"
-        ? "\u2713 Invoked"
-        : "\u26A1 Invoke";
+        ? "Invoked"
+        : "Invoke";
 
   return (
     <div className="app-card">
@@ -73,7 +74,7 @@ function SkillCard({ skill }: { skill: Skill }) {
           marginBottom: 4,
         }}
       >
-        <span style={{ fontSize: 16 }}>{"\u26A1"}</span>
+        <Flash aria-hidden={true} height={16} width={16} />
         <span className="app-card-title" style={{ marginBottom: 0 }}>
           {skill.name || "Untitled"}
         </span>
@@ -105,6 +106,7 @@ function SkillCard({ skill }: { skill: Skill }) {
           disabled={invokeState !== "idle"}
           onClick={handleInvoke}
         >
+          <Flash aria-hidden={true} height={13} width={13} />
           {buttonLabel}
         </button>
       </div>

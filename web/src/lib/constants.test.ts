@@ -7,7 +7,6 @@ describe("SIDEBAR_APPS", () => {
     expect(SIDEBAR_APPS.map((app) => app.id)).toEqual([
       "tasks",
       "wiki",
-      "requests",
       "settings",
     ]);
   });

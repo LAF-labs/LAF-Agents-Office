@@ -386,7 +386,7 @@ export interface OfficeMember {
   task?: string;
   channel?: string;
   provider?: ProviderBinding | string;
-  /** Broker-provided: serialized as `built_in`. Built-ins cannot be removed. (CEO is guarded by a separate slug check.) */
+  /** Broker-provided: serialized as `built_in`. Built-ins are the protected core team. */
   built_in?: boolean;
   /** Per-channel disabled state when the list is sourced from `/members?channel=…`. */
   disabled?: boolean;
@@ -394,6 +394,23 @@ export interface OfficeMember {
 
 export function getOfficeMembers() {
   return get<{ members: OfficeMember[] }>("/office-members");
+}
+
+export function createOfficeMember(body: {
+  slug: string;
+  name: string;
+  role?: string;
+  expertise?: string[];
+  personality?: string;
+  permission_mode?: string;
+  created_by?: string;
+  provider?: ProviderBinding;
+}) {
+  return post<{ member: OfficeMember }>("/office-members", {
+    action: "create",
+    created_by: "agent-maker",
+    ...body,
+  });
 }
 
 export interface HumanTeamMember {

@@ -35,43 +35,12 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        zIndex: 300,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        pointerEvents: "none",
-      }}
-    >
+    <div className="toast-stack" aria-live="polite" aria-atomic="true">
       {toasts.map((t) => (
         <button
           type="button"
           key={t.id}
-          className="animate-fade"
-          style={{
-            padding: "10px 16px",
-            borderRadius: "var(--radius-md)",
-            fontSize: 13,
-            fontWeight: 500,
-            fontFamily: "var(--font-sans)",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            pointerEvents: "auto",
-            cursor: "pointer",
-            maxWidth: 360,
-            border: "none",
-            textAlign: "left",
-            background:
-              t.type === "error"
-                ? "var(--red)"
-                : t.type === "success"
-                  ? "var(--green)"
-                  : "var(--accent)",
-            color: "white",
-          }}
+          className={`toast-item toast-${t.type} animate-fade`}
           onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
         >
           {t.message}

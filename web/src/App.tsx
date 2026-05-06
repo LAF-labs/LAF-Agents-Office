@@ -61,50 +61,22 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div
-          data-testid="error-boundary"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "#fee",
-            color: "#900",
-            padding: 20,
-            fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
-            fontSize: 13,
-            overflowY: "auto",
-            zIndex: 9999,
-          }}
-        >
-          <h2 style={{ margin: "0 0 8px 0", fontSize: 14 }}>
-            Something broke in the UI
-          </h2>
-          <pre
-            style={{
-              margin: "8px 0 0",
-              fontFamily: "SFMono-Regular, Menlo, monospace",
-              fontSize: 11,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {this.state.error.message}
-            {"\n\n"}
-            {this.state.error.stack}
-          </pre>
-          <button
-            type="button"
-            onClick={() => this.setState({ error: null })}
-            style={{
-              marginTop: 12,
-              padding: "6px 12px",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            Try again
-          </button>
+        <div className="app-error" data-testid="error-boundary">
+          <section className="app-error-card">
+            <span>Interface recovery</span>
+            <h2>Something broke in the UI</h2>
+            <pre>
+              {this.state.error.message}
+              {"\n\n"}
+              {this.state.error.stack}
+            </pre>
+            <button
+              type="button"
+              onClick={() => this.setState({ error: null })}
+            >
+              Try again
+            </button>
+          </section>
         </div>
       );
     }
@@ -113,18 +85,27 @@ class ErrorBoundary extends Component<
 }
 
 function AppLoadingFallback() {
+  return <AppBootScreen label="Loading workspace..." />;
+}
+
+function AppBootScreen({ label }: { label: string }) {
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "var(--text-tertiary)",
-        fontSize: 14,
-      }}
-    >
-      Loading...
+    <div className="app-boot" role="status" aria-live="polite">
+      <section className="app-boot-card">
+        <div className="app-boot-mark" aria-hidden="true">
+          LAF
+        </div>
+        <div className="app-boot-copy">
+          <span>Agent workspace</span>
+          <h1>Preparing workspace</h1>
+          <p>{label}</p>
+        </div>
+        <div className="app-boot-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      </section>
     </div>
   );
 }
@@ -256,20 +237,7 @@ export default function App() {
   if (!apiReady) {
     // The static skeleton in index.html already covers this case, but
     // render a matching React fallback so nothing flashes.
-    body = (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text-tertiary)",
-          fontSize: 14,
-        }}
-      >
-        Connecting to broker...
-      </div>
-    );
+    body = <AppBootScreen label="Connecting to broker..." />;
   } else if (inviteToken) {
     body = <InviteAcceptPage token={inviteToken} />;
   } else if (!authSession.authenticated) {

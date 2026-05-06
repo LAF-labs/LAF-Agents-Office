@@ -6,9 +6,10 @@ import {
   type SlashCommand,
 } from "../../hooks/useCommands";
 import { useOfficeMembers } from "../../hooks/useMembers";
+import { CommandGlyph } from "../ui/CommandGlyph";
 
 export interface AutocompleteItem {
-  /** Token to insert (e.g. "/clear" or "@ceo"). */
+  /** Token to insert (e.g. "/clear" or "@architect"). */
   insert: string;
   /** Primary label shown in the panel. */
   label: string;
@@ -109,7 +110,9 @@ export function Autocomplete({
             onPick(item);
           }}
         >
-          <span className="autocomplete-item-icon">{item.icon}</span>
+          <span className="autocomplete-item-icon">
+            <CommandGlyph name={item.icon} />
+          </span>
           <span className="autocomplete-item-label">{item.label}</span>
           {item.desc ? (
             <span className="autocomplete-item-desc">{item.desc}</span>
@@ -131,7 +134,7 @@ export function mentionAutocompleteItems(
       insert: "@all",
       label: "@all",
       desc: "Notify every agent",
-      icon: "📣",
+      icon: "broadcast",
     });
   }
   for (const member of members) {
@@ -148,7 +151,7 @@ export function mentionAutocompleteItems(
       insert: `@${member.slug}`,
       label: `@${member.slug}`,
       desc: member.name,
-      icon: member.emoji || "🤖",
+      icon: "agent",
     });
     if (items.length >= MAX_AUTOCOMPLETE_ITEMS) break;
   }

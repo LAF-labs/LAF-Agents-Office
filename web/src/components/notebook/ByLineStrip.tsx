@@ -81,7 +81,7 @@ export default function ByLineStrip({
         {status === "promoted"
           ? "Promoted"
           : status === "in-review"
-            ? `Reviewing: ${formatAgentName(reviewerSlug ?? "ceo")}`
+            ? `Reviewing: ${formatAgentName(reviewerSlug ?? "reviewer")}`
             : status === "changes-requested"
               ? "Changes requested"
               : "Not yet reviewed"}

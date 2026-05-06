@@ -22,7 +22,7 @@ describe("AuthScreen", () => {
     useAppStore.setState({ language: "en" });
   });
 
-  it("frames signup around project agents instead of a generic office", async () => {
+  it("frames signup as a focused LAF-Office entry surface", async () => {
     render(<AuthScreen onAuthenticated={vi.fn()} />);
 
     expect(
@@ -33,10 +33,12 @@ describe("AuthScreen", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "Project agents that keep context and ship work",
+        name: "LAF-Office",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/keep decisions in the wiki/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/create a project team to continue/i),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Create a project team/i }),
     ).toBeInTheDocument();

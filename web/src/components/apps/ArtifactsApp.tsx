@@ -244,7 +244,10 @@ export function ArtifactsApp() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div
+      className="activity-dashboard"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <ActivityHero />
       <StatsGrid
         activeTasks={activeTasks.length}
@@ -255,7 +258,10 @@ export function ArtifactsApp() {
         jobs={allJobs.length}
         sessionTokens={formatTokens(usageData?.session?.total_tokens ?? 0)}
       />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div
+        className="activity-columns"
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
+      >
         <LeftActivityColumn
           activeTasks={activeTasks}
           liveAgents={liveAgents}
@@ -276,6 +282,7 @@ export function ArtifactsApp() {
 function ActivityHero() {
   return (
     <div
+      className="activity-hero"
       style={{
         display: "flex",
         justifyContent: "space-between",
@@ -330,6 +337,7 @@ function StatsGrid({
 }) {
   return (
     <div
+      className="activity-stats-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
@@ -387,7 +395,10 @@ function LeftActivityColumn({
   actions: ActionRecord[];
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div
+      className="activity-column activity-column-left"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <ActiveLanesSection activeTasks={activeTasks} />
       <AgentPulseSection liveAgents={liveAgents} />
       <RecentActionsSection actions={actions} />
@@ -405,7 +416,10 @@ function RightActivityColumn({
   jobs: SchedulerJobRaw[];
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div
+      className="activity-column activity-column-right"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <ActivitySection
         title="Needs attention"
         meta={`${insights.length} items`}

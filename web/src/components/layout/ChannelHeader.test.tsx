@@ -31,7 +31,7 @@ describe("ChannelHeader", () => {
       "title",
       "me@example.com 로그아웃",
     );
-    expect(screen.getByLabelText("다크 모드로 전환")).toBeInTheDocument();
+    expect(screen.getByLabelText("라이트 모드로 전환")).toBeInTheDocument();
     expect(screen.getByLabelText("검색")).toBeInTheDocument();
   });
 });

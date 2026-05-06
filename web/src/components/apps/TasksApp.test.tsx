@@ -127,6 +127,30 @@ function mockProjectDirectory() {
         timestamp: "2026-05-05T01:00:00Z",
         thread_id: "thread-build",
       },
+      {
+        channel: "general",
+        content: "I am checking payment timing.",
+        from: "engineer",
+        id: "message-agent-2",
+        timestamp: "2026-05-05T01:00:35Z",
+        thread_id: "thread-build",
+      },
+      {
+        channel: "general",
+        content: "Please check the checkout handoff.",
+        from: "you",
+        id: "message-human",
+        timestamp: "2026-05-05T01:01:00Z",
+        thread_id: "thread-build",
+      },
+      {
+        channel: "general",
+        content: "Also check confirmation copy.",
+        from: "you",
+        id: "message-human-2",
+        timestamp: "2026-05-05T01:01:40Z",
+        thread_id: "thread-build",
+      },
     ],
   });
   apiMocks.postMessage.mockResolvedValue({
@@ -263,6 +287,24 @@ describe("TasksApp project directory", () => {
     expect(
       await within(panel).findByText("I am on the signup flow."),
     ).toBeInTheDocument();
+    const agentGroup = within(panel)
+      .getByText("I am on the signup flow.")
+      .closest("article");
+    expect(
+      within(panel)
+        .getByText("I am checking payment timing.")
+        .closest("article"),
+    ).toBe(agentGroup);
+    expect(agentGroup).toHaveClass("justify-start");
+    const humanGroup = within(panel)
+      .getByText("Please check the checkout handoff.")
+      .closest("article");
+    expect(
+      within(panel)
+        .getByText("Also check confirmation copy.")
+        .closest("article"),
+    ).toBe(humanGroup);
+    expect(humanGroup).toHaveClass("justify-end");
 
     await user.type(
       within(panel).getByLabelText("Ticket chat"),
@@ -278,6 +320,16 @@ describe("TasksApp project directory", () => {
         ["engineer"],
       );
     });
+    expect(
+      (
+        await within(panel).findByText(
+          "Please finish this ticket and report blockers.",
+        )
+      ).closest("article"),
+    ).toHaveClass("justify-end");
+    expect(
+      await within(panel).findByText("Engineer is typing..."),
+    ).toBeInTheDocument();
   });
 
   it("creates a new project from the plus button", async () => {

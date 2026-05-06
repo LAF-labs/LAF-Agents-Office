@@ -232,3 +232,46 @@
     animation: none;
   }
 }
+
+/* ChatGPT/Codex pass: Pam remains available, but stops reading as a mascot. */
+html[data-theme^="office"] .pam-wrap {
+  right: 18px;
+  bottom: 8px;
+  width: 34px;
+}
+
+html[data-theme^="office"] .pam-button,
+html[data-theme^="office"] .pam-button[data-busy="true"] {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--wk-border-light);
+  border-radius: var(--radius-full);
+  background: var(--overlay-soft);
+  animation: none;
+}
+
+html[data-theme^="office"] .pam-avatar {
+  border-radius: var(--radius-full);
+  opacity: 0.82;
+  image-rendering: auto;
+}
+
+html[data-theme^="office"] .pam-desk {
+  display: none;
+}
+
+html[data-theme^="office"] .pam-menu,
+html[data-theme^="office"] .pam-status {
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 640px) {
+  html[data-theme^="office"] .pam-wrap {
+    display: none;
+  }
+}

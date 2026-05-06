@@ -8,9 +8,18 @@ interface HarnessBadgeProps {
 }
 
 const PALETTE: Record<HarnessKind, { bg: string; fg: string }> = {
-  "claude-code": { bg: "#D97757", fg: "#FFFFFF" },
-  codex: { bg: "#10A37F", fg: "#FFFFFF" },
-  opencode: { bg: "#2563EB", fg: "#FFFFFF" },
+  "claude-code": {
+    bg: "var(--color-deep-slate, #161718)",
+    fg: "var(--color-light-steel, #d0d6e0)",
+  },
+  codex: {
+    bg: "var(--color-neon-lime, #e4f222)",
+    fg: "var(--color-pitch-black, #08090a)",
+  },
+  opencode: {
+    bg: "var(--color-graphite, #0f1011)",
+    fg: "var(--color-storm-cloud, #8a8f98)",
+  },
 };
 
 function Glyph({ kind, color }: { kind: HarnessKind; color: string }) {

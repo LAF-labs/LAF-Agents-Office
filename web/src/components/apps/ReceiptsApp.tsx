@@ -90,8 +90,11 @@ function LogTable({
                 data-clickable={log.task ? "true" : undefined}
                 onClick={() => log.task && onSelectTask(log.task)}
               >
-                <td style={{ fontWeight: 600 }}>{log.agent || "\u2014"}</td>
+                <td data-label="Agent" style={{ fontWeight: 600 }}>
+                  {log.agent || "\u2014"}
+                </td>
                 <td
+                  data-label="Action"
                   style={{
                     color: "var(--text-secondary)",
                   }}
@@ -99,6 +102,7 @@ function LogTable({
                   {log.action || log.content?.slice(0, 60) || "\u2014"}
                 </td>
                 <td
+                  data-label="Time"
                   style={{
                     color: "var(--text-secondary)",
                   }}
@@ -106,6 +110,7 @@ function LogTable({
                   {log.timestamp ? formatRelativeTime(log.timestamp) : "\u2014"}
                 </td>
                 <td
+                  data-label="Tokens"
                   style={{
                     textAlign: "right",
                     fontFamily: "var(--font-mono)",
@@ -115,6 +120,7 @@ function LogTable({
                   {totalTokens > 0 ? formatTokens(totalTokens) : "\u2014"}
                 </td>
                 <td
+                  data-label="Cost"
                   style={{
                     textAlign: "right",
                     fontFamily: "var(--font-mono)",

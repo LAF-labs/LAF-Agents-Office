@@ -23,69 +23,68 @@ export interface SlashCommand {
  * degraded-mode copy.
  *
  * Icons are web-only metadata — the broker does not carry them because the
- * TUI uses a different rendering path. Strings are escaped unicode to
- * match the codebase convention (the existing composer files avoid raw
- * emoji literals in source).
+ * TUI uses a different rendering path. Values are semantic glyph names that
+ * the web renderer maps to line icons.
  */
 export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
-  { name: "/ask", desc: "Ask the team lead", icon: "💬" },
-  { name: "/lookup", desc: "Cited answer from the team wiki", icon: "📖" },
+  { name: "/ask", desc: "Ask the team lead", icon: "ask" },
+  { name: "/lookup", desc: "Cited answer from the team wiki", icon: "lookup" },
   {
     name: "/lint",
     desc: "Review wiki for contradictions and stale facts",
-    icon: "🩺",
+    icon: "lint",
   },
-  { name: "/search", desc: "Search messages + KB", icon: "🔎" },
-  { name: "/remember", desc: "Store a fact in memory", icon: "🧠" },
-  { name: "/help", desc: "Show all commands + keys", icon: "❓" },
-  { name: "/clear", desc: "Clear messages", icon: "🧹" },
-  { name: "/reset", desc: "Reset the workspace", icon: "🔄" },
-  { name: "/tasks", desc: "Open task board", icon: "📋" },
-  { name: "/requests", desc: "Open requests", icon: "🔔" },
-  { name: "/1o1", desc: "1:1 with agent", icon: "💬" },
-  { name: "/task", desc: "Task actions", icon: "✅" },
-  { name: "/cancel", desc: "Cancel a task", icon: "❌" },
-  { name: "/skills", desc: "View skills", icon: "⚡" },
-  { name: "/focus", desc: "Switch to delegation mode", icon: "🎯" },
-  { name: "/collab", desc: "Switch to collaborative mode", icon: "🤝" },
-  { name: "/pause", desc: "Pause all agents", icon: "⏸" },
-  { name: "/resume", desc: "Resume all agents", icon: "▶" },
-  { name: "/threads", desc: "See every active thread", icon: "🧵" },
-  { name: "/provider", desc: "Switch runtime provider", icon: "⚙" },
+  { name: "/search", desc: "Search messages + KB", icon: "search" },
+  { name: "/remember", desc: "Store a fact in memory", icon: "remember" },
+  { name: "/help", desc: "Show all commands + keys", icon: "help" },
+  { name: "/clear", desc: "Clear messages", icon: "clear" },
+  { name: "/reset", desc: "Reset the workspace", icon: "reset" },
+  { name: "/tasks", desc: "Open task board", icon: "tasks" },
+  { name: "/requests", desc: "Open requests", icon: "requests" },
+  { name: "/1o1", desc: "1:1 with agent", icon: "1o1" },
+  { name: "/task", desc: "Task actions", icon: "task" },
+  { name: "/cancel", desc: "Cancel a task", icon: "cancel" },
+  { name: "/skills", desc: "View skills", icon: "skills" },
+  { name: "/focus", desc: "Switch to delegation mode", icon: "focus" },
+  { name: "/collab", desc: "Switch to collaborative mode", icon: "collab" },
+  { name: "/pause", desc: "Pause all agents", icon: "pause" },
+  { name: "/resume", desc: "Resume all agents", icon: "resume" },
+  { name: "/threads", desc: "See every active thread", icon: "threads" },
+  { name: "/provider", desc: "Switch runtime provider", icon: "provider" },
   {
     name: "/hire-agent",
     desc: "Workflow for hiring a Claude/Codex-backed LAF agent",
-    icon: "＋",
+    icon: "hire-agent",
   },
   {
     name: "/assign-task",
     desc: "Workflow for assigning task-board work to an agent",
-    icon: "▣",
+    icon: "assign-task",
   },
   {
     name: "/daily-standup",
     desc: "Run the LAF office daily standup workflow",
-    icon: "☷",
+    icon: "daily-standup",
   },
   {
     name: "/review-office",
     desc: "Run Reviewer checks for Office Rule, security, and memory consistency",
-    icon: "✓",
+    icon: "review-office",
   },
   {
     name: "/promote-to-wiki",
     desc: "Review Notebook drafts for manual Wiki promotion",
-    icon: "↑",
+    icon: "promote-to-wiki",
   },
   {
     name: "/fix-bug",
     desc: "TDD bug-fix workflow with review and memory capture",
-    icon: "!",
+    icon: "fix-bug",
   },
   {
     name: "/deploy-simulation",
     desc: "Local deployment/simulation workflow for Claude or Codex mode",
-    icon: "▸",
+    icon: "deploy-simulation",
   },
 ];
 
@@ -96,36 +95,36 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
  * and flips webSupported before updating this list.
  */
 const COMMAND_ICONS: Record<string, string> = {
-  ask: "💬",
-  lookup: "📖",
-  lint: "🩺",
-  search: "🔎",
-  remember: "🧠",
-  help: "❓",
-  clear: "🧹",
-  reset: "🔄",
-  tasks: "📋",
-  requests: "🔔",
-  "1o1": "💬",
-  task: "✅",
-  cancel: "❌",
-  skills: "⚡",
-  focus: "🎯",
-  collab: "🤝",
-  pause: "⏸",
-  resume: "▶",
-  threads: "🧵",
-  provider: "⚙",
-  "hire-agent": "＋",
-  "assign-task": "▣",
-  "daily-standup": "☷",
-  "review-office": "✓",
-  "promote-to-wiki": "↑",
-  "fix-bug": "!",
-  "deploy-simulation": "▸",
+  ask: "ask",
+  lookup: "lookup",
+  lint: "lint",
+  search: "search",
+  remember: "remember",
+  help: "help",
+  clear: "clear",
+  reset: "reset",
+  tasks: "tasks",
+  requests: "requests",
+  "1o1": "1o1",
+  task: "task",
+  cancel: "cancel",
+  skills: "skills",
+  focus: "focus",
+  collab: "collab",
+  pause: "pause",
+  resume: "resume",
+  threads: "threads",
+  provider: "provider",
+  "hire-agent": "hire-agent",
+  "assign-task": "assign-task",
+  "daily-standup": "daily-standup",
+  "review-office": "review-office",
+  "promote-to-wiki": "promote-to-wiki",
+  "fix-bug": "fix-bug",
+  "deploy-simulation": "deploy-simulation",
 };
 
-const DEFAULT_ICON = "›";
+const DEFAULT_ICON = "default";
 const DEFERRED_WEB_COMMANDS = new Set(["calendar", "policies", "recover"]);
 
 /**

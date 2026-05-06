@@ -17,7 +17,7 @@ export function SheetContent({ className, ...props }: ComponentProps<"aside">) {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 right-0 z-50 flex h-full w-3/4 flex-col gap-4 border-l bg-background p-6 shadow-lg sm:max-w-lg",
+        "fixed inset-y-0 right-0 z-50 flex h-full w-3/4 flex-col gap-4 border-l bg-background/92 p-6 shadow-none backdrop-blur-xl sm:max-w-lg",
         className,
       )}
       {...props}

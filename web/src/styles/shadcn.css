@@ -8,6 +8,104 @@
 @theme default {
   --spacing: 0.25rem;
 
+  /* Linear-style Midnight Command Center tokens */
+  --color-pitch-black: #08090a;
+  --color-graphite: #0f1011;
+  --color-deep-slate: #161718;
+  --color-charcoal-grey: #23252a;
+  --color-muted-ash: #323334;
+  --color-gunmetal: #383b3f;
+  --color-porcelain: #f7f8f8;
+  --color-light-steel: #d0d6e0;
+  --color-storm-cloud: #8a8f98;
+  --color-fog-grey: #62666d;
+  --color-alabaster: #e5e5e6;
+  --color-neon-lime: #e4f222;
+  --color-aether-blue: #5e6ad2;
+  --color-forest-green: #008d2c;
+  --color-cyan-spark: #02b8cc;
+  --color-emerald: #27a644;
+  --color-warning-red: #eb5757;
+  --color-deep-violet: #6366f1;
+  --color-amethyst: #8b5cf6;
+
+  --font-inter-variable:
+    "Inter Variable", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-berkeley-mono:
+    "Berkeley Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas,
+    monospace;
+
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-w510: 510;
+  --font-weight-w590: 590;
+
+  --text-caption: 10px;
+  --leading-caption: 1.4;
+  --tracking-caption: 0px;
+  --text-body: 14px;
+  --leading-body: 1.4;
+  --tracking-body: 0px;
+  --text-heading: 24px;
+  --leading-heading: 1.33;
+  --tracking-heading: 0px;
+  --text-heading-lg: 48px;
+  --leading-heading-lg: 1.2;
+  --tracking-heading-lg: 0px;
+  --text-display: 72px;
+  --leading-display: 1;
+  --tracking-display: 0px;
+
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-28: 28px;
+  --spacing-32: 32px;
+  --spacing-36: 36px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-56: 56px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+  --spacing-96: 96px;
+  --spacing-128: 128px;
+  --spacing-unit: 4px;
+
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-2xl-2: 22px;
+  --radius-full: 400px;
+  --radius-full-2: 9999px;
+
+  --shadow-sm: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
+  --shadow-md: rgba(0, 0, 0, 0.2) 0px 0px 12px 0px inset;
+  --shadow-subtle: rgb(35, 37, 42) 0px 0px 0px 1px inset;
+  --shadow-subtle-2: rgba(0, 0, 0, 0.2) 0px 0px 0px 1px;
+  --shadow-subtle-3:
+    rgba(0, 0, 0, 0.01) 0px 5px 2px 0px,
+    rgba(0, 0, 0, 0.04) 0px 3px 2px 0px,
+    rgba(0, 0, 0, 0.07) 0px 1px 1px 0px,
+    rgba(0, 0, 0, 0.08) 0px 0px 1px 0px;
+  --shadow-xl: rgba(8, 9, 10, 0.6) 0px 4px 32px 0px;
+  --shadow-subtle-4: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;
+  --shadow-subtle-5: rgba(0, 0, 0, 0.33) 0px 0px 0px 1px;
+  --shadow-subtle-6:
+    rgba(255, 255, 255, 0.03) 0px 0px 0px 1px inset,
+    rgba(255, 255, 255, 0.04) 0px 1px 0px 0px inset,
+    rgba(0, 0, 0, 0.6) 0px 0px 0px 1px,
+    rgba(0, 0, 0, 0.1) 0px 4px 4px 0px;
+
+  --surface-pitch-black-canvas: #08090a;
+  --surface-graphite-card: #0f1011;
+  --surface-deep-slate-elevated-card: #161718;
+  --surface-charcoal-grey-overlay: #23252a;
+
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;
 
@@ -55,76 +153,74 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   shadcn/ui theme mapped onto LAF-Office design tokens.
-   HSL values derived from web/public/themes/office.css so that shadcn
-   primitives share the same visual language as the rest of the
-   app. Scoped to [data-theme="office"] to coexist with other themes.
+   shadcn/ui theme mapped onto the Codex-like LAF design tokens.
    ═══════════════════════════════════════════════════════════════ */
 
 @layer base {
   :root,
   html[data-theme="office"] {
     /* Surfaces */
-    --shadcn-background: 0 0% 100%; /* #FFFFFF */
-    --shadcn-foreground: 240 2% 15%; /* #252527 */
+    --shadcn-background: 210 100% 99%;
+    --shadcn-foreground: 221 39% 11%;
     --shadcn-card: 0 0% 100%;
-    --shadcn-card-foreground: 240 2% 15%;
+    --shadcn-card-foreground: 221 39% 11%;
     --shadcn-popover: 0 0% 100%;
-    --shadcn-popover-foreground: 240 2% 15%;
+    --shadcn-popover-foreground: 221 39% 11%;
 
-    /* Brand — LAF-Office amber */
-    --shadcn-primary: 41 83% 55%; /* #ECB22E */
-    --shadcn-primary-foreground: 36 23% 8%; /* #1A1610 */
+    /* Legacy light primary */
+    --shadcn-primary: 210 100% 52%;
+    --shadcn-primary-foreground: 0 0% 100%;
 
-    /* Secondary surface — warm neutral */
-    --shadcn-secondary: 240 6% 96%; /* #F5F5F6 */
-    --shadcn-secondary-foreground: 240 2% 15%;
+    /* Secondary surface */
+    --shadcn-secondary: 213 44% 95%;
+    --shadcn-secondary-foreground: 221 39% 11%;
 
     /* Muted */
-    --shadcn-muted: 240 6% 96%;
-    --shadcn-muted-foreground: 220 3% 47%; /* #686A6E */
+    --shadcn-muted: 213 44% 95%;
+    --shadcn-muted-foreground: 218 15% 45%;
 
     /* Accent (hover / subtle fill) */
-    --shadcn-accent: 41 83% 55%;
-    --shadcn-accent-foreground: 36 23% 8%;
+    --shadcn-accent: 210 100% 96%;
+    --shadcn-accent-foreground: 212 100% 33%;
 
     /* Destructive */
-    --shadcn-destructive: 4 76% 52%; /* #E23428 */
+    --shadcn-destructive: 4 86% 58%;
     --shadcn-destructive-foreground: 0 0% 100%;
 
     /* Borders / inputs / focus */
-    --shadcn-border: 240 5% 92%; /* #E9E9EB */
-    --shadcn-input: 240 5% 92%;
-    --shadcn-ring: 41 83% 55%;
+    --shadcn-border: 214 32% 88%;
+    --shadcn-input: 214 32% 88%;
+    --shadcn-ring: 210 100% 52%;
 
-    --radius: 8px;
+    --radius: 14px;
   }
 
   html[data-theme="office-dark"] {
-    --shadcn-background: 210 6% 7%;
-    --shadcn-foreground: 200 5% 92%;
-    --shadcn-card: 210 5% 9%;
-    --shadcn-card-foreground: 200 5% 92%;
-    --shadcn-popover: 210 5% 9%;
-    --shadcn-popover-foreground: 200 5% 92%;
+    --shadcn-background: 210 11% 4%;
+    --shadcn-foreground: 180 7% 97%;
+    --shadcn-card: 180 6% 6%;
+    --shadcn-card-foreground: 180 7% 97%;
+    --shadcn-popover: 180 4% 9%;
+    --shadcn-popover-foreground: 180 7% 97%;
 
-    --shadcn-primary: 41 83% 55%;
-    --shadcn-primary-foreground: 36 23% 8%;
+    --shadcn-primary: 65 89% 54%;
+    --shadcn-primary-foreground: 210 11% 4%;
 
-    --shadcn-secondary: 210 4% 10%;
-    --shadcn-secondary-foreground: 200 5% 92%;
+    --shadcn-secondary: 180 4% 9%;
+    --shadcn-secondary-foreground: 216 26% 85%;
 
-    --shadcn-muted: 210 4% 10%;
-    --shadcn-muted-foreground: 200 3% 69%;
+    --shadcn-muted: 220 9% 18%;
+    --shadcn-muted-foreground: 218 7% 57%;
 
-    --shadcn-accent: 41 83% 55%;
-    --shadcn-accent-foreground: 36 23% 8%;
+    --shadcn-accent: 238 58% 60%;
+    --shadcn-accent-foreground: 180 7% 97%;
 
-    --shadcn-destructive: 4 76% 52%;
+    --shadcn-destructive: 0 80% 63%;
     --shadcn-destructive-foreground: 0 0% 100%;
 
-    --shadcn-border: 210 6% 13%;
-    --shadcn-input: 210 6% 18%;
-    --shadcn-ring: 41 83% 55%;
+    --shadcn-border: 225 9% 15%;
+    --shadcn-input: 210 6% 23%;
+    --shadcn-ring: 65 89% 54%;
+    --radius: 6px;
   }
 }

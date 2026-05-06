@@ -33,7 +33,7 @@ export default function ReviewCard({
           <PixelAvatar slug={review.reviewer_slug} size={14} />
         </span>
         <span className="nb-review-card-path">{review.proposed_wiki_path}</span>
-        <span style={{ marginLeft: "auto" }}>
+        <span className="nb-review-card-updated">
           {formatAgentName(review.agent_slug)} ·{" "}
           {formatRelativeTime(review.updated_ts)}
         </span>

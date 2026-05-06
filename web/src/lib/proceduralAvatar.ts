@@ -219,18 +219,16 @@ const NECK_STYLES = [neckNone, neckNone, neckTie, neckBadge];
 // ── Palette pools ──────────────────────────────────────────────────────
 
 const ACCENT_POOL: string[] = [
-  "#ECB22E", // amber
-  "#C78A1F", // aged amber
-  "#7A5A18", // brass
-  "#274472", // ink blue
-  "#1264A3", // wiki blue
-  "#6A8B52", // approval green
-  "#B43A2F", // stamp red
-  "#994200", // brown orange
-  "#8A8373", // warm gray
-  "#5B5547", // graphite
-  "#D9CEB5", // paper edge
-  "#F4B6C2", // muted receipt pink
+  "#e4f222", // primary action
+  "#5e6ad2", // aether blue
+  "#02b8cc", // cyan spark
+  "#27a644", // success
+  "#eb5757", // warning
+  "#383b3f", // gunmetal
+  "#62666d", // fog grey
+  "#8a8f98", // storm cloud
+  "#d0d6e0", // light steel
+  "#f7f8f8", // porcelain
 ];
 
 const HAIR_POOL: Rgb[] = [
@@ -240,8 +238,8 @@ const HAIR_POOL: Rgb[] = [
   [200, 155, 90], // blond
   [170, 60, 45], // auburn
   [200, 200, 200], // silver
-  [236, 178, 46], // amber (match brand)
-  [180, 120, 200], // lilac (fun)
+  [98, 102, 109], // fog grey
+  [138, 143, 152], // storm cloud
 ];
 
 const SKIN_POOL: Rgb[] = [

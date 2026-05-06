@@ -26,14 +26,18 @@ export default function BookshelfCatalog({
           {metaText}
         </div>
       </header>
-      {catalog.agents.map((agent) => (
-        <AgentShelf
-          key={agent.agent_slug}
-          agent={agent}
-          onOpenAgent={onOpenAgent}
-          onOpenEntry={onOpenEntry}
-        />
-      ))}
+      {catalog.agents.length === 0 ? (
+        <p className="nb-catalog-empty">No agent notebooks yet.</p>
+      ) : (
+        catalog.agents.map((agent) => (
+          <AgentShelf
+            key={agent.agent_slug}
+            agent={agent}
+            onOpenAgent={onOpenAgent}
+            onOpenEntry={onOpenEntry}
+          />
+        ))
+      )}
     </main>
   );
 }

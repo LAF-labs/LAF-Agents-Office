@@ -87,11 +87,11 @@ function pushHistory(channel: string, message: string): void {
 
 /** Routing prefix for `/ask`: mirrors TUI cmdAsk which always goes to the lead. */
 function askPrefix(leadSlug: string | undefined): string {
-  const slug = (leadSlug || "ceo").trim().toLowerCase() || "ceo";
+  const slug = (leadSlug || "architect").trim().toLowerCase() || "architect";
   return `@${slug} `;
 }
 
-/** Pick the team-lead slug: configured first, else first built-in agent, else 'ceo'. */
+/** Pick the team-lead slug: configured first, else first built-in agent, else architect. */
 function resolveLeadSlug(
   configured: string | undefined,
   members: { slug?: string; built_in?: boolean }[],
@@ -102,7 +102,7 @@ function resolveLeadSlug(
     (m) => m.built_in && m.slug && m.slug !== "human" && m.slug !== "you",
   );
   if (builtin?.slug) return builtin.slug;
-  return "ceo";
+  return "architect";
 }
 
 interface SlashHandlers {
@@ -636,7 +636,7 @@ export function Composer() {
       });
       if (consumed) {
         // Persist the *raw* command to history so Ctrl+P replays `/ask foo`,
-        // not the rewritten `@ceo foo`. Matches user expectation.
+        // not the rewritten `@architect foo`. Matches user expectation.
         pushHistory(currentChannel, trimmed);
         resetComposer();
         return;

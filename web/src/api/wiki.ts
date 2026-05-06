@@ -513,56 +513,56 @@ export const MOCK_CATALOG: WikiCatalogEntry[] = [
   {
     path: "projects/agent-workspace",
     title: "Agent Workspace",
-    author_slug: "ceo",
+    author_slug: "architect",
     last_edited_ts: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
     group: "projects",
   },
   {
     path: "decisions/project-memory-contract",
     title: "Project memory contract",
-    author_slug: "pm",
+    author_slug: "architect",
     last_edited_ts: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     group: "decisions",
   },
   {
     path: "playbooks/repo-connected-task",
     title: "Repo-connected task",
-    author_slug: "ai",
+    author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
     group: "playbooks",
   },
   {
     path: "facts/runtime-constraints",
     title: "Runtime constraints",
-    author_slug: "be",
+    author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
     group: "facts",
   },
   {
     path: "projects/agent-workspace-log",
     title: "Agent workspace log",
-    author_slug: "founding-engineer",
+    author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 6 * 86400 * 1000).toISOString(),
     group: "projects",
   },
   {
     path: "playbooks/task-review",
     title: "Task review",
-    author_slug: "designer",
+    author_slug: "reviewer",
     last_edited_ts: new Date(Date.now() - 2 * 86400 * 1000).toISOString(),
     group: "playbooks",
   },
   {
     path: "decisions/github-is-optional",
     title: "GitHub is optional",
-    author_slug: "pm",
+    author_slug: "architect",
     last_edited_ts: new Date(Date.now() - 9 * 86400 * 1000).toISOString(),
     group: "decisions",
   },
   {
     path: "inbox/raw-agent-task-review",
     title: "raw — Agent task review",
-    author_slug: "ai",
+    author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 14 * 86400 * 1000).toISOString(),
     group: "inbox",
   },
@@ -579,25 +579,25 @@ export function mockArticle(path: string): WikiArticle {
       path: "projects/agent-workspace",
       title: "Agent Workspace",
       content: MOCK_PROJECT_MEMORY_MD,
-      last_edited_by: "ceo",
+      last_edited_by: "architect",
       last_edited_ts: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
       revisions: 12,
-      contributors: ["ceo", "pm", "ai", "designer", "founding-engineer"],
+      contributors: ["architect", "builder", "reviewer"],
       backlinks: [
         {
           path: "decisions/project-memory-contract",
           title: "Project memory contract",
-          author_slug: "pm",
+          author_slug: "architect",
         },
         {
           path: "playbooks/repo-connected-task",
           title: "Repo-connected task",
-          author_slug: "ai",
+          author_slug: "builder",
         },
         {
           path: "facts/runtime-constraints",
           title: "Runtime constraints",
-          author_slug: "be",
+          author_slug: "builder",
         },
       ],
       word_count: 746,
@@ -615,10 +615,10 @@ export function mockArticle(path: string): WikiArticle {
     path,
     title: title.charAt(0).toUpperCase() + title.slice(1).replace(/-/g, " "),
     content: `*Article not found in mock fixtures.*\n\nThe API endpoint for \`${path}\` is not yet wired. When Lane A completes its endpoints this view will populate with real content.\n`,
-    last_edited_by: "pm",
+    last_edited_by: "architect",
     last_edited_ts: new Date().toISOString(),
     revisions: 1,
-    contributors: ["pm"],
+    contributors: ["architect"],
     backlinks: [],
     word_count: 42,
     categories: [],
@@ -653,12 +653,12 @@ GitHub connection is optional. Before a repo is connected, agents can plan, docu
 
 ## Next steps
 
-PM should keep the next implementation task specific enough that the engineer can run it without re-discovering product intent.
+Architect should keep the next implementation task specific enough that Builder can run it without re-discovering product intent.
 `;
 
 export const MOCK_EDIT_LOG: WikiEditLogEntry[] = [
   {
-    who: "CEO",
+    who: "Architect",
     action: "edited",
     article_path: "projects/agent-workspace",
     article_title: "Agent Workspace",
@@ -666,7 +666,7 @@ export const MOCK_EDIT_LOG: WikiEditLogEntry[] = [
     commit_sha: "9a0f113",
   },
   {
-    who: "PM",
+    who: "Architect",
     action: "updated",
     article_path: "decisions/project-memory-contract",
     article_title: "Project memory contract",
@@ -674,7 +674,7 @@ export const MOCK_EDIT_LOG: WikiEditLogEntry[] = [
     commit_sha: "b1d5e22",
   },
   {
-    who: "Designer",
+    who: "Reviewer",
     action: "created",
     article_path: "brand/voice",
     article_title: "Brand Voice",
@@ -682,7 +682,7 @@ export const MOCK_EDIT_LOG: WikiEditLogEntry[] = [
     commit_sha: "3f9a21b",
   },
   {
-    who: "Eng-1",
+    who: "Builder",
     action: "wrote",
     article_path: "tech/broker-architecture",
     article_title: "Tech — broker architecture",

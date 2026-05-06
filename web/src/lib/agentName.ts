@@ -1,15 +1,15 @@
 /**
  * Format an agent slug for display.
  *
- * Short role abbreviations (ceo, pm, api, ux — up to 3 chars)
+ * Short role abbreviations (api, ux — up to 3 chars)
  * render UPPERCASE: matches how the LAF-Office app treats short agent identifiers.
  *
- * Longer slugs (operator, planner, builder, reviewer, eng-1) render Title Case:
+ * Longer slugs (architect, builder, reviewer, eng-1) render Title Case:
  * "Operator", "Planner", "Eng-1".
  *
  * Example:
- *   formatAgentName('ceo')      -> 'CEO'
- *   formatAgentName('operator') -> 'Operator'
+ *   formatAgentName('architect') -> 'Architect'
+ *   formatAgentName('builder')   -> 'Builder'
  *   formatAgentName('eng-1')    -> 'Eng-1'
  */
 export function formatAgentName(slug: string): string {

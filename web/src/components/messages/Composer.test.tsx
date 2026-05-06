@@ -77,8 +77,8 @@ describe("team-lead resolution for /ask", () => {
     ).toBe("ceo");
   });
 
-  it('falls back to "ceo" when nothing is known', () => {
-    expect(resolveLeadSlug(undefined, [])).toBe("ceo");
+  it('falls back to "architect" when nothing is known', () => {
+    expect(resolveLeadSlug(undefined, [])).toBe("architect");
   });
 
   it("lowercases configured slugs", () => {
@@ -91,8 +91,8 @@ describe("askPrefix", () => {
     expect(askPrefix("ceo")).toBe("@ceo ");
   });
 
-  it("defaults to @ceo", () => {
-    expect(askPrefix(undefined)).toBe("@ceo ");
-    expect(askPrefix("")).toBe("@ceo ");
+  it("defaults to @architect", () => {
+    expect(askPrefix(undefined)).toBe("@architect ");
+    expect(askPrefix("")).toBe("@architect ");
   });
 });

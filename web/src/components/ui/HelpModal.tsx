@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { useAppStore } from "../../stores/app";
 import { SLASH_COMMANDS } from "../messages/Autocomplete";
+import { CommandGlyph } from "./CommandGlyph";
 import { Kbd, KbdSequence, MOD_KEY } from "./Kbd";
 
 /**
@@ -198,7 +199,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                 <li key={cmd.name} className="help-row">
                   <span className="help-cmd">
                     <span className="help-cmd-icon" aria-hidden={true}>
-                      {cmd.icon}
+                      <CommandGlyph name={cmd.icon} />
                     </span>
                     <code className="help-cmd-name">{cmd.name}</code>
                   </span>

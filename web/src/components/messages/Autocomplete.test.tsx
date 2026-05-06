@@ -87,15 +87,25 @@ describe("mentionAutocompleteItems", () => {
 
   it("offers @all before individual agents", () => {
     expect(mentionAutocompleteItems("", members).slice(0, 3)).toEqual([
-      { insert: "@all", label: "@all", desc: "Notify every agent", icon: "📣" },
-      { insert: "@ceo", label: "@ceo", desc: "CEO", icon: "🤖" },
-      { insert: "@pm", label: "@pm", desc: "Product", icon: "🤖" },
+      {
+        insert: "@all",
+        label: "@all",
+        desc: "Notify every agent",
+        icon: "broadcast",
+      },
+      { insert: "@ceo", label: "@ceo", desc: "CEO", icon: "agent" },
+      { insert: "@pm", label: "@pm", desc: "Product", icon: "agent" },
     ]);
   });
 
   it("matches @all by prefix query", () => {
     expect(mentionAutocompleteItems("al", members)).toEqual([
-      { insert: "@all", label: "@all", desc: "Notify every agent", icon: "📣" },
+      {
+        insert: "@all",
+        label: "@all",
+        desc: "Notify every agent",
+        icon: "broadcast",
+      },
     ]);
   });
 });
