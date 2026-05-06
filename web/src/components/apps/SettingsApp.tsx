@@ -1532,8 +1532,8 @@ const dangerStyles = {
   modalBackdrop: {
     position: "fixed" as const,
     inset: 0,
-    background: "rgba(8,13,24,0.44)",
-    backdropFilter: "blur(8px)",
+    background: "rgba(8, 9, 10, 0.58)",
+    backdropFilter: "none",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1541,12 +1541,12 @@ const dangerStyles = {
   },
   modalPanel: {
     width: "min(520px, calc(100vw - 40px))",
-    background: "var(--glass-bg-strong)",
-    border: "1px solid var(--glass-border)",
+    background: "var(--surface-raised, var(--bg-elevated))",
+    border: "1px solid var(--border-dark)",
     borderRadius: "var(--radius-md)",
     padding: 24,
-    boxShadow: "var(--shadow-lg, var(--shadow-md))",
-    backdropFilter: "blur(24px) saturate(1.16)",
+    boxShadow: "none",
+    backdropFilter: "none",
   } as const,
   modalTitle: {
     fontSize: 17,
@@ -1571,7 +1571,7 @@ const dangerStyles = {
   } as const,
   modalInput: {
     width: "100%",
-    background: "var(--glass-bg-strong)",
+    background: "transparent",
     border: "1px solid var(--border)",
     color: "var(--text)",
     borderRadius: "var(--radius-md)",

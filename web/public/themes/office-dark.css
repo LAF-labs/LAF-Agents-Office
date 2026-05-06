@@ -368,7 +368,7 @@ html[data-theme="office-dark"] .ticket-side-panel {
   background: var(--color-graphite);
   border: 1px solid var(--color-charcoal-grey);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -1127,12 +1127,23 @@ html[data-theme="office-dark"] .ticket-message-bubble,
 html[data-theme="office-dark"] .ticket-message-bubble-agent,
 html[data-theme="office-dark"] .ticket-message-bubble-human {
   max-width: 100%;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
+  padding: 8px 11px;
+  background: var(--color-deep-slate);
+  border: 1px solid var(--color-charcoal-grey);
+  border-radius: 14px;
   color: var(--color-light-steel);
   box-shadow: none;
+}
+
+html[data-theme="office-dark"] .ticket-message-bubble-agent {
+  border-bottom-left-radius: var(--radius-md);
+}
+
+html[data-theme="office-dark"] .ticket-message-bubble-human {
+  border-color: transparent;
+  border-bottom-right-radius: var(--radius-md);
+  background: var(--color-neon-lime);
+  color: var(--color-pitch-black);
 }
 
 html[data-theme="office-dark"] .ticket-message-bubble p {
@@ -1146,16 +1157,16 @@ html[data-theme="office-dark"] .ticket-chat-composer-shell {
 }
 
 html[data-theme="office-dark"] .ticket-chat-composer {
-  padding: 12px;
-  background: var(--color-deep-slate);
+  padding: 10px 10px 8px 14px;
+  background: transparent;
   border: 1px solid var(--color-charcoal-grey);
-  border-radius: var(--radius-md);
+  border-radius: 22px;
   box-shadow: none;
 }
 
 html[data-theme="office-dark"] .ticket-chat-composer:focus-within {
   border-color: rgba(228, 242, 34, 0.42);
-  box-shadow: inset 0 0 0 1px rgba(228, 242, 34, 0.16);
+  box-shadow: none;
 }
 
 html[data-theme="office-dark"] .provider-overlay {
@@ -1165,8 +1176,8 @@ html[data-theme="office-dark"] .provider-overlay {
 html[data-theme="office-dark"] .confirm-overlay {
   z-index: 320;
   background: rgba(8, 9, 10, 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 html[data-theme="office-dark"] .confirm-card {
@@ -1176,7 +1187,7 @@ html[data-theme="office-dark"] .confirm-card {
   padding: 18px;
   background: var(--color-graphite);
   border-color: var(--color-charcoal-grey);
-  box-shadow: var(--shadow-xl);
+  box-shadow: none;
 }
 
 html[data-theme="office-dark"] .confirm-title {
@@ -1326,4 +1337,73 @@ html[data-theme="office-dark"] .confirm-message {
   html[data-theme="office-dark"] .activity-stats-grid .app-card:last-child {
     border-bottom: 0 !important;
   }
+}
+
+/* Final surface hardening: prevent old frosted-card rules from leaking back in. */
+html[data-theme="office-dark"] .card,
+html[data-theme="office-dark"] .app-card,
+html[data-theme="office-dark"] .app-table-shell,
+html[data-theme="office-dark"] .project-directory-card,
+html[data-theme="office-dark"] .project-detail-card,
+html[data-theme="office-dark"] .project-ticket-card,
+html[data-theme="office-dark"] .task-detail-modal,
+html[data-theme="office-dark"] .search-modal,
+html[data-theme="office-dark"] .help-modal,
+html[data-theme="office-dark"] .provider-panel,
+html[data-theme="office-dark"] .confirm-card,
+html[data-theme="office-dark"] .theme-dropdown,
+html[data-theme="office-dark"] .autocomplete,
+html[data-theme="office-dark"] .composer-inner,
+html[data-theme="office-dark"] .ticket-side-panel,
+html[data-theme="office-dark"] .ticket-side-panel-detail,
+html[data-theme="office-dark"] .ticket-chat-composer,
+html[data-theme="office-dark"] .ticket-chat-empty,
+html[data-theme="office-dark"] .ticket-chat-composer-shell,
+html[data-theme="office-dark"] .thread-panel,
+html[data-theme="office-dark"] .agent-panel,
+html[data-theme="office-dark"] .dm-live-stream,
+html[data-theme="office-dark"] .channel-empty-state,
+html[data-theme="office-dark"] .wk-modal,
+html[data-theme="office-dark"] .auth-panel,
+html[data-theme="office-dark"] .invite-card,
+html[data-theme="office-dark"] .wizard-panel,
+html[data-theme="office-dark"] .template-group,
+html[data-theme="office-dark"] .readiness-panel,
+html[data-theme="office-dark"] .interview-card,
+html[data-theme="office-dark"] .interview-pending,
+html[data-theme="office-dark"] .system-message,
+html[data-theme="office-dark"] .status-message,
+html[data-theme="office-dark"] .stream-card,
+html[data-theme="office-dark"] .thread-quote-card,
+html[data-theme="office-dark"] .message-card-routing,
+html[data-theme="office-dark"] .message-card-skill,
+html[data-theme="office-dark"] .message-card-human,
+html[data-theme="office-dark"] .message-card-auto,
+html[data-theme="office-dark"] .message-avatar,
+html[data-theme="office-dark"] .date-separator-text,
+html[data-theme="office-dark"] .message-header .badge,
+html[data-theme="office-dark"] .message-text code,
+html[data-theme="office-dark"] .cc-tool-call {
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="office-dark"] .search-overlay,
+html[data-theme="office-dark"] .help-overlay,
+html[data-theme="office-dark"] .confirm-overlay,
+html[data-theme="office-dark"] .wk-modal-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="office-dark"] .ticket-side-panel-detail,
+html[data-theme="office-dark"] .ticket-chat-empty {
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+html[data-theme="office-dark"] .ticket-chat-composer {
+  background: transparent !important;
+  border-radius: 22px !important;
 }

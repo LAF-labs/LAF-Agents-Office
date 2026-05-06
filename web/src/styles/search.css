@@ -403,19 +403,19 @@
 
 .search-overlay,
 .help-overlay {
-  background: rgba(8, 13, 24, 0.42);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(8, 9, 10, 0.58);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .search-modal,
 .help-modal {
-  border-radius: var(--radius-2xl, 30px);
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-lg, var(--shadow-md));
-  backdrop-filter: blur(24px) saturate(1.16);
-  -webkit-backdrop-filter: blur(24px) saturate(1.16);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised, var(--bg-elevated));
+  border: 1px solid var(--border-dark);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .search-header,
@@ -428,11 +428,11 @@
 .search-empty,
 .help-cmd-name,
 .help-kbd {
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 
 .search-input-wrap {
-  background: var(--glass-bg);
+  background: transparent;
   border-color: var(--border);
 }
 
@@ -448,8 +448,8 @@
 
 .search-result:hover,
 .search-result.active {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
+  background: var(--overlay-soft);
+  border-color: var(--border-dark);
 }
 
 .help-cmd-name {

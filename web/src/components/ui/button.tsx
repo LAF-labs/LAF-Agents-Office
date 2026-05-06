@@ -18,7 +18,7 @@ const buttonVariants: Record<ButtonVariant, string> = {
   ghost: "hover:bg-accent hover:text-accent-foreground",
   link: "text-primary underline-offset-4 hover:underline",
   outline:
-    "border border-input bg-background/70 shadow-none backdrop-blur hover:bg-accent hover:text-accent-foreground",
+    "border border-input bg-transparent shadow-none hover:bg-accent hover:text-accent-foreground",
   secondary:
     "bg-secondary text-secondary-foreground shadow-none hover:bg-secondary/80",
 };
@@ -26,8 +26,8 @@ const buttonVariants: Record<ButtonVariant, string> = {
 const buttonSizes: Record<ButtonSize, string> = {
   default: "h-10 px-4 py-2",
   icon: "size-10",
-  lg: "h-11 rounded-xl px-6",
-  sm: "h-8 rounded-lg px-3",
+  lg: "h-11 px-6",
+  sm: "h-8 px-3",
 };
 
 export interface ButtonProps extends ComponentProps<"button"> {
@@ -45,7 +45,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-medium whitespace-nowrap transition-[background,border-color,box-shadow,color] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+        "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[background,border-color,box-shadow,color] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
         buttonVariants[variant],
         buttonSizes[size],
         className,
