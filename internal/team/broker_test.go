@@ -5354,6 +5354,7 @@ func TestInFlightTasksReturnsOnlyNonTerminalOwned(t *testing.T) {
 		{ID: "t5", Title: "Cancelled task", Owner: "be", Status: "cancelled"},
 		{ID: "t6", Title: "Pending with owner", Owner: "pm", Status: "pending"},
 		{ID: "t7", Title: "Open with owner", Owner: "ceo", Status: "open"},
+		{ID: "t8", Title: "Blocked waiting for human", Owner: "fe", Status: "blocked"},
 	}
 	b.mu.Unlock()
 
@@ -5388,6 +5389,9 @@ func TestInFlightTasksReturnsOnlyNonTerminalOwned(t *testing.T) {
 	}
 	if ids["t5"] {
 		t.Error("expected t5 (cancelled) to be excluded")
+	}
+	if ids["t8"] {
+		t.Error("expected t8 (blocked) to be excluded")
 	}
 }
 

@@ -2972,8 +2972,9 @@ func (b *Broker) AllTasks() []teamTask {
 	return out
 }
 
-// InFlightTasks returns tasks that have an assigned owner and a non-terminal
-// status (anything except "done", "completed", "canceled", or "cancelled").
+// InFlightTasks returns tasks that have an assigned owner and should actively
+// resume after a restart. Blocked tasks are durable waiting states and should
+// not burn a fresh agent turn until a human or integration unblocks them.
 func (b *Broker) InFlightTasks() []teamTask {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -2983,7 +2984,7 @@ func (b *Broker) InFlightTasks() []teamTask {
 			continue
 		}
 		s := strings.ToLower(strings.TrimSpace(task.Status))
-		if s == "done" || s == "completed" || s == "canceled" || s == "cancelled" {
+		if s == "done" || s == "completed" || s == "blocked" || s == "canceled" || s == "cancelled" {
 			continue
 		}
 		out = append(out, task)

@@ -25,6 +25,16 @@ func isHumanOrSystemSender(from string) bool {
 	return f == "you" || f == "human" || f == "automation" || f == "system" || f == ""
 }
 
+func messageRequiresResumeReply(msg channelMessage) bool {
+	kind := strings.ToLower(strings.TrimSpace(msg.Kind))
+	switch kind {
+	case "task_canceled":
+		return false
+	default:
+		return true
+	}
+}
+
 // findUnansweredMessages returns the subset of humanMsgs that have received no
 // agent reply in allMessages. A human message is considered "answered" only when
 // at least one AGENT message (not human/automation/system) in allMessages has ReplyTo
@@ -45,6 +55,9 @@ func findUnansweredMessages(humanMsgs, allMessages []channelMessage) []channelMe
 
 	var out []channelMessage
 	for _, hm := range humanMsgs {
+		if !messageRequiresResumeReply(hm) {
+			continue
+		}
 		if _, ok := replied[hm.ID]; !ok {
 			out = append(out, hm)
 		}

@@ -112,6 +112,22 @@ func TestFindUnansweredMessagesAutomationReplyDoesNotCountAsAgentAnswer(t *testi
 	}
 }
 
+func TestFindUnansweredMessagesSkipsTaskCanceledNotices(t *testing.T) {
+	humanMsgs := []channelMessage{
+		{ID: "h1", From: "human", Kind: "task_canceled", Content: "Task closed as won't do.", Tagged: []string{"builder"}, Timestamp: "2026-04-14T10:00:00Z"},
+		{ID: "h2", From: "you", Content: "Please answer this.", Tagged: []string{"builder"}, Timestamp: "2026-04-14T10:01:00Z"},
+	}
+	allMessages := append([]channelMessage(nil), humanMsgs...)
+
+	got := findUnansweredMessages(humanMsgs, allMessages)
+	if len(got) != 1 {
+		t.Fatalf("expected only the real user request to remain unanswered, got %d: %+v", len(got), got)
+	}
+	if got[0].ID != "h2" {
+		t.Fatalf("expected h2, got %q", got[0].ID)
+	}
+}
+
 func TestBuildResumePacketWithTasksAndMessages(t *testing.T) {
 	// Suppress broker state path for this test.
 	tasks := []teamTask{
