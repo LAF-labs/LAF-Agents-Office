@@ -441,6 +441,7 @@ func (l *Launcher) runHeadlessCodexQueue(slug string, stop <-chan struct{}) {
 			case errors.Is(ctxErr, context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded):
 				appendHeadlessCodexLog(slug, fmt.Sprintf("error: headless codex turn timed out after %s", timeout))
 				l.updateHeadlessProgress(slug, "error", "error", fmt.Sprintf("turn timed out after %s", timeout), headlessProgressMetrics{})
+				l.postHeadlessFailureNoticeIfSilent(slug, turn, startedAt, fmt.Sprintf("timed out after %s", timeout))
 				l.recoverTimedOutHeadlessTurn(slug, turn, startedAt, timeout)
 			case errors.Is(ctxErr, context.Canceled) || errors.Is(err, context.Canceled):
 				appendHeadlessCodexLog(slug, "error: headless codex turn cancelled so newer queued work can run")
@@ -452,10 +453,12 @@ func (l *Launcher) runHeadlessCodexQueue(slug string, stop <-chan struct{}) {
 				l.updateHeadlessProgress(slug, "error", "error", truncate(err.Error(), 180), headlessProgressMetrics{})
 				exhaustedTurn := turn
 				exhaustedTurn.Attempts = headlessCodexLocalWorktreeRetryLimit
+				l.postHeadlessFailureNoticeIfSilent(slug, turn, startedAt, err.Error())
 				l.recoverFailedHeadlessTurn(slug, exhaustedTurn, startedAt, err.Error())
 			default:
 				appendHeadlessCodexLog(slug, fmt.Sprintf("error: %v", err))
 				l.updateHeadlessProgress(slug, "error", "error", truncate(err.Error(), 180), headlessProgressMetrics{})
+				l.postHeadlessFailureNoticeIfSilent(slug, turn, startedAt, err.Error())
 				l.recoverFailedHeadlessTurn(slug, turn, startedAt, err.Error())
 			}
 			l.finishHeadlessTurn(slug)
@@ -834,6 +837,45 @@ func (l *Launcher) postHeadlessFinalMessageIfSilent(slug string, targetChannel s
 		return channelMessage{}, false, err
 	}
 	return msg, true, nil
+}
+
+func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessCodexTurn, startedAt time.Time, detail string) {
+	if l == nil || l.broker == nil {
+		return
+	}
+	targetChannel := normalizeChannelSlug(turn.Channel)
+	if targetChannel == "" {
+		targetChannel = "general"
+	}
+	if IsDMSlug(targetChannel) {
+		if targetAgent := DMTargetAgent(targetChannel); targetAgent != "" {
+			targetChannel = DMSlugFor(targetAgent)
+		}
+	}
+	if l.agentPostedSubstantiveMessageToChannelSince(slug, targetChannel, startedAt) {
+		return
+	}
+	replyTo := headlessReplyToID(turn.Prompt)
+	if replyTo == "" {
+		if task := l.timedOutTaskForTurn(slug, turn); task != nil {
+			replyTo = strings.TrimSpace(task.ThreadID)
+			if replyTo == "" {
+				replyTo = strings.TrimSpace(task.ID)
+			}
+		}
+	}
+	trimmed := strings.TrimSpace(sanitizeHeadlessPromptText(detail))
+	if trimmed == "" {
+		trimmed = "unknown agent runtime error"
+	}
+	detailText := sanitizeHeadlessPromptText(truncate(trimmed, 220))
+	text := fmt.Sprintf("I couldn't finish that reply because @%s failed before posting a response. Last error: %s", strings.TrimSpace(slug), detailText)
+	if _, err := l.broker.PostMessage(slug, targetChannel, text, nil, replyTo); err != nil {
+		appendHeadlessCodexLog(slug, "failure-notice-post-error: "+err.Error())
+		l.broker.ClearRoutingTargets([]string{slug})
+		return
+	}
+	appendHeadlessCodexLog(slug, fmt.Sprintf("failure-notice-post: posted failure notice to #%s reply_to=%s", targetChannel, replyTo))
 }
 
 func headlessReplyToID(notification string) string {
@@ -1549,13 +1591,17 @@ func (l *Launcher) buildCodexOfficeConfigOverrides(slug string) ([]string, error
 
 func buildHeadlessCodexPrompt(systemPrompt string, prompt string) string {
 	var parts []string
-	if trimmed := strings.TrimSpace(systemPrompt); trimmed != "" {
+	if trimmed := strings.TrimSpace(sanitizeHeadlessPromptText(systemPrompt)); trimmed != "" {
 		parts = append(parts, "<system>\n"+trimmed+"\n</system>")
 	}
-	if trimmed := strings.TrimSpace(prompt); trimmed != "" {
+	if trimmed := strings.TrimSpace(sanitizeHeadlessPromptText(prompt)); trimmed != "" {
 		parts = append(parts, trimmed)
 	}
-	return strings.Join(parts, "\n\n")
+	return sanitizeHeadlessPromptText(strings.Join(parts, "\n\n"))
+}
+
+func sanitizeHeadlessPromptText(text string) string {
+	return strings.ToValidUTF8(text, "\uFFFD")
 }
 
 func lafOfficeLogDir() string {

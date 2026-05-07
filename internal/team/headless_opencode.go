@@ -273,13 +273,13 @@ func buildHeadlessOpencodeArgs(model string, prompt string) []string {
 // content so the wrapper cannot be closed from within.
 func buildHeadlessOpencodePrompt(systemPrompt string, prompt string) string {
 	var parts []string
-	if s := strings.TrimSpace(systemPrompt); s != "" {
+	if s := strings.TrimSpace(sanitizeHeadlessPromptText(systemPrompt)); s != "" {
 		parts = append(parts, "<system>\n"+escapeHeadlessOpencodeSystemWrapper(s)+"\n</system>")
 	}
-	if p := strings.TrimSpace(prompt); p != "" {
+	if p := strings.TrimSpace(sanitizeHeadlessPromptText(prompt)); p != "" {
 		parts = append(parts, escapeHeadlessOpencodeSystemWrapper(p))
 	}
-	return strings.Join(parts, "\n\n")
+	return sanitizeHeadlessPromptText(strings.Join(parts, "\n\n"))
 }
 
 // escapeHeadlessOpencodeSystemWrapper inserts a zero-width space into literal

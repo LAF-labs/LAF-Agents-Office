@@ -66,6 +66,7 @@ const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined";
 const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
+const TICKET_PENDING_REPLY_TIMEOUT_MS = 90_000;
 const HUMAN_SLUG = "human";
 const DEFAULT_AGENT = "architect";
 
@@ -1840,11 +1841,14 @@ function TicketSidePanel({
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [pendingReply, setPendingReply] = useState<{
     afterMessageId: string | null;
+    sentAt: number | null;
     slugs: string[];
-  }>({ afterMessageId: null, slugs: [] });
+  }>({ afterMessageId: null, sentAt: null, slugs: [] });
   const status = normalizeStatus(task.status);
   const channel = taskChannel(task, project);
   const threadId = task.thread_id || task.id;
+  const threadKey = `${channel}:${threadId}`;
+  const previousThreadKeyRef = useRef(threadKey);
   const threadMessagesQuery = useQuery({
     queryKey: ["thread-messages", channel, threadId],
     queryFn: () => getThreadMessages(channel, threadId),
@@ -1880,10 +1884,38 @@ function TicketSidePanel({
       if (slugs.length === current.slugs.length) return current;
       return {
         afterMessageId: slugs.length > 0 ? current.afterMessageId : null,
+        sentAt: slugs.length > 0 ? current.sentAt : null,
         slugs,
       };
     });
   }, [threadMessages]);
+
+  useEffect(() => {
+    if (previousThreadKeyRef.current === threadKey) return;
+    previousThreadKeyRef.current = threadKey;
+    setPendingReply({ afterMessageId: null, sentAt: null, slugs: [] });
+    setOptimisticMessages([]);
+    setSendError(null);
+    setSent(false);
+  }, [threadKey]);
+
+  useEffect(() => {
+    if (
+      pendingReply.slugs.length === 0 ||
+      typeof pendingReply.sentAt !== "number"
+    )
+      return;
+    const remaining =
+      TICKET_PENDING_REPLY_TIMEOUT_MS - (Date.now() - pendingReply.sentAt);
+    if (remaining <= 0) {
+      setPendingReply({ afterMessageId: null, sentAt: null, slugs: [] });
+      return;
+    }
+    const timeout = globalThis.setTimeout(() => {
+      setPendingReply({ afterMessageId: null, sentAt: null, slugs: [] });
+    }, remaining);
+    return () => globalThis.clearTimeout(timeout);
+  }, [pendingReply.sentAt, pendingReply.slugs.length]);
 
   async function handleSendInstruction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1925,6 +1957,7 @@ function TicketSidePanel({
       ]);
       setPendingReply({
         afterMessageId: sentMessageId,
+        sentAt: Date.now(),
         slugs: taggedTargets,
       });
       setInstruction("");

@@ -8290,6 +8290,26 @@ func (b *Broker) MarkRoutingTargets(slugs []string) {
 	}
 }
 
+// ClearRoutingTargets drops optimistic "typing" state for agents whose queued
+// turn has ended without a normal agent message.
+func (b *Broker) ClearRoutingTargets(slugs []string) {
+	if len(slugs) == 0 {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.lastTaggedAt == nil {
+		return
+	}
+	for _, slug := range slugs {
+		slug = strings.TrimSpace(slug)
+		if slug == "" {
+			continue
+		}
+		delete(b.lastTaggedAt, slug)
+	}
+}
+
 // PostSystemMessage posts a lightweight system message that shows progress without blocking.
 func (b *Broker) PostSystemMessage(channel, content, kind string) {
 	b.mu.Lock()

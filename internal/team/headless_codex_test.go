@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
@@ -635,6 +636,58 @@ func TestPostHeadlessFinalMessageIfSilentPostsFinalOutput(t *testing.T) {
 	}
 	if posted {
 		t.Fatal("expected fallback to skip when the agent already posted to the target channel")
+	}
+}
+
+func TestPostHeadlessFailureNoticeRepliesInThreadDespitePendingRequest(t *testing.T) {
+	b := newTestBroker(t)
+	root, err := b.PostMessage("you", "general", "깃 연결 확인 필요", []string{"architect"}, "")
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	if _, err := b.CreateRequest(humanInterview{
+		Kind:     "interview",
+		From:     "architect",
+		Channel:  "general",
+		Question: "blocked request",
+		Blocking: true,
+		Required: true,
+	}); err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+
+	l := &Launcher{broker: b}
+	l.postHeadlessFailureNoticeIfSilent("architect", headlessCodexTurn{
+		Channel: "general",
+		Prompt:  fmt.Sprintf(`Reply using team_broadcast with reply_to_id "%s".`, root.ID),
+	}, time.Now().UTC().Add(-time.Second), "runtime failed: \xff")
+
+	var got *channelMessage
+	messages := b.AllMessages()
+	for i := range messages {
+		msg := messages[i]
+		if msg.From == "architect" && msg.ReplyTo == root.ID {
+			got = &msg
+		}
+	}
+	if got == nil {
+		t.Fatalf("expected threaded architect failure notice, got messages %+v", messages)
+	}
+	if !strings.Contains(got.Content, "failed before posting a response") {
+		t.Fatalf("unexpected failure notice content: %q", got.Content)
+	}
+	if !utf8.ValidString(got.Content) {
+		t.Fatalf("failure notice is not valid UTF-8: %q", got.Content)
+	}
+}
+
+func TestBuildHeadlessCodexPromptForcesValidUTF8(t *testing.T) {
+	prompt := buildHeadlessCodexPrompt("system \xff", "user \xfe")
+	if !utf8.ValidString(prompt) {
+		t.Fatalf("prompt is not valid UTF-8: %q", prompt)
+	}
+	if !strings.Contains(prompt, "\uFFFD") {
+		t.Fatalf("expected invalid bytes to be replaced visibly, got %q", prompt)
 	}
 }
 

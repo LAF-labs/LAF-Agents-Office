@@ -44,7 +44,7 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 		"--max-turns", l.headlessClaudeMaxTurns(slug),
 		"--disable-slash-commands",
 		"--setting-sources", "user",
-		"--append-system-prompt", l.buildPrompt(slug),
+		"--append-system-prompt", sanitizeHeadlessPromptText(l.buildPrompt(slug)),
 		"--mcp-config", agentMCP,
 		"--strict-mcp-config",
 	}
@@ -86,7 +86,7 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 	memoryCtx, memoryCancel := context.WithTimeout(ctx, 2*time.Second)
 	brief := fetchScopedMemoryBrief(memoryCtx, slug, notification, l.broker)
 	memoryCancel()
-	stdinPayload := composeHeadlessStdinPayload(notification, brief)
+	stdinPayload := sanitizeHeadlessPromptText(composeHeadlessStdinPayload(notification, brief))
 	cmd.Stdin = strings.NewReader(stdinPayload)
 
 	stdout, err := cmd.StdoutPipe()
