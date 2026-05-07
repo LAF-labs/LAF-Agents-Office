@@ -5861,16 +5861,17 @@ html[data-theme^="office"] .project-detail-header {
   width: 100%;
   max-width: 1080px;
   margin-inline: auto;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: 0;
 }
 
 html[data-theme^="office"] .project-detail-heading {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-flow: row nowrap;
 }
 
 html[data-theme^="office"] .project-detail-title {
@@ -5884,12 +5885,16 @@ html[data-theme^="office"] .project-detail-title {
 }
 
 html[data-theme^="office"] .project-detail-header .project-back-button {
+  display: inline-flex !important;
   width: 32px;
   height: 32px;
   min-width: 32px;
   min-height: 32px;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-full);
   color: var(--color-graphite);
+  padding: 0 !important;
 }
 
 html[data-theme^="office"] .project-detail-header .project-back-button::before {
@@ -5904,13 +5909,34 @@ html[data-theme^="office"] .project-detail-header .project-detail-metrics {
   justify-content: end;
 }
 
+html[data-theme^="office"] .project-ticket-toolbar-row {
+  align-items: center !important;
+}
+
+html[data-theme^="office"] .project-ticket-toolbar-row .project-detail-metrics {
+  justify-content: start;
+}
+
+html[data-theme^="office"] .project-ticket-create-button {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
+  gap: 6px;
+  font-size: 14px;
+}
+
+html[data-theme^="office"] .project-ticket-create-button svg {
+  width: 14px;
+  height: 14px;
+}
+
 @media (max-width: 768px) {
   html[data-theme^="office"] .project-detail-header {
     grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
+    gap: 0;
   }
 
-  html[data-theme^="office"] .project-detail-header .project-detail-metrics {
-    justify-content: start;
+  html[data-theme^="office"] .project-ticket-toolbar-row {
+    flex-wrap: wrap;
   }
 }

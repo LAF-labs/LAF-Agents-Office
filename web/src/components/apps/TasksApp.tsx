@@ -1214,16 +1214,15 @@ function ProjectDetailView({
 
   return (
     <main className="project-app">
-      <ProjectDetailHeader
+      <ProjectDetailHeader project={project} t={t} onBack={onBack} />
+      <ProjectTicketToolbar
         counts={counts}
         isStatsReady={isStatsReady}
         language={language}
-        project={project}
         status={lifecycle}
         t={t}
-        onBack={onBack}
+        onCreateTicket={openTicketDraft}
       />
-      <ProjectTicketToolbar t={t} onCreateTicket={openTicketDraft} />
       <ProjectTicketList
         members={members}
         selectedTaskId={selectedTaskId}
@@ -1256,19 +1255,11 @@ function ProjectDetailView({
 }
 
 function ProjectDetailHeader({
-  counts,
-  isStatsReady,
-  language,
   project,
-  status,
   t,
   onBack,
 }: {
-  counts: ProjectTicketCounts;
-  isStatsReady: boolean;
-  language: Language;
   project: Project;
-  status: ProjectLifecycle;
   t: TranslationFn;
   onBack: () => void;
 }) {
@@ -1292,41 +1283,42 @@ function ProjectDetailHeader({
           {project.name || project.id}
         </h3>
       </div>
-      <div className="project-detail-metrics">
-        <span className={cn("project-inline-status", `is-${status}`)}>
-          {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-        </span>
-        <span className="project-ticket-metric is-total">
-          {isStatsReady
-            ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
-            : t("tasks.loadingTasks")}
-        </span>
-      </div>
     </section>
   );
 }
 
 function ProjectTicketToolbar({
+  counts,
+  isStatsReady,
+  language,
+  status,
   t,
   onCreateTicket,
 }: {
+  counts: ProjectTicketCounts;
+  isStatsReady: boolean;
+  language: Language;
+  status: ProjectLifecycle;
   t: TranslationFn;
   onCreateTicket: () => void;
 }) {
   return (
     <Card className="project-directory-card project-ticket-card">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 p-4">
-        <div>
-          <CardTitle>
-            <h4 className="text-sm font-semibold leading-none">
-              {t("tasks.tickets")}
-            </h4>
-          </CardTitle>
+      <CardHeader className="project-ticket-toolbar-row flex flex-row items-center justify-between gap-4 space-y-0 p-4">
+        <div className="project-detail-metrics">
+          <span className={cn("project-inline-status", `is-${status}`)}>
+            {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
+          </span>
+          <span className="project-ticket-metric is-total">
+            {isStatsReady
+              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              : t("tasks.loadingTasks")}
+          </span>
         </div>
         <Button
           type="button"
           variant="outline"
-          className="project-create-button"
+          className="project-create-button project-ticket-create-button"
           onClick={onCreateTicket}
           aria-label={t("tasks.newTicket")}
           title={t("tasks.newTicket")}
