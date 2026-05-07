@@ -75,8 +75,12 @@ describe("project api client", () => {
     const result = await updateProject({
       id: "customer-portal",
       name: "Customer Portal",
+      description: "Investor-ready customer portal.",
+      additional_info: "Use this for board-demo context.",
       lead_agent: "pm",
       github_repo_url: "https://github.com/laf-labs/customer-portal",
+      recipe_filename: "customer-portal-recipe.md",
+      recipe_markdown: "## Rules\n\n- Keep demos crisp.\n",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -88,8 +92,12 @@ describe("project api client", () => {
           created_by: "human",
           id: "customer-portal",
           name: "Customer Portal",
+          description: "Investor-ready customer portal.",
+          additional_info: "Use this for board-demo context.",
           lead_agent: "pm",
           github_repo_url: "https://github.com/laf-labs/customer-portal",
+          recipe_filename: "customer-portal-recipe.md",
+          recipe_markdown: "## Rules\n\n- Keep demos crisp.\n",
         }),
       }),
     );

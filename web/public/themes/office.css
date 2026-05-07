@@ -5930,6 +5930,125 @@ html[data-theme^="office"] .project-ticket-create-button svg {
   height: 14px;
 }
 
+html[data-theme^="office"] .project-info-card {
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .project-info-content {
+  padding: 24px 28px 28px !important;
+}
+
+html[data-theme^="office"] .project-info-form {
+  display: grid;
+  gap: 18px;
+}
+
+html[data-theme^="office"] .project-info-topline,
+html[data-theme^="office"] .project-recipe-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+html[data-theme^="office"] .project-info-topline {
+  justify-content: space-between;
+}
+
+html[data-theme^="office"] .project-info-topline h4 {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-logo);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+html[data-theme^="office"] .project-info-save-state {
+  color: var(--color-graphite);
+  font-size: 12px;
+}
+
+html[data-theme^="office"] .project-info-save-state.error {
+  color: var(--color-caution);
+}
+
+html[data-theme^="office"] .project-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+html[data-theme^="office"] .project-info-field {
+  display: grid;
+  gap: 8px;
+  color: var(--color-graphite);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .project-info-field input,
+html[data-theme^="office"] .project-info-field textarea {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 16px;
+  background: var(--color-fog);
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+html[data-theme^="office"] .project-info-field textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+html[data-theme^="office"] .project-recipe-field textarea {
+  min-height: 150px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html[data-theme^="office"] .project-recipe-heading {
+  flex-wrap: wrap;
+}
+
+html[data-theme^="office"] .project-recipe-heading > span {
+  margin-right: auto;
+}
+
+html[data-theme^="office"] .project-recipe-upload,
+html[data-theme^="office"] .project-recipe-clear {
+  height: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+html[data-theme^="office"] .project-recipe-upload {
+  border: 0;
+  background: var(--color-fog);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .project-recipe-clear {
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .project-recipe-file,
+html[data-theme^="office"] .project-recipe-empty {
+  color: var(--color-graphite);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+html[data-theme^="office"] .project-recipe-empty {
+  margin: 0;
+}
+
 @media (max-width: 768px) {
   html[data-theme^="office"] .project-detail-header {
     grid-template-columns: minmax(0, 1fr);
@@ -5938,5 +6057,9 @@ html[data-theme^="office"] .project-ticket-create-button svg {
 
   html[data-theme^="office"] .project-ticket-toolbar-row {
     flex-wrap: wrap;
+  }
+
+  html[data-theme^="office"] .project-info-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

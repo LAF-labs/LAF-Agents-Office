@@ -9002,6 +9002,18 @@ func normalizeGitHubRepoURL(raw string) string {
 	return strings.TrimSpace(raw)
 }
 
+func normalizeProjectRecipeFileName(raw string) string {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		return ""
+	}
+	return filepath.Base(name)
+}
+
+func validProjectRecipeFileName(name string) bool {
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(name)), ".md")
+}
+
 func optionalString(value *string) string {
 	if value == nil {
 		return ""
@@ -9114,15 +9126,19 @@ func (b *Broker) handleProjectRepoReadiness(w http.ResponseWriter, r *http.Reque
 
 func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Action        string  `json:"action"`
-		ID            string  `json:"id"`
-		Name          *string `json:"name"`
-		Description   *string `json:"description"`
-		Channel       *string `json:"channel"`
-		LeadAgent     *string `json:"lead_agent"`
-		GitHubRepoURL *string `json:"github_repo_url"`
-		Status        *string `json:"status"`
-		CreatedBy     string  `json:"created_by"`
+		Action         string  `json:"action"`
+		ID             string  `json:"id"`
+		Name           *string `json:"name"`
+		Description    *string `json:"description"`
+		AdditionalInfo *string `json:"additional_info"`
+		Channel        *string `json:"channel"`
+		LeadAgent      *string `json:"lead_agent"`
+		GitHubRepoURL  *string `json:"github_repo_url"`
+		RecipeFileName *string `json:"recipe_filename"`
+		RecipeMarkdown *string `json:"recipe_markdown"`
+		ClearRecipe    bool    `json:"clear_recipe"`
+		Status         *string `json:"status"`
+		CreatedBy      string  `json:"created_by"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -9135,6 +9151,11 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	channel := normalizeChannelSlug(optionalString(body.Channel))
+	recipeFileName := normalizeProjectRecipeFileName(optionalString(body.RecipeFileName))
+	if body.RecipeFileName != nil && recipeFileName != "" && !validProjectRecipeFileName(recipeFileName) {
+		http.Error(w, "recipe file must be a .md file", http.StatusBadRequest)
+		return
+	}
 
 	b.mu.Lock()
 	if channel != "" {
@@ -9179,16 +9200,27 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		project := teamProject{
-			ID:            id,
-			Name:          name,
-			Description:   strings.TrimSpace(optionalString(body.Description)),
-			Channel:       channel,
-			LeadAgent:     leadAgent,
-			GitHubRepoURL: normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL)),
-			Status:        status,
-			CreatedBy:     strings.TrimSpace(body.CreatedBy),
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			ID:             id,
+			Name:           name,
+			Description:    strings.TrimSpace(optionalString(body.Description)),
+			AdditionalInfo: strings.TrimSpace(optionalString(body.AdditionalInfo)),
+			Channel:        channel,
+			LeadAgent:      leadAgent,
+			GitHubRepoURL:  normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL)),
+			RecipeFileName: recipeFileName,
+			RecipeMarkdown: strings.TrimSpace(optionalString(body.RecipeMarkdown)),
+			Status:         status,
+			CreatedBy:      strings.TrimSpace(body.CreatedBy),
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}
+		if project.RecipeMarkdown != "" && project.RecipeFileName == "" {
+			b.mu.Unlock()
+			http.Error(w, "recipe markdown requires a .md file name", http.StatusBadRequest)
+			return
+		}
+		if project.RecipeMarkdown != "" || project.RecipeFileName != "" {
+			project.RecipeUpdatedAt = now
 		}
 		b.projects = append(b.projects, project)
 		actionChannel := channel
@@ -9231,11 +9263,37 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if body.Description != nil {
 			project.Description = strings.TrimSpace(optionalString(body.Description))
 		}
+		if body.AdditionalInfo != nil {
+			project.AdditionalInfo = strings.TrimSpace(optionalString(body.AdditionalInfo))
+		}
 		if body.LeadAgent != nil {
 			project.LeadAgent = normalizeProjectLeadAgent(optionalString(body.LeadAgent))
 		}
 		if body.GitHubRepoURL != nil {
 			project.GitHubRepoURL = normalizeGitHubRepoURL(optionalString(body.GitHubRepoURL))
+		}
+		if body.ClearRecipe {
+			project.RecipeFileName = ""
+			project.RecipeMarkdown = ""
+			project.RecipeUpdatedAt = ""
+		} else {
+			recipeChanged := false
+			if body.RecipeFileName != nil {
+				project.RecipeFileName = recipeFileName
+				recipeChanged = true
+			}
+			if body.RecipeMarkdown != nil {
+				project.RecipeMarkdown = strings.TrimSpace(optionalString(body.RecipeMarkdown))
+				recipeChanged = true
+			}
+			if project.RecipeMarkdown != "" && project.RecipeFileName == "" {
+				b.mu.Unlock()
+				http.Error(w, "recipe markdown requires a .md file name", http.StatusBadRequest)
+				return
+			}
+			if recipeChanged {
+				project.RecipeUpdatedAt = now
+			}
 		}
 		project.UpdatedAt = now
 		actionChannel := project.Channel
@@ -9249,17 +9307,19 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		responseProject := *project
-		shouldSyncGitHubRepo := body.GitHubRepoURL != nil
-		shouldSyncLeadAgent := body.LeadAgent != nil
+		shouldSyncProjectInfo := body.Name != nil ||
+			body.Description != nil ||
+			body.AdditionalInfo != nil ||
+			body.GitHubRepoURL != nil ||
+			body.LeadAgent != nil ||
+			body.RecipeFileName != nil ||
+			body.RecipeMarkdown != nil ||
+			body.ClearRecipe ||
+			body.Status != nil ||
+			action == "archive"
 		b.mu.Unlock()
-		if shouldSyncGitHubRepo {
-			if err := b.syncProjectWikiGitHubRepo(r.Context(), responseProject); err != nil {
-				http.Error(w, "failed to sync project wiki", http.StatusInternalServerError)
-				return
-			}
-		}
-		if shouldSyncLeadAgent {
-			if err := b.syncProjectWikiLeadAgent(r.Context(), responseProject); err != nil {
+		if shouldSyncProjectInfo {
+			if err := b.syncProjectWikiSnapshot(r.Context(), responseProject); err != nil {
 				http.Error(w, "failed to sync project wiki", http.StatusInternalServerError)
 				return
 			}

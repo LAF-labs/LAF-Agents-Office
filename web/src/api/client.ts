@@ -668,9 +668,13 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  additional_info?: string;
   channel?: string;
   lead_agent?: string;
   github_repo_url?: string;
+  recipe_filename?: string;
+  recipe_markdown?: string;
+  recipe_updated_at?: string;
   status?: string;
   created_by?: string;
   created_at?: string;
@@ -706,9 +710,12 @@ export function createProject(body: {
   id?: string;
   name: string;
   description?: string;
+  additional_info?: string;
   channel?: string;
   lead_agent?: string;
   github_repo_url?: string;
+  recipe_filename?: string;
+  recipe_markdown?: string;
   created_by?: string;
 }) {
   return post<{ project: Project }>("/projects", {
@@ -722,9 +729,13 @@ export function updateProject(body: {
   id: string;
   name?: string;
   description?: string;
+  additional_info?: string;
   channel?: string;
   lead_agent?: string;
   github_repo_url?: string;
+  recipe_filename?: string;
+  recipe_markdown?: string;
+  clear_recipe?: boolean;
   status?: string;
   created_by?: string;
 }) {

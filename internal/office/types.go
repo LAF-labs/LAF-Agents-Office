@@ -71,16 +71,20 @@ type TeamTask struct {
 }
 
 type TeamProject struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description,omitempty"`
-	Channel       string `json:"channel,omitempty"`
-	LeadAgent     string `json:"lead_agent,omitempty"`
-	GitHubRepoURL string `json:"github_repo_url,omitempty"`
-	Status        string `json:"status,omitempty"`
-	CreatedBy     string `json:"created_by,omitempty"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Description     string `json:"description,omitempty"`
+	AdditionalInfo  string `json:"additional_info,omitempty"`
+	Channel         string `json:"channel,omitempty"`
+	LeadAgent       string `json:"lead_agent,omitempty"`
+	GitHubRepoURL   string `json:"github_repo_url,omitempty"`
+	RecipeFileName  string `json:"recipe_filename,omitempty"`
+	RecipeMarkdown  string `json:"recipe_markdown,omitempty"`
+	RecipeUpdatedAt string `json:"recipe_updated_at,omitempty"`
+	Status          string `json:"status,omitempty"`
+	CreatedBy       string `json:"created_by,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 type ActionLog struct {

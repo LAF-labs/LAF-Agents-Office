@@ -1,4 +1,5 @@
 import {
+  type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
   useEffect,
@@ -24,6 +25,7 @@ import {
   postMessage,
   postMessageAs,
   type Task,
+  updateProject,
   updateTask,
 } from "../../api/client";
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
@@ -101,6 +103,15 @@ type ProjectTicketCounts = {
   notStarted: number;
   total: number;
   waiting: number;
+};
+type ProjectSaveState = "idle" | "saving" | "saved" | "error";
+type ProjectInfoDraft = {
+  additionalInfo: string;
+  description: string;
+  githubRepoUrl: string;
+  name: string;
+  recipeFileName: string;
+  recipeMarkdown: string;
 };
 
 function normalizeStatus(raw: string): StatusGroup {
@@ -676,6 +687,151 @@ function useTicketCreator(
   };
 }
 
+function projectInfoDraftFromProject(project: Project): ProjectInfoDraft {
+  return {
+    additionalInfo: project.additional_info ?? "",
+    description: project.description ?? "",
+    githubRepoUrl: project.github_repo_url ?? "",
+    name: project.name || project.id,
+    recipeFileName: project.recipe_filename ?? "",
+    recipeMarkdown: project.recipe_markdown ?? "",
+  };
+}
+
+function useProjectInfoEditor(
+  project: Project,
+  queryClient: QueryClient,
+  t: TranslationFn,
+) {
+  const [draft, setDraft] = useState<ProjectInfoDraft>(() =>
+    projectInfoDraftFromProject(project),
+  );
+  const [saveState, setSaveState] = useState<ProjectSaveState>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const draftRef = useRef<ProjectInfoDraft>(
+    projectInfoDraftFromProject(project),
+  );
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const next = projectInfoDraftFromProject(project);
+    draftRef.current = next;
+    setDraft(next);
+    setSaveState("idle");
+    setError(null);
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+  }, [project]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  async function persist(
+    nextDraft = draftRef.current,
+    opts?: { clearRecipe?: boolean },
+  ) {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    setSaveState("saving");
+    setError(null);
+    try {
+      const { project: updated } = await updateProject({
+        id: project.id,
+        name: nextDraft.name.trim() || project.name || project.id,
+        description: nextDraft.description,
+        additional_info: nextDraft.additionalInfo,
+        github_repo_url: nextDraft.githubRepoUrl,
+        recipe_filename: opts?.clearRecipe
+          ? ""
+          : nextDraft.recipeFileName.trim(),
+        recipe_markdown: opts?.clearRecipe ? "" : nextDraft.recipeMarkdown,
+        clear_recipe: opts?.clearRecipe,
+        created_by: HUMAN_SLUG,
+      });
+      queryClient.setQueryData<{ projects: Project[] }>(
+        ["projects"],
+        (current) => ({
+          projects: (current?.projects ?? []).map((candidate) =>
+            candidate.id === updated.id ? updated : candidate,
+          ),
+        }),
+      );
+      setDraft(projectInfoDraftFromProject(updated));
+      setSaveState("saved");
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : t("tasks.projectInfoSaveFailed");
+      setError(message);
+      setSaveState("error");
+    }
+  }
+
+  function schedulePersist(nextDraft: ProjectInfoDraft) {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    setSaveState("saving");
+    saveTimer.current = setTimeout(() => {
+      void persist(nextDraft);
+    }, 650);
+  }
+
+  function updateField<K extends keyof ProjectInfoDraft>(
+    field: K,
+    value: ProjectInfoDraft[K],
+  ) {
+    setDraft((current) => {
+      const next = { ...current, [field]: value };
+      draftRef.current = next;
+      schedulePersist(next);
+      return next;
+    });
+  }
+
+  async function handleRecipeUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0] ?? null;
+    event.currentTarget.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".md")) {
+      setSaveState("error");
+      setError(t("tasks.projectRecipeMdOnly"));
+      return;
+    }
+    const markdown = await file.text();
+    const next = {
+      ...draft,
+      recipeFileName: file.name,
+      recipeMarkdown: markdown,
+    };
+    draftRef.current = next;
+    setDraft(next);
+    await persist(next);
+  }
+
+  async function clearRecipe() {
+    const next = { ...draft, recipeFileName: "", recipeMarkdown: "" };
+    draftRef.current = next;
+    setDraft(next);
+    await persist(next, { clearRecipe: true });
+  }
+
+  return {
+    clearRecipe,
+    draft,
+    error,
+    handleRecipeUpload,
+    persist,
+    saveState,
+    updateField,
+  };
+}
+
 export function TasksApp() {
   const queryClient = useQueryClient();
   const projectFocusId = useAppStore((s) => s.projectFocusId);
@@ -1203,6 +1359,7 @@ function ProjectDetailView({
   const sortedTasks = useMemo(() => sortProjectTasks(tasks), [tasks]);
   const counts = projectTicketCounts(tasks);
   const lifecycle = projectLifecycle(project, counts);
+  const projectInfoEditor = useProjectInfoEditor(project, queryClient, t);
   const openTicketDraft = () => {
     onCloseTask();
     ticketCreator.handleOpenTicketDraft();
@@ -1223,6 +1380,7 @@ function ProjectDetailView({
         t={t}
         onCreateTicket={openTicketDraft}
       />
+      <ProjectInfoPanel editor={projectInfoEditor} t={t} />
       <ProjectTicketList
         members={members}
         selectedTaskId={selectedTaskId}
@@ -1327,6 +1485,164 @@ function ProjectTicketToolbar({
           <span>{t("tasks.newTicket")}</span>
         </Button>
       </CardHeader>
+    </Card>
+  );
+}
+
+function ProjectInfoPanel({
+  editor,
+  t,
+}: {
+  editor: ReturnType<typeof useProjectInfoEditor>;
+  t: TranslationFn;
+}) {
+  const recipeInputRef = useRef<HTMLInputElement>(null);
+  const saveLabel =
+    editor.saveState === "saving"
+      ? t("tasks.projectInfoSaving")
+      : editor.saveState === "saved"
+        ? t("tasks.projectInfoSaved")
+        : editor.saveState === "error"
+          ? editor.error || t("tasks.projectInfoSaveFailed")
+          : t("tasks.projectInfoAutosave");
+
+  function commitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    event.currentTarget.blur();
+    void editor.persist();
+  }
+
+  return (
+    <Card className="project-directory-card project-info-card">
+      <CardContent className="project-info-content">
+        <section
+          aria-label={t("tasks.projectInfo")}
+          className="project-info-form"
+        >
+          <div className="project-info-topline">
+            <h4>{t("tasks.projectInfo")}</h4>
+            <span className={cn("project-info-save-state", editor.saveState)}>
+              {saveLabel}
+            </span>
+          </div>
+          <div className="project-info-grid">
+            <label className="project-info-field" htmlFor="project-info-name">
+              <span>{t("tasks.projectInfoName")}</span>
+              <Input
+                id="project-info-name"
+                value={editor.draft.name}
+                onBlur={() => void editor.persist()}
+                onChange={(event) =>
+                  editor.updateField("name", event.currentTarget.value)
+                }
+                onKeyDown={commitOnEnter}
+                aria-label={t("tasks.projectInfoName")}
+              />
+            </label>
+            <label className="project-info-field" htmlFor="project-info-github">
+              <span>{t("tasks.projectInfoGithub")}</span>
+              <Input
+                id="project-info-github"
+                type="url"
+                value={editor.draft.githubRepoUrl}
+                onBlur={() => void editor.persist()}
+                onChange={(event) =>
+                  editor.updateField("githubRepoUrl", event.currentTarget.value)
+                }
+                onKeyDown={commitOnEnter}
+                placeholder="https://github.com/org/repo"
+                aria-label={t("tasks.projectInfoGithub")}
+              />
+            </label>
+          </div>
+          <label className="project-info-field" htmlFor="project-info-summary">
+            <span>{t("tasks.projectInfoSummary")}</span>
+            <Textarea
+              id="project-info-summary"
+              value={editor.draft.description}
+              onBlur={() => void editor.persist()}
+              onChange={(event) =>
+                editor.updateField("description", event.currentTarget.value)
+              }
+              placeholder={t("tasks.projectInfoSummaryPlaceholder")}
+              rows={2}
+              aria-label={t("tasks.projectInfoSummary")}
+            />
+          </label>
+          <label
+            className="project-info-field"
+            htmlFor="project-info-additional"
+          >
+            <span>{t("tasks.projectInfoAdditional")}</span>
+            <Textarea
+              id="project-info-additional"
+              value={editor.draft.additionalInfo}
+              onBlur={() => void editor.persist()}
+              onChange={(event) =>
+                editor.updateField("additionalInfo", event.currentTarget.value)
+              }
+              placeholder={t("tasks.projectInfoAdditionalPlaceholder")}
+              rows={4}
+              aria-label={t("tasks.projectInfoAdditional")}
+            />
+          </label>
+          <div className="project-info-field project-recipe-field">
+            <div className="project-recipe-heading">
+              <span>{t("tasks.projectRecipe")}</span>
+              <input
+                ref={recipeInputRef}
+                type="file"
+                accept=".md,text/markdown"
+                className="sr-only"
+                onChange={editor.handleRecipeUpload}
+                aria-label={t("tasks.projectRecipeUpload")}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="project-recipe-upload"
+                onClick={() => recipeInputRef.current?.click()}
+              >
+                {t("tasks.projectRecipeUpload")}
+              </Button>
+              {editor.draft.recipeFileName ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="project-recipe-clear"
+                  onClick={() => void editor.clearRecipe()}
+                >
+                  {t("tasks.projectRecipeClear")}
+                </Button>
+              ) : null}
+            </div>
+            {editor.draft.recipeFileName ? (
+              <>
+                <small className="project-recipe-file">
+                  {editor.draft.recipeFileName}
+                </small>
+                <Textarea
+                  value={editor.draft.recipeMarkdown}
+                  onBlur={() => void editor.persist()}
+                  onChange={(event) =>
+                    editor.updateField(
+                      "recipeMarkdown",
+                      event.currentTarget.value,
+                    )
+                  }
+                  rows={7}
+                  aria-label={t("tasks.projectRecipe")}
+                />
+              </>
+            ) : (
+              <p className="project-recipe-empty">
+                {t("tasks.projectRecipeEmpty")}
+              </p>
+            )}
+          </div>
+        </section>
+      </CardContent>
     </Card>
   );
 }

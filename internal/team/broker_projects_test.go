@@ -32,11 +32,11 @@ func TestProjectsAPIAndTaskFiltering(t *testing.T) {
 	if projectA.GitHubRepoURL != "https://github.com/laf-labs/customer-portal" {
 		t.Fatalf("project github_repo_url = %q", projectA.GitHubRepoURL)
 	}
-	if projectA.LeadAgent != "founding-engineer" {
-		t.Fatalf("project lead_agent = %q, want founding-engineer", projectA.LeadAgent)
+	if projectA.LeadAgent != "builder" {
+		t.Fatalf("project lead_agent = %q, want builder", projectA.LeadAgent)
 	}
-	if projectB.LeadAgent != "ceo" {
-		t.Fatalf("planning project lead_agent = %q, want ceo", projectB.LeadAgent)
+	if projectB.LeadAgent != "architect" {
+		t.Fatalf("planning project lead_agent = %q, want architect", projectB.LeadAgent)
 	}
 
 	createTaskForProjectTest(t, b, "Portal board", projectA.ID)
@@ -184,8 +184,8 @@ func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
 		"created_by": "human",
 		"lead_agent": "PM",
 	})
-	if project.LeadAgent != "pm" {
-		t.Fatalf("created lead_agent = %q, want pm", project.LeadAgent)
+	if project.LeadAgent != "architect" {
+		t.Fatalf("created lead_agent = %q, want architect", project.LeadAgent)
 	}
 
 	updateRec := httptest.NewRecorder()
@@ -204,8 +204,8 @@ func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
 	if err := json.NewDecoder(updateRec.Body).Decode(&updated); err != nil {
 		t.Fatalf("decode updated project: %v", err)
 	}
-	if updated.Project.LeadAgent != "founding-engineer" {
-		t.Fatalf("updated lead_agent = %q, want founding-engineer", updated.Project.LeadAgent)
+	if updated.Project.LeadAgent != "builder" {
+		t.Fatalf("updated lead_agent = %q, want builder", updated.Project.LeadAgent)
 	}
 
 	loaded := NewBrokerAt(statePath)
@@ -220,8 +220,8 @@ func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
 	}
 	persistedLeadAgent := loadedProject.LeadAgent
 	loaded.mu.Unlock()
-	if persistedLeadAgent != "founding-engineer" {
-		t.Fatalf("persisted lead_agent = %q, want founding-engineer", persistedLeadAgent)
+	if persistedLeadAgent != "builder" {
+		t.Fatalf("persisted lead_agent = %q, want builder", persistedLeadAgent)
 	}
 }
 
@@ -260,6 +260,112 @@ func TestProjectGitHubRepoURLUpdatePreservesOmittedFields(t *testing.T) {
 	}
 	if updated.Project.GitHubRepoURL != "https://github.com/laf-labs/repo-setup" {
 		t.Fatalf("updated github_repo_url = %q", updated.Project.GitHubRepoURL)
+	}
+}
+
+func TestProjectInfoAndRecipeSyncToWikiAndTaskMemory(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Investor Demo OS",
+		"description":     "AI-native investor workspace for demo readiness.",
+		"additional_info": "Show traction, reliability, and expansion paths in one narrative.",
+		"created_by":      "human",
+		"recipe_filename": "investor-demo-recipe.md",
+		"recipe_markdown": "## Agent rules\n\n- Keep every answer investor-grade.\n- Cite demo evidence before claims.\n",
+	})
+	worker.WaitForIdle()
+
+	raw, err := os.ReadFile(filepath.Join(root, "team", "projects", project.ID+".md"))
+	if err != nil {
+		t.Fatalf("read materialized project wiki: %v", err)
+	}
+	content := string(raw)
+	for _, want := range []string{
+		"## Additional information",
+		"Show traction, reliability, and expansion paths",
+		"## Agent recipe",
+		"investor-demo-recipe.md",
+		"Keep every answer investor-grade.",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("project wiki missing %q in:\n%s", want, content)
+		}
+	}
+
+	updateRec := httptest.NewRecorder()
+	b.handleProjects(updateRec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":          "update",
+		"id":              project.ID,
+		"created_by":      "human",
+		"additional_info": "Updated investor briefing context.",
+		"recipe_markdown": "## Agent rules\n\n- Lead with ARR, retention, and concrete product moments.\n",
+	}))
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update project info status = %d, want %d: %s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+	worker.WaitForIdle()
+
+	raw, err = os.ReadFile(filepath.Join(root, "team", "projects", project.ID+".md"))
+	if err != nil {
+		t.Fatalf("read updated project wiki: %v", err)
+	}
+	content = string(raw)
+	for _, want := range []string{
+		"Updated investor briefing context.",
+		"Lead with ARR, retention, and concrete product moments.",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("updated project wiki missing %q in:\n%s", want, content)
+		}
+	}
+
+	task := createTaskForProjectTest(t, b, "Prepare investor demo narrative", project.ID)
+	packet := b.projectMemoryForTaskPacket(task)
+	if packet.Unavailable != "" {
+		t.Fatalf("project memory unavailable: %s", packet.Unavailable)
+	}
+	for _, want := range []string{
+		"Live project reference from the project detail panel",
+		"Updated investor briefing context.",
+		"Agent recipe markdown",
+		"Lead with ARR, retention, and concrete product moments.",
+	} {
+		if !strings.Contains(packet.Excerpt, want) {
+			t.Fatalf("project memory missing %q in:\n%s", want, packet.Excerpt)
+		}
+	}
+}
+
+func TestProjectRecipeRejectsNonMarkdownFile(t *testing.T) {
+	b := newTestBroker(t)
+	rec := httptest.NewRecorder()
+	b.handleProjects(rec, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":          "create",
+		"name":            "Recipe Guard",
+		"created_by":      "human",
+		"recipe_filename": "rules.txt",
+		"recipe_markdown": "- no",
+	}))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("non-md recipe status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 }
 
@@ -414,7 +520,7 @@ func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	for _, want := range []string{
 		"# Customer Portal",
 		"Project ID: `customer-portal`",
-		"Lead agent: `@founding-engineer`",
+		"Lead agent: `@builder`",
 		"https://github.com/laf-labs/customer-portal",
 		"## Agent work",
 		"Before work: read this page or the project memory excerpt in the task packet.",
@@ -549,7 +655,7 @@ func TestProjectGitHubUpdateSyncsMaterializedWikiArticle(t *testing.T) {
 		t.Fatalf("read project wiki after lead sync: %v", err)
 	}
 	content = string(raw)
-	if !strings.Contains(content, "- Lead agent: `@ai-engineer`") {
+	if !strings.Contains(content, "- Lead agent: `@builder`") {
 		t.Fatalf("project wiki did not sync lead agent:\n%s", content)
 	}
 }

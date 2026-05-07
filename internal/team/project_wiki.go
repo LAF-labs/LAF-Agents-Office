@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const maxProjectMemoryPacketChars = 2400
+const maxProjectMemoryPacketChars = 6000
 
 type projectMemoryPacket struct {
 	Path        string
@@ -114,6 +114,41 @@ func (b *Broker) syncProjectWikiLeadAgent(ctx context.Context, project teamProje
 	return err
 }
 
+func (b *Broker) syncProjectWikiSnapshot(ctx context.Context, project teamProject) error {
+	worker := b.WikiWorker()
+	if worker == nil {
+		return nil
+	}
+
+	path := projectWikiArticlePath(project.ID)
+	raw, err := worker.ReadArticle(path)
+	if os.IsNotExist(err) {
+		return b.materializeProjectWiki(ctx, project)
+	}
+	if err != nil {
+		return err
+	}
+
+	next, changed := replaceProjectWikiProjectInfoSections(string(raw), project)
+	if !changed {
+		return nil
+	}
+
+	author := strings.TrimSpace(project.CreatedBy)
+	if author == "" {
+		author = "human"
+	}
+	_, _, err = worker.Enqueue(
+		ctx,
+		author,
+		path,
+		next,
+		"replace",
+		"project: update snapshot "+project.ID,
+	)
+	return err
+}
+
 func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
 	projectID := normalizeProjectID(task.ProjectID)
 	if projectID == "" {
@@ -149,7 +184,10 @@ func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
 		return packet
 	}
 
-	excerpt := strings.TrimSpace(string(raw))
+	project := b.projectSnapshot(projectID)
+	excerpt := strings.TrimSpace(
+		strings.Join(nonEmptyStrings(renderProjectLiveMemory(project), string(raw)), "\n\n"),
+	)
 	if excerpt == "" {
 		packet.Unavailable = fmt.Sprintf("%s is empty", path)
 		return packet
@@ -267,6 +305,39 @@ func replaceProjectWikiLeadAgentLine(content string, project teamProject) (strin
 	return replaceProjectWikiSnapshotLine(content, "- Lead agent:", nextLine)
 }
 
+func replaceProjectWikiProjectInfoSections(content string, project teamProject) (string, bool) {
+	nextSection := renderProjectWikiProjectInfoSections(project)
+	start := strings.Index(content, "## Snapshot")
+	if start == -1 {
+		next := strings.TrimRight(content, "\n")
+		if next != "" {
+			next += "\n\n"
+		}
+		next += nextSection
+		return next + "\n", true
+	}
+	end := len(content)
+	if goals := strings.Index(content[start:], "\n## Goals"); goals >= 0 {
+		end = start + goals
+	} else if nextHeading := strings.Index(content[start+len("## Snapshot"):], "\n## "); nextHeading >= 0 {
+		end = start + len("## Snapshot") + nextHeading
+	}
+	next := strings.TrimRight(content[:start], "\n")
+	if next != "" {
+		next += "\n\n"
+	}
+	next += strings.TrimRight(nextSection, "\n")
+	if tail := strings.TrimLeft(content[end:], "\n"); tail != "" {
+		next += "\n\n" + tail
+	} else {
+		next += "\n"
+	}
+	if next == content {
+		return content, false
+	}
+	return next, true
+}
+
 func replaceProjectWikiSnapshotLine(content, prefix, nextLine string) (string, bool) {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
@@ -295,19 +366,7 @@ func renderProjectWikiArticle(project teamProject) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# %s\n\n", name)
 	sb.WriteString("Project workspace memory for LAF-Office agents and humans.\n\n")
-	sb.WriteString("## Snapshot\n\n")
-	fmt.Fprintf(&sb, "- Project ID: `%s`\n", project.ID)
-	if description := strings.TrimSpace(project.Description); description != "" {
-		fmt.Fprintf(&sb, "- Description: %s\n", description)
-	}
-	if channel := strings.TrimSpace(project.Channel); channel != "" {
-		fmt.Fprintf(&sb, "- Channel: `#%s`\n", channel)
-	}
-	sb.WriteString(renderProjectWikiLeadAgentLine(project) + "\n")
-	sb.WriteString(renderProjectWikiGitHubRepoLine(project) + "\n")
-	if status := strings.TrimSpace(project.Status); status != "" {
-		fmt.Fprintf(&sb, "- Status: `%s`\n", status)
-	}
+	sb.WriteString(renderProjectWikiProjectInfoSections(project))
 
 	sb.WriteString("\n## Goals\n\n")
 	if description := strings.TrimSpace(project.Description); description != "" {
@@ -326,6 +385,88 @@ func renderProjectWikiArticle(project teamProject) string {
 	sb.WriteString("- During work: keep task status, blockers, and ownership visible on the project board.\n")
 	sb.WriteString("- After work: append meaningful changes, delivery receipts, and follow-up decisions here.\n")
 	return sb.String()
+}
+
+func renderProjectWikiProjectInfoSections(project teamProject) string {
+	var sb strings.Builder
+	sb.WriteString("## Snapshot\n\n")
+	fmt.Fprintf(&sb, "- Project ID: `%s`\n", project.ID)
+	if name := strings.TrimSpace(project.Name); name != "" {
+		fmt.Fprintf(&sb, "- Project name: %s\n", name)
+	}
+	if description := strings.TrimSpace(project.Description); description != "" {
+		fmt.Fprintf(&sb, "- Description: %s\n", description)
+	}
+	if channel := strings.TrimSpace(project.Channel); channel != "" {
+		fmt.Fprintf(&sb, "- Channel: `#%s`\n", channel)
+	}
+	sb.WriteString(renderProjectWikiLeadAgentLine(project) + "\n")
+	sb.WriteString(renderProjectWikiGitHubRepoLine(project) + "\n")
+	if status := strings.TrimSpace(project.Status); status != "" {
+		fmt.Fprintf(&sb, "- Status: `%s`\n", status)
+	}
+	if updatedAt := strings.TrimSpace(project.UpdatedAt); updatedAt != "" {
+		fmt.Fprintf(&sb, "- Updated: `%s`\n", updatedAt)
+	}
+
+	if additional := strings.TrimSpace(project.AdditionalInfo); additional != "" {
+		sb.WriteString("\n## Additional information\n\n")
+		sb.WriteString(additional)
+		sb.WriteString("\n")
+	}
+	if recipe := strings.TrimSpace(project.RecipeMarkdown); recipe != "" {
+		sb.WriteString("\n## Agent recipe\n\n")
+		if fileName := strings.TrimSpace(project.RecipeFileName); fileName != "" {
+			fmt.Fprintf(&sb, "- File: `%s`\n", fileName)
+		}
+		if updatedAt := strings.TrimSpace(project.RecipeUpdatedAt); updatedAt != "" {
+			fmt.Fprintf(&sb, "- Updated: `%s`\n", updatedAt)
+		}
+		sb.WriteString("\n")
+		sb.WriteString(recipe)
+		sb.WriteString("\n")
+	}
+	return strings.TrimRight(sb.String(), "\n") + "\n"
+}
+
+func renderProjectLiveMemory(project teamProject) string {
+	if strings.TrimSpace(project.ID) == "" {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("Live project reference from the project detail panel:\n")
+	fmt.Fprintf(&sb, "- Project ID: `%s`\n", project.ID)
+	if name := strings.TrimSpace(project.Name); name != "" {
+		fmt.Fprintf(&sb, "- Project name: %s\n", name)
+	}
+	if description := strings.TrimSpace(project.Description); description != "" {
+		fmt.Fprintf(&sb, "- Description: %s\n", description)
+	}
+	if repo := strings.TrimSpace(project.GitHubRepoURL); repo != "" {
+		fmt.Fprintf(&sb, "- GitHub repo: %s\n", repo)
+	}
+	if additional := strings.TrimSpace(project.AdditionalInfo); additional != "" {
+		fmt.Fprintf(&sb, "- Additional information: %s\n", oneLineTaskWikiText(additional))
+	}
+	if recipe := strings.TrimSpace(project.RecipeMarkdown); recipe != "" {
+		if fileName := strings.TrimSpace(project.RecipeFileName); fileName != "" {
+			fmt.Fprintf(&sb, "- Agent recipe file: `%s`\n", fileName)
+		}
+		sb.WriteString("\nAgent recipe markdown:\n")
+		sb.WriteString(recipe)
+		sb.WriteString("\n")
+	}
+	return strings.TrimSpace(sb.String())
+}
+
+func nonEmptyStrings(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func renderProjectTaskWikiEvent(task teamTask, verb string) string {
