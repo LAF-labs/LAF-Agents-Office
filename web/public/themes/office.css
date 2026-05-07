@@ -5069,3 +5069,252 @@ html[data-theme^="office"] .project-inline-status.is-in_progress {
     padding-inline: 18px;
   }
 }
+
+/* Apple auth repair: keep the entry form compact inside its snow surface. */
+html[data-theme^="office"] .auth-page {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 56px 24px;
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .auth-language {
+  top: 20px;
+  right: 24px;
+  gap: 8px;
+  border: 1px solid var(--color-silver-mist);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 6px 8px 6px 12px;
+  color: var(--color-graphite);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+html[data-theme^="office"] .auth-language select {
+  height: 30px;
+  min-width: 100px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(210, 210, 215, 0.64);
+  padding: 0 26px 0 10px;
+  color: var(--color-ink);
+  font-size: 12px;
+}
+
+html[data-theme^="office"] .auth-shell {
+  display: grid;
+  width: min(960px, calc(100vw - 48px));
+  max-width: 960px;
+  grid-template-columns: minmax(240px, 320px) minmax(360px, 500px);
+  align-items: start;
+  gap: 56px;
+}
+
+html[data-theme^="office"] .auth-copy {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 20px;
+}
+
+html[data-theme^="office"] .auth-brand-mark {
+  grid-row: 1 / 3;
+  width: 64px;
+  height: 64px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-azure);
+  color: var(--color-snow);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+html[data-theme^="office"] .auth-kicker {
+  color: var(--color-graphite);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .auth-copy h1 {
+  max-width: 100%;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+html[data-theme^="office"] .auth-copy p {
+  grid-column: 2;
+  max-width: 520px;
+  color: var(--color-graphite);
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+html[data-theme^="office"] .auth-panel {
+  box-sizing: border-box;
+  gap: 18px;
+  width: 100%;
+  border: 0;
+  border-radius: 28px;
+  background: var(--color-snow);
+  padding: 28px;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .auth-panel-header {
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+
+html[data-theme^="office"] .auth-panel-header span {
+  color: var(--color-cobalt-link);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .auth-panel-header h2 {
+  color: var(--color-ink);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.18;
+}
+
+html[data-theme^="office"] .auth-panel-header p,
+html[data-theme^="office"] .auth-section-heading p {
+  color: var(--color-graphite);
+  font-size: 15px;
+  line-height: 1.46;
+}
+
+html[data-theme^="office"] .auth-form-section {
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-silver-mist);
+}
+
+html[data-theme^="office"] .auth-form-section h3,
+html[data-theme^="office"] .auth-field label {
+  color: var(--color-ash);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .auth-field {
+  gap: 7px;
+}
+
+html[data-theme^="office"] .auth-field input,
+html[data-theme^="office"] .auth-field select,
+html[data-theme^="office"] .invite-form input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: var(--color-fog);
+  padding: 0 16px;
+  color: var(--color-ink);
+  font-size: 17px;
+  line-height: 1.47;
+}
+
+html[data-theme^="office"] .auth-field input:focus,
+html[data-theme^="office"] .auth-field select:focus,
+html[data-theme^="office"] .invite-form input:focus {
+  border-color: var(--color-azure);
+  background: var(--color-snow);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+  outline: 0;
+}
+
+html[data-theme^="office"] .auth-choice-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+}
+
+html[data-theme^="office"] .auth-choice-list button,
+html[data-theme^="office"] .auth-choice-list button + button {
+  min-height: 86px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: var(--color-fog);
+  padding: 14px;
+}
+
+html[data-theme^="office"] .auth-choice-list button:hover {
+  border-color: var(--color-silver-mist);
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .auth-choice-list button.active {
+  border-color: var(--color-azure);
+  background: var(--color-snow);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+html[data-theme^="office"] .auth-submit,
+html[data-theme^="office"] .invite-primary {
+  min-height: 52px;
+  border-radius: var(--radius-full);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .auth-mode-switch {
+  justify-content: center;
+  color: var(--color-graphite);
+  font-size: 15px;
+}
+
+html[data-theme^="office"] .auth-mode-switch button {
+  color: var(--color-cobalt-link);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  html[data-theme^="office"] .auth-page {
+    align-items: flex-start;
+    padding: 72px 20px 32px;
+  }
+
+  html[data-theme^="office"] .auth-shell {
+    width: min(520px, 100%);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  html[data-theme^="office"] .auth-copy h1 {
+    font-size: 36px;
+  }
+
+  html[data-theme^="office"] .auth-copy p {
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 560px) {
+  html[data-theme^="office"] .auth-page {
+    padding-inline: 14px;
+  }
+
+  html[data-theme^="office"] .auth-shell {
+    width: 100%;
+  }
+
+  html[data-theme^="office"] .auth-panel {
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  html[data-theme^="office"] .auth-choice-list {
+    grid-template-columns: 1fr;
+  }
+}
