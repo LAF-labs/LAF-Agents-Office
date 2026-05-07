@@ -4,7 +4,10 @@ import {
   createProject,
   createTask,
   getProjectRepoReadiness,
+  initApi,
+  login,
   updateProject,
+  updateTask,
 } from "./client";
 
 describe("project api client", () => {
@@ -144,6 +147,47 @@ describe("project api client", () => {
     expect(result.task.project_id).toBe("customer-portal");
   });
 
+  it("updates a project task without changing its workflow state", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          task: {
+            id: "task-1",
+            title: "Updated signup",
+            details: "Tighter detail.",
+            human_details: "Tighter detail.",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateTask({
+      id: "task-1",
+      channel: "general",
+      title: "Updated signup",
+      details: "Tighter detail.",
+      human_details: "Tighter detail.",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/tasks",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          action: "update",
+          created_by: "human",
+          id: "task-1",
+          channel: "general",
+          title: "Updated signup",
+          details: "Tighter detail.",
+          human_details: "Tighter detail.",
+        }),
+      }),
+    );
+  });
+
   it("checks project-scoped GitHub readiness without using a team-wide repo", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -172,5 +216,29 @@ describe("project api client", () => {
     );
     expect(result.readiness.can_create_coding_tasks).toBe(true);
     expect(result.readiness.default_branch).toBe("main");
+  });
+
+  it("keeps same-origin proxy mode when the dev proxy is temporarily unavailable", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("bad gateway", { status: 502 }))
+      .mockResolvedValueOnce(
+        new Response("invalid credentials", { status: 401 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await initApi();
+
+    await expect(
+      login({ email: "nobody@example.com", password: "wrongpassword" }),
+    ).rejects.toThrow("invalid credentials");
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/auth/login",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      }),
+    );
   });
 });

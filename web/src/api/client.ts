@@ -13,6 +13,11 @@ let token: string | null = null;
 export async function initApi(): Promise<void> {
   try {
     const r = await fetch("/api-token", { credentials: "include" });
+    if (!r.ok) {
+      useProxy = true;
+      token = null;
+      return;
+    }
     const data = await r.json();
     const { broker_url: brokerURL, token: apiToken } = data;
     token = apiToken;
@@ -743,6 +748,23 @@ export function createTask(body: {
 }) {
   return post<{ task: Task }>("/tasks", {
     action: "create",
+    created_by: "human",
+    ...body,
+  });
+}
+
+export function updateTask(body: {
+  id: string;
+  title?: string;
+  details?: string;
+  human_details?: string;
+  clear_details?: boolean;
+  project_id?: string;
+  channel?: string;
+  created_by?: string;
+}) {
+  return post<{ task: Task }>("/tasks", {
+    action: "update",
     created_by: "human",
     ...body,
   });

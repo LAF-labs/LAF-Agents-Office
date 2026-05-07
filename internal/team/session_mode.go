@@ -1,12 +1,16 @@
 package team
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
+)
 
 const (
 	SessionModeOffice   = "office"
 	SessionModeOneOnOne = "1o1"
 
-	DefaultOneOnOneAgent = "ceo"
+	DefaultOneOnOneAgent = office.DefaultLeadAgentSlug
 )
 
 func NormalizeSessionMode(mode string) string {

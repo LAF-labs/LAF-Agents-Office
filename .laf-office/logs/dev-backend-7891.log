@@ -1,0 +1,8 @@
+Launching LAF-Office web view (3 agents)... the browser opens the project workspace.
+2026/05/07 16:17:03 wiki lint cron: disabled (set LAF_OFFICE_LINT_CRON=HH:MM to enable a daily run)
+2026/05/07 16:17:03 wiki_index: boot reconcile complete
+
+  Web UI:  http://localhost:7891
+  Broker:  http://127.0.0.1:7890
+  Press Ctrl+C to stop.
+

@@ -1448,7 +1448,7 @@ var activityWatchdogEnabled = true
 // activity state before the watchdog forcibly resets it to idle. Set long
 // enough to cover normal long turns (tool chains, big edits) but short enough
 // that a crashed spawn does not leave the agent looking "active" for hours —
-// which blocks the CEO's "Already active in this thread" re-route guard and
+// which blocks the lead's "Already active in this thread" re-route guard and
 // prevents the specialist from being dispatched again.
 const staleActivityThreshold = 5 * time.Minute
 
@@ -2336,7 +2336,7 @@ func (b *Broker) handleEvents(w http.ResponseWriter, r *http.Request) {
 // arguments. Without this, the stream only shows raw pane-captured stdout —
 // useless for agents whose work happens entirely through MCP tool calls.
 //
-// Body: {"slug":"ceo","phase":"call|result|error","tool":"team_broadcast","args":"...","result":"...","error":"..."}
+// Body: {"slug":"architect","phase":"call|result|error","tool":"team_broadcast","args":"...","result":"...","error":"..."}
 // Phase is informational; all fields but slug are optional.
 func (b *Broker) handleAgentToolEvent(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -3495,7 +3495,7 @@ func defaultOfficeMembers() []officeMember {
 	}
 	members := make([]officeMember, 0, len(manifest.Members))
 	for _, cfg := range manifest.Members {
-		builtIn := cfg.System || cfg.Slug == manifest.Lead || cfg.Slug == "ceo"
+		builtIn := cfg.System || cfg.Slug == manifest.Lead || office.IsCoreAgentSlug(cfg.Slug)
 		members = append(members, memberFromSpec(cfg, "laf-office", now, builtIn))
 	}
 	return members
@@ -3661,7 +3661,144 @@ func (b *Broker) ensureDefaultOfficeMembersLocked() {
 	b.members = defaultOfficeMembers()
 }
 
+func (b *Broker) defaultLeadMemberSlugLocked() string {
+	for _, member := range b.members {
+		if member.Slug == office.DefaultLeadAgentSlug {
+			return member.Slug
+		}
+	}
+	for _, member := range b.members {
+		if member.BuiltIn {
+			return member.Slug
+		}
+	}
+	if len(b.members) > 0 {
+		return b.members[0].Slug
+	}
+	return office.DefaultLeadAgentSlug
+}
+
+func (b *Broker) migrateLegacyCoreRosterLocked() {
+	if !legacyCoreRosterPresent(b.members) {
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	core := defaultOfficeMembers()
+	if len(core) == 0 {
+		core = []officeMember{
+			{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "Architect", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+			{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "Builder", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+			{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		}
+	}
+	for i := range core {
+		core[i].BuiltIn = true
+		if strings.TrimSpace(core[i].CreatedAt) == "" {
+			core[i].CreatedAt = now
+		}
+	}
+
+	migrated := make([]officeMember, 0, len(core)+len(b.members))
+	seen := make(map[string]struct{}, len(core)+len(b.members))
+	for _, member := range core {
+		member.Slug = normalizeChannelSlug(member.Slug)
+		seen[member.Slug] = struct{}{}
+		migrated = append(migrated, member)
+	}
+	for _, member := range b.members {
+		slug := normalizeChannelSlug(member.Slug)
+		if slug == "" || office.IsAgentMakerSlug(slug) || legacyDefaultAgentMapsToCore(slug) != "" || office.IsCoreAgentSlug(slug) {
+			continue
+		}
+		if _, ok := seen[slug]; ok {
+			continue
+		}
+		member.Slug = slug
+		member.BuiltIn = false
+		seen[slug] = struct{}{}
+		migrated = append(migrated, member)
+	}
+	b.members = migrated
+	b.rebuildMemberIndexLocked()
+
+	for i := range b.channels {
+		b.channels[i].Members = mapAgentSlugListToCore(b.channels[i].Members, true)
+		b.channels[i].Disabled = mapAgentSlugListToCore(b.channels[i].Disabled, false)
+	}
+	for i := range b.tasks {
+		b.tasks[i].Owner = mapLegacyTaskActorToCore(b.tasks[i].Owner)
+		b.tasks[i].CreatedBy = mapLegacyTaskActorToCore(b.tasks[i].CreatedBy)
+	}
+	for i := range b.projects {
+		b.projects[i].LeadAgent = mapLegacyTaskActorToCore(b.projects[i].LeadAgent)
+	}
+	for i := range b.requests {
+		b.requests[i].From = mapLegacyTaskActorToCore(b.requests[i].From)
+	}
+	for i := range b.actions {
+		b.actions[i].Actor = mapLegacyTaskActorToCore(b.actions[i].Actor)
+	}
+	for i := range b.messages {
+		b.messages[i].From = mapLegacyTaskActorToCore(b.messages[i].From)
+		b.messages[i].Tagged = mapAgentSlugListToCore(b.messages[i].Tagged, false)
+	}
+}
+
+func legacyCoreRosterPresent(members []officeMember) bool {
+	for _, member := range members {
+		if legacyDefaultAgentMapsToCore(member.Slug) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func legacyDefaultAgentMapsToCore(slug string) string {
+	switch normalizeActorSlug(slug) {
+	case "ceo", "founder", "operator", "planner", "pm", "product", "product-manager":
+		return office.ArchitectAgentSlug
+	case "executor", "founding-engineer", "ai-engineer", "designer":
+		return office.BuilderAgentSlug
+	case "analyst":
+		return office.ReviewerAgentSlug
+	default:
+		return ""
+	}
+}
+
+func mapLegacyTaskActorToCore(slug string) string {
+	normalized := normalizeActorSlug(slug)
+	if normalized == "" || normalized == "human" || normalized == "you" {
+		return slug
+	}
+	if mapped := legacyDefaultAgentMapsToCore(normalized); mapped != "" {
+		return mapped
+	}
+	return normalized
+}
+
+func mapAgentSlugListToCore(slugs []string, includeAllCoreWhenEmpty bool) []string {
+	mapped := make([]string, 0, len(slugs)+3)
+	for _, slug := range slugs {
+		normalized := normalizeActorSlug(slug)
+		if normalized == "" || office.IsAgentMakerSlug(normalized) {
+			continue
+		}
+		if legacy := legacyDefaultAgentMapsToCore(normalized); legacy != "" {
+			normalized = legacy
+		}
+		mapped = append(mapped, normalized)
+	}
+	mapped = uniqueSlugs(mapped)
+	if includeAllCoreWhenEmpty && len(mapped) == 0 {
+		return office.CoreAgentSlugs()
+	}
+	return mapped
+}
+
 func (b *Broker) normalizeLoadedStateLocked() {
+	b.migrateLegacyCoreRosterLocked()
 	b.sessionMode = NormalizeSessionMode(b.sessionMode)
 	b.oneOnOneAgent = NormalizeOneOnOneAgent(b.oneOnOneAgent)
 	if b.findMemberLocked(b.oneOnOneAgent) == nil {
@@ -3686,7 +3823,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		if member.Role == "" {
 			member.Role = member.Name
 		}
-		member.BuiltIn = member.Slug == "ceo"
+		member.BuiltIn = member.Slug == office.DefaultLeadAgentSlug || office.IsCoreAgentSlug(member.Slug)
 		member.Expertise = normalizeStringList(member.Expertise)
 		member.AllowedTools = normalizeStringList(member.AllowedTools)
 		normalizedMembers = append(normalizedMembers, member)
@@ -3715,10 +3852,11 @@ func (b *Broker) normalizeLoadedStateLocked() {
 				filteredMembers = append(filteredMembers, slug)
 			}
 		}
-		b.channels[i].Members = uniqueSlugs(append([]string{"ceo"}, filteredMembers...))
+		lead := b.defaultLeadMemberSlugLocked()
+		b.channels[i].Members = uniqueSlugs(append([]string{lead}, filteredMembers...))
 		filteredDisabled := make([]string, 0, len(b.channels[i].Disabled))
 		for _, slug := range uniqueSlugs(b.channels[i].Disabled) {
-			if slug == "ceo" {
+			if slug == lead {
 				continue
 			}
 			if b.findMemberLocked(slug) != nil && containsString(b.channels[i].Members, slug) {
@@ -4480,7 +4618,7 @@ func (b *Broker) canAccessChannelLocked(slug, channel string) bool {
 	if slug == "" || slug == "you" || slug == "human" || slug == "automation" || slug == "system" {
 		return true
 	}
-	if slug == "ceo" {
+	if slug == office.DefaultLeadAgentSlug || legacyDefaultAgentMapsToCore(slug) == office.DefaultLeadAgentSlug {
 		return true
 	}
 	return b.channelHasMemberLocked(channel, slug)
@@ -4522,6 +4660,12 @@ func applyOfficeMemberDefaults(member *officeMember) {
 func inferOfficeExpertise(slug, role string) []string {
 	text := strings.ToLower(strings.TrimSpace(slug + " " + role))
 	switch {
+	case normalizeActorSlug(slug) == office.ArchitectAgentSlug:
+		return []string{"scope", "architecture", "task design", "handoffs", "risk triage"}
+	case normalizeActorSlug(slug) == office.BuilderAgentSlug:
+		return []string{"implementation", "execution", "integration", "delivery", "evidence"}
+	case normalizeActorSlug(slug) == office.ReviewerAgentSlug:
+		return []string{"review", "quality", "security", "verification", "handoff"}
 	case strings.Contains(text, "front"), strings.Contains(text, "ui"), strings.Contains(text, "design eng"):
 		return []string{"frontend", "UI", "interaction design", "components", "accessibility"}
 	case strings.Contains(text, "back"), strings.Contains(text, "api"), strings.Contains(text, "infra"):
@@ -4544,6 +4688,12 @@ func inferOfficeExpertise(slug, role string) []string {
 func inferOfficePersonality(slug, role string) string {
 	text := strings.ToLower(strings.TrimSpace(slug + " " + role))
 	switch {
+	case normalizeActorSlug(slug) == office.ArchitectAgentSlug:
+		return "Architect who diagnoses the real gap, pushes back on vague scope, and turns intent into crisp work."
+	case normalizeActorSlug(slug) == office.BuilderAgentSlug:
+		return "Builder who ships the smallest useful slice, handles errors directly, and leaves clean evidence."
+	case normalizeActorSlug(slug) == office.ReviewerAgentSlug:
+		return "Reviewer who checks changed scope for correctness, security, quality, and handoff readiness."
 	case strings.Contains(text, "front"):
 		return "Frontend specialist focused on polished user-facing work and sharp interaction details."
 	case strings.Contains(text, "back"):
@@ -6162,9 +6312,9 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := normalizeActorSlug(body.Actor)
-	if actor != "ceo" {
-		http.Error(w, "only the CEO can bridge channel context", http.StatusForbidden)
+	actor := mapLegacyTaskActorToCore(body.Actor)
+	if actor != office.DefaultLeadAgentSlug {
+		http.Error(w, "only the lead can bridge channel context", http.StatusForbidden)
 		return
 	}
 	source := normalizeChannelSlug(body.SourceChannel)
@@ -6193,9 +6343,9 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 		Source:     "channel_bridge",
 		Kind:       "bridge",
 		Title:      "Cross-channel bridge",
-		Content:    fmt.Sprintf("CEO bridged context from #%s to #%s: %s", source, target, summary),
+		Content:    fmt.Sprintf("@%s bridged context from #%s to #%s: %s", actor, source, target, summary),
 		Channel:    target,
-		Owner:      "ceo",
+		Owner:      actor,
 		Confidence: "explicit",
 		Urgency:    "normal",
 	}})
@@ -6210,9 +6360,9 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 	decision, err := b.RecordDecision(
 		"bridge_channel",
 		target,
-		fmt.Sprintf("CEO bridged context from #%s to #%s.", source, target),
-		"Relevant context existed in another channel, so the CEO carried it into this channel explicitly.",
-		"ceo",
+		fmt.Sprintf("@%s bridged context from #%s to #%s.", actor, source, target),
+		"Relevant context existed in another channel, so the lead carried it into this channel explicitly.",
+		actor,
 		signalIDs,
 		false,
 		false,
@@ -6221,15 +6371,15 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to record bridge decision", http.StatusInternalServerError)
 		return
 	}
-	content := summary + fmt.Sprintf("\n\nCEO bridged this context from #%s to help #%s.", source, target)
+	content := summary + fmt.Sprintf("\n\n@%s bridged this context from #%s to help #%s.", actor, source, target)
 	msg, _, err := b.PostAutomationMessage(
 		"laf-office",
 		target,
 		"Bridge from #"+source,
 		content,
 		decision.ID,
-		"ceo_bridge",
-		"CEO bridge",
+		"lead_bridge",
+		"Lead bridge",
 		uniqueSlugs(body.Tagged),
 		strings.TrimSpace(body.ReplyTo),
 	)
@@ -6237,7 +6387,7 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to persist bridge message", http.StatusInternalServerError)
 		return
 	}
-	if err := b.RecordAction("bridge_channel", "ceo_bridge", target, actor, truncateSummary(summary, 140), msg.ID, signalIDs, decision.ID); err != nil {
+	if err := b.RecordAction("bridge_channel", "lead_bridge", target, actor, truncateSummary(summary, 140), msg.ID, signalIDs, decision.ID); err != nil {
 		http.Error(w, "failed to persist bridge action", http.StatusInternalServerError)
 		return
 	}
@@ -6654,6 +6804,9 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		members := make([]officeMemberResponse, 0, len(b.members))
 		for _, member := range b.members {
+			if office.IsAgentMakerSlug(member.Slug) {
+				continue
+			}
 			entry := officeMemberResponse{officeMember: member}
 			if snapshot, ok := b.activity[member.Slug]; ok {
 				entry.Status = snapshot.Status
@@ -6705,6 +6858,10 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 		slug := normalizeChannelSlug(body.Slug)
 		if slug == "" {
 			http.Error(w, "slug required", http.StatusBadRequest)
+			return
+		}
+		if office.IsAgentMakerSlug(slug) {
+			http.Error(w, "agent-maker is settings-only and cannot join the office roster", http.StatusBadRequest)
 			return
 		}
 		now := time.Now().UTC().Format(time.RFC3339)
@@ -6933,7 +7090,7 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "member not found", http.StatusNotFound)
 				return
 			}
-			if member.BuiltIn || slug == "ceo" {
+			if member.BuiltIn || office.IsCoreAgentSlug(slug) || office.IsAgentMakerSlug(slug) {
 				http.Error(w, "cannot remove built-in member", http.StatusBadRequest)
 				return
 			}
@@ -7160,8 +7317,9 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "unknown members: "+missing, http.StatusNotFound)
 				return
 			}
-			members = append([]string{"ceo"}, members...)
-			if creator := normalizeChannelSlug(body.CreatedBy); creator != "" && creator != "ceo" && b.findMemberLocked(creator) != nil {
+			lead := b.defaultLeadMemberSlugLocked()
+			members = append([]string{lead}, members...)
+			if creator := normalizeChannelSlug(body.CreatedBy); creator != "" && creator != lead && b.findMemberLocked(creator) != nil {
 				members = append(members, creator)
 			}
 			ch := teamChannel{
@@ -7213,7 +7371,7 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, "unknown members: "+missing, http.StatusNotFound)
 					return
 				}
-				ch.Members = uniqueSlugs(append([]string{"ceo"}, members...))
+				ch.Members = uniqueSlugs(append([]string{b.defaultLeadMemberSlugLocked()}, members...))
 				if len(ch.Disabled) > 0 {
 					filtered := make([]string, 0, len(ch.Disabled))
 					for _, disabled := range ch.Disabled {
@@ -7456,12 +7614,10 @@ func (b *Broker) handleChannelMembers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "member not found", http.StatusNotFound)
 			return
 		}
-		// Lead agents (BuiltIn) cannot be disabled or removed from any
-		// channel. The blueprint's lead is the tag target for the onboarding
-		// kickoff and the default owner for channel membership; the UI locks
-		// these interactions too. Keeps the "ceo" literal as a legacy guard
-		// for team states that predate the BuiltIn field.
-		if (memberRecord.BuiltIn || member == "ceo") && (action == "remove" || action == "disable") {
+		// Core agents cannot be disabled or removed from any channel. They are
+		// the always-on Architect/Builder/Reviewer runtime and the UI locks
+		// these interactions too.
+		if (memberRecord.BuiltIn || office.IsCoreAgentSlug(member)) && (action == "remove" || action == "disable") {
 			b.mu.Unlock()
 			http.Error(w, "cannot remove or disable lead agent", http.StatusBadRequest)
 			return
@@ -7907,11 +8063,11 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// synthetic senders — is excluded by default so automation posts do not
 	// accidentally wake agents on every @-reference they quote.
 	//
-	// Exception: when the human explicitly tags the lead (CEO), do not
+	// Exception: when the human explicitly tags the lead, do not
 	// auto-promote OTHER agents mentioned in the body. Example:
-	// "@ceo ask @reviewer to ..." — the human's intent is for CEO to route,
+	// "@architect ask @reviewer to ..." — the human's intent is for the lead to route,
 	// not for the broker to fan out in parallel. Without this guard the
-	// reviewer gets notified twice (by auto-promote AND later by CEO's
+	// reviewer gets notified twice (by auto-promote AND later by the lead's
 	// explicit tag), spawning two turns with nearly identical answers.
 	tagged := uniqueSlugs(body.Tagged)
 	sender := normalizeActorSlug(body.From)
@@ -7973,7 +8129,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 
 	// Dedup near-identical consecutive broadcasts from the same agent in the
 	// same channel + thread within a short window. Observed symptom: a single
-	// CEO turn emits 2-3 team_broadcast calls with the same content in
+	// agent turn emits 2-3 team_broadcast calls with the same content in
 	// slightly different wording, each costing a full round-trip downstream.
 	// The prompt tells the model "at most one broadcast per turn", but that
 	// rule is routinely ignored; this is the broker-side safety net.
@@ -8338,13 +8494,19 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 			messageIndex[id] = msg
 		}
 	}
+	threadIDs := map[string]struct{}(nil)
+	if threadID != "" {
+		threadIDs = messageThreadIDs(channelMessages, threadID)
+	}
 	messages := make([]channelMessage, 0, len(channelMessages))
 	for _, msg := range channelMessages {
 		if b.sessionMode == SessionModeOneOnOne && !b.isOneOnOneDMMessage(msg) {
 			continue
 		}
-		if threadID != "" && !messageInThread(msg, threadID) {
-			continue
+		if threadID != "" {
+			if _, ok := threadIDs[strings.TrimSpace(msg.ID)]; !ok {
+				continue
+			}
 		}
 		if scope != "" && viewerSlug != "" && !messageMatchesViewerScope(msg, viewerSlug, scope, messageIndex) {
 			continue
@@ -8391,12 +8553,35 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func messageInThread(msg channelMessage, threadID string) bool {
+func messageThreadIDs(messages []channelMessage, threadID string) map[string]struct{} {
 	threadID = strings.TrimSpace(threadID)
+	result := make(map[string]struct{})
 	if threadID == "" {
-		return true
+		return result
 	}
-	return strings.TrimSpace(msg.ID) == threadID || strings.TrimSpace(msg.ReplyTo) == threadID
+	byParent := make(map[string][]string, len(messages))
+	for _, msg := range messages {
+		id := strings.TrimSpace(msg.ID)
+		parent := strings.TrimSpace(msg.ReplyTo)
+		if id == "" || parent == "" {
+			continue
+		}
+		byParent[parent] = append(byParent[parent], id)
+	}
+	result[threadID] = struct{}{}
+	queue := []string{threadID}
+	for len(queue) > 0 {
+		parent := queue[0]
+		queue = queue[1:]
+		for _, child := range byParent[parent] {
+			if _, seen := result[child]; seen {
+				continue
+			}
+			result[child] = struct{}{}
+			queue = append(queue, child)
+		}
+	}
+	return result
 }
 
 func normalizeMessageScope(value string) string {
@@ -8430,7 +8615,7 @@ func messageVisibleToViewer(msg channelMessage, viewerSlug string, messagesByID 
 
 func messageBelongsToViewerOutbox(msg channelMessage, viewerSlug string) bool {
 	viewerSlug = strings.TrimSpace(viewerSlug)
-	if viewerSlug == "" || viewerSlug == "ceo" {
+	if viewerSlug == "" || viewerSlug == office.DefaultLeadAgentSlug || legacyDefaultAgentMapsToCore(viewerSlug) == office.DefaultLeadAgentSlug {
 		return true
 	}
 	return strings.TrimSpace(msg.From) == viewerSlug
@@ -8438,14 +8623,14 @@ func messageBelongsToViewerOutbox(msg channelMessage, viewerSlug string) bool {
 
 func messageBelongsToViewerInbox(msg channelMessage, viewerSlug string, messagesByID map[string]channelMessage) bool {
 	viewerSlug = strings.TrimSpace(viewerSlug)
-	if viewerSlug == "" || viewerSlug == "ceo" {
+	if viewerSlug == "" || viewerSlug == office.DefaultLeadAgentSlug || legacyDefaultAgentMapsToCore(viewerSlug) == office.DefaultLeadAgentSlug {
 		return true
 	}
 	from := strings.TrimSpace(msg.From)
 	switch from {
 	case viewerSlug:
 		return false
-	case "you", "human", "ceo":
+	case "you", "human", office.DefaultLeadAgentSlug:
 		return true
 	}
 	for _, tagged := range msg.Tagged {
@@ -8809,6 +8994,9 @@ func normalizeProjectLeadAgent(raw string) string {
 	if slug == "" || slug == "human" || slug == "you" {
 		return ""
 	}
+	if mapped := legacyDefaultAgentMapsToCore(slug); mapped != "" {
+		return mapped
+	}
 	return slug
 }
 
@@ -8826,9 +9014,9 @@ func (b *Broker) defaultProjectLeadAgent(project teamProject) string {
 		}
 	}
 	if strings.TrimSpace(project.GitHubRepoURL) != "" {
-		return "founding-engineer"
+		return office.BuilderAgentSlug
 	}
-	return "ceo"
+	return office.DefaultLeadAgentSlug
 }
 
 func (b *Broker) findProjectLocked(id string) *teamProject {
@@ -9173,6 +9361,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		Title            string   `json:"title"`
 		Details          string   `json:"details"`
 		HumanDetails     string   `json:"human_details"`
+		ClearDetails     bool     `json:"clear_details"`
 		Owner            string   `json:"owner"`
 		CreatedBy        string   `json:"created_by"`
 		ThreadID         string   `json:"thread_id"`
@@ -9286,12 +9475,13 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "title and created_by required", http.StatusBadRequest)
 			return
 		}
+		owner := mapLegacyTaskActorToCore(body.Owner)
 		if existing := b.findReusableTaskLocked(taskReuseMatch{
 			Channel:          channel,
 			ProjectID:        projectID,
 			Title:            strings.TrimSpace(body.Title),
 			ThreadID:         strings.TrimSpace(body.ThreadID),
-			Owner:            strings.TrimSpace(body.Owner),
+			Owner:            owner,
 			PipelineID:       strings.TrimSpace(body.PipelineID),
 			SourceSignalID:   strings.TrimSpace(body.SourceSignalID),
 			SourceDecisionID: strings.TrimSpace(body.SourceDecisionID),
@@ -9302,7 +9492,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if humanDetails != "" {
 				existing.HumanDetails = humanDetails
 			}
-			if owner := strings.TrimSpace(body.Owner); owner != "" {
+			if owner != "" {
 				existing.Owner = owner
 				existing.Status = "in_progress"
 			}
@@ -9368,7 +9558,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			Title:            strings.TrimSpace(body.Title),
 			Details:          strings.TrimSpace(body.Details),
 			HumanDetails:     humanDetails,
-			Owner:            strings.TrimSpace(body.Owner),
+			Owner:            owner,
 			Status:           "open",
 			CreatedBy:        strings.TrimSpace(body.CreatedBy),
 			ThreadID:         strings.TrimSpace(body.ThreadID),
@@ -9435,12 +9625,22 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		cancelTriggered := false
 		cancelPrevOwner := ""
 		switch action {
+		case "update":
+			if title := strings.TrimSpace(body.Title); title != "" {
+				task.Title = title
+			}
+			if body.ClearDetails {
+				task.Details = ""
+				task.HumanDetails = ""
+			} else if humanDetails != "" {
+				task.HumanDetails = humanDetails
+			}
 		case "claim", "assign":
 			if strings.TrimSpace(body.Owner) == "" {
 				http.Error(w, "owner required", http.StatusBadRequest)
 				return
 			}
-			task.Owner = strings.TrimSpace(body.Owner)
+			task.Owner = mapLegacyTaskActorToCore(body.Owner)
 			task.Status = taskStatusInProgress
 			if taskNeedsStructuredReview(task) {
 				task.ReviewState = reviewStatePendingReview
@@ -9453,7 +9653,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			reassignPrevOwner = strings.TrimSpace(task.Owner)
-			newOwner := strings.TrimSpace(body.Owner)
+			newOwner := mapLegacyTaskActorToCore(body.Owner)
 			task.Owner = newOwner
 			status := strings.ToLower(strings.TrimSpace(task.Status))
 			if status != taskStatusDone && status != taskStatusReview {
@@ -9641,8 +9841,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 
 // postTaskReassignNotificationsLocked posts the channel announcement plus DMs
 // to the new owner and previous owner whenever a task ownership change happens.
-// The CEO is tagged in the channel message rather than DM'd (CEO is the human
-// user; human↔ceo self-DM is not a valid DM target).
+// The lead is tagged in the channel message rather than DM'd.
 //
 // Must be called while b.mu is held for write.
 func (b *Broker) postTaskReassignNotificationsLocked(actor string, task *teamTask, prevOwner string) {
@@ -9676,6 +9875,7 @@ func (b *Broker) postTaskReassignNotificationsLocked(actor string, task *teamTas
 	if prevOwner != "" {
 		prevLabel = "@" + prevOwner
 	}
+	lead := b.defaultLeadMemberSlugLocked()
 
 	b.counter++
 	b.appendMessageLocked(channelMessage{
@@ -9684,8 +9884,8 @@ func (b *Broker) postTaskReassignNotificationsLocked(actor string, task *teamTas
 		Channel:   taskChannel,
 		Kind:      "task_reassigned",
 		Title:     title,
-		Content:   fmt.Sprintf("Task %q reassigned: %s → %s. (by @%s, cc @ceo)", title, prevLabel, newLabel, actor),
-		Tagged:    dedupeReassignTags([]string{"ceo", newOwner, prevOwner}),
+		Content:   fmt.Sprintf("Task %q reassigned: %s → %s. (by @%s, cc @%s)", title, prevLabel, newLabel, actor, lead),
+		Tagged:    dedupeReassignTags([]string{lead, newOwner, prevOwner}),
 		Timestamp: now,
 	})
 
@@ -9725,6 +9925,7 @@ func (b *Broker) postTaskCancelNotificationsLocked(actor string, task *teamTask,
 	if prevOwner != "" {
 		ownerLabel = "@" + prevOwner
 	}
+	lead := b.defaultLeadMemberSlugLocked()
 
 	b.counter++
 	b.appendMessageLocked(channelMessage{
@@ -9733,8 +9934,8 @@ func (b *Broker) postTaskCancelNotificationsLocked(actor string, task *teamTask,
 		Channel:   taskChannel,
 		Kind:      "task_canceled",
 		Title:     title,
-		Content:   fmt.Sprintf("Task %q closed as won't do. Owner was %s. (by @%s, cc @ceo)", title, ownerLabel, actor),
-		Tagged:    dedupeReassignTags([]string{"ceo", prevOwner}),
+		Content:   fmt.Sprintf("Task %q closed as won't do. Owner was %s. (by @%s, cc @%s)", title, ownerLabel, actor, lead),
+		Tagged:    dedupeReassignTags([]string{lead, prevOwner}),
 		Timestamp: now,
 	})
 
@@ -9782,15 +9983,17 @@ func (b *Broker) postTaskDMLocked(from, targetSlug, kind, title, content string)
 }
 
 // isDMTargetSlug reports whether slug is a valid recipient for a human-to-agent DM.
-// The human user ("human"/"you") and the CEO seat ("ceo", which is the human)
-// are excluded because they would create self-DMs.
+// Human/system aliases and settings-only helpers are excluded.
 func isDMTargetSlug(slug string) bool {
 	slug = strings.TrimSpace(slug)
 	if slug == "" {
 		return false
 	}
+	if office.IsAgentMakerSlug(slug) {
+		return false
+	}
 	switch slug {
-	case "human", "you", "ceo":
+	case "human", "you", "system":
 		return false
 	}
 	return true
@@ -9978,7 +10181,8 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		taskChannel := b.preferredTaskChannelLocked(channel, createdBy, item.Assignee, item.Title, item.Details)
+		assignee := mapLegacyTaskActorToCore(item.Assignee)
+		taskChannel := b.preferredTaskChannelLocked(channel, createdBy, assignee, item.Title, item.Details)
 		if b.findChannelLocked(taskChannel) == nil {
 			http.Error(w, "channel not found", http.StatusNotFound)
 			return
@@ -9997,7 +10201,7 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 		if existing := b.findReusableTaskLocked(taskReuseMatch{
 			Channel: taskChannel,
 			Title:   strings.TrimSpace(item.Title),
-			Owner:   strings.TrimSpace(item.Assignee),
+			Owner:   assignee,
 		}); existing != nil {
 			titleToID[strings.TrimSpace(item.Title)] = existing.ID
 			if details := strings.TrimSpace(item.Details); details != "" {
@@ -10046,7 +10250,7 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			Channel:       taskChannel,
 			Title:         strings.TrimSpace(item.Title),
 			Details:       strings.TrimSpace(item.Details),
-			Owner:         strings.TrimSpace(item.Assignee),
+			Owner:         assignee,
 			Status:        "open",
 			CreatedBy:     createdBy,
 			TaskType:      strings.TrimSpace(item.TaskType),

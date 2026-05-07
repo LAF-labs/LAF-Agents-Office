@@ -242,7 +242,7 @@ func TestOnboardingCompleteFromScratchPostsProjectWorkspaceMessages(t *testing.T
 func TestOnboardingCompleteFromScratchHonorsSelectedFoundingAgents(t *testing.T) {
 	ensureOperationsFallbackFS(t)
 	b := newTestBroker(t)
-	if err := b.onboardingCompleteFn("Build an automated customer-support operation", false, "", []string{"ceo", "founding-engineer"}); err != nil {
+	if err := b.onboardingCompleteFn("Build an automated customer-support operation", false, "", []string{"architect", "builder"}); err != nil {
 		t.Fatalf("onboardingCompleteFn: %v", err)
 	}
 
@@ -253,7 +253,7 @@ func TestOnboardingCompleteFromScratchHonorsSelectedFoundingAgents(t *testing.T)
 	}
 	b.mu.Unlock()
 
-	want := []string{"ceo", "founding-engineer"}
+	want := []string{"architect", "builder"}
 	if len(slugs) != len(want) {
 		t.Fatalf("from-scratch selected roster got %v, want %v", slugs, want)
 	}
@@ -355,7 +355,7 @@ func TestOnboardingCompleteSkipTaskPersistsTeam(t *testing.T) {
 	}
 	reloaded.mu.Unlock()
 
-	want := map[string]bool{"ceo": true, "planner": true, "builder": true, "growth": true, "reviewer": true}
+	want := map[string]bool{"architect": true, "builder": true, "reviewer": true, "growth": true}
 	for slug := range want {
 		found := false
 		for _, got := range slugs {
@@ -368,8 +368,7 @@ func TestOnboardingCompleteSkipTaskPersistsTeam(t *testing.T) {
 			t.Errorf("expected niche-crm slug %q to persist across restart; got %v", slug, slugs)
 		}
 	}
-	// DefaultManifest is ceo/planner/executor/reviewer; executor is the
-	// distinguishing leak signal now that ceo is a legitimate blueprint lead.
+	// Legacy DefaultManifest slugs must not leak into the persisted roster.
 	for _, slug := range slugs {
 		if slug == "executor" {
 			t.Errorf("DefaultManifest slug %q leaked into persisted roster %v", slug, slugs)

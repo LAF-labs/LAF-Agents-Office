@@ -5318,3 +5318,250 @@ html[data-theme^="office"] .auth-mode-switch button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Project ticket density and detail-panel controls. */
+html[data-theme^="office"] .project-ticket-list-card {
+  border-radius: 22px !important;
+}
+
+html[data-theme^="office"] .project-ticket-list-card thead th {
+  height: 38px;
+  padding: 0 16px;
+  color: var(--color-graphite) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .project-ticket-list-card tbody td {
+  padding: 9px 16px;
+  vertical-align: middle;
+}
+
+html[data-theme^="office"] .project-ticket-list-card tbody tr {
+  min-height: 52px;
+}
+
+html[data-theme^="office"] .project-ticket-list-card strong {
+  font-size: 14px;
+  line-height: 1.28;
+}
+
+html[data-theme^="office"] .project-ticket-list-card small,
+html[data-theme^="office"] .project-ticket-list-card em {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+html[data-theme^="office"] .project-ticket-list-card .task-inline-status {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+html[data-theme^="office"] .ticket-panel-close {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(210, 210, 215, 0.64);
+  color: var(--color-ash);
+  padding: 0;
+}
+
+html[data-theme^="office"] .ticket-panel-close:hover {
+  background: var(--color-silver-mist);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .ticket-panel-close-icon {
+  width: 18px;
+  height: 18px;
+}
+
+html[data-theme^="office"] .ticket-detail-section-head {
+  min-width: 0;
+}
+
+html[data-theme^="office"] .ticket-detail-action {
+  height: 28px;
+  border-radius: var(--radius-full);
+  padding: 0 10px;
+  color: var(--color-cobalt-link);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+html[data-theme^="office"] .ticket-detail-action:hover {
+  background: rgba(210, 210, 215, 0.64);
+  color: var(--color-cobalt-link);
+}
+
+html[data-theme^="office"] .ticket-detail-action.is-danger {
+  color: var(--color-caution);
+}
+
+html[data-theme^="office"] .ticket-detail-edit input,
+html[data-theme^="office"] .ticket-detail-edit textarea {
+  border: 0;
+  border-radius: 18px;
+  background: var(--color-snow);
+  color: var(--color-ink);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .ticket-detail-edit input:focus,
+html[data-theme^="office"] .ticket-detail-edit textarea:focus,
+html[data-theme^="office"] .ticket-detail-edit input:focus-visible,
+html[data-theme^="office"] .ticket-detail-edit textarea:focus-visible {
+  box-shadow: 0 0 0 4px var(--focus-ring);
+  outline: 0;
+}
+
+html[data-theme^="office"] .ticket-detail-edit-actions button {
+  min-height: 36px;
+  border-radius: var(--radius-full);
+}
+
+html[data-theme^="office"] .project-draft-row .project-row-input {
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .project-draft-row .project-row-input:focus,
+html[data-theme^="office"] .project-draft-row .project-row-input:focus-visible {
+  border: 0;
+  box-shadow: none;
+  outline: 0;
+}
+
+html[data-theme^="office"] .project-draft-row .project-row-input::placeholder {
+  color: var(--color-ash);
+}
+
+html[data-theme^="office"] .project-draft-error {
+  color: var(--color-caution);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+html[data-theme^="office"] .project-draft-cancel {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  color: var(--color-ash);
+}
+
+html[data-theme^="office"] .project-draft-cancel:hover {
+  background: var(--color-silver-mist);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .ticket-draft-form {
+  min-height: 0;
+}
+
+html[data-theme^="office"] .ticket-draft-title-shell {
+  min-width: 0;
+  line-height: 1.16;
+}
+
+html[data-theme^="office"] .ticket-draft-title-input {
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  padding: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.16;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .ticket-draft-title-input:focus,
+html[data-theme^="office"] .ticket-draft-title-input:focus-visible {
+  border: 0;
+  box-shadow: none;
+  outline: 0;
+}
+
+html[data-theme^="office"] .ticket-draft-title-input::placeholder,
+html[data-theme^="office"] .ticket-draft-details::placeholder {
+  color: var(--color-ash);
+}
+
+html[data-theme^="office"] .ticket-draft-panel select {
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(210, 210, 215, 0.64);
+  color: var(--color-ink);
+  padding: 0 36px 0 14px;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .ticket-draft-detail {
+  min-height: 220px;
+  max-height: none;
+}
+
+html[data-theme^="office"] .ticket-draft-details {
+  min-height: 180px;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  padding: 0;
+  box-shadow: none;
+  resize: vertical;
+}
+
+html[data-theme^="office"] .ticket-draft-details:focus,
+html[data-theme^="office"] .ticket-draft-details:focus-visible {
+  border: 0;
+  box-shadow: none;
+  outline: 0;
+}
+
+html[data-theme^="office"] .ticket-draft-footer {
+  border-color: var(--border-light);
+}
+
+html[data-theme^="office"] .ticket-draft-footer button {
+  min-height: 40px;
+  border-radius: var(--radius-full);
+}
+
+@media (max-width: 768px) {
+  html[data-theme^="office"] .project-ticket-list-card tbody tr {
+    gap: 4px;
+    padding: 10px 0;
+  }
+
+  html[data-theme^="office"] .project-ticket-list-card tbody td {
+    padding: 0 14px;
+  }
+
+  html[data-theme^="office"] .project-ticket-list-card tbody td:first-child {
+    padding-left: 14px;
+  }
+
+  html[data-theme^="office"] .ticket-detail-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  html[data-theme^="office"] .ticket-draft-title-input {
+    font-size: 24px;
+  }
+
+  html[data-theme^="office"] .ticket-draft-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

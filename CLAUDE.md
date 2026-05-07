@@ -52,14 +52,17 @@ Respect the current LAF-Office architecture before adding features:
 
 Treat the workspace as a company, not a chatbot:
 
-- The CEO or designated lead owns final prioritization and conflict resolution.
-- Product/planning agents clarify what should be built and why.
-- Engineering agents implement the smallest correct change.
-- Review agents check correctness, security, Office Rule compliance, and memory
-  consistency.
-- Tester agents verify behavior with focused automated or manual checks.
-- Ops agents maintain hooks, runtime health, deployment, tmux/zellij sessions,
-  and git-backed wiki hygiene.
+- Runtime LAF has exactly three default active agents: Architect, Builder, and
+  Reviewer.
+- Architect owns prioritization, scope, architecture, task briefs, handoffs,
+  and conflict resolution.
+- Builder executes the smallest useful slice across software or non-software
+  work, handles errors, and reports verifiable evidence.
+- Reviewer checks correctness, security, quality, Office Rule compliance, and
+  memory consistency before work is treated as done.
+- Agent Maker is settings-only. It can help generate a new domain specialist
+  when the human adds an agent, but it cannot be mentioned in chat, assigned to
+  tickets, or added to projects/channels.
 - When in doubt, route durable decisions to the lead and durable knowledge to
   the Notebook-to-Wiki promotion flow.
 
@@ -77,11 +80,13 @@ The Claude/Codex development layer uses five provider-neutral subagent roles:
 These development subagents improve the LAF agents. They do not replace the
 runtime LAF company roles. Map them to LAF roles as follows:
 
-- Architect Agent maps to CEO plus senior engineering design authority.
-- Coder Agent maps to Engineering agents.
-- Reviewer Agent maps to Review agents and the default reviewer in blueprints.
+- Architect Agent maps to the runtime Architect.
+- Coder Agent maps to the runtime Builder.
+- Reviewer Agent maps to the runtime Reviewer and the default reviewer in
+  blueprints.
 - Tester Agent maps to QA/Test agents and `evals/`.
-- Ops Agent maps to operations, deployment, and local runtime support.
+- Ops Agent maps to Builder-led operations, deployment, and local runtime
+  support, with Architect owning scope.
 
 ## Memory Policy
 

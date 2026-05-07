@@ -331,25 +331,25 @@ starter:
 		t.Fatalf("expected at least 2 members, got %d", len(resolved.Members))
 	}
 
-	operatorMember := findMemberBySlug(resolved.Members, "operator")
-	if operatorMember == nil {
-		t.Fatal("expected operator member in resolved manifest")
+	architectMember := findMemberBySlug(resolved.Members, "architect")
+	if architectMember == nil {
+		t.Fatal("expected architect member in resolved manifest")
 	}
-	if operatorMember.PermissionMode == "" {
-		t.Fatal("expected operator to have a permission_mode")
-	}
-
-	executorMember := findMemberBySlug(resolved.Members, "executor")
-	if executorMember == nil {
-		t.Fatal("expected executor member in resolved manifest")
-	}
-	if executorMember.PermissionMode == "" {
-		t.Fatal("expected executor to have a permission_mode")
+	if architectMember.PermissionMode == "" {
+		t.Fatal("expected architect to have a permission_mode")
 	}
 
-	// Verify AllowedTools from employee blueprint flow through
-	if len(executorMember.AllowedTools) == 0 {
-		t.Fatal("expected executor AllowedTools from employee blueprint tools")
+	builderMember := findMemberBySlug(resolved.Members, "builder")
+	if builderMember == nil {
+		t.Fatal("expected builder member in resolved manifest")
+	}
+	if builderMember.PermissionMode == "" {
+		t.Fatal("expected builder to have a permission_mode")
+	}
+
+	// The runtime collapses legacy blueprint employees into the core three-agent team.
+	if len(resolved.Members) != 3 {
+		t.Fatalf("expected only core runtime members, got %+v", resolved.Members)
 	}
 
 	// Verify channels were created

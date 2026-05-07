@@ -427,24 +427,21 @@ starter:
 	if !ok {
 		t.Fatal("expected blueprint-backed manifest materialization")
 	}
-	if resolved.Lead != "planner" {
-		t.Fatalf("expected lead from blueprint, got %+v", resolved.Lead)
+	if resolved.Lead != "architect" {
+		t.Fatalf("expected blueprint lead to map to architect, got %+v", resolved.Lead)
 	}
-	planner := findMemberBySlug(resolved.Members, "planner")
-	if planner == nil {
-		t.Fatalf("expected planner member in resolved manifest: %+v", resolved.Members)
+	architect := findMemberBySlug(resolved.Members, "architect")
+	if architect == nil {
+		t.Fatalf("expected architect member in resolved manifest: %+v", resolved.Members)
 	}
-	if planner.Role != "Turns directives into workstreams." {
-		t.Fatalf("expected starter role overlay, got %+v", planner)
+	if architect.Role == "" {
+		t.Fatalf("expected architect role, got %+v", architect)
 	}
-	if planner.Personality != "Fast and precise." {
-		t.Fatalf("expected starter personality overlay, got %+v", planner)
+	if !architect.System {
+		t.Fatalf("expected architect to be a system member, got %+v", architect)
 	}
-	if !containsSlug(planner.Expertise, "decomposition") || !containsSlug(planner.Expertise, "scoping") {
-		t.Fatalf("expected merged expertise from employee blueprint and starter, got %+v", planner.Expertise)
-	}
-	if !containsSlug(planner.AllowedTools, "docs") {
-		t.Fatalf("expected employee blueprint tools to flow through, got %+v", planner.AllowedTools)
+	if !containsSlug(architect.Expertise, "scoping") {
+		t.Fatalf("expected architect expertise, got %+v", architect.Expertise)
 	}
 }
 

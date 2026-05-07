@@ -4,45 +4,24 @@ package agent
 // compatibility fallback. Blueprint-backed startup is the preferred source of
 // truth.
 var legacyTemplates = map[string]AgentConfig{
-	"team-lead": {
-		Name:          "Team Lead",
-		Expertise:     []string{"general", "research", "analysis", "communication", "planning", "orchestration"},
-		Personality:   "You are the Team Lead — the primary interface...",
+	"architect": {
+		Name:          "Architect",
+		Expertise:     []string{"scoping", "architecture", "task design", "handoffs"},
+		Personality:   "Diagnoses the real problem, locks scope, and turns vague intent into crisp work for Builder and Reviewer.",
 		HeartbeatCron: "manual",
 		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
 	},
-	"founding-agent": {
-		Name:          "Team Lead",
-		Expertise:     []string{"general", "research", "analysis", "communication", "planning", "orchestration"},
-		Personality:   "Versatile and proactive...",
-		HeartbeatCron: "daily",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"product-manager": {
-		Name:          "Product Manager",
-		Expertise:     []string{"requirements", "prioritization", "task-breakdown", "acceptance-checks"},
-		Personality:   "Turns fuzzy product goals into clear project tasks and reviewable decisions.",
+	"builder": {
+		Name:          "Builder",
+		Expertise:     []string{"implementation", "workflow execution", "integration", "delivery"},
+		Personality:   "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review.",
 		HeartbeatCron: "manual",
 		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
 	},
-	"founding-engineer": {
-		Name:          "Founding Engineer",
-		Expertise:     []string{"full-stack", "architecture", "testing", "delivery"},
-		Personality:   "Ships the smallest solid implementation and keeps project context current.",
-		HeartbeatCron: "manual",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"ai-engineer": {
-		Name:          "AI Engineer",
-		Expertise:     []string{"LLMs", "agents", "tool-use", "retrieval", "evaluations"},
-		Personality:   "Builds reliable agent workflows and memory-aware automation around the project.",
-		HeartbeatCron: "manual",
-		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
-	},
-	"designer": {
-		Name:          "Designer",
-		Expertise:     []string{"UI-UX-design", "flows", "prototyping", "visual-systems"},
-		Personality:   "Keeps the interface clear, focused, and aligned with the project workflow.",
+	"reviewer": {
+		Name:          "Reviewer",
+		Expertise:     []string{"quality", "security", "spec compliance", "verification"},
+		Personality:   "Reviews only the changed scope, flags concrete risks, and refuses to approve vague or unverified work.",
 		HeartbeatCron: "manual",
 		Tools:         []string{"read_file", "grep_search", "glob", "write_file", "bash", "send_message"},
 	},

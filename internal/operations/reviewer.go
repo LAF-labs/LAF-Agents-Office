@@ -5,7 +5,7 @@ import "strings"
 // ResolveReviewer returns the agent slug that should review a promotion
 // for the given wiki path. It walks ReviewerPaths in declaration order
 // (first match wins), falls through to DefaultReviewer, and finally to
-// ReviewerFallback ("ceo") when nothing else is configured.
+// ReviewerFallback ("reviewer") when nothing else is configured.
 //
 // A return value of ReviewerHumanOnly ("human-only") means agent approval
 // is disabled and the promotion must wait for a human click.
@@ -21,13 +21,22 @@ func (b *Blueprint) ResolveReviewer(wikiPath string) string {
 			if rule.Reviewer == "" {
 				continue
 			}
-			return rule.Reviewer
+			return normalizeReviewAgentSlug(rule.Reviewer)
 		}
 	}
 	if reviewer := strings.TrimSpace(b.DefaultReviewer); reviewer != "" {
-		return reviewer
+		return normalizeReviewAgentSlug(reviewer)
 	}
 	return ReviewerFallback
+}
+
+func normalizeReviewAgentSlug(slug string) string {
+	switch strings.ToLower(strings.TrimSpace(slug)) {
+	case "", "ceo", "founder":
+		return ReviewerFallback
+	default:
+		return strings.TrimSpace(slug)
+	}
 }
 
 // matchGlob reports whether name matches pattern. Supported syntax:

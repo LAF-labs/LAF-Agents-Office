@@ -19,8 +19,9 @@ hosted CRM, email, calendar, notification, or integration state.
 
 # --- Karpathy Guidelines ---
 
-For coding, review, refactoring, and debugging work in this repository, apply the
-globally installed Codex skill `karpathy-guidelines` from:
+For coding, review, refactoring, debugging, planning, design, and operations work
+in this repository, apply the globally installed Codex skill
+`karpathy-guidelines` from:
 
 `~/.codex/skills/karpathy-guidelines/SKILL.md`
 
@@ -36,3 +37,12 @@ Use these project-level defaults:
   dead code instead of deleting it.
 
 # --- End Karpathy Guidelines ---
+
+# --- LAF Three-Agent Runtime ---
+
+The default runtime team is Architect, Builder, and Reviewer. Do not reintroduce
+CEO/PM/Executor-style default agents. Agent Maker is a settings-only helper used
+to generate new domain specialists; it must not appear in project chat, task
+assignment, channel membership, or default rosters.
+
+# --- End LAF Three-Agent Runtime ---

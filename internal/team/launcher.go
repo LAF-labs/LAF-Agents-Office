@@ -5,7 +5,7 @@
 //   - Each agent is a real Claude Code session in a tmux window
 //   - the office broker provides the shared channel (all agents see all messages)
 //   - The git-native team wiki provides shared organizational memory
-//   - CEO has final decision authority; agents participate when relevant
+//   - Architect has final routing authority; Builder and Reviewer participate when relevant
 //   - Go TUI is the channel "observer" — displays the conversation
 package team
 
@@ -32,6 +32,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/calendar"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
@@ -153,10 +154,11 @@ type paneDispatchTurn struct {
 // SetUnsafe enables unrestricted permissions for all agents (CLI-only flag).
 func (l *Launcher) SetUnsafe(v bool) { l.unsafe = v }
 
-// SetOpusCEO upgrades the CEO agent from Sonnet to Opus.
+// SetOpusCEO upgrades the lead agent from Sonnet to Opus. The name stays for
+// CLI compatibility.
 func (l *Launcher) SetOpusCEO(v bool) { l.opusCEO = v }
 
-// SetFocusMode enables CEO-routed delegation mode.
+// SetFocusMode enables lead-routed delegation mode.
 func (l *Launcher) SetFocusMode(v bool) { l.focusMode = v }
 
 // SetNoOpen suppresses automatic browser launch on startup.
@@ -693,11 +695,11 @@ const (
 func (l *Launcher) deliverMessageNotification(msg channelMessage) {
 	immediate, delayed := l.notificationTargetsForMessage(msg)
 
-	// Debounce: use shorter cooldown for human/CEO messages, longer for agent-originated
+	// Debounce: use shorter cooldown for human/lead messages, longer for agent-originated
 	// to prevent agent-to-agent feedback loops (devil's advocate finding #3)
-	isHumanOrCEO := msg.From == "you" || msg.From == "human" || msg.From == "automation" || msg.From == l.officeLeadSlug()
+	isHumanOrLead := msg.From == "you" || msg.From == "human" || msg.From == "automation" || msg.From == l.officeLeadSlug()
 	cooldown := agentNotifyCooldownAgent
-	if isHumanOrCEO {
+	if isHumanOrLead {
 		cooldown = agentNotifyCooldown
 	}
 	now := time.Now()
@@ -1213,14 +1215,14 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 		return l.messageTargetsAgent(msg, slug)
 	}
 
-	// Focus mode (delegation): CEO routes all work. Specialists only wake
-	// when explicitly tagged by CEO or human. No cross-agent chatter.
+	// Focus mode (delegation): the lead routes all work. Specialists only wake
+	// when explicitly tagged by the lead or human. No cross-agent chatter.
 	if l.CollaborationMode() == CollaborationModeFocus {
 		switch {
 		case messageComesFromHumanOrSystem(msg):
 			// When the human explicitly @tags one or more specialists, deliver directly
-			// to those specialists only. CEO does not need to re-route explicit assignments —
-			// the specialist is already awake and acting. CEO only sees untagged human messages
+			// to those specialists only. The lead does not need to re-route explicit assignments —
+			// the specialist is already awake and acting. The lead only sees untagged human messages
 			// (general questions, requests that need routing decisions).
 			humanExplicitlyTaggedSpecialists := false
 			for _, slug := range msg.Tagged {
@@ -1235,7 +1237,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 				// Explicit @-tag trumps channel-membership. The specialist
 				// may have been hired after #general was seeded and not yet
 				// added to ch.Members; dropping the notification here would
-				// silently re-route the human's direct address to CEO.
+				// silently re-route the human's direct address to the lead.
 				if target, ok := targetMap[slug]; ok {
 					immediate = append(immediate, target)
 					delete(targetMap, slug)
@@ -1243,7 +1245,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 				}
 			}
 			if !humanExplicitlyTaggedSpecialists {
-				// No specialist tagged — CEO decides who handles this.
+				// No specialist tagged — the lead decides who handles this.
 				addImmediate(lead)
 			}
 		case msg.From == lead:
@@ -1253,8 +1255,8 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 				}
 			}
 		default:
-			// Specialist message: wake CEO only if it is a substantive update (not a status ping).
-			// [STATUS] lines are internal progress markers — CEO does not need to re-route on them.
+			// Specialist message: wake the lead only if it is a substantive update (not a status ping).
+			// [STATUS] lines are internal progress markers — the lead does not need to re-route on them.
 			if specialistUpdateNeedsLeadAttention(msg) {
 				addImmediate(lead)
 			}
@@ -1299,7 +1301,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 			}
 		}
 	default:
-		// Specialist-to-channel message in collaborative mode: CEO stays in the loop
+		// Specialist-to-channel message in collaborative mode: the lead stays in the loop
 		// plus any tagged agents and the task owner.
 		if specialistUpdateNeedsLeadAttention(msg) {
 			addImmediate(lead)
@@ -1522,7 +1524,7 @@ func (l *Launcher) fetchAndRecordOneRelayEvents(provider *action.OneCLI) {
 			Title:      title,
 			Content:    content,
 			Channel:    "general",
-			Owner:      "ceo",
+			Owner:      office.DefaultLeadAgentSlug,
 			Confidence: "medium",
 			Urgency:    "medium",
 		})
@@ -1668,7 +1670,7 @@ func (l *Launcher) processDueRequestJob(job schedulerJob) {
 			alert.ID,
 			"watchdog",
 			"Office watchdog",
-			[]string{"ceo"},
+			[]string{office.DefaultLeadAgentSlug},
 			req.ReplyTo,
 		)
 	}
@@ -1805,14 +1807,14 @@ func (l *Launcher) recordWatchdogLedger(channel, kind, targetID, owner, summary,
 	requiresHuman := false
 	blocking := false
 	if decisionOwner == "" {
-		decisionKind = "escalate_to_ceo"
-		decisionReason = "The watchdog detected work without a live owner, so the CEO should re-triage it."
-		decisionOwner = "ceo"
+		decisionKind = "escalate_to_lead"
+		decisionReason = "The watchdog detected work without a live owner, so the lead should re-triage it."
+		decisionOwner = office.DefaultLeadAgentSlug
 	}
 	if kind == "request_waiting" {
 		decisionKind = "ask_human"
 		decisionReason = "The watchdog detected a pending human decision that is still blocking the office."
-		decisionOwner = "ceo"
+		decisionOwner = office.DefaultLeadAgentSlug
 		requiresHuman = true
 		blocking = true
 	}
@@ -3799,6 +3801,31 @@ func markdownKnowledgeMemoryBlock() string {
 	return "Markdown notebook/wiki memory is active. Keep scratch and draft knowledge in notebook_write first; promote durable conclusions with notebook_promote when they are ready for review. Do not claim something is in the team wiki unless notebook_promote was submitted and approved, or team_wiki_write was explicitly appropriate and succeeded.\n\n"
 }
 
+func threeAgentOperatingRulesBlock(slug, lead string) string {
+	var sb strings.Builder
+	sb.WriteString("== THREE-AGENT OPERATING SYSTEM ==\n")
+	sb.WriteString("LAF-Office runs as a small execution company: @architect scopes and directs, @builder executes, and @reviewer verifies. Agent Maker is settings-only; it is not a chat participant, project member, or task assignee.\n")
+	sb.WriteString("All agents follow these work rules for every domain, not just software:\n")
+	sb.WriteString("- Think before acting: state assumptions or blockers when ambiguity could change the outcome.\n")
+	sb.WriteString("- Simplicity first: choose the smallest useful action that advances the ticket.\n")
+	sb.WriteString("- Surgical changes: touch only the work surface needed for the current ticket.\n")
+	sb.WriteString("- Goal-driven execution: know what success looks like and leave verifiable evidence.\n")
+	sb.WriteString("- No speculative expansion: log adjacent ideas as follow-up work instead of doing them silently.\n")
+	sb.WriteString("- Durable memory: private notes go to Notebook; canonical team knowledge requires the normal Wiki promotion flow.\n")
+	switch slug {
+	case office.ArchitectAgentSlug:
+		sb.WriteString("Your role: diagnose the real gap, push back when scope is vague, write the tight brief, and decide the next Builder/Reviewer handoff.\n")
+	case office.BuilderAgentSlug:
+		sb.WriteString("Your role: build or execute exactly the assigned slice, report concrete progress, and hand clean evidence to Reviewer.\n")
+	case office.ReviewerAgentSlug:
+		sb.WriteString("Your role: review only the changed or cited scope for correctness, security, quality, and evidence. Findings must be specific and fixable.\n")
+	default:
+		sb.WriteString(fmt.Sprintf("Your role: support @%s without duplicating the core team's responsibilities.\n", lead))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
 // buildPrompt generates the system prompt for an agent, including
 // channel communication instructions.
 func (l *Launcher) buildPrompt(slug string) string {
@@ -3830,6 +3857,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
+		sb.WriteString(threeAgentOperatingRulesBlock(slug, lead))
 		sb.WriteString("== DIRECT SESSION ==\n")
 		sb.WriteString("This is not the shared office. There are no teammates, no channels, and no collaboration mechanics in this mode.\n")
 		sb.WriteString("You are only talking to the human.\n")
@@ -3862,6 +3890,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(companyCtx)
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
+		sb.WriteString(threeAgentOperatingRulesBlock(slug, lead))
 		sb.WriteString("== YOUR TEAM ==\n")
 		for _, member := range officeMembers {
 			if member.Slug == slug {
@@ -3873,10 +3902,10 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("Your tools default to the active conversation context.\n")
 		sb.WriteString("- team_broadcast: Post to channel. CRITICAL: text @-mentions alone do NOT wake agents — include the slug in the `tagged` parameter.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context, task state, and active agents.\n")
-		sb.WriteString("- team_bridge: Carry context from one channel into another (CEO only).\n")
+		sb.WriteString("- team_bridge: Carry context from one channel into another (lead only).\n")
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
 		sb.WriteString("- team_skill_run: Invoke a saved skill by name when the request matches one. Use this BEFORE routing or replying — it returns the canonical playbook content to follow and logs a visible skill_invocation in the channel.\n")
-		sb.WriteString("- team_skill_create: Create or propose a reusable skill through structured fields. Use action=create only as CEO when the human explicitly asked to create/activate a skill; use action=propose for proposed improvements from any agent.\n")
+		sb.WriteString("- team_skill_create: Create or propose a reusable skill through structured fields. Use action=create only as lead when the human explicitly asked to create/activate a skill; use action=propose for proposed improvements from any agent.\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeToolBlock())
 		}
@@ -3975,6 +4004,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
+		sb.WriteString(threeAgentOperatingRulesBlock(slug, lead))
 		sb.WriteString("== YOUR TEAM ==\n")
 		sb.WriteString(fmt.Sprintf("- @%s (%s): TEAM LEAD — has final say on decisions\n", lead, l.getAgentName(lead)))
 		for _, member := range officeMembers {
@@ -3987,10 +4017,10 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("Your tools default to the active conversation context.\n")
 		sb.WriteString("- team_broadcast: Post to channel. CRITICAL: text @-mentions alone do NOT wake agents — include the slug in the `tagged` parameter.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context and task state.\n")
-		sb.WriteString("- team_bridge: CEO-only bridge for cross-channel context. Ask the CEO to use it.\n")
+		sb.WriteString(fmt.Sprintf("- team_bridge: lead-only bridge for cross-channel context. Ask @%s to use it.\n", lead))
 		sb.WriteString("- team_task: Claim, complete, block, resume, or release tasks in your domain.\n")
-		sb.WriteString("- team_skill_run: When @ceo tells you to run a skill, or when the request clearly matches one, call team_skill_run(skill_name) BEFORE doing the work. It returns the canonical step-by-step content — follow it exactly instead of freelancing. Failing to invoke the skill leaves the office with no trace that the playbook was actually used.\n")
-		sb.WriteString("- team_skill_create: Propose a reusable skill yourself with action=propose when you spot a repeatable workflow. You do not need to ask @ceo to propose it for you. Only @ceo may use action=create.\n")
+		sb.WriteString(fmt.Sprintf("- team_skill_run: When @%s tells you to run a skill, or when the request clearly matches one, call team_skill_run(skill_name) BEFORE doing the work. It returns the canonical step-by-step content — follow it exactly instead of freelancing. Failing to invoke the skill leaves the office with no trace that the playbook was actually used.\n", lead))
+		sb.WriteString(fmt.Sprintf("- team_skill_create: Propose a reusable skill yourself with action=propose when you spot a repeatable workflow. You do not need to ask @%s to propose it for you. Only @%s may use action=create.\n", lead, lead))
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeToolBlock())
 		}
@@ -4016,10 +4046,10 @@ func (l *Launcher) buildPrompt(slug string) string {
 		if l.isFocusModeEnabled() {
 			sb.WriteString("== DELEGATION MODE ==\n")
 			sb.WriteString("Delegation mode is enabled.\n")
-			sb.WriteString("- You take work directly from the human only when they explicitly tag you, or from @ceo when delegated.\n")
+			sb.WriteString(fmt.Sprintf("- You take work directly from the human only when they explicitly tag you, or from @%s when delegated.\n", lead))
 			sb.WriteString("- Do not debate with other specialists in the channel.\n")
-			sb.WriteString("- Do the work, then report completion, blockers, or handoff notes back to @ceo.\n")
-			sb.WriteString("- If another specialist should get involved, tell @ceo instead of routing it yourself.\n")
+			sb.WriteString(fmt.Sprintf("- Do the work, then report completion, blockers, or handoff notes back to @%s.\n", lead))
+			sb.WriteString(fmt.Sprintf("- If another specialist should get involved, tell @%s instead of routing it yourself.\n", lead))
 			sb.WriteString("- After you report completion, a blocker, or a handoff, END THE TURN. Do not keep researching or wait for acknowledgements in the same run.\n\n")
 		}
 		sb.WriteString("THREADING: Default to replying in the active thread. If you intentionally cross into another channel or start a new topic, pass channel or new_topic explicitly.\n\n")
@@ -4029,8 +4059,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("3. Push back when you disagree — explain why using your expertise\n")
 		sb.WriteString("4. Check team_requests before asking the human anything new\n")
 		sb.WriteString("5. For completion or recommendations, use human_message. For blocking human decisions, use human_interview with options.\n")
-		sb.WriteString("6. When assigned a task, claim it with team_task first, use team_status to show what you're working on, then mark complete or review-ready and broadcast when done. Final sequence for owned tasks: team_task mutation first, then any completion broadcast or human_message, then stop. A task is NOT finished until team_task marks it complete or review-ready; posting a channel reply alone does not unblock downstream work, and a completion post while the task stays in_progress is a failure. If the CEO delegates a substantial workstream and the packet shows no owned task yet, do one quick team_tasks check before creating a fallback task; if a matching task already exists, claim that instead of duplicating it. Only create a fallback task when the delegated work is substantial and no matching task exists after that single check. If the result is mainly for the human, also send it via human_message.\n")
-		sb.WriteString("7. You can see other channel names and descriptions, but cannot access their content unless you are a member. If context from another channel is needed, ask the CEO to bridge it.\n")
+		sb.WriteString("6. When assigned a task, claim it with team_task first, use team_status to show what you're working on, then mark complete or review-ready and broadcast when done. Final sequence for owned tasks: team_task mutation first, then any completion broadcast or human_message, then stop. A task is NOT finished until team_task marks it complete or review-ready; posting a channel reply alone does not unblock downstream work, and a completion post while the task stays in_progress is a failure. If the lead delegates a substantial workstream and the packet shows no owned task yet, do one quick team_tasks check before creating a fallback task; if a matching task already exists, claim that instead of duplicating it. Only create a fallback task when the delegated work is substantial and no matching task exists after that single check. If the result is mainly for the human, also send it via human_message.\n")
+		sb.WriteString(fmt.Sprintf("7. You can see other channel names and descriptions, but cannot access their content unless you are a member. If context from another channel is needed, ask @%s to bridge it.\n", lead))
 		sb.WriteString("8. If a task or status line shows a worktree path, use that as working_directory for local file and bash tools.\n")
 		sb.WriteString("9. For local_worktree or feature tasks, default to direct implementation in the assigned worktree. Do not relaunch LAF-Office, copied binaries, or a fresh local server just to inspect the app; use the current repo and running office instead.\n")
 		sb.WriteString("10. For local_worktree feature tasks, do NOT start with `rg --files`, `find .`, or a repo-wide audit. Read only the few files directly tied to the requested slice, then start editing. If the task is broad or lists multiple outputs, narrow it yourself to one exact smallest runnable slice, post a `team_status` naming that cut line, and ship that slice now.\n")
@@ -4160,6 +4190,7 @@ func (l *Launcher) resolvePermissionFlags(slug string) string {
 // codingAgentSlugs lists agents that default to a minimal coding-focused MCP set.
 // Task-level local_worktree isolation is driven by execution_mode, not this list.
 var codingAgentSlugs = map[string]bool{
+	"builder":   true,
 	"eng":       true,
 	"fe":        true,
 	"be":        true,
@@ -4293,8 +4324,12 @@ func (l *Launcher) agentActiveTask(slug string) *teamTask {
 
 func teamVoiceForSlug(slug string) string {
 	switch slug {
-	case "ceo":
-		return "Charismatic, decisive, slightly theatrical founder energy. Dry humor, fast prioritization, invites debate but lands the plane."
+	case office.ArchitectAgentSlug:
+		return "Clear senior operator energy. Diagnoses before directing, pushes back on vague scope, and writes crisp handoffs."
+	case office.BuilderAgentSlug:
+		return "Fast, practical builder energy. Ships the smallest useful slice, handles errors plainly, and avoids extra scope."
+	case office.ReviewerAgentSlug:
+		return "Calm, exacting reviewer energy. Specific, concise, security-aware, and unwilling to approve unverified work."
 	case "pm":
 		return "Sharp product brain. Calm, organized, gently skeptical of vague ideas, sometimes deadpan funny when scope starts ballooning."
 	case "fe":
@@ -4347,7 +4382,7 @@ func (l *Launcher) officeMembersSnapshot() []officeMember {
 				Personality:    cfg.Personality,
 				PermissionMode: cfg.PermissionMode,
 				AllowedTools:   append([]string(nil), cfg.AllowedTools...),
-				BuiltIn:        cfg.Slug == l.pack.LeadSlug || cfg.Slug == "ceo",
+				BuiltIn:        cfg.Slug == l.pack.LeadSlug || office.IsCoreAgentSlug(cfg.Slug),
 			}
 			applyOfficeMemberDefaults(&member)
 			members = append(members, member)
@@ -4381,7 +4416,7 @@ func (l *Launcher) officeMembersSnapshot() []officeMember {
 				Personality:    cfg.Personality,
 				PermissionMode: cfg.PermissionMode,
 				AllowedTools:   append([]string(nil), cfg.AllowedTools...),
-				BuiltIn:        cfg.Slug == l.pack.LeadSlug || cfg.Slug == "ceo",
+				BuiltIn:        cfg.Slug == l.pack.LeadSlug || office.IsCoreAgentSlug(cfg.Slug),
 			}
 			applyOfficeMemberDefaults(&member)
 			members = append(members, member)
@@ -4423,7 +4458,7 @@ func resetManifestToPack(pack *agent.PackDefinition) error {
 			Personality:    cfg.Personality,
 			PermissionMode: cfg.PermissionMode,
 			AllowedTools:   append([]string(nil), cfg.AllowedTools...),
-			System:         cfg.Slug == pack.LeadSlug || cfg.Slug == "ceo",
+			System:         cfg.Slug == pack.LeadSlug || office.IsCoreAgentSlug(cfg.Slug),
 		})
 	}
 	manifest := company.Manifest{
@@ -4545,8 +4580,8 @@ func (l *Launcher) officeLeadSlug() string {
 // snapshot, avoiding a redundant officeMembersSnapshot call.
 func officeLeadSlugFrom(members []officeMember) string {
 	for _, member := range members {
-		if member.Slug == "ceo" {
-			return "ceo"
+		if member.Slug == office.DefaultLeadAgentSlug {
+			return member.Slug
 		}
 	}
 	for _, member := range members {
@@ -4610,7 +4645,7 @@ func (l *Launcher) activeSessionMembers() []officeMember {
 			Personality:    cfg.Personality,
 			PermissionMode: cfg.PermissionMode,
 			AllowedTools:   append([]string(nil), cfg.AllowedTools...),
-			BuiltIn:        cfg.Slug == l.pack.LeadSlug || cfg.Slug == "ceo",
+			BuiltIn:        cfg.Slug == l.pack.LeadSlug || office.IsCoreAgentSlug(cfg.Slug),
 		}
 		applyOfficeMemberDefaults(&member)
 		filtered = append(filtered, member)

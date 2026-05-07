@@ -260,15 +260,15 @@ func TestBrokerSessionModePersistsAndSurvivesReset(t *testing.T) {
 	b.members = append(b.members, officeMember{Slug: "pm", Name: "Product Manager"})
 	for i := range b.channels {
 		if b.channels[i].Slug == "general" {
-			b.channels[i].Members = append(b.channels[i].Members, "pm")
+			b.channels[i].Members = append(b.channels[i].Members, "builder")
 			break
 		}
 	}
 	b.mu.Unlock()
-	if err := b.SetSessionMode(SessionModeOneOnOne, "pm"); err != nil {
+	if err := b.SetSessionMode(SessionModeOneOnOne, "builder"); err != nil {
 		t.Fatalf("SetSessionMode failed: %v", err)
 	}
-	if _, err := b.PostMessage("pm", "general", "hello", nil, ""); err != nil {
+	if _, err := b.PostMessage("builder", "general", "hello", nil, ""); err != nil {
 		t.Fatalf("seed direct message: %v", err)
 	}
 
@@ -277,8 +277,8 @@ func TestBrokerSessionModePersistsAndSurvivesReset(t *testing.T) {
 	if mode != SessionModeOneOnOne {
 		t.Fatalf("expected persisted 1o1 mode, got %q", mode)
 	}
-	if agent != "pm" {
-		t.Fatalf("expected persisted 1o1 agent pm, got %q", agent)
+	if agent != "builder" {
+		t.Fatalf("expected persisted 1o1 agent builder, got %q", agent)
 	}
 
 	reloaded.Reset()
@@ -286,8 +286,8 @@ func TestBrokerSessionModePersistsAndSurvivesReset(t *testing.T) {
 	if mode != SessionModeOneOnOne {
 		t.Fatalf("expected reset to preserve 1o1 mode, got %q", mode)
 	}
-	if agent != "pm" {
-		t.Fatalf("expected reset to preserve 1o1 agent pm, got %q", agent)
+	if agent != "builder" {
+		t.Fatalf("expected reset to preserve 1o1 agent builder, got %q", agent)
 	}
 	if len(reloaded.Messages()) != 0 {
 		t.Fatalf("expected reset to clear direct messages, got %d", len(reloaded.Messages()))
@@ -684,6 +684,10 @@ func TestBrokerMessagesCanScopeToThread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("post reply: %v", err)
 	}
+	nested, err := b.PostMessage("you", "general", "Nested reply in thread", nil, reply.ID)
+	if err != nil {
+		t.Fatalf("post nested reply: %v", err)
+	}
 	if _, err := b.PostMessage("you", "general", "Separate topic", nil, ""); err != nil {
 		t.Fatalf("post unrelated: %v", err)
 	}
@@ -707,10 +711,10 @@ func TestBrokerMessagesCanScopeToThread(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("decode thread messages: %v", err)
 	}
-	if len(result.Messages) != 2 {
-		t.Fatalf("expected root and reply only, got %+v", result.Messages)
+	if len(result.Messages) != 3 {
+		t.Fatalf("expected root, reply, and nested reply, got %+v", result.Messages)
 	}
-	if result.Messages[0].ID != root.ID || result.Messages[1].ID != reply.ID {
+	if result.Messages[0].ID != root.ID || result.Messages[1].ID != reply.ID || result.Messages[2].ID != nested.ID {
 		t.Fatalf("unexpected thread messages: %+v", result.Messages)
 	}
 }
@@ -4509,7 +4513,7 @@ func TestBrokerBridgeEndpointRecordsVisibleBridge(t *testing.T) {
 	if len(messages) != 1 {
 		t.Fatalf("expected one bridge message in launch, got %d", len(messages))
 	}
-	if messages[0].Source != "ceo_bridge" || !strings.Contains(messages[0].Content, "#general") {
+	if messages[0].Source != "lead_bridge" || !strings.Contains(messages[0].Content, "#general") {
 		t.Fatalf("unexpected bridge message: %+v", messages[0])
 	}
 	if got := len(b.Signals()); got != 1 {

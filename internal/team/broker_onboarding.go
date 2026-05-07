@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
@@ -33,7 +34,7 @@ import (
 // re-enters the wizard. The dedupe guard below (onboarding_origin by task
 // content) prevents double-posting on crash recovery.
 //
-// The DefaultManifest roster (ceo/planner/executor/reviewer) is NEVER
+// The DefaultManifest three-agent roster is the only built-in runtime roster.
 // reached via this path. It remains only as a true-recovery fallback in
 // ensureDefaultOfficeMembersLocked for corrupted/zero-member state.
 func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID string, selectedAgents []string) error {
@@ -164,13 +165,9 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 // it does not mutate broker state — the caller feeds the returned
 // Blueprint to seedFromBlueprintLocked.
 //
-// The starter roster is a fixed 5-agent project team (CEO lead plus Product
-// Manager, Founding Engineer, AI Engineer, Designer) rather than the generic
-// operator/planner/executor/reviewer shape. This is the product default for a
-// brand-new LAF-Office workspace: it covers planning, implementation, agent
-// systems, and design with a named CEO as the human-facing lead. Users can
-// still uncheck agents in the wizard's Team step; unchecked ones are dropped
-// via the filter.
+// The starter roster is the three-agent execution team (Architect, Builder,
+// Reviewer). Users can still uncheck non-lead agents in
+// the wizard's Team step; unchecked ones are dropped via the filter.
 func synthesizeBlueprintFromState(task string) operations.Blueprint {
 	state, err := onboarding.Load()
 	if err != nil {
@@ -186,31 +183,28 @@ func synthesizeBlueprintFromState(task string) operations.Blueprint {
 }
 
 // scratchFoundingTeamBlueprint returns the fixed "From scratch" starter
-// roster: CEO (lead), Product Manager, Founding Engineer, AI Engineer,
-// Designer. Extracted so tests can assert the shape without rebuilding
-// onboarding state.
+// roster: Architect (lead), Builder, Reviewer. Extracted so tests can assert
+// the shape without rebuilding onboarding state.
 func scratchFoundingTeamBlueprint(companyName, description, directive string) operations.Blueprint {
 	displayName := companyName
 	if displayName == "" {
 		displayName = "Your project"
 	}
 	agents := []operations.StarterAgent{
-		{Slug: "ceo", Name: "CEO", Role: "lead", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"strategy", "prioritization", "delegation"}, Personality: "Sets direction, breaks directives into specialist assignments, and owns the outcome."},
-		{Slug: "pm", Name: "Product Manager", Role: "product", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"roadmap", "user-stories", "requirements", "specs"}, Personality: "Translates business goals into specs the engineering and design functions can execute against."},
-		{Slug: "founding-engineer", Name: "Founding Engineer", Role: "engineering", PermissionMode: "auto", Checked: true, Type: "assistant", Expertise: []string{"full-stack", "architecture", "infrastructure", "shipping"}, Personality: "Full-stack engineer who ships end-to-end and makes pragmatic architectural calls."},
-		{Slug: "ai-engineer", Name: "AI Engineer", Role: "agent-systems", PermissionMode: "auto", Checked: true, Type: "assistant", Expertise: []string{"LLMs", "agents", "tool-use", "retrieval", "evaluations"}, Personality: "Builds reliable agent workflows, memory use, and automation paths around the project."},
-		{Slug: "designer", Name: "Designer", Role: "design", PermissionMode: "plan", Checked: true, Type: "assistant", Expertise: []string{"UI-UX-design", "branding", "prototyping"}, Personality: "Owns the look, feel, and flow — from first sketch to shipped interface."},
+		{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "architect", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: []string{"scope", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real gap, pushes back on vague scope, and turns intent into crisp Builder and Reviewer work."},
+		{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "builder", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"implementation", "workflow execution", "integration", "delivery"}, Personality: "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review."},
+		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "reviewer", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Reviews changed scope for correctness, security, and handoff readiness."},
 	}
 	channels := []operations.StarterChannel{
-		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{"ceo", "pm", "founding-engineer", "ai-engineer", "designer"}},
-		{Slug: "product", Name: "product", Description: "Roadmap, specs, and design reviews.", Members: []string{"ceo", "pm", "designer", "founding-engineer"}},
-		{Slug: "development", Name: "development", Description: "Implementation, agent workflows, and repo-connected delivery.", Members: []string{"ceo", "pm", "founding-engineer", "ai-engineer"}},
+		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: office.CoreAgentSlugs()},
+		{Slug: "delivery", Name: "delivery", Description: "Implementation, workflow execution, and repo-connected delivery.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "review", Name: "review", Description: "Review findings, verification, and handoff decisions.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
 	}
 	var tasks []operations.StarterTask
 	if directive != "" {
 		tasks = []operations.StarterTask{{
 			Channel: "general",
-			Owner:   "ceo",
+			Owner:   office.ArchitectAgentSlug,
 			Title:   "Kick off the directive",
 			Details: directive,
 		}}
@@ -222,7 +216,7 @@ func scratchFoundingTeamBlueprint(companyName, description, directive string) op
 		Description: description,
 		Objective:   directive,
 		Starter: operations.StarterPlan{
-			LeadSlug:                  "ceo",
+			LeadSlug:                  office.DefaultLeadAgentSlug,
 			GeneralChannelDescription: "Primary coordination channel.",
 			KickoffPrompt:             directive,
 			Agents:                    agents,
@@ -302,10 +296,9 @@ func (b *Broker) postKickoffLocked(bp operations.Blueprint, selectedAgents []str
 
 	lead := officeLeadSlugFromMembers(b.members)
 	if lead == "" {
-		// Every shipped blueprint declares ceo as lead (guarded by
-		// TestAllOperationBlueprintsUseCEOLead). The fallback here only fires
-		// for malformed/synthesized blueprints with no identifiable lead.
-		lead = "ceo"
+		// The fallback here only fires for malformed/synthesized blueprints
+		// with no identifiable lead.
+		lead = office.DefaultLeadAgentSlug
 	}
 
 	b.counter++
@@ -396,10 +389,9 @@ func blankSlateOfficeMembersFromBlueprint(blueprint operations.Blueprint, select
 	// agents. Keeps the broker from crashing on empty rosters.
 	now := time.Now().UTC().Format(time.RFC3339)
 	return []officeMember{
-		{Slug: "founder", Name: "Founder", Role: "Founder", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
-		{Slug: "operator", Name: "Operator", Role: "Operator", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
-		{Slug: "builder", Name: "Builder", Role: "Builder", PermissionMode: "auto", CreatedBy: "laf-office", CreatedAt: now},
-		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "Architect", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "Builder", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
 	}
 }
 
@@ -428,11 +420,11 @@ func blankSlateOfficeMembersFromAgents(agents []operations.StarterAgent, leadSlu
 			Role:           role,
 			Expertise:      normalizeStringList(agent.Expertise),
 			Personality:    strings.TrimSpace(agent.Personality),
-			PermissionMode: blankSlatePermissionMode(agent.Type),
+			PermissionMode: blankSlatePermissionMode(operationFirstNonEmpty(agent.PermissionMode, agent.Type)),
 			AllowedTools:   nil,
 			CreatedBy:      "laf-office",
 			CreatedAt:      now,
-			BuiltIn:        agent.BuiltIn || slug == leadSlug || slug == "operator" || slug == "founder" || slug == "ceo",
+			BuiltIn:        agent.BuiltIn || slug == leadSlug || office.IsCoreAgentSlug(slug),
 		})
 	}
 	return members
@@ -582,8 +574,10 @@ func taskIDPrefix(bp operations.Blueprint) string {
 
 func blankSlatePermissionMode(kind string) string {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "lead", "human":
+	case "plan", "lead", "human":
 		return "plan"
+	case "auto":
+		return "auto"
 	default:
 		return "auto"
 	}

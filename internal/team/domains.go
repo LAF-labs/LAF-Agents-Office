@@ -17,6 +17,12 @@ func InferTextDomain(text string) string {
 
 func inferAgentDomain(slug string) string {
 	switch strings.ToLower(strings.TrimSpace(slug)) {
+	case "architect":
+		return "product"
+	case "builder":
+		return "backend"
+	case "reviewer":
+		return "general"
 	case "fe", "frontend":
 		return "frontend"
 	case "be", "backend", "eng", "engineer", "engineering":
@@ -29,7 +35,7 @@ func inferAgentDomain(slug string) string {
 		return "marketing"
 	case "cro", "sales", "revenue":
 		return "sales"
-	case "pm", "product", "ceo":
+	case "pm", "product":
 		return "product"
 	default:
 		return "general"

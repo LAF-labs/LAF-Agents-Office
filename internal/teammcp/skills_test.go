@@ -185,7 +185,7 @@ func TestHandleTeamSkillCreateProposesSkill(t *testing.T) {
 		Trigger:     "Before delegating multi-step work",
 		Tags:        []string{"coordination", "ops"},
 		Action:      "propose",
-		MySlug:      "ceo",
+		MySlug:      "architect",
 		Channel:     "general",
 	})
 	if err != nil {
@@ -241,7 +241,7 @@ func TestHandleTeamSkillCreateCanActivateImmediately(t *testing.T) {
 		Title:   "Already Approved",
 		Content: "1. Run the already-approved workflow.",
 		Action:  "create",
-		MySlug:  "ceo",
+		MySlug:  "architect",
 		Channel: "general",
 	})
 	if err != nil {
@@ -278,7 +278,7 @@ func TestHandleTeamSkillCreateCanActivateImmediately(t *testing.T) {
 	}
 }
 
-func TestHandleTeamSkillCreateAllowsNonCEOProposal(t *testing.T) {
+func TestHandleTeamSkillCreateAllowsNonLeadProposal(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {
@@ -290,11 +290,11 @@ func TestHandleTeamSkillCreateAllowsNonCEOProposal(t *testing.T) {
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
 
 	res, _, err := handleTeamSkillCreate(context.Background(), nil, TeamSkillCreateArgs{
-		Name:    "planner-retro-loop",
-		Title:   "Planner Retro Loop",
+		Name:    "builder-retro-loop",
+		Title:   "Builder Retro Loop",
 		Content: "1. Collect notes.\n2. Extract action items.",
 		Action:  "propose",
-		MySlug:  "planner",
+		MySlug:  "builder",
 		Channel: "general",
 	})
 	if err != nil {
@@ -307,7 +307,7 @@ func TestHandleTeamSkillCreateAllowsNonCEOProposal(t *testing.T) {
 		t.Fatalf("expected 1 approval request, got %d", got)
 	}
 	requests := b.Requests("general", false)
-	if requests[0].From != "planner" || requests[0].ReplyTo != "planner-retro-loop" {
+	if requests[0].From != "builder" || requests[0].ReplyTo != "builder-retro-loop" {
 		t.Fatalf("unexpected approval request: %+v", requests[0])
 	}
 }

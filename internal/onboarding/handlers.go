@@ -23,7 +23,7 @@ type CompleteFunc func(task string, skipTask bool, blueprintID string, selectedA
 //
 // completeFn is called by HandleComplete when the user finishes onboarding.
 // Pass nil to defer wiring — the broker should supply a real implementation
-// that seeds the team, posts the first message, and triggers the CEO turn.
+// that seeds the team, posts the first message, and triggers the lead turn.
 //
 // packSlug is a legacy selection identifier. HandleTemplates uses it to
 // return operation-appropriate first-task suggestions and falls back to the
@@ -31,7 +31,7 @@ type CompleteFunc func(task string, skipTask bool, blueprintID string, selectedA
 //
 // authMiddleware wraps each handler. Pass the broker's requireAuth so local
 // processes and cross-origin callers cannot POST /onboarding/complete (which
-// seeds the team and fires the first CEO turn) without the broker token.
+// seeds the team and fires the first lead turn) without the broker token.
 // Pass a nil middleware only in tests — RegisterRoutes substitutes a passthrough.
 //
 // Routes registered:

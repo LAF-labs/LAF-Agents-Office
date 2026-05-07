@@ -1,6 +1,10 @@
 package agent
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
+)
 
 func TestPacksRegistered(t *testing.T) {
 	packs := ListLegacyPacks()
@@ -11,21 +15,21 @@ func TestPacksRegistered(t *testing.T) {
 	if founding == nil {
 		t.Fatal("founding-team pack not found")
 	}
-	if founding.LeadSlug != "ceo" {
-		t.Errorf("expected lead slug 'ceo', got '%s'", founding.LeadSlug)
+	if founding.LeadSlug != office.DefaultLeadAgentSlug {
+		t.Errorf("expected lead slug %q, got '%s'", office.DefaultLeadAgentSlug, founding.LeadSlug)
 	}
-	if len(founding.Agents) != 6 {
-		t.Errorf("expected 6 agents in founding team, got %d", len(founding.Agents))
+	if len(founding.Agents) != 3 {
+		t.Errorf("expected 3 agents in founding team, got %d", len(founding.Agents))
 	}
-	foundAI := false
+	foundBuilder := false
 	for _, a := range founding.Agents {
-		if a.Slug == "ai" && a.Name == "AI Engineer" {
-			foundAI = true
+		if a.Slug == office.BuilderAgentSlug && a.Name == "Builder" {
+			foundBuilder = true
 			break
 		}
 	}
-	if !foundAI {
-		t.Error("expected founding team to include AI Engineer")
+	if !foundBuilder {
+		t.Error("expected founding team to include Builder")
 	}
 }
 
@@ -55,11 +59,11 @@ func TestCodingTeamPack(t *testing.T) {
 	if p == nil {
 		t.Fatal("coding-team pack not found")
 	}
-	if p.LeadSlug != "ceo" {
-		t.Errorf("expected lead 'ceo', got '%s'", p.LeadSlug)
+	if p.LeadSlug != office.DefaultLeadAgentSlug {
+		t.Errorf("expected lead %q, got '%s'", office.DefaultLeadAgentSlug, p.LeadSlug)
 	}
-	if len(p.Agents) != 4 {
-		t.Errorf("expected 4 agents, got %d", len(p.Agents))
+	if len(p.Agents) != 3 {
+		t.Errorf("expected 3 agents, got %d", len(p.Agents))
 	}
 }
 

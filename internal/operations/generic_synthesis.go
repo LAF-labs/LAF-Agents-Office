@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 )
 
 func synthesizeGenericBlueprint(input SynthesisInput) Blueprint {
@@ -35,7 +37,7 @@ func synthesizeGenericBlueprint(input SynthesisInput) Blueprint {
 	}
 
 	if strings.TrimSpace(blueprint.Starter.LeadSlug) == "" {
-		blueprint.Starter.LeadSlug = "operator"
+		blueprint.Starter.LeadSlug = office.DefaultLeadAgentSlug
 	}
 	if len(blueprint.Starter.Channels) == 0 {
 		blueprint.Starter.Channels = genericDefaultChannels(integrations)
@@ -148,43 +150,14 @@ func genericInferOperationKind(directive string, profile CompanyProfile, name, d
 }
 
 func genericStarterPlan(kind, name, objective string, input SynthesisInput, integrations []RuntimeIntegration, capabilities []RuntimeCapability) StarterPlan {
-	leadSlug := "operator"
+	leadSlug := office.DefaultLeadAgentSlug
 	channels := genericDefaultChannels(integrations)
 	tasks := genericDefaultTasks(objective, integrations)
-	plannerName, executorName, reviewerName := genericKindAgentNames(kind)
+	architectName, builderName, reviewerName := genericKindAgentNames(kind)
 	agents := []StarterAgent{
-		{Slug: leadSlug, Name: "Operator", Role: "lead", PermissionMode: "plan", Checked: true, Type: "human", BuiltIn: true, Expertise: []string{"scope-setting", "execution", "approvals"}},
-		{Slug: "planner", Name: plannerName, Role: "planning", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"decomposition", "sequencing", "risks"}},
-		{Slug: "executor", Name: executorName, Role: "execution", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"delivery", "instrumentation", "evidence"}},
-		{Slug: "reviewer", Name: reviewerName, Role: "review", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"quality", "approval", "handoff"}},
-	}
-	for _, integration := range integrations {
-		provider := genericIntegrationKey(integration)
-		if provider == "" {
-			continue
-		}
-		agents = append(agents, StarterAgent{
-			Slug:           provider,
-			Name:           genericIntegrationLabel(integration),
-			Role:           "integration-owner",
-			PermissionMode: "auto",
-			Checked:        integration.Connected,
-			Type:           "integration",
-			BuiltIn:        false,
-			Expertise:      []string{provider, kind, genericIntegrationPurpose(integration, kind)},
-		})
-	}
-	if len(capabilities) > 0 {
-		agents = append(agents, StarterAgent{
-			Slug:           "capability-scout",
-			Name:           "Capability Scout",
-			Role:           "capability-discovery",
-			PermissionMode: "plan",
-			Checked:        true,
-			Type:           "assistant",
-			BuiltIn:        true,
-			Expertise:      []string{"runtime-capabilities", "setup", "availability"},
-		})
+		{Slug: leadSlug, Name: architectName, Role: "architect", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: []string{"decomposition", "sequencing", "risk triage", "handoffs"}},
+		{Slug: office.BuilderAgentSlug, Name: builderName, Role: "builder", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: genericBuilderExpertise(kind, integrations, capabilities)},
+		{Slug: office.ReviewerAgentSlug, Name: reviewerName, Role: "reviewer", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"quality", "security", "approval", "handoff"}},
 	}
 	return StarterPlan{
 		LeadSlug:                  leadSlug,
@@ -462,7 +435,7 @@ func genericConnectionBlueprints(kind string, profile CompanyProfile, integratio
 		connections = append(connections, ConnectionBlueprint{
 			Name:        label,
 			Integration: provider,
-			Owner:       firstOperationValue(profile.Name, "operator"),
+			Owner:       office.BuilderAgentSlug,
 			Priority:    genericTernaryString(integration.Connected, "high", "medium"),
 			Purpose:     genericIntegrationPurpose(integration, kind),
 			SmokeTest:   fmt.Sprintf("Verify %s can perform the first planned action.", label),
@@ -547,25 +520,17 @@ func genericWorkflowTemplates(kind, name, objective string, profile CompanyProfi
 
 func genericDefaultChannels(integrations []RuntimeIntegration) []StarterChannel {
 	channels := []StarterChannel{
-		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{"operator", "planner", "executor", "reviewer"}},
-		{Slug: "planning", Name: "planning", Description: "Scope, decomposition, and approvals.", Members: []string{"operator", "planner", "reviewer"}},
-		{Slug: "execution", Name: "execution", Description: "Active work lane for the current operation.", Members: []string{"operator", "executor"}},
-		{Slug: "review", Name: "review", Description: "Evidence, decisions, and handoff.", Members: []string{"operator", "reviewer"}},
+		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "planning", Name: "planning", Description: "Scope, decomposition, and approvals.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "execution", Name: "execution", Description: "Active work lane for the current operation.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug}},
+		{Slug: "review", Name: "review", Description: "Evidence, decisions, and handoff.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
 	}
 	if len(integrations) > 0 {
-		members := []string{"operator", "executor"}
-		for _, integration := range integrations {
-			provider := genericIntegrationKey(integration)
-			if provider == "" {
-				continue
-			}
-			members = append(members, provider)
-		}
 		channels = append(channels, StarterChannel{
 			Slug:        "integrations",
 			Name:        "integrations",
 			Description: "Integration-specific work and evidence.",
-			Members:     genericDedupeStrings(members),
+			Members:     []string{office.ArchitectAgentSlug, office.BuilderAgentSlug},
 		})
 	}
 	return channels
@@ -573,10 +538,10 @@ func genericDefaultChannels(integrations []RuntimeIntegration) []StarterChannel 
 
 func genericDefaultTasks(objective string, integrations []RuntimeIntegration) []StarterTask {
 	tasks := []StarterTask{
-		{Channel: "general", Owner: "operator", Title: "Translate the directive into the first execution plan", Details: genericTruncateText(objective, 160)},
-		{Channel: "planning", Owner: "planner", Title: "Inventory capabilities and approvals", Details: "List the available runtime integrations and the gates required before live action."},
-		{Channel: "execution", Owner: "executor", Title: "Launch the first execution loop", Details: "Run the first concrete step and record evidence."},
-		{Channel: "review", Owner: "reviewer", Title: "Review evidence and pick the next loop", Details: "Confirm what happened and whether the next step is approved."},
+		{Channel: "general", Owner: office.ArchitectAgentSlug, Title: "Translate the directive into the first execution brief", Details: genericTruncateText(objective, 160)},
+		{Channel: "planning", Owner: office.ArchitectAgentSlug, Title: "Inventory capabilities and approvals", Details: "List available runtime integrations and the gates required before live action."},
+		{Channel: "execution", Owner: office.BuilderAgentSlug, Title: "Launch the first execution loop", Details: "Run the first concrete step and record evidence."},
+		{Channel: "review", Owner: office.ReviewerAgentSlug, Title: "Review evidence and pick the next loop", Details: "Confirm what happened and whether the next step is ready."},
 	}
 	for _, integration := range integrations {
 		if integration.Connected {
@@ -585,12 +550,27 @@ func genericDefaultTasks(objective string, integrations []RuntimeIntegration) []
 		label := genericIntegrationLabel(integration)
 		tasks = append(tasks, StarterTask{
 			Channel: "planning",
-			Owner:   "operator",
+			Owner:   office.ArchitectAgentSlug,
 			Title:   fmt.Sprintf("Connect %s before live use", label),
 			Details: fmt.Sprintf("The blueprint can only use %s live after it is connected.", label),
 		})
 	}
 	return tasks
+}
+
+func genericBuilderExpertise(kind string, integrations []RuntimeIntegration, capabilities []RuntimeCapability) []string {
+	expertise := []string{"delivery", "instrumentation", "evidence", kind}
+	for _, integration := range integrations {
+		if provider := genericIntegrationKey(integration); provider != "" {
+			expertise = append(expertise, provider, genericIntegrationPurpose(integration, kind))
+		}
+	}
+	for _, capability := range capabilities {
+		if value := firstOperationValue(capability.Name, capability.Key, capability.Category); value != "" {
+			expertise = append(expertise, value)
+		}
+	}
+	return genericDedupeStrings(expertise)
 }
 
 func genericIntegrationPurpose(integration RuntimeIntegration, kind string) string {
@@ -773,7 +753,7 @@ func genericDedupeStrings(values []string) []string {
 	return out
 }
 
-func genericKindAgentNames(kind string) (planner, executor, reviewer string) {
+func genericKindAgentNames(kind string) (architect, builder, reviewer string) {
 	switch kind {
 	case "content":
 		return "Research Lead", "Content Producer", "Analytics Lead"
@@ -788,6 +768,6 @@ func genericKindAgentNames(kind string) (planner, executor, reviewer string) {
 	case "research":
 		return "Research Lead", "Synthesis Builder", "Evidence Analyst"
 	default:
-		return "Planner", "Executor", "Reviewer"
+		return "Architect", "Builder", "Reviewer"
 	}
 }

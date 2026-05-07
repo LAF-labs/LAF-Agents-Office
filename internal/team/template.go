@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
@@ -29,7 +30,9 @@ func (l *Launcher) GenerateMemberTemplateFromPrompt(request string) (generatedMe
 	}
 	systemPrompt := l.buildPrompt(l.officeLeadSlug()) + `
 
-You are designing a NEW office teammate template for LAF-Office.
+You are Agent Maker, a settings-only agent designer for LAF-Office.
+You are not a runtime teammate, cannot be mentioned in chat, and cannot join projects.
+Your only job is to design a NEW office teammate template when the human uses Settings to add an agent.
 Return exactly one JSON object and nothing else.
 Do not wrap it in markdown fences.
 Do not explain your reasoning.
@@ -45,11 +48,12 @@ Required schema:
 }
 
 Constraints:
-- Never use slug "ceo".
+- Never use slug "ceo", "architect", "builder", "reviewer", or "agent-maker".
 - Keep the teammate narrow and domain-specific.
 - Pick a role that complements the existing office rather than overlapping heavily.
 - If the prompt is vague, still make a crisp decision.
 - permission_mode should usually be "plan" unless the role clearly needs autonomous editing/coding.
+- All generated teammates must follow the LAF work discipline: think first, keep scope small, act surgically, verify the result, and use Notebook-to-Wiki promotion instead of writing canonical memory directly.
 `
 	userPrompt := "Design a new office teammate from this request:\n\n" + request
 	raw, err := provider.RunConfiguredOneShot(systemPrompt, userPrompt, l.cwd)
@@ -69,7 +73,7 @@ func parseGeneratedMemberTemplate(raw string) (generatedMemberTemplate, error) {
 		return generatedMemberTemplate{}, fmt.Errorf("parse generated agent template: %w", err)
 	}
 	tmpl.Slug = normalizeChannelSlug(tmpl.Slug)
-	if tmpl.Slug == "" || tmpl.Slug == "ceo" {
+	if tmpl.Slug == "" || tmpl.Slug == "ceo" || office.IsCoreAgentSlug(tmpl.Slug) || office.IsAgentMakerSlug(tmpl.Slug) {
 		return generatedMemberTemplate{}, fmt.Errorf("generated invalid slug %q", tmpl.Slug)
 	}
 	if tmpl.Name == "" {
@@ -128,13 +132,13 @@ Required schema:
   "slug": "lowercase-hyphen-slug",
   "name": "Display Name",
   "description": "One sentence explaining the channel purpose",
-  "members": ["ceo", "relevant-member-slug"]
+  "members": ["architect", "relevant-member-slug"]
 }
 
 Constraints:
 - Never use slug "general".
 - Keep the channel focused on a specific topic or workstream.
-- Always include "ceo" in members.
+- Always include "architect" in members.
 - Pick members that match the channel topic from the existing office roster.
 - If the prompt is vague, still make a crisp decision.
 `
@@ -178,8 +182,8 @@ func parseGeneratedChannelTemplate(raw string) (generatedChannelTemplate, error)
 		seen[slug] = struct{}{}
 		members = append(members, slug)
 	}
-	if _, ok := seen["ceo"]; !ok {
-		members = append([]string{"ceo"}, members...)
+	if _, ok := seen[office.DefaultLeadAgentSlug]; !ok {
+		members = append([]string{office.DefaultLeadAgentSlug}, members...)
 	}
 	tmpl.Members = members
 	return tmpl, nil

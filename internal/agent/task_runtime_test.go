@@ -1,6 +1,10 @@
 package agent
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
+)
 
 func TestCompactionTokenLimitPerSlug(t *testing.T) {
 	t.Setenv(compactionTokenLimitEnv, "")
@@ -8,8 +12,8 @@ func TestCompactionTokenLimitPerSlug(t *testing.T) {
 	if got := compactionTokenLimit("eng"); got != defaultTokenLimit {
 		t.Errorf("specialist limit: got %d, want %d", got, defaultTokenLimit)
 	}
-	if got := compactionTokenLimit(ceoSlug); got != ceoTokenLimit {
-		t.Errorf("ceo limit: got %d, want %d", got, ceoTokenLimit)
+	if got := compactionTokenLimit(office.DefaultLeadAgentSlug); got != leadTokenLimit {
+		t.Errorf("lead limit: got %d, want %d", got, leadTokenLimit)
 	}
 
 	// Env override wins for both, so operators retain control.
@@ -17,7 +21,7 @@ func TestCompactionTokenLimitPerSlug(t *testing.T) {
 	if got := compactionTokenLimit("eng"); got != 5000 {
 		t.Errorf("specialist env override: got %d, want 5000", got)
 	}
-	if got := compactionTokenLimit(ceoSlug); got != 5000 {
-		t.Errorf("ceo env override: got %d, want 5000", got)
+	if got := compactionTokenLimit(office.DefaultLeadAgentSlug); got != 5000 {
+		t.Errorf("lead env override: got %d, want 5000", got)
 	}
 }

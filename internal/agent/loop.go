@@ -721,7 +721,7 @@ func (l *AgentLoop) progressNote(phase AgentPhase) string {
 		}
 		return fmt.Sprintf("%s is reviewing the latest task.", name)
 	case PhaseStreamLLM:
-		if l.state.Config.Slug == "ceo" || strings.Contains(strings.ToLower(strings.Join(l.state.Config.Expertise, " ")), "delegation") {
+		if l.state.Config.Slug == "architect" || strings.Contains(strings.ToLower(strings.Join(l.state.Config.Expertise, " ")), "delegation") {
 			return fmt.Sprintf("%s is coordinating the next move.", name)
 		}
 		if task != "" {

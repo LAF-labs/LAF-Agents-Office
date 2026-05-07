@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
@@ -178,7 +179,7 @@ func DefaultManifest() Manifest {
 	manifest := Manifest{
 		Name:        "LAF-Office",
 		Description: "Project workspace runtime.",
-		Lead:        "ceo",
+		Lead:        office.DefaultLeadAgentSlug,
 		UpdatedAt:   now,
 	}
 	if blueprintID != "" {
@@ -192,12 +193,7 @@ func DefaultManifest() Manifest {
 			return normalizeManifest(resolved)
 		}
 	}
-	manifest.Members = []MemberSpec{
-		{Slug: "ceo", Name: "CEO", Role: "CEO", System: true},
-		{Slug: "planner", Name: "Planner", Role: "Planner"},
-		{Slug: "executor", Name: "Executor", Role: "Executor"},
-		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer"},
-	}
+	manifest.Members = coreAgentMemberSpecs()
 	generalMembers := make([]string, 0, len(manifest.Members))
 	for _, member := range manifest.Members {
 		generalMembers = append(generalMembers, member.Slug)
@@ -221,12 +217,7 @@ func launchFromScratchRequested() bool {
 }
 
 func fromScratchDefaultManifest(now string) Manifest {
-	members := []MemberSpec{
-		{Slug: "founder", Name: "Founder", Role: "Founder", System: true},
-		{Slug: "operator", Name: "Operator", Role: "Operator", System: true},
-		{Slug: "builder", Name: "Builder", Role: "Builder"},
-		{Slug: "reviewer", Name: "Reviewer", Role: "Reviewer"},
-	}
+	members := coreAgentMemberSpecs()
 	channelMembers := make([]string, 0, len(members))
 	for _, member := range members {
 		channelMembers = append(channelMembers, member.Slug)
@@ -234,7 +225,7 @@ func fromScratchDefaultManifest(now string) Manifest {
 	return Manifest{
 		Name:        "LAF-Office",
 		Description: "Project workspace runtime that starts from a directive instead of a saved blueprint.",
-		Lead:        "founder",
+		Lead:        office.DefaultLeadAgentSlug,
 		Members:     members,
 		Channels: []ChannelSpec{{
 			Slug:        "general",
@@ -246,12 +237,22 @@ func fromScratchDefaultManifest(now string) Manifest {
 	}
 }
 
+func coreAgentMemberSpecs() []MemberSpec {
+	return []MemberSpec{
+		{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "Architect", Expertise: []string{"scoping", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real problem, locks scope, and turns vague intent into crisp work for Builder and Reviewer.", PermissionMode: "plan", System: true},
+		{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "Builder", Expertise: []string{"implementation", "workflow execution", "integration", "delivery"}, Personality: "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review.", PermissionMode: "auto", System: true},
+		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Reviews only the changed scope, flags concrete risks, and refuses to approve vague or unverified work.", PermissionMode: "plan", System: true},
+	}
+}
+
 func normalizeManifest(manifest Manifest) Manifest {
 	if strings.TrimSpace(manifest.Name) == "" {
 		manifest.Name = "LAF-Office"
 	}
 	if strings.TrimSpace(manifest.Lead) == "" {
-		manifest.Lead = "ceo"
+		manifest.Lead = office.DefaultLeadAgentSlug
+	} else if mapped := office.MapLegacyAgentSlug(manifest.Lead); mapped != "" && !office.IsAgentMakerSlug(mapped) {
+		manifest.Lead = mapped
 	}
 	manifest.BlueprintRefs = normalizeBlueprintRefs(manifest.BlueprintRefs)
 
@@ -276,7 +277,7 @@ func normalizeManifest(manifest Manifest) Manifest {
 		}
 		member.Expertise = normalizeStrings(member.Expertise)
 		member.AllowedTools = normalizeStrings(member.AllowedTools)
-		member.System = member.Slug == manifest.Lead || member.Slug == "ceo" || member.System
+		member.System = member.Slug == manifest.Lead || office.IsCoreAgentSlug(member.Slug) || member.System
 		members = append(members, member)
 	}
 	if len(members) == 0 {
@@ -390,7 +391,7 @@ func defaultChannelDescription(slug, name string) string {
 func ensureLeadMember(members []string, lead string) []string {
 	lead = normalizeSlug(lead)
 	if lead == "" {
-		lead = "ceo"
+		lead = office.DefaultLeadAgentSlug
 	}
 	if containsSlug(members, lead) {
 		return normalizeSlugs(members)

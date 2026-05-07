@@ -41,19 +41,16 @@ func TestDefaultTemplatesExpectedIDs(t *testing.T) {
 }
 
 func TestDefaultTemplatesOwnerSlugs(t *testing.T) {
-	// Verify the expected owner distribution: executor×2, planner×2, ceo×1.
+	// Verify the expected owner distribution: Builder×2, Architect×3.
 	counts := map[string]int{}
 	for _, tmpl := range DefaultTemplates() {
 		counts[tmpl.OwnerSlug]++
 	}
-	if counts["executor"] != 2 {
-		t.Errorf("expected 2 executor templates, got %d", counts["executor"])
+	if counts["builder"] != 2 {
+		t.Errorf("expected 2 builder templates, got %d", counts["builder"])
 	}
-	if counts["planner"] != 2 {
-		t.Errorf("expected 2 planner templates, got %d", counts["planner"])
-	}
-	if counts["ceo"] != 1 {
-		t.Errorf("expected 1 ceo template, got %d", counts["ceo"])
+	if counts["architect"] != 3 {
+		t.Errorf("expected 3 architect templates, got %d", counts["architect"])
 	}
 }
 

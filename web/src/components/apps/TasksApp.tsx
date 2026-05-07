@@ -1,10 +1,17 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   type QueryClient,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Plus, Xmark } from "iconoir-react";
+import { Plus } from "iconoir-react";
 
 import {
   createProject,
@@ -17,6 +24,7 @@ import {
   postMessage,
   postMessageAs,
   type Task,
+  updateTask,
 } from "../../api/client";
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
 import { formatTime } from "../../lib/format";
@@ -250,6 +258,36 @@ function taskOwnerLabel(task: Task, members: OfficeMember[], t: TranslationFn) {
   return task.owner ? agentLabel(task.owner, members) : t("tasks.unassigned");
 }
 
+function taskCreatorLabel(
+  task: Task,
+  members: OfficeMember[],
+  t: TranslationFn,
+) {
+  const creator = task.created_by?.trim();
+  if (!creator) return t("tasks.unassigned");
+  if (isHumanSlug(creator)) return t("tasks.you");
+  return agentLabel(creator, members);
+}
+
+function updateCachedTask(queryClient: QueryClient, task: Task) {
+  queryClient.setQueriesData<{ tasks: Task[] }>(
+    { queryKey: ["office-tasks"] },
+    (current) => {
+      if (!current?.tasks) return current;
+      return {
+        ...current,
+        tasks: current.tasks.map((candidate) =>
+          candidate.id === task.id ? task : candidate,
+        ),
+      };
+    },
+  );
+}
+
+function upsertCachedTask(queryClient: QueryClient, task: Task) {
+  upsertCachedTask(queryClient, task);
+}
+
 function agentDisplayName(slug: string, members: OfficeMember[]): string {
   const member = members.find((candidate) => candidate.slug === slug);
   return member?.name?.trim() || `@${slug}`;
@@ -462,19 +500,43 @@ function useProjectCreator(
   onProjectCreated: (projectId: string) => void,
 ) {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isSavingProject, setIsSavingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
 
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = newProjectName.trim();
-    if (!name) return;
+  function handleCancelProjectCreate() {
+    setIsCreatingProject(false);
+    setIsSavingProject(false);
+    setNewProjectName("");
     setProjectError(null);
+  }
+
+  async function handleCreateProjectFromName(
+    nameInput = newProjectName,
+  ): Promise<boolean> {
+    const name = nameInput.trim();
+    if (!name || isSavingProject) return false;
+    setProjectError(null);
+    setIsSavingProject(true);
     try {
       const { project } = await createProject({
         created_by: HUMAN_SLUG,
         name,
       });
+      queryClient.setQueryData<{ projects: Project[] }>(
+        ["projects"],
+        (current) => {
+          const projects = current?.projects ?? [];
+          const nextProjects = projects.some(
+            (candidate) => candidate.id === project.id,
+          )
+            ? projects.map((candidate) =>
+                candidate.id === project.id ? project : candidate,
+              )
+            : [...projects, project];
+          return { projects: nextProjects };
+        },
+      );
       setNewProjectName("");
       setIsCreatingProject(false);
       onProjectCreated(project.id);
@@ -486,12 +548,18 @@ function useProjectCreator(
       const message =
         err instanceof Error ? err.message : "Could not create project";
       setProjectError(message);
+      return false;
+    } finally {
+      setIsSavingProject(false);
     }
+    return true;
   }
 
   return {
-    handleCreateProject,
+    handleCancelProjectCreate,
+    handleCreateProjectFromName,
     isCreatingProject,
+    isSavingProject,
     newProjectName,
     projectError,
     setIsCreatingProject,
@@ -508,10 +576,28 @@ function useTicketCreator(
   onTicketCreated: (ticketId: string) => void,
 ) {
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [isSavingTicket, setIsSavingTicket] = useState(false);
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketDetails, setTicketDetails] = useState("");
   const [ticketOwner, setTicketOwner] = useState("");
   const [ticketError, setTicketError] = useState<string | null>(null);
+
+  function resetTicketDraft() {
+    setTicketTitle("");
+    setTicketDetails("");
+    setTicketOwner(defaultProjectAgent(project, members));
+    setTicketError(null);
+  }
+
+  function handleOpenTicketDraft() {
+    resetTicketDraft();
+    setIsCreatingTicket(true);
+  }
+
+  function handleCloseTicketDraft() {
+    setIsCreatingTicket(false);
+    resetTicketDraft();
+  }
 
   useEffect(() => {
     setTicketTitle("");
@@ -521,29 +607,29 @@ function useTicketCreator(
     setIsCreatingTicket(false);
   }, [project, members]);
 
-  async function handleCreateTicket(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!project) return;
-    const title = ticketTitle.trim();
-    if (!title) return;
-    const owner = ticketOwner.trim() || defaultProjectAgent(project, members);
-    const details = ticketDetails.trim();
+  async function persistTicketDraft(
+    currentProject: Project,
+    title: string,
+    owner: string,
+    details: string,
+  ) {
     setTicketError(null);
+    setIsSavingTicket(true);
     try {
       const { task } = await createTask({
-        channel: project.channel || "general",
+        channel: currentProject.channel || "general",
         created_by: HUMAN_SLUG,
         details: details || undefined,
         human_details: details || undefined,
         owner,
-        project_id: project.id,
+        project_id: currentProject.id,
         title,
       });
-      const channel = taskChannel(task, project);
+      const channel = taskChannel(task, currentProject);
       const threadId = task.thread_id || task.id;
-      await postTicketAssignmentAck(task, project, owner, t);
-      setTicketTitle("");
-      setTicketDetails("");
+      await postTicketAssignmentAck(task, currentProject, owner, t);
+      upsertCachedTask(queryClient, task);
+      resetTicketDraft();
       setIsCreatingTicket(false);
       onTicketCreated(task.id);
       await Promise.all([
@@ -557,12 +643,26 @@ function useTicketCreator(
       const message =
         err instanceof Error ? err.message : "Could not create ticket";
       setTicketError(message);
+    } finally {
+      setIsSavingTicket(false);
     }
   }
 
+  async function handleCreateTicket(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!project || isSavingTicket) return;
+    const title = ticketTitle.trim();
+    if (!title) return;
+    const owner = ticketOwner.trim() || defaultProjectAgent(project, members);
+    await persistTicketDraft(project, title, owner, ticketDetails.trim());
+  }
+
   return {
+    handleCloseTicketDraft,
     handleCreateTicket,
+    handleOpenTicketDraft,
     isCreatingTicket,
+    isSavingTicket,
     setIsCreatingTicket,
     setTicketDetails,
     setTicketError,
@@ -632,6 +732,7 @@ export function TasksApp() {
 
   const handleOpenProjectCreator = () => {
     projectCreator.setProjectError(null);
+    projectCreator.setNewProjectName("");
     projectCreator.setIsCreatingProject(true);
   };
 
@@ -659,9 +760,9 @@ export function TasksApp() {
     <main className="project-app">
       <ProjectDirectoryToolbar
         isLoadingTasks={allTasksQuery.isLoading}
+        isCreatingProject={projectCreator.isCreatingProject}
         language={language}
         projectCount={projects.length}
-        projectCreator={projectCreator}
         t={t}
         taskCount={projectTaskCount}
         onCreateProject={handleOpenProjectCreator}
@@ -670,6 +771,7 @@ export function TasksApp() {
         focusedProjectId={projectFocusId}
         isStatsReady={Boolean(allTasksQuery.data)}
         language={language}
+        projectCreator={projectCreator}
         projects={projects}
         tasks={tasks}
         t={t}
@@ -692,9 +794,9 @@ function TaskWorkspaceState({ children }: { children: string }) {
 
 interface ProjectDirectoryToolbarProps {
   isLoadingTasks: boolean;
+  isCreatingProject: boolean;
   language: Language;
   projectCount: number;
-  projectCreator: ProjectCreatorState;
   t: TranslationFn;
   taskCount: number;
   onCreateProject: () => void;
@@ -702,9 +804,9 @@ interface ProjectDirectoryToolbarProps {
 
 function ProjectDirectoryToolbar({
   isLoadingTasks,
+  isCreatingProject,
   language,
   projectCount,
-  projectCreator,
   t,
   taskCount,
   onCreateProject,
@@ -737,6 +839,7 @@ function ProjectDirectoryToolbar({
           variant="outline"
           className="project-create-button"
           onClick={onCreateProject}
+          disabled={isCreatingProject}
           aria-label={t("tasks.newProject")}
           title={t("tasks.newProject")}
         >
@@ -744,54 +847,7 @@ function ProjectDirectoryToolbar({
           <span>{t("tasks.newProject")}</span>
         </Button>
       </CardHeader>
-      {projectCreator.isCreatingProject || projectCreator.projectError ? (
-        <CardContent className="space-y-3 pt-0">
-          {projectCreator.isCreatingProject ? (
-            <ProjectCreateForm projectCreator={projectCreator} t={t} />
-          ) : null}
-          {projectCreator.projectError ? (
-            <p className="text-sm text-destructive">
-              {projectCreator.projectError}
-            </p>
-          ) : null}
-        </CardContent>
-      ) : null}
     </Card>
-  );
-}
-
-function ProjectCreateForm({
-  projectCreator,
-  t,
-}: {
-  projectCreator: ProjectCreatorState;
-  t: TranslationFn;
-}) {
-  return (
-    <form
-      className="project-create-form grid gap-3 border-y bg-transparent p-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
-      onSubmit={projectCreator.handleCreateProject}
-    >
-      <div className="grid gap-2">
-        <Label htmlFor="project-name">{t("tasks.projectName")}</Label>
-        <Input
-          id="project-name"
-          type="text"
-          value={projectCreator.newProjectName}
-          onChange={(event) =>
-            projectCreator.setNewProjectName(event.currentTarget.value)
-          }
-          placeholder={t("tasks.projectName")}
-          aria-label={t("tasks.projectName")}
-        />
-      </div>
-      <Button
-        type="submit"
-        disabled={projectCreator.newProjectName.trim() === ""}
-      >
-        {t("tasks.create")}
-      </Button>
-    </form>
   );
 }
 
@@ -799,6 +855,7 @@ interface ProjectDirectoryListProps {
   focusedProjectId: string | null;
   isStatsReady: boolean;
   language: Language;
+  projectCreator: ProjectCreatorState;
   projects: Project[];
   tasks: Task[];
   t: TranslationFn;
@@ -810,6 +867,7 @@ function ProjectDirectoryList({
   focusedProjectId,
   isStatsReady,
   language,
+  projectCreator,
   projects,
   tasks,
   t,
@@ -823,7 +881,7 @@ function ProjectDirectoryList({
       ?.scrollIntoView({ block: "center" });
   }, [focusedProjectId]);
 
-  if (projects.length === 0) {
+  if (projects.length === 0 && !projectCreator.isCreatingProject) {
     return (
       <Card className="project-directory-card project-empty-card">
         <CardContent className="grid gap-3 py-10 text-center">
@@ -865,6 +923,14 @@ function ProjectDirectoryList({
               </TableRow>
             </TableHeader>
             <TableBody>
+              {projectCreator.isCreatingProject ? (
+                <ProjectDraftRow
+                  isStatsReady={isStatsReady}
+                  language={language}
+                  projectCreator={projectCreator}
+                  t={t}
+                />
+              ) : null}
               {projects.map((project) => {
                 const projectTasks = tasks.filter(
                   (task) => task.project_id === project.id,
@@ -904,6 +970,122 @@ interface ProjectDirectoryRowProps {
   status: ProjectLifecycle;
   t: TranslationFn;
   onFocus: () => void;
+}
+
+function ProjectDraftRow({
+  isStatsReady,
+  language,
+  projectCreator,
+  t,
+}: {
+  isStatsReady: boolean;
+  language: Language;
+  projectCreator: ProjectCreatorState;
+  t: TranslationFn;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const counts: ProjectTicketCounts = {
+    done: 0,
+    inProgress: 0,
+    notStarted: 0,
+    total: 0,
+    waiting: 0,
+  };
+  const countValue = (value: number) => (isStatsReady ? value : "...");
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  async function commitDraft() {
+    const name = projectCreator.newProjectName.trim();
+    if (!name) {
+      projectCreator.handleCancelProjectCreate();
+      return;
+    }
+    await projectCreator.handleCreateProjectFromName(name);
+  }
+
+  return (
+    <TableRow className="project-draft-row" data-state="selected">
+      <TableCell className="min-w-[220px]">
+        <span className="grid min-w-0 gap-1">
+          <Input
+            ref={inputRef}
+            id="project-name"
+            className="project-row-input"
+            type="text"
+            value={projectCreator.newProjectName}
+            onBlur={() => {
+              void commitDraft();
+            }}
+            onChange={(event) =>
+              projectCreator.setNewProjectName(event.currentTarget.value)
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void commitDraft();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                projectCreator.handleCancelProjectCreate();
+              }
+            }}
+            placeholder={t("tasks.projectName")}
+            aria-label={t("tasks.projectName")}
+            disabled={projectCreator.isSavingProject}
+          />
+          {projectCreator.projectError ? (
+            <small className="project-draft-error">
+              {projectCreator.projectError}
+            </small>
+          ) : null}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="project-inline-status is-not_started">
+          {isStatsReady ? t("tasks.projectStatus.notStarted") : "..."}
+        </span>
+      </TableCell>
+      <TableCell>
+        <div className="project-ticket-metrics">
+          <span className="project-ticket-metric">
+            <strong>{countValue(counts.notStarted)}</strong>
+            {t("tasks.projectTickets.notStarted")}
+          </span>
+          <span className="project-ticket-metric">
+            <strong>{countValue(counts.inProgress)}</strong>
+            {t("tasks.projectTickets.inProgress")}
+          </span>
+          <span className="project-ticket-metric">
+            <strong>{countValue(counts.waiting)}</strong>
+            {t("tasks.projectTickets.waiting")}
+          </span>
+          <span className="project-ticket-metric">
+            <strong>{countValue(counts.done)}</strong>
+            {t("tasks.projectTickets.done")}
+          </span>
+          <span className="project-ticket-metric is-total">
+            {isStatsReady
+              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              : "..."}
+          </span>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="project-draft-cancel"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={projectCreator.handleCancelProjectCreate}
+            aria-label={t("tasks.cancel")}
+            disabled={projectCreator.isSavingProject}
+          >
+            <TicketPanelCloseIcon />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 function ProjectDirectoryRow({
@@ -1006,6 +1188,14 @@ function ProjectDetailView({
   const sortedTasks = useMemo(() => sortProjectTasks(tasks), [tasks]);
   const counts = projectTicketCounts(tasks);
   const lifecycle = projectLifecycle(project, counts);
+  const openTicketDraft = () => {
+    onCloseTask();
+    ticketCreator.handleOpenTicketDraft();
+  };
+  const selectTask = (taskId: string) => {
+    ticketCreator.handleCloseTicketDraft();
+    onSelectTask(taskId);
+  };
 
   return (
     <main className="project-app">
@@ -1020,22 +1210,17 @@ function ProjectDetailView({
       />
       <ProjectTicketToolbar
         language={language}
-        members={members}
-        project={project}
-        ticketCreator={ticketCreator}
         t={t}
         ticketCount={tasks.length}
+        onCreateTicket={openTicketDraft}
       />
       <ProjectTicketList
         members={members}
         selectedTaskId={selectedTaskId}
         tasks={sortedTasks}
         t={t}
-        onCreateTicket={() => {
-          ticketCreator.setTicketError(null);
-          ticketCreator.setIsCreatingTicket(true);
-        }}
-        onSelectTask={onSelectTask}
+        onCreateTicket={openTicketDraft}
+        onSelectTask={selectTask}
       />
       {selectedTask ? (
         <TicketSidePanel
@@ -1046,6 +1231,14 @@ function ProjectDetailView({
           task={selectedTask}
           t={t}
           onClose={onCloseTask}
+        />
+      ) : ticketCreator.isCreatingTicket ? (
+        <TicketDraftSidePanel
+          members={members}
+          project={project}
+          ticketCreator={ticketCreator}
+          t={t}
+          onClose={ticketCreator.handleCloseTicketDraft}
         />
       ) : null}
     </main>
@@ -1106,18 +1299,14 @@ function ProjectDetailHeader({
 
 function ProjectTicketToolbar({
   language,
-  members,
-  project,
-  ticketCreator,
   t,
   ticketCount,
+  onCreateTicket,
 }: {
   language: Language;
-  members: OfficeMember[];
-  project: Project;
-  ticketCreator: TicketCreatorState;
   t: TranslationFn;
   ticketCount: number;
+  onCreateTicket: () => void;
 }) {
   return (
     <Card className="project-directory-card project-ticket-card">
@@ -1136,10 +1325,7 @@ function ProjectTicketToolbar({
           type="button"
           variant="outline"
           className="project-create-button"
-          onClick={() => {
-            ticketCreator.setTicketError(null);
-            ticketCreator.setIsCreatingTicket(true);
-          }}
+          onClick={onCreateTicket}
           aria-label={t("tasks.newTicket")}
           title={t("tasks.newTicket")}
         >
@@ -1147,98 +1333,152 @@ function ProjectTicketToolbar({
           <span>{t("tasks.newTicket")}</span>
         </Button>
       </CardHeader>
-      {ticketCreator.isCreatingTicket || ticketCreator.ticketError ? (
-        <CardContent className="space-y-3 pt-0">
-          {ticketCreator.isCreatingTicket ? (
-            <TicketCreateForm
-              members={members}
-              project={project}
-              ticketCreator={ticketCreator}
-              t={t}
-            />
-          ) : null}
-          {ticketCreator.ticketError ? (
-            <p className="text-sm text-destructive">
-              {ticketCreator.ticketError}
-            </p>
-          ) : null}
-        </CardContent>
-      ) : null}
     </Card>
   );
 }
 
-function TicketCreateForm({
+function TicketDraftSidePanel({
   members,
   project,
   ticketCreator,
   t,
+  onClose,
 }: {
   members: OfficeMember[];
   project: Project;
   ticketCreator: TicketCreatorState;
   t: TranslationFn;
+  onClose: () => void;
 }) {
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
   return (
-    <form
-      className="ticket-create-form grid gap-3 border-y bg-transparent p-0"
-      onSubmit={ticketCreator.handleCreateTicket}
-    >
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="grid gap-2">
-          <Label htmlFor="ticket-title">{t("tasks.ticketTitle")}</Label>
-          <Input
-            id="ticket-title"
-            type="text"
-            value={ticketCreator.ticketTitle}
-            onChange={(event) =>
-              ticketCreator.setTicketTitle(event.currentTarget.value)
-            }
-            placeholder={t("tasks.ticketTitle")}
-            aria-label={t("tasks.ticketTitle")}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="ticket-owner">{t("tasks.detail.owner")}</Label>
-          <AgentSelect
-            id="ticket-owner"
-            agent={ticketCreator.ticketOwner}
-            label={t("tasks.detail.owner")}
-            members={members}
-            preferred={project.lead_agent}
-            onChange={ticketCreator.setTicketOwner}
-          />
-        </div>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="ticket-details">{t("tasks.ticketDetails")}</Label>
-        <Textarea
-          id="ticket-details"
-          value={ticketCreator.ticketDetails}
-          onChange={(event) =>
-            ticketCreator.setTicketDetails(event.currentTarget.value)
-          }
-          placeholder={t("tasks.ticketDetails")}
-          aria-label={t("tasks.ticketDetails")}
-          rows={3}
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button
-          type="submit"
-          disabled={ticketCreator.ticketTitle.trim() === ""}
+    <Sheet>
+      <SheetContent
+        className="ticket-side-panel ticket-draft-panel h-auto w-full gap-0 p-0 sm:max-w-2xl"
+        style={{
+          maxWidth: "40rem",
+          top: "var(--topbar-height, 0px)",
+          width: "min(100vw, 40rem)",
+        }}
+        role="complementary"
+        aria-label={t("tasks.newTicket")}
+      >
+        <form
+          className="ticket-draft-form flex min-h-0 flex-1 flex-col"
+          onSubmit={ticketCreator.handleCreateTicket}
         >
-          {t("tasks.createTicket")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => ticketCreator.setIsCreatingTicket(false)}
-        >
-          {t("tasks.cancel")}
-        </Button>
-      </div>
-    </form>
+          <div className="ticket-side-panel-header ticket-draft-header flex items-start justify-between gap-4 border-b px-6 py-5">
+            <SheetHeader className="min-w-0">
+              <SheetDescription>{project.name || project.id}</SheetDescription>
+              <SheetTitle className="ticket-draft-title-shell">
+                <Input
+                  ref={titleRef}
+                  id="ticket-title"
+                  className="ticket-draft-title-input"
+                  type="text"
+                  value={ticketCreator.ticketTitle}
+                  onChange={(event) =>
+                    ticketCreator.setTicketTitle(event.currentTarget.value)
+                  }
+                  placeholder={t("tasks.ticketTitle")}
+                  aria-label={t("tasks.ticketTitle")}
+                  disabled={ticketCreator.isSavingTicket}
+                />
+              </SheetTitle>
+            </SheetHeader>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={onClose}
+              aria-label={t("tasks.close")}
+              disabled={ticketCreator.isSavingTicket}
+              className="ticket-panel-close"
+            >
+              <TicketPanelCloseIcon />
+            </Button>
+          </div>
+
+          <div className="ticket-side-panel-body flex min-h-0 flex-1 flex-col">
+            <div className="ticket-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
+              <div className="grid gap-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {t("tasks.status")}
+                </span>
+                <span className="task-inline-status is-open">
+                  {t("tasks.status.open")}
+                </span>
+              </div>
+              <div className="grid min-w-0 gap-1">
+                <Label
+                  className="text-xs font-medium text-muted-foreground"
+                  htmlFor="ticket-owner"
+                >
+                  {t("tasks.detail.owner")}
+                </Label>
+                <AgentSelect
+                  id="ticket-owner"
+                  agent={ticketCreator.ticketOwner}
+                  label={t("tasks.detail.owner")}
+                  members={members}
+                  preferred={project.lead_agent}
+                  onChange={ticketCreator.setTicketOwner}
+                />
+              </div>
+            </div>
+
+            <section className="ticket-side-panel-detail ticket-draft-detail mx-6 mb-5 grid gap-2 overflow-y-auto overflow-x-hidden border-y bg-transparent py-3">
+              <Label
+                className="text-xs font-medium text-muted-foreground"
+                htmlFor="ticket-details"
+              >
+                {t("tasks.ticketDetails")}
+              </Label>
+              <Textarea
+                id="ticket-details"
+                className="ticket-draft-details"
+                value={ticketCreator.ticketDetails}
+                onChange={(event) =>
+                  ticketCreator.setTicketDetails(event.currentTarget.value)
+                }
+                placeholder={t("tasks.ticketDetails")}
+                aria-label={t("tasks.ticketDetails")}
+                rows={8}
+                disabled={ticketCreator.isSavingTicket}
+              />
+            </section>
+
+            <div className="ticket-draft-footer mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-t px-6 py-4">
+              <span className="truncate text-sm text-destructive">
+                {ticketCreator.ticketError ?? ""}
+              </span>
+              <Button
+                type="submit"
+                disabled={
+                  ticketCreator.ticketTitle.trim() === "" ||
+                  ticketCreator.isSavingTicket
+                }
+              >
+                {t("tasks.createTicket")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={ticketCreator.isSavingTicket}
+              >
+                {t("tasks.cancel")}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -1285,16 +1525,19 @@ function ProjectTicketList({
   }
 
   return (
-    <Card className="project-directory-card">
+    <Card className="project-directory-card project-ticket-list-card">
       <CardContent className="p-0">
         <section aria-label={t("tasks.tickets")}>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("tasks.ticket")}</TableHead>
-                <TableHead className="w-[132px]">{t("tasks.status")}</TableHead>
-                <TableHead className="w-[220px]">
+                <TableHead className="w-[126px]">{t("tasks.status")}</TableHead>
+                <TableHead className="w-[190px]">
                   {t("tasks.detail.owner")}
+                </TableHead>
+                <TableHead className="w-[170px]">
+                  {t("tasks.detail.createdBy")}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -1367,7 +1610,211 @@ function TicketRow({
           {taskOwnerLabel(task, members, t)}
         </span>
       </TableCell>
+      <TableCell>
+        <span className="block truncate text-sm text-muted-foreground">
+          {taskCreatorLabel(task, members, t)}
+        </span>
+      </TableCell>
     </TableRow>
+  );
+}
+
+function TicketPanelCloseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="ticket-panel-close-icon"
+      fill="none"
+      height="18"
+      viewBox="0 0 18 18"
+      width="18"
+    >
+      <path
+        d="M5 5L13 13M13 5L5 13"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function submitTicketCommentOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
+  if (
+    event.key !== "Enter" ||
+    event.shiftKey ||
+    event.nativeEvent.isComposing
+  ) {
+    return;
+  }
+  event.preventDefault();
+  event.currentTarget.form?.requestSubmit();
+}
+
+function TicketDetailSection({
+  project,
+  queryClient,
+  task,
+  t,
+}: {
+  project: Project;
+  queryClient: QueryClient;
+  task: Task;
+  t: TranslationFn;
+}) {
+  const detailText = userEnteredTaskDetails(task);
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(task.title || "");
+  const [draftDetails, setDraftDetails] = useState(detailText);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [isClearingDetails, setIsClearingDetails] = useState(false);
+  const channel = taskChannel(task, project);
+
+  useEffect(() => {
+    setIsEditingDetails(false);
+    setDraftTitle(task.title || "");
+    setDraftDetails(detailText);
+    setDetailError(null);
+  }, [task.title, detailText]);
+
+  async function persistTicketDetails(clearDetails: boolean) {
+    const title = draftTitle.trim();
+    if (!(title || clearDetails)) {
+      setDetailError(t("tasks.detail.titleRequired"));
+      return;
+    }
+    const details = clearDetails ? "" : draftDetails.trim();
+    setDetailError(null);
+    if (clearDetails) setIsClearingDetails(true);
+    else setIsSavingDetails(true);
+
+    try {
+      const { task: updatedTask } = await updateTask({
+        channel,
+        clear_details: clearDetails,
+        created_by: HUMAN_SLUG,
+        details,
+        human_details: details,
+        id: task.id,
+        project_id: task.project_id || project.id,
+        title: clearDetails ? task.title : title,
+      });
+      updateCachedTask(queryClient, updatedTask);
+      await queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+      setDraftTitle(updatedTask.title || "");
+      setDraftDetails(userEnteredTaskDetails(updatedTask));
+      setIsEditingDetails(false);
+    } catch (err) {
+      setDetailError(
+        err instanceof Error ? err.message : t("tasks.detail.updateFailed"),
+      );
+    } finally {
+      setIsSavingDetails(false);
+      setIsClearingDetails(false);
+    }
+  }
+
+  return (
+    <section className="ticket-side-panel-detail mx-6 mb-5 grid gap-3 overflow-x-hidden border-y bg-transparent py-3">
+      <div className="ticket-detail-section-head flex items-center justify-between gap-3">
+        <h5 className="text-xs font-medium text-muted-foreground">
+          {t("tasks.ticketDetails")}
+        </h5>
+        {isEditingDetails ? null : (
+          <div className="ticket-detail-actions flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="ticket-detail-action"
+              onClick={() => {
+                setDraftTitle(task.title || "");
+                setDraftDetails(detailText);
+                setDetailError(null);
+                setIsEditingDetails(true);
+              }}
+            >
+              {t("tasks.detail.edit")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="ticket-detail-action is-danger"
+              disabled={!detailText || isClearingDetails}
+              onClick={() => void persistTicketDetails(true)}
+            >
+              {isClearingDetails
+                ? t("tasks.detail.deleting")
+                : t("tasks.detail.delete")}
+            </Button>
+          </div>
+        )}
+      </div>
+      {isEditingDetails ? (
+        <div className="ticket-detail-edit grid gap-3">
+          <div className="grid gap-2">
+            <Label htmlFor={`ticket-edit-title-${task.id}`}>
+              {t("tasks.ticketTitle")}
+            </Label>
+            <Input
+              id={`ticket-edit-title-${task.id}`}
+              value={draftTitle}
+              onChange={(event) => setDraftTitle(event.currentTarget.value)}
+              aria-label={t("tasks.ticketTitle")}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`ticket-edit-details-${task.id}`}>
+              {t("tasks.ticketDetails")}
+            </Label>
+            <Textarea
+              id={`ticket-edit-details-${task.id}`}
+              value={draftDetails}
+              onChange={(event) => setDraftDetails(event.currentTarget.value)}
+              aria-label={t("tasks.ticketDetails")}
+              rows={5}
+            />
+          </div>
+          {detailError ? (
+            <p className="text-sm text-destructive">{detailError}</p>
+          ) : null}
+          <div className="ticket-detail-edit-actions flex justify-end gap-2">
+            <Button
+              type="button"
+              disabled={!draftTitle.trim() || isSavingDetails}
+              onClick={() => void persistTicketDetails(false)}
+            >
+              {isSavingDetails
+                ? t("tasks.detail.saving")
+                : t("tasks.detail.save")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditingDetails(false);
+                setDraftTitle(task.title || "");
+                setDraftDetails(detailText);
+                setDetailError(null);
+              }}
+            >
+              {t("tasks.cancel")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+            {detailText || t("tasks.noTicketDetails")}
+          </p>
+          {detailError ? (
+            <p className="text-sm text-destructive">{detailError}</p>
+          ) : null}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -1396,7 +1843,6 @@ function TicketSidePanel({
     slugs: string[];
   }>({ afterMessageId: null, slugs: [] });
   const status = normalizeStatus(task.status);
-  const detail = userEnteredTaskDetails(task) || t("tasks.noTicketDetails");
   const channel = taskChannel(task, project);
   const threadId = task.thread_id || task.id;
   const threadMessagesQuery = useQuery({
@@ -1515,8 +1961,9 @@ function TicketSidePanel({
             variant="outline"
             onClick={onClose}
             aria-label={t("tasks.close")}
+            className="ticket-panel-close"
           >
-            <Xmark width={18} height={18} />
+            <TicketPanelCloseIcon />
           </Button>
         </div>
 
@@ -1540,14 +1987,12 @@ function TicketSidePanel({
             </div>
           </div>
 
-          <section className="ticket-side-panel-detail mx-6 mb-5 grid max-h-32 gap-2 overflow-y-auto overflow-x-hidden border-y bg-transparent py-3">
-            <h5 className="text-xs font-medium text-muted-foreground">
-              {t("tasks.ticketDetails")}
-            </h5>
-            <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-              {detail}
-            </p>
-          </section>
+          <TicketDetailSection
+            project={project}
+            queryClient={queryClient}
+            task={task}
+            t={t}
+          />
 
           <Separator />
 
@@ -1576,6 +2021,7 @@ function TicketSidePanel({
                     setInstruction(event.currentTarget.value);
                     setSent(false);
                   }}
+                  onKeyDown={submitTicketCommentOnEnter}
                   placeholder={t("tasks.agentInstructionPlaceholder")}
                   aria-label={t("tasks.agentInstruction")}
                   rows={4}

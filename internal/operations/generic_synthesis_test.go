@@ -1,6 +1,10 @@
 package operations
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
+)
 
 func TestSynthesizeBlueprintDerivesGenericPlanFromDirectiveProfileAndCapabilities(t *testing.T) {
 	blueprint := SynthesizeBlueprint(SynthesisInput{
@@ -35,11 +39,11 @@ func TestSynthesizeBlueprintDerivesGenericPlanFromDirectiveProfileAndCapabilitie
 	if got := blueprint.Objective; got == "" {
 		t.Fatalf("expected objective to be populated")
 	}
-	if blueprint.Starter.LeadSlug != "operator" {
+	if blueprint.Starter.LeadSlug != office.DefaultLeadAgentSlug {
 		t.Fatalf("unexpected lead slug: %+v", blueprint.Starter)
 	}
-	if len(blueprint.Starter.Agents) < 5 {
-		t.Fatalf("expected baseline agents plus integration owners, got %+v", blueprint.Starter.Agents)
+	if len(blueprint.Starter.Agents) != 3 {
+		t.Fatalf("expected the core three agents, got %+v", blueprint.Starter.Agents)
 	}
 	if len(blueprint.Starter.Channels) < 4 {
 		t.Fatalf("expected baseline channels, got %+v", blueprint.Starter.Channels)
@@ -91,7 +95,7 @@ func TestSynthesizeBlueprintFallsBackToBlankOperationsShape(t *testing.T) {
 	if blueprint.Objective == "" {
 		t.Fatal("expected fallback objective")
 	}
-	if blueprint.Starter.LeadSlug != "operator" {
+	if blueprint.Starter.LeadSlug != office.DefaultLeadAgentSlug {
 		t.Fatalf("unexpected fallback lead slug: %+v", blueprint.Starter)
 	}
 	if len(blueprint.Starter.Channels) < 4 {

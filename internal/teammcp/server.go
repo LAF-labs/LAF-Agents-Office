@@ -15,6 +15,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
@@ -228,7 +229,7 @@ type TeamPollArgs struct {
 	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug so tagged_count can be computed. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	SinceID string `json:"since_id,omitempty" jsonschema:"Only return messages after this message ID"`
 	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum messages to return (default 10, max 100)"`
-	Scope   string `json:"scope,omitempty" jsonschema:"Transcript scope: all, agent, inbox, or outbox. Defaults to agent-scoped for non-CEO office agents."`
+	Scope   string `json:"scope,omitempty" jsonschema:"Transcript scope: all, agent, inbox, or outbox. Defaults to agent-scoped for non-lead office agents."`
 }
 
 type TeamStatusArgs struct {
@@ -324,7 +325,7 @@ type TeamChannelArgs struct {
 	Channel     string   `json:"channel" jsonschema:"Channel slug"`
 	Name        string   `json:"name,omitempty" jsonschema:"Optional channel display name on create"`
 	Description string   `json:"description,omitempty" jsonschema:"One-sentence explanation of what the channel is for. Required in practice when creating channels."`
-	Members     []string `json:"members,omitempty" jsonschema:"Optional initial member slugs to add when creating the channel. CEO is always included."`
+	Members     []string `json:"members,omitempty" jsonschema:"Optional initial member slugs to add when creating the channel. The lead is always included."`
 	MySlug      string   `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
@@ -638,7 +639,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 	// Each role gets only the tools it needs. Cuts MCP schema overhead
 	// from ~125k tokens (27 tools) down to ~15k (4 tools in DM mode).
 	isDM := strings.HasPrefix(channel, "dm-")
-	isLead := slug == "" || slug == "ceo"
+	isLead := isLeadSlug(slug)
 
 	// DM mode: minimal tool set (same as 1:1 mode)
 	if isDM {
@@ -681,7 +682,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 	), handleTeamPoll)
 	mcp.AddTool(server, readOnlyTool(
 		"team_inbox",
-		"Read only the messages that currently belong in your agent inbox: human asks, CEO guidance, tags to you, and replies in your threads.",
+		"Read only the messages that currently belong in your agent inbox: human asks, lead guidance, tags to you, and replies in your threads.",
 	), handleTeamInbox)
 	mcp.AddTool(server, readOnlyTool(
 		"team_outbox",
@@ -784,7 +785,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		), handleTeamPlan)
 		mcp.AddTool(server, officeWriteTool(
 			"team_bridge",
-			"CEO-only tool to bridge relevant context from one channel into another and leave a visible cross-channel trail.",
+			"Lead-only tool to bridge relevant context from one channel into another and leave a visible cross-channel trail.",
 		), handleTeamBridge)
 		mcp.AddTool(server, officeWriteTool(
 			"team_channel",
@@ -823,7 +824,7 @@ func handleTeamBroadcast(ctx context.Context, _ *mcp.CallToolRequest, args TeamB
 	if !isOneOnOneMode() {
 		if messages, tasks, err := fetchBroadcastContext(ctx, channel, slug); err == nil {
 			if reason := suppressBroadcastReason(slug, args.Content, replyTo, messages, tasks); reason != "" {
-				return textResult(fmt.Sprintf("Held reply for @%s: %s. Poll again if the thread changes or if the CEO tags you in.", slug, reason)), nil, nil
+				return textResult(fmt.Sprintf("Held reply for @%s: %s. Poll again if the thread changes or if @%s tags you in.", slug, reason, office.DefaultLeadAgentSlug)), nil, nil
 			}
 		}
 	}
@@ -978,7 +979,7 @@ func fetchBroadcastContext(ctx context.Context, channel, mySlug string) ([]broke
 }
 
 func suppressBroadcastReason(slug, content, replyTo string, messages []brokerMessage, tasks []brokerTaskSummary) string {
-	if strings.TrimSpace(slug) == "" || slug == "ceo" {
+	if isLeadSlug(slug) {
 		return ""
 	}
 	threadRoot := threadRootForReply(replyTo, messages)
@@ -2259,7 +2260,7 @@ func handleTeamChannels(ctx context.Context, _ *mcp.CallToolRequest, _ TeamChann
 		}
 		lines = append(lines, line)
 	}
-	return textResult("Office channels:\n" + strings.Join(lines, "\n") + "\n\nYou can inspect channel names and descriptions even if you are not a member. Only the CEO has full cross-channel content context by default."), nil, nil
+	return textResult("Office channels:\n" + strings.Join(lines, "\n") + "\n\nYou can inspect channel names and descriptions even if you are not a member. The lead can bridge cross-channel context when needed."), nil, nil
 }
 
 func handleTeamDMOpen(ctx context.Context, _ *mcp.CallToolRequest, args TeamDMOpenArgs) (*mcp.CallToolResult, any, error) {
@@ -2363,8 +2364,8 @@ func handleTeamBridge(ctx context.Context, _ *mcp.CallToolRequest, args TeamBrid
 	if err != nil {
 		return toolError(err), nil, nil
 	}
-	if slug != "ceo" {
-		return toolError(fmt.Errorf("only the CEO can bridge channel context; ask @ceo to do it")), nil, nil
+	if !isLeadSlug(slug) {
+		return toolError(fmt.Errorf("only the lead can bridge channel context; ask @%s to do it", office.DefaultLeadAgentSlug)), nil, nil
 	}
 	source := resolveChannel(args.SourceChannel)
 	target := resolveChannel(args.TargetChannel)
@@ -2386,7 +2387,7 @@ func handleTeamBridge(ctx context.Context, _ *mcp.CallToolRequest, args TeamBrid
 	}, &result); err != nil {
 		return toolError(err), nil, nil
 	}
-	text := fmt.Sprintf("CEO bridged context from #%s to #%s", source, target)
+	text := fmt.Sprintf("Lead bridged context from #%s to #%s", source, target)
 	if result.ID != "" {
 		text += " (" + result.ID + ")"
 	}
@@ -2614,7 +2615,7 @@ func fetchAccessibleChannels(ctx context.Context, slug string) []brokerChannelSu
 		return nil
 	}
 	slug = strings.TrimSpace(slug)
-	if slug == "" || slug == "ceo" {
+	if isLeadSlug(slug) {
 		return result.Channels
 	}
 	out := make([]brokerChannelSummary, 0, len(result.Channels))
@@ -3032,7 +3033,7 @@ func derivedMemoryKey(explicit string, title string, content string) string {
 
 func applyAgentMessageScope(values url.Values, slug, scope string) {
 	slug = strings.TrimSpace(slug)
-	if slug == "" || slug == "ceo" || isOneOnOneMode() {
+	if isLeadSlug(slug) || isOneOnOneMode() {
 		return
 	}
 	values.Set("viewer_slug", slug)
@@ -3040,6 +3041,11 @@ func applyAgentMessageScope(values url.Values, slug, scope string) {
 		scope = "agent"
 	}
 	values.Set("scope", scope)
+}
+
+func isLeadSlug(slug string) bool {
+	slug = normalizeSlug(slug)
+	return slug == "" || slug == office.DefaultLeadAgentSlug || office.MapLegacyAgentSlug(slug) == office.DefaultLeadAgentSlug
 }
 
 func brokerGetJSON(ctx context.Context, path string, out any) error {

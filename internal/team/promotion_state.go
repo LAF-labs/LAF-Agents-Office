@@ -200,7 +200,7 @@ func NewReviewLog(path string, resolver ReviewerResolver, clock func() time.Time
 	if resolver == nil {
 		// Default resolver keeps callers that never wire a blueprint safe —
 		// everything routes to ReviewerFallback. Production wiring overrides.
-		resolver = func(string) string { return "ceo" }
+		resolver = func(string) string { return "reviewer" }
 	}
 	if clock == nil {
 		clock = time.Now
@@ -230,7 +230,7 @@ func (l *ReviewLog) Path() string { return l.path }
 
 // SubmitPromotion creates a new promotion in state=pending. The reviewer is
 // resolved from the target path via the injected resolver (human-only and
-// ceo-fallback sentinels are honored as-is).
+// reviewer-fallback sentinels are honored as-is).
 func (l *ReviewLog) SubmitPromotion(req SubmitPromotionRequest) (*Promotion, error) {
 	if strings.TrimSpace(req.SourceSlug) == "" {
 		return nil, fmt.Errorf("promotion: source_slug is required")

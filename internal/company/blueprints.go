@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
@@ -42,10 +43,15 @@ func materializeManifestFromBlueprintRefs(manifest Manifest, repoRoot string) (M
 	}
 	cfg, _ := config.Load()
 
+	lead := mapBlueprintMemberToCore(firstNonEmpty(strings.TrimSpace(operationBlueprint.Starter.LeadSlug), strings.TrimSpace(manifest.Lead), office.DefaultLeadAgentSlug))
+	if lead == "" {
+		lead = office.DefaultLeadAgentSlug
+	}
+
 	resolved := Manifest{
 		Name:          firstNonTemplateNonEmpty(strings.TrimSpace(cfg.CompanyName), strings.TrimSpace(manifest.Name), strings.TrimSpace(operationBlueprint.Name), "LAF-Office"),
 		Description:   firstNonTemplateNonEmpty(strings.TrimSpace(cfg.CompanyDescription), strings.TrimSpace(manifest.Description), strings.TrimSpace(operationBlueprint.Description), strings.TrimSpace(operationBlueprint.Objective), "Project workspace runtime."),
-		Lead:          firstNonEmpty(strings.TrimSpace(operationBlueprint.Starter.LeadSlug), strings.TrimSpace(manifest.Lead), "ceo"),
+		Lead:          lead,
 		BlueprintRefs: refs,
 		UpdatedAt:     manifest.UpdatedAt,
 	}
@@ -73,9 +79,16 @@ func loadPrimaryOperationBlueprint(repoRoot string, refs []BlueprintRef) (operat
 }
 
 func buildMembersFromBlueprints(repoRoot string, blueprint operations.Blueprint, refs []BlueprintRef) []MemberSpec {
+	// Runtime offices now operate with the fixed Architect / Builder / Reviewer
+	// team. Operation and employee blueprints still drive wiki/schema/task
+	// materialization, but they no longer expand the live agent roster.
+	if len(blueprint.Starter.Agents) > 0 || len(blueprint.EmployeeBlueprints) > 0 || len(refs) > 0 {
+		return coreAgentMemberSpecs()
+	}
+
 	if len(blueprint.Starter.Agents) > 0 {
 		members := make([]MemberSpec, 0, len(blueprint.Starter.Agents))
-		lead := firstNonEmpty(strings.TrimSpace(blueprint.Starter.LeadSlug), "ceo")
+		lead := firstNonEmpty(strings.TrimSpace(blueprint.Starter.LeadSlug), office.DefaultLeadAgentSlug)
 		for _, starter := range blueprint.Starter.Agents {
 			if employeeID := normalizeSlug(starter.EmployeeBlueprint); employeeID != "" {
 				if employeeBlueprint, err := operations.LoadEmployeeBlueprint(repoRoot, employeeID); err == nil {
@@ -105,12 +118,12 @@ func buildMembersFromBlueprints(repoRoot string, blueprint operations.Blueprint,
 			if err != nil {
 				continue
 			}
-			members = append(members, memberSpecFromEmployeeBlueprint(employeeBlueprint, operations.StarterAgent{}, "ceo"))
+			members = append(members, memberSpecFromEmployeeBlueprint(employeeBlueprint, operations.StarterAgent{}, office.DefaultLeadAgentSlug))
 		}
 		if len(members) > 0 {
-			lead := firstNonEmpty(strings.TrimSpace(blueprint.Starter.LeadSlug), "ceo")
+			lead := firstNonEmpty(strings.TrimSpace(blueprint.Starter.LeadSlug), office.DefaultLeadAgentSlug)
 			for i := range members {
-				members[i].System = members[i].Slug == lead || members[i].Slug == "ceo" || members[i].System
+				members[i].System = members[i].Slug == lead || office.IsCoreAgentSlug(members[i].Slug) || members[i].System
 			}
 			sort.SliceStable(members, func(i, j int) bool {
 				if members[i].System != members[j].System {
@@ -147,7 +160,7 @@ func memberSpecFromEmployeeBlueprint(blueprint operations.EmployeeBlueprint, sta
 		Personality:    personality,
 		PermissionMode: permissionMode,
 		AllowedTools:   normalizeStrings(blueprint.Tools),
-		System:         starter.BuiltIn || slug == lead || slug == "ceo" || slug == "operator",
+		System:         starter.BuiltIn || slug == lead || office.IsCoreAgentSlug(slug),
 	}
 }
 
@@ -167,7 +180,7 @@ func memberSpecFromStarterAgent(starter operations.StarterAgent, lead string) Me
 		Expertise:      normalizeStrings(starter.Expertise),
 		Personality:    strings.TrimSpace(starter.Personality),
 		PermissionMode: permissionMode,
-		System:         starter.BuiltIn || slug == lead || slug == "ceo",
+		System:         starter.BuiltIn || slug == lead || office.IsCoreAgentSlug(slug),
 	}
 }
 
@@ -195,7 +208,7 @@ func buildChannelsFromBlueprint(blueprint operations.Blueprint, members []Member
 		description := renderBlueprintTemplateString(starter.Description, replacements)
 		renderedMembers := make([]string, 0, len(starter.Members))
 		for _, member := range starter.Members {
-			renderedMembers = append(renderedMembers, renderBlueprintTemplateString(member, replacements))
+			renderedMembers = append(renderedMembers, mapBlueprintMemberToCore(renderBlueprintTemplateString(member, replacements)))
 		}
 		channels = append(channels, ChannelSpec{
 			Slug:        slug,
@@ -205,6 +218,20 @@ func buildChannelsFromBlueprint(blueprint operations.Blueprint, members []Member
 		})
 	}
 	return channels
+}
+
+func mapBlueprintMemberToCore(slug string) string {
+	slug = normalizeSlug(slug)
+	if slug == "" {
+		return ""
+	}
+	if office.IsCoreAgentSlug(slug) {
+		return slug
+	}
+	if mapped := office.MapLegacyAgentSlug(slug); mapped != "" && !office.IsAgentMakerSlug(mapped) {
+		return mapped
+	}
+	return ""
 }
 
 func mergeUniqueStrings(values ...[]string) []string {

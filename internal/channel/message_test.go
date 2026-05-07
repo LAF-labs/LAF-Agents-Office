@@ -48,10 +48,14 @@ func TestThreadMessages(t *testing.T) {
 	ch, _ := s.Create(Channel{Slug: "general", Type: ChannelTypePublic})
 	s.AppendMessage(Message{ID: "msg-1", From: "human", Channel: ch.Slug, Content: "root"})
 	s.AppendMessage(Message{ID: "msg-2", From: "engineering", Channel: ch.Slug, Content: "reply", ReplyTo: "msg-1"})
-	s.AppendMessage(Message{ID: "msg-3", From: "human", Channel: ch.Slug, Content: "other thread"})
+	s.AppendMessage(Message{ID: "msg-3", From: "engineering", Channel: ch.Slug, Content: "nested reply", ReplyTo: "msg-2"})
+	s.AppendMessage(Message{ID: "msg-4", From: "human", Channel: ch.Slug, Content: "other thread"})
 	thread := s.ThreadMessages(ch.Slug, "msg-1")
-	if len(thread) != 2 {
-		t.Errorf("expected 2 messages in thread, got %d", len(thread))
+	if len(thread) != 3 {
+		t.Errorf("expected 3 messages in thread, got %d", len(thread))
+	}
+	if thread[2].ID != "msg-3" {
+		t.Errorf("expected nested reply in thread, got %+v", thread)
 	}
 }
 

@@ -20,6 +20,7 @@ const apiMocks = vi.hoisted(() => ({
   postMessage: vi.fn(),
   postMessageAs: vi.fn(),
   reassignTask: vi.fn(),
+  updateTask: vi.fn(),
   updateProject: vi.fn(),
   updateTaskStatus: vi.fn(),
 }));
@@ -219,6 +220,8 @@ describe("TasksApp project directory", () => {
     expect(
       within(ticketList).getByText("Review signup flow"),
     ).toBeInTheDocument();
+    expect(within(ticketList).getByText("Created by")).toBeInTheDocument();
+    expect(within(ticketList).getAllByText("@ceo").length).toBeGreaterThan(0);
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
 
@@ -240,6 +243,9 @@ describe("TasksApp project directory", () => {
       await screen.findByRole("button", { name: /Customer Portal/ }),
     );
     await user.click(screen.getByRole("button", { name: "New ticket" }));
+    expect(
+      await screen.findByRole("complementary", { name: "New ticket" }),
+    ).toBeInTheDocument();
     await user.type(screen.getByLabelText("Ticket title"), "Instrument funnel");
     await user.type(screen.getByLabelText("Details"), "Track signup drop-off.");
     await user.click(screen.getByRole("button", { name: "Create ticket" }));
@@ -306,15 +312,20 @@ describe("TasksApp project directory", () => {
     ).toBe(humanGroup);
     expect(humanGroup).toHaveClass("justify-end");
 
+    const chatInput = within(panel).getByLabelText("Ticket chat");
     await user.type(
-      within(panel).getByLabelText("Ticket chat"),
-      "Please finish this ticket and report blockers.",
+      chatInput,
+      "Please finish this ticket{Shift>}{Enter}{/Shift}and report blockers.",
     );
-    await user.click(within(panel).getByRole("button", { name: "Send" }));
+    expect(chatInput).toHaveValue(
+      "Please finish this ticket\nand report blockers.",
+    );
+    expect(apiMocks.postMessage).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "Please finish this ticket and report blockers.",
+        "Please finish this ticket\nand report blockers.",
         "general",
         "thread-build",
         ["engineer"],
@@ -323,7 +334,7 @@ describe("TasksApp project directory", () => {
     expect(
       (
         await within(panel).findByText(
-          "Please finish this ticket and report blockers.",
+          /Please finish this ticket\s+and report blockers\./,
         )
       ).closest("article"),
     ).toHaveClass("justify-end");
@@ -331,6 +342,116 @@ describe("TasksApp project directory", () => {
       await within(panel).findByText("Engineer is typing..."),
     ).toBeInTheDocument();
   });
+});
+
+describe("TasksApp ticket detail interactions", () => {
+  beforeEach(mockProjectDirectory);
+
+  it("edits and clears ticket details from the side panel", async () => {
+    const user = userEvent.setup();
+    apiMocks.updateTask.mockResolvedValueOnce({
+      task: {
+        id: "task-build",
+        channel: "general",
+        created_by: "ceo",
+        details: "Updated checkout handoff.",
+        human_details: "Updated checkout handoff.",
+        owner: "engineer",
+        project_id: "customer-portal",
+        status: "in_progress",
+        thread_id: "thread-build",
+        title: "Implement checkout flow",
+      },
+    });
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.click(within(panel).getByRole("button", { name: "Edit" }));
+    await user.clear(within(panel).getByLabelText("Ticket title"));
+    await user.type(
+      within(panel).getByLabelText("Ticket title"),
+      "Implement checkout flow",
+    );
+    await user.clear(within(panel).getByLabelText("Details"));
+    await user.type(
+      within(panel).getByLabelText("Details"),
+      "Updated checkout handoff.",
+    );
+    await user.click(
+      within(panel).getByRole("button", { name: "Save details" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.updateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: "general",
+          clear_details: false,
+          created_by: "human",
+          details: "Updated checkout handoff.",
+          human_details: "Updated checkout handoff.",
+          id: "task-build",
+          project_id: "customer-portal",
+          title: "Implement checkout flow",
+        }),
+      );
+    });
+  });
+
+  it("deletes ticket detail text without deleting the ticket", async () => {
+    const user = userEvent.setup();
+    apiMocks.updateTask.mockResolvedValueOnce({
+      task: {
+        id: "task-build",
+        channel: "general",
+        created_by: "ceo",
+        details: "",
+        human_details: "",
+        owner: "engineer",
+        project_id: "customer-portal",
+        status: "in_progress",
+        thread_id: "thread-build",
+        title: "Implement signup flow",
+      },
+    });
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.click(
+      within(panel).getByRole("button", { name: "Delete details" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.updateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clear_details: true,
+          id: "task-build",
+          title: "Implement signup flow",
+        }),
+      );
+    });
+  });
+});
+
+describe("TasksApp project creation", () => {
+  beforeEach(mockProjectDirectory);
 
   it("creates a new project from the plus button", async () => {
     const user = userEvent.setup();
@@ -344,7 +465,7 @@ describe("TasksApp project directory", () => {
       await screen.findByRole("button", { name: "New project" }),
     );
     await user.type(screen.getByLabelText("Project name"), "Mobile App");
-    await user.click(screen.getByRole("button", { name: "Create" }));
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(apiMocks.createProject).toHaveBeenCalledWith(

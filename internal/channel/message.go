@@ -37,13 +37,42 @@ func (s *Store) ThreadMessages(channelSlug, threadID string) []Message {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	threadIDs := messageThreadIDs(s.messages, channelSlug, threadID)
 	var result []Message
 	for _, m := range s.messages {
 		if m.Channel != channelSlug {
 			continue
 		}
-		if m.ID == threadID || m.ReplyTo == threadID {
+		if _, ok := threadIDs[m.ID]; ok {
 			result = append(result, m)
+		}
+	}
+	return result
+}
+
+func messageThreadIDs(messages []Message, channelSlug, threadID string) map[string]struct{} {
+	result := make(map[string]struct{})
+	if threadID == "" {
+		return result
+	}
+	byParent := make(map[string][]string, len(messages))
+	for _, m := range messages {
+		if m.Channel != channelSlug || m.ID == "" || m.ReplyTo == "" {
+			continue
+		}
+		byParent[m.ReplyTo] = append(byParent[m.ReplyTo], m.ID)
+	}
+	result[threadID] = struct{}{}
+	queue := []string{threadID}
+	for len(queue) > 0 {
+		parent := queue[0]
+		queue = queue[1:]
+		for _, child := range byParent[parent] {
+			if _, seen := result[child]; seen {
+				continue
+			}
+			result[child] = struct{}{}
+			queue = append(queue, child)
 		}
 	}
 	return result

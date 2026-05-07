@@ -993,7 +993,7 @@ func TestHandleTeamPollUsesAgentScopedTranscript(t *testing.T) {
 	for _, msg := range []map[string]any{
 		{"channel": "general", "from": "you", "content": "Frontend, should we ship this?", "tagged": []string{"fe"}},
 		{"channel": "general", "from": "pm", "content": "Unrelated roadmap chatter."},
-		{"channel": "general", "from": "ceo", "content": "Keep scope tight and focus on signup."},
+		{"channel": "general", "from": "architect", "content": "Keep scope tight and focus on signup."},
 		{"channel": "general", "from": "fe", "content": "I can take the signup work."},
 	} {
 		if err := brokerPostJSON(ctx, "/messages", msg, nil); err != nil {
@@ -1010,7 +1010,7 @@ func TestHandleTeamPollUsesAgentScopedTranscript(t *testing.T) {
 	}
 	text := textFromResult(t, result)
 	if !strings.Contains(text, "Keep scope tight and focus on signup.") {
-		t.Fatalf("expected CEO context in scoped transcript, got %q", text)
+		t.Fatalf("expected lead context in scoped transcript, got %q", text)
 	}
 	if strings.Contains(text, "Unrelated roadmap chatter.") {
 		t.Fatalf("did not expect unrelated PM chatter in scoped transcript, got %q", text)

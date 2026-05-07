@@ -23,24 +23,24 @@ func newTestService(t *testing.T, streamFn StreamFn) *AgentService {
 func TestCreateFromTemplate(t *testing.T) {
 	svc := newTestService(t, nil)
 
-	ma, err := svc.CreateFromTemplate("my-engineer", "founding-engineer")
+	ma, err := svc.CreateFromTemplate("my-builder", "builder")
 	if err != nil {
 		t.Fatalf("CreateFromTemplate: %v", err)
 	}
 
-	if ma.Config.Slug != "my-engineer" {
-		t.Errorf("expected slug 'my-engineer', got %q", ma.Config.Slug)
+	if ma.Config.Slug != "my-builder" {
+		t.Errorf("expected slug 'my-builder', got %q", ma.Config.Slug)
 	}
-	if ma.Config.Name != "Founding Engineer" {
-		t.Errorf("expected name 'Founding Engineer', got %q", ma.Config.Name)
+	if ma.Config.Name != "Builder" {
+		t.Errorf("expected name 'Builder', got %q", ma.Config.Name)
 	}
 
 	// Verify it exists in the service.
-	got, ok := svc.Get("my-engineer")
+	got, ok := svc.Get("my-builder")
 	if !ok {
 		t.Fatal("expected agent to exist after Create")
 	}
-	if got.Config.Slug != "my-engineer" {
+	if got.Config.Slug != "my-builder" {
 		t.Errorf("Get returned wrong slug: %q", got.Config.Slug)
 	}
 }
@@ -518,12 +518,12 @@ func TestGetTemplateNames(t *testing.T) {
 func TestGetTemplate(t *testing.T) {
 	svc := newTestService(t, nil)
 
-	cfg, ok := svc.GetTemplate("founding-engineer")
+	cfg, ok := svc.GetTemplate("builder")
 	if !ok {
-		t.Fatal("expected founding-engineer template to exist")
+		t.Fatal("expected builder template to exist")
 	}
-	if cfg.Name != "Founding Engineer" {
-		t.Errorf("expected 'Founding Engineer', got %q", cfg.Name)
+	if cfg.Name != "Builder" {
+		t.Errorf("expected 'Builder', got %q", cfg.Name)
 	}
 
 	_, ok = svc.GetTemplate("nonexistent")

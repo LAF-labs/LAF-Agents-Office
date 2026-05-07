@@ -16,6 +16,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/action"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
@@ -856,7 +857,6 @@ func buildOperationStarterTemplate(blueprint operations.Blueprint, pack operatio
 	}
 	replacements := operationBootstrapTemplateReplacements(brandName, commandSlug, niche)
 	starter := blueprint.Starter
-	leadSlug := operationFirstNonEmpty(starter.LeadSlug, "ceo")
 	return operationStarterTemplate{
 		ID:     id,
 		Kicker: "Starter plan",
@@ -878,7 +878,7 @@ func buildOperationStarterTemplate(blueprint operations.Blueprint, pack operatio
 		Agents:         operationStarterAgentsFromBlueprint(starter.Agents, replacements),
 		Channels:       operationStarterChannelsFromBlueprint(starter.Channels, replacements),
 		Tasks:          operationStarterTasksFromBlueprint(starter.Tasks, replacements),
-		KickoffTagged:  []string{leadSlug},
+		KickoffTagged:  []string{office.DefaultLeadAgentSlug},
 		KickoffMessage: operationRenderTemplateString(starter.KickoffPrompt, replacements),
 		GeneralDesc:    operationRenderTemplateString(starter.GeneralChannelDescription, replacements),
 	}
@@ -925,26 +925,13 @@ func operationFirstResolvedNonEmpty(values ...string) string {
 }
 
 func operationStarterAgentsFromBlueprint(agents []operations.StarterAgent, replacements map[string]string) []operationStarterAgent {
-	out := make([]operationStarterAgent, 0, len(agents))
-	for _, agent := range agents {
-		expertise := make([]string, 0, len(agent.Expertise))
-		for _, item := range agent.Expertise {
-			expertise = append(expertise, operationRenderTemplateString(item, replacements))
-		}
-		out = append(out, operationStarterAgent{
-			Slug:           operationRenderTemplateString(agent.Slug, replacements),
-			Emoji:          operationRenderTemplateString(agent.Emoji, replacements),
-			Name:           operationRenderTemplateString(agent.Name, replacements),
-			Role:           operationRenderTemplateString(agent.Role, replacements),
-			Checked:        agent.Checked,
-			Type:           operationRenderTemplateString(agent.Type, replacements),
-			PermissionMode: agent.PermissionMode,
-			BuiltIn:        agent.BuiltIn,
-			Expertise:      expertise,
-			Personality:    operationRenderTemplateString(agent.Personality, replacements),
-		})
+	_ = agents
+	_ = replacements
+	return []operationStarterAgent{
+		{Slug: office.ArchitectAgentSlug, Emoji: "A", Name: "Architect", Role: "Scopes the operation and creates tight handoffs", Checked: true, Type: "lead", PermissionMode: "plan", BuiltIn: true, Expertise: []string{"scoping", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real gap, pushes back on vague scope, and turns intent into crisp Builder and Reviewer work."},
+		{Slug: office.BuilderAgentSlug, Emoji: "B", Name: "Builder", Role: "Executes the smallest useful slice", Checked: true, Type: "assistant", PermissionMode: "auto", BuiltIn: true, Expertise: []string{"execution", "implementation", "workflow setup", "delivery"}, Personality: "Fast, precise, and allergic to extra scope. Builds what the brief says and leaves clean evidence."},
+		{Slug: office.ReviewerAgentSlug, Emoji: "R", Name: "Reviewer", Role: "Verifies correctness, risk, quality, and evidence", Checked: true, Type: "assistant", PermissionMode: "plan", BuiltIn: true, Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Disciplined reviewer who checks only the relevant scope and writes specific, fixable findings."},
 	}
-	return out
 }
 
 func operationStarterChannelsFromBlueprint(channels []operations.StarterChannel, replacements map[string]string) []operationStarterChannel {
@@ -952,7 +939,14 @@ func operationStarterChannelsFromBlueprint(channels []operations.StarterChannel,
 	for _, channel := range channels {
 		members := make([]string, 0, len(channel.Members))
 		for _, member := range channel.Members {
-			members = append(members, operationRenderTemplateString(member, replacements))
+			member = operationRenderTemplateString(member, replacements)
+			if mapped := office.MapLegacyAgentSlug(member); mapped != "" && !office.IsAgentMakerSlug(mapped) {
+				member = mapped
+			}
+			members = append(members, member)
+		}
+		if len(members) == 0 {
+			members = office.CoreAgentSlugs()
 		}
 		out = append(out, operationStarterChannel{
 			Slug:        operationRenderTemplateString(channel.Slug, replacements),
@@ -967,9 +961,13 @@ func operationStarterChannelsFromBlueprint(channels []operations.StarterChannel,
 func operationStarterTasksFromBlueprint(tasks []operations.StarterTask, replacements map[string]string) []operationStarterTask {
 	out := make([]operationStarterTask, 0, len(tasks))
 	for _, task := range tasks {
+		owner := operationRenderTemplateString(task.Owner, replacements)
+		if mapped := office.MapLegacyAgentSlug(owner); mapped != "" && !office.IsAgentMakerSlug(mapped) {
+			owner = mapped
+		}
 		out = append(out, operationStarterTask{
 			Channel: operationRenderTemplateString(task.Channel, replacements),
-			Owner:   operationRenderTemplateString(task.Owner, replacements),
+			Owner:   owner,
 			Title:   operationRenderTemplateString(task.Title, replacements),
 			Details: operationRenderTemplateString(task.Details, replacements),
 		})

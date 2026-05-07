@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 )
 
 // TeamSkillRunArgs are the inputs for the team_skill_run tool.
@@ -23,7 +25,7 @@ type TeamSkillCreateArgs struct {
 	Content     string   `json:"content" jsonschema:"Concrete step-by-step instructions agents must follow when running the skill"`
 	Trigger     string   `json:"trigger,omitempty" jsonschema:"When agents should invoke this skill"`
 	Tags        []string `json:"tags,omitempty" jsonschema:"Optional tags such as engineering, ops, launch"`
-	Action      string   `json:"action" jsonschema:"Required: propose or create. Any agent may propose; only CEO may create an active skill immediately."`
+	Action      string   `json:"action" jsonschema:"Required: propose or create. Any agent may propose; only the lead may create an active skill immediately."`
 	Channel     string   `json:"channel,omitempty" jsonschema:"Optional channel slug to log the proposal into. Defaults to the active conversation channel."`
 	MySlug      string   `json:"my_slug,omitempty" jsonschema:"Agent slug creating the skill. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
@@ -48,7 +50,7 @@ type brokerSkillResponse struct {
 func registerSkillAuthoringTools(server *mcp.Server) {
 	mcp.AddTool(server, officeWriteTool(
 		"team_skill_create",
-		"Create or propose a durable LAF-Office skill through structured fields instead of a prose block. Any agent may use action=propose to queue human approval. Only CEO may use action=create to activate immediately when the human explicitly asked to create or activate the skill.",
+		"Create or propose a durable LAF-Office skill through structured fields instead of a prose block. Any agent may use action=propose to queue human approval. Only the lead may use action=create to activate immediately when the human explicitly asked to create or activate the skill.",
 	), handleTeamSkillCreate)
 }
 
@@ -74,8 +76,8 @@ func handleTeamSkillCreate(ctx context.Context, _ *mcp.CallToolRequest, args Tea
 	if action != "propose" && action != "create" {
 		return toolError(fmt.Errorf("action must be propose or create")), nil, nil
 	}
-	if action == "create" && slug != "ceo" {
-		return toolError(fmt.Errorf("only CEO may use action=create; use action=propose to queue a skill proposal")), nil, nil
+	if action == "create" && office.MapLegacyAgentSlug(slug) != office.DefaultLeadAgentSlug {
+		return toolError(fmt.Errorf("only @%s may use action=create; use action=propose to queue a skill proposal", office.DefaultLeadAgentSlug)), nil, nil
 	}
 	channel := resolveConversationChannel(ctx, slug, args.Channel)
 	title := strings.TrimSpace(args.Title)

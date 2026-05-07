@@ -8,6 +8,12 @@ type ReviewState string
 type MessageKind string
 
 const (
+	ArchitectAgentSlug   = "architect"
+	BuilderAgentSlug     = "builder"
+	ReviewerAgentSlug    = "reviewer"
+	AgentMakerAgentSlug  = "agent-maker"
+	DefaultLeadAgentSlug = ArchitectAgentSlug
+
 	TaskStatusTodo       TaskStatus = "todo"
 	TaskStatusInProgress TaskStatus = "in_progress"
 	TaskStatusReview     TaskStatus = "review"
@@ -29,6 +35,47 @@ const (
 	MessageKindAutomation       MessageKind = "automation"
 	MessageKindOnboardingOrigin MessageKind = "onboarding_origin"
 )
+
+func CoreAgentSlugs() []string {
+	return []string{ArchitectAgentSlug, BuilderAgentSlug, ReviewerAgentSlug}
+}
+
+func IsCoreAgentSlug(slug string) bool {
+	slug = normalizeAgentSlug(slug)
+	for _, core := range CoreAgentSlugs() {
+		if slug == core {
+			return true
+		}
+	}
+	return false
+}
+
+func IsAgentMakerSlug(slug string) bool {
+	return normalizeAgentSlug(slug) == AgentMakerAgentSlug
+}
+
+func MapLegacyAgentSlug(slug string) string {
+	switch normalizeAgentSlug(slug) {
+	case "architect", "ceo", "founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead":
+		return ArchitectAgentSlug
+	case "builder", "executor", "founding-engineer", "ai-engineer", "designer", "eng", "fe", "be", "ai":
+		return BuilderAgentSlug
+	case "reviewer", "analyst", "qa":
+		return ReviewerAgentSlug
+	case AgentMakerAgentSlug:
+		return AgentMakerAgentSlug
+	default:
+		return ""
+	}
+}
+
+func normalizeAgentSlug(slug string) string {
+	slug = strings.ToLower(strings.TrimSpace(slug))
+	slug = strings.TrimLeft(slug, "@")
+	slug = strings.ReplaceAll(slug, " ", "-")
+	slug = strings.ReplaceAll(slug, "_", "-")
+	return slug
+}
 
 func IsTerminalTaskStatus(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {

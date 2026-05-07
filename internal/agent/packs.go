@@ -1,5 +1,7 @@
 package agent
 
+import "github.com/LAF-labs/LAF-Agents-Office/internal/office"
+
 // PackSkillSpec defines a skill to pre-seed when a pack is first launched.
 type PackSkillSpec struct {
 	Name        string
@@ -26,39 +28,35 @@ type PackDefinition struct {
 var legacyPacks = []PackDefinition{
 	{
 		Slug:        "starter",
-		Name:        "Starter Team",
-		Description: "CEO, PM, and founding engineer for the first project loop",
-		LeadSlug:    "ceo",
+		Name:        "Three-Agent Team",
+		Description: "Architect, Builder, and Reviewer for the first project loop",
+		LeadSlug:    office.DefaultLeadAgentSlug,
 		Agents: []AgentConfig{
-			{Slug: "ceo", Name: "CEO", Expertise: []string{"strategy", "decision-making", "prioritization", "delegation", "orchestration"}, Personality: "Strategic leader who breaks down directives into clear specialist assignments", PermissionMode: "plan"},
-			{Slug: "pm", Name: "Product Manager", Expertise: []string{"roadmap", "user-stories", "requirements", "prioritization", "specs"}, Personality: "Product lead who turns goals into clear project tasks and acceptance checks", PermissionMode: "plan"},
-			{Slug: "eng", Name: "Founding Engineer", Expertise: []string{"full-stack", "backend", "frontend", "APIs", "databases", "architecture", "DevOps"}, Personality: "Scrappy full-stack engineer who ships fast and keeps the system simple until it needs to be complex", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(go*,git*,npm*,make*)"}},
+			{Slug: office.ArchitectAgentSlug, Name: "Architect", Expertise: []string{"scoping", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real problem, locks scope, and turns vague intent into crisp work for Builder and Reviewer.", PermissionMode: "plan"},
+			{Slug: office.BuilderAgentSlug, Name: "Builder", Expertise: []string{"implementation", "workflow execution", "integration", "delivery"}, Personality: "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review.", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(go*,git*,npm*,make*)"}},
+			{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Reviews only the changed scope, flags concrete risks, and refuses to approve vague or unverified work.", PermissionMode: "plan"},
 		},
 	},
 	{
 		Slug:        "founding-team",
-		Name:        "Founding Team",
-		Description: "Full autonomous company — CEO delegates to specialists",
-		LeadSlug:    "ceo",
+		Name:        "Three-Agent Company",
+		Description: "Small autonomous company: Architect scopes, Builder executes, Reviewer verifies",
+		LeadSlug:    office.DefaultLeadAgentSlug,
 		Agents: []AgentConfig{
-			{Slug: "ceo", Name: "CEO", Expertise: []string{"strategy", "decision-making", "prioritization", "delegation", "orchestration"}, Personality: "Strategic leader who breaks down complex directives into clear specialist assignments", PermissionMode: "plan"},
-			{Slug: "pm", Name: "Product Manager", Expertise: []string{"roadmap", "user-stories", "requirements", "prioritization", "specs"}, Personality: "Detail-oriented PM who translates business needs into actionable specs", PermissionMode: "plan"},
-			{Slug: "fe", Name: "Frontend Engineer", Expertise: []string{"frontend", "React", "CSS", "UI-UX", "components"}, Personality: "Frontend specialist focused on clean, accessible implementations", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(npm*)"}},
-			{Slug: "be", Name: "Backend Engineer", Expertise: []string{"backend", "APIs", "databases", "infrastructure", "architecture"}, Personality: "Backend engineer focused on reliable, scalable systems", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(go*,git*)"}},
-			{Slug: "ai", Name: "AI Engineer", Expertise: []string{"LLMs", "AI-product-design", "retrieval", "evaluations", "agents", "model-integration"}, Personality: "AI engineer focused on making model-powered features reliable, useful, and actually shippable", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(curl*,python*,pip*)"}},
-			{Slug: "designer", Name: "Designer", Expertise: []string{"UI-UX-design", "branding", "visual-systems", "prototyping"}, Personality: "Creative designer who balances aesthetics with usability", PermissionMode: "plan"},
+			{Slug: office.ArchitectAgentSlug, Name: "Architect", Expertise: []string{"scoping", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real problem, locks scope, and turns vague intent into crisp work for Builder and Reviewer.", PermissionMode: "plan"},
+			{Slug: office.BuilderAgentSlug, Name: "Builder", Expertise: []string{"implementation", "workflow execution", "integration", "delivery"}, Personality: "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review.", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(go*,git*,npm*,make*)"}},
+			{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Reviews only the changed scope, flags concrete risks, and refuses to approve vague or unverified work.", PermissionMode: "plan"},
 		},
 	},
 	{
 		Slug:        "coding-team",
-		Name:        "Coding Team",
-		Description: "High-velocity software development team",
-		LeadSlug:    "ceo",
+		Name:        "Delivery Team",
+		Description: "High-velocity delivery team with scoped execution and review",
+		LeadSlug:    office.DefaultLeadAgentSlug,
 		Agents: []AgentConfig{
-			{Slug: "ceo", Name: "CEO", Expertise: []string{"architecture", "code-review", "technical-decisions", "planning"}, Personality: "Senior technical leader who makes sound architectural decisions and coordinates the team"},
-			{Slug: "fe", Name: "Frontend Engineer", Expertise: []string{"frontend", "React", "CSS", "components", "accessibility"}, Personality: "Frontend specialist focused on clean, accessible implementations"},
-			{Slug: "be", Name: "Backend Engineer", Expertise: []string{"backend", "APIs", "databases", "DevOps", "infrastructure"}, Personality: "Backend engineer focused on reliable, scalable systems"},
-			{Slug: "qa", Name: "QA Engineer", Expertise: []string{"testing", "automation", "quality", "edge-cases", "CI-CD"}, Personality: "Quality-focused engineer who catches issues before they reach production"},
+			{Slug: office.ArchitectAgentSlug, Name: "Architect", Expertise: []string{"architecture", "planning", "task design", "technical decisions"}, Personality: "Senior lead who makes sound scope decisions and coordinates the team.", PermissionMode: "plan"},
+			{Slug: office.BuilderAgentSlug, Name: "Builder", Expertise: []string{"frontend", "backend", "APIs", "testing", "delivery"}, Personality: "Practical builder focused on clean, narrow implementations.", PermissionMode: "auto", AllowedTools: []string{"Edit", "Write", "Bash(go*,git*,npm*,make*)"}},
+			{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Expertise: []string{"testing", "automation", "quality", "security", "edge-cases"}, Personality: "Quality-focused reviewer who catches issues before they reach production.", PermissionMode: "plan"},
 		},
 	},
 }
