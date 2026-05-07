@@ -10,7 +10,12 @@ import {
 type Route =
   | { view: "channel"; channel: string }
   | { view: "dm"; agent: string }
-  | { view: "app"; app: string; projectId?: string | null }
+  | {
+      view: "app";
+      app: string;
+      projectId?: string | null;
+      taskId?: string | null;
+    }
   | { view: "wiki"; articlePath: string | null }
   | { view: "wiki-lookup"; query: string }
   | { view: "notebooks"; agentSlug: string | null; entrySlug: string | null }
@@ -42,6 +47,12 @@ function parseHash(hash: string): Route {
       return {
         ...PROJECTS_ROUTE,
         projectId: parts[1] ? decodeURIComponent(parts[1]) : null,
+        taskId:
+          parts[1] &&
+          (parts[2] === "tickets" || parts[2] === "tasks") &&
+          parts[3]
+            ? decodeURIComponent(parts[3])
+            : null,
       };
     case "threads":
       return { view: "app", app: "threads" };
@@ -83,6 +94,7 @@ function stateToHash(state: {
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
   projectFocusId: string | null;
+  taskFocusId: string | null;
 }): string {
   const appHash = appStateToHash(state);
   if (appHash) return appHash;
@@ -100,6 +112,7 @@ function appStateToHash(state: {
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
   projectFocusId: string | null;
+  taskFocusId: string | null;
 }): string | null {
   switch (state.currentApp) {
     case "wiki-lookup":
@@ -115,9 +128,13 @@ function appStateToHash(state: {
     case "reviews":
       return "#/reviews";
     case "tasks":
-      return state.projectFocusId
-        ? `#/projects/${encodeURIComponent(state.projectFocusId)}`
-        : "#/projects";
+      if (!state.projectFocusId) return "#/projects";
+      if (state.taskFocusId) {
+        return `#/projects/${encodeURIComponent(
+          state.projectFocusId,
+        )}/tickets/${encodeURIComponent(state.taskFocusId)}`;
+      }
+      return `#/projects/${encodeURIComponent(state.projectFocusId)}`;
     case null:
       return null;
     default:
@@ -144,6 +161,7 @@ interface HashRouteActions {
   setCurrentChannel: (channel: string) => void;
   setLastMessageId: (id: string | null) => void;
   setProjectFocusId: (projectId: string | null) => void;
+  setTaskFocusId: (taskId: string | null) => void;
   setWikiPath: (path: string | null) => void;
   setWikiLookupQuery: (query: string) => void;
   setNotebookRoute: (
@@ -160,6 +178,9 @@ function applyRoute(route: Route, actions: HashRouteActions) {
     case "app":
       actions.setProjectFocusId(
         route.app === "tasks" ? (route.projectId ?? null) : null,
+      );
+      actions.setTaskFocusId(
+        route.app === "tasks" ? (route.taskId ?? null) : null,
       );
       actions.setCurrentApp(route.app);
       break;
@@ -206,6 +227,8 @@ export function useHashRouter() {
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const projectFocusId = useAppStore((s) => s.projectFocusId);
   const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
+  const taskFocusId = useAppStore((s) => s.taskFocusId);
+  const setTaskFocusId = useAppStore((s) => s.setTaskFocusId);
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
   const enterDM = useAppStore((s) => s.enterDM);
   const setLastMessageId = useAppStore((s) => s.setLastMessageId);
@@ -217,18 +240,17 @@ export function useHashRouter() {
   const notebookEntrySlug = useAppStore((s) => s.notebookEntrySlug);
   const setNotebookRoute = useAppStore((s) => s.setNotebookRoute);
 
-  // Avoid ping-ponging: skip the next hashchange or store-sync when we
-  // were the one that caused it.
-  const ignoreNextHashChange = useRef(false);
+  // Avoid ping-ponging: browser navigation applies store state, while app
+  // navigation pushes URLs directly without waiting for a hashchange event.
+  const lastAppliedLocation = useRef<string | null>(null);
   const ignoreNextStoreSync = useRef(false);
 
   // Apply current hash on mount and when it changes
   useEffect(() => {
     function applyHash() {
-      if (ignoreNextHashChange.current) {
-        ignoreNextHashChange.current = false;
-        return;
-      }
+      const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (lastAppliedLocation.current === currentLocation) return;
+      lastAppliedLocation.current = currentLocation;
       const route = parseHash(window.location.hash);
       ignoreNextStoreSync.current = true;
       applyRoute(route, {
@@ -237,6 +259,7 @@ export function useHashRouter() {
         setCurrentChannel,
         setLastMessageId,
         setProjectFocusId,
+        setTaskFocusId,
         setWikiPath,
         setWikiLookupQuery,
         setNotebookRoute,
@@ -245,13 +268,18 @@ export function useHashRouter() {
 
     applyHash();
     window.addEventListener("hashchange", applyHash);
-    return () => window.removeEventListener("hashchange", applyHash);
+    window.addEventListener("popstate", applyHash);
+    return () => {
+      window.removeEventListener("hashchange", applyHash);
+      window.removeEventListener("popstate", applyHash);
+    };
   }, [
     enterDM,
     setCurrentApp,
     setCurrentChannel,
     setLastMessageId,
     setProjectFocusId,
+    setTaskFocusId,
     setWikiPath,
     setWikiLookupQuery,
     setNotebookRoute,
@@ -272,12 +300,11 @@ export function useHashRouter() {
       notebookAgentSlug,
       notebookEntrySlug,
       projectFocusId,
+      taskFocusId,
     });
     if (next !== window.location.hash) {
-      ignoreNextHashChange.current = true;
-      // Use replaceState for the initial sync so we don't spam history,
-      // then push afterwards.
-      window.history.replaceState(null, "", next);
+      window.history.pushState(null, "", next);
+      lastAppliedLocation.current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     }
   }, [
     currentApp,
@@ -288,6 +315,7 @@ export function useHashRouter() {
     notebookAgentSlug,
     notebookEntrySlug,
     projectFocusId,
+    taskFocusId,
   ]);
 }
 

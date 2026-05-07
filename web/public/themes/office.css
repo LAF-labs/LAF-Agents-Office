@@ -5854,3 +5854,63 @@ html[data-theme^="office"] .ticket-chat-composer-footer button {
     font-size: 20px;
   }
 }
+
+/* Project detail navigation should read as a single left-aligned route header. */
+html[data-theme^="office"] .project-detail-header {
+  display: grid;
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+html[data-theme^="office"] .project-detail-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+html[data-theme^="office"] .project-detail-title {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-logo);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+html[data-theme^="office"] .project-detail-header .project-back-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .project-detail-header .project-back-button::before {
+  width: 8px;
+  height: 8px;
+  margin-right: 0;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+html[data-theme^="office"] .project-detail-header .project-detail-metrics {
+  justify-content: end;
+}
+
+@media (max-width: 768px) {
+  html[data-theme^="office"] .project-detail-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  html[data-theme^="office"] .project-detail-header .project-detail-metrics {
+    justify-content: start;
+  }
+}

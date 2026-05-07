@@ -8,6 +8,7 @@ const baseState = {
   notebookAgentSlug: null,
   notebookEntrySlug: null,
   projectFocusId: null,
+  taskFocusId: null,
   wikiLookupQuery: null,
   wikiPath: null,
 };
@@ -22,11 +23,21 @@ describe("useHashRouter project routes", () => {
       view: "app",
       app: "tasks",
       projectId: null,
+      taskId: null,
     });
     expect(__test__.parseHash("#/projects/customer-portal")).toEqual({
       view: "app",
       app: "tasks",
       projectId: "customer-portal",
+      taskId: null,
+    });
+    expect(
+      __test__.parseHash("#/projects/customer-portal/tickets/task-36"),
+    ).toEqual({
+      view: "app",
+      app: "tasks",
+      projectId: "customer-portal",
+      taskId: "task-36",
     });
     expect(__test__.parseHash("#/apps/projects")).toEqual({
       view: "app",
@@ -51,5 +62,16 @@ describe("useHashRouter project routes", () => {
         projectFocusId: "customer-portal",
       }),
     ).toBe("#/projects/customer-portal");
+  });
+
+  it("keeps the focused ticket in the project route", () => {
+    expect(
+      __test__.stateToHash({
+        ...baseState,
+        currentApp: "tasks",
+        projectFocusId: "customer-portal",
+        taskFocusId: "task-36",
+      }),
+    ).toBe("#/projects/customer-portal/tickets/task-36");
   });
 });

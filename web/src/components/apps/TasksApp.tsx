@@ -680,8 +680,9 @@ export function TasksApp() {
   const queryClient = useQueryClient();
   const projectFocusId = useAppStore((s) => s.projectFocusId);
   const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
+  const selectedTaskId = useAppStore((s) => s.taskFocusId);
+  const setSelectedTaskId = useAppStore((s) => s.setTaskFocusId);
   const { language, t } = useI18n();
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const projectCreator = useProjectCreator(queryClient, setProjectFocusId);
   const membersQuery = useOfficeMembers();
   const members = membersQuery.data ?? [];
@@ -713,6 +714,19 @@ export function TasksApp() {
     : [];
   const selectedTask =
     selectedProjectTasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  useEffect(() => {
+    if (!(allTasksQuery.data && selectedTaskId)) return;
+    if (selectedProject && selectedTask) return;
+    setSelectedTaskId(null);
+  }, [
+    allTasksQuery.data,
+    selectedProject,
+    selectedTask,
+    selectedTaskId,
+    setSelectedTaskId,
+  ]);
+
   const ticketCreator = useTicketCreator(
     queryClient,
     selectedProject,
@@ -1209,12 +1223,7 @@ function ProjectDetailView({
         t={t}
         onBack={onBack}
       />
-      <ProjectTicketToolbar
-        language={language}
-        t={t}
-        ticketCount={tasks.length}
-        onCreateTicket={openTicketDraft}
-      />
+      <ProjectTicketToolbar t={t} onCreateTicket={openTicketDraft} />
       <ProjectTicketList
         members={members}
         selectedTaskId={selectedTaskId}
@@ -1264,49 +1273,44 @@ function ProjectDetailHeader({
   onBack: () => void;
 }) {
   return (
-    <Card className="project-directory-card project-detail-card">
-      <CardHeader className="grid gap-4 p-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+    <section
+      className="project-detail-header"
+      aria-label={project.name || project.id}
+    >
+      <div className="project-detail-heading">
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="icon"
           className="project-back-button"
           onClick={onBack}
+          aria-label={`${project.name || project.id} ${t("tasks.backToProjects")}`}
         >
-          {t("tasks.backToProjects")}
+          <span className="sr-only">{t("tasks.backToProjects")}</span>
         </Button>
-        <div className="min-w-0">
-          <CardTitle>
-            <h3 className="truncate text-lg font-semibold leading-none">
-              {project.name || project.id}
-            </h3>
-          </CardTitle>
-          <CardDescription className="mt-1">{project.id}</CardDescription>
-        </div>
-        <div className="project-detail-metrics md:justify-end">
-          <span className={cn("project-inline-status", `is-${status}`)}>
-            {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
-          </span>
-          <span className="project-ticket-metric is-total">
-            {isStatsReady
-              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
-              : t("tasks.loadingTasks")}
-          </span>
-        </div>
-      </CardHeader>
-    </Card>
+        <h3 className="project-detail-title truncate">
+          {project.name || project.id}
+        </h3>
+      </div>
+      <div className="project-detail-metrics">
+        <span className={cn("project-inline-status", `is-${status}`)}>
+          {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
+        </span>
+        <span className="project-ticket-metric is-total">
+          {isStatsReady
+            ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+            : t("tasks.loadingTasks")}
+        </span>
+      </div>
+    </section>
   );
 }
 
 function ProjectTicketToolbar({
-  language,
   t,
-  ticketCount,
   onCreateTicket,
 }: {
-  language: Language;
   t: TranslationFn;
-  ticketCount: number;
   onCreateTicket: () => void;
 }) {
   return (
@@ -1318,9 +1322,6 @@ function ProjectTicketToolbar({
               {t("tasks.tickets")}
             </h4>
           </CardTitle>
-          <CardDescription className="mt-1">
-            {countLabel(ticketCount, "ticket", "tickets", "티켓", language)}
-          </CardDescription>
         </div>
         <Button
           type="button"

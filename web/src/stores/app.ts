@@ -110,6 +110,8 @@ export interface AppStore {
   setCurrentApp: (app: string | null) => void;
   projectFocusId: string | null;
   setProjectFocusId: (projectId: string | null) => void;
+  taskFocusId: string | null;
+  setTaskFocusId: (taskId: string | null) => void;
   settingsSection: string | null;
   setSettingsSection: (section: string | null) => void;
 
@@ -193,6 +195,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setCurrentChannel: (ch) => set({ currentChannel: ch, currentApp: null }),
   currentApp: null,
   projectFocusId: null,
+  taskFocusId: null,
   setCurrentApp: (app) => {
     if (!app) {
       set({ currentApp: null });
@@ -207,7 +210,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     set({ currentApp: app });
   },
-  setProjectFocusId: (projectId) => set({ projectFocusId: projectId }),
+  setProjectFocusId: (projectId) =>
+    set((state) => ({
+      projectFocusId: projectId,
+      taskFocusId:
+        state.projectFocusId === projectId ? state.taskFocusId : null,
+    })),
+  setTaskFocusId: (taskId) => set({ taskFocusId: taskId }),
   settingsSection: null,
   setSettingsSection: (section) => set({ settingsSection: section }),
 
@@ -297,6 +306,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       currentChannel: "general",
       currentApp: null,
       projectFocusId: null,
+      taskFocusId: null,
       settingsSection: null,
       channelMeta: {},
       sidebarCollapsed: false,
