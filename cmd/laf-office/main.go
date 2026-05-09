@@ -87,6 +87,14 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
 		fmt.Fprintln(os.Stderr, "  laf-office mcp-team")
+	case "runner":
+		fmt.Fprintln(os.Stderr, "laf-office runner — connect a local execution runner")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Usage:")
+		fmt.Fprintln(os.Stderr, "  laf-office runner login --api-url <url> --team-id <team> --api-token <token>")
+		fmt.Fprintln(os.Stderr, "  laf-office runner connect")
+		fmt.Fprintln(os.Stderr, "  laf-office runner status")
+		fmt.Fprintln(os.Stderr, "  laf-office runner disconnect")
 	default:
 		fmt.Fprintf(os.Stderr, "laf-office: unknown subcommand %q — run `laf-office --help` for the list.\n", sub)
 	}
@@ -150,6 +158,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s shred        Burn the workspace down and reopen onboarding\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s import --from legacy  Import from a running external orchestrator (auto-detect)\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s log          Show what your agents actually did (task receipts)\n", appName)
+		fmt.Fprintf(os.Stderr, "  %s runner       Connect a local execution runner\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s --cmd <cmd>  Run a command non-interactively\n", appName)
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		printVisibleFlags(os.Stderr)
@@ -268,6 +277,12 @@ func main() {
 			return
 		case "memory":
 			runMemory(args[1:])
+			return
+		case "runner":
+			if err := team.RunRunnerCommand(context.Background(), args[1:], os.Stdout, os.Stderr); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
 			return
 		}
 	}

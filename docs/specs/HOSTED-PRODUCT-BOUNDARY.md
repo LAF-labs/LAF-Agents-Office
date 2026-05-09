@@ -69,7 +69,7 @@ flowchart LR
    UI flow.
 3. Move auth sessions to Supabase Auth and require team-scoped project/task
    queries.
-4. Split agent execution into a runner service while Vercel stays request/response.
+4. Split agent execution into runner jobs while Vercel stays request/response.
 5. Replace local `gh` readiness with project-scoped GitHub App installation
    checks.
 6. Add PR creation and delivery receipt automation from the runner.
@@ -80,7 +80,13 @@ flowchart LR
 - `internal/team/project_wiki.go` and `internal/team/wiki_worker.go` define the
   current project memory contract.
 - `internal/team/project_repo_readiness.go` is the local readiness adapter.
-- `internal/team/worktree.go` is the local runner boundary for project coding
-  work.
+- `internal/team/runner_protocol.go`, `broker_runner.go`, and `runner_cli.go`
+  define the hosted-style runner protocol and local CLI runner.
+- `internal/team/worktree.go` is now runner-side infrastructure for project
+  coding work.
+- `api/[...path].js` is the Vercel/Supabase control-plane facade. It mirrors the
+  local project/task/runner contracts without running agents in the API layer.
+- `supabase/migrations/20260509_hosted_control_plane.sql` creates the hosted
+  tables and RLS read boundaries.
 - `web/src/components/apps/TasksApp.tsx` is the project workspace surface that
-  should remain the hosted product's primary screen.
+  should remain the hosted product's primary screen, including runner status.

@@ -19,11 +19,13 @@ import {
   createTask,
   getOfficeTasks,
   getProjects,
+  getRunnerStatus,
   getThreadMessages,
   type Message,
   type Project,
   postMessage,
   postMessageAs,
+  type RunnerStatusResponse,
   type Task,
   updateProject,
   updateTask,
@@ -105,6 +107,17 @@ type ProjectTicketCounts = {
   waiting: number;
 };
 type ProjectSaveState = "idle" | "saving" | "saved" | "error";
+type RunnerSignalState =
+  | "connected"
+  | "loading"
+  | "no_runner"
+  | "queued"
+  | "running"
+  | "stale";
+type RunnerSignal = {
+  labelKey: I18nKey;
+  state: RunnerSignalState;
+};
 type ProjectInfoDraft = {
   additionalInfo: string;
   description: string;
@@ -200,6 +213,41 @@ function projectLifecycleLabelKey(status: ProjectLifecycle): I18nKey {
     case "not_started":
       return "tasks.projectStatus.notStarted";
   }
+}
+
+function runnerSignalFromStatus(
+  status: RunnerStatusResponse | undefined,
+  isLoading: boolean,
+): RunnerSignal {
+  if (isLoading && !status) {
+    return { labelKey: "tasks.runnerChecking", state: "loading" };
+  }
+
+  const jobs = status?.jobs ?? [];
+  const runners = status?.runners ?? [];
+  const hasConnectedRunner = runners.some(
+    (runner) => runner.status === "connected",
+  );
+  const hasStaleRunner = runners.some(
+    (runner) => runner.status === "stale" || runner.status === "disconnected",
+  );
+
+  if (jobs.some((job) => job.status === "running" || job.status === "leased")) {
+    return { labelKey: "tasks.runnerJobRunning", state: "running" };
+  }
+  if (jobs.some((job) => job.status === "queued" || job.status === "expired")) {
+    if (!hasConnectedRunner) {
+      return { labelKey: "tasks.runnerNoCapable", state: "no_runner" };
+    }
+    return { labelKey: "tasks.runnerJobQueued", state: "queued" };
+  }
+  if (hasConnectedRunner) {
+    return { labelKey: "tasks.runnerConnected", state: "connected" };
+  }
+  if (hasStaleRunner) {
+    return { labelKey: "tasks.runnerStale", state: "stale" };
+  }
+  return { labelKey: "tasks.runnerNoCapable", state: "no_runner" };
 }
 
 function projectLoadMessage(
@@ -1360,6 +1408,16 @@ function ProjectDetailView({
   const counts = projectTicketCounts(tasks);
   const lifecycle = projectLifecycle(project, counts);
   const projectInfoEditor = useProjectInfoEditor(project, queryClient, t);
+  const runnerStatusQuery = useQuery({
+    queryKey: ["runner-status", project.id],
+    queryFn: () => getRunnerStatus({ projectId: project.id }),
+    refetchInterval: TASK_REFETCH_MS,
+    staleTime: 5_000,
+  });
+  const runnerSignal = runnerSignalFromStatus(
+    runnerStatusQuery.data,
+    runnerStatusQuery.isLoading,
+  );
   const openTicketDraft = () => {
     onCloseTask();
     ticketCreator.handleOpenTicketDraft();
@@ -1376,6 +1434,7 @@ function ProjectDetailView({
         counts={counts}
         isStatsReady={isStatsReady}
         language={language}
+        runnerSignal={runnerSignal}
         status={lifecycle}
         t={t}
         onCreateTicket={openTicketDraft}
@@ -1449,6 +1508,7 @@ function ProjectTicketToolbar({
   counts,
   isStatsReady,
   language,
+  runnerSignal,
   status,
   t,
   onCreateTicket,
@@ -1456,6 +1516,7 @@ function ProjectTicketToolbar({
   counts: ProjectTicketCounts;
   isStatsReady: boolean;
   language: Language;
+  runnerSignal: RunnerSignal;
   status: ProjectLifecycle;
   t: TranslationFn;
   onCreateTicket: () => void;
@@ -1471,6 +1532,15 @@ function ProjectTicketToolbar({
             {isStatsReady
               ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
               : t("tasks.loadingTasks")}
+          </span>
+          <span
+            className={cn(
+              "project-inline-status",
+              "is-runner",
+              `is-runner-${runnerSignal.state}`,
+            )}
+          >
+            {t(runnerSignal.labelKey)}
           </span>
         </div>
         <Button

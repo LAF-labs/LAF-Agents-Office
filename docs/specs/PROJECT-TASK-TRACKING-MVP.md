@@ -31,6 +31,12 @@ wiki path plus a bounded excerpt of the article. Agents should use that excerpt
 as the first memory read for the task and call `team_wiki_read` only when the
 excerpt is truncated or missing a section they need.
 
+Task packets also include an `agent-memory/v1` contract that names loaded
+context, canonical sources, constraints, first actions, and write-back rules for
+the assigned task. Agents can reload the same task-scoped context with
+`team_task_context` or `GET /tasks/context?id=<task_id>`. See
+[AGENT-MEMORY-PACKETS.md](AGENT-MEMORY-PACKETS.md).
+
 For coding tasks in a project with a connected GitHub repo, the task packet also
 names the assigned branch and requires committed work before review or
 completion. If `team_task review`, `complete`, or `approve` is called without a

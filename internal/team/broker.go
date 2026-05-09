@@ -371,6 +371,11 @@ type brokerState struct {
 	HumanMembers      []humanTeamMember            `json:"human_members,omitempty"`
 	Invites           []teamInvite                 `json:"invites,omitempty"`
 	Tasks             []teamTask                   `json:"tasks,omitempty"`
+	Runners           []hostedRunner               `json:"runners,omitempty"`
+	RunnerJobs        []runnerJob                  `json:"runner_jobs,omitempty"`
+	RunnerJobEvents   []runnerJobEvent             `json:"runner_job_events,omitempty"`
+	WikiWriteRequests []hostedWikiWriteRequest     `json:"wiki_write_requests,omitempty"`
+	WikiArticleIndex  []hostedWikiArticleIndex     `json:"wiki_article_index,omitempty"`
 	Requests          []humanInterview             `json:"requests,omitempty"`
 	Actions           []officeActionLog            `json:"actions,omitempty"`
 	Signals           []officeSignalRecord         `json:"signals,omitempty"`
@@ -428,6 +433,11 @@ type Broker struct {
 	humanMembers            []humanTeamMember
 	invites                 []teamInvite
 	tasks                   []teamTask
+	runners                 []hostedRunner
+	runnerJobs              []runnerJob
+	runnerJobEvents         []runnerJobEvent
+	wikiWriteRequests       []hostedWikiWriteRequest
+	wikiArticleIndex        []hostedWikiArticleIndex
 	requests                []humanInterview
 	actions                 []officeActionLog
 	signals                 []officeSignalRecord
@@ -785,6 +795,11 @@ func taskChannelCandidateOwnerAllowed(ch *teamChannel, owner string) bool {
 
 func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 	if task == nil {
+		return nil
+	}
+	if hostedExecutionBoundaryEnabled() {
+		task.WorktreePath = ""
+		task.WorktreeBranch = ""
 		return nil
 	}
 	if !b.taskProjectAllowsCodeExecutionLocked(task) {
@@ -1634,6 +1649,13 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/auth/session", b.handleAuthSession)
 	mux.HandleFunc("/auth/users", b.requireAuth(b.handleAuthUsers))
 	mux.HandleFunc("/teams", b.handleTeams)
+	mux.HandleFunc("/runner/status", b.requireAuth(b.handleRunnerStatus))
+	mux.HandleFunc("/runner/register", b.requireAuth(b.handleRunnerRegister))
+	mux.HandleFunc("/runner/heartbeat", b.handleRunnerHeartbeat)
+	mux.HandleFunc("/runner/capabilities", b.handleRunnerCapabilities)
+	mux.HandleFunc("/runner/jobs/lease", b.handleRunnerJobsLease)
+	mux.HandleFunc("/runner/jobs/", b.handleRunnerJobSubpath)
+	mux.HandleFunc("/runner/wiki/write-result", b.handleRunnerWikiWriteResult)
 	mux.HandleFunc("/session-mode", b.requireAuth(b.handleSessionMode))
 	mux.HandleFunc("/focus-mode", b.requireAuth(b.handleFocusMode))
 	mux.HandleFunc("/messages", b.requireAuth(b.handleMessages))
@@ -1652,6 +1674,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/invites/lookup", b.handleInviteLookup)
 	mux.HandleFunc("/invites/accept", b.handleInviteAccept)
 	mux.HandleFunc("/tasks", b.requireAuth(b.handleTasks))
+	mux.HandleFunc("/tasks/context", b.requireAuth(b.handleTaskContext))
 	mux.HandleFunc("/tasks/ack", b.requireAuth(b.handleTaskAck))
 	mux.HandleFunc("/agent-logs", b.requireAuth(b.handleAgentLogs))
 	mux.HandleFunc("/task-plan", b.requireAuth(b.handleTaskPlan))
@@ -3167,6 +3190,11 @@ func (b *Broker) resetWorkspaceStateLocked() {
 	b.humanMembers = nil
 	b.invites = nil
 	b.actions = nil
+	b.runners = nil
+	b.runnerJobs = nil
+	b.runnerJobEvents = nil
+	b.wikiWriteRequests = nil
+	b.wikiArticleIndex = nil
 	b.signals = nil
 	b.decisions = nil
 	b.watchdogs = nil
@@ -3226,6 +3254,11 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.HumanMembers) * 8
 	score += len(state.Invites) * 4
 	score += len(state.Tasks) * 20
+	score += len(state.Runners) * 3
+	score += len(state.RunnerJobs) * 12
+	score += len(state.RunnerJobEvents) * 2
+	score += len(state.WikiWriteRequests) * 4
+	score += len(state.WikiArticleIndex) * 2
 	score += len(activeRequests(state.Requests)) * 10
 	score += len(state.Actions) * 4
 	score += len(state.Signals) * 4
@@ -3287,6 +3320,11 @@ func (b *Broker) loadState() error {
 	b.humanMembers = state.HumanMembers
 	b.invites = state.Invites
 	b.tasks = state.Tasks
+	b.runners = state.Runners
+	b.runnerJobs = state.RunnerJobs
+	b.runnerJobEvents = state.RunnerJobEvents
+	b.wikiWriteRequests = state.WikiWriteRequests
+	b.wikiArticleIndex = state.WikiArticleIndex
 	b.requests = state.Requests
 	b.actions = state.Actions
 	b.signals = state.Signals
@@ -3356,7 +3394,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3408,6 +3446,11 @@ func (b *Broker) saveLocked() error {
 		HumanMembers:      b.humanMembers,
 		Invites:           b.invites,
 		Tasks:             b.tasks,
+		Runners:           b.runners,
+		RunnerJobs:        b.runnerJobs,
+		RunnerJobEvents:   b.runnerJobEvents,
+		WikiWriteRequests: b.wikiWriteRequests,
+		WikiArticleIndex:  b.wikiArticleIndex,
 		Requests:          b.requests,
 		Actions:           b.actions,
 		Signals:           b.signals,
@@ -4011,6 +4054,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		b.scheduleTaskLifecycleLocked(&b.tasks[i])
 		_ = b.syncTaskWorktreeLocked(&b.tasks[i])
 	}
+	b.normalizeRunnerStateLocked()
 	b.pendingInterview = firstBlockingRequest(b.requests)
 }
 
@@ -9512,7 +9556,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	action := strings.TrimSpace(body.Action)
-	now := time.Now().UTC().Format(time.RFC3339)
+	nowTime := time.Now().UTC()
+	now := nowTime.Format(time.RFC3339)
 	channel := normalizeChannelSlug(body.Channel)
 	if channel == "" {
 		channel = "general"
@@ -9654,6 +9699,11 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "failed to manage task worktree", http.StatusInternalServerError)
 				return
 			}
+			var responseRunnerJob *runnerJob
+			if job, _ := b.ensureRunnerJobForTaskLocked(*existing, nowTime); strings.TrimSpace(job.ID) != "" {
+				copy := job
+				responseRunnerJob = &copy
+			}
 			b.appendActionLocked("task_updated", "office", channel, strings.TrimSpace(body.CreatedBy), truncateSummary(existing.Title+" ["+existing.Status+"]", 140), existing.ID)
 			if err := b.saveLocked(); err != nil {
 				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
@@ -9666,7 +9716,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
 			return
 		}
 		b.counter++
@@ -9715,6 +9765,11 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		b.tasks = append(b.tasks, task)
+		var responseRunnerJob *runnerJob
+		if job, _ := b.ensureRunnerJobForTaskLocked(task, nowTime); strings.TrimSpace(job.ID) != "" {
+			copy := job
+			responseRunnerJob = &copy
+		}
 		b.appendActionLocked("task_created", "office", channel, task.CreatedBy, truncateSummary(task.Title, 140), task.ID)
 		if err := b.saveLocked(); err != nil {
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
@@ -9727,7 +9782,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
 		return
 	}
 
@@ -9930,6 +9985,19 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to manage task worktree", http.StatusInternalServerError)
 			return
 		}
+		var responseRunnerJob *runnerJob
+		if isTerminalTeamTaskStatus(task.Status) {
+			closeStatus := runnerJobStatusSucceeded
+			closeMessage := "task reached terminal status"
+			if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusCanceled) || strings.EqualFold(strings.TrimSpace(task.Status), taskStatusCancelled) {
+				closeStatus = runnerJobStatusCanceled
+				closeMessage = "task canceled"
+			}
+			b.closeRunnerJobsForTaskLocked(task.ID, strings.TrimSpace(body.CreatedBy), closeStatus, closeMessage, now)
+		} else if job, _ := b.ensureRunnerJobForTaskLocked(*task, nowTime); strings.TrimSpace(job.ID) != "" {
+			copy := job
+			responseRunnerJob = &copy
+		}
 		b.appendActionLocked("task_updated", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" ["+task.Status+"]", 140), task.ID)
 		if action == "block" {
 			b.requestCapabilitySelfHealingLocked(task, strings.TrimSpace(body.CreatedBy), body.Details)
@@ -9951,7 +10019,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
 		return
 	}
 

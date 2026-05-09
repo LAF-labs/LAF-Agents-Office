@@ -15,6 +15,7 @@ const apiMocks = vi.hoisted(() => ({
   getOfficeTasks: vi.fn(),
   getProjectRepoReadiness: vi.fn(),
   getProjects: vi.fn(),
+  getRunnerStatus: vi.fn(),
   getThreadMessages: vi.fn(),
   post: vi.fn(),
   postMessage: vi.fn(),
@@ -118,6 +119,7 @@ function mockProjectDirectory() {
     ],
   });
   apiMocks.getProjectRepoReadiness.mockResolvedValue({ readiness: null });
+  apiMocks.getRunnerStatus.mockResolvedValue({ jobs: [], runners: [] });
   apiMocks.getThreadMessages.mockResolvedValue({
     messages: [
       {
@@ -201,6 +203,17 @@ describe("TasksApp project directory", () => {
 
   it("opens a project detail view with its ticket list", async () => {
     const user = userEvent.setup();
+    apiMocks.getRunnerStatus.mockResolvedValue({
+      jobs: [],
+      runners: [
+        {
+          id: "runner-local",
+          name: "Local runner",
+          status: "connected",
+          team_id: "team-local",
+        },
+      ],
+    });
     renderTasksApp();
 
     const customerPortal = await screen.findByRole("button", {
@@ -217,6 +230,7 @@ describe("TasksApp project directory", () => {
     expect(
       within(ticketList).getByText("Implement signup flow"),
     ).toBeInTheDocument();
+    expect(await screen.findByText("Runner connected")).toBeInTheDocument();
     expect(
       within(ticketList).getByText("Review signup flow"),
     ).toBeInTheDocument();

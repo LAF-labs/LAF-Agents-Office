@@ -291,6 +291,11 @@ type TeamTasksArgs struct {
 	IncludeDone bool   `json:"include_done,omitempty" jsonschema:"Include completed tasks as well"`
 }
 
+type TeamTaskContextArgs struct {
+	ID     string `json:"id" jsonschema:"Task ID to load the task-scoped agent memory packet for"`
+	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+}
+
 type TeamRuntimeStateArgs struct {
 	Channel      string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	MySlug       string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
@@ -723,6 +728,11 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		"team_task_status",
 		"Summarize how many shared tasks are running and whether any are isolated in local worktrees.",
 	), handleTeamTaskStatus)
+
+	mcp.AddTool(server, readOnlyTool(
+		"team_task_context",
+		"Reload the task-scoped agent memory packet for a task ID, including project wiki context, constraints, start-here guidance, and write-back rules.",
+	), handleTeamTaskContext)
 
 	mcp.AddTool(server, readOnlyTool(
 		"team_runtime_state",
@@ -1282,6 +1292,31 @@ func handleTeamTaskStatus(ctx context.Context, _ *mcp.CallToolRequest, args Team
 		return toolError(err), nil, nil
 	}
 	return textResult(summarizeTaskRuntime(channel, tasks)), nil, nil
+}
+
+func handleTeamTaskContext(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskContextArgs) (*mcp.CallToolResult, any, error) {
+	id := strings.TrimSpace(args.ID)
+	if id == "" {
+		return toolError(fmt.Errorf("id is required")), nil, nil
+	}
+	values := url.Values{}
+	values.Set("id", id)
+	if slug := strings.TrimSpace(resolveSlugOptional(args.MySlug)); slug != "" {
+		values.Set("viewer_slug", slug)
+	}
+	var result struct {
+		Packet team.AgentMemoryPacket `json:"packet"`
+		Text   string                 `json:"text"`
+	}
+	if err := brokerGetJSON(ctx, "/tasks/context?"+values.Encode(), &result); err != nil {
+		return toolError(err), nil, nil
+	}
+	text := strings.TrimSpace(result.Text)
+	if text == "" {
+		raw, _ := json.MarshalIndent(result.Packet, "", "  ")
+		text = string(raw)
+	}
+	return textResult(text), result.Packet, nil
 }
 
 func handleTeamRuntimeState(ctx context.Context, _ *mcp.CallToolRequest, args TeamRuntimeStateArgs) (*mcp.CallToolResult, any, error) {

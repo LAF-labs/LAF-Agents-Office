@@ -2,18 +2,97 @@ package team
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
+	"time"
 )
 
-const maxProjectMemoryPacketChars = 6000
+const maxProjectMemoryPacketChars = 2400
+
+type AgentMemoryPacket struct {
+	Version       string                     `json:"version"`
+	Task          AgentMemoryTask            `json:"task"`
+	Project       *AgentMemoryProject        `json:"project,omitempty"`
+	MustRead      []AgentMemoryReference     `json:"must_read,omitempty"`
+	LoadedContext []AgentMemoryLoadedContext `json:"loaded_context,omitempty"`
+	Decisions     []AgentMemoryItem          `json:"decisions,omitempty"`
+	Risks         []AgentMemoryItem          `json:"risks,omitempty"`
+	OpenQuestions []AgentMemoryItem          `json:"open_questions,omitempty"`
+	RecentWork    []AgentMemoryWorkReceipt   `json:"recent_work,omitempty"`
+	MustObey      []string                   `json:"must_obey,omitempty"`
+	StartHere     []string                   `json:"start_here,omitempty"`
+	WriteBack     []string                   `json:"write_back,omitempty"`
+	Unavailable   []string                   `json:"unavailable,omitempty"`
+}
+
+type AgentMemoryTask struct {
+	ID             string `json:"id"`
+	Title          string `json:"title"`
+	Status         string `json:"status,omitempty"`
+	Owner          string `json:"owner,omitempty"`
+	Channel        string `json:"channel,omitempty"`
+	TaskType       string `json:"task_type,omitempty"`
+	ExecutionMode  string `json:"execution_mode,omitempty"`
+	WorktreePath   string `json:"worktree_path,omitempty"`
+	WorktreeBranch string `json:"worktree_branch,omitempty"`
+}
+
+type AgentMemoryProject struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	WikiPath    string `json:"wiki_path"`
+	GitHubRepo  string `json:"github_repo,omitempty"`
+	LeadAgent   string `json:"lead_agent,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type AgentMemoryReference struct {
+	Kind   string `json:"kind"`
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+	Status string `json:"status,omitempty"`
+}
+
+type AgentMemoryLoadedContext struct {
+	Kind      string `json:"kind"`
+	Path      string `json:"path"`
+	Status    string `json:"status"`
+	Chars     int    `json:"chars,omitempty"`
+	Truncated bool   `json:"truncated,omitempty"`
+	Note      string `json:"note,omitempty"`
+}
+
+type AgentMemoryItem struct {
+	Text   string `json:"text"`
+	Source string `json:"source"`
+}
+
+type AgentMemoryWorkReceipt struct {
+	TaskID          string `json:"task_id"`
+	Title           string `json:"title"`
+	Status          string `json:"status"`
+	Owner           string `json:"owner,omitempty"`
+	DeliveryURL     string `json:"delivery_url,omitempty"`
+	DeliverySummary string `json:"delivery_summary,omitempty"`
+	Blocker         string `json:"blocker,omitempty"`
+	UpdatedAt       string `json:"updated_at,omitempty"`
+}
 
 type projectMemoryPacket struct {
 	Path        string
 	Excerpt     string
 	Truncated   bool
 	Unavailable string
+	Signals     projectMemorySignals
+}
+
+type projectMemorySignals struct {
+	Decisions     []AgentMemoryItem
+	Risks         []AgentMemoryItem
+	OpenQuestions []AgentMemoryItem
 }
 
 func (b *Broker) materializeProjectWiki(ctx context.Context, project teamProject) error {
@@ -185,8 +264,11 @@ func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
 	}
 
 	project := b.projectSnapshot(projectID)
+	liveMemory := renderProjectLiveMemory(project)
+	combined := strings.TrimSpace(strings.Join(nonEmptyStrings(liveMemory, string(raw)), "\n\n"))
+	packet.Signals = extractProjectMemorySignals(path, combined)
 	excerpt := strings.TrimSpace(
-		strings.Join(nonEmptyStrings(renderProjectLiveMemory(project), string(raw)), "\n\n"),
+		combined,
 	)
 	if excerpt == "" {
 		packet.Unavailable = fmt.Sprintf("%s is empty", path)
@@ -199,6 +281,400 @@ func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
 	}
 	packet.Excerpt = excerpt
 	return packet
+}
+
+// agentMemoryPacketForTaskLocked builds the same canonical agent-memory/v1
+// packet as AgentMemoryPacketForTask, but uses already-locked broker state.
+// Callers must hold b.mu.
+func (b *Broker) agentMemoryPacketForTaskLocked(task teamTask) AgentMemoryPacket {
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return buildAgentMemoryPacketForTask(task, projectMemoryPacket{}, teamProject{}, nil)
+	}
+	project := teamProject{ID: projectID}
+	if b != nil {
+		if snapshot := b.findProjectLocked(projectID); snapshot != nil {
+			project = *snapshot
+		}
+	}
+	memory := b.projectMemoryForTaskPacketLocked(task, project)
+	recentWork := b.recentProjectWorkReceiptsLocked(projectID, task.ID, 5)
+	return buildAgentMemoryPacketForTask(task, memory, project, recentWork)
+}
+
+// projectMemoryForTaskPacketLocked reads the canonical project wiki for a task
+// without taking b.mu again. Callers must hold b.mu.
+func (b *Broker) projectMemoryForTaskPacketLocked(task teamTask, project teamProject) projectMemoryPacket {
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return projectMemoryPacket{}
+	}
+	path := projectWikiArticlePath(projectID)
+	packet := projectMemoryPacket{Path: path}
+	if b == nil {
+		packet.Unavailable = "wiki backend is not active"
+		return packet
+	}
+	worker := b.wikiWorker
+	if worker == nil {
+		packet.Unavailable = fmt.Sprintf("wiki backend is not active for %s", path)
+		return packet
+	}
+
+	raw, err := worker.ReadArticle(path)
+	if os.IsNotExist(err) && project.ID != "" {
+		raw = []byte(renderProjectWikiArticle(project))
+		err = nil
+	}
+	if os.IsNotExist(err) {
+		packet.Unavailable = fmt.Sprintf("%s is missing and project %q was not found", path, projectID)
+		return packet
+	}
+	if err != nil {
+		packet.Unavailable = fmt.Sprintf("failed to read %s: %v", path, err)
+		return packet
+	}
+
+	liveMemory := renderProjectLiveMemory(project)
+	combined := strings.TrimSpace(strings.Join(nonEmptyStrings(liveMemory, string(raw)), "\n\n"))
+	packet.Signals = extractProjectMemorySignals(path, combined)
+	excerpt := strings.TrimSpace(combined)
+	if excerpt == "" {
+		packet.Unavailable = fmt.Sprintf("%s is empty", path)
+		return packet
+	}
+	runes := []rune(excerpt)
+	if len(runes) > maxProjectMemoryPacketChars {
+		excerpt = string(runes[:maxProjectMemoryPacketChars])
+		packet.Truncated = true
+	}
+	packet.Excerpt = excerpt
+	return packet
+}
+
+func (b *Broker) AgentMemoryPacketForTask(task teamTask) AgentMemoryPacket {
+	return b.agentMemoryPacketForTask(task, b.projectMemoryForTaskPacket(task))
+}
+
+func (b *Broker) agentMemoryPacketForTask(task teamTask, memory projectMemoryPacket) AgentMemoryPacket {
+	projectID := normalizeProjectID(task.ProjectID)
+	project := teamProject{}
+	if projectID != "" {
+		project = teamProject{ID: projectID}
+		if b != nil {
+			if snapshot := b.projectSnapshot(projectID); snapshot.ID != "" {
+				project = snapshot
+			}
+		}
+	}
+	var recentWork []AgentMemoryWorkReceipt
+	if b != nil && projectID != "" {
+		recentWork = b.recentProjectWorkReceipts(projectID, task.ID, 5)
+	}
+	return buildAgentMemoryPacketForTask(task, memory, project, recentWork)
+}
+
+func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, project teamProject, recentWork []AgentMemoryWorkReceipt) AgentMemoryPacket {
+	channel := normalizeChannelSlug(task.Channel)
+	if channel == "" {
+		channel = "general"
+	}
+	packet := AgentMemoryPacket{
+		Version: "agent-memory/v1",
+		Task: AgentMemoryTask{
+			ID:             strings.TrimSpace(task.ID),
+			Title:          strings.TrimSpace(task.Title),
+			Status:         strings.TrimSpace(task.Status),
+			Owner:          strings.TrimSpace(task.Owner),
+			Channel:        channel,
+			TaskType:       strings.TrimSpace(task.TaskType),
+			ExecutionMode:  strings.TrimSpace(task.ExecutionMode),
+			WorktreePath:   strings.TrimSpace(task.WorktreePath),
+			WorktreeBranch: strings.TrimSpace(task.WorktreeBranch),
+		},
+		MustObey: []string{
+			"Treat this packet as the first memory read for the task; do not re-ask for context that is already loaded here.",
+			"Use sourced wiki/notebook memory before guessing about prior decisions, project state, or completion rules.",
+		},
+		StartHere: []string{
+			"Use this task packet before team_poll or team_tasks; it is scoped to the pushed work item.",
+		},
+		WriteBack: []string{
+			"Put fresh working notes in notebook_write first; promote durable conclusions with notebook_promote unless the task explicitly calls for a canonical wiki edit.",
+			"Do not claim canonical memory was updated unless notebook_promote or team_wiki_write actually succeeded.",
+		},
+	}
+
+	projectID := normalizeProjectID(task.ProjectID)
+	if projectID == "" {
+		return packet
+	}
+	path := projectWikiArticlePath(projectID)
+	if project.ID == "" {
+		project = teamProject{ID: projectID}
+	}
+	repo := strings.TrimSpace(project.GitHubRepoURL)
+	packet.Project = &AgentMemoryProject{
+		ID:          projectID,
+		Name:        projectPacketName(project),
+		WikiPath:    path,
+		GitHubRepo:  repo,
+		LeadAgent:   strings.TrimSpace(project.LeadAgent),
+		Description: strings.TrimSpace(project.Description),
+	}
+	status := "loaded"
+	if memory.Unavailable != "" {
+		status = "unavailable"
+		packet.Unavailable = append(packet.Unavailable, memory.Unavailable)
+	}
+	packet.MustRead = append(packet.MustRead, AgentMemoryReference{
+		Kind:   "project_wiki",
+		Path:   path,
+		Reason: "canonical shared memory for this project",
+		Status: status,
+	})
+	loaded := AgentMemoryLoadedContext{
+		Kind:      "project_wiki_excerpt",
+		Path:      path,
+		Status:    status,
+		Chars:     len([]rune(memory.Excerpt)),
+		Truncated: memory.Truncated,
+	}
+	if memory.Unavailable == "" {
+		loaded.Note = "Excerpt is injected below this contract; call team_wiki_read only if truncated or missing a needed section."
+	} else {
+		loaded.Note = memory.Unavailable
+	}
+	packet.LoadedContext = append(packet.LoadedContext, loaded)
+	packet.Decisions = append(packet.Decisions, memory.Signals.Decisions...)
+	packet.Risks = append(packet.Risks, memory.Signals.Risks...)
+	packet.OpenQuestions = append(packet.OpenQuestions, memory.Signals.OpenQuestions...)
+	packet.RecentWork = append(packet.RecentWork, recentWork...)
+	packet.MustObey = append(packet.MustObey,
+		"Project memory is the shared agent memory for this task; keep planning, blockers, receipts, and durable decisions tied back to the project page.",
+		projectPacketRepoRule(project),
+	)
+	if deliveryRule := projectPacketDeliveryRule(project, task); deliveryRule != "" {
+		packet.MustObey = append(packet.MustObey, deliveryRule)
+	}
+	packet.StartHere = append(packet.StartHere,
+		"Read the loaded project memory excerpt before broad repository search or new architecture planning.",
+	)
+	packet.WriteBack = append(packet.WriteBack,
+		"Use team_task status changes for lifecycle state; project task events are appended to the project wiki by the broker.",
+		"After meaningful delivery, include the concrete receipt or follow-up decision so later agents inherit the real state.",
+	)
+	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
+		packet.StartHere = append(packet.StartHere,
+			"For local_worktree work, begin inside the assigned working_directory and ship the smallest runnable slice.",
+		)
+	}
+	if len(packet.Decisions) > 0 {
+		packet.StartHere = append(packet.StartHere, "Apply the decisions array before inventing new architecture or workflow policy.")
+	}
+	if len(packet.Risks) > 0 || len(packet.OpenQuestions) > 0 {
+		packet.StartHere = append(packet.StartHere, "Check risks and open_questions before changing task status to review or done.")
+	}
+	if len(packet.RecentWork) > 0 {
+		packet.StartHere = append(packet.StartHere, "Use recent_work receipts to avoid duplicating already-delivered project work.")
+	}
+	return packet
+}
+
+func extractProjectMemorySignals(source, markdown string) projectMemorySignals {
+	return projectMemorySignals{
+		Decisions:     extractProjectSectionBullets(source, markdown, 6, "Decisions", "Decision log"),
+		Risks:         extractProjectSectionBullets(source, markdown, 6, "Risks", "Risk log", "Blockers", "Known risks"),
+		OpenQuestions: extractProjectSectionBullets(source, markdown, 6, "Open questions", "Questions", "Unknowns"),
+	}
+}
+
+func extractProjectSectionBullets(source, markdown string, limit int, headings ...string) []AgentMemoryItem {
+	if strings.TrimSpace(markdown) == "" || limit <= 0 {
+		return nil
+	}
+	section := markdownSection(markdown, headings...)
+	if section == "" {
+		return nil
+	}
+	items := make([]AgentMemoryItem, 0, limit)
+	for _, line := range strings.Split(section, "\n") {
+		text := strings.TrimSpace(line)
+		text = strings.TrimPrefix(text, "- [ ] ")
+		text = strings.TrimPrefix(text, "- [x] ")
+		text = strings.TrimPrefix(text, "- [X] ")
+		if strings.HasPrefix(text, "- ") || strings.HasPrefix(text, "* ") {
+			text = strings.TrimSpace(text[2:])
+		} else {
+			continue
+		}
+		if text == "" || isProjectMemoryBoilerplate(text) || isProjectTaskEventBullet(text) {
+			continue
+		}
+		items = append(items, AgentMemoryItem{
+			Text:   truncateSummary(oneLineTaskWikiText(text), 280),
+			Source: source,
+		})
+		if len(items) >= limit {
+			break
+		}
+	}
+	return items
+}
+
+func markdownSection(markdown string, headings ...string) string {
+	lines := strings.Split(markdown, "\n")
+	inSection := false
+	var section []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## ") {
+			title := strings.TrimSpace(strings.TrimPrefix(trimmed, "## "))
+			title = strings.Trim(title, "# ")
+			if inSection {
+				break
+			}
+			for _, heading := range headings {
+				if strings.EqualFold(title, strings.TrimSpace(heading)) {
+					inSection = true
+					break
+				}
+			}
+			continue
+		}
+		if inSection {
+			section = append(section, line)
+		}
+	}
+	return strings.TrimSpace(strings.Join(section, "\n"))
+}
+
+func isProjectTaskEventBullet(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	return strings.Contains(lower, "task `") && strings.Contains(lower, "status `")
+}
+
+func isProjectMemoryBoilerplate(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	boilerplate := []string{
+		"record durable product, technical, and workflow decisions here as they are made",
+		"include the reason for each decision",
+		"before work: read this page",
+		"during work: keep task status",
+		"after work: append meaningful changes",
+		"define the smallest useful project outcome",
+		"keep planning, implementation, and automation work tied",
+		"record active blockers, delivery risks, stale assumptions",
+		"remove or rewrite risk bullets after they are resolved",
+		"record unresolved product, technical, workflow, or ownership questions",
+		"turn answered questions into decisions or agent work receipts",
+	}
+	for _, phrase := range boilerplate {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Broker) recentProjectWorkReceipts(projectID, currentTaskID string, limit int) []AgentMemoryWorkReceipt {
+	projectID = normalizeProjectID(projectID)
+	if b == nil || projectID == "" || limit <= 0 {
+		return nil
+	}
+	b.mu.Lock()
+	tasks := make([]teamTask, 0, len(b.tasks))
+	for _, task := range b.tasks {
+		if normalizeProjectID(task.ProjectID) == projectID && strings.TrimSpace(task.ID) != strings.TrimSpace(currentTaskID) {
+			tasks = append(tasks, task)
+		}
+	}
+	b.mu.Unlock()
+	return buildRecentProjectWorkReceipts(tasks, limit)
+}
+
+// recentProjectWorkReceiptsLocked returns recent work without taking b.mu again.
+// Callers must hold b.mu.
+func (b *Broker) recentProjectWorkReceiptsLocked(projectID, currentTaskID string, limit int) []AgentMemoryWorkReceipt {
+	projectID = normalizeProjectID(projectID)
+	if b == nil || projectID == "" || limit <= 0 {
+		return nil
+	}
+	tasks := make([]teamTask, 0, len(b.tasks))
+	for _, task := range b.tasks {
+		if normalizeProjectID(task.ProjectID) == projectID && strings.TrimSpace(task.ID) != strings.TrimSpace(currentTaskID) {
+			tasks = append(tasks, task)
+		}
+	}
+	return buildRecentProjectWorkReceipts(tasks, limit)
+}
+
+func buildRecentProjectWorkReceipts(tasks []teamTask, limit int) []AgentMemoryWorkReceipt {
+	sort.SliceStable(tasks, func(i, j int) bool {
+		return latestTaskTimestamp(tasks[i]).After(latestTaskTimestamp(tasks[j]))
+	})
+	receipts := make([]AgentMemoryWorkReceipt, 0, limit)
+	for _, task := range tasks {
+		if len(receipts) >= limit {
+			break
+		}
+		receipt := AgentMemoryWorkReceipt{
+			TaskID:          strings.TrimSpace(task.ID),
+			Title:           truncateSummary(oneLineTaskWikiText(task.Title), 140),
+			Status:          strings.TrimSpace(task.Status),
+			Owner:           strings.TrimSpace(task.Owner),
+			DeliveryURL:     strings.TrimSpace(task.DeliveryURL),
+			DeliverySummary: truncateSummary(oneLineTaskWikiText(task.DeliverySummary), 220),
+			UpdatedAt:       latestTaskTimestampString(task),
+		}
+		if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusBlocked) || task.Blocked {
+			receipt.Blocker = truncateSummary(oneLineTaskWikiText(nonEmptyTaskDetails(task)), 220)
+		}
+		if receipt.Status == "" && receipt.DeliveryURL == "" && receipt.DeliverySummary == "" && receipt.Blocker == "" {
+			continue
+		}
+		receipts = append(receipts, receipt)
+	}
+	return receipts
+}
+
+func latestTaskTimestamp(task teamTask) time.Time {
+	for _, raw := range []string{task.UpdatedAt, task.DeliveredAt, task.CreatedAt} {
+		if ts, err := time.Parse(time.RFC3339, strings.TrimSpace(raw)); err == nil {
+			return ts
+		}
+	}
+	return time.Time{}
+}
+
+func latestTaskTimestampString(task teamTask) string {
+	if updated := strings.TrimSpace(task.UpdatedAt); updated != "" {
+		return updated
+	}
+	if delivered := strings.TrimSpace(task.DeliveredAt); delivered != "" {
+		return delivered
+	}
+	return strings.TrimSpace(task.CreatedAt)
+}
+
+func nonEmptyTaskDetails(task teamTask) string {
+	if details := strings.TrimSpace(task.Details); details != "" {
+		return details
+	}
+	return strings.TrimSpace(task.HumanDetails)
+}
+
+func renderAgentMemoryPacket(packet AgentMemoryPacket) []string {
+	raw, err := json.MarshalIndent(packet, "", "  ")
+	if err != nil {
+		return nil
+	}
+	return []string{
+		"Agent memory packet (task-scoped contract):",
+		"```json",
+		string(raw),
+		"```",
+	}
 }
 
 func renderProjectMemoryPacket(packet projectMemoryPacket) []string {
@@ -379,6 +855,14 @@ func renderProjectWikiArticle(project teamProject) string {
 	sb.WriteString("\n## Decisions\n\n")
 	sb.WriteString("- Record durable product, technical, and workflow decisions here as they are made.\n")
 	sb.WriteString("- Include the reason for each decision and link any task, branch, PR, or wiki page that changed because of it.\n")
+
+	sb.WriteString("\n## Risks\n\n")
+	sb.WriteString("- Record active blockers, delivery risks, stale assumptions, and integration constraints here.\n")
+	sb.WriteString("- Remove or rewrite risk bullets after they are resolved so agents do not inherit stale warnings.\n")
+
+	sb.WriteString("\n## Open questions\n\n")
+	sb.WriteString("- Record unresolved product, technical, workflow, or ownership questions here.\n")
+	sb.WriteString("- Turn answered questions into Decisions or Agent work receipts instead of leaving them ambiguous.\n")
 
 	sb.WriteString("\n## Agent work\n\n")
 	sb.WriteString("- Before work: read this page or the project memory excerpt in the task packet.\n")

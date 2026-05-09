@@ -701,6 +701,68 @@ export interface ProjectRepoReadiness {
   checked_at?: string;
 }
 
+export interface RunnerCapabilities {
+  provider_runtimes?: string[];
+  gh_available?: boolean;
+  gh_authenticated?: boolean;
+  git_available?: boolean;
+  os?: string;
+  arch?: string;
+  hostname?: string;
+  workspace_root?: string;
+  execution_modes?: string[];
+}
+
+export interface HostedRunner {
+  id: string;
+  team_id: string;
+  name?: string;
+  runner_type?: "local" | "managed" | string;
+  status: "connected" | "disconnected" | "stale" | "revoked" | string;
+  capabilities?: RunnerCapabilities;
+  last_seen_at?: string;
+  revoked_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RunnerJob {
+  id: string;
+  team_id: string;
+  project_id?: string;
+  task_id?: string;
+  runner_id?: string;
+  agent_slug?: string;
+  execution_mode?: string;
+  status:
+    | "queued"
+    | "leased"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "expired"
+    | string;
+  agent_memory_packet?: unknown;
+  repo_url?: string;
+  wiki_path?: string;
+  lease_expires_at?: string;
+  last_error?: string;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string;
+}
+
+export interface RunnerStatusResponse {
+  runners: HostedRunner[];
+  jobs: RunnerJob[];
+}
+
+export interface TaskMutationResponse {
+  task: Task;
+  runner_job?: RunnerJob | null;
+}
+
 export function getProjects(opts?: { includeArchived?: boolean }) {
   const params: Record<string, string> = {
     viewer_slug: "human",
@@ -714,6 +776,16 @@ export function getProjectRepoReadiness(projectId: string) {
     id: projectId,
     viewer_slug: "human",
   });
+}
+
+export function getRunnerStatus(opts?: {
+  projectId?: string;
+  taskId?: string;
+}) {
+  const params: Record<string, string> = {};
+  if (opts?.projectId) params.project_id = opts.projectId;
+  if (opts?.taskId) params.task_id = opts.taskId;
+  return get<RunnerStatusResponse>("/runner/status", params);
 }
 
 export function createProject(body: {
@@ -767,7 +839,7 @@ export function createTask(body: {
   execution_mode?: string;
   created_by?: string;
 }) {
-  return post<{ task: Task }>("/tasks", {
+  return post<TaskMutationResponse>("/tasks", {
     action: "create",
     created_by: "human",
     ...body,
@@ -784,7 +856,7 @@ export function updateTask(body: {
   channel?: string;
   created_by?: string;
 }) {
-  return post<{ task: Task }>("/tasks", {
+  return post<TaskMutationResponse>("/tasks", {
     action: "update",
     created_by: "human",
     ...body,
@@ -797,7 +869,7 @@ export function reassignTask(
   channel: string,
   actor = "human",
 ) {
-  return post<{ task: Task }>("/tasks", {
+  return post<TaskMutationResponse>("/tasks", {
     action: "reassign",
     id: taskId,
     owner: newOwner,
@@ -823,7 +895,7 @@ export function updateTaskStatus(
     delivery_summary?: string;
   },
 ) {
-  return post<{ task: Task }>("/tasks", {
+  return post<TaskMutationResponse>("/tasks", {
     action,
     id: taskId,
     channel: channel || "general",

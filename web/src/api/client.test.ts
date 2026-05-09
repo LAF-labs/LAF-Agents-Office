@@ -4,6 +4,7 @@ import {
   createProject,
   createTask,
   getProjectRepoReadiness,
+  getRunnerStatus,
   initApi,
   login,
   updateProject,
@@ -153,6 +154,27 @@ describe("project api client", () => {
       }),
     );
     expect(result.task.project_id).toBe("customer-portal");
+  });
+
+  it("fetches runner status scoped to a project", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          jobs: [{ id: "runner-job-1", project_id: "customer-portal" }],
+          runners: [{ id: "runner-local", status: "connected" }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getRunnerStatus({ projectId: "customer-portal" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/runner/status?project_id=customer-portal",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(result.runners[0]?.status).toBe("connected");
   });
 
   it("updates a project task without changing its workflow state", async () => {

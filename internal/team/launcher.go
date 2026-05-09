@@ -1048,7 +1048,9 @@ func (l *Launcher) taskProjectPacketLines(task teamTask) []string {
 		fmt.Sprintf("- GitHub repo: %s", repo),
 		"Project memory rule: read the project wiki before work. Durable task lifecycle updates are appended to that project wiki.",
 	}
-	lines = append(lines, renderProjectMemoryPacket(l.broker.projectMemoryForTaskPacket(task))...)
+	memory := l.broker.projectMemoryForTaskPacket(task)
+	lines = append(lines, renderAgentMemoryPacket(l.broker.agentMemoryPacketForTask(task, memory))...)
+	lines = append(lines, renderProjectMemoryPacket(memory)...)
 	lines = append(lines, projectPacketRepoRule(project))
 	if deliveryRule := projectPacketDeliveryRule(project, task); deliveryRule != "" {
 		lines = append(lines, deliveryRule)

@@ -2328,6 +2328,21 @@ html[data-theme^="office"] .task-inline-status.is-canceled {
   color: var(--text-tertiary);
 }
 
+html[data-theme^="office"] .project-inline-status.is-runner-connected,
+html[data-theme^="office"] .project-inline-status.is-runner-running {
+  color: var(--green);
+}
+
+html[data-theme^="office"] .project-inline-status.is-runner-queued,
+html[data-theme^="office"] .project-inline-status.is-runner-loading {
+  color: var(--accent);
+}
+
+html[data-theme^="office"] .project-inline-status.is-runner-stale,
+html[data-theme^="office"] .project-inline-status.is-runner-no_runner {
+  color: var(--yellow);
+}
+
 html[data-theme^="office"] .project-ticket-metrics,
 html[data-theme^="office"] .project-detail-metrics {
   display: flex;

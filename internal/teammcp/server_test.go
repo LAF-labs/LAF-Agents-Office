@@ -94,6 +94,13 @@ func TestConfigureServerToolsHidesHostedActionTools(t *testing.T) {
 	}
 }
 
+func TestConfigureServerToolsRegistersTaskContext(t *testing.T) {
+	names := listRegisteredTools(t, "general", false)
+	if !slices.Contains(names, "team_task_context") {
+		t.Fatalf("expected team_task_context in office mode; tools=%v", names)
+	}
+}
+
 func TestConfigureServerToolsOmitsActionToolAnnotations(t *testing.T) {
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()

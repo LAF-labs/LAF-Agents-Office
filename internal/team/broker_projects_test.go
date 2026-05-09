@@ -354,6 +354,124 @@ func TestProjectInfoAndRecipeSyncToWikiAndTaskMemory(t *testing.T) {
 	}
 }
 
+func TestTaskContextReturnsAgentMemoryPacket(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "wiki")
+	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	repo := NewRepoAt(root, backup)
+	if err := repo.Init(context.Background()); err != nil {
+		t.Fatalf("init wiki repo: %v", err)
+	}
+
+	b := newTestBroker(t)
+	worker := NewWikiWorker(repo, b)
+	ctx, cancel := context.WithCancel(context.Background())
+	worker.Start(ctx)
+	t.Cleanup(func() {
+		cancel()
+		worker.Stop()
+	})
+	b.mu.Lock()
+	b.wikiWorker = worker
+	b.mu.Unlock()
+
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"description":     "Ship the first agent-native work loop.",
+		"created_by":      "human",
+		"github_repo_url": "https://github.com/laf-labs/agent-lab",
+	})
+	worker.WaitForIdle()
+	if _, _, err := worker.Enqueue(context.Background(), "human", "team/projects/"+project.ID+".md", `# Agent Lab
+
+## Decisions
+
+- Use project memory packets before broad repo search.
+- Record durable product, technical, and workflow decisions here as they are made.
+
+## Risks
+
+- Do not complete tasks without delivery receipts.
+
+## Open questions
+
+- Which agent owns long-term memory synthesis?
+`, "replace", "seed project memory signals"); err != nil {
+		t.Fatalf("seed project memory signals: %v", err)
+	}
+	worker.WaitForIdle()
+	task := createTaskForProjectTest(t, b, "Implement memory packets", project.ID)
+	b.mu.Lock()
+	b.tasks = append(b.tasks,
+		teamTask{
+			ID:              "task-delivered",
+			ProjectID:       project.ID,
+			Title:           "Ship context reload endpoint",
+			Status:          taskStatusDone,
+			Owner:           "builder",
+			DeliveryURL:     "https://github.com/laf-labs/agent-lab/pull/12",
+			DeliverySummary: "Added reloadable task context.",
+			CreatedAt:       "2026-05-01T10:00:00Z",
+			UpdatedAt:       "2026-05-01T11:00:00Z",
+		},
+		teamTask{
+			ID:        "task-blocked",
+			ProjectID: project.ID,
+			Title:     "Connect memory lint queue",
+			Status:    taskStatusBlocked,
+			Owner:     "architect",
+			Details:   "Blocked until lint queue ownership is assigned.",
+			CreatedAt: "2026-05-02T10:00:00Z",
+			UpdatedAt: "2026-05-02T11:00:00Z",
+			Blocked:   true,
+		},
+	)
+	b.mu.Unlock()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/tasks/context?id="+task.ID+"&viewer_slug=human", nil)
+	b.handleTaskContext(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("task context status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var response struct {
+		Packet AgentMemoryPacket `json:"packet"`
+		Text   string            `json:"text"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode task context: %v", err)
+	}
+	if response.Packet.Version != "agent-memory/v1" {
+		t.Fatalf("packet version = %q", response.Packet.Version)
+	}
+	if response.Packet.Project == nil || response.Packet.Project.WikiPath != "team/projects/"+project.ID+".md" {
+		t.Fatalf("unexpected project packet: %+v", response.Packet.Project)
+	}
+	if len(response.Packet.Decisions) != 1 || !strings.Contains(response.Packet.Decisions[0].Text, "project memory packets") {
+		t.Fatalf("unexpected decisions: %+v", response.Packet.Decisions)
+	}
+	if len(response.Packet.Risks) != 1 || !strings.Contains(response.Packet.Risks[0].Text, "delivery receipts") {
+		t.Fatalf("unexpected risks: %+v", response.Packet.Risks)
+	}
+	if len(response.Packet.OpenQuestions) != 1 || !strings.Contains(response.Packet.OpenQuestions[0].Text, "memory synthesis") {
+		t.Fatalf("unexpected open questions: %+v", response.Packet.OpenQuestions)
+	}
+	if len(response.Packet.RecentWork) != 2 || response.Packet.RecentWork[0].TaskID != "task-blocked" || response.Packet.RecentWork[1].TaskID != "task-delivered" {
+		t.Fatalf("unexpected recent work: %+v", response.Packet.RecentWork)
+	}
+	for _, want := range []string{
+		"Agent memory packet (task-scoped contract):",
+		`"decisions":`,
+		`"recent_work":`,
+		"Project memory excerpt (read before work):",
+		"Ship the first agent-native work loop.",
+		"Project repo rule: use this project repo as the coding boundary",
+	} {
+		if !strings.Contains(response.Text, want) {
+			t.Fatalf("task context text missing %q:\n%s", want, response.Text)
+		}
+	}
+}
+
 func TestProjectRecipeRejectsNonMarkdownFile(t *testing.T) {
 	b := newTestBroker(t)
 	rec := httptest.NewRecorder()

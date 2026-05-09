@@ -1047,6 +1047,9 @@ func TestBuildTaskExecutionPacketIncludesConnectedProjectContext(t *testing.T) {
 		"- Project: Agent Lab (agent-lab)",
 		"- Project wiki: team/projects/agent-lab.md",
 		"- GitHub repo: https://github.com/laf-labs/agent-lab",
+		"Agent memory packet (task-scoped contract):",
+		`"version": "agent-memory/v1"`,
+		`"must_read":`,
 		"Project memory rule: read the project wiki before work",
 		"Project repo rule: use this project repo as the coding boundary",
 		"- Working branch: laf-office-task-12",
@@ -1085,6 +1088,8 @@ func TestBuildTaskExecutionPacketIncludesProjectWikiExcerpt(t *testing.T) {
 	}, "Start the implementation.")
 
 	for _, want := range []string{
+		`"loaded_context":`,
+		`"status": "loaded"`,
 		"Project memory excerpt (read before work):",
 		"# Agent Lab",
 		"- Use Supabase later.",
@@ -1124,6 +1129,8 @@ func TestBuildTaskExecutionPacketMaterializesMissingProjectWiki(t *testing.T) {
 		"# Agent Lab",
 		"Project ID: `agent-lab`",
 		"Plan and ship the first useful agent collaboration loop.",
+		"## Risks",
+		"## Open questions",
 		"Before work: read this page or the project memory excerpt in the task packet.",
 	} {
 		if !strings.Contains(got, want) {
