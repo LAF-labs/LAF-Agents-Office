@@ -3,7 +3,7 @@ import { type ReactNode, useMemo } from "react";
 import type { Message, OfficeMember } from "../../api/client";
 import { toggleReaction } from "../../api/client";
 import { useDefaultHarness } from "../../hooks/useConfig";
-import { useOfficeMembers } from "../../hooks/useMembers";
+import { useMentionTargets } from "../../hooks/useMentionTargets";
 import { formatTime, formatTokens } from "../../lib/format";
 import { type HarnessKind, resolveHarness } from "../../lib/harness";
 import { formatMarkdown } from "../../lib/markdown";
@@ -56,10 +56,9 @@ function messageReactions(message: Message): MessageReaction[] {
 }
 
 export function MessageBubble(props: MessageBubbleProps) {
-  const { data: members = [] } = useOfficeMembers();
+  const { agentMembers: members, mentionSlugs } = useMentionTargets();
   const defaultHarness = useDefaultHarness();
   const currentChannel = useAppStore((s) => s.currentChannel);
-  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const membersBySlug = useMemo(
     () => new Map(members.map((m) => [m.slug, m])),
     [members],
@@ -69,7 +68,7 @@ export function MessageBubble(props: MessageBubbleProps) {
       {...props}
       currentChannel={currentChannel}
       defaultHarness={defaultHarness}
-      knownSlugs={knownSlugs}
+      knownSlugs={mentionSlugs}
       membersBySlug={membersBySlug}
     />
   );

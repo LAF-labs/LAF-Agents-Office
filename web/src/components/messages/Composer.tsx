@@ -19,7 +19,7 @@ import {
   setMemory,
 } from "../../api/client";
 import { useCommands } from "../../hooks/useCommands";
-import { useOfficeMembers } from "../../hooks/useMembers";
+import { useMentionTargets } from "../../hooks/useMentionTargets";
 import { useI18n } from "../../lib/i18n";
 import {
   extractTaggedMentions,
@@ -546,16 +546,19 @@ export function Composer() {
     queryFn: getConfig,
     staleTime: 60_000,
   });
-  const { data: members = [] } = useOfficeMembers();
+  const {
+    agentMembers: members,
+    agentSlugs,
+    mentionSlugs,
+  } = useMentionTargets();
   const leadSlug = useMemo(
     () => resolveLeadSlug(cfg?.team_lead_slug, members),
     [cfg?.team_lead_slug, members],
   );
   // Slugs the mirror-overlay recognises as mention chips.
-  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const mentionTokens = useMemo(
-    () => parseMentions(text, knownSlugs),
-    [text, knownSlugs],
+    () => parseMentions(text, mentionSlugs),
+    [text, mentionSlugs],
   );
   // Broker-backed slash-command registry. Falls back to the hardcoded
   // list if the broker is unreachable so the composer is never worse
@@ -629,7 +632,9 @@ export function Composer() {
         sendAsMessage: (rewritten) => {
           sendMutation.mutate({
             content: rewritten,
-            tagged: extractTaggedMentions(rewritten, knownSlugs),
+            tagged: extractTaggedMentions(rewritten, mentionSlugs, {
+              allSlugs: agentSlugs,
+            }),
           });
         },
         refreshMessages,
@@ -646,7 +651,9 @@ export function Composer() {
     pushHistory(currentChannel, trimmed);
     sendMutation.mutate({
       content: trimmed,
-      tagged: extractTaggedMentions(trimmed, knownSlugs),
+      tagged: extractTaggedMentions(trimmed, mentionSlugs, {
+        allSlugs: agentSlugs,
+      }),
     });
     resetComposer();
   }, [
@@ -655,7 +662,8 @@ export function Composer() {
     leadSlug,
     currentChannel,
     resetComposer,
-    knownSlugs,
+    agentSlugs,
+    mentionSlugs,
     refreshMessages,
   ]);
 

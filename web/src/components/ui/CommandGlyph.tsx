@@ -64,6 +64,7 @@ const COMMAND_GLYPHS: Record<string, IconComponent> = {
   lookup: Book,
   message: ChatBubble,
   notebook: JournalPage,
+  person: User,
   "promote-to-wiki": Upload,
   provider: Settings,
   remember: Brain,

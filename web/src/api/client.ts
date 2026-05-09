@@ -254,6 +254,16 @@ export function updateAuthUserRole(body: {
   return patchJSON<{ user: AuthUser; users: AuthUser[] }>("/auth/users", body);
 }
 
+export interface HumanIdentity {
+  name: string;
+  email: string;
+  slug: string;
+}
+
+export function getHumans() {
+  return get<{ humans: HumanIdentity[] }>("/humans");
+}
+
 export function getTeams() {
   return get<{ teams: WorkspaceTeam[] }>("/teams");
 }

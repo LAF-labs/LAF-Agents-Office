@@ -120,4 +120,17 @@ describe("extractTaggedMentions", () => {
       "founding-engineer",
     ]);
   });
+
+  it("keeps @all scoped to the supplied all-slugs while preserving explicit people tags", () => {
+    expect(
+      extractTaggedMentions("ping @sarah and @all", ["pm", "ceo", "sarah"], {
+        allSlugs: ["pm", "ceo"],
+      }),
+    ).toEqual(["pm", "ceo", "sarah"]);
+    expect(
+      extractTaggedMentions("ping @sarah directly", ["pm", "ceo", "sarah"], {
+        allSlugs: ["pm", "ceo"],
+      }),
+    ).toEqual(["sarah"]);
+  });
 });

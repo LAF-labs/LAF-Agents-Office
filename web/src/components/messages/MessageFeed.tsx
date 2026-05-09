@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { Message, OfficeMember } from "../../api/client";
 import { useDefaultHarness } from "../../hooks/useConfig";
-import { useOfficeMembers } from "../../hooks/useMembers";
+import { useMentionTargets } from "../../hooks/useMentionTargets";
 import { useMessages } from "../../hooks/useMessages";
 import { formatDateLabel } from "../../lib/format";
 import type { HarnessKind } from "../../lib/harness";
@@ -129,9 +129,9 @@ export function MessageFeed() {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
   const { t } = useI18n();
-  const { data: members = [] } = useOfficeMembers();
+  const { agentMembers: members, mentionSlugs: knownSlugs } =
+    useMentionTargets();
   const defaultHarness = useDefaultHarness();
-  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const membersBySlug = useMemo(
     () => new Map(members.map((m) => [m.slug, m])),
     [members],

@@ -5,7 +5,8 @@ import {
   FALLBACK_SLASH_COMMANDS,
   type SlashCommand,
 } from "../../hooks/useCommands";
-import { useOfficeMembers } from "../../hooks/useMembers";
+import { useMentionTargets } from "../../hooks/useMentionTargets";
+import type { MentionTarget } from "../../lib/mentionTargets";
 import { CommandGlyph } from "../ui/CommandGlyph";
 
 export interface AutocompleteItem {
@@ -62,7 +63,7 @@ export function Autocomplete({
   onPick,
   commands = SLASH_COMMANDS,
 }: AutocompleteProps) {
-  const { data: members = [] } = useOfficeMembers();
+  const { agentMembers, people } = useMentionTargets();
   const listRef = useRef<HTMLDivElement>(null);
 
   const items = useMemo<AutocompleteItem[]>(() => {
@@ -80,8 +81,8 @@ export function Autocomplete({
           icon: c.icon,
         }));
     }
-    return mentionAutocompleteItems(trigger.query, members);
-  }, [value, caret, members, commands]);
+    return mentionAutocompleteItems(trigger.query, agentMembers, people);
+  }, [value, caret, agentMembers, people, commands]);
 
   useEffect(() => {
     onItems(items);
@@ -126,6 +127,7 @@ export function Autocomplete({
 export function mentionAutocompleteItems(
   query: string,
   members: Pick<OfficeMember, "slug" | "name" | "emoji">[],
+  people: readonly MentionTarget[] = [],
 ): AutocompleteItem[] {
   const q = query.toLowerCase();
   const items: AutocompleteItem[] = [];
@@ -137,22 +139,52 @@ export function mentionAutocompleteItems(
       icon: "broadcast",
     });
   }
-  for (const member of members) {
-    if (!member.slug || member.slug === "human" || member.slug === "you")
-      continue;
-    if (
-      q &&
-      !member.slug.toLowerCase().includes(q) &&
-      !(member.name || "").toLowerCase().includes(q)
-    ) {
-      continue;
-    }
-    items.push({
-      insert: `@${member.slug}`,
-      label: `@${member.slug}`,
-      desc: member.name,
-      icon: "agent",
-    });
+  const candidates = [
+    ...members
+      .filter(
+        (member) =>
+          member.slug && member.slug !== "human" && member.slug !== "you",
+      )
+      .map((member) => ({
+        insert: `@${member.slug}`,
+        label: `@${member.slug}`,
+        desc: member.name,
+        icon: "agent",
+        search: [member.slug, member.name || ""],
+        kindWeight: 0,
+      })),
+    ...people.map((person) => ({
+      insert: `@${person.slug}`,
+      label: `@${person.slug}`,
+      desc: person.email ? `${person.name} · ${person.email}` : person.name,
+      icon: "person",
+      search: [person.slug, person.name, person.email || ""],
+      kindWeight: 1,
+    })),
+  ]
+    .filter((item) => {
+      if (!q) return true;
+      return item.search.some((value) => value.toLowerCase().includes(q));
+    })
+    .map((item) => {
+      const lowered = item.search.map((value) => value.toLowerCase());
+      const score = !q
+        ? 0
+        : lowered.some((value) => value.startsWith(q))
+          ? 1
+          : 2;
+      return { ...item, score };
+    })
+    .sort(
+      (a, b) =>
+        a.score - b.score ||
+        a.kindWeight - b.kindWeight ||
+        a.label.localeCompare(b.label),
+    );
+
+  for (const candidate of candidates) {
+    const { insert, label, desc, icon } = candidate;
+    items.push({ insert, label, desc, icon });
     if (items.length >= MAX_AUTOCOMPLETE_ITEMS) break;
   }
   return items;

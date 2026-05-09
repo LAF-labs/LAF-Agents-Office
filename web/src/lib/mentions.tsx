@@ -80,9 +80,10 @@ export function parseMentions(
 export function extractTaggedMentions(
   content: string,
   knownSlugs: readonly string[],
+  options: { allSlugs?: readonly string[] } = {},
 ): string[] {
   if (!content) return [];
-  const available = normalizeMentionableSlugs(knownSlugs);
+  const available = normalizeMentionableSlugs(options.allSlugs ?? knownSlugs);
   const known = knownMentionSet(knownSlugs);
   const tagged: string[] = [];
   const seen = new Set<string>();
@@ -100,7 +101,12 @@ export function extractTaggedMentions(
     seen.add(slug);
     tagged.push(slug);
   }
-  if (wantsAll) return available;
+  if (wantsAll) {
+    return [
+      ...available,
+      ...tagged.filter((slug) => !available.includes(slug)),
+    ];
+  }
   return tagged;
 }
 

@@ -108,4 +108,24 @@ describe("mentionAutocompleteItems", () => {
       },
     ]);
   });
+
+  it("includes people alongside agents", () => {
+    expect(
+      mentionAutocompleteItems("sar", members, [
+        {
+          kind: "person",
+          slug: "sarah-chen",
+          name: "Sarah Chen",
+          email: "sarah@acme.com",
+        },
+      ]),
+    ).toEqual([
+      {
+        insert: "@sarah-chen",
+        label: "@sarah-chen",
+        desc: "Sarah Chen · sarah@acme.com",
+        icon: "person",
+      },
+    ]);
+  });
 });

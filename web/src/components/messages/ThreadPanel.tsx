@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Message } from "../../api/client";
 import { postMessage } from "../../api/client";
 import { useDefaultHarness } from "../../hooks/useConfig";
-import { useOfficeMembers } from "../../hooks/useMembers";
+import { useMentionTargets } from "../../hooks/useMentionTargets";
 import { useThreadMessages } from "../../hooks/useMessages";
 import { extractTaggedMentions } from "../../lib/mentions";
 import { useAppStore } from "../../stores/app";
@@ -20,9 +20,12 @@ export function ThreadPanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-  const { data: members = [] } = useOfficeMembers();
+  const {
+    agentMembers: members,
+    agentSlugs,
+    mentionSlugs: knownSlugs,
+  } = useMentionTargets();
   const defaultHarness = useDefaultHarness();
-  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const membersBySlug = useMemo(
     () => new Map(members.map((m) => [m.slug, m])),
     [members],
@@ -96,7 +99,7 @@ export function ThreadPanel() {
         content,
         currentChannel,
         replyTarget,
-        extractTaggedMentions(content, knownSlugs),
+        extractTaggedMentions(content, knownSlugs, { allSlugs: agentSlugs }),
       ),
     onSuccess: () => {
       setText("");

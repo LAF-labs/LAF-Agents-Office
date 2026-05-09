@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { useAgentStream } from "../../hooks/useAgentStream";
 import { useDefaultHarness } from "../../hooks/useConfig";
-import { useOfficeMembers } from "../../hooks/useMembers";
+import { useMentionTargets } from "../../hooks/useMentionTargets";
 import { useMessages } from "../../hooks/useMessages";
 import { isDMChannel, useAppStore } from "../../stores/app";
 import { Composer } from "./Composer";
@@ -17,9 +17,9 @@ export function DMView() {
   const dm = isDMChannel(currentChannel, channelMeta);
   const dmAgentSlug = dm?.agentSlug ?? null;
   const { data: messages = [] } = useMessages(currentChannel);
-  const { data: members = [] } = useOfficeMembers();
+  const { agentMembers: members, mentionSlugs: knownSlugs } =
+    useMentionTargets();
   const defaultHarness = useDefaultHarness();
-  const knownSlugs = useMemo(() => members.map((m) => m.slug), [members]);
   const membersBySlug = useMemo(
     () => new Map(members.map((m) => [m.slug, m])),
     [members],

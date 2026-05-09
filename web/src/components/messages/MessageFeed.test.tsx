@@ -10,8 +10,14 @@ vi.mock("../../hooks/useMessages", () => ({
 vi.mock("../../hooks/useConfig", () => ({
   useDefaultHarness: () => "claude-code",
 }));
-vi.mock("../../hooks/useMembers", () => ({
-  useOfficeMembers: () => ({ data: [] }),
+vi.mock("../../hooks/useMentionTargets", () => ({
+  useMentionTargets: () => ({
+    agentMembers: [],
+    agentSlugs: [],
+    agents: [],
+    mentionSlugs: [],
+    people: [],
+  }),
 }));
 
 describe("MessageFeed", () => {

@@ -4288,6 +4288,41 @@ func extractMentionedSlugs(content string) []string {
 	return out
 }
 
+// isHumanMentionSlugLocked reports whether slug is a known human mention target.
+// Caller must hold b.mu. Human mention slugs mirror the wiki identity rules:
+// the email local-part, lowercased and kebab-cased (sarah.chen@x -> sarah-chen).
+func (b *Broker) isHumanMentionSlugLocked(slug string) bool {
+	slug = normalizeProjectID(slug)
+	if slug == "" {
+		return false
+	}
+	switch slug {
+	case "you", "human":
+		return true
+	}
+	for _, member := range b.humanMembers {
+		if deriveSlug(member.Email) == slug {
+			return true
+		}
+		idSlug := strings.TrimPrefix(normalizeProjectID(member.ID), "human-")
+		if idSlug == slug {
+			return true
+		}
+	}
+	for _, user := range b.authUsers {
+		if user.Status != "" && user.Status != "active" {
+			continue
+		}
+		if deriveSlug(user.Email) == slug {
+			return true
+		}
+	}
+	if id, ok := brokerHumanIdentityRegistry().Lookup(slug); ok && id.Slug == slug {
+		return true
+	}
+	return false
+}
+
 func uniqueSlugs(items []string) []string {
 	seen := make(map[string]struct{}, len(items))
 	out := make([]string, 0, len(items))
@@ -8099,7 +8134,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		case "you", "human", "system":
 			continue
 		}
-		if b.findMemberLocked(taggedSlug) == nil {
+		if b.findMemberLocked(taggedSlug) == nil && !b.isHumanMentionSlugLocked(taggedSlug) {
 			b.mu.Unlock()
 			http.Error(w, "unknown tagged member", http.StatusBadRequest)
 			return
@@ -8171,6 +8206,9 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			b.lastTaggedAt = make(map[string]time.Time)
 		}
 		for _, slug := range msg.Tagged {
+			if b.findMemberLocked(slug) == nil {
+				continue
+			}
 			b.lastTaggedAt[slug] = time.Now()
 		}
 	}

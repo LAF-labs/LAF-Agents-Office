@@ -28,7 +28,10 @@ func newBrokerWithPM(t *testing.T) *Broker {
 	t.Helper()
 	b := newTestBroker(t)
 	b.mu.Lock()
-	b.members = append(b.members, officeMember{Slug: "pm", Name: "Product Manager"})
+	b.members = append(b.members,
+		officeMember{Slug: "ceo", Name: "CEO", BuiltIn: true},
+		officeMember{Slug: "pm", Name: "Product Manager"},
+	)
 	b.mu.Unlock()
 	return b
 }
@@ -98,6 +101,55 @@ func TestAutoPromote_HumanTypedAtNonAgent_LeavesUntagged(t *testing.T) {
 	}
 }
 
+func TestHumanMention_ExplicitPersonTagIsAccepted(t *testing.T) {
+	b := newBrokerWithPM(t)
+	b.mu.Lock()
+	b.humanMembers = append(b.humanMembers, humanTeamMember{
+		ID:     "human-sarah-chen",
+		Email:  "sarah.chen@acme.com",
+		Name:   "Sarah Chen",
+		Status: "active",
+	})
+	b.mu.Unlock()
+
+	msg := postMessage(t, b, "you", "general",
+		"@sarah-chen can you sanity check this?", []string{"sarah-chen"})
+
+	if !containsString(msg.Tagged, "sarah-chen") {
+		t.Fatalf("person mention was not preserved in tagged; got %+v", msg.Tagged)
+	}
+	if containsString(msg.Tagged, "pm") {
+		t.Fatalf("person mention should not auto-promote agents; got %+v", msg.Tagged)
+	}
+	b.mu.Lock()
+	_, humanTrackedAsAgent := b.lastTaggedAt["sarah-chen"]
+	b.mu.Unlock()
+	if humanTrackedAsAgent {
+		t.Fatal("person mention should not be tracked as an agent typing indicator")
+	}
+}
+
+func TestHumanMention_UnknownPersonTagStillRejected(t *testing.T) {
+	b := newBrokerWithPM(t)
+	body := map[string]any{
+		"from":    "you",
+		"channel": "general",
+		"content": "@joedoe can you sanity check this?",
+		"tagged":  []string{"joedoe"},
+	}
+	buf, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/messages", bytes.NewReader(buf))
+	req.Header.Set("Authorization", "Bearer "+b.token)
+	rec := httptest.NewRecorder()
+	b.handlePostMessage(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected unknown person tag to be rejected, got %d", rec.Code)
+	}
+}
+
 func TestAutoPromote_AgentTypedAtPM_StillWorks(t *testing.T) {
 	// Regression guard: agent-sender auto-promote (the pre-existing behaviour)
 	// must keep working after the human-sender path was widened.
@@ -133,14 +185,18 @@ func TestAutoPromote_ExplicitTagRespected(t *testing.T) {
 func TestAutoPromote_HumanTypedLeadSuppressesOtherMentions(t *testing.T) {
 	b := newBrokerWithPM(t)
 	b.mu.Lock()
+	lead := officeLeadSlugFrom(b.members)
 	b.members = append(b.members, officeMember{Slug: "reviewer", Name: "Reviewer"})
 	b.mu.Unlock()
+	if lead == "" {
+		t.Fatal("expected test broker to have a lead")
+	}
 
 	msg := postMessage(t, b, "you", "general",
-		"@ceo ask @reviewer to check the PR", nil)
+		"@"+lead+" ask @reviewer to check the PR", nil)
 
-	if !containsString(msg.Tagged, "ceo") {
-		t.Fatalf("raw @ceo should be treated as an explicit lead tag; got %+v", msg.Tagged)
+	if !containsString(msg.Tagged, lead) {
+		t.Fatalf("raw @%s should be treated as an explicit lead tag; got %+v", lead, msg.Tagged)
 	}
 	if containsString(msg.Tagged, "reviewer") {
 		t.Fatalf("raw @ceo should suppress auto-promoting secondary mentions; got %+v", msg.Tagged)

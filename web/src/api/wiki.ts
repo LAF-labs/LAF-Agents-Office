@@ -5,7 +5,9 @@
  * content because agents and humans rely on them as durable state.
  */
 
-import { get, post, sseURL } from "./client";
+import { get, getHumans, post, sseURL, type HumanIdentity } from "./client";
+
+export type { HumanIdentity };
 
 export interface WikiArticle {
   path: string;
@@ -280,17 +282,6 @@ export function subscribeSectionsUpdated(
 }
 
 /**
- * Registered human identity surfaced by the broker at GET /humans. The
- * server grows this list as it observes new commits, so team installs
- * with multiple humans all show up without any client configuration.
- */
-export interface HumanIdentity {
-  name: string;
-  email: string;
-  slug: string;
-}
-
-/**
  * GET /humans — returns identities observed or probed server-side. The
  * byline component uses this to turn a commit author slug into the
  * human's real display name. Returns [] on any error so the UI falls
@@ -298,7 +289,7 @@ export interface HumanIdentity {
  */
 export async function fetchHumans(): Promise<HumanIdentity[]> {
   try {
-    const res = await get<{ humans: HumanIdentity[] }>("/humans");
+    const res = await getHumans();
     return Array.isArray(res?.humans) ? res.humans : [];
   } catch {
     return [];
