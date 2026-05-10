@@ -72,7 +72,7 @@ const liveEventsSupported =
 const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 const TICKET_PENDING_REPLY_TIMEOUT_MS = 90_000;
 const HUMAN_SLUG = "human";
-const DEFAULT_AGENT = "architect";
+const DEFAULT_AGENT = "ceo";
 
 const STATUS_ORDER = [
   "in_progress",

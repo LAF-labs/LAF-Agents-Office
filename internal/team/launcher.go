@@ -5,7 +5,7 @@
 //   - Each agent is a real Claude Code session in a tmux window
 //   - the office broker provides the shared channel (all agents see all messages)
 //   - The git-native team wiki provides shared organizational memory
-//   - Architect has final routing authority; Builder and Reviewer participate when relevant
+//   - CEO has final routing authority; FE, BE, and Reviewer participate when relevant
 //   - Go TUI is the channel "observer" — displays the conversation
 package team
 
@@ -3803,10 +3803,10 @@ func markdownKnowledgeMemoryBlock() string {
 	return "Markdown notebook/wiki memory is active. Keep scratch and draft knowledge in notebook_write first; promote durable conclusions with notebook_promote when they are ready for review. Do not claim something is in the team wiki unless notebook_promote was submitted and approved, or team_wiki_write was explicitly appropriate and succeeded.\n\n"
 }
 
-func threeAgentOperatingRulesBlock(slug, lead string) string {
+func coreTeamOperatingRulesBlock(slug, lead string) string {
 	var sb strings.Builder
-	sb.WriteString("== THREE-AGENT OPERATING SYSTEM ==\n")
-	sb.WriteString("LAF-Office runs as a small execution company: @architect scopes and directs, @builder executes, and @reviewer verifies. Agent Maker is settings-only; it is not a chat participant, project member, or task assignee.\n")
+	sb.WriteString("== CORE PROJECT TEAM OPERATING SYSTEM ==\n")
+	sb.WriteString("LAF-Office runs as a small execution company: @ceo routes priorities, @fe builds product surfaces, @be builds backend/runtime systems, and @reviewer verifies. Agent Maker is settings-only; it is not a chat participant, project member, or task assignee.\n")
 	sb.WriteString("All agents follow these work rules for every domain, not just software:\n")
 	sb.WriteString("- Think before acting: state assumptions or blockers when ambiguity could change the outcome.\n")
 	sb.WriteString("- Simplicity first: choose the smallest useful action that advances the ticket.\n")
@@ -3815,10 +3815,12 @@ func threeAgentOperatingRulesBlock(slug, lead string) string {
 	sb.WriteString("- No speculative expansion: log adjacent ideas as follow-up work instead of doing them silently.\n")
 	sb.WriteString("- Durable memory: private notes go to Notebook; canonical team knowledge requires the normal Wiki promotion flow.\n")
 	switch slug {
-	case office.ArchitectAgentSlug:
-		sb.WriteString("Your role: diagnose the real gap, push back when scope is vague, write the tight brief, and decide the next Builder/Reviewer handoff.\n")
-	case office.BuilderAgentSlug:
-		sb.WriteString("Your role: build or execute exactly the assigned slice, report concrete progress, and hand clean evidence to Reviewer.\n")
+	case office.CEOAgentSlug:
+		sb.WriteString("Your role: diagnose the real gap, keep scope and priorities crisp, and route work to Frontend Engineer, Backend Engineer, or Reviewer.\n")
+	case office.FrontendAgentSlug:
+		sb.WriteString("Your role: build polished user-facing slices, handle UI edge cases directly, and leave clean evidence for Reviewer.\n")
+	case office.BackendAgentSlug:
+		sb.WriteString("Your role: build reliable backend/runtime slices, handle integration errors directly, and leave clean evidence for Reviewer.\n")
 	case office.ReviewerAgentSlug:
 		sb.WriteString("Your role: review only the changed or cited scope for correctness, security, quality, and evidence. Findings must be specific and fixable.\n")
 	default:
@@ -3859,7 +3861,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
-		sb.WriteString(threeAgentOperatingRulesBlock(slug, lead))
+		sb.WriteString(coreTeamOperatingRulesBlock(slug, lead))
 		sb.WriteString("== DIRECT SESSION ==\n")
 		sb.WriteString("This is not the shared office. There are no teammates, no channels, and no collaboration mechanics in this mode.\n")
 		sb.WriteString("You are only talking to the human.\n")
@@ -3892,7 +3894,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(companyCtx)
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
-		sb.WriteString(threeAgentOperatingRulesBlock(slug, lead))
+		sb.WriteString(coreTeamOperatingRulesBlock(slug, lead))
 		sb.WriteString("== YOUR TEAM ==\n")
 		for _, member := range officeMembers {
 			if member.Slug == slug {
@@ -4006,7 +4008,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
-		sb.WriteString(threeAgentOperatingRulesBlock(slug, lead))
+		sb.WriteString(coreTeamOperatingRulesBlock(slug, lead))
 		sb.WriteString("== YOUR TEAM ==\n")
 		sb.WriteString(fmt.Sprintf("- @%s (%s): TEAM LEAD — has final say on decisions\n", lead, l.getAgentName(lead)))
 		for _, member := range officeMembers {
@@ -4326,18 +4328,16 @@ func (l *Launcher) agentActiveTask(slug string) *teamTask {
 
 func teamVoiceForSlug(slug string) string {
 	switch slug {
-	case office.ArchitectAgentSlug:
+	case office.CEOAgentSlug:
 		return "Clear senior operator energy. Diagnoses before directing, pushes back on vague scope, and writes crisp handoffs."
-	case office.BuilderAgentSlug:
-		return "Fast, practical builder energy. Ships the smallest useful slice, handles errors plainly, and avoids extra scope."
+	case office.FrontendAgentSlug:
+		return "Craft-obsessed, opinionated about UX, animated when a flow feels elegant, mildly allergic to ugly edge cases."
+	case office.BackendAgentSlug:
+		return "Systems-minded, practical, a little grumpy about complexity in a useful way, enjoys killing fragile ideas early."
 	case office.ReviewerAgentSlug:
 		return "Calm, exacting reviewer energy. Specific, concise, security-aware, and unwilling to approve unverified work."
 	case "pm":
 		return "Sharp product brain. Calm, organized, gently skeptical of vague ideas, sometimes deadpan funny when scope starts ballooning."
-	case "fe":
-		return "Craft-obsessed, opinionated about UX, animated when a flow feels elegant, mildly allergic to ugly edge cases."
-	case "be":
-		return "Systems-minded, practical, a little grumpy about complexity in a useful way, enjoys killing fragile ideas early."
 	case "ai":
 		return "Curious, pragmatic, and slightly mischievous about model behavior. Loves clever AI product ideas, but will immediately ask about evals, latency, and whether the thing will actually work."
 	case "designer":

@@ -52,12 +52,14 @@ Respect the current LAF-Office architecture before adding features:
 
 Treat the workspace as a company, not a chatbot:
 
-- Runtime LAF has exactly three default active agents: Architect, Builder, and
-  Reviewer.
-- Architect owns prioritization, scope, architecture, task briefs, handoffs,
-  and conflict resolution.
-- Builder executes the smallest useful slice across software or non-software
-  work, handles errors, and reports verifiable evidence.
+- Runtime LAF has four default active agents: CEO, Frontend Engineer, Backend
+  Engineer, and Reviewer.
+- CEO owns prioritization, scope, task briefs, handoffs, and conflict
+  resolution.
+- Frontend Engineer executes user-facing product slices, handles UI/client
+  errors, and reports verifiable evidence.
+- Backend Engineer executes backend, API, data, and runtime slices, handles
+  integration errors, and reports verifiable evidence.
 - Reviewer checks correctness, security, quality, Office Rule compliance, and
   memory consistency before work is treated as done.
 - Agent Maker is settings-only. It can help generate a new domain specialist
@@ -80,13 +82,14 @@ The Claude/Codex development layer uses five provider-neutral subagent roles:
 These development subagents improve the LAF agents. They do not replace the
 runtime LAF company roles. Map them to LAF roles as follows:
 
-- Architect Agent maps to the runtime Architect.
-- Coder Agent maps to the runtime Builder.
+- Architect Agent maps to CEO-owned scope, architecture, and routing work.
+- Coder Agent maps to Frontend Engineer or Backend Engineer depending on the
+  implementation surface.
 - Reviewer Agent maps to the runtime Reviewer and the default reviewer in
   blueprints.
 - Tester Agent maps to QA/Test agents and `evals/`.
-- Ops Agent maps to Builder-led operations, deployment, and local runtime
-  support, with Architect owning scope.
+- Ops Agent maps to Backend Engineer-led operations, deployment, and local
+  runtime support, with CEO owning scope.
 
 ## Memory Policy
 

@@ -48,7 +48,7 @@ Required schema:
 }
 
 Constraints:
-- Never use slug "ceo", "architect", "builder", "reviewer", or "agent-maker".
+- Never use slug "ceo", "fe", "be", "reviewer", "architect", "builder", or "agent-maker".
 - Keep the teammate narrow and domain-specific.
 - Pick a role that complements the existing office rather than overlapping heavily.
 - If the prompt is vague, still make a crisp decision.
@@ -73,7 +73,7 @@ func parseGeneratedMemberTemplate(raw string) (generatedMemberTemplate, error) {
 		return generatedMemberTemplate{}, fmt.Errorf("parse generated agent template: %w", err)
 	}
 	tmpl.Slug = normalizeChannelSlug(tmpl.Slug)
-	if tmpl.Slug == "" || tmpl.Slug == "ceo" || office.IsCoreAgentSlug(tmpl.Slug) || office.IsAgentMakerSlug(tmpl.Slug) {
+	if tmpl.Slug == "" || office.MapLegacyAgentSlug(tmpl.Slug) != "" || office.IsAgentMakerSlug(tmpl.Slug) {
 		return generatedMemberTemplate{}, fmt.Errorf("generated invalid slug %q", tmpl.Slug)
 	}
 	if tmpl.Name == "" {
@@ -132,13 +132,13 @@ Required schema:
   "slug": "lowercase-hyphen-slug",
   "name": "Display Name",
   "description": "One sentence explaining the channel purpose",
-  "members": ["architect", "relevant-member-slug"]
+  "members": ["ceo", "relevant-member-slug"]
 }
 
 Constraints:
 - Never use slug "general".
 - Keep the channel focused on a specific topic or workstream.
-- Always include "architect" in members.
+- Always include "ceo" in members.
 - Pick members that match the channel topic from the existing office roster.
 - If the prompt is vague, still make a crisp decision.
 `

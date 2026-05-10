@@ -72,3 +72,36 @@ func TestTaskStatusHelpers(t *testing.T) {
 		t.Fatalf("local worktree check should be case-insensitive")
 	}
 }
+
+func TestCoreAgentIdentityDefaultsToProjectTeam(t *testing.T) {
+	wantCore := []string{"ceo", "fe", "be", "reviewer"}
+	gotCore := CoreAgentSlugs()
+	if strings.Join(gotCore, ",") != strings.Join(wantCore, ",") {
+		t.Fatalf("CoreAgentSlugs() = %v, want %v", gotCore, wantCore)
+	}
+	if DefaultLeadAgentSlug != CEOAgentSlug {
+		t.Fatalf("DefaultLeadAgentSlug = %q, want %q", DefaultLeadAgentSlug, CEOAgentSlug)
+	}
+	for _, slug := range wantCore {
+		if !IsCoreAgentSlug(slug) {
+			t.Fatalf("IsCoreAgentSlug(%q) = false, want true", slug)
+		}
+	}
+}
+
+func TestMapLegacyAgentSlugToCurrentProjectTeam(t *testing.T) {
+	cases := map[string]string{
+		"architect": "ceo",
+		"builder":   "be",
+		"designer":  "fe",
+		"ceo":       "ceo",
+		"fe":        "fe",
+		"be":        "be",
+		"reviewer":  "reviewer",
+	}
+	for input, want := range cases {
+		if got := MapLegacyAgentSlug(input); got != want {
+			t.Fatalf("MapLegacyAgentSlug(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

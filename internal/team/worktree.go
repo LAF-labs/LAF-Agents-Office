@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
@@ -21,6 +22,7 @@ var prepareProjectTaskWorktree = defaultPrepareProjectTaskWorktree
 var cleanupTaskWorktree = defaultCleanupTaskWorktree
 var taskWorktreeRootDir = defaultTaskWorktreeRootDir
 var verifyTaskWorktreeWritable = defaultVerifyTaskWorktreeWritable
+var validateProjectRepoURL = defaultValidateProjectRepoURL
 
 // allowRealTaskWorktree gates access to the real git-worktree codepath. In
 // production it stays true; an init() in a *_test.go file in this package
@@ -117,6 +119,9 @@ func ensureProjectRepoCheckout(projectID, repoURL string) (string, error) {
 	if repoURL == "" {
 		return "", fmt.Errorf("project repo url required")
 	}
+	if err := validateProjectRepoURL(repoURL); err != nil {
+		return "", err
+	}
 	root := projectRepoCheckoutRoot(projectID, repoURL)
 	if projectCheckoutLooksUsable(root) {
 		_ = runGit(root, "fetch", "--all", "--prune")
@@ -134,6 +139,22 @@ func ensureProjectRepoCheckout(projectID, repoURL string) (string, error) {
 		return "", fmt.Errorf("clone project repo %q: %w", repoURL, err)
 	}
 	return root, nil
+}
+
+var (
+	projectRepoHTTPSPattern = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?/?$`)
+	projectRepoSSHPattern   = regexp.MustCompile(`^git@github\.com:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$`)
+)
+
+func defaultValidateProjectRepoURL(repoURL string) error {
+	repoURL = strings.TrimSpace(repoURL)
+	if repoURL == "" {
+		return fmt.Errorf("project repo url required")
+	}
+	if projectRepoHTTPSPattern.MatchString(repoURL) || projectRepoSSHPattern.MatchString(repoURL) {
+		return nil
+	}
+	return fmt.Errorf("project repo url must be a GitHub HTTPS URL or git@github.com SSH URL")
 }
 
 func projectCheckoutLooksUsable(path string) bool {

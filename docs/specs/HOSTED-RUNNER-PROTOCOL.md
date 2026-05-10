@@ -19,12 +19,14 @@ adopt the same semantics without changing runner behavior later:
 - `POST /runner/capabilities`
 - `POST /runner/jobs/lease`
 - `POST /runner/jobs/{id}/events`
+- `POST /runner/jobs/{id}/renew`
 - `POST /runner/jobs/{id}/complete`
 - `POST /runner/wiki/write-result`
 
 Runner tokens are returned once at registration and persisted only as hashes in
-broker state. Heartbeat, capability, lease, completion, and wiki write result
-endpoints authenticate with the runner token, not the broker bearer token.
+broker state. Heartbeat, capability, lease, renewal, completion, and wiki write
+result endpoints authenticate with `Authorization: Bearer <runner-token>` or
+`X-LAF-Runner-Token`. Query-string runner tokens are rejected.
 
 ## Durable Records
 
@@ -51,6 +53,7 @@ Lease response includes:
 - `task_id`
 - `agent_slug`
 - `execution_mode`
+- `provider_kind`
 - `agent_memory_packet`
 - `repo_url`
 - `wiki_path`
@@ -66,8 +69,25 @@ Supported lifecycle values:
 - `canceled`
 - `expired`
 
-Expired leased/running jobs are requeued during lease attempts and record an
-`expired` job event.
+Hosted leases are claimed through the Supabase `claim_runner_job` RPC. The RPC
+uses row locking (`FOR UPDATE SKIP LOCKED`) so concurrent runners cannot claim
+the same queued job. Expired leased/running jobs are requeued during lease
+attempts; the local broker facade also records an `expired` job event.
+
+Only the runner that owns an active, unexpired `leased` or `running` job may
+write progress events, renew the lease, or complete the job. Long-running
+executions renew through `POST /runner/jobs/{job_id}/renew` with
+`lease_seconds`.
+
+Provider matching is optional but strict when present. A job with
+`provider_kind: "codex"` can only be leased by a runner whose reported
+`provider_runtimes` includes `codex`; the same applies to `claude-code` and
+`opencode`. Jobs without `provider_kind` may be leased by any runner that
+matches the execution mode.
+
+Hosted runner jobs use the canonical `agent-memory/v1` packet shape: task,
+project, `must_read`, `loaded_context`, `decisions`, `risks`, `open_questions`,
+`recent_work`, `must_obey`, `start_here`, `write_back`, and `unavailable`.
 
 ## CLI Surface
 

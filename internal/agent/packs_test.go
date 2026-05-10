@@ -18,18 +18,18 @@ func TestPacksRegistered(t *testing.T) {
 	if founding.LeadSlug != office.DefaultLeadAgentSlug {
 		t.Errorf("expected lead slug %q, got '%s'", office.DefaultLeadAgentSlug, founding.LeadSlug)
 	}
-	if len(founding.Agents) != 3 {
-		t.Errorf("expected 3 agents in founding team, got %d", len(founding.Agents))
+	if len(founding.Agents) != 4 {
+		t.Errorf("expected 4 agents in founding team, got %d", len(founding.Agents))
 	}
-	foundBuilder := false
+	foundBackend := false
 	for _, a := range founding.Agents {
-		if a.Slug == office.BuilderAgentSlug && a.Name == "Builder" {
-			foundBuilder = true
+		if a.Slug == office.BackendAgentSlug && a.Name == "Backend Engineer" {
+			foundBackend = true
 			break
 		}
 	}
-	if !foundBuilder {
-		t.Error("expected founding team to include Builder")
+	if !foundBackend {
+		t.Error("expected founding team to include Backend Engineer")
 	}
 }
 
@@ -62,8 +62,8 @@ func TestCodingTeamPack(t *testing.T) {
 	if p.LeadSlug != office.DefaultLeadAgentSlug {
 		t.Errorf("expected lead %q, got '%s'", office.DefaultLeadAgentSlug, p.LeadSlug)
 	}
-	if len(p.Agents) != 3 {
-		t.Errorf("expected 3 agents, got %d", len(p.Agents))
+	if len(p.Agents) != 4 {
+		t.Errorf("expected 4 agents, got %d", len(p.Agents))
 	}
 }
 

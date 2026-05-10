@@ -38,11 +38,12 @@ Use these project-level defaults:
 
 # --- End Karpathy Guidelines ---
 
-# --- LAF Three-Agent Runtime ---
+# --- LAF Project Runtime ---
 
-The default runtime team is Architect, Builder, and Reviewer. Do not reintroduce
-CEO/PM/Executor-style default agents. Agent Maker is a settings-only helper used
-to generate new domain specialists; it must not appear in project chat, task
-assignment, channel membership, or default rosters.
+The default runtime team is CEO, Frontend Engineer, Backend Engineer, and
+Reviewer. Treat Architect and Builder as legacy slugs that may appear only
+during migration into the current runtime team. Agent Maker is a settings-only
+helper used to generate new domain specialists; it must not appear in project
+chat, task assignment, channel membership, or default rosters.
 
-# --- End LAF Three-Agent Runtime ---
+# --- End LAF Project Runtime ---

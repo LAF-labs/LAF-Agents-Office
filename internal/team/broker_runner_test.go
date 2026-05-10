@@ -68,6 +68,7 @@ func TestRunnerLeaseIsTeamScopedAndCapabilityMatched(t *testing.T) {
 	b.runnerJobs = []runnerJob{
 		{ID: "job-team-b", TeamID: "team-b", Status: runnerJobStatusQueued, CreatedAt: time.Now().UTC().Format(time.RFC3339)},
 		{ID: "job-local-worktree", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeLocalWorktree, CreatedAt: time.Now().UTC().Format(time.RFC3339)},
+		{ID: "job-codex-only", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ProviderKind: "codex", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
 		{ID: "job-team-a", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, TaskID: "task-1", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
 	}
 	b.mu.Unlock()
@@ -88,8 +89,21 @@ func TestRunnerLeaseIsTeamScopedAndCapabilityMatched(t *testing.T) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.runnerJobs[0].Status != runnerJobStatusQueued || b.runnerJobs[1].Status != runnerJobStatusQueued {
+	if b.runnerJobs[0].Status != runnerJobStatusQueued || b.runnerJobs[1].Status != runnerJobStatusQueued || b.runnerJobs[2].Status != runnerJobStatusQueued {
 		t.Fatalf("runner leased wrong job set: %+v", b.runnerJobs)
+	}
+}
+
+func TestRunnerQueryTokenIsRejected(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	token := seedRunnerForTest(b, "team-a", runnerCapabilities{})
+
+	req := httptest.NewRequest(http.MethodPost, "/runner/heartbeat?runner_token="+token, strings.NewReader(`{"status":"connected"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	b.handleRunnerHeartbeat(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("heartbeat with query token status = %d, want unauthorized", rec.Code)
 	}
 }
 
@@ -188,8 +202,9 @@ func TestRunnerCompleteRecordsReceiptOnTask(t *testing.T) {
 	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})
 	now := time.Now().UTC().Format(time.RFC3339)
 	b.mu.Lock()
+	runnerID := b.runners[0].ID
 	b.tasks = []teamTask{{ID: "task-1", Title: "Ship", Status: taskStatusInProgress, ExecutionMode: executionModeOffice, CreatedAt: now, UpdatedAt: now}}
-	b.runnerJobs = []runnerJob{{ID: "job-1", TeamID: "team-a", TaskID: "task-1", Status: runnerJobStatusLeased, CreatedAt: now}}
+	b.runnerJobs = []runnerJob{{ID: "job-1", TeamID: "team-a", TaskID: "task-1", RunnerID: runnerID, Status: runnerJobStatusLeased, LeaseExpiresAt: time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339), CreatedAt: now}}
 	b.mu.Unlock()
 
 	rec := httptest.NewRecorder()
@@ -213,6 +228,42 @@ func TestRunnerCompleteRecordsReceiptOnTask(t *testing.T) {
 	}
 	if b.tasks[0].DeliveryURL == "" || b.tasks[0].DeliverySummary == "" || b.tasks[0].DeliveryChecksStatus != "passing" {
 		t.Fatalf("task receipt not updated: %+v", b.tasks[0])
+	}
+}
+
+func TestRunnerJobEventCompleteAndRenewRequireActiveLease(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})
+	now := time.Now().UTC().Format(time.RFC3339)
+	b.mu.Lock()
+	runnerID := b.runners[0].ID
+	b.runnerJobs = []runnerJob{
+		{ID: "job-queued", TeamID: "team-a", TaskID: "task-1", Status: runnerJobStatusQueued, CreatedAt: now},
+		{ID: "job-leased", TeamID: "team-a", TaskID: "task-2", RunnerID: runnerID, Status: runnerJobStatusLeased, LeaseExpiresAt: time.Now().UTC().Add(2 * time.Minute).Format(time.RFC3339), CreatedAt: now},
+	}
+	b.mu.Unlock()
+
+	event := httptest.NewRecorder()
+	b.handleRunnerJobSubpath(event, runnerJSONRequest(t, http.MethodPost, "/runner/jobs/job-queued/events", token, map[string]string{"kind": "running"}))
+	if event.Code != http.StatusConflict {
+		t.Fatalf("queued event status = %d, want conflict: %s", event.Code, event.Body.String())
+	}
+
+	complete := httptest.NewRecorder()
+	b.handleRunnerJobSubpath(complete, runnerJSONRequest(t, http.MethodPost, "/runner/jobs/job-queued/complete", token, map[string]string{"status": runnerJobStatusSucceeded}))
+	if complete.Code != http.StatusConflict {
+		t.Fatalf("queued complete status = %d, want conflict: %s", complete.Code, complete.Body.String())
+	}
+
+	renew := httptest.NewRecorder()
+	b.handleRunnerJobSubpath(renew, runnerJSONRequest(t, http.MethodPost, "/runner/jobs/job-leased/renew", token, map[string]int{"lease_seconds": 300}))
+	if renew.Code != http.StatusOK {
+		t.Fatalf("renew status = %d: %s", renew.Code, renew.Body.String())
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.runnerJobs[1].LeaseExpiresAt == "" || len(b.runnerJobEvents) == 0 || b.runnerJobEvents[len(b.runnerJobEvents)-1].Kind != "renewed" {
+		t.Fatalf("renew did not persist lease/event: job=%+v events=%+v", b.runnerJobs[1], b.runnerJobEvents)
 	}
 }
 

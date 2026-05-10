@@ -82,7 +82,7 @@ if I say yes. If I am not logged in, just open https://laf-office.team.
 | `--no-open` | Don't auto-open the browser |
 | `--opus-ceo` | Upgrade CEO from Sonnet to Opus |
 | `--provider <name>` | LLM provider override (`claude-code`, `codex`) |
-| `--collab` | Start in collaborative mode — all agents see all messages (this is the default) |
+| `--collab` | Opt into collaborative mode, where all agents see all messages |
 | `--unsafe` | Bypass agent permission checks (local dev only) |
 | `--web-port <n>` | Change the web UI port (default 7891) |
 
@@ -113,7 +113,8 @@ The examples below assume `laf-office` is on your `PATH`. If you just built the 
 laf-office init          # First-time setup
 laf-office shred         # Kill a running session
 laf-office --1o1         # 1:1 with the CEO
-laf-office --1o1 pm      # 1:1 with a specific agent
+laf-office --1o1 ceo     # 1:1 with the CEO explicitly
+laf-office --1o1 fe      # 1:1 with a specific core agent
 ```
 
 ## What You Should See
@@ -161,6 +162,23 @@ execution, git checkouts, wiki writes, and GitHub PR creation. GitHub remains
 optional and project-scoped. CRM, email, calendar, notification, and managed
 integration state stay out of the product until LAF-Office ships its own
 implementation.
+
+Cloud control plane:
+
+- team, project, task, wiki index, and runner state
+- hosted API and web UI
+- Supabase Auth/Postgres
+
+Local runner:
+
+- runs on a teammate machine or VM
+- owns filesystem, git, `gh`, Codex, Claude Code, and Opencode execution
+- leases jobs from the cloud and renews long-running leases
+- reports progress, completion, delivery receipts, and wiki index results
+
+The default active team is CEO, Frontend Engineer, Backend Engineer, and
+Reviewer. Focus/delegation mode is the default; `--collab` is an opt-in mode for
+shared-channel visibility.
 
 See [docs/specs/HOSTED-PRODUCT-BOUNDARY.md](docs/specs/HOSTED-PRODUCT-BOUNDARY.md).
 
@@ -235,7 +253,7 @@ Every claim in this README, grounded to the code that makes it true.
 | Claim | Status | Where it lives |
 |---|---|---|
 | CEO on Sonnet by default, `--opus-ceo` to upgrade | ✅ shipped | `internal/team/headless_claude.go:203` |
-| Collaborative mode default, `/focus` (in-app) to switch to CEO-routed delegation | ✅ shipped | `cmd/laf-office/channel.go` (`/collab`, `/focus`) |
+| Focus/delegation mode default, `--collab` and `/collab` opt into shared visibility | ✅ shipped | `cmd/laf-office/channel.go` (`/collab`, `/focus`) |
 | Per-agent MCP scoping (DM loads 4 tools, not 27) | ✅ shipped | `internal/teammcp/` |
 | Fresh session per turn (no `--resume` accumulation) | ✅ shipped | `internal/team/headless_claude.go` |
 | Push-driven agent wakes (no heartbeat) | ✅ shipped | `internal/team/broker.go` |

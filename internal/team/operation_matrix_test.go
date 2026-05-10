@@ -13,6 +13,7 @@ import (
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
@@ -49,8 +50,8 @@ func TestOperationBlueprintMatrixBuildsBootstrapPackage(t *testing.T) {
 			if pkg.BootstrapConfig.ChannelName == "" || pkg.BootstrapConfig.ChannelSlug == "" {
 				t.Fatalf("expected bootstrap config identifiers, got %+v", pkg.BootstrapConfig)
 			}
-			if len(pkg.Starter.Agents) != len(blueprint.Starter.Agents) {
-				t.Fatalf("expected starter agents to mirror blueprint, got %d want %d", len(pkg.Starter.Agents), len(blueprint.Starter.Agents))
+			if len(pkg.Starter.Agents) != len(office.CoreAgentSlugs()) {
+				t.Fatalf("expected starter agents to use core runtime, got %d want %d", len(pkg.Starter.Agents), len(office.CoreAgentSlugs()))
 			}
 			if len(pkg.Starter.Channels) != len(blueprint.Starter.Channels) {
 				t.Fatalf("expected starter channels to mirror blueprint, got %d want %d", len(pkg.Starter.Channels), len(blueprint.Starter.Channels))
@@ -144,31 +145,23 @@ func TestOperationBlueprintMatrixSeedsBrokerOffice(t *testing.T) {
 				t.Fatalf("write manifest: %v", err)
 			}
 
-			blueprint, err := operations.LoadBlueprint(repoRoot, id)
-			if err != nil {
-				t.Fatalf("load blueprint: %v", err)
-			}
-
 			b := newTestBroker(t)
 			members := b.OfficeMembers()
-			if len(members) != len(blueprint.Starter.Agents) {
-				t.Fatalf("expected broker office roster to match starter agents, got %d want %d", len(members), len(blueprint.Starter.Agents))
+			if len(members) != len(office.CoreAgentSlugs()) {
+				t.Fatalf("expected broker office roster to use core runtime, got %d want %d", len(members), len(office.CoreAgentSlugs()))
 			}
 
 			memberBySlug := make(map[string]officeMember, len(members))
 			for _, member := range members {
 				memberBySlug[member.Slug] = member
 			}
-			for _, starter := range blueprint.Starter.Agents {
-				member, ok := memberBySlug[starter.Slug]
+			for _, slug := range office.CoreAgentSlugs() {
+				member, ok := memberBySlug[slug]
 				if !ok {
-					t.Fatalf("expected starter agent %q in office roster, got %+v", starter.Slug, members)
+					t.Fatalf("expected core agent %q in office roster, got %+v", slug, members)
 				}
 				if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Role) == "" {
-					t.Fatalf("expected populated office member for %q, got %+v", starter.Slug, member)
-				}
-				if strings.TrimSpace(starter.EmployeeBlueprint) != "" && len(member.Expertise) == 0 {
-					t.Fatalf("expected employee-blueprint-backed expertise for %q, got %+v", starter.Slug, member)
+					t.Fatalf("expected populated office member for %q, got %+v", slug, member)
 				}
 			}
 
@@ -178,9 +171,9 @@ func TestOperationBlueprintMatrixSeedsBrokerOffice(t *testing.T) {
 			if general == nil {
 				t.Fatal("expected general channel to exist")
 			}
-			for _, starter := range blueprint.Starter.Agents {
-				if !teamContainsString(general.Members, starter.Slug) {
-					t.Fatalf("expected general channel to include %q, got %+v", starter.Slug, general.Members)
+			for _, slug := range office.CoreAgentSlugs() {
+				if !teamContainsString(general.Members, slug) {
+					t.Fatalf("expected general channel to include %q, got %+v", slug, general.Members)
 				}
 			}
 		})
@@ -236,8 +229,8 @@ func TestOperationBlueprintMatrixServesBootstrapPackageEndpoint(t *testing.T) {
 			if !strings.Contains(filepath.ToSlash(pkg.SourcePath), filepath.ToSlash(filepath.Join("templates", "operations", id, "blueprint.yaml"))) {
 				t.Fatalf("expected template blueprint source path, got %q", pkg.SourcePath)
 			}
-			if len(pkg.Starter.Agents) != len(blueprint.Starter.Agents) {
-				t.Fatalf("expected starter agents to mirror blueprint, got %d want %d", len(pkg.Starter.Agents), len(blueprint.Starter.Agents))
+			if len(pkg.Starter.Agents) != len(office.CoreAgentSlugs()) {
+				t.Fatalf("expected starter agents to use core runtime, got %d want %d", len(pkg.Starter.Agents), len(office.CoreAgentSlugs()))
 			}
 			if len(pkg.Starter.Channels) != len(blueprint.Starter.Channels) {
 				t.Fatalf("expected starter channels to mirror blueprint, got %d want %d", len(pkg.Starter.Channels), len(blueprint.Starter.Channels))

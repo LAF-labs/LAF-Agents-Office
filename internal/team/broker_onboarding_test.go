@@ -47,9 +47,8 @@ func ensureOperationsFallbackFS(t *testing.T) {
 }
 
 // TestOnboardingCompleteSeedsFromPickedBlueprint verifies that when the
-// wizard POSTs a curated blueprint id, the broker seeds the exact member
-// list from that blueprint's starter.agents — not ceo/planner/executor/
-// reviewer from DefaultManifest.
+// wizard POSTs a curated blueprint id, the broker seeds the current core
+// project team and preserves non-core specialists from the blueprint.
 func TestOnboardingCompleteSeedsFromPickedBlueprint(t *testing.T) {
 	ensureOperationsFallbackFS(t)
 	b := newTestBroker(t)
@@ -58,7 +57,7 @@ func TestOnboardingCompleteSeedsFromPickedBlueprint(t *testing.T) {
 	}
 
 	want := map[string]bool{
-		"ceo": true, "planner": true, "builder": true,
+		"ceo": true, "fe": true, "be": true,
 		"growth": true, "reviewer": true,
 	}
 	got := map[string]bool{}
@@ -73,12 +72,9 @@ func TestOnboardingCompleteSeedsFromPickedBlueprint(t *testing.T) {
 			t.Errorf("expected niche-crm slug %q in roster; got %v", slug, got)
 		}
 	}
-	// DefaultManifest is ceo/planner/executor/reviewer. ceo overlaps with the
-	// blueprint's legitimate lead, so executor is the distinguishing leak
-	// signal.
 	for slug := range got {
-		if slug == "executor" {
-			t.Errorf("DefaultManifest slug %q leaked into blueprint roster; got %v", slug, got)
+		if slug == "planner" || slug == "builder" || slug == "executor" {
+			t.Errorf("legacy default slug %q leaked into blueprint roster; got %v", slug, got)
 		}
 	}
 
@@ -97,8 +93,8 @@ func TestOnboardingCompleteSeedsFromPickedBlueprint(t *testing.T) {
 }
 
 // TestOnboardingCompleteHonorsAgentFilter verifies the wizard's per-agent
-// toggle state: agents=[ceo, builder] should seed only those two,
-// dropping the blueprint's other specialists.
+// toggle state: agents=[ceo, builder] should seed the selected current
+// equivalents only, dropping the blueprint's other specialists.
 func TestOnboardingCompleteHonorsAgentFilter(t *testing.T) {
 	ensureOperationsFallbackFS(t)
 	b := newTestBroker(t)
@@ -114,22 +110,22 @@ func TestOnboardingCompleteHonorsAgentFilter(t *testing.T) {
 	b.mu.Unlock()
 
 	hasCEO := false
-	hasBuilder := false
+	hasBackend := false
 	for _, s := range slugs {
 		switch s {
 		case "ceo":
 			hasCEO = true
-		case "builder":
-			hasBuilder = true
-		case "planner", "growth", "reviewer":
+		case "be":
+			hasBackend = true
+		case "planner", "builder", "growth", "reviewer", "fe":
 			t.Errorf("unselected slug %q leaked into roster; got %v", s, slugs)
 		}
 	}
 	if !hasCEO {
 		t.Errorf("expected ceo (selected) in roster; got %v", slugs)
 	}
-	if !hasBuilder {
-		t.Errorf("expected builder (selected) in roster; got %v", slugs)
+	if !hasBackend {
+		t.Errorf("expected be (selected legacy builder) in roster; got %v", slugs)
 	}
 }
 
@@ -450,7 +446,7 @@ func TestSeedFromBlueprintNilAgentsKeepsFullRoster(t *testing.T) {
 		t.Fatalf("onboardingCompleteFn: %v", err)
 	}
 
-	// niche-crm blueprint defines 5 starter agents. nil filter must keep all.
+	// nil filter keeps the current core and any non-core blueprint specialists.
 	b.mu.Lock()
 	seen := make(map[string]bool)
 	for _, m := range b.members {
@@ -458,9 +454,9 @@ func TestSeedFromBlueprintNilAgentsKeepsFullRoster(t *testing.T) {
 	}
 	b.mu.Unlock()
 
-	for _, slug := range []string{"ceo", "planner", "builder", "growth", "reviewer"} {
+	for _, slug := range []string{"ceo", "fe", "be", "growth", "reviewer"} {
 		if !seen[slug] {
-			t.Errorf("nil agents filter should keep all blueprint agents; missing %q (roster: %v)", slug, seen)
+			t.Errorf("nil agents filter should keep current runtime agents; missing %q (roster: %v)", slug, seen)
 		}
 	}
 }
@@ -513,8 +509,8 @@ func TestBlankSlateOfficeChannelsFromBlueprint_RendersCommandSlug(t *testing.T) 
 // launcher relies on: after the wizard picks a blueprint and the broker
 // rewrites b.members wholesale, a single "office_reseeded" event must fire so
 // the launcher knows to respawn the interactive claude panes. Without this
-// signal the panes are still bound to the default team (ceo/planner/
-// executor/reviewer) and messages sent to the new roster never reach a live
+// signal the panes are still bound to the default team and messages sent to the
+// new roster never reach a live
 // claude process — the symptom the user reported during the ui test.
 func TestOnboardingCompleteEmitsOfficeReseededEvent(t *testing.T) {
 	ensureOperationsFallbackFS(t)

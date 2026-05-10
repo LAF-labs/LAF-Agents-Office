@@ -42,8 +42,8 @@ func TestSynthesizeBlueprintDerivesGenericPlanFromDirectiveProfileAndCapabilitie
 	if blueprint.Starter.LeadSlug != office.DefaultLeadAgentSlug {
 		t.Fatalf("unexpected lead slug: %+v", blueprint.Starter)
 	}
-	if len(blueprint.Starter.Agents) != 3 {
-		t.Fatalf("expected the core three agents, got %+v", blueprint.Starter.Agents)
+	if len(blueprint.Starter.Agents) != 4 {
+		t.Fatalf("expected the core four agents, got %+v", blueprint.Starter.Agents)
 	}
 	if len(blueprint.Starter.Channels) < 4 {
 		t.Fatalf("expected baseline channels, got %+v", blueprint.Starter.Channels)

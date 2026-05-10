@@ -10,7 +10,7 @@ import type { MentionTarget } from "../../lib/mentionTargets";
 import { CommandGlyph } from "../ui/CommandGlyph";
 
 export interface AutocompleteItem {
-  /** Token to insert (e.g. "/clear" or "@architect"). */
+  /** Token to insert (e.g. "/clear" or "@ceo"). */
   insert: string;
   /** Primary label shown in the panel. */
   label: string;

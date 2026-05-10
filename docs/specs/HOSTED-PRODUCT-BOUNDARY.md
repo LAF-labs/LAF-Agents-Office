@@ -88,5 +88,7 @@ flowchart LR
   local project/task/runner contracts without running agents in the API layer.
 - `supabase/migrations/20260509_hosted_control_plane.sql` creates the hosted
   tables and RLS read boundaries.
+- `supabase/migrations/20260510_runner_job_claim_hardening.sql` adds provider
+  matching metadata and the atomic runner job claim RPC.
 - `web/src/components/apps/TasksApp.tsx` is the project workspace surface that
   should remain the hosted product's primary screen, including runner status.

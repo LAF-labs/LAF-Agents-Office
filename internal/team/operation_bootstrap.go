@@ -928,8 +928,9 @@ func operationStarterAgentsFromBlueprint(agents []operations.StarterAgent, repla
 	_ = agents
 	_ = replacements
 	return []operationStarterAgent{
-		{Slug: office.ArchitectAgentSlug, Emoji: "A", Name: "Architect", Role: "Scopes the operation and creates tight handoffs", Checked: true, Type: "lead", PermissionMode: "plan", BuiltIn: true, Expertise: []string{"scoping", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real gap, pushes back on vague scope, and turns intent into crisp Builder and Reviewer work."},
-		{Slug: office.BuilderAgentSlug, Emoji: "B", Name: "Builder", Role: "Executes the smallest useful slice", Checked: true, Type: "assistant", PermissionMode: "auto", BuiltIn: true, Expertise: []string{"execution", "implementation", "workflow setup", "delivery"}, Personality: "Fast, precise, and allergic to extra scope. Builds what the brief says and leaves clean evidence."},
+		{Slug: office.CEOAgentSlug, Emoji: "C", Name: "CEO", Role: "Routes priorities and keeps the project moving", Checked: true, Type: "lead", PermissionMode: "plan", BuiltIn: true, Expertise: []string{"strategy", "prioritization", "delegation", "project orchestration"}, Personality: "Makes priority calls, keeps scope tight, and routes work across the project team."},
+		{Slug: office.FrontendAgentSlug, Emoji: "F", Name: "Frontend Engineer", Role: "Builds polished user-facing flows", Checked: true, Type: "assistant", PermissionMode: "auto", BuiltIn: true, Expertise: []string{"frontend", "UI", "client state", "accessibility", "visual QA"}, Personality: "Craft-focused engineer who keeps the product experience coherent."},
+		{Slug: office.BackendAgentSlug, Emoji: "B", Name: "Backend Engineer", Role: "Builds reliable backend systems", Checked: true, Type: "assistant", PermissionMode: "auto", BuiltIn: true, Expertise: []string{"backend", "APIs", "auth", "data modeling", "runtime integration"}, Personality: "Systems-minded engineer who keeps state sane and operational complexity low."},
 		{Slug: office.ReviewerAgentSlug, Emoji: "R", Name: "Reviewer", Role: "Verifies correctness, risk, quality, and evidence", Checked: true, Type: "assistant", PermissionMode: "plan", BuiltIn: true, Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Disciplined reviewer who checks only the relevant scope and writes specific, fixable findings."},
 	}
 }
@@ -942,6 +943,9 @@ func operationStarterChannelsFromBlueprint(channels []operations.StarterChannel,
 			member = operationRenderTemplateString(member, replacements)
 			if mapped := office.MapLegacyAgentSlug(member); mapped != "" && !office.IsAgentMakerSlug(mapped) {
 				member = mapped
+			}
+			if !office.IsCoreAgentSlug(member) {
+				continue
 			}
 			members = append(members, member)
 		}
@@ -964,6 +968,9 @@ func operationStarterTasksFromBlueprint(tasks []operations.StarterTask, replacem
 		owner := operationRenderTemplateString(task.Owner, replacements)
 		if mapped := office.MapLegacyAgentSlug(owner); mapped != "" && !office.IsAgentMakerSlug(mapped) {
 			owner = mapped
+		}
+		if !office.IsCoreAgentSlug(owner) {
+			owner = office.DefaultLeadAgentSlug
 		}
 		out = append(out, operationStarterTask{
 			Channel: operationRenderTemplateString(task.Channel, replacements),

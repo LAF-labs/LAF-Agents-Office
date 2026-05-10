@@ -15,7 +15,7 @@ const (
 	BuilderAgentSlug     = "builder"
 	ReviewerAgentSlug    = "reviewer"
 	AgentMakerAgentSlug  = "agent-maker"
-	DefaultLeadAgentSlug = ArchitectAgentSlug
+	DefaultLeadAgentSlug = CEOAgentSlug
 
 	TaskStatusTodo       TaskStatus = "todo"
 	TaskStatusInProgress TaskStatus = "in_progress"
@@ -40,7 +40,7 @@ const (
 )
 
 func CoreAgentSlugs() []string {
-	return []string{ArchitectAgentSlug, BuilderAgentSlug, ReviewerAgentSlug}
+	return []string{CEOAgentSlug, FrontendAgentSlug, BackendAgentSlug, ReviewerAgentSlug}
 }
 
 func IsCoreAgentSlug(slug string) bool {
@@ -59,11 +59,21 @@ func IsAgentMakerSlug(slug string) bool {
 
 func MapLegacyAgentSlug(slug string) string {
 	switch normalizeAgentSlug(slug) {
-	case "architect", "ceo", "founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead":
-		return ArchitectAgentSlug
-	case "builder", "executor", "founding-engineer", "ai-engineer", "designer", "eng", "fe", "be", "ai":
-		return BuilderAgentSlug
-	case "reviewer", "analyst", "qa":
+	case CEOAgentSlug:
+		return CEOAgentSlug
+	case FrontendAgentSlug:
+		return FrontendAgentSlug
+	case BackendAgentSlug:
+		return BackendAgentSlug
+	case ReviewerAgentSlug:
+		return ReviewerAgentSlug
+	case "architect", "founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead":
+		return CEOAgentSlug
+	case "designer", "frontend", "front-end", "ui", "ux":
+		return FrontendAgentSlug
+	case "builder", "executor", "founding-engineer", "ai-engineer", "eng", "backend", "back-end", "ai":
+		return BackendAgentSlug
+	case "analyst", "qa":
 		return ReviewerAgentSlug
 	case AgentMakerAgentSlug:
 		return AgentMakerAgentSlug

@@ -160,18 +160,19 @@ func synthesizeStarterPlan(name string, input SynthesisInput, workstreams []stri
 		GeneralChannelDescription: fmt.Sprintf("Command deck for %s. Use this room to steer the operation, approve risky actions, and unblock the specialists.", name),
 		KickoffPrompt:             fmt.Sprintf("Stand up %s from scratch. Use the starter lanes, turn the objective into a repeatable operating system, create the first durable tasks, and keep external side effects behind human approval.", name),
 		Agents: []StarterAgent{
-			{Slug: office.ArchitectAgentSlug, Emoji: "A", Name: "Architect", Role: "Scopes the work, chooses the smallest effective path, and directs handoffs", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: append([]string{"scope", "architecture", "sequencing", "handoffs"}, workstreams...), Personality: "Diagnoses the real gap, pushes back on vague scope, and turns intent into crisp Builder and Reviewer work."},
-			{Slug: office.BuilderAgentSlug, Emoji: "B", Name: "Builder", Role: "Builds the assigned slice and reports verifiable evidence", PermissionMode: "auto", Checked: true, Type: "specialist", BuiltIn: true, Expertise: []string{"implementation", "workflow setup", "deliverable assembly", "error handling"}, Personality: "Fast, precise, and allergic to extra scope. Builds what the brief says and leaves clean evidence."},
+			{Slug: office.CEOAgentSlug, Emoji: "C", Name: "CEO", Role: "Scopes the work, chooses the smallest effective path, and directs handoffs", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: append([]string{"scope", "architecture", "sequencing", "handoffs"}, workstreams...), Personality: "Diagnoses the real gap, pushes back on vague scope, and routes work to FE, BE, and Reviewer."},
+			{Slug: office.FrontendAgentSlug, Emoji: "F", Name: "Frontend Engineer", Role: "Builds product surfaces and reports verifiable UI evidence", PermissionMode: "auto", Checked: true, Type: "specialist", BuiltIn: true, Expertise: []string{"frontend", "UI", "workflow setup", "deliverable assembly"}, Personality: "Fast, precise, and allergic to extra scope. Builds visible product slices and leaves clean evidence."},
+			{Slug: office.BackendAgentSlug, Emoji: "B", Name: "Backend Engineer", Role: "Builds backend/runtime slices and reports verifiable evidence", PermissionMode: "auto", Checked: true, Type: "specialist", BuiltIn: true, Expertise: []string{"backend", "APIs", "runtime systems", "error handling"}, Personality: "Fast, precise, and allergic to extra scope. Builds the assigned backend slice and leaves clean evidence."},
 			{Slug: office.ReviewerAgentSlug, Emoji: "R", Name: "Reviewer", Role: "Reviews changed scope for correctness, security, quality, and handoff readiness", PermissionMode: "plan", Checked: true, Type: "specialist", BuiltIn: true, Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Disciplined reviewer who checks only the relevant scope and writes specific, fixable findings."},
 		},
 		Channels: []StarterChannel{
 			{Slug: "command", Name: "command", Description: fmt.Sprintf("Coordination room for %s.", name), Members: office.CoreAgentSlugs()},
-			{Slug: "delivery", Name: "delivery", Description: "Build, verify, and hand off the first durable work items.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug, office.ReviewerAgentSlug}},
-			{Slug: "review", Name: "review", Description: "Review outcomes, risks, approvals, and next-step readiness.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
+			{Slug: "delivery", Name: "delivery", Description: "Build, verify, and hand off the first durable work items.", Members: []string{office.CEOAgentSlug, office.FrontendAgentSlug, office.BackendAgentSlug, office.ReviewerAgentSlug}},
+			{Slug: "review", Name: "review", Description: "Review outcomes, risks, approvals, and next-step readiness.", Members: []string{office.CEOAgentSlug, office.ReviewerAgentSlug}},
 		},
 		Tasks: []StarterTask{
-			{Channel: "command", Owner: office.ArchitectAgentSlug, Title: "Turn the directive into a scoped work brief", Details: firstOperationValue(input.Priority, input.Goals, input.Description, "Clarify scope, outcomes, constraints, and first handoff.")},
-			{Channel: "delivery", Owner: office.BuilderAgentSlug, Title: "Ship the first execution slice", Details: fmt.Sprintf("Create the first durable deliverable for %s.", name)},
+			{Channel: "command", Owner: office.CEOAgentSlug, Title: "Turn the directive into a scoped work brief", Details: firstOperationValue(input.Priority, input.Goals, input.Description, "Clarify scope, outcomes, constraints, and first handoff.")},
+			{Channel: "delivery", Owner: office.BackendAgentSlug, Title: "Ship the first execution slice", Details: fmt.Sprintf("Create the first durable deliverable for %s.", name)},
 			{Channel: "review", Owner: office.ReviewerAgentSlug, Title: "Review the first slice for readiness", Details: "Check correctness, risk, and evidence before the next handoff."},
 		},
 	}

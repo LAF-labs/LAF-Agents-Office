@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -68,6 +70,8 @@ type runnerJob struct {
 	RunnerID          string            `json:"runner_id,omitempty"`
 	AgentSlug         string            `json:"agent_slug,omitempty"`
 	ExecutionMode     string            `json:"execution_mode,omitempty"`
+	ProviderKind      string            `json:"provider_kind,omitempty"`
+	RequiredProvider  string            `json:"-"`
 	Status            string            `json:"status"`
 	AgentMemoryPacket AgentMemoryPacket `json:"agent_memory_packet,omitempty"`
 	RepoURL           string            `json:"repo_url,omitempty"`
@@ -79,6 +83,29 @@ type runnerJob struct {
 	UpdatedAt         string            `json:"updated_at,omitempty"`
 	StartedAt         string            `json:"started_at,omitempty"`
 	CompletedAt       string            `json:"completed_at,omitempty"`
+}
+
+func (j *runnerJob) UnmarshalJSON(data []byte) error {
+	type alias runnerJob
+	var raw struct {
+		alias
+		LegacyID         string `json:"id"`
+		RequiredProvider string `json:"required_provider"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*j = runnerJob(raw.alias)
+	if strings.TrimSpace(j.ID) == "" {
+		j.ID = strings.TrimSpace(raw.LegacyID)
+	}
+	if strings.TrimSpace(j.ProviderKind) == "" {
+		j.ProviderKind = runnerOptionalProviderKind(raw.RequiredProvider)
+	}
+	if strings.TrimSpace(j.RequiredProvider) == "" {
+		j.RequiredProvider = j.ProviderKind
+	}
+	return nil
 }
 
 type runnerJobEvent struct {
@@ -236,6 +263,74 @@ func commandExists(names ...string) bool {
 	return false
 }
 
+var runnerSecretRedactionPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)Bearer\s+[A-Za-z0-9._~+/=-]+`),
+	regexp.MustCompile(`laf_runner_[A-Fa-f0-9]{20,}`),
+	regexp.MustCompile(`lafr_[A-Za-z0-9_-]{20,}`),
+	regexp.MustCompile(`gh[pousr]_[A-Za-z0-9_]{20,}`),
+	regexp.MustCompile(`sk-(proj-)?[A-Za-z0-9_-]{20,}`),
+}
+
+func runnerOptionalProviderKind(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.ReplaceAll(raw, "_", "-"))) {
+	case "":
+		return ""
+	case "claude", "claude-code":
+		return "claude-code"
+	case "codex":
+		return "codex"
+	case "opencode":
+		return "opencode"
+	case "openclaw":
+		return "openclaw"
+	default:
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func redactRunnerSensitiveText(text string) string {
+	text = strings.TrimSpace(text)
+	for _, pattern := range runnerSecretRedactionPatterns {
+		text = pattern.ReplaceAllString(text, "[REDACTED]")
+	}
+	return text
+}
+
+func redactRunnerSensitiveValue(value any) any {
+	switch v := value.(type) {
+	case string:
+		return redactRunnerSensitiveText(v)
+	case []any:
+		out := make([]any, 0, len(v))
+		for _, item := range v {
+			out = append(out, redactRunnerSensitiveValue(item))
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, item := range v {
+			lower := strings.ToLower(key)
+			if strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "password") || strings.Contains(lower, "api_key") || strings.Contains(lower, "apikey") {
+				out[key] = "[REDACTED]"
+				continue
+			}
+			out[key] = redactRunnerSensitiveValue(item)
+		}
+		return out
+	default:
+		return value
+	}
+}
+
 func (b *Broker) normalizeRunnerStateLocked() {
 	seenRunners := make(map[string]struct{}, len(b.runners))
 	runners := make([]hostedRunner, 0, len(b.runners))
@@ -271,6 +366,8 @@ func (b *Broker) normalizeRunnerStateLocked() {
 		job.RunnerID = strings.TrimSpace(job.RunnerID)
 		job.AgentSlug = normalizeChannelSlug(job.AgentSlug)
 		job.ExecutionMode = strings.TrimSpace(job.ExecutionMode)
+		job.ProviderKind = runnerOptionalProviderKind(firstNonEmptyString(job.ProviderKind, job.RequiredProvider))
+		job.RequiredProvider = job.ProviderKind
 		job.Status = normalizeRunnerJobStatus(job.Status)
 		job.RepoURL = strings.TrimSpace(job.RepoURL)
 		job.WikiPath = strings.TrimSpace(job.WikiPath)
@@ -315,8 +412,8 @@ func (b *Broker) appendRunnerJobEventLocked(job runnerJob, runnerID, kind, level
 		RunnerID:  strings.TrimSpace(runnerID),
 		Kind:      strings.TrimSpace(kind),
 		Level:     strings.TrimSpace(level),
-		Message:   strings.TrimSpace(message),
-		Payload:   payload,
+		Message:   redactRunnerSensitiveText(message),
+		Payload:   redactRunnerSensitivePayload(payload),
 		CreatedAt: now,
 	}
 	if event.Kind == "" {
@@ -324,6 +421,16 @@ func (b *Broker) appendRunnerJobEventLocked(job runnerJob, runnerID, kind, level
 	}
 	b.runnerJobEvents = append(b.runnerJobEvents, event)
 	return event
+}
+
+func redactRunnerSensitivePayload(payload map[string]any) map[string]any {
+	if payload == nil {
+		return nil
+	}
+	if redacted, ok := redactRunnerSensitiveValue(payload).(map[string]any); ok {
+		return redacted
+	}
+	return nil
 }
 
 func (b *Broker) requeueExpiredRunnerJobsLocked(now time.Time) {
@@ -370,6 +477,9 @@ func runnerCanClaimJob(runner hostedRunner, job runnerJob) bool {
 	if mode := strings.TrimSpace(job.ExecutionMode); mode != "" && len(runner.Capabilities.ExecutionModes) > 0 && !containsString(runner.Capabilities.ExecutionModes, mode) {
 		return false
 	}
+	if requiredProvider := runnerOptionalProviderKind(job.ProviderKind); requiredProvider != "" && !containsString(runner.Capabilities.ProviderRuntimes, requiredProvider) {
+		return false
+	}
 	return true
 }
 
@@ -387,6 +497,7 @@ func (b *Broker) enqueueRunnerJobForTaskLocked(task teamTask, now time.Time) run
 		TaskID:            strings.TrimSpace(task.ID),
 		AgentSlug:         normalizeChannelSlug(task.Owner),
 		ExecutionMode:     strings.TrimSpace(task.ExecutionMode),
+		ProviderKind:      b.runnerJobProviderKindForTaskLocked(task),
 		Status:            runnerJobStatusQueued,
 		AgentMemoryPacket: b.agentMemoryPacketForTaskLocked(task),
 		RepoURL:           repoURL,
@@ -399,6 +510,17 @@ func (b *Broker) enqueueRunnerJobForTaskLocked(task teamTask, now time.Time) run
 	}
 	b.runnerJobs = append(b.runnerJobs, job)
 	return job
+}
+
+func (b *Broker) runnerJobProviderKindForTaskLocked(task teamTask) string {
+	if b == nil {
+		return ""
+	}
+	member := b.findMemberLocked(task.Owner)
+	if member == nil {
+		return ""
+	}
+	return runnerOptionalProviderKind(member.Provider.Kind)
 }
 
 func runnerJobsEnabled() bool {

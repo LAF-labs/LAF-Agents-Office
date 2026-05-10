@@ -153,10 +153,11 @@ func genericStarterPlan(kind, name, objective string, input SynthesisInput, inte
 	leadSlug := office.DefaultLeadAgentSlug
 	channels := genericDefaultChannels(integrations)
 	tasks := genericDefaultTasks(objective, integrations)
-	architectName, builderName, reviewerName := genericKindAgentNames(kind)
+	leadName, frontendName, backendName, reviewerName := genericKindAgentNames(kind)
 	agents := []StarterAgent{
-		{Slug: leadSlug, Name: architectName, Role: "architect", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: []string{"decomposition", "sequencing", "risk triage", "handoffs"}},
-		{Slug: office.BuilderAgentSlug, Name: builderName, Role: "builder", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: genericBuilderExpertise(kind, integrations, capabilities)},
+		{Slug: leadSlug, Name: leadName, Role: "ceo", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: []string{"decomposition", "sequencing", "risk triage", "handoffs"}},
+		{Slug: office.FrontendAgentSlug, Name: frontendName, Role: "frontend", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"frontend", "UI", "workflow surfaces", "evidence"}},
+		{Slug: office.BackendAgentSlug, Name: backendName, Role: "backend", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: genericBuilderExpertise(kind, integrations, capabilities)},
 		{Slug: office.ReviewerAgentSlug, Name: reviewerName, Role: "reviewer", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"quality", "security", "approval", "handoff"}},
 	}
 	return StarterPlan{
@@ -435,7 +436,7 @@ func genericConnectionBlueprints(kind string, profile CompanyProfile, integratio
 		connections = append(connections, ConnectionBlueprint{
 			Name:        label,
 			Integration: provider,
-			Owner:       office.BuilderAgentSlug,
+			Owner:       office.BackendAgentSlug,
 			Priority:    genericTernaryString(integration.Connected, "high", "medium"),
 			Purpose:     genericIntegrationPurpose(integration, kind),
 			SmokeTest:   fmt.Sprintf("Verify %s can perform the first planned action.", label),
@@ -520,17 +521,17 @@ func genericWorkflowTemplates(kind, name, objective string, profile CompanyProfi
 
 func genericDefaultChannels(integrations []RuntimeIntegration) []StarterChannel {
 	channels := []StarterChannel{
-		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug, office.ReviewerAgentSlug}},
-		{Slug: "planning", Name: "planning", Description: "Scope, decomposition, and approvals.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
-		{Slug: "execution", Name: "execution", Description: "Active work lane for the current operation.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug}},
-		{Slug: "review", Name: "review", Description: "Evidence, decisions, and handoff.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{office.CEOAgentSlug, office.FrontendAgentSlug, office.BackendAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "planning", Name: "planning", Description: "Scope, decomposition, and approvals.", Members: []string{office.CEOAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "execution", Name: "execution", Description: "Active work lane for the current operation.", Members: []string{office.CEOAgentSlug, office.FrontendAgentSlug, office.BackendAgentSlug}},
+		{Slug: "review", Name: "review", Description: "Evidence, decisions, and handoff.", Members: []string{office.CEOAgentSlug, office.ReviewerAgentSlug}},
 	}
 	if len(integrations) > 0 {
 		channels = append(channels, StarterChannel{
 			Slug:        "integrations",
 			Name:        "integrations",
 			Description: "Integration-specific work and evidence.",
-			Members:     []string{office.ArchitectAgentSlug, office.BuilderAgentSlug},
+			Members:     []string{office.CEOAgentSlug, office.BackendAgentSlug},
 		})
 	}
 	return channels
@@ -538,9 +539,9 @@ func genericDefaultChannels(integrations []RuntimeIntegration) []StarterChannel 
 
 func genericDefaultTasks(objective string, integrations []RuntimeIntegration) []StarterTask {
 	tasks := []StarterTask{
-		{Channel: "general", Owner: office.ArchitectAgentSlug, Title: "Translate the directive into the first execution brief", Details: genericTruncateText(objective, 160)},
-		{Channel: "planning", Owner: office.ArchitectAgentSlug, Title: "Inventory capabilities and approvals", Details: "List available runtime integrations and the gates required before live action."},
-		{Channel: "execution", Owner: office.BuilderAgentSlug, Title: "Launch the first execution loop", Details: "Run the first concrete step and record evidence."},
+		{Channel: "general", Owner: office.CEOAgentSlug, Title: "Translate the directive into the first execution brief", Details: genericTruncateText(objective, 160)},
+		{Channel: "planning", Owner: office.CEOAgentSlug, Title: "Inventory capabilities and approvals", Details: "List available runtime integrations and the gates required before live action."},
+		{Channel: "execution", Owner: office.BackendAgentSlug, Title: "Launch the first execution loop", Details: "Run the first concrete step and record evidence."},
 		{Channel: "review", Owner: office.ReviewerAgentSlug, Title: "Review evidence and pick the next loop", Details: "Confirm what happened and whether the next step is ready."},
 	}
 	for _, integration := range integrations {
@@ -550,7 +551,7 @@ func genericDefaultTasks(objective string, integrations []RuntimeIntegration) []
 		label := genericIntegrationLabel(integration)
 		tasks = append(tasks, StarterTask{
 			Channel: "planning",
-			Owner:   office.ArchitectAgentSlug,
+			Owner:   office.CEOAgentSlug,
 			Title:   fmt.Sprintf("Connect %s before live use", label),
 			Details: fmt.Sprintf("The blueprint can only use %s live after it is connected.", label),
 		})
@@ -753,21 +754,21 @@ func genericDedupeStrings(values []string) []string {
 	return out
 }
 
-func genericKindAgentNames(kind string) (architect, builder, reviewer string) {
+func genericKindAgentNames(kind string) (lead, frontend, backend, reviewer string) {
 	switch kind {
 	case "content":
-		return "Research Lead", "Content Producer", "Analytics Lead"
+		return "Research Lead", "Content Producer", "Automation Engineer", "Analytics Lead"
 	case "gtm":
-		return "Pipeline Lead", "Campaign Builder", "Revenue Analyst"
+		return "Pipeline Lead", "Campaign Surface Engineer", "Revenue Systems Engineer", "Revenue Analyst"
 	case "product":
-		return "Discovery Lead", "Builder", "QA Lead"
+		return "Discovery Lead", "Frontend Engineer", "Backend Engineer", "QA Lead"
 	case "commerce":
-		return "Catalog Lead", "Fulfillment Builder", "Conversion Analyst"
+		return "Catalog Lead", "Storefront Engineer", "Fulfillment Engineer", "Conversion Analyst"
 	case "support":
-		return "Triage Lead", "Resolution Builder", "Quality Analyst"
+		return "Triage Lead", "Support Surface Engineer", "Resolution Engineer", "Quality Analyst"
 	case "research":
-		return "Research Lead", "Synthesis Builder", "Evidence Analyst"
+		return "Research Lead", "Research Surface Engineer", "Synthesis Engineer", "Evidence Analyst"
 	default:
-		return "Architect", "Builder", "Reviewer"
+		return "CEO", "Frontend Engineer", "Backend Engineer", "Reviewer"
 	}
 }

@@ -86,6 +86,11 @@ module.exports = async function handler(req, res) {
       await handleRunnerJobComplete(req, res, jobCompleteMatch[1]);
       return;
     }
+    const jobRenewMatch = path.match(/^runner\/jobs\/([^/]+)\/renew$/);
+    if (jobRenewMatch && req.method === "POST") {
+      await handleRunnerJobRenew(req, res, jobRenewMatch[1]);
+      return;
+    }
     if (path === "runner/wiki/write-result" && req.method === "POST") {
       await handleRunnerWikiWriteResult(req, res);
       return;
@@ -172,6 +177,19 @@ async function rest(table, options = {}) {
     method,
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new HTTPError(response.status, text || response.statusText);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
+async function rpc(name, body = {}) {
+  const response = await fetch(supabaseURL(`/rest/v1/rpc/${name}`), {
+    method: "POST",
+    headers: serviceHeaders(),
+    body: JSON.stringify(body),
   });
   const text = await response.text();
   if (!response.ok) {
@@ -548,7 +566,10 @@ function projectPayload(body) {
     "recipe_markdown",
     "status",
   ]) {
-    if (body[key] !== undefined) payload[key] = body[key];
+    if (body[key] !== undefined) {
+      payload[key] =
+        key === "github_repo_url" ? normalizeGitHubRepoURL(body[key]) : body[key];
+    }
   }
   if (body.recipe_markdown !== undefined) payload.recipe_updated_at = nowISO();
   return payload;
@@ -841,35 +862,28 @@ async function handleRunnerCapabilities(req, res) {
 async function handleRunnerJobLease(req, res) {
   const runner = await requireRunner(req);
   const body = await readBody(req);
-  await requeueExpiredJobs(runner.team_id);
-  const jobs = await rest("runner_jobs", {
-    query: {
-      status: "eq.queued",
-      team_id: `eq.${runner.team_id}`,
-      select: "*",
-      order: "created_at.asc",
-    },
+  const capabilities = runner.capabilities || {};
+  const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
+  const claimed = await rpc("claim_runner_job", {
+    p_execution_modes: normalizeStringList(
+      body.execution_modes || capabilities.execution_modes || [],
+    ),
+    p_lease_seconds: leaseSeconds,
+    p_provider_runtimes: normalizeProviderList(
+      body.provider_runtimes || capabilities.provider_runtimes || [],
+    ),
+    p_runner_id: runner.id,
+    p_team_id: runner.team_id,
   });
-  const job = jobs.find((candidate) => runnerCanClaimJob(runner, candidate));
+  const job = Array.isArray(claimed) ? claimed[0] : claimed;
   if (!job) {
     writeJSON(res, 200, { job: null });
     return;
   }
-  const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
-  const [leased] = await rest("runner_jobs", {
-    method: "PATCH",
-    query: { id: `eq.${job.id}` },
-    body: {
-      lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
-      runner_id: runner.id,
-      status: "leased",
-      updated_at: nowISO(),
-    },
-  });
-  await appendJobEvent(leased, runner.id, "leased", "info", "runner leased job");
+  await appendJobEvent(job, runner.id, "leased", "info", "runner leased job");
   const projects = await projectMap(runner.team_id);
   const tasks = await taskMap(runner.team_id);
-  writeJSON(res, 200, { job: publicRunnerJob(leased, projects, tasks) });
+  writeJSON(res, 200, { job: publicRunnerJob(job, projects, tasks) });
 }
 
 async function handleRunnerJobEvent(req, res, jobID) {
@@ -915,7 +929,7 @@ async function handleRunnerJobComplete(req, res, jobID) {
     query: { id: `eq.${job.id}` },
     body: {
       completed_at: nowISO(),
-      last_error: body.error || "",
+      last_error: redactSensitiveText(body.error || ""),
       lease_expires_at: null,
       runner_id: runner.id,
       status,
@@ -939,7 +953,7 @@ async function handleRunnerJobComplete(req, res, jobID) {
       delivery_merge_state: body.delivery_merge_state || "",
       delivery_review_decision: body.delivery_review_decision || "",
       delivery_status: body.delivery_status || "",
-      delivery_summary: body.delivery_summary || body.message || "",
+      delivery_summary: redactSensitiveText(body.delivery_summary || body.message || ""),
       delivery_url: body.delivery_url || "",
       updated_at: nowISO(),
       worktree_branch: body.worktree_branch || undefined,
@@ -960,7 +974,7 @@ async function handleRunnerJobComplete(req, res, jobID) {
         delivery_merge_state: taskPatch.delivery_merge_state,
         delivery_review_decision: taskPatch.delivery_review_decision,
         delivery_status: taskPatch.delivery_status,
-        delivery_summary: taskPatch.delivery_summary,
+        delivery_summary: redactSensitiveText(taskPatch.delivery_summary),
         delivery_url: taskPatch.delivery_url,
         project_id: updatedJob.project_id,
         task_id: updatedJob.task_id,
@@ -975,6 +989,31 @@ async function handleRunnerJobComplete(req, res, jobID) {
     job: publicRunnerJob(updatedJob, projects, tasks),
     task: task ? publicTask(task, projects) : null,
   });
+}
+
+async function handleRunnerJobRenew(req, res, jobID) {
+  const runner = await requireRunner(req);
+  const job = await findRunnerJob(runner.team_id, jobID);
+  ensureRunnerOwnsJob(runner, job);
+  const body = await readBody(req);
+  const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
+  const [updated] = await rest("runner_jobs", {
+    method: "PATCH",
+    query: { id: `eq.${job.id}` },
+    body: {
+      lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
+      updated_at: nowISO(),
+    },
+  });
+  const event = await appendJobEvent(
+    updated,
+    runner.id,
+    "renewed",
+    "info",
+    "runner renewed job lease",
+    { lease_seconds: leaseSeconds },
+  );
+  writeJSON(res, 200, { event, job: publicRunnerJob(updated) });
 }
 
 async function handleRunnerWikiWriteResult(req, res) {
@@ -1024,7 +1063,6 @@ async function requireRunner(req) {
   const token =
     bearer(req) ||
     req.headers["x-laf-runner-token"] ||
-    req.query.runner_token ||
     "";
   if (!token) throw new HTTPError(401, "runner token required");
   const rows = await rest("runners", {
@@ -1111,11 +1149,12 @@ async function ensureRunnerJobForTask(task, project) {
   const [job] = await rest("runner_jobs", {
     method: "POST",
     body: {
-      agent_memory_packet: minimalMemoryPacket(task, project),
+      agent_memory_packet: await buildAgentMemoryPacket(task, project),
       agent_slug: task.owner || "",
       execution_mode: task.execution_mode || "office",
       project_id: project?.id || null,
-      repo_url: project?.github_repo_url || "",
+      provider_kind: normalizeProviderKind(task.provider_kind || task.required_provider || ""),
+      repo_url: normalizeGitHubRepoURL(project?.github_repo_url || ""),
       status: "queued",
       task_id: task.id,
       team_id: task.team_id,
@@ -1183,8 +1222,8 @@ async function appendJobEvent(job, runnerID, kind, level, message, payload = {})
       job_id: job.id,
       kind,
       level,
-      message,
-      payload,
+      message: redactSensitiveText(message),
+      payload: redactSensitiveValue(payload),
       runner_id: runnerID || null,
       task_id: job.task_id || null,
       team_id: job.team_id,
@@ -1204,16 +1243,31 @@ function taskNeedsRunnerJob(task) {
 
 function runnerCanClaimJob(runner, job) {
   if (runner.team_id !== job.team_id || runner.status === "revoked") return false;
+  if (!["queued", "expired"].includes(job.status || "queued")) return false;
   const modes = runner.capabilities?.execution_modes || [];
-  return !job.execution_mode || modes.length === 0 || modes.includes(job.execution_mode);
+  if (job.execution_mode && modes.length > 0 && !modes.includes(job.execution_mode)) {
+    return false;
+  }
+  const requiredProvider = normalizeProviderKind(job.provider_kind || job.required_provider || "");
+  if (!requiredProvider) return true;
+  return normalizeProviderList(runner.capabilities?.provider_runtimes || []).includes(
+    requiredProvider,
+  );
 }
 
 function ensureRunnerOwnsJob(runner, job) {
   if (runner.team_id !== job.team_id) {
     throw new HTTPError(403, "runner cannot access another team job");
   }
-  if (job.runner_id && job.runner_id !== runner.id) {
-    throw new HTTPError(409, "job is leased by another runner");
+  if (!job.runner_id || job.runner_id !== runner.id) {
+    throw new HTTPError(409, "job is not leased by this runner");
+  }
+  if (!["leased", "running"].includes(job.status)) {
+    throw new HTTPError(409, "job is not active");
+  }
+  const expiresAt = Date.parse(job.lease_expires_at || "");
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    throw new HTTPError(409, "job lease expired");
   }
 }
 
@@ -1257,9 +1311,12 @@ function publicRunner(row) {
 function publicRunnerJob(row, projects = {}, tasks = {}) {
   return {
     ...row,
+    id: row.id,
+    job_id: row.id,
     project_id: row.project_id
       ? projects[row.project_id]?.local_id || row.project_id
       : "",
+    required_provider: row.provider_kind || "",
     task_id: row.task_id ? tasks[row.task_id]?.local_id || row.task_id : "",
   };
 }
@@ -1301,28 +1358,99 @@ function publicInvite(row, req) {
   return result;
 }
 
-function minimalMemoryPacket(task, project) {
-  return {
+async function buildAgentMemoryPacket(task, project) {
+  const wikiPath = project ? `team/projects/${project.local_id || project.id}.md` : "";
+  const unavailable = [];
+  const wikiRows = project
+    ? await rest("wiki_article_index", {
+        query: {
+          order: "updated_at.desc",
+          project_id: `eq.${project.id}`,
+          select: "*",
+          team_id: `eq.${task.team_id}`,
+        },
+      })
+    : [];
+  if (!project) {
+    unavailable.push("No project is attached to this task.");
+  } else if (!wikiRows?.length) {
+    unavailable.push(`No hosted wiki index entries are available for ${wikiPath}.`);
+  }
+  const receipts = project
+    ? await rest("delivery_receipts", {
+        query: {
+          order: "created_at.desc",
+          project_id: `eq.${project.id}`,
+          select: "*",
+          team_id: `eq.${task.team_id}`,
+        },
+      })
+    : [];
+  const recentTasks = project
+    ? await rest("tasks", {
+        query: {
+          order: "updated_at.desc",
+          project_id: `eq.${project.id}`,
+          select: "*",
+          status: "in.(done,canceled,review)",
+          team_id: `eq.${task.team_id}`,
+        },
+      })
+    : [];
+  const indexedRows = (wikiRows || []).slice(0, 5);
+  const packet = {
+    decisions: memoryItemsFromRows(indexedRows, "decisions"),
+    loaded_context: indexedRows.map((row) => ({
+      chars: String(row.excerpt || "").length,
+      kind: "project_wiki_index",
+      path: row.article_path || wikiPath,
+      status: row.excerpt ? "loaded" : "metadata_only",
+      truncated: String(row.excerpt || "").length > 1200,
+    })),
+    must_obey: [
+      "Treat this packet as the first memory read for the task; do not re-ask for context already loaded here.",
+      "Hosted control plane queues work only; local runners own filesystem, git, GitHub, and provider CLI execution.",
+    ],
+    must_read: project
+      ? [
+          {
+            kind: "project_wiki",
+            path: wikiPath,
+            reason: "canonical shared memory for this project",
+            status: indexedRows.length ? "loaded" : "unavailable",
+          },
+        ]
+      : [],
+    open_questions: memoryItemsFromRows(indexedRows, "open_questions"),
     packet_id: `agent-memory-${shortID()}`,
     project: project
       ? {
+          github_repo: project.github_repo_url || "",
           id: project.local_id || project.id,
           name: project.name,
           repo_url: project.github_repo_url || "",
-          wiki_path: `team/projects/${project.local_id || project.id}.md`,
+          wiki_path: wikiPath,
         }
       : null,
+    recent_work: recentWorkFromRows(receipts || [], recentTasks || [], task.id).slice(0, 5),
+    risks: memoryItemsFromRows(indexedRows, "risks"),
     start_here: [
       "Treat this packet as the canonical task context for this runner job.",
+      "Read loaded project memory before broad repository search or new architecture planning.",
       "Use the runner protocol to report progress and completion.",
     ],
     task: {
+      channel: task.channel || "general",
+      details: task.details || task.human_details || "",
       execution_mode: task.execution_mode || "",
       id: task.local_id || task.id,
       owner: task.owner || "",
+      project_id: project?.local_id || project?.id || task.project_id || "",
       status: task.status,
+      task_type: task.task_type || "",
       title: task.title,
     },
+    unavailable,
     version: "agent-memory/v1",
     write_back: [
       "Return compact progress events.",
@@ -1330,6 +1458,132 @@ function minimalMemoryPacket(task, project) {
       "Return delivery receipt metadata when code or PR work is produced.",
     ],
   };
+  if (packet.decisions.length) {
+    packet.start_here.push("Apply the decisions array before inventing new workflow policy.");
+  }
+  if (packet.risks.length || packet.open_questions.length) {
+    packet.start_here.push("Check risks and open_questions before marking work complete.");
+  }
+  if (packet.recent_work.length) {
+    packet.start_here.push("Use recent_work receipts to avoid duplicating delivered work.");
+  }
+  return packet;
+}
+
+function memoryItemsFromRows(rows, key) {
+  const items = [];
+  for (const row of rows || []) {
+    for (const text of normalizeStringList(row[key] || [])) {
+      items.push({
+        source: row.article_path || "",
+        text: truncateText(text, 280),
+      });
+      if (items.length >= 8) return items;
+    }
+  }
+  return items;
+}
+
+function recentWorkFromRows(receipts, tasks, currentTaskID) {
+  const seen = new Set();
+  const work = [];
+  for (const row of receipts) {
+    if (row.task_id && row.task_id === currentTaskID) continue;
+    const key = `receipt:${row.id || row.task_id || work.length}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    work.push({
+      delivery_summary: truncateText(redactSensitiveText(row.delivery_summary || ""), 320),
+      delivery_url: row.delivery_url || "",
+      status: row.delivery_status || "",
+      task_id: row.task_id || "",
+      updated_at: row.delivered_at || row.updated_at || row.created_at || "",
+    });
+  }
+  for (const row of tasks) {
+    if (row.id && row.id === currentTaskID) continue;
+    const key = `task:${row.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    work.push({
+      delivery_summary: truncateText(
+        redactSensitiveText(row.delivery_summary || row.details || ""),
+        320,
+      ),
+      delivery_url: row.delivery_url || "",
+      owner: row.owner || "",
+      status: row.status || "",
+      task_id: row.local_id || row.id || "",
+      title: row.title || "",
+      updated_at: row.updated_at || row.delivered_at || "",
+    });
+  }
+  return work;
+}
+
+function normalizeStringList(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map((value) => String(value || "").trim()).filter(Boolean);
+}
+
+function normalizeProviderList(values) {
+  return normalizeStringList(values).map(normalizeProviderKind).filter(Boolean);
+}
+
+function normalizeProviderKind(value) {
+  const kind = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+  if (kind === "claude" || kind === "claude-code") return "claude-code";
+  if (kind === "codex" || kind === "opencode" || kind === "openclaw") return kind;
+  return "";
+}
+
+function normalizeGitHubRepoURL(value) {
+  const repoURL = String(value || "").trim();
+  if (!repoURL) return "";
+  if (
+    /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(
+      repoURL,
+    )
+  ) {
+    return repoURL.replace(/\/$/, "");
+  }
+  if (/^git@github\.com:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/.test(repoURL)) {
+    return repoURL;
+  }
+  throw new HTTPError(
+    400,
+    "github_repo_url must be a GitHub HTTPS URL or git@github.com SSH URL",
+  );
+}
+
+function redactSensitiveText(value) {
+  return String(value || "")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
+    .replace(/laf_runner_[A-Fa-f0-9]{20,}/g, "laf_runner_[REDACTED]")
+    .replace(/lafr_[A-Za-z0-9_-]{20,}/g, "lafr_[REDACTED]")
+    .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "gh_[REDACTED]")
+    .replace(/sk-(proj-)?[A-Za-z0-9_-]{20,}/g, "sk-[REDACTED]");
+}
+
+function redactSensitiveValue(value) {
+  if (typeof value === "string") return redactSensitiveText(value);
+  if (Array.isArray(value)) return value.map(redactSensitiveValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        /token|secret|password|api[_-]?key/i.test(key)
+          ? "[REDACTED]"
+          : redactSensitiveValue(entry),
+      ]),
+    );
+  }
+  return value;
+}
+
+function truncateText(value, max) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 }
 
 function isHuman(slug) {

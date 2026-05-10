@@ -21,6 +21,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/gitexec"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
@@ -260,15 +261,15 @@ func TestBrokerSessionModePersistsAndSurvivesReset(t *testing.T) {
 	b.members = append(b.members, officeMember{Slug: "pm", Name: "Product Manager"})
 	for i := range b.channels {
 		if b.channels[i].Slug == "general" {
-			b.channels[i].Members = append(b.channels[i].Members, "builder")
+			b.channels[i].Members = append(b.channels[i].Members, "be")
 			break
 		}
 	}
 	b.mu.Unlock()
-	if err := b.SetSessionMode(SessionModeOneOnOne, "builder"); err != nil {
+	if err := b.SetSessionMode(SessionModeOneOnOne, "be"); err != nil {
 		t.Fatalf("SetSessionMode failed: %v", err)
 	}
-	if _, err := b.PostMessage("builder", "general", "hello", nil, ""); err != nil {
+	if _, err := b.PostMessage("be", "general", "hello", nil, ""); err != nil {
 		t.Fatalf("seed direct message: %v", err)
 	}
 
@@ -277,8 +278,8 @@ func TestBrokerSessionModePersistsAndSurvivesReset(t *testing.T) {
 	if mode != SessionModeOneOnOne {
 		t.Fatalf("expected persisted 1o1 mode, got %q", mode)
 	}
-	if agent != "builder" {
-		t.Fatalf("expected persisted 1o1 agent builder, got %q", agent)
+	if agent != "be" {
+		t.Fatalf("expected persisted 1o1 agent be, got %q", agent)
 	}
 
 	reloaded.Reset()
@@ -286,8 +287,8 @@ func TestBrokerSessionModePersistsAndSurvivesReset(t *testing.T) {
 	if mode != SessionModeOneOnOne {
 		t.Fatalf("expected reset to preserve 1o1 mode, got %q", mode)
 	}
-	if agent != "builder" {
-		t.Fatalf("expected reset to preserve 1o1 agent builder, got %q", agent)
+	if agent != "be" {
+		t.Fatalf("expected reset to preserve 1o1 agent be, got %q", agent)
 	}
 	if len(reloaded.Messages()) != 0 {
 		t.Fatalf("expected reset to clear direct messages, got %d", len(reloaded.Messages()))
@@ -838,18 +839,18 @@ func TestNewBrokerSeedsBlueprintBackedOfficeRosterOnFreshState(t *testing.T) {
 
 	b := newTestBroker(t)
 	members := b.OfficeMembers()
-	if len(members) < 2 {
-		t.Fatalf("expected blueprint-backed default office roster, got %d members", len(members))
+	if len(members) != len(office.CoreAgentSlugs()) {
+		t.Fatalf("expected blueprint-backed default office roster to use core runtime, got %d members", len(members))
 	}
-	var foundResearch bool
+	wantCore := map[string]bool{"ceo": true, "fe": true, "be": true, "reviewer": true}
 	for _, member := range members {
-		if member.Slug == "research-lead" {
-			foundResearch = true
-			break
+		if !wantCore[member.Slug] {
+			t.Fatalf("unexpected blueprint-backed runtime member %q in %+v", member.Slug, members)
 		}
+		delete(wantCore, member.Slug)
 	}
-	if !foundResearch {
-		t.Fatalf("expected blueprint-backed office roster to include youtube starter members, got %+v", members)
+	if len(wantCore) != 0 {
+		t.Fatalf("blueprint-backed office roster missing core members %v in %+v", wantCore, members)
 	}
 }
 
@@ -1934,8 +1935,10 @@ func TestNormalizeLoadedStateRepopulatesGeneralFromOfficeRoster(t *testing.T) {
 	if ch == nil {
 		t.Fatal("expected general channel after normalization")
 	}
-	if !containsString(ch.Members, "ceo") || !containsString(ch.Members, "pm") || !containsString(ch.Members, "fe") {
-		t.Fatalf("expected general channel to be repopulated from office roster, got %+v", ch.Members)
+	for _, slug := range []string{"ceo", "fe", "be", "reviewer"} {
+		if !containsString(ch.Members, slug) {
+			t.Fatalf("expected general channel to be repopulated with core roster, got %+v", ch.Members)
+		}
 	}
 }
 
@@ -2826,7 +2829,7 @@ func TestBrokerTaskPlanAssignsWorktreeForLocalWorktreeTask(t *testing.T) {
 			{
 				"title":          "Build intake dry-run review bundle",
 				"details":        "Produce the first dry-run consulting artifact bundle.",
-				"assignee":       "builder",
+				"assignee":       "be",
 				"task_type":      "feature",
 				"execution_mode": "local_worktree",
 			},
@@ -2882,7 +2885,7 @@ func TestBrokerTaskCreateAddsAssignedOwnerToChannelMembers(t *testing.T) {
 		"title":      "Restore remotion dependency path",
 		"details":    "Unblock the real render lane.",
 		"created_by": "operator",
-		"owner":      "builder",
+		"owner":      "be",
 		"task_type":  "feature",
 	})
 	req, _ := http.NewRequest(http.MethodPost, base+"/tasks", bytes.NewReader(body))
@@ -2904,10 +2907,10 @@ func TestBrokerTaskCreateAddsAssignedOwnerToChannelMembers(t *testing.T) {
 	if ch == nil {
 		t.Fatal("expected youtube-factory channel to exist")
 	}
-	if !containsString(ch.Members, "builder") {
+	if !containsString(ch.Members, "be") {
 		t.Fatalf("expected assigned owner to be added to channel members, got %v", ch.Members)
 	}
-	if containsString(ch.Disabled, "builder") {
+	if containsString(ch.Disabled, "be") {
 		t.Fatalf("expected assigned owner to be enabled in channel, got disabled=%v", ch.Disabled)
 	}
 }
@@ -2915,12 +2918,12 @@ func TestBrokerTaskCreateAddsAssignedOwnerToChannelMembers(t *testing.T) {
 func TestBrokerResumeTaskUnblocksAndSchedulesOwnerLane(t *testing.T) {
 	b := newTestBroker(t)
 	ensureTestMemberAccess(b, "client-loop", "operator", "Operator")
-	ensureTestMemberAccess(b, "client-loop", "builder", "Builder")
+	ensureTestMemberAccess(b, "client-loop", "be", "Backend Engineer")
 	task, reused, err := b.EnsurePlannedTask(plannedTaskInput{
 		Channel:       "client-loop",
 		Title:         "Retry kickoff send",
 		Details:       "429 RESOURCE_EXHAUSTED. Retry after 2026-04-15T22:00:29.610Z.",
-		Owner:         "builder",
+		Owner:         "be",
 		CreatedBy:     "operator",
 		TaskType:      "follow_up",
 		ExecutionMode: "live_external",
@@ -3096,7 +3099,7 @@ func TestBrokerTaskPlanRejectsTheaterTaskInLiveDeliveryLane(t *testing.T) {
 			{
 				"title":          "Generate consulting review packet artifact from the updated blueprint",
 				"details":        "Post the exact local artifact path for the reviewer.",
-				"assignee":       "builder",
+				"assignee":       "be",
 				"task_type":      "feature",
 				"execution_mode": "local_worktree",
 			},
@@ -3838,11 +3841,11 @@ func TestBrokerEnsurePlannedTaskQueuesConcurrentExclusiveOwnerWork(t *testing.T)
 
 func TestBrokerTaskPlanRoutesLiveBusinessTasksIntoRecentExecutionChannel(t *testing.T) {
 	b := newTestBroker(t)
-	ensureTestMemberAccess(b, "general", "builder", "Builder")
+	ensureTestMemberAccess(b, "general", "be", "Backend Engineer")
 	b.channels = append(b.channels, teamChannel{
 		Slug:      "client-loop",
 		Name:      "client-loop",
-		Members:   []string{"ceo", "builder"},
+		Members:   []string{"ceo", "be"},
 		CreatedBy: "ceo",
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -3858,7 +3861,7 @@ func TestBrokerTaskPlanRoutesLiveBusinessTasksIntoRecentExecutionChannel(t *test
 		"tasks": []map[string]any{
 			{
 				"title":          "Create the client-facing operating brief",
-				"assignee":       "builder",
+				"assignee":       "be",
 				"details":        "Move the live client delivery forward in the workspace and leave the customer-ready brief in the execution lane.",
 				"task_type":      "launch",
 				"execution_mode": "office",
@@ -3894,7 +3897,7 @@ func TestBrokerTaskPlanRoutesLiveBusinessTasksIntoRecentExecutionChannel(t *test
 
 func TestBrokerTaskPlanReusesExistingActiveLane(t *testing.T) {
 	b := newTestBroker(t)
-	ensureTestMemberAccess(b, "client-loop", "builder", "Builder")
+	ensureTestMemberAccess(b, "client-loop", "be", "Backend Engineer")
 	ensureTestMemberAccess(b, "client-loop", "operator", "Operator")
 	for i := range b.channels {
 		if normalizeChannelSlug(b.channels[i].Slug) == "client-loop" {
@@ -3911,7 +3914,7 @@ func TestBrokerTaskPlanReusesExistingActiveLane(t *testing.T) {
 		Channel:       "client-loop",
 		Title:         "Create live client workspace in Google Drive",
 		Details:       "First pass.",
-		Owner:         "builder",
+		Owner:         "be",
 		CreatedBy:     "operator",
 		TaskType:      "follow_up",
 		ExecutionMode: "office",
@@ -3927,7 +3930,7 @@ func TestBrokerTaskPlanReusesExistingActiveLane(t *testing.T) {
 		"tasks": []map[string]any{
 			{
 				"title":          "Create live client workspace in Google Drive",
-				"assignee":       "builder",
+				"assignee":       "be",
 				"details":        "Updated live-work details.",
 				"task_type":      "follow_up",
 				"execution_mode": "office",

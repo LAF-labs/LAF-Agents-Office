@@ -3,6 +3,7 @@ package onboarding
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -117,12 +118,19 @@ func TestCheckOneFindsOpencodeInCommonUserBinWhenPATHIsMinimal(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatalf("mkdir opencode bin: %v", err)
 	}
-	opencodePath := filepath.Join(binDir, "opencode")
-	if err := os.WriteFile(opencodePath, []byte("#!/bin/sh\nprintf 'opencode 9.9.9\\n'\n"), 0o755); err != nil {
+	exeName := "opencode"
+	body := "#!/bin/sh\nprintf 'opencode 9.9.9\\n'\n"
+	if runtime.GOOS == "windows" {
+		exeName = "opencode.cmd"
+		body = "@echo off\r\necho opencode 9.9.9\r\n"
+	}
+	opencodePath := filepath.Join(binDir, exeName)
+	if err := os.WriteFile(opencodePath, []byte(body), 0o755); err != nil {
 		t.Fatalf("write fake opencode: %v", err)
 	}
 
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("PATH", filepath.Join(home, "minimal-path"))
 
 	r := CheckOne("opencode")

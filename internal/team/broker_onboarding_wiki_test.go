@@ -18,6 +18,8 @@ func TestOnboardingCompleteMaterializesWiki(t *testing.T) {
 	// instead of ~/.laf-office. os.UserHomeDir respects $HOME on unix.
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", tmpHome)
 
 	b := newTestBroker(t)
 	if err := b.onboardingCompleteFn("Stand up niche CRM", false, "niche-crm", nil); err != nil {
@@ -59,6 +61,8 @@ func TestOnboardingCompleteWikiIsIdempotent(t *testing.T) {
 
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", tmpHome)
 
 	// First run.
 	b := newTestBroker(t)
@@ -101,6 +105,8 @@ func TestOnboardingCompleteSynthesizedBlueprintSkipsWiki(t *testing.T) {
 
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", tmpHome)
 
 	b := newTestBroker(t)
 	if err := b.onboardingCompleteFn("Run a bespoke operation", false, "", nil); err != nil {

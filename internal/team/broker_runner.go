@@ -283,6 +283,8 @@ func (b *Broker) handleRunnerJobSubpath(w http.ResponseWriter, r *http.Request) 
 		b.handleRunnerJobEvent(w, r, parts[0])
 	case "complete":
 		b.handleRunnerJobComplete(w, r, parts[0])
+	case "renew":
+		b.handleRunnerJobRenew(w, r, parts[0])
 	default:
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "runner job route not found"})
 	}
@@ -300,7 +302,8 @@ func (b *Broker) handleRunnerJobEvent(w http.ResponseWriter, r *http.Request, jo
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
 		return
 	}
-	now := time.Now().UTC().Format(time.RFC3339)
+	nowTime := time.Now().UTC()
+	now := nowTime.Format(time.RFC3339)
 
 	b.mu.Lock()
 	runner, job, ok := b.runnerAndJobForRequestLocked(r, jobID)
@@ -309,9 +312,9 @@ func (b *Broker) handleRunnerJobEvent(w http.ResponseWriter, r *http.Request, jo
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "runner unauthorized"})
 		return
 	}
-	if job.RunnerID != "" && job.RunnerID != runner.ID {
+	if msg := runnerActiveJobOwnershipError(*runner, *job, nowTime); msg != "" {
 		b.mu.Unlock()
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "job is leased by another runner"})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": msg})
 		return
 	}
 	if status := normalizeRunnerJobStatus(body.Status); status == runnerJobStatusRunning || strings.EqualFold(strings.TrimSpace(body.Kind), runnerJobStatusRunning) {
@@ -357,7 +360,8 @@ func (b *Broker) handleRunnerJobComplete(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "status must be succeeded, failed, or canceled"})
 		return
 	}
-	now := time.Now().UTC().Format(time.RFC3339)
+	nowTime := time.Now().UTC()
+	now := nowTime.Format(time.RFC3339)
 
 	b.mu.Lock()
 	runner, job, ok := b.runnerAndJobForRequestLocked(r, jobID)
@@ -366,9 +370,9 @@ func (b *Broker) handleRunnerJobComplete(w http.ResponseWriter, r *http.Request,
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "runner unauthorized"})
 		return
 	}
-	if job.RunnerID != "" && job.RunnerID != runner.ID {
+	if msg := runnerActiveJobOwnershipError(*runner, *job, nowTime); msg != "" {
 		b.mu.Unlock()
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "job is leased by another runner"})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": msg})
 		return
 	}
 	job.Status = status
@@ -417,6 +421,50 @@ func (b *Broker) handleRunnerJobComplete(w http.ResponseWriter, r *http.Request,
 		"event": event,
 		"task":  taskCopy,
 	})
+}
+
+func (b *Broker) handleRunnerJobRenew(w http.ResponseWriter, r *http.Request, jobID string) {
+	var body struct {
+		LeaseSeconds int `json:"lease_seconds"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	leaseDuration := defaultRunnerLeaseDuration
+	if body.LeaseSeconds > 0 {
+		leaseDuration = time.Duration(body.LeaseSeconds) * time.Second
+	}
+	if leaseDuration < time.Minute {
+		leaseDuration = time.Minute
+	}
+	if leaseDuration > 30*time.Minute {
+		leaseDuration = 30 * time.Minute
+	}
+	nowTime := time.Now().UTC()
+	now := nowTime.Format(time.RFC3339)
+	leaseExpiresAt := nowTime.Add(leaseDuration).Format(time.RFC3339)
+
+	b.mu.Lock()
+	runner, job, ok := b.runnerAndJobForRequestLocked(r, jobID)
+	if !ok {
+		b.mu.Unlock()
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "runner unauthorized"})
+		return
+	}
+	if msg := runnerActiveJobOwnershipError(*runner, *job, nowTime); msg != "" {
+		b.mu.Unlock()
+		writeJSON(w, http.StatusConflict, map[string]string{"error": msg})
+		return
+	}
+	job.LeaseExpiresAt = leaseExpiresAt
+	job.UpdatedAt = now
+	event := b.appendRunnerJobEventLocked(*job, runner.ID, "renewed", "info", "runner renewed job lease", map[string]any{"lease_seconds": int(leaseDuration.Seconds())}, now)
+	jobCopy := *job
+	err := b.saveLocked()
+	b.mu.Unlock()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist renewal"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"job": jobCopy, "event": event})
 }
 
 func (b *Broker) handleRunnerWikiWriteResult(w http.ResponseWriter, r *http.Request) {
@@ -536,6 +584,21 @@ savedIndex:
 	writeJSON(w, http.StatusOK, map[string]any{"article": index})
 }
 
+func runnerActiveJobOwnershipError(runner hostedRunner, job runnerJob, now time.Time) string {
+	if strings.TrimSpace(job.RunnerID) == "" || strings.TrimSpace(job.RunnerID) != strings.TrimSpace(runner.ID) {
+		return "job is not leased by this runner"
+	}
+	switch normalizeRunnerJobStatus(job.Status) {
+	case runnerJobStatusLeased, runnerJobStatusRunning:
+	default:
+		return "job is not active"
+	}
+	if runnerLeaseExpired(job.LeaseExpiresAt, now) {
+		return "job lease expired"
+	}
+	return ""
+}
+
 func completionEventLevel(status string) string {
 	switch status {
 	case runnerJobStatusSucceeded:
@@ -558,7 +621,7 @@ func runnerTokenFromRequest(r *http.Request) string {
 	if token := strings.TrimSpace(r.Header.Get("X-LAF-Runner-Token")); token != "" {
 		return token
 	}
-	return strings.TrimSpace(r.URL.Query().Get("runner_token"))
+	return ""
 }
 
 func (b *Broker) runnerForRequestLocked(r *http.Request) (*hostedRunner, bool) {

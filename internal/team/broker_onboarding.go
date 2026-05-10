@@ -387,6 +387,7 @@ func blankSlateOfficeMembersFromBlueprint(blueprint operations.Blueprint, select
 	if selectionLooksStaleForStarterAgents(selectedAgents, leadSlug, availableSlugs, members) {
 		members = blankSlateOfficeMembersFromAgents(agents, leadSlug, nil)
 	}
+	members = normalizeBlankSlateMembersToCurrentRuntime(members, selectedAgents == nil)
 	if len(members) > 0 {
 		return members
 	}
@@ -434,6 +435,58 @@ func blankSlateOfficeMembersFromAgents(agents []operations.StarterAgent, leadSlu
 		})
 	}
 	return members
+}
+
+func normalizeBlankSlateMembersToCurrentRuntime(members []officeMember, includeMissingCore bool) []officeMember {
+	now := time.Now().UTC().Format(time.RFC3339)
+	out := make([]officeMember, 0, len(members)+len(office.CoreAgentSlugs()))
+	seen := map[string]struct{}{}
+	if includeMissingCore {
+		for _, slug := range office.CoreAgentSlugs() {
+			member, ok := currentCoreOfficeMember(slug, now)
+			if !ok {
+				continue
+			}
+			seen[slug] = struct{}{}
+			out = append(out, member)
+		}
+	}
+	for _, member := range members {
+		slug := normalizeChannelSlug(member.Slug)
+		if mapped := mapLegacyDefaultAgentSlugToCurrentCore(slug); mapped != "" {
+			slug = mapped
+		}
+		if slug == "" || office.IsAgentMakerSlug(slug) {
+			continue
+		}
+		if _, ok := seen[slug]; ok {
+			continue
+		}
+		if core, ok := currentCoreOfficeMember(slug, now); ok {
+			member = core
+		} else {
+			member.Slug = slug
+			member.BuiltIn = false
+		}
+		seen[slug] = struct{}{}
+		out = append(out, member)
+	}
+	return out
+}
+
+func currentCoreOfficeMember(slug, now string) (officeMember, bool) {
+	switch normalizeChannelSlug(slug) {
+	case office.CEOAgentSlug:
+		return officeMember{Slug: office.CEOAgentSlug, Name: "CEO", Role: "orchestrator", Expertise: []string{"strategy", "prioritization", "delegation", "project orchestration"}, Personality: "Sets direction, routes work, and owns the outcome.", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now}, true
+	case office.FrontendAgentSlug:
+		return officeMember{Slug: office.FrontendAgentSlug, Name: "Frontend Engineer", Role: "frontend", Expertise: []string{"frontend", "UI", "client state", "accessibility", "visual QA"}, Personality: "Builds polished user-facing flows and keeps the product experience coherent.", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now}, true
+	case office.BackendAgentSlug:
+		return officeMember{Slug: office.BackendAgentSlug, Name: "Backend Engineer", Role: "backend", Expertise: []string{"backend", "APIs", "auth", "data modeling", "runtime integration"}, Personality: "Builds reliable backend systems, keeps state sane, and reduces operational complexity.", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now}, true
+	case office.ReviewerAgentSlug:
+		return officeMember{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "review", Expertise: []string{"code review", "QA", "acceptance checks", "regression risk", "UX sanity checks"}, Personality: "Reviews implementation work, catches missing tests and regressions, and keeps quality gates crisp.", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now}, true
+	default:
+		return officeMember{}, false
+	}
 }
 
 func starterAgentSlugSet(agents []operations.StarterAgent) map[string]struct{} {
@@ -524,6 +577,9 @@ func blankSlateOfficeChannelsFromBlueprint(blueprint operations.Blueprint, membe
 		membersList := make([]string, 0, len(starter.Members))
 		for _, member := range starter.Members {
 			memberSlug := normalizeChannelSlug(operationRenderTemplateString(member, replacements))
+			if mapped := mapLegacyDefaultAgentSlugToCurrentCore(memberSlug); mapped != "" {
+				memberSlug = mapped
+			}
 			if memberSlug != "" {
 				membersList = append(membersList, memberSlug)
 			}
@@ -551,6 +607,9 @@ func blankSlateOfficeTasksFromBlueprint(blueprint operations.Blueprint) []teamTa
 			channel = "general"
 		}
 		owner := normalizeChannelSlug(starter.Owner)
+		if mapped := mapLegacyDefaultAgentSlugToCurrentCore(owner); mapped != "" {
+			owner = mapped
+		}
 		tasks = append(tasks, teamTask{
 			ID:        fmt.Sprintf("%s-%d", prefix, i+1),
 			Channel:   channel,

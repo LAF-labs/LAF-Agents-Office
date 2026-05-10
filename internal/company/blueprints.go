@@ -86,7 +86,7 @@ func loadPrimaryOperationBlueprint(repoRoot string, refs []BlueprintRef) (operat
 }
 
 func buildMembersFromBlueprints(repoRoot string, blueprint operations.Blueprint, refs []BlueprintRef) []MemberSpec {
-	// Runtime offices now operate with the fixed Architect / Builder / Reviewer
+	// Runtime offices now operate with the fixed CEO / FE / BE / Reviewer
 	// team. Operation and employee blueprints still drive wiki/schema/task
 	// materialization, but they no longer expand the live agent roster.
 	if len(blueprint.Starter.Agents) > 0 || len(blueprint.EmployeeBlueprints) > 0 || len(refs) > 0 {

@@ -25,7 +25,7 @@ func TestParseGeneratedMemberTemplateAppliesDefaults(t *testing.T) {
 }
 
 func TestParseGeneratedMemberTemplateNormalizesPermissionMode(t *testing.T) {
-	tmpl, err := parseGeneratedMemberTemplate(`{"slug":"qa","name":"QA","permission_mode":"root"}`)
+	tmpl, err := parseGeneratedMemberTemplate(`{"slug":"compliance-reviewer","name":"Compliance Reviewer","permission_mode":"root"}`)
 	if err != nil {
 		t.Fatalf("parseGeneratedMemberTemplate: %v", err)
 	}

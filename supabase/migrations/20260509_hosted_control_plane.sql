@@ -161,6 +161,7 @@ create table if not exists public.runner_jobs (
   runner_id uuid references public.runners(id) on delete set null,
   agent_slug text,
   execution_mode text,
+  provider_kind text,
   status text not null default 'queued' check (status in ('queued', 'leased', 'running', 'succeeded', 'failed', 'canceled', 'expired')),
   agent_memory_packet jsonb not null default '{}'::jsonb,
   repo_url text,

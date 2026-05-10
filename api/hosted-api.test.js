@@ -22,7 +22,7 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
     team_id: "team-1",
     title: "Implement hosted job flow",
     status: "in_progress",
-    owner: "builder",
+    owner: "be",
     execution_mode: "local_worktree",
   };
   const job = {
@@ -72,13 +72,30 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
       return jsonResponse([project]);
     }
     if (table === "tasks") {
+      if ((init.method || "GET") === "GET") return jsonResponse([]);
       assert.equal(init.method, "POST");
-      assert.equal(body.owner, "builder");
+      assert.equal(body.owner, "be");
       return jsonResponse([task]);
+    }
+    if (table === "wiki_article_index") {
+      return jsonResponse([
+        {
+          article_path: "team/projects/project-a.md",
+          decisions: ["Use runner jobs as the execution boundary."],
+          excerpt: "Project memory excerpt",
+          open_questions: ["How should retries be surfaced?"],
+          risks: ["Runner may be offline."],
+        },
+      ]);
+    }
+    if (table === "delivery_receipts") {
+      return jsonResponse([]);
     }
     if (table === "runner_jobs") {
       if ((init.method || "GET") === "GET") return jsonResponse([]);
       assert.equal(body.agent_memory_packet.version, "agent-memory/v1");
+      assert.equal(body.agent_memory_packet.task.owner, "be");
+      assert.equal(body.agent_memory_packet.decisions.length, 1);
       return jsonResponse([{ ...job, agent_memory_packet: body.agent_memory_packet }]);
     }
     if (table === "runner_job_events") {
@@ -89,7 +106,7 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
 
   const response = await invoke(["tasks"], "POST", {
     action: "create",
-    owner: "builder",
+    owner: "be",
     project_id: "project-a",
     title: "Implement hosted job flow",
   });
@@ -98,11 +115,49 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
   assert.equal(response.body.task.id, "task-a");
   assert.equal(response.body.runner_job.status, "queued");
   assert.equal(response.body.runner_job.project_id, "project-a");
+  assert.equal(response.body.runner_job.job_id, "33333333-3333-4333-8333-333333333333");
   assert.equal(
     response.body.runner_job.agent_memory_packet.version,
     "agent-memory/v1",
   );
+  assert.equal(response.body.runner_job.agent_memory_packet.decisions[0].text, "Use runner jobs as the execution boundary.");
   assert.ok(calls.some((call) => call.path === "/rest/v1/runner_job_events"));
+});
+
+test("hosted project rejects unsafe repo URLs", async (t) => {
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = async (input, init = {}) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/auth/v1/user") {
+      return jsonResponse({
+        id: "user-1",
+        email: "owner@example.com",
+        user_metadata: { name: "Owner" },
+      });
+    }
+    const table = url.pathname.replace("/rest/v1/", "");
+    if (table === "memberships") {
+      return jsonResponse([
+        { role: "owner", status: "active", team_id: "team-1", user_id: "user-1" },
+      ]);
+    }
+    if (table === "projects") {
+      assert.notEqual(init.method, "POST", "unsafe repo URL should fail before insert");
+      return jsonResponse([]);
+    }
+    return jsonResponse([]);
+  };
+
+  const response = await invoke(["projects"], "POST", {
+    action: "create",
+    github_repo_url: "file:///tmp/repo",
+    name: "Unsafe Repo",
+  });
+
+  assert.equal(response.status, 400);
 });
 
 test("hosted runner can register, heartbeat, lease, report, and complete", async (t) => {
@@ -135,6 +190,7 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
         execution_mode: "local_worktree",
         id: "33333333-3333-4333-8333-333333333333",
         project_id: "11111111-1111-4111-8111-111111111111",
+        provider_kind: "codex",
         status: "queued",
         task_id: "22222222-2222-4222-8222-222222222222",
         team_id: "team-1",
@@ -185,6 +241,17 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.equal(heartbeat.status, 200);
   assert.equal(heartbeat.body.runner.status, "connected");
 
+  const queryTokenHeartbeat = await invoke(
+    ["runner", "heartbeat"],
+    "POST",
+    { status: "connected" },
+    {
+      headers: { authorization: "" },
+      query: { runner_token: registration.body.runner_token },
+    },
+  );
+  assert.equal(queryTokenHeartbeat.status, 401);
+
   const capabilities = await invoke(
     ["runner", "capabilities"],
     "POST",
@@ -210,12 +277,14 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   );
   assert.equal(lease.status, 200);
   assert.equal(lease.body.job.status, "leased");
+  assert.equal(lease.body.job.job_id, lease.body.job.id);
   assert.equal(lease.body.job.project_id, "project-a");
+  assert.equal(lease.body.job.required_provider, "codex");
   assert.equal(lease.body.job.task_id, "task-a");
   assert.equal(lease.body.job.agent_memory_packet.version, "agent-memory/v1");
 
   const running = await invoke(
-    ["runner", "jobs", lease.body.job.id, "events"],
+    ["runner", "jobs", lease.body.job.job_id, "events"],
     "POST",
     { kind: "running", message: "started", status: "running" },
     { headers: runnerHeaders },
@@ -223,8 +292,17 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.equal(running.status, 200);
   assert.equal(db.runner_jobs[0].status, "running");
 
+  const renewed = await invoke(
+    ["runner", "jobs", lease.body.job.job_id, "renew"],
+    "POST",
+    { lease_seconds: 120 },
+    { headers: runnerHeaders },
+  );
+  assert.equal(renewed.status, 200);
+  assert.equal(renewed.body.event.kind, "renewed");
+
   const complete = await invoke(
-    ["runner", "jobs", lease.body.job.id, "complete"],
+    ["runner", "jobs", lease.body.job.job_id, "complete"],
     "POST",
     {
       delivery_status: "open",
@@ -275,6 +353,44 @@ function hostedFetch(db) {
   return async (input, init = {}) => {
     const url = new URL(String(input));
     const body = init.body ? JSON.parse(init.body) : null;
+    if (url.pathname === "/rest/v1/rpc/claim_runner_job") {
+      const runner = db.runners.find(
+        (row) =>
+          row.id === body.p_runner_id &&
+          row.team_id === body.p_team_id &&
+          row.status !== "revoked" &&
+          !row.revoked_at,
+      );
+      if (!runner) return jsonResponse([]);
+      const modes = body.p_execution_modes || [];
+      const providers = body.p_provider_runtimes || [];
+      const job = db.runner_jobs.find((candidate) => {
+        if (candidate.team_id !== body.p_team_id) return false;
+        if (!["queued", "expired"].includes(candidate.status)) return false;
+        if (
+          candidate.execution_mode &&
+          modes.length > 0 &&
+          !modes.includes(candidate.execution_mode)
+        ) {
+          return false;
+        }
+        if (candidate.provider_kind && !providers.includes(candidate.provider_kind)) {
+          return false;
+        }
+        return true;
+      });
+      if (!job) return jsonResponse([]);
+      Object.assign(job, {
+        attempts: (job.attempts || 0) + 1,
+        lease_expires_at: new Date(
+          Date.now() + Number(body.p_lease_seconds || 300) * 1000,
+        ).toISOString(),
+        runner_id: runner.id,
+        status: "leased",
+        updated_at: new Date().toISOString(),
+      });
+      return jsonResponse([job]);
+    }
     if (url.pathname === "/auth/v1/user") {
       return jsonResponse({
         id: "user-1",

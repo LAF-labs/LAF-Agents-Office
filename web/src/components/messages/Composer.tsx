@@ -87,11 +87,11 @@ function pushHistory(channel: string, message: string): void {
 
 /** Routing prefix for `/ask`: mirrors TUI cmdAsk which always goes to the lead. */
 function askPrefix(leadSlug: string | undefined): string {
-  const slug = (leadSlug || "architect").trim().toLowerCase() || "architect";
+  const slug = (leadSlug || "ceo").trim().toLowerCase() || "ceo";
   return `@${slug} `;
 }
 
-/** Pick the team-lead slug: configured first, else first built-in agent, else architect. */
+/** Pick the team-lead slug: configured first, else first built-in agent, else ceo. */
 function resolveLeadSlug(
   configured: string | undefined,
   members: { slug?: string; built_in?: boolean }[],
@@ -102,7 +102,7 @@ function resolveLeadSlug(
     (m) => m.built_in && m.slug && m.slug !== "human" && m.slug !== "you",
   );
   if (builtin?.slug) return builtin.slug;
-  return "architect";
+  return "ceo";
 }
 
 interface SlashHandlers {
@@ -564,21 +564,17 @@ export function Composer() {
   // list if the broker is unreachable so the composer is never worse
   // than before this plumbing landed.
   const { commands, placeholderPrefix, sendLabel } = useComposerChromeText();
-
   const historyRef = useRef<HistoryState>(emptyHistoryState());
   const refreshMessages = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["messages", currentChannel] });
   }, [queryClient, currentChannel]);
-
   // Reset recall when switching channels so Ctrl+P replays *this* channel.
   useEffect(() => {
     historyRef.current = emptyHistoryState();
   }, []);
-
   const resetRecall = useCallback(() => {
     historyRef.current = emptyHistoryState();
   }, []);
-
   const pickAutocomplete = useCallback(
     (item: AutocompleteItem) => {
       const next = applyAutocomplete(text, caret, item);
@@ -641,7 +637,7 @@ export function Composer() {
       });
       if (consumed) {
         // Persist the *raw* command to history so Ctrl+P replays `/ask foo`,
-        // not the rewritten `@architect foo`. Matches user expectation.
+        // not the rewritten `@ceo foo`. Matches user expectation.
         pushHistory(currentChannel, trimmed);
         resetComposer();
         return;

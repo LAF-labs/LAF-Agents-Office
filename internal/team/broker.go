@@ -3693,7 +3693,7 @@ func (b *Broker) ensureDefaultChannelsLocked() {
 
 // ensureDefaultOfficeMembersLocked seeds the DefaultManifest roster ONLY when
 // no members exist. Prior implementation appended any missing default slug to
-// a non-empty roster, which caused ceo/planner/executor/reviewer to leak back
+// a non-empty roster, which caused default runtime members to leak back
 // into blueprint-seeded teams (e.g. niche-crm) on every Broker.Load(). The
 // function is called from broker init (line 831) and post-load normalization
 // (line 2260) as a true recovery hook: if state was corrupted or never
@@ -3731,8 +3731,9 @@ func (b *Broker) migrateLegacyCoreRosterLocked() {
 	core := defaultOfficeMembers()
 	if len(core) == 0 {
 		core = []officeMember{
-			{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "Architect", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
-			{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "Builder", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+			{Slug: office.CEOAgentSlug, Name: "CEO", Role: "Orchestrator", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+			{Slug: office.FrontendAgentSlug, Name: "Frontend Engineer", Role: "Frontend Engineer", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+			{Slug: office.BackendAgentSlug, Name: "Backend Engineer", Role: "Backend Engineer", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
 			{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
 		}
 	}
@@ -3752,7 +3753,7 @@ func (b *Broker) migrateLegacyCoreRosterLocked() {
 	}
 	for _, member := range b.members {
 		slug := normalizeChannelSlug(member.Slug)
-		if slug == "" || office.IsAgentMakerSlug(slug) || legacyDefaultAgentMapsToCore(slug) != "" || office.IsCoreAgentSlug(slug) {
+		if slug == "" || office.IsAgentMakerSlug(slug) || mapLegacyDefaultAgentSlugToCurrentCore(slug) != "" || office.IsCoreAgentSlug(slug) {
 			continue
 		}
 		if _, ok := seen[slug]; ok {
@@ -3791,20 +3792,43 @@ func (b *Broker) migrateLegacyCoreRosterLocked() {
 
 func legacyCoreRosterPresent(members []officeMember) bool {
 	for _, member := range members {
-		if legacyDefaultAgentMapsToCore(member.Slug) != "" {
+		if isLegacyDefaultAgentSlug(member.Slug) {
 			return true
 		}
 	}
 	return false
 }
 
-func legacyDefaultAgentMapsToCore(slug string) string {
+func isLegacyDefaultAgentSlug(slug string) bool {
 	switch normalizeActorSlug(slug) {
-	case "ceo", "founder", "operator", "planner", "pm", "product", "product-manager":
-		return office.ArchitectAgentSlug
-	case "executor", "founding-engineer", "ai-engineer", "designer":
-		return office.BuilderAgentSlug
-	case "analyst":
+	case office.ArchitectAgentSlug, office.BuilderAgentSlug,
+		"founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead",
+		"designer", "frontend", "front-end", "ui", "ux",
+		"executor", "founding-engineer", "ai-engineer", "eng", "backend", "back-end", "ai",
+		"analyst", "qa":
+		return true
+	default:
+		return false
+	}
+}
+
+func mapLegacyDefaultAgentSlugToCurrentCore(slug string) string {
+	switch normalizeActorSlug(slug) {
+	case office.CEOAgentSlug:
+		return office.CEOAgentSlug
+	case office.FrontendAgentSlug:
+		return office.FrontendAgentSlug
+	case office.BackendAgentSlug:
+		return office.BackendAgentSlug
+	case office.ReviewerAgentSlug:
+		return office.ReviewerAgentSlug
+	case office.ArchitectAgentSlug, "founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead":
+		return office.CEOAgentSlug
+	case "designer", "frontend", "front-end", "ui", "ux":
+		return office.FrontendAgentSlug
+	case office.BuilderAgentSlug, "executor", "founding-engineer", "ai-engineer", "eng", "backend", "back-end", "ai":
+		return office.BackendAgentSlug
+	case "analyst", "qa":
 		return office.ReviewerAgentSlug
 	default:
 		return ""
@@ -3816,7 +3840,7 @@ func mapLegacyTaskActorToCore(slug string) string {
 	if normalized == "" || normalized == "human" || normalized == "you" {
 		return slug
 	}
-	if mapped := legacyDefaultAgentMapsToCore(normalized); mapped != "" {
+	if mapped := mapLegacyDefaultAgentSlugToCurrentCore(normalized); mapped != "" {
 		return mapped
 	}
 	return normalized
@@ -3829,7 +3853,7 @@ func mapAgentSlugListToCore(slugs []string, includeAllCoreWhenEmpty bool) []stri
 		if normalized == "" || office.IsAgentMakerSlug(normalized) {
 			continue
 		}
-		if legacy := legacyDefaultAgentMapsToCore(normalized); legacy != "" {
+		if legacy := mapLegacyDefaultAgentSlugToCurrentCore(normalized); legacy != "" {
 			normalized = legacy
 		}
 		mapped = append(mapped, normalized)
@@ -4698,7 +4722,7 @@ func (b *Broker) canAccessChannelLocked(slug, channel string) bool {
 	if slug == "" || slug == "you" || slug == "human" || slug == "automation" || slug == "system" {
 		return true
 	}
-	if slug == office.DefaultLeadAgentSlug || legacyDefaultAgentMapsToCore(slug) == office.DefaultLeadAgentSlug {
+	if slug == office.DefaultLeadAgentSlug || mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.DefaultLeadAgentSlug {
 		return true
 	}
 	return b.channelHasMemberLocked(channel, slug)
@@ -4740,11 +4764,13 @@ func applyOfficeMemberDefaults(member *officeMember) {
 func inferOfficeExpertise(slug, role string) []string {
 	text := strings.ToLower(strings.TrimSpace(slug + " " + role))
 	switch {
-	case normalizeActorSlug(slug) == office.ArchitectAgentSlug:
-		return []string{"scope", "architecture", "task design", "handoffs", "risk triage"}
-	case normalizeActorSlug(slug) == office.BuilderAgentSlug:
-		return []string{"implementation", "execution", "integration", "delivery", "evidence"}
-	case normalizeActorSlug(slug) == office.ReviewerAgentSlug:
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.CEOAgentSlug:
+		return []string{"strategy", "prioritization", "delegation", "scope", "risk triage"}
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.FrontendAgentSlug:
+		return []string{"frontend", "UI", "interaction design", "components", "accessibility"}
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.BackendAgentSlug:
+		return []string{"backend", "APIs", "systems", "integration", "delivery"}
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.ReviewerAgentSlug:
 		return []string{"review", "quality", "security", "verification", "handoff"}
 	case strings.Contains(text, "front"), strings.Contains(text, "ui"), strings.Contains(text, "design eng"):
 		return []string{"frontend", "UI", "interaction design", "components", "accessibility"}
@@ -4768,11 +4794,13 @@ func inferOfficeExpertise(slug, role string) []string {
 func inferOfficePersonality(slug, role string) string {
 	text := strings.ToLower(strings.TrimSpace(slug + " " + role))
 	switch {
-	case normalizeActorSlug(slug) == office.ArchitectAgentSlug:
-		return "Architect who diagnoses the real gap, pushes back on vague scope, and turns intent into crisp work."
-	case normalizeActorSlug(slug) == office.BuilderAgentSlug:
-		return "Builder who ships the smallest useful slice, handles errors directly, and leaves clean evidence."
-	case normalizeActorSlug(slug) == office.ReviewerAgentSlug:
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.CEOAgentSlug:
+		return "CEO who routes work, makes priority calls, and keeps the project moving across agents."
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.FrontendAgentSlug:
+		return "Frontend Engineer who builds polished user-facing flows and keeps product experience coherent."
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.BackendAgentSlug:
+		return "Backend Engineer who builds reliable systems, keeps state sane, and reduces operational complexity."
+	case mapLegacyDefaultAgentSlugToCurrentCore(slug) == office.ReviewerAgentSlug:
 		return "Reviewer who checks changed scope for correctness, security, quality, and handoff readiness."
 	case strings.Contains(text, "front"):
 		return "Frontend specialist focused on polished user-facing work and sharp interaction details."
@@ -7695,8 +7723,8 @@ func (b *Broker) handleChannelMembers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Core agents cannot be disabled or removed from any channel. They are
-		// the always-on Architect/Builder/Reviewer runtime and the UI locks
-		// these interactions too.
+		// the always-on CEO/FE/BE/Reviewer runtime and the UI locks these
+		// interactions too.
 		if (memberRecord.BuiltIn || office.IsCoreAgentSlug(member)) && (action == "remove" || action == "disable") {
 			b.mu.Unlock()
 			http.Error(w, "cannot remove or disable lead agent", http.StatusBadRequest)
@@ -8145,7 +8173,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	//
 	// Exception: when the human explicitly tags the lead, do not
 	// auto-promote OTHER agents mentioned in the body. Example:
-	// "@architect ask @reviewer to ..." — the human's intent is for the lead to route,
+	// "@ceo ask @reviewer to ..." — the human's intent is for the lead to route,
 	// not for the broker to fan out in parallel. Without this guard the
 	// reviewer gets notified twice (by auto-promote AND later by the lead's
 	// explicit tag), spawning two turns with nearly identical answers.
@@ -8718,7 +8746,7 @@ func messageVisibleToViewer(msg channelMessage, viewerSlug string, messagesByID 
 
 func messageBelongsToViewerOutbox(msg channelMessage, viewerSlug string) bool {
 	viewerSlug = strings.TrimSpace(viewerSlug)
-	if viewerSlug == "" || viewerSlug == office.DefaultLeadAgentSlug || legacyDefaultAgentMapsToCore(viewerSlug) == office.DefaultLeadAgentSlug {
+	if viewerSlug == "" || viewerSlug == office.DefaultLeadAgentSlug || mapLegacyDefaultAgentSlugToCurrentCore(viewerSlug) == office.DefaultLeadAgentSlug {
 		return true
 	}
 	return strings.TrimSpace(msg.From) == viewerSlug
@@ -8726,7 +8754,7 @@ func messageBelongsToViewerOutbox(msg channelMessage, viewerSlug string) bool {
 
 func messageBelongsToViewerInbox(msg channelMessage, viewerSlug string, messagesByID map[string]channelMessage) bool {
 	viewerSlug = strings.TrimSpace(viewerSlug)
-	if viewerSlug == "" || viewerSlug == office.DefaultLeadAgentSlug || legacyDefaultAgentMapsToCore(viewerSlug) == office.DefaultLeadAgentSlug {
+	if viewerSlug == "" || viewerSlug == office.DefaultLeadAgentSlug || mapLegacyDefaultAgentSlugToCurrentCore(viewerSlug) == office.DefaultLeadAgentSlug {
 		return true
 	}
 	from := strings.TrimSpace(msg.From)
@@ -9109,7 +9137,7 @@ func normalizeProjectLeadAgent(raw string) string {
 	if slug == "" || slug == "human" || slug == "you" {
 		return ""
 	}
-	if mapped := legacyDefaultAgentMapsToCore(slug); mapped != "" {
+	if mapped := mapLegacyDefaultAgentSlugToCurrentCore(slug); mapped != "" {
 		return mapped
 	}
 	return slug
@@ -9129,7 +9157,7 @@ func (b *Broker) defaultProjectLeadAgent(project teamProject) string {
 		}
 	}
 	if strings.TrimSpace(project.GitHubRepoURL) != "" {
-		return office.BuilderAgentSlug
+		return office.BackendAgentSlug
 	}
 	return office.DefaultLeadAgentSlug
 }

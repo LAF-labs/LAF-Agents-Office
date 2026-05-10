@@ -21,12 +21,19 @@ accepts validated runner job/wiki results.
 
 ## Supabase
 
-Apply `supabase/migrations/20260509_hosted_control_plane.sql`.
+Apply the Supabase migrations in order:
+
+```sh
+supabase/migrations/20260509_hosted_control_plane.sql
+supabase/migrations/20260510_runner_job_claim_hardening.sql
+```
 
 The hosted API uses the service role from Vercel server functions, but every
 browser-facing route still performs explicit membership checks before reading or
 mutating team-scoped records. Runner routes authenticate with the one-time
-runner token hash stored in `public.runners`.
+runner token hash stored in `public.runners`; pass it as a bearer token, not a
+query parameter. Job leasing uses the `claim_runner_job` RPC so concurrent
+runners cannot claim the same queued job.
 
 ## Local Runner Against Hosted
 
@@ -41,3 +48,10 @@ laf-office runner connect
 The runner keeps using local `gh auth`, local provider credentials, and local
 git worktrees. Hosted state records only runner capability, job events, delivery
 receipt metadata, and wiki index results.
+
+Runner host prerequisites:
+
+- `git`
+- `gh auth login` when PR creation or repo readiness checks are required
+- at least one provider CLI matching the jobs it should lease: `codex`,
+  `claude`, or `opencode`

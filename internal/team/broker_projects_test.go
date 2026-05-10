@@ -32,11 +32,11 @@ func TestProjectsAPIAndTaskFiltering(t *testing.T) {
 	if projectA.GitHubRepoURL != "https://github.com/laf-labs/customer-portal" {
 		t.Fatalf("project github_repo_url = %q", projectA.GitHubRepoURL)
 	}
-	if projectA.LeadAgent != "builder" {
-		t.Fatalf("project lead_agent = %q, want builder", projectA.LeadAgent)
+	if projectA.LeadAgent != "be" {
+		t.Fatalf("project lead_agent = %q, want be", projectA.LeadAgent)
 	}
-	if projectB.LeadAgent != "architect" {
-		t.Fatalf("planning project lead_agent = %q, want architect", projectB.LeadAgent)
+	if projectB.LeadAgent != "ceo" {
+		t.Fatalf("planning project lead_agent = %q, want ceo", projectB.LeadAgent)
 	}
 
 	createTaskForProjectTest(t, b, "Portal board", projectA.ID)
@@ -184,8 +184,8 @@ func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
 		"created_by": "human",
 		"lead_agent": "PM",
 	})
-	if project.LeadAgent != "architect" {
-		t.Fatalf("created lead_agent = %q, want architect", project.LeadAgent)
+	if project.LeadAgent != "ceo" {
+		t.Fatalf("created lead_agent = %q, want ceo", project.LeadAgent)
 	}
 
 	updateRec := httptest.NewRecorder()
@@ -204,8 +204,8 @@ func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
 	if err := json.NewDecoder(updateRec.Body).Decode(&updated); err != nil {
 		t.Fatalf("decode updated project: %v", err)
 	}
-	if updated.Project.LeadAgent != "builder" {
-		t.Fatalf("updated lead_agent = %q, want builder", updated.Project.LeadAgent)
+	if updated.Project.LeadAgent != "be" {
+		t.Fatalf("updated lead_agent = %q, want be", updated.Project.LeadAgent)
 	}
 
 	loaded := NewBrokerAt(statePath)
@@ -220,8 +220,8 @@ func TestProjectLeadAgentCanBeCreatedUpdatedAndPersisted(t *testing.T) {
 	}
 	persistedLeadAgent := loadedProject.LeadAgent
 	loaded.mu.Unlock()
-	if persistedLeadAgent != "builder" {
-		t.Fatalf("persisted lead_agent = %q, want builder", persistedLeadAgent)
+	if persistedLeadAgent != "be" {
+		t.Fatalf("persisted lead_agent = %q, want be", persistedLeadAgent)
 	}
 }
 
@@ -638,7 +638,7 @@ func TestProjectCreationMaterializesWikiArticle(t *testing.T) {
 	for _, want := range []string{
 		"# Customer Portal",
 		"Project ID: `customer-portal`",
-		"Lead agent: `@builder`",
+		"Lead agent: `@be`",
 		"https://github.com/laf-labs/customer-portal",
 		"## Agent work",
 		"Before work: read this page or the project memory excerpt in the task packet.",
@@ -773,7 +773,7 @@ func TestProjectGitHubUpdateSyncsMaterializedWikiArticle(t *testing.T) {
 		t.Fatalf("read project wiki after lead sync: %v", err)
 	}
 	content = string(raw)
-	if !strings.Contains(content, "- Lead agent: `@builder`") {
+	if !strings.Contains(content, "- Lead agent: `@be`") {
 		t.Fatalf("project wiki did not sync lead agent:\n%s", content)
 	}
 }
@@ -843,7 +843,7 @@ func TestProjectTaskLifecycleAppendsToProjectWiki(t *testing.T) {
 		"Task `" + created.Task.ID + "` created: Implement the signup flow",
 		"Task `" + created.Task.ID + "` updated: Implement the signup flow",
 		"status `review`",
-		"owner `@eng`",
+		"owner `@be`",
 		"mode `office`",
 	} {
 		if !strings.Contains(content, want) {

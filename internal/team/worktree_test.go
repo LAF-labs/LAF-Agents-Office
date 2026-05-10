@@ -391,6 +391,9 @@ func TestDefaultPrepareProjectTaskWorktreeUsesProjectRepoCheckout(t *testing.T) 
 	sourceRepo := t.TempDir()
 	runtimeHome := t.TempDir()
 	t.Setenv("LAF_OFFICE_RUNTIME_HOME", runtimeHome)
+	oldValidateRepoURL := validateProjectRepoURL
+	validateProjectRepoURL = func(string) error { return nil }
+	defer func() { validateProjectRepoURL = oldValidateRepoURL }()
 
 	run := func(dir string, args ...string) {
 		t.Helper()
@@ -425,7 +428,7 @@ func TestDefaultPrepareProjectTaskWorktreeUsesProjectRepoCheckout(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read project repo file from worktree: %v", err)
 	}
-	if string(raw) != "# Agent Lab\n" {
+	if strings.ReplaceAll(string(raw), "\r\n", "\n") != "# Agent Lab\n" {
 		t.Fatalf("unexpected project repo file content: %q", raw)
 	}
 	if strings.Contains(path, "LAF-Agents-Office") {
@@ -456,5 +459,29 @@ func TestWorktreePathLooksSafeAllowsManagedAndLegacyRoots(t *testing.T) {
 	unsafe := filepath.Join(t.TempDir(), "somewhere-else", "task-1")
 	if worktreePathLooksSafe(unsafe) {
 		t.Fatalf("expected non-worktree path to be unsafe: %q", unsafe)
+	}
+}
+
+func TestValidateProjectRepoURLAllowsOnlyGitHubRemoteURLs(t *testing.T) {
+	for _, repoURL := range []string{
+		"https://github.com/LAF-labs/agent-lab",
+		"https://github.com/LAF-labs/agent-lab.git",
+		"git@github.com:LAF-labs/agent-lab.git",
+	} {
+		if err := validateProjectRepoURL(repoURL); err != nil {
+			t.Fatalf("validateProjectRepoURL(%q) returned error: %v", repoURL, err)
+		}
+	}
+	for _, repoURL := range []string{
+		"file:///tmp/repo",
+		"/tmp/repo",
+		"../repo",
+		"http://github.com/LAF-labs/agent-lab.git",
+		"https://evil.example/LAF-labs/agent-lab.git",
+		"ssh://github.com/LAF-labs/agent-lab.git",
+	} {
+		if err := validateProjectRepoURL(repoURL); err == nil {
+			t.Fatalf("validateProjectRepoURL(%q) succeeded, want error", repoURL)
+		}
 	}
 }

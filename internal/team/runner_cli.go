@@ -44,6 +44,7 @@ type runnerExecutionResult struct {
 }
 
 var runnerCLIExecuteJob = defaultRunnerCLIExecuteJob
+var runnerCLILeaseDuration = defaultRunnerLeaseDuration
 
 // RunRunnerCommand implements the local CLI runner surface used by the hosted
 // control-plane protocol. The first implementation deliberately keeps execution
@@ -231,7 +232,7 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, stdout io.Writ
 	var lease struct {
 		Job *runnerJob `json:"job"`
 	}
-	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/jobs/lease", cfg.RunnerToken, map[string]any{"lease_seconds": int(defaultRunnerLeaseDuration.Seconds())}, &lease); err != nil {
+	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/jobs/lease", cfg.RunnerToken, map[string]any{"lease_seconds": int(runnerCLILeaseDuration.Seconds())}, &lease); err != nil {
 		return false, err
 	}
 	if lease.Job == nil {
@@ -247,7 +248,9 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, stdout io.Writ
 	}, nil); err != nil {
 		return true, err
 	}
+	stopRenewal := startRunnerLeaseRenewal(ctx, cfg.APIURL, cfg.RunnerToken, lease.Job.ID, runnerCLILeaseDuration, stdout)
 	result, err := runnerCLIExecuteJob(ctx, *lease.Job, stdout)
+	stopRenewal()
 	if err != nil {
 		result.Status = runnerJobStatusFailed
 		result.Message = err.Error()
@@ -275,6 +278,47 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, stdout io.Writ
 	return true, nil
 }
 
+func startRunnerLeaseRenewal(ctx context.Context, apiURL, token, jobID string, leaseDuration time.Duration, stdout io.Writer) func() {
+	if strings.TrimSpace(jobID) == "" || leaseDuration <= 0 {
+		return func() {}
+	}
+	interval := leaseDuration / 3
+	if interval > time.Minute {
+		interval = time.Minute
+	}
+	if interval < time.Second {
+		interval = time.Second
+	}
+	renewCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		timer := time.NewTimer(interval)
+		defer timer.Stop()
+		for {
+			select {
+			case <-renewCtx.Done():
+				return
+			case <-timer.C:
+				err := runnerPostJSON(renewCtx, apiURL, "/runner/jobs/"+jobID+"/renew", token, map[string]any{
+					"lease_seconds": int(leaseDuration.Seconds()),
+				}, nil)
+				if err != nil && stdout != nil {
+					fmt.Fprintf(stdout, "Runner lease renew failed for job %s: %v\n", jobID, err)
+				}
+				timer.Reset(interval)
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
 func defaultRunnerCLIExecuteJob(ctx context.Context, job runnerJob, stdout io.Writer) (runnerExecutionResult, error) {
 	workspace, branch, err := prepareRunnerJobWorkspace(job)
 	if err != nil {
@@ -290,7 +334,7 @@ func defaultRunnerCLIExecuteJob(ctx context.Context, job runnerJob, stdout io.Wr
 		err  error
 	}, 1)
 	go func() {
-		text, runErr := provider.RunConfiguredOneShot(systemPrompt, userPrompt, workspace)
+		text, runErr := provider.RunOneShot(runnerJobRequiredProvider(job), systemPrompt, userPrompt, workspace)
 		outputCh <- struct {
 			text string
 			err  error
@@ -315,6 +359,10 @@ func defaultRunnerCLIExecuteJob(ctx context.Context, job runnerJob, stdout io.Wr
 	}
 }
 
+func runnerJobRequiredProvider(job runnerJob) string {
+	return runnerOptionalProviderKind(firstNonEmptyString(job.ProviderKind, job.RequiredProvider))
+}
+
 func prepareRunnerJobWorkspace(job runnerJob) (string, string, error) {
 	if isLocalWorktreeExecutionMode(job.ExecutionMode) {
 		taskID := strings.TrimSpace(job.TaskID)
@@ -337,13 +385,14 @@ func runnerJobPrompt(job runnerJob) string {
 	packet, _ := json.MarshalIndent(job.AgentMemoryPacket, "", "  ")
 	var sb strings.Builder
 	sb.WriteString("Execute this LAF-Office runner job.\n\n")
-	fmt.Fprintf(&sb, "job_id: %s\nteam_id: %s\nproject_id: %s\ntask_id: %s\nagent_slug: %s\nexecution_mode: %s\nrepo_url: %s\nwiki_path: %s\n\n",
+	fmt.Fprintf(&sb, "job_id: %s\nteam_id: %s\nproject_id: %s\ntask_id: %s\nagent_slug: %s\nexecution_mode: %s\nprovider_kind: %s\nrepo_url: %s\nwiki_path: %s\n\n",
 		job.ID,
 		job.TeamID,
 		job.ProjectID,
 		job.TaskID,
 		job.AgentSlug,
 		job.ExecutionMode,
+		runnerJobRequiredProvider(job),
 		job.RepoURL,
 		job.WikiPath,
 	)
