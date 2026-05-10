@@ -1,0 +1,43 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="LAF Runner"
+    Manufacturer="LAF Labs"
+    Version="$(var.ProductVersion)"
+    UpgradeCode="{9C096C8E-1C02-4DF4-B659-E0EF7110312A}"
+    Scope="perUser">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of LAF Runner is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="Main" Title="LAF Runner" Level="1">
+      <ComponentGroupRef Id="RunnerComponents" />
+    </Feature>
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LAFOfficeFolder" Name="LAF-Office">
+        <Directory Id="INSTALLFOLDER" Name="Runner" />
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="RunnerComponents" Directory="INSTALLFOLDER">
+      <Component Id="RunnerExecutable" Guid="{DDA5397B-E66B-4E59-A747-3E51A7335BF5}">
+        <File Id="RunnerExe" Source="$(var.RunnerExe)" />
+        <RegistryKey Root="HKCU" Key="Software\LAF-Office\Runner">
+          <RegistryValue Name="InstallPath" Type="string" Value="[INSTALLFOLDER]laf-runner.exe" KeyPath="yes" />
+        </RegistryKey>
+        <RemoveFolder Id="RemoveRunnerFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveLAFOfficeFolder" Directory="LAFOfficeFolder" On="uninstall" />
+      </Component>
+
+      <Component Id="RunnerURLProtocol" Guid="{2C71977A-2E24-4C99-98A8-C1F274203D99}">
+        <RegistryKey Root="HKCU" Key="Software\Classes\laf-runner">
+          <RegistryValue Type="string" Value="URL:LAF Runner" KeyPath="yes" />
+          <RegistryValue Name="URL Protocol" Type="string" Value="" />
+          <RegistryKey Key="shell\open\command">
+            <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]laf-runner.exe&quot; pair-url &quot;%1&quot;" />
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+  </Package>
+</Wix>

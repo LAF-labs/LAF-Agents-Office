@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -64,6 +65,10 @@ func RunRunnerCommand(ctx context.Context, args []string, stdout, stderr io.Writ
 	switch args[0] {
 	case "login":
 		return runRunnerLogin(args[1:], stdout, stderr)
+	case "pair":
+		return runRunnerPair(ctx, args[1:], stdout, stderr)
+	case "pair-url":
+		return runRunnerPairURL(ctx, args[1:], stdout, stderr)
 	case "connect":
 		return runRunnerConnect(ctx, args[1:], stdout, stderr)
 	case "status":
@@ -77,19 +82,24 @@ func RunRunnerCommand(ctx context.Context, args []string, stdout, stderr io.Writ
 }
 
 func printRunnerHelp(w io.Writer) {
-	fmt.Fprintln(w, "laf-office runner — connect a local execution runner")
+	fmt.Fprintln(w, "laf-runner - connect this machine as a local execution runner")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  laf-office runner login --api-url <url> --team-id <team> --api-token <token>")
-	fmt.Fprintln(w, "  laf-office runner connect")
-	fmt.Fprintln(w, "  laf-office runner status")
-	fmt.Fprintln(w, "  laf-office runner disconnect")
+	fmt.Fprintln(w, "  laf-runner pair --api-url <url> --code <setup-code> --connect")
+	fmt.Fprintln(w, "  laf-runner pair-url <laf-runner://pair?...>")
+	fmt.Fprintln(w, "  laf-runner login --api-url <url> --team-id <team> --api-token <token>")
+	fmt.Fprintln(w, "  laf-runner connect")
+	fmt.Fprintln(w, "  laf-runner status")
+	fmt.Fprintln(w, "  laf-runner disconnect")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Compatibility:")
+	fmt.Fprintln(w, "  laf-office runner <command> still works for existing installs.")
 }
 
 func runRunnerLogin(args []string, stdout, stderr io.Writer) error {
 	cfg, _ := loadRunnerCLIConfig()
 	cfg.applyEnv()
-	fs := flag.NewFlagSet("laf-office runner login", flag.ContinueOnError)
+	fs := flag.NewFlagSet("laf-runner login", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	apiURL := fs.String("api-url", cfg.APIURL, "Hosted API URL")
 	teamID := fs.String("team-id", cfg.TeamID, "Team ID to register this runner under")
@@ -115,10 +125,161 @@ func runRunnerLogin(args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
+func runRunnerPair(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	cfg, _ := loadRunnerCLIConfig()
+	cfg.applyEnv()
+	fs := flag.NewFlagSet("laf-runner pair", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	apiURL := fs.String("api-url", cfg.APIURL, "Hosted API URL")
+	code := fs.String("code", "", "Setup code shown in the web app")
+	name := fs.String("name", cfg.Name, "Runner display name")
+	connect := fs.Bool("connect", false, "Connect immediately after pairing")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	cfg.APIURL = strings.TrimRight(strings.TrimSpace(*apiURL), "/")
+	cfg.Name = strings.TrimSpace(*name)
+	pairingCode := strings.TrimSpace(*code)
+	if cfg.APIURL == "" {
+		return errors.New("runner pair requires --api-url")
+	}
+	if pairingCode == "" {
+		return errors.New("runner pair requires --code")
+	}
+	if cfg.Name == "" {
+		cfg.Name = defaultRunnerCLIName()
+	}
+	var response struct {
+		Runner      hostedRunner `json:"runner"`
+		RunnerToken string       `json:"runner_token"`
+	}
+	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/pairing/claim", "", map[string]any{
+		"code":         pairingCode,
+		"name":         cfg.Name,
+		"runner_type":  runnerTypeLocal,
+		"capabilities": detectLocalRunnerCapabilities(""),
+	}, &response); err != nil {
+		return err
+	}
+	cfg.RunnerID = response.Runner.ID
+	cfg.TeamID = response.Runner.TeamID
+	cfg.RunnerToken = response.RunnerToken
+	cfg.APIToken = ""
+	if err := saveRunnerCLIConfig(cfg); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Runner paired as %s for team %s\n", valueOrUnset(cfg.RunnerID), valueOrUnset(cfg.TeamID))
+	if *connect {
+		return runRunnerConnect(ctx, nil, stdout, stderr)
+	}
+	fmt.Fprintln(stdout, "Run `laf-runner connect` to start accepting work.")
+	return nil
+}
+
+func runRunnerPairURL(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("laf-runner pair-url", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("runner pair-url requires one laf-runner:// URL")
+	}
+	values, err := parseRunnerPairURL(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	pairArgs := []string{"--api-url", values.APIURL, "--code", values.Code}
+	if values.Name != "" {
+		pairArgs = append(pairArgs, "--name", values.Name)
+	}
+	if err := runRunnerPair(ctx, pairArgs, stdout, stderr); err != nil {
+		return err
+	}
+	if !values.Connect {
+		return nil
+	}
+	if err := startRunnerConnectBackground(stdout); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, "Runner started in the background.")
+	return nil
+}
+
+type runnerPairURLValues struct {
+	APIURL  string
+	Code    string
+	Name    string
+	Connect bool
+}
+
+func parseRunnerPairURL(raw string) (runnerPairURLValues, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return runnerPairURLValues{}, errors.New("pair URL is required")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return runnerPairURLValues{}, fmt.Errorf("invalid pair URL: %w", err)
+	}
+	if !strings.EqualFold(u.Scheme, "laf-runner") {
+		return runnerPairURLValues{}, errors.New("pair URL must use the laf-runner:// scheme")
+	}
+	action := strings.Trim(strings.ToLower(u.Host), "/")
+	path := strings.Trim(u.EscapedPath(), "/")
+	if action == "" && path != "" {
+		parts := strings.Split(path, "/")
+		action = strings.ToLower(parts[0])
+	}
+	if action != "pair" {
+		return runnerPairURLValues{}, errors.New("pair URL must use laf-runner://pair")
+	}
+	q := u.Query()
+	code := strings.TrimSpace(q.Get("code"))
+	if code == "" && path != "" {
+		parts := strings.Split(path, "/")
+		if action == "pair" {
+			code, _ = url.PathUnescape(parts[0])
+			code = strings.TrimSpace(code)
+		} else if len(parts) > 1 {
+			code, _ = url.PathUnescape(parts[1])
+			code = strings.TrimSpace(code)
+		}
+	}
+	apiURL := strings.TrimRight(strings.TrimSpace(firstNonEmptyString(q.Get("api_url"), q.Get("api-url"))), "/")
+	if apiURL == "" {
+		return runnerPairURLValues{}, errors.New("pair URL requires api_url")
+	}
+	if code == "" {
+		return runnerPairURLValues{}, errors.New("pair URL requires code")
+	}
+	return runnerPairURLValues{
+		APIURL:  apiURL,
+		Code:    code,
+		Name:    strings.TrimSpace(q.Get("name")),
+		Connect: runnerPairURLBool(q.Get("connect"), true),
+	}, nil
+}
+
+func runnerPairURLBool(raw string, defaultValue bool) bool {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" {
+		return defaultValue
+	}
+	switch raw {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return defaultValue
+	}
+}
+
 func runRunnerStatus(args []string, stdout, stderr io.Writer) error {
 	cfg, _ := loadRunnerCLIConfig()
 	cfg.applyEnv()
-	fs := flag.NewFlagSet("laf-office runner status", flag.ContinueOnError)
+	fs := flag.NewFlagSet("laf-runner status", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	asJSON := fs.Bool("json", false, "Print JSON")
 	if err := fs.Parse(args); err != nil {
@@ -151,7 +312,7 @@ func runRunnerStatus(args []string, stdout, stderr io.Writer) error {
 
 func runRunnerDisconnect(args []string, stdout, stderr io.Writer) error {
 	cfg, _ := loadRunnerCLIConfig()
-	fs := flag.NewFlagSet("laf-office runner disconnect", flag.ContinueOnError)
+	fs := flag.NewFlagSet("laf-runner disconnect", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -169,7 +330,7 @@ func runRunnerConnect(ctx context.Context, args []string, stdout, stderr io.Writ
 	cfg, _ := loadRunnerCLIConfig()
 	persistedCfg := cfg
 	cfg.applyEnv()
-	fs := flag.NewFlagSet("laf-office runner connect", flag.ContinueOnError)
+	fs := flag.NewFlagSet("laf-runner connect", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	apiURL := fs.String("api-url", cfg.APIURL, "Hosted API URL")
 	teamID := fs.String("team-id", cfg.TeamID, "Team ID")
@@ -181,7 +342,7 @@ func runRunnerConnect(ctx context.Context, args []string, stdout, stderr io.Writ
 	cfg.APIURL = strings.TrimRight(strings.TrimSpace(*apiURL), "/")
 	cfg.TeamID = strings.TrimSpace(*teamID)
 	if cfg.APIURL == "" {
-		return errors.New("runner connect requires an API URL; run `laf-office runner login` first")
+		return errors.New("runner connect requires an API URL; run `laf-runner pair` first")
 	}
 	if cfg.Name == "" {
 		cfg.Name = defaultRunnerCLIName()

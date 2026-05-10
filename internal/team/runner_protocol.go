@@ -121,6 +121,18 @@ type runnerJobEvent struct {
 	CreatedAt string         `json:"created_at"`
 }
 
+type runnerPairingCode struct {
+	ID              string `json:"id"`
+	TeamID          string `json:"team_id"`
+	CodeHash        string `json:"code_hash,omitempty"`
+	Status          string `json:"status"`
+	CreatedBy       string `json:"created_by,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	ExpiresAt       string `json:"expires_at"`
+	ClaimedRunnerID string `json:"claimed_runner_id,omitempty"`
+	ClaimedAt       string `json:"claimed_at,omitempty"`
+}
+
 type hostedWikiWriteRequest struct {
 	ID          string `json:"id"`
 	TeamID      string `json:"team_id"`
@@ -283,6 +295,8 @@ func runnerOptionalProviderKind(raw string) string {
 		return "opencode"
 	case "openclaw":
 		return "openclaw"
+	case "laf-cloud", "lafcloud":
+		return "laf-cloud"
 	default:
 		return strings.ToLower(strings.TrimSpace(raw))
 	}

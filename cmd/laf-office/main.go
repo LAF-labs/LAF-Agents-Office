@@ -95,6 +95,8 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "  laf-office runner connect")
 		fmt.Fprintln(os.Stderr, "  laf-office runner status")
 		fmt.Fprintln(os.Stderr, "  laf-office runner disconnect")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Hosted installs should prefer the standalone `laf-runner` binary.")
 	default:
 		fmt.Fprintf(os.Stderr, "laf-office: unknown subcommand %q — run `laf-office --help` for the list.\n", sub)
 	}

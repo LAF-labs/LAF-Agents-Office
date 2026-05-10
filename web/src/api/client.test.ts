@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createProject,
+  createRunnerPairing,
   createTask,
   getProjectRepoReadiness,
   getRunnerStatus,
@@ -11,11 +12,11 @@ import {
   updateTask,
 } from "./client";
 
-describe("project api client", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
+describe("project api client", () => {
   it("sends an optional GitHub repo URL when creating a project", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -155,7 +156,9 @@ describe("project api client", () => {
     );
     expect(result.task.project_id).toBe("customer-portal");
   });
+});
 
+describe("runner api client", () => {
   it("fetches runner status scoped to a project", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -177,6 +180,41 @@ describe("project api client", () => {
     expect(result.runners[0]?.status).toBe("connected");
   });
 
+  it("creates a runner pairing code with the browser API URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          api_url: "https://office.test/api",
+          commands: {
+            connect:
+              "laf-runner pair --api-url https://office.test/api --code ABCD-1234-EF56 --connect",
+          },
+          pairing: {
+            code: "ABCD-1234-EF56",
+            expires_at: "2026-05-10T12:10:00.000Z",
+            team_id: "team-1",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createRunnerPairing("https://office.test/api");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/runner/pairing/start",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ api_url: "https://office.test/api" }),
+      }),
+    );
+    expect(result.pairing.code).toBe("ABCD-1234-EF56");
+    expect(result.commands.connect).toContain("--connect");
+  });
+});
+
+describe("task and session api client", () => {
   it("updates a project task without changing its workflow state", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

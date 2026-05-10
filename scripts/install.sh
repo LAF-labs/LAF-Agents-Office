@@ -2,7 +2,16 @@
 set -e
 
 REPO="LAF-labs/LAF-Agents-Office"
-BINARY="laf-office"
+ARCHIVE_PREFIX="laf-office"
+BINARY="${LAF_OFFICE_INSTALL_BINARY:-laf-office}"
+case "$BINARY" in
+  laf-office|laf-runner) ;;
+  *)
+    printf "Error: unsupported install binary: %s\n" "$BINARY" >&2
+    printf "Supported values: laf-office, laf-runner\n" >&2
+    exit 1
+    ;;
+esac
 
 # Detect OS
 OS="$(uname -s)"
@@ -50,7 +59,7 @@ else
 
   # goreleaser strips the leading 'v' from the tag in archive names
   VERSION_CLEAN="${VERSION#v}"
-  ARCHIVE="${BINARY}_${VERSION_CLEAN}_${OS}_${ARCH}.tar.gz"
+  ARCHIVE="${ARCHIVE_PREFIX}_${VERSION_CLEAN}_${OS}_${ARCH}.tar.gz"
   URL="${REPO_BASE_URL}/releases/download/${VERSION}/${ARCHIVE}"
 fi
 

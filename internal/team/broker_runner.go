@@ -48,6 +48,129 @@ func (b *Broker) handleRunnerStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (b *Broker) handleRunnerPairingStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		APIURL string `json:"api_url"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	now := time.Now().UTC()
+	expiresAt := now.Add(10 * time.Minute)
+	teamID := ""
+	createdBy := ""
+
+	b.mu.Lock()
+	if user, team, _, ok := b.currentAuthUserLocked(r); ok && user != nil {
+		teamID = strings.TrimSpace(user.TeamID)
+		createdBy = strings.TrimSpace(user.ID)
+		if teamID == "" && team != nil {
+			teamID = team.ID
+		}
+	}
+	if teamID == "" {
+		if team := b.firstWorkspaceTeamLocked(); team != nil {
+			teamID = team.ID
+		}
+	}
+	if teamID == "" {
+		b.mu.Unlock()
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "team_id is required"})
+		return
+	}
+	code := generateRunnerPairingCode()
+	pairing := runnerPairingCode{
+		ID:        "runner-pairing-" + generateToken(),
+		TeamID:    teamID,
+		CodeHash:  hashRunnerToken(normalizeRunnerPairingCode(code)),
+		Status:    "pending",
+		CreatedBy: createdBy,
+		CreatedAt: now.Format(time.RFC3339),
+		ExpiresAt: expiresAt.Format(time.RFC3339),
+	}
+	b.pruneRunnerPairingCodesLocked(now)
+	b.runnerPairingCodes = append(b.runnerPairingCodes, pairing)
+	b.mu.Unlock()
+
+	apiURL := normalizeRunnerPairingAPIURL(body.APIURL)
+	if apiURL == "" {
+		apiURL = runnerPairingRequestAPIURL(r)
+	}
+	writeJSON(w, http.StatusOK, runnerPairingStartResponse(apiURL, code, teamID, pairing.ExpiresAt))
+}
+
+func (b *Broker) handleRunnerPairingClaim(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Code         string             `json:"code"`
+		PairingCode  string             `json:"pairing_code"`
+		Name         string             `json:"name"`
+		RunnerType   string             `json:"runner_type"`
+		Capabilities runnerCapabilities `json:"capabilities"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		return
+	}
+	code := normalizeRunnerPairingCode(firstNonEmptyString(body.Code, body.PairingCode))
+	if code == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "pairing code is required"})
+		return
+	}
+	now := time.Now().UTC()
+	nowText := now.Format(time.RFC3339)
+	token := "lafr_" + generateToken() + generateToken()
+	runner := hostedRunner{
+		ID:           "runner-" + generateToken(),
+		Name:         strings.TrimSpace(body.Name),
+		RunnerType:   normalizeRunnerType(body.RunnerType),
+		Status:       runnerStatusConnected,
+		TokenHash:    hashRunnerToken(token),
+		Capabilities: normalizeRunnerCapabilities(body.Capabilities),
+		CreatedAt:    nowText,
+		UpdatedAt:    nowText,
+		LastSeenAt:   nowText,
+	}
+	if runner.Name == "" {
+		runner.Name = "Local runner"
+	}
+
+	b.mu.Lock()
+	b.pruneRunnerPairingCodesLocked(now)
+	idx := -1
+	codeHash := hashRunnerToken(code)
+	for i := range b.runnerPairingCodes {
+		pairing := b.runnerPairingCodes[i]
+		if pairing.Status == "pending" && pairing.CodeHash == codeHash {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		b.mu.Unlock()
+		writeJSON(w, http.StatusGone, map[string]string{"error": "pairing code expired or already used"})
+		return
+	}
+	runner.TeamID = b.runnerPairingCodes[idx].TeamID
+	b.runnerPairingCodes = append(b.runnerPairingCodes[:idx], b.runnerPairingCodes[idx+1:]...)
+	b.runners = append(b.runners, runner)
+	err := b.saveLocked()
+	b.mu.Unlock()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist runner"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"runner":       publicHostedRunner(runner),
+		"runner_token": token,
+	})
+}
+
 func (b *Broker) handleRunnerRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -116,6 +239,76 @@ func (b *Broker) handleRunnerRegister(w http.ResponseWriter, r *http.Request) {
 		"runner":       publicHostedRunner(runner),
 		"runner_token": token,
 	})
+}
+
+func (b *Broker) pruneRunnerPairingCodesLocked(now time.Time) {
+	kept := b.runnerPairingCodes[:0]
+	for _, pairing := range b.runnerPairingCodes {
+		expiresAt, err := time.Parse(time.RFC3339, strings.TrimSpace(pairing.ExpiresAt))
+		if err == nil && now.UTC().After(expiresAt.UTC()) {
+			continue
+		}
+		if pairing.Status != "pending" {
+			continue
+		}
+		kept = append(kept, pairing)
+	}
+	b.runnerPairingCodes = kept
+}
+
+func generateRunnerPairingCode() string {
+	raw := strings.ToUpper(generateToken())
+	if len(raw) < 12 {
+		return raw
+	}
+	return raw[:4] + "-" + raw[4:8] + "-" + raw[8:12]
+}
+
+func normalizeRunnerPairingCode(raw string) string {
+	raw = strings.ToUpper(strings.TrimSpace(raw))
+	var b strings.Builder
+	for _, r := range raw {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func normalizeRunnerPairingAPIURL(raw string) string {
+	return strings.TrimRight(strings.TrimSpace(raw), "/")
+}
+
+func runnerPairingRequestAPIURL(r *http.Request) string {
+	proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if proto == "" {
+		proto = "http"
+	}
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		return ""
+	}
+	return proto + "://" + host + "/api"
+}
+
+func runnerPairingStartResponse(apiURL, code, teamID, expiresAt string) map[string]any {
+	apiURL = strings.TrimRight(strings.TrimSpace(apiURL), "/")
+	return map[string]any{
+		"api_url": apiURL,
+		"pairing": map[string]string{
+			"code":       code,
+			"team_id":    teamID,
+			"expires_at": expiresAt,
+		},
+		"commands": runnerPairingCommands(apiURL, code),
+	}
+}
+
+func runnerPairingCommands(apiURL, code string) map[string]string {
+	apiURL = strings.TrimRight(strings.TrimSpace(apiURL), "/")
+	return map[string]string{
+		"connect": "laf-runner pair --api-url " + apiURL + " --code " + code + " --connect",
+	}
 }
 
 func runnerLooksStale(lastSeenAt string, now time.Time) bool {

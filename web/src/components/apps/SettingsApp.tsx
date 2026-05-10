@@ -26,6 +26,7 @@ import {
   type ConfigUpdate,
   createInvite,
   createOfficeMember,
+  createRunnerPairing,
   type GeneratedAgentTemplate,
   generateAgent,
   getAuthSession,
@@ -33,6 +34,9 @@ import {
   getConfig,
   getInvites,
   getOfficeMembers,
+  getRunnerStatus,
+  type HostedRunner,
+  type RunnerPairingStartResponse,
   resetWorkspace,
   shredWorkspace,
   updateAuthUserRole,
@@ -43,7 +47,14 @@ import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 
-type SectionId = "general" | "agents" | "team" | "company" | "keys" | "danger";
+type SectionId =
+  | "general"
+  | "agents"
+  | "team"
+  | "company"
+  | "runner"
+  | "keys"
+  | "danger";
 
 interface Section {
   id: SectionId;
@@ -53,6 +64,7 @@ interface Section {
     | "settings.section.agents"
     | "settings.section.team"
     | "settings.section.company"
+    | "settings.section.runner"
     | "settings.section.keys"
     | "settings.section.danger";
 }
@@ -83,6 +95,12 @@ const SECTION_GROUPS: SectionGroup[] = [
   {
     labelKey: "settings.group.credentials",
     items: [{ id: "keys", Icon: Key, nameKey: "settings.section.keys" }],
+  },
+  {
+    labelKey: "settings.group.system",
+    items: [
+      { id: "runner", Icon: Refresh, nameKey: "settings.section.runner" },
+    ],
   },
   {
     labelKey: "settings.group.advanced",
@@ -1465,6 +1483,254 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 // ─── Danger Zone ────────────────────────────────────────────────────────
 
+const RUNNER_RELEASE_URL =
+  "https://github.com/LAF-labs/LAF-Agents-Office/releases/latest";
+
+function RunnerSection() {
+  const { t } = useI18n();
+  const [pairing, setPairing] = useState<RunnerPairingStartResponse | null>(
+    null,
+  );
+  const statusQuery = useQuery({
+    queryKey: ["runner-status", "settings"],
+    queryFn: () => getRunnerStatus(),
+    refetchInterval: 5_000,
+  });
+  const pairingMutation = useMutation({
+    mutationFn: () => createRunnerPairing(browserRunnerAPIURL()),
+    onSuccess: (result) => {
+      setPairing(result);
+      showNotice(t("settings.runner.codeReady"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error
+          ? err.message
+          : t("settings.runner.generateFailed"),
+        "error",
+      );
+    },
+  });
+
+  const runners = statusQuery.data?.runners ?? [];
+  const runner = preferredRunner(runners);
+  const capabilities = runner?.capabilities ?? {};
+  const providerReady = Boolean(capabilities.provider_runtimes?.length);
+  const command =
+    pairing?.commands.connect ||
+    `laf-runner pair --api-url ${browserRunnerAPIURL()} --code <setup-code> --connect`;
+  const deepLink = pairing ? runnerPairingDeepLink(pairing) : "";
+
+  const copyCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      showNotice(t("settings.runner.commandCopied"), "success");
+    } catch {
+      showNotice(t("settings.runner.copyFailed"), "error");
+    }
+  };
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>{t("settings.runner.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.runner.desc")}</p>
+
+      <Field
+        label={t("settings.runner.status")}
+        hint={runnerStatusHint(runner)}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={styles.statusDot(runnerStatusColor(runner))} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {runnerStatusLabel(t, runner)}
+          </span>
+        </div>
+      </Field>
+
+      <Field label={t("settings.runner.tools")} hint={runner?.name || ""}>
+        <div style={{ display: "grid", gap: 6 }}>
+          <RunnerCapability
+            ok={providerReady}
+            label={
+              providerReady
+                ? `${t("settings.runner.providerReady")} ${capabilities.provider_runtimes?.join(", ")}`
+                : t("settings.runner.providerMissing")
+            }
+          />
+          <RunnerCapability
+            ok={Boolean(capabilities.git_available)}
+            label={
+              capabilities.git_available
+                ? t("settings.runner.gitReady")
+                : t("settings.runner.gitMissing")
+            }
+          />
+          <RunnerCapability
+            ok={Boolean(capabilities.gh_authenticated)}
+            label={
+              capabilities.gh_authenticated
+                ? t("settings.runner.githubReady")
+                : t("settings.runner.githubMissing")
+            }
+          />
+        </div>
+      </Field>
+
+      <div style={styles.groupTitle}>{t("settings.runner.setupTitle")}</div>
+      <div style={styles.emptyState}>{t("settings.runner.setupDesc")}</div>
+      <div
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
+      >
+        <a
+          className="btn btn-secondary btn-sm"
+          href={RUNNER_RELEASE_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {t("settings.runner.download")}
+        </a>
+        <button
+          type="button"
+          style={styles.primaryButton}
+          onClick={() => pairingMutation.mutate()}
+          disabled={pairingMutation.isPending}
+        >
+          {pairingMutation.isPending
+            ? t("settings.runner.generating")
+            : t("settings.runner.generate")}
+        </button>
+      </div>
+
+      {pairing ? (
+        <>
+          <Field
+            label={t("settings.runner.connectLabel")}
+            hint={t("settings.runner.connectHint")}
+          >
+            <a
+              href={deepLink}
+              style={{
+                ...styles.primaryButton,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textDecoration: "none",
+              }}
+            >
+              {t("settings.runner.connectComputer")}
+            </a>
+          </Field>
+          <Field
+            label={t("settings.runner.codeLabel")}
+            hint={`${t("settings.runner.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "0",
+                padding: "6px 0",
+                userSelect: "all",
+              }}
+            >
+              {pairing.pairing.code}
+            </div>
+          </Field>
+          <Field
+            label={t("settings.runner.commandLabel")}
+            hint={t("settings.runner.commandHint")}
+          >
+            <div style={{ display: "grid", gap: 8 }}>
+              <code style={styles.filePath}>{command}</code>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={copyCommand}
+                style={{ justifySelf: "start" }}
+              >
+                <Copy width={13} height={13} />
+                {t("settings.runner.copyCommand")}
+              </button>
+            </div>
+          </Field>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function RunnerCapability({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 7,
+        color: ok ? "var(--text)" : "var(--text-tertiary)",
+        fontSize: 12,
+      }}
+    >
+      <span
+        style={styles.statusDot(ok ? "var(--green)" : "var(--text-tertiary)")}
+      />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function preferredRunner(runners: HostedRunner[]) {
+  return (
+    runners.find((runner) => runner.status === "connected") ||
+    runners.find((runner) => runner.status === "stale") ||
+    runners[0]
+  );
+}
+
+function runnerStatusLabel(
+  t: ReturnType<typeof useI18n>["t"],
+  runner?: HostedRunner,
+) {
+  if (!runner) return t("settings.runner.noRunner");
+  if (runner.status === "connected") return t("settings.runner.connected");
+  if (runner.status === "stale") return t("settings.runner.stale");
+  return t("settings.runner.disconnected");
+}
+
+function runnerStatusColor(runner?: HostedRunner) {
+  if (!runner) return "var(--text-tertiary)";
+  if (runner.status === "connected") return "var(--green)";
+  if (runner.status === "stale") return "var(--yellow)";
+  return "var(--text-tertiary)";
+}
+
+function runnerStatusHint(runner?: HostedRunner) {
+  if (!runner?.last_seen_at) return "";
+  return new Date(runner.last_seen_at).toLocaleString();
+}
+
+function browserRunnerAPIURL() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/api`;
+}
+
+function runnerPairingDeepLink(pairing: RunnerPairingStartResponse) {
+  const params = new URLSearchParams({
+    api_url: pairing.api_url,
+    code: pairing.pairing.code,
+    connect: "1",
+  });
+  return `laf-runner://pair?${params.toString()}`;
+}
+
+function formatPairingExpiry(value: string) {
+  if (!value) return "";
+  return new Date(value).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 // dangerStyles lives next to the section because it's the only caller and the
 // warning palette shouldn't bleed into the rest of the app's styling surface.
 const dangerStyles = {
@@ -1960,6 +2226,7 @@ export function SettingsApp() {
         {section === "agents" && <AgentMakerSection />}
         {section === "team" && <TeamSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
+        {section === "runner" && <RunnerSection />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}
         {section === "danger" && <DangerZoneSection />}
       </div>

@@ -61,6 +61,7 @@ testdata/vhs/*.actual
 web/coverage/
 
 # Dev build artifacts
+/dist/
 laf-office-dev
 
 

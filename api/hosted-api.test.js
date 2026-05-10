@@ -339,6 +339,67 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.ok(db.runner_job_events.some((event) => event.kind === "succeeded"));
 });
 
+test("hosted runner pairs with short setup code", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runner_pairing_codes: [],
+    runners: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const start = await invoke(["runner", "pairing", "start"], "POST", {
+    api_url: "https://office.test/api",
+  });
+  assert.equal(start.status, 200);
+  assert.match(start.body.pairing.code, /^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/);
+  assert.equal(start.body.api_url, "https://office.test/api");
+  assert.match(start.body.commands.connect, /laf-runner pair/);
+  assert.equal(db.runner_pairing_codes[0].status, "pending");
+  assert.equal(db.runner_pairing_codes[0].code_hash.length, 64);
+
+  const claim = await invoke(
+    ["runner", "pairing", "claim"],
+    "POST",
+    {
+      capabilities: {
+        execution_modes: ["local_worktree"],
+        git_available: true,
+        provider_runtimes: ["codex"],
+      },
+      code: start.body.pairing.code,
+      name: "Windows PC",
+    },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(claim.status, 200);
+  assert.equal(claim.body.runner.name, "Windows PC");
+  assert.equal(claim.body.runner.token_hash, undefined);
+  assert.match(claim.body.runner_token, /^laf_runner_/);
+  assert.equal(db.runners[0].team_id, "team-1");
+  assert.equal(db.runner_pairing_codes[0].status, "claimed");
+  assert.equal(db.runner_pairing_codes[0].claimed_runner_id, db.runners[0].id);
+
+  const duplicate = await invoke(
+    ["runner", "pairing", "claim"],
+    "POST",
+    { code: start.body.pairing.code },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(duplicate.status, 410);
+});
+
 async function invoke(path, method, body, options = {}) {
   const req = {
     body,

@@ -23,10 +23,10 @@ The hosted architecture has three clear responsibilities:
 flowchart LR
   Browser["Web UI on Vercel"] --> API["Vercel API"]
   API --> DB["Supabase Auth + Postgres"]
-  API --> Runner["Agent runner"]
+  Runner["Agent runner"] --> API
+  Runner --> DB
   Runner --> Wiki["Project wiki markdown"]
   Runner --> GitHub["Project GitHub repo"]
-  Runner --> DB
 ```
 
 ## Product Rules
@@ -58,8 +58,41 @@ flowchart LR
   notification center.
 - No team-wide repository setting.
 - No browser-executed coding agents.
+- No hosted-browser-to-localhost execution bridge. The hosted web app must not
+  depend on reaching a service on the user's loopback interface. Local runners
+  connect outbound to the control plane and lease work.
 - No long-running worktree state inside Vercel functions.
 - No production billing or tenant-isolation implementation in the local MVP.
+
+## Runner Distribution
+
+The local runner is a first-class installable product component. `laf-runner`
+is the preferred executable for hosted use; `laf-office runner <command>` stays
+as a compatibility path for existing local workspace installs.
+
+NPM is not part of the hosted execution architecture. It may remain as a
+developer bootstrap for `laf-office`, but production runner distribution should
+use signed native artifacts:
+
+- Windows: signed runner zip or MSI plus `winget` package. The current
+  no-terminal bootstrap is a per-user `laf-runner-installer.exe` that copies the
+  runner and registers the URL handler without admin rights.
+- macOS: Developer ID signed and notarized package or app wrapper. The package
+  installs the runner and registers a LaunchServices URL-handler app.
+- Linux: tarball plus package-manager wrappers such as deb/rpm.
+
+Every runner install path should converge on the same protocol: create a
+short-lived setup code in the web UI, claim it through `laf-runner://pair?...`
+for non-developers or `laf-runner pair --connect` as a fallback, report
+capabilities, heartbeat, lease jobs, renew leases, upload events, and complete
+jobs.
+
+Installers must register the `laf-runner://` URL scheme:
+
+- Windows: per-user `HKCU\Software\Classes\laf-runner` handler that runs
+  `laf-runner pair-url "%1"`.
+- macOS: a small URL-handler app registered with LaunchServices that calls
+  `laf-runner pair-url "$URL"`.
 
 ## Migration Order
 

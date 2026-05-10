@@ -15,6 +15,8 @@ The local broker now exposes the hosted runner contract so web-hosted APIs can
 adopt the same semantics without changing runner behavior later:
 
 - `POST /runner/register`
+- `POST /runner/pairing/start`
+- `POST /runner/pairing/claim`
 - `POST /runner/heartbeat`
 - `POST /runner/capabilities`
 - `POST /runner/jobs/lease`
@@ -23,10 +25,14 @@ adopt the same semantics without changing runner behavior later:
 - `POST /runner/jobs/{id}/complete`
 - `POST /runner/wiki/write-result`
 
-Runner tokens are returned once at registration and persisted only as hashes in
-broker state. Heartbeat, capability, lease, renewal, completion, and wiki write
-result endpoints authenticate with `Authorization: Bearer <runner-token>` or
-`X-LAF-Runner-Token`. Query-string runner tokens are rejected.
+Runner tokens are returned once at registration or pairing claim and persisted
+only as hashes in broker state. Browser users should create a short-lived setup
+code through `POST /runner/pairing/start`; the local runner claims it through
+`POST /runner/pairing/claim`, so non-developer onboarding does not require
+copying a Supabase access token. Heartbeat, capability, lease, renewal,
+completion, and wiki write result endpoints authenticate with
+`Authorization: Bearer <runner-token>` or `X-LAF-Runner-Token`. Query-string
+runner tokens are rejected.
 
 ## Durable Records
 
@@ -91,16 +97,49 @@ project, `must_read`, `loaded_context`, `decisions`, `risks`, `open_questions`,
 
 ## CLI Surface
 
-The CLI now has the public runner command surface:
+The preferred hosted CLI is the standalone `laf-runner` binary:
 
+- `laf-runner pair --connect`
+- `laf-runner pair-url <laf-runner://pair?...>`
+- `laf-runner login`
+- `laf-runner connect`
+- `laf-runner status`
+- `laf-runner disconnect`
+
+The workspace binary keeps the same public runner command surface for
+compatibility:
+
+- `laf-office runner pair`
 - `laf-office runner login`
 - `laf-office runner connect`
 - `laf-office runner status`
 - `laf-office runner disconnect`
 
-`runner status` reports local capabilities for `git`, `gh auth`, provider
-runtimes, OS/arch, and supported execution modes. `runner connect` registers if
-needed, uploads capabilities, heartbeats, and leases jobs through the protocol.
+`runner pair` exchanges the short setup code shown in the hosted UI for a
+runner token, saves it locally, and can immediately enter the connect loop with
+`--connect`. `runner pair-url` is the non-developer path used by the
+`laf-runner://pair?...` OS protocol handler; it pairs the runner, starts
+`laf-runner connect` in the background, and exits so the browser flow does not
+require Terminal or PowerShell. `runner status` reports local capabilities for
+`git`, `gh auth`, provider runtimes, OS/arch, and supported execution modes.
+`runner connect` registers if needed, uploads capabilities, heartbeats, and
+leases jobs through the protocol.
+
+## Execution And Provider Split
+
+The runner protocol must keep execution location separate from model/provider
+selection.
+
+- `execution_mode` says where and how work is performed, such as `office` or
+  `local_worktree`.
+- `provider_kind` says which model runtime should reason about the job, such as
+  `codex`, `claude-code`, `opencode`, or a future `laf-cloud`.
+- `runner_type` says who owns the machine, currently `local` or `managed`.
+
+This split supports the important future cases without changing the job
+protocol: a user's local machine can execute filesystem work while using a
+hosted LAF model, and a managed runner can execute cloud work while using the
+same agent-memory packet shape.
 
 ## Task Execution Boundary
 
@@ -129,7 +168,8 @@ worktree, or canonical wiki filesystem work.
 
 Remaining production hardening:
 
-- replace manual runner registration tokens with a proper device/OAuth flow
+- sign and notarize the Windows/macOS installers around the same setup-code
+  pairing flow
 - add project-scoped runner preferences
 - add managed runner infrastructure behind the same protocol
 - add a live Supabase/Vercel smoke test once deployment credentials exist

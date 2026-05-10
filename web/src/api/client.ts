@@ -758,6 +758,18 @@ export interface RunnerStatusResponse {
   jobs: RunnerJob[];
 }
 
+export interface RunnerPairingStartResponse {
+  api_url: string;
+  pairing: {
+    code: string;
+    team_id: string;
+    expires_at: string;
+  };
+  commands: {
+    connect: string;
+  };
+}
+
 export interface TaskMutationResponse {
   task: Task;
   runner_job?: RunnerJob | null;
@@ -786,6 +798,12 @@ export function getRunnerStatus(opts?: {
   if (opts?.projectId) params.project_id = opts.projectId;
   if (opts?.taskId) params.task_id = opts.taskId;
   return get<RunnerStatusResponse>("/runner/status", params);
+}
+
+export function createRunnerPairing(apiUrl?: string) {
+  return post<RunnerPairingStartResponse>("/runner/pairing/start", {
+    api_url: apiUrl,
+  });
 }
 
 export function createProject(body: {

@@ -183,7 +183,10 @@ jobs:
         with:
           name: web-dist
           path: web/dist
-      - run: go build -o laf-office ./cmd/laf-office
+      - run: |
+          go build -o laf-office ./cmd/laf-office
+          go build -o laf-runner ./cmd/laf-runner
+          GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o laf-runner-installer.exe ./cmd/laf-runner-installer
       - name: Smoke test binary
         run: |
           ./laf-office --version
@@ -264,7 +267,7 @@ jobs:
       - name: Run shellcheck
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck scripts/*.sh testdata/vhs/*.sh
+          shellcheck scripts/*.sh packaging/macos/*.sh testdata/vhs/*.sh
 
   web-e2e:
     # Playwright smoke against the real web UI. Guards the class of regression
@@ -452,6 +455,9 @@ jobs:
           LAF_OFFICE_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
           command -v laf-office
           laf-office --version
+          LAF_OFFICE_INSTALL_BINARY=laf-runner LAF_OFFICE_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
+          command -v laf-runner
+          laf-runner --version
       - name: Smoke-test install.sh against real resolver (mock GitHub)
         # Guards the v0.8.1 regression: the 404 shipped to users lived in the
         # redirect-parsing + archive-URL construction (install.sh:39-48). The

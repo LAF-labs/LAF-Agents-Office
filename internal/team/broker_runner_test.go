@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -58,6 +59,168 @@ func TestRunnerRegisterAndHeartbeat(t *testing.T) {
 	defer b.mu.Unlock()
 	if b.runners[0].Status != runnerStatusConnected || b.runners[0].LastSeenAt == "" {
 		t.Fatalf("heartbeat did not update runner: %+v", b.runners[0])
+	}
+}
+
+func TestRunnerPairingStartAndClaim(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	b.mu.Lock()
+	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
+	b.mu.Unlock()
+
+	start := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerPairingStart)(start, runnerJSONRequest(t, http.MethodPost, "/runner/pairing/start", b.Token(), map[string]string{
+		"api_url": "https://office.test/api",
+	}))
+	if start.Code != http.StatusOK {
+		t.Fatalf("pairing start status = %d: %s", start.Code, start.Body.String())
+	}
+	var startBody struct {
+		APIURL  string `json:"api_url"`
+		Pairing struct {
+			Code      string `json:"code"`
+			TeamID    string `json:"team_id"`
+			ExpiresAt string `json:"expires_at"`
+		} `json:"pairing"`
+		Commands map[string]string `json:"commands"`
+	}
+	if err := json.NewDecoder(start.Body).Decode(&startBody); err != nil {
+		t.Fatalf("decode pairing start: %v", err)
+	}
+	if startBody.Pairing.Code == "" || startBody.Pairing.TeamID != "team-a" || !strings.Contains(startBody.Commands["connect"], "--connect") {
+		t.Fatalf("pairing start body = %+v", startBody)
+	}
+
+	claim := httptest.NewRecorder()
+	b.handleRunnerPairingClaim(claim, runnerJSONRequest(t, http.MethodPost, "/runner/pairing/claim", "", map[string]any{
+		"code": startBody.Pairing.Code,
+		"name": "Windows runner",
+		"capabilities": runnerCapabilities{
+			ExecutionModes:   []string{executionModeOffice},
+			ProviderRuntimes: []string{"codex"},
+		},
+	}))
+	if claim.Code != http.StatusOK {
+		t.Fatalf("pairing claim status = %d: %s", claim.Code, claim.Body.String())
+	}
+	var claimBody struct {
+		Runner      hostedRunner `json:"runner"`
+		RunnerToken string       `json:"runner_token"`
+	}
+	if err := json.NewDecoder(claim.Body).Decode(&claimBody); err != nil {
+		t.Fatalf("decode pairing claim: %v", err)
+	}
+	if claimBody.Runner.TeamID != "team-a" || claimBody.Runner.TokenHash != "" || claimBody.RunnerToken == "" {
+		t.Fatalf("claim body = %+v token=%q", claimBody.Runner, claimBody.RunnerToken)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.runners) != 1 || b.runners[0].TokenHash == "" || len(b.runnerPairingCodes) != 0 {
+		t.Fatalf("pairing state not finalized: runners=%+v pairings=%+v", b.runners, b.runnerPairingCodes)
+	}
+}
+
+func TestRunnerCLIPairClaimsSetupCode(t *testing.T) {
+	t.Setenv(product.Env("RUNTIME_HOME"), t.TempDir())
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	b.mu.Lock()
+	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
+	b.mu.Unlock()
+
+	start := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerPairingStart)(start, runnerJSONRequest(t, http.MethodPost, "/runner/pairing/start", b.Token(), map[string]string{}))
+	if start.Code != http.StatusOK {
+		t.Fatalf("pairing start status = %d: %s", start.Code, start.Body.String())
+	}
+	var startBody struct {
+		Pairing struct {
+			Code string `json:"code"`
+		} `json:"pairing"`
+	}
+	if err := json.NewDecoder(start.Body).Decode(&startBody); err != nil {
+		t.Fatalf("decode pairing start: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/runner/pairing/claim", b.handleRunnerPairingClaim)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	if err := RunRunnerCommand(context.Background(), []string{"pair", "--api-url", srv.URL, "--code", startBody.Pairing.Code}, &out, &stderr); err != nil {
+		t.Fatalf("runner pair: %v stderr=%s out=%s", err, stderr.String(), out.String())
+	}
+	cfg, err := loadRunnerCLIConfig()
+	if err != nil {
+		t.Fatalf("load runner config: %v", err)
+	}
+	if cfg.RunnerToken == "" || cfg.RunnerID == "" || cfg.TeamID != "team-a" {
+		t.Fatalf("runner config not paired: %+v", cfg)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.runners) != 1 || b.runners[0].TeamID != "team-a" {
+		t.Fatalf("runners = %+v", b.runners)
+	}
+}
+
+func TestRunnerPairURLParser(t *testing.T) {
+	values, err := parseRunnerPairURL("laf-runner://pair?api_url=https%3A%2F%2Foffice.test%2Fapi&code=ABCD-1234-EF56&connect=0&name=Desk")
+	if err != nil {
+		t.Fatalf("parse pair URL: %v", err)
+	}
+	if values.APIURL != "https://office.test/api" || values.Code != "ABCD-1234-EF56" || values.Name != "Desk" || values.Connect {
+		t.Fatalf("pair URL values = %+v", values)
+	}
+
+	values, err = parseRunnerPairURL("laf-runner://pair/ABCD-1234-EF56?api-url=https%3A%2F%2Foffice.test%2Fapi")
+	if err != nil {
+		t.Fatalf("parse path pair URL: %v", err)
+	}
+	if values.Code != "ABCD-1234-EF56" || !values.Connect {
+		t.Fatalf("path pair URL values = %+v", values)
+	}
+}
+
+func TestRunnerCLIPairURLClaimsSetupCode(t *testing.T) {
+	t.Setenv(product.Env("RUNTIME_HOME"), t.TempDir())
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	b.mu.Lock()
+	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
+	b.mu.Unlock()
+
+	start := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerPairingStart)(start, runnerJSONRequest(t, http.MethodPost, "/runner/pairing/start", b.Token(), map[string]string{}))
+	if start.Code != http.StatusOK {
+		t.Fatalf("pairing start status = %d: %s", start.Code, start.Body.String())
+	}
+	var startBody struct {
+		Pairing struct {
+			Code string `json:"code"`
+		} `json:"pairing"`
+	}
+	if err := json.NewDecoder(start.Body).Decode(&startBody); err != nil {
+		t.Fatalf("decode pairing start: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/runner/pairing/claim", b.handleRunnerPairingClaim)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	pairURL := "laf-runner://pair?api_url=" + url.QueryEscape(srv.URL) + "&code=" + url.QueryEscape(startBody.Pairing.Code) + "&connect=0"
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	if err := RunRunnerCommand(context.Background(), []string{"pair-url", pairURL}, &out, &stderr); err != nil {
+		t.Fatalf("runner pair-url: %v stderr=%s out=%s", err, stderr.String(), out.String())
+	}
+	cfg, err := loadRunnerCLIConfig()
+	if err != nil {
+		t.Fatalf("load runner config: %v", err)
+	}
+	if cfg.RunnerToken == "" || cfg.TeamID != "team-a" {
+		t.Fatalf("runner config not paired through URL: %+v", cfg)
 	}
 }
 

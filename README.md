@@ -38,12 +38,37 @@ Prefer a global install?
 npm install -g laf-office && laf-office
 ```
 
+For the hosted product, the browser app is not the execution runtime. Install
+the local runner on any machine that should execute coding work. On Windows,
+download the Windows runner zip from the latest release and double-click
+`laf-runner-installer.exe`. In the hosted UI, open Settings -> Runner, generate
+a setup code, then click `Connect this computer`. The installer registers a
+`laf-runner://` URL handler so the browser can hand the setup code to the local
+runner without opening PowerShell or Terminal.
+
+If the URL handler is not installed yet, use the fallback command:
+
+```bash
+laf-runner pair --api-url https://<your-hosted-app>/api --code <setup-code> --connect
+```
+
+`npx laf-office` remains a convenient developer bootstrap for the local
+workspace. The hosted product boundary is the runner protocol: the web app
+creates jobs, and a local or managed runner leases and executes them.
+
+For macOS/Linux release tarballs, the installer can install just the runner:
+
+```bash
+LAF_OFFICE_INSTALL_BINARY=laf-runner sh scripts/install.sh
+```
+
 Building from source (requires Go):
 
 ```bash
 git clone https://github.com/LAF-labs/LAF-Agents-Office.git
 cd laf-office
 go build -o laf-office ./cmd/laf-office
+go build -o laf-runner ./cmd/laf-runner
 ./laf-office
 ```
 
@@ -176,6 +201,11 @@ Local runner:
 - leases jobs from the cloud and renews long-running leases
 - reports progress, completion, delivery receipts, and wiki index results
 
+The local runner is a first-class product component, not an npm requirement.
+NPM is only a developer-friendly bootstrap for the local workspace binary. The
+hosted path should ship signed native runner builds (`laf-runner`) for Windows,
+macOS, and Linux, with package-manager installers layered on top.
+
 The default active team is CEO, Frontend Engineer, Backend Engineer, and
 Reviewer. Focus/delegation mode is the default; `--collab` is an opt-in mode for
 shared-channel visibility.
@@ -260,7 +290,7 @@ Every claim in this README, grounded to the code that makes it true.
 | Workspace isolation per agent | ✅ shipped | `internal/team/worktree.go` |
 | `laf-office import` — migrate from external orchestrator state | ✅ shipped | `cmd/laf-office/import.go` |
 | Live web-view agent streaming | 🟡 partial | `web/index.html` + broker stream |
-| Prebuilt binary via goreleaser | 🟡 config ready | `.goreleaser.yml` — tags pending |
+| Prebuilt workspace + runner binaries via goreleaser | 🟡 config ready | `.goreleaser.yml` — tags pending |
 | Resume in-flight work on restart | ✅ shipped v0.0.2.0 | see `CHANGELOG.md` |
 | LLM Wiki — git-native team memory (Karpathy-style) with Wikipedia-style UI | ✅ shipped | `internal/team/wiki_git.go`, `internal/team/wiki_worker.go`, `web/src/components/wiki/`, `DESIGN-WIKI.md` |
 | Markdown team wiki as default shared memory | ✅ shipped | `internal/config/config.go` (`MemoryBackendMarkdown`) |

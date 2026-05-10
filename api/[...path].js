@@ -60,6 +60,14 @@ module.exports = async function handler(req, res) {
       await handleRunnerStatus(req, res);
       return;
     }
+    if (path === "runner/pairing/start" && req.method === "POST") {
+      await handleRunnerPairingStart(req, res);
+      return;
+    }
+    if (path === "runner/pairing/claim" && req.method === "POST") {
+      await handleRunnerPairingClaim(req, res);
+      return;
+    }
     if (path === "runner/register" && req.method === "POST") {
       await handleRunnerRegister(req, res);
       return;
@@ -787,6 +795,87 @@ async function handleRunnerStatus(req, res) {
     jobs: jobs.map((job) => publicRunnerJob(job, projects, tasks)),
     runners: runners.map(publicRunner),
   });
+}
+
+async function handleRunnerPairingStart(req, res) {
+  const { membership, user } = await requireUser(req);
+  const body = await readBody(req);
+  const code = generatePairingCode();
+  const now = nowISO();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  await rest("runner_pairing_codes", {
+    method: "POST",
+    body: {
+      code_hash: hashToken(normalizePairingCode(code)),
+      created_at: now,
+      created_by: user.id,
+      expires_at: expiresAt,
+      status: "pending",
+      team_id: membership.team_id,
+    },
+  });
+  const apiURL =
+    normalizeRunnerPairingAPIURL(body.api_url) || runnerPairingRequestAPIURL(req);
+  writeJSON(res, 200, runnerPairingStartResponse(apiURL, code, membership.team_id, expiresAt));
+}
+
+async function handleRunnerPairingClaim(req, res) {
+  const body = await readBody(req);
+  const code = normalizePairingCode(body.code || body.pairing_code || "");
+  if (!code) throw new HTTPError(400, "pairing code is required");
+  const now = nowISO();
+  const rows = await rest("runner_pairing_codes", {
+    query: {
+      code_hash: `eq.${hashToken(code)}`,
+      limit: "1",
+      select: "*",
+      status: "eq.pending",
+    },
+  });
+  const pairing = rows?.[0];
+  if (!pairing) {
+    throw new HTTPError(410, "pairing code expired or already used");
+  }
+  if (pairing.expires_at && new Date(pairing.expires_at).getTime() <= Date.now()) {
+    await rest("runner_pairing_codes", {
+      method: "PATCH",
+      query: { id: `eq.${pairing.id}`, status: "eq.pending" },
+      body: { status: "expired" },
+    });
+    throw new HTTPError(410, "pairing code expired or already used");
+  }
+  const claimed = await rest("runner_pairing_codes", {
+    method: "PATCH",
+    query: { id: `eq.${pairing.id}`, status: "eq.pending" },
+    body: {
+      claimed_at: now,
+      status: "claimed",
+    },
+  });
+  if (!claimed?.length) {
+    throw new HTTPError(409, "pairing code was already claimed");
+  }
+  const token = `laf_runner_${crypto.randomBytes(24).toString("hex")}`;
+  const [runner] = await rest("runners", {
+    method: "POST",
+    body: {
+      capabilities: body.capabilities || {},
+      created_at: now,
+      last_seen_at: now,
+      name: body.name || "Local runner",
+      runner_type: body.runner_type || "local",
+      status: "connected",
+      team_id: pairing.team_id,
+      token_hash: hashToken(token),
+      updated_at: now,
+    },
+  });
+  await rest("runner_pairing_codes", {
+    method: "PATCH",
+    query: { id: `eq.${pairing.id}` },
+    body: { claimed_runner_id: runner.id },
+  });
+  writeJSON(res, 200, { runner: publicRunner(runner), runner_token: token });
 }
 
 async function handleRunnerRegister(req, res) {
@@ -1548,7 +1637,14 @@ function normalizeProviderList(values) {
 function normalizeProviderKind(value) {
   const kind = String(value || "").trim().toLowerCase().replace(/_/g, "-");
   if (kind === "claude" || kind === "claude-code") return "claude-code";
-  if (kind === "codex" || kind === "opencode" || kind === "openclaw") return kind;
+  if (
+    kind === "codex" ||
+    kind === "opencode" ||
+    kind === "openclaw" ||
+    kind === "laf-cloud"
+  ) {
+    return kind;
+  }
   return "";
 }
 
@@ -1621,6 +1717,43 @@ function normalizeJobStatus(status) {
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(String(token).trim()).digest("hex");
+}
+
+function generatePairingCode() {
+  const raw = crypto.randomBytes(6).toString("hex").toUpperCase();
+  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
+}
+
+function normalizePairingCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizeRunnerPairingAPIURL(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function runnerPairingRequestAPIURL(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").trim();
+  return host ? `${proto}://${host}/api` : "";
+}
+
+function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
+  const normalizedAPIURL = normalizeRunnerPairingAPIURL(apiURL);
+  return {
+    api_url: normalizedAPIURL,
+    pairing: {
+      code,
+      expires_at: expiresAt,
+      team_id: teamID,
+    },
+    commands: {
+      connect: `laf-runner pair --api-url ${normalizedAPIURL} --code ${code} --connect`,
+    },
+  };
 }
 
 function slugify(value) {

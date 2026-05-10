@@ -435,6 +435,7 @@ type Broker struct {
 	invites                 []teamInvite
 	tasks                   []teamTask
 	runners                 []hostedRunner
+	runnerPairingCodes      []runnerPairingCode
 	runnerJobs              []runnerJob
 	runnerJobEvents         []runnerJobEvent
 	wikiWriteRequests       []hostedWikiWriteRequest
@@ -1651,6 +1652,8 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/auth/users", b.requireAuth(b.handleAuthUsers))
 	mux.HandleFunc("/teams", b.handleTeams)
 	mux.HandleFunc("/runner/status", b.requireAuth(b.handleRunnerStatus))
+	mux.HandleFunc("/runner/pairing/start", b.requireAuth(b.handleRunnerPairingStart))
+	mux.HandleFunc("/runner/pairing/claim", b.handleRunnerPairingClaim)
 	mux.HandleFunc("/runner/register", b.requireAuth(b.handleRunnerRegister))
 	mux.HandleFunc("/runner/heartbeat", b.handleRunnerHeartbeat)
 	mux.HandleFunc("/runner/capabilities", b.handleRunnerCapabilities)
