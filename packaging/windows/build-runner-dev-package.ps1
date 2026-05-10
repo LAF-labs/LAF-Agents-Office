@@ -63,7 +63,7 @@ LAF Runner for Windows
 2. Return to the hosted LAF-Office browser tab.
 3. Open Settings -> Runner and click Connect this computer.
 
-The installer copies laf-runner.exe to your user profile and registers the laf-runner:// link handler. No admin rights are required.
+The installer copies laf-runner.exe to your user profile, registers the laf-runner:// link handler, and starts the runner when you sign in. No admin rights are required.
 "@ | Set-Content -LiteralPath (Join-Path $packageDir "README-FIRST.txt") -Encoding UTF8
 
 if (Test-Path -LiteralPath $zipPath) {

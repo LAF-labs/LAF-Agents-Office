@@ -36,7 +36,21 @@ function Convert-ToMsiVersion {
     $numbers += "0"
   }
 
-  return ($numbers[0..2] -join ".")
+  $major = [int]$numbers[0]
+  $minor = [int]$numbers[1]
+  $patch = [int]$numbers[2]
+  if ($numbers.Count -gt 3) {
+    $revision = [int]$numbers[3]
+    if ($revision -gt 999) {
+      throw "MSI revision '$revision' is too large; use 0-999 so it can be encoded into the third ProductVersion field."
+    }
+    $patch = ($patch * 1000) + $revision
+  }
+  if ($major -gt 255 -or $minor -gt 65535 -or $patch -gt 65535) {
+    throw "Version '$RawVersion' cannot be represented as a Windows Installer ProductVersion."
+  }
+
+  return "$major.$minor.$patch"
 }
 
 function Resolve-WixPath {

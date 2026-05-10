@@ -23,7 +23,10 @@ The zip contains:
 For a non-developer first run, the user opens the zip and double-clicks
 `laf-runner-installer.exe`. The installer copies `laf-runner.exe` to the user's
 local app data directory and registers the `laf-runner://` link handler under
-HKCU, so admin rights are not required.
+HKCU, so admin rights are not required. It also registers a per-user login
+startup entry that runs `laf-runner connect`; before pairing, that command exits
+without doing work, and after pairing it keeps the machine available for queued
+runner jobs.
 
 Production releases should sign `laf-runner-installer.exe` and the final zip or
 wrap the same install steps in MSI when certificate and installer infrastructure
@@ -43,8 +46,19 @@ it yourself once with:
 ```
 
 or pass `-AcceptWix7Eula` to the build script after you have confirmed the
-terms. The MSI installs to `%LOCALAPPDATA%\LAF-Office\Runner` and registers the
-same per-user `laf-runner://` URL handler as the development installer.
+terms. The MSI installs to `%LOCALAPPDATA%\LAF-Office\Runner`, registers the
+same per-user `laf-runner://` URL handler as the development installer, and
+starts the runner at user login.
+
+Windows Installer versions use three numeric fields, so four-part repo versions
+are encoded into the third MSI field. For example, repo version `0.0.7.1`
+becomes MSI ProductVersion `0.0.7001`.
+
+The browser URL handler only trusts official `laf-office.team` origins,
+loopback development origins, the already configured runner API origin, or
+hosts listed in `LAF_OFFICE_RUNNER_TRUSTED_API_HOSTS`. Self-hosted deployments
+should set that environment variable or use the manual `laf-runner pair`
+fallback for the first connection.
 
 ## macOS
 

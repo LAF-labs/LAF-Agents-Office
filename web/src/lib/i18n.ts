@@ -168,7 +168,11 @@ const messages = {
     "settings.runner.stale": "Runner needs attention",
     "settings.runner.disconnected": "Runner disconnected",
     "settings.runner.noRunner": "No runner connected",
+    "settings.runner.optionalHint":
+      "The workspace still works; local Codex/Claude execution waits for a runner.",
     "settings.runner.tools": "Local tools",
+    "settings.runner.toolsUnknown":
+      "Tool checks appear after this computer is connected.",
     "settings.runner.providerReady": "AI runtime found:",
     "settings.runner.providerMissing": "Install Codex CLI or Claude Code CLI",
     "settings.runner.gitReady": "Git found",
@@ -177,7 +181,7 @@ const messages = {
     "settings.runner.githubMissing": "Run GitHub login when PRs are needed",
     "settings.runner.setupTitle": "Connect this computer",
     "settings.runner.setupDesc":
-      "Install the runner, generate a setup code, then click Connect this computer. The command is only a fallback.",
+      "Install the runner when you want this PC to run local CLI work. You can still use the hosted workspace without it.",
     "settings.runner.download": "Download installer",
     "settings.runner.generate": "Generate setup code",
     "settings.runner.generating": "Generating...",
@@ -825,7 +829,11 @@ const messages = {
     "settings.runner.stale": "러너 확인 필요",
     "settings.runner.disconnected": "러너 연결 끊김",
     "settings.runner.noRunner": "연결된 러너 없음",
+    "settings.runner.optionalHint":
+      "워크스페이스는 계속 사용할 수 있고, 로컬 Codex/Claude 실행만 러너 연결을 기다립니다.",
     "settings.runner.tools": "로컬 도구",
+    "settings.runner.toolsUnknown":
+      "이 컴퓨터를 연결하면 도구 확인 결과가 표시됩니다.",
     "settings.runner.providerReady": "AI 런타임 감지:",
     "settings.runner.providerMissing":
       "Codex CLI 또는 Claude Code CLI 설치 필요",
@@ -835,7 +843,7 @@ const messages = {
     "settings.runner.githubMissing": "PR이 필요하면 GitHub 로그인 필요",
     "settings.runner.setupTitle": "이 컴퓨터 연결",
     "settings.runner.setupDesc":
-      "러너를 설치하고 설정 코드를 만든 뒤 이 컴퓨터 연결을 누르세요. 명령은 대체 수단입니다.",
+      "이 PC에서 로컬 CLI 작업을 실행하려면 러너를 설치하세요. 러너가 없어도 호스팅 워크스페이스는 사용할 수 있습니다.",
     "settings.runner.download": "설치 파일 다운로드",
     "settings.runner.generate": "설정 코드 만들기",
     "settings.runner.generating": "생성 중...",

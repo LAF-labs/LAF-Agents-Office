@@ -17,6 +17,8 @@ const (
 	messageBoxIconError   = 0x00000010
 	messageBoxIconInfo    = 0x00000040
 	windowsProtocolScheme = `Software\Classes\laf-runner`
+	windowsRunKey         = `Software\Microsoft\Windows\CurrentVersion\Run`
+	windowsRunValue       = `LAF Office Runner`
 )
 
 func main() {
@@ -27,7 +29,7 @@ func main() {
 
 	showMessage(
 		"LAF Runner Installer",
-		"LAF Runner is installed. Return to the browser and click Connect this computer.",
+		"LAF Runner is installed and will start when you sign in. Return to the browser and click Connect this computer.",
 		messageBoxOK|messageBoxIconInfo,
 	)
 }
@@ -56,6 +58,9 @@ func installRunner() error {
 		return err
 	}
 	if err := registerRunnerURLHandler(installedRunner); err != nil {
+		return err
+	}
+	if err := registerRunnerRunAtLogin(installedRunner); err != nil {
 		return err
 	}
 
@@ -116,6 +121,20 @@ func registerRunnerURLHandler(runnerPath string) error {
 	command := fmt.Sprintf(`"%s" pair-url "%%1"`, runnerPath)
 	if err := commandKey.SetStringValue("", command); err != nil {
 		return fmt.Errorf("write URL command: %w", err)
+	}
+	return nil
+}
+
+func registerRunnerRunAtLogin(runnerPath string) error {
+	runKey, _, err := registry.CreateKey(registry.CURRENT_USER, windowsRunKey, registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("create run-at-login registry key: %w", err)
+	}
+	defer runKey.Close()
+
+	command := fmt.Sprintf(`"%s" connect`, runnerPath)
+	if err := runKey.SetStringValue(windowsRunValue, command); err != nil {
+		return fmt.Errorf("write run-at-login command: %w", err)
 	}
 	return nil
 }

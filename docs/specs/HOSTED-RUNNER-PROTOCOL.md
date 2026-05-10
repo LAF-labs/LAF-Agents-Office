@@ -120,7 +120,10 @@ runner token, saves it locally, and can immediately enter the connect loop with
 `--connect`. `runner pair-url` is the non-developer path used by the
 `laf-runner://pair?...` OS protocol handler; it pairs the runner, starts
 `laf-runner connect` in the background, and exits so the browser flow does not
-require Terminal or PowerShell. `runner status` reports local capabilities for
+require Terminal or PowerShell. The URL handler path must reject untrusted
+control-plane origins; it accepts official hosted origins, loopback development
+origins, the already configured runner API origin, or hosts explicitly listed in
+`LAF_OFFICE_RUNNER_TRUSTED_API_HOSTS`. `runner status` reports local capabilities for
 `git`, `gh auth`, provider runtimes, OS/arch, and supported execution modes.
 `runner connect` registers if needed, uploads capabilities, heartbeats, and
 leases jobs through the protocol.

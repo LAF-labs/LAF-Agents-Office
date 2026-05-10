@@ -38,6 +38,12 @@
           </RegistryKey>
         </RegistryKey>
       </Component>
+
+      <Component Id="RunnerRunAtLogin" Guid="{CFCFF438-744C-4502-9A9B-619EBD1FA40F}">
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run">
+          <RegistryValue Name="LAF Office Runner" Type="string" Value="&quot;[INSTALLFOLDER]laf-runner.exe&quot; connect" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
     </ComponentGroup>
   </Package>
 </Wix>

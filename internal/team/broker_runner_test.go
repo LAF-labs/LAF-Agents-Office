@@ -183,6 +183,25 @@ func TestRunnerPairURLParser(t *testing.T) {
 	}
 }
 
+func TestRunnerPairURLTrustBoundary(t *testing.T) {
+	if err := validateRunnerPairURLAPI("https://laf-office.team/api", runnerCLIConfig{}); err != nil {
+		t.Fatalf("official hosted API rejected: %v", err)
+	}
+	if err := validateRunnerPairURLAPI("http://127.0.0.1:7891/api", runnerCLIConfig{}); err != nil {
+		t.Fatalf("loopback API rejected: %v", err)
+	}
+	if err := validateRunnerPairURLAPI("https://workspace.example.com/api", runnerCLIConfig{APIURL: "https://workspace.example.com/api"}); err != nil {
+		t.Fatalf("configured API origin rejected: %v", err)
+	}
+	t.Setenv(product.Env("RUNNER_TRUSTED_API_HOSTS"), "*.example.org")
+	if err := validateRunnerPairURLAPI("https://demo.example.org/api", runnerCLIConfig{}); err != nil {
+		t.Fatalf("env trusted API rejected: %v", err)
+	}
+	if err := validateRunnerPairURLAPI("https://evil.example/api", runnerCLIConfig{}); err == nil {
+		t.Fatalf("untrusted API accepted")
+	}
+}
+
 func TestRunnerCLIPairURLClaimsSetupCode(t *testing.T) {
 	t.Setenv(product.Env("RUNTIME_HOME"), t.TempDir())
 	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))

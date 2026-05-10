@@ -189,6 +189,11 @@ func runRunnerPairURL(ctx context.Context, args []string, stdout, stderr io.Writ
 	if err != nil {
 		return err
 	}
+	cfg, _ := loadRunnerCLIConfig()
+	cfg.applyEnv()
+	if err := validateRunnerPairURLAPI(values.APIURL, cfg); err != nil {
+		return err
+	}
 	pairArgs := []string{"--api-url", values.APIURL, "--code", values.Code}
 	if values.Name != "" {
 		pairArgs = append(pairArgs, "--name", values.Name)
@@ -259,6 +264,92 @@ func parseRunnerPairURL(raw string) (runnerPairURLValues, error) {
 		Name:    strings.TrimSpace(q.Get("name")),
 		Connect: runnerPairURLBool(q.Get("connect"), true),
 	}, nil
+}
+
+func validateRunnerPairURLAPI(apiURL string, cfg runnerCLIConfig) error {
+	u, err := url.Parse(strings.TrimSpace(apiURL))
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("pair URL has invalid api_url %q", apiURL)
+	}
+	if runnerPairingAPIURLAllowed(u, cfg) {
+		return nil
+	}
+	return fmt.Errorf("untrusted runner pairing API URL %q; use `laf-runner pair --api-url ... --code ... --connect` for self-hosted servers or set %s", apiURL, product.Env("RUNNER_TRUSTED_API_HOSTS"))
+}
+
+func runnerPairingAPIURLAllowed(u *url.URL, cfg runnerCLIConfig) bool {
+	if u == nil {
+		return false
+	}
+	scheme := strings.ToLower(u.Scheme)
+	host := strings.ToLower(u.Hostname())
+	if host == "" {
+		return false
+	}
+	if (scheme == "http" || scheme == "https") && runnerPairingLoopbackHost(host) {
+		return true
+	}
+	if scheme == "https" && runnerPairingDefaultTrustedHost(host) {
+		return true
+	}
+	if strings.TrimSpace(cfg.APIURL) != "" && sameRunnerAPIOrigin(u.String(), cfg.APIURL) {
+		return true
+	}
+	for _, entry := range strings.Split(os.Getenv(product.Env("RUNNER_TRUSTED_API_HOSTS")), ",") {
+		entry = strings.ToLower(strings.TrimSpace(entry))
+		if entry == "" {
+			continue
+		}
+		if strings.Contains(entry, "://") {
+			if sameRunnerAPIOrigin(u.String(), entry) {
+				return true
+			}
+			continue
+		}
+		if runnerPairingHostMatches(host, entry) {
+			return true
+		}
+	}
+	return false
+}
+
+func runnerPairingLoopbackHost(host string) bool {
+	switch strings.ToLower(strings.Trim(host, "[]")) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
+func runnerPairingDefaultTrustedHost(host string) bool {
+	host = strings.ToLower(strings.Trim(host, "."))
+	return host == "laf-office.team" || strings.HasSuffix(host, ".laf-office.team")
+}
+
+func runnerPairingHostMatches(host, pattern string) bool {
+	host = strings.ToLower(strings.Trim(host, "."))
+	pattern = strings.ToLower(strings.Trim(pattern, "."))
+	if host == "" || pattern == "" {
+		return false
+	}
+	if strings.HasPrefix(pattern, "*.") {
+		suffix := strings.TrimPrefix(pattern, "*.")
+		return host == suffix || strings.HasSuffix(host, "."+suffix)
+	}
+	return host == pattern
+}
+
+func sameRunnerAPIOrigin(a, b string) bool {
+	au, err := url.Parse(strings.TrimSpace(a))
+	if err != nil {
+		return false
+	}
+	bu, err := url.Parse(strings.TrimSpace(b))
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(au.Scheme, bu.Scheme) && strings.EqualFold(au.Host, bu.Host)
 }
 
 func runnerPairURLBool(raw string, defaultValue bool) bool {

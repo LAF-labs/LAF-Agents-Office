@@ -32,4 +32,9 @@ Copy-Item -LiteralPath $resolvedRunner -Destination $installedRunner -Force
 
 & (Join-Path $scriptDir "install-runner-protocol.ps1") -RunnerPath $installedRunner
 
+$runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+New-Item -Path $runKey -Force | Out-Null
+Set-ItemProperty -Path $runKey -Name "LAF Office Runner" -Value "`"$installedRunner`" connect"
+
 Write-Host "Installed LAF Runner to $installedRunner"
+Write-Host "Registered LAF Runner to start at user login"

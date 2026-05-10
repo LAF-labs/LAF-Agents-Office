@@ -90,9 +90,14 @@ jobs.
 Installers must register the `laf-runner://` URL scheme:
 
 - Windows: per-user `HKCU\Software\Classes\laf-runner` handler that runs
-  `laf-runner pair-url "%1"`.
+  `laf-runner pair-url "%1"`, plus a per-user login startup entry that runs
+  `laf-runner connect` after the runner has been paired.
 - macOS: a small URL-handler app registered with LaunchServices that calls
   `laf-runner pair-url "$URL"`.
+
+The hosted workspace must remain usable before any runner is installed. Missing
+runners block local Codex/Claude execution only; planning, project memory, task
+creation, and queue visibility remain available.
 
 ## Migration Order
 

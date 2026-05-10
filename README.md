@@ -44,7 +44,12 @@ download the Windows runner zip from the latest release and double-click
 `laf-runner-installer.exe`. In the hosted UI, open Settings -> Runner, generate
 a setup code, then click `Connect this computer`. The installer registers a
 `laf-runner://` URL handler so the browser can hand the setup code to the local
-runner without opening PowerShell or Terminal.
+runner without opening PowerShell or Terminal. It also starts the runner at user
+login after pairing.
+
+You can still use the hosted workspace without installing a runner. Planning,
+project memory, task creation, and review queues remain available; local
+Codex/Claude execution waits until a runner connects.
 
 If the URL handler is not installed yet, use the fallback command:
 

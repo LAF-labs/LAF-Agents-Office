@@ -39,6 +39,8 @@ hosted execution boundary. Hosted deployments should use a native `laf-runner`
 installer on the user's machine or VM, then connect it to the hosted control
 plane from Settings -> Runner with the `laf-runner://` one-click handler.
 `laf-runner pair --connect` remains the terminal fallback.
+Without a connected runner, the hosted workspace still supports planning,
+project memory, task creation, and queues; only local CLI execution waits.
 
 > **Stability:** pre-1.0. `main` moves daily. Pin to a release tag, not `main`.
 

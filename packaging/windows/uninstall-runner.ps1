@@ -10,6 +10,12 @@ if (Test-Path -LiteralPath $schemeKey) {
   Write-Host "Removed laf-runner:// URL handler"
 }
 
+$runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+if (Test-Path -LiteralPath $runKey) {
+  Remove-ItemProperty -Path $runKey -Name "LAF Office Runner" -ErrorAction SilentlyContinue
+  Write-Host "Removed LAF Runner login startup"
+}
+
 if ($RemoveFiles) {
   $installDir = Join-Path $env:LOCALAPPDATA "LAF-Office\Runner"
   if (Test-Path -LiteralPath $installDir) {

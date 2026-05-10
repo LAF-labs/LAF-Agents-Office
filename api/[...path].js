@@ -856,20 +856,33 @@ async function handleRunnerPairingClaim(req, res) {
     throw new HTTPError(409, "pairing code was already claimed");
   }
   const token = `laf_runner_${crypto.randomBytes(24).toString("hex")}`;
-  const [runner] = await rest("runners", {
-    method: "POST",
-    body: {
-      capabilities: body.capabilities || {},
-      created_at: now,
-      last_seen_at: now,
-      name: body.name || "Local runner",
-      runner_type: body.runner_type || "local",
-      status: "connected",
-      team_id: pairing.team_id,
-      token_hash: hashToken(token),
-      updated_at: now,
-    },
-  });
+  let runner;
+  try {
+    [runner] = await rest("runners", {
+      method: "POST",
+      body: {
+        capabilities: body.capabilities || {},
+        created_at: now,
+        last_seen_at: now,
+        name: body.name || "Local runner",
+        runner_type: body.runner_type || "local",
+        status: "connected",
+        team_id: pairing.team_id,
+        token_hash: hashToken(token),
+        updated_at: now,
+      },
+    });
+  } catch (err) {
+    await rest("runner_pairing_codes", {
+      method: "PATCH",
+      query: { id: `eq.${pairing.id}`, status: "eq.claimed" },
+      body: {
+        claimed_at: null,
+        status: "pending",
+      },
+    }).catch(() => {});
+    throw err;
+  }
   await rest("runner_pairing_codes", {
     method: "PATCH",
     query: { id: `eq.${pairing.id}` },

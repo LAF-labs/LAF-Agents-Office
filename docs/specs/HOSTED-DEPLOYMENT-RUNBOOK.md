@@ -75,7 +75,9 @@ Windows development packages can be built without external installer tooling:
 
 The resulting zip includes `laf-runner.exe` and a GUI-friendly
 `laf-runner-installer.exe`; the user double-clicks the installer, returns to
-the browser, and clicks `Connect this computer`.
+the browser, and clicks `Connect this computer`. The installer also creates a
+per-user login startup entry for `laf-runner connect` so paired runners survive
+reboot without requiring PowerShell.
 
 Unsigned Windows MSI builds require WiX:
 
@@ -85,7 +87,15 @@ Unsigned Windows MSI builds require WiX:
 
 With WiX 7, accept the WiX OSMF EULA yourself first or pass
 `-AcceptWix7Eula` after confirming the terms. The MSI installs per-user and
-registers `laf-runner://` under HKCU.
+registers `laf-runner://` under HKCU. Windows Installer ProductVersion has
+three fields; four-part repo versions are encoded into the third field
+(`0.0.7.1` -> `0.0.7001`) so upgrades remain monotonic.
+
+For `laf-runner://` pairing, the local runner accepts only trusted API origins:
+official `laf-office.team` hosts, loopback development hosts, the already saved
+runner API origin, or entries in `LAF_OFFICE_RUNNER_TRUSTED_API_HOSTS`.
+Self-hosted deployments should set that environment variable on the runner host
+or use the fallback command for first pairing.
 
 macOS packages must be built on macOS with Xcode command line tools:
 

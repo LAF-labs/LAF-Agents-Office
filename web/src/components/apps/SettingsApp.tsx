@@ -1537,7 +1537,7 @@ function RunnerSection() {
 
       <Field
         label={t("settings.runner.status")}
-        hint={runnerStatusHint(runner)}
+        hint={runner ? runnerStatusHint(runner) : t("settings.runner.optionalHint")}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={styles.statusDot(runnerStatusColor(runner))} />
@@ -1548,32 +1548,36 @@ function RunnerSection() {
       </Field>
 
       <Field label={t("settings.runner.tools")} hint={runner?.name || ""}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <RunnerCapability
-            ok={providerReady}
-            label={
-              providerReady
-                ? `${t("settings.runner.providerReady")} ${capabilities.provider_runtimes?.join(", ")}`
-                : t("settings.runner.providerMissing")
-            }
-          />
-          <RunnerCapability
-            ok={Boolean(capabilities.git_available)}
-            label={
-              capabilities.git_available
-                ? t("settings.runner.gitReady")
-                : t("settings.runner.gitMissing")
-            }
-          />
-          <RunnerCapability
-            ok={Boolean(capabilities.gh_authenticated)}
-            label={
-              capabilities.gh_authenticated
-                ? t("settings.runner.githubReady")
-                : t("settings.runner.githubMissing")
-            }
-          />
-        </div>
+        {runner ? (
+          <div style={{ display: "grid", gap: 6 }}>
+            <RunnerCapability
+              ok={providerReady}
+              label={
+                providerReady
+                  ? `${t("settings.runner.providerReady")} ${capabilities.provider_runtimes?.join(", ")}`
+                  : t("settings.runner.providerMissing")
+              }
+            />
+            <RunnerCapability
+              ok={Boolean(capabilities.git_available)}
+              label={
+                capabilities.git_available
+                  ? t("settings.runner.gitReady")
+                  : t("settings.runner.gitMissing")
+              }
+            />
+            <RunnerCapability
+              ok={Boolean(capabilities.gh_authenticated)}
+              label={
+                capabilities.gh_authenticated
+                  ? t("settings.runner.githubReady")
+                  : t("settings.runner.githubMissing")
+              }
+            />
+          </div>
+        ) : (
+          <div style={styles.emptyState}>{t("settings.runner.toolsUnknown")}</div>
+        )}
       </Field>
 
       <div style={styles.groupTitle}>{t("settings.runner.setupTitle")}</div>
