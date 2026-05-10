@@ -750,7 +750,6 @@ function taskStatusPayload(action, body) {
 
 async function handleRunnerStatus(req, res) {
   const { membership } = await requireUser(req);
-  await requeueExpiredJobs(membership.team_id);
   const jobQuery = {
     team_id: `eq.${membership.team_id}`,
     select: "*",
@@ -1190,31 +1189,6 @@ async function closeJobsForTask(task, status) {
   }
 }
 
-async function requeueExpiredJobs(teamID) {
-  const expired = await rest("runner_jobs", {
-    query: {
-      lease_expires_at: `lt.${nowISO()}`,
-      select: "*",
-      status: "in.(leased,running)",
-      team_id: `eq.${teamID}`,
-    },
-  });
-  for (const job of expired || []) {
-    const [updated] = await rest("runner_jobs", {
-      method: "PATCH",
-      query: { id: `eq.${job.id}` },
-      body: {
-        last_error: "runner lease expired",
-        lease_expires_at: null,
-        runner_id: null,
-        status: "queued",
-        updated_at: nowISO(),
-      },
-    });
-    await appendJobEvent(updated, job.runner_id || "", "expired", "warn", "runner lease expired; job requeued");
-  }
-}
-
 async function appendJobEvent(job, runnerID, kind, level, message, payload = {}) {
   const [event] = await rest("runner_job_events", {
     method: "POST",
@@ -1238,20 +1212,6 @@ function taskNeedsRunnerJob(task) {
     !isHuman(task.owner) &&
     !task.blocked &&
     ["in_progress", "review"].includes(task.status)
-  );
-}
-
-function runnerCanClaimJob(runner, job) {
-  if (runner.team_id !== job.team_id || runner.status === "revoked") return false;
-  if (!["queued", "expired"].includes(job.status || "queued")) return false;
-  const modes = runner.capabilities?.execution_modes || [];
-  if (job.execution_mode && modes.length > 0 && !modes.includes(job.execution_mode)) {
-    return false;
-  }
-  const requiredProvider = normalizeProviderKind(job.provider_kind || job.required_provider || "");
-  if (!requiredProvider) return true;
-  return normalizeProviderList(runner.capabilities?.provider_runtimes || []).includes(
-    requiredProvider,
   );
 }
 
