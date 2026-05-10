@@ -41,7 +41,7 @@ const (
 var sidebarAgentColors = map[string]string{
 	"ceo": "#EAB308", "pm": "#22C55E", "fe": "#3B82F6",
 	"be": "#8B5CF6", "ai": "#14B8A6", "designer": "#EC4899",
-	"cmo": "#F97316", "cro": "#06B6D4", "you": "#38BDF8", "human": "#38BDF8",
+	"reviewer": "#F97316", "cmo": "#F97316", "cro": "#06B6D4", "you": "#38BDF8", "human": "#38BDF8",
 }
 
 // memberActivity describes what an agent is doing based on recency and content.
@@ -102,11 +102,9 @@ func classifyActivity(m channelMember) memberActivity {
 func defaultSidebarRoster() []channelMember {
 	return []channelMember{
 		{Slug: "ceo", Name: "CEO", Role: "strategy"},
-		{Slug: "pm", Name: "Product Manager", Role: "product"},
 		{Slug: "fe", Name: "Frontend Engineer", Role: "frontend"},
 		{Slug: "be", Name: "Backend Engineer", Role: "backend"},
-		{Slug: "ai", Name: "AI Engineer", Role: "AI Engineer"},
-		{Slug: "designer", Name: "Designer", Role: "design"},
+		{Slug: "reviewer", Name: "Reviewer", Role: "review"},
 	}
 }
 
@@ -157,6 +155,14 @@ func officeAside(slug, activity, lastMessage string, now time.Time) string {
 		"be:plotting": {
 			"Too many moving parts.",
 			"One less service?",
+		},
+		"reviewer:plotting": {
+			"Needs proof.",
+			"Show the checks.",
+		},
+		"reviewer:lurking": {
+			"I'll verify.",
+			"Quality gate.",
 		},
 		"ai:plotting": {
 			"Eval first.",

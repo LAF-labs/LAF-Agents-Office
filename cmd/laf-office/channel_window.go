@@ -216,7 +216,7 @@ func renderOfficeMessageBlock(tm threadedMessage, contentWidth int, unreadAnchor
 			if pColor == "" {
 				for slug, name := range map[string]string{
 					"ceo": "CEO", "pm": "Product Manager", "fe": "Frontend Engineer", "be": "Backend Engineer",
-					"ai": "AI Engineer", "designer": "Designer",
+					"reviewer": "Reviewer", "ai": "AI Engineer", "designer": "Designer",
 				} {
 					if p == name {
 						pColor = agentColorMap[slug]

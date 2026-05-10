@@ -186,14 +186,14 @@ func TestOnboardingCompleteFromScratchSynthesizes(t *testing.T) {
 	}
 	b.mu.Unlock()
 
-	// The synthesized team must not be the DefaultManifest roster exactly.
-	// Sanity: DefaultManifest is ceo/planner/executor/reviewer. A synthesized
-	// team should differ in composition.
-	if len(slugs) == 4 && slugs[0] == "ceo" && slugs[1] == "planner" && slugs[2] == "executor" && slugs[3] == "reviewer" {
-		t.Errorf("from-scratch produced DefaultManifest roster, not a synthesized team; got %v", slugs)
+	want := []string{"ceo", "fe", "be", "reviewer"}
+	if len(slugs) != len(want) {
+		t.Fatalf("from-scratch roster got %v, want %v", slugs, want)
 	}
-	if len(slugs) == 0 {
-		t.Fatalf("from-scratch produced empty roster")
+	for i, slug := range want {
+		if slugs[i] != slug {
+			t.Fatalf("member[%d]: got %q, want %q (all: %v)", i, slugs[i], slug, slugs)
+		}
 	}
 }
 
@@ -239,10 +239,10 @@ func TestOnboardingCompleteFromScratchPostsProjectWorkspaceMessages(t *testing.T
 	}
 }
 
-func TestOnboardingCompleteFromScratchHonorsSelectedFoundingAgents(t *testing.T) {
+func TestOnboardingCompleteFromScratchHonorsSelectedProjectAgents(t *testing.T) {
 	ensureOperationsFallbackFS(t)
 	b := newTestBroker(t)
-	if err := b.onboardingCompleteFn("Build an automated customer-support operation", false, "", []string{"architect", "builder"}); err != nil {
+	if err := b.onboardingCompleteFn("Build an automated customer-support operation", false, "", []string{"ceo", "fe"}); err != nil {
 		t.Fatalf("onboardingCompleteFn: %v", err)
 	}
 
@@ -253,7 +253,7 @@ func TestOnboardingCompleteFromScratchHonorsSelectedFoundingAgents(t *testing.T)
 	}
 	b.mu.Unlock()
 
-	want := []string{"architect", "builder"}
+	want := []string{"ceo", "fe"}
 	if len(slugs) != len(want) {
 		t.Fatalf("from-scratch selected roster got %v, want %v", slugs, want)
 	}
@@ -265,7 +265,7 @@ func TestOnboardingCompleteFromScratchHonorsSelectedFoundingAgents(t *testing.T)
 }
 
 func TestBlankSlateMembersStaleScratchSelectionDoesNotCollapseToOperator(t *testing.T) {
-	blueprint := operations.SynthesizeBlueprint(operations.SynthesisInput{})
+	blueprint := scratchProjectTeamBlueprint("", "", "")
 
 	members := blankSlateOfficeMembersFromBlueprint(blueprint, []string{
 		"ceo",
@@ -282,7 +282,7 @@ func TestBlankSlateMembersStaleScratchSelectionDoesNotCollapseToOperator(t *test
 	if len(slugs) <= 1 {
 		t.Fatalf("stale scratch selection collapsed to lead-only roster: %v", slugs)
 	}
-	for _, want := range []string{"operator", "planner", "executor", "reviewer"} {
+	for _, want := range []string{"ceo", "fe", "be", "reviewer"} {
 		found := false
 		for _, got := range slugs {
 			if got == want {
@@ -297,12 +297,12 @@ func TestBlankSlateMembersStaleScratchSelectionDoesNotCollapseToOperator(t *test
 }
 
 func TestBlankSlateMembersExplicitLeadOnlySelectionStaysLeadOnly(t *testing.T) {
-	blueprint := operations.SynthesizeBlueprint(operations.SynthesisInput{})
+	blueprint := scratchProjectTeamBlueprint("", "", "")
 
-	members := blankSlateOfficeMembersFromBlueprint(blueprint, []string{"operator"})
+	members := blankSlateOfficeMembersFromBlueprint(blueprint, []string{"ceo"})
 
-	if len(members) != 1 || members[0].Slug != "operator" {
-		t.Fatalf("explicit lead-only selection got %+v, want only operator", members)
+	if len(members) != 1 || members[0].Slug != "ceo" {
+		t.Fatalf("explicit lead-only selection got %+v, want only ceo", members)
 	}
 }
 
@@ -355,7 +355,7 @@ func TestOnboardingCompleteSkipTaskPersistsTeam(t *testing.T) {
 	}
 	reloaded.mu.Unlock()
 
-	want := map[string]bool{"architect": true, "builder": true, "reviewer": true, "growth": true}
+	want := map[string]bool{"ceo": true, "fe": true, "be": true, "reviewer": true, "growth": true}
 	for slug := range want {
 		found := false
 		for _, got := range slugs {
@@ -366,12 +366,6 @@ func TestOnboardingCompleteSkipTaskPersistsTeam(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("expected niche-crm slug %q to persist across restart; got %v", slug, slugs)
-		}
-	}
-	// Legacy DefaultManifest slugs must not leak into the persisted roster.
-	for _, slug := range slugs {
-		if slug == "executor" {
-			t.Errorf("DefaultManifest slug %q leaked into persisted roster %v", slug, slugs)
 		}
 	}
 }

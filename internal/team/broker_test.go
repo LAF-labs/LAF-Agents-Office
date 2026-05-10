@@ -1679,7 +1679,6 @@ func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 
 	base := fmt.Sprintf("http://%s", b.Addr())
 	createOfficeMemberForTest(t, base, b.Token(), "pm", "Product Manager", "Product Manager")
-	createOfficeMemberForTest(t, base, b.Token(), "fe", "Frontend Engineer", "Frontend Engineer")
 	createOfficeMemberForTest(t, base, b.Token(), "cmo", "CMO", "CMO")
 
 	createBody, _ := json.Marshal(map[string]any{
@@ -6183,7 +6182,7 @@ func TestHeadlessQueue_NoTimerDrivenWakeup(t *testing.T) {
 // ensureDefaultOfficeMembersLocked must seed the full default manifest ONLY
 // when there are no existing members. Its prior behavior (append-any-missing-
 // default) was the source of the load-path leak: blueprint-seeded teams saw
-// ceo/planner/executor/reviewer re-appended on every broker Load.
+// the default roster re-appended on every broker Load.
 func TestEnsureDefaultOfficeMembersSeedsWhenEmpty(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
@@ -6202,7 +6201,7 @@ func TestEnsureDefaultOfficeMembersSeedsWhenEmpty(t *testing.T) {
 
 // REGRESSION: if a blueprint has seeded members (e.g. operator/planner/builder/
 // growth/reviewer for niche-crm), ensureDefaultOfficeMembersLocked must NOT
-// append ceo/planner/executor/reviewer on top.
+// append the default roster on top.
 func TestEnsureDefaultOfficeMembersNoOpWhenNonEmpty(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
@@ -6227,7 +6226,7 @@ func TestEnsureDefaultOfficeMembersNoOpWhenNonEmpty(t *testing.T) {
 		}
 	}
 	for _, m := range got {
-		if m == "ceo" || m == "planner" || m == "executor" || m == "reviewer" {
+		if m == "ceo" || m == "fe" || m == "be" || m == "reviewer" {
 			t.Fatalf("default slug %q appended into blueprint roster; roster=%v", m, got)
 		}
 	}
@@ -6237,7 +6236,7 @@ func TestEnsureDefaultOfficeMembersNoOpWhenNonEmpty(t *testing.T) {
 // a fresh broker, confirm the team survives unchanged. This is the load-path
 // leak the design doc calls out — prior append-behavior in
 // ensureDefaultOfficeMembersLocked (called from Broker.Load() at broker.go:2260)
-// silently re-added ceo/planner/executor/reviewer.
+// silently re-added the default roster.
 func TestLoadDoesNotAppendDefaultsAfterBlueprintSeed(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
@@ -6265,18 +6264,13 @@ func TestLoadDoesNotAppendDefaultsAfterBlueprintSeed(t *testing.T) {
 	}
 	reloaded.mu.Unlock()
 
-	want := []string{"operator", "planner", "builder", "growth", "reviewer"}
+	want := []string{"ceo", "fe", "be", "reviewer", "growth"}
 	if len(slugs) != len(want) {
-		t.Fatalf("expected blueprint roster %v to survive reload, got %v", want, slugs)
+		t.Fatalf("expected legacy blueprint roster to migrate to %v, got %v", want, slugs)
 	}
 	for i := range want {
 		if slugs[i] != want[i] {
-			t.Fatalf("expected blueprint roster %v to survive reload, got %v", want, slugs)
-		}
-	}
-	for _, s := range slugs {
-		if s == "ceo" || s == "executor" {
-			t.Fatalf("default slug %q leaked into reloaded roster: %v", s, slugs)
+			t.Fatalf("expected legacy blueprint roster to migrate to %v, got %v", want, slugs)
 		}
 	}
 }

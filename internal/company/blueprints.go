@@ -60,6 +60,13 @@ func materializeManifestFromBlueprintRefs(manifest Manifest, repoRoot string) (M
 	if len(members) == 0 {
 		return Manifest{}, false
 	}
+	if !manifestHasMemberSlug(members, resolved.Lead) {
+		if manifestHasMemberSlug(members, office.CEOAgentSlug) {
+			resolved.Lead = office.CEOAgentSlug
+		} else {
+			resolved.Lead = members[0].Slug
+		}
+	}
 	resolved.Members = members
 	resolved.Channels = buildChannelsFromBlueprint(operationBlueprint, resolved.Members, resolved.Lead)
 	return resolved, true

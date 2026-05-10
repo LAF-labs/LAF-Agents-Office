@@ -116,21 +116,22 @@ interface PrereqResult {
   install_url?: string;
 }
 
-// "Start from scratch" starter roster. Mirrors scratchFoundingTeamBlueprint
+// "Start from scratch" starter roster. Mirrors scratchProjectTeamBlueprint
 // in internal/team/broker_onboarding.go — the broker seeds these exact slugs
 // when the wizard POSTs blueprint:null. Kept in sync manually; backend is the
 // source of truth, this is just the Team-step preview so users don't see an
 // empty roster before confirming.
-const SCRATCH_FOUNDING_TEAM: readonly BlueprintAgent[] = [
+const SCRATCH_PROJECT_TEAM: readonly BlueprintAgent[] = [
   {
-    slug: "architect",
-    name: "Architect",
-    role: "architect",
+    slug: "ceo",
+    name: "CEO",
+    role: "orchestrator",
     checked: true,
     built_in: true,
   },
-  { slug: "builder", name: "Builder", role: "builder", checked: true },
-  { slug: "reviewer", name: "Reviewer", role: "reviewer", checked: true },
+  { slug: "fe", name: "Frontend Engineer", role: "frontend", checked: true },
+  { slug: "be", name: "Backend Engineer", role: "backend", checked: true },
+  { slug: "reviewer", name: "Reviewer", role: "review", checked: true },
 ];
 
 // Only show onboarding presets that match the current startup product-work
@@ -314,7 +315,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       loading: "Loading starters...",
       other: "Other",
       scratchTitle: "Start from scratch",
-      scratchSubhead: "3-agent team: Architect, Builder, Reviewer",
+      scratchSubhead:
+        "4-person project team: CEO, Frontend Engineer, Backend Engineer, Reviewer",
       next: "Review the team",
       categories: {
         project: {
@@ -445,7 +447,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       loading: "시작 방식 불러오는 중...",
       other: "기타",
       scratchTitle: "처음부터 시작",
-      scratchSubhead: "3인 에이전트 팀: Architect, Builder, Reviewer",
+      scratchSubhead:
+        "4명 프로젝트 팀: CEO, 프론트엔드 엔지니어, 백엔드 엔지니어, 검수자",
       next: "팀 검토",
       categories: {
         project: {
@@ -1992,10 +1995,10 @@ export function Wizard({ onComplete }: WizardProps) {
   // blueprints the user never picked.
   useEffect(() => {
     if (selectedBlueprint === null) {
-      // "Start from scratch" — preview the same 3-agent execution team the
-      // broker seeds via scratchFoundingTeamBlueprint. Keep the slugs and
+      // "Start from scratch" — preview the same 4-agent project team the
+      // broker seeds via scratchProjectTeamBlueprint. Keep the slugs and
       // built_in flag in sync with internal/team/broker_onboarding.go.
-      setAgents(SCRATCH_FOUNDING_TEAM.map((a) => ({ ...a })));
+      setAgents(SCRATCH_PROJECT_TEAM.map((a) => ({ ...a })));
       setTaskTemplates([]);
       return;
     }

@@ -31,21 +31,21 @@ const blankSlateStarterTemplateID = "__blank_slate__"
 // blueprint-specific task list can be resolved.
 func DefaultTemplates() []TaskTemplate {
 	return []TaskTemplate{
-		{ID: "product-plan", Title: "Write the product work plan", Description: "Define the user problem, target workflow, and first shippable slice.", OwnerSlug: office.ArchitectAgentSlug},
-		{ID: "repo", Title: "Prepare the project repository", Description: "Confirm the repo, branch, local setup, and test command agents should use.", OwnerSlug: office.BuilderAgentSlug},
-		{ID: "implementation-task", Title: "Open the first implementation task", Description: "Turn the plan into one concrete coding task with acceptance checks.", OwnerSlug: office.BuilderAgentSlug},
-		{ID: "project-wiki", Title: "Seed the project wiki", Description: "Record decisions, repo notes, and current constraints where agents can reuse them.", OwnerSlug: office.ArchitectAgentSlug},
-		{ID: "automation-map", Title: "Map the first automation candidate", Description: "Pick one repeated startup workflow that can be safely automated after the core loop works.", OwnerSlug: office.ArchitectAgentSlug},
+		{ID: "product-plan", Title: "Write the product work plan", Description: "Define the user problem, target workflow, and first shippable slice.", OwnerSlug: office.CEOAgentSlug},
+		{ID: "repo", Title: "Prepare the project repository", Description: "Confirm the repo, branch, local setup, and test command agents should use.", OwnerSlug: office.BackendAgentSlug},
+		{ID: "implementation-task", Title: "Open the first implementation task", Description: "Turn the plan into one concrete coding task with acceptance checks.", OwnerSlug: office.FrontendAgentSlug},
+		{ID: "project-wiki", Title: "Seed the project wiki", Description: "Record decisions, repo notes, and current constraints where agents can reuse them.", OwnerSlug: office.ReviewerAgentSlug},
+		{ID: "automation-map", Title: "Map the first automation candidate", Description: "Pick one repeated startup workflow that can be safely automated after the core loop works.", OwnerSlug: office.BackendAgentSlug},
 	}
 }
 
 func BlankSlateTemplates() []TaskTemplate {
 	return []TaskTemplate{
-		{ID: "objective", Title: "Choose the first real business win", Description: "Turn the directive into one concrete outcome for a real customer, audience, or internal operation this week.", OwnerSlug: office.ArchitectAgentSlug},
-		{ID: "offer", Title: "Draft the first sellable offer", Description: "Name the customer, the promise, the scope, and the next decision needed to move the business forward.", OwnerSlug: office.ArchitectAgentSlug},
-		{ID: "delivery", Title: "Build the first delivery loop", Description: "Create the minimum workflow, handoffs, approvals, and artifacts needed to deliver the offer end to end.", OwnerSlug: office.BuilderAgentSlug},
-		{ID: "instrumentation", Title: "Create the operating record", Description: "Set up the place where client state, approvals, and delivery evidence will live so the office can keep operating.", OwnerSlug: office.ArchitectAgentSlug},
-		{ID: "go-live", Title: "Create missing capabilities and take the first live step", Description: "If agents, channels, skills, or tooling are missing, create them, then execute the smallest safe real action in the business workflow.", OwnerSlug: office.BuilderAgentSlug},
+		{ID: "objective", Title: "Choose the first project outcome", Description: "Turn the directive into one concrete product, workflow, or implementation outcome this week.", OwnerSlug: office.CEOAgentSlug},
+		{ID: "offer", Title: "Draft the first project brief", Description: "Name the user, the promise, the scope, and the next decision needed to move the project forward.", OwnerSlug: office.CEOAgentSlug},
+		{ID: "delivery", Title: "Build the first delivery loop", Description: "Create the minimum workflow, handoffs, approvals, and artifacts needed to deliver the first slice end to end.", OwnerSlug: office.FrontendAgentSlug},
+		{ID: "instrumentation", Title: "Create the operating record", Description: "Set up the place where project state, approvals, and delivery evidence will live so the office can keep operating.", OwnerSlug: office.BackendAgentSlug},
+		{ID: "go-live", Title: "Create missing capabilities and take the first live step", Description: "If agents, channels, skills, repository setup, or tooling paths are missing, create them, then execute the smallest safe project step.", OwnerSlug: office.CEOAgentSlug},
 	}
 }
 

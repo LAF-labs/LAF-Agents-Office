@@ -34,7 +34,7 @@ import (
 // re-enters the wizard. The dedupe guard below (onboarding_origin by task
 // content) prevents double-posting on crash recovery.
 //
-// The DefaultManifest three-agent roster is the only built-in runtime roster.
+// The DefaultManifest roster is the only built-in runtime roster.
 // reached via this path. It remains only as a true-recovery fallback in
 // ensureDefaultOfficeMembersLocked for corrupted/zero-member state.
 func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID string, selectedAgents []string) error {
@@ -165,9 +165,12 @@ func (b *Broker) materializeBlueprintWiki(bp operations.Blueprint) {
 // it does not mutate broker state — the caller feeds the returned
 // Blueprint to seedFromBlueprintLocked.
 //
-// The starter roster is the three-agent execution team (Architect, Builder,
-// Reviewer). Users can still uncheck non-lead agents in
-// the wizard's Team step; unchecked ones are dropped via the filter.
+// The starter roster is a fixed 4-agent project team: CEO orchestrator,
+// Frontend Engineer, Backend Engineer, and Reviewer. This is the product
+// default for a brand-new LAF-Office workspace: CEO owns routing and priority,
+// engineers own implementation, and Reviewer owns the quality gate. Users can
+// still uncheck agents in the wizard's Team step; unchecked ones are dropped
+// via the filter.
 func synthesizeBlueprintFromState(task string) operations.Blueprint {
 	state, err := onboarding.Load()
 	if err != nil {
@@ -179,32 +182,34 @@ func synthesizeBlueprintFromState(task string) operations.Blueprint {
 	}
 	name := strings.TrimSpace(state.CompanyName)
 	desc := onboardingPartialString(state.Partial, "welcome", "desc")
-	return scratchFoundingTeamBlueprint(name, desc, strings.TrimSpace(task))
+	return scratchProjectTeamBlueprint(name, desc, strings.TrimSpace(task))
 }
 
-// scratchFoundingTeamBlueprint returns the fixed "From scratch" starter
-// roster: Architect (lead), Builder, Reviewer. Extracted so tests can assert
-// the shape without rebuilding onboarding state.
-func scratchFoundingTeamBlueprint(companyName, description, directive string) operations.Blueprint {
+// scratchProjectTeamBlueprint returns the fixed "From scratch" starter
+// roster: CEO (orchestrator), Frontend Engineer, Backend Engineer, Reviewer.
+// Extracted so tests can assert the shape without rebuilding onboarding state.
+func scratchProjectTeamBlueprint(companyName, description, directive string) operations.Blueprint {
 	displayName := companyName
 	if displayName == "" {
 		displayName = "Your project"
 	}
 	agents := []operations.StarterAgent{
-		{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "architect", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: []string{"scope", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real gap, pushes back on vague scope, and turns intent into crisp Builder and Reviewer work."},
-		{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "builder", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"implementation", "workflow execution", "integration", "delivery"}, Personality: "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review."},
-		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "reviewer", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Reviews changed scope for correctness, security, and handoff readiness."},
+		{Slug: office.CEOAgentSlug, Name: "CEO", Role: "orchestrator", PermissionMode: "plan", Checked: true, Type: "lead", BuiltIn: true, Expertise: []string{"strategy", "prioritization", "delegation", "project orchestration"}, Personality: "Sets direction, breaks directives into specialist assignments, routes work, and owns the outcome."},
+		{Slug: office.FrontendAgentSlug, Name: "Frontend Engineer", Role: "frontend", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"frontend", "UI", "client state", "accessibility", "visual QA"}, Personality: "Builds polished user-facing flows and keeps the product experience coherent."},
+		{Slug: office.BackendAgentSlug, Name: "Backend Engineer", Role: "backend", PermissionMode: "auto", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"backend", "APIs", "auth", "data modeling", "runtime integration"}, Personality: "Builds reliable backend systems, keeps state sane, and reduces operational complexity."},
+		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "review", PermissionMode: "plan", Checked: true, Type: "assistant", BuiltIn: true, Expertise: []string{"code review", "QA", "acceptance checks", "regression risk", "UX sanity checks"}, Personality: "Reviews implementation work, catches missing tests and regressions, and keeps quality gates crisp."},
 	}
 	channels := []operations.StarterChannel{
-		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: office.CoreAgentSlugs()},
-		{Slug: "delivery", Name: "delivery", Description: "Implementation, workflow execution, and repo-connected delivery.", Members: []string{office.ArchitectAgentSlug, office.BuilderAgentSlug, office.ReviewerAgentSlug}},
-		{Slug: "review", Name: "review", Description: "Review findings, verification, and handoff decisions.", Members: []string{office.ArchitectAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "general", Name: "general", Description: "Primary coordination channel.", Members: []string{office.CEOAgentSlug, office.FrontendAgentSlug, office.BackendAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "frontend", Name: "frontend", Description: "User-facing flows, UI polish, and frontend implementation.", Members: []string{office.CEOAgentSlug, office.FrontendAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "backend", Name: "backend", Description: "APIs, state, auth, runtime integrations, and backend implementation.", Members: []string{office.CEOAgentSlug, office.BackendAgentSlug, office.ReviewerAgentSlug}},
+		{Slug: "review", Name: "review", Description: "Acceptance checks, regressions, and handoff quality gates.", Members: []string{office.CEOAgentSlug, office.FrontendAgentSlug, office.BackendAgentSlug, office.ReviewerAgentSlug}},
 	}
 	var tasks []operations.StarterTask
 	if directive != "" {
 		tasks = []operations.StarterTask{{
 			Channel: "general",
-			Owner:   office.ArchitectAgentSlug,
+			Owner:   office.CEOAgentSlug,
 			Title:   "Kick off the directive",
 			Details: directive,
 		}}
@@ -216,7 +221,7 @@ func scratchFoundingTeamBlueprint(companyName, description, directive string) op
 		Description: description,
 		Objective:   directive,
 		Starter: operations.StarterPlan{
-			LeadSlug:                  office.DefaultLeadAgentSlug,
+			LeadSlug:                  office.CEOAgentSlug,
 			GeneralChannelDescription: "Primary coordination channel.",
 			KickoffPrompt:             directive,
 			Agents:                    agents,
@@ -389,9 +394,10 @@ func blankSlateOfficeMembersFromBlueprint(blueprint operations.Blueprint, select
 	// agents. Keeps the broker from crashing on empty rosters.
 	now := time.Now().UTC().Format(time.RFC3339)
 	return []officeMember{
-		{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "Architect", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
-		{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "Builder", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
-		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.CEOAgentSlug, Name: "CEO", Role: "orchestrator", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.FrontendAgentSlug, Name: "Frontend Engineer", Role: "frontend", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.BackendAgentSlug, Name: "Backend Engineer", Role: "backend", PermissionMode: "auto", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
+		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "review", PermissionMode: "plan", BuiltIn: true, CreatedBy: "laf-office", CreatedAt: now},
 	}
 }
 

@@ -4041,6 +4041,8 @@ func displayName(slug string) string {
 		return "Frontend Engineer"
 	case "be":
 		return "Backend Engineer"
+	case "reviewer":
+		return "Reviewer"
 	case "ai":
 		return "AI Engineer"
 	case "designer":
@@ -4067,6 +4069,8 @@ func roleLabel(slug string) string {
 		return "frontend"
 	case "be":
 		return "backend"
+	case "reviewer":
+		return "review"
 	case "ai":
 		return "AI Engineer"
 	case "designer":
@@ -4247,11 +4251,9 @@ func channelMentionAgents(members []channelMember) []tui.AgentMention {
 	defaults := []tui.AgentMention{
 		{Slug: "all", Name: "All agents"},
 		{Slug: "ceo", Name: "CEO"},
-		{Slug: "pm", Name: "Product Manager"},
 		{Slug: "fe", Name: "Frontend Engineer"},
 		{Slug: "be", Name: "Backend Engineer"},
-		{Slug: "ai", Name: "AI Engineer"},
-		{Slug: "designer", Name: "Designer"},
+		{Slug: "reviewer", Name: "Reviewer"},
 	}
 	seen := make(map[string]bool, len(defaults))
 	mentions := make([]tui.AgentMention, 0, len(defaults)+len(members))

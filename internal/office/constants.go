@@ -8,6 +8,9 @@ type ReviewState string
 type MessageKind string
 
 const (
+	CEOAgentSlug         = "ceo"
+	FrontendAgentSlug    = "fe"
+	BackendAgentSlug     = "be"
 	ArchitectAgentSlug   = "architect"
 	BuilderAgentSlug     = "builder"
 	ReviewerAgentSlug    = "reviewer"

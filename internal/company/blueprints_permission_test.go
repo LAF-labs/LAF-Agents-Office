@@ -331,24 +331,24 @@ starter:
 		t.Fatalf("expected at least 2 members, got %d", len(resolved.Members))
 	}
 
-	architectMember := findMemberBySlug(resolved.Members, "architect")
-	if architectMember == nil {
-		t.Fatal("expected architect member in resolved manifest")
+	ceoMember := findMemberBySlug(resolved.Members, "ceo")
+	if ceoMember == nil {
+		t.Fatal("expected ceo member in resolved manifest")
 	}
-	if architectMember.PermissionMode == "" {
-		t.Fatal("expected architect to have a permission_mode")
-	}
-
-	builderMember := findMemberBySlug(resolved.Members, "builder")
-	if builderMember == nil {
-		t.Fatal("expected builder member in resolved manifest")
-	}
-	if builderMember.PermissionMode == "" {
-		t.Fatal("expected builder to have a permission_mode")
+	if ceoMember.PermissionMode == "" {
+		t.Fatal("expected ceo to have a permission_mode")
 	}
 
-	// The runtime collapses legacy blueprint employees into the core three-agent team.
-	if len(resolved.Members) != 3 {
+	backendMember := findMemberBySlug(resolved.Members, "be")
+	if backendMember == nil {
+		t.Fatal("expected backend member in resolved manifest")
+	}
+	if backendMember.PermissionMode == "" {
+		t.Fatal("expected backend to have a permission_mode")
+	}
+
+	// The runtime collapses legacy blueprint employees into the default project team.
+	if len(resolved.Members) != 4 {
 		t.Fatalf("expected only core runtime members, got %+v", resolved.Members)
 	}
 

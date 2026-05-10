@@ -179,7 +179,7 @@ func DefaultManifest() Manifest {
 	manifest := Manifest{
 		Name:        "LAF-Office",
 		Description: "Project workspace runtime.",
-		Lead:        office.DefaultLeadAgentSlug,
+		Lead:        office.CEOAgentSlug,
 		UpdatedAt:   now,
 	}
 	if blueprintID != "" {
@@ -224,13 +224,13 @@ func fromScratchDefaultManifest(now string) Manifest {
 	}
 	return Manifest{
 		Name:        "LAF-Office",
-		Description: "Project workspace runtime that starts from a directive instead of a saved blueprint.",
-		Lead:        office.DefaultLeadAgentSlug,
+		Description: "Project workspace runtime that starts with a compact engineering and review team.",
+		Lead:        office.CEOAgentSlug,
 		Members:     members,
 		Channels: []ChannelSpec{{
 			Slug:        "general",
 			Name:        "general",
-			Description: "Primary room for inventing and operating the business from scratch.",
+			Description: "Primary room for planning, implementation, and review coordination.",
 			Members:     channelMembers,
 		}},
 		UpdatedAt: now,
@@ -239,9 +239,10 @@ func fromScratchDefaultManifest(now string) Manifest {
 
 func coreAgentMemberSpecs() []MemberSpec {
 	return []MemberSpec{
-		{Slug: office.ArchitectAgentSlug, Name: "Architect", Role: "Architect", Expertise: []string{"scoping", "architecture", "task design", "handoffs"}, Personality: "Diagnoses the real problem, locks scope, and turns vague intent into crisp work for Builder and Reviewer.", PermissionMode: "plan", System: true},
-		{Slug: office.BuilderAgentSlug, Name: "Builder", Role: "Builder", Expertise: []string{"implementation", "workflow execution", "integration", "delivery"}, Personality: "Builds the smallest useful slice, handles errors directly, and hands off clean evidence for review.", PermissionMode: "auto", System: true},
-		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", Expertise: []string{"quality", "security", "spec compliance", "verification"}, Personality: "Reviews only the changed scope, flags concrete risks, and refuses to approve vague or unverified work.", PermissionMode: "plan", System: true},
+		{Slug: office.CEOAgentSlug, Name: "CEO", Role: "Orchestrator", Expertise: []string{"strategy", "prioritization", "delegation", "project orchestration"}, Personality: "Routes work, makes priority calls, and keeps the project moving across agents.", PermissionMode: "plan", System: true},
+		{Slug: office.FrontendAgentSlug, Name: "Frontend Engineer", Role: "Frontend Engineer", Expertise: []string{"frontend", "UI", "client state", "accessibility", "visual QA"}, Personality: "Builds polished user-facing flows and keeps the product experience coherent.", PermissionMode: "auto", System: true},
+		{Slug: office.BackendAgentSlug, Name: "Backend Engineer", Role: "Backend Engineer", Expertise: []string{"backend", "APIs", "auth", "data modeling", "runtime integration"}, Personality: "Builds reliable backend systems, keeps state sane, and reduces operational complexity.", PermissionMode: "auto", System: true},
+		{Slug: office.ReviewerAgentSlug, Name: "Reviewer", Role: "Reviewer", Expertise: []string{"code review", "QA", "acceptance checks", "regression risk", "UX sanity checks"}, Personality: "Reviews implementation work, catches missing tests and regressions, and keeps quality gates crisp.", PermissionMode: "plan", System: true},
 	}
 }
 
@@ -249,10 +250,15 @@ func normalizeManifest(manifest Manifest) Manifest {
 	if strings.TrimSpace(manifest.Name) == "" {
 		manifest.Name = "LAF-Office"
 	}
-	if strings.TrimSpace(manifest.Lead) == "" {
+	lead := normalizeSlug(manifest.Lead)
+	if lead == "" {
 		manifest.Lead = office.DefaultLeadAgentSlug
-	} else if mapped := office.MapLegacyAgentSlug(manifest.Lead); mapped != "" && !office.IsAgentMakerSlug(mapped) {
+	} else if manifestHasMemberSlug(manifest.Members, lead) {
+		manifest.Lead = lead
+	} else if mapped := office.MapLegacyAgentSlug(lead); mapped != "" && !office.IsAgentMakerSlug(mapped) {
 		manifest.Lead = mapped
+	} else {
+		manifest.Lead = lead
 	}
 	manifest.BlueprintRefs = normalizeBlueprintRefs(manifest.BlueprintRefs)
 
@@ -327,6 +333,15 @@ func normalizeManifest(manifest Manifest) Manifest {
 	}
 	manifest.Channels = channels
 	return manifest
+}
+
+func manifestHasMemberSlug(members []MemberSpec, slug string) bool {
+	for _, member := range members {
+		if normalizeSlug(member.Slug) == slug {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeBlueprintRefs(refs []BlueprintRef) []BlueprintRef {

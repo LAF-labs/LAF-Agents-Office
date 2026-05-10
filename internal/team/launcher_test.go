@@ -92,7 +92,7 @@ func TestAgentPaneSlugsOneOnOneUsesOnlySelectedAgent(t *testing.T) {
 	}
 }
 
-func TestNewLauncherFromScratchUsesGenericOffice(t *testing.T) {
+func TestNewLauncherFromScratchUsesDefaultProjectOffice(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	// Pair HOME with LAF_OFFICE_RUNTIME_HOME so NewLauncher reads from this
@@ -112,7 +112,7 @@ func TestNewLauncherFromScratchUsesGenericOffice(t *testing.T) {
 		t.Fatalf("AgentCount: got %d, want 4", got)
 	}
 	got := l.officeMembersSnapshot()
-	want := []string{"founder", "operator", "builder", "reviewer"}
+	want := []string{"ceo", "fe", "be", "reviewer"}
 	if len(got) != len(want) {
 		t.Fatalf("officeMembersSnapshot: got %d members, want %d (%+v)", len(got), len(want), got)
 	}

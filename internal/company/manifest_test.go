@@ -201,12 +201,22 @@ func TestManifestSurfaceSpecRoundTrips(t *testing.T) {
 
 func TestDefaultManifestHasNoSurface(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	manifest := DefaultManifest()
 	if strings.Contains(strings.ToLower(manifest.Description), "founding team") {
 		t.Fatalf("default manifest should not reference founding team in description: %q", manifest.Description)
 	}
 	if got := manifest.ActiveBlueprintRefs(); len(got) != 0 {
 		t.Fatalf("expected no active blueprint refs by default when no pack is configured, got %+v", got)
+	}
+	wantMembers := []string{"ceo", "fe", "be", "reviewer"}
+	if len(manifest.Members) != len(wantMembers) {
+		t.Fatalf("default members got %d, want %d: %+v", len(manifest.Members), len(wantMembers), manifest.Members)
+	}
+	for i, want := range wantMembers {
+		if manifest.Members[i].Slug != want {
+			t.Fatalf("member[%d]: got %q, want %q", i, manifest.Members[i].Slug, want)
+		}
 	}
 	for _, ch := range manifest.Channels {
 		if ch.Surface != nil {
@@ -427,21 +437,21 @@ starter:
 	if !ok {
 		t.Fatal("expected blueprint-backed manifest materialization")
 	}
-	if resolved.Lead != "architect" {
-		t.Fatalf("expected blueprint lead to map to architect, got %+v", resolved.Lead)
+	if resolved.Lead != "ceo" {
+		t.Fatalf("expected blueprint lead to map to ceo, got %+v", resolved.Lead)
 	}
-	architect := findMemberBySlug(resolved.Members, "architect")
-	if architect == nil {
-		t.Fatalf("expected architect member in resolved manifest: %+v", resolved.Members)
+	ceo := findMemberBySlug(resolved.Members, "ceo")
+	if ceo == nil {
+		t.Fatalf("expected ceo member in resolved manifest: %+v", resolved.Members)
 	}
-	if architect.Role == "" {
-		t.Fatalf("expected architect role, got %+v", architect)
+	if ceo.Role == "" {
+		t.Fatalf("expected ceo role, got %+v", ceo)
 	}
-	if !architect.System {
-		t.Fatalf("expected architect to be a system member, got %+v", architect)
+	if !ceo.System {
+		t.Fatalf("expected ceo to be a system member, got %+v", ceo)
 	}
-	if !containsSlug(architect.Expertise, "scoping") {
-		t.Fatalf("expected architect expertise, got %+v", architect.Expertise)
+	if !containsSlug(ceo.Expertise, "strategy") {
+		t.Fatalf("expected ceo expertise, got %+v", ceo.Expertise)
 	}
 }
 

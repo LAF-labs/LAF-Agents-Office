@@ -809,10 +809,10 @@ func (m onboardingModel) fetchTemplatesCmd() tea.Cmd {
 
 func defaultTemplates() []taskTemplate {
 	return []taskTemplate{
-		{ID: "landing-page", Title: "Draft the landing page", OwnerSlug: "executor"},
-		{ID: "repo-structure", Title: "Set up repo structure", OwnerSlug: "executor"},
-		{ID: "product-spec", Title: "Write the product spec", OwnerSlug: "planner"},
-		{ID: "readme", Title: "Write the README", OwnerSlug: "planner"},
+		{ID: "landing-page", Title: "Draft the landing page", OwnerSlug: "fe"},
+		{ID: "repo-structure", Title: "Set up repo structure", OwnerSlug: "be"},
+		{ID: "product-spec", Title: "Write the product spec", OwnerSlug: "ceo"},
+		{ID: "readme", Title: "Write the README", OwnerSlug: "reviewer"},
 		{ID: "competitive-audit", Title: "Audit the competition", OwnerSlug: "ceo"},
 	}
 }
