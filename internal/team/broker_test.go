@@ -854,6 +854,97 @@ func TestNewBrokerSeedsBlueprintBackedOfficeRosterOnFreshState(t *testing.T) {
 	}
 }
 
+func TestLoadStateMigratesLegacyDefaultRosterToCoreRuntime(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "broker-state.json")
+	now := time.Now().UTC().Format(time.RFC3339)
+	state := brokerState{
+		Members: []officeMember{
+			{Slug: "ceo", Name: "CEO", Role: "lead", BuiltIn: true, CreatedAt: now},
+			{Slug: "pm", Name: "Product Manager", Role: "product", CreatedAt: now},
+			{Slug: "founding-engineer", Name: "Founding Engineer", Role: "engineering", CreatedAt: now},
+			{Slug: "ai-engineer", Name: "AI Engineer", Role: "agent-systems", CreatedAt: now},
+			{Slug: "designer", Name: "Designer", Role: "design", CreatedAt: now},
+		},
+		Channels: []teamChannel{
+			{Slug: "general", Name: "general", Members: []string{"ceo", "pm", "founding-engineer", "ai-engineer", "designer"}, CreatedAt: now},
+			{Slug: "product", Name: "product", Members: []string{"ceo", "pm", "designer", "founding-engineer"}, CreatedAt: now},
+		},
+		Tasks:             []teamTask{{ID: "task-1", Title: "Legacy work", Owner: "pm", Status: "open", CreatedBy: "designer", CreatedAt: now, UpdatedAt: now}},
+		Projects:          []teamProject{{ID: "project-1", Name: "Legacy project", LeadAgent: "founding-engineer", CreatedAt: now}},
+		Requests:          []humanInterview{{ID: "req-1", From: "pm", Question: "Approve?", CreatedAt: now}},
+		Actions:           []officeActionLog{{ID: "act-1", Kind: "note", Actor: "designer", Summary: "Legacy action", CreatedAt: now}},
+		Messages:          []channelMessage{{ID: "msg-1", From: "pm", Channel: "general", Content: "@designer check", Tagged: []string{"designer"}, Timestamp: now}},
+		RunnerJobs:        []runnerJob{{ID: "job-1", TeamID: "team-1", AgentSlug: "ai-engineer", Status: "queued", CreatedAt: now}},
+		WikiWriteRequests: []hostedWikiWriteRequest{{ID: "wiki-1", ArticlePath: "team/x.md", Status: "queued", RequestedBy: "pm", CreatedAt: now}},
+		Signals:           []officeSignalRecord{{ID: "sig-1", Source: "test", Content: "x", Owner: "pm", CreatedAt: now}},
+		Decisions:         []officeDecisionRecord{{ID: "dec-1", Kind: "test", Summary: "x", Owner: "designer", CreatedAt: now}},
+		Watchdogs:         []watchdogAlert{{ID: "watch-1", Kind: "test", Owner: "ai-engineer", Summary: "x", CreatedAt: now}},
+		Skills:            []teamSkill{{ID: "skill-1", Name: "legacy", Title: "Legacy", Content: "x", CreatedBy: "pm"}},
+		Usage: teamUsageState{Agents: map[string]usageTotals{
+			"pm":          {InputTokens: 5, TotalTokens: 5, Requests: 1},
+			"ai-engineer": {OutputTokens: 7, TotalTokens: 7, Requests: 2},
+		}},
+	}
+	raw, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("marshal state: %v", err)
+	}
+	if err := os.WriteFile(statePath, raw, 0o600); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+
+	b := NewBrokerAt(statePath)
+	defer b.Stop()
+	if err := b.loadState(); err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	members := b.OfficeMembers()
+	if len(members) != len(office.CoreAgentSlugs()) {
+		t.Fatalf("members got %d want %d: %+v", len(members), len(office.CoreAgentSlugs()), members)
+	}
+	for i, want := range office.CoreAgentSlugs() {
+		if members[i].Slug != want {
+			t.Fatalf("member[%d] got %q want %q: %+v", i, members[i].Slug, want, members)
+		}
+		if !members[i].BuiltIn {
+			t.Fatalf("core member %q should be built-in after migration: %+v", members[i].Slug, members[i])
+		}
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if legacyCoreRosterPresent(b.members) {
+		t.Fatalf("legacy roster survived migration: %+v", b.members)
+	}
+	if b.tasks[0].Owner != office.CEOAgentSlug || b.tasks[0].CreatedBy != office.FrontendAgentSlug {
+		t.Fatalf("task legacy actors not mapped: %+v", b.tasks[0])
+	}
+	if b.projects[0].LeadAgent != office.BackendAgentSlug {
+		t.Fatalf("project lead not mapped: %+v", b.projects[0])
+	}
+	if b.requests[0].From != office.CEOAgentSlug || b.actions[0].Actor != office.FrontendAgentSlug {
+		t.Fatalf("request/action actors not mapped: req=%+v action=%+v", b.requests[0], b.actions[0])
+	}
+	if b.messages[0].From != office.CEOAgentSlug || strings.Join(b.messages[0].Tagged, ",") != office.FrontendAgentSlug {
+		t.Fatalf("message actors not mapped: %+v", b.messages[0])
+	}
+	if b.runnerJobs[0].AgentSlug != office.BackendAgentSlug || b.wikiWriteRequests[0].RequestedBy != office.CEOAgentSlug {
+		t.Fatalf("runner/wiki actors not mapped: job=%+v wiki=%+v", b.runnerJobs[0], b.wikiWriteRequests[0])
+	}
+	if b.signals[0].Owner != office.CEOAgentSlug || b.decisions[0].Owner != office.FrontendAgentSlug || b.watchdogs[0].Owner != office.BackendAgentSlug {
+		t.Fatalf("signal/decision/watchdog owners not mapped: sig=%+v dec=%+v watch=%+v", b.signals[0], b.decisions[0], b.watchdogs[0])
+	}
+	if b.skills[0].CreatedBy != office.CEOAgentSlug {
+		t.Fatalf("skill creator not mapped: %+v", b.skills[0])
+	}
+	if _, ok := b.usage.Agents["pm"]; ok {
+		t.Fatalf("legacy usage key survived: %+v", b.usage.Agents)
+	}
+	if b.usage.Agents[office.CEOAgentSlug].InputTokens != 5 || b.usage.Agents[office.BackendAgentSlug].OutputTokens != 7 {
+		t.Fatalf("usage not folded into core agents: %+v", b.usage.Agents)
+	}
+}
+
 func TestHandleMessagesSupportsInboxAndOutboxScopes(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 

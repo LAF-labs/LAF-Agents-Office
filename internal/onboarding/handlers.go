@@ -132,10 +132,12 @@ func makeHandleComplete(completeFn CompleteFunc) http.HandlerFunc {
 }
 
 // HandleComplete handles POST /onboarding/complete.
-// Body: {"task": string, "skip_task": bool, "blueprint": string, "agents": []string}.
+// Body: {"task": string, "skip_task": bool, "blueprint": string, "agents": []string, "agent_names": map[string]string}.
 // The blueprint and agents fields are forwarded to completeFn so the broker
-// can seed the team that the wizard actually picked. A legacy client that
-// omits them is treated as "from scratch" (blueprint empty, agents nil).
+// can seed the team that the wizard actually picked. agent_names is persisted
+// to partial state before completeFn so the broker can read the names while it
+// synthesizes a from-scratch team. A legacy client that omits them is treated
+// as "from scratch" (blueprint empty, agents nil).
 //
 // Logic:
 //  1. Load state; if already completed return 200 {"already_completed": true, "redirect": "/"}.
@@ -152,10 +154,11 @@ func HandleComplete(w http.ResponseWriter, r *http.Request, completeFn CompleteF
 	}
 
 	var body struct {
-		Task      string   `json:"task"`
-		SkipTask  bool     `json:"skip_task"`
-		Blueprint string   `json:"blueprint"`
-		Agents    []string `json:"agents"`
+		Task       string            `json:"task"`
+		SkipTask   bool              `json:"skip_task"`
+		Blueprint  string            `json:"blueprint"`
+		Agents     []string          `json:"agents"`
+		AgentNames map[string]string `json:"agent_names"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -184,6 +187,13 @@ func HandleComplete(w http.ResponseWriter, r *http.Request, completeFn CompleteF
 		return
 	}
 
+	if agentNames := normalizeAgentNames(body.AgentNames); len(agentNames) > 0 {
+		if err := saveAgentNamesForCompletion(s, agentNames); err != nil {
+			http.Error(w, "failed to save state", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if completeFn != nil {
 		if err := completeFn(body.Task, body.SkipTask, strings.TrimSpace(body.Blueprint), body.Agents); err != nil {
 			// Log the full error server-side but return an opaque response to
@@ -210,6 +220,35 @@ func HandleComplete(w http.ResponseWriter, r *http.Request, completeFn CompleteF
 		"ok":       true,
 		"redirect": "/",
 	})
+}
+
+func normalizeAgentNames(raw map[string]string) map[string]string {
+	out := make(map[string]string, len(raw))
+	for key, value := range raw {
+		slug := strings.TrimSpace(key)
+		name := strings.TrimSpace(value)
+		if slug == "" || name == "" {
+			continue
+		}
+		out[slug] = name
+	}
+	return out
+}
+
+func saveAgentNamesForCompletion(s *State, agentNames map[string]string) error {
+	if s.Partial == nil {
+		s.Partial = &PartialProgress{}
+	}
+	if s.Partial.Answers == nil {
+		s.Partial.Answers = make(map[string]map[string]interface{})
+	}
+	answers := s.Partial.Answers["templates"]
+	if answers == nil {
+		answers = make(map[string]interface{})
+	}
+	answers["agent_names"] = agentNames
+	s.Partial.Answers["templates"] = answers
+	return Save(s)
 }
 
 func onboardingStateStep(s *State) string {

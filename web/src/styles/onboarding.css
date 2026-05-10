@@ -46,7 +46,7 @@
 /* ─── Progress Indicator ─── */
 .wizard-progress {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 32px;
   padding: 0;
@@ -302,6 +302,47 @@
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+/* ─── Agent name cards ─── */
+.agent-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agent-name-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.agent-name-role {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.agent-name-input {
+  width: 100%;
+}
+
+.agent-name-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .agent-name-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Team Tiles (Step 4) ─── */
@@ -1213,9 +1254,9 @@
 
 /* Quiet setup flow: keep first-run screens inside the app's product language. */
 html[data-theme^="office"] .wizard-container {
-  align-items: flex-start;
+  align-items: center;
   min-height: 100dvh;
-  padding: 56px 24px 40px;
+  padding: 48px 24px;
 }
 
 html[data-theme^="office"] .wizard-body {
@@ -1224,8 +1265,8 @@ html[data-theme^="office"] .wizard-body {
   gap: 56px;
   width: min(100%, 980px);
   max-width: none;
-  min-height: calc(100dvh - 112px);
-  align-content: start;
+  min-height: 0;
+  align-content: center;
 }
 
 html[data-theme^="office"] .wizard-step {
@@ -1316,7 +1357,8 @@ html[data-theme^="office"] .task-suggestions {
 }
 
 html[data-theme^="office"] .template-grid,
-html[data-theme^="office"] .runtime-grid {
+html[data-theme^="office"] .runtime-grid,
+html[data-theme^="office"] .agent-name-grid {
   gap: 6px;
 }
 
@@ -1347,6 +1389,18 @@ html[data-theme^="office"] .runtime-tile:hover:not(:disabled),
 html[data-theme^="office"] .task-suggestion:hover,
 html[data-theme^="office"] .runtime-priority-row:hover {
   background: var(--overlay-soft);
+}
+
+html[data-theme^="office"] .agent-name-card {
+  border-color: var(--border-light);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .agent-name-card:focus-within {
+  border-color: var(--accent);
+  background: var(--surface);
 }
 
 html[data-theme^="office"] .template-card.selected,
@@ -1418,7 +1472,7 @@ html[data-theme^="office"] .task-textarea-primary {
   html[data-theme^="office"] .wizard-progress {
     position: static;
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 6px;
     margin-bottom: 28px;
     border: 0;

@@ -21,9 +21,11 @@ neutrality, and memory consistency.
 - Verify no agent turn polling is added.
 - Verify Claude-powered and Codex-powered paths remain selectable.
 - Verify tests or documented residual risk exist.
+- For observed repeat failures, recommend the smallest harness ratchet: eval,
+  test, hook, role contract, command, or task gate.
 
 ## Output
 
-Produce review findings, open questions, and residual test gaps. If no issue is
-found, say so clearly.
+Produce review findings, open questions, residual test gaps, and any harness
+ratchet recommendation. If no issue is found, say so clearly.
 

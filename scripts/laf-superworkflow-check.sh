@@ -53,6 +53,7 @@ run_reviewer() {
     CLAUDE.md \
     .laf-office/subagents/README.md \
     .claude/agents/laf-architect.md \
+    docs/specs/HARNESS-RATCHET.md \
     docs/specs/memory-superworkflow.md \
     claude-code-plugin/commands/Superpowers.md \
     claude-code-plugin/commands/Security.md \
@@ -86,7 +87,7 @@ run_reviewer() {
   fi
   rm -f /tmp/laf-superworkflow-polling.$$
 
-  for cmd in hire-agent assign-task daily-standup review-office promote-to-wiki fix-bug deploy-simulation; do
+  for cmd in hire-agent assign-task daily-standup review-office promote-to-wiki fix-bug deploy-simulation ratchet; do
     [ -f "claude-code-plugin/commands/$cmd.md" ] || fail "missing plugin command: $cmd.md"
   done
 

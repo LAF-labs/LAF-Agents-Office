@@ -2761,7 +2761,7 @@ func (b *Broker) DisabledMembers(channel string) []string {
 // humans (empty / "you" / "human") and any registered agent slug are allowed;
 // synthetic senders ("system", automation, bridges) are not. A
 // denylist would silently let every future synthetic identity leak through.
-// Sender is normalized first so case drift ("PM", "Human") matches the
+// Sender is normalized first so case drift ("FE", "Human") matches the
 // allowlist the same way channel access does.
 // Caller must hold b.mu.
 func (b *Broker) senderMayAutoPromoteLocked(from string) bool {
@@ -3408,7 +3408,11 @@ func (b *Broker) loadState() error {
 	}
 	b.ensureDefaultChannelsLocked()
 	b.ensureDefaultOfficeMembersLocked()
+	legacyRoster := legacyCoreRosterPresent(b.members)
 	b.normalizeLoadedStateLocked()
+	if legacyRoster {
+		return b.saveLocked()
+	}
 	return nil
 }
 
@@ -3751,9 +3755,9 @@ func (b *Broker) defaultLeadMemberSlugLocked() string {
 	return office.DefaultLeadAgentSlug
 }
 
-func (b *Broker) migrateLegacyCoreRosterLocked() {
+func (b *Broker) migrateLegacyCoreRosterLocked() bool {
 	if !legacyCoreRosterPresent(b.members) {
-		return
+		return false
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -3817,6 +3821,26 @@ func (b *Broker) migrateLegacyCoreRosterLocked() {
 		b.messages[i].From = mapLegacyTaskActorToCore(b.messages[i].From)
 		b.messages[i].Tagged = mapAgentSlugListToCore(b.messages[i].Tagged, false)
 	}
+	for i := range b.runnerJobs {
+		b.runnerJobs[i].AgentSlug = mapLegacyTaskActorToCore(b.runnerJobs[i].AgentSlug)
+	}
+	for i := range b.wikiWriteRequests {
+		b.wikiWriteRequests[i].RequestedBy = mapLegacyTaskActorToCore(b.wikiWriteRequests[i].RequestedBy)
+	}
+	for i := range b.signals {
+		b.signals[i].Owner = mapLegacyTaskActorToCore(b.signals[i].Owner)
+	}
+	for i := range b.decisions {
+		b.decisions[i].Owner = mapLegacyTaskActorToCore(b.decisions[i].Owner)
+	}
+	for i := range b.watchdogs {
+		b.watchdogs[i].Owner = mapLegacyTaskActorToCore(b.watchdogs[i].Owner)
+	}
+	for i := range b.skills {
+		b.skills[i].CreatedBy = mapLegacyTaskActorToCore(b.skills[i].CreatedBy)
+	}
+	b.usage.Agents = mapUsageAgentsToCore(b.usage.Agents)
+	return true
 }
 
 func legacyCoreRosterPresent(members []officeMember) bool {
@@ -3829,39 +3853,16 @@ func legacyCoreRosterPresent(members []officeMember) bool {
 }
 
 func isLegacyDefaultAgentSlug(slug string) bool {
-	switch normalizeActorSlug(slug) {
-	case office.ArchitectAgentSlug, office.BuilderAgentSlug,
-		"founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead",
-		"designer", "frontend", "front-end", "ui", "ux",
-		"executor", "founding-engineer", "ai-engineer", "eng", "backend", "back-end", "ai",
-		"analyst", "qa":
-		return true
-	default:
-		return false
-	}
+	slug = normalizeActorSlug(slug)
+	return slug != "" && !office.IsCoreAgentSlug(slug) && !office.IsAgentMakerSlug(slug) && office.MapLegacyAgentSlug(slug) != ""
 }
 
 func mapLegacyDefaultAgentSlugToCurrentCore(slug string) string {
-	switch normalizeActorSlug(slug) {
-	case office.CEOAgentSlug:
-		return office.CEOAgentSlug
-	case office.FrontendAgentSlug:
-		return office.FrontendAgentSlug
-	case office.BackendAgentSlug:
-		return office.BackendAgentSlug
-	case office.ReviewerAgentSlug:
-		return office.ReviewerAgentSlug
-	case office.ArchitectAgentSlug, "founder", "operator", "planner", "pm", "product", "product-manager", "tech-lead":
-		return office.CEOAgentSlug
-	case "designer", "frontend", "front-end", "ui", "ux":
-		return office.FrontendAgentSlug
-	case office.BuilderAgentSlug, "executor", "founding-engineer", "ai-engineer", "eng", "backend", "back-end", "ai":
-		return office.BackendAgentSlug
-	case "analyst", "qa":
-		return office.ReviewerAgentSlug
-	default:
+	mapped := office.MapLegacyAgentSlug(slug)
+	if mapped == "" || office.IsAgentMakerSlug(mapped) {
 		return ""
 	}
+	return mapped
 }
 
 func mapLegacyTaskActorToCore(slug string) string {
@@ -3890,6 +3891,29 @@ func mapAgentSlugListToCore(slugs []string, includeAllCoreWhenEmpty bool) []stri
 	mapped = uniqueSlugs(mapped)
 	if includeAllCoreWhenEmpty && len(mapped) == 0 {
 		return office.CoreAgentSlugs()
+	}
+	return mapped
+}
+
+func mapUsageAgentsToCore(agents map[string]usageTotals) map[string]usageTotals {
+	if len(agents) == 0 {
+		return agents
+	}
+	mapped := make(map[string]usageTotals, len(agents))
+	for slug, totals := range agents {
+		next := mapLegacyTaskActorToCore(slug)
+		if strings.TrimSpace(next) == "" {
+			next = slug
+		}
+		existing := mapped[next]
+		existing.InputTokens += totals.InputTokens
+		existing.OutputTokens += totals.OutputTokens
+		existing.CacheReadTokens += totals.CacheReadTokens
+		existing.CacheCreationTokens += totals.CacheCreationTokens
+		existing.TotalTokens += totals.TotalTokens
+		existing.CostUsd += totals.CostUsd
+		existing.Requests += totals.Requests
+		mapped[next] = existing
 	}
 	return mapped
 }
@@ -4776,6 +4800,9 @@ func applyOfficeMemberDefaults(member *officeMember) {
 	if member.Name == "" {
 		member.Name = humanizeSlug(member.Slug)
 	}
+	if office.IsCoreAgentSlug(member.Slug) {
+		member.BuiltIn = true
+	}
 	if member.Role == "" {
 		member.Role = member.Name
 	}
@@ -4811,7 +4838,7 @@ func inferOfficeExpertise(slug, role string) []string {
 		return []string{"marketing", "growth", "positioning", "campaigns", "brand"}
 	case strings.Contains(text, "revenue"), strings.Contains(text, "sales"), strings.Contains(text, "cro"):
 		return []string{"sales", "revenue", "pipeline", "partnerships", "closing"}
-	case strings.Contains(text, "product"), strings.Contains(text, "pm"):
+	case strings.Contains(text, "product"):
 		return []string{"product", "roadmap", "requirements", "prioritization", "scope"}
 	case strings.Contains(text, "design"):
 		return []string{"design", "UX", "visual systems", "prototyping", "brand"}
@@ -4841,10 +4868,10 @@ func inferOfficePersonality(slug, role string) string {
 		return "Growth and positioning operator who translates product work into market momentum."
 	case strings.Contains(text, "revenue"), strings.Contains(text, "sales"):
 		return "Commercial operator who thinks in demand, objections, and revenue consequences."
-	case strings.Contains(text, "product"), strings.Contains(text, "pm"):
+	case strings.Contains(text, "product"):
 		return "Product thinker who turns ambiguity into scope, sequencing, and crisp tradeoffs."
 	case strings.Contains(text, "design"):
-		return "Taste-driven designer who cares about clarity, craft, and how the product actually feels."
+		return "Taste-driven design specialist who cares about clarity, craft, and how the product actually feels."
 	default:
 		return "A sharp teammate with a clear specialty, strong point of view, and enough personality to feel human."
 	}
@@ -6949,6 +6976,15 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		b.mu.Lock()
+		if b.migrateLegacyCoreRosterLocked() {
+			b.normalizeLoadedStateLocked()
+			if err := b.saveLocked(); err != nil {
+				b.mu.Unlock()
+				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+				return
+			}
+			b.publishOfficeChangeLocked(officeChangeEvent{Kind: "office_reseeded"})
+		}
 		type officeMemberResponse struct {
 			officeMember
 			Status       string `json:"status,omitempty"`
@@ -7027,6 +7063,10 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 		defer b.mu.Unlock()
 		switch action {
 		case "create":
+			if mapped := mapLegacyDefaultAgentSlugToCurrentCore(slug); mapped != "" && !office.IsCoreAgentSlug(slug) {
+				http.Error(w, fmt.Sprintf("legacy agent slug %q is retired; use @%s instead", slug, mapped), http.StatusBadRequest)
+				return
+			}
 			if b.findMemberLocked(slug) != nil {
 				http.Error(w, "member already exists", http.StatusConflict)
 				return
@@ -8207,7 +8247,8 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Auto-promote @slug mentions in the body into the tagged array. If a
-	// user or agent typed `@pm`, treat it as a tag — `extractMentionedSlugs`
+	// user or agent typed a registered agent mention, treat it as a tag;
+	// `extractMentionedSlugs`
 	// already restricts to registered agent slugs, so conversational use of
 	// an @ that doesn't match an agent is untouched. Previously this ran for
 	// agent posts only, on the theory that humans might want @ to be merely

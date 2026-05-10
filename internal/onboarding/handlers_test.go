@@ -299,6 +299,45 @@ func TestHandleCompleteDecodesBlueprintAndAgents(t *testing.T) {
 	})
 }
 
+func TestHandleCompletePersistsAgentNamesBeforeCompleteFn(t *testing.T) {
+	withTempHome(t, func(_ string) {
+		var gotNames map[string]string
+		captured := func(task string, skipTask bool, blueprintID string, selectedAgents []string) error {
+			state, err := Load()
+			if err != nil {
+				return err
+			}
+			gotNames = map[string]string{}
+			raw, _ := state.Partial.Answers["templates"]["agent_names"].(map[string]interface{})
+			for key, value := range raw {
+				if name, ok := value.(string); ok {
+					gotNames[key] = name
+				}
+			}
+			return nil
+		}
+
+		body := map[string]interface{}{
+			"task":        "Set up the project workspace",
+			"skip_task":   false,
+			"agent_names": map[string]string{"ceo": "CEO", "fe": "FE", "be": "BD", "reviewer": "REV"},
+		}
+		data, _ := json.Marshal(body)
+		req := httptest.NewRequest(http.MethodPost, "/onboarding/complete", bytes.NewReader(data))
+		w := httptest.NewRecorder()
+		HandleComplete(w, req, captured)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d\nbody: %s", w.Code, http.StatusOK, w.Body.String())
+		}
+		for slug, want := range map[string]string{"ceo": "CEO", "fe": "FE", "be": "BD", "reviewer": "REV"} {
+			if gotNames[slug] != want {
+				t.Fatalf("agent name %q: got %q want %q (all: %v)", slug, gotNames[slug], want, gotNames)
+			}
+		}
+	})
+}
+
 // TestHandleCompleteBackwardCompatWithLegacyClient verifies that a POST
 // body without the new blueprint/agents fields (e.g. from an older client)
 // is still accepted, with blueprintID empty and selectedAgents nil. The

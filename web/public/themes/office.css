@@ -4187,8 +4187,8 @@ html[data-theme^="office"] {
   --font-logo:
     "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;
-  --font-mono: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas,
-    monospace;
+  --font-mono:
+    "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace;
   --radius-sm: 10px;
   --radius-md: 18px;
   --radius-lg: 24px;
@@ -4441,7 +4441,10 @@ html[data-theme^="office"] .task-detail-timeline-item {
 
 html[data-theme^="office"] .app-table tbody tr:hover,
 html[data-theme^="office"] .project-directory-card tbody tr:hover,
-html[data-theme^="office"] .project-directory-card tbody tr[data-state="selected"],
+html[data-theme^="office"]
+  .project-directory-card
+  tbody
+  tr[data-state="selected"],
 html[data-theme^="office"] .cmd-palette-item:hover,
 html[data-theme^="office"] .cmd-palette-item.selected,
 html[data-theme^="office"] .provider-option:hover,
@@ -4449,7 +4452,10 @@ html[data-theme^="office"] .provider-option.active {
   background: var(--color-fog);
 }
 
-html[data-theme^="office"] .project-directory-card tbody tr[data-state="selected"] {
+html[data-theme^="office"]
+  .project-directory-card
+  tbody
+  tr[data-state="selected"] {
   box-shadow: inset 3px 0 0 var(--color-ink);
 }
 
@@ -4519,7 +4525,8 @@ html[data-theme^="office"] .nb-promote-btn,
 html[data-theme^="office"] .nb-review-drawer-approve,
 html[data-theme^="office"] .task-detail-delivery-save,
 html[data-theme^="office"] .request-row-actions .btn-primary,
-html[data-theme^="office"] button[type="submit"]:not(.btn-ghost):not(.btn-secondary) {
+html[data-theme^="office"]
+  button[type="submit"]:not(.btn-ghost):not(.btn-secondary) {
   background: var(--color-azure);
   border: 0;
   border-radius: var(--radius-full);
@@ -4532,7 +4539,8 @@ html[data-theme^="office"] .btn-primary:hover,
 html[data-theme^="office"] .composer-send:hover:not(:disabled),
 html[data-theme^="office"] .auth-submit:hover:not(:disabled),
 html[data-theme^="office"] .invite-primary:hover:not(:disabled),
-html[data-theme^="office"] button[type="submit"]:not(.btn-ghost):not(.btn-secondary):hover {
+html[data-theme^="office"]
+  button[type="submit"]:not(.btn-ghost):not(.btn-secondary):hover {
   background: #147ce5;
   color: var(--color-snow);
 }
@@ -4563,7 +4571,11 @@ html[data-theme^="office"] .help-close:hover {
 }
 
 html[data-theme^="office"] .composer {
-  background: linear-gradient(180deg, rgba(245, 245, 247, 0), var(--color-fog) 42%);
+  background: linear-gradient(
+    180deg,
+    rgba(245, 245, 247, 0),
+    var(--color-fog) 42%
+  );
   border-top: 0;
   box-shadow: none;
   padding: 18px 32px 28px;
@@ -5024,11 +5036,17 @@ html[data-theme^="office"] .project-directory-card tbody tr {
 }
 
 html[data-theme^="office"] .project-directory-card tbody tr:hover,
-html[data-theme^="office"] .project-directory-card tbody tr[data-state="selected"] {
+html[data-theme^="office"]
+  .project-directory-card
+  tbody
+  tr[data-state="selected"] {
   background: var(--color-fog);
 }
 
-html[data-theme^="office"] .project-directory-card tbody tr[data-state="selected"] {
+html[data-theme^="office"]
+  .project-directory-card
+  tbody
+  tr[data-state="selected"] {
   box-shadow: none !important;
 }
 
@@ -6076,5 +6094,878 @@ html[data-theme^="office"] .project-recipe-empty {
 
   html[data-theme^="office"] .project-info-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Design audit pass: dense product UI, not rounded marketing cards. */
+html[data-theme^="office"] {
+  --control-radius: 8px;
+  --panel-radius: 8px;
+  --row-radius: 6px;
+  --surface-line: var(--color-silver-mist, var(--border-light));
+}
+
+html[data-theme^="office"] body,
+html[data-theme^="office"] #root,
+html[data-theme^="office"] .office,
+html[data-theme^="office"] .main,
+html[data-theme^="office"] .auth-page,
+html[data-theme^="office"] .wizard-container,
+html[data-theme^="office"] .app-panel,
+html[data-theme^="office"] .project-app,
+html[data-theme^="office"] .requests-dashboard {
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] input,
+html[data-theme^="office"] select,
+html[data-theme^="office"] textarea,
+html[data-theme^="office"] .input,
+html[data-theme^="office"] .search-input,
+html[data-theme^="office"] .task-detail-select,
+html[data-theme^="office"] .task-detail-delivery-input,
+html[data-theme^="office"] .wk-modal select,
+html[data-theme^="office"] .wk-editor-commit,
+html[data-theme^="office"] .project-info-field input,
+html[data-theme^="office"] .project-info-field textarea {
+  box-sizing: border-box;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  box-shadow: none;
+  color: var(--color-ink);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+html[data-theme^="office"] input,
+html[data-theme^="office"] select,
+html[data-theme^="office"] .input,
+html[data-theme^="office"] .search-input,
+html[data-theme^="office"] .task-detail-select,
+html[data-theme^="office"] .task-detail-delivery-input,
+html[data-theme^="office"] .wk-modal select,
+html[data-theme^="office"] .wk-editor-commit,
+html[data-theme^="office"] .project-info-field input {
+  min-height: 42px;
+  padding-inline: 14px;
+}
+
+html[data-theme^="office"] textarea,
+html[data-theme^="office"] .project-info-field textarea {
+  padding: 11px 14px;
+}
+
+html[data-theme^="office"] input:focus,
+html[data-theme^="office"] select:focus,
+html[data-theme^="office"] textarea:focus,
+html[data-theme^="office"] .input:focus,
+html[data-theme^="office"] .search-input:focus,
+html[data-theme^="office"] .task-detail-select:focus,
+html[data-theme^="office"] .task-detail-delivery-input:focus,
+html[data-theme^="office"] .project-info-field input:focus,
+html[data-theme^="office"] .project-info-field textarea:focus {
+  border-color: var(--color-azure);
+  background: var(--color-snow);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  outline: 0;
+}
+
+html[data-theme^="office"] .btn-primary,
+html[data-theme^="office"] .btn-secondary,
+html[data-theme^="office"] .btn-ghost,
+html[data-theme^="office"] .auth-submit,
+html[data-theme^="office"] .invite-primary,
+html[data-theme^="office"] .composer-send,
+html[data-theme^="office"] .task-detail-delivery-save,
+html[data-theme^="office"] .request-row-actions .btn-primary,
+html[data-theme^="office"]
+  button[type="submit"]:not(.btn-ghost):not(.btn-secondary) {
+  border-radius: var(--control-radius);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .btn-primary,
+html[data-theme^="office"] .auth-submit,
+html[data-theme^="office"] .invite-primary,
+html[data-theme^="office"] .task-detail-delivery-save,
+html[data-theme^="office"] .request-row-actions .btn-primary,
+html[data-theme^="office"]
+  button[type="submit"]:not(.btn-ghost):not(.btn-secondary) {
+  min-height: 40px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .btn-secondary,
+html[data-theme^="office"] .btn-ghost {
+  border: 1px solid transparent;
+}
+
+html[data-theme^="office"] .btn-secondary:hover,
+html[data-theme^="office"] .btn-ghost:hover {
+  background: var(--color-silver-mist);
+}
+
+html[data-theme^="office"] .sidebar .sidebar-item,
+html[data-theme^="office"] .sidebar .sidebar-project-link,
+html[data-theme^="office"] .sidebar .sidebar-project-toggle,
+html[data-theme^="office"] .sidebar .sidebar-btn,
+html[data-theme^="office"] .sidebar .sidebar-icon-btn,
+html[data-theme^="office"] .sidebar .usage-toggle {
+  border-radius: var(--row-radius);
+}
+
+html[data-theme^="office"] .channel-header,
+html[data-theme^="office"] .runtime-strip,
+html[data-theme^="office"] .status-bar {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--surface-line);
+}
+
+html[data-theme^="office"] .composer {
+  padding: 14px 28px 24px;
+  background: linear-gradient(
+    180deg,
+    rgba(247, 248, 250, 0),
+    var(--color-fog) 48%
+  );
+}
+
+html[data-theme^="office"] .composer-inner {
+  min-height: 54px;
+  border: 1px solid var(--surface-line);
+  border-radius: 10px;
+  background: var(--color-snow);
+  padding: 10px 10px 10px 16px;
+}
+
+html[data-theme^="office"] .composer-send {
+  width: 34px;
+  height: 34px;
+}
+
+html[data-theme^="office"] .message-agent .message-text,
+html[data-theme^="office"] .thread-panel .message-agent .message-text {
+  border-radius: 10px 10px 10px 4px;
+}
+
+html[data-theme^="office"] .message-human .message-text,
+html[data-theme^="office"] .thread-panel .message-human .message-text {
+  border-radius: 10px 10px 4px;
+}
+
+html[data-theme^="office"] .app-panel,
+html[data-theme^="office"] .project-app,
+html[data-theme^="office"] .requests-dashboard {
+  gap: 16px;
+  padding: 28px 32px 56px;
+}
+
+html[data-theme^="office"] .app-card,
+html[data-theme^="office"] .app-table-shell,
+html[data-theme^="office"] .request-summary-item,
+html[data-theme^="office"] .request-history-toggle,
+html[data-theme^="office"] .request-row,
+html[data-theme^="office"] .project-directory-card,
+html[data-theme^="office"] .project-detail-card,
+html[data-theme^="office"] .project-ticket-card,
+html[data-theme^="office"] .project-empty-card,
+html[data-theme^="office"] .project-info-card,
+html[data-theme^="office"] .thread-quote-card,
+html[data-theme^="office"] .card {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: var(--color-snow);
+  box-shadow: none !important;
+}
+
+html[data-theme^="office"] .app-section-heading {
+  border: 0;
+  border-bottom: 1px solid var(--surface-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0 14px;
+}
+
+html[data-theme^="office"] .app-section-heading h3 {
+  font-size: 22px;
+  line-height: 1.18;
+}
+
+html[data-theme^="office"] .app-empty-state {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: transparent;
+  padding: 18px;
+  text-align: left;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .request-summary-item,
+html[data-theme^="office"] .request-row {
+  padding: 14px 16px;
+}
+
+html[data-theme^="office"] .app-table th,
+html[data-theme^="office"] .app-table td,
+html[data-theme^="office"] .project-directory-card thead th,
+html[data-theme^="office"] .project-directory-card tbody td {
+  padding: 10px 14px;
+}
+
+html[data-theme^="office"] .project-directory-toolbar h3 {
+  font-size: 28px !important;
+  line-height: 1.12 !important;
+}
+
+html[data-theme^="office"] .project-detail-card h3 {
+  font-size: 24px !important;
+  line-height: 1.16 !important;
+}
+
+html[data-theme^="office"] .project-ticket-card h4 {
+  font-size: 18px !important;
+  line-height: 1.22 !important;
+}
+
+html[data-theme^="office"] .project-create-button,
+html[data-theme^="office"] .project-ticket-create-button,
+html[data-theme^="office"] .project-empty-action {
+  min-height: 38px;
+  border-radius: var(--control-radius);
+  justify-self: start;
+}
+
+html[data-theme^="office"] .project-empty-card {
+  min-height: 0;
+  border-radius: var(--panel-radius) !important;
+}
+
+html[data-theme^="office"] .project-empty-card > div {
+  min-height: 0;
+  justify-items: start;
+  padding: 22px !important;
+  text-align: left;
+}
+
+html[data-theme^="office"] .project-empty-card .project-empty-icon {
+  display: none;
+}
+
+html[data-theme^="office"] .auth-page {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  overflow-y: auto;
+  padding: 56px 28px;
+}
+
+html[data-theme^="office"] .auth-language {
+  top: 18px;
+  right: 20px;
+  height: 36px;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  padding: 0 8px 0 10px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-theme^="office"] .auth-language select {
+  height: 28px;
+  min-width: 96px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--color-fog);
+  padding: 0 26px 0 9px;
+}
+
+html[data-theme^="office"] .auth-shell {
+  width: min(1040px, calc(100vw - 56px));
+  max-width: 1040px;
+  grid-template-columns: minmax(260px, 340px) minmax(420px, 500px);
+  gap: 72px;
+  align-items: start;
+}
+
+html[data-theme^="office"] .auth-copy {
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 5px 14px;
+  padding-top: 6px;
+}
+
+html[data-theme^="office"] .auth-brand-mark {
+  grid-row: 1 / 3;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--panel-radius);
+  font-size: 12px;
+}
+
+html[data-theme^="office"] .auth-kicker {
+  color: var(--color-graphite);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+html[data-theme^="office"] .auth-copy h1 {
+  max-width: 100%;
+  font-size: 30px;
+  line-height: 1.12;
+}
+
+html[data-theme^="office"] .auth-copy p {
+  grid-column: 2;
+  max-width: 30rem;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+html[data-theme^="office"] .auth-panel,
+html[data-theme^="office"] .invite-card {
+  gap: 16px;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 24px;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .auth-panel-header {
+  gap: 6px;
+}
+
+html[data-theme^="office"] .auth-panel-header h2 {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+html[data-theme^="office"] .auth-panel-header p,
+html[data-theme^="office"] .auth-section-heading p {
+  font-size: 14px;
+}
+
+html[data-theme^="office"] .auth-form-section {
+  gap: 11px;
+  padding-top: 14px;
+  border-top: 1px solid var(--surface-line);
+}
+
+html[data-theme^="office"] .auth-form-section h3,
+html[data-theme^="office"] .auth-field label {
+  color: var(--color-ink);
+  font-size: 13px;
+}
+
+html[data-theme^="office"] .auth-field input,
+html[data-theme^="office"] .auth-field select,
+html[data-theme^="office"] .invite-form input {
+  height: 42px;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+html[data-theme^="office"] .auth-choice-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+}
+
+html[data-theme^="office"] .auth-choice-list button,
+html[data-theme^="office"] .auth-choice-list button + button {
+  min-height: 66px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+html[data-theme^="office"] .auth-choice-list button + button {
+  border-left: 1px solid var(--surface-line);
+}
+
+html[data-theme^="office"] .auth-choice-list button:hover {
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .auth-choice-list button.active {
+  border-left-color: var(--color-azure);
+  background: var(--color-snow);
+  box-shadow: inset 3px 0 0 var(--color-azure);
+}
+
+html[data-theme^="office"] .auth-submit,
+html[data-theme^="office"] .invite-primary {
+  min-height: 44px;
+  border-radius: var(--control-radius);
+  font-size: 15px;
+}
+
+html[data-theme^="office"] .auth-mode-switch {
+  justify-content: flex-start;
+  font-size: 14px;
+}
+
+html[data-theme^="office"] .wizard-container {
+  align-items: center;
+  min-height: 100dvh;
+  padding: 48px 24px;
+}
+
+html[data-theme^="office"] .wizard-body {
+  width: min(100%, 980px);
+  max-width: none;
+  display: grid;
+  grid-template-columns: 176px minmax(0, 720px);
+  gap: 52px;
+  min-height: 0;
+  align-content: center;
+}
+
+html[data-theme^="office"] .wizard-step {
+  gap: 18px;
+  animation: none;
+}
+
+html[data-theme^="office"] .wizard-progress {
+  position: sticky;
+  top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  border-top: 1px solid var(--surface-line);
+  border-bottom: 1px solid var(--surface-line);
+  padding: 8px 0;
+}
+
+html[data-theme^="office"] .wizard-progress-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+html[data-theme^="office"] .wizard-progress-track {
+  width: 16px;
+  height: 2px;
+  border-radius: 0;
+}
+
+html[data-theme^="office"] .wizard-progress-label {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+html[data-theme^="office"] .wizard-progress-item.active .wizard-progress-label {
+  color: var(--color-ink);
+  font-weight: 650;
+}
+
+html[data-theme^="office"] .wizard-hero {
+  max-width: 680px;
+  text-align: left;
+}
+
+html[data-theme^="office"] .wizard-eyebrow {
+  margin-bottom: 10px;
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .wizard-headline {
+  max-width: 680px;
+  margin: 0 0 10px;
+  font-size: 32px;
+  line-height: 1.16;
+}
+
+html[data-theme^="office"] .wizard-subhead {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--color-graphite);
+  font-size: 14px;
+  line-height: 1.56;
+}
+
+html[data-theme^="office"] .wizard-actions {
+  justify-content: flex-start;
+}
+
+html[data-theme^="office"] .wizard-panel,
+html[data-theme^="office"] .template-group,
+html[data-theme^="office"] .readiness-panel,
+html[data-theme^="office"] .task-suggestions {
+  border: 0;
+  border-top: 1px solid var(--surface-line);
+  border-bottom: 1px solid var(--surface-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  padding: 18px 0;
+}
+
+html[data-theme^="office"] .wizard-panel-title,
+html[data-theme^="office"] .task-suggestions-label,
+html[data-theme^="office"] .runtime-priority-title {
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+html[data-theme^="office"] .template-grid,
+html[data-theme^="office"] .agent-name-grid,
+html[data-theme^="office"] .runtime-grid,
+html[data-theme^="office"] .wiz-team-grid,
+html[data-theme^="office"] .task-suggestions-list {
+  gap: 0;
+}
+
+html[data-theme^="office"] .runtime-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-theme^="office"] .template-card,
+html[data-theme^="office"] .template-from-scratch-btn,
+html[data-theme^="office"] .wiz-team-tile,
+html[data-theme^="office"] .runtime-tile,
+html[data-theme^="office"] .task-suggestion,
+html[data-theme^="office"] .runtime-priority-row {
+  min-width: 0;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--surface-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+}
+
+html[data-theme^="office"] .template-card,
+html[data-theme^="office"] .wiz-team-tile,
+html[data-theme^="office"] .runtime-tile,
+html[data-theme^="office"] .task-suggestion {
+  min-height: 56px;
+  padding: 12px;
+}
+
+html[data-theme^="office"] .template-card:hover,
+html[data-theme^="office"] .template-from-scratch-btn:hover,
+html[data-theme^="office"] .wiz-team-tile:hover,
+html[data-theme^="office"] .runtime-tile:hover:not(:disabled),
+html[data-theme^="office"] .task-suggestion:hover,
+html[data-theme^="office"] .runtime-priority-row:hover {
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .template-card.selected,
+html[data-theme^="office"] .template-from-scratch-btn.selected,
+html[data-theme^="office"] .wiz-team-tile.selected,
+html[data-theme^="office"] .runtime-tile.selected,
+html[data-theme^="office"] .task-suggestion.selected {
+  border-left-color: var(--color-azure);
+  background: var(--color-snow);
+  box-shadow: inset 3px 0 0 var(--color-azure) !important;
+}
+
+html[data-theme^="office"] .template-from-scratch {
+  display: block;
+}
+
+html[data-theme^="office"] .template-from-scratch-btn {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+html[data-theme^="office"] .template-from-scratch-icon,
+html[data-theme^="office"] .runtime-ready-glyph,
+html[data-theme^="office"] .readiness-glyph,
+html[data-theme^="office"] .readiness-glyph-inline,
+html[data-theme^="office"] .task-suggestion-num {
+  border-radius: var(--row-radius);
+}
+
+html[data-theme^="office"] .wiz-team-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-theme^="office"] .agent-name-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+html[data-theme^="office"] .agent-name-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--surface-line);
+  border-radius: 8px;
+  background: var(--color-snow);
+  padding: 14px;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .agent-name-card:focus-within {
+  border-color: var(--color-azure);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+html[data-theme^="office"] .agent-name-role {
+  color: var(--color-ash);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+html[data-theme^="office"] .agent-name-input {
+  width: 100%;
+}
+
+html[data-theme^="office"] .agent-name-desc {
+  color: var(--color-graphite);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+html[data-theme^="office"] .runtime-tile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  text-align: left;
+}
+
+html[data-theme^="office"] .runtime-tile-head {
+  justify-content: flex-start;
+}
+
+html[data-theme^="office"] .runtime-tile-meta {
+  grid-column: 1 / 2;
+  margin-top: 3px;
+}
+
+html[data-theme^="office"] .runtime-priority-badge {
+  position: static;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  justify-self: end;
+}
+
+html[data-theme^="office"] .runtime-tile.disabled {
+  opacity: 0.64;
+}
+
+html[data-theme^="office"] .runtime-tile-head,
+html[data-theme^="office"] .runtime-tile-meta,
+html[data-theme^="office"] .runtime-priority-row {
+  min-width: 0;
+}
+
+html[data-theme^="office"] .runtime-ready-card,
+html[data-theme^="office"] .setup-disclosure,
+html[data-theme^="office"] .setup-api-panel {
+  border: 0;
+  border-top: 1px solid var(--surface-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .runtime-priority-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) repeat(3, 32px);
+  align-items: center;
+  min-height: 40px;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+html[data-theme^="office"] .runtime-priority-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--row-radius);
+  background: transparent;
+  color: var(--color-ash);
+  padding: 0;
+}
+
+html[data-theme^="office"] .runtime-priority-btn:hover:not(:disabled) {
+  border-color: var(--surface-line);
+  background: var(--color-snow);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .task-textarea,
+html[data-theme^="office"] .task-textarea-primary {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: var(--color-snow);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .task-textarea-primary {
+  min-height: 154px;
+}
+
+html[data-theme^="office"] .task-textarea:focus,
+html[data-theme^="office"] .task-textarea-primary:focus {
+  border-color: var(--color-azure);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+html[data-theme^="office"] .readiness-list {
+  gap: 0;
+}
+
+html[data-theme^="office"] .readiness-item {
+  min-height: 58px;
+  border-bottom: 1px solid var(--surface-line);
+  padding: 12px 0;
+}
+
+html[data-theme^="office"] .readiness-item:last-child,
+html[data-theme^="office"] .template-card:last-child,
+html[data-theme^="office"] .wiz-team-tile:last-child,
+html[data-theme^="office"] .runtime-priority-row:last-child,
+html[data-theme^="office"] .task-suggestion:last-child {
+  border-bottom: 0;
+}
+
+html[data-theme^="office"] .wizard-nav {
+  border-top: 1px solid var(--surface-line);
+  padding-top: 16px;
+}
+
+html[data-theme^="office"] .wizard-nav .btn-primary {
+  margin-left: auto;
+}
+
+@media (max-width: 900px) {
+  html[data-theme^="office"] .auth-page {
+    align-items: start;
+    justify-items: center;
+    padding: 64px 18px 36px;
+  }
+
+  html[data-theme^="office"] .auth-shell {
+    width: min(520px, 100%);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  html[data-theme^="office"] .auth-copy h1 {
+    font-size: 26px;
+  }
+
+  html[data-theme^="office"] .auth-copy p {
+    font-size: 14px;
+  }
+
+  html[data-theme^="office"] .wizard-body {
+    display: block;
+    width: 100%;
+  }
+
+  html[data-theme^="office"] .wizard-progress {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 26px;
+    border: 0;
+    padding: 0;
+  }
+
+  html[data-theme^="office"] .wizard-progress-item {
+    display: flex;
+    min-height: 0;
+  }
+
+  html[data-theme^="office"] .wizard-progress-track {
+    width: 100%;
+    height: 3px;
+    border-radius: 3px;
+  }
+
+  html[data-theme^="office"] .wizard-progress-label {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  html[data-theme^="office"] .app-panel,
+  html[data-theme^="office"] .project-app,
+  html[data-theme^="office"] .requests-dashboard {
+    padding: 18px 14px 72px;
+  }
+
+  html[data-theme^="office"] .auth-page {
+    padding-inline: 14px;
+  }
+
+  html[data-theme^="office"] .auth-panel,
+  html[data-theme^="office"] .invite-card {
+    padding: 18px;
+  }
+
+  html[data-theme^="office"] .auth-choice-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"] .auth-choice-list button + button {
+    border-left: 0;
+    border-top: 1px solid var(--surface-line);
+  }
+
+  html[data-theme^="office"] .wizard-container {
+    padding: 30px 16px 32px;
+  }
+
+  html[data-theme^="office"] .wizard-headline {
+    font-size: 28px;
+  }
+
+  html[data-theme^="office"] .runtime-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"] .agent-name-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"] .runtime-priority-row {
+    grid-template-columns: 36px minmax(0, 1fr) repeat(3, 30px);
+  }
+
+  html[data-theme^="office"] .wizard-nav,
+  html[data-theme^="office"] .wizard-nav-right {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  html[data-theme^="office"] .wizard-nav .btn-primary {
+    margin-left: 0;
   }
 }

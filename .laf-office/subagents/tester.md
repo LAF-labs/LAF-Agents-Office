@@ -19,6 +19,8 @@ Drive TDD and verification for LAF-Office changes.
 - Run web checks when `web/` changes.
 - Record checks that could not run and why.
 - Keep tests deterministic and local-first.
+- When an agent-workflow failure repeats, add or request the narrowest
+  ratchet: focused test for code behavior or `evals/` case for prompt behavior.
 
 ## Output
 

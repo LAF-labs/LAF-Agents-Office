@@ -7,9 +7,9 @@ Runner contract and schema for the Slice 0.5 prompt eval harness.
 `schema.json` defines the shape of a single eval case. Every file under
 `evals/{extract,synthesis,query,lint}/*.json` validates against it.
 
-## Runner (pending wiki_index.go landing)
+## Runner
 
-The Go-side runner lives at `cmd/eval-prompts/main.go` (not yet written).
+The Go-side runner lives at `cmd/eval-prompts/main.go`.
 Responsibilities:
 
 1. Walk `evals/*/` for `.json` files.
@@ -23,6 +23,12 @@ Responsibilities:
    - Assert `expected.must_include`, `expected.must_not_include`,
      `expected.structured` partial-match.
 3. Emit a table of pass/fail per case and a total.
+
+Run it with:
+
+```bash
+go run ./cmd/eval-prompts run
+```
 
 Pass gate for Slice 1: 100% of cases pass. Any regression is a ship-blocker.
 

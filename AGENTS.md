@@ -25,6 +25,9 @@ in this repository, apply the globally installed Codex skill
 
 `~/.codex/skills/karpathy-guidelines/SKILL.md`
 
+If that skill is unavailable in the current environment, continue with the
+project-level defaults below instead of blocking the task.
+
 Use these project-level defaults:
 
 - State assumptions before changing code when requirements are ambiguous.

@@ -57,12 +57,8 @@ async function advanceToSetupStep() {
   });
 
   pressEnterOn(window);
-  await waitFor(() =>
-    screen.getByText(/What project should the team start with\?/i),
-  );
+  await waitFor(() => screen.getByText(/Name your agents\./i));
   pressEnterOn(window);
-  await waitFor(() => screen.getByText(/Your team/i));
-  fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
   await waitFor(() => screen.getByText(/How should agents run\?/i));
 }
 
@@ -248,10 +244,11 @@ describe("Wizard keyboard advancement", () => {
 
     pressEnterOn(window);
 
-    await waitFor(() =>
-      screen.getByText(/What project should the team start with\?/i),
-    );
-    expect(screen.getByText("Start from scratch")).toBeInTheDocument();
+    await waitFor(() => screen.getByText(/Name your agents\./i));
+    expect(screen.getByDisplayValue("CEO")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("FE")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("BD")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("REV")).toBeInTheDocument();
     expect(screen.queryByText("Niche CRM")).not.toBeInTheDocument();
     expect(screen.queryByText("YouTube Factory")).not.toBeInTheDocument();
     expect(
@@ -336,11 +333,9 @@ describe("Wizard keyboard advancement", () => {
 
     pressEnterOn(window);
 
-    // Should move to templates step — this is the templates headline.
+    // Should move to agent naming step.
     await waitFor(() => {
-      expect(
-        screen.getByText(/What project should the team start with\?/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Name your agents\./i)).toBeInTheDocument();
     });
   });
 
@@ -391,12 +386,10 @@ describe("Wizard keyboard advancement", () => {
     pressEnterOn(window); // first real Enter — identity → templates
     pressEnterOn(window, { repeat: true }); // repeat — must bail
 
-    // At most one advance should have happened: we should now be somewhere
-    // but not have double-jumped past templates.
+    // At most one advance should have happened: we should now be on the
+    // agent naming step, not double-jumped past it.
     await waitFor(() => {
-      expect(
-        screen.getByText(/What project should the team start with\?/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Name your agents\./i)).toBeInTheDocument();
     });
   });
 });
@@ -432,10 +425,8 @@ describe("Wizard product copy", () => {
       target: { value: "창업팀의 제품 개발을 돕는 프로젝트" },
     });
     pressEnterOn(window);
-    await waitFor(() => screen.getByText(/어떤 프로젝트로 시작할까요/i));
+    await waitFor(() => screen.getByText(/에이전트의 이름을 지어주세요/i));
     pressEnterOn(window);
-    await waitFor(() => screen.getByText(/팀 구성/i));
-    fireEvent.click(screen.getByRole("button", { name: /계속/i }));
     await waitFor(() => screen.getByText(/어떻게 실행할까요/i));
     fireEvent.click(screen.getByRole("button", { name: /준비 완료/i }));
 

@@ -20,6 +20,7 @@ deployment, provider readiness, and wiki sync.
 - Provider setup keeps Claude/Codex choice visible.
 - Wiki sync never silently overwrites canonical memory.
 - Overnight work ends with review notes, test notes, and Notebook capture.
+- New hook or CI ratchets trace to a concrete failure signature.
 
 ## Output
 

@@ -70,26 +70,17 @@ Treat the workspace as a company, not a chatbot:
 
 ## Development Subagents
 
-The Claude/Codex development layer uses five provider-neutral subagent roles:
+The Claude/Codex development layer mirrors the four runtime responsibilities:
 
-- Architect Agent: broker, worktree, MCP, wiki, provider, and data-flow design.
-- Coder Agent: Go, TypeScript, React, scripts, and CLI implementation.
-- Reviewer Agent: code quality, security, Office Rule, and wiki consistency.
-- Tester Agent: TDD, regression tests, evals, smoke tests, and reproduction
-  notes.
-- Ops Agent: lefthook, deployment, tmux/zellij, provider setup, and wiki sync.
+- CEO: scope, prioritization, architecture, routing, and handoff decisions.
+- Frontend Engineer: TypeScript, React, UI state, accessibility, and visual QA.
+- Backend Engineer: Go, broker, worktree, MCP, wiki, provider, scripts, and
+  runtime operations.
+- Reviewer: code quality, security, Office Rule compliance, regression risk,
+  tests, evals, smoke checks, and wiki consistency.
 
-These development subagents improve the LAF agents. They do not replace the
-runtime LAF company roles. Map them to LAF roles as follows:
-
-- Architect Agent maps to CEO-owned scope, architecture, and routing work.
-- Coder Agent maps to Frontend Engineer or Backend Engineer depending on the
-  implementation surface.
-- Reviewer Agent maps to the runtime Reviewer and the default reviewer in
-  blueprints.
-- Tester Agent maps to QA/Test agents and `evals/`.
-- Ops Agent maps to Backend Engineer-led operations, deployment, and local
-  runtime support, with CEO owning scope.
+Architecture, testing, and operations work are responsibilities inside those
+four roles, not separate runtime agents.
 
 ## Memory Policy
 
@@ -143,9 +134,28 @@ Every substantial change follows this loop:
 4. Implement: keep changes local to the responsible modules.
 5. Review: run Reviewer checks for security, architecture drift, and memory
    consistency.
-6. Verify: run Tester checks and record what passed or what could not run.
+6. Verify: run relevant Reviewer-owned checks and record what passed or what
+   could not run.
 7. Capture: write durable findings to Notebook; promote to Wiki only after
    review.
+
+## Harness Ratchet
+
+Agent-workflow failures are product signals. When an agent, human reviewer, CI,
+hook, or eval finds a repeatable failure, preserve the smallest permanent guard
+that would catch that exact failure next time:
+
+- Prompt or extraction drift becomes a minimal `evals/` case.
+- Code behavior drift becomes a focused test.
+- Unsafe shell, secret, polling, provider, or memory-boundary drift becomes a
+  hook, CI check, or `laf-superworkflow-check.sh` rule.
+- Role confusion or bad handoff becomes a role contract or slash-command update.
+- Task completion without evidence becomes a task receipt, lifecycle, or review
+  gate.
+
+Do not add speculative checklist items. Every new harness rule should point to
+an observed failure signature or a concrete risk found during review. See
+`docs/specs/HARNESS-RATCHET.md`.
 
 ## Coding Standards
 
@@ -164,7 +174,7 @@ Every substantial change follows this loop:
 
 ## Security and TDD Gates
 
-Reviewer and Tester gates must check:
+Reviewer gates must check:
 
 - No secrets or credential-shaped values in diffs.
 - No new destructive actions without approval and clear scoping.

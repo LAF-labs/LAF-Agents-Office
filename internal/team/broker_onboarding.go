@@ -52,6 +52,7 @@ func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID st
 	// path reads onboarding state (another file) inside
 	// synthesizeBlueprintFromState — also moved out of the critical section.
 	var bp operations.Blueprint
+	var agentNameOverrides map[string]string
 	if blueprintID != "" {
 		loaded, err := operations.LoadBlueprint(onboarding.ResolveTemplatesRepoRoot(""), blueprintID)
 		if err != nil {
@@ -60,6 +61,7 @@ func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID st
 		bp = loaded
 	} else {
 		bp = synthesizeBlueprintFromState(task)
+		agentNameOverrides = starterAgentNameOverrides(bp.Starter.Agents)
 	}
 
 	seedErr := func() error {
@@ -78,7 +80,7 @@ func (b *Broker) onboardingCompleteFn(task string, skipTask bool, blueprintID st
 			}
 		}
 
-		return b.seedFromBlueprintLocked(bp, selectedAgents, task, skipTask, synthesized)
+		return b.seedFromBlueprintLocked(bp, selectedAgents, task, skipTask, synthesized, agentNameOverrides)
 	}()
 	if seedErr != nil {
 		return seedErr
@@ -182,7 +184,9 @@ func synthesizeBlueprintFromState(task string) operations.Blueprint {
 	}
 	name := strings.TrimSpace(state.CompanyName)
 	desc := onboardingPartialString(state.Partial, "welcome", "desc")
-	return scratchProjectTeamBlueprint(name, desc, strings.TrimSpace(task))
+	bp := scratchProjectTeamBlueprint(name, desc, strings.TrimSpace(task))
+	applyStarterAgentNames(&bp, onboardingAgentNamesFromPartial(state.Partial))
+	return bp
 }
 
 // scratchProjectTeamBlueprint returns the fixed "From scratch" starter
@@ -236,8 +240,11 @@ func scratchProjectTeamBlueprint(companyName, description, directive string) ope
 // (seedBlankSlateOperationLocked + ensureDefaultOfficeMembersLocked+manual
 // kickoff). selectedAgents filters the blueprint's starter roster; see the
 // onboardingCompleteFn doc comment for the three-mode contract.
-func (b *Broker) seedFromBlueprintLocked(bp operations.Blueprint, selectedAgents []string, task string, skipTask bool, synthesized bool) error {
+func (b *Broker) seedFromBlueprintLocked(bp operations.Blueprint, selectedAgents []string, task string, skipTask bool, synthesized bool, agentNameOverrides ...map[string]string) error {
 	b.members = blankSlateOfficeMembersFromBlueprint(bp, selectedAgents)
+	if len(agentNameOverrides) > 0 {
+		applyOfficeMemberNames(b.members, agentNameOverrides[0])
+	}
 	if len(b.members) == 0 {
 		// Defensive: blueprint had no parseable agents AND no lead fallback
 		// kicked in. Seed the DefaultManifest so the user has SOMETHING.
@@ -435,6 +442,89 @@ func blankSlateOfficeMembersFromAgents(agents []operations.StarterAgent, leadSlu
 		})
 	}
 	return members
+}
+
+func onboardingAgentNamesFromPartial(partial *onboarding.PartialProgress) map[string]string {
+	if partial == nil || partial.Answers == nil {
+		return nil
+	}
+	answers := partial.Answers["templates"]
+	if len(answers) == 0 {
+		return nil
+	}
+	raw := answers["agent_names"]
+	switch names := raw.(type) {
+	case map[string]interface{}:
+		out := make(map[string]string, len(names))
+		for key, value := range names {
+			name, ok := value.(string)
+			if !ok {
+				continue
+			}
+			slug := strings.TrimSpace(key)
+			name = strings.TrimSpace(name)
+			if slug != "" && name != "" {
+				out[slug] = name
+			}
+		}
+		return out
+	case map[string]string:
+		out := make(map[string]string, len(names))
+		for key, value := range names {
+			slug := strings.TrimSpace(key)
+			name := strings.TrimSpace(value)
+			if slug != "" && name != "" {
+				out[slug] = name
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func applyStarterAgentNames(bp *operations.Blueprint, names map[string]string) {
+	if bp == nil || len(names) == 0 {
+		return
+	}
+	for i := range bp.Starter.Agents {
+		slug := normalizeChannelSlug(operationFirstNonEmpty(
+			bp.Starter.Agents[i].Slug,
+			bp.Starter.Agents[i].EmployeeBlueprint,
+			operationSlug(bp.Starter.Agents[i].Name),
+		))
+		if name := strings.TrimSpace(names[slug]); name != "" {
+			bp.Starter.Agents[i].Name = name
+		}
+	}
+}
+
+func starterAgentNameOverrides(agents []operations.StarterAgent) map[string]string {
+	out := make(map[string]string, len(agents))
+	for _, agent := range agents {
+		slug := normalizeChannelSlug(operationFirstNonEmpty(
+			agent.Slug,
+			agent.EmployeeBlueprint,
+			operationSlug(agent.Name),
+		))
+		name := strings.TrimSpace(agent.Name)
+		if slug != "" && name != "" {
+			out[slug] = name
+		}
+	}
+	return out
+}
+
+func applyOfficeMemberNames(members []officeMember, names map[string]string) {
+	if len(names) == 0 {
+		return
+	}
+	for i := range members {
+		slug := normalizeChannelSlug(members[i].Slug)
+		if name := strings.TrimSpace(names[slug]); name != "" {
+			members[i].Name = name
+		}
+	}
 }
 
 func normalizeBlankSlateMembersToCurrentRuntime(members []officeMember, includeMissingCore bool) []officeMember {

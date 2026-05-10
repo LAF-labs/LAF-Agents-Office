@@ -42,7 +42,6 @@ type WizardStep =
   | "welcome"
   | "templates"
   | "identity"
-  | "team"
   | "setup"
   | "task"
   | "ready";
@@ -57,7 +56,6 @@ const STEP_ORDER: readonly WizardStep[] = [
   "welcome",
   "identity",
   "templates",
-  "team",
   "setup",
   "task",
   "ready",
@@ -129,9 +127,9 @@ const SCRATCH_PROJECT_TEAM: readonly BlueprintAgent[] = [
     checked: true,
     built_in: true,
   },
-  { slug: "fe", name: "Frontend Engineer", role: "frontend", checked: true },
-  { slug: "be", name: "Backend Engineer", role: "backend", checked: true },
-  { slug: "reviewer", name: "Reviewer", role: "review", checked: true },
+  { slug: "fe", name: "FE", role: "frontend", checked: true },
+  { slug: "be", name: "BD", role: "backend", checked: true },
+  { slug: "reviewer", name: "REV", role: "review", checked: true },
 ];
 
 // Only show onboarding presets that match the current startup product-work
@@ -207,6 +205,8 @@ interface WizardCopy {
     scratchTitle: string;
     scratchSubhead: string;
     next: string;
+    agentNameLabel: string;
+    agentDescriptions: Record<string, string>;
     categories: Record<BlueprintCategoryKey, { label: string; hint: string }>;
     display: Record<string, { name: string; shortDescription: string }>;
   };
@@ -219,13 +219,6 @@ interface WizardCopy {
     priorityLabel: string;
     priorityPlaceholder: string;
     next: string;
-  };
-  team: {
-    title: string;
-    description: string;
-    empty: string;
-    leadTitle: string;
-    leadBadge: string;
   };
   setup: {
     title: string;
@@ -294,8 +287,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     progress: {
       welcome: "Start",
       identity: "Project",
-      templates: "Starter",
-      team: "Team",
+      templates: "Agents",
       setup: "Run",
       task: "Task",
       ready: "Review",
@@ -308,16 +300,23 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       cta: "Open project setup",
     },
     templates: {
-      eyebrow: "Start with a focused project team",
-      headline: "What project should the team start with?",
+      eyebrow: "Default project team",
+      headline: "Name your agents.",
       subhead:
-        "Start with a project team built for planning, development, and automation. You can add custom specialists later.",
+        "Start with an orchestrator, development agents, and a review agent. You can add specialists later.",
       loading: "Loading starters...",
       other: "Other",
       scratchTitle: "Start from scratch",
-      scratchSubhead:
-        "4-person project team: CEO, Frontend Engineer, Backend Engineer, Reviewer",
-      next: "Review the team",
+      scratchSubhead: "4-person project team: CEO, FE, BD, REV",
+      next: "Continue",
+      agentNameLabel: "Agent name",
+      agentDescriptions: {
+        ceo: "Orchestrates priorities, breaks work down, and routes decisions.",
+        fe: "Builds the browser interface, interactions, and client-side flow.",
+        be: "Owns backend logic, data flow, and local runner integration.",
+        reviewer:
+          "Checks output quality, regressions, and acceptance criteria.",
+      },
       categories: {
         project: {
           label: "Startup Projects",
@@ -335,16 +334,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         "What product, development work, or automation flow should this project own?",
       priorityLabel: "Top priority right now",
       priorityPlaceholder: "Create the first GitHub-backed development task",
-      next: "Choose a starter",
-    },
-    team: {
-      title: "Your team",
-      description:
-        "These are the specialists for the project starter. Toggle anyone you don't need.",
-      empty:
-        "No teammates yet. Go back and pick a starter, or open the workspace and add agents from the team panel.",
-      leadTitle: "Lead agent — always included",
-      leadBadge: "Lead",
+      next: "Name agents",
     },
     setup: {
       title: "How should agents run?",
@@ -413,7 +403,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       githubConnectLater:
         "Optional. Connect when you want agents to create branches, code, and open PRs.",
       blueprintLabel: "Starter",
-      blueprintScratch: "Start from scratch (5-person project team).",
+      blueprintScratch: "Start from scratch (4-person project team).",
     },
   },
   ko: {
@@ -425,8 +415,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     progress: {
       welcome: "시작",
       identity: "프로젝트",
-      templates: "시작 방식",
-      team: "팀",
+      templates: "에이전트",
       setup: "실행",
       task: "첫 작업",
       ready: "검토",
@@ -440,16 +429,22 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       cta: "프로젝트 설정 열기",
     },
     templates: {
-      eyebrow: "프로젝트 팀으로 시작하기",
-      headline: "어떤 프로젝트로 시작할까요?",
+      eyebrow: "기본 에이전트 팀",
+      headline: "에이전트의 이름을 지어주세요.",
       subhead:
-        "기획, 개발, 자동화에 맞춘 창업팀 구성으로 시작합니다. 필요한 전문가는 나중에 추가할 수 있습니다.",
+        "오케스트레이터와 개발, 검수 에이전트로 시작합니다. 필요한 전문가는 나중에 추가할 수 있습니다.",
       loading: "시작 방식 불러오는 중...",
       other: "기타",
       scratchTitle: "처음부터 시작",
-      scratchSubhead:
-        "4명 프로젝트 팀: CEO, 프론트엔드 엔지니어, 백엔드 엔지니어, 검수자",
-      next: "팀 검토",
+      scratchSubhead: "4명 프로젝트 팀: CEO, FE, BD, REV",
+      next: "계속",
+      agentNameLabel: "에이전트 이름",
+      agentDescriptions: {
+        ceo: "목표를 정리하고 우선순위와 담당 흐름을 조율합니다.",
+        fe: "브라우저 화면, 인터랙션, 사용자 경험을 구현합니다.",
+        be: "서버 로직, 데이터 흐름, 로컬 러너 연동을 맡습니다.",
+        reviewer: "결과를 검수하고 누락, 회귀, 품질 기준을 확인합니다.",
+      },
       categories: {
         project: {
           label: "창업팀 프로젝트",
@@ -467,16 +462,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         "이 프로젝트가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
       priorityLabel: "지금 가장 중요한 목표",
       priorityPlaceholder: "첫 GitHub 연결 개발 작업 만들기",
-      next: "시작 방식 선택",
-    },
-    team: {
-      title: "팀 구성",
-      description:
-        "선택한 시작 방식이 구성한 전문가들입니다. 필요 없는 구성원은 끌 수 있습니다.",
-      empty:
-        "아직 팀원이 없습니다. 뒤로 가서 시작 방식을 고르거나, 워크스페이스를 연 뒤 팀 패널에서 에이전트를 추가하세요.",
-      leadTitle: "리드 에이전트 - 항상 포함됨",
-      leadBadge: "리드",
+      next: "에이전트 이름 설정",
     },
     setup: {
       title: "에이전트를 어떻게 실행할까요?",
@@ -545,7 +531,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       githubConnectLater:
         "선택 사항입니다. 에이전트가 브랜치를 만들고 코드 수정과 PR까지 맡을 때 연결하세요.",
       blueprintLabel: "시작 방식",
-      blueprintScratch: "처음부터 시작 (5명 프로젝트 팀).",
+      blueprintScratch: "처음부터 시작 (4명 프로젝트 팀).",
     },
   },
 };
@@ -571,46 +557,6 @@ function ArrowIcon() {
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
     </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-/**
- * Inline Enter-key hint for primary CTAs. Purely decorative — the real
- * Enter handling lives at the Wizard level so it works from anywhere on
- * the step, not just when the button has focus. Pass `modifier` (e.g.
- * ⌘/Ctrl) when the step binds ⌘+Enter instead of plain Enter.
- */
-function EnterHint({ modifier }: { modifier?: string } = {}) {
-  return (
-    <span className="kbd-hint" aria-hidden="true">
-      {modifier ? (
-        <Kbd size="sm" variant="inverse">
-          {modifier}
-        </Kbd>
-      ) : null}
-      <Kbd size="sm" variant="inverse">
-        ↵
-      </Kbd>
-    </span>
   );
 }
 
@@ -664,7 +610,6 @@ function WelcomeStep({ copy, onNext }: WelcomeStepProps) {
         <button type="button" className="btn btn-primary" onClick={onNext}>
           {copy.welcome.cta}
           <ArrowIcon />
-          <EnterHint />
         </button>
       </div>
     </div>
@@ -675,61 +620,20 @@ function WelcomeStep({ copy, onNext }: WelcomeStepProps) {
 
 interface TemplatesStepProps {
   copy: WizardCopy;
-  templates: BlueprintTemplate[];
-  loading: boolean;
-  selected: string | null;
-  onSelect: (id: string | null) => void;
+  agents: BlueprintAgent[];
+  onChangeAgentName: (slug: string, value: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 function TemplatesStep({
   copy,
-  templates,
-  loading,
-  selected,
-  onSelect,
+  agents,
+  onChangeAgentName,
   onNext,
   onBack,
 }: TemplatesStepProps) {
-  // Group templates by display category. Unknown blueprint ids (not in the
-  // frontend catalog) land in a catch-all "Other" bucket so new backend
-  // templates still render, just without the short-description and icon
-  // treatment.
-  const grouped = new Map<
-    BlueprintCategoryKey | "other",
-    BlueprintTemplate[]
-  >();
-  for (const t of templates) {
-    const display = BLUEPRINT_DISPLAY[t.id];
-    const key: BlueprintCategoryKey | "other" = display?.category ?? "other";
-    const list = grouped.get(key) ?? [];
-    list.push(t);
-    grouped.set(key, list);
-  }
-
-  const renderTile = (t: BlueprintTemplate) => {
-    const display = BLUEPRINT_DISPLAY[t.id];
-    const displayCopy = copy.templates.display[t.id];
-    const icon = display?.icon ?? t.emoji;
-    const name = displayCopy?.name ?? t.name;
-    const desc =
-      displayCopy?.shortDescription ??
-      display?.shortDescription ??
-      t.description;
-    return (
-      <button
-        key={t.id}
-        className={`template-card ${selected === t.id ? "selected" : ""}`}
-        onClick={() => onSelect(t.id)}
-        type="button"
-      >
-        {icon ? <div className="template-card-emoji">{icon}</div> : null}
-        <div className="template-card-name">{name}</div>
-        <div className="template-card-desc">{desc}</div>
-      </button>
-    );
-  };
+  const canContinue = hasCompleteAgentNames(agents);
 
   return (
     <div className="wizard-step">
@@ -742,75 +646,48 @@ function TemplatesStep({
         <p className="wizard-subhead">{copy.templates.subhead}</p>
       </div>
 
-      {loading ? (
-        <div className="wizard-panel">
-          <div
-            style={{
-              color: "var(--text-tertiary)",
-              fontSize: 13,
-              textAlign: "center",
-              padding: 20,
-            }}
-          >
-            {copy.templates.loading}
-          </div>
-        </div>
-      ) : (
-        <>
-          {BLUEPRINT_CATEGORIES.map((cat) => {
-            const items = grouped.get(cat.key) ?? [];
-            if (items.length === 0) return null;
-            const category = copy.templates.categories[cat.key];
-            return (
-              <div key={cat.key} className="wizard-panel template-group">
-                <div className="template-group-head">
-                  <p className="template-group-label">{category.label}</p>
-                  <p className="template-group-hint">{category.hint}</p>
-                </div>
-                <div className="template-grid">{items.map(renderTile)}</div>
-              </div>
-            );
-          })}
-
-          {(grouped.get("other") ?? []).length > 0 && (
-            <div className="wizard-panel template-group">
-              <div className="template-group-head">
-                <p className="template-group-label">{copy.templates.other}</p>
-              </div>
-              <div className="template-grid">
-                {(grouped.get("other") ?? []).map(renderTile)}
-              </div>
-            </div>
-          )}
-
-          <div className="template-from-scratch">
-            <button
-              className={`template-from-scratch-btn ${selected === null ? "selected" : ""}`}
-              onClick={() => onSelect(null)}
-              type="button"
-            >
-              <span className="template-from-scratch-icon">+</span>
-              {copy.templates.scratchTitle}
-              <span className="template-from-scratch-sub">
-                {copy.templates.scratchSubhead}
-              </span>
-            </button>
-          </div>
-        </>
-      )}
+      <div className="agent-name-grid">
+        {agents.map((agent) => (
+          <label className="agent-name-card" key={agent.slug}>
+            <span className="agent-name-role">{agent.role}</span>
+            <span className="sr-only">{copy.templates.agentNameLabel}</span>
+            <input
+              className="input agent-name-input"
+              value={agent.name}
+              onChange={(e) => onChangeAgentName(agent.slug, e.target.value)}
+              required={true}
+            />
+            <span className="agent-name-desc">
+              {agentDescription(copy, agent)}
+            </span>
+          </label>
+        ))}
+      </div>
 
       <div className="wizard-nav">
         <button className="btn btn-ghost" onClick={onBack} type="button">
           {copy.common.back}
         </button>
-        <button className="btn btn-primary" onClick={onNext} type="button">
+        <button
+          className="btn btn-primary"
+          onClick={onNext}
+          disabled={!canContinue}
+          type="button"
+        >
           {copy.templates.next}
           <ArrowIcon />
-          <EnterHint />
         </button>
       </div>
     </div>
   );
+}
+
+function hasCompleteAgentNames(agents: BlueprintAgent[]): boolean {
+  return agents.length > 0 && agents.every((agent) => agent.name.trim() !== "");
+}
+
+function agentDescription(copy: WizardCopy, agent: BlueprintAgent): string {
+  return copy.templates.agentDescriptions[agent.slug] ?? agent.role;
 }
 
 /* ─── Step 3: Identity ─── */
@@ -898,108 +775,13 @@ function IdentityStep({
         >
           {copy.identity.next}
           <ArrowIcon />
-          <EnterHint />
         </button>
       </div>
     </div>
   );
 }
 
-/* ─── Step 4: Team Review ─── */
-
-interface TeamStepProps {
-  copy: WizardCopy;
-  agents: BlueprintAgent[];
-  onToggle: (slug: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}
-
-function TeamStep({ copy, agents, onToggle, onNext, onBack }: TeamStepProps) {
-  return (
-    <div className="wizard-step">
-      <div className="wizard-panel">
-        <p className="wizard-panel-title">{copy.team.title}</p>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            margin: "-8px 0 12px 0",
-          }}
-        >
-          {copy.team.description}
-        </p>
-
-        {agents.length === 0 ? (
-          <div className="wiz-team-empty">{copy.team.empty}</div>
-        ) : (
-          <div className="wiz-team-grid">
-            {agents.map((agent) => (
-              <TeamAgentTile
-                key={agent.slug}
-                copy={copy}
-                agent={agent}
-                onToggle={onToggle}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="wizard-nav">
-        <button className="btn btn-ghost" onClick={onBack} type="button">
-          {copy.common.back}
-        </button>
-        <button className="btn btn-primary" onClick={onNext} type="button">
-          {copy.common.continue}
-          <ArrowIcon />
-          <EnterHint />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TeamAgentTile({
-  copy,
-  agent,
-  onToggle,
-}: {
-  copy: WizardCopy;
-  agent: BlueprintAgent;
-  onToggle: (slug: string) => void;
-}) {
-  // Lead agent is always included and cannot be unchecked here.
-  // The backend also refuses to remove or disable any BuiltIn
-  // member, so this is UI belt + server-side braces.
-  const locked = agent.built_in === true;
-  return (
-    <button
-      className={`wiz-team-tile ${agent.checked ? "selected" : ""} ${locked ? "locked" : ""}`}
-      onClick={() => !locked && onToggle(agent.slug)}
-      type="button"
-      disabled={locked}
-      aria-disabled={locked}
-      title={locked ? copy.team.leadTitle : undefined}
-    >
-      <div className="wiz-team-check">
-        {agent.checked ? <CheckIcon /> : null}
-      </div>
-      <div>
-        {agent.emoji ? (
-          <span style={{ marginRight: 6 }}>{agent.emoji}</span>
-        ) : null}
-        <span className="wiz-team-name">{agent.name}</span>
-        {locked ? (
-          <span className="wiz-team-lead-badge">{copy.team.leadBadge}</span>
-        ) : null}
-        {agent.role ? <div className="wiz-team-role">{agent.role}</div> : null}
-      </div>
-    </button>
-  );
-}
-
-/* ─── Step 5: Setup ─── */
+/* ─── Step 4: Setup ─── */
 
 interface SetupStepProps {
   copy: WizardCopy;
@@ -1292,7 +1074,6 @@ function SetupStep({
         >
           {copy.setup.next}
           <ArrowIcon />
-          <EnterHint />
         </button>
       </div>
     </div>
@@ -1490,7 +1271,6 @@ function TaskStep({
           <button className="btn btn-primary" onClick={onNext} type="button">
             {copy.task.next}
             <ArrowIcon />
-            <EnterHint modifier={MOD_KEY} />
           </button>
         </div>
       </div>
@@ -1576,7 +1356,6 @@ function ReadyStep({
             type="button"
           >
             {submitting ? copy.ready.starting : copy.ready.cta}
-            {!submitting && taskText.trim().length > 0 && <EnterHint />}
           </button>
         </div>
       </div>
@@ -1755,10 +1534,21 @@ function addGenericApiKeys(
   addTrimmedValue(payload, "gemini_api_key", apiKeys.GOOGLE_API_KEY ?? "");
 }
 
+function agentNamePayload(agents: BlueprintAgent[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const agent of agents) {
+    const slug = agent.slug.trim();
+    const name = agent.name.trim();
+    if (slug !== "" && name !== "") out[slug] = name;
+  }
+  return out;
+}
+
 interface WizardKeyContext {
   step: WizardStep;
   company: string;
   description: string;
+  agents: BlueprintAgent[];
   runtimePriority: string[];
   prereqs: PrereqResult[];
   apiKeys: Record<string, string>;
@@ -1774,8 +1564,15 @@ function handleWizardKey(e: KeyboardEvent, context: WizardKeyContext) {
 
   const canIdentityContinue =
     context.company.trim().length > 0 && context.description.trim().length > 0;
+  const canAgentsContinue = hasCompleteAgentNames(context.agents);
   const canSetupContinue = canContinueSetup(context);
-  advanceWizardFromKey(e, context, canIdentityContinue, canSetupContinue);
+  advanceWizardFromKey(
+    e,
+    context,
+    canIdentityContinue,
+    canAgentsContinue,
+    canSetupContinue,
+  );
 }
 
 function shouldHandleWizardEnter(e: KeyboardEvent): boolean {
@@ -1815,6 +1612,7 @@ function advanceWizardFromKey(
   e: KeyboardEvent,
   context: WizardKeyContext,
   canIdentityContinue: boolean,
+  canAgentsContinue: boolean,
   canSetupContinue: boolean,
 ) {
   const isSubmitCombo = e.metaKey || e.ctrlKey;
@@ -1824,9 +1622,7 @@ function advanceWizardFromKey(
       context.goTo("identity");
       return;
     case "templates":
-    case "team":
-      e.preventDefault();
-      context.nextStep();
+      advanceIfAllowed(e, canAgentsContinue, context.nextStep);
       return;
     case "identity":
       advanceIfAllowed(e, canIdentityContinue, context.nextStep);
@@ -1888,8 +1684,10 @@ export function Wizard({ onComplete }: WizardProps) {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
 
-  // Step 4: team
-  const [agents, setAgents] = useState<BlueprintAgent[]>([]);
+  // Step 4: agent names
+  const [agents, setAgents] = useState<BlueprintAgent[]>(() =>
+    SCRATCH_PROJECT_TEAM.map((agent) => ({ ...agent })),
+  );
 
   // Step 5: setup
   const [prereqs, setPrereqs] = useState<PrereqResult[]>([]);
@@ -1995,10 +1793,6 @@ export function Wizard({ onComplete }: WizardProps) {
   // blueprints the user never picked.
   useEffect(() => {
     if (selectedBlueprint === null) {
-      // "Start from scratch" — preview the same 4-agent project team the
-      // broker seeds via scratchProjectTeamBlueprint. Keep the slugs and
-      // built_in flag in sync with internal/team/broker_onboarding.go.
-      setAgents(SCRATCH_PROJECT_TEAM.map((a) => ({ ...a })));
       setTaskTemplates([]);
       return;
     }
@@ -2045,16 +1839,9 @@ export function Wizard({ onComplete }: WizardProps) {
     }
   }, [step]);
 
-  // Toggle agent selection. The lead agent (built_in) is locked: TeamStep
-  // disables its button, and this guard prevents any programmatic path
-  // (keyboard, devtools, future bulk toggle) from unchecking it.
-  const toggleAgent = useCallback((slug: string) => {
+  const changeAgentName = useCallback((slug: string, name: string) => {
     setAgents((prev) =>
-      prev.map((a) => {
-        if (a.slug !== slug) return a;
-        if (a.built_in === true) return a;
-        return { ...a, checked: !a.checked };
-      }),
+      prev.map((agent) => (agent.slug === slug ? { ...agent, name } : agent)),
     );
   }, []);
 
@@ -2113,6 +1900,7 @@ export function Wizard({ onComplete }: WizardProps) {
           memory_backend: memoryBackend,
           blueprint: selectedBlueprint,
           agents: agents.filter((a) => a.checked).map((a) => a.slug),
+          agent_names: agentNamePayload(agents),
           api_keys: apiKeys,
           task: skipTask ? "" : taskText.trim(),
           skip_task: skipTask,
@@ -2148,6 +1936,7 @@ export function Wizard({ onComplete }: WizardProps) {
         step,
         company,
         description,
+        agents,
         runtimePriority,
         prereqs,
         apiKeys,
@@ -2166,6 +1955,7 @@ export function Wizard({ onComplete }: WizardProps) {
     step,
     company,
     description,
+    agents,
     runtimePriority,
     prereqs,
     apiKeys,
@@ -2188,10 +1978,8 @@ export function Wizard({ onComplete }: WizardProps) {
         {step === "templates" && (
           <TemplatesStep
             copy={copy}
-            templates={blueprints}
-            loading={blueprintsLoading}
-            selected={selectedBlueprint}
-            onSelect={setSelectedBlueprint}
+            agents={agents}
+            onChangeAgentName={changeAgentName}
             onNext={nextStep}
             onBack={prevStep}
           />
@@ -2206,16 +1994,6 @@ export function Wizard({ onComplete }: WizardProps) {
             onChangeCompany={setCompany}
             onChangeDescription={setDescription}
             onChangePriority={setPriority}
-            onNext={nextStep}
-            onBack={prevStep}
-          />
-        )}
-
-        {step === "team" && (
-          <TeamStep
-            copy={copy}
-            agents={agents}
-            onToggle={toggleAgent}
             onNext={nextStep}
             onBack={prevStep}
           />

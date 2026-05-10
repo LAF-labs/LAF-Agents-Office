@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/operations"
 )
 
@@ -256,6 +257,48 @@ func TestOnboardingCompleteFromScratchHonorsSelectedProjectAgents(t *testing.T) 
 	for i, slug := range want {
 		if slugs[i] != slug {
 			t.Fatalf("member[%d]: got %q, want %q (all: %v)", i, slugs[i], slug, slugs)
+		}
+	}
+}
+
+func TestOnboardingCompleteFromScratchUsesAgentNamesFromPartial(t *testing.T) {
+	ensureOperationsFallbackFS(t)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
+	state, err := onboarding.Load()
+	if err != nil {
+		t.Fatalf("load onboarding state: %v", err)
+	}
+	state.Partial = &onboarding.PartialProgress{
+		Answers: map[string]map[string]interface{}{
+			"templates": {
+				"agent_names": map[string]interface{}{
+					"ceo":      "CEO",
+					"fe":       "FE",
+					"be":       "BD",
+					"reviewer": "REV",
+				},
+			},
+		},
+	}
+	if err := onboarding.Save(state); err != nil {
+		t.Fatalf("save onboarding state: %v", err)
+	}
+
+	b := newTestBroker(t)
+	if err := b.onboardingCompleteFn("Build an automated customer-support operation", false, "", []string{"ceo", "fe", "be", "reviewer"}); err != nil {
+		t.Fatalf("onboardingCompleteFn: %v", err)
+	}
+
+	got := map[string]string{}
+	b.mu.Lock()
+	for _, member := range b.members {
+		got[member.Slug] = member.Name
+	}
+	b.mu.Unlock()
+
+	for slug, want := range map[string]string{"ceo": "CEO", "fe": "FE", "be": "BD", "reviewer": "REV"} {
+		if got[slug] != want {
+			t.Fatalf("member %q name: got %q want %q (all: %v)", slug, got[slug], want, got)
 		}
 	}
 }
