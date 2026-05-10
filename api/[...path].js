@@ -755,8 +755,6 @@ async function handleRunnerStatus(req, res) {
     select: "*",
     order: "updated_at.desc",
   };
-  const projects = await projectMap(membership.team_id);
-  const tasks = await taskMap(membership.team_id);
   if (req.query.project_id) {
     const project = await findProject(membership.team_id, req.query.project_id);
     jobQuery.project_id = `eq.${project.id}`;
@@ -774,6 +772,16 @@ async function handleRunnerStatus(req, res) {
       },
     }),
     rest("runner_jobs", { query: jobQuery }),
+  ]);
+  const [projects, tasks] = await Promise.all([
+    projectMap(
+      membership.team_id,
+      jobs.map((job) => job.project_id),
+    ),
+    taskMap(
+      membership.team_id,
+      jobs.map((job) => job.task_id),
+    ),
   ]);
   writeJSON(res, 200, {
     jobs: jobs.map((job) => publicRunnerJob(job, projects, tasks)),
@@ -880,8 +888,10 @@ async function handleRunnerJobLease(req, res) {
     return;
   }
   await appendJobEvent(job, runner.id, "leased", "info", "runner leased job");
-  const projects = await projectMap(runner.team_id);
-  const tasks = await taskMap(runner.team_id);
+  const [projects, tasks] = await Promise.all([
+    projectMap(runner.team_id, [job.project_id]),
+    taskMap(runner.team_id, [job.task_id]),
+  ]);
   writeJSON(res, 200, { job: publicRunnerJob(job, projects, tasks) });
 }
 
@@ -890,19 +900,20 @@ async function handleRunnerJobEvent(req, res, jobID) {
   const job = await findRunnerJob(runner.team_id, jobID);
   ensureRunnerOwnsJob(runner, job);
   const body = await readBody(req);
-  let updated = job;
+  const now = nowISO();
+  const patch = { updated_at: now };
   if (body.status === "running" || body.kind === "running") {
-    [updated] = await rest("runner_jobs", {
-      method: "PATCH",
-      query: { id: `eq.${job.id}` },
-      body: {
-        runner_id: runner.id,
-        started_at: job.started_at || nowISO(),
-        status: "running",
-        updated_at: nowISO(),
-      },
-    });
+    patch.runner_id = runner.id;
+    patch.started_at = job.started_at || now;
+    patch.status = "running";
   }
+  const updated = requireRunnerJobMutation(
+    await rest("runner_jobs", {
+      method: "PATCH",
+      query: activeRunnerJobMutationQuery(job, runner, now),
+      body: patch,
+    }),
+  );
   const event = await appendJobEvent(
     updated,
     runner.id,
@@ -923,18 +934,21 @@ async function handleRunnerJobComplete(req, res, jobID) {
   if (!["succeeded", "failed", "canceled"].includes(status)) {
     throw new HTTPError(400, "status must be succeeded, failed, or canceled");
   }
-  const [updatedJob] = await rest("runner_jobs", {
-    method: "PATCH",
-    query: { id: `eq.${job.id}` },
-    body: {
-      completed_at: nowISO(),
-      last_error: redactSensitiveText(body.error || ""),
-      lease_expires_at: null,
-      runner_id: runner.id,
-      status,
-      updated_at: nowISO(),
-    },
-  });
+  const now = nowISO();
+  const updatedJob = requireRunnerJobMutation(
+    await rest("runner_jobs", {
+      method: "PATCH",
+      query: activeRunnerJobMutationQuery(job, runner, now),
+      body: {
+        completed_at: now,
+        last_error: redactSensitiveText(body.error || ""),
+        lease_expires_at: null,
+        runner_id: runner.id,
+        status,
+        updated_at: now,
+      },
+    }),
+  );
   const event = await appendJobEvent(
     updatedJob,
     runner.id,
@@ -981,8 +995,11 @@ async function handleRunnerJobComplete(req, res, jobID) {
       },
     });
   }
-  const projects = await projectMap(runner.team_id);
-  const tasks = task ? { [task.id]: task } : await taskMap(runner.team_id);
+  const projects = await projectMap(runner.team_id, [
+    updatedJob.project_id,
+    task?.project_id,
+  ]);
+  const tasks = task ? { [task.id]: task } : await taskMap(runner.team_id, [updatedJob.task_id]);
   writeJSON(res, 200, {
     event,
     job: publicRunnerJob(updatedJob, projects, tasks),
@@ -996,14 +1013,17 @@ async function handleRunnerJobRenew(req, res, jobID) {
   ensureRunnerOwnsJob(runner, job);
   const body = await readBody(req);
   const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
-  const [updated] = await rest("runner_jobs", {
-    method: "PATCH",
-    query: { id: `eq.${job.id}` },
-    body: {
-      lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
-      updated_at: nowISO(),
-    },
-  });
+  const now = nowISO();
+  const updated = requireRunnerJobMutation(
+    await rest("runner_jobs", {
+      method: "PATCH",
+      query: activeRunnerJobMutationQuery(job, runner, now),
+      body: {
+        lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
+        updated_at: now,
+      },
+    }),
+  );
   const event = await appendJobEvent(
     updated,
     runner.id,
@@ -1231,18 +1251,53 @@ function ensureRunnerOwnsJob(runner, job) {
   }
 }
 
-async function projectMap(teamID) {
+function activeRunnerJobMutationQuery(job, runner, now = nowISO()) {
+  return {
+    id: `eq.${job.id}`,
+    lease_expires_at: `gt.${now}`,
+    runner_id: `eq.${runner.id}`,
+    status: "in.(leased,running)",
+    team_id: `eq.${runner.team_id}`,
+  };
+}
+
+function requireRunnerJobMutation(rows) {
+  const row = rows?.[0] || null;
+  if (!row) {
+    throw new HTTPError(409, "job lease expired or no longer owned by this runner");
+  }
+  return row;
+}
+
+async function projectMap(teamID, ids) {
+  const hasIDFilter = ids !== undefined;
+  const query = { team_id: `eq.${teamID}`, select: "id,local_id,name" };
+  const selected = uniqueNonEmpty(ids);
+  if (hasIDFilter && selected.length === 0) return {};
+  if (selected.length > 0) query.id = `in.(${selected.join(",")})`;
   const rows = await rest("projects", {
-    query: { team_id: `eq.${teamID}`, select: "id,local_id,name" },
+    query,
   });
   return Object.fromEntries((rows || []).map((row) => [row.id, row]));
 }
 
-async function taskMap(teamID) {
+async function taskMap(teamID, ids) {
+  const hasIDFilter = ids !== undefined;
+  const query = { team_id: `eq.${teamID}`, select: "id,local_id,title" };
+  const selected = uniqueNonEmpty(ids);
+  if (hasIDFilter && selected.length === 0) return {};
+  if (selected.length > 0) query.id = `in.(${selected.join(",")})`;
   const rows = await rest("tasks", {
-    query: { team_id: `eq.${teamID}`, select: "id,local_id,title" },
+    query,
   });
   return Object.fromEntries((rows || []).map((row) => [row.id, row]));
+}
+
+function uniqueNonEmpty(values) {
+  const list = Array.isArray(values) ? values : [values];
+  return [
+    ...new Set(list.map((value) => String(value || "").trim()).filter(Boolean)),
+  ];
 }
 
 function publicProject(row) {

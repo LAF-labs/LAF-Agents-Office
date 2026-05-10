@@ -72,5 +72,8 @@ begin
 end;
 $$;
 
+revoke execute on function public.claim_runner_job(uuid, uuid, text[], text[], integer)
+  from public, anon, authenticated;
+
 grant execute on function public.claim_runner_job(uuid, uuid, text[], text[], integer)
-  to authenticated, service_role;
+  to service_role;

@@ -301,6 +301,22 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.equal(renewed.status, 200);
   assert.equal(renewed.body.event.kind, "renewed");
 
+  db.beforeRunnerJobPatch = (_url, body) => {
+    if (body.status === "succeeded") {
+      db.runner_jobs[0].runner_id = "runner-other";
+      db.beforeRunnerJobPatch = null;
+    }
+  };
+  const staleComplete = await invoke(
+    ["runner", "jobs", lease.body.job.job_id, "complete"],
+    "POST",
+    { status: "succeeded" },
+    { headers: runnerHeaders },
+  );
+  assert.equal(staleComplete.status, 409);
+  assert.equal(db.runner_jobs[0].status, "running");
+  db.runner_jobs[0].runner_id = db.runners[0].id;
+
   const complete = await invoke(
     ["runner", "jobs", lease.body.job.job_id, "complete"],
     "POST",
@@ -424,6 +440,9 @@ function hostedFetch(db) {
       return jsonResponse([row]);
     }
     if (method === "PATCH") {
+      if (table === "runner_jobs" && typeof db.beforeRunnerJobPatch === "function") {
+        db.beforeRunnerJobPatch(url, body);
+      }
       const rows = filterRows(db[table], url.searchParams);
       for (const row of rows) Object.assign(row, body);
       return jsonResponse(rows);
@@ -454,6 +473,9 @@ function filterRows(rows, params) {
         if (denied.includes(String(row[key]))) return false;
       }
       if (raw.startsWith("lt.") && !(String(row[key] || "") < raw.slice(3))) {
+        return false;
+      }
+      if (raw.startsWith("gt.") && !(String(row[key] || "") > raw.slice(3))) {
         return false;
       }
     }

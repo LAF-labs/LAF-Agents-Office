@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -45,6 +46,12 @@ type runnerExecutionResult struct {
 
 var runnerCLIExecuteJob = defaultRunnerCLIExecuteJob
 var runnerCLILeaseDuration = defaultRunnerLeaseDuration
+var runnerCLIHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+type runnerConnectSession struct {
+	capabilitiesReported bool
+	reportedCapabilities runnerCapabilities
+}
 
 // RunRunnerCommand implements the local CLI runner surface used by the hosted
 // control-plane protocol. The first implementation deliberately keeps execution
@@ -160,6 +167,7 @@ func runRunnerDisconnect(args []string, stdout, stderr io.Writer) error {
 
 func runRunnerConnect(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	cfg, _ := loadRunnerCLIConfig()
+	persistedCfg := cfg
 	cfg.applyEnv()
 	fs := flag.NewFlagSet("laf-office runner connect", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -178,14 +186,18 @@ func runRunnerConnect(ctx context.Context, args []string, stdout, stderr io.Writ
 	if cfg.Name == "" {
 		cfg.Name = defaultRunnerCLIName()
 	}
+	session := runnerConnectSession{}
 
 	for {
-		leased, err := runnerConnectOnce(ctx, &cfg, stdout)
+		leased, err := runnerConnectOnce(ctx, &cfg, &session, stdout)
 		if err != nil {
 			return err
 		}
-		if err := saveRunnerCLIConfig(cfg); err != nil {
-			return err
+		if cfg != persistedCfg {
+			if err := saveRunnerCLIConfig(cfg); err != nil {
+				return err
+			}
+			persistedCfg = cfg
 		}
 		if *once {
 			return nil
@@ -200,7 +212,7 @@ func runRunnerConnect(ctx context.Context, args []string, stdout, stderr io.Writ
 	}
 }
 
-func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, stdout io.Writer) (bool, error) {
+func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runnerConnectSession, stdout io.Writer) (bool, error) {
 	caps := detectLocalRunnerCapabilities("")
 	if cfg.RunnerToken == "" {
 		if cfg.APIToken == "" {
@@ -221,10 +233,19 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, stdout io.Writ
 		cfg.RunnerID = response.Runner.ID
 		cfg.TeamID = response.Runner.TeamID
 		cfg.RunnerToken = response.RunnerToken
+		if session != nil {
+			session.capabilitiesReported = false
+		}
 		fmt.Fprintf(stdout, "Registered runner %s for team %s\n", cfg.RunnerID, cfg.TeamID)
 	}
-	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/capabilities", cfg.RunnerToken, map[string]any{"capabilities": caps}, nil); err != nil {
-		return false, err
+	if session == nil || !session.capabilitiesReported || !reflect.DeepEqual(session.reportedCapabilities, caps) {
+		if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/capabilities", cfg.RunnerToken, map[string]any{"capabilities": caps}, nil); err != nil {
+			return false, err
+		}
+		if session != nil {
+			session.capabilitiesReported = true
+			session.reportedCapabilities = caps
+		}
 	}
 	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/heartbeat", cfg.RunnerToken, map[string]any{"status": runnerStatusConnected}, nil); err != nil {
 		return false, err
@@ -428,7 +449,7 @@ func runnerPostJSON(ctx context.Context, apiURL, path, token string, payload any
 	if strings.TrimSpace(token) != "" {
 		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(token))
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := runnerCLIHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}

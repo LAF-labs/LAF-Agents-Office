@@ -450,6 +450,37 @@ func TestRunnerCLIConnectExecutesAndCompletesLeasedJob(t *testing.T) {
 	}
 }
 
+func TestRunnerConnectOnceReportsCapabilitiesOnlyWhenChanged(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	b.mu.Lock()
+	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
+	b.mu.Unlock()
+	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})
+
+	capabilityReports := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/runner/heartbeat", b.handleRunnerHeartbeat)
+	mux.HandleFunc("/runner/capabilities", func(w http.ResponseWriter, r *http.Request) {
+		capabilityReports++
+		b.handleRunnerCapabilities(w, r)
+	})
+	mux.HandleFunc("/runner/jobs/lease", b.handleRunnerJobsLease)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	cfg := runnerCLIConfig{APIURL: srv.URL, TeamID: "team-a", RunnerToken: token}
+	session := runnerConnectSession{}
+	if _, err := runnerConnectOnce(context.Background(), &cfg, &session, io.Discard); err != nil {
+		t.Fatalf("first runner connect once: %v", err)
+	}
+	if _, err := runnerConnectOnce(context.Background(), &cfg, &session, io.Discard); err != nil {
+		t.Fatalf("second runner connect once: %v", err)
+	}
+	if capabilityReports != 1 {
+		t.Fatalf("capability reports = %d, want 1", capabilityReports)
+	}
+}
+
 func seedRunnerForTest(b *Broker, teamID string, caps runnerCapabilities) string {
 	token := "test-token-" + generateToken()
 	runnerID := "runner-" + teamID + "-" + generateToken()[:8]
