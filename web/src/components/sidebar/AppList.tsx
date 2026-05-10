@@ -4,6 +4,7 @@ import {
   BookStack,
   CheckCircle,
   Flash,
+  HomeSimple,
   NavArrowDown,
   NavArrowRight,
   Package,
@@ -30,6 +31,7 @@ const liveEventsSupported =
 const REVIEW_BADGE_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  home: HomeSimple,
   studio: Play,
   wiki: BookStack,
   tasks: CheckCircle,

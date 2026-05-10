@@ -21,8 +21,9 @@ type Route =
   | { view: "notebooks"; agentSlug: string | null; entrySlug: string | null }
   | { view: "reviews" };
 
+const HOME_ROUTE = { view: "app", app: "home" } as const;
 const PROJECTS_ROUTE = { view: "app", app: "tasks" } as const;
-const DEFAULT_ROUTE: Route = PROJECTS_ROUTE;
+const DEFAULT_ROUTE: Route = HOME_ROUTE;
 
 function appRoute(app: string): Route {
   return { view: "app", app: app === "projects" ? "tasks" : app };
@@ -43,6 +44,8 @@ function parseHash(hash: string): Route {
         : DEFAULT_ROUTE;
     case "apps":
       return parts[1] ? appRoute(decodeURIComponent(parts[1])) : DEFAULT_ROUTE;
+    case "home":
+      return HOME_ROUTE;
     case "projects":
       return {
         ...PROJECTS_ROUTE,
@@ -127,6 +130,8 @@ function appStateToHash(state: {
       return notebookStateToHash(state);
     case "reviews":
       return "#/reviews";
+    case "home":
+      return "#/home";
     case "tasks":
       if (!state.projectFocusId) return "#/projects";
       if (state.taskFocusId) {

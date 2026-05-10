@@ -16,6 +16,12 @@ export function loadRequestsApp() {
   }));
 }
 
+export function loadHomeApp() {
+  return import("../components/apps/HomeApp").then((module) => ({
+    default: module.HomeApp,
+  }));
+}
+
 export function loadSettingsApp() {
   return import("../components/apps/SettingsApp").then((module) => ({
     default: module.SettingsApp,
@@ -60,6 +66,9 @@ export function preloadWorkspaceSurface(surface: string | null | undefined) {
   switch (surface) {
     case "activity":
       void loadArtifactsApp();
+      break;
+    case "home":
+      void loadHomeApp();
       break;
     case "notebooks":
       void loadNotebook();

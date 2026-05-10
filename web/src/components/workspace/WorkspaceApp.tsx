@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   loadArtifactsApp,
   loadCitedAnswer,
+  loadHomeApp,
   loadNotebook,
   loadReceiptsApp,
   loadRequestsApp,
@@ -36,6 +37,7 @@ import { ToastContainer } from "../ui/Toast";
 import type { WikiTab } from "../wiki/WikiTabs";
 import WikiTabs from "../wiki/WikiTabs";
 import "../../styles/agents.css";
+import "../../styles/home.css";
 import "../../styles/layout.css";
 import "../../styles/messages.css";
 import "../../styles/search.css";
@@ -54,6 +56,7 @@ const SkillsApp = lazy(loadSkillsApp);
 const TasksApp = lazy(loadTasksApp);
 const ThreadsApp = lazy(loadThreadsApp);
 const CitedAnswer = lazy(loadCitedAnswer);
+const HomeApp = lazy(loadHomeApp);
 const Notebook = lazy(loadNotebook);
 const ReviewQueueKanban = lazy(loadReviewQueueKanban);
 const Wiki = lazy(loadWiki);
@@ -186,6 +189,7 @@ function MainContent() {
 
   if (currentApp) {
     const panels: Record<string, PanelComponent> = {
+      home: HomeApp,
       tasks: TasksApp,
       requests: RequestsApp,
       skills: SkillsApp,
@@ -196,7 +200,9 @@ function MainContent() {
     };
     const Panel = panels[currentApp];
     return (
-      <div className="app-panel active">
+      <div
+        className={`app-panel active${currentApp === "home" ? " home-panel" : ""}`}
+      >
         {Panel ? (
           <Panel />
         ) : (

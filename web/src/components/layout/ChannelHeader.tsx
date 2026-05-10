@@ -8,6 +8,7 @@ interface ChannelHeaderProps {
 }
 
 const APP_TITLE_KEYS: Record<string, I18nKey> = {
+  home: "app.home",
   wiki: "app.wiki",
   tasks: "app.tasks",
   requests: "app.requests",

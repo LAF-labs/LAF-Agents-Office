@@ -12,6 +12,7 @@ import {
   BookStack,
   CheckCircle,
   Flash,
+  HomeSimple,
   Package,
   Page,
   Play,
@@ -27,6 +28,7 @@ import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import { useAppStore } from "../../stores/app";
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  home: HomeSimple,
   studio: Play,
   wiki: BookStack,
   tasks: CheckCircle,

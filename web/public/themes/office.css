@@ -6969,3 +6969,445 @@ html[data-theme^="office"] .wizard-nav .btn-primary {
     margin-left: 0;
   }
 }
+
+/* Home and project polish: quieter surfaces, tighter hierarchy. */
+html[data-theme^="office"] .home-panel {
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .home-projects {
+  padding: 24px clamp(18px, 4vw, 56px) 8px;
+  background: transparent;
+}
+
+html[data-theme^="office"] .home-projects-head,
+html[data-theme^="office"] .home-project-grid {
+  width: min(1040px, 100%);
+}
+
+html[data-theme^="office"] .home-projects-head h2 {
+  color: var(--color-ash);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+html[data-theme^="office"] .home-project-card,
+html[data-theme^="office"] .home-project-create {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .home-project-card:hover {
+  border-color: var(--color-silver);
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .home-project-card.is-selected {
+  border-color: color-mix(in srgb, var(--color-azure) 34%, var(--surface-line));
+  background: color-mix(in srgb, var(--accent-bg) 55%, var(--color-snow));
+  box-shadow: inset 2px 0 0 var(--color-azure);
+}
+
+html[data-theme^="office"] .home-icon-button,
+html[data-theme^="office"] .home-project-create-actions button {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .home-icon-button:hover,
+html[data-theme^="office"]
+  .home-project-create-actions
+  button:hover:not(:disabled) {
+  border-color: var(--color-silver);
+  background: var(--color-snow);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .home-project-create input {
+  min-height: 34px;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+html[data-theme^="office"] .home-project-create-actions button:first-child {
+  min-height: 30px;
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-snow);
+}
+
+html[data-theme^="office"] .home-chat-empty h1 {
+  font-family: var(--font-logo);
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.24;
+}
+
+html[data-theme^="office"] .home-context-chip {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .home-context-chip.is-project {
+  background: color-mix(in srgb, var(--green-bg) 64%, var(--color-snow));
+  color: var(--green-dark);
+}
+
+html[data-theme^="office"] .home-composer {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 18px 44px rgba(15, 23, 42, 0.07),
+    0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html[data-theme^="office"] .home-composer:focus-within {
+  border-color: color-mix(in srgb, var(--color-azure) 38%, var(--surface-line));
+  box-shadow:
+    0 0 0 3px var(--focus-ring),
+    0 18px 44px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html[data-theme^="office"] .home-composer textarea,
+html[data-theme^="office"] .home-composer textarea:focus {
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 6px 4px 4px;
+  font-size: 14px;
+  outline: 0;
+}
+
+html[data-theme^="office"] .home-send {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: var(--color-ink);
+  color: var(--color-snow);
+}
+
+html[data-theme^="office"] .home-send:hover:not(:disabled) {
+  background: var(--color-graphite);
+}
+
+html[data-theme^="office"] .project-app {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  gap: 12px;
+  padding: 28px clamp(22px, 4.2vw, 44px) 48px;
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .project-directory-toolbar {
+  border: 0;
+  background: transparent;
+}
+
+html[data-theme^="office"] .project-directory-toolbar > div {
+  padding: 0 0 8px !important;
+}
+
+html[data-theme^="office"] .project-directory-toolbar h3,
+html[data-theme^="office"] .project-detail-title {
+  color: var(--color-ink);
+  font-family: var(--font-logo);
+  font-size: 22px !important;
+  font-weight: 650;
+  line-height: 1.18 !important;
+  word-break: keep-all;
+}
+
+html[data-theme^="office"] .project-directory-toolbar .text-muted-foreground {
+  color: var(--color-ash);
+  font-size: 12px;
+}
+
+html[data-theme^="office"] .project-create-button,
+html[data-theme^="office"] .project-ticket-create-button,
+html[data-theme^="office"] .project-empty-action,
+html[data-theme^="office"] .project-recipe-upload,
+html[data-theme^="office"] .project-recipe-clear {
+  min-height: 34px;
+  height: 34px;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  color: var(--color-ink);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+html[data-theme^="office"] .project-create-button:hover,
+html[data-theme^="office"] .project-ticket-create-button:hover,
+html[data-theme^="office"] .project-empty-action:hover,
+html[data-theme^="office"] .project-recipe-upload:hover,
+html[data-theme^="office"] .project-recipe-clear:hover {
+  border-color: var(--color-silver);
+  background: var(--color-fog);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .project-directory-card,
+html[data-theme^="office"] .project-empty-card,
+html[data-theme^="office"] .project-info-card,
+html[data-theme^="office"] .project-ticket-list-card {
+  overflow: hidden;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius) !important;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: none !important;
+}
+
+html[data-theme^="office"] .project-directory-toolbar {
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent;
+}
+
+html[data-theme^="office"] .project-ticket-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+html[data-theme^="office"] .project-ticket-card > div {
+  padding: 0 0 4px !important;
+}
+
+html[data-theme^="office"] .project-directory-card table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+html[data-theme^="office"] .project-directory-card thead th {
+  height: 38px;
+  border-bottom: 1px solid var(--surface-line);
+  background: transparent;
+  color: var(--color-ash);
+  font-size: 11px;
+  font-weight: 650;
+  padding: 0 16px;
+}
+
+html[data-theme^="office"] .project-directory-card tbody tr {
+  border-top: 0;
+  background: transparent;
+}
+
+html[data-theme^="office"] .project-directory-card tbody td {
+  border-top: 1px solid var(--surface-line);
+  background: transparent;
+  padding: 13px 16px;
+}
+
+html[data-theme^="office"] .project-directory-card tbody tr:first-child td {
+  border-top: 0;
+}
+
+html[data-theme^="office"] .project-directory-card tbody tr:hover {
+  background: color-mix(in srgb, var(--color-fog) 78%, transparent);
+}
+
+html[data-theme^="office"]
+  .project-directory-card
+  tbody
+  tr[data-state="selected"] {
+  background: color-mix(in srgb, var(--accent-bg) 54%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-azure) !important;
+}
+
+html[data-theme^="office"]
+  .project-directory-card
+  tbody
+  tr[data-state="selected"]
+  td:first-child {
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .project-inline-status,
+html[data-theme^="office"] .task-inline-status,
+html[data-theme^="office"] .project-ticket-metric {
+  min-height: 24px;
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--color-fog) 68%, var(--color-snow));
+  padding: 0 9px;
+  color: var(--color-graphite);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+html[data-theme^="office"] .project-inline-status::before,
+html[data-theme^="office"] .task-inline-status::before {
+  width: 5px;
+  height: 5px;
+}
+
+html[data-theme^="office"] .project-ticket-metric strong {
+  color: var(--color-ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+html[data-theme^="office"] .project-detail-header {
+  max-width: none;
+  padding: 0 0 2px;
+}
+
+html[data-theme^="office"] .project-detail-heading {
+  gap: 10px;
+}
+
+html[data-theme^="office"] .project-detail-header .project-back-button {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+}
+
+html[data-theme^="office"] .project-detail-header .project-back-button:hover {
+  border-color: var(--surface-line);
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .project-ticket-toolbar-row {
+  padding: 0 0 6px !important;
+}
+
+html[data-theme^="office"] .project-detail-metrics,
+html[data-theme^="office"] .project-ticket-metrics {
+  gap: 5px 7px;
+}
+
+html[data-theme^="office"] .project-info-content {
+  padding: 18px 20px !important;
+}
+
+html[data-theme^="office"] .project-info-form {
+  gap: 14px;
+}
+
+html[data-theme^="office"] .project-info-topline {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--surface-line);
+}
+
+html[data-theme^="office"] .project-info-topline h4 {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+html[data-theme^="office"] .project-info-save-state {
+  color: var(--color-ash);
+  font-size: 11px;
+}
+
+html[data-theme^="office"] .project-info-field {
+  gap: 6px;
+  color: var(--color-ash);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+html[data-theme^="office"] .project-info-field input,
+html[data-theme^="office"] .project-info-field textarea {
+  min-height: 38px;
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+html[data-theme^="office"] .project-info-field textarea {
+  min-height: 76px;
+}
+
+html[data-theme^="office"] .project-recipe-field textarea {
+  min-height: 128px;
+}
+
+html[data-theme^="office"] .project-recipe-empty {
+  margin: 0;
+  border: 1px dashed var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: transparent;
+  padding: 12px;
+  color: var(--color-ash);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+html[data-theme^="office"] .project-empty-card > div {
+  padding: 24px !important;
+}
+
+@media (max-width: 768px) {
+  html[data-theme^="office"] .home-projects {
+    padding: 16px 14px 8px;
+  }
+
+  html[data-theme^="office"] .home-chat-empty h1 {
+    font-size: 26px;
+  }
+
+  html[data-theme^="office"] .project-app {
+    width: 100%;
+    gap: 10px;
+    padding: 18px 14px 72px;
+  }
+
+  html[data-theme^="office"] .project-directory-toolbar > div,
+  html[data-theme^="office"] .project-ticket-toolbar-row {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  html[data-theme^="office"] .project-directory-toolbar > div {
+    flex-flow: row nowrap;
+    justify-content: space-between;
+  }
+
+  html[data-theme^="office"] .project-directory-toolbar h3,
+  html[data-theme^="office"] .project-detail-title {
+    font-size: 22px !important;
+  }
+
+  html[data-theme^="office"] .project-directory-card tbody tr {
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  html[data-theme^="office"] .project-directory-card tbody td,
+  html[data-theme^="office"] .project-directory-card tbody td:first-child {
+    border-top: 0;
+    padding: 0 !important;
+  }
+
+  html[data-theme^="office"] .project-directory-card tbody tr + tr {
+    border-top: 1px solid var(--surface-line);
+  }
+
+  html[data-theme^="office"] .project-info-content {
+    padding: 16px !important;
+  }
+}

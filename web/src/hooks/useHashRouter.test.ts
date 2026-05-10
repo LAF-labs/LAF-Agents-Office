@@ -14,8 +14,12 @@ const baseState = {
 };
 
 describe("useHashRouter project routes", () => {
-  it("uses the project workspace as the default route", () => {
-    expect(__test__.parseHash("")).toEqual({ view: "app", app: "tasks" });
+  it("uses the home workspace as the default route", () => {
+    expect(__test__.parseHash("")).toEqual({ view: "app", app: "home" });
+    expect(__test__.parseHash("#/home")).toEqual({
+      view: "app",
+      app: "home",
+    });
   });
 
   it("accepts project-first route aliases", () => {
@@ -52,6 +56,15 @@ describe("useHashRouter project routes", () => {
         currentApp: "tasks",
       }),
     ).toBe("#/projects");
+  });
+
+  it("canonicalizes the home app to the home route", () => {
+    expect(
+      __test__.stateToHash({
+        ...baseState,
+        currentApp: "home",
+      }),
+    ).toBe("#/home");
   });
 
   it("keeps the focused project in the project route", () => {
