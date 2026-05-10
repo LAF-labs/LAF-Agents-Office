@@ -1017,10 +1017,37 @@ export interface AgentUsage {
   cost_usd: number;
 }
 
+export interface ContextBudgetSectionUsage {
+  id: string;
+  chars: number;
+  required?: boolean;
+}
+
+export interface UsageOptimizationStats {
+  prompt_builds?: number;
+  prompt_chars?: number;
+  max_prompt_chars?: number;
+  packet_builds?: number;
+  packet_chars?: number;
+  max_packet_chars?: number;
+  memory_items_included?: number;
+  memory_items_omitted?: number;
+  broad_poll_reads?: number;
+  broad_task_reads?: number;
+  wake_decisions?: number;
+  wake_targets?: number;
+  wake_reasons?: Record<string, number>;
+  wake_suppressions?: Record<string, number>;
+  tool_calls?: number;
+  last_prompt_sections?: ContextBudgetSectionUsage[];
+  last_packet_sections?: ContextBudgetSectionUsage[];
+}
+
 export interface UsageData {
   total?: { cost_usd: number; total_tokens?: number };
   session?: { total_tokens: number };
   agents?: Record<string, AgentUsage>;
+  optimization?: UsageOptimizationStats;
 }
 
 export function getUsage() {

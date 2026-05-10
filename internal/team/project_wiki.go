@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const maxProjectMemoryPacketChars = 2400
@@ -82,17 +83,21 @@ type AgentMemoryWorkReceipt struct {
 }
 
 type projectMemoryPacket struct {
-	Path        string
-	Excerpt     string
-	Truncated   bool
-	Unavailable string
-	Signals     projectMemorySignals
+	Path              string
+	Excerpt           string
+	Truncated         bool
+	Unavailable       string
+	Signals           projectMemorySignals
+	OmittedRecentWork int
 }
 
 type projectMemorySignals struct {
-	Decisions     []AgentMemoryItem
-	Risks         []AgentMemoryItem
-	OpenQuestions []AgentMemoryItem
+	Decisions            []AgentMemoryItem
+	Risks                []AgentMemoryItem
+	OpenQuestions        []AgentMemoryItem
+	OmittedDecisions     int
+	OmittedRisks         int
+	OmittedOpenQuestions int
 }
 
 func (b *Broker) materializeProjectWiki(ctx context.Context, project teamProject) error {
@@ -266,7 +271,7 @@ func (b *Broker) projectMemoryForTaskPacket(task teamTask) projectMemoryPacket {
 	project := b.projectSnapshot(projectID)
 	liveMemory := renderProjectLiveMemory(project)
 	combined := strings.TrimSpace(strings.Join(nonEmptyStrings(liveMemory, string(raw)), "\n\n"))
-	packet.Signals = extractProjectMemorySignals(path, combined)
+	packet.Signals = extractProjectMemorySignalsForTask(path, combined, task)
 	excerpt := strings.TrimSpace(
 		combined,
 	)
@@ -298,8 +303,11 @@ func (b *Broker) agentMemoryPacketForTaskLocked(task teamTask) AgentMemoryPacket
 		}
 	}
 	memory := b.projectMemoryForTaskPacketLocked(task, project)
-	recentWork := b.recentProjectWorkReceiptsLocked(projectID, task.ID, 5)
-	return buildAgentMemoryPacketForTask(task, memory, project, recentWork)
+	recentWork, omittedRecentWork := b.recentProjectWorkReceiptsForTaskLocked(projectID, task, 5)
+	memory.OmittedRecentWork = omittedRecentWork
+	packet := buildAgentMemoryPacketForTask(task, memory, project, recentWork)
+	b.recordAgentMemoryPacketDiagnosticsLocked(packet, memory, recentWork)
+	return packet
 }
 
 // projectMemoryForTaskPacketLocked reads the canonical project wiki for a task
@@ -337,7 +345,7 @@ func (b *Broker) projectMemoryForTaskPacketLocked(task teamTask, project teamPro
 
 	liveMemory := renderProjectLiveMemory(project)
 	combined := strings.TrimSpace(strings.Join(nonEmptyStrings(liveMemory, string(raw)), "\n\n"))
-	packet.Signals = extractProjectMemorySignals(path, combined)
+	packet.Signals = extractProjectMemorySignalsForTask(path, combined, task)
 	excerpt := strings.TrimSpace(combined)
 	if excerpt == "" {
 		packet.Unavailable = fmt.Sprintf("%s is empty", path)
@@ -368,10 +376,16 @@ func (b *Broker) agentMemoryPacketForTask(task teamTask, memory projectMemoryPac
 		}
 	}
 	var recentWork []AgentMemoryWorkReceipt
+	omittedRecentWork := 0
 	if b != nil && projectID != "" {
-		recentWork = b.recentProjectWorkReceipts(projectID, task.ID, 5)
+		recentWork, omittedRecentWork = b.recentProjectWorkReceiptsForTask(projectID, task, 5)
 	}
-	return buildAgentMemoryPacketForTask(task, memory, project, recentWork)
+	memory.OmittedRecentWork = omittedRecentWork
+	packet := buildAgentMemoryPacketForTask(task, memory, project, recentWork)
+	if b != nil {
+		b.recordAgentMemoryPacketDiagnostics(packet, memory, recentWork)
+	}
+	return packet
 }
 
 func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, project teamProject, recentWork []AgentMemoryWorkReceipt) AgentMemoryPacket {
@@ -442,6 +456,9 @@ func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, pr
 	}
 	if memory.Unavailable == "" {
 		loaded.Note = "Excerpt is injected below this contract; call team_wiki_read only if truncated or missing a needed section."
+		if omitted := projectMemoryOmittedCount(memory); omitted > 0 {
+			loaded.Note += fmt.Sprintf(" Context budget omitted %d lower-relevance memory item(s); call team_task_context or team_wiki_read only if a missing section is needed.", omitted)
+		}
 	} else {
 		loaded.Note = memory.Unavailable
 	}
@@ -481,11 +498,17 @@ func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, pr
 	return packet
 }
 
-func extractProjectMemorySignals(source, markdown string) projectMemorySignals {
+func extractProjectMemorySignalsForTask(source, markdown string, task teamTask) projectMemorySignals {
+	decisions, omittedDecisions := selectProjectMemoryItemsForTask(extractProjectSectionBullets(source, markdown, 24, "Decisions", "Decision log"), task, 6)
+	risks, omittedRisks := selectProjectMemoryItemsForTask(extractProjectSectionBullets(source, markdown, 24, "Risks", "Risk log", "Blockers", "Known risks"), task, 6)
+	openQuestions, omittedOpenQuestions := selectProjectMemoryItemsForTask(extractProjectSectionBullets(source, markdown, 24, "Open questions", "Questions", "Unknowns"), task, 6)
 	return projectMemorySignals{
-		Decisions:     extractProjectSectionBullets(source, markdown, 6, "Decisions", "Decision log"),
-		Risks:         extractProjectSectionBullets(source, markdown, 6, "Risks", "Risk log", "Blockers", "Known risks"),
-		OpenQuestions: extractProjectSectionBullets(source, markdown, 6, "Open questions", "Questions", "Unknowns"),
+		Decisions:            decisions,
+		Risks:                risks,
+		OpenQuestions:        openQuestions,
+		OmittedDecisions:     omittedDecisions,
+		OmittedRisks:         omittedRisks,
+		OmittedOpenQuestions: omittedOpenQuestions,
 	}
 }
 
@@ -520,6 +543,104 @@ func extractProjectSectionBullets(source, markdown string, limit int, headings .
 		}
 	}
 	return items
+}
+
+func selectProjectMemoryItemsForTask(items []AgentMemoryItem, task teamTask, limit int) ([]AgentMemoryItem, int) {
+	if len(items) <= limit || limit <= 0 {
+		if limit <= 0 {
+			return nil, len(items)
+		}
+		return items, 0
+	}
+	selectedIndexes := map[int]struct{}{0: {}}
+	type scoredItem struct {
+		item  AgentMemoryItem
+		score int
+		index int
+	}
+	scored := make([]scoredItem, 0, len(items))
+	for i, item := range items {
+		if _, selected := selectedIndexes[i]; selected {
+			continue
+		}
+		scored = append(scored, scoredItem{item: item, score: scoreProjectMemoryItemForTask(item, task), index: i})
+	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
+		}
+		return scored[i].index < scored[j].index
+	})
+	for _, item := range scored {
+		if len(selectedIndexes) >= limit {
+			break
+		}
+		selectedIndexes[item.index] = struct{}{}
+	}
+	selected := make([]scoredItem, 0, limit)
+	for index := range selectedIndexes {
+		selected = append(selected, scoredItem{item: items[index], index: index})
+	}
+	sort.SliceStable(selected, func(i, j int) bool { return selected[i].index < selected[j].index })
+	out := make([]AgentMemoryItem, 0, limit)
+	for _, scored := range selected {
+		out = append(out, scored.item)
+	}
+	return out, len(items) - len(out)
+}
+
+func scoreProjectMemoryItemForTask(item AgentMemoryItem, task teamTask) int {
+	score := 0
+	text := strings.ToLower(item.Text)
+	for _, token := range projectMemoryRelevanceTokens(task) {
+		if strings.Contains(text, token) {
+			score += 10
+		}
+	}
+	if strings.Contains(text, "block") || strings.Contains(text, "risk") || strings.Contains(text, "must") || strings.Contains(text, "do not") {
+		score += 8
+	}
+	if strings.Contains(text, "delivery") || strings.Contains(text, "receipt") || strings.Contains(text, "pr") {
+		score += 6
+	}
+	return score
+}
+
+func projectMemoryRelevanceTokens(task teamTask) []string {
+	raw := strings.Join([]string{
+		task.Title,
+		task.Details,
+		task.HumanDetails,
+		task.Owner,
+		task.TaskType,
+		task.ExecutionMode,
+		task.PipelineStage,
+		task.ReviewState,
+	}, " ")
+	seen := map[string]struct{}{}
+	tokens := make([]string, 0, 16)
+	for _, token := range strings.FieldsFunc(strings.ToLower(raw), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if len(token) < 4 || isProjectMemoryRelevanceStopWord(token) {
+			continue
+		}
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		tokens = append(tokens, token)
+	}
+	return tokens
+}
+
+func isProjectMemoryRelevanceStopWord(token string) bool {
+	switch token {
+	case "task", "work", "with", "this", "that", "from", "have", "will", "into", "make", "ship", "build", "project":
+		return true
+	default:
+		return false
+	}
 }
 
 func markdownSection(markdown string, headings ...string) string {
@@ -578,46 +699,66 @@ func isProjectMemoryBoilerplate(text string) bool {
 }
 
 func (b *Broker) recentProjectWorkReceipts(projectID, currentTaskID string, limit int) []AgentMemoryWorkReceipt {
+	receipts, _ := b.recentProjectWorkReceiptsForTask(projectID, teamTask{ID: currentTaskID}, limit)
+	return receipts
+}
+
+func (b *Broker) recentProjectWorkReceiptsForTask(projectID string, currentTask teamTask, limit int) ([]AgentMemoryWorkReceipt, int) {
 	projectID = normalizeProjectID(projectID)
 	if b == nil || projectID == "" || limit <= 0 {
-		return nil
+		return nil, 0
 	}
 	b.mu.Lock()
 	tasks := make([]teamTask, 0, len(b.tasks))
 	for _, task := range b.tasks {
-		if normalizeProjectID(task.ProjectID) == projectID && strings.TrimSpace(task.ID) != strings.TrimSpace(currentTaskID) {
+		if normalizeProjectID(task.ProjectID) == projectID && strings.TrimSpace(task.ID) != strings.TrimSpace(currentTask.ID) {
 			tasks = append(tasks, task)
 		}
 	}
 	b.mu.Unlock()
-	return buildRecentProjectWorkReceipts(tasks, limit)
+	return buildRecentProjectWorkReceiptsForTask(tasks, currentTask, limit)
 }
 
 // recentProjectWorkReceiptsLocked returns recent work without taking b.mu again.
 // Callers must hold b.mu.
 func (b *Broker) recentProjectWorkReceiptsLocked(projectID, currentTaskID string, limit int) []AgentMemoryWorkReceipt {
+	receipts, _ := b.recentProjectWorkReceiptsForTaskLocked(projectID, teamTask{ID: currentTaskID}, limit)
+	return receipts
+}
+
+func (b *Broker) recentProjectWorkReceiptsForTaskLocked(projectID string, currentTask teamTask, limit int) ([]AgentMemoryWorkReceipt, int) {
 	projectID = normalizeProjectID(projectID)
 	if b == nil || projectID == "" || limit <= 0 {
-		return nil
+		return nil, 0
 	}
 	tasks := make([]teamTask, 0, len(b.tasks))
 	for _, task := range b.tasks {
-		if normalizeProjectID(task.ProjectID) == projectID && strings.TrimSpace(task.ID) != strings.TrimSpace(currentTaskID) {
+		if normalizeProjectID(task.ProjectID) == projectID && strings.TrimSpace(task.ID) != strings.TrimSpace(currentTask.ID) {
 			tasks = append(tasks, task)
 		}
 	}
-	return buildRecentProjectWorkReceipts(tasks, limit)
+	return buildRecentProjectWorkReceiptsForTask(tasks, currentTask, limit)
 }
 
 func buildRecentProjectWorkReceipts(tasks []teamTask, limit int) []AgentMemoryWorkReceipt {
+	receipts, _ := buildRecentProjectWorkReceiptsForTask(tasks, teamTask{}, limit)
+	return receipts
+}
+
+func buildRecentProjectWorkReceiptsForTask(tasks []teamTask, currentTask teamTask, limit int) ([]AgentMemoryWorkReceipt, int) {
+	fallbackTaskID := latestMeaningfulProjectWorkTaskID(tasks)
+	selected := map[string]struct{}{}
 	sort.SliceStable(tasks, func(i, j int) bool {
+		left := scoreRecentProjectWorkForTask(tasks[i], currentTask)
+		right := scoreRecentProjectWorkForTask(tasks[j], currentTask)
+		if left != right {
+			return left > right
+		}
 		return latestTaskTimestamp(tasks[i]).After(latestTaskTimestamp(tasks[j]))
 	})
 	receipts := make([]AgentMemoryWorkReceipt, 0, limit)
+	meaningful := 0
 	for _, task := range tasks {
-		if len(receipts) >= limit {
-			break
-		}
 		receipt := AgentMemoryWorkReceipt{
 			TaskID:          strings.TrimSpace(task.ID),
 			Title:           truncateSummary(oneLineTaskWikiText(task.Title), 140),
@@ -630,12 +771,95 @@ func buildRecentProjectWorkReceipts(tasks []teamTask, limit int) []AgentMemoryWo
 		if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusBlocked) || task.Blocked {
 			receipt.Blocker = truncateSummary(oneLineTaskWikiText(nonEmptyTaskDetails(task)), 220)
 		}
+		if !projectWorkReceiptIsMeaningful(task) {
+			continue
+		}
 		if receipt.Status == "" && receipt.DeliveryURL == "" && receipt.DeliverySummary == "" && receipt.Blocker == "" {
 			continue
 		}
-		receipts = append(receipts, receipt)
+		meaningful++
+		if len(receipts) < limit {
+			if fallbackTaskID != "" && strings.TrimSpace(task.ID) != fallbackTaskID && len(receipts) == limit-1 {
+				if _, ok := selected[fallbackTaskID]; !ok {
+					continue
+				}
+			}
+			receipts = append(receipts, receipt)
+			selected[receipt.TaskID] = struct{}{}
+		}
 	}
-	return receipts
+	return receipts, maxInt(0, meaningful-len(receipts))
+}
+
+func latestMeaningfulProjectWorkTaskID(tasks []teamTask) string {
+	var latest teamTask
+	var latestAt time.Time
+	for _, task := range tasks {
+		if !projectWorkReceiptIsMeaningful(task) {
+			continue
+		}
+		ts := latestTaskTimestamp(task)
+		if latest.ID == "" || ts.After(latestAt) {
+			latest = task
+			latestAt = ts
+		}
+	}
+	return strings.TrimSpace(latest.ID)
+}
+
+func projectWorkReceiptIsMeaningful(task teamTask) bool {
+	status := strings.TrimSpace(task.Status)
+	if strings.EqualFold(status, taskStatusBlocked) || task.Blocked ||
+		strings.EqualFold(status, taskStatusReview) ||
+		strings.EqualFold(status, taskStatusInProgress) ||
+		strings.EqualFold(status, taskStatusDone) ||
+		strings.EqualFold(status, taskStatusCompleted) {
+		return true
+	}
+	return strings.TrimSpace(task.DeliveryURL) != "" ||
+		strings.TrimSpace(task.DeliverySummary) != "" ||
+		strings.TrimSpace(nonEmptyTaskDetails(task)) != ""
+}
+
+func scoreRecentProjectWorkForTask(task teamTask, currentTask teamTask) int {
+	score := 0
+	status := strings.TrimSpace(task.Status)
+	switch {
+	case strings.EqualFold(status, taskStatusBlocked) || task.Blocked:
+		score += 130
+	case strings.EqualFold(status, taskStatusReview):
+		score += 80
+	case strings.EqualFold(status, taskStatusInProgress):
+		score += 55
+	case strings.EqualFold(status, taskStatusDone) || strings.EqualFold(status, taskStatusCompleted):
+		score += 45
+	}
+	if strings.TrimSpace(task.DeliveryURL) != "" || strings.TrimSpace(task.DeliverySummary) != "" {
+		score += 35
+	}
+	if strings.TrimSpace(task.Owner) != "" && strings.EqualFold(strings.TrimSpace(task.Owner), strings.TrimSpace(currentTask.Owner)) {
+		score += 20
+	}
+	if strings.TrimSpace(task.TaskType) != "" && strings.EqualFold(strings.TrimSpace(task.TaskType), strings.TrimSpace(currentTask.TaskType)) {
+		score += 12
+	}
+	haystack := strings.ToLower(strings.Join([]string{task.Title, task.Details, task.DeliverySummary, task.Owner, task.TaskType}, " "))
+	for _, token := range projectMemoryRelevanceTokens(currentTask) {
+		if strings.Contains(haystack, token) {
+			score += 8
+		}
+	}
+	if latestTaskTimestamp(task).After(time.Now().Add(-14 * 24 * time.Hour)) {
+		score += 5
+	}
+	return score
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func latestTaskTimestamp(task teamTask) time.Time {
@@ -695,6 +919,36 @@ func renderProjectMemoryPacket(packet projectMemoryPacket) []string {
 		lines = append(lines, fmt.Sprintf("Project memory excerpt truncated; call team_wiki_read for full article with article_path=%q.", packet.Path))
 	}
 	return lines
+}
+
+func (b *Broker) recordAgentMemoryPacketDiagnostics(packet AgentMemoryPacket, memory projectMemoryPacket, recentWork []AgentMemoryWorkReceipt) {
+	if b == nil {
+		return
+	}
+	lines := renderAgentMemoryPacket(packet)
+	lines = append(lines, renderProjectMemoryPacket(memory)...)
+	text := strings.Join(lines, "\n")
+	b.recordContextOptimization(contextOptimizationEvent{
+		PacketChars:    agentPacketBudgetChars(packet, memory),
+		PacketSections: packetBudgetSections(text),
+		MemoryIncluded: projectMemoryIncludedCount(memory, recentWork),
+		MemoryOmitted:  projectMemoryOmittedCount(memory),
+	})
+}
+
+func (b *Broker) recordAgentMemoryPacketDiagnosticsLocked(packet AgentMemoryPacket, memory projectMemoryPacket, recentWork []AgentMemoryWorkReceipt) {
+	if b == nil {
+		return
+	}
+	lines := renderAgentMemoryPacket(packet)
+	lines = append(lines, renderProjectMemoryPacket(memory)...)
+	text := strings.Join(lines, "\n")
+	b.recordContextOptimizationLocked(contextOptimizationEvent{
+		PacketChars:    agentPacketBudgetChars(packet, memory),
+		PacketSections: packetBudgetSections(text),
+		MemoryIncluded: projectMemoryIncludedCount(memory, recentWork),
+		MemoryOmitted:  projectMemoryOmittedCount(memory),
+	})
 }
 
 func (b *Broker) appendProjectTaskWikiEvent(ctx context.Context, task teamTask, actor, verb string) error {

@@ -405,10 +405,11 @@ type usageTotals struct {
 }
 
 type teamUsageState struct {
-	Session usageTotals            `json:"session,omitempty"`
-	Total   usageTotals            `json:"total"`
-	Agents  map[string]usageTotals `json:"agents,omitempty"`
-	Since   string                 `json:"since,omitempty"`
+	Session      usageTotals            `json:"session,omitempty"`
+	Total        usageTotals            `json:"total"`
+	Agents       map[string]usageTotals `json:"agents,omitempty"`
+	Since        string                 `json:"since,omitempty"`
+	Optimization usageOptimizationStats `json:"optimization,omitempty"`
 }
 
 type ipRateLimitBucket struct {
@@ -2383,6 +2384,17 @@ func (b *Broker) handleAgentToolEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing slug", http.StatusBadRequest)
 		return
 	}
+	if strings.EqualFold(strings.TrimSpace(body.Phase), "call") {
+		tool := strings.TrimSpace(body.Tool)
+		event := contextOptimizationEvent{ToolCall: true}
+		if tool == "team_poll" && !toolEventArgsHasReason(body.Args) {
+			event.BroadPollRead = true
+		}
+		if tool == "team_tasks" && !toolEventArgsHasReason(body.Args) {
+			event.BroadTaskRead = true
+		}
+		b.recordContextOptimization(event)
+	}
 	stream := b.AgentStream(slug)
 	if stream == nil {
 		w.WriteHeader(http.StatusOK)
@@ -2438,6 +2450,19 @@ func decodeToolEventField(raw string) any {
 		return decoded
 	}
 	return raw
+}
+
+func toolEventArgsHasReason(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	var args map[string]any
+	if err := json.Unmarshal([]byte(raw), &args); err != nil {
+		return false
+	}
+	reason, _ := args["reason"].(string)
+	return strings.TrimSpace(reason) != ""
 }
 
 // handleAgentStream serves a per-agent stdout SSE stream.
@@ -4901,7 +4926,27 @@ func usageStateIsZero(state teamUsageState) bool {
 			return false
 		}
 	}
-	return true
+	return usageOptimizationStatsIsZero(state.Optimization)
+}
+
+func usageOptimizationStatsIsZero(opt usageOptimizationStats) bool {
+	return opt.PromptBuilds == 0 &&
+		opt.PromptChars == 0 &&
+		opt.MaxPromptChars == 0 &&
+		opt.PacketBuilds == 0 &&
+		opt.PacketChars == 0 &&
+		opt.MaxPacketChars == 0 &&
+		opt.MemoryItemsIncluded == 0 &&
+		opt.MemoryItemsOmitted == 0 &&
+		opt.BroadPollReads == 0 &&
+		opt.BroadTaskReads == 0 &&
+		opt.WakeDecisions == 0 &&
+		opt.WakeTargets == 0 &&
+		len(opt.WakeReasons) == 0 &&
+		len(opt.WakeSuppressions) == 0 &&
+		opt.ToolCalls == 0 &&
+		len(opt.LastPromptSections) == 0 &&
+		len(opt.LastPacketSections) == 0
 }
 
 func (b *Broker) appendActionLocked(kind, source, channel, actor, summary, relatedID string) {

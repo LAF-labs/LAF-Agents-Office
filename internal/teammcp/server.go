@@ -230,6 +230,7 @@ type TeamPollArgs struct {
 	SinceID string `json:"since_id,omitempty" jsonschema:"Only return messages after this message ID"`
 	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum messages to return (default 10, max 100)"`
 	Scope   string `json:"scope,omitempty" jsonschema:"Transcript scope: all, agent, inbox, or outbox. Defaults to agent-scoped for non-lead office agents."`
+	Reason  string `json:"reason,omitempty" jsonschema:"Optional reason for this broad context read. Leave empty only when the pushed packet is missing required context."`
 }
 
 type TeamStatusArgs struct {
@@ -289,6 +290,7 @@ type TeamTasksArgs struct {
 	Channel     string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
 	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 	IncludeDone bool   `json:"include_done,omitempty" jsonschema:"Include completed tasks as well"`
+	Reason      string `json:"reason,omitempty" jsonschema:"Optional reason for this broad task read. Leave empty only when the pushed packet is missing required task state."`
 }
 
 type TeamTaskContextArgs struct {

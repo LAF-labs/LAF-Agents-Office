@@ -1109,6 +1109,17 @@ func (l *Launcher) isChannelDM(channelSlug string) (isDM bool, agentTarget strin
 }
 
 func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate []notificationTarget, delayed []notificationTarget) {
+	defer func() {
+		if l != nil && l.broker != nil {
+			reason, suppressed := l.wakePolicyOutcome(msg, immediate, delayed)
+			l.broker.recordContextOptimization(contextOptimizationEvent{
+				WakeDecision:   true,
+				WakeTargets:    len(immediate) + len(delayed),
+				WakeReason:     reason,
+				WakeSuppressed: suppressed,
+			})
+		}
+	}()
 	targetMap := l.agentNotificationTargets()
 	if len(targetMap) == 0 {
 		return nil, nil
@@ -1259,7 +1270,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 		default:
 			// Specialist message: wake the lead only if it is a substantive update (not a status ping).
 			// [STATUS] lines are internal progress markers — the lead does not need to re-route on them.
-			if specialistUpdateNeedsLeadAttention(msg) {
+			if l.specialistUpdateNeedsLeadAttention(msg) {
 				addImmediate(lead)
 			}
 		}
@@ -1305,7 +1316,7 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 	default:
 		// Specialist-to-channel message in collaborative mode: the lead stays in the loop
 		// plus any tagged agents and the task owner.
-		if specialistUpdateNeedsLeadAttention(msg) {
+		if l.specialistUpdateNeedsLeadAttention(msg) {
 			addImmediate(lead)
 		}
 		if owner != "" && owner != lead && allowTarget(owner) {
@@ -1318,6 +1329,34 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 		}
 	}
 	return immediate, delayed
+}
+
+func (l *Launcher) wakePolicyOutcome(msg channelMessage, immediate []notificationTarget, delayed []notificationTarget) (string, string) {
+	if len(immediate)+len(delayed) > 0 {
+		switch {
+		case messageComesFromHumanOrSystem(msg) && len(msg.Tagged) > 0:
+			return "human_explicit_tag", ""
+		case messageComesFromHumanOrSystem(msg):
+			return "human_or_system", ""
+		case len(msg.Tagged) > 0:
+			return "explicit_tag", ""
+		default:
+			return "specialist_update", ""
+		}
+	}
+	if messageIsStatusOnly(msg) {
+		return "", "status_only"
+	}
+	if l != nil && l.broker != nil && l.broker.isExactDuplicateSpecialistUpdate(msg, 2*time.Minute) {
+		return "", "exact_duplicate"
+	}
+	if strings.TrimSpace(msg.Content) == "" && strings.TrimSpace(msg.Title) == "" {
+		return "", "empty_message"
+	}
+	if messageComesFromHumanOrSystem(msg) {
+		return "", "no_available_target"
+	}
+	return "", "not_relevant"
 }
 
 func (l *Launcher) watchChannelPaneLoop(channelCmd string) {
@@ -2920,7 +2959,9 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 			lines = append(lines, fmt.Sprintf("- Already active in this thread (do NOT re-route): %s", strings.Join(names, ", ")))
 		}
 	}
-	return strings.Join(lines, "\n")
+	packet := strings.Join(lines, "\n")
+	l.recordWorkPacketBudget(packet)
+	return packet
 }
 
 func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog, task teamTask, content string) string {
@@ -2995,7 +3036,19 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 	lines = append(lines, fmt.Sprintf("If you deliver the substantive result for #%s in this turn, you MUST call team_task complete or review-ready for \"%s\" before any completion post and before you stop. A channel reply alone does not unblock dependent work, and a completion post without the task mutation is a failure.", task.ID, task.ID))
 	lines = append(lines, "Runtime rule: never launch another LAF-Office runtime, copied laf-office binary, browser instance, or local web server/--web-port process from inside this turn. The office is already running; use the existing repo, broker state, and assigned worktree instead.")
 	lines = append(lines, fmt.Sprintf("%s Use team_task with my_slug \"%s\" to update status as you go.", truncate(content, 1000), slug))
-	return strings.Join(lines, "\n")
+	packet := strings.Join(lines, "\n")
+	l.recordWorkPacketBudget(packet)
+	return packet
+}
+
+func (l *Launcher) recordWorkPacketBudget(packet string) {
+	if l == nil || l.broker == nil || strings.TrimSpace(packet) == "" {
+		return
+	}
+	l.broker.recordContextOptimization(contextOptimizationEvent{
+		PacketChars:    len([]rune(packet)),
+		PacketSections: packetBudgetSections(packet),
+	})
 }
 
 func headlessSandboxNote() string {
@@ -3886,7 +3939,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- If the human asks for a plan, recommendation, explanation, or judgment you can reasonably give now, answer now.\n")
 		sb.WriteString("- Do not go silent and over-research by default. Only inspect files, run tools, or query memory first when the answer genuinely depends on that context.\n")
 		sb.WriteString("- If you need a deeper pass, give the human the quick answer first, then continue with the deeper work.\n")
-		return sb.String()
+		return l.finalizePrompt(sb.String())
 	}
 
 	if slug == lead {
@@ -4089,7 +4142,17 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("Never launch another LAF-Office runtime from inside your turn (`laf-office`, `./laf-office`, `/reset`, or a new browser instance). The office is already running; inspect the current repo and UI instead.\n")
 	}
 
-	return sb.String()
+	return l.finalizePrompt(sb.String())
+}
+
+func (l *Launcher) finalizePrompt(prompt string) string {
+	if l != nil && l.broker != nil {
+		l.broker.recordContextOptimization(contextOptimizationEvent{
+			PromptChars:    len([]rune(prompt)),
+			PromptSections: promptBudgetSections(prompt),
+		})
+	}
+	return prompt
 }
 
 // claudeCommand builds the shell command string for spawning a claude session.
