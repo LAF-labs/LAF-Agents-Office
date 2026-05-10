@@ -241,6 +241,85 @@ func (b *Broker) handleRunnerRegister(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (b *Broker) handleRunnerRevoke(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		RunnerID string `json:"runner_id"`
+		ID       string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		return
+	}
+	runnerID := strings.TrimSpace(firstNonEmptyString(body.RunnerID, body.ID))
+	if runnerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "runner_id is required"})
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	teamID := ""
+
+	b.mu.Lock()
+	if user, team, _, ok := b.currentAuthUserLocked(r); ok && user != nil {
+		teamID = strings.TrimSpace(user.TeamID)
+		if teamID == "" && team != nil {
+			teamID = team.ID
+		}
+	}
+	if teamID == "" {
+		if team := b.firstWorkspaceTeamLocked(); team != nil {
+			teamID = team.ID
+		}
+	}
+
+	idx := -1
+	for i := range b.runners {
+		if b.runners[i].ID != runnerID {
+			continue
+		}
+		if teamID != "" && b.runners[i].TeamID != teamID {
+			continue
+		}
+		idx = i
+		break
+	}
+	if idx < 0 {
+		b.mu.Unlock()
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "runner not found"})
+		return
+	}
+
+	b.runners[idx].Status = runnerStatusRevoked
+	b.runners[idx].RevokedAt = now
+	b.runners[idx].UpdatedAt = now
+	for i := range b.runnerJobs {
+		job := &b.runnerJobs[i]
+		if job.RunnerID != runnerID {
+			continue
+		}
+		if job.Status != runnerJobStatusLeased && job.Status != runnerJobStatusRunning {
+			continue
+		}
+		job.RunnerID = ""
+		job.Status = runnerJobStatusExpired
+		job.LeaseExpiresAt = ""
+		job.LastError = "runner revoked"
+		job.UpdatedAt = now
+	}
+	response := publicHostedRunner(b.runners[idx])
+	err := b.saveLocked()
+	b.mu.Unlock()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist runner revocation"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"runner": response})
+}
+
 func (b *Broker) pruneRunnerPairingCodesLocked(now time.Time) {
 	kept := b.runnerPairingCodes[:0]
 	for _, pairing := range b.runnerPairingCodes {

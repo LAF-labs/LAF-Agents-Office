@@ -1655,6 +1655,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/runner/pairing/start", b.requireAuth(b.handleRunnerPairingStart))
 	mux.HandleFunc("/runner/pairing/claim", b.handleRunnerPairingClaim)
 	mux.HandleFunc("/runner/register", b.requireAuth(b.handleRunnerRegister))
+	mux.HandleFunc("/runner/revoke", b.requireAuth(b.handleRunnerRevoke))
 	mux.HandleFunc("/runner/heartbeat", b.handleRunnerHeartbeat)
 	mux.HandleFunc("/runner/capabilities", b.handleRunnerCapabilities)
 	mux.HandleFunc("/runner/jobs/lease", b.handleRunnerJobsLease)

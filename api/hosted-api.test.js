@@ -339,6 +339,57 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.ok(db.runner_job_events.some((event) => event.kind === "succeeded"));
 });
 
+test("hosted runner revoke blocks runner token and expires active jobs", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runner_jobs: [
+      {
+        id: "runner-job-1",
+        runner_id: "",
+        status: "leased",
+        team_id: "team-1",
+      },
+    ],
+    runners: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const registration = await invoke(["runner", "register"], "POST", {
+    name: "Windows PC",
+    team_id: "team-1",
+  });
+  assert.equal(registration.status, 200);
+  db.runner_jobs[0].runner_id = registration.body.runner.id;
+
+  const revoke = await invoke(["runner", "revoke"], "POST", {
+    runner_id: registration.body.runner.id,
+  });
+  assert.equal(revoke.status, 200);
+  assert.equal(revoke.body.runner.status, "revoked");
+  assert.equal(db.runners[0].status, "revoked");
+  assert.equal(db.runner_jobs[0].status, "expired");
+  assert.equal(db.runner_jobs[0].runner_id, null);
+
+  const heartbeat = await invoke(
+    ["runner", "heartbeat"],
+    "POST",
+    { status: "connected" },
+    { headers: { authorization: `Bearer ${registration.body.runner_token}` } },
+  );
+  assert.equal(heartbeat.status, 401);
+});
+
 test("hosted runner pairs with short setup code", async (t) => {
   const db = {
     memberships: [

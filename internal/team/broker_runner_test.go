@@ -62,6 +62,65 @@ func TestRunnerRegisterAndHeartbeat(t *testing.T) {
 	}
 }
 
+func TestRunnerRevokeBlocksTokenAndExpiresActiveJobs(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	b.mu.Lock()
+	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
+	b.mu.Unlock()
+
+	register := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerRegister)(register, runnerJSONRequest(t, http.MethodPost, "/runner/register", b.Token(), map[string]any{
+		"team_id": "team-a",
+		"name":    "Windows runner",
+	}))
+	if register.Code != http.StatusOK {
+		t.Fatalf("register status = %d: %s", register.Code, register.Body.String())
+	}
+	var registerBody struct {
+		Runner      hostedRunner `json:"runner"`
+		RunnerToken string       `json:"runner_token"`
+	}
+	if err := json.NewDecoder(register.Body).Decode(&registerBody); err != nil {
+		t.Fatalf("decode register: %v", err)
+	}
+
+	b.mu.Lock()
+	b.runnerJobs = append(b.runnerJobs, runnerJob{
+		ID:             "job-1",
+		TeamID:         "team-a",
+		RunnerID:       registerBody.Runner.ID,
+		Status:         runnerJobStatusLeased,
+		LeaseExpiresAt: time.Now().UTC().Add(time.Minute).Format(time.RFC3339),
+		CreatedAt:      time.Now().UTC().Format(time.RFC3339),
+	})
+	b.mu.Unlock()
+
+	revoke := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerRevoke)(revoke, runnerJSONRequest(t, http.MethodPost, "/runner/revoke", b.Token(), map[string]string{
+		"runner_id": registerBody.Runner.ID,
+	}))
+	if revoke.Code != http.StatusOK {
+		t.Fatalf("revoke status = %d: %s", revoke.Code, revoke.Body.String())
+	}
+
+	heartbeat := httptest.NewRecorder()
+	b.handleRunnerHeartbeat(heartbeat, runnerJSONRequest(t, http.MethodPost, "/runner/heartbeat", registerBody.RunnerToken, map[string]string{
+		"status": runnerStatusConnected,
+	}))
+	if heartbeat.Code != http.StatusUnauthorized {
+		t.Fatalf("heartbeat after revoke status = %d: %s", heartbeat.Code, heartbeat.Body.String())
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.runners[0].Status != runnerStatusRevoked || b.runners[0].RevokedAt == "" {
+		t.Fatalf("runner was not revoked: %+v", b.runners[0])
+	}
+	if b.runnerJobs[0].Status != runnerJobStatusExpired || b.runnerJobs[0].RunnerID != "" {
+		t.Fatalf("active job was not expired: %+v", b.runnerJobs[0])
+	}
+}
+
 func TestRunnerPairingStartAndClaim(t *testing.T) {
 	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
 	b.mu.Lock()

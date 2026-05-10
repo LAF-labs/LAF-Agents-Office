@@ -806,6 +806,12 @@ export function createRunnerPairing(apiUrl?: string) {
   });
 }
 
+export function revokeRunner(runnerId: string) {
+  return post<{ runner: HostedRunner }>("/runner/revoke", {
+    runner_id: runnerId,
+  });
+}
+
 export function createProject(body: {
   id?: string;
   name: string;

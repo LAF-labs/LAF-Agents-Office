@@ -8,6 +8,7 @@ import {
   getRunnerStatus,
   initApi,
   login,
+  revokeRunner,
   updateProject,
   updateTask,
 } from "./client";
@@ -211,6 +212,29 @@ describe("runner api client", () => {
     );
     expect(result.pairing.code).toBe("ABCD-1234-EF56");
     expect(result.commands.connect).toContain("--connect");
+  });
+
+  it("revokes a runner by id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          runner: { id: "runner-local", status: "revoked" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await revokeRunner("runner-local");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/runner/revoke",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ runner_id: "runner-local" }),
+      }),
+    );
+    expect(result.runner.status).toBe("revoked");
   });
 });
 

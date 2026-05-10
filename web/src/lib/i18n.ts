@@ -168,6 +168,16 @@ const messages = {
     "settings.runner.stale": "Runner needs attention",
     "settings.runner.disconnected": "Runner disconnected",
     "settings.runner.noRunner": "No runner connected",
+    "settings.runner.management": "Runner access",
+    "settings.runner.managementHint":
+      "Disconnect this computer from the workspace",
+    "settings.runner.revoke": "Disconnect runner",
+    "settings.runner.revoked": "Runner disconnected.",
+    "settings.runner.revokeFailed": "Failed to disconnect runner.",
+    "settings.runner.revokeTitle": "Disconnect runner?",
+    "settings.runner.revokeMessage":
+      "This stops the browser from sending local CLI work to this computer. You can reconnect it with a new setup code.",
+    "settings.runner.revokeConfirm": "Disconnect",
     "settings.runner.optionalHint":
       "The workspace still works; local Codex/Claude execution waits for a runner.",
     "settings.runner.tools": "Local tools",
@@ -829,6 +839,15 @@ const messages = {
     "settings.runner.stale": "러너 확인 필요",
     "settings.runner.disconnected": "러너 연결 끊김",
     "settings.runner.noRunner": "연결된 러너 없음",
+    "settings.runner.management": "러너 접근",
+    "settings.runner.managementHint": "이 컴퓨터와 워크스페이스 연결 해제",
+    "settings.runner.revoke": "러너 연결 해제",
+    "settings.runner.revoked": "러너 연결을 해제했습니다.",
+    "settings.runner.revokeFailed": "러너 연결 해제 실패",
+    "settings.runner.revokeTitle": "러너 연결을 해제할까요?",
+    "settings.runner.revokeMessage":
+      "브라우저가 이 컴퓨터로 로컬 CLI 작업을 보내지 못하게 됩니다. 새 설정 코드로 다시 연결할 수 있습니다.",
+    "settings.runner.revokeConfirm": "연결 해제",
     "settings.runner.optionalHint":
       "워크스페이스는 계속 사용할 수 있고, 로컬 Codex/Claude 실행만 러너 연결을 기다립니다.",
     "settings.runner.tools": "로컬 도구",

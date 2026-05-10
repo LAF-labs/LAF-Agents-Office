@@ -38,6 +38,7 @@ import {
   type HostedRunner,
   type RunnerPairingStartResponse,
   resetWorkspace,
+  revokeRunner,
   shredWorkspace,
   updateAuthUserRole,
   updateConfig,
@@ -45,6 +46,7 @@ import {
 } from "../../api/client";
 import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
+import { confirm } from "../ui/ConfirmDialog";
 import { showNotice } from "../ui/Toast";
 
 type SectionId =
@@ -1488,6 +1490,7 @@ const RUNNER_RELEASE_URL =
 
 function RunnerSection() {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const [pairing, setPairing] = useState<RunnerPairingStartResponse | null>(
     null,
   );
@@ -1511,11 +1514,23 @@ function RunnerSection() {
       );
     },
   });
+  const revokeMutation = useMutation({
+    mutationFn: (runnerId: string) => revokeRunner(runnerId),
+    onSuccess: () => {
+      setPairing(null);
+      queryClient.invalidateQueries({ queryKey: ["runner-status"] });
+      showNotice(t("settings.runner.revoked"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error ? err.message : t("settings.runner.revokeFailed"),
+        "error",
+      );
+    },
+  });
 
   const runners = statusQuery.data?.runners ?? [];
   const runner = preferredRunner(runners);
-  const capabilities = runner?.capabilities ?? {};
-  const providerReady = Boolean(capabilities.provider_runtimes?.length);
   const command =
     pairing?.commands.connect ||
     `laf-runner pair --api-url ${browserRunnerAPIURL()} --code <setup-code> --connect`;
@@ -1529,6 +1544,19 @@ function RunnerSection() {
       showNotice(t("settings.runner.copyFailed"), "error");
     }
   };
+  const confirmRevokeRunner = () => {
+    if (!runner) return;
+    confirm({
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("settings.runner.revokeConfirm"),
+      danger: true,
+      message: t("settings.runner.revokeMessage"),
+      onConfirm: async () => {
+        await revokeMutation.mutateAsync(runner.id);
+      },
+      title: t("settings.runner.revokeTitle"),
+    });
+  };
 
   return (
     <div>
@@ -1537,7 +1565,9 @@ function RunnerSection() {
 
       <Field
         label={t("settings.runner.status")}
-        hint={runner ? runnerStatusHint(runner) : t("settings.runner.optionalHint")}
+        hint={
+          runner ? runnerStatusHint(runner) : t("settings.runner.optionalHint")
+        }
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={styles.statusDot(runnerStatusColor(runner))} />
@@ -1547,38 +1577,14 @@ function RunnerSection() {
         </div>
       </Field>
 
-      <Field label={t("settings.runner.tools")} hint={runner?.name || ""}>
-        {runner ? (
-          <div style={{ display: "grid", gap: 6 }}>
-            <RunnerCapability
-              ok={providerReady}
-              label={
-                providerReady
-                  ? `${t("settings.runner.providerReady")} ${capabilities.provider_runtimes?.join(", ")}`
-                  : t("settings.runner.providerMissing")
-              }
-            />
-            <RunnerCapability
-              ok={Boolean(capabilities.git_available)}
-              label={
-                capabilities.git_available
-                  ? t("settings.runner.gitReady")
-                  : t("settings.runner.gitMissing")
-              }
-            />
-            <RunnerCapability
-              ok={Boolean(capabilities.gh_authenticated)}
-              label={
-                capabilities.gh_authenticated
-                  ? t("settings.runner.githubReady")
-                  : t("settings.runner.githubMissing")
-              }
-            />
-          </div>
-        ) : (
-          <div style={styles.emptyState}>{t("settings.runner.toolsUnknown")}</div>
-        )}
-      </Field>
+      <RunnerManagementField
+        isPending={revokeMutation.isPending}
+        onRevoke={confirmRevokeRunner}
+        runner={runner}
+        t={t}
+      />
+
+      <RunnerToolsField runner={runner} t={t} />
 
       <div style={styles.groupTitle}>{t("settings.runner.setupTitle")}</div>
       <div style={styles.emptyState}>{t("settings.runner.setupDesc")}</div>
@@ -1664,6 +1670,81 @@ function RunnerSection() {
   );
 }
 
+function RunnerManagementField({
+  isPending,
+  onRevoke,
+  runner,
+  t,
+}: {
+  isPending: boolean;
+  onRevoke: () => void;
+  runner?: HostedRunner;
+  t: ReturnType<typeof useI18n>["t"];
+}) {
+  if (!runner) return null;
+  return (
+    <Field
+      label={t("settings.runner.management")}
+      hint={t("settings.runner.managementHint")}
+    >
+      <button
+        type="button"
+        className="btn btn-danger btn-sm"
+        onClick={onRevoke}
+        disabled={isPending}
+      >
+        {isPending ? t("common.working") : t("settings.runner.revoke")}
+      </button>
+    </Field>
+  );
+}
+
+function RunnerToolsField({
+  runner,
+  t,
+}: {
+  runner?: HostedRunner;
+  t: ReturnType<typeof useI18n>["t"];
+}) {
+  const capabilities = runner?.capabilities ?? {};
+  const providerReady = Boolean(capabilities.provider_runtimes?.length);
+
+  return (
+    <Field label={t("settings.runner.tools")} hint={runner?.name || ""}>
+      {runner ? (
+        <div style={{ display: "grid", gap: 6 }}>
+          <RunnerCapability
+            ok={providerReady}
+            label={
+              providerReady
+                ? `${t("settings.runner.providerReady")} ${capabilities.provider_runtimes?.join(", ")}`
+                : t("settings.runner.providerMissing")
+            }
+          />
+          <RunnerCapability
+            ok={Boolean(capabilities.git_available)}
+            label={
+              capabilities.git_available
+                ? t("settings.runner.gitReady")
+                : t("settings.runner.gitMissing")
+            }
+          />
+          <RunnerCapability
+            ok={Boolean(capabilities.gh_authenticated)}
+            label={
+              capabilities.gh_authenticated
+                ? t("settings.runner.githubReady")
+                : t("settings.runner.githubMissing")
+            }
+          />
+        </div>
+      ) : (
+        <div style={styles.emptyState}>{t("settings.runner.toolsUnknown")}</div>
+      )}
+    </Field>
+  );
+}
+
 function RunnerCapability({ ok, label }: { ok: boolean; label: string }) {
   return (
     <div
@@ -1684,10 +1765,11 @@ function RunnerCapability({ ok, label }: { ok: boolean; label: string }) {
 }
 
 function preferredRunner(runners: HostedRunner[]) {
+  const active = runners.filter((runner) => runner.status !== "revoked");
   return (
-    runners.find((runner) => runner.status === "connected") ||
-    runners.find((runner) => runner.status === "stale") ||
-    runners[0]
+    active.find((runner) => runner.status === "connected") ||
+    active.find((runner) => runner.status === "stale") ||
+    active[0]
   );
 }
 

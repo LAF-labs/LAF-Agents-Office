@@ -72,6 +72,10 @@ module.exports = async function handler(req, res) {
       await handleRunnerRegister(req, res);
       return;
     }
+    if (path === "runner/revoke" && req.method === "POST") {
+      await handleRunnerRevoke(req, res);
+      return;
+    }
     if (path === "runner/heartbeat" && req.method === "POST") {
       await handleRunnerHeartbeat(req, res);
       return;
@@ -915,6 +919,53 @@ async function handleRunnerRegister(req, res) {
     },
   });
   writeJSON(res, 200, { runner: publicRunner(runner), runner_token: token });
+}
+
+async function handleRunnerRevoke(req, res) {
+  const { membership } = await requireUser(req);
+  const body = await readBody(req);
+  const runnerID = String(body.runner_id || body.id || "").trim();
+  if (!runnerID) throw new HTTPError(400, "runner_id is required");
+
+  const existing = await rest("runners", {
+    query: {
+      id: `eq.${runnerID}`,
+      limit: "1",
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+    },
+  });
+  if (!existing?.length) throw new HTTPError(404, "runner not found");
+
+  const now = nowISO();
+  const [runner] = await rest("runners", {
+    method: "PATCH",
+    query: {
+      id: `eq.${runnerID}`,
+      team_id: `eq.${membership.team_id}`,
+    },
+    body: {
+      revoked_at: now,
+      status: "revoked",
+      updated_at: now,
+    },
+  });
+  await rest("runner_jobs", {
+    method: "PATCH",
+    query: {
+      runner_id: `eq.${runnerID}`,
+      status: "in.(leased,running)",
+      team_id: `eq.${membership.team_id}`,
+    },
+    body: {
+      last_error: "runner revoked",
+      lease_expires_at: null,
+      runner_id: null,
+      status: "expired",
+      updated_at: now,
+    },
+  });
+  writeJSON(res, 200, { runner: publicRunner(runner) });
 }
 
 async function handleRunnerHeartbeat(req, res) {
