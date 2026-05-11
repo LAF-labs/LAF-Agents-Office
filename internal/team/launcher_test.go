@@ -2260,6 +2260,29 @@ func TestBuildNotificationContextFallsBackToChannelWhenThreadEmpty(t *testing.T)
 	}
 }
 
+func TestBuildNotificationContextDoesNotFallbackForHomeChatThread(t *testing.T) {
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	if _, err := b.PostMessage("you", "general", "Earlier channel message", nil, ""); err != nil {
+		t.Fatalf("post earlier: %v", err)
+	}
+	trigger, err := b.PostMessage("human", "general", "Fresh home ask", []string{"ceo"}, "home-chat-test")
+	if err != nil {
+		t.Fatalf("post trigger: %v", err)
+	}
+
+	l := &Launcher{broker: b}
+	ctx := l.buildNotificationContext("general", trigger.ID, "home-chat-test", 5)
+
+	if ctx != "" {
+		t.Fatalf("expected no ambient channel context for home chat thread, got %q", ctx)
+	}
+}
+
 func TestRelevantTaskForTargetCrossChannel(t *testing.T) {
 	// When CEO delegates in "general" but the specialist's task lives in "engineering",
 	// relevantTaskForTarget must still find it. Before the AllTasks() fix, it searched

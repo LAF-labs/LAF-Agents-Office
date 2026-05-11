@@ -14,8 +14,8 @@ import { Hashtag, Plus, SendDiagonal } from "iconoir-react";
 import {
   createProject,
   getConfig,
-  getMessages,
   getProjects,
+  getThreadMessages,
   type Message,
   type OfficeMember,
   type Project,
@@ -29,6 +29,14 @@ import { PixelAvatar } from "../ui/PixelAvatar";
 
 const HOME_CHANNEL = "general";
 const NON_AGENT_SLUGS = new Set(["human", "you", "system"]);
+
+function createHomeChatThreadId(): string {
+  const cryptoUUID =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `home-chat-${cryptoUUID}`;
+}
 
 function projectTime(project: Project): number {
   const parsed = Date.parse(project.updated_at || project.created_at || "");
@@ -415,10 +423,12 @@ function HomeComposer({
   selectedProject,
   agentMembers,
   leadSlug,
+  threadId,
 }: {
   selectedProject: Project | null;
   agentMembers: OfficeMember[];
   leadSlug: string;
+  threadId: string;
 }) {
   const [text, setText] = useState("");
   const [caret, setCaret] = useState(0);
@@ -456,12 +466,14 @@ function HomeComposer({
       return postMessage(
         outbound.content,
         HOME_CHANNEL,
-        undefined,
+        threadId,
         outbound.tagged,
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["messages", HOME_CHANNEL] });
+      queryClient.invalidateQueries({
+        queryKey: ["home-messages", HOME_CHANNEL, threadId],
+      });
       setText("");
       setSendError(null);
       requestAnimationFrame(() => {
@@ -613,14 +625,15 @@ export function HomeApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
+  const [homeThreadId] = useState(createHomeChatThreadId);
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
     queryKey: ["projects"],
     queryFn: () => getProjects(),
     staleTime: 30_000,
   });
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
-    queryKey: ["messages", HOME_CHANNEL],
-    queryFn: () => getMessages(HOME_CHANNEL),
+    queryKey: ["home-messages", HOME_CHANNEL, homeThreadId],
+    queryFn: () => getThreadMessages(HOME_CHANNEL, homeThreadId),
     refetchInterval:
       typeof (globalThis as { EventSource?: typeof EventSource })
         .EventSource !== "undefined"
@@ -682,6 +695,7 @@ export function HomeApp() {
         selectedProject={selectedProject}
         agentMembers={agentMembers}
         leadSlug={leadSlug}
+        threadId={homeThreadId}
       />
     </div>
   );
@@ -689,6 +703,7 @@ export function HomeApp() {
 
 export const __test__ = {
   buildOutboundMessage,
+  createHomeChatThreadId,
   sortProjectsByRecent,
   visibleTargets,
 };

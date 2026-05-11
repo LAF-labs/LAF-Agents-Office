@@ -178,6 +178,10 @@ func isBlankSlateLaunchSlug(value string) bool {
 	}
 }
 
+func isEphemeralHomeThreadID(value string) bool {
+	return strings.HasPrefix(strings.TrimSpace(value), "home-chat-")
+}
+
 // NewLauncher creates a launcher for the given operation blueprint or legacy pack.
 func NewLauncher(packSlug string) (*Launcher, error) {
 	cfg, _ := config.Load()
@@ -2483,9 +2487,9 @@ func (l *Launcher) reconfigureVisibleAgents() error {
 //
 // When threadRootID is empty, or when the thread has no displayable messages (e.g.
 // the trigger is the first message in a new thread), the function falls back to the
-// last N channel messages and labels the section "[Recent channel]". Agents should
-// treat "[Recent channel]" as broad ambient context rather than the specific thread
-// they are responding in.
+// last N channel messages and labels the section "[Recent channel]". Ephemeral home
+// chat threads are the exception: they intentionally start with no inherited
+// channel context, so an empty thread returns no context instead.
 //
 // The trigger message (triggerMsgID) is always excluded — it is already delivered
 // explicitly as "[New from @...]" in the notification, so including it again wastes
@@ -2565,6 +2569,9 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 			}
 			thread = append(thread, rest...)
 			return "[Recent thread]\n" + formatContext(thread)
+		}
+		if isEphemeralHomeThreadID(threadRoot) {
+			return ""
 		}
 	}
 
