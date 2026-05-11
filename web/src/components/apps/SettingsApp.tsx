@@ -10,14 +10,23 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AppleMac,
   Building,
+  Check,
   Copy,
+  Download,
   Key,
+  Laptop,
+  Link,
+  NavArrowRight,
+  OpenNewWindow,
   PeopleTag,
   Refresh,
   SendMail,
   Settings as SettingsIcon,
+  Terminal,
   WarningTriangle,
+  Windows,
 } from "iconoir-react";
 
 import {
@@ -356,6 +365,119 @@ const styles = {
     lineHeight: 1.5,
     padding: "12px 0",
     marginBottom: 20,
+  } as const,
+  runnerSetupDesc: {
+    color: "var(--text-secondary)",
+    fontSize: 13,
+    lineHeight: 1.5,
+    margin: "0 0 12px",
+  } as const,
+  runnerStepRail: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
+    gap: 8,
+    marginBottom: 16,
+  } as const,
+  runnerStep: (done: boolean, active: boolean) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 38,
+    padding: "8px 0",
+    borderTop: "1px solid var(--border-light)",
+    borderBottom: active
+      ? "2px solid var(--accent)"
+      : "1px solid var(--border-light)",
+    color: done || active ? "var(--text-primary)" : "var(--text-tertiary)",
+    fontSize: 12,
+    fontWeight: active ? 700 : 600,
+  }),
+  runnerStepMark: (done: boolean, active: boolean) => ({
+    width: 22,
+    height: 22,
+    flex: "0 0 22px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "50%",
+    border: `1px solid ${
+      done || active ? "var(--accent-border)" : "var(--border-light)"
+    }`,
+    background: done ? "var(--accent)" : "transparent",
+    color: done
+      ? "var(--accent-ink)"
+      : active
+        ? "var(--accent)"
+        : "var(--text-tertiary)",
+    fontSize: 11,
+    fontWeight: 700,
+  }),
+  runnerInstallerList: {
+    display: "grid",
+    gap: 0,
+    marginBottom: 14,
+    borderTop: "1px solid var(--border-light)",
+  } as const,
+  runnerInstallerRow: {
+    display: "grid",
+    gridTemplateColumns: "auto minmax(0, 1fr) auto",
+    gap: 12,
+    alignItems: "center",
+    padding: "12px 0",
+    borderBottom: "1px solid var(--border-light)",
+  } as const,
+  runnerInstallerIcon: {
+    width: 30,
+    height: 30,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    border: "1px solid var(--border-light)",
+    color: "var(--text-secondary)",
+    background: "transparent",
+  } as const,
+  runnerInstallerName: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    minWidth: 0,
+    fontSize: 13,
+    fontWeight: 700,
+  } as const,
+  runnerInstallerMeta: {
+    marginTop: 2,
+    color: "var(--text-tertiary)",
+    fontSize: 11,
+    lineHeight: 1.4,
+    wordBreak: "break-word" as const,
+  } as const,
+  runnerBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 18,
+    padding: "0 7px",
+    borderRadius: "var(--radius-full)",
+    border: "1px solid var(--accent-border)",
+    color: "var(--accent)",
+    fontSize: 10,
+    fontWeight: 700,
+  } as const,
+  runnerActionRow: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginBottom: 14,
+  } as const,
+  runnerPrimaryLink: {
+    minHeight: 34,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    textDecoration: "none",
   } as const,
 };
 
@@ -1485,8 +1607,59 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 // ─── Danger Zone ────────────────────────────────────────────────────────
 
+const RUNNER_VERSION = "0.0.7.1";
+const RUNNER_MACOS_PKG_PATH = `/downloads/laf-runner-macos-arm64-${RUNNER_VERSION}.pkg`;
 const RUNNER_RELEASE_URL =
   "https://github.com/LAF-labs/LAF-Agents-Office/releases/latest";
+
+type RunnerPlatform = "macos" | "windows" | "other";
+
+interface RunnerInstallerOption {
+  id: RunnerPlatform;
+  Icon: ComponentType<{ className?: string; style?: CSSProperties }>;
+  nameKey:
+    | "settings.runner.installerMac"
+    | "settings.runner.installerWindows"
+    | "settings.runner.installerOther";
+  metaKey:
+    | "settings.runner.installerMacMeta"
+    | "settings.runner.installerWindowsMeta"
+    | "settings.runner.installerOtherMeta";
+  href: string;
+  actionKey: "settings.runner.downloadPkg" | "settings.runner.openRelease";
+  download?: string;
+  external?: boolean;
+}
+
+const RUNNER_INSTALLERS: RunnerInstallerOption[] = [
+  {
+    id: "macos",
+    Icon: AppleMac,
+    nameKey: "settings.runner.installerMac",
+    metaKey: "settings.runner.installerMacMeta",
+    href: RUNNER_MACOS_PKG_PATH,
+    actionKey: "settings.runner.downloadPkg",
+    download: `laf-runner-macos-arm64-${RUNNER_VERSION}.pkg`,
+  },
+  {
+    id: "windows",
+    Icon: Windows,
+    nameKey: "settings.runner.installerWindows",
+    metaKey: "settings.runner.installerWindowsMeta",
+    href: RUNNER_RELEASE_URL,
+    actionKey: "settings.runner.openRelease",
+    external: true,
+  },
+  {
+    id: "other",
+    Icon: Laptop,
+    nameKey: "settings.runner.installerOther",
+    metaKey: "settings.runner.installerOtherMeta",
+    href: RUNNER_RELEASE_URL,
+    actionKey: "settings.runner.openRelease",
+    external: true,
+  },
+];
 
 function RunnerSection() {
   const { t } = useI18n();
@@ -1531,6 +1704,7 @@ function RunnerSection() {
 
   const runners = statusQuery.data?.runners ?? [];
   const runner = preferredRunner(runners);
+  const platform = detectRunnerPlatform();
   const command =
     pairing?.commands.connect ||
     `laf-runner pair --api-url ${browserRunnerAPIURL()} --code <setup-code> --connect`;
@@ -1587,49 +1761,44 @@ function RunnerSection() {
       <RunnerToolsField runner={runner} t={t} />
 
       <div style={styles.groupTitle}>{t("settings.runner.setupTitle")}</div>
-      <div style={styles.emptyState}>{t("settings.runner.setupDesc")}</div>
-      <div
-        style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
-      >
-        <a
-          className="btn btn-secondary btn-sm"
-          href={RUNNER_RELEASE_URL}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t("settings.runner.download")}
-        </a>
+      <p style={styles.runnerSetupDesc}>{t("settings.runner.setupDesc")}</p>
+      <RunnerSetupProgress
+        pairingReady={Boolean(pairing)}
+        runner={runner}
+        t={t}
+      />
+      <RunnerInstallerOptions platform={platform} t={t} />
+      <div style={styles.runnerActionRow}>
         <button
           type="button"
-          style={styles.primaryButton}
+          style={{
+            ...styles.primaryButton,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
           onClick={() => pairingMutation.mutate()}
           disabled={pairingMutation.isPending}
         >
+          <Refresh width={14} height={14} />
           {pairingMutation.isPending
             ? t("settings.runner.generating")
             : t("settings.runner.generate")}
         </button>
+        {pairing ? (
+          <a
+            href={deepLink}
+            style={{ ...styles.primaryButton, ...styles.runnerPrimaryLink }}
+          >
+            <Link width={14} height={14} />
+            {t("settings.runner.connectComputer")}
+            <NavArrowRight width={14} height={14} />
+          </a>
+        ) : null}
       </div>
 
       {pairing ? (
         <>
-          <Field
-            label={t("settings.runner.connectLabel")}
-            hint={t("settings.runner.connectHint")}
-          >
-            <a
-              href={deepLink}
-              style={{
-                ...styles.primaryButton,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                textDecoration: "none",
-              }}
-            >
-              {t("settings.runner.connectComputer")}
-            </a>
-          </Field>
           <Field
             label={t("settings.runner.codeLabel")}
             hint={`${t("settings.runner.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
@@ -1659,6 +1828,7 @@ function RunnerSection() {
                 onClick={copyCommand}
                 style={{ justifySelf: "start" }}
               >
+                <Terminal width={13} height={13} />
                 <Copy width={13} height={13} />
                 {t("settings.runner.copyCommand")}
               </button>
@@ -1666,6 +1836,116 @@ function RunnerSection() {
           </Field>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function RunnerSetupProgress({
+  pairingReady,
+  runner,
+  t,
+}: {
+  pairingReady: boolean;
+  runner?: HostedRunner;
+  t: ReturnType<typeof useI18n>["t"];
+}) {
+  const connected = runner?.status === "connected";
+  const steps = [
+    {
+      done: Boolean(runner) || pairingReady,
+      label: t("settings.runner.stepInstall"),
+    },
+    {
+      done: pairingReady || connected,
+      label: t("settings.runner.stepCode"),
+    },
+    {
+      done: connected,
+      label: t("settings.runner.stepConnect"),
+    },
+    {
+      done: connected,
+      label: t("settings.runner.stepReady"),
+    },
+  ];
+  const firstOpenIndex = steps.findIndex((step) => !step.done);
+
+  return (
+    <div style={styles.runnerStepRail}>
+      {steps.map((step, index) => {
+        const active = index === firstOpenIndex || (connected && index === 3);
+        return (
+          <div
+            key={step.label}
+            style={styles.runnerStep(step.done, active)}
+            aria-current={active ? "step" : undefined}
+          >
+            <span style={styles.runnerStepMark(step.done, active)}>
+              {step.done ? <Check width={13} height={13} /> : index + 1}
+            </span>
+            <span>{step.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RunnerInstallerOptions({
+  platform,
+  t,
+}: {
+  platform: RunnerPlatform;
+  t: ReturnType<typeof useI18n>["t"];
+}) {
+  return (
+    <div style={styles.runnerInstallerList}>
+      {RUNNER_INSTALLERS.map((installer) => {
+        const {
+          Icon,
+          actionKey,
+          download,
+          external,
+          href,
+          id,
+          metaKey,
+          nameKey,
+        } = installer;
+        const recommended = id === platform;
+        return (
+          <div key={id} style={styles.runnerInstallerRow}>
+            <span style={styles.runnerInstallerIcon}>
+              <Icon style={{ width: 18, height: 18 }} />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={styles.runnerInstallerName}>
+                <span>{t(nameKey)}</span>
+                {recommended ? (
+                  <span style={styles.runnerBadge}>
+                    {t("settings.runner.recommended")}
+                  </span>
+                ) : null}
+              </div>
+              <div style={styles.runnerInstallerMeta}>{t(metaKey)}</div>
+            </div>
+            <a
+              className="btn btn-secondary btn-sm"
+              href={href}
+              download={download}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noreferrer" : undefined}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {external ? (
+                <OpenNewWindow width={13} height={13} />
+              ) : (
+                <Download width={13} height={13} />
+              )}
+              {t(actionKey)}
+            </a>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1798,6 +2078,14 @@ function runnerStatusHint(runner?: HostedRunner) {
 function browserRunnerAPIURL() {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/api`;
+}
+
+function detectRunnerPlatform(): RunnerPlatform {
+  if (typeof navigator === "undefined") return "other";
+  const raw = `${navigator.platform || ""} ${navigator.userAgent || ""}`;
+  if (/mac|iphone|ipad|ipod/i.test(raw)) return "macos";
+  if (/win/i.test(raw)) return "windows";
+  return "other";
 }
 
 function runnerPairingDeepLink(pairing: RunnerPairingStartResponse) {

@@ -192,7 +192,22 @@ const messages = {
     "settings.runner.setupTitle": "Connect this computer",
     "settings.runner.setupDesc":
       "Install the runner when you want this PC to run local CLI work. You can still use the hosted workspace without it.",
-    "settings.runner.download": "Download installer",
+    "settings.runner.installerMac": "macOS runner package",
+    "settings.runner.installerMacMeta":
+      "Apple silicon PKG · version 0.0.7.1 · unsigned",
+    "settings.runner.installerWindows": "Windows runner installer",
+    "settings.runner.installerWindowsMeta":
+      "Latest release package with the URL handler installer",
+    "settings.runner.installerOther": "Other platforms",
+    "settings.runner.installerOtherMeta":
+      "Use the latest release archive or manual runner command",
+    "settings.runner.recommended": "Recommended",
+    "settings.runner.downloadPkg": "Download PKG",
+    "settings.runner.openRelease": "Open release",
+    "settings.runner.stepInstall": "Install",
+    "settings.runner.stepCode": "Code",
+    "settings.runner.stepConnect": "Connect",
+    "settings.runner.stepReady": "Ready",
     "settings.runner.generate": "Generate setup code",
     "settings.runner.generating": "Generating...",
     "settings.runner.codeReady": "Setup code generated.",
@@ -864,7 +879,22 @@ const messages = {
     "settings.runner.setupTitle": "이 컴퓨터 연결",
     "settings.runner.setupDesc":
       "이 PC에서 로컬 CLI 작업을 실행하려면 러너를 설치하세요. 러너가 없어도 호스팅 워크스페이스는 사용할 수 있습니다.",
-    "settings.runner.download": "설치 파일 다운로드",
+    "settings.runner.installerMac": "macOS 러너 패키지",
+    "settings.runner.installerMacMeta":
+      "Apple silicon PKG · 버전 0.0.7.1 · 미서명",
+    "settings.runner.installerWindows": "Windows 러너 설치 파일",
+    "settings.runner.installerWindowsMeta":
+      "URL 핸들러 설치 프로그램이 포함된 최신 릴리스 패키지",
+    "settings.runner.installerOther": "다른 플랫폼",
+    "settings.runner.installerOtherMeta":
+      "최신 릴리스 아카이브 또는 수동 러너 명령 사용",
+    "settings.runner.recommended": "권장",
+    "settings.runner.downloadPkg": "PKG 다운로드",
+    "settings.runner.openRelease": "릴리스 열기",
+    "settings.runner.stepInstall": "설치",
+    "settings.runner.stepCode": "코드",
+    "settings.runner.stepConnect": "연결",
+    "settings.runner.stepReady": "준비됨",
     "settings.runner.generate": "설정 코드 만들기",
     "settings.runner.generating": "생성 중...",
     "settings.runner.codeReady": "설정 코드가 생성되었습니다.",
