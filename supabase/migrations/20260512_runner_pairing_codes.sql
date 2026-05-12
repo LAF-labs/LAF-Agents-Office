@@ -15,6 +15,9 @@ create index if not exists idx_runner_pairing_codes_team_status
 
 alter table public.runner_pairing_codes enable row level security;
 
+drop policy if exists "members can read runner pairing codes"
+  on public.runner_pairing_codes;
+
 create policy "members can read runner pairing codes"
   on public.runner_pairing_codes for select
   using (public.is_team_member(team_id));

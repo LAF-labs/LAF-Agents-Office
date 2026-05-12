@@ -41,6 +41,7 @@
 .laf-office/cache/
 .playwright-mcp/
 .playwright-cli/
+supabase/.temp/
 
 # QA/browse scratch artifacts
 task*-buttons.json
