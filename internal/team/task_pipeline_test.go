@@ -21,6 +21,22 @@ func TestTaskDefaultExecutionModeTreatsEngineeringFeatureWorkAsLocalWorktree(t *
 	}
 }
 
+func TestTaskDefaultExecutionModeTreatsProjectRepoConnectionAsOffice(t *testing.T) {
+	if got := taskDefaultExecutionMode("be", "follow_up", "Connect current worktree as the project repository", "Wire the GitHub repo URL into project state."); got != "office" {
+		t.Fatalf("taskDefaultExecutionMode returned %q, want office", got)
+	}
+	if taskWorkRequiresLocalExecution("be", "프로젝트 저장소를 연결해야해", "현재 워크트리를 프로젝트 저장소로 설정한다") {
+		t.Fatal("expected Korean project repo connection task not to require local execution")
+	}
+	if taskNeedsStructuredReview(&teamTask{
+		ExecutionMode: executionModeLocalWorktree,
+		Title:         "Connect current worktree as the project repository",
+		Details:       "Wire the GitHub repo URL into project state.",
+	}) {
+		t.Fatal("expected explicit local-worktree repo connection task not to require structured review")
+	}
+}
+
 func TestTaskRequiresRealExternalExecution(t *testing.T) {
 	if !taskRequiresRealExternalExecution(&teamTask{
 		Title:   "Create one new Notion proof artifact for the intake slice",

@@ -886,12 +886,12 @@ func runnerTokenFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
+	if token := strings.TrimSpace(r.Header.Get("X-LAF-Runner-Token")); token != "" {
+		return token
+	}
 	auth := strings.TrimSpace(r.Header.Get("Authorization"))
 	if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
 		return strings.TrimSpace(auth[len("Bearer "):])
-	}
-	if token := strings.TrimSpace(r.Header.Get("X-LAF-Runner-Token")); token != "" {
-		return token
 	}
 	return ""
 }

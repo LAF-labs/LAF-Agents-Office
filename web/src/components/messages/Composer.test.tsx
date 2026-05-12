@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { __test__ } from "./Composer";
@@ -8,6 +9,7 @@ const {
   pushHistory,
   resolveLeadSlug,
   askPrefix,
+  isIMEComposing,
   COMPOSER_HISTORY_LIMIT,
 } = __test__;
 
@@ -94,5 +96,43 @@ describe("askPrefix", () => {
   it("defaults to @ceo", () => {
     expect(askPrefix(undefined)).toBe("@ceo ");
     expect(askPrefix("")).toBe("@ceo ");
+  });
+});
+
+describe("IME composition guard", () => {
+  function keyboardEvent(nativeEvent: {
+    isComposing?: boolean;
+    keyCode?: number;
+  }) {
+    return { nativeEvent } as KeyboardEvent;
+  }
+
+  it("treats active composition refs as composing", () => {
+    expect(
+      isIMEComposing(keyboardEvent({ isComposing: false }), {
+        current: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("detects native composing and Safari keyCode fallback", () => {
+    expect(
+      isIMEComposing(keyboardEvent({ isComposing: true }), {
+        current: false,
+      }),
+    ).toBe(true);
+    expect(
+      isIMEComposing(keyboardEvent({ keyCode: 229 }), {
+        current: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows normal key events", () => {
+    expect(
+      isIMEComposing(keyboardEvent({ isComposing: false, keyCode: 13 }), {
+        current: false,
+      }),
+    ).toBe(false);
   });
 });

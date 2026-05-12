@@ -238,6 +238,18 @@ func createProjectTaskPullRequest(ctx context.Context, snapshot projectTaskDeliv
 				Draft:           prSnapshot.Draft,
 			}, nil
 		}
+		if noDiff, diffErr := projectTaskBranchHasNoDiff(ctx, worktreePath, base); diffErr == nil && noDiff {
+			url, receiptErr := projectTaskRepoReceiptURL(ctx, worktreePath)
+			if receiptErr != nil {
+				return projectTaskAutoDeliveryResult{}, receiptErr
+			}
+			return projectTaskAutoDeliveryResult{
+				DeliveryURL:     url,
+				DeliverySummary: projectTaskNoDiffDeliverySummary(task, branch),
+				DeliveryStatus:  "receipt",
+				CheckedAt:       time.Now().UTC().Format(time.RFC3339),
+			}, nil
+		}
 		return projectTaskAutoDeliveryResult{}, err
 	}
 	url := firstGitHubPullRequestURL(string(out))
@@ -265,9 +277,20 @@ func verifyProjectTaskDeliveryURL(ctx context.Context, repoURL, worktreePath, de
 	if !ok {
 		return projectTaskDeliveryVerification{}, fmt.Errorf("project GitHub repo URL is invalid")
 	}
+	if receiptRef, ok := parseProjectTaskRepoReceiptURL(deliveryURL); ok {
+		if !strings.EqualFold(repoRef.Owner, receiptRef.Owner) || !strings.EqualFold(repoRef.Name, receiptRef.Name) {
+			return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url must point to project repo %s", repoRef.fullName())
+		}
+		base := projectTaskPRBaseBranch(ctx, worktreePath)
+		noDiff, err := projectTaskBranchHasNoDiff(ctx, worktreePath, base)
+		if err != nil || !noDiff {
+			return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url repo receipt requires a no-diff branch")
+		}
+		return projectTaskDeliveryVerification{Status: "receipt"}, nil
+	}
 	prRef, ok := parseGitHubPullRequestURL(deliveryURL)
 	if !ok {
-		return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url must be a GitHub pull request URL")
+		return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url must be a GitHub pull request URL or project repo URL")
 	}
 	if !strings.EqualFold(repoRef.Owner, prRef.Owner) || !strings.EqualFold(repoRef.Name, prRef.Repo) {
 		return projectTaskDeliveryVerification{}, fmt.Errorf("delivery_url must point to project repo %s", repoRef.fullName())
@@ -327,11 +350,50 @@ func projectTaskPullRequestSnapshotForURL(ctx context.Context, worktreePath, prU
 func normalizeProjectTaskDeliveryStatus(raw string) string {
 	status := strings.ToLower(strings.TrimSpace(raw))
 	switch status {
-	case "open", "merged", "closed":
+	case "open", "merged", "closed", "receipt":
 		return status
 	default:
 		return ""
 	}
+}
+
+func projectTaskBranchHasNoDiff(ctx context.Context, worktreePath, base string) (bool, error) {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = "main"
+	}
+	if _, err := projectTaskRunGit(ctx, worktreePath, "diff", "--quiet", "origin/"+base+"...HEAD"); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func projectTaskRepoReceiptURL(ctx context.Context, worktreePath string) (string, error) {
+	out, err := projectTaskRunGit(ctx, worktreePath, "config", "--get", "remote.origin.url")
+	if err != nil {
+		return "", err
+	}
+	ref, ok := parseGitHubRepoRef(string(out))
+	if !ok {
+		return "", fmt.Errorf("remote origin is not a GitHub repo URL")
+	}
+	return "https://github.com/" + ref.fullName(), nil
+}
+
+func parseProjectTaskRepoReceiptURL(raw string) (githubRepoRef, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return githubRepoRef{}, false
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || !strings.EqualFold(parsed.Scheme, "https") || !strings.EqualFold(parsed.Hostname(), "github.com") {
+		return githubRepoRef{}, false
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) != 2 {
+		return githubRepoRef{}, false
+	}
+	return githubRepoRefFromPath(parts[0] + "/" + parts[1])
 }
 
 func normalizeProjectTaskReviewDecision(raw string) string {
@@ -534,6 +596,20 @@ func projectTaskDeliverySummary(task teamTask, branch string) string {
 		return truncateSummary(fmt.Sprintf("Opened PR for %s from branch %s.", title, branch), 220)
 	}
 	return truncateSummary("Opened PR for "+title+".", 220)
+}
+
+func projectTaskNoDiffDeliverySummary(task teamTask, branch string) string {
+	title := strings.TrimSpace(task.Title)
+	if title == "" {
+		title = strings.TrimSpace(task.ID)
+	}
+	if title == "" {
+		title = "project task"
+	}
+	if branch = strings.TrimSpace(branch); branch != "" {
+		return truncateSummary(fmt.Sprintf("No code diff for %s; recorded runtime-state receipt from branch %s.", title, branch), 220)
+	}
+	return truncateSummary("No code diff for "+title+"; recorded runtime-state receipt.", 220)
 }
 
 func firstGitHubPullRequestURL(raw string) string {

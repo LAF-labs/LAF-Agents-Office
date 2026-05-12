@@ -627,6 +627,9 @@ func (b *Broker) taskRequiresDeliveryReceiptLocked(task *teamTask) bool {
 	if !isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		return false
 	}
+	if taskLooksLikeProjectRepoConnection(task.Owner, task.Title, task.Details) {
+		return false
+	}
 	return strings.TrimSpace(b.taskProjectRepoURLLocked(task)) != ""
 }
 
@@ -2635,6 +2638,11 @@ func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 			return
 		}
 		setProxyClientIPHeaders(proxyReq.Header, r.RemoteAddr)
+		if strings.HasPrefix(targetPath, "/runner/") {
+			if runnerToken := runnerTokenFromRequest(r); runnerToken != "" {
+				proxyReq.Header.Set("X-LAF-Runner-Token", runnerToken)
+			}
+		}
 		proxyReq.Header.Set("Authorization", "Bearer "+b.token)
 		proxyReq.Header.Set("Content-Type", r.Header.Get("Content-Type"))
 		if cookie := r.Header.Get("Cookie"); cookie != "" {
