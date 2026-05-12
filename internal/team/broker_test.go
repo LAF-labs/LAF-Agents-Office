@@ -1903,6 +1903,85 @@ func TestChannelCreateRejectsReservedSlugs(t *testing.T) {
 	}
 }
 
+func TestChannelRemoveRequiresSlugConfirmation(t *testing.T) {
+	b := newTestBroker(t)
+	now := time.Now().UTC().Format(time.RFC3339)
+	b.mu.Lock()
+	b.channels = append(b.channels, teamChannel{
+		Slug:      "launch",
+		Name:      "Launch",
+		Members:   []string{"ceo", "fe"},
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	b.messages = append(b.messages, channelMessage{
+		ID:        "msg-launch",
+		From:      "ceo",
+		Channel:   "launch",
+		Content:   "launch context",
+		Timestamp: now,
+	})
+	b.tasks = append(b.tasks, teamTask{
+		ID:        "task-launch",
+		Channel:   "launch",
+		Title:     "Launch plan",
+		Status:    taskStatusTodo,
+		CreatedBy: "ceo",
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	b.requests = append(b.requests, humanInterview{
+		ID:        "request-launch",
+		From:      "ceo",
+		Channel:   "launch",
+		Question:  "Approve launch?",
+		CreatedAt: now,
+	})
+	b.mu.Unlock()
+
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+	base := fmt.Sprintf("http://%s", b.Addr())
+
+	postRemove := func(body map[string]any) int {
+		t.Helper()
+		raw, _ := json.Marshal(body)
+		req, _ := http.NewRequest(http.MethodPost, base+"/channels", bytes.NewReader(raw))
+		req.Header.Set("Authorization", "Bearer "+b.Token())
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("remove channel request: %v", err)
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	if got := postRemove(map[string]any{"action": "remove", "slug": "launch"}); got != http.StatusBadRequest {
+		t.Fatalf("remove without confirmation: expected 400, got %d", got)
+	}
+	b.mu.Lock()
+	if b.findChannelLocked("launch") == nil || len(b.messages) != 1 || len(b.tasks) != 1 || len(b.requests) != 1 {
+		b.mu.Unlock()
+		t.Fatal("channel data changed after rejected remove")
+	}
+	b.mu.Unlock()
+
+	if got := postRemove(map[string]any{"action": "remove", "slug": "launch", "confirm": "launch"}); got != http.StatusOK {
+		t.Fatalf("remove with confirmation: expected 200, got %d", got)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.findChannelLocked("launch") != nil {
+		t.Fatal("expected confirmed remove to delete launch channel")
+	}
+	if len(b.messages) != 0 || len(b.tasks) != 0 || len(b.requests) != 0 {
+		t.Fatalf("expected confirmed remove to delete related state, got messages=%d tasks=%d requests=%d", len(b.messages), len(b.tasks), len(b.requests))
+	}
+}
+
 func TestChannelUpdateMutatesDescriptionAndMembers(t *testing.T) {
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {

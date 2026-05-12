@@ -2418,6 +2418,25 @@ func TestShredCommandOpensConfirmation(t *testing.T) {
 	}
 }
 
+func TestChannelRemoveCommandOpensConfirmation(t *testing.T) {
+	m := newChannelModel(false)
+
+	next, cmd := m.runCommand("/channel remove launch", "")
+	if cmd != nil {
+		t.Fatalf("expected no immediate command from /channel remove, got %v", cmd)
+	}
+	got := next.(channelModel)
+	if got.confirm == nil {
+		t.Fatal("expected channel remove confirmation")
+	}
+	if got.confirm.Action != confirmActionRemoveChannel {
+		t.Fatalf("expected remove-channel confirmation, got %q", got.confirm.Action)
+	}
+	if got.confirm.Channel != "launch" {
+		t.Fatalf("expected confirmation for launch, got %+v", got.confirm)
+	}
+}
+
 func TestPendingRequestEnterOpensReviewConfirmation(t *testing.T) {
 	m := newChannelModel(false)
 	m.pending = &channelInterview{

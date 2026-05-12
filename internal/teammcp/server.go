@@ -2357,14 +2357,18 @@ func handleTeamChannel(ctx context.Context, _ *mcp.CallToolRequest, args TeamCha
 	default:
 		channel = resolveConversationChannel(ctx, slug, args.Channel)
 	}
-	if err := brokerPostJSON(ctx, "/channels", map[string]any{
+	body := map[string]any{
 		"action":      action,
 		"slug":        channel,
 		"name":        strings.TrimSpace(args.Name),
 		"description": strings.TrimSpace(args.Description),
 		"members":     args.Members,
 		"created_by":  slug,
-	}, nil); err != nil {
+	}
+	if action == "remove" {
+		body["confirm"] = channel
+	}
+	if err := brokerPostJSON(ctx, "/channels", body, nil); err != nil {
 		return toolError(err), nil, nil
 	}
 	if err := reconfigureOfficeSessionFn(); err != nil {

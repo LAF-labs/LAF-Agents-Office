@@ -1897,8 +1897,10 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.notice = "Switched to #" + m.activeChannel
 				return m, tea.Batch(pollBroker("", m.activeChannel), pollMembers(m.activeChannel), pollRequests(m.activeChannel), pollTasks(m.activeChannel))
 			case strings.HasPrefix(msg.Value, "remove:"):
-				m.posting = true
-				return m, mutateChannel("remove", strings.TrimPrefix(msg.Value, "remove:"), "")
+				slug := strings.TrimPrefix(msg.Value, "remove:")
+				m.confirm = confirmationForRemoveChannel(slug)
+				m.notice = "Confirm channel removal."
+				return m, nil
 			}
 			return m, nil
 		case channelPickerSwitcher:
@@ -4951,8 +4953,9 @@ func (m channelModel) runCommand(trimmed, threadTarget string) (tea.Model, tea.C
 			m.posting = true
 			return m, mutateChannel("create", parts[2], description)
 		case "remove":
-			m.posting = true
-			return m, mutateChannel("remove", parts[2], "")
+			m.confirm = confirmationForRemoveChannel(parts[2])
+			m.notice = "Confirm channel removal."
+			return m, nil
 		default:
 			m.notice = "Usage: /channel add <slug> <description...> or /channel remove <slug>"
 			return m, nil

@@ -235,13 +235,17 @@ func pollHealth() tea.Cmd {
 
 func mutateChannel(action, slug, description string) tea.Cmd {
 	return func() tea.Msg {
-		body, _ := json.Marshal(map[string]any{
+		payload := map[string]any{
 			"action":      action,
 			"slug":        slug,
 			"name":        slug,
 			"description": description,
 			"created_by":  "you",
-		})
+		}
+		if action == "remove" {
+			payload["confirm"] = normalizeSidebarSlug(slug)
+		}
+		body, _ := json.Marshal(payload)
 		req, err := newBrokerRequest(http.MethodPost, "http://127.0.0.1:7890/channels", bytes.NewReader(body))
 		if err != nil {
 			return channelPostDoneMsg{err: err}

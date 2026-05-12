@@ -7471,6 +7471,7 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 			Description string          `json:"description"`
 			Members     []string        `json:"members"`
 			CreatedBy   string          `json:"created_by"`
+			Confirm     string          `json:"confirm"`
 			Surface     *channelSurface `json:"surface,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -7598,6 +7599,10 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 		case "remove":
 			if slug == "" || slug == "general" {
 				http.Error(w, "cannot remove channel", http.StatusBadRequest)
+				return
+			}
+			if normalizeChannelSlug(body.Confirm) != slug {
+				http.Error(w, "confirmation must match channel slug", http.StatusBadRequest)
 				return
 			}
 			idx := -1

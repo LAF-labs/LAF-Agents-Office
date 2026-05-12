@@ -18,6 +18,7 @@ const (
 	confirmActionResetTeam      channelConfirmAction = "reset_team"
 	confirmActionResetDM        channelConfirmAction = "reset_dm"
 	confirmActionShredWorkspace channelConfirmAction = "shred_workspace"
+	confirmActionRemoveChannel  channelConfirmAction = "remove_channel"
 	confirmActionSwitchMode     channelConfirmAction = "switch_mode"
 	confirmActionRecoverFocus   channelConfirmAction = "recover_focus"
 	confirmActionSubmitRequest  channelConfirmAction = "submit_request"
@@ -75,6 +76,18 @@ func confirmationForShredWorkspace() *channelConfirm {
 		ConfirmLabel: "Enter shred now",
 		CancelLabel:  "Esc keep workspace",
 		Action:       confirmActionShredWorkspace,
+	}
+}
+
+func confirmationForRemoveChannel(slug string) *channelConfirm {
+	slug = normalizeSidebarSlug(slug)
+	return &channelConfirm{
+		Title:        "Remove Channel",
+		Detail:       fmt.Sprintf("This deletes #%s and removes its saved messages, tasks, and pending requests.", slug),
+		ConfirmLabel: "Enter remove channel",
+		CancelLabel:  "Esc keep channel",
+		Action:       confirmActionRemoveChannel,
+		Channel:      slug,
 	}
 }
 
@@ -180,6 +193,10 @@ func (m channelModel) executeConfirmation(confirm channelConfirm) (tea.Model, te
 		fmt.Fprintf(os.Stderr, "shred: removed %d path(s). Onboarding will reopen on next launch.\n", len(res.Removed))
 		killTeamSession()
 		return m, tea.Quit
+	case confirmActionRemoveChannel:
+		m.confirm = nil
+		m.posting = true
+		return m, mutateChannel("remove", confirm.Channel, "")
 	case confirmActionSwitchMode:
 		m.confirm = nil
 		m.posting = true
