@@ -195,13 +195,14 @@ const messages = {
     "settings.runner.installerMac": "macOS runner package",
     "settings.runner.installerMacMeta":
       "Apple silicon PKG · version 0.0.7.1 · unsigned",
-    "settings.runner.installerWindows": "Windows runner installer",
+    "settings.runner.installerWindows": "Windows x64 runner installer",
     "settings.runner.installerWindowsMeta":
-      "Latest release package with the URL handler installer",
+      "Unsigned MSI · version 0.0.7.1 · installs the URL handler",
     "settings.runner.installerOther": "Other platforms",
     "settings.runner.installerOtherMeta":
       "Use the latest release archive or manual runner command",
     "settings.runner.recommended": "Recommended",
+    "settings.runner.downloadMsi": "Download MSI",
     "settings.runner.downloadPkg": "Download PKG",
     "settings.runner.openRelease": "Open release",
     "settings.runner.stepInstall": "Install",
@@ -882,13 +883,14 @@ const messages = {
     "settings.runner.installerMac": "macOS 러너 패키지",
     "settings.runner.installerMacMeta":
       "Apple silicon PKG · 버전 0.0.7.1 · 미서명",
-    "settings.runner.installerWindows": "Windows 러너 설치 파일",
+    "settings.runner.installerWindows": "Windows x64 러너 설치 파일",
     "settings.runner.installerWindowsMeta":
-      "URL 핸들러 설치 프로그램이 포함된 최신 릴리스 패키지",
+      "미서명 MSI · 버전 0.0.7.1 · URL 핸들러 설치",
     "settings.runner.installerOther": "다른 플랫폼",
     "settings.runner.installerOtherMeta":
       "최신 릴리스 아카이브 또는 수동 러너 명령 사용",
     "settings.runner.recommended": "권장",
+    "settings.runner.downloadMsi": "MSI 다운로드",
     "settings.runner.downloadPkg": "PKG 다운로드",
     "settings.runner.openRelease": "릴리스 열기",
     "settings.runner.stepInstall": "설치",

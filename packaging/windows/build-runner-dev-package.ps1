@@ -1,6 +1,8 @@
 param(
   [string]$OutDir = "dist",
-  [string]$Version = ""
+  [string]$Version = "",
+  [ValidateSet("x64", "arm64")]
+  [string]$Architecture = "x64"
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,7 +36,12 @@ $resolvedOutDir = if ([System.IO.Path]::IsPathRooted($OutDir)) {
   Join-Path $repoRoot $OutDir
 }
 
-$packageName = "laf-runner-windows-$Version"
+$goArch = @{
+  x64 = "amd64"
+  arm64 = "arm64"
+}[$Architecture]
+
+$packageName = "laf-runner-windows-$Architecture-$Version"
 $packageDir = Join-Path $resolvedOutDir $packageName
 $zipPath = Join-Path $resolvedOutDir "$packageName.zip"
 
@@ -46,9 +53,18 @@ New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
 Push-Location $repoRoot
 try {
+  $previousGoos = $env:GOOS
+  $previousGoarch = $env:GOARCH
+  $previousCgo = $env:CGO_ENABLED
+  $env:GOOS = "windows"
+  $env:GOARCH = $goArch
+  $env:CGO_ENABLED = "0"
   go build -o (Join-Path $packageDir "laf-runner.exe") ./cmd/laf-runner
   go build -ldflags "-H=windowsgui" -o (Join-Path $packageDir "laf-runner-installer.exe") ./cmd/laf-runner-installer
 } finally {
+  $env:GOOS = $previousGoos
+  $env:GOARCH = $previousGoarch
+  $env:CGO_ENABLED = $previousCgo
   Pop-Location
 }
 

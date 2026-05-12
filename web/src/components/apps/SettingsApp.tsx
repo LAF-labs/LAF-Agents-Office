@@ -1609,6 +1609,8 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 const RUNNER_VERSION = "0.0.7.1";
 const RUNNER_MACOS_PKG_PATH = `/downloads/laf-runner-macos-arm64-${RUNNER_VERSION}.pkg`;
+const RUNNER_WINDOWS_MSI_NAME = `laf-runner-windows-x64-${RUNNER_VERSION}.msi`;
+const RUNNER_WINDOWS_MSI_PATH = `/downloads/${RUNNER_WINDOWS_MSI_NAME}`;
 const RUNNER_RELEASE_URL =
   "https://github.com/LAF-labs/LAF-Agents-Office/releases/latest";
 
@@ -1626,7 +1628,10 @@ interface RunnerInstallerOption {
     | "settings.runner.installerWindowsMeta"
     | "settings.runner.installerOtherMeta";
   href: string;
-  actionKey: "settings.runner.downloadPkg" | "settings.runner.openRelease";
+  actionKey:
+    | "settings.runner.downloadMsi"
+    | "settings.runner.downloadPkg"
+    | "settings.runner.openRelease";
   download?: string;
   external?: boolean;
 }
@@ -1646,9 +1651,9 @@ const RUNNER_INSTALLERS: RunnerInstallerOption[] = [
     Icon: Windows,
     nameKey: "settings.runner.installerWindows",
     metaKey: "settings.runner.installerWindowsMeta",
-    href: RUNNER_RELEASE_URL,
-    actionKey: "settings.runner.openRelease",
-    external: true,
+    href: RUNNER_WINDOWS_MSI_PATH,
+    actionKey: "settings.runner.downloadMsi",
+    download: RUNNER_WINDOWS_MSI_NAME,
   },
   {
     id: "other",
@@ -2080,12 +2085,19 @@ function browserRunnerAPIURL() {
   return `${window.location.origin}/api`;
 }
 
-function detectRunnerPlatform(): RunnerPlatform {
-  if (typeof navigator === "undefined") return "other";
-  const raw = `${navigator.platform || ""} ${navigator.userAgent || ""}`;
+function detectRunnerPlatformFrom(raw: string): RunnerPlatform {
   if (/mac|iphone|ipad|ipod/i.test(raw)) return "macos";
   if (/win/i.test(raw)) return "windows";
   return "other";
+}
+
+function detectRunnerPlatform(): RunnerPlatform {
+  if (typeof navigator === "undefined") return "other";
+  const nav = navigator as Navigator & {
+    userAgentData?: { platform?: string };
+  };
+  const raw = `${nav.userAgentData?.platform || ""} ${navigator.platform || ""} ${navigator.userAgent || ""}`;
+  return detectRunnerPlatformFrom(raw);
 }
 
 function runnerPairingDeepLink(pairing: RunnerPairingStartResponse) {
@@ -2607,3 +2619,10 @@ export function SettingsApp() {
     </div>
   );
 }
+
+export const __test__ = {
+  RUNNER_INSTALLERS,
+  RUNNER_MACOS_PKG_PATH,
+  RUNNER_WINDOWS_MSI_PATH,
+  detectRunnerPlatformFrom,
+};

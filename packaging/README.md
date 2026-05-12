@@ -10,10 +10,10 @@ Settings -> Runner -> Connect this computer.
 Build a development zip on Windows:
 
 ```powershell
-.\packaging\windows\build-runner-dev-package.ps1
+.\packaging\windows\build-runner-dev-package.ps1 -Architecture x64
 ```
 
-The zip contains:
+The zip is named `laf-runner-windows-<arch>-<version>.zip` and contains:
 
 - `laf-runner.exe`
 - `laf-runner-installer.exe`
@@ -28,14 +28,13 @@ startup entry that runs `laf-runner connect`; before pairing, that command exits
 without doing work, and after pairing it keeps the machine available for queued
 runner jobs.
 
-Production releases should sign `laf-runner-installer.exe` and the final zip or
-wrap the same install steps in MSI when certificate and installer infrastructure
-are available.
+Production releases should sign `laf-runner.exe`, `laf-runner-installer.exe`,
+and the final zip when certificate infrastructure is available.
 
 Build an unsigned per-user MSI with WiX:
 
 ```powershell
-.\packaging\windows\build-runner-msi.ps1
+.\packaging\windows\build-runner-msi.ps1 -Architecture x64
 ```
 
 WiX 7 requires explicit OSMF EULA acceptance before `wix build` can run. Accept
@@ -46,13 +45,21 @@ it yourself once with:
 ```
 
 or pass `-AcceptWix7Eula` to the build script after you have confirmed the
-terms. The MSI installs to `%LOCALAPPDATA%\LAF-Office\Runner`, registers the
-same per-user `laf-runner://` URL handler as the development installer, and
-starts the runner at user login.
+terms. The MSI is named `laf-runner-windows-<arch>-<version>.msi`, installs to
+`%LOCALAPPDATA%\LAF-Office\Runner`, registers the same per-user
+`laf-runner://` URL handler as the development installer, and starts the runner
+at user login. Production releases should also sign the final MSI.
 
 Windows Installer versions use three numeric fields, so four-part repo versions
 are encoded into the third MSI field. For example, repo version `0.0.7.1`
-becomes MSI ProductVersion `0.0.7001`.
+becomes MSI ProductVersion `0.0.7001`; the artifact filename still keeps the
+human repo version.
+
+The web app serves the current Windows x64 MSI from
+`web/public/downloads/laf-runner-windows-x64-<version>.msi` so Settings ->
+Runner can offer a direct download without waiting for a GitHub Release page.
+GitHub releases also attach the unsigned Windows x64 and arm64 zip/MSI files as
+dedicated runner assets.
 
 The browser URL handler only trusts official `laf-office.team` origins,
 loopback development origins, the already configured runner API origin, or

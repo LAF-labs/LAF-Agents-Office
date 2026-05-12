@@ -141,3 +141,40 @@ jobs:
             echo "output was: $OUT"
             exit 1
           }
+
+  windows-runner-assets:
+    needs: [release]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # ratchet:actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Install WiX
+        shell: pwsh
+        run: dotnet tool install --global wix --version 7.0.0
+      - name: Build unsigned Windows runner assets
+        shell: pwsh
+        run: |
+          foreach ($arch in @("x64", "arm64")) {
+            .\packaging\windows\build-runner-dev-package.ps1 -OutDir dist\windows-runner -Version $env:VERSION -Architecture $arch
+            .\packaging\windows\build-runner-msi.ps1 -OutDir dist\windows-runner -Version $env:VERSION -Architecture $arch -AcceptWix7Eula
+          }
+
+          $assets = foreach ($arch in @("x64", "arm64")) {
+            "dist\windows-runner\laf-runner-windows-$arch-$env:VERSION.zip"
+            "dist\windows-runner\laf-runner-windows-$arch-$env:VERSION.msi"
+          }
+          foreach ($asset in $assets) {
+            if (!(Test-Path -LiteralPath $asset)) {
+              throw "missing Windows runner asset: $asset"
+            }
+          }
+          gh release upload "v$env:VERSION" @assets --clobber

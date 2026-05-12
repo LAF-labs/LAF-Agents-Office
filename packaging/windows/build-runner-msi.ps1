@@ -53,6 +53,16 @@ function Convert-ToMsiVersion {
   return "$major.$minor.$patch"
 }
 
+function Convert-ToPackageVersion {
+  param([string]$RawVersion)
+
+  $trimmed = $RawVersion.Trim()
+  if ($trimmed.StartsWith("v")) {
+    return $trimmed.Substring(1)
+  }
+  return $trimmed
+}
+
 function Resolve-WixPath {
   $command = Get-Command "wix.exe" -ErrorAction SilentlyContinue
   if ($null -ne $command) {
@@ -73,6 +83,7 @@ $repoRoot = Resolve-Path (Join-Path $scriptDir "..\..")
 if ([string]::IsNullOrWhiteSpace($Version)) {
   $Version = Resolve-RepoVersion -RepoRoot $repoRoot
 }
+$packageVersion = Convert-ToPackageVersion -RawVersion $Version
 $msiVersion = Convert-ToMsiVersion -RawVersion $Version
 
 $resolvedOutDir = if ([System.IO.Path]::IsPathRooted($OutDir)) {
@@ -88,7 +99,7 @@ $goArch = @{
 
 $buildDir = Join-Path $resolvedOutDir "msi-$Architecture"
 $runnerExe = Join-Path $buildDir "laf-runner.exe"
-$msiPath = Join-Path $resolvedOutDir "laf-runner-$msiVersion-windows-$Architecture.msi"
+$msiPath = Join-Path $resolvedOutDir "laf-runner-windows-$Architecture-$packageVersion.msi"
 $wxsPath = Join-Path $scriptDir "laf-runner.wxs"
 $wixPath = Resolve-WixPath
 
