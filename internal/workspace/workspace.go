@@ -45,8 +45,8 @@ func ClearRuntime() (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	res.removeIfPresent(statePath)
-	res.removeIfPresent(snapshotPath)
+	res.removeFileIfPresent(statePath)
+	res.removeFileIfPresent(snapshotPath)
 	return res, nil
 }
 
@@ -88,6 +88,23 @@ func lafOfficeHome() (string, error) {
 
 func brokerStatePaths() (string, string, error) {
 	if p := strings.TrimSpace(os.Getenv(product.Env("BROKER_STATE_PATH"))); p != "" {
+		home, err := lafOfficeHome()
+		if err != nil {
+			return "", "", err
+		}
+		p, err = filepath.Abs(p)
+		if err != nil {
+			return "", "", fmt.Errorf("workspace: resolve broker state path: %w", err)
+		}
+		p = filepath.Clean(p)
+		home, err = filepath.Abs(home)
+		if err != nil {
+			return "", "", fmt.Errorf("workspace: resolve runtime home: %w", err)
+		}
+		home = filepath.Clean(home)
+		if !isStrictChildPath(home, p) {
+			return "", "", fmt.Errorf("workspace: refusing to clear broker state outside runtime home: %s (runtime home %s)", p, home)
+		}
 		return p, p + ".last-good", nil
 	}
 	home, err := lafOfficeHome()
@@ -96,6 +113,37 @@ func brokerStatePaths() (string, string, error) {
 	}
 	path := filepath.Join(home, "team", "broker-state.json")
 	return path, path + ".last-good", nil
+}
+
+func isStrictChildPath(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func (r *Result) removeFileIfPresent(path string) {
+	if path == "" {
+		return
+	}
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		r.Errors = append(r.Errors, fmt.Sprintf("stat %s: %v", path, err))
+		return
+	}
+	if info.IsDir() {
+		r.Errors = append(r.Errors, fmt.Sprintf("refusing to remove directory at file path %s", path))
+		return
+	}
+	if err := os.Remove(path); err != nil {
+		r.Errors = append(r.Errors, fmt.Sprintf("remove %s: %v", path, err))
+		return
+	}
+	r.Removed = append(r.Removed, path)
 }
 
 func (r *Result) removeIfPresent(path string) {

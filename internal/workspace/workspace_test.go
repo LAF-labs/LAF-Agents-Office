@@ -3,6 +3,7 @@ package workspace
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -88,6 +89,77 @@ func TestClearRuntimeRemovesBrokerStateOnly(t *testing.T) {
 	} {
 		assertStays(t, label, paths[label])
 	}
+}
+
+func TestClearRuntimeRejectsBrokerStatePathOutsideRuntimeHome(t *testing.T) {
+	withRuntimeHome(t)
+	outside := filepath.Join(t.TempDir(), "broker-state.json")
+	if err := os.WriteFile(outside, []byte("keep"), 0o600); err != nil {
+		t.Fatalf("write outside broker state: %v", err)
+	}
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", outside)
+
+	_, err := ClearRuntime()
+	if err == nil {
+		t.Fatal("expected ClearRuntime to reject an outside broker state path")
+	}
+	if !strings.Contains(err.Error(), "outside runtime home") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertStays(t, "outside broker state", outside)
+}
+
+func TestClearRuntimeAllowsConfiguredBrokerStatePathUnderRuntimeHome(t *testing.T) {
+	dir := withRuntimeHome(t)
+	statePath := filepath.Join(dir, ".laf-office", "custom", "broker-state.json")
+	snapshotPath := statePath + ".last-good"
+	for _, path := range []string{statePath, snapshotPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", statePath)
+
+	res, err := ClearRuntime()
+	if err != nil {
+		t.Fatalf("ClearRuntime: %v", err)
+	}
+	if len(res.Errors) != 0 {
+		t.Fatalf("unexpected errors: %v", res.Errors)
+	}
+	if len(res.Removed) != 2 {
+		t.Fatalf("expected state and snapshot removed, got %v", res.Removed)
+	}
+	assertGone(t, "configured broker state", statePath)
+	assertGone(t, "configured broker state snapshot", snapshotPath)
+}
+
+func TestClearRuntimeRefusesBrokerStateDirectory(t *testing.T) {
+	dir := withRuntimeHome(t)
+	statePath := filepath.Join(dir, ".laf-office", "team", "broker-state.json")
+	nestedPath := filepath.Join(statePath, "nested.txt")
+	if err := os.MkdirAll(filepath.Dir(nestedPath), 0o700); err != nil {
+		t.Fatalf("mkdir broker state directory: %v", err)
+	}
+	if err := os.WriteFile(nestedPath, []byte("keep"), 0o600); err != nil {
+		t.Fatalf("write nested broker state file: %v", err)
+	}
+
+	res, err := ClearRuntime()
+	if err != nil {
+		t.Fatalf("ClearRuntime: %v", err)
+	}
+	if len(res.Removed) != 0 {
+		t.Fatalf("expected no removals, got %v", res.Removed)
+	}
+	if len(res.Errors) != 1 || !strings.Contains(res.Errors[0], "refusing to remove directory") {
+		t.Fatalf("expected directory refusal, got %+v", res)
+	}
+	assertStays(t, "broker state directory", statePath)
+	assertStays(t, "nested broker state file", nestedPath)
 }
 
 func TestShredRemovesWorkspaceHistoryButPreservesUserWorkAndConfig(t *testing.T) {
