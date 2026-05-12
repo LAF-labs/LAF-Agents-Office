@@ -215,7 +215,11 @@ function AgentPanelView({ agent, onClose }: AgentPanelViewProps) {
       onConfirm: async () => {
         setRemoving(true);
         try {
-          await post("/office-members", { action: "remove", slug: agent.slug });
+          await post("/office-members", {
+            action: "remove",
+            slug: agent.slug,
+            confirm: agent.slug,
+          });
           await queryClient.invalidateQueries({ queryKey: ["office-members"] });
           await queryClient.invalidateQueries({
             queryKey: ["channel-members", currentChannel],

@@ -2480,8 +2480,9 @@ func handleTeamMember(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemb
 		return textResult(fmt.Sprintf("Created office member @%s.", slug)), nil, nil
 	case "remove":
 		if err := brokerPostJSON(ctx, "/office-members", map[string]any{
-			"action": "remove",
-			"slug":   slug,
+			"action":  "remove",
+			"slug":    slug,
+			"confirm": slug,
 		}, nil); err != nil {
 			return toolError(err), nil, nil
 		}

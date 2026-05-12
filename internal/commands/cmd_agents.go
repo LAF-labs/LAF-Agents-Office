@@ -163,7 +163,7 @@ func cmdAgentRemove(ctx *SlashContext, args string) error {
 		return nil
 	}
 	slug := pos[0]
-	body := map[string]any{"action": "remove", "slug": slug}
+	body := map[string]any{"action": "remove", "slug": slug, "confirm": slug}
 	if _, err := brokerPostOfficeMembers(body); err != nil {
 		ctx.AddMessage("system", fmt.Sprintf("Remove failed: %v", err))
 		return nil

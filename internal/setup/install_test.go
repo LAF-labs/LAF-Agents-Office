@@ -3,6 +3,7 @@ package setup
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -10,14 +11,18 @@ import (
 func TestInstallLatestCLI(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "args.log")
-	npmPath := filepath.Join(dir, "npm")
+	npmBin := "npm"
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + shellQuote(logFile) + "\n"
-	if err := os.WriteFile(npmPath, []byte(script), 0o755); err != nil {
+	if runtime.GOOS == "windows" {
+		npmBin = "npm.cmd"
+		script = "@echo off\r\n> \"" + logFile + "\" echo %*\r\n"
+	}
+	if err := os.WriteFile(filepath.Join(dir, npmBin), []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake npm: %v", err)
 	}
 
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", "npm")
+	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", npmBin)
 	t.Setenv("LAF_OFFICE_CLI_PACKAGE", "@example/laf-office")
 
 	notice, err := InstallLatestCLI()
@@ -41,14 +46,18 @@ func TestInstallLatestCLI(t *testing.T) {
 
 func TestInstallLatestCLIReturnsHelpfulFailure(t *testing.T) {
 	dir := t.TempDir()
-	npmPath := filepath.Join(dir, "npm")
+	npmBin := "npm"
 	script := "#!/bin/sh\necho boom >&2\nexit 1\n"
-	if err := os.WriteFile(npmPath, []byte(script), 0o755); err != nil {
+	if runtime.GOOS == "windows" {
+		npmBin = "npm.cmd"
+		script = "@echo off\r\necho boom 1>&2\r\nexit /b 1\r\n"
+	}
+	if err := os.WriteFile(filepath.Join(dir, npmBin), []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake npm: %v", err)
 	}
 
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", "npm")
+	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", npmBin)
 	t.Setenv("LAF_OFFICE_CLI_PACKAGE", "@example/laf-office")
 
 	_, err := InstallLatestCLI()

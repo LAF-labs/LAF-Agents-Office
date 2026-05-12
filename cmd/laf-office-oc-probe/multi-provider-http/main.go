@@ -157,7 +157,7 @@ func main() {
 	fmt.Println("\n═══ PHASE 5: Cleanup ═══")
 	for _, a := range live {
 		if _, err := brokerPOST("/office-members", map[string]any{
-			"action": "remove", "slug": a.spec.slug,
+			"action": "remove", "slug": a.spec.slug, "confirm": a.spec.slug,
 		}); err != nil {
 			fmt.Printf("  WARN remove %s: %v\n", a.spec.slug, err)
 		} else {

@@ -128,7 +128,7 @@ func TestCmdAgentRemove_PostsToBroker(t *testing.T) {
 	if err := cmdAgentRemove(ctx, "pm-bot"); err != nil {
 		t.Fatalf("cmdAgentRemove: %v", err)
 	}
-	if gotBody["action"] != "remove" || gotBody["slug"] != "pm-bot" {
+	if gotBody["action"] != "remove" || gotBody["slug"] != "pm-bot" || gotBody["confirm"] != "pm-bot" {
 		t.Fatalf("remove body wrong: %+v", gotBody)
 	}
 	if !strings.Contains(strings.Join(*out, "|"), "Removed @pm-bot") {

@@ -268,7 +268,35 @@ func TestWizardHire_RemoveReversesChannelMembership(t *testing.T) {
 	}
 
 	post(map[string]any{"action": "create", "slug": "qa-spec", "name": "QA"})
-	post(map[string]any{"action": "remove", "slug": "qa-spec"})
+
+	// Removing a member also strips channel membership and unassigns tasks, so
+	// the HTTP contract requires the caller to echo the slug as confirmation.
+	body, _ := json.Marshal(map[string]any{"action": "remove", "slug": "qa-spec"})
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", srv.URL+"/office-members", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer test-token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unconfirmed remove: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unconfirmed remove: expected 400, got %d", resp.StatusCode)
+	}
+
+	b.mu.Lock()
+	for _, ch := range b.channels {
+		if ch.isDM() {
+			continue
+		}
+		if !containsString(ch.Members, "qa-spec") {
+			b.mu.Unlock()
+			t.Fatalf("qa-spec disappeared from #%s.members after rejected remove: %v", ch.Slug, ch.Members)
+		}
+	}
+	b.mu.Unlock()
+
+	post(map[string]any{"action": "remove", "slug": "qa-spec", "confirm": "qa-spec"})
 
 	b.mu.Lock()
 	defer b.mu.Unlock()

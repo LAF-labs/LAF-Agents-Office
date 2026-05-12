@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -190,13 +191,19 @@ func TestDispatchInitInstallsLatestCLI(t *testing.T) {
 
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "args.log")
-	npmPath := filepath.Join(dir, "npm")
+	npmBin := "npm"
+	npmPath := filepath.Join(dir, npmBin)
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + strings.ReplaceAll(logFile, "'", "'\"'\"'") + "'\n"
+	if runtime.GOOS == "windows" {
+		npmBin = "npm.cmd"
+		npmPath = filepath.Join(dir, npmBin)
+		script = "@echo off\r\n> \"" + logFile + "\" echo %*\r\n"
+	}
 	if err := os.WriteFile(npmPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake npm: %v", err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", "npm")
+	t.Setenv("LAF_OFFICE_CLI_INSTALL_BIN", npmBin)
 	t.Setenv("LAF_OFFICE_CLI_PACKAGE", "@example/laf-office")
 
 	result := Dispatch("/init", "", "text", 0)

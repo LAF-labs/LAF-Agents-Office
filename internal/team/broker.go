@@ -7049,6 +7049,7 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 			PermissionMode string                    `json:"permission_mode"`
 			AllowedTools   []string                  `json:"allowed_tools"`
 			CreatedBy      string                    `json:"created_by"`
+			Confirm        string                    `json:"confirm"`
 			Provider       *provider.ProviderBinding `json:"provider,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -7297,6 +7298,10 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 			}
 			if member.BuiltIn || office.IsCoreAgentSlug(slug) || office.IsAgentMakerSlug(slug) {
 				http.Error(w, "cannot remove built-in member", http.StatusBadRequest)
+				return
+			}
+			if normalizeChannelSlug(body.Confirm) != slug {
+				http.Error(w, "confirmation must match member slug", http.StatusBadRequest)
 				return
 			}
 			// If the member was bridged to OpenClaw, unsubscribe from the
