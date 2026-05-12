@@ -52,6 +52,9 @@ func taskNeedsStructuredReview(task *teamTask) bool {
 	if task == nil {
 		return false
 	}
+	if taskLooksLikeProjectRepoConnection(task.Owner, task.Title, task.Details) {
+		return false
+	}
 	if isLocalWorktreeExecutionMode(task.ExecutionMode) || isLiveExternalExecutionMode(task.ExecutionMode) {
 		return true
 	}
@@ -147,7 +150,27 @@ func containsAnyTaskFragment(text string, needles ...string) bool {
 	return false
 }
 
+func taskLooksLikeProjectRepoConnection(owner, title, details string) bool {
+	text := strings.ToLower(strings.TrimSpace(strings.Join([]string{owner, title, details}, " ")))
+	if !containsAnyTaskFragment(text,
+		"connect", "link", "wire", "configure", "configuration",
+		"연결", "설정",
+	) {
+		return false
+	}
+	return containsAnyTaskFragment(text,
+		"project repository", "project repo",
+		"github repository", "github repo",
+		"repo connection", "repository connection",
+		"current worktree", "worktree as the project repository",
+		"프로젝트 저장소", "저장소 연결", "깃허브 저장소",
+	)
+}
+
 func taskWorkRequiresLocalExecution(owner, title, details string) bool {
+	if taskLooksLikeProjectRepoConnection(owner, title, details) {
+		return false
+	}
 	text := strings.ToLower(strings.TrimSpace(strings.Join([]string{owner, title, details}, " ")))
 	return containsAnyTaskFragment(text,
 		"eng", "engineer", "developer",

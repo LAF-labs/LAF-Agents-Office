@@ -722,6 +722,16 @@ func TestRunnerConnectOnceReportsCapabilitiesOnlyWhenChanged(t *testing.T) {
 	}
 }
 
+func TestRunnerTokenFromRequestPrefersForwardedRunnerToken(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/runner/capabilities", nil)
+	req.Header.Set("Authorization", "Bearer broker-token")
+	req.Header.Set("X-LAF-Runner-Token", "runner-token")
+
+	if got := runnerTokenFromRequest(req); got != "runner-token" {
+		t.Fatalf("runnerTokenFromRequest() = %q, want runner-token", got)
+	}
+}
+
 func seedRunnerForTest(b *Broker, teamID string, caps runnerCapabilities) string {
 	token := "test-token-" + generateToken()
 	runnerID := "runner-" + teamID + "-" + generateToken()[:8]

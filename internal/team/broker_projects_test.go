@@ -1153,6 +1153,83 @@ func TestProjectCodingTaskAutoPullRequestFailureBlocksAndWritesWiki(t *testing.T
 	}
 }
 
+func TestProjectRepoConnectionTaskCompletesWithoutDeliveryReceipt(t *testing.T) {
+	oldProjectPrepare := prepareProjectTaskWorktree
+	oldRunGit := projectTaskRunGit
+	oldRunGH := projectTaskRunGH
+	t.Cleanup(func() {
+		prepareProjectTaskWorktree = oldProjectPrepare
+		projectTaskRunGit = oldRunGit
+		projectTaskRunGH = oldRunGH
+	})
+	prepareProjectTaskWorktree = func(projectID, repoURL, taskID string) (string, string, error) {
+		t.Fatalf("repo connection task should not create a local worktree")
+		return "", "", nil
+	}
+	projectTaskRunGit = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		t.Fatalf("repo connection task should not run git delivery: %v", args)
+		return nil, nil
+	}
+	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+		t.Fatalf("repo connection task should not run gh delivery: %v", args)
+		return nil, nil
+	}
+
+	b := newTestBroker(t)
+	project := createProjectForTest(t, b, map[string]string{
+		"name":            "Agent Lab",
+		"created_by":      "human",
+		"github_repo_url": "git@github.com:LAF-labs/agent-lab.git",
+	})
+
+	createRec := httptest.NewRecorder()
+	b.handlePostTask(createRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "create",
+		"title":      "Connect current worktree as the project repository",
+		"details":    "Wire the GitHub repo URL into project state.",
+		"owner":      "be",
+		"created_by": "human",
+		"project_id": project.ID,
+	}))
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("create repo connection task status = %d, want %d: %s", createRec.Code, http.StatusOK, createRec.Body.String())
+	}
+	var created struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(createRec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created task: %v", err)
+	}
+	if created.Task.ExecutionMode != executionModeOffice {
+		t.Fatalf("execution_mode = %q, want %q", created.Task.ExecutionMode, executionModeOffice)
+	}
+	if created.Task.ReviewState != reviewStateNotRequired {
+		t.Fatalf("review_state = %q, want %q", created.Task.ReviewState, reviewStateNotRequired)
+	}
+
+	doneRec := httptest.NewRecorder()
+	b.handlePostTask(doneRec, jsonRequestForTest(t, "/tasks", map[string]string{
+		"action":     "complete",
+		"id":         created.Task.ID,
+		"created_by": "human",
+	}))
+	if doneRec.Code != http.StatusOK {
+		t.Fatalf("complete repo connection task status = %d, want %d: %s", doneRec.Code, http.StatusOK, doneRec.Body.String())
+	}
+	var done struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.NewDecoder(doneRec.Body).Decode(&done); err != nil {
+		t.Fatalf("decode done task: %v", err)
+	}
+	if done.Task.Status != taskStatusDone {
+		t.Fatalf("status = %q, want %q", done.Task.Status, taskStatusDone)
+	}
+	if done.Task.DeliveryURL != "" || done.Task.DeliveredAt != "" {
+		t.Fatalf("unexpected delivery receipt on repo connection task: %#v", done.Task)
+	}
+}
+
 func TestProjectCodingTaskStoresDeliveryReceiptAndWritesWiki(t *testing.T) {
 	oldProjectPrepare := prepareProjectTaskWorktree
 	oldRunGH := projectTaskRunGH

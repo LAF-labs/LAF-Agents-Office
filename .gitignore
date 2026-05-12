@@ -37,6 +37,8 @@
 .cache/
 .gocache/
 .gomodcache/
+.laf-office/bin/
+.laf-office/cache/
 .playwright-mcp/
 .playwright-cli/
 

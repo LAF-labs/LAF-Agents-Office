@@ -1,7 +1,9 @@
 import {
+  type Dispatch,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,
@@ -14,8 +16,8 @@ import { Hashtag, Plus, SendDiagonal } from "iconoir-react";
 import {
   createProject,
   getConfig,
+  getMessages,
   getProjects,
-  getThreadMessages,
   type Message,
   type OfficeMember,
   type Project,
@@ -75,6 +77,54 @@ function agentMembersOnly(members: OfficeMember[]): OfficeMember[] {
     (member) =>
       member.slug && !NON_AGENT_SLUGS.has(member.slug.trim().toLowerCase()),
   );
+}
+
+function isHomeIMEComposing(
+  event: KeyboardEvent<HTMLTextAreaElement>,
+  composingRef: Pick<React.RefObject<boolean>, "current">,
+): boolean {
+  const native = event.nativeEvent as {
+    isComposing?: boolean;
+    keyCode?: number;
+  };
+  return composingRef.current || !!native.isComposing || native.keyCode === 229;
+}
+
+interface HomeAutocompleteKeyContext {
+  items: Array<{ insert: string; label: string; desc?: string }>;
+  pickAutocomplete: (item: { insert: string }) => void;
+  selectedIdx: number;
+  setSelectedIdx: Dispatch<SetStateAction<number>>;
+}
+
+function handleHomeAutocompleteKey(
+  event: KeyboardEvent<HTMLTextAreaElement>,
+  context: HomeAutocompleteKeyContext,
+): boolean {
+  const { items, pickAutocomplete, selectedIdx, setSelectedIdx } = context;
+  if (items.length === 0) return false;
+
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    setSelectedIdx((idx) => (idx + 1) % items.length);
+    return true;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    setSelectedIdx((idx) => (idx - 1 + items.length) % items.length);
+    return true;
+  }
+  if (event.key === "Enter" || event.key === "Tab") {
+    event.preventDefault();
+    pickAutocomplete(items[selectedIdx] ?? items[0]);
+    return true;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    setSelectedIdx(0);
+    return true;
+  }
+  return false;
 }
 
 function currentMentionTrigger(
@@ -423,18 +473,18 @@ function HomeComposer({
   selectedProject,
   agentMembers,
   leadSlug,
-  threadId,
 }: {
   selectedProject: Project | null;
   agentMembers: OfficeMember[];
   leadSlug: string;
-  threadId: string;
 }) {
   const [text, setText] = useState("");
   const [caret, setCaret] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [sendError, setSendError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composingRef = useRef(false);
+  const sendLockedRef = useRef(false);
   const queryClient = useQueryClient();
   const agentSlugs = useMemo(
     () => agentMembers.map((member) => member.slug),
@@ -466,13 +516,13 @@ function HomeComposer({
       return postMessage(
         outbound.content,
         HOME_CHANNEL,
-        threadId,
+        undefined,
         outbound.tagged,
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["home-messages", HOME_CHANNEL, threadId],
+        queryKey: ["home-messages", HOME_CHANNEL],
       });
       setText("");
       setSendError(null);
@@ -484,6 +534,9 @@ function HomeComposer({
       setSendError(
         err instanceof Error ? err.message : "메시지를 보내지 못했습니다.",
       );
+    },
+    onSettled: () => {
+      sendLockedRef.current = false;
     },
   });
 
@@ -504,37 +557,25 @@ function HomeComposer({
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed || sendMutation.isPending) return;
+    if (!trimmed || sendMutation.isPending || sendLockedRef.current) return;
+    sendLockedRef.current = true;
     sendMutation.mutate(trimmed);
   }, [text, sendMutation]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (autocompleteItems.length > 0) {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setSelectedIdx((idx) => (idx + 1) % autocompleteItems.length);
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setSelectedIdx(
-          (idx) =>
-            (idx - 1 + autocompleteItems.length) % autocompleteItems.length,
-        );
-        return;
-      }
-      if (event.key === "Enter" || event.key === "Tab") {
-        event.preventDefault();
-        pickAutocomplete(
-          autocompleteItems[selectedIdx] ?? autocompleteItems[0],
-        );
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setSelectedIdx(0);
-        return;
-      }
+    if (isHomeIMEComposing(event, composingRef)) {
+      return;
+    }
+
+    if (
+      handleHomeAutocompleteKey(event, {
+        items: autocompleteItems,
+        pickAutocomplete,
+        selectedIdx,
+        setSelectedIdx,
+      })
+    ) {
+      return;
     }
 
     if (event.key === "Enter" && !event.shiftKey) {
@@ -556,7 +597,7 @@ function HomeComposer({
 
   return (
     <div className="home-composer-wrap">
-      <div className="home-context-chips" aria-label="대상">
+      <div className="home-context-chips">
         {selectedProject ? (
           <span className="home-context-chip is-project">
             <Hashtag />
@@ -602,6 +643,12 @@ function HomeComposer({
             handleInput(event.target.value, event.target.selectionStart ?? 0)
           }
           onKeyDown={handleKeyDown}
+          onCompositionStart={() => {
+            composingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            composingRef.current = false;
+          }}
           onKeyUp={(event) => setCaret(event.currentTarget.selectionStart ?? 0)}
           onClick={(event) => setCaret(event.currentTarget.selectionStart ?? 0)}
         />
@@ -610,7 +657,9 @@ function HomeComposer({
           className="home-send"
           aria-label="보내기"
           title="보내기"
-          disabled={!text.trim() || sendMutation.isPending}
+          disabled={
+            !text.trim() || sendMutation.isPending || sendLockedRef.current
+          }
           onClick={handleSubmit}
         >
           <SendDiagonal />
@@ -625,15 +674,14 @@ export function HomeApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
-  const [homeThreadId] = useState(createHomeChatThreadId);
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
     queryKey: ["projects"],
     queryFn: () => getProjects(),
     staleTime: 30_000,
   });
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
-    queryKey: ["home-messages", HOME_CHANNEL, homeThreadId],
-    queryFn: () => getThreadMessages(HOME_CHANNEL, homeThreadId),
+    queryKey: ["home-messages", HOME_CHANNEL],
+    queryFn: () => getMessages(HOME_CHANNEL, null, 50),
     refetchInterval:
       typeof (globalThis as { EventSource?: typeof EventSource })
         .EventSource !== "undefined"
@@ -695,7 +743,6 @@ export function HomeApp() {
         selectedProject={selectedProject}
         agentMembers={agentMembers}
         leadSlug={leadSlug}
-        threadId={homeThreadId}
       />
     </div>
   );

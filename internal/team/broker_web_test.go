@@ -48,6 +48,37 @@ func TestWebUIProxyHandlerForwardsOnboardingRoutes(t *testing.T) {
 	}
 }
 
+func TestWebUIProxyHandlerPreservesRunnerTokenForRunnerRoutes(t *testing.T) {
+	var gotAuth string
+	var gotRunnerToken string
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotRunnerToken = r.Header.Get("X-LAF-Runner-Token")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer upstream.Close()
+
+	b := newTestBroker(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/runner/capabilities", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer runner-secret")
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	b.webUIProxyHandler(upstream.URL, "/api").ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if gotAuth != "Bearer "+b.Token() {
+		t.Fatalf("expected broker auth header, got %q", gotAuth)
+	}
+	if gotRunnerToken != "runner-secret" {
+		t.Fatalf("expected runner token to be forwarded, got %q", gotRunnerToken)
+	}
+}
+
 func TestWorkspaceShredRouteResetsBrokerWithoutShutdown(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)

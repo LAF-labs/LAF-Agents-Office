@@ -494,6 +494,14 @@ function handleComposerSubmitKey(
   return true;
 }
 
+function isIMEComposing(
+  e: React.KeyboardEvent,
+  composingRef: Pick<React.RefObject<boolean>, "current">,
+): boolean {
+  const native = e.nativeEvent as KeyboardEvent & { keyCode?: number };
+  return composingRef.current || native.isComposing || native.keyCode === 229;
+}
+
 interface ComposerSendButtonProps {
   disabled: boolean;
   label: string;
@@ -532,6 +540,130 @@ function ComposerSendButton({
   );
 }
 
+interface ComposerFieldProps {
+  composingRef: Pick<React.RefObject<boolean>, "current">;
+  handleInput: () => void;
+  handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  historyRef: Pick<React.RefObject<HistoryState>, "current">;
+  mentionTokens: ReturnType<typeof parseMentions>;
+  mirrorRef: React.RefObject<HTMLDivElement | null>;
+  placeholder: string;
+  resetRecall: () => void;
+  setCaret: Dispatch<SetStateAction<number>>;
+  setText: Dispatch<SetStateAction<string>>;
+  syncCaret: () => void;
+  syncScroll: () => void;
+  text: string;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+}
+
+function ComposerField({
+  composingRef,
+  handleInput,
+  handleKeyDown,
+  historyRef,
+  mentionTokens,
+  mirrorRef,
+  placeholder,
+  resetRecall,
+  setCaret,
+  setText,
+  syncCaret,
+  syncScroll,
+  text,
+  textareaRef,
+}: ComposerFieldProps) {
+  return (
+    <div className="composer-field">
+      {/* Mirror overlay renders mention chips while textarea stays editable. */}
+      <div ref={mirrorRef} className="composer-mirror" aria-hidden="true">
+        {renderMentionTokens(mentionTokens)}
+        {/* Trailing newline keeps mirror height aligned with the textarea. */}
+        {"\n"}
+      </div>
+      <textarea
+        ref={textareaRef}
+        className="composer-input"
+        placeholder={placeholder}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setCaret(e.target.selectionStart ?? 0);
+          handleInput();
+          syncScroll();
+          // Any manual edit cancels history recall.
+          if (historyRef.current.index !== -1) {
+            resetRecall();
+          }
+        }}
+        onKeyDown={handleKeyDown}
+        onCompositionStart={() => {
+          composingRef.current = true;
+        }}
+        onCompositionEnd={() => {
+          composingRef.current = false;
+        }}
+        onKeyUp={syncCaret}
+        onClick={syncCaret}
+        onScroll={syncScroll}
+        rows={1}
+      />
+    </div>
+  );
+}
+
+interface ComposerSendMutation {
+  isPending: boolean;
+  mutate: (message: OutboundMessage) => void;
+}
+
+interface SendComposerDraftArgs {
+  agentSlugs: string[];
+  currentChannel: string;
+  leadSlug: string | undefined;
+  mentionSlugs: string[];
+  refreshMessages: () => void;
+  resetComposer: () => void;
+  sendLockedRef: Pick<React.RefObject<boolean>, "current">;
+  sendMutation: ComposerSendMutation;
+  text: string;
+}
+
+function sendComposerDraft({
+  agentSlugs,
+  currentChannel,
+  leadSlug,
+  mentionSlugs,
+  refreshMessages,
+  resetComposer,
+  sendLockedRef,
+  sendMutation,
+  text,
+}: SendComposerDraftArgs): void {
+  const trimmed = text.trim();
+  if (!trimmed || sendMutation.isPending || sendLockedRef.current) return;
+
+  const taggedMentions = (content: string) =>
+    extractTaggedMentions(content, mentionSlugs, { allSlugs: agentSlugs });
+  const sendAsMessage = (content: string) => {
+    sendLockedRef.current = true;
+    sendMutation.mutate({ content, tagged: taggedMentions(content) });
+  };
+
+  if (
+    trimmed.startsWith("/") &&
+    handleSlashCommand(trimmed, { leadSlug, sendAsMessage, refreshMessages })
+  ) {
+    pushHistory(currentChannel, trimmed);
+    resetComposer();
+    return;
+  }
+
+  pushHistory(currentChannel, trimmed);
+  sendAsMessage(trimmed);
+  resetComposer();
+}
+
 export function Composer() {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const [text, setText] = useState("");
@@ -540,6 +672,8 @@ export function Composer() {
   const [acIdx, setAcIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
+  const composingRef = useRef(false);
+  const sendLockedRef = useRef(false);
   const queryClient = useQueryClient();
   const { data: cfg } = useQuery({
     queryKey: ["config"],
@@ -568,7 +702,6 @@ export function Composer() {
   const refreshMessages = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["messages", currentChannel] });
   }, [queryClient, currentChannel]);
-  // Reset recall when switching channels so Ctrl+P replays *this* channel.
   useEffect(() => {
     historyRef.current = emptyHistoryState();
   }, []);
@@ -594,13 +727,13 @@ export function Composer() {
     mutationFn: ({ content, tagged }: OutboundMessage) =>
       postMessage(content, currentChannel, undefined, tagged),
     onSuccess: refreshMessages,
+    onSettled: () => {
+      sendLockedRef.current = false;
+    },
     onError: (err: unknown) => {
       const message =
         err instanceof Error ? err.message : "Failed to send message";
-      // The broker blocks chat with 409 + "request pending; answer required" when
-      // an agent is waiting on the human. The InterviewBar above the composer
-      // already shows the question, so the user has somewhere to act. Never yank
-      // them away from the textbox they are typing in.
+      // Keep focus here; InterviewBar owns pending human answers.
       if (/request pending|answer required/i.test(message)) {
         showNotice("Answer the interview above to send messages.", "info");
         return;
@@ -618,40 +751,17 @@ export function Composer() {
   }, [resetRecall]);
 
   const handleSend = useCallback(() => {
-    const trimmed = text.trim();
-    if (!trimmed || sendMutation.isPending) return;
-
-    // Handle slash commands
-    if (trimmed.startsWith("/")) {
-      const consumed = handleSlashCommand(trimmed, {
-        leadSlug,
-        sendAsMessage: (rewritten) => {
-          sendMutation.mutate({
-            content: rewritten,
-            tagged: extractTaggedMentions(rewritten, mentionSlugs, {
-              allSlugs: agentSlugs,
-            }),
-          });
-        },
-        refreshMessages,
-      });
-      if (consumed) {
-        // Persist the *raw* command to history so Ctrl+P replays `/ask foo`,
-        // not the rewritten `@ceo foo`. Matches user expectation.
-        pushHistory(currentChannel, trimmed);
-        resetComposer();
-        return;
-      }
-    }
-
-    pushHistory(currentChannel, trimmed);
-    sendMutation.mutate({
-      content: trimmed,
-      tagged: extractTaggedMentions(trimmed, mentionSlugs, {
-        allSlugs: agentSlugs,
-      }),
+    sendComposerDraft({
+      agentSlugs,
+      currentChannel,
+      leadSlug,
+      mentionSlugs,
+      refreshMessages,
+      resetComposer,
+      sendLockedRef,
+      sendMutation,
+      text,
     });
-    resetComposer();
   }, [
     text,
     sendMutation,
@@ -663,10 +773,7 @@ export function Composer() {
     refreshMessages,
   ]);
 
-  /**
-   * Walk backward through history. On first invocation, snapshot the live
-   * draft so Ctrl+N can restore it. Returns true if recall succeeded.
-   */
+  // First recall snapshots the live draft so Ctrl+N can restore it.
   const recallPrevious = useCallback((): boolean => {
     const state = historyRef.current;
     if (state.index === -1) {
@@ -682,10 +789,7 @@ export function Composer() {
     return true;
   }, [currentChannel, text]);
 
-  /**
-   * Walk forward through history. When we run off the end, restore the
-   * original draft and clear recall state.
-   */
+  // Walking past the newest entry restores the original draft.
   const recallNext = useCallback((): boolean => {
     const state = historyRef.current;
     if (state.index === -1) return false;
@@ -711,6 +815,10 @@ export function Composer() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isIMEComposing(e, composingRef)) {
+        return;
+      }
+
       if (
         handleAutocompleteKey(e, {
           items: acItems,
@@ -797,35 +905,22 @@ export function Composer() {
         commands={commands}
       />
       <div className="composer-inner">
-        <div className="composer-field">
-          {/* Mirror overlay renders mention chips while textarea stays editable. */}
-          <div ref={mirrorRef} className="composer-mirror" aria-hidden="true">
-            {renderMentionTokens(mentionTokens)}
-            {/* Trailing newline keeps mirror height aligned with the textarea. */}
-            {"\n"}
-          </div>
-          <textarea
-            ref={textareaRef}
-            className="composer-input"
-            placeholder={`${placeholderPrefix} #${currentChannel}`}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setCaret(e.target.selectionStart ?? 0);
-              handleInput();
-              syncScroll();
-              // Any manual edit cancels history recall.
-              if (historyRef.current.index !== -1) {
-                resetRecall();
-              }
-            }}
-            onKeyDown={handleKeyDown}
-            onKeyUp={syncCaret}
-            onClick={syncCaret}
-            onScroll={syncScroll}
-            rows={1}
-          />
-        </div>
+        <ComposerField
+          composingRef={composingRef}
+          handleInput={handleInput}
+          handleKeyDown={handleKeyDown}
+          historyRef={historyRef}
+          mentionTokens={mentionTokens}
+          mirrorRef={mirrorRef}
+          placeholder={`${placeholderPrefix} #${currentChannel}`}
+          resetRecall={resetRecall}
+          setCaret={setCaret}
+          setText={setText}
+          syncCaret={syncCaret}
+          syncScroll={syncScroll}
+          text={text}
+          textareaRef={textareaRef}
+        />
         <ComposerSendButton
           disabled={!text.trim() || sendMutation.isPending}
           label={sendLabel}
@@ -844,5 +939,6 @@ export const __test__ = {
   pushHistory,
   resolveLeadSlug,
   askPrefix,
+  isIMEComposing,
   COMPOSER_HISTORY_LIMIT,
 };
