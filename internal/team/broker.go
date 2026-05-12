@@ -7853,6 +7853,11 @@ func (b *Broker) handleChannelMembers(w http.ResponseWriter, r *http.Request) {
 		case "add":
 			ch.Members = uniqueSlugs(append(ch.Members, member))
 		case "remove":
+			if !b.channelHasMemberLocked(channel, member) {
+				b.mu.Unlock()
+				http.Error(w, "member not in channel", http.StatusNotFound)
+				return
+			}
 			filtered := ch.Members[:0]
 			for _, existing := range ch.Members {
 				if existing != member {

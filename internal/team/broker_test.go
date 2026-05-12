@@ -1084,6 +1084,55 @@ func TestChannelMembersRejectUnknownOfficeMember(t *testing.T) {
 	}
 }
 
+func TestChannelMembersRejectRemoveWhenMemberNotInChannel(t *testing.T) {
+	b := newTestBroker(t)
+	b.mu.Lock()
+	now := time.Now().UTC().Format(time.RFC3339)
+	b.members = append(b.members, officeMember{
+		Slug:      "specialist",
+		Name:      "Specialist",
+		Role:      "Specialist",
+		CreatedAt: now,
+	})
+	b.rebuildMemberIndexLocked()
+	b.mu.Unlock()
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	body, _ := json.Marshal(map[string]any{
+		"action":  "remove",
+		"channel": "general",
+		"slug":    "specialist",
+	})
+	req, _ := http.NewRequest(http.MethodPost, base+"/channel-members", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 for non-member removal, got %d", resp.StatusCode)
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	ch := b.findChannelLocked("general")
+	if ch == nil {
+		t.Fatal("general channel missing")
+	}
+	if containsString(ch.Members, "specialist") {
+		t.Fatalf("specialist should not have been added to #general by a rejected remove: %+v", ch.Members)
+	}
+	if containsString(ch.Disabled, "specialist") {
+		t.Fatalf("specialist should not have been disabled by a rejected remove: %+v", ch.Disabled)
+	}
+}
+
 // TestChannelMembersRejectDisableOrRemoveOfLead verifies that /channel-members
 // refuses to disable or remove a BuiltIn member (lead agent) from any
 // channel. Before this guard was generalized, only the hardcoded "ceo"
