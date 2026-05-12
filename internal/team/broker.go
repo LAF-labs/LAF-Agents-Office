@@ -5597,15 +5597,27 @@ func (b *Broker) handlePolicies(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "id required", http.StatusBadRequest)
 			return
 		}
+		found := false
 		b.mu.Lock()
 		for i, p := range b.policies {
 			if p.ID == id {
-				b.policies[i].Active = false
-				_ = b.saveLocked()
+				found = true
+				if b.policies[i].Active {
+					b.policies[i].Active = false
+					if err := b.saveLocked(); err != nil {
+						b.mu.Unlock()
+						http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+						return
+					}
+				}
 				break
 			}
 		}
 		b.mu.Unlock()
+		if !found {
+			http.Error(w, "policy not found", http.StatusNotFound)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 

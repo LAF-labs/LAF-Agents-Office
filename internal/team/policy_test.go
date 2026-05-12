@@ -1,6 +1,10 @@
 package team
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -97,6 +101,39 @@ func TestBrokerDeletePolicyDeactivates(t *testing.T) {
 
 	if len(b.ListPolicies()) != 0 {
 		t.Fatal("expected 0 active policies after deactivation")
+	}
+}
+
+func TestPolicyDeleteRouteRequiresExistingPolicy(t *testing.T) {
+	b := newTestBroker(t)
+	p, err := b.RecordPolicy("human_directed", "Ask before sending external emails")
+	if err != nil {
+		t.Fatalf("record policy: %v", err)
+	}
+
+	deletePolicy := func(id string) *httptest.ResponseRecorder {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{"id": id})
+		req := httptest.NewRequest(http.MethodDelete, "/policies", bytes.NewReader(body))
+		rec := httptest.NewRecorder()
+		b.handlePolicies(rec, req)
+		return rec
+	}
+
+	missing := deletePolicy("pol-missing")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing policy delete: expected 404, got %d: %s", missing.Code, missing.Body.String())
+	}
+	if got := len(b.ListPolicies()); got != 1 {
+		t.Fatalf("missing policy delete changed active policies, got %d", got)
+	}
+
+	deleted := deletePolicy(p.ID)
+	if deleted.Code != http.StatusOK {
+		t.Fatalf("existing policy delete: expected 200, got %d: %s", deleted.Code, deleted.Body.String())
+	}
+	if got := len(b.ListPolicies()); got != 0 {
+		t.Fatalf("expected policy to be inactive after delete, got %d active", got)
 	}
 }
 
