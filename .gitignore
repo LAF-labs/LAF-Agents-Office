@@ -71,3 +71,4 @@ laf-office-dev
 
 # Local dev binary built by scripts/debug-tagging/run.sh
 /.laf-office-debug-tagging
+.vercel
