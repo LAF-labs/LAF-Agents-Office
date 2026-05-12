@@ -2402,6 +2402,22 @@ func TestResetCommandOpensConfirmation(t *testing.T) {
 	}
 }
 
+func TestShredCommandOpensConfirmation(t *testing.T) {
+	m := newChannelModel(false)
+
+	next, cmd := m.runCommand("/shred", "")
+	if cmd != nil {
+		t.Fatalf("expected no immediate command from /shred, got %v", cmd)
+	}
+	got := next.(channelModel)
+	if got.confirm == nil {
+		t.Fatal("expected shred confirmation")
+	}
+	if got.confirm.Action != confirmActionShredWorkspace {
+		t.Fatalf("expected shred-workspace confirmation, got %q", got.confirm.Action)
+	}
+}
+
 func TestPendingRequestEnterOpensReviewConfirmation(t *testing.T) {
 	m := newChannelModel(false)
 	m.pending = &channelInterview{

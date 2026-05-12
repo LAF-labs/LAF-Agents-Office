@@ -30,7 +30,6 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/tui"
-	"github.com/LAF-labs/LAF-Agents-Office/internal/workspace"
 )
 
 type channelMsg struct {
@@ -4607,17 +4606,9 @@ func (m channelModel) runCommand(trimmed, threadTarget string) (tea.Model, tea.C
 		killTeamSession()
 		return m, tea.Quit
 	case trimmed == "/shred":
-		// Full wipe: runtime + team + company + office + workflows. Next launch
-		// reopens onboarding. Done in-process so the user doesn't have to
-		// remember the CLI verb.
-		res, err := workspace.Shred()
-		if err != nil {
-			m.notice = fmt.Sprintf("shred failed: %v", err)
-			return m, nil
-		}
-		fmt.Fprintf(os.Stderr, "shred: removed %d path(s). Onboarding will reopen on next launch.\n", len(res.Removed))
-		killTeamSession()
-		return m, tea.Quit
+		m.confirm = confirmationForShredWorkspace()
+		m.notice = "Confirm workspace shred."
+		return m, nil
 	case trimmed == "/1o1":
 		clearCurrent()
 		m.picker = tui.NewPicker("Direct Session", m.buildOneOnOneModePickerOptions())

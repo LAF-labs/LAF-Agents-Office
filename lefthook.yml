@@ -35,14 +35,7 @@ pre-commit:
 
     gofmt:
       glob: "*.go"
-      run: |
-        unformatted=$(gofmt -l {staged_files})
-        if [ -n "$unformatted" ]; then
-          echo "gofmt needs to be run on:"
-          echo "$unformatted"
-          echo "Run: gofmt -w <file>"
-          exit 1
-        fi
+      run: sh scripts/check-staged-go.sh gofmt
 
     go-vet:
       glob: "*.go"
@@ -50,7 +43,7 @@ pre-commit:
 
     golangci-lint:
       glob: "*.go"
-      run: golangci-lint run ./...
+      run: sh scripts/check-staged-go.sh golangci-lint
 
     no-secrets:
       run: sh scripts/check-staged-safety.sh no-secrets

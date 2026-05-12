@@ -2,22 +2,25 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/workspace"
 )
 
 type channelConfirmAction string
 
 const (
-	confirmActionResetTeam     channelConfirmAction = "reset_team"
-	confirmActionResetDM       channelConfirmAction = "reset_dm"
-	confirmActionSwitchMode    channelConfirmAction = "switch_mode"
-	confirmActionRecoverFocus  channelConfirmAction = "recover_focus"
-	confirmActionSubmitRequest channelConfirmAction = "submit_request"
+	confirmActionResetTeam      channelConfirmAction = "reset_team"
+	confirmActionResetDM        channelConfirmAction = "reset_dm"
+	confirmActionShredWorkspace channelConfirmAction = "shred_workspace"
+	confirmActionSwitchMode     channelConfirmAction = "switch_mode"
+	confirmActionRecoverFocus   channelConfirmAction = "recover_focus"
+	confirmActionSubmitRequest  channelConfirmAction = "submit_request"
 )
 
 type channelConfirm struct {
@@ -62,6 +65,16 @@ func confirmationForResetDM(agent, channel string) *channelConfirm {
 		Action:       confirmActionResetDM,
 		Agent:        agent,
 		Channel:      channel,
+	}
+}
+
+func confirmationForShredWorkspace() *channelConfirm {
+	return &channelConfirm{
+		Title:        "Shred Workspace",
+		Detail:       "This deletes the local runtime, team roster, company identity, office state, logs, sessions, provider state, and markdown memory. Task worktrees and global config stay on disk.",
+		ConfirmLabel: "Enter shred now",
+		CancelLabel:  "Esc keep workspace",
+		Action:       confirmActionShredWorkspace,
 	}
 }
 
@@ -157,6 +170,16 @@ func (m channelModel) executeConfirmation(confirm channelConfirm) (tea.Model, te
 		m.confirm = nil
 		m.posting = true
 		return m, resetDMSession(confirm.Agent, confirm.Channel)
+	case confirmActionShredWorkspace:
+		m.confirm = nil
+		res, err := workspace.Shred()
+		if err != nil {
+			m.notice = fmt.Sprintf("shred failed: %v", err)
+			return m, nil
+		}
+		fmt.Fprintf(os.Stderr, "shred: removed %d path(s). Onboarding will reopen on next launch.\n", len(res.Removed))
+		killTeamSession()
+		return m, tea.Quit
 	case confirmActionSwitchMode:
 		m.confirm = nil
 		m.posting = true
