@@ -53,29 +53,14 @@ pre-commit:
       run: golangci-lint run ./...
 
     no-secrets:
-      run: >
-        git diff --cached --diff-filter=ACM -U0
-        | grep -iE '(api_token|password|api_key|secret)\s*=\s*[''"][^''"]+[''"]'
-        | grep -v '.example\|.fake\|fake_\|placeholder\|your_\|os.Getenv\|environ.get'
-        && echo 'Possible secret in staged changes' && exit 1
-        || true
+      run: sh scripts/check-staged-safety.sh no-secrets
 
     check-merge-conflicts:
       glob: "*.{go,yml,yaml,md,toml,json}"
-      run: grep -lE '^(<{7}|>{7}|={7})' {staged_files} && echo "Merge conflict markers found" && exit 1 || true
+      run: sh scripts/check-staged-safety.sh merge-conflicts
 
     no-large-files:
-      run: |
-        fail=0
-        for f in {staged_files}; do
-          [ -f "$f" ] || continue
-          size=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
-          if [ "${size:-0}" -gt 5242880 ]; then
-            echo "ERROR: $f exceeds 5MB ($(( size / 1048576 ))MB)"
-            fail=1
-          fi
-        done
-        [ "$fail" -eq 0 ]
+      run: sh scripts/check-staged-safety.sh no-large-files
 
     laf-superworkflow-reviewer:
       run: ./scripts/laf-superworkflow-check.sh reviewer --staged

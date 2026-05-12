@@ -58,6 +58,40 @@ function authHeaders(): Record<string, string> {
   return h;
 }
 
+function responseErrorMessage(
+  text: string,
+  status: number,
+  statusText: string,
+): string {
+  const trimmed = text.trim();
+  if (!trimmed) return `${status} ${statusText}`;
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      error?: unknown;
+      error_description?: unknown;
+      message?: unknown;
+      msg?: unknown;
+    };
+    for (const value of [
+      parsed.error,
+      parsed.message,
+      parsed.msg,
+      parsed.error_description,
+    ]) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  } catch {
+    // Plain text errors are already display-ready.
+  }
+  return trimmed;
+}
+
+async function assertOK(r: Response): Promise<void> {
+  if (r.ok) return;
+  const text = (await r.text().catch(() => "")).trim();
+  throw new Error(responseErrorMessage(text, r.status, r.statusText));
+}
+
 export async function get<T = unknown>(
   path: string,
   params?: Record<string, string | number | boolean | null | undefined>,
@@ -76,10 +110,7 @@ export async function get<T = unknown>(
     credentials: "include",
     headers: authHeaders(),
   });
-  if (!r.ok) {
-    const text = (await r.text().catch(() => "")).trim();
-    throw new Error(text || `${r.status} ${r.statusText}`);
-  }
+  await assertOK(r);
   return r.json();
 }
 
@@ -101,10 +132,7 @@ export async function getText(
     credentials: "include",
     headers: authHeaders(),
   });
-  if (!r.ok) {
-    const text = (await r.text().catch(() => "")).trim();
-    throw new Error(text || `${r.status} ${r.statusText}`);
-  }
+  await assertOK(r);
   return r.text();
 }
 
@@ -118,10 +146,7 @@ export async function post<T = unknown>(
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    const text = (await r.text().catch(() => "")).trim();
-    throw new Error(text || `${r.status} ${r.statusText}`);
-  }
+  await assertOK(r);
   return r.json();
 }
 
@@ -140,10 +165,7 @@ export async function postWithTimeout<T = unknown>(
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (!r.ok) {
-      const text = (await r.text().catch(() => "")).trim();
-      throw new Error(text || `${r.status} ${r.statusText}`);
-    }
+    await assertOK(r);
     return r.json();
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
@@ -165,10 +187,7 @@ export async function del<T = unknown>(
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    const text = (await r.text().catch(() => "")).trim();
-    throw new Error(text || `${r.status} ${r.statusText}`);
-  }
+  await assertOK(r);
   return r.json();
 }
 
@@ -246,10 +265,7 @@ export async function patchJSON<T = unknown>(
     headers: authHeaders(),
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    const text = (await r.text().catch(() => "")).trim();
-    throw new Error(text || `${r.status} ${r.statusText}`);
-  }
+  await assertOK(r);
   return r.json();
 }
 

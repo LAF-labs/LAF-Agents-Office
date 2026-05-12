@@ -160,6 +160,89 @@ test("hosted project rejects unsafe repo URLs", async (t) => {
   assert.equal(response.status, 400);
 });
 
+test("hosted auth login returns readable upstream errors", async (t) => {
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/auth/v1/token") {
+      return jsonResponse(
+        {
+          code: 400,
+          error_code: "invalid_credentials",
+          msg: "Invalid login credentials",
+        },
+        400,
+      );
+    }
+    return jsonResponse([]);
+  };
+
+  const response = await invoke(
+    ["auth", "login"],
+    "POST",
+    { email: "nobody@example.com", password: "wrongpassword" },
+    { headers: { authorization: "" } },
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error, "Invalid login credentials");
+});
+
+test("hosted auth signup returns readable upstream errors", async (t) => {
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/auth/v1/signup") {
+      return jsonResponse(
+        {
+          code: 400,
+          error_code: "validation_failed",
+          msg: "Unable to validate email address: invalid format",
+        },
+        400,
+      );
+    }
+    return jsonResponse([]);
+  };
+
+  const response = await invoke(
+    ["auth", "signup"],
+    "POST",
+    {
+      email: "not-an-email",
+      name: "Test User",
+      password: "fake-password-for-test",
+      team_action: "create",
+      team_name: "Test Team",
+    },
+    { headers: { authorization: "" } },
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(
+    response.body.error,
+    "Unable to validate email address: invalid format",
+  );
+});
+
+test("hosted auth rejects malformed JSON as a bad request", async () => {
+  const response = await invoke(
+    ["auth", "login"],
+    "POST",
+    "{not-json",
+    { headers: { authorization: "" } },
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error, "invalid JSON body");
+});
+
 test("hosted runner can register, heartbeat, lease, report, and complete", async (t) => {
   const db = {
     delivery_receipts: [],

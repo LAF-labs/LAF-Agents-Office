@@ -135,12 +135,21 @@ function requestPath(req) {
 async function readBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
   if (typeof req.body === "string" && req.body.trim()) {
-    return JSON.parse(req.body);
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      throw new HTTPError(400, "invalid JSON body");
+    }
   }
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   const text = Buffer.concat(chunks).toString("utf8").trim();
-  return text ? JSON.parse(text) : {};
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HTTPError(400, "invalid JSON body");
+  }
 }
 
 function writeJSON(res, status, payload) {
@@ -192,7 +201,10 @@ async function rest(table, options = {}) {
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new HTTPError(response.status, text || response.statusText);
+    throw new HTTPError(
+      response.status,
+      responseErrorMessage(text, response.statusText),
+    );
   }
   return text ? JSON.parse(text) : null;
 }
@@ -205,7 +217,10 @@ async function rpc(name, body = {}) {
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new HTTPError(response.status, text || response.statusText);
+    throw new HTTPError(
+      response.status,
+      responseErrorMessage(text, response.statusText),
+    );
   }
   return text ? JSON.parse(text) : null;
 }
@@ -218,9 +233,31 @@ async function authFetch(path, options = {}) {
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new HTTPError(response.status, text || response.statusText);
+    throw new HTTPError(
+      response.status,
+      responseErrorMessage(text, response.statusText),
+    );
   }
   return text ? JSON.parse(text) : null;
+}
+
+function responseErrorMessage(text, fallback) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return fallback;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === "object") {
+      for (const key of ["msg", "message", "error_description", "error"]) {
+        const value = parsed[key];
+        if (typeof value === "string" && value.trim()) {
+          return value.trim();
+        }
+      }
+    }
+  } catch {
+    // Plain-text upstream errors are already useful.
+  }
+  return trimmed || fallback;
 }
 
 function cookie(req, name) {

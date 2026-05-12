@@ -9,6 +9,7 @@ import {
   initApi,
   login,
   revokeRunner,
+  signup,
   updateProject,
   updateTask,
 } from "./client";
@@ -362,5 +363,44 @@ describe("task and session api client", () => {
         credentials: "include",
       }),
     );
+  });
+
+  it("unwraps JSON API errors before showing them to auth forms", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Invalid login credentials" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      login({ email: "nobody@example.com", password: "wrongpassword" }),
+    ).rejects.toThrow("Invalid login credentials");
+  });
+
+  it("unwraps JSON signup errors before showing them to auth forms", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "Unable to validate email address: invalid format",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      signup({
+        email: "not-an-email",
+        name: "Test User",
+        password: "fake-password-for-test",
+        team_action: "create",
+        team_name: "Test Team",
+      }),
+    ).rejects.toThrow("Unable to validate email address: invalid format");
   });
 });
