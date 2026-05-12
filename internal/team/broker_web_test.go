@@ -106,7 +106,7 @@ func TestWorkspaceShredRouteResetsBrokerWithoutShutdown(t *testing.T) {
 	}
 	defer b.Stop()
 
-	req, err := http.NewRequest(http.MethodPost, "http://"+b.Addr()+"/workspace/shred", strings.NewReader(`{}`))
+	req, err := http.NewRequest(http.MethodPost, "http://"+b.Addr()+"/workspace/shred", strings.NewReader(`{"confirm":"i can spell responsibility"}`))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestWorkspaceShredRoutePostShredBrokerAcceptsNewState(t *testing.T) {
 
 	// Trigger shred via HTTP — same path the SettingsApp danger-zone button
 	// hits via shredWorkspace() in web/src/api/client.ts.
-	shredReq, err := http.NewRequest(http.MethodPost, "http://"+b.Addr()+"/workspace/shred", strings.NewReader(`{}`))
+	shredReq, err := http.NewRequest(http.MethodPost, "http://"+b.Addr()+"/workspace/shred", strings.NewReader(`{"confirm":"i can spell responsibility"}`))
 	if err != nil {
 		t.Fatalf("new shred request: %v", err)
 	}

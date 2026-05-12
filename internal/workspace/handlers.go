@@ -3,7 +3,10 @@ package workspace
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
+
+const wipeConfirmPhrase = "i can spell responsibility"
 
 // RouteOptions controls optional side effects around workspace wipe routes.
 type RouteOptions struct {
@@ -52,6 +55,9 @@ func handleResetWithOptions(w http.ResponseWriter, r *http.Request, opts RouteOp
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !requireWipeConfirmation(w, r) {
+		return
+	}
 	res, err := ClearRuntime()
 	if err == nil && opts.ResetRuntime != nil {
 		opts.ResetRuntime()
@@ -68,11 +74,38 @@ func handleShredWithOptions(w http.ResponseWriter, r *http.Request, opts RouteOp
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !requireWipeConfirmation(w, r) {
+		return
+	}
 	res, err := Shred()
 	if err == nil && opts.ResetRuntime != nil {
 		opts.ResetRuntime()
 	}
 	writeResult(w, res, err, "/", opts.ResetRuntime == nil)
+}
+
+func requireWipeConfirmation(w http.ResponseWriter, r *http.Request) bool {
+	var body struct {
+		Confirm string `json:"confirm"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeBadRequest(w, "confirmation phrase required")
+		return false
+	}
+	if strings.TrimSpace(strings.ToLower(body.Confirm)) != wipeConfirmPhrase {
+		writeBadRequest(w, "confirmation phrase required")
+		return false
+	}
+	return true
+}
+
+func writeBadRequest(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok":    false,
+		"error": message,
+	})
 }
 
 func writeResult(w http.ResponseWriter, res Result, err error, redirect string, restartRequired bool) {

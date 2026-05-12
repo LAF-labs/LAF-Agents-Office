@@ -28,6 +28,10 @@ func decodeBody(t *testing.T, body string) map[string]any {
 	return out
 }
 
+func confirmedWipeRequest(method, path string) *http.Request {
+	return httptest.NewRequest(method, path, strings.NewReader(`{"confirm":"i can spell responsibility"}`))
+}
+
 func TestResetHandlerRejectsNonPost(t *testing.T) {
 	withRuntimeHome(t)
 	req := httptest.NewRequest(http.MethodGet, "/workspace/reset", nil)
@@ -42,7 +46,7 @@ func TestResetHandlerClearsBrokerRuntimeOnly(t *testing.T) {
 	dir := withRuntimeHome(t)
 	paths := seedWorkspace(t, dir)
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace/reset", nil)
+	req := confirmedWipeRequest(http.MethodPost, "/workspace/reset")
 	w := httptest.NewRecorder()
 	newMux().ServeHTTP(w, req)
 
@@ -61,6 +65,20 @@ func TestResetHandlerClearsBrokerRuntimeOnly(t *testing.T) {
 	}
 }
 
+func TestResetHandlerRejectsMissingConfirmation(t *testing.T) {
+	dir := withRuntimeHome(t)
+	paths := seedWorkspace(t, dir)
+
+	req := httptest.NewRequest(http.MethodPost, "/workspace/reset", strings.NewReader(`{}`))
+	w := httptest.NewRecorder()
+	newMux().ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	assertStays(t, "brokerState", paths["brokerState"])
+}
+
 func TestShredHandlerRejectsNonPost(t *testing.T) {
 	withRuntimeHome(t)
 	req := httptest.NewRequest(http.MethodGet, "/workspace/shred", nil)
@@ -75,7 +93,7 @@ func TestShredHandlerWipesWorkspace(t *testing.T) {
 	dir := withRuntimeHome(t)
 	paths := seedWorkspace(t, dir)
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace/shred", nil)
+	req := confirmedWipeRequest(http.MethodPost, "/workspace/shred")
 	w := httptest.NewRecorder()
 	newMux().ServeHTTP(w, req)
 
@@ -99,11 +117,26 @@ func TestShredHandlerWipesWorkspace(t *testing.T) {
 	assertStays(t, "worktree", paths["worktree"])
 }
 
+func TestShredHandlerRejectsMissingConfirmation(t *testing.T) {
+	dir := withRuntimeHome(t)
+	paths := seedWorkspace(t, dir)
+
+	req := httptest.NewRequest(http.MethodPost, "/workspace/shred", strings.NewReader(`{}`))
+	w := httptest.NewRecorder()
+	newMux().ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	assertStays(t, "company", paths["company"])
+	assertStays(t, "brokerState", paths["brokerState"])
+}
+
 func TestShredHandlerReportsRemovedPaths(t *testing.T) {
 	dir := withRuntimeHome(t)
 	seedWorkspace(t, dir)
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace/shred", nil)
+	req := confirmedWipeRequest(http.MethodPost, "/workspace/shred")
 	w := httptest.NewRecorder()
 	newMux().ServeHTTP(w, req)
 
@@ -139,7 +172,7 @@ func TestShredHandlerOnEmptyHomeIsOK(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace/shred", nil)
+	req := confirmedWipeRequest(http.MethodPost, "/workspace/shred")
 	w := httptest.NewRecorder()
 	newMux().ServeHTTP(w, req)
 
@@ -158,7 +191,7 @@ func TestShredHandlerResetsLiveRuntimeWithoutRestartHint(t *testing.T) {
 		ResetRuntime: func() { resetCalls++ },
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/workspace/shred", nil)
+	req := confirmedWipeRequest(http.MethodPost, "/workspace/shred")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

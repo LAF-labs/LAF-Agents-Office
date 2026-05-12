@@ -8,7 +8,9 @@ import {
   getRunnerStatus,
   initApi,
   login,
+  resetWorkspace,
   revokeRunner,
+  shredWorkspace,
   signup,
   updateProject,
   updateTask,
@@ -236,6 +238,37 @@ describe("runner api client", () => {
       }),
     );
     expect(result.runner.status).toBe("revoked");
+  });
+
+  it("sends the typed confirmation phrase with workspace wipes", async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await resetWorkspace("i can spell responsibility");
+    await shredWorkspace("i can spell responsibility");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspace/reset",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ confirm: "i can spell responsibility" }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspace/shred",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ confirm: "i can spell responsibility" }),
+      }),
+    );
   });
 });
 

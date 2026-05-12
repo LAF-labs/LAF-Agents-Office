@@ -1236,13 +1236,21 @@ export interface WorkspaceWipeResult {
 // Team roster, company identity, tasks, and workflows all survive. Call
 // window.location.reload() after success so the UI picks up the empty
 // broker state.
-export function resetWorkspace() {
-  return postWithTimeout<WorkspaceWipeResult>("/workspace/reset", {}, 20_000);
+export function resetWorkspace(confirmPhrase: string) {
+  return postWithTimeout<WorkspaceWipeResult>(
+    "/workspace/reset",
+    { confirm: confirmPhrase },
+    20_000,
+  );
 }
 
 // shredWorkspace is the full wipe: broker runtime + team + company + office,
 // workflows, logs, sessions, provider state, and local markdown memory.
 // The broker resets in place after success so onboarding can reopen immediately.
-export function shredWorkspace() {
-  return postWithTimeout<WorkspaceWipeResult>("/workspace/shred", {}, 20_000);
+export function shredWorkspace(confirmPhrase: string) {
+  return postWithTimeout<WorkspaceWipeResult>(
+    "/workspace/shred",
+    { confirm: confirmPhrase },
+    20_000,
+  );
 }

@@ -2277,7 +2277,7 @@ interface WipeModalProps {
   intro: ReactNode;
   confirmLabel: string;
   busy: boolean;
-  onConfirm: () => void;
+  onConfirm: (confirmPhrase: string) => void;
   onCancel: () => void;
 }
 
@@ -2341,7 +2341,9 @@ function WipeModal({
           <button
             type="button"
             style={dangerStyles.modalConfirm(severity, enabled)}
-            onClick={enabled ? onConfirm : undefined}
+            onClick={
+              enabled ? () => onConfirm(value.trim().toLowerCase()) : undefined
+            }
             disabled={!enabled}
           >
             {busy ? t("common.working") : String(confirmLabel)}
@@ -2361,10 +2363,10 @@ function DangerZoneSection() {
   const queryClient = useQueryClient();
   const resetForOnboarding = useAppStore((s) => s.resetForOnboarding);
 
-  const handleReset = async () => {
+  const handleReset = async (confirmPhrase: string) => {
     setBusy(true);
     try {
-      const result: WorkspaceWipeResult = await resetWorkspace();
+      const result: WorkspaceWipeResult = await resetWorkspace(confirmPhrase);
       if (!result.ok) {
         showNotice(result.error || t("settings.danger.resetFailed"), "error");
         setBusy(false);
@@ -2381,10 +2383,10 @@ function DangerZoneSection() {
     }
   };
 
-  const handleShred = async () => {
+  const handleShred = async (confirmPhrase: string) => {
     setBusy(true);
     try {
-      const result: WorkspaceWipeResult = await shredWorkspace();
+      const result: WorkspaceWipeResult = await shredWorkspace(confirmPhrase);
       if (!result.ok) {
         showNotice(result.error || t("settings.danger.shredFailed"), "error");
         setBusy(false);
