@@ -333,4 +333,34 @@ describe("task and session api client", () => {
       }),
     );
   });
+
+  it("keeps same-origin proxy mode when hosted /api-token falls through to index.html", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("<!doctype html><html></html>", {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response("invalid credentials", { status: 401 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await initApi();
+
+    await expect(
+      login({ email: "nobody@example.com", password: "wrongpassword" }),
+    ).rejects.toThrow("invalid credentials");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/auth/login",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      }),
+    );
+  });
 });

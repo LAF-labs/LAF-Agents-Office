@@ -18,6 +18,12 @@ export async function initApi(): Promise<void> {
       token = null;
       return;
     }
+    const contentType = r.headers.get("Content-Type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      useProxy = true;
+      token = null;
+      return;
+    }
     const data = await r.json();
     const { broker_url: brokerURL, token: apiToken } = data;
     token = apiToken;
