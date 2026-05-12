@@ -7874,10 +7874,17 @@ func (b *Broker) handleChannelMembers(w http.ResponseWriter, r *http.Request) {
 			ch.Disabled = disabled
 		case "disable":
 			if !b.channelHasMemberLocked(channel, member) {
-				ch.Members = uniqueSlugs(append(ch.Members, member))
+				b.mu.Unlock()
+				http.Error(w, "member not in channel", http.StatusNotFound)
+				return
 			}
 			ch.Disabled = uniqueSlugs(append(ch.Disabled, member))
 		case "enable":
+			if !b.channelHasMemberLocked(channel, member) {
+				b.mu.Unlock()
+				http.Error(w, "member not in channel", http.StatusNotFound)
+				return
+			}
 			filtered := ch.Disabled[:0]
 			for _, existing := range ch.Disabled {
 				if existing != member {
