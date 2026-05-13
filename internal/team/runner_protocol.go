@@ -52,39 +52,45 @@ type hostedRunner struct {
 }
 
 type runnerCapabilities struct {
-	ProviderRuntimes []string `json:"provider_runtimes,omitempty"`
-	ExecutionModes   []string `json:"execution_modes,omitempty"`
-	GitAvailable     bool     `json:"git_available"`
-	GitVersion       string   `json:"git_version,omitempty"`
-	GHAvailable      bool     `json:"gh_available"`
-	GHAuthenticated  bool     `json:"gh_authenticated"`
-	OS               string   `json:"os,omitempty"`
-	Arch             string   `json:"arch,omitempty"`
-	Hostname         string   `json:"hostname,omitempty"`
-	WorkspaceRoot    string   `json:"workspace_root,omitempty"`
+	ProviderRuntimes []string       `json:"provider_runtimes,omitempty"`
+	ExecutionModes   []string       `json:"execution_modes,omitempty"`
+	CLIDetails       map[string]any `json:"cli_details,omitempty"`
+	GitAvailable     bool           `json:"git_available"`
+	GitVersion       string         `json:"git_version,omitempty"`
+	GHAvailable      bool           `json:"gh_available"`
+	GHAuthenticated  bool           `json:"gh_authenticated"`
+	OS               string         `json:"os,omitempty"`
+	Arch             string         `json:"arch,omitempty"`
+	Hostname         string         `json:"hostname,omitempty"`
+	WorkspaceRoot    string         `json:"workspace_root,omitempty"`
 }
 
 type runnerJob struct {
-	ID                string            `json:"job_id"`
-	TeamID            string            `json:"team_id"`
-	ProjectID         string            `json:"project_id,omitempty"`
-	TaskID            string            `json:"task_id,omitempty"`
-	RunnerID          string            `json:"runner_id,omitempty"`
-	AgentSlug         string            `json:"agent_slug,omitempty"`
-	ExecutionMode     string            `json:"execution_mode,omitempty"`
-	ProviderKind      string            `json:"provider_kind,omitempty"`
-	RequiredProvider  string            `json:"-"`
-	Status            string            `json:"status"`
-	AgentMemoryPacket AgentMemoryPacket `json:"agent_memory_packet,omitempty"`
-	RepoURL           string            `json:"repo_url,omitempty"`
-	WikiPath          string            `json:"wiki_path,omitempty"`
-	LeaseExpiresAt    string            `json:"lease_expires_at,omitempty"`
-	Attempts          int               `json:"attempts,omitempty"`
-	LastError         string            `json:"last_error,omitempty"`
-	CreatedAt         string            `json:"created_at"`
-	UpdatedAt         string            `json:"updated_at,omitempty"`
-	StartedAt         string            `json:"started_at,omitempty"`
-	CompletedAt       string            `json:"completed_at,omitempty"`
+	ID                   string            `json:"job_id"`
+	TeamID               string            `json:"team_id"`
+	ProjectID            string            `json:"project_id,omitempty"`
+	TaskID               string            `json:"task_id,omitempty"`
+	RunnerID             string            `json:"runner_id,omitempty"`
+	AgentSlug            string            `json:"agent_slug,omitempty"`
+	ExecutionMode        string            `json:"execution_mode,omitempty"`
+	ProviderKind         string            `json:"provider_kind,omitempty"`
+	RequiredProvider     string            `json:"-"`
+	Status               string            `json:"status"`
+	AgentMemoryPacket    AgentMemoryPacket `json:"agent_memory_packet,omitempty"`
+	RequestedBy          string            `json:"requested_by,omitempty"`
+	EffectivePermissions []string          `json:"effective_permissions,omitempty"`
+	ModelMode            string            `json:"model_mode,omitempty"`
+	IntentID             string            `json:"intent_id,omitempty"`
+	ConfirmationID       string            `json:"confirmation_id,omitempty"`
+	RepoURL              string            `json:"repo_url,omitempty"`
+	WikiPath             string            `json:"wiki_path,omitempty"`
+	LeaseExpiresAt       string            `json:"lease_expires_at,omitempty"`
+	Attempts             int               `json:"attempts,omitempty"`
+	LastError            string            `json:"last_error,omitempty"`
+	CreatedAt            string            `json:"created_at"`
+	UpdatedAt            string            `json:"updated_at,omitempty"`
+	StartedAt            string            `json:"started_at,omitempty"`
+	CompletedAt          string            `json:"completed_at,omitempty"`
 }
 
 func (j *runnerJob) UnmarshalJSON(data []byte) error {
@@ -236,6 +242,7 @@ func detectLocalRunnerCapabilities(workspaceRoot string) runnerCapabilities {
 		Arch:          runtime.GOARCH,
 		Hostname:      hostname,
 		WorkspaceRoot: strings.TrimSpace(workspaceRoot),
+		CLIDetails:    map[string]any{},
 	}
 	if caps.WorkspaceRoot == "" {
 		caps.WorkspaceRoot, _ = os.Getwd()
@@ -254,18 +261,29 @@ func detectLocalRunnerCapabilities(workspaceRoot string) runnerCapabilities {
 	}
 	if commandExists("claude", "claude-code") {
 		caps.ProviderRuntimes = append(caps.ProviderRuntimes, "claude-code")
+		caps.CLIDetails["claude-code"] = runnerCLIDetail("claude")
 	}
 	if commandExists("codex") {
 		caps.ProviderRuntimes = append(caps.ProviderRuntimes, "codex")
+		caps.CLIDetails["codex"] = runnerCLIDetail("codex")
 	}
 	if commandExists("opencode") {
 		caps.ProviderRuntimes = append(caps.ProviderRuntimes, "opencode")
+		caps.CLIDetails["opencode"] = runnerCLIDetail("opencode")
 	}
 	caps.ExecutionModes = []string{executionModeOffice}
 	if caps.GitAvailable {
 		caps.ExecutionModes = append(caps.ExecutionModes, executionModeLocalWorktree)
 	}
 	return normalizeRunnerCapabilities(caps)
+}
+
+func runnerCLIDetail(name string) map[string]string {
+	detail := map[string]string{"detected": "true"}
+	if path, err := exec.LookPath(name); err == nil {
+		detail["path"] = path
+	}
+	return detail
 }
 
 func runnerCommandOutputWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
@@ -528,6 +546,8 @@ func (b *Broker) enqueueRunnerJobForTaskLocked(task teamTask, now time.Time) run
 		ProviderKind:      b.runnerJobProviderKindForTaskLocked(task),
 		Status:            runnerJobStatusQueued,
 		AgentMemoryPacket: b.agentMemoryPacketForTaskLocked(task),
+		RequestedBy:       firstNonEmptyString(task.HumanOwnerUserID, task.CreatedBy),
+		ModelMode:         normalizeModelMode(task.ModelMode),
 		RepoURL:           repoURL,
 		WikiPath:          projectWikiArticlePath(task.ProjectID),
 		CreatedAt:         nowText,
@@ -535,6 +555,9 @@ func (b *Broker) enqueueRunnerJobForTaskLocked(task teamTask, now time.Time) run
 	}
 	if job.TeamID == "" {
 		job.TeamID = "team-local"
+	}
+	if requester := b.findAuthUserByIDLocked(strings.TrimSpace(job.RequestedBy)); requester != nil {
+		job.EffectivePermissions = effectivePermissions(requester.Role, requester.Permissions)
 	}
 	b.runnerJobs = append(b.runnerJobs, job)
 	return job

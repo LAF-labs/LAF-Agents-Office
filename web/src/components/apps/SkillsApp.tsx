@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flash } from "iconoir-react";
 
 import {
@@ -8,6 +8,7 @@ import {
   invokeSkill,
   type Skill,
   type UsageData,
+  updateSkill,
 } from "../../api/client";
 import {
   fetchCatalog as fetchNotebookCatalog,
@@ -200,9 +201,9 @@ function GrowthLoop() {
     "Learned updates",
   ];
   return (
-    <div className="skills-loop" aria-label="Workspace growth loop">
+    <div className="skills-loop" role="list" aria-label="Workspace growth loop">
       {steps.map((step, index) => (
-        <div className="skills-loop-step" key={step}>
+        <div className="skills-loop-step" key={step} role="listitem">
           <span className="skills-loop-index">{index + 1}</span>
           <span>{step}</span>
         </div>
@@ -498,6 +499,7 @@ function SkillList() {
 
 function SkillRow({ skill }: { skill: Skill }) {
   const source = skill.source || skill.channel || skill.created_by || "-";
+  const isProposed = (skill.status || "active") === "proposed";
   return (
     <tr>
       <td>
@@ -531,9 +533,61 @@ function SkillRow({ skill }: { skill: Skill }) {
       </td>
       <td>{source}</td>
       <td>
-        <InvokeSkillButton skill={skill} />
+        {isProposed ? (
+          <SkillApprovalActions skill={skill} />
+        ) : (
+          <InvokeSkillButton skill={skill} />
+        )}
       </td>
     </tr>
+  );
+}
+
+function SkillApprovalActions({ skill }: { skill: Skill }) {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<"idle" | "approving" | "rejecting">(
+    "idle",
+  );
+
+  const updateStatus = useCallback(
+    (status: "active" | "rejected") => {
+      if (!skill.name) return;
+      setState(status === "active" ? "approving" : "rejecting");
+      updateSkill({ name: skill.name, status })
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["skills"] });
+          showNotice(
+            status === "active" ? "Skill approved." : "Skill rejected.",
+            "success",
+          );
+        })
+        .catch((e: Error) => {
+          showNotice(`Skill update failed: ${e.message}`, "error");
+        })
+        .finally(() => setState("idle"));
+    },
+    [queryClient, skill.name],
+  );
+
+  return (
+    <div className="skills-action-row">
+      <button
+        type="button"
+        className="skills-invoke"
+        disabled={state !== "idle" || !skill.name}
+        onClick={() => updateStatus("active")}
+      >
+        Approve
+      </button>
+      <button
+        type="button"
+        className="skills-invoke is-danger"
+        disabled={state !== "idle" || !skill.name}
+        onClick={() => updateStatus("rejected")}
+      >
+        Reject
+      </button>
+    </div>
   );
 }
 
@@ -725,20 +779,42 @@ function sortPlaybookMaturityRows(
   rows: PlaybookMaturityRow[],
 ): PlaybookMaturityRow[] {
   return [...rows].sort((a, b) => {
-    if (a.playbook.skill_exists !== b.playbook.skill_exists) {
-      return a.playbook.skill_exists ? 1 : -1;
-    }
-    const aPending = a.status?.executions_since_last_synthesis ?? 0;
-    const bPending = b.status?.executions_since_last_synthesis ?? 0;
-    if (aPending > 0 !== bPending > 0) return aPending > 0 ? -1 : 1;
-    if (bPending !== aPending) return bPending - aPending;
-    if (b.playbook.execution_count !== a.playbook.execution_count) {
-      return b.playbook.execution_count - a.playbook.execution_count;
-    }
-    return (a.playbook.title || a.playbook.slug).localeCompare(
-      b.playbook.title || b.playbook.slug,
+    return (
+      comparePlaybookSkillState(a.playbook, b.playbook) ||
+      comparePendingExecutions(a, b) ||
+      comparePlaybookExecutionCount(a.playbook, b.playbook) ||
+      comparePlaybookTitle(a.playbook, b.playbook)
     );
   });
+}
+
+function comparePlaybookSkillState(
+  a: PlaybookSummary,
+  b: PlaybookSummary,
+): number {
+  if (a.skill_exists === b.skill_exists) return 0;
+  return a.skill_exists ? 1 : -1;
+}
+
+function comparePendingExecutions(
+  a: PlaybookMaturityRow,
+  b: PlaybookMaturityRow,
+): number {
+  const aPending = a.status?.executions_since_last_synthesis ?? 0;
+  const bPending = b.status?.executions_since_last_synthesis ?? 0;
+  if (aPending > 0 !== bPending > 0) return aPending > 0 ? -1 : 1;
+  return bPending - aPending;
+}
+
+function comparePlaybookExecutionCount(
+  a: PlaybookSummary,
+  b: PlaybookSummary,
+): number {
+  return b.execution_count - a.execution_count;
+}
+
+function comparePlaybookTitle(a: PlaybookSummary, b: PlaybookSummary): number {
+  return (a.title || a.slug).localeCompare(b.title || b.slug);
 }
 
 function sortSkillsByUpdated(skills: Skill[]): Skill[] {

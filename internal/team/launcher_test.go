@@ -685,13 +685,13 @@ func TestNotificationTargetsExplicitTagsAlwaysDeliverRegardlessOfDomain(t *testi
 	}
 }
 
-func TestTicketThreadCommentsBypassPendingInterviewGate(t *testing.T) {
+func TestTaskThreadCommentsBypassPendingInterviewGate(t *testing.T) {
 	if !messageBypassesPendingInterview(channelMessage{
 		From:    "you",
 		ReplyTo: "task-7",
 		Content: "@engineer any update?",
 	}) {
-		t.Fatal("expected human ticket-thread comment to bypass the pending interview gate")
+		t.Fatal("expected human task-thread comment to bypass the pending interview gate")
 	}
 	if messageBypassesPendingInterview(channelMessage{
 		From:    "you",
@@ -710,10 +710,10 @@ func TestTicketThreadCommentsBypassPendingInterviewGate(t *testing.T) {
 
 func TestTaskCreationBypassesPendingInterviewGate(t *testing.T) {
 	if !taskActionBypassesPendingInterview(officeActionLog{Kind: "task_created"}) {
-		t.Fatal("new tickets should still wake their assignee when an old request is pending")
+		t.Fatal("new tasks should still wake their assignee when an old request is pending")
 	}
 	if !taskActionBypassesPendingInterview(officeActionLog{Kind: "task_unblocked"}) {
-		t.Fatal("unblocked tickets should still wake their assignee when an old request is pending")
+		t.Fatal("unblocked tasks should still wake their assignee when an old request is pending")
 	}
 	if taskActionBypassesPendingInterview(officeActionLog{Kind: "task_updated"}) {
 		t.Fatal("ordinary task updates should still pause behind a pending interview")
@@ -1000,7 +1000,7 @@ func TestBuildTaskExecutionPacketLocalWorktreeForbidsNestedOffice(t *testing.T) 
 	}
 }
 
-func TestBuildTaskExecutionPacketRoutesFallbackToTicketChat(t *testing.T) {
+func TestBuildTaskExecutionPacketRoutesFallbackToTaskChat(t *testing.T) {
 	l := &Launcher{}
 	got := l.buildTaskExecutionPacket("eng", officeActionLog{
 		Kind:  "task_created",
@@ -1012,9 +1012,9 @@ func TestBuildTaskExecutionPacketRoutesFallbackToTicketChat(t *testing.T) {
 		Title:    "Fix payment delay",
 		Owner:    "eng",
 		Status:   "in_progress",
-	}, "Start this ticket.")
+	}, "Start this task.")
 	if !strings.Contains(got, `reply_to_id "task-42"`) {
-		t.Fatalf("expected ticket chat reply_to_id in task packet: %q", got)
+		t.Fatalf("expected task chat reply_to_id in task packet: %q", got)
 	}
 }
 

@@ -4975,7 +4975,7 @@ func TestBrokerGetRequestsScopeAllSeesCrossChannelBlocker(t *testing.T) {
 	}
 }
 
-func TestBrokerAllowsThreadedTicketChatWithPendingRequest(t *testing.T) {
+func TestBrokerAllowsThreadedTaskChatWithPendingRequest(t *testing.T) {
 	b := newTestBroker(t)
 	ensureTestMemberAccess(b, "general", "ceo", "CEO")
 	ensureTestMemberAccess(b, "general", "human", "Human")
@@ -5026,7 +5026,7 @@ func TestBrokerAllowsThreadedTicketChatWithPendingRequest(t *testing.T) {
 	threadBody, _ := json.Marshal(map[string]any{
 		"from":     "human",
 		"channel":  "general",
-		"content":  "This belongs to the ticket thread.",
+		"content":  "This belongs to the task thread.",
 		"reply_to": "task-123",
 	})
 	req, _ = http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(threadBody))
@@ -5038,7 +5038,7 @@ func TestBrokerAllowsThreadedTicketChatWithPendingRequest(t *testing.T) {
 	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 for threaded ticket chat, got %d", resp.StatusCode)
+		t.Fatalf("expected 200 for threaded task chat, got %d", resp.StatusCode)
 	}
 
 	req, _ = http.NewRequest(http.MethodGet, base+"/messages?channel=general&thread_id=task-123", nil)
@@ -5054,8 +5054,8 @@ func TestBrokerAllowsThreadedTicketChatWithPendingRequest(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&messages); err != nil {
 		t.Fatalf("decode thread messages: %v", err)
 	}
-	if len(messages.Messages) != 1 || messages.Messages[0].Content != "This belongs to the ticket thread." {
-		t.Fatalf("expected threaded ticket message, got %+v", messages.Messages)
+	if len(messages.Messages) != 1 || messages.Messages[0].Content != "This belongs to the task thread." {
+		t.Fatalf("expected threaded task message, got %+v", messages.Messages)
 	}
 }
 
@@ -5932,8 +5932,8 @@ func TestSkillProposalRejectCallbackArchivesSkill(t *testing.T) {
 	b.mu.Lock()
 	status := b.skills[0].Status
 	b.mu.Unlock()
-	if status != "archived" {
-		t.Fatalf("expected skill status 'archived' after reject, got %q", status)
+	if status != "rejected" {
+		t.Fatalf("expected skill status 'rejected' after reject, got %q", status)
 	}
 }
 

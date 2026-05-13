@@ -1,11 +1,11 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    LAF-Office Theme
    Legacy light product chrome.
    Kept under data-theme="office" for compatibility with stored settings.
-   ═══════════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 
 html[data-theme="office"] {
-  /* ── Legacy-compatible ramps ── */
+  /* ?? Legacy-compatible ramps ?? */
   --neutral-950: #0a0d14;
   --neutral-900: #111827;
   --neutral-800: #1f2937;
@@ -57,7 +57,7 @@ html[data-theme="office"] {
   --warning-200: #f7deab;
   --warning-100: #fbf5dc;
 
-  /* ── Overlays (unified) ── */
+  /* ?? Overlays (unified) ?? */
   --overlay-soft: rgba(17, 24, 39, 0.045);
   --overlay: rgba(17, 24, 39, 0.08);
   --overlay-strong: rgba(17, 24, 39, 0.18);
@@ -66,7 +66,7 @@ html[data-theme="office"] {
   --overlay-white: rgba(255, 255, 255, 0.64);
   --overlay-white-strong: rgba(255, 255, 255, 0.82);
 
-  /* ── Semantic aliases ── */
+  /* ?? Semantic aliases ?? */
   --bg: #f7f8fa;
   --bg-warm: #f1f3f5;
   --bg-subtle: #f4f6f8;
@@ -117,7 +117,7 @@ html[data-theme="office"] {
   --shadow-md:
     0 2px 6px rgba(15, 23, 42, 0.06), 0 24px 70px rgba(48, 70, 110, 0.12);
 
-  /* ── Typography ── */
+  /* ?? Typography ?? */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
@@ -125,7 +125,7 @@ html[data-theme="office"] {
     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
-  /* ── Radii ── */
+  /* ?? Radii ?? */
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 18px;
@@ -133,7 +133,7 @@ html[data-theme="office"] {
   --radius-2xl: 30px;
   --radius-full: 9999px;
 
-  /* ── Sidebar ── */
+  /* ?? Sidebar ?? */
   --office-sidebar: rgba(245, 246, 248, 0.86);
   --office-sidebar-hover: rgba(10, 132, 255, 0.08);
   --office-sidebar-active: rgba(10, 132, 255, 0.14);
@@ -141,19 +141,19 @@ html[data-theme="office"] {
   --office-sidebar-text-active: #111827;
   --office-presence: #12b76a;
 
-  /* ── Request kind accents ── */
+  /* ?? Request kind accents ?? */
   --input-kind: var(--brand-600);
   --input-kind-bg: rgba(10, 132, 255, 0.1);
 }
 
-/* ═══ BASE ═══ */
+/* ?먥븧??BASE ?먥븧??*/
 html[data-theme^="office"] body {
   background: var(--bg);
   font-family: var(--font-sans);
   color: var(--text);
 }
 
-/* ═══ SCROLLBAR ═══ */
+/* ?먥븧??SCROLLBAR ?먥븧??*/
 html[data-theme^="office"] ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -169,15 +169,15 @@ html[data-theme^="office"] ::-webkit-scrollbar-thumb:hover {
   background: var(--border-dark);
 }
 
-/* ═══ SELECTION ═══ */
+/* ?먥븧??SELECTION ?먥븧??*/
 html[data-theme^="office"] ::selection {
   background: var(--accent-bg);
   color: var(--text);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    SIDEBAR
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .sidebar {
   background: var(--office-sidebar);
   border-right: 1px solid rgba(0, 0, 0, 0.12);
@@ -281,7 +281,7 @@ html[data-theme^="office"] .sidebar .sidebar-hint {
   color: rgba(255, 255, 255, 0.55);
 }
 
-/* ── Sticky header ── */
+/* ?? Sticky header ?? */
 html[data-theme^="office"] .sidebar-header {
   background: var(--office-sidebar);
   border-bottom: 1px solid var(--border);
@@ -308,7 +308,7 @@ html[data-theme^="office"] .sidebar-header .sidebar-btn:hover {
   color: var(--text);
 }
 
-/* ── Summary & hint ── */
+/* ?? Summary & hint ?? */
 html[data-theme^="office"] .sidebar-summary {
   padding: 6px 20px 2px;
   font-size: 11px;
@@ -319,7 +319,7 @@ html[data-theme^="office"] .sidebar-hint {
   font-size: 11px;
 }
 
-/* ── Section titles ── (padding defined in layout.css) */
+/* ?? Section titles ?? (padding defined in layout.css) */
 html[data-theme^="office"] .sidebar-section-title {
   color: var(--text-tertiary);
   font-family: var(--font-sans);
@@ -338,9 +338,9 @@ html[data-theme^="office"] .sidebar .sidebar-section-title:hover {
   color: #ffffff;
 }
 
-/* ── Scrollable middle area (layout.css owns padding + overflow) ── */
+/* ?? Scrollable middle area (layout.css owns padding + overflow) ?? */
 
-/* ── Sidebar items (color/typography only; layout in layout.css) ── */
+/* ?? Sidebar items (color/typography only; layout in layout.css) ?? */
 html[data-theme^="office"] .sidebar-item {
   color: var(--office-sidebar-text);
   font-family: var(--font-sans);
@@ -373,7 +373,7 @@ html[data-theme^="office"] .sidebar-item-emoji {
   flex-shrink: 0;
 }
 
-/* ── Status dot ── */
+/* ?? Status dot ?? */
 html[data-theme^="office"] .status-dot {
   width: 6px;
   height: 6px;
@@ -385,14 +385,14 @@ html[data-theme^="office"] .status-dot.active {
   border: none;
 }
 
-/* ── Header button sizes ── */
+/* ?? Header button sizes ?? */
 html[data-theme^="office"] .sidebar-btn-sm {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
 }
 
-/* ── Sticky bottom bar (color owned by sidebar rules above) ── */
+/* ?? Sticky bottom bar (color owned by sidebar rules above) ?? */
 html[data-theme^="office"] .usage-toggle {
   flex-shrink: 0;
   font-size: 11px;
@@ -420,7 +420,7 @@ html[data-theme^="office"] #theme-switcher {
   font-size: 12px;
 }
 
-/* ── Sidebar collapse chevron ── */
+/* ?? Sidebar collapse chevron ?? */
 html[data-theme^="office"] .sidebar-section-chevron {
   font-size: 10px;
   transition: transform 0.15s ease;
@@ -434,7 +434,7 @@ html[data-theme^="office"] .sidebar-section-chevron.collapsed {
   transform: rotate(0deg);
 }
 
-/* ── Unread channel ── */
+/* ?? Unread channel ?? */
 html[data-theme^="office"] .sidebar-item.unread {
   color: var(--office-sidebar-text-active);
   font-weight: 600;
@@ -452,7 +452,7 @@ html[data-theme^="office"] .sidebar-item.unread::before {
   transform: translateY(-50%);
 }
 
-/* ── Workspace dropdown ── */
+/* ?? Workspace dropdown ?? */
 html[data-theme^="office"] .workspace-dropdown {
   position: absolute;
   top: 100%;
@@ -500,7 +500,7 @@ html[data-theme^="office"] .workspace-dropdown-sep {
   margin: 4px 0;
 }
 
-/* ── Starred channels ── */
+/* ?? Starred channels ?? */
 html[data-theme^="office"] .sidebar-star {
   opacity: 0;
   cursor: pointer;
@@ -522,7 +522,7 @@ html[data-theme^="office"] .sidebar-star.starred {
   color: var(--yellow);
 }
 
-/* ── Sidebar badge (notification count) ── */
+/* ?? Sidebar badge (notification count) ?? */
 html[data-theme^="office"] .sidebar-badge {
   min-width: 18px;
   height: 18px;
@@ -530,21 +530,21 @@ html[data-theme^="office"] .sidebar-badge {
   margin-left: auto;
 }
 
-/* ── Pixel avatar alignment ── */
+/* ?? Pixel avatar alignment ?? */
 html[data-theme^="office"] .pixel-avatar-sidebar {
   width: 24px;
   height: 24px;
   flex-shrink: 0;
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    MAIN AREA
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .main {
   background: var(--bg);
 }
 
-/* ── Channel header ── */
+/* ?? Channel header ?? */
 html[data-theme^="office"] .channel-header {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -563,7 +563,7 @@ html[data-theme^="office"] .channel-desc {
   color: var(--text-tertiary);
 }
 
-/* ── Messages ── */
+/* ?? Messages ?? */
 html[data-theme^="office"] .messages {
   background: var(--bg);
   padding: 8px 24px;
@@ -641,7 +641,7 @@ html[data-theme^="office"] .mention {
   padding: 1px 4px;
 }
 /* Composer mirror: the chip MUST use the same character metrics as the
-   textarea behind it, otherwise the caret drifts — `@pm` in the mirror
+   textarea behind it, otherwise the caret drifts ??`@pm` in the mirror
    was rendering with 4px horizontal padding + 0.9em font size, so each
    mention took ~10px more width than the raw text in the textarea and
    the caret fell behind after the first tag. Background highlight only;
@@ -668,7 +668,7 @@ html[data-theme^="office"] .message-time {
   opacity: 1;
 }
 
-/* Badges — shape/color owned by global.css */
+/* Badges ??shape/color owned by global.css */
 
 /* System messages */
 html[data-theme^="office"] .message-system-text {
@@ -677,7 +677,7 @@ html[data-theme^="office"] .message-system-text {
   font-size: 13px;
 }
 
-/* ── Message action bar ── */
+/* ?? Message action bar ?? */
 html[data-theme^="office"] .message-actions {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -694,7 +694,7 @@ html[data-theme^="office"] .message-action-btn:hover {
   color: var(--text);
 }
 
-/* ── Thread link ── */
+/* ?? Thread link ?? */
 html[data-theme^="office"] .message-thread-link {
   color: var(--accent);
   font-family: var(--font-sans);
@@ -711,9 +711,9 @@ html[data-theme^="office"] .typing-indicator {
   font-family: var(--font-sans);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    COMPOSER
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .composer {
   background: var(--bg);
   border-top: none;
@@ -732,7 +732,7 @@ html[data-theme^="office"] .composer-inner:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--focus-ring);
 }
-/* Both surfaces — textarea + mention-chip mirror — must share font metrics
+/* Both surfaces ??textarea + mention-chip mirror ??must share font metrics
    so chip positions line up with the raw text the user is typing. */
 html[data-theme^="office"] .composer-input,
 html[data-theme^="office"] .composer-mirror {
@@ -772,9 +772,9 @@ html[data-theme^="office"] .composer-send:disabled {
   opacity: 0.55;
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    THREAD PANEL
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .thread-panel {
   background: var(--bg);
   border-left: 1px solid var(--border);
@@ -799,9 +799,9 @@ html[data-theme^="office"] .thread-panel-parent {
   background: var(--bg);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    AGENT PANEL
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .agent-panel {
   background: var(--bg);
   border-left: 1px solid var(--border);
@@ -844,9 +844,9 @@ html[data-theme^="office"] .agent-panel-skill {
   font-size: 12px;
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    BUTTONS
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .btn {
   font-family: var(--font-sans);
 }
@@ -872,9 +872,9 @@ html[data-theme^="office"] .btn-ghost:hover {
   border-color: var(--border-dark);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    ONBOARDING
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .onboarding {
   background: var(--bg);
 }
@@ -1026,9 +1026,9 @@ html[data-theme^="office"] .launch-sub {
   color: var(--text-tertiary);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    COMMAND PALETTE
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .cmd-palette-overlay {
   background: rgba(0, 0, 0, 0.3);
 }
@@ -1088,9 +1088,9 @@ html[data-theme^="office"] .cmd-palette-footer {
   color: var(--text-tertiary);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    TASK BOARD
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .task-board {
   background: var(--bg);
 }
@@ -1122,9 +1122,9 @@ html[data-theme^="office"] .task-card-meta {
   color: var(--text-tertiary);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    REQUEST LIST
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .request-list {
   background: var(--bg);
 }
@@ -1169,9 +1169,9 @@ html[data-theme^="office"] .request-empty {
   color: var(--text-tertiary);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    RECOVERY VIEW
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .recovery-panel {
   background: var(--bg);
 }
@@ -1196,9 +1196,9 @@ html[data-theme^="office"] .recovery-task {
   border-bottom-color: var(--border-light);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    CONFIRMATION DIALOG
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .confirm-overlay {
   background: rgba(0, 0, 0, 0.3);
 }
@@ -1215,9 +1215,9 @@ html[data-theme^="office"] .confirm-message {
   color: var(--text-secondary);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    INTERVIEW / POLL DIALOG
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .interview-overlay {
   background: rgba(0, 0, 0, 0.3);
 }
@@ -1264,9 +1264,9 @@ html[data-theme^="office"] .interview-text:focus {
   box-shadow: 0 0 0 1px var(--focus-ring);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    AUTOCOMPLETE
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .autocomplete {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1284,9 +1284,9 @@ html[data-theme^="office"] .autocomplete-item-desc {
   color: var(--text-tertiary);
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    DISCONNECT BANNER
-   ═══════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] #disconnect-banner {
   border-radius: var(--radius-md);
   background: var(--yellow-bg);
@@ -1294,9 +1294,9 @@ html[data-theme^="office"] #disconnect-banner {
   color: var(--text);
 }
 
-/* ═══════════════════════════════════════
-   SIDEBAR – TEAM ROW
-   ═══════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   SIDEBAR ??TEAM ROW
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .sidebar-item-team {
   padding: 8px 16px;
   margin-top: 6px;
@@ -1306,9 +1306,9 @@ html[data-theme^="office"] .sidebar-item-team i {
   color: var(--text-secondary);
 }
 
-/* ═══════════════════════════════════════
-   SIDEBAR – FLOATING CHECKLIST
-   ═══════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   SIDEBAR ??FLOATING CHECKLIST
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .sidebar-checklist-float {
   background: color-mix(in srgb, var(--bg-warm) 85%, transparent);
   backdrop-filter: blur(12px);
@@ -1329,9 +1329,9 @@ html[data-theme^="office"] .sidebar-checklist-float .sidebar-btn-close:hover {
   background: var(--office-sidebar-hover);
 }
 
-/* ═══════════════════════════════════════
-   SIDEBAR – THEME DROPDOWN
-   ═══════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   SIDEBAR ??THEME DROPDOWN
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 html[data-theme^="office"] .theme-dropdown {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1353,10 +1353,10 @@ html[data-theme^="office"] .theme-dropdown-item.active {
   color: var(--accent);
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    Apple gallery redesign layer
    A single visual language for every visible app chrome element.
-   ═══════════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 
 html[data-theme^="office"] body {
   background: var(--app-bg);
@@ -1717,7 +1717,7 @@ html[data-theme^="office"] .project-directory-toolbar::before {
 }
 
 html[data-theme^="office"] .project-create-form,
-html[data-theme^="office"] .ticket-create-form {
+html[data-theme^="office"] .task-create-form {
   border-color: var(--glass-border);
   border-radius: var(--radius-xl);
   background: var(--glass-bg-strong);
@@ -2076,10 +2076,10 @@ html[data-theme^="office"] ::selection {
   color: var(--text-primary);
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    Apple gallery minimal pass
    The workspace should read like a thread surface, not a stack of cards.
-   ═══════════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 
 html[data-theme^="office"] .office,
 html[data-theme^="office"] .main,
@@ -2117,7 +2117,7 @@ html[data-theme^="office"] .project-app {
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-directory-toolbar,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card,
+html[data-theme^="office"] .project-task-card,
 html[data-theme^="office"] .project-empty-card {
   position: relative;
   background: transparent;
@@ -2135,14 +2135,14 @@ html[data-theme^="office"] .project-directory-toolbar::before {
 html[data-theme^="office"] .project-directory-card > div,
 html[data-theme^="office"] .project-directory-toolbar > div,
 html[data-theme^="office"] .project-detail-card > div,
-html[data-theme^="office"] .project-ticket-card > div {
+html[data-theme^="office"] .project-task-card > div {
   padding-right: 0;
   padding-left: 0;
 }
 
 html[data-theme^="office"] .project-directory-toolbar,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card {
+html[data-theme^="office"] .project-task-card {
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -2182,12 +2182,12 @@ html[data-theme^="office"] .project-app button {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .project-ticket-card {
+html[data-theme^="office"] .project-task-card {
   margin-top: 2px;
 }
 
 html[data-theme^="office"] .project-create-form,
-html[data-theme^="office"] .ticket-create-form {
+html[data-theme^="office"] .task-create-form {
   margin-top: 8px;
   border: 0;
   border-top: 1px solid var(--border-light);
@@ -2278,7 +2278,7 @@ html[data-theme^="office"] .project-directory-card thead th {
 
 html[data-theme^="office"] .project-inline-status,
 html[data-theme^="office"] .task-inline-status,
-html[data-theme^="office"] .project-ticket-metric {
+html[data-theme^="office"] .project-task-metric {
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -2343,7 +2343,7 @@ html[data-theme^="office"] .project-inline-status.is-runner-no_runner {
   color: var(--yellow);
 }
 
-html[data-theme^="office"] .project-ticket-metrics,
+html[data-theme^="office"] .project-task-metrics,
 html[data-theme^="office"] .project-detail-metrics {
   display: flex;
   min-width: 0;
@@ -2352,21 +2352,21 @@ html[data-theme^="office"] .project-detail-metrics {
   gap: 6px 18px;
 }
 
-html[data-theme^="office"] .project-ticket-metric {
+html[data-theme^="office"] .project-task-metric {
   gap: 5px;
 }
 
-html[data-theme^="office"] .project-ticket-metric strong {
+html[data-theme^="office"] .project-task-metric strong {
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 650;
 }
 
-html[data-theme^="office"] .project-ticket-metric.is-total {
+html[data-theme^="office"] .project-task-metric.is-total {
   color: var(--text-tertiary);
 }
 
-html[data-theme^="office"] .ticket-side-panel {
+html[data-theme^="office"] .task-side-panel {
   overflow-x: hidden;
   border-left: 1px solid var(--border-light);
   background: var(--app-bg);
@@ -2375,28 +2375,28 @@ html[data-theme^="office"] .ticket-side-panel {
   -webkit-backdrop-filter: none;
 }
 
-html[data-theme^="office"] .ticket-side-panel,
-html[data-theme^="office"] .ticket-side-panel * {
+html[data-theme^="office"] .task-side-panel,
+html[data-theme^="office"] .task-side-panel * {
   min-width: 0;
 }
 
-html[data-theme^="office"] .project-ticket-card,
-html[data-theme^="office"] .project-ticket-card *,
+html[data-theme^="office"] .project-task-card,
+html[data-theme^="office"] .project-task-card *,
 html[data-theme^="office"] .project-detail-card,
 html[data-theme^="office"] .project-detail-card *,
-html[data-theme^="office"] .ticket-side-panel {
+html[data-theme^="office"] .task-side-panel {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header,
-html[data-theme^="office"] .ticket-side-panel-meta,
-html[data-theme^="office"] .ticket-chat-heading,
-html[data-theme^="office"] .ticket-chat-composer-shell {
+html[data-theme^="office"] .task-side-panel-header,
+html[data-theme^="office"] .task-side-panel-meta,
+html[data-theme^="office"] .task-chat-heading,
+html[data-theme^="office"] .task-chat-composer-shell {
   border-color: var(--border-light);
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail {
+html[data-theme^="office"] .task-side-panel-detail {
   margin: 0 1.5rem;
   padding: 14px 0;
   margin-bottom: 0;
@@ -2409,21 +2409,21 @@ html[data-theme^="office"] .ticket-side-panel-detail {
   overflow-y: visible;
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail p {
+html[data-theme^="office"] .task-side-panel-detail p {
   overflow-wrap: anywhere;
 }
 
-html[data-theme^="office"] .ticket-chat-feed {
+html[data-theme^="office"] .task-chat-feed {
   overflow-x: hidden;
   background: transparent;
 }
 
-html[data-theme^="office"] .ticket-chat-feed-inner {
+html[data-theme^="office"] .task-chat-feed-inner {
   width: 100%;
   max-width: 100%;
 }
 
-html[data-theme^="office"] .ticket-chat-empty {
+html[data-theme^="office"] .task-chat-empty {
   border: 0;
   border-top: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
@@ -2431,32 +2431,32 @@ html[data-theme^="office"] .ticket-chat-empty {
   background: transparent;
 }
 
-html[data-theme^="office"] .ticket-message-group,
-html[data-theme^="office"] .ticket-message-stack {
+html[data-theme^="office"] .task-message-group,
+html[data-theme^="office"] .task-message-stack {
   min-width: 0;
   max-width: 100%;
 }
 
-html[data-theme^="office"] .ticket-message-group {
+html[data-theme^="office"] .task-message-group {
   width: 100%;
   overflow-x: hidden;
 }
 
-html[data-theme^="office"] .ticket-message-group > .ticket-message-stack {
+html[data-theme^="office"] .task-message-group > .task-message-stack {
   width: auto;
   flex: 1 1 0;
 }
 
-html[data-theme^="office"] .ticket-message-stack > div {
+html[data-theme^="office"] .task-message-stack > div {
   min-width: 0;
   max-width: 100%;
 }
 
-html[data-theme^="office"] .ticket-message-stack > div:first-child {
+html[data-theme^="office"] .task-message-stack > div:first-child {
   width: 100%;
 }
 
-html[data-theme^="office"] .ticket-message-stack > div:first-child strong {
+html[data-theme^="office"] .task-message-stack > div:first-child strong {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
@@ -2464,7 +2464,7 @@ html[data-theme^="office"] .ticket-message-stack > div:first-child strong {
   white-space: nowrap;
 }
 
-html[data-theme^="office"] .ticket-message-bubble {
+html[data-theme^="office"] .task-message-bubble {
   max-width: min(100%, 34rem);
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2474,20 +2474,20 @@ html[data-theme^="office"] .ticket-message-bubble {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-message-bubble-agent {
+html[data-theme^="office"] .task-message-bubble-agent {
   border-bottom-left-radius: var(--radius-md);
   background: var(--surface-raised, var(--bg-elevated));
   color: var(--text-primary);
 }
 
-html[data-theme^="office"] .ticket-message-bubble-human {
+html[data-theme^="office"] .task-message-bubble-human {
   border-color: transparent;
   border-bottom-right-radius: var(--radius-md);
   background: var(--accent);
   color: var(--accent-ink, var(--color-obsidian, #000000));
 }
 
-html[data-theme^="office"] .ticket-typing-bubble {
+html[data-theme^="office"] .task-typing-bubble {
   border: 1px solid var(--border-light);
   border-radius: 14px;
   border-bottom-left-radius: var(--radius-md);
@@ -2495,17 +2495,17 @@ html[data-theme^="office"] .ticket-typing-bubble {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-message-bubble p {
+html[data-theme^="office"] .task-message-bubble p {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-html[data-theme^="office"] .ticket-chat-composer-shell {
+html[data-theme^="office"] .task-chat-composer-shell {
   padding: 14px 24px 20px;
   background: transparent;
 }
 
-html[data-theme^="office"] .ticket-chat-composer {
+html[data-theme^="office"] .task-chat-composer {
   border-color: var(--border-dark);
   border-radius: 24px;
   background: transparent;
@@ -2513,7 +2513,7 @@ html[data-theme^="office"] .ticket-chat-composer {
   padding: 10px 10px 8px 16px;
 }
 
-html[data-theme^="office"] .ticket-chat-input {
+html[data-theme^="office"] .task-chat-input {
   min-height: 68px;
   max-width: 100%;
   overflow-x: hidden;
@@ -2527,15 +2527,15 @@ html[data-theme^="office"] .ticket-chat-input {
   word-break: break-word;
 }
 
-html[data-theme^="office"] .ticket-chat-input:focus,
-html[data-theme^="office"] .ticket-chat-input:focus-visible {
+html[data-theme^="office"] .task-chat-input:focus,
+html[data-theme^="office"] .task-chat-input:focus-visible {
   border: 0;
   background: transparent;
   box-shadow: none;
   outline: 0;
 }
 
-html[data-theme^="office"] .ticket-chat-composer-footer {
+html[data-theme^="office"] .task-chat-composer-footer {
   padding: 8px 0 0;
   border-top: 0;
   background: transparent;
@@ -2546,11 +2546,11 @@ html[data-theme^="office"] .ticket-chat-composer-footer {
     padding: 30px 20px 72px;
   }
 
-  html[data-theme^="office"] .ticket-chat-composer-shell {
+  html[data-theme^="office"] .task-chat-composer-shell {
     padding: 12px 16px 16px;
   }
 
-  html[data-theme^="office"] .ticket-chat-composer {
+  html[data-theme^="office"] .task-chat-composer {
     border-radius: 22px;
     padding: 10px 10px 8px 14px;
   }
@@ -2596,9 +2596,9 @@ html[data-theme^="office"] .ticket-chat-composer-footer {
   }
 }
 
-/* ═══════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    Apple light surface pass
-   ═══════════════════════════════════════
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    App content should sit directly on the canvas. Keep true overlays elevated;
    flatten in-page cards into quiet rows and section rules. */
 
@@ -3272,7 +3272,7 @@ html[data-theme^="office"] .request-row-actions .btn-primary {
   box-shadow: none;
 }
 
-/* ── Apple message composer: one surface, no nested card stack ── */
+/* ?? Apple message composer: one surface, no nested card stack ?? */
 html[data-theme^="office"] .composer {
   background: linear-gradient(
     180deg,
@@ -3352,7 +3352,7 @@ html[data-theme^="office"] .autocomplete {
   box-shadow: none;
 }
 
-/* ── Command/help overlays: modal when needed, but no card-inside-card input. ── */
+/* ?? Command/help overlays: modal when needed, but no card-inside-card input. ?? */
 html[data-theme^="office"] .search-overlay,
 html[data-theme^="office"] .help-overlay {
   background: rgba(8, 9, 10, 0.58);
@@ -3724,17 +3724,17 @@ html[data-theme^="office"] .thread-panel .autocomplete {
   transform: none;
 }
 
-/* Deep surface pass: ticket drawers, agent drawers, and command rows should
+/* Deep surface pass: task drawers, agent drawers, and command rows should
    keep long AI/workspace strings inside the canvas instead of relying on
    clipped card-era truncation. */
-html[data-theme^="office"] .ticket-side-panel,
-html[data-theme^="office"] .ticket-side-panel *,
+html[data-theme^="office"] .task-side-panel,
+html[data-theme^="office"] .task-side-panel *,
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-directory-card *,
 html[data-theme^="office"] .project-detail-card,
 html[data-theme^="office"] .project-detail-card *,
-html[data-theme^="office"] .project-ticket-card,
-html[data-theme^="office"] .project-ticket-card *,
+html[data-theme^="office"] .project-task-card,
+html[data-theme^="office"] .project-task-card *,
 html[data-theme^="office"] .task-detail-modal,
 html[data-theme^="office"] .task-detail-modal *,
 html[data-theme^="office"] .agent-panel,
@@ -3746,10 +3746,10 @@ html[data-theme^="office"] .cmd-palette * {
   max-width: 100%;
 }
 
-html[data-theme^="office"] .ticket-side-panel .truncate,
+html[data-theme^="office"] .task-side-panel .truncate,
 html[data-theme^="office"] .project-directory-card .truncate,
 html[data-theme^="office"] .project-detail-card .truncate,
-html[data-theme^="office"] .project-ticket-card .truncate,
+html[data-theme^="office"] .project-task-card .truncate,
 html[data-theme^="office"] .task-detail-modal .truncate {
   overflow: visible;
   text-overflow: clip;
@@ -3758,13 +3758,13 @@ html[data-theme^="office"] .task-detail-modal .truncate {
   word-break: break-word;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header {
+html[data-theme^="office"] .task-side-panel-header {
   gap: 14px;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header > div:first-child,
-html[data-theme^="office"] .ticket-side-panel-header h2,
-html[data-theme^="office"] .ticket-side-panel-header p {
+html[data-theme^="office"] .task-side-panel-header > div:first-child,
+html[data-theme^="office"] .task-side-panel-header h2,
+html[data-theme^="office"] .task-side-panel-header p {
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -3772,19 +3772,19 @@ html[data-theme^="office"] .ticket-side-panel-header p {
   white-space: normal;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header h2 {
+html[data-theme^="office"] .task-side-panel-header h2 {
   line-height: 1.25;
 }
 
-html[data-theme^="office"] .ticket-side-panel-meta {
+html[data-theme^="office"] .task-side-panel-meta {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-html[data-theme^="office"] .ticket-chat-composer-footer {
+html[data-theme^="office"] .task-chat-composer-footer {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-html[data-theme^="office"] .ticket-chat-composer-footer > span {
+html[data-theme^="office"] .task-chat-composer-footer > span {
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
@@ -3792,16 +3792,16 @@ html[data-theme^="office"] .ticket-chat-composer-footer > span {
 }
 
 html[data-theme^="office"]
-  .ticket-side-panel
-  .ticket-message-stack
+  .task-side-panel
+  .task-message-stack
   > div:first-child {
   flex-wrap: wrap;
   align-items: flex-start;
 }
 
 html[data-theme^="office"]
-  .ticket-side-panel
-  .ticket-message-stack
+  .task-side-panel
+  .task-message-stack
   > div:first-child
   strong.truncate {
   flex: 1 1 9rem;
@@ -3970,31 +3970,31 @@ html[data-theme^="office"] .status-bar-item {
 }
 
 @media (max-width: 640px) {
-  html[data-theme^="office"] .ticket-side-panel-header {
+  html[data-theme^="office"] .task-side-panel-header {
     padding: 18px 16px 16px;
   }
 
-  html[data-theme^="office"] .ticket-side-panel-meta {
+  html[data-theme^="office"] .task-side-panel-meta {
     grid-template-columns: 1fr;
     gap: 12px;
     padding: 14px 16px;
   }
 
-  html[data-theme^="office"] .ticket-side-panel-detail {
+  html[data-theme^="office"] .task-side-panel-detail {
     margin-right: 16px;
     margin-left: 16px;
   }
 
-  html[data-theme^="office"] .ticket-chat-heading {
+  html[data-theme^="office"] .task-chat-heading {
     padding: 14px 16px;
   }
 
-  html[data-theme^="office"] .ticket-chat-composer-footer {
+  html[data-theme^="office"] .task-chat-composer-footer {
     grid-template-columns: 1fr;
   }
 
-  html[data-theme^="office"] .ticket-chat-composer-footer .btn,
-  html[data-theme^="office"] .ticket-chat-composer-footer button {
+  html[data-theme^="office"] .task-chat-composer-footer .btn,
+  html[data-theme^="office"] .task-chat-composer-footer button {
     width: 100%;
   }
 
@@ -4058,7 +4058,7 @@ html[data-theme^="office"] .app-card,
 html[data-theme^="office"] .app-table-shell,
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card,
+html[data-theme^="office"] .project-task-card,
 html[data-theme^="office"] .task-detail-modal,
 html[data-theme^="office"] .search-modal,
 html[data-theme^="office"] .help-modal,
@@ -4067,11 +4067,11 @@ html[data-theme^="office"] .confirm-card,
 html[data-theme^="office"] .theme-dropdown,
 html[data-theme^="office"] .autocomplete,
 html[data-theme^="office"] .composer-inner,
-html[data-theme^="office"] .ticket-side-panel,
-html[data-theme^="office"] .ticket-side-panel-detail,
-html[data-theme^="office"] .ticket-chat-composer,
-html[data-theme^="office"] .ticket-chat-empty,
-html[data-theme^="office"] .ticket-chat-composer-shell,
+html[data-theme^="office"] .task-side-panel,
+html[data-theme^="office"] .task-side-panel-detail,
+html[data-theme^="office"] .task-chat-composer,
+html[data-theme^="office"] .task-chat-empty,
+html[data-theme^="office"] .task-chat-composer-shell,
 html[data-theme^="office"] .thread-panel,
 html[data-theme^="office"] .agent-panel,
 html[data-theme^="office"] .dm-live-stream,
@@ -4110,23 +4110,23 @@ html[data-theme^="office"] .wk-modal-backdrop {
   -webkit-backdrop-filter: none !important;
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail,
-html[data-theme^="office"] .ticket-chat-empty {
+html[data-theme^="office"] .task-side-panel-detail,
+html[data-theme^="office"] .task-chat-empty {
   background: transparent !important;
   border-radius: 0 !important;
 }
 
-html[data-theme^="office"] .ticket-chat-composer {
+html[data-theme^="office"] .task-chat-composer {
   background: transparent !important;
   border-radius: 22px !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
    Apple Gallery Light System
    A fog canvas, snow surfaces, enormous calm, one blue action color.
   This final layer intentionally wins over older dark compatibility
    rules while keeping the existing application structure intact.
-   ═══════════════════════════════════════════════════════════════ */
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 
 html[data-theme^="office"] {
   --color-ink: #1d1d1f;
@@ -4266,7 +4266,7 @@ html[data-theme^="office"] .app-section-heading p,
 html[data-theme^="office"] .app-section-subtitle,
 html[data-theme^="office"] .app-card-meta,
 html[data-theme^="office"] .project-directory-card tbody td,
-html[data-theme^="office"] .ticket-side-panel,
+html[data-theme^="office"] .task-side-panel,
 html[data-theme^="office"] .message-text {
   color: var(--color-graphite);
 }
@@ -4367,7 +4367,7 @@ html[data-theme^="office"] .request-history-toggle,
 html[data-theme^="office"] .request-row,
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card,
+html[data-theme^="office"] .project-task-card,
 html[data-theme^="office"] .project-empty-card,
 html[data-theme^="office"] .task-detail-modal,
 html[data-theme^="office"] .thread-panel,
@@ -4403,16 +4403,16 @@ html[data-theme^="office"] .card {
 html[data-theme^="office"] .app-section-heading,
 html[data-theme^="office"] .project-directory-toolbar,
 html[data-theme^="office"] .project-detail-card > div,
-html[data-theme^="office"] .project-ticket-card > div,
+html[data-theme^="office"] .project-task-card > div,
 html[data-theme^="office"] .task-detail-section,
 html[data-theme^="office"] .agent-panel-header,
 html[data-theme^="office"] .agent-panel-section,
 html[data-theme^="office"] .agent-panel-actions,
 html[data-theme^="office"] .thread-panel-header,
-html[data-theme^="office"] .ticket-side-panel-header,
-html[data-theme^="office"] .ticket-side-panel-meta,
-html[data-theme^="office"] .ticket-chat-heading,
-html[data-theme^="office"] .ticket-chat-composer-shell {
+html[data-theme^="office"] .task-side-panel-header,
+html[data-theme^="office"] .task-side-panel-meta,
+html[data-theme^="office"] .task-chat-heading,
+html[data-theme^="office"] .task-chat-composer-shell {
   background: transparent;
   border-color: var(--color-silver-mist);
   box-shadow: none;
@@ -4461,7 +4461,7 @@ html[data-theme^="office"]
 
 html[data-theme^="office"] .badge,
 html[data-theme^="office"] .sidebar-badge,
-html[data-theme^="office"] .project-ticket-metric,
+html[data-theme^="office"] .project-task-metric,
 html[data-theme^="office"] .runtime-pill,
 html[data-theme^="office"] .status-bar-shortcut,
 html[data-theme^="office"] .channel-action-btn,
@@ -4710,7 +4710,7 @@ html[data-theme^="office"] .date-separator-text {
   color: var(--color-graphite);
 }
 
-html[data-theme^="office"] .ticket-side-panel {
+html[data-theme^="office"] .task-side-panel {
   background: var(--color-fog);
   border: 0;
   border-left: 1px solid var(--color-silver-mist);
@@ -4718,55 +4718,55 @@ html[data-theme^="office"] .ticket-side-panel {
   color: var(--color-ink);
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail,
-html[data-theme^="office"] .ticket-chat-empty {
+html[data-theme^="office"] .task-side-panel-detail,
+html[data-theme^="office"] .task-chat-empty {
   background: transparent !important;
   border-top: 1px solid var(--color-silver-mist);
   border-bottom: 1px solid var(--color-silver-mist);
   border-radius: 0 !important;
 }
 
-html[data-theme^="office"] .ticket-chat-composer {
+html[data-theme^="office"] .task-chat-composer {
   background: var(--color-snow) !important;
   border: 0;
   border-radius: 28px !important;
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-chat-input {
+html[data-theme^="office"] .task-chat-input {
   background: transparent;
   color: var(--color-ink);
 }
 
-html[data-theme^="office"] .ticket-message-bubble,
-html[data-theme^="office"] .ticket-typing-bubble {
+html[data-theme^="office"] .task-message-bubble,
+html[data-theme^="office"] .task-typing-bubble {
   max-width: min(100%, 34rem);
   padding: 10px 14px;
   border-radius: 22px;
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-message-bubble-agent,
-html[data-theme^="office"] .ticket-typing-bubble {
+html[data-theme^="office"] .task-message-bubble-agent,
+html[data-theme^="office"] .task-typing-bubble {
   background: var(--color-snow);
   border: 1px solid var(--color-silver-mist);
   border-bottom-left-radius: 6px;
   color: var(--color-ink);
 }
 
-html[data-theme^="office"] .ticket-message-bubble-human {
+html[data-theme^="office"] .task-message-bubble-human {
   background: var(--color-azure);
   border-color: transparent;
   border-bottom-right-radius: 6px;
   color: var(--color-snow);
 }
 
-html[data-theme^="office"] .ticket-message-bubble-human,
-html[data-theme^="office"] .ticket-message-bubble-human * {
+html[data-theme^="office"] .task-message-bubble-human,
+html[data-theme^="office"] .task-message-bubble-human * {
   color: var(--color-snow) !important;
 }
 
-html[data-theme^="office"] .ticket-message-group > span:first-child {
+html[data-theme^="office"] .task-message-group > span:first-child {
   width: 32px;
   height: 32px;
   border: 1px solid var(--color-silver-mist);
@@ -4776,17 +4776,17 @@ html[data-theme^="office"] .ticket-message-group > span:first-child {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-message-group > span:first-child > span {
+html[data-theme^="office"] .task-message-group > span:first-child > span {
   background: transparent;
   color: inherit;
 }
 
-html[data-theme^="office"] .ticket-message-group > .ticket-message-stack {
+html[data-theme^="office"] .task-message-group > .task-message-stack {
   flex: 0 1 auto;
   max-width: 82%;
 }
 
-html[data-theme^="office"] .ticket-message-stack > div:first-child {
+html[data-theme^="office"] .task-message-stack > div:first-child {
   width: auto;
   gap: 8px;
 }
@@ -4936,7 +4936,7 @@ html[data-theme^="office"] .requests-dashboard {
 
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card {
+html[data-theme^="office"] .project-task-card {
   width: 100%;
   max-width: 1200px;
   margin-inline: auto;
@@ -4944,7 +4944,7 @@ html[data-theme^="office"] .project-ticket-card {
 
 html[data-theme^="office"] .project-directory-toolbar,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card {
+html[data-theme^="office"] .project-task-card {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -4954,7 +4954,7 @@ html[data-theme^="office"] .project-ticket-card {
 
 html[data-theme^="office"] .project-directory-toolbar > div,
 html[data-theme^="office"] .project-detail-card > div,
-html[data-theme^="office"] .project-ticket-card > div {
+html[data-theme^="office"] .project-task-card > div {
   padding: 0 !important;
 }
 
@@ -4970,7 +4970,7 @@ html[data-theme^="office"] .project-detail-card h3 {
   line-height: 1.17;
 }
 
-html[data-theme^="office"] .project-ticket-card h4 {
+html[data-theme^="office"] .project-task-card h4 {
   font-size: 24px !important;
   font-weight: 600;
   line-height: 1.29;
@@ -4978,7 +4978,7 @@ html[data-theme^="office"] .project-ticket-card h4 {
 
 html[data-theme^="office"] .project-directory-toolbar .text-muted-foreground,
 html[data-theme^="office"] .project-detail-card .text-muted-foreground,
-html[data-theme^="office"] .project-ticket-card .text-muted-foreground {
+html[data-theme^="office"] .project-task-card .text-muted-foreground {
   color: var(--color-graphite) !important;
   font-size: 17px;
   line-height: 1.47;
@@ -5011,7 +5011,7 @@ html[data-theme^="office"] .project-create-button:hover {
 html[data-theme^="office"]
   .project-directory-card:not(.project-directory-toolbar):not(
     .project-detail-card
-  ):not(.project-ticket-card) {
+  ):not(.project-task-card) {
   overflow: hidden;
   border-radius: 28px;
   background: var(--color-snow);
@@ -5055,7 +5055,7 @@ html[data-theme^="office"] .project-detail-metrics {
 }
 
 html[data-theme^="office"] .project-inline-status,
-html[data-theme^="office"] .project-ticket-metric {
+html[data-theme^="office"] .project-task-metric {
   display: inline-flex;
   min-height: 34px;
   align-items: center;
@@ -5352,12 +5352,12 @@ html[data-theme^="office"] .auth-mode-switch button {
   }
 }
 
-/* Project ticket density and detail-panel controls. */
-html[data-theme^="office"] .project-ticket-list-card {
+/* Project task density and detail-panel controls. */
+html[data-theme^="office"] .project-task-list-card {
   border-radius: 22px !important;
 }
 
-html[data-theme^="office"] .project-ticket-list-card thead th {
+html[data-theme^="office"] .project-task-list-card thead th {
   height: 38px;
   padding: 0 16px;
   color: var(--color-graphite) !important;
@@ -5365,33 +5365,33 @@ html[data-theme^="office"] .project-ticket-list-card thead th {
   font-weight: 600;
 }
 
-html[data-theme^="office"] .project-ticket-list-card tbody td {
+html[data-theme^="office"] .project-task-list-card tbody td {
   padding: 9px 16px;
   vertical-align: middle;
 }
 
-html[data-theme^="office"] .project-ticket-list-card tbody tr {
+html[data-theme^="office"] .project-task-list-card tbody tr {
   min-height: 52px;
 }
 
-html[data-theme^="office"] .project-ticket-list-card strong {
+html[data-theme^="office"] .project-task-list-card strong {
   font-size: 14px;
   line-height: 1.28;
 }
 
-html[data-theme^="office"] .project-ticket-list-card small,
-html[data-theme^="office"] .project-ticket-list-card em {
+html[data-theme^="office"] .project-task-list-card small,
+html[data-theme^="office"] .project-task-list-card em {
   font-size: 12px;
   line-height: 1.25;
 }
 
-html[data-theme^="office"] .project-ticket-list-card .task-inline-status {
+html[data-theme^="office"] .project-task-list-card .task-inline-status {
   min-height: 28px;
   padding: 0 10px;
   font-size: 12px;
 }
 
-html[data-theme^="office"] .ticket-panel-close {
+html[data-theme^="office"] .task-panel-close {
   width: 36px;
   height: 36px;
   border: 0;
@@ -5401,21 +5401,21 @@ html[data-theme^="office"] .ticket-panel-close {
   padding: 0;
 }
 
-html[data-theme^="office"] .ticket-panel-close:hover {
+html[data-theme^="office"] .task-panel-close:hover {
   background: var(--color-silver-mist);
   color: var(--color-ink);
 }
 
-html[data-theme^="office"] .ticket-panel-close-icon {
+html[data-theme^="office"] .task-panel-close-icon {
   width: 18px;
   height: 18px;
 }
 
-html[data-theme^="office"] .ticket-detail-section-head {
+html[data-theme^="office"] .task-detail-section-head {
   min-width: 0;
 }
 
-html[data-theme^="office"] .ticket-detail-action {
+html[data-theme^="office"] .task-detail-action {
   height: 28px;
   border-radius: var(--radius-full);
   padding: 0 10px;
@@ -5424,17 +5424,17 @@ html[data-theme^="office"] .ticket-detail-action {
   font-weight: 500;
 }
 
-html[data-theme^="office"] .ticket-detail-action:hover {
+html[data-theme^="office"] .task-detail-action:hover {
   background: rgba(210, 210, 215, 0.64);
   color: var(--color-cobalt-link);
 }
 
-html[data-theme^="office"] .ticket-detail-action.is-danger {
+html[data-theme^="office"] .task-detail-action.is-danger {
   color: var(--color-caution);
 }
 
-html[data-theme^="office"] .ticket-detail-edit input,
-html[data-theme^="office"] .ticket-detail-edit textarea {
+html[data-theme^="office"] .task-detail-edit input,
+html[data-theme^="office"] .task-detail-edit textarea {
   border: 0;
   border-radius: 18px;
   background: var(--color-snow);
@@ -5442,15 +5442,15 @@ html[data-theme^="office"] .ticket-detail-edit textarea {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-detail-edit input:focus,
-html[data-theme^="office"] .ticket-detail-edit textarea:focus,
-html[data-theme^="office"] .ticket-detail-edit input:focus-visible,
-html[data-theme^="office"] .ticket-detail-edit textarea:focus-visible {
+html[data-theme^="office"] .task-detail-edit input:focus,
+html[data-theme^="office"] .task-detail-edit textarea:focus,
+html[data-theme^="office"] .task-detail-edit input:focus-visible,
+html[data-theme^="office"] .task-detail-edit textarea:focus-visible {
   box-shadow: 0 0 0 4px var(--focus-ring);
   outline: 0;
 }
 
-html[data-theme^="office"] .ticket-detail-edit-actions button {
+html[data-theme^="office"] .task-detail-edit-actions button {
   min-height: 36px;
   border-radius: var(--radius-full);
 }
@@ -5497,16 +5497,16 @@ html[data-theme^="office"] .project-draft-cancel:hover {
   color: var(--color-ink);
 }
 
-html[data-theme^="office"] .ticket-draft-form {
+html[data-theme^="office"] .task-draft-form {
   min-height: 0;
 }
 
-html[data-theme^="office"] .ticket-draft-title-shell {
+html[data-theme^="office"] .task-draft-title-shell {
   min-width: 0;
   line-height: 1.16;
 }
 
-html[data-theme^="office"] .ticket-draft-title-input {
+html[data-theme^="office"] .task-draft-title-input {
   height: auto;
   border: 0;
   background: transparent;
@@ -5518,19 +5518,19 @@ html[data-theme^="office"] .ticket-draft-title-input {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-draft-title-input:focus,
-html[data-theme^="office"] .ticket-draft-title-input:focus-visible {
+html[data-theme^="office"] .task-draft-title-input:focus,
+html[data-theme^="office"] .task-draft-title-input:focus-visible {
   border: 0;
   box-shadow: none;
   outline: 0;
 }
 
-html[data-theme^="office"] .ticket-draft-title-input::placeholder,
-html[data-theme^="office"] .ticket-draft-details::placeholder {
+html[data-theme^="office"] .task-draft-title-input::placeholder,
+html[data-theme^="office"] .task-draft-details::placeholder {
   color: var(--color-ash);
 }
 
-html[data-theme^="office"] .ticket-draft-panel select {
+html[data-theme^="office"] .task-draft-panel select {
   min-height: 36px;
   border: 0;
   border-radius: var(--radius-full);
@@ -5540,12 +5540,12 @@ html[data-theme^="office"] .ticket-draft-panel select {
   box-shadow: none;
 }
 
-html[data-theme^="office"] .ticket-draft-detail {
+html[data-theme^="office"] .task-draft-detail {
   min-height: 220px;
   max-height: none;
 }
 
-html[data-theme^="office"] .ticket-draft-details {
+html[data-theme^="office"] .task-draft-details {
   min-height: 180px;
   border: 0;
   background: transparent;
@@ -5555,46 +5555,46 @@ html[data-theme^="office"] .ticket-draft-details {
   resize: vertical;
 }
 
-html[data-theme^="office"] .ticket-draft-details:focus,
-html[data-theme^="office"] .ticket-draft-details:focus-visible {
+html[data-theme^="office"] .task-draft-details:focus,
+html[data-theme^="office"] .task-draft-details:focus-visible {
   border: 0;
   box-shadow: none;
   outline: 0;
 }
 
-html[data-theme^="office"] .ticket-draft-footer {
+html[data-theme^="office"] .task-draft-footer {
   border-color: var(--border-light);
 }
 
-html[data-theme^="office"] .ticket-draft-footer button {
+html[data-theme^="office"] .task-draft-footer button {
   min-height: 40px;
   border-radius: var(--radius-full);
 }
 
 @media (max-width: 768px) {
-  html[data-theme^="office"] .project-ticket-list-card tbody tr {
+  html[data-theme^="office"] .project-task-list-card tbody tr {
     gap: 4px;
     padding: 10px 0;
   }
 
-  html[data-theme^="office"] .project-ticket-list-card tbody td {
+  html[data-theme^="office"] .project-task-list-card tbody td {
     padding: 0 14px;
   }
 
-  html[data-theme^="office"] .project-ticket-list-card tbody td:first-child {
+  html[data-theme^="office"] .project-task-list-card tbody td:first-child {
     padding-left: 14px;
   }
 
-  html[data-theme^="office"] .ticket-detail-section-head {
+  html[data-theme^="office"] .task-detail-section-head {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  html[data-theme^="office"] .ticket-draft-title-input {
+  html[data-theme^="office"] .task-draft-title-input {
     font-size: 24px;
   }
 
-  html[data-theme^="office"] .ticket-draft-footer {
+  html[data-theme^="office"] .task-draft-footer {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -5611,7 +5611,7 @@ html[data-theme^="office"] .project-app {
 
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card {
+html[data-theme^="office"] .project-task-card {
   max-width: 1080px;
 }
 
@@ -5625,14 +5625,14 @@ html[data-theme^="office"] .project-detail-card h3 {
   line-height: 1.16;
 }
 
-html[data-theme^="office"] .project-ticket-card h4 {
+html[data-theme^="office"] .project-task-card h4 {
   font-size: 20px !important;
   line-height: 1.22;
 }
 
 html[data-theme^="office"] .project-directory-toolbar .text-muted-foreground,
 html[data-theme^="office"] .project-detail-card .text-muted-foreground,
-html[data-theme^="office"] .project-ticket-card .text-muted-foreground {
+html[data-theme^="office"] .project-task-card .text-muted-foreground {
   font-size: 14px !important;
   line-height: 1.35;
 }
@@ -5654,43 +5654,43 @@ html[data-theme^="office"] .project-directory-card tbody td {
 }
 
 html[data-theme^="office"] .project-directory-card strong,
-html[data-theme^="office"] .project-ticket-list-card strong {
+html[data-theme^="office"] .project-task-list-card strong {
   font-size: 13px;
   line-height: 1.25;
 }
 
 html[data-theme^="office"] .project-directory-card small,
 html[data-theme^="office"] .project-directory-card em,
-html[data-theme^="office"] .project-ticket-list-card small,
-html[data-theme^="office"] .project-ticket-list-card em {
+html[data-theme^="office"] .project-task-list-card small,
+html[data-theme^="office"] .project-task-list-card em {
   font-size: 11px;
   line-height: 1.28;
 }
 
 html[data-theme^="office"] .project-inline-status,
 html[data-theme^="office"] .task-inline-status,
-html[data-theme^="office"] .project-ticket-metric {
+html[data-theme^="office"] .project-task-metric {
   min-height: 26px;
   padding: 0 10px;
   font-size: 12px;
   line-height: 1;
 }
 
-html[data-theme^="office"] .project-ticket-metrics,
+html[data-theme^="office"] .project-task-metrics,
 html[data-theme^="office"] .project-detail-metrics {
   gap: 5px 8px;
 }
 
-html[data-theme^="office"] .project-ticket-list-card thead th {
+html[data-theme^="office"] .project-task-list-card thead th {
   height: 34px;
   padding: 0 14px;
 }
 
-html[data-theme^="office"] .project-ticket-list-card tbody td {
+html[data-theme^="office"] .project-task-list-card tbody td {
   padding: 8px 14px;
 }
 
-html[data-theme^="office"] .project-ticket-list-card tbody tr {
+html[data-theme^="office"] .project-task-list-card tbody tr {
   min-height: 46px;
 }
 
@@ -5701,69 +5701,69 @@ html[data-theme^="office"] .project-draft-row .project-row-input {
   line-height: 1.25;
 }
 
-html[data-theme^="office"] .ticket-side-panel {
+html[data-theme^="office"] .task-side-panel {
   width: min(100vw, 36rem) !important;
   max-width: 36rem !important;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header {
+html[data-theme^="office"] .task-side-panel-header {
   padding: 18px 22px 16px !important;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header h2 {
+html[data-theme^="office"] .task-side-panel-header h2 {
   font-size: 20px !important;
   line-height: 1.22;
 }
 
-html[data-theme^="office"] .ticket-side-panel-header p {
+html[data-theme^="office"] .task-side-panel-header p {
   font-size: 12px !important;
   line-height: 1.25;
 }
 
-html[data-theme^="office"] .ticket-side-panel-meta {
+html[data-theme^="office"] .task-side-panel-meta {
   gap: 12px !important;
   padding: 12px 22px !important;
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail {
+html[data-theme^="office"] .task-side-panel-detail {
   margin-right: 22px !important;
   margin-left: 22px !important;
   padding: 12px 0 !important;
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail h5,
-html[data-theme^="office"] .ticket-side-panel-detail label,
-html[data-theme^="office"] .ticket-side-panel-meta label,
-html[data-theme^="office"] .ticket-side-panel-meta .text-xs {
+html[data-theme^="office"] .task-side-panel-detail h5,
+html[data-theme^="office"] .task-side-panel-detail label,
+html[data-theme^="office"] .task-side-panel-meta label,
+html[data-theme^="office"] .task-side-panel-meta .text-xs {
   font-size: 11px !important;
   line-height: 1.2;
 }
 
-html[data-theme^="office"] .ticket-side-panel-detail p {
+html[data-theme^="office"] .task-side-panel-detail p {
   font-size: 13px;
   line-height: 1.5;
 }
 
-html[data-theme^="office"] .ticket-draft-title-input {
+html[data-theme^="office"] .task-draft-title-input {
   min-height: 32px;
   padding: 1px 0 3px;
   font-size: 22px;
   line-height: 1.2;
 }
 
-html[data-theme^="office"] .ticket-draft-panel select {
+html[data-theme^="office"] .task-draft-panel select {
   min-height: 34px;
   padding: 0 32px 0 12px;
   font-size: 13px;
   line-height: 34px;
 }
 
-html[data-theme^="office"] .ticket-draft-detail {
+html[data-theme^="office"] .task-draft-detail {
   min-height: 176px;
 }
 
-html[data-theme^="office"] .ticket-draft-details,
-html[data-theme^="office"] .ticket-detail-edit textarea {
+html[data-theme^="office"] .task-draft-details,
+html[data-theme^="office"] .task-detail-edit textarea {
   min-height: 132px;
   border: 1px solid transparent;
   border-radius: 14px;
@@ -5773,7 +5773,7 @@ html[data-theme^="office"] .ticket-detail-edit textarea {
   line-height: 1.48;
 }
 
-html[data-theme^="office"] .ticket-detail-edit input {
+html[data-theme^="office"] .task-detail-edit input {
   height: 38px;
   border: 1px solid transparent;
   border-radius: 14px;
@@ -5783,72 +5783,72 @@ html[data-theme^="office"] .ticket-detail-edit input {
   line-height: 38px;
 }
 
-html[data-theme^="office"] .ticket-draft-details:focus,
-html[data-theme^="office"] .ticket-draft-details:focus-visible,
-html[data-theme^="office"] .ticket-detail-edit input:focus,
-html[data-theme^="office"] .ticket-detail-edit input:focus-visible,
-html[data-theme^="office"] .ticket-detail-edit textarea:focus,
-html[data-theme^="office"] .ticket-detail-edit textarea:focus-visible {
+html[data-theme^="office"] .task-draft-details:focus,
+html[data-theme^="office"] .task-draft-details:focus-visible,
+html[data-theme^="office"] .task-detail-edit input:focus,
+html[data-theme^="office"] .task-detail-edit input:focus-visible,
+html[data-theme^="office"] .task-detail-edit textarea:focus,
+html[data-theme^="office"] .task-detail-edit textarea:focus-visible {
   border-color: var(--color-azure);
   background: var(--color-snow);
   box-shadow: 0 0 0 3px var(--focus-ring);
   outline: 0;
 }
 
-html[data-theme^="office"] .ticket-detail-edit label {
+html[data-theme^="office"] .task-detail-edit label {
   font-size: 12px;
   line-height: 1.2;
 }
 
-html[data-theme^="office"] .ticket-detail-edit {
+html[data-theme^="office"] .task-detail-edit {
   gap: 10px;
 }
 
-html[data-theme^="office"] .ticket-detail-edit-actions button,
-html[data-theme^="office"] .ticket-draft-footer button {
+html[data-theme^="office"] .task-detail-edit-actions button,
+html[data-theme^="office"] .task-draft-footer button {
   min-height: 36px;
   padding: 0 14px;
   font-size: 13px;
 }
 
-html[data-theme^="office"] .ticket-draft-footer {
+html[data-theme^="office"] .task-draft-footer {
   padding: 12px 22px;
 }
 
-html[data-theme^="office"] .ticket-chat-heading {
+html[data-theme^="office"] .task-chat-heading {
   padding: 12px 22px !important;
 }
 
-html[data-theme^="office"] .ticket-chat-heading h5 {
+html[data-theme^="office"] .task-chat-heading h5 {
   font-size: 13px;
 }
 
-html[data-theme^="office"] .ticket-chat-feed {
+html[data-theme^="office"] .task-chat-feed {
   padding: 14px 22px !important;
 }
 
-html[data-theme^="office"] .ticket-chat-composer-shell {
+html[data-theme^="office"] .task-chat-composer-shell {
   padding: 12px 22px 16px !important;
 }
 
-html[data-theme^="office"] .ticket-chat-composer {
+html[data-theme^="office"] .task-chat-composer {
   border-radius: 18px;
   padding: 9px 10px 8px 12px;
 }
 
-html[data-theme^="office"] .ticket-chat-input {
+html[data-theme^="office"] .task-chat-input {
   min-height: 58px;
   padding: 0;
   font-size: 13px;
   line-height: 1.48;
 }
 
-html[data-theme^="office"] .ticket-chat-composer-footer {
+html[data-theme^="office"] .task-chat-composer-footer {
   gap: 8px;
   padding-top: 7px;
 }
 
-html[data-theme^="office"] .ticket-chat-composer-footer button {
+html[data-theme^="office"] .task-chat-composer-footer button {
   min-height: 34px;
   padding: 0 13px;
   font-size: 13px;
@@ -5874,16 +5874,16 @@ html[data-theme^="office"] .ticket-chat-composer-footer button {
     font-size: 24px !important;
   }
 
-  html[data-theme^="office"] .project-ticket-card h4 {
+  html[data-theme^="office"] .project-task-card h4 {
     font-size: 18px !important;
   }
 
-  html[data-theme^="office"] .ticket-side-panel {
+  html[data-theme^="office"] .task-side-panel {
     width: 100vw !important;
     max-width: 100vw !important;
   }
 
-  html[data-theme^="office"] .ticket-draft-title-input {
+  html[data-theme^="office"] .task-draft-title-input {
     font-size: 20px;
   }
 }
@@ -5942,15 +5942,15 @@ html[data-theme^="office"] .project-detail-header .project-detail-metrics {
   justify-content: end;
 }
 
-html[data-theme^="office"] .project-ticket-toolbar-row {
+html[data-theme^="office"] .project-task-toolbar-row {
   align-items: center !important;
 }
 
-html[data-theme^="office"] .project-ticket-toolbar-row .project-detail-metrics {
+html[data-theme^="office"] .project-task-toolbar-row .project-detail-metrics {
   justify-content: start;
 }
 
-html[data-theme^="office"] .project-ticket-create-button {
+html[data-theme^="office"] .project-task-create-button {
   height: 34px;
   min-height: 34px;
   padding: 0 14px;
@@ -5958,7 +5958,7 @@ html[data-theme^="office"] .project-ticket-create-button {
   font-size: 14px;
 }
 
-html[data-theme^="office"] .project-ticket-create-button svg {
+html[data-theme^="office"] .project-task-create-button svg {
   width: 14px;
   height: 14px;
 }
@@ -6088,7 +6088,7 @@ html[data-theme^="office"] .project-recipe-empty {
     gap: 0;
   }
 
-  html[data-theme^="office"] .project-ticket-toolbar-row {
+  html[data-theme^="office"] .project-task-toolbar-row {
     flex-wrap: wrap;
   }
 
@@ -6268,7 +6268,7 @@ html[data-theme^="office"] .request-history-toggle,
 html[data-theme^="office"] .request-row,
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-detail-card,
-html[data-theme^="office"] .project-ticket-card,
+html[data-theme^="office"] .project-task-card,
 html[data-theme^="office"] .project-empty-card,
 html[data-theme^="office"] .project-info-card,
 html[data-theme^="office"] .thread-quote-card,
@@ -6324,13 +6324,13 @@ html[data-theme^="office"] .project-detail-card h3 {
   line-height: 1.16 !important;
 }
 
-html[data-theme^="office"] .project-ticket-card h4 {
+html[data-theme^="office"] .project-task-card h4 {
   font-size: 18px !important;
   line-height: 1.22 !important;
 }
 
 html[data-theme^="office"] .project-create-button,
-html[data-theme^="office"] .project-ticket-create-button,
+html[data-theme^="office"] .project-task-create-button,
 html[data-theme^="office"] .project-empty-action {
   min-height: 38px;
   border-radius: var(--control-radius);
@@ -7138,7 +7138,7 @@ html[data-theme^="office"] .project-directory-toolbar .text-muted-foreground {
 }
 
 html[data-theme^="office"] .project-create-button,
-html[data-theme^="office"] .project-ticket-create-button,
+html[data-theme^="office"] .project-task-create-button,
 html[data-theme^="office"] .project-empty-action,
 html[data-theme^="office"] .project-recipe-upload,
 html[data-theme^="office"] .project-recipe-clear {
@@ -7154,7 +7154,7 @@ html[data-theme^="office"] .project-recipe-clear {
 }
 
 html[data-theme^="office"] .project-create-button:hover,
-html[data-theme^="office"] .project-ticket-create-button:hover,
+html[data-theme^="office"] .project-task-create-button:hover,
 html[data-theme^="office"] .project-empty-action:hover,
 html[data-theme^="office"] .project-recipe-upload:hover,
 html[data-theme^="office"] .project-recipe-clear:hover {
@@ -7166,7 +7166,7 @@ html[data-theme^="office"] .project-recipe-clear:hover {
 html[data-theme^="office"] .project-directory-card,
 html[data-theme^="office"] .project-empty-card,
 html[data-theme^="office"] .project-info-card,
-html[data-theme^="office"] .project-ticket-list-card {
+html[data-theme^="office"] .project-task-list-card {
   overflow: hidden;
   border: 1px solid var(--surface-line);
   border-radius: var(--panel-radius) !important;
@@ -7181,13 +7181,13 @@ html[data-theme^="office"] .project-directory-toolbar {
   background: transparent;
 }
 
-html[data-theme^="office"] .project-ticket-card {
+html[data-theme^="office"] .project-task-card {
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-html[data-theme^="office"] .project-ticket-card > div {
+html[data-theme^="office"] .project-task-card > div {
   padding: 0 0 4px !important;
 }
 
@@ -7243,7 +7243,7 @@ html[data-theme^="office"]
 
 html[data-theme^="office"] .project-inline-status,
 html[data-theme^="office"] .task-inline-status,
-html[data-theme^="office"] .project-ticket-metric {
+html[data-theme^="office"] .project-task-metric {
   min-height: 24px;
   border: 1px solid var(--surface-line);
   border-radius: var(--control-radius);
@@ -7261,7 +7261,7 @@ html[data-theme^="office"] .task-inline-status::before {
   height: 5px;
 }
 
-html[data-theme^="office"] .project-ticket-metric strong {
+html[data-theme^="office"] .project-task-metric strong {
   color: var(--color-ink);
   font-size: 11px;
   font-weight: 700;
@@ -7290,12 +7290,12 @@ html[data-theme^="office"] .project-detail-header .project-back-button:hover {
   background: var(--color-snow);
 }
 
-html[data-theme^="office"] .project-ticket-toolbar-row {
+html[data-theme^="office"] .project-task-toolbar-row {
   padding: 0 0 6px !important;
 }
 
 html[data-theme^="office"] .project-detail-metrics,
-html[data-theme^="office"] .project-ticket-metrics {
+html[data-theme^="office"] .project-task-metrics {
   gap: 5px 7px;
 }
 
@@ -7377,7 +7377,7 @@ html[data-theme^="office"] .project-empty-card > div {
   }
 
   html[data-theme^="office"] .project-directory-toolbar > div,
-  html[data-theme^="office"] .project-ticket-toolbar-row {
+  html[data-theme^="office"] .project-task-toolbar-row {
     align-items: flex-start !important;
     flex-direction: column;
   }

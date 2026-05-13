@@ -44,6 +44,14 @@ describe("useHashRouter project routes", () => {
       projectId: "customer-portal",
       taskId: "task-36",
     });
+    expect(
+      __test__.parseHash("#/projects/customer-portal/tasks/task-36"),
+    ).toEqual({
+      view: "app",
+      app: "tasks",
+      projectId: "customer-portal",
+      taskId: "task-36",
+    });
     expect(__test__.parseHash("#/apps/projects")).toEqual({
       view: "app",
       app: "tasks",
@@ -111,7 +119,7 @@ describe("useHashRouter project routes", () => {
     ).toBe("#/projects/customer-portal");
   });
 
-  it("keeps the focused ticket in the project route", () => {
+  it("keeps the focused task in the project route", () => {
     expect(
       __test__.stateToHash({
         ...baseState,
@@ -119,6 +127,6 @@ describe("useHashRouter project routes", () => {
         projectFocusId: "customer-portal",
         taskFocusId: "task-36",
       }),
-    ).toBe("#/projects/customer-portal/tickets/task-36");
+    ).toBe("#/projects/customer-portal/tasks/task-36");
   });
 });

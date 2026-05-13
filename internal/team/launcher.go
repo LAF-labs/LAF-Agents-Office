@@ -3000,7 +3000,7 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 		replyToID = strings.TrimSpace(task.ID)
 	}
 	if replyToID != "" {
-		lines = append(lines, fmt.Sprintf("- Ticket chat reply: use team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\" for human-visible progress and blockers.", slug, channel, replyToID))
+		lines = append(lines, fmt.Sprintf("- Task chat reply: use team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\" for human-visible progress and blockers.", slug, channel, replyToID))
 	}
 	lines = append(lines, fmt.Sprintf("- Mutation channel: use #%s when claiming or completing #%s", channel, task.ID))
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {
@@ -3869,8 +3869,8 @@ func coreTeamOperatingRulesBlock(slug, lead string) string {
 	sb.WriteString("LAF-Office runs as a small execution company: @ceo routes priorities, @fe builds product surfaces, @be builds backend/runtime systems, and @reviewer verifies. Agent Maker is settings-only; it is not a chat participant, project member, or task assignee.\n")
 	sb.WriteString("All agents follow these work rules for every domain, not just software:\n")
 	sb.WriteString("- Think before acting: state assumptions or blockers when ambiguity could change the outcome.\n")
-	sb.WriteString("- Simplicity first: choose the smallest useful action that advances the ticket.\n")
-	sb.WriteString("- Surgical changes: touch only the work surface needed for the current ticket.\n")
+	sb.WriteString("- Simplicity first: choose the smallest useful action that advances the task.\n")
+	sb.WriteString("- Surgical changes: touch only the work surface needed for the current task.\n")
 	sb.WriteString("- Goal-driven execution: know what success looks like and leave verifiable evidence.\n")
 	sb.WriteString("- No speculative expansion: log adjacent ideas as follow-up work instead of doing them silently.\n")
 	sb.WriteString("- Durable memory: private notes go to Notebook; canonical team knowledge requires the normal Wiki promotion flow.\n")

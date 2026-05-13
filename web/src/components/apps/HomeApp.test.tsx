@@ -12,12 +12,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeApp } from "./HomeApp";
 
 const apiMocks = vi.hoisted(() => ({
+  confirmOrchestrationIntent: vi.fn(),
   createProject: vi.fn(),
   getConfig: vi.fn(),
+  getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getProjects: vi.fn(),
   getThreadMessages: vi.fn(),
   postMessage: vi.fn(),
+  routeOrchestrationIntent: vi.fn(),
 }));
 
 vi.mock("../../api/client", () => apiMocks);
@@ -41,6 +44,25 @@ describe("HomeApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.getConfig.mockResolvedValue({ team_lead_slug: "ceo" });
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["record_only"],
+      default_mode: "record_only",
+      laf_model: { available: false, reason: "paid workspace required" },
+      local_cli: { available: false, reason: "runner required" },
+      record_only: { available: true },
+    });
+    apiMocks.routeOrchestrationIntent.mockResolvedValue({
+      intent: {
+        id: "intent-chat",
+        proposed_actions: [],
+        required_permissions: [],
+        requires_confirmation: false,
+        risk: "low",
+        status: "routed",
+        summary: "Chat message",
+        type: "chat",
+      },
+    });
     apiMocks.getThreadMessages.mockResolvedValue({ messages: [] });
     apiMocks.getOfficeMembers.mockResolvedValue({
       members: [
@@ -129,6 +151,10 @@ describe("HomeApp", () => {
         "general",
         expect.stringMatching(/^home-chat-/),
         ["ceo"],
+        expect.objectContaining({
+          model_mode: "record_only",
+          scope: "home_orchestration",
+        }),
       );
     });
   });
@@ -150,6 +176,10 @@ describe("HomeApp", () => {
         "general",
         expect.stringMatching(/^home-chat-/),
         ["engineer"],
+        expect.objectContaining({
+          model_mode: "record_only",
+          scope: "home_orchestration",
+        }),
       );
     });
   });

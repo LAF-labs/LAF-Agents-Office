@@ -43,14 +43,18 @@ import {
   getConfig,
   getInvites,
   getOfficeMembers,
+  getPermissions,
   getRunnerStatus,
   type HostedRunner,
+  type PermissionMember,
   type RunnerPairingStartResponse,
   resetWorkspace,
   revokeRunner,
   shredWorkspace,
   updateAuthUserRole,
   updateConfig,
+  updatePermissions,
+  type WorkspaceRole,
   type WorkspaceWipeResult,
 } from "../../api/client";
 import { useI18n } from "../../lib/i18n";
@@ -62,6 +66,7 @@ type SectionId =
   | "general"
   | "agents"
   | "team"
+  | "access"
   | "company"
   | "runner"
   | "keys"
@@ -74,6 +79,7 @@ interface Section {
     | "settings.section.general"
     | "settings.section.agents"
     | "settings.section.team"
+    | "settings.section.access"
     | "settings.section.company"
     | "settings.section.runner"
     | "settings.section.keys"
@@ -100,6 +106,7 @@ const SECTION_GROUPS: SectionGroup[] = [
       },
       { id: "agents", Icon: PeopleTag, nameKey: "settings.section.agents" },
       { id: "team", Icon: PeopleTag, nameKey: "settings.section.team" },
+      { id: "access", Icon: Key, nameKey: "settings.section.access" },
       { id: "company", Icon: Building, nameKey: "settings.section.company" },
     ],
   },
@@ -759,16 +766,25 @@ function GeneralSection({ cfg, save }: SectionProps) {
   );
 }
 
-type EditableRole = "owner" | "admin" | "member";
+type EditableRole = WorkspaceRole;
 
 const ROLE_OPTIONS: { value: EditableRole; label: string }[] = [
   { value: "owner", label: "Owner" },
   { value: "admin", label: "Admin" },
+  { value: "manager", label: "Manager" },
   { value: "member", label: "Member" },
+  { value: "viewer", label: "Viewer" },
 ];
 
 function editableRole(role?: string): EditableRole {
-  if (role === "owner" || role === "admin" || role === "member") return role;
+  if (
+    role === "owner" ||
+    role === "admin" ||
+    role === "manager" ||
+    role === "member" ||
+    role === "viewer"
+  )
+    return role;
   return "member";
 }
 
@@ -795,7 +811,11 @@ function RolePill({ role }: { role?: string }) {
       ? "var(--green)"
       : normalized === "admin"
         ? "var(--yellow)"
-        : "var(--text-secondary)";
+        : normalized === "manager"
+          ? "var(--blue)"
+          : normalized === "viewer"
+            ? "var(--text-tertiary)"
+            : "var(--text-secondary)";
   return (
     <span
       style={{
@@ -1424,6 +1444,117 @@ function TeamSection() {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function AccessControlSection() {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["permissions"],
+    queryFn: getPermissions,
+  });
+  const mutation = useMutation({
+    mutationFn: (input: { member: PermissionMember; role: WorkspaceRole }) =>
+      updatePermissions({
+        user_id: input.member.user_id,
+        role: input.role,
+        permissions: input.member.overrides,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["permissions"] });
+      queryClient.invalidateQueries({ queryKey: ["auth-users"] });
+      queryClient.invalidateQueries({ queryKey: ["auth-session"] });
+      showNotice("Access control updated.", "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error ? err.message : "Access update failed.",
+        "error",
+      );
+    },
+  });
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>{t("settings.access.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.access.desc")}</p>
+      {isLoading ? (
+        <p style={styles.tdDesc}>{t("settings.loading")}</p>
+      ) : error ? (
+        <div style={styles.banner}>
+          <WarningTriangle width={14} height={14} />
+          <span>
+            {error instanceof Error
+              ? error.message
+              : "Could not load permissions."}
+          </span>
+        </div>
+      ) : (
+        <>
+          <div style={styles.groupTitle}>{t("settings.access.members")}</div>
+          <table className="settings-team-table" style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>{t("settings.team.person")}</th>
+                <th style={styles.th}>{t("settings.team.role")}</th>
+                <th style={styles.th}>{t("settings.access.effective")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.members ?? []).map((member) => (
+                <tr key={member.user_id}>
+                  <td style={styles.td}>
+                    <div style={{ fontWeight: 650 }}>
+                      {member.name || member.email}
+                    </div>
+                    <div
+                      style={{
+                        color: "var(--text-tertiary)",
+                        fontSize: 11,
+                        marginTop: 2,
+                      }}
+                    >
+                      {member.email}
+                    </div>
+                  </td>
+                  <td style={styles.td}>
+                    <select
+                      style={{ ...styles.input, height: 30, maxWidth: 132 }}
+                      value={editableRole(member.role)}
+                      disabled={mutation.isPending}
+                      onChange={(event) =>
+                        mutation.mutate({
+                          member,
+                          role: event.currentTarget.value as WorkspaceRole,
+                        })
+                      }
+                    >
+                      {ROLE_OPTIONS.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td style={styles.td}>
+                    <span
+                      style={{ color: "var(--text-tertiary)", fontSize: 11 }}
+                    >
+                      {member.effective_permissions.length} permissions
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ ...styles.banner, marginTop: 16 }}>
+            <Key width={14} height={14} />
+            <span>{t("settings.access.overrideHint")}</span>
+          </div>
+        </>
       )}
     </div>
   );
@@ -2613,6 +2744,7 @@ export function SettingsApp() {
         {section === "general" && <GeneralSection cfg={data} save={save} />}
         {section === "agents" && <AgentMakerSection />}
         {section === "team" && <TeamSection />}
+        {section === "access" && <AccessControlSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
         {section === "runner" && <RunnerSection />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}

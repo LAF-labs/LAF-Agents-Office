@@ -13,6 +13,12 @@ func (b *Broker) handleRunnerStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	b.mu.Lock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionRunnerRead) {
+		b.mu.Unlock()
+		return
+	}
+	b.mu.Unlock()
 	taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
 	projectID := normalizeProjectID(r.URL.Query().Get("project_id"))
 	now := time.Now().UTC()
@@ -53,6 +59,12 @@ func (b *Broker) handleRunnerPairingStart(w http.ResponseWriter, r *http.Request
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	b.mu.Lock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionRunnerManage) {
+		b.mu.Unlock()
+		return
+	}
+	b.mu.Unlock()
 	var body struct {
 		APIURL string `json:"api_url"`
 	}
@@ -176,6 +188,12 @@ func (b *Broker) handleRunnerRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	b.mu.Lock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionRunnerManage) {
+		b.mu.Unlock()
+		return
+	}
+	b.mu.Unlock()
 	var body struct {
 		TeamID       string             `json:"team_id"`
 		Name         string             `json:"name"`
@@ -246,6 +264,12 @@ func (b *Broker) handleRunnerRevoke(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	b.mu.Lock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionRunnerManage) {
+		b.mu.Unlock()
+		return
+	}
+	b.mu.Unlock()
 	var body struct {
 		RunnerID string `json:"runner_id"`
 		ID       string `json:"id"`

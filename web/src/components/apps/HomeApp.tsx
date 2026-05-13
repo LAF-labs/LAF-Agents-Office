@@ -14,19 +14,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hashtag, Plus, SendDiagonal } from "iconoir-react";
 
 import {
+  confirmOrchestrationIntent,
   createProject,
   getConfig,
   getProjects,
   getThreadMessages,
   type Message,
+  type ModelMode,
   type OfficeMember,
+  type OrchestrationIntent,
   type Project,
   postMessage,
+  routeOrchestrationIntent,
 } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { formatTime } from "../../lib/format";
 import { formatMarkdown } from "../../lib/markdown";
 import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
+import { ModelModeToggle } from "../ModelModeToggle";
 import { PixelAvatar } from "../ui/PixelAvatar";
 
 const HOME_CHANNEL = "general";
@@ -221,24 +226,34 @@ function buildOutboundMessage(
 
 function renderHomeText(content: string, agentSlugs: string[]): ReactNode[] {
   const mentionNodes = renderMentions(content, agentSlugs);
-  return mentionNodes.flatMap((node, nodeIndex) => {
-    if (typeof node !== "string") return [node];
-    const out: ReactNode[] = [];
+  const out: ReactNode[] = [];
+  let textOffset = 0;
+  for (const node of mentionNodes) {
+    if (typeof node !== "string") {
+      out.push(node);
+      continue;
+    }
+    const parts: ReactNode[] = [];
     const re = /#[a-zA-Z0-9][a-zA-Z0-9-_]{1,80}\b/g;
     let last = 0;
     for (const match of node.matchAll(re)) {
       if (match.index === undefined) continue;
-      if (match.index > last) out.push(node.slice(last, match.index));
-      out.push(
-        <span key={`hash-${nodeIndex}-${match.index}`} className="home-hash">
+      if (match.index > last) parts.push(node.slice(last, match.index));
+      parts.push(
+        <span
+          key={`hash-${textOffset + match.index}-${match[0]}`}
+          className="home-hash"
+        >
           {match[0]}
         </span>,
       );
       last = match.index + match[0].length;
     }
-    if (last < node.length) out.push(node.slice(last));
-    return out;
-  });
+    if (last < node.length) parts.push(node.slice(last));
+    out.push(...parts);
+    textOffset += node.length;
+  }
+  return out;
 }
 
 function HomeProjectGrid({
@@ -389,6 +404,7 @@ function HomeMessageList({
   agentSlugs: string[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const previousMessageCountRef = useRef(messages.length);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -396,6 +412,9 @@ function HomeMessageList({
   }, []);
 
   useEffect(() => {
+    const messageCount = messages.length;
+    if (previousMessageCountRef.current === messageCount) return;
+    previousMessageCountRef.current = messageCount;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length]);
@@ -484,6 +503,9 @@ function HomeComposer({
   const [caret, setCaret] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [modelMode, setModelMode] = useState<ModelMode>("record_only");
+  const [pendingIntent, setPendingIntent] =
+    useState<OrchestrationIntent | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const sendLockedRef = useRef(false);
@@ -508,21 +530,39 @@ function HomeComposer({
   );
 
   const sendMutation = useMutation({
-    mutationFn: (messageText: string) => {
+    mutationFn: async (messageText: string) => {
+      const routed = await routeOrchestrationIntent({
+        message: messageText,
+        model_mode: modelMode,
+        project_id: selectedProject?.id,
+      });
+      if (routed.intent.requires_confirmation) {
+        return { intent: routed.intent, kind: "intent" as const };
+      }
       const outbound = buildOutboundMessage(
         messageText,
         selectedProject,
         agentSlugs,
         leadSlug,
       );
-      return postMessage(
+      await postMessage(
         outbound.content,
         HOME_CHANNEL,
         threadId,
         outbound.tagged,
+        {
+          model_mode: modelMode,
+          scope: "home_orchestration",
+        },
       );
+      return { kind: "message" as const };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result.kind === "intent") {
+        setPendingIntent(result.intent);
+        setSendError(null);
+        return;
+      }
       queryClient.invalidateQueries({
         queryKey: ["home-messages", HOME_CHANNEL, threadId],
       });
@@ -539,6 +579,31 @@ function HomeComposer({
     },
     onSettled: () => {
       sendLockedRef.current = false;
+    },
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: (intent: OrchestrationIntent) =>
+      confirmOrchestrationIntent(intent),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["home-messages", HOME_CHANNEL, threadId],
+      });
+      setPendingIntent(null);
+      setText("");
+      setSendError(null);
+      requestAnimationFrame(() => {
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+      });
+    },
+    onError: (err: unknown) => {
+      setSendError(
+        err instanceof Error
+          ? err.message
+          : "Could not apply confirmed action.",
+      );
     },
   });
 
@@ -559,10 +624,17 @@ function HomeComposer({
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed || sendMutation.isPending || sendLockedRef.current) return;
+    if (
+      !trimmed ||
+      sendMutation.isPending ||
+      confirmMutation.isPending ||
+      sendLockedRef.current
+    )
+      return;
     sendLockedRef.current = true;
+    setPendingIntent(null);
     sendMutation.mutate(trimmed);
-  }, [text, sendMutation]);
+  }, [confirmMutation.isPending, text, sendMutation]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (isHomeIMEComposing(event, composingRef)) {
@@ -617,6 +689,35 @@ function HomeComposer({
           </span>
         ) : null}
       </div>
+      {pendingIntent ? (
+        <div className="home-confirmation-card" role="status">
+          <div>
+            <strong>Confirm workspace change</strong>
+            <span>{pendingIntent.summary}</span>
+            {pendingIntent.required_permissions.length > 0 ? (
+              <small>
+                Requires {pendingIntent.required_permissions.join(", ")}
+              </small>
+            ) : null}
+          </div>
+          <div className="home-confirmation-actions">
+            <button
+              type="button"
+              disabled={confirmMutation.isPending}
+              onClick={() => confirmMutation.mutate(pendingIntent)}
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              disabled={confirmMutation.isPending}
+              onClick={() => setPendingIntent(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="home-composer">
         {autocompleteItems.length > 0 ? (
           <div className="home-autocomplete" role="listbox">
@@ -660,13 +761,17 @@ function HomeComposer({
           aria-label="보내기"
           title="보내기"
           disabled={
-            !text.trim() || sendMutation.isPending || sendLockedRef.current
+            !text.trim() ||
+            sendMutation.isPending ||
+            confirmMutation.isPending ||
+            sendLockedRef.current
           }
           onClick={handleSubmit}
         >
           <SendDiagonal />
         </button>
       </div>
+      <ModelModeToggle value={modelMode} onChange={setModelMode} />
       {sendError ? <p className="home-inline-error">{sendError}</p> : null}
     </div>
   );

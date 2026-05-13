@@ -1481,6 +1481,16 @@ html[data-theme="office"]
   cursor: not-allowed;
   opacity: 0.62;
 }
+.skills-action-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.skills-invoke.is-danger:hover:not(:disabled) {
+  background: var(--error-100);
+  border-color: var(--error-300);
+  color: var(--error-500);
+}
 .skills-tag-row {
   display: flex;
   flex-wrap: wrap;

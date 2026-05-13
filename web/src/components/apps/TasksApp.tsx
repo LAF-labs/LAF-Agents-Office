@@ -1,4 +1,4 @@
-import {
+﻿import {
   type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -22,6 +22,7 @@ import {
   getRunnerStatus,
   getThreadMessages,
   type Message,
+  type ModelMode,
   type Project,
   postMessage,
   postMessageAs,
@@ -36,6 +37,7 @@ import { type I18nKey, useI18n } from "../../lib/i18n";
 import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
 import { cn } from "../../lib/utils";
 import { type Language, useAppStore } from "../../stores/app";
+import { ModelModeToggle } from "../ModelModeToggle";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
 import {
@@ -70,9 +72,10 @@ const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined";
 const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
-const TICKET_PENDING_REPLY_TIMEOUT_MS = 90_000;
+const TASK_PENDING_REPLY_TIMEOUT_MS = 90_000;
 const HUMAN_SLUG = "human";
 const DEFAULT_AGENT = "ceo";
+const DEFAULT_MODEL_MODE: ModelMode = "record_only";
 
 const STATUS_ORDER = [
   "in_progress",
@@ -96,10 +99,10 @@ const STATUS_LABEL_KEYS: Record<StatusGroup, I18nKey> = {
 
 type StatusGroup = (typeof STATUS_ORDER)[number];
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
-type TicketCreatorState = ReturnType<typeof useTicketCreator>;
+type TaskCreatorState = ReturnType<typeof useTaskCreator>;
 type TranslationFn = (key: I18nKey) => string;
 type ProjectLifecycle = "not_started" | "in_progress" | "done" | "waiting";
-type ProjectTicketCounts = {
+type ProjectTaskCounts = {
   done: number;
   inProgress: number;
   notStarted: number;
@@ -149,8 +152,8 @@ function countLabel(
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function projectTicketCounts(tasks: Task[]): ProjectTicketCounts {
-  const counts: ProjectTicketCounts = {
+function projectTaskCounts(tasks: Task[]): ProjectTaskCounts {
+  const counts: ProjectTaskCounts = {
     done: 0,
     inProgress: 0,
     notStarted: 0,
@@ -191,7 +194,7 @@ function normalizeProjectLifecycle(
 
 function projectLifecycle(
   project: Project,
-  counts: ProjectTicketCounts,
+  counts: ProjectTaskCounts,
 ): ProjectLifecycle {
   const explicit = normalizeProjectLifecycle(project.status);
   if (explicit) return explicit;
@@ -345,7 +348,23 @@ function updateCachedTask(queryClient: QueryClient, task: Task) {
 }
 
 function upsertCachedTask(queryClient: QueryClient, task: Task) {
-  upsertCachedTask(queryClient, task);
+  queryClient.setQueriesData<{ tasks: Task[] }>(
+    { queryKey: ["office-tasks"] },
+    (current) => {
+      if (!current?.tasks) return current;
+      const exists = current.tasks.some(
+        (candidate) => candidate.id === task.id,
+      );
+      return {
+        ...current,
+        tasks: exists
+          ? current.tasks.map((candidate) =>
+              candidate.id === task.id ? task : candidate,
+            )
+          : [task, ...current.tasks],
+      };
+    },
+  );
 }
 
 function agentDisplayName(slug: string, members: OfficeMember[]): string {
@@ -355,6 +374,13 @@ function agentDisplayName(slug: string, members: OfficeMember[]): string {
 
 function taskChannel(task: Task, project: Project): string {
   return task.channel || project.channel || "general";
+}
+
+function normalizeTaskModelMode(mode?: string | null): ModelMode {
+  if (mode === "laf_model" || mode === "local_cli" || mode === "record_only") {
+    return mode;
+  }
+  return DEFAULT_MODEL_MODE;
 }
 
 function isHumanSlug(slug: string): boolean {
@@ -369,7 +395,7 @@ function extractQuotedHumanDetail(raw: string): string {
   const reportedIssue = raw.match(/(?:reported .*? issue|issue):\s*`([^`]+)`/i);
   if (reportedIssue?.[1]) return reportedIssue[1].trim();
 
-  const quoted = raw.match(/[“"]([^”"]+)[”"]/);
+  const quoted = raw.match(/[??]([^??]+)[??]/);
   if (quoted?.[1]) return quoted[1].trim();
 
   const beforeTreat = raw.match(/issue:\s*(.+?)\s+Treat this as/i);
@@ -386,7 +412,7 @@ function looksGeneratedTaskDetail(raw: string): boolean {
     (/^Picking up the reported /i.test(raw) && /bugfix lane/i.test(raw)) ||
     (/^Pick up the .* issue:/i.test(raw) && /Treat this as/i.test(raw)) ||
     (/^No isolated .* worktree/i.test(raw) &&
-      /Ticket chat now routes/i.test(raw)) ||
+      /(Task|Task) chat now routes/i.test(raw)) ||
     (/^No isolated .* worktree/i.test(raw) &&
       /The narrow repo fix/i.test(raw)) ||
     (/Inspect the .* flow/i.test(raw) &&
@@ -410,7 +436,7 @@ function userEnteredTaskDetails(task: Task): string {
   return looksGeneratedTaskDetail(raw) ? "" : raw;
 }
 
-async function postTicketAssignmentAck(
+async function postTaskAssignmentAck(
   task: Task,
   project: Project,
   owner: string,
@@ -425,7 +451,7 @@ async function postTicketAssignmentAck(
       task.thread_id || task.id,
     );
   } catch {
-    // Ticket creation should not fail if the lightweight ack cannot post.
+    // Task creation should not fail if the lightweight ack cannot post.
   }
 }
 
@@ -455,7 +481,7 @@ function isAgentMessage(message: Message): boolean {
   return !isHumanMessage(message) && message.from !== "system";
 }
 
-function ticketCommentTargets(
+function taskCommentTargets(
   content: string,
   task: Task,
   members: OfficeMember[],
@@ -480,10 +506,7 @@ function uniqueTypingSlugs(slugs: string[]): string[] {
   return result;
 }
 
-function activeTicketTypingSlugs(
-  members: OfficeMember[],
-  task: Task,
-): string[] {
+function activeTaskTypingSlugs(members: OfficeMember[], task: Task): string[] {
   const owner = task.owner?.trim();
   return uniqueTypingSlugs(
     members
@@ -515,7 +538,7 @@ function removeRespondedTypingSlugs(
   return pendingSlugs.filter((slug) => !responded.has(slug));
 }
 
-interface TicketMessageGroup {
+interface TaskMessageGroup {
   from: string;
   id: string;
   isHuman: boolean;
@@ -523,18 +546,18 @@ interface TicketMessageGroup {
   minuteKey: string;
 }
 
-function ticketMessageMinuteKey(message: Message): string {
+function taskMessageMinuteKey(message: Message): string {
   if (!message.timestamp) return message.id;
   const parsed = Date.parse(message.timestamp);
   if (Number.isNaN(parsed)) return `${message.id}:${message.timestamp}`;
   return new Date(parsed).toISOString().slice(0, 16);
 }
 
-function groupTicketMessages(messages: Message[]): TicketMessageGroup[] {
-  const groups: TicketMessageGroup[] = [];
+function groupTaskMessages(messages: Message[]): TaskMessageGroup[] {
+  const groups: TaskMessageGroup[] = [];
   for (const message of messages) {
     const from = message.from || "";
-    const minuteKey = ticketMessageMinuteKey(message);
+    const minuteKey = taskMessageMinuteKey(message);
     const previous = groups[groups.length - 1];
     if (
       previous &&
@@ -628,70 +651,73 @@ function useProjectCreator(
   };
 }
 
-function useTicketCreator(
+function useTaskCreator(
   queryClient: QueryClient,
   project: Project | null,
   members: OfficeMember[],
   t: TranslationFn,
-  onTicketCreated: (ticketId: string) => void,
+  onTaskCreated: (taskId: string) => void,
 ) {
-  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
-  const [isSavingTicket, setIsSavingTicket] = useState(false);
-  const [ticketTitle, setTicketTitle] = useState("");
-  const [ticketDetails, setTicketDetails] = useState("");
-  const [ticketOwner, setTicketOwner] = useState("");
-  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDetails, setTaskDetails] = useState("");
+  const [taskOwner, setTaskOwner] = useState("");
+  const [taskError, setTaskError] = useState<string | null>(null);
 
-  function resetTicketDraft() {
-    setTicketTitle("");
-    setTicketDetails("");
-    setTicketOwner(defaultProjectAgent(project, members));
-    setTicketError(null);
+  function resetTaskDraft() {
+    setTaskTitle("");
+    setTaskDetails("");
+    setTaskOwner(defaultProjectAgent(project, members));
+    setTaskError(null);
   }
 
-  function handleOpenTicketDraft() {
-    resetTicketDraft();
-    setIsCreatingTicket(true);
+  function handleOpenTaskDraft() {
+    resetTaskDraft();
+    setIsCreatingTask(true);
   }
 
-  function handleCloseTicketDraft() {
-    setIsCreatingTicket(false);
-    resetTicketDraft();
+  function handleCloseTaskDraft() {
+    setIsCreatingTask(false);
+    resetTaskDraft();
   }
 
   useEffect(() => {
-    setTicketTitle("");
-    setTicketDetails("");
-    setTicketOwner(defaultProjectAgent(project, members));
-    setTicketError(null);
-    setIsCreatingTicket(false);
+    setTaskTitle("");
+    setTaskDetails("");
+    setTaskOwner(defaultProjectAgent(project, members));
+    setTaskError(null);
+    setIsCreatingTask(false);
   }, [project, members]);
 
-  async function persistTicketDraft(
+  async function persistTaskDraft(
     currentProject: Project,
     title: string,
     owner: string,
     details: string,
   ) {
-    setTicketError(null);
-    setIsSavingTicket(true);
+    setTaskError(null);
+    setIsSavingTask(true);
     try {
       const { task } = await createTask({
+        assignee_id: owner,
+        assignee_type: isHumanSlug(owner) ? "human" : "agent",
         channel: currentProject.channel || "general",
         created_by: HUMAN_SLUG,
         details: details || undefined,
         human_details: details || undefined,
+        model_mode: DEFAULT_MODEL_MODE,
         owner,
         project_id: currentProject.id,
         title,
       });
       const channel = taskChannel(task, currentProject);
       const threadId = task.thread_id || task.id;
-      await postTicketAssignmentAck(task, currentProject, owner, t);
+      await postTaskAssignmentAck(task, currentProject, owner, t);
       upsertCachedTask(queryClient, task);
-      resetTicketDraft();
-      setIsCreatingTicket(false);
-      onTicketCreated(task.id);
+      resetTaskDraft();
+      setIsCreatingTask(false);
+      onTaskCreated(task.id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["office-tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["messages", channel] }),
@@ -701,37 +727,37 @@ function useTicketCreator(
       ]);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Could not create ticket";
-      setTicketError(message);
+        err instanceof Error ? err.message : "Could not create task";
+      setTaskError(message);
     } finally {
-      setIsSavingTicket(false);
+      setIsSavingTask(false);
     }
   }
 
-  async function handleCreateTicket(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!project || isSavingTicket) return;
-    const title = ticketTitle.trim();
+    if (!project || isSavingTask) return;
+    const title = taskTitle.trim();
     if (!title) return;
-    const owner = ticketOwner.trim() || defaultProjectAgent(project, members);
-    await persistTicketDraft(project, title, owner, ticketDetails.trim());
+    const owner = taskOwner.trim() || defaultProjectAgent(project, members);
+    await persistTaskDraft(project, title, owner, taskDetails.trim());
   }
 
   return {
-    handleCloseTicketDraft,
-    handleCreateTicket,
-    handleOpenTicketDraft,
-    isCreatingTicket,
-    isSavingTicket,
-    setIsCreatingTicket,
-    setTicketDetails,
-    setTicketError,
-    setTicketOwner,
-    setTicketTitle,
-    ticketDetails,
-    ticketError,
-    ticketOwner,
-    ticketTitle,
+    handleCloseTaskDraft,
+    handleCreateTask,
+    handleOpenTaskDraft,
+    isCreatingTask,
+    isSavingTask,
+    setIsCreatingTask,
+    setTaskDetails,
+    setTaskError,
+    setTaskOwner,
+    setTaskTitle,
+    taskDetails,
+    taskError,
+    taskOwner,
+    taskTitle,
   };
 }
 
@@ -931,7 +957,7 @@ export function TasksApp() {
     setSelectedTaskId,
   ]);
 
-  const ticketCreator = useTicketCreator(
+  const taskCreator = useTaskCreator(
     queryClient,
     selectedProject,
     members,
@@ -966,7 +992,7 @@ export function TasksApp() {
         selectedTask={selectedTask}
         selectedTaskId={selectedTaskId}
         tasks={selectedProjectTasks}
-        ticketCreator={ticketCreator}
+        taskCreator={taskCreator}
         t={t}
         onBack={() => setProjectFocusId(null)}
         onCloseTask={() => setSelectedTaskId(null)}
@@ -1050,7 +1076,7 @@ function ProjectDirectoryToolbar({
             {" · "}
             {isLoadingTasks
               ? t("tasks.loadingTasks")
-              : countLabel(taskCount, "ticket", "tickets", "티켓", language)}
+              : countLabel(taskCount, "task", "tasks", "업무", language)}
           </CardDescription>
         </div>
         <Button
@@ -1138,7 +1164,7 @@ function ProjectDirectoryList({
                 <TableHead className="w-[132px]">
                   {t("tasks.projectTable.status")}
                 </TableHead>
-                <TableHead>{t("tasks.projectTable.tickets")}</TableHead>
+                <TableHead>{t("tasks.projectTable.tasks")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1154,7 +1180,7 @@ function ProjectDirectoryList({
                 const projectTasks = tasks.filter(
                   (task) => task.project_id === project.id,
                 );
-                const counts = projectTicketCounts(projectTasks);
+                const counts = projectTaskCounts(projectTasks);
                 const lifecycle = projectLifecycle(project, counts);
                 return (
                   <ProjectDirectoryRow
@@ -1180,7 +1206,7 @@ function ProjectDirectoryList({
 }
 
 interface ProjectDirectoryRowProps {
-  counts: ProjectTicketCounts;
+  counts: ProjectTaskCounts;
   id: string;
   isFocused: boolean;
   isStatsReady: boolean;
@@ -1203,7 +1229,7 @@ function ProjectDraftRow({
   t: TranslationFn;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const counts: ProjectTicketCounts = {
+  const counts: ProjectTaskCounts = {
     done: 0,
     inProgress: 0,
     notStarted: 0,
@@ -1267,26 +1293,26 @@ function ProjectDraftRow({
         </span>
       </TableCell>
       <TableCell>
-        <div className="project-ticket-metrics">
-          <span className="project-ticket-metric">
+        <div className="project-task-metrics">
+          <span className="project-task-metric">
             <strong>{countValue(counts.notStarted)}</strong>
-            {t("tasks.projectTickets.notStarted")}
+            {t("tasks.projectTasks.notStarted")}
           </span>
-          <span className="project-ticket-metric">
+          <span className="project-task-metric">
             <strong>{countValue(counts.inProgress)}</strong>
-            {t("tasks.projectTickets.inProgress")}
+            {t("tasks.projectTasks.inProgress")}
           </span>
-          <span className="project-ticket-metric">
+          <span className="project-task-metric">
             <strong>{countValue(counts.waiting)}</strong>
-            {t("tasks.projectTickets.waiting")}
+            {t("tasks.projectTasks.waiting")}
           </span>
-          <span className="project-ticket-metric">
+          <span className="project-task-metric">
             <strong>{countValue(counts.done)}</strong>
-            {t("tasks.projectTickets.done")}
+            {t("tasks.projectTasks.done")}
           </span>
-          <span className="project-ticket-metric is-total">
+          <span className="project-task-metric is-total">
             {isStatsReady
-              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              ? countLabel(counts.total, "task", "tasks", "업무", language)
               : "..."}
           </span>
           <Button
@@ -1299,7 +1325,7 @@ function ProjectDraftRow({
             aria-label={t("tasks.cancel")}
             disabled={projectCreator.isSavingProject}
           >
-            <TicketPanelCloseIcon />
+            <TaskPanelCloseIcon />
           </Button>
         </div>
       </TableCell>
@@ -1345,26 +1371,26 @@ function ProjectDirectoryRow({
         </span>
       </TableCell>
       <TableCell>
-        <div className="project-ticket-metrics">
-          <span className="project-ticket-metric">
+        <div className="project-task-metrics">
+          <span className="project-task-metric">
             <strong>{countValue(counts.notStarted)}</strong>
-            {t("tasks.projectTickets.notStarted")}
+            {t("tasks.projectTasks.notStarted")}
           </span>
-          <span className="project-ticket-metric">
+          <span className="project-task-metric">
             <strong>{countValue(counts.inProgress)}</strong>
-            {t("tasks.projectTickets.inProgress")}
+            {t("tasks.projectTasks.inProgress")}
           </span>
-          <span className="project-ticket-metric">
+          <span className="project-task-metric">
             <strong>{countValue(counts.waiting)}</strong>
-            {t("tasks.projectTickets.waiting")}
+            {t("tasks.projectTasks.waiting")}
           </span>
-          <span className="project-ticket-metric">
+          <span className="project-task-metric">
             <strong>{countValue(counts.done)}</strong>
-            {t("tasks.projectTickets.done")}
+            {t("tasks.projectTasks.done")}
           </span>
-          <span className="project-ticket-metric is-total">
+          <span className="project-task-metric is-total">
             {isStatsReady
-              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              ? countLabel(counts.total, "task", "tasks", "업무", language)
               : "..."}
           </span>
         </div>
@@ -1382,7 +1408,7 @@ interface ProjectDetailViewProps {
   selectedTask: Task | null;
   selectedTaskId: string | null;
   tasks: Task[];
-  ticketCreator: TicketCreatorState;
+  taskCreator: TaskCreatorState;
   t: TranslationFn;
   onBack: () => void;
   onCloseTask: () => void;
@@ -1398,14 +1424,14 @@ function ProjectDetailView({
   selectedTask,
   selectedTaskId,
   tasks,
-  ticketCreator,
+  taskCreator,
   t,
   onBack,
   onCloseTask,
   onSelectTask,
 }: ProjectDetailViewProps) {
   const sortedTasks = useMemo(() => sortProjectTasks(tasks), [tasks]);
-  const counts = projectTicketCounts(tasks);
+  const counts = projectTaskCounts(tasks);
   const lifecycle = projectLifecycle(project, counts);
   const projectInfoEditor = useProjectInfoEditor(project, queryClient, t);
   const runnerStatusQuery = useQuery({
@@ -1418,38 +1444,38 @@ function ProjectDetailView({
     runnerStatusQuery.data,
     runnerStatusQuery.isLoading,
   );
-  const openTicketDraft = () => {
+  const openTaskDraft = () => {
     onCloseTask();
-    ticketCreator.handleOpenTicketDraft();
+    taskCreator.handleOpenTaskDraft();
   };
   const selectTask = (taskId: string) => {
-    ticketCreator.handleCloseTicketDraft();
+    taskCreator.handleCloseTaskDraft();
     onSelectTask(taskId);
   };
 
   return (
     <main className="project-app">
       <ProjectDetailHeader project={project} t={t} onBack={onBack} />
-      <ProjectTicketToolbar
+      <ProjectTaskToolbar
         counts={counts}
         isStatsReady={isStatsReady}
         language={language}
         runnerSignal={runnerSignal}
         status={lifecycle}
         t={t}
-        onCreateTicket={openTicketDraft}
+        onCreateTask={openTaskDraft}
       />
       <ProjectInfoPanel editor={projectInfoEditor} t={t} />
-      <ProjectTicketList
+      <ProjectTaskList
         members={members}
         selectedTaskId={selectedTaskId}
         tasks={sortedTasks}
         t={t}
-        onCreateTicket={openTicketDraft}
+        onCreateTask={openTaskDraft}
         onSelectTask={selectTask}
       />
       {selectedTask ? (
-        <TicketSidePanel
+        <TaskSidePanel
           key={selectedTask.id}
           members={members}
           project={project}
@@ -1458,13 +1484,13 @@ function ProjectDetailView({
           t={t}
           onClose={onCloseTask}
         />
-      ) : ticketCreator.isCreatingTicket ? (
-        <TicketDraftSidePanel
+      ) : taskCreator.isCreatingTask ? (
+        <TaskDraftSidePanel
           members={members}
           project={project}
-          ticketCreator={ticketCreator}
+          taskCreator={taskCreator}
           t={t}
-          onClose={ticketCreator.handleCloseTicketDraft}
+          onClose={taskCreator.handleCloseTaskDraft}
         />
       ) : null}
     </main>
@@ -1504,33 +1530,33 @@ function ProjectDetailHeader({
   );
 }
 
-function ProjectTicketToolbar({
+function ProjectTaskToolbar({
   counts,
   isStatsReady,
   language,
   runnerSignal,
   status,
   t,
-  onCreateTicket,
+  onCreateTask,
 }: {
-  counts: ProjectTicketCounts;
+  counts: ProjectTaskCounts;
   isStatsReady: boolean;
   language: Language;
   runnerSignal: RunnerSignal;
   status: ProjectLifecycle;
   t: TranslationFn;
-  onCreateTicket: () => void;
+  onCreateTask: () => void;
 }) {
   return (
-    <Card className="project-directory-card project-ticket-card">
-      <CardHeader className="project-ticket-toolbar-row flex flex-row items-center justify-between gap-4 space-y-0 p-4">
+    <Card className="project-directory-card project-task-card">
+      <CardHeader className="project-task-toolbar-row flex flex-row items-center justify-between gap-4 space-y-0 p-4">
         <div className="project-detail-metrics">
           <span className={cn("project-inline-status", `is-${status}`)}>
             {isStatsReady ? t(projectLifecycleLabelKey(status)) : "..."}
           </span>
-          <span className="project-ticket-metric is-total">
+          <span className="project-task-metric is-total">
             {isStatsReady
-              ? countLabel(counts.total, "ticket", "tickets", "티켓", language)
+              ? countLabel(counts.total, "task", "tasks", "업무", language)
               : t("tasks.loadingTasks")}
           </span>
           <span
@@ -1546,13 +1572,13 @@ function ProjectTicketToolbar({
         <Button
           type="button"
           variant="outline"
-          className="project-create-button project-ticket-create-button"
-          onClick={onCreateTicket}
-          aria-label={t("tasks.newTicket")}
-          title={t("tasks.newTicket")}
+          className="project-create-button project-task-create-button"
+          onClick={onCreateTask}
+          aria-label={t("tasks.newTask")}
+          title={t("tasks.newTask")}
         >
           <Plus width={16} height={16} />
-          <span>{t("tasks.newTicket")}</span>
+          <span>{t("tasks.newTask")}</span>
         </Button>
       </CardHeader>
     </Card>
@@ -1717,16 +1743,16 @@ function ProjectInfoPanel({
   );
 }
 
-function TicketDraftSidePanel({
+function TaskDraftSidePanel({
   members,
   project,
-  ticketCreator,
+  taskCreator,
   t,
   onClose,
 }: {
   members: OfficeMember[];
   project: Project;
-  ticketCreator: TicketCreatorState;
+  taskCreator: TaskCreatorState;
   t: TranslationFn;
   onClose: () => void;
 }) {
@@ -1739,35 +1765,35 @@ function TicketDraftSidePanel({
   return (
     <Sheet>
       <SheetContent
-        className="ticket-side-panel ticket-draft-panel h-auto w-full gap-0 p-0 sm:max-w-2xl"
+        className="task-side-panel task-draft-panel h-auto w-full gap-0 p-0 sm:max-w-2xl"
         style={{
           maxWidth: "40rem",
           top: "var(--topbar-height, 0px)",
           width: "min(100vw, 40rem)",
         }}
         role="complementary"
-        aria-label={t("tasks.newTicket")}
+        aria-label={t("tasks.newTask")}
       >
         <form
-          className="ticket-draft-form flex min-h-0 flex-1 flex-col"
-          onSubmit={ticketCreator.handleCreateTicket}
+          className="task-draft-form flex min-h-0 flex-1 flex-col"
+          onSubmit={taskCreator.handleCreateTask}
         >
-          <div className="ticket-side-panel-header ticket-draft-header flex items-start justify-between gap-4 border-b px-6 py-5">
+          <div className="task-side-panel-header task-draft-header flex items-start justify-between gap-4 border-b px-6 py-5">
             <SheetHeader className="min-w-0">
               <SheetDescription>{project.name || project.id}</SheetDescription>
-              <SheetTitle className="ticket-draft-title-shell">
+              <SheetTitle className="task-draft-title-shell">
                 <Input
                   ref={titleRef}
-                  id="ticket-title"
-                  className="ticket-draft-title-input"
+                  id="task-title"
+                  className="task-draft-title-input"
                   type="text"
-                  value={ticketCreator.ticketTitle}
+                  value={taskCreator.taskTitle}
                   onChange={(event) =>
-                    ticketCreator.setTicketTitle(event.currentTarget.value)
+                    taskCreator.setTaskTitle(event.currentTarget.value)
                   }
-                  placeholder={t("tasks.ticketTitle")}
-                  aria-label={t("tasks.ticketTitle")}
-                  disabled={ticketCreator.isSavingTicket}
+                  placeholder={t("tasks.taskTitle")}
+                  aria-label={t("tasks.taskTitle")}
+                  disabled={taskCreator.isSavingTask}
                 />
               </SheetTitle>
             </SheetHeader>
@@ -1777,15 +1803,15 @@ function TicketDraftSidePanel({
               variant="outline"
               onClick={onClose}
               aria-label={t("tasks.close")}
-              disabled={ticketCreator.isSavingTicket}
-              className="ticket-panel-close"
+              disabled={taskCreator.isSavingTask}
+              className="task-panel-close"
             >
-              <TicketPanelCloseIcon />
+              <TaskPanelCloseIcon />
             </Button>
           </div>
 
-          <div className="ticket-side-panel-body flex min-h-0 flex-1 flex-col">
-            <div className="ticket-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
+          <div className="task-side-panel-body flex min-h-0 flex-1 flex-col">
+            <div className="task-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
               <div className="grid gap-1">
                 <span className="text-xs font-medium text-muted-foreground">
                   {t("tasks.status")}
@@ -1797,60 +1823,60 @@ function TicketDraftSidePanel({
               <div className="grid min-w-0 gap-1">
                 <Label
                   className="text-xs font-medium text-muted-foreground"
-                  htmlFor="ticket-owner"
+                  htmlFor="task-owner"
                 >
                   {t("tasks.detail.owner")}
                 </Label>
                 <AgentSelect
-                  id="ticket-owner"
-                  agent={ticketCreator.ticketOwner}
+                  id="task-owner"
+                  agent={taskCreator.taskOwner}
                   label={t("tasks.detail.owner")}
                   members={members}
                   preferred={project.lead_agent}
-                  onChange={ticketCreator.setTicketOwner}
+                  onChange={taskCreator.setTaskOwner}
                 />
               </div>
             </div>
 
-            <section className="ticket-side-panel-detail ticket-draft-detail mx-6 mb-5 grid gap-2 overflow-y-auto overflow-x-hidden border-y bg-transparent py-3">
+            <section className="task-side-panel-detail task-draft-detail mx-6 mb-5 grid gap-2 overflow-y-auto overflow-x-hidden border-y bg-transparent py-3">
               <Label
                 className="text-xs font-medium text-muted-foreground"
-                htmlFor="ticket-details"
+                htmlFor="task-details"
               >
-                {t("tasks.ticketDetails")}
+                {t("tasks.taskDetails")}
               </Label>
               <Textarea
-                id="ticket-details"
-                className="ticket-draft-details"
-                value={ticketCreator.ticketDetails}
+                id="task-details"
+                className="task-draft-details"
+                value={taskCreator.taskDetails}
                 onChange={(event) =>
-                  ticketCreator.setTicketDetails(event.currentTarget.value)
+                  taskCreator.setTaskDetails(event.currentTarget.value)
                 }
-                placeholder={t("tasks.ticketDetails")}
-                aria-label={t("tasks.ticketDetails")}
+                placeholder={t("tasks.taskDetails")}
+                aria-label={t("tasks.taskDetails")}
                 rows={8}
-                disabled={ticketCreator.isSavingTicket}
+                disabled={taskCreator.isSavingTask}
               />
             </section>
 
-            <div className="ticket-draft-footer mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-t px-6 py-4">
+            <div className="task-draft-footer mt-auto grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-t px-6 py-4">
               <span className="truncate text-sm text-destructive">
-                {ticketCreator.ticketError ?? ""}
+                {taskCreator.taskError ?? ""}
               </span>
               <Button
                 type="submit"
                 disabled={
-                  ticketCreator.ticketTitle.trim() === "" ||
-                  ticketCreator.isSavingTicket
+                  taskCreator.taskTitle.trim() === "" ||
+                  taskCreator.isSavingTask
                 }
               >
-                {t("tasks.createTicket")}
+                {t("tasks.createTask")}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                disabled={ticketCreator.isSavingTicket}
+                disabled={taskCreator.isSavingTask}
               >
                 {t("tasks.cancel")}
               </Button>
@@ -1862,19 +1888,19 @@ function TicketDraftSidePanel({
   );
 }
 
-function ProjectTicketList({
+function ProjectTaskList({
   members,
   selectedTaskId,
   tasks,
   t,
-  onCreateTicket,
+  onCreateTask,
   onSelectTask,
 }: {
   members: OfficeMember[];
   selectedTaskId: string | null;
   tasks: Task[];
   t: TranslationFn;
-  onCreateTicket: () => void;
+  onCreateTask: () => void;
   onSelectTask: (taskId: string) => void;
 }) {
   if (tasks.length === 0) {
@@ -1885,19 +1911,19 @@ function ProjectTicketList({
             <Plus width={18} height={18} />
           </div>
           <p className="text-sm font-medium text-foreground">
-            {t("tasks.noTickets")}
+            {t("tasks.noTasks")}
           </p>
           <p className="text-sm text-muted-foreground">
-            {t("tasks.noTicketsDesc")}
+            {t("tasks.noTasksDesc")}
           </p>
           <Button
             className="project-empty-action"
             type="button"
             variant="outline"
-            onClick={onCreateTicket}
+            onClick={onCreateTask}
           >
             <Plus width={16} height={16} />
-            {t("tasks.newTicket")}
+            {t("tasks.newTask")}
           </Button>
         </CardContent>
       </Card>
@@ -1905,13 +1931,13 @@ function ProjectTicketList({
   }
 
   return (
-    <Card className="project-directory-card project-ticket-list-card">
+    <Card className="project-directory-card project-task-list-card">
       <CardContent className="p-0">
-        <section aria-label={t("tasks.tickets")}>
+        <section aria-label={t("tasks.tasks")}>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("tasks.ticket")}</TableHead>
+                <TableHead>{t("tasks.task")}</TableHead>
                 <TableHead className="w-[126px]">{t("tasks.status")}</TableHead>
                 <TableHead className="w-[190px]">
                   {t("tasks.detail.owner")}
@@ -1923,7 +1949,7 @@ function ProjectTicketList({
             </TableHeader>
             <TableBody>
               {tasks.map((task) => (
-                <TicketRow
+                <TaskRow
                   isSelected={selectedTaskId === task.id}
                   key={task.id}
                   members={members}
@@ -1940,7 +1966,7 @@ function ProjectTicketList({
   );
 }
 
-function TicketRow({
+function TaskRow({
   isSelected,
   members,
   task,
@@ -1999,11 +2025,11 @@ function TicketRow({
   );
 }
 
-function TicketPanelCloseIcon() {
+function TaskPanelCloseIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="ticket-panel-close-icon"
+      className="task-panel-close-icon"
       fill="none"
       height="18"
       viewBox="0 0 18 18"
@@ -2019,7 +2045,7 @@ function TicketPanelCloseIcon() {
   );
 }
 
-function submitTicketCommentOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
+function submitTaskCommentOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
   if (
     event.key !== "Enter" ||
     event.shiftKey ||
@@ -2031,7 +2057,7 @@ function submitTicketCommentOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
   event.currentTarget.form?.requestSubmit();
 }
 
-function TicketDetailSection({
+function TaskDetailSection({
   project,
   queryClient,
   task,
@@ -2058,7 +2084,7 @@ function TicketDetailSection({
     setDetailError(null);
   }, [task.title, detailText]);
 
-  async function persistTicketDetails(clearDetails: boolean) {
+  async function persistTaskDetails(clearDetails: boolean) {
     const title = draftTitle.trim();
     if (!(title || clearDetails)) {
       setDetailError(t("tasks.detail.titleRequired"));
@@ -2077,6 +2103,7 @@ function TicketDetailSection({
         details,
         human_details: details,
         id: task.id,
+        model_mode: normalizeTaskModelMode(task.model_mode),
         project_id: task.project_id || project.id,
         title: clearDetails ? task.title : title,
       });
@@ -2096,18 +2123,18 @@ function TicketDetailSection({
   }
 
   return (
-    <section className="ticket-side-panel-detail mx-6 mb-5 grid gap-3 overflow-x-hidden border-y bg-transparent py-3">
-      <div className="ticket-detail-section-head flex items-center justify-between gap-3">
+    <section className="task-side-panel-detail mx-6 mb-5 grid gap-3 overflow-x-hidden border-y bg-transparent py-3">
+      <div className="task-detail-section-head flex items-center justify-between gap-3">
         <h5 className="text-xs font-medium text-muted-foreground">
-          {t("tasks.ticketDetails")}
+          {t("tasks.taskDetails")}
         </h5>
         {isEditingDetails ? null : (
-          <div className="ticket-detail-actions flex items-center gap-2">
+          <div className="task-detail-actions flex items-center gap-2">
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              className="ticket-detail-action"
+              className="task-detail-action"
               onClick={() => {
                 setDraftTitle(task.title || "");
                 setDraftDetails(detailText);
@@ -2121,9 +2148,9 @@ function TicketDetailSection({
               type="button"
               size="sm"
               variant="ghost"
-              className="ticket-detail-action is-danger"
+              className="task-detail-action is-danger"
               disabled={!detailText || isClearingDetails}
-              onClick={() => void persistTicketDetails(true)}
+              onClick={() => void persistTaskDetails(true)}
             >
               {isClearingDetails
                 ? t("tasks.detail.deleting")
@@ -2133,38 +2160,38 @@ function TicketDetailSection({
         )}
       </div>
       {isEditingDetails ? (
-        <div className="ticket-detail-edit grid gap-3">
+        <div className="task-detail-edit grid gap-3">
           <div className="grid gap-2">
-            <Label htmlFor={`ticket-edit-title-${task.id}`}>
-              {t("tasks.ticketTitle")}
+            <Label htmlFor={`task-edit-title-${task.id}`}>
+              {t("tasks.taskTitle")}
             </Label>
             <Input
-              id={`ticket-edit-title-${task.id}`}
+              id={`task-edit-title-${task.id}`}
               value={draftTitle}
               onChange={(event) => setDraftTitle(event.currentTarget.value)}
-              aria-label={t("tasks.ticketTitle")}
+              aria-label={t("tasks.taskTitle")}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor={`ticket-edit-details-${task.id}`}>
-              {t("tasks.ticketDetails")}
+            <Label htmlFor={`task-edit-details-${task.id}`}>
+              {t("tasks.taskDetails")}
             </Label>
             <Textarea
-              id={`ticket-edit-details-${task.id}`}
+              id={`task-edit-details-${task.id}`}
               value={draftDetails}
               onChange={(event) => setDraftDetails(event.currentTarget.value)}
-              aria-label={t("tasks.ticketDetails")}
+              aria-label={t("tasks.taskDetails")}
               rows={5}
             />
           </div>
           {detailError ? (
             <p className="text-sm text-destructive">{detailError}</p>
           ) : null}
-          <div className="ticket-detail-edit-actions flex justify-end gap-2">
+          <div className="task-detail-edit-actions flex justify-end gap-2">
             <Button
               type="button"
               disabled={!draftTitle.trim() || isSavingDetails}
-              onClick={() => void persistTicketDetails(false)}
+              onClick={() => void persistTaskDetails(false)}
             >
               {isSavingDetails
                 ? t("tasks.detail.saving")
@@ -2187,7 +2214,7 @@ function TicketDetailSection({
       ) : (
         <>
           <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-            {detailText || t("tasks.noTicketDetails")}
+            {detailText || t("tasks.noTaskDetails")}
           </p>
           {detailError ? (
             <p className="text-sm text-destructive">{detailError}</p>
@@ -2198,7 +2225,7 @@ function TicketDetailSection({
   );
 }
 
-function TicketSidePanel({
+function TaskSidePanel({
   members,
   project,
   queryClient,
@@ -2217,6 +2244,9 @@ function TicketSidePanel({
   const [sendError, setSendError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [modelMode, setModelMode] = useState<ModelMode>(() =>
+    normalizeTaskModelMode(task.model_mode),
+  );
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [pendingReply, setPendingReply] = useState<{
     afterMessageId: string | null;
@@ -2245,13 +2275,17 @@ function TicketSidePanel({
   }, [optimisticMessages, serverThreadMessages]);
   const typingSlugs = uniqueTypingSlugs([
     ...pendingReply.slugs,
-    ...activeTicketTypingSlugs(members, task),
+    ...activeTaskTypingSlugs(members, task),
   ]);
-  const commentTargets = ticketCommentTargets(instruction, task, members);
+  const commentTargets = taskCommentTargets(instruction, task, members);
   const routeHint =
     instruction.trim() && commentTargets.length > 0
       ? `${t("tasks.notify")} ${commentTargets.map((slug) => agentLabel(slug, members)).join(", ")}`
       : t("tasks.mentionHint");
+
+  useEffect(() => {
+    setModelMode(normalizeTaskModelMode(task.model_mode));
+  }, [task.id, task.model_mode]);
 
   useEffect(() => {
     setPendingReply((current) => {
@@ -2285,7 +2319,7 @@ function TicketSidePanel({
     )
       return;
     const remaining =
-      TICKET_PENDING_REPLY_TIMEOUT_MS - (Date.now() - pendingReply.sentAt);
+      TASK_PENDING_REPLY_TIMEOUT_MS - (Date.now() - pendingReply.sentAt);
     if (remaining <= 0) {
       setPendingReply({ afterMessageId: null, sentAt: null, slugs: [] });
       return;
@@ -2300,7 +2334,7 @@ function TicketSidePanel({
     event.preventDefault();
     const text = instruction.trim();
     if (!text || isSending) return;
-    const taggedTargets = ticketCommentTargets(text, task, members);
+    const taggedTargets = taskCommentTargets(text, task, members);
     setIsSending(true);
     setSendError(null);
     setSent(false);
@@ -2310,6 +2344,12 @@ function TicketSidePanel({
         channel,
         threadId,
         taggedTargets,
+        {
+          model_mode: modelMode,
+          project_id: project.id,
+          scope: "task_execution",
+          task_id: task.id,
+        },
       );
       const sentMessageId = sentMessage.id || `local-${Date.now()}`;
       setOptimisticMessages((current) =>
@@ -2351,16 +2391,16 @@ function TicketSidePanel({
   return (
     <Sheet>
       <SheetContent
-        className="ticket-side-panel h-auto w-full gap-0 p-0 sm:max-w-2xl"
+        className="task-side-panel h-auto w-full gap-0 p-0 sm:max-w-2xl"
         style={{
           maxWidth: "40rem",
           top: "var(--topbar-height, 0px)",
           width: "min(100vw, 40rem)",
         }}
         role="complementary"
-        aria-label={t("tasks.ticketDetails")}
+        aria-label={t("tasks.taskDetails")}
       >
-        <div className="ticket-side-panel-header flex items-start justify-between gap-4 border-b px-6 py-5">
+        <div className="task-side-panel-header flex items-start justify-between gap-4 border-b px-6 py-5">
           <SheetHeader className="min-w-0">
             <SheetDescription>{task.id}</SheetDescription>
             <SheetTitle className="truncate">
@@ -2373,14 +2413,14 @@ function TicketSidePanel({
             variant="outline"
             onClick={onClose}
             aria-label={t("tasks.close")}
-            className="ticket-panel-close"
+            className="task-panel-close"
           >
-            <TicketPanelCloseIcon />
+            <TaskPanelCloseIcon />
           </Button>
         </div>
 
-        <div className="ticket-side-panel-body flex min-h-0 flex-1 flex-col">
-          <div className="ticket-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
+        <div className="task-side-panel-body flex min-h-0 flex-1 flex-col">
+          <div className="task-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">
                 {t("tasks.status")}
@@ -2399,7 +2439,7 @@ function TicketSidePanel({
             </div>
           </div>
 
-          <TicketDetailSection
+          <TaskDetailSection
             project={project}
             queryClient={queryClient}
             task={task}
@@ -2409,44 +2449,56 @@ function TicketSidePanel({
           <Separator />
 
           <form
-            className="ticket-side-panel-form flex min-h-0 flex-1 flex-col"
+            className="task-side-panel-form flex min-h-0 flex-1 flex-col"
             onSubmit={handleSendInstruction}
           >
-            <div className="ticket-chat-heading px-6 py-4">
+            <div className="task-chat-heading px-6 py-4">
               <h5 className="text-sm font-medium text-foreground">
                 {t("tasks.agentInstruction")}
               </h5>
             </div>
-            <TicketChatFeed
+            <TaskChatFeed
               isLoading={threadMessagesQuery.isLoading}
               members={members}
               messages={threadMessages}
               t={t}
               typingSlugs={typingSlugs}
             />
-            <div className="ticket-chat-composer-shell border-t bg-background p-4">
-              <div className="ticket-chat-composer overflow-hidden border-y bg-transparent shadow-none focus-within:border-ring">
+            <div className="task-chat-composer-shell border-t bg-background p-4">
+              <div className="task-chat-composer overflow-hidden border-y bg-transparent shadow-none focus-within:border-ring">
                 <Textarea
-                  className="ticket-chat-input min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                  className="task-chat-input min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
                   value={instruction}
                   onChange={(event) => {
                     setInstruction(event.currentTarget.value);
                     setSent(false);
                   }}
-                  onKeyDown={submitTicketCommentOnEnter}
+                  onKeyDown={submitTaskCommentOnEnter}
                   placeholder={t("tasks.agentInstructionPlaceholder")}
                   aria-label={t("tasks.agentInstruction")}
                   rows={4}
                 />
-                <div className="ticket-chat-composer-footer grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-transparent p-2">
-                  <span
-                    className={cn(
-                      "truncate text-xs",
-                      sendError ? "text-destructive" : "text-muted-foreground",
-                    )}
-                  >
-                    {sendError ? sendError : sent ? t("tasks.sent") : routeHint}
-                  </span>
+                <div className="task-chat-composer-footer grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-transparent p-2">
+                  <div className="grid min-w-0 gap-2">
+                    <span
+                      className={cn(
+                        "truncate text-xs",
+                        sendError
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {sendError
+                        ? sendError
+                        : sent
+                          ? t("tasks.sent")
+                          : routeHint}
+                    </span>
+                    <ModelModeToggle
+                      value={modelMode}
+                      onChange={setModelMode}
+                    />
+                  </div>
                   <Button
                     type="submit"
                     disabled={!instruction.trim() || isSending}
@@ -2465,7 +2517,7 @@ function TicketSidePanel({
   );
 }
 
-function TicketChatFeed({
+function TaskChatFeed({
   isLoading,
   members,
   messages,
@@ -2489,7 +2541,7 @@ function TicketChatFeed({
 
   if (isLoading) {
     return (
-      <div className="ticket-chat-empty mx-6 flex min-h-72 flex-1 items-center justify-center border-y border-dashed bg-transparent p-4 text-sm text-muted-foreground">
+      <div className="task-chat-empty mx-6 flex min-h-72 flex-1 items-center justify-center border-y border-dashed bg-transparent p-4 text-sm text-muted-foreground">
         {t("tasks.loadingChat")}
       </div>
     );
@@ -2497,33 +2549,33 @@ function TicketChatFeed({
 
   if (visibleMessages.length === 0 && typingSlugs.length === 0) {
     return (
-      <div className="ticket-chat-empty mx-6 flex min-h-72 flex-1 items-center justify-center border-y border-dashed bg-transparent p-4 text-center text-sm text-muted-foreground">
+      <div className="task-chat-empty mx-6 flex min-h-72 flex-1 items-center justify-center border-y border-dashed bg-transparent p-4 text-center text-sm text-muted-foreground">
         <div className="grid gap-1">
           <strong className="font-medium text-foreground">
-            {t("tasks.noTicketChat")}
+            {t("tasks.noTaskChat")}
           </strong>
-          <span>{t("tasks.noTicketChatHint")}</span>
+          <span>{t("tasks.noTaskChatHint")}</span>
         </div>
       </div>
     );
   }
 
   const knownSlugs = agentSlugs(members);
-  const messageGroups = groupTicketMessages(visibleMessages);
+  const messageGroups = groupTaskMessages(visibleMessages);
 
   return (
     <div
-      className="ticket-chat-feed min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-transparent px-6 py-5"
+      className="task-chat-feed min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-transparent px-6 py-5"
       aria-live="polite"
     >
-      <div className="ticket-chat-feed-inner grid gap-3">
+      <div className="task-chat-feed-inner grid gap-3">
         {visibleMessages.length === 0 ? (
           <div className="border-y border-dashed bg-transparent p-4 text-center text-sm text-muted-foreground">
-            {t("tasks.noTicketChatHint")}
+            {t("tasks.noTaskChatHint")}
           </div>
         ) : null}
         {messageGroups.map((group) => (
-          <TicketMessageGroupView
+          <TaskMessageGroupView
             group={group}
             knownSlugs={knownSlugs}
             key={group.id}
@@ -2532,7 +2584,7 @@ function TicketChatFeed({
           />
         ))}
         {typingSlugs.length > 0 ? (
-          <TicketTypingIndicator members={members} slugs={typingSlugs} t={t} />
+          <TaskTypingIndicator members={members} slugs={typingSlugs} t={t} />
         ) : null}
       </div>
       <div ref={endRef} />
@@ -2540,13 +2592,13 @@ function TicketChatFeed({
   );
 }
 
-function TicketMessageGroupView({
+function TaskMessageGroupView({
   group,
   knownSlugs,
   members,
   t,
 }: {
-  group: TicketMessageGroup;
+  group: TaskMessageGroup;
   knownSlugs: string[];
   members: OfficeMember[];
   t: TranslationFn;
@@ -2559,7 +2611,7 @@ function TicketMessageGroupView({
   return (
     <article
       className={cn(
-        "ticket-message-group flex items-start gap-3",
+        "task-message-group flex items-start gap-3",
         group.isHuman ? "justify-end" : "justify-start",
       )}
     >
@@ -2572,7 +2624,7 @@ function TicketMessageGroupView({
       )}
       <div
         className={cn(
-          "ticket-message-stack grid min-w-0 max-w-[82%] gap-1",
+          "task-message-stack grid min-w-0 max-w-[82%] gap-1",
           group.isHuman ? "justify-items-end" : "justify-items-start",
         )}
       >
@@ -2600,10 +2652,10 @@ function TicketMessageGroupView({
           {group.messages.map((message) => (
             <div
               className={cn(
-                "ticket-message-bubble min-w-0 w-fit max-w-full rounded-2xl border px-3 py-2 text-sm leading-6 shadow-none",
+                "task-message-bubble min-w-0 w-fit max-w-full rounded-2xl border px-3 py-2 text-sm leading-6 shadow-none",
                 group.isHuman
-                  ? "ticket-message-bubble-human rounded-br-md border-primary/30 bg-primary text-primary-foreground"
-                  : "ticket-message-bubble-agent rounded-bl-md bg-background text-foreground",
+                  ? "task-message-bubble-human rounded-br-md border-primary/30 bg-primary text-primary-foreground"
+                  : "task-message-bubble-agent rounded-bl-md bg-background text-foreground",
               )}
               key={message.id}
             >
@@ -2618,7 +2670,7 @@ function TicketMessageGroupView({
   );
 }
 
-function TicketTypingIndicator({
+function TaskTypingIndicator({
   members,
   slugs,
   t,
@@ -2647,7 +2699,7 @@ function TicketTypingIndicator({
         <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
-        <div className="ticket-typing-bubble w-fit rounded-2xl rounded-bl-md border bg-background px-3 py-2 shadow-none">
+        <div className="task-typing-bubble w-fit rounded-2xl rounded-bl-md border bg-background px-3 py-2 shadow-none">
           <div className="typing-dots" aria-hidden="true">
             <span className="typing-dot" />
             <span className="typing-dot" />

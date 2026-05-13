@@ -44,7 +44,7 @@ func publicAuthUsers(users []authUser) []authUser {
 
 func normalizeAuthRole(role string) string {
 	switch strings.ToLower(strings.TrimSpace(role)) {
-	case "owner", "admin", "member":
+	case "owner", "admin", "manager", "member", "viewer":
 		return strings.ToLower(strings.TrimSpace(role))
 	default:
 		return ""
@@ -55,8 +55,7 @@ func canManageAuthRoles(user *authUser) bool {
 	if user == nil {
 		return false
 	}
-	role := normalizeAuthRole(user.Role)
-	return role == "owner" || role == "admin"
+	return authUserHasPermission(user, permissionMemberManageRoles)
 }
 
 func (b *Broker) findAuthUserByEmailLocked(email string) *authUser {
@@ -243,7 +242,7 @@ func (b *Broker) handleAuthUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		nextRole := normalizeAuthRole(body.Role)
 		if nextRole == "" {
-			http.Error(w, "role must be owner, admin, or member", http.StatusBadRequest)
+			http.Error(w, "role must be owner, admin, manager, member, or viewer", http.StatusBadRequest)
 			return
 		}
 		b.mu.Lock()
@@ -384,6 +383,7 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 			team = b.createWorkspaceTeamLocked("Local Office", "system", nowText)
 			invite.TeamID = team.ID
 		}
+		role = normalizeInviteRole(invite.Role)
 	default:
 		http.Error(w, "team_action must be create or join", http.StatusBadRequest)
 		return
@@ -411,7 +411,7 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 			TeamID:    team.ID,
 			Email:     email,
 			Name:      name,
-			Role:      invite.Role,
+			Role:      normalizeInviteRole(invite.Role),
 			Channel:   invite.Channel,
 			Status:    "active",
 			InviteID:  invite.ID,
