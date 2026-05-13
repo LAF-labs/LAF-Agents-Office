@@ -58,6 +58,23 @@ function authHeaders(): Record<string, string> {
   return h;
 }
 
+function buildURL(
+  path: string,
+  params?: Record<string, string | number | boolean | null | undefined>,
+): string {
+  let url = baseURL() + path;
+  if (!params) return url;
+
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== null && v !== undefined)
+    .map(
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
+    )
+    .join("&");
+  if (qs) url += `?${qs}`;
+  return url;
+}
+
 function responseErrorMessage(
   text: string,
   status: number,
@@ -96,16 +113,7 @@ export async function get<T = unknown>(
   path: string,
   params?: Record<string, string | number | boolean | null | undefined>,
 ): Promise<T> {
-  let url = baseURL() + path;
-  if (params) {
-    const qs = Object.entries(params)
-      .filter(([, v]) => v !== null)
-      .map(
-        ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
-      )
-      .join("&");
-    if (qs) url += `?${qs}`;
-  }
+  const url = buildURL(path, params);
   const r = await fetch(url, {
     credentials: "include",
     headers: authHeaders(),
@@ -118,16 +126,7 @@ export async function getText(
   path: string,
   params?: Record<string, string | number | boolean | null | undefined>,
 ): Promise<string> {
-  let url = baseURL() + path;
-  if (params) {
-    const qs = Object.entries(params)
-      .filter(([, v]) => v !== null)
-      .map(
-        ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
-      )
-      .join("&");
-    if (qs) url += `?${qs}`;
-  }
+  const url = buildURL(path, params);
   const r = await fetch(url, {
     credentials: "include",
     headers: authHeaders(),
@@ -1040,9 +1039,29 @@ export function getScheduler(opts?: { dueOnly?: boolean }) {
 // ── Skills ──
 
 export interface Skill {
+  id?: string;
   name: string;
+  title?: string;
   description?: string;
+  content?: string;
   source?: string;
+  created_by?: string;
+  channel?: string;
+  tags?: string[];
+  trigger?: string;
+  workflow_provider?: string;
+  workflow_key?: string;
+  workflow_definition?: string;
+  workflow_schedule?: string;
+  relay_id?: string;
+  relay_platform?: string;
+  relay_event_types?: string[];
+  last_execution_at?: string;
+  last_execution_status?: string;
+  usage_count?: number;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
   parameters?: unknown;
 }
 

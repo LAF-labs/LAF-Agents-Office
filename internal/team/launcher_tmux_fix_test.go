@@ -2,6 +2,8 @@ package team
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -147,7 +149,7 @@ func TestClaudeCommand_WritesPromptFileWithCorrectContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat %q: %v", path, err)
 	}
-	if got := info.Mode().Perm(); got != 0o600 {
+	if got := info.Mode().Perm(); runtime.GOOS != "windows" && got != 0o600 {
 		t.Errorf("prompt file perms = %v, want 0600", got)
 	}
 }
@@ -170,13 +172,15 @@ func TestClaudeCommand_ErrorSurfaces(t *testing.T) {
 		t.Fatalf("NewLauncher: %v", err)
 	}
 
-	// Read-only temp dir forces os.WriteFile to fail.
-	ro := t.TempDir()
-	if err := os.Chmod(ro, 0o500); err != nil {
-		t.Fatalf("chmod: %v", err)
+	// A temp "directory" that is actually a file forces os.WriteFile to fail
+	// consistently across POSIX and Windows.
+	notDir := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(notDir, []byte("not a dir"), 0o600); err != nil {
+		t.Fatalf("write temp blocker: %v", err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(ro, 0o700) })
-	t.Setenv("TMPDIR", ro)
+	t.Setenv("TMPDIR", notDir)
+	t.Setenv("TMP", notDir)
+	t.Setenv("TEMP", notDir)
 
 	members := l.officeMembersSnapshot()
 	if len(members) == 0 {

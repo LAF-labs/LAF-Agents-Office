@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type Theme = "office" | "office-dark";
 export type Language = "en" | "ko";
+export type SkillsSection = "dashboard" | "list";
 
 function canonicalTheme(theme: Theme | string | null | undefined): Theme {
   if (theme === "office" || theme === "office-dark") return "office";
@@ -114,6 +115,8 @@ export interface AppStore {
   setTaskFocusId: (taskId: string | null) => void;
   settingsSection: string | null;
   setSettingsSection: (section: string | null) => void;
+  skillsSection: SkillsSection;
+  setSkillsSection: (section: SkillsSection) => void;
 
   // Channel metadata (DM info, etc.)
   channelMeta: Record<string, ChannelMeta>;
@@ -219,6 +222,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setTaskFocusId: (taskId) => set({ taskFocusId: taskId }),
   settingsSection: null,
   setSettingsSection: (section) => set({ settingsSection: section }),
+  skillsSection: "dashboard",
+  setSkillsSection: (section) => set({ skillsSection: section }),
 
   channelMeta: {},
   setChannelMeta: (slug, meta) =>
@@ -308,6 +313,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       projectFocusId: null,
       taskFocusId: null,
       settingsSection: null,
+      skillsSection: "dashboard",
       channelMeta: {},
       sidebarCollapsed: false,
       activeThreadId: null,

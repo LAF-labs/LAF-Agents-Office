@@ -142,7 +142,7 @@ func TestComposioRESTActionHappyPath(t *testing.T) {
 }
 
 func TestComposioRESTWorkflowDigestHappyPath(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 
 	mux := http.NewServeMux()
 	var sentBody string
@@ -399,7 +399,7 @@ func TestComposioRESTWorkflowNormalizesHandlebarsEachSyntax(t *testing.T) {
 }
 
 func TestComposioRESTWorkflowAutoResolvesSingleConnection(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	t.Setenv("LAF_OFFICE_API_KEY", "laf-office-test-key")
 
 	mux := http.NewServeMux()
@@ -511,7 +511,7 @@ func TestDecodeJSONObjectHandlesJSONStringPayload(t *testing.T) {
 }
 
 func TestWorkflowStepsExposeGenericResult(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connected_accounts/ca_123", func(w http.ResponseWriter, r *http.Request) {

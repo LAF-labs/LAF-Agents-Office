@@ -478,10 +478,10 @@ func writePacket(path string, packet scriptPacket) error {
 
 func resolveBundleDir(bundleDir, outPath string) string {
 	if strings.TrimSpace(bundleDir) != "" {
-		return bundleDir
+		return filepath.ToSlash(filepath.Clean(bundleDir))
 	}
 	base := strings.TrimSuffix(filepath.Base(outPath), filepath.Ext(outPath))
-	return filepath.Join(filepath.Dir(outPath), base+"-review-bundle")
+	return filepath.ToSlash(filepath.Join(filepath.Dir(outPath), base+"-review-bundle"))
 }
 
 func writeReviewBundle(dir string, brief channelBrief, packet scriptPacket) error {

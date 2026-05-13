@@ -12,6 +12,7 @@ import {
   mockReview,
 } from "./__fixtures__/notebook-mock";
 import * as client from "./client";
+import { subscribeBrokerEvent } from "./events";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -568,55 +569,37 @@ export function subscribeNotebookEvents(
   handler: (ev: NotebookEvent) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
-  const listeners: Array<[string, EventListener]> = [];
-
-  try {
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES)
-      return () => {
-        closed = true;
-      };
-    source = new ES(client.sseURL("/events"));
-
-    const onNotebook = (ev: MessageEvent) => {
-      if (closed) return;
-      try {
-        const data = JSON.parse(ev.data) as Record<string, unknown>;
-        handler({
-          type: "notebook:write",
-          ...data,
-        } as unknown as NotebookEvent);
-      } catch {
-        // ignore malformed events
-      }
-    };
-    const onReview = (ev: MessageEvent) => {
-      if (closed) return;
-      try {
-        const data = JSON.parse(ev.data) as Record<string, unknown>;
-        handler({
-          type: "review:state_change",
-          ...data,
-        } as unknown as NotebookEvent);
-      } catch {
-        // ignore malformed events
-      }
-    };
-    source.addEventListener("notebook:write", onNotebook as EventListener);
-    source.addEventListener("review:state_change", onReview as EventListener);
-    listeners.push(["notebook:write", onNotebook as EventListener]);
-    listeners.push(["review:state_change", onReview as EventListener]);
-  } catch {
-    source = null;
-  }
+  const onNotebook = (ev: MessageEvent) => {
+    if (closed) return;
+    try {
+      const data = JSON.parse(ev.data) as Record<string, unknown>;
+      handler({
+        type: "notebook:write",
+        ...data,
+      } as unknown as NotebookEvent);
+    } catch {
+      // ignore malformed events
+    }
+  };
+  const onReview = (ev: MessageEvent) => {
+    if (closed) return;
+    try {
+      const data = JSON.parse(ev.data) as Record<string, unknown>;
+      handler({
+        type: "review:state_change",
+        ...data,
+      } as unknown as NotebookEvent);
+    } catch {
+      // ignore malformed events
+    }
+  };
+  const unsubscribes = [
+    subscribeBrokerEvent("notebook:write", onNotebook as EventListener),
+    subscribeBrokerEvent("review:state_change", onReview as EventListener),
+  ];
 
   return () => {
     closed = true;
-    if (source) {
-      for (const [name, fn] of listeners) source.removeEventListener(name, fn);
-      source.close();
-      source = null;
-    }
+    for (const unsubscribe of unsubscribes) unsubscribe();
   };
 }

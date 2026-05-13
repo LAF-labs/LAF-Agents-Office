@@ -8,6 +8,7 @@ const baseState = {
   notebookAgentSlug: null,
   notebookEntrySlug: null,
   projectFocusId: null,
+  skillsSection: "dashboard" as const,
   taskFocusId: null,
   wikiLookupQuery: null,
   wikiPath: null,
@@ -49,6 +50,23 @@ describe("useHashRouter project routes", () => {
     });
   });
 
+  it("accepts skills growth center routes", () => {
+    expect(__test__.parseHash("#/skills")).toEqual({
+      view: "app",
+      app: "skills",
+      skillsSection: "dashboard",
+    });
+    expect(__test__.parseHash("#/skills/list")).toEqual({
+      view: "app",
+      app: "skills",
+      skillsSection: "list",
+    });
+    expect(__test__.parseHash("#/apps/skills")).toEqual({
+      view: "app",
+      app: "skills",
+    });
+  });
+
   it("canonicalizes the tasks app to the project route", () => {
     expect(
       __test__.stateToHash({
@@ -65,6 +83,22 @@ describe("useHashRouter project routes", () => {
         currentApp: "home",
       }),
     ).toBe("#/home");
+  });
+
+  it("canonicalizes the skills app to the growth center routes", () => {
+    expect(
+      __test__.stateToHash({
+        ...baseState,
+        currentApp: "skills",
+      }),
+    ).toBe("#/skills");
+    expect(
+      __test__.stateToHash({
+        ...baseState,
+        currentApp: "skills",
+        skillsSection: "list",
+      }),
+    ).toBe("#/skills/list");
   });
 
   it("keeps the focused project in the project route", () => {

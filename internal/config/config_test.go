@@ -16,6 +16,7 @@ func withTempConfig(t *testing.T, f func(dir string)) {
 	// Override UserHomeDir by pointing ConfigPath indirectly via HOME env var.
 	orig := os.Getenv("HOME")
 	t.Setenv("HOME", dir)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", dir)
 	defer os.Setenv("HOME", orig)
 	f(dir)
 }

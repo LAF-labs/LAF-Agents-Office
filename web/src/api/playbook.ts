@@ -10,7 +10,8 @@
  * message.
  */
 
-import { get, post, sseURL } from "./client";
+import { get, post } from "./client";
+import { subscribeBrokerEvent } from "./events";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -128,17 +129,16 @@ export async function fetchPlaybookExecutions(
 
 /**
  * Subscribe to `playbook:execution_recorded` events filtered to one slug.
- * Returns an unsubscribe function that tears down the underlying
- * EventSource. Follows the same shape as `subscribeEntityEvents` in
- * `entity.ts` — do not regress the `/events` + named-listener pattern
- * (see PR #182).
+ * Returns an unsubscribe function that detaches the local listener from
+ * the shared broker EventSource. Follows the same shape as
+ * `subscribeEntityEvents` in `entity.ts` — do not regress the `/events` +
+ * named-listener pattern (see PR #182).
  */
 export function subscribePlaybookEvents(
   slug: string,
   onExecutionRecorded: (ev: PlaybookExecutionRecordedEvent) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
 
   const handler = (ev: MessageEvent) => {
     if (closed) return;
@@ -152,32 +152,14 @@ export function subscribePlaybookEvents(
     }
   };
 
-  try {
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES) return () => {};
-    source = new ES(sseURL("/events"));
-    source.addEventListener(
-      "playbook:execution_recorded",
-      handler as EventListener,
-    );
-    source.onerror = () => {
-      // Keep the source open — EventSource auto-reconnects on transient
-      // network blips. Closing here would drop live updates.
-    };
-  } catch {
-    source = null;
-  }
+  const unsubscribe = subscribeBrokerEvent(
+    "playbook:execution_recorded",
+    handler as EventListener,
+  );
 
   return () => {
     closed = true;
-    if (source) {
-      source.removeEventListener(
-        "playbook:execution_recorded",
-        handler as EventListener,
-      );
-      source.close();
-      source = null;
-    }
+    unsubscribe();
   };
 }
 
@@ -192,7 +174,6 @@ export function subscribePlaybookSynthesizedEvents(
   onSynthesized: (ev: PlaybookSynthesizedEvent) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
 
   const handler = (ev: MessageEvent) => {
     if (closed) return;
@@ -206,28 +187,14 @@ export function subscribePlaybookSynthesizedEvents(
     }
   };
 
-  try {
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES) return () => {};
-    source = new ES(sseURL("/events"));
-    source.addEventListener("playbook:synthesized", handler as EventListener);
-    source.onerror = () => {
-      // Keep open; EventSource auto-reconnects.
-    };
-  } catch {
-    source = null;
-  }
+  const unsubscribe = subscribeBrokerEvent(
+    "playbook:synthesized",
+    handler as EventListener,
+  );
 
   return () => {
     closed = true;
-    if (source) {
-      source.removeEventListener(
-        "playbook:synthesized",
-        handler as EventListener,
-      );
-      source.close();
-      source = null;
-    }
+    unsubscribe();
   };
 }
 

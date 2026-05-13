@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,55 +20,75 @@ import (
 
 func writeFakeOperationOne(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "one")
-	script := `#!/bin/sh
-if [ "$1" = "--agent" ]; then
-  shift
-fi
+	return writeStudioOneHelper(t, "success")
+}
 
-cmd3="$1 $2 $3"
-if [ "$cmd3" = "flow create sponsor-outreach-dry-run" ]; then
-  echo '{"created":true,"key":"sponsor-outreach-dry-run","path":"/tmp/.one/flows/sponsor-outreach-dry-run.flow.json"}'
-elif [ "$cmd3" = "flow execute sponsor-outreach-dry-run" ]; then
-  echo '{"event":"step:start","stepId":"compose-email"}'
-  echo '{"event":"workflow:result","runId":"run-123","logFile":"/tmp/run.log","status":"success","steps":{"gmail-preview":{"status":"success"}}}'
-else
-  echo "unexpected args: $*" >&2
-  exit 1
-fi
-`
+func writeRateLimitedOperationOne(t *testing.T) string {
+	t.Helper()
+	return writeStudioOneHelper(t, "rate-limited")
+}
+
+func writeStudioOneHelper(t *testing.T, mode string) string {
+	t.Helper()
+	dir := t.TempDir()
+	testExe, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		t.Fatalf("resolve test exe: %v", err)
+	}
+	path := filepath.Join(dir, "one")
+	var script string
+	if runtime.GOOS == "windows" {
+		path += ".cmd"
+		script = fmt.Sprintf("@echo off\r\nset GO_WANT_STUDIO_ONE_HELPER=1\r\nset LAF_OFFICE_TEST_STUDIO_ONE_MODE=%s\r\n\"%s\" -test.run=TestStudioOneHelperProcess -- %%*\r\nexit /b %%ERRORLEVEL%%\r\n", mode, testExe)
+	} else {
+		script = fmt.Sprintf("#!/bin/sh\nGO_WANT_STUDIO_ONE_HELPER=1 LAF_OFFICE_TEST_STUDIO_ONE_MODE=%s %q -test.run=TestStudioOneHelperProcess -- \"$@\"\n", mode, testExe)
+	}
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path
 }
 
-func writeRateLimitedOperationOne(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "one")
-	script := `#!/bin/sh
-if [ "$1" = "--agent" ]; then
-  shift
-fi
-
-cmd3="$1 $2 $3"
-if [ "$cmd3" = "flow create consulting-live-gmail-read" ]; then
-  echo '{"created":true,"key":"consulting-live-gmail-read","path":"/tmp/.one/flows/consulting-live-gmail-read.flow.json"}'
-elif [ "$cmd3" = "flow execute consulting-live-gmail-read" ]; then
-  echo '{"event":"flow:start","runId":"run-live-1"}'
-  echo '{"event":"step:error","stepId":"fetchEmails","error":"429 User-rate limit exceeded. Retry after 2026-04-14T22:55:02.178Z"}' >&2
-  exit 1
-else
-  echo "unexpected args: $*" >&2
-  exit 1
-fi
-`
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
+func TestStudioOneHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_STUDIO_ONE_HELPER") != "1" {
+		return
 	}
-	return path
+	args := os.Args
+	for i, arg := range args {
+		if arg == "--" {
+			args = args[i+1:]
+			break
+		}
+	}
+	if len(args) > 0 && args[0] == "--agent" {
+		args = args[1:]
+	}
+	mode := os.Getenv("LAF_OFFICE_TEST_STUDIO_ONE_MODE")
+	cmd3 := strings.Join(firstNStrings(args, 3), " ")
+	switch {
+	case mode == "success" && cmd3 == "flow create sponsor-outreach-dry-run":
+		fmt.Println(`{"created":true,"key":"sponsor-outreach-dry-run","path":"/tmp/.one/flows/sponsor-outreach-dry-run.flow.json"}`)
+	case mode == "success" && cmd3 == "flow execute sponsor-outreach-dry-run":
+		fmt.Println(`{"event":"step:start","stepId":"compose-email"}`)
+		fmt.Println(`{"event":"workflow:result","runId":"run-123","logFile":"/tmp/run.log","status":"success","steps":{"gmail-preview":{"status":"success"}}}`)
+	case mode == "rate-limited" && cmd3 == "flow create consulting-live-gmail-read":
+		fmt.Println(`{"created":true,"key":"consulting-live-gmail-read","path":"/tmp/.one/flows/consulting-live-gmail-read.flow.json"}`)
+	case mode == "rate-limited" && cmd3 == "flow execute consulting-live-gmail-read":
+		fmt.Println(`{"event":"flow:start","runId":"run-live-1"}`)
+		fmt.Fprintln(os.Stderr, `{"event":"step:error","stepId":"fetchEmails","error":"429 User-rate limit exceeded. Retry after 2026-04-14T22:55:02.178Z"}`)
+		os.Exit(1)
+	default:
+		fmt.Fprintf(os.Stderr, "unexpected args: %s\n", strings.Join(args, " "))
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func firstNStrings(items []string, n int) []string {
+	if len(items) < n {
+		return items
+	}
+	return items[:n]
 }
 
 func TestDecodeStudioGeneratedPackageHandlesFencedJSON(t *testing.T) {

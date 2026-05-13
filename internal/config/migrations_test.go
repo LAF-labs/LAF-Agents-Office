@@ -10,11 +10,16 @@ func withTempHome(t *testing.T) func() {
 	t.Helper()
 	tmp := t.TempDir()
 	old := os.Getenv("HOME")
+	oldRuntime := os.Getenv("LAF_OFFICE_RUNTIME_HOME")
 	os.Setenv("HOME", tmp)
+	os.Setenv("LAF_OFFICE_RUNTIME_HOME", tmp)
 	if err := os.MkdirAll(filepath.Join(tmp, ".laf-office"), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	return func() { os.Setenv("HOME", old) }
+	return func() {
+		os.Setenv("HOME", old)
+		os.Setenv("LAF_OFFICE_RUNTIME_HOME", oldRuntime)
+	}
 }
 
 func TestMigrateOpenclawBridges_Empty(t *testing.T) {

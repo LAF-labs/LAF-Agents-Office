@@ -3437,7 +3437,7 @@ func (l *Launcher) listTeamPanes() ([]int, error) {
 	).CombinedOutput()
 	if err != nil {
 		// If the session isn't up, there's nothing to clear.
-		if isMissingTmuxSession(string(out)) {
+		if errors.Is(err, exec.ErrNotFound) || isMissingTmuxSession(string(out)) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("list panes: %w", err)

@@ -397,10 +397,10 @@ func TestIsNoSessionError(t *testing.T) {
 
 func TestChannelPaneLogPaths(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	if got := channelStderrLogPath(); !strings.Contains(got, ".laf-office/logs/channel-stderr.log") {
+	if got := filepath.ToSlash(channelStderrLogPath()); !strings.Contains(got, ".laf-office/logs/channel-stderr.log") {
 		t.Fatalf("unexpected stderr log path: %q", got)
 	}
-	if got := channelPaneSnapshotPath(); !strings.Contains(got, ".laf-office/logs/channel-pane.log") {
+	if got := filepath.ToSlash(channelPaneSnapshotPath()); !strings.Contains(got, ".laf-office/logs/channel-pane.log") {
 		t.Fatalf("unexpected pane log path: %q", got)
 	}
 }

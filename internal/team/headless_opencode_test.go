@@ -15,6 +15,8 @@ import (
 func TestWriteHeadlessOpencodeMCPConfigConcurrent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_GLOBAL_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 
 	configDir := filepath.Join(home, ".config", "opencode")
 	if err := os.MkdirAll(configDir, 0o755); err != nil {

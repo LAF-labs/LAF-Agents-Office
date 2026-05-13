@@ -12,7 +12,8 @@
  * writes, etc.) in every article view.
  */
 
-import { get, post, sseURL } from "./client";
+import { get, post } from "./client";
+import { subscribeBrokerEvent } from "./events";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -259,10 +260,8 @@ export async function fetchEntityGraphAll(): Promise<GraphAllResponse> {
  * specific entity (kind + slug). Returns an unsubscribe function that
  * tears down the underlying EventSource.
  *
- * Each caller opens its own EventSource — EntityBriefBar + FactsOnFile on
- * the same page will hold two connections. That matches how the rest of
- * the app consumes broker events today (useAgentStream, subscribeEditLog)
- * and avoids a shared singleton that would race between articles.
+ * All callers share one EventSource for `/events`; local handlers still filter
+ * by entity so unrelated broker traffic does not trigger component work.
  *
  * Failure is silent — if EventSource is undefined (tests, non-SSE envs)
  * the unsubscribe is still a valid no-op.
@@ -274,8 +273,6 @@ export function subscribeEntityEvents(
   onSynth: (ev: BriefSynthesizedEvent) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
-
   const factHandler = (ev: MessageEvent) => {
     if (closed) return;
     try {
@@ -299,40 +296,18 @@ export function subscribeEntityEvents(
     }
   };
 
-  try {
-    // EventSource may be undefined in tests that stub SSE away.
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES) return () => {};
-    source = new ES(sseURL("/events"));
-    source.addEventListener(
-      "entity:fact_recorded",
-      factHandler as EventListener,
-    );
-    source.addEventListener(
-      "entity:brief_synthesized",
-      synthHandler as EventListener,
-    );
-    source.onerror = () => {
-      // Keep the source open — EventSource auto-reconnects. Closing here
-      // would drop live fact updates after the first transient blip.
-    };
-  } catch {
-    source = null;
-  }
+  const unsubscribeFact = subscribeBrokerEvent(
+    "entity:fact_recorded",
+    factHandler as EventListener,
+  );
+  const unsubscribeSynth = subscribeBrokerEvent(
+    "entity:brief_synthesized",
+    synthHandler as EventListener,
+  );
 
   return () => {
     closed = true;
-    if (source) {
-      source.removeEventListener(
-        "entity:fact_recorded",
-        factHandler as EventListener,
-      );
-      source.removeEventListener(
-        "entity:brief_synthesized",
-        synthHandler as EventListener,
-      );
-      source.close();
-      source = null;
-    }
+    unsubscribeFact();
+    unsubscribeSynth();
   };
 }

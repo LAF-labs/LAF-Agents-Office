@@ -9,8 +9,10 @@ import (
 
 func withTempConfigHome(t *testing.T, f func()) {
 	t.Helper()
+	home := t.TempDir()
 	orig := os.Getenv("HOME")
-	t.Setenv("HOME", t.TempDir())
+	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 	defer os.Setenv("HOME", orig)
 	f()
 }

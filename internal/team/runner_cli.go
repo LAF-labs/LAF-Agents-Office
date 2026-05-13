@@ -48,10 +48,15 @@ type runnerExecutionResult struct {
 var runnerCLIExecuteJob = defaultRunnerCLIExecuteJob
 var runnerCLILeaseDuration = defaultRunnerLeaseDuration
 var runnerCLIHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var runnerCLIDetectCapabilities = detectLocalRunnerCapabilities
+var runnerCLICapabilityRefreshInterval = 5 * time.Minute
 
 type runnerConnectSession struct {
 	capabilitiesReported bool
 	reportedCapabilities runnerCapabilities
+	cachedCapabilities   runnerCapabilities
+	capabilitiesCachedAt time.Time
+	idleNoticePrinted    bool
 }
 
 // RunRunnerCommand implements the local CLI runner surface used by the hosted
@@ -157,7 +162,7 @@ func runRunnerPair(ctx context.Context, args []string, stdout, stderr io.Writer)
 		"code":         pairingCode,
 		"name":         cfg.Name,
 		"runner_type":  runnerTypeLocal,
-		"capabilities": detectLocalRunnerCapabilities(""),
+		"capabilities": runnerCLIDetectCapabilities(""),
 	}, &response); err != nil {
 		return err
 	}
@@ -376,7 +381,7 @@ func runRunnerStatus(args []string, stdout, stderr io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	caps := detectLocalRunnerCapabilities("")
+	caps := runnerCLIDetectCapabilities("")
 	if *asJSON {
 		return json.NewEncoder(stdout).Encode(map[string]any{
 			"api_url":      cfg.APIURL,
@@ -465,7 +470,7 @@ func runRunnerConnect(ctx context.Context, args []string, stdout, stderr io.Writ
 }
 
 func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runnerConnectSession, stdout io.Writer) (bool, error) {
-	caps := detectLocalRunnerCapabilities("")
+	caps := runnerSessionCapabilities(session, "")
 	if cfg.RunnerToken == "" {
 		if cfg.APIToken == "" {
 			return false, errors.New("runner registration requires --api-token or LAF_OFFICE_API_KEY")
@@ -499,9 +504,6 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runne
 			session.reportedCapabilities = caps
 		}
 	}
-	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/heartbeat", cfg.RunnerToken, map[string]any{"status": runnerStatusConnected}, nil); err != nil {
-		return false, err
-	}
 	var lease struct {
 		Job *runnerJob `json:"job"`
 	}
@@ -509,8 +511,16 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runne
 		return false, err
 	}
 	if lease.Job == nil {
-		fmt.Fprintln(stdout, "Runner connected; no queued job.")
+		if session == nil || !session.idleNoticePrinted {
+			fmt.Fprintln(stdout, "Runner connected; no queued job.")
+			if session != nil {
+				session.idleNoticePrinted = true
+			}
+		}
 		return false, nil
+	}
+	if session != nil {
+		session.idleNoticePrinted = false
 	}
 	fmt.Fprintf(stdout, "Leased job %s for task %s.\n", lease.Job.ID, valueOrUnset(lease.Job.TaskID))
 	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/jobs/"+lease.Job.ID+"/events", cfg.RunnerToken, map[string]any{
@@ -549,6 +559,18 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runne
 	}
 	fmt.Fprintf(stdout, "Completed job %s with status %s.\n", lease.Job.ID, result.Status)
 	return true, nil
+}
+
+func runnerSessionCapabilities(session *runnerConnectSession, workspaceRoot string) runnerCapabilities {
+	if session == nil || runnerCLICapabilityRefreshInterval <= 0 {
+		return runnerCLIDetectCapabilities(workspaceRoot)
+	}
+	now := time.Now()
+	if session.capabilitiesCachedAt.IsZero() || now.Sub(session.capabilitiesCachedAt) >= runnerCLICapabilityRefreshInterval {
+		session.cachedCapabilities = runnerCLIDetectCapabilities(workspaceRoot)
+		session.capabilitiesCachedAt = now
+	}
+	return session.cachedCapabilities
 }
 
 func startRunnerLeaseRenewal(ctx context.Context, apiURL, token, jobID string, leaseDuration time.Duration, stdout io.Writer) func() {

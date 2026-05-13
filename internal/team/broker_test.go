@@ -723,16 +723,14 @@ func TestBrokerMessagesCanScopeToThread(t *testing.T) {
 func TestBrokerMessagesCanScopeToAgentInbox(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
-	b.members = append(b.members,
-		officeMember{Slug: "pm", Name: "Product Manager"},
-		officeMember{Slug: "fe", Name: "Frontend Engineer"},
-	)
+	b.members = append(b.members, officeMember{Slug: "fe", Name: "Frontend Engineer"})
 	for i := range b.channels {
 		if b.channels[i].Slug == "general" {
-			b.channels[i].Members = append(b.channels[i].Members, "pm", "fe")
+			b.channels[i].Members = append(b.channels[i].Members, "fe")
 			break
 		}
 	}
+	b.rebuildMemberIndexLocked()
 	b.mu.Unlock()
 	if err := b.StartOnPort(0); err != nil {
 		t.Fatalf("failed to start broker: %v", err)
@@ -1872,7 +1870,7 @@ func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 	defer b.Stop()
 
 	base := fmt.Sprintf("http://%s", b.Addr())
-	createOfficeMemberForTest(t, base, b.Token(), "pm", "Product Manager", "Product Manager")
+	createOfficeMemberForTest(t, base, b.Token(), "ops", "Ops Lead", "Ops Lead")
 	createOfficeMemberForTest(t, base, b.Token(), "cmo", "CMO", "CMO")
 
 	createBody, _ := json.Marshal(map[string]any{
@@ -1880,7 +1878,7 @@ func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 		"slug":        "launch",
 		"name":        "launch",
 		"description": "Launch planning and launch-readiness work.",
-		"members":     []string{"pm", "fe"},
+		"members":     []string{"ops", "fe"},
 		"created_by":  "ceo",
 	})
 	req, _ := http.NewRequest(http.MethodPost, base+"/channels", bytes.NewReader(createBody))
@@ -1921,7 +1919,7 @@ func TestChannelDescriptionsAreVisibleButContentStaysRestricted(t *testing.T) {
 	if launch.Description != "Launch planning and launch-readiness work." {
 		t.Fatalf("unexpected launch description: %q", launch.Description)
 	}
-	if !containsString(launch.Members, "ceo") || !containsString(launch.Members, "pm") || !containsString(launch.Members, "fe") {
+	if !containsString(launch.Members, "ceo") || !containsString(launch.Members, "ops") || !containsString(launch.Members, "fe") {
 		t.Fatalf("expected create payload members plus CEO in new channel, got %+v", launch.Members)
 	}
 
@@ -5366,7 +5364,7 @@ func TestBrokerGetMessagesAgentScopeKeepsHumanAndCEOContext(t *testing.T) {
 	}
 
 	postMessage(map[string]any{"channel": "general", "from": "you", "content": "Frontend, should we ship this?", "tagged": []string{"fe"}})
-	postMessage(map[string]any{"channel": "general", "from": "pm", "content": "Unrelated roadmap chatter."})
+	postMessage(map[string]any{"channel": "general", "from": "reviewer", "content": "Unrelated review chatter."})
 	postMessage(map[string]any{"channel": "general", "from": "ceo", "content": "Keep scope tight and focus on signup."})
 	postMessage(map[string]any{"channel": "general", "from": "fe", "content": "I can take the signup work."})
 
@@ -5391,8 +5389,8 @@ func TestBrokerGetMessagesAgentScopeKeepsHumanAndCEOContext(t *testing.T) {
 		t.Fatalf("expected CEO context to remain visible, got %+v", result.Messages)
 	}
 	for _, msg := range result.Messages {
-		if msg.From == "pm" {
-			t.Fatalf("did not expect unrelated PM chatter in scoped transcript: %+v", result.Messages)
+		if msg.From == "reviewer" {
+			t.Fatalf("did not expect unrelated reviewer chatter in scoped transcript: %+v", result.Messages)
 		}
 	}
 }

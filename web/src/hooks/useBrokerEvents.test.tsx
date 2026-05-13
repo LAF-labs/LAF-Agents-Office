@@ -27,6 +27,13 @@ class FakeEventSource {
     this.listeners.set(name, listeners);
   }
 
+  removeEventListener(name: string, listener: Listener) {
+    this.listeners.set(
+      name,
+      (this.listeners.get(name) ?? []).filter((item) => item !== listener),
+    );
+  }
+
   emit(name: string) {
     const event = new MessageEvent(name, { data: "{}" });
     for (const listener of this.listeners.get(name) ?? []) {

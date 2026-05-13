@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { sseURL } from "../api/client";
+import { subscribeBrokerEvent } from "../api/events";
 import { useAppStore } from "../stores/app";
 
 type QueryKey = readonly unknown[];
@@ -19,9 +19,6 @@ export function useBrokerEvents(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
 
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES) return;
-
     const pending = new Map<string, QueryKey>();
     let timer: ReturnType<typeof setTimeout> | null = null;
     const flush = () => {
@@ -38,43 +35,44 @@ export function useBrokerEvents(enabled: boolean) {
       timer = setTimeout(flush, INVALIDATE_DEBOUNCE_MS);
     };
 
-    const source = new ES(sseURL("/events"));
-    source.addEventListener("ready", () => setBrokerConnected(true));
-    source.addEventListener("message", () => {
-      scheduleInvalidate(["messages"]);
-      scheduleInvalidate(["thread-messages"]);
-      scheduleInvalidate(["office-members"]);
-      scheduleInvalidate(["channel-members"]);
-    });
-    source.addEventListener("activity", () => {
-      scheduleInvalidate(["activity-members"]);
-      scheduleInvalidate(["office-members"]);
-      scheduleInvalidate(["channel-members"]);
-    });
-    source.addEventListener("office_changed", () => {
-      scheduleInvalidate(["activity-members"]);
-      scheduleInvalidate(["channels"]);
-      scheduleInvalidate(["office-members"]);
-      scheduleInvalidate(["channel-members"]);
-    });
-    source.addEventListener("action", () => {
-      scheduleInvalidate(["actions"]);
-      scheduleInvalidate(["activity-actions"]);
-      scheduleInvalidate(["activity-tasks"]);
-      scheduleInvalidate(["office-tasks"]);
-      scheduleInvalidate(["requests"]);
-      scheduleInvalidate(["requests-badge"]);
-      scheduleInvalidate(["task-actions"]);
-    });
-    source.addEventListener("review:state_change", () => {
-      scheduleInvalidate(["reviews-badge"]);
-      scheduleInvalidate(["reviews-tab-badge"]);
-    });
-    source.onerror = () => setBrokerConnected(false);
+    const unsubscribes = [
+      subscribeBrokerEvent("ready", () => setBrokerConnected(true)),
+      subscribeBrokerEvent("message", () => {
+        scheduleInvalidate(["messages"]);
+        scheduleInvalidate(["thread-messages"]);
+        scheduleInvalidate(["office-members"]);
+        scheduleInvalidate(["channel-members"]);
+      }),
+      subscribeBrokerEvent("activity", () => {
+        scheduleInvalidate(["activity-members"]);
+        scheduleInvalidate(["office-members"]);
+        scheduleInvalidate(["channel-members"]);
+      }),
+      subscribeBrokerEvent("office_changed", () => {
+        scheduleInvalidate(["activity-members"]);
+        scheduleInvalidate(["channels"]);
+        scheduleInvalidate(["office-members"]);
+        scheduleInvalidate(["channel-members"]);
+      }),
+      subscribeBrokerEvent("action", () => {
+        scheduleInvalidate(["actions"]);
+        scheduleInvalidate(["activity-actions"]);
+        scheduleInvalidate(["activity-tasks"]);
+        scheduleInvalidate(["office-tasks"]);
+        scheduleInvalidate(["requests"]);
+        scheduleInvalidate(["requests-badge"]);
+        scheduleInvalidate(["task-actions"]);
+      }),
+      subscribeBrokerEvent("review:state_change", () => {
+        scheduleInvalidate(["reviews-badge"]);
+        scheduleInvalidate(["reviews-tab-badge"]);
+      }),
+      subscribeBrokerEvent("error", () => setBrokerConnected(false)),
+    ];
 
     return () => {
       if (timer) clearTimeout(timer);
-      source.close();
+      for (const unsubscribe of unsubscribes) unsubscribe();
     };
   }, [enabled, queryClient, setBrokerConnected]);
 }

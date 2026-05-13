@@ -43,6 +43,7 @@ const BrokerPort = brokeraddr.DefaultPort
 // brokerTokenFilePath is the path where the broker writes its auth token on start.
 // Tests can redirect this to a temp directory to avoid clobbering the live broker token.
 var brokerTokenFilePath = brokeraddr.DefaultTokenFile
+var atomicFileLocks sync.Map
 
 const defaultRateLimitRequestsPerWindow = 600
 const defaultRateLimitWindow = time.Minute
@@ -1685,6 +1686,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/tasks/context", b.requireAuth(b.handleTaskContext))
 	mux.HandleFunc("/tasks/ack", b.requireAuth(b.handleTaskAck))
 	mux.HandleFunc("/agent-logs", b.requireAuth(b.handleAgentLogs))
+	mux.HandleFunc("/workspace/search", b.requireAuth(b.handleWorkspaceSearch))
 	mux.HandleFunc("/task-plan", b.requireAuth(b.handleTaskPlan))
 	mux.HandleFunc("/memory", b.requireAuth(b.handleMemory))
 	mux.HandleFunc("/wiki/write", b.requireAuth(b.handleWikiWrite))
@@ -3548,6 +3550,10 @@ func (b *Broker) saveLocked() error {
 // snapshot) want exactly that mode; CreateTemp already produces it on the
 // platforms we support, so no os.Chmod is needed.
 func atomicWriteFile(path string, data []byte) error {
+	writeMu := atomicFilePathMutex(path)
+	writeMu.Lock()
+	defer writeMu.Unlock()
+
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
 	tmpf, err := os.CreateTemp(dir, base+".*.tmp")
@@ -3565,11 +3571,20 @@ func atomicWriteFile(path string, data []byte) error {
 		cleanup()
 		return err
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := atomicReplaceFile(tmpName, path); err != nil {
 		cleanup()
 		return err
 	}
 	return nil
+}
+
+func atomicFilePathMutex(path string) *sync.Mutex {
+	key := filepath.Clean(path)
+	if abs, err := filepath.Abs(key); err == nil {
+		key = abs
+	}
+	mu, _ := atomicFileLocks.LoadOrStore(key, &sync.Mutex{})
+	return mu.(*sync.Mutex)
 }
 
 func defaultOfficeMembers() []officeMember {
@@ -3893,6 +3908,38 @@ func mapAgentSlugListToCore(slugs []string, includeAllCoreWhenEmpty bool) []stri
 		}
 		if legacy := mapLegacyDefaultAgentSlugToCurrentCore(normalized); legacy != "" {
 			normalized = legacy
+		}
+		mapped = append(mapped, normalized)
+	}
+	mapped = uniqueSlugs(mapped)
+	if includeAllCoreWhenEmpty && len(mapped) == 0 {
+		return office.CoreAgentSlugs()
+	}
+	return mapped
+}
+
+func (b *Broker) mapTaskActorToCoreLocked(slug string) string {
+	normalized := normalizeActorSlug(slug)
+	if normalized == "" || normalized == "human" || normalized == "you" {
+		return slug
+	}
+	if b.findMemberLocked(normalized) != nil {
+		return normalized
+	}
+	return mapLegacyTaskActorToCore(normalized)
+}
+
+func (b *Broker) mapAgentSlugListToCoreLocked(slugs []string, includeAllCoreWhenEmpty bool) []string {
+	mapped := make([]string, 0, len(slugs)+3)
+	for _, slug := range slugs {
+		normalized := normalizeActorSlug(slug)
+		if normalized == "" || office.IsAgentMakerSlug(normalized) {
+			continue
+		}
+		if b.findMemberLocked(normalized) == nil {
+			if legacy := mapLegacyDefaultAgentSlugToCurrentCore(normalized); legacy != "" {
+				normalized = legacy
+			}
 		}
 		mapped = append(mapped, normalized)
 	}
@@ -7501,7 +7548,7 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		validateMembers := func(members []string) ([]string, string) {
-			members = uniqueSlugs(members)
+			members = b.mapAgentSlugListToCoreLocked(members, false)
 			if len(members) == 0 {
 				return nil, ""
 			}
@@ -7542,7 +7589,7 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 			}
 			lead := b.defaultLeadMemberSlugLocked()
 			members = append([]string{lead}, members...)
-			if creator := normalizeChannelSlug(body.CreatedBy); creator != "" && creator != lead && b.findMemberLocked(creator) != nil {
+			if creator := b.mapTaskActorToCoreLocked(body.CreatedBy); creator != "" && creator != lead && b.findMemberLocked(creator) != nil {
 				members = append(members, creator)
 			}
 			ch := teamChannel{
@@ -7551,7 +7598,7 @@ func (b *Broker) handleChannels(w http.ResponseWriter, r *http.Request) {
 				Description: strings.TrimSpace(body.Description),
 				Members:     uniqueSlugs(members),
 				Surface:     body.Surface,
-				CreatedBy:   strings.TrimSpace(body.CreatedBy),
+				CreatedBy:   b.mapTaskActorToCoreLocked(body.CreatedBy),
 				CreatedAt:   now,
 				UpdatedAt:   now,
 			}
@@ -8283,7 +8330,8 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !b.canAccessChannelLocked(body.From, channel) {
+	from := b.mapTaskActorToCoreLocked(body.From)
+	if !b.canAccessChannelLocked(from, channel) {
 		b.mu.Unlock()
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
@@ -8309,8 +8357,8 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// not for the broker to fan out in parallel. Without this guard the
 	// reviewer gets notified twice (by auto-promote AND later by the lead's
 	// explicit tag), spawning two turns with nearly identical answers.
-	tagged := uniqueSlugs(body.Tagged)
-	sender := normalizeActorSlug(body.From)
+	tagged := b.mapAgentSlugListToCoreLocked(body.Tagged, false)
+	sender := normalizeActorSlug(from)
 	isHuman := sender == "" || sender == "you" || sender == "human"
 	leadSlug := officeLeadSlugFrom(b.members)
 	mentionedSlugs := extractMentionedSlugs(body.Content)
@@ -8351,13 +8399,13 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// Agent-to-agent auto-tagging is intentionally skipped: focus mode
 	// routing (specialist → lead only) already handles that path, and
 	// auto-tagging agent replies causes broadcast loops.
-	isHumanSender := body.From == "you" || body.From == "human"
+	isHumanSender := from == "you" || from == "human"
 	if replyTo != "" && isHumanSender {
 		threadRoot := replyTo
 		threadParticipants := []string{}
 		for _, existing := range b.messages {
 			inThread := existing.ID == threadRoot || existing.ReplyTo == threadRoot
-			if inThread && existing.From != body.From {
+			if inThread && existing.From != from {
 				// Include agents (skip "you"/"human" — they see via the web UI poll)
 				if existing.From != "you" && existing.From != "human" && b.findMemberLocked(existing.From) != nil {
 					threadParticipants = append(threadParticipants, existing.From)
@@ -8392,7 +8440,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 
 	msg := channelMessage{
 		ID:        fmt.Sprintf("msg-%d", b.counter),
-		From:      body.From,
+		From:      from,
 		Channel:   channel,
 		Kind:      strings.TrimSpace(body.Kind),
 		Title:     strings.TrimSpace(body.Title),
@@ -11890,9 +11938,8 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	createdBy := strings.TrimSpace(body.CreatedBy)
+	createdBy := mapLegacyTaskActorToCore(body.CreatedBy)
 	if action == "propose" {
-		createdBy = normalizeActorSlug(createdBy)
 		if b.findMemberLocked(createdBy) == nil {
 			http.Error(w, "created_by must be a registered agent for skill proposals", http.StatusForbidden)
 			return

@@ -5,7 +5,8 @@
  * content because agents and humans rely on them as durable state.
  */
 
-import { get, getHumans, post, sseURL, type HumanIdentity } from "./client";
+import { get, getHumans, type HumanIdentity, post } from "./client";
+import { subscribeBrokerEvent } from "./events";
 
 export type { HumanIdentity };
 
@@ -240,44 +241,25 @@ export function subscribeSectionsUpdated(
   handler: (event: WikiSectionsUpdatedEvent) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
-  let onEvent: ((ev: MessageEvent) => void) | null = null;
-
-  try {
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES)
-      return () => {
-        closed = true;
-      };
-    source = new ES(sseURL("/events"));
-    onEvent = (ev: MessageEvent) => {
-      if (closed) return;
-      try {
-        const data = JSON.parse(ev.data) as WikiSectionsUpdatedEvent;
-        if (data && Array.isArray(data.sections)) {
-          handler(data);
-        }
-      } catch {
-        // ignore malformed events
+  const onEvent = (ev: MessageEvent) => {
+    if (closed) return;
+    try {
+      const data = JSON.parse(ev.data) as WikiSectionsUpdatedEvent;
+      if (data && Array.isArray(data.sections)) {
+        handler(data);
       }
-    };
-    source.addEventListener("wiki:sections_updated", onEvent as EventListener);
-  } catch {
-    source = null;
-  }
+    } catch {
+      // ignore malformed events
+    }
+  };
+  const unsubscribe = subscribeBrokerEvent(
+    "wiki:sections_updated",
+    onEvent as EventListener,
+  );
 
   return () => {
     closed = true;
-    if (source && onEvent) {
-      source.removeEventListener(
-        "wiki:sections_updated",
-        onEvent as EventListener,
-      );
-    }
-    if (source) {
-      source.close();
-      source = null;
-    }
+    unsubscribe();
   };
 }
 
@@ -444,57 +426,41 @@ export function subscribeEditLog(
   handler: (entry: WikiEditLogEntry) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
-  let onWrite: ((ev: MessageEvent) => void) | null = null;
-
-  try {
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES)
-      return () => {
-        closed = true;
+  const onWrite = (ev: MessageEvent) => {
+    if (closed) return;
+    try {
+      const data = JSON.parse(ev.data) as Record<string, unknown>;
+      // Broker ships `{path, commit_sha, author_slug, timestamp}` on
+      // wiki:write. The edit-log UI's WikiEditLogEntry contract uses
+      // `who`/`action`/`article_path`/`article_title`, so normalize
+      // here rather than leaving undefined fields that crash
+      // downstream consumers (e.g. EditLogFooter's
+      // entry.who.toLowerCase()).
+      const raw = (data.entry ?? data) as Record<string, unknown>;
+      const path = String(raw.article_path ?? raw.path ?? "");
+      const entry: WikiEditLogEntry = {
+        who: String(raw.who ?? raw.author_slug ?? "unknown"),
+        action: (raw.action as WikiEditLogEntry["action"]) ?? "edited",
+        article_path: path,
+        article_title:
+          (raw.article_title as string) ??
+          (path.split("/").pop() ?? path).replace(/\.md$/, ""),
+        timestamp: String(raw.timestamp ?? new Date().toISOString()),
+        commit_sha: String(raw.commit_sha ?? ""),
       };
-    source = new ES(sseURL("/events"));
-    onWrite = (ev: MessageEvent) => {
-      if (closed) return;
-      try {
-        const data = JSON.parse(ev.data) as Record<string, unknown>;
-        // Broker ships `{path, commit_sha, author_slug, timestamp}` on
-        // wiki:write. The edit-log UI's WikiEditLogEntry contract uses
-        // `who`/`action`/`article_path`/`article_title`, so normalize
-        // here rather than leaving undefined fields that crash
-        // downstream consumers (e.g. EditLogFooter's
-        // entry.who.toLowerCase()).
-        const raw = (data.entry ?? data) as Record<string, unknown>;
-        const path = String(raw.article_path ?? raw.path ?? "");
-        const entry: WikiEditLogEntry = {
-          who: String(raw.who ?? raw.author_slug ?? "unknown"),
-          action: (raw.action as WikiEditLogEntry["action"]) ?? "edited",
-          article_path: path,
-          article_title:
-            (raw.article_title as string) ??
-            (path.split("/").pop() ?? path).replace(/\.md$/, ""),
-          timestamp: String(raw.timestamp ?? new Date().toISOString()),
-          commit_sha: String(raw.commit_sha ?? ""),
-        };
-        handler(entry);
-      } catch {
-        // ignore malformed events
-      }
-    };
-    source.addEventListener("wiki:write", onWrite as EventListener);
-  } catch {
-    source = null;
-  }
+      handler(entry);
+    } catch {
+      // ignore malformed events
+    }
+  };
+  const unsubscribe = subscribeBrokerEvent(
+    "wiki:write",
+    onWrite as EventListener,
+  );
 
   return () => {
     closed = true;
-    if (source && onWrite) {
-      source.removeEventListener("wiki:write", onWrite as EventListener);
-    }
-    if (source) {
-      source.close();
-      source = null;
-    }
+    unsubscribe();
   };
 }
 

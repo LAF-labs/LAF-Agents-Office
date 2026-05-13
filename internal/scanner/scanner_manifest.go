@@ -128,8 +128,10 @@ func (m *ScanManifest) MarkScanned() {
 func (m *ScanManifest) HasRoot(root string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	prefix := filepath.Clean(root) + string(filepath.Separator)
+	root = filepath.ToSlash(filepath.Clean(root))
+	prefix := root + "/"
 	for path := range m.Files {
+		path = filepath.ToSlash(filepath.Clean(path))
 		if path == root {
 			return true
 		}

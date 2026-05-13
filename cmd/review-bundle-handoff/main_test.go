@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -156,7 +157,7 @@ func TestBuildApprovalGateBlocksContradictoryArtifacts(t *testing.T) {
 	mustWriteFile(t, filepath.Join(dir, "approval-packet.json"), `{
   "run_id": "client-intake-approval-dry-run",
   "approval_mode": "live_client_pilot",
-  "source_bundle": "`+dir+`",
+  "source_bundle": `+jsonString(dir)+`,
   "live_packet_path": "docs/youtube-factory/generated/live-client-pilot/script-packet-inbox-operator.json",
   "client": "Pilot Client Alpha",
   "engagement_slug": "ai-inbox-operator-5-person-business",
@@ -256,7 +257,7 @@ func writeFixtureBundle(t *testing.T, dir, status string, approvers []string, in
 		mustWriteFile(t, filepath.Join(dir, "approval-packet.json"), `{
   "run_id": "client-intake-approval-dry-run",
   "approval_mode": "live_client_pilot",
-  "source_bundle": "`+dir+`",
+  "source_bundle": `+jsonString(dir)+`,
   "live_packet_path": "docs/youtube-factory/generated/live-client-pilot/script-packet-inbox-operator.json",
   "client": "Pilot Client Alpha",
   "engagement_slug": "ai-inbox-operator-5-person-business",
@@ -303,6 +304,10 @@ func mustWriteFile(t *testing.T, path, contents string) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+func jsonString(value string) string {
+	return strconv.Quote(value)
 }
 
 func approverStatusAt(lines []string, idx int) string {

@@ -150,7 +150,9 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 
 	t.Setenv("GO_WANT_HEADLESS_CODEX_HELPER_PROCESS", "1")
 	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "openai-secret-key")
 
 	l := &Launcher{
@@ -273,7 +275,9 @@ func TestRunHeadlessCodexTurnUsesAssignedWorktreeForCodingAgents(t *testing.T) {
 
 	t.Setenv("GO_WANT_HEADLESS_CODEX_HELPER_PROCESS", "1")
 	t.Setenv("HEADLESS_CODEX_RECORD_FILE", recordFile)
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 	t.Setenv("OPENAI_API_KEY", "test-key")
 	t.Setenv("PWD", repoRoot)
 	t.Setenv("OLDPWD", "/tmp/previous")
@@ -526,6 +530,7 @@ func TestPrepareHeadlessCodexHomeUsesDedicatedRuntimeHomeAndCopiesAuth(t *testin
 	sourceHome := t.TempDir()
 	runtimeHome := t.TempDir()
 	t.Setenv("HOME", runtimeHome)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", runtimeHome)
 	t.Setenv("LAF_OFFICE_GLOBAL_HOME", sourceHome)
 
 	sourceCodexHome := filepath.Join(sourceHome, ".codex")
@@ -2237,6 +2242,8 @@ func waitForProcessedTurn(t *testing.T, ch <-chan processedTurn) processedTurn {
 func TestPreflightHeadlessCodexAuthFailsAndPostsSystemMessage(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_GLOBAL_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	if err := config.Save(config.Config{}); err != nil {
@@ -2276,6 +2283,8 @@ func TestPreflightHeadlessCodexAuthFailsAndPostsSystemMessage(t *testing.T) {
 func TestPreflightHeadlessCodexAuthPassesWhenOpenAIKeySet(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_GLOBAL_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "sk-test-key")
 	if err := config.Save(config.Config{}); err != nil {
@@ -2291,6 +2300,8 @@ func TestPreflightHeadlessCodexAuthPassesWhenOpenAIKeySet(t *testing.T) {
 func TestPreflightHeadlessCodexAuthPassesWhenAuthJSONPresent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_GLOBAL_HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 	t.Setenv("LAF_OFFICE_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	if err := config.Save(config.Config{}); err != nil {
