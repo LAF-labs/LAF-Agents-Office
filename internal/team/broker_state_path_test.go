@@ -62,6 +62,9 @@ func TestDefaultBrokerStatePath_RelativeFallbackWhenHomeMissing(t *testing.T) {
 	t.Setenv("LAF_OFFICE_BROKER_STATE_PATH", "")
 	t.Setenv("LAF_OFFICE_RUNTIME_HOME", "")
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("HOMEDRIVE", "")
+	t.Setenv("HOMEPATH", "")
 
 	got := defaultBrokerStatePath()
 	want := filepath.Join(".laf-office", "team", "broker-state.json")

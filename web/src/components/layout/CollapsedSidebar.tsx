@@ -45,6 +45,7 @@ export function CollapsedSidebar() {
   const toggleCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const setSkillsSection = useAppStore((s) => s.setSkillsSection);
   const { t } = useI18n();
   const [popover, setPopover] = useState<Popover>(null);
   const [hint, setHint] = useState<HintState>(null);
@@ -138,7 +139,10 @@ export function CollapsedSidebar() {
               type="button"
               className={`sidebar-icon-btn${isActive ? " active" : ""}`}
               aria-label={appName}
-              onClick={() => setCurrentApp(app.id)}
+              onClick={() => {
+                if (app.id === "skills") setSkillsSection("dashboard");
+                setCurrentApp(app.id);
+              }}
               onFocus={() => preloadWorkspaceSurface(app.id)}
               onMouseEnter={(e) => {
                 preloadWorkspaceSurface(app.id);

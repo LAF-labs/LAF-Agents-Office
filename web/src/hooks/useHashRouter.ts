@@ -4,6 +4,7 @@ import {
   type ChannelMeta,
   directChannelSlug,
   isDMChannel,
+  type SkillsSection,
   useAppStore,
 } from "../stores/app";
 
@@ -15,6 +16,7 @@ type Route =
       app: string;
       projectId?: string | null;
       taskId?: string | null;
+      skillsSection?: SkillsSection;
     }
   | { view: "wiki"; articlePath: string | null }
   | { view: "wiki-lookup"; query: string }
@@ -26,7 +28,9 @@ const PROJECTS_ROUTE = { view: "app", app: "tasks" } as const;
 const DEFAULT_ROUTE: Route = HOME_ROUTE;
 
 function appRoute(app: string): Route {
-  return { view: "app", app: app === "projects" ? "tasks" : app };
+  if (app === "projects") return { view: "app", app: "tasks" };
+  if (app === "skills") return { view: "app", app: "skills" };
+  return { view: "app", app };
 }
 
 function parseHash(hash: string): Route {
@@ -56,6 +60,12 @@ function parseHash(hash: string): Route {
           parts[3]
             ? decodeURIComponent(parts[3])
             : null,
+      };
+    case "skills":
+      return {
+        view: "app",
+        app: "skills",
+        skillsSection: parts[1] === "list" ? "list" : "dashboard",
       };
     case "threads":
       return { view: "app", app: "threads" };
@@ -98,6 +108,7 @@ function stateToHash(state: {
   notebookEntrySlug: string | null;
   projectFocusId: string | null;
   taskFocusId: string | null;
+  skillsSection: SkillsSection;
 }): string {
   const appHash = appStateToHash(state);
   if (appHash) return appHash;
@@ -116,6 +127,7 @@ function appStateToHash(state: {
   notebookEntrySlug: string | null;
   projectFocusId: string | null;
   taskFocusId: string | null;
+  skillsSection: SkillsSection;
 }): string | null {
   switch (state.currentApp) {
     case "wiki-lookup":
@@ -140,6 +152,8 @@ function appStateToHash(state: {
         )}/tickets/${encodeURIComponent(state.taskFocusId)}`;
       }
       return `#/projects/${encodeURIComponent(state.projectFocusId)}`;
+    case "skills":
+      return state.skillsSection === "list" ? "#/skills/list" : "#/skills";
     case null:
       return null;
     default:
@@ -167,6 +181,7 @@ interface HashRouteActions {
   setLastMessageId: (id: string | null) => void;
   setProjectFocusId: (projectId: string | null) => void;
   setTaskFocusId: (taskId: string | null) => void;
+  setSkillsSection: (section: SkillsSection) => void;
   setWikiPath: (path: string | null) => void;
   setWikiLookupQuery: (query: string) => void;
   setNotebookRoute: (
@@ -187,6 +202,9 @@ function applyRoute(route: Route, actions: HashRouteActions) {
       actions.setTaskFocusId(
         route.app === "tasks" ? (route.taskId ?? null) : null,
       );
+      if (route.app === "skills") {
+        actions.setSkillsSection(route.skillsSection ?? "dashboard");
+      }
       actions.setCurrentApp(route.app);
       break;
     case "wiki-lookup":
@@ -234,6 +252,8 @@ export function useHashRouter() {
   const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
   const taskFocusId = useAppStore((s) => s.taskFocusId);
   const setTaskFocusId = useAppStore((s) => s.setTaskFocusId);
+  const skillsSection = useAppStore((s) => s.skillsSection);
+  const setSkillsSection = useAppStore((s) => s.setSkillsSection);
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
   const enterDM = useAppStore((s) => s.enterDM);
   const setLastMessageId = useAppStore((s) => s.setLastMessageId);
@@ -265,6 +285,7 @@ export function useHashRouter() {
         setLastMessageId,
         setProjectFocusId,
         setTaskFocusId,
+        setSkillsSection,
         setWikiPath,
         setWikiLookupQuery,
         setNotebookRoute,
@@ -285,6 +306,7 @@ export function useHashRouter() {
     setLastMessageId,
     setProjectFocusId,
     setTaskFocusId,
+    setSkillsSection,
     setWikiPath,
     setWikiLookupQuery,
     setNotebookRoute,
@@ -306,6 +328,7 @@ export function useHashRouter() {
       notebookEntrySlug,
       projectFocusId,
       taskFocusId,
+      skillsSection,
     });
     if (next !== window.location.hash) {
       window.history.pushState(null, "", next);
@@ -321,6 +344,7 @@ export function useHashRouter() {
     notebookEntrySlug,
     projectFocusId,
     taskFocusId,
+    skillsSection,
   ]);
 }
 

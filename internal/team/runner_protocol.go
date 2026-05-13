@@ -1,6 +1,7 @@
 package team
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -32,7 +33,8 @@ const (
 	runnerJobStatusCanceled  = "canceled"
 	runnerJobStatusExpired   = "expired"
 
-	defaultRunnerLeaseDuration = 5 * time.Minute
+	defaultRunnerLeaseDuration     = 5 * time.Minute
+	runnerCapabilityCommandTimeout = 2 * time.Second
 )
 
 type hostedRunner struct {
@@ -240,13 +242,13 @@ func detectLocalRunnerCapabilities(workspaceRoot string) runnerCapabilities {
 	}
 	if path, err := exec.LookPath("git"); err == nil && strings.TrimSpace(path) != "" {
 		caps.GitAvailable = true
-		if out, err := exec.Command("git", "--version").Output(); err == nil {
+		if out, err := runnerCommandOutputWithTimeout(runnerCapabilityCommandTimeout, "git", "--version"); err == nil {
 			caps.GitVersion = strings.TrimSpace(string(out))
 		}
 	}
 	if path, err := exec.LookPath("gh"); err == nil && strings.TrimSpace(path) != "" {
 		caps.GHAvailable = true
-		if err := exec.Command("gh", "auth", "status").Run(); err == nil {
+		if err := runnerCommandRunWithTimeout(runnerCapabilityCommandTimeout, "gh", "auth", "status"); err == nil {
 			caps.GHAuthenticated = true
 		}
 	}
@@ -264,6 +266,18 @@ func detectLocalRunnerCapabilities(workspaceRoot string) runnerCapabilities {
 		caps.ExecutionModes = append(caps.ExecutionModes, executionModeLocalWorktree)
 	}
 	return normalizeRunnerCapabilities(caps)
+}
+
+func runnerCommandOutputWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).Output()
+}
+
+func runnerCommandRunWithTimeout(timeout time.Duration, name string, args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).Run()
 }
 
 func commandExists(names ...string) bool {

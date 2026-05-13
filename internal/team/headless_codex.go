@@ -1380,7 +1380,7 @@ func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, chann
 		env = setEnvValue(env, "HOME", codexHome)
 		_ = os.MkdirAll(filepath.Join(codexHome, "plugins", "cache"), 0o755)
 		env = setEnvValue(env, "CODEX_HOME", codexHome)
-	} else if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+	} else if home := strings.TrimSpace(config.RuntimeHomeDir()); home != "" {
 		env = setEnvValue(env, "HOME", home)
 	}
 	if base := l.headlessCodexWorkspaceCacheDir(workspaceDir); base != "" {
@@ -1415,10 +1415,7 @@ func headlessCodexHomeDir() string {
 			return abs
 		}
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
+	home := headlessCodexGlobalHomeDir()
 	home = strings.TrimSpace(home)
 	if home == "" {
 		return ""
@@ -1441,11 +1438,7 @@ func headlessCodexGlobalHomeDir() string {
 }
 
 func headlessCodexRuntimeHomeDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	home = strings.TrimSpace(home)
+	home := strings.TrimSpace(config.RuntimeHomeDir())
 	if home == "" {
 		return ""
 	}

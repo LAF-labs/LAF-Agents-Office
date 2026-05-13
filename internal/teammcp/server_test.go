@@ -13,12 +13,16 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
 )
 
 func ensureBrokerMembers(t *testing.T, ctx context.Context, slugs ...string) {
 	t.Helper()
 	for _, slug := range slugs {
+		if mapped := office.MapLegacyAgentSlug(slug); mapped != "" {
+			slug = mapped
+		}
 		name := strings.ReplaceAll(slug, "-", " ")
 		name = strings.TrimSpace(name)
 		if name == "" {
@@ -348,7 +352,7 @@ func TestHandleTeamChannelCreateTriggersReconfigure(t *testing.T) {
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	called := 0
 	prev := reconfigureOfficeSessionFn
@@ -617,11 +621,11 @@ func TestHandleTeamPollScopesMessagesForNonCEO(t *testing.T) {
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	for _, msg := range []map[string]any{
 		{"channel": "general", "from": "you", "content": "Human wants a quick update."},
-		{"channel": "general", "from": "pm", "content": "Unrelated PM planning note."},
+		{"channel": "general", "from": "be", "content": "Unrelated backend planning note."},
 		{"channel": "general", "from": "ceo", "content": "Frontend, tighten the CTA copy.", "tagged": []string{"fe"}},
 		{"channel": "general", "from": "fe", "content": "I am on the CTA copy now."},
 	} {
@@ -641,7 +645,7 @@ func TestHandleTeamPollScopesMessagesForNonCEO(t *testing.T) {
 	if !strings.Contains(text, "I am on the CTA copy now.") {
 		t.Fatalf("expected FE outbox message in %q", text)
 	}
-	if strings.Contains(text, "Unrelated PM planning note.") {
+	if strings.Contains(text, "Unrelated backend planning note.") {
 		t.Fatalf("did not expect unrelated PM note in scoped poll %q", text)
 	}
 }
@@ -995,11 +999,11 @@ func TestHandleTeamPollUsesAgentScopedTranscript(t *testing.T) {
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	for _, msg := range []map[string]any{
 		{"channel": "general", "from": "you", "content": "Frontend, should we ship this?", "tagged": []string{"fe"}},
-		{"channel": "general", "from": "pm", "content": "Unrelated roadmap chatter."},
+		{"channel": "general", "from": "be", "content": "Unrelated backend chatter."},
 		{"channel": "general", "from": "architect", "content": "Keep scope tight and focus on signup."},
 		{"channel": "general", "from": "fe", "content": "I can take the signup work."},
 	} {
@@ -1019,7 +1023,7 @@ func TestHandleTeamPollUsesAgentScopedTranscript(t *testing.T) {
 	if !strings.Contains(text, "Keep scope tight and focus on signup.") {
 		t.Fatalf("expected lead context in scoped transcript, got %q", text)
 	}
-	if strings.Contains(text, "Unrelated roadmap chatter.") {
+	if strings.Contains(text, "Unrelated backend chatter.") {
 		t.Fatalf("did not expect unrelated PM chatter in scoped transcript, got %q", text)
 	}
 }
@@ -1036,14 +1040,14 @@ func TestHandleTeamBroadcastDefaultsToLatestTaggedChannelAndThread(t *testing.T)
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	if err := brokerPostJSON(ctx, "/channels", map[string]any{
 		"action":      "create",
 		"slug":        "launch",
 		"name":        "Launch",
 		"description": "Launch work",
-		"members":     []string{"fe", "pm"},
+		"members":     []string{"fe", "be"},
 		"created_by":  "ceo",
 	}, nil); err != nil {
 		t.Fatalf("create channel: %v", err)
@@ -1097,14 +1101,14 @@ func TestHandleTeamPollDefaultsToLatestTaggedChannel(t *testing.T) {
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	if err := brokerPostJSON(ctx, "/channels", map[string]any{
 		"action":      "create",
 		"slug":        "launch",
 		"name":        "Launch",
 		"description": "Launch work",
-		"members":     []string{"fe", "pm"},
+		"members":     []string{"fe", "be"},
 		"created_by":  "ceo",
 	}, nil); err != nil {
 		t.Fatalf("create channel: %v", err)
@@ -1143,14 +1147,14 @@ func TestHandleTeamTaskUsesTaskChannelWhenIDGiven(t *testing.T) {
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	if err := brokerPostJSON(ctx, "/channels", map[string]any{
 		"action":      "create",
 		"slug":        "launch",
 		"name":        "Launch",
 		"description": "Launch work",
-		"members":     []string{"fe", "pm"},
+		"members":     []string{"fe", "be"},
 		"created_by":  "ceo",
 	}, nil); err != nil {
 		t.Fatalf("create channel: %v", err)
@@ -1199,8 +1203,8 @@ func TestHandleHumanMessageDefaultsToDirectReplyThreadInOneOnOneMode(t *testing.
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm")
-	if err := b.SetSessionMode(team.SessionModeOneOnOne, "pm"); err != nil {
+	ensureBrokerMembers(t, ctx, "ceo")
+	if err := b.SetSessionMode(team.SessionModeOneOnOne, "ceo"); err != nil {
 		t.Fatalf("set session mode: %v", err)
 	}
 
@@ -1213,7 +1217,7 @@ func TestHandleHumanMessageDefaultsToDirectReplyThreadInOneOnOneMode(t *testing.
 	}
 
 	result, _, err := handleHumanMessage(ctx, nil, HumanMessageArgs{
-		MySlug:  "pm",
+		MySlug:  "ceo",
 		Content: "Yes. Here is the latest product answer.",
 	})
 	if err != nil {
@@ -1240,7 +1244,7 @@ func TestHandleTeamInboxAndOutboxExposeOwnedTranscriptSlices(t *testing.T) {
 
 	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
-	ensureBrokerMembers(t, ctx, "pm", "fe")
+	ensureBrokerMembers(t, ctx, "be", "fe")
 
 	if err := brokerPostJSON(ctx, "/messages", map[string]any{
 		"channel": "general",
@@ -1259,7 +1263,7 @@ func TestHandleTeamInboxAndOutboxExposeOwnedTranscriptSlices(t *testing.T) {
 	}
 	if err := brokerPostJSON(ctx, "/messages", map[string]any{
 		"channel":  "general",
-		"from":     "pm",
+		"from":     "be",
 		"content":  "Please include pricing copy in that thread.",
 		"reply_to": "msg-2",
 	}, nil); err != nil {
@@ -1274,8 +1278,8 @@ func TestHandleTeamInboxAndOutboxExposeOwnedTranscriptSlices(t *testing.T) {
 	}
 	if err := brokerPostJSON(ctx, "/messages", map[string]any{
 		"channel": "general",
-		"from":    "pm",
-		"content": "Unrelated roadmap chatter.",
+		"from":    "be",
+		"content": "Unrelated backend chatter.",
 	}, nil); err != nil {
 		t.Fatalf("post unrelated message: %v", err)
 	}
@@ -1291,7 +1295,7 @@ func TestHandleTeamInboxAndOutboxExposeOwnedTranscriptSlices(t *testing.T) {
 	if !strings.Contains(inboxText, "Please include pricing copy in that thread.") {
 		t.Fatalf("expected thread reply in inbox, got %q", inboxText)
 	}
-	if strings.Contains(inboxText, "Shipped the initial branch.") || strings.Contains(inboxText, "Unrelated roadmap chatter.") {
+	if strings.Contains(inboxText, "Shipped the initial branch.") || strings.Contains(inboxText, "Unrelated backend chatter.") {
 		t.Fatalf("unexpected content in inbox slice: %q", inboxText)
 	}
 

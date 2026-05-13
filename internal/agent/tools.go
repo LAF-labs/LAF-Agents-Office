@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -215,6 +216,7 @@ func localToolDefinitions() []AgentTool {
 							if relErr != nil {
 								rel = path
 							}
+							rel = filepath.ToSlash(rel)
 							matches = append(matches, fmt.Sprintf("%s:%d:%s", rel, i+1, line))
 							fileSet[path] = struct{}{}
 						}
@@ -231,7 +233,7 @@ func localToolDefinitions() []AgentTool {
 					if relErr != nil {
 						rel = path
 					}
-					files = append(files, rel)
+					files = append(files, filepath.ToSlash(rel))
 				}
 
 				return marshalResult(localToolResult{
@@ -281,7 +283,7 @@ func localToolDefinitions() []AgentTool {
 					if relErr != nil {
 						rel = file
 					}
-					relFiles = append(relFiles, rel)
+					relFiles = append(relFiles, filepath.ToSlash(rel))
 				}
 				return marshalResult(localToolResult{
 					Pattern:    pattern,
@@ -343,7 +345,7 @@ func localToolDefinitions() []AgentTool {
 		},
 		{
 			Name:        "bash",
-			Description: "Run a local shell command and capture stdout/stderr.",
+			Description: "Run a local shell command and capture stdout/stderr. Uses /bin/sh on Unix and PowerShell on Windows.",
 			Schema: map[string]any{
 				"type":     "object",
 				"required": []any{"command"},
@@ -362,7 +364,7 @@ func localToolDefinitions() []AgentTool {
 				if wd == "" {
 					wd, _ = os.Getwd()
 				}
-				cmd := exec.CommandContext(ctx, "/bin/sh", "-lc", command)
+				cmd := shellCommandContext(ctx, command)
 				cmd.Dir = wd
 				var stdout bytes.Buffer
 				var stderr bytes.Buffer
@@ -452,6 +454,16 @@ func localToolDefinitions() []AgentTool {
 			},
 		},
 	}
+}
+
+func shellCommandContext(ctx context.Context, command string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		if path, err := exec.LookPath("pwsh"); err == nil {
+			return exec.CommandContext(ctx, path, "-NoProfile", "-NonInteractive", "-Command", command)
+		}
+		return exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", command)
+	}
+	return exec.CommandContext(ctx, "/bin/sh", "-lc", command)
 }
 
 func resolvedWorkingDirectory(params map[string]any) string {

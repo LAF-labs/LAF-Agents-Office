@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { getMessages, type Message, post } from "../../api/client";
-import { type NotebookSearchHit, searchNotebook } from "../../api/notebook";
-import { searchWiki, type WikiSearchHit } from "../../api/wiki";
+import { post } from "../../api/client";
+import {
+  searchWorkspace,
+  type WorkspaceSearchHit,
+} from "../../api/workspaceSearch";
 import { useChannels } from "../../hooks/useChannels";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useAppStore } from "../../stores/app";
@@ -19,9 +21,9 @@ interface PaletteItem {
     | "Project activity"
     | "Project agents"
     | "Actions"
-    | "Messages"
     | "Wiki"
-    | "Notebooks";
+    | "Projects"
+    | "Chat";
   icon: string;
   label: string;
   desc?: string;
@@ -32,10 +34,6 @@ interface PaletteItem {
 interface GroupedPaletteItem {
   group: PaletteItem["group"];
   items: { item: PaletteItem; flatIdx: number }[];
-}
-
-interface MessageHit extends Message {
-  matchedChannel: string;
 }
 
 interface SearchChannel {
@@ -52,18 +50,7 @@ interface SearchMember {
 }
 
 interface SearchHitResults {
-  messageHits: MessageHit[];
-  wikiHits: WikiSearchHit[];
-  notebookHits: NotebookSearchHit[];
-}
-
-function formatTime(ts: string): string {
-  try {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return ts;
-  }
+  workspaceHits: WorkspaceSearchHit[];
 }
 
 function highlightMatch(text: string, query: string): ReactNode {
@@ -86,19 +73,21 @@ function prettyWikiPath(path: string): string {
   return path.replace(/^team\//, "").replace(/\.md$/, "");
 }
 
-function parseNotebookPath(
+function parseNotebookPathLegacy(
   path: string,
 ): { agent: string; entry: string } | null {
   // `agents/<slug>/<entry>.md` — split and validate the shape without regex
   // capture groups that trip up some static analyzers.
   if (!(path.startsWith("agents/") && path.endsWith(".md"))) return null;
   const stripped = path.slice("agents/".length, -3);
-  const firstSlash = stripped.indexOf("/");
-  if (firstSlash <= 0 || firstSlash === stripped.length - 1) return null;
-  const agent = stripped.slice(0, firstSlash);
-  const entry = stripped.slice(firstSlash + 1);
-  if (entry.includes("/")) return null;
-  return { agent, entry };
+  const parts = stripped.split("/");
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    return { agent: parts[0], entry: parts[1] };
+  }
+  if (parts.length === 3 && parts[0] && parts[1] === "notebook" && parts[2]) {
+    return { agent: parts[0], entry: parts[2] };
+  }
+  return null;
 }
 
 function searchTerm(query: string, prefix: string): string {
@@ -114,79 +103,20 @@ function isSearchableAgentSlug(slug: unknown): slug is string {
   );
 }
 
-async function searchMessages(
-  channels: SearchChannel[],
-  needle: string,
-): Promise<MessageHit[]> {
-  const grouped = await Promise.all(
-    channels.map(async (channel) => {
-      try {
-        const { messages } = await getMessages(channel.slug, null, 100);
-        return messages
-          .filter((message) => message.content?.toLowerCase().includes(needle))
-          .map(
-            (message): MessageHit => ({
-              ...message,
-              matchedChannel: channel.slug,
-            }),
-          );
-      } catch {
-        return [] as MessageHit[];
-      }
-    }),
-  );
-
-  return grouped
-    .flat()
-    .sort(
-      (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-    )
-    .slice(0, 8);
-}
-
-async function searchNotebooks(
-  members: SearchMember[],
-  query: string,
-): Promise<NotebookSearchHit[]> {
-  const agentSlugs = members
-    .map((member) => member.slug)
-    .filter(isSearchableAgentSlug);
-  const grouped = await Promise.all(
-    agentSlugs.map((slug) =>
-      searchNotebook(slug, query).catch(() => [] as NotebookSearchHit[]),
-    ),
-  );
-  return grouped.flat().slice(0, 8);
-}
-
-async function loadSearchHits(
-  channels: SearchChannel[],
-  members: SearchMember[],
-  query: string,
-  needle: string,
-): Promise<SearchHitResults> {
-  const [messageHits, wikiHits, notebookHits] = await Promise.all([
-    searchMessages(channels, needle),
-    searchWiki(query).then((hits) => hits.slice(0, 8)),
-    searchNotebooks(members, query),
-  ]);
-  return { messageHits, wikiHits, notebookHits };
+async function loadSearchHits(query: string): Promise<SearchHitResults> {
+  const workspace = await searchWorkspace(query, { limit: 24 });
+  return { workspaceHits: workspace.hits };
 }
 
 interface PaletteBuildDeps extends CommandDeps {
   query: string;
   channels: SearchChannel[];
   members: SearchMember[];
-  messageHits: MessageHit[];
-  wikiHits: WikiSearchHit[];
-  notebookHits: NotebookSearchHit[];
+  workspaceHits: WorkspaceSearchHit[];
   setActiveAgentSlug: (slug: string | null) => void;
+  setProjectFocusId: (projectId: string | null) => void;
+  setTaskFocusId: (taskId: string | null) => void;
   setWikiPath: (path: string | null) => void;
-  setNotebookRoute: (
-    agentSlug: string | null,
-    entrySlug: string | null,
-  ) => void;
   close: () => void;
 }
 
@@ -273,71 +203,96 @@ function buildSearchResultItems(
   q: string,
 ): PaletteItem[] {
   if (q.length < 2) return [];
-  return [
-    ...buildMessageItems(deps),
-    ...buildWikiItems(deps),
-    ...buildNotebookItems(deps),
-  ];
+  return buildWorkspaceItems(deps);
 }
 
-function buildMessageItems(deps: PaletteBuildDeps): PaletteItem[] {
-  return deps.messageHits.map((hit) => {
-    const snippet =
-      hit.content.length > 100
-        ? `${hit.content.slice(0, 100)}...`
-        : hit.content;
+function buildWorkspaceItems(deps: PaletteBuildDeps): PaletteItem[] {
+  return deps.workspaceHits.map((hit) => {
+    const path = hit.path ?? "";
     return {
-      id: `msg:${hit.id}:${hit.matchedChannel}`,
-      group: "Messages",
-      icon: "message",
-      label: `${hit.from}: ${snippet}`,
-      desc: `#${hit.matchedChannel} · ${formatTime(hit.timestamp)}`,
+      id: `workspace:${hit.id}`,
+      group: workspaceGroup(hit),
+      icon: workspaceIcon(hit),
+      label: workspaceLabel(hit, path),
+      desc: hit.snippet.trim().slice(0, 140),
+      meta: workspaceMeta(hit),
       run: () => {
-        deps.setCurrentApp(null);
-        deps.setCurrentChannel(hit.matchedChannel);
-        deps.setLastMessageId(null);
-        deps.close();
-      },
-    };
-  });
-}
-
-function buildWikiItems(deps: PaletteBuildDeps): PaletteItem[] {
-  return deps.wikiHits.map((hit) => ({
-    id: `wiki:${hit.path}:${hit.line}`,
-    group: "Wiki",
-    icon: "wiki",
-    label: prettyWikiPath(hit.path),
-    desc: hit.snippet.trim().slice(0, 120),
-    meta: `L${hit.line}`,
-    run: () => {
-      deps.setCurrentApp("wiki");
-      deps.setWikiPath(hit.path);
-      deps.close();
-    },
-  }));
-}
-
-function buildNotebookItems(deps: PaletteBuildDeps): PaletteItem[] {
-  return deps.notebookHits.map((hit) => {
-    const parsed = parseNotebookPath(hit.path);
-    const label = parsed ? `${parsed.agent} · ${parsed.entry}` : hit.path;
-    return {
-      id: `nb:${hit.path}:${hit.line}`,
-      group: "Notebooks",
-      icon: "notebook",
-      label,
-      desc: hit.snippet.trim().slice(0, 120),
-      meta: `L${hit.line}`,
-      run: () => {
-        deps.setCurrentApp("notebooks");
-        if (parsed) {
-          deps.setNotebookRoute(parsed.agent, parsed.entry);
+        if (hit.source === "wiki" && path) {
+          deps.setCurrentApp("wiki");
+          deps.setWikiPath(path);
+        } else if (hit.source === "chat" && hit.channel) {
+          deps.setCurrentApp(null);
+          deps.setCurrentChannel(hit.channel);
+          deps.setLastMessageId(null);
+        } else if (hit.source === "project" || hit.source === "task") {
+          deps.setProjectFocusId(hit.project_id || null);
+          deps.setTaskFocusId(
+            hit.source === "task" ? hit.task_id || null : null,
+          );
+          deps.setCurrentApp("tasks");
+        } else if (hit.channel) {
+          deps.setCurrentApp(null);
+          deps.setCurrentChannel(hit.channel);
+        } else {
+          deps.setCurrentApp("tasks");
         }
         deps.close();
       },
     };
   });
+}
+
+function workspaceLabel(hit: WorkspaceSearchHit, path: string): string {
+  if (hit.source === "wiki") return prettyWikiPath(path || hit.title);
+  const legacyNotebook =
+    hit.source === "notebook" ? parseNotebookPathLegacy(path) : null;
+  if (legacyNotebook)
+    return `${legacyNotebook.agent} - ${legacyNotebook.entry}`;
+  return hit.title || path || hit.id;
+}
+
+function workspaceGroup(hit: WorkspaceSearchHit): PaletteItem["group"] {
+  if (hit.source === "wiki") return "Wiki";
+  if (hit.source === "chat") return "Chat";
+  return "Projects";
+}
+
+function workspaceIcon(hit: WorkspaceSearchHit): string {
+  switch (hit.source) {
+    case "wiki":
+      return "wiki";
+    case "project":
+      return "page";
+    case "task":
+      return "task";
+    case "chat":
+      return "message";
+    default:
+      return "search";
+  }
+}
+
+function workspaceMeta(hit: WorkspaceSearchHit): string {
+  const parts = [sourceLabel(hit.source)];
+  if (hit.line) parts.push(`L${hit.line}`);
+  if (hit.task_id) parts.push(`#${hit.task_id}`);
+  if (hit.channel) parts.push(`#${hit.channel}`);
+  return parts.filter(Boolean).join(" - ");
+}
+
+function sourceLabel(source: string): string {
+  switch (source) {
+    case "wiki":
+      return "wiki";
+    case "project":
+      return "project";
+    case "task":
+      return "task";
+    case "chat":
+      return "chat";
+    default:
+      return source.replace(/_/g, " ");
+  }
 }
 
 interface PaletteKeyContext {
@@ -381,10 +336,11 @@ export function SearchModal() {
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const setActiveAgentSlug = useAppStore((s) => s.setActiveAgentSlug);
+  const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
+  const setTaskFocusId = useAppStore((s) => s.setTaskFocusId);
   const enterDM = useAppStore((s) => s.enterDM);
   const setLastMessageId = useAppStore((s) => s.setLastMessageId);
   const setWikiPath = useAppStore((s) => s.setWikiPath);
-  const setNotebookRoute = useAppStore((s) => s.setNotebookRoute);
   const composerSearchInitialQuery = useAppStore(
     (s) => s.composerSearchInitialQuery,
   );
@@ -396,49 +352,42 @@ export function SearchModal() {
 
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [messageHits, setMessageHits] = useState<MessageHit[]>([]);
-  const [wikiHits, setWikiHits] = useState<WikiSearchHit[]>([]);
-  const [notebookHits, setNotebookHits] = useState<NotebookSearchHit[]>([]);
+  const [workspaceHits, setWorkspaceHits] = useState<WorkspaceSearchHit[]>([]);
   const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestRef = useRef(0);
 
   const close = useCallback(() => setSearchOpen(false), [setSearchOpen]);
 
-  const runSearch = useCallback(
-    async (raw: string) => {
-      const trimmed = raw.trim();
-      const needle = trimmed.toLowerCase();
-      if (needle.length < 2 || channels.length === 0) {
-        setMessageHits([]);
-        setWikiHits([]);
-        setNotebookHits([]);
-        return;
+  const runSearch = useCallback(async (raw: string) => {
+    const trimmed = raw.trim();
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    if (trimmed.length < 2) {
+      setWorkspaceHits([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const results = await loadSearchHits(trimmed);
+      if (requestId === searchRequestRef.current) {
+        setWorkspaceHits(results.workspaceHits);
       }
-      setSearching(true);
-      try {
-        const results = await loadSearchHits(
-          channels,
-          members,
-          trimmed,
-          needle,
-        );
-        setMessageHits(results.messageHits);
-        setWikiHits(results.wikiHits);
-        setNotebookHits(results.notebookHits);
-      } finally {
+    } finally {
+      if (requestId === searchRequestRef.current) {
         setSearching(false);
       }
-    },
-    [channels, members],
-  );
+    }
+  }, []);
 
   const handleQueryChange = useCallback(
     (value: string) => {
       setQuery(value);
       setSelectedIdx(0);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => runSearch(value), 250);
+      debounceRef.current = setTimeout(() => runSearch(value), 320);
     },
     [runSearch],
   );
@@ -452,10 +401,11 @@ export function SearchModal() {
       }
       return () => clearTimeout(t);
     }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    searchRequestRef.current += 1;
     setQuery("");
-    setMessageHits([]);
-    setWikiHits([]);
-    setNotebookHits([]);
+    setWorkspaceHits([]);
+    setSearching(false);
     setSelectedIdx(0);
   }, [
     searchOpen,
@@ -469,16 +419,15 @@ export function SearchModal() {
       query,
       channels,
       members,
-      messageHits,
-      wikiHits,
-      notebookHits,
+      workspaceHits,
       setCurrentApp,
       setCurrentChannel,
       setActiveAgentSlug,
+      setProjectFocusId,
+      setTaskFocusId,
       setLastMessageId,
       setSearchOpen,
       setWikiPath,
-      setNotebookRoute,
       enterDM,
       close,
     });
@@ -486,16 +435,15 @@ export function SearchModal() {
     query,
     channels,
     members,
-    messageHits,
-    wikiHits,
-    notebookHits,
+    workspaceHits,
     setCurrentApp,
     setCurrentChannel,
     setActiveAgentSlug,
+    setProjectFocusId,
+    setTaskFocusId,
     setLastMessageId,
     setSearchOpen,
     setWikiPath,
-    setNotebookRoute,
     enterDM,
     close,
   ]);
@@ -566,7 +514,7 @@ export function SearchModal() {
             ref={inputRef}
             className="search-input"
             type="text"
-            placeholder="Search channels, agents, commands, messages, wiki, notebooks..."
+            placeholder="Search channels, agents, wiki, projects, and task chats..."
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
           />
@@ -715,7 +663,7 @@ function renderPaletteLabel(item: PaletteItem, query: string): ReactNode {
 }
 
 function shouldHighlightLabel(group: PaletteItem["group"]): boolean {
-  return group === "Messages" || group === "Wiki" || group === "Notebooks";
+  return group === "Wiki" || group === "Projects" || group === "Chat";
 }
 
 function PaletteDescription({
@@ -727,7 +675,7 @@ function PaletteDescription({
 }) {
   if (!item.desc) return null;
   const desc =
-    item.group === "Wiki" || item.group === "Notebooks"
+    item.group === "Wiki" || item.group === "Projects" || item.group === "Chat"
       ? highlightMatch(item.desc, query)
       : item.desc;
   return <span className="cmd-palette-item-desc">{desc}</span>;

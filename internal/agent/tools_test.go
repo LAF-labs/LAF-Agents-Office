@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -278,8 +279,12 @@ func TestGrepSearchTool(t *testing.T) {
 func TestBashToolCapturesStdoutAndStderr(t *testing.T) {
 	dir := t.TempDir()
 	tool := builtinTool(t, "bash")
+	command := "printf 'out'; printf 'err' >&2"
+	if runtime.GOOS == "windows" {
+		command = "[Console]::Out.Write('out'); [Console]::Error.Write('err')"
+	}
 	raw, err := tool.Execute(map[string]any{
-		"command":           "printf 'out'; printf 'err' >&2",
+		"command":           command,
 		"working_directory": dir,
 	}, context.Background(), func(string) {})
 	if err != nil {
@@ -300,6 +305,7 @@ func TestBashToolCapturesStdoutAndStderr(t *testing.T) {
 func TestSendMessageToolWritesOutbox(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)
 
 	tool := builtinTool(t, "send_message")
 	raw, err := tool.Execute(map[string]any{

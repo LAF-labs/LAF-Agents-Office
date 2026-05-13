@@ -302,6 +302,79 @@ func TestRunnerCLIPairURLClaimsSetupCode(t *testing.T) {
 	}
 }
 
+func TestRunnerConnectOnceCachesCapabilitiesAndUsesLeaseAsHeartbeat(t *testing.T) {
+	oldDetect := runnerCLIDetectCapabilities
+	oldRefresh := runnerCLICapabilityRefreshInterval
+	t.Cleanup(func() {
+		runnerCLIDetectCapabilities = oldDetect
+		runnerCLICapabilityRefreshInterval = oldRefresh
+	})
+
+	detectCalls := 0
+	runnerCLIDetectCapabilities = func(workspaceRoot string) runnerCapabilities {
+		detectCalls++
+		return runnerCapabilities{
+			ExecutionModes:   []string{executionModeOffice},
+			ProviderRuntimes: []string{"codex"},
+		}
+	}
+	runnerCLICapabilityRefreshInterval = time.Hour
+
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})
+
+	capabilityCalls := 0
+	heartbeatCalls := 0
+	leaseCalls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/runner/capabilities", func(w http.ResponseWriter, r *http.Request) {
+		capabilityCalls++
+		b.handleRunnerCapabilities(w, r)
+	})
+	mux.HandleFunc("/runner/heartbeat", func(w http.ResponseWriter, r *http.Request) {
+		heartbeatCalls++
+		b.handleRunnerHeartbeat(w, r)
+	})
+	mux.HandleFunc("/runner/jobs/lease", func(w http.ResponseWriter, r *http.Request) {
+		leaseCalls++
+		b.handleRunnerJobsLease(w, r)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	cfg := runnerCLIConfig{
+		APIURL:      srv.URL,
+		RunnerToken: token,
+		TeamID:      "team-a",
+		Name:        "cached runner",
+	}
+	session := runnerConnectSession{}
+	var out bytes.Buffer
+
+	if leased, err := runnerConnectOnce(context.Background(), &cfg, &session, &out); err != nil || leased {
+		t.Fatalf("first connect once leased=%v err=%v out=%s", leased, err, out.String())
+	}
+	if leased, err := runnerConnectOnce(context.Background(), &cfg, &session, &out); err != nil || leased {
+		t.Fatalf("second connect once leased=%v err=%v out=%s", leased, err, out.String())
+	}
+
+	if detectCalls != 1 {
+		t.Fatalf("capability detector calls = %d, want 1", detectCalls)
+	}
+	if capabilityCalls != 1 {
+		t.Fatalf("capabilities endpoint calls = %d, want 1", capabilityCalls)
+	}
+	if heartbeatCalls != 0 {
+		t.Fatalf("heartbeat endpoint calls = %d, want 0", heartbeatCalls)
+	}
+	if leaseCalls != 2 {
+		t.Fatalf("lease endpoint calls = %d, want 2", leaseCalls)
+	}
+	if strings.Count(out.String(), "Runner connected; no queued job.") != 1 {
+		t.Fatalf("idle notice should be printed once, got %q", out.String())
+	}
+}
+
 func TestRunnerLeaseIsTeamScopedAndCapabilityMatched(t *testing.T) {
 	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
 	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})

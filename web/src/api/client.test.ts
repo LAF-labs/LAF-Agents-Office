@@ -4,6 +4,7 @@ import {
   createProject,
   createRunnerPairing,
   createTask,
+  get,
   getProjectRepoReadiness,
   getRunnerStatus,
   initApi,
@@ -273,6 +274,31 @@ describe("runner api client", () => {
 });
 
 describe("task and session api client", () => {
+  it("omits nullish query params without stringifying undefined", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await get("/example", {
+      q: "customer portal",
+      include_done: false,
+      limit: 0,
+      project_id: undefined,
+      channel: null,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/example?q=customer%20portal&include_done=false&limit=0",
+      expect.objectContaining({
+        credentials: "include",
+      }),
+    );
+  });
+
   it("updates a project task without changing its workflow state", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

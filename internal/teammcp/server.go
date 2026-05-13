@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -440,6 +441,12 @@ type TeamWikiLookupArgs struct {
 	TopK  int    `json:"top_k,omitempty" jsonschema:"Max sources to retrieve (default 20)"`
 }
 
+type TeamWorkspaceSearchArgs struct {
+	Query  string   `json:"query" jsonschema:"Search query. Use when prior wiki, project/task, or task-thread chat context may matter."`
+	Scopes []string `json:"scopes,omitempty" jsonschema:"Optional scopes: wiki, project, chat. Default is all three."`
+	Limit  int      `json:"limit,omitempty" jsonschema:"Maximum snippets to return. Default 30, max 60."`
+}
+
 type TeamTaskAckArgs struct {
 	ID      string `json:"id" jsonschema:"Task ID to acknowledge"`
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
@@ -566,6 +573,10 @@ func registerSharedMemoryTools(server *mcp.Server) {
 			"laf_office_wiki_lookup",
 			"Cited-answer lookup against the team wiki. Returns a structured JSON answer with sources and inline citations. Use when you need a verified, sourced answer rather than a raw search.",
 		), handleTeamWikiLookup)
+		mcp.AddTool(server, readOnlyTool(
+			"workspace_search",
+			"Search the local workspace without loading everything into context. Aggregates only canonical wiki articles, projects/tasks, and task-thread chat; returns short snippets with source labels. Use before asking the human to repeat prior decisions.",
+		), handleWorkspaceSearch)
 		// Notebook tools ride on the same markdown backend. Registered here
 		// so they share the LAF_OFFICE_MEMORY_BACKEND gate with team_wiki_*.
 		registerNotebookTools(server)
@@ -1452,7 +1463,7 @@ func handleTeamTask(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAr
 	if mergeState := strings.TrimSpace(result.Task.DeliveryMergeState); mergeState != "" {
 		text += " · merge " + mergeState
 	}
-	if path := strings.TrimSpace(result.Task.WorktreePath); path != "" {
+	if path := displayWorktreePath(result.Task.WorktreePath); path != "" {
 		text += " · working_directory " + path
 	}
 	text += " — " + result.Task.Title
@@ -1521,7 +1532,7 @@ func summarizeTaskRuntime(channel string, tasks []brokerTaskSummary) string {
 		if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
 			line += " · branch " + branch
 		}
-		if path := strings.TrimSpace(task.WorktreePath); path != "" {
+		if path := displayWorktreePath(task.WorktreePath); path != "" {
 			line += " · working_directory " + path
 		}
 		isolatedTasks = append(isolatedTasks, line)
@@ -1633,7 +1644,7 @@ func convertRuntimeTasks(tasks []brokerTaskSummary) []team.RuntimeTask {
 			PipelineStage:  task.PipelineStage,
 			ReviewState:    task.ReviewState,
 			ExecutionMode:  task.ExecutionMode,
-			WorktreePath:   task.WorktreePath,
+			WorktreePath:   displayWorktreePath(task.WorktreePath),
 			WorktreeBranch: task.WorktreeBranch,
 			Blocked:        task.Blocked,
 		})
@@ -1658,7 +1669,7 @@ func formatTaskRuntimeLine(task brokerTaskSummary) string {
 	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
 		line += " · branch " + branch
 	}
-	if path := strings.TrimSpace(task.WorktreePath); path != "" {
+	if path := displayWorktreePath(task.WorktreePath); path != "" {
 		line += " · working_directory " + path
 	}
 	line += " — " + task.Title
@@ -1675,6 +1686,14 @@ func taskUsesIsolation(task brokerTaskSummary) bool {
 	return strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") ||
 		strings.TrimSpace(task.WorktreePath) != "" ||
 		strings.TrimSpace(task.WorktreeBranch) != ""
+}
+
+func displayWorktreePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	return filepath.ToSlash(filepath.Clean(path))
 }
 
 func taskCountsAsRunning(task brokerTaskSummary) bool {
@@ -2021,6 +2040,35 @@ func handleTeamWikiLookup(ctx context.Context, _ *mcp.CallToolRequest, args Team
 	return textResult(string(bytes)), nil, nil
 }
 
+func handleWorkspaceSearch(ctx context.Context, _ *mcp.CallToolRequest, args TeamWorkspaceSearchArgs) (*mcp.CallToolResult, any, error) {
+	q := strings.TrimSpace(args.Query)
+	if q == "" {
+		return toolError(fmt.Errorf("query is required")), nil, nil
+	}
+	values := url.Values{}
+	values.Set("q", q)
+	if args.Limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", args.Limit))
+	}
+	if len(args.Scopes) > 0 {
+		var scopes []string
+		for _, scope := range args.Scopes {
+			scope = strings.TrimSpace(scope)
+			if scope != "" {
+				scopes = append(scopes, scope)
+			}
+		}
+		if len(scopes) > 0 {
+			values.Set("scopes", strings.Join(scopes, ","))
+		}
+	}
+	bytes, err := brokerGetRaw(ctx, "/workspace/search?"+values.Encode())
+	if err != nil {
+		return toolError(err), nil, nil
+	}
+	return textResult(string(bytes)), nil, nil
+}
+
 func handleTeamTaskAck(ctx context.Context, _ *mcp.CallToolRequest, args TeamTaskAckArgs) (*mcp.CallToolResult, any, error) {
 	mySlug, err := resolveSlug(args.MySlug)
 	if err != nil {
@@ -2329,7 +2377,7 @@ func handleTeamDMOpen(ctx context.Context, _ *mcp.CallToolRequest, args TeamDMOp
 		Created bool   `json:"created"`
 	}
 	if err := brokerPostJSON(ctx, "/channels/dm", map[string]any{
-		"members": args.Members,
+		"members": canonicalRuntimeMemberSlugs(args.Members),
 		"type":    dmType,
 	}, &result); err != nil {
 		return toolError(err), nil, nil
@@ -2362,7 +2410,7 @@ func handleTeamChannel(ctx context.Context, _ *mcp.CallToolRequest, args TeamCha
 		"slug":        channel,
 		"name":        strings.TrimSpace(args.Name),
 		"description": strings.TrimSpace(args.Description),
-		"members":     args.Members,
+		"members":     canonicalRuntimeMemberSlugs(args.Members),
 		"created_by":  slug,
 	}
 	if action == "remove" {
@@ -3374,6 +3422,29 @@ func contains(items []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func canonicalRuntimeMemberSlugs(slugs []string) []string {
+	if len(slugs) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(slugs))
+	seen := map[string]bool{}
+	for _, slug := range slugs {
+		normalized := strings.ToLower(strings.TrimSpace(slug))
+		normalized = strings.TrimLeft(normalized, "@")
+		normalized = strings.ReplaceAll(normalized, " ", "-")
+		normalized = strings.ReplaceAll(normalized, "_", "-")
+		if normalized == "" {
+			continue
+		}
+		if seen[normalized] {
+			continue
+		}
+		seen[normalized] = true
+		out = append(out, normalized)
+	}
+	return out
 }
 
 func textResult(text string) *mcp.CallToolResult {

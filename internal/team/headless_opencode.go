@@ -76,7 +76,7 @@ func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, not
 	// the provider tag + NO_COLOR.
 	env := l.buildHeadlessCodexEnv(slug, workspaceDir, firstNonEmpty(channel...))
 	env = setEnvValue(env, product.Env("HEADLESS_PROVIDER"), "opencode")
-	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+	if home := headlessOpencodeGlobalHomeDir(); home != "" {
 		env = setEnvValue(env, "HOME", home)
 	}
 	env = stripEnvKeys(env, []string{"CODEX_HOME"})
@@ -291,25 +291,35 @@ func escapeHeadlessOpencodeSystemWrapper(s string) string {
 	return s
 }
 
-// writeHeadlessOpencodeMCPConfig merges LAF-Office's MCP server definition into an
-// agent-scoped Opencode config derived from the user's normal
-// $HOME/.config/opencode/opencode.json. The caller passes the returned path via
-// OPENCODE_CONFIG, so concurrent agents do not race to rewrite a shared config
-// with different LAF_OFFICE_AGENT_SLUG values. Preserves other top-level user keys
-// (theme, provider preferences, user-configured MCP servers) and only touches
-// the laf-office entry under `mcp`. Secrets live in the MCP subprocess's
+// writeHeadlessOpencodeMCPConfig merges LAF-Office's MCP server definition into
+// an agent-scoped Opencode config derived from the user's normal
+// $HOME/.config/opencode/opencode.json. The generated config is written under
+// LAF-Office's runtime home and passed via OPENCODE_CONFIG, so concurrent
+// agents do not race to rewrite a shared config with different
+// LAF_OFFICE_AGENT_SLUG values. Preserves other top-level user keys (theme,
+// provider preferences, user-configured MCP servers) and only touches the
+// laf-office entry under `mcp`. Secrets live in the MCP subprocess's
 // `environment` block so they never reach the model backend opencode routes to.
 func (l *Launcher) writeHeadlessOpencodeMCPConfig(slug string) (string, error) {
 	lafOfficeBinary, err := headlessOpencodeExecutablePath()
 	if err != nil {
 		return "", fmt.Errorf("resolve laf-office binary: %w", err)
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || strings.TrimSpace(home) == "" {
-		return "", fmt.Errorf("resolve user home: %w", err)
+	sourceHome := headlessOpencodeGlobalHomeDir()
+	if strings.TrimSpace(sourceHome) == "" {
+		return "", fmt.Errorf("resolve opencode source home")
 	}
-	baseConfigPath := filepath.Join(home, ".config", "opencode", "opencode.json")
-	configPath := headlessOpencodeAgentConfigPath(home, slug)
+	runtimeHome := strings.TrimSpace(config.RuntimeHomeDir())
+	if runtimeHome == "" {
+		return "", fmt.Errorf("resolve opencode runtime home")
+	}
+	baseConfigPath := filepath.Join(sourceHome, ".config", "opencode", "opencode.json")
+	configPath := headlessOpencodeAgentConfigPath(runtimeHome, slug)
+
+	writeMu := atomicFilePathMutex(configPath)
+	writeMu.Lock()
+	defer writeMu.Unlock()
+
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
 		return "", fmt.Errorf("mkdir opencode config dir: %w", err)
 	}
@@ -356,7 +366,7 @@ func (l *Launcher) writeHeadlessOpencodeMCPConfig(slug string) (string, error) {
 		_ = os.Remove(tmpPath)
 		return "", fmt.Errorf("close temp opencode config: %w", err)
 	}
-	if err := os.Rename(tmpPath, configPath); err != nil {
+	if err := atomicReplaceFile(tmpPath, configPath); err != nil {
 		_ = os.Remove(tmpPath)
 		return "", fmt.Errorf("install opencode config: %w", err)
 	}
@@ -364,7 +374,21 @@ func (l *Launcher) writeHeadlessOpencodeMCPConfig(slug string) (string, error) {
 }
 
 func headlessOpencodeAgentConfigPath(home string, slug string) string {
-	return filepath.Join(home, ".config", "opencode", "opencode."+safeHeadlessOpencodeConfigSlug(slug)+".json")
+	return filepath.Join(product.RuntimePath(home, "opencode"), "opencode."+safeHeadlessOpencodeConfigSlug(slug)+".json")
+}
+
+func headlessOpencodeGlobalHomeDir() string {
+	if raw := strings.TrimSpace(os.Getenv(product.Env("GLOBAL_HOME"))); raw != "" {
+		if abs, err := filepath.Abs(raw); err == nil && strings.TrimSpace(abs) != "" {
+			return abs
+		}
+		return raw
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(home)
 }
 
 func safeHeadlessOpencodeConfigSlug(slug string) string {

@@ -307,7 +307,7 @@ func TestHandleTeamSkillCreateAllowsNonLeadProposal(t *testing.T) {
 		t.Fatalf("expected 1 approval request, got %d", got)
 	}
 	requests := b.Requests("general", false)
-	if requests[0].From != "builder" || requests[0].ReplyTo != "builder-retro-loop" {
+	if requests[0].From != "be" || requests[0].ReplyTo != "builder-retro-loop" {
 		t.Fatalf("unexpected approval request: %+v", requests[0])
 	}
 }

@@ -176,13 +176,13 @@ func main() {
 func resolveOutDir(bundleDir string) string {
 	clean := filepath.Clean(bundleDir)
 	if strings.HasSuffix(clean, "-review-bundle") {
-		return strings.TrimSuffix(clean, "-review-bundle") + "-review-handoff"
+		return cleanArtifactPath(strings.TrimSuffix(clean, "-review-bundle") + "-review-handoff")
 	}
-	return filepath.Join(clean, "review-handoff")
+	return cleanArtifactPath(filepath.Join(clean, "review-handoff"))
 }
 
 func loadBundle(bundleDir string) (bundleInputs, error) {
-	inputs := bundleInputs{BundleDir: filepath.Clean(bundleDir)}
+	inputs := bundleInputs{BundleDir: cleanArtifactPath(bundleDir)}
 	summaryBytes, err := os.ReadFile(filepath.Join(bundleDir, "summary.md"))
 	if err != nil {
 		return inputs, err
@@ -402,7 +402,7 @@ func buildConsumers(inputs bundleInputs, gate approvalGate, outDir string) []con
 			Consumer:      "slack",
 			Status:        status,
 			Action:        consumerAction("post_review_handoff", gate.Status),
-			PayloadSource: filepath.Join(inputs.BundleDir, "slack-payload.json"),
+			PayloadSource: artifactPath(inputs.BundleDir, "slack-payload.json"),
 			PreviewOnly:   true,
 			ApprovalGate:  gate.Status,
 			Destination: map[string]any{
@@ -427,7 +427,7 @@ func buildConsumers(inputs bundleInputs, gate approvalGate, outDir string) []con
 			Consumer:      "google-drive",
 			Status:        status,
 			Action:        consumerAction("stage_review_folder", gate.Status),
-			PayloadSource: filepath.Join(inputs.BundleDir, "google-drive-payload.json"),
+			PayloadSource: artifactPath(inputs.BundleDir, "google-drive-payload.json"),
 			PreviewOnly:   true,
 			ApprovalGate:  gate.Status,
 			Destination: map[string]any{
@@ -454,7 +454,7 @@ func buildConsumers(inputs bundleInputs, gate approvalGate, outDir string) []con
 			Consumer:      "notion",
 			Status:        status,
 			Action:        consumerAction("upsert_approval_queue_record", gate.Status),
-			PayloadSource: filepath.Join(inputs.BundleDir, "notion-payload.json"),
+			PayloadSource: artifactPath(inputs.BundleDir, "notion-payload.json"),
 			PreviewOnly:   true,
 			ApprovalGate:  gate.Status,
 			Destination: map[string]any{
@@ -500,7 +500,18 @@ func optionalBundleArtifactPath(bundleDir string, present bool, name string) str
 	if !present {
 		return ""
 	}
-	return filepath.Join(bundleDir, name)
+	return artifactPath(bundleDir, name)
+}
+
+func artifactPath(base string, elems ...string) string {
+	return cleanArtifactPath(filepath.Join(append([]string{base}, elems...)...))
+}
+
+func cleanArtifactPath(path string) string {
+	if strings.TrimSpace(path) == "" {
+		return ""
+	}
+	return filepath.ToSlash(filepath.Clean(path))
 }
 
 func consumerAction(base string, gateStatus string) string {

@@ -19,6 +19,11 @@ import (
 
 const defaultOneBin = "one"
 
+var (
+	oneCLICommandContext = exec.CommandContext
+	oneCLILookPath       = exec.LookPath
+)
+
 type OneCLI struct {
 	Bin        string
 	ArgsPrefix []string
@@ -624,7 +629,7 @@ func (o *OneCLI) run(ctx context.Context, args []string) ([]byte, error) {
 	}
 	cmdArgs := append(append([]string{}, o.ArgsPrefix...), "--agent")
 	cmdArgs = append(cmdArgs, args...)
-	cmd := exec.CommandContext(ctx, o.Bin, cmdArgs...)
+	cmd := oneCLICommandContext(ctx, o.Bin, cmdArgs...)
 	cmd.Dir = workDir
 	cmd.Env = append(os.Environ(), o.Env...)
 	var stdout bytes.Buffer
@@ -656,7 +661,7 @@ func (o *OneCLI) commandWorkDir(args []string) string {
 	if dir := strings.TrimSpace(os.Getenv(product.Env("ONE_ACTION_WORKDIR"))); dir != "" {
 		return dir
 	}
-	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+	if home := strings.TrimSpace(config.RuntimeHomeDir()); home != "" {
 		return home
 	}
 	if dir := strings.TrimSpace(o.WorkDir); dir != "" {
@@ -691,7 +696,7 @@ func marshalCompact(v any) string {
 }
 
 func lookPathExists(name string) bool {
-	_, err := exec.LookPath(name)
+	_, err := oneCLILookPath(name)
 	return err == nil
 }
 

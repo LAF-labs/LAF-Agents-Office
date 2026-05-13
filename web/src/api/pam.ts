@@ -6,7 +6,8 @@
  * and subscribes to her progress.
  */
 
-import { get, post, sseURL } from "./client";
+import { get, post } from "./client";
+import { brokerEventSourceIsClosed, subscribeBrokerEvent } from "./events";
 
 // Open string union on PamActionId is intentional: the canonical id today is
 // `enrich_article`, but new actions added in pam_actions.go should flow
@@ -128,72 +129,36 @@ export function subscribePamEvents(
   handler: (evt: PamActionEvent) => void,
 ): () => void {
   let closed = false;
-  let source: EventSource | null = null;
-  let onStarted: ((ev: MessageEvent) => void) | null = null;
-  let onDone: ((ev: MessageEvent) => void) | null = null;
-  let onFailed: ((ev: MessageEvent) => void) | null = null;
-  let onError: ((ev: Event) => void) | null = null;
-
-  try {
-    const ES = (globalThis as { EventSource?: typeof EventSource }).EventSource;
-    if (!ES)
-      return () => {
-        closed = true;
-      };
-    source = new ES(sseURL("/events"));
-
-    const dispatch = (kind: EventKind, ev: MessageEvent) => {
-      if (closed) return;
-      const parsed = parsePamEvent(kind, ev.data);
-      if (parsed) handler(parsed);
-    };
-    onStarted = (ev: MessageEvent) => dispatch("started", ev);
-    onDone = (ev: MessageEvent) => dispatch("done", ev);
-    onFailed = (ev: MessageEvent) => dispatch("failed", ev);
-    onError = () => {
-      if (closed) return;
-      // EventSource auto-reconnects on transient errors. Only surface a
-      // failure to the caller when the connection is terminally closed.
-      if (source && source.readyState === ES.CLOSED) {
-        closed = true;
-        console.warn("pam: SSE connection lost");
-        handler({
-          kind: "failed",
-          job_id: Number.NaN,
-          action: "",
-          article_path: "",
-          error: "connection lost",
-          failed_at: new Date().toISOString(),
-        });
-      }
-    };
-
-    source.addEventListener("pam:action_started", onStarted as EventListener);
-    source.addEventListener("pam:action_done", onDone as EventListener);
-    source.addEventListener("pam:action_failed", onFailed as EventListener);
-    source.addEventListener("error", onError as EventListener);
-  } catch {
-    source = null;
-  }
+  const dispatch = (kind: EventKind, ev: MessageEvent) => {
+    if (closed) return;
+    const parsed = parsePamEvent(kind, ev.data);
+    if (parsed) handler(parsed);
+  };
+  const onStarted = (ev: MessageEvent) => dispatch("started", ev);
+  const onDone = (ev: MessageEvent) => dispatch("done", ev);
+  const onFailed = (ev: MessageEvent) => dispatch("failed", ev);
+  const onError = () => {
+    if (closed || !brokerEventSourceIsClosed()) return;
+    closed = true;
+    console.warn("pam: SSE connection lost");
+    handler({
+      kind: "failed",
+      job_id: Number.NaN,
+      action: "",
+      article_path: "",
+      error: "connection lost",
+      failed_at: new Date().toISOString(),
+    });
+  };
+  const unsubscribes = [
+    subscribeBrokerEvent("pam:action_started", onStarted as EventListener),
+    subscribeBrokerEvent("pam:action_done", onDone as EventListener),
+    subscribeBrokerEvent("pam:action_failed", onFailed as EventListener),
+    subscribeBrokerEvent("error", onError as EventListener),
+  ];
 
   return () => {
     closed = true;
-    if (source) {
-      if (onStarted)
-        source.removeEventListener(
-          "pam:action_started",
-          onStarted as EventListener,
-        );
-      if (onDone)
-        source.removeEventListener("pam:action_done", onDone as EventListener);
-      if (onFailed)
-        source.removeEventListener(
-          "pam:action_failed",
-          onFailed as EventListener,
-        );
-      if (onError)
-        source.removeEventListener("error", onError as EventListener);
-      source.close();
-    }
+    for (const unsubscribe of unsubscribes) unsubscribe();
   };
 }
