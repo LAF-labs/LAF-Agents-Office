@@ -14,9 +14,9 @@ import { HomeApp } from "./HomeApp";
 const apiMocks = vi.hoisted(() => ({
   createProject: vi.fn(),
   getConfig: vi.fn(),
-  getMessages: vi.fn(),
   getOfficeMembers: vi.fn(),
   getProjects: vi.fn(),
+  getThreadMessages: vi.fn(),
   postMessage: vi.fn(),
 }));
 
@@ -41,7 +41,7 @@ describe("HomeApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.getConfig.mockResolvedValue({ team_lead_slug: "ceo" });
-    apiMocks.getMessages.mockResolvedValue({ messages: [] });
+    apiMocks.getThreadMessages.mockResolvedValue({ messages: [] });
     apiMocks.getOfficeMembers.mockResolvedValue({
       members: [
         { built_in: true, name: "CEO", role: "Lead", slug: "ceo" },
@@ -127,7 +127,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "#new @ceo 이번 주 계획 정리해줘",
         "general",
-        undefined,
+        expect.stringMatching(/^home-chat-/),
         ["ceo"],
       );
     });
@@ -148,7 +148,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "@engineer 디자인 확인해줘",
         "general",
-        undefined,
+        expect.stringMatching(/^home-chat-/),
         ["engineer"],
       );
     });
@@ -188,11 +188,14 @@ describe("HomeApp", () => {
     expect(apiMocks.postMessage).not.toHaveBeenCalled();
   });
 
-  it("loads the live home channel so agent replies are visible", async () => {
+  it("loads a fresh home thread so agent replies stay scoped to the new chat", async () => {
     renderHomeApp();
 
     await screen.findByText("오늘은 무슨 이야기를 할까요?");
 
-    expect(apiMocks.getMessages).toHaveBeenCalledWith("general", null, 50);
+    expect(apiMocks.getThreadMessages).toHaveBeenCalledWith(
+      "general",
+      expect.stringMatching(/^home-chat-/),
+    );
   });
 });
