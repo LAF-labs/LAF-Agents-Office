@@ -310,6 +310,34 @@ export interface ModelAvailability {
   reason?: string;
 }
 
+export interface BridgeDevice {
+  id: string;
+  team_id: string;
+  user_id: string;
+  device_label: string;
+  device_kind: "desktop" | "team_bridge" | string;
+  platform?: string;
+  arch?: string;
+  bridge_version?: string;
+  public_key?: string;
+  capabilities?: Record<string, unknown>;
+  status: "online" | "offline" | "revoked" | string;
+  paired_at?: string;
+  last_seen_at?: string;
+  revoked_at?: string;
+  revoked_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BridgeAvailability {
+  available: boolean;
+  default_device_id?: string;
+  device_count: number;
+  online_device_count: number;
+  reason?: string;
+}
+
 export interface OrchestrationIntent {
   id: string;
   type: string;
@@ -367,6 +395,31 @@ export function updatePermissions(body: {
 
 export function getModelAvailability() {
   return get<ModelAvailability>("/model/availability");
+}
+
+export function getBridgeAvailability() {
+  return get<{ my_bridge: BridgeAvailability; devices: BridgeDevice[] }>(
+    "/bridge/availability",
+  );
+}
+
+export function getBridgeDevices() {
+  return get<{ devices: BridgeDevice[] }>("/bridge/devices");
+}
+
+export function startBridgePairing(body: { api_url?: string } = {}) {
+  return post<{
+    api_url: string;
+    pairing: { code: string; expires_at: string; team_id: string };
+    commands: { pair: string };
+  }>("/bridge/pairing/start", body);
+}
+
+export function revokeBridgeDevice(deviceID: string) {
+  return post<{ device: BridgeDevice }>(
+    `/bridge/devices/${encodeURIComponent(deviceID)}/revoke`,
+    {},
+  );
 }
 
 export function routeOrchestrationIntent(body: {

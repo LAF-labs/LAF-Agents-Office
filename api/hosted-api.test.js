@@ -657,6 +657,125 @@ test("hosted runner pairs with short setup code", async (t) => {
   assert.equal(duplicate.status, 410);
 });
 
+test("hosted bridge pairs, heartbeats, lists, and revokes own devices", async (t) => {
+  const db = {
+    audit_events: [],
+    bridge_devices: [],
+    bridge_pairing_codes: [],
+    memberships: [
+      {
+        role: "member",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_billing: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const start = await invoke(["bridge", "pairing", "start"], "POST", {
+    api_url: "https://office.test/api",
+  });
+  assert.equal(start.status, 200);
+  assert.match(start.body.pairing.code, /^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/);
+  assert.match(start.body.commands.pair, /laf-bridge pair/);
+  assert.equal(db.bridge_pairing_codes[0].status, "pending");
+  assert.equal(db.bridge_pairing_codes[0].code_hash.length, 64);
+
+  const claim = await invoke(
+    ["bridge", "pairing", "claim"],
+    "POST",
+    {
+      capabilities: {
+        provider_runtimes: ["codex"],
+        workspace_root: "/Users/owner/secret-project",
+      },
+      code: start.body.pairing.code,
+      device_label: "Kim's MacBook",
+      platform: "darwin",
+      public_key: "pub-ed25519",
+    },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(claim.status, 200);
+  assert.match(claim.body.bridge_token, /^laf_bridge_/);
+  assert.equal(claim.body.device.device_label, "Kim's MacBook");
+  assert.equal(claim.body.device.token_hash, undefined);
+  assert.equal(db.bridge_devices[0].token_hash.length, 64);
+  assert.equal(db.bridge_devices[0].capabilities.workspace_root, undefined);
+  assert.equal(db.bridge_pairing_codes[0].claimed_device_id, db.bridge_devices[0].id);
+
+  const availability = await invoke(["model", "availability"], "GET");
+  assert.equal(availability.status, 200);
+  assert.equal(availability.body.my_bridge.available, true);
+  assert.equal(availability.body.allowed_modes.includes("my_bridge"), true);
+
+  const heartbeat = await invoke(
+    ["bridge", "devices", db.bridge_devices[0].id, "heartbeat"],
+    "POST",
+    {
+      capabilities: {
+        provider_runtimes: ["codex"],
+        local_path: "/tmp/nope",
+      },
+      status: "online",
+    },
+    { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
+  );
+  assert.equal(heartbeat.status, 200);
+  assert.equal(heartbeat.body.device.status, "online");
+  assert.equal(db.bridge_devices[0].capabilities.local_path, undefined);
+
+  const devices = await invoke(["bridge", "devices"], "GET");
+  assert.equal(devices.status, 200);
+  assert.equal(devices.body.devices.length, 1);
+  assert.equal(devices.body.devices[0].token_hash, undefined);
+
+  const revoke = await invoke(["bridge", "devices", db.bridge_devices[0].id, "revoke"], "POST", {});
+  assert.equal(revoke.status, 200);
+  assert.equal(revoke.body.device.status, "revoked");
+  assert.equal(db.bridge_devices[0].revoked_by, "user-1");
+
+  const rejectedHeartbeat = await invoke(
+    ["bridge", "devices", db.bridge_devices[0].id, "heartbeat"],
+    "POST",
+    {},
+    { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
+  );
+  assert.equal(rejectedHeartbeat.status, 401);
+});
+
+test("hosted bridge pairing requires pair permission", async (t) => {
+  const db = {
+    bridge_pairing_codes: [],
+    memberships: [
+      {
+        role: "viewer",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const response = await invoke(["bridge", "pairing", "start"], "POST", {});
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, "permission required: bridge:pair_own");
+  assert.equal(db.bridge_pairing_codes.length, 0);
+});
+
 test("hosted model availability uses DB billing before env fallback", async (t) => {
   const db = {
     memberships: [

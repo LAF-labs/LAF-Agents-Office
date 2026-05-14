@@ -110,6 +110,32 @@ module.exports = async function handler(req, res) {
       await handleModelAvailability(req, res);
       return;
     }
+    if (path === "bridge/availability" && req.method === "GET") {
+      await handleBridgeAvailability(req, res);
+      return;
+    }
+    if (path === "bridge/devices" && req.method === "GET") {
+      await handleBridgeDevices(req, res);
+      return;
+    }
+    if (path === "bridge/pairing/start" && req.method === "POST") {
+      await handleBridgePairingStart(req, res);
+      return;
+    }
+    if (path === "bridge/pairing/claim" && req.method === "POST") {
+      await handleBridgePairingClaim(req, res);
+      return;
+    }
+    const bridgeDeviceActionMatch = path.match(/^bridge\/devices\/([^/]+)\/(heartbeat|revoke)$/);
+    if (bridgeDeviceActionMatch && req.method === "POST") {
+      const [, deviceID, action] = bridgeDeviceActionMatch;
+      if (action === "heartbeat") {
+        await handleBridgeDeviceHeartbeat(req, res, decodeURIComponent(deviceID));
+      } else {
+        await handleBridgeDeviceRevoke(req, res, decodeURIComponent(deviceID));
+      }
+      return;
+    }
     if (path === "orchestration/intent" && req.method === "POST") {
       await handleOrchestrationIntent(req, res);
       return;
@@ -494,6 +520,7 @@ function rolePresetPermissions(role) {
         "runner:read",
         "model:use_laf",
         "model:use_local_cli",
+        "bridge:execute_own",
         "bridge:read_team",
         "bridge:execute_team",
         "bridge:manage_team",
@@ -523,6 +550,7 @@ function rolePresetPermissions(role) {
         "bridge:pair_own",
         "bridge:read_own",
         "bridge:execute_own",
+        "bridge:manage_own",
         "execution:plan_create",
         "execution:read",
         "execution:cancel",
@@ -530,7 +558,7 @@ function rolePresetPermissions(role) {
         "mcp:use_task_context",
       ].sort();
     case "viewer":
-      return ["workspace:read", "skill:read", "memory:read", "runner:read"];
+      return ["workspace:read", "skill:read", "memory:read", "runner:read", "execution:receipt_read"];
     default:
       return rolePresetPermissions("member");
   }
@@ -623,6 +651,38 @@ async function runnerModelAvailability(teamID) {
   };
 }
 
+async function bridgeDevicesForMembership(membership, { includeTeam = false } = {}) {
+  const query = {
+    select: "*",
+    status: "not.in.(revoked)",
+    team_id: `eq.${membership.team_id}`,
+    order: "updated_at.desc",
+  };
+  if (!includeTeam) query.user_id = `eq.${membership.user_id}`;
+  return await rest("bridge_devices", { query }).catch(() => []);
+}
+
+function bridgeAvailabilityFromDevices(membership, devices) {
+  const usable = (devices || []).filter((device) => !device.revoked_at && device.status !== "revoked");
+  const online = usable.filter((device) => device.status === "online");
+  const canExecute = hasPermission(membership, "bridge:execute_own");
+  const available = canExecute && online.length > 0;
+  const reason = available
+    ? ""
+    : !canExecute
+      ? "permission required: bridge:execute_own"
+      : usable.length === 0
+        ? "no paired desktop bridge detected"
+        : "no online desktop bridge detected";
+  return {
+    available,
+    default_device_id: online[0]?.id || "",
+    device_count: usable.length,
+    online_device_count: online.length,
+    reason,
+  };
+}
+
 async function modelAvailabilityForMembership(membership) {
   let billingRows = [];
   try {
@@ -638,8 +698,12 @@ async function modelAvailabilityForMembership(membership) {
     : truthy(process.env.LAF_OFFICE_WORKSPACE_PAID) ||
       truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED);
   const runnerState = await runnerModelAvailability(membership.team_id);
+  const bridgeState = bridgeAvailabilityFromDevices(
+    membership,
+    await bridgeDevicesForMembership(membership),
+  );
   const lafAllowed = paid && hasPermission(membership, "model:use_laf");
-  const myBridgeAllowed = false;
+  const myBridgeAllowed = bridgeState.available;
   const teamBridgeAllowed =
     runnerState.hasSupportedLocalCLI && hasPermission(membership, "bridge:execute_team");
   const allowedModes = ["record_only"];
@@ -660,7 +724,7 @@ async function modelAvailabilityForMembership(membership) {
     },
     my_bridge: {
       available: myBridgeAllowed,
-      reason: myBridgeAllowed ? "" : "no paired desktop bridge detected",
+      reason: bridgeState.reason,
     },
     team_bridge: {
       available: teamBridgeAllowed,
@@ -1377,6 +1441,189 @@ function taskStatusPayload(action, body) {
 async function handleModelAvailability(req, res) {
   const { membership } = await requireUser(req);
   writeJSON(res, 200, await modelAvailabilityForMembership(membership));
+}
+
+async function handleBridgeAvailability(req, res) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "bridge:read_own");
+  const devices = await bridgeDevicesForMembership(membership);
+  writeJSON(res, 200, {
+    my_bridge: bridgeAvailabilityFromDevices(membership, devices),
+    devices: devices.map(publicBridgeDevice),
+  });
+}
+
+async function handleBridgeDevices(req, res) {
+  const { membership } = await requireUser(req);
+  const includeTeam = hasPermission(membership, "bridge:read_team");
+  requirePermission(membership, includeTeam ? "bridge:read_team" : "bridge:read_own");
+  const devices = await bridgeDevicesForMembership(membership, { includeTeam });
+  writeJSON(res, 200, { devices: devices.map(publicBridgeDevice) });
+}
+
+async function handleBridgePairingStart(req, res) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "bridge:pair_own");
+  const body = await readBody(req);
+  const code = generatePairingCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const now = nowISO();
+  await rest("bridge_pairing_codes", {
+    method: "POST",
+    body: {
+      code_hash: hashToken(normalizePairingCode(code)),
+      created_at: now,
+      expires_at: expiresAt,
+      status: "pending",
+      team_id: membership.team_id,
+      user_id: membership.user_id,
+    },
+  });
+  const apiURL = normalizeRunnerPairingAPIURL(body.api_url) || runnerPairingRequestAPIURL(req);
+  writeJSON(res, 200, {
+    api_url: apiURL,
+    pairing: {
+      code,
+      expires_at: expiresAt,
+      team_id: membership.team_id,
+    },
+    commands: {
+      pair: `laf-bridge pair --api-url ${apiURL} --code ${code}`,
+    },
+  });
+}
+
+async function handleBridgePairingClaim(req, res) {
+  const body = await readBody(req);
+  const code = normalizePairingCode(body.code || body.pairing_code || "");
+  if (!code) throw new HTTPError(400, "pairing code is required");
+  const publicKey = String(body.public_key || "").trim();
+  if (!publicKey) throw new HTTPError(400, "public_key is required");
+  const deviceLabel = String(body.device_label || body.name || "").trim();
+  if (!deviceLabel) throw new HTTPError(400, "device_label is required");
+  const now = nowISO();
+  const rows = await rest("bridge_pairing_codes", {
+    query: {
+      code_hash: `eq.${hashToken(code)}`,
+      limit: "1",
+      select: "*",
+      status: "eq.pending",
+    },
+  });
+  const pairing = rows?.[0];
+  if (!pairing) throw new HTTPError(410, "pairing code expired or already used");
+  if (pairing.expires_at && new Date(pairing.expires_at).getTime() <= Date.now()) {
+    await rest("bridge_pairing_codes", {
+      method: "PATCH",
+      query: { id: `eq.${pairing.id}`, status: "eq.pending" },
+      body: { status: "expired" },
+    });
+    throw new HTTPError(410, "pairing code expired or already used");
+  }
+  const claimed = await rest("bridge_pairing_codes", {
+    method: "PATCH",
+    query: { id: `eq.${pairing.id}`, status: "eq.pending" },
+    body: { claimed_at: now, status: "claimed" },
+  });
+  if (!claimed?.length) throw new HTTPError(409, "pairing code was already claimed");
+
+  const bridgeToken = `laf_bridge_${crypto.randomBytes(24).toString("hex")}`;
+  let device;
+  try {
+    [device] = await rest("bridge_devices", {
+      method: "POST",
+      body: {
+        arch: String(body.arch || "").trim(),
+        bridge_version: String(body.bridge_version || "").trim(),
+        capabilities: sanitizeBridgeCapabilities(body.capabilities || {}),
+        created_at: now,
+        device_kind: body.device_kind === "team_bridge" ? "team_bridge" : "desktop",
+        device_label: deviceLabel,
+        last_seen_at: now,
+        paired_at: now,
+        platform: String(body.platform || "").trim(),
+        public_key: publicKey,
+        status: "online",
+        team_id: pairing.team_id,
+        token_hash: hashToken(bridgeToken),
+        updated_at: now,
+        user_id: pairing.user_id,
+      },
+    });
+  } catch (err) {
+    await rest("bridge_pairing_codes", {
+      method: "PATCH",
+      query: { id: `eq.${pairing.id}`, status: "eq.claimed" },
+      body: { claimed_at: null, status: "pending" },
+    }).catch(() => {});
+    throw err;
+  }
+  await rest("bridge_pairing_codes", {
+    method: "PATCH",
+    query: { id: `eq.${pairing.id}` },
+    body: { claimed_device_id: device.id },
+  });
+  writeJSON(res, 200, { bridge_token: bridgeToken, device: publicBridgeDevice(device) });
+}
+
+async function handleBridgeDeviceHeartbeat(req, res, deviceID) {
+  const device = await requireBridgeDevice(req);
+  if (device.id !== deviceID) throw new HTTPError(403, "bridge device token mismatch");
+  const body = await readBody(req);
+  const now = nowISO();
+  const [updated] = await rest("bridge_devices", {
+    method: "PATCH",
+    query: { id: `eq.${device.id}`, status: "not.in.(revoked)" },
+    body: {
+      arch: body.arch === undefined ? device.arch || "" : String(body.arch || "").trim(),
+      bridge_version:
+        body.bridge_version === undefined
+          ? device.bridge_version || ""
+          : String(body.bridge_version || "").trim(),
+      capabilities: sanitizeBridgeCapabilities(body.capabilities || device.capabilities || {}),
+      last_seen_at: now,
+      platform:
+        body.platform === undefined ? device.platform || "" : String(body.platform || "").trim(),
+      status: body.status === "offline" ? "offline" : "online",
+      updated_at: now,
+    },
+  });
+  if (!updated) throw new HTTPError(404, "bridge device not found");
+  writeJSON(res, 200, { device: publicBridgeDevice(updated) });
+}
+
+async function handleBridgeDeviceRevoke(req, res, deviceID) {
+  const { membership } = await requireUser(req);
+  const rows = await rest("bridge_devices", {
+    query: {
+      id: `eq.${deviceID}`,
+      limit: "1",
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+    },
+  });
+  const device = rows?.[0];
+  if (!device) throw new HTTPError(404, "bridge device not found");
+  if (device.user_id === membership.user_id) {
+    requirePermission(membership, "bridge:manage_own");
+  } else {
+    requirePermission(membership, "bridge:manage_team");
+  }
+  const now = nowISO();
+  const [updated] = await rest("bridge_devices", {
+    method: "PATCH",
+    query: { id: `eq.${device.id}`, team_id: `eq.${membership.team_id}` },
+    body: {
+      revoked_at: now,
+      revoked_by: membership.user_id,
+      status: "revoked",
+      updated_at: now,
+    },
+  });
+  await writeAuditEvent(membership, "bridge.device_revoked", "bridge_device", device.id, {
+    device_kind: device.device_kind,
+  });
+  writeJSON(res, 200, { device: publicBridgeDevice(updated) });
 }
 
 async function handleOrchestrationIntent(req, res) {
@@ -2260,6 +2507,26 @@ async function requireRunner(req) {
   return runner;
 }
 
+async function requireBridgeDevice(req) {
+  const token =
+    bearer(req) ||
+    req.headers["x-laf-bridge-token"] ||
+    "";
+  if (!token) throw new HTTPError(401, "bridge token required");
+  const rows = await rest("bridge_devices", {
+    query: {
+      limit: "1",
+      select: "*",
+      token_hash: `eq.${hashToken(token)}`,
+    },
+  });
+  const device = rows?.[0];
+  if (!device || device.status === "revoked" || device.revoked_at) {
+    throw new HTTPError(401, "bridge device unauthorized");
+  }
+  return device;
+}
+
 async function findProject(teamID, externalID) {
   const raw = String(externalID || "").trim();
   if (!raw) throw new HTTPError(400, "project id is required");
@@ -2507,6 +2774,12 @@ function publicRunner(row) {
   return runner;
 }
 
+function publicBridgeDevice(row) {
+  const device = { ...row };
+  delete device.token_hash;
+  return device;
+}
+
 function publicRunnerJob(row, projects = {}, tasks = {}) {
   return {
     ...row,
@@ -2727,6 +3000,29 @@ function normalizeStringList(values) {
 
 function normalizeProviderList(values) {
   return normalizeStringList(values).map(normalizeProviderKind).filter(Boolean);
+}
+
+function sanitizeBridgeCapabilities(value) {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const out = {};
+  for (const key of [
+    "arch",
+    "bridge_version",
+    "cli_details",
+    "git_available",
+    "git_version",
+    "gh_authenticated",
+    "gh_available",
+    "hostname",
+    "os",
+    "provider_runtimes",
+  ]) {
+    if (raw[key] !== undefined) out[key] = raw[key];
+  }
+  if (Array.isArray(out.provider_runtimes)) {
+    out.provider_runtimes = normalizeStringList(out.provider_runtimes);
+  }
+  return out;
 }
 
 function normalizeProviderKind(value) {

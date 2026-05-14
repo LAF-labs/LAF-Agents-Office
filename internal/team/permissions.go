@@ -196,6 +196,7 @@ func rolePresetPermissions(role string) []string {
 			permissionRunnerRead,
 			permissionModelUseLAF,
 			permissionModelUseLocalCLI,
+			permissionBridgeExecuteOwn,
 			permissionBridgeReadTeam,
 			permissionBridgeExecuteTeam,
 			permissionBridgeManageTeam,
@@ -225,6 +226,7 @@ func rolePresetPermissions(role string) []string {
 			permissionBridgePairOwn,
 			permissionBridgeReadOwn,
 			permissionBridgeExecuteOwn,
+			permissionBridgeManageOwn,
 			permissionExecutionPlanCreate,
 			permissionExecutionRead,
 			permissionExecutionCancel,
@@ -237,6 +239,7 @@ func rolePresetPermissions(role string) []string {
 			permissionSkillRead,
 			permissionMemoryRead,
 			permissionRunnerRead,
+			permissionExecutionReceiptRead,
 		}
 	default:
 		return rolePresetPermissions("member")
