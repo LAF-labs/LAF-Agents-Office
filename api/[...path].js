@@ -136,6 +136,27 @@ module.exports = async function handler(req, res) {
       }
       return;
     }
+    const localBindingMatch = path.match(
+      /^projects\/([^/]+)\/local-bindings(?:\/([^/]+))?$/,
+    );
+    if (localBindingMatch) {
+      const projectID = decodeURIComponent(localBindingMatch[1]);
+      const bindingID = localBindingMatch[2]
+        ? decodeURIComponent(localBindingMatch[2])
+        : "";
+      if (req.method === "GET" && !bindingID) {
+        await handleProjectLocalBindings(req, res, projectID);
+        return;
+      }
+      if (req.method === "POST" && !bindingID) {
+        await handleProjectLocalBindingCreate(req, res, projectID);
+        return;
+      }
+      if (req.method === "DELETE" && bindingID) {
+        await handleProjectLocalBindingDelete(req, res, projectID, bindingID);
+        return;
+      }
+    }
     if (path === "orchestration/intent" && req.method === "POST") {
       await handleOrchestrationIntent(req, res);
       return;
@@ -1626,6 +1647,83 @@ async function handleBridgeDeviceRevoke(req, res, deviceID) {
   writeJSON(res, 200, { device: publicBridgeDevice(updated) });
 }
 
+async function handleProjectLocalBindings(req, res, projectExternalID) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "bridge:read_own");
+  const project = await findProject(membership.team_id, projectExternalID);
+  const rows = await rest("project_local_bindings", {
+    query: {
+      order: "last_used_at.desc",
+      project_id: `eq.${project.id}`,
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${membership.user_id}`,
+    },
+  }).catch(() => []);
+  writeJSON(res, 200, { bindings: (rows || []).map(publicProjectLocalBinding) });
+}
+
+async function handleProjectLocalBindingCreate(req, res, projectExternalID) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "bridge:manage_own");
+  const project = await findProject(membership.team_id, projectExternalID);
+  const body = await readBody(req);
+  const deviceID = String(body.device_id || "").trim();
+  if (!deviceID) throw new HTTPError(400, "device_id is required");
+  const localPath = String(body.local_path || "").trim();
+  if (!localPath) throw new HTTPError(400, "local_path is required");
+  const devices = await rest("bridge_devices", {
+    query: {
+      id: `eq.${deviceID}`,
+      limit: "1",
+      select: "*",
+      status: "not.in.(revoked)",
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${membership.user_id}`,
+    },
+  });
+  const device = devices?.[0];
+  if (!device) throw new HTTPError(404, "bridge device not found");
+  const now = nowISO();
+  const [binding] = await rest("project_local_bindings", {
+    method: "POST",
+    query: { on_conflict: "team_id,project_id,user_id,device_id,local_path_hash" },
+    body: {
+      created_at: now,
+      device_id: device.id,
+      display_name: truncateText(String(body.display_name || "").trim() || basename(localPath), 128),
+      git_remote_hash: hashOrNull(body.git_remote_url || body.git_remote_hash),
+      git_root_hash: hashOrNull(body.git_root || body.git_root_hash),
+      last_used_at: now,
+      local_path_hash: hashToken(localPath),
+      project_id: project.id,
+      team_id: membership.team_id,
+      trusted: body.trusted === true,
+      trusted_at: body.trusted === true ? now : null,
+      user_id: membership.user_id,
+    },
+  });
+  writeJSON(res, 200, { binding: publicProjectLocalBinding(binding) });
+}
+
+async function handleProjectLocalBindingDelete(req, res, projectExternalID, bindingID) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "bridge:manage_own");
+  const project = await findProject(membership.team_id, projectExternalID);
+  const rows = await rest("project_local_bindings", {
+    method: "DELETE",
+    query: {
+      id: `eq.${bindingID}`,
+      project_id: `eq.${project.id}`,
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${membership.user_id}`,
+    },
+  });
+  const binding = rows?.[0];
+  if (!binding) throw new HTTPError(404, "local binding not found");
+  writeJSON(res, 200, { binding: publicProjectLocalBinding(binding), deleted: true });
+}
+
 async function handleOrchestrationIntent(req, res) {
   const { membership } = await requireUser(req);
   const body = await readBody(req);
@@ -2780,6 +2878,10 @@ function publicBridgeDevice(row) {
   return device;
 }
 
+function publicProjectLocalBinding(row) {
+  return { ...row };
+}
+
 function publicRunnerJob(row, projects = {}, tasks = {}) {
   return {
     ...row,
@@ -3145,6 +3247,19 @@ function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
       connect: `laf-runner pair --api-url ${normalizedAPIURL} --code ${code} --connect`,
     },
   };
+}
+
+function hashOrNull(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  return hashToken(text);
+}
+
+function basename(localPath) {
+  const normalized = String(localPath || "").trim().replace(/[\\/]+$/, "");
+  if (!normalized) return "Local Binding";
+  const parts = normalized.split(/[\\/]/);
+  return parts[parts.length - 1] || "Local Binding";
 }
 
 function slugify(value) {

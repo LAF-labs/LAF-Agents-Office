@@ -776,6 +776,100 @@ test("hosted bridge pairing requires pair permission", async (t) => {
   assert.equal(db.bridge_pairing_codes.length, 0);
 });
 
+test("hosted project local bindings CRUD hashes local metadata", async (t) => {
+  const db = {
+    bridge_devices: [
+      {
+        id: "bridge-device-1",
+        status: "online",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    memberships: [
+      {
+        role: "member",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    project_local_bindings: [],
+    projects: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        local_id: "project-a",
+        name: "Project A",
+        team_id: "team-1",
+      },
+    ],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const created = await invoke(["projects", "project-a", "local-bindings"], "POST", {
+    device_id: "bridge-device-1",
+    git_remote_url: "https://github.com/laf-labs/project-a",
+    local_path: "/Users/kim/src/project-a",
+    trusted: true,
+  });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.binding.display_name, "project-a");
+  assert.equal(created.body.binding.trusted, true);
+  assert.equal(db.project_local_bindings[0].local_path_hash.length, 64);
+  assert.equal(db.project_local_bindings[0].local_path, undefined);
+  assert.equal(db.project_local_bindings[0].git_remote_hash.length, 64);
+
+  const listed = await invoke(["projects", "project-a", "local-bindings"], "GET");
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.bindings.length, 1);
+  assert.equal(listed.body.bindings[0].project_id, "11111111-1111-4111-8111-111111111111");
+
+  const removed = await invoke(
+    ["projects", "project-a", "local-bindings", db.project_local_bindings[0].id],
+    "DELETE",
+    {},
+  );
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.deleted, true);
+  assert.equal(db.project_local_bindings.length, 0);
+});
+
+test("hosted project local bindings require own bridge permission", async (t) => {
+  const db = {
+    bridge_devices: [],
+    memberships: [
+      {
+        role: "viewer",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    project_local_bindings: [],
+    projects: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        local_id: "project-a",
+        name: "Project A",
+        team_id: "team-1",
+      },
+    ],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const response = await invoke(["projects", "project-a", "local-bindings"], "GET");
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, "permission required: bridge:read_own");
+});
+
 test("hosted model availability uses DB billing before env fallback", async (t) => {
   const db = {
     memberships: [
@@ -1093,6 +1187,12 @@ function hostedFetch(db) {
       }
       const rows = filterRows(db[table], url.searchParams);
       for (const row of rows) Object.assign(row, body);
+      return jsonResponse(rows);
+    }
+    if (method === "DELETE") {
+      const rows = filterRows(db[table], url.searchParams);
+      const selected = new Set(rows);
+      db[table] = db[table].filter((row) => !selected.has(row));
       return jsonResponse(rows);
     }
     return jsonResponse([]);
