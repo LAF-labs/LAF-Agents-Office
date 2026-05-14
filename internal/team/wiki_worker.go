@@ -786,6 +786,12 @@ func (b *Broker) handleWikiWrite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	b.mu.Lock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionMemoryWriteDraft) {
+		b.mu.Unlock()
+		return
+	}
+	b.mu.Unlock()
 	worker := b.WikiWorker()
 	if worker == nil {
 		http.Error(w, `{"error":"wiki backend is not active"}`, http.StatusServiceUnavailable)

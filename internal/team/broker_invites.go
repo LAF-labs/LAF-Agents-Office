@@ -43,6 +43,14 @@ func humanMemberIDForEmail(email string) string {
 	return "human-" + local
 }
 
+func normalizeInviteRole(raw string) string {
+	role := normalizeAuthRole(raw)
+	if role == "" || role == "owner" {
+		return "member"
+	}
+	return role
+}
+
 func (b *Broker) inviteURLForToken(baseURL, token string) string {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
@@ -155,9 +163,9 @@ func (b *Broker) handlePostInvite(w http.ResponseWriter, r *http.Request) {
 	var teamID string
 	var creatorIsAuthUser bool
 	if user, _, _, ok := b.currentAuthUserLocked(r); ok {
-		if !canManageAuthRoles(user) {
+		if !authUserHasPermission(user, permissionMemberInvite) {
 			b.mu.Unlock()
-			http.Error(w, "owner or admin role required", http.StatusForbidden)
+			http.Error(w, "permission required: "+permissionMemberInvite, http.StatusForbidden)
 			return
 		}
 		teamID = user.TeamID
@@ -191,7 +199,7 @@ func (b *Broker) handlePostInvite(w http.ResponseWriter, r *http.Request) {
 		TeamID:    teamID,
 		Email:     email,
 		Name:      strings.TrimSpace(body.Name),
-		Role:      strings.TrimSpace(body.Role),
+		Role:      normalizeInviteRole(body.Role),
 		Channel:   channel,
 		Token:     generateToken(),
 		Status:    "pending",
@@ -214,6 +222,7 @@ func (b *Broker) handlePostInvite(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	b.invites = append(b.invites, invite)
+	b.appendAuditEventLocked(createdBy, "invite.created", "invite", invite.ID, map[string]any{"email": invite.Email, "role": invite.Role})
 	b.mu.Unlock()
 
 	sendFn := b.sendInviteEmail

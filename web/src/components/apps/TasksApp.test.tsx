@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ const apiMocks = vi.hoisted(() => ({
   createProject: vi.fn(),
   createTask: vi.fn(),
   getActions: vi.fn(),
+  getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getOfficeTasks: vi.fn(),
   getProjectRepoReadiness: vi.fn(),
@@ -78,9 +79,9 @@ function mockProjectDirectory() {
         channel: "general",
         created_by: "ceo",
         details:
-          "Pick up the Korean user-reported latency issue: `유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.` Treat this as a bugfix lane.",
+          "Pick up the Korean user-reported latency issue: `사용자가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는지 확인.` Treat this as a bugfix lane.",
         human_details:
-          "Pick up the Korean user-reported latency issue: `유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.` Treat this as a bugfix lane.",
+          "Pick up the Korean user-reported latency issue: `사용자가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는지 확인.` Treat this as a bugfix lane.",
         owner: "engineer",
         project_id: "customer-portal",
         status: "in_progress",
@@ -111,6 +112,13 @@ function mockProjectDirectory() {
     ],
   });
   apiMocks.getActions.mockResolvedValue({ actions: [] });
+  apiMocks.getModelAvailability.mockResolvedValue({
+    allowed_modes: ["record_only"],
+    default_mode: "record_only",
+    laf_model: { available: false, reason: "paid workspace required" },
+    local_cli: { available: false, reason: "runner required" },
+    record_only: { available: true },
+  });
   apiMocks.getOfficeMembers.mockResolvedValue({
     members: [
       { name: "CEO", slug: "ceo" },
@@ -171,7 +179,7 @@ function mockProjectDirectory() {
 describe("TasksApp project directory", () => {
   beforeEach(mockProjectDirectory);
 
-  it("renders only a Jira-style project list with status and ticket counts", async () => {
+  it("renders only a project work list with status and task counts", async () => {
     renderTasksApp();
 
     expect(
@@ -198,10 +206,10 @@ describe("TasksApp project directory", () => {
     expect(within(directory).getAllByText("done").length).toBeGreaterThan(0);
     expect(screen.queryByText("Next task")).not.toBeInTheDocument();
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
-    expect(screen.queryByText("Issues")).not.toBeInTheDocument();
+    expect(screen.queryByText("Work items")).not.toBeInTheDocument();
   });
 
-  it("opens a project detail view with its ticket list", async () => {
+  it("opens a project detail view with its task list", async () => {
     const user = userEvent.setup();
     apiMocks.getRunnerStatus.mockResolvedValue({
       jobs: [],
@@ -226,20 +234,20 @@ describe("TasksApp project directory", () => {
       await screen.findByRole("heading", { name: "Customer Portal" }),
     ).toBeInTheDocument();
 
-    const ticketList = screen.getByRole("region", { name: "Tickets" });
+    const taskList = screen.getByRole("region", { name: "Tasks" });
     expect(
-      within(ticketList).getByText("Implement signup flow"),
+      within(taskList).getByText("Implement signup flow"),
     ).toBeInTheDocument();
     expect(await screen.findByText("Runner connected")).toBeInTheDocument();
     expect(
-      within(ticketList).getByText("Review signup flow"),
+      within(taskList).getByText("Review signup flow"),
     ).toBeInTheDocument();
-    expect(within(ticketList).getByText("Created by")).toBeInTheDocument();
-    expect(within(ticketList).getAllByText("@ceo").length).toBeGreaterThan(0);
+    expect(within(taskList).getByText("Created by")).toBeInTheDocument();
+    expect(within(taskList).getAllByText("@ceo").length).toBeGreaterThan(0);
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
 
-  it("creates a ticket inside the selected project", async () => {
+  it("creates a task inside the selected project", async () => {
     const user = userEvent.setup();
     apiMocks.createTask.mockResolvedValue({
       task: {
@@ -256,13 +264,13 @@ describe("TasksApp project directory", () => {
     await user.click(
       await screen.findByRole("button", { name: /Customer Portal/ }),
     );
-    await user.click(screen.getByRole("button", { name: "New ticket" }));
+    await user.click(screen.getByRole("button", { name: "New task" }));
     expect(
-      await screen.findByRole("complementary", { name: "New ticket" }),
+      await screen.findByRole("complementary", { name: "New task" }),
     ).toBeInTheDocument();
-    await user.type(screen.getByLabelText("Ticket title"), "Instrument funnel");
+    await user.type(screen.getByLabelText("Task title"), "Instrument funnel");
     await user.type(screen.getByLabelText("Details"), "Track signup drop-off.");
-    await user.click(screen.getByRole("button", { name: "Create ticket" }));
+    await user.click(screen.getByRole("button", { name: "Create task" }));
 
     await waitFor(() => {
       expect(apiMocks.createTask).toHaveBeenCalledWith(
@@ -278,13 +286,13 @@ describe("TasksApp project directory", () => {
     });
     expect(apiMocks.postMessageAs).toHaveBeenCalledWith(
       "engineer",
-      "I've got this ticket and I'm starting now.",
+      "I've got this task and I'm starting now.",
       "general",
       "task-new",
     );
   });
 
-  it("opens ticket details in a right-side panel with agent chat", async () => {
+  it("opens task details in a right-side panel with agent chat", async () => {
     const user = userEvent.setup();
     renderTasksApp();
 
@@ -300,7 +308,7 @@ describe("TasksApp project directory", () => {
     });
     expect(
       within(panel).getByText(
-        "유저가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는듯함.",
+        "사용자가 사주정보를 입력하고 결제 확인까지 가는 과정에서 지연되는 지점이 있는지 확인.",
       ),
     ).toBeInTheDocument();
     expect(within(panel).queryByText(/Treat this as/)).not.toBeInTheDocument();
@@ -326,29 +334,35 @@ describe("TasksApp project directory", () => {
     ).toBe(humanGroup);
     expect(humanGroup).toHaveClass("justify-end");
 
-    const chatInput = within(panel).getByLabelText("Ticket chat");
+    const chatInput = within(panel).getByLabelText("Task chat");
     await user.type(
       chatInput,
-      "Please finish this ticket{Shift>}{Enter}{/Shift}and report blockers.",
+      "Please finish this task{Shift>}{Enter}{/Shift}and report blockers.",
     );
     expect(chatInput).toHaveValue(
-      "Please finish this ticket\nand report blockers.",
+      "Please finish this task\nand report blockers.",
     );
     expect(apiMocks.postMessage).not.toHaveBeenCalled();
     await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "Please finish this ticket\nand report blockers.",
+        "Please finish this task\nand report blockers.",
         "general",
         "thread-build",
         ["engineer"],
+        expect.objectContaining({
+          model_mode: "record_only",
+          project_id: "customer-portal",
+          scope: "task_execution",
+          task_id: "task-build",
+        }),
       );
     });
     expect(
       (
         await within(panel).findByText(
-          /Please finish this ticket\s+and report blockers\./,
+          /Please finish this task\s+and report blockers\./,
         )
       ).closest("article"),
     ).toHaveClass("justify-end");
@@ -358,10 +372,10 @@ describe("TasksApp project directory", () => {
   });
 });
 
-describe("TasksApp ticket detail interactions", () => {
+describe("TasksApp task detail interactions", () => {
   beforeEach(mockProjectDirectory);
 
-  it("edits and clears ticket details from the side panel", async () => {
+  it("edits and clears task details from the side panel", async () => {
     const user = userEvent.setup();
     apiMocks.updateTask.mockResolvedValueOnce({
       task: {
@@ -390,9 +404,9 @@ describe("TasksApp ticket detail interactions", () => {
       name: "Details",
     });
     await user.click(within(panel).getByRole("button", { name: "Edit" }));
-    await user.clear(within(panel).getByLabelText("Ticket title"));
+    await user.clear(within(panel).getByLabelText("Task title"));
     await user.type(
-      within(panel).getByLabelText("Ticket title"),
+      within(panel).getByLabelText("Task title"),
       "Implement checkout flow",
     );
     await user.clear(within(panel).getByLabelText("Details"));
@@ -420,7 +434,7 @@ describe("TasksApp ticket detail interactions", () => {
     });
   });
 
-  it("deletes ticket detail text without deleting the ticket", async () => {
+  it("deletes task detail text without deleting the task", async () => {
     const user = userEvent.setup();
     apiMocks.updateTask.mockResolvedValueOnce({
       task: {
@@ -512,7 +526,7 @@ describe("TasksApp localization", () => {
     expect(
       await screen.findByRole("heading", { name: "프로젝트" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("시작 전").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/시작/).length).toBeGreaterThan(0);
     expect(screen.queryByText("Next task")).not.toBeInTheDocument();
   });
 });

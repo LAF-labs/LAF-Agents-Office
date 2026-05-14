@@ -25,6 +25,10 @@ type ChannelMessage struct {
 	Content     string            `json:"content"`
 	Tagged      []string          `json:"tagged"`
 	ReplyTo     string            `json:"reply_to,omitempty"`
+	ProjectID   string            `json:"project_id,omitempty"`
+	TaskID      string            `json:"task_id,omitempty"`
+	Scope       string            `json:"scope,omitempty"`
+	ModelMode   string            `json:"model_mode,omitempty"`
 	Timestamp   string            `json:"timestamp"`
 	Usage       *MessageUsage     `json:"usage,omitempty"`
 	Reactions   []MessageReaction `json:"reactions,omitempty"`
@@ -38,6 +42,10 @@ type TeamTask struct {
 	Details                string   `json:"details,omitempty"`
 	HumanDetails           string   `json:"human_details,omitempty"`
 	Owner                  string   `json:"owner,omitempty"`
+	AssigneeType           string   `json:"assignee_type,omitempty"`
+	AssigneeID             string   `json:"assignee_id,omitempty"`
+	HumanOwnerUserID       string   `json:"human_owner_user_id,omitempty"`
+	ModelMode              string   `json:"model_mode,omitempty"`
 	Status                 string   `json:"status"`
 	CreatedBy              string   `json:"created_by"`
 	ThreadID               string   `json:"thread_id,omitempty"`

@@ -149,6 +149,20 @@ export async function post<T = unknown>(
   return r.json();
 }
 
+export async function put<T = unknown>(
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const r = await fetch(baseURL() + path, {
+    method: "PUT",
+    credentials: "include",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  await assertOK(r);
+  return r.json();
+}
+
 export async function postWithTimeout<T = unknown>(
   path: string,
   body: unknown,
@@ -209,13 +223,97 @@ export interface WorkspaceTeam {
   updated_at?: string;
 }
 
+export type WorkspaceRole = "owner" | "admin" | "manager" | "member" | "viewer";
+
+export type WorkspacePermission =
+  | "workspace:read"
+  | "workspace:manage"
+  | "member:invite"
+  | "member:manage_roles"
+  | "member:manage_permissions"
+  | "project:create"
+  | "project:update"
+  | "project:archive"
+  | "task:create"
+  | "task:update"
+  | "task:assign"
+  | "task:change_status"
+  | "task:execute_agent"
+  | "agent:create"
+  | "agent:update"
+  | "agent:assign"
+  | "skill:read"
+  | "skill:propose"
+  | "skill:create_active"
+  | "skill:approve"
+  | "skill:update"
+  | "skill:archive"
+  | "memory:read"
+  | "memory:write_draft"
+  | "memory:promote"
+  | "memory:write_canonical"
+  | "runner:read"
+  | "runner:manage"
+  | "model:use_laf"
+  | "model:use_local_cli"
+  | "audit:read";
+
+export interface PermissionOverride {
+  allow?: WorkspacePermission[];
+  deny?: WorkspacePermission[];
+}
+
+export interface PermissionMember {
+  user_id: string;
+  email: string;
+  name: string;
+  role: WorkspaceRole | string;
+  status?: string;
+  overrides: PermissionOverride;
+  effective_permissions: WorkspacePermission[];
+}
+
+export interface PermissionsResponse {
+  roles: WorkspaceRole[];
+  permissions: WorkspacePermission[];
+  members: PermissionMember[];
+}
+
+export type ModelMode = "laf_model" | "local_cli" | "record_only";
+
+export interface ModelAvailability {
+  default_mode: ModelMode;
+  allowed_modes: ModelMode[];
+  laf_model: { available: boolean; reason?: string };
+  local_cli: { available: boolean; reason?: string };
+  record_only: { available: boolean; reason?: string };
+  reason?: string;
+}
+
+export interface OrchestrationIntent {
+  id: string;
+  type: string;
+  risk: "low" | "medium" | "high" | string;
+  summary: string;
+  proposed_actions: Array<{
+    method: string;
+    path: string;
+    body?: Record<string, unknown>;
+  }>;
+  required_permissions: WorkspacePermission[];
+  status: string;
+  requires_confirmation?: boolean;
+  created_at?: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
   name: string;
   team_id: string;
-  role: "owner" | "admin" | "member" | string;
+  role: WorkspaceRole | string;
   status: string;
+  permissions?: PermissionOverride;
   created_at?: string;
   updated_at?: string;
   last_login_at?: string;
@@ -233,6 +331,39 @@ export function getAuthSession() {
 
 export function getAuthUsers() {
   return get<{ users: AuthUser[] }>("/auth/users");
+}
+
+export function getPermissions() {
+  return get<PermissionsResponse>("/permissions");
+}
+
+export function updatePermissions(body: {
+  user_id: string;
+  role?: WorkspaceRole;
+  permissions?: PermissionOverride;
+}) {
+  return patchJSON<{ member: PermissionMember }>("/permissions", body);
+}
+
+export function getModelAvailability() {
+  return get<ModelAvailability>("/model/availability");
+}
+
+export function routeOrchestrationIntent(body: {
+  message: string;
+  project_id?: string;
+  model_mode?: ModelMode;
+}) {
+  return post<{ intent: OrchestrationIntent }>("/orchestration/intent", body);
+}
+
+export function confirmOrchestrationIntent(intent: OrchestrationIntent) {
+  return post<{
+    confirmation_id: string;
+    intent_id: string;
+    status: string;
+    applied: unknown[];
+  }>("/orchestration/confirm", { intent });
 }
 
 export function signup(body: {
@@ -270,7 +401,7 @@ export async function patchJSON<T = unknown>(
 
 export function updateAuthUserRole(body: {
   user_id: string;
-  role: "owner" | "admin" | "member";
+  role: WorkspaceRole;
 }) {
   return patchJSON<{ user: AuthUser; users: AuthUser[] }>("/auth/users", body);
 }
@@ -302,6 +433,10 @@ export interface Message {
   thread_count?: number;
   reactions?: Record<string, string[]>;
   tagged?: string[];
+  project_id?: string;
+  task_id?: string;
+  scope?: string;
+  model_mode?: ModelMode;
   usage?: TokenUsage;
 }
 
@@ -332,8 +467,9 @@ export function postMessage(
   channel: string,
   replyTo?: string,
   tagged?: string[],
+  metadata?: Record<string, string>,
 ) {
-  return postMessageAs("you", content, channel, replyTo, tagged);
+  return postMessageAs("you", content, channel, replyTo, tagged, metadata);
 }
 
 export function postMessageAs(
@@ -342,6 +478,7 @@ export function postMessageAs(
   channel: string,
   replyTo?: string,
   tagged?: string[],
+  metadata?: Record<string, string>,
 ) {
   const body: Record<string, string | string[]> = {
     from,
@@ -350,6 +487,7 @@ export function postMessageAs(
   };
   if (replyTo) body.reply_to = replyTo;
   if (tagged && tagged.length > 0) body.tagged = tagged;
+  if (metadata) Object.assign(body, metadata);
   return post<Message>("/messages", body);
 }
 
@@ -662,6 +800,10 @@ export interface Task {
   human_details?: string;
   status: string;
   owner?: string;
+  assignee_type?: "agent" | "human" | "none" | string;
+  assignee_id?: string;
+  human_owner_user_id?: string;
+  model_mode?: ModelMode;
   created_by?: string;
   project_id?: string;
   channel?: string;
@@ -724,6 +866,7 @@ export interface ProjectRepoReadiness {
 
 export interface RunnerCapabilities {
   provider_runtimes?: string[];
+  cli_details?: Record<string, unknown>;
   gh_available?: boolean;
   gh_authenticated?: boolean;
   git_available?: boolean;
@@ -765,6 +908,11 @@ export interface RunnerJob {
     | "expired"
     | string;
   agent_memory_packet?: unknown;
+  requested_by?: string;
+  effective_permissions?: WorkspacePermission[];
+  model_mode?: ModelMode;
+  intent_id?: string;
+  confirmation_id?: string;
   repo_url?: string;
   wiki_path?: string;
   lease_expires_at?: string;
@@ -880,6 +1028,10 @@ export function createTask(body: {
   project_id?: string;
   channel?: string;
   owner?: string;
+  assignee_type?: "agent" | "human" | "none" | string;
+  assignee_id?: string;
+  human_owner_user_id?: string;
+  model_mode?: ModelMode;
   task_type?: string;
   execution_mode?: string;
   created_by?: string;
@@ -899,6 +1051,10 @@ export function updateTask(body: {
   clear_details?: boolean;
   project_id?: string;
   channel?: string;
+  assignee_type?: "agent" | "human" | "none" | string;
+  assignee_id?: string;
+  human_owner_user_id?: string;
+  model_mode?: ModelMode;
   created_by?: string;
 }) {
   return post<TaskMutationResponse>("/tasks", {
@@ -913,6 +1069,7 @@ export function reassignTask(
   newOwner: string,
   channel: string,
   actor = "human",
+  modelMode?: ModelMode,
 ) {
   return post<TaskMutationResponse>("/tasks", {
     action: "reassign",
@@ -920,6 +1077,7 @@ export function reassignTask(
     owner: newOwner,
     channel: channel || "general",
     created_by: actor,
+    model_mode: modelMode,
   });
 }
 
@@ -939,12 +1097,14 @@ export function updateTaskStatus(
     delivery_url?: string;
     delivery_summary?: string;
   },
+  modelMode?: ModelMode,
 ) {
   return post<TaskMutationResponse>("/tasks", {
     action,
     id: taskId,
     channel: channel || "general",
     created_by: actor,
+    model_mode: modelMode,
     ...delivery,
   });
 }
@@ -1063,6 +1223,12 @@ export interface Skill {
   created_at?: string;
   updated_at?: string;
   parameters?: unknown;
+  version?: number;
+  risk?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejected_by?: string;
+  rejected_at?: string;
 }
 
 export function getSkills() {
@@ -1071,6 +1237,14 @@ export function getSkills() {
 
 export function invokeSkill(name: string, params?: Record<string, unknown>) {
   return post(`/skills/${encodeURIComponent(name)}/invoke`, params ?? {});
+}
+
+export function updateSkill(body: Partial<Skill> & { name: string }) {
+  return put<{ skill: Skill }>("/skills", body);
+}
+
+export function deleteSkill(name: string) {
+  return del<{ ok: boolean }>("/skills", { name });
 }
 
 // ── Usage ──

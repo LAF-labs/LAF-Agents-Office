@@ -197,17 +197,18 @@ type workspaceTeam struct {
 }
 
 type authUser struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	Name         string `json:"name"`
-	TeamID       string `json:"team_id"`
-	Role         string `json:"role"`
-	Status       string `json:"status"`
-	PasswordSalt string `json:"password_salt,omitempty"`
-	PasswordHash string `json:"password_hash,omitempty"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at,omitempty"`
-	LastLoginAt  string `json:"last_login_at,omitempty"`
+	ID           string             `json:"id"`
+	Email        string             `json:"email"`
+	Name         string             `json:"name"`
+	TeamID       string             `json:"team_id"`
+	Role         string             `json:"role"`
+	Status       string             `json:"status"`
+	Permissions  permissionOverride `json:"permissions,omitempty"`
+	PasswordSalt string             `json:"password_salt,omitempty"`
+	PasswordHash string             `json:"password_hash,omitempty"`
+	CreatedAt    string             `json:"created_at"`
+	UpdatedAt    string             `json:"updated_at,omitempty"`
+	LastLoginAt  string             `json:"last_login_at,omitempty"`
 }
 
 type authSession struct {
@@ -1655,6 +1656,10 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/auth/session", b.handleAuthSession)
 	mux.HandleFunc("/auth/users", b.requireAuth(b.handleAuthUsers))
 	mux.HandleFunc("/teams", b.handleTeams)
+	mux.HandleFunc("/permissions", b.requireAuth(b.handlePermissions))
+	mux.HandleFunc("/model/availability", b.requireAuth(b.handleModelAvailability))
+	mux.HandleFunc("/orchestration/intent", b.requireAuth(b.handleOrchestrationIntent))
+	mux.HandleFunc("/orchestration/confirm", b.requireAuth(b.handleOrchestrationConfirm))
 	mux.HandleFunc("/runner/status", b.requireAuth(b.handleRunnerStatus))
 	mux.HandleFunc("/runner/pairing/start", b.requireAuth(b.handleRunnerPairingStart))
 	mux.HandleFunc("/runner/pairing/claim", b.handleRunnerPairingClaim)
@@ -8285,13 +8290,17 @@ func otlpFloatValue(raw string) float64 {
 
 func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		From    string   `json:"from"`
-		Channel string   `json:"channel"`
-		Kind    string   `json:"kind"`
-		Title   string   `json:"title"`
-		Content string   `json:"content"`
-		Tagged  []string `json:"tagged"`
-		ReplyTo string   `json:"reply_to"`
+		From      string   `json:"from"`
+		Channel   string   `json:"channel"`
+		Kind      string   `json:"kind"`
+		Title     string   `json:"title"`
+		Content   string   `json:"content"`
+		Tagged    []string `json:"tagged"`
+		ReplyTo   string   `json:"reply_to"`
+		ProjectID string   `json:"project_id"`
+		TaskID    string   `json:"task_id"`
+		Scope     string   `json:"scope"`
+		ModelMode string   `json:"model_mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -8438,6 +8447,10 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	messageModelMode := ""
+	if strings.TrimSpace(body.ModelMode) != "" {
+		messageModelMode = normalizeModelMode(body.ModelMode)
+	}
 	msg := channelMessage{
 		ID:        fmt.Sprintf("msg-%d", b.counter),
 		From:      from,
@@ -8447,6 +8460,10 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		Content:   body.Content,
 		Tagged:    tagged,
 		ReplyTo:   replyTo,
+		ProjectID: normalizeProjectID(body.ProjectID),
+		TaskID:    strings.TrimSpace(body.TaskID),
+		Scope:     strings.TrimSpace(body.Scope),
+		ModelMode: messageModelMode,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)
@@ -9449,6 +9466,16 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b.mu.Lock()
+	requiredPermission := permissionProjectCreate
+	if action == "archive" {
+		requiredPermission = permissionProjectArchive
+	} else if action == "update" {
+		requiredPermission = permissionProjectUpdate
+	}
+	if b.denyIfMissingPermissionLocked(w, r, requiredPermission) {
+		b.mu.Unlock()
+		return
+	}
 	if channel != "" {
 		if b.findChannelLocked(channel) == nil {
 			b.mu.Unlock()
@@ -9518,6 +9545,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if actionChannel == "" {
 			actionChannel = "general"
 		}
+		b.appendAuditEventLocked(project.CreatedBy, "project.created", "project", project.ID, map[string]any{"name": project.Name})
 		b.appendActionLocked("project_created", "office", actionChannel, project.CreatedBy, truncateSummary(project.Name, 140), project.ID)
 		if err := b.saveLocked(); err != nil {
 			b.mu.Unlock()
@@ -9591,6 +9619,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if actionChannel == "" {
 			actionChannel = "general"
 		}
+		b.appendAuditEventLocked(strings.TrimSpace(body.CreatedBy), "project.updated", "project", project.ID, map[string]any{"status": project.Status})
 		b.appendActionLocked("project_updated", "office", actionChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(project.Name+" ["+project.Status+"]", 140), project.ID)
 		if err := b.saveLocked(); err != nil {
 			b.mu.Unlock()
@@ -9734,6 +9763,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		HumanDetails     string   `json:"human_details"`
 		ClearDetails     bool     `json:"clear_details"`
 		Owner            string   `json:"owner"`
+		AssigneeType     string   `json:"assignee_type"`
+		AssigneeID       string   `json:"assignee_id"`
+		HumanOwnerUserID string   `json:"human_owner_user_id"`
+		ModelMode        string   `json:"model_mode"`
 		CreatedBy        string   `json:"created_by"`
 		ThreadID         string   `json:"thread_id"`
 		TaskType         string   `json:"task_type"`
@@ -9829,6 +9862,18 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "channel not found", http.StatusNotFound)
 		return
 	}
+	if b.denyIfMissingPermissionLocked(w, r, taskPermissionForAction(action)) {
+		return
+	}
+	if action == "create" && strings.TrimSpace(body.Owner) != "" && !isHumanActorSlug(body.Owner) && b.denyIfMissingPermissionLocked(w, r, permissionTaskExecuteAgent) {
+		return
+	}
+	if (action == "assign" || action == "claim" || action == "reassign") && strings.TrimSpace(body.Owner) != "" && !isHumanActorSlug(body.Owner) && b.denyIfMissingPermissionLocked(w, r, permissionTaskExecuteAgent) {
+		return
+	}
+	if strings.TrimSpace(body.ModelMode) != "" && b.denyIfModelModeUnavailableLocked(w, r, body.ModelMode) {
+		return
+	}
 	if !b.canAccessChannelLocked(body.CreatedBy, channel) {
 		http.Error(w, "channel access denied", http.StatusForbidden)
 		return
@@ -9866,6 +9911,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			}
 			if owner != "" {
 				existing.Owner = owner
+				existing.AssigneeID = owner
+				existing.AssigneeType = ""
 				existing.Status = "in_progress"
 			}
 			if taskType := strings.TrimSpace(body.TaskType); taskType != "" {
@@ -9895,6 +9942,14 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if worktreeBranch := strings.TrimSpace(body.WorktreeBranch); worktreeBranch != "" {
 				existing.WorktreeBranch = worktreeBranch
 			}
+			if assigneeID := strings.TrimSpace(body.AssigneeID); assigneeID != "" {
+				existing.AssigneeID = assigneeID
+				existing.AssigneeType = strings.TrimSpace(body.AssigneeType)
+			}
+			if humanOwner := strings.TrimSpace(body.HumanOwnerUserID); humanOwner != "" {
+				existing.HumanOwnerUserID = humanOwner
+			}
+			populateTaskGovernanceFields(existing, body.ModelMode)
 			applyTaskDeliveryReceipt(existing, body.DeliveryURL, body.DeliverySummary, now)
 			applyTaskDeliveryVerification(existing, deliveryVerification)
 			if existing.ThreadID == "" && strings.TrimSpace(body.ThreadID) != "" {
@@ -9936,6 +9991,10 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			Details:          strings.TrimSpace(body.Details),
 			HumanDetails:     humanDetails,
 			Owner:            owner,
+			AssigneeType:     strings.TrimSpace(body.AssigneeType),
+			AssigneeID:       strings.TrimSpace(firstNonEmptyString(body.AssigneeID, owner)),
+			HumanOwnerUserID: strings.TrimSpace(body.HumanOwnerUserID),
+			ModelMode:        normalizeModelMode(body.ModelMode),
 			Status:           "open",
 			CreatedBy:        strings.TrimSpace(body.CreatedBy),
 			ThreadID:         strings.TrimSpace(body.ThreadID),
@@ -9956,6 +10015,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if strings.TrimSpace(task.DeliveryURL) != "" {
 			task.DeliveredAt = now
 		}
+		populateTaskGovernanceFields(&task, body.ModelMode)
 		if len(task.DependsOn) > 0 && b.hasUnresolvedDepsLocked(&task) {
 			task.Blocked = true
 		} else if task.Owner != "" {
@@ -10023,6 +10083,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			task.Owner = mapLegacyTaskActorToCore(body.Owner)
+			task.AssigneeID = task.Owner
+			task.AssigneeType = ""
 			task.Status = taskStatusInProgress
 			if taskNeedsStructuredReview(task) {
 				task.ReviewState = reviewStatePendingReview
@@ -10037,6 +10099,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			reassignPrevOwner = strings.TrimSpace(task.Owner)
 			newOwner := mapLegacyTaskActorToCore(body.Owner)
 			task.Owner = newOwner
+			task.AssigneeID = newOwner
+			task.AssigneeType = ""
 			status := strings.ToLower(strings.TrimSpace(task.Status))
 			if status != taskStatusDone && status != taskStatusReview {
 				task.Status = taskStatusInProgress
@@ -10121,6 +10185,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			appendDetails = true
 		case "release":
 			task.Owner = ""
+			task.AssigneeID = ""
+			task.AssigneeType = "none"
 			task.Status = "open"
 			task.Blocked = false
 		case "cancel":
@@ -10172,6 +10238,14 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 		if worktreeBranch := strings.TrimSpace(body.WorktreeBranch); worktreeBranch != "" {
 			task.WorktreeBranch = worktreeBranch
 		}
+		if assigneeID := strings.TrimSpace(body.AssigneeID); assigneeID != "" {
+			task.AssigneeID = assigneeID
+			task.AssigneeType = strings.TrimSpace(body.AssigneeType)
+		}
+		if humanOwner := strings.TrimSpace(body.HumanOwnerUserID); humanOwner != "" {
+			task.HumanOwnerUserID = humanOwner
+		}
+		populateTaskGovernanceFields(task, body.ModelMode)
 		applyTaskDeliveryReceipt(task, body.DeliveryURL, body.DeliverySummary, now)
 		applyTaskDeliveryVerification(task, deliveryVerification)
 		b.ensureTaskOwnerChannelMembershipLocked(taskChannel, task.Owner)
@@ -11550,7 +11624,8 @@ func (b *Broker) handlePostRequestAnswer(w http.ResponseWriter, r *http.Request)
 		b.pendingInterview = firstBlockingRequest(b.requests)
 		b.unblockTasksForAnsweredRequestLocked(b.requests[i])
 
-		// Skill proposal callback: accept activates the skill, reject archives it.
+		// Skill proposal callback: accept activates the skill, reject records
+		// the governance decision without deleting the proposal history.
 		if b.requests[i].Kind == "skill_proposal" {
 			replyTo := strings.TrimSpace(b.requests[i].ReplyTo)
 			for j := range b.skills {
@@ -11570,7 +11645,7 @@ func (b *Broker) handlePostRequestAnswer(w http.ResponseWriter, r *http.Request)
 							Timestamp: activatedAt,
 						})
 					} else {
-						b.skills[j].Status = "archived"
+						b.skills[j].Status = "rejected"
 						b.skills[j].UpdatedAt = activatedAt
 					}
 					break
@@ -11937,6 +12012,13 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if action == "create" {
+		if b.denyIfMissingPermissionLocked(w, r, permissionSkillCreateActive) {
+			return
+		}
+	} else if b.denyIfMissingPermissionLocked(w, r, permissionSkillPropose) {
+		return
+	}
 
 	createdBy := mapLegacyTaskActorToCore(body.CreatedBy)
 	if action == "propose" {
@@ -12039,6 +12121,7 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	requiredPermission := permissionSkillUpdate
 
 	sk := b.findSkillByNameLocked(body.Name)
 	if sk == nil {
@@ -12046,6 +12129,19 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	if sk == nil {
 		http.Error(w, "skill not found", http.StatusNotFound)
+		return
+	}
+	nextStatus := strings.TrimSpace(body.Status)
+	if nextStatus != "" && nextStatus != "proposed" && nextStatus != "active" && nextStatus != "archived" && nextStatus != "rejected" {
+		http.Error(w, "status must be proposed, active, archived, or rejected", http.StatusBadRequest)
+		return
+	}
+	if nextStatus == "active" && sk.Status != "active" {
+		requiredPermission = permissionSkillApprove
+	} else if nextStatus == "rejected" {
+		requiredPermission = permissionSkillApprove
+	}
+	if b.denyIfMissingPermissionLocked(w, r, requiredPermission) {
 		return
 	}
 
@@ -12094,8 +12190,8 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 	if status := strings.TrimSpace(body.LastExecutionStatus); status != "" {
 		sk.LastExecutionStatus = status
 	}
-	if s := strings.TrimSpace(body.Status); s != "" {
-		sk.Status = s
+	if nextStatus != "" {
+		sk.Status = nextStatus
 	}
 	sk.UpdatedAt = now
 
@@ -12142,6 +12238,9 @@ func (b *Broker) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionSkillArchive) {
+		return
+	}
 
 	sk := b.findSkillByNameLocked(body.Name)
 	if sk == nil {
@@ -12205,6 +12304,9 @@ func (b *Broker) handleInvokeSkill(w http.ResponseWriter, r *http.Request) {
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.denyIfMissingPermissionLocked(w, r, permissionSkillRead) {
+		return
+	}
 
 	sk := b.findSkillByNameLocked(skillName)
 	if sk == nil {

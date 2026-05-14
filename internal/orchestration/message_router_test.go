@@ -127,7 +127,7 @@ func TestRouteUsesRoleTermsAndExpertiseMetadata(t *testing.T) {
 		{Slug: "ceo", Expertise: []string{"strategy", "delegation"}},
 		{Slug: "ops-planner", Expertise: []string{"customer success", "invoicing"}, RoleTerms: []string{"customer handoff", "billing operations"}},
 		{Slug: "rev-ops", Expertise: []string{"pipeline management"}, RoleTerms: []string{"go-to-market", "lead routing"}},
-		{Slug: "support", Expertise: []string{"ticket triage"}, RoleTerms: []string{"customer support"}},
+		{Slug: "support", Expertise: []string{"case triage"}, RoleTerms: []string{"customer support"}},
 	}
 
 	result := mr.Route("Need a go to market customer handoff and billing operations plan.", agents)

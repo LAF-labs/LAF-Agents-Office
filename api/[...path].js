@@ -2,6 +2,41 @@ const crypto = require("node:crypto");
 
 const ACTIVE_JOB_STATUSES = ["queued", "leased", "running", "expired"];
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
+const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code", "opencode"];
+const WORKSPACE_ROLES = ["owner", "admin", "manager", "member", "viewer"];
+const WORKSPACE_PERMISSIONS = [
+  "workspace:read",
+  "workspace:manage",
+  "member:invite",
+  "member:manage_roles",
+  "member:manage_permissions",
+  "project:create",
+  "project:update",
+  "project:archive",
+  "task:create",
+  "task:update",
+  "task:assign",
+  "task:change_status",
+  "task:execute_agent",
+  "agent:create",
+  "agent:update",
+  "agent:assign",
+  "skill:read",
+  "skill:propose",
+  "skill:create_active",
+  "skill:approve",
+  "skill:update",
+  "skill:archive",
+  "memory:read",
+  "memory:write_draft",
+  "memory:promote",
+  "memory:write_canonical",
+  "runner:read",
+  "runner:manage",
+  "model:use_laf",
+  "model:use_local_cli",
+  "audit:read",
+];
 
 class HTTPError extends Error {
   constructor(status, message) {
@@ -21,6 +56,10 @@ module.exports = async function handler(req, res) {
     const path = requestPath(req);
     if (path === "auth/session" && req.method === "GET") {
       await handleAuthSession(req, res);
+      return;
+    }
+    if (path === "auth/users") {
+      await handleAuthUsers(req, res);
       return;
     }
     if (path === "auth/login" && req.method === "POST") {
@@ -48,12 +87,37 @@ module.exports = async function handler(req, res) {
       await handleInvites(req, res);
       return;
     }
+    if (path === "permissions") {
+      await handlePermissions(req, res);
+      return;
+    }
+    if (path === "model/availability" && req.method === "GET") {
+      await handleModelAvailability(req, res);
+      return;
+    }
+    if (path === "orchestration/intent" && req.method === "POST") {
+      await handleOrchestrationIntent(req, res);
+      return;
+    }
+    if (path === "orchestration/confirm" && req.method === "POST") {
+      await handleOrchestrationConfirm(req, res);
+      return;
+    }
     if (path === "projects") {
       await handleProjects(req, res);
       return;
     }
     if (path === "tasks") {
       await handleTasks(req, res);
+      return;
+    }
+    if (path === "skills") {
+      await handleSkills(req, res);
+      return;
+    }
+    const skillInvokeMatch = path.match(/^skills\/([^/]+)\/invoke$/);
+    if (skillInvokeMatch && req.method === "POST") {
+      await handleSkillInvoke(req, res, decodeURIComponent(skillInvokeMatch[1]));
       return;
     }
     if (path === "runner/status" && req.method === "GET") {
@@ -354,13 +418,263 @@ function publicUser(user, membership) {
     id: user.id,
     email: user.email || "",
     name: user.user_metadata?.name || user.email || "User",
+    permissions: normalizePermissionOverride(membership.permissions),
     team_id: membership.team_id,
-    role: membership.role || "member",
+    role: normalizeRole(membership.role),
     status: membership.status || "active",
     created_at: user.created_at,
     updated_at: user.updated_at,
     last_login_at: user.last_sign_in_at,
   };
+}
+
+function normalizeRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+  return WORKSPACE_ROLES.includes(value) ? value : "member";
+}
+
+function normalizePermission(permission) {
+  const value = String(permission || "").trim().toLowerCase();
+  return WORKSPACE_PERMISSIONS.includes(value) ? value : "";
+}
+
+function normalizePermissionList(list) {
+  return [...new Set((Array.isArray(list) ? list : []).map(normalizePermission).filter(Boolean))].sort();
+}
+
+function normalizePermissionOverride(raw) {
+  const value = raw && typeof raw === "object" ? raw : {};
+  return {
+    allow: normalizePermissionList(value.allow),
+    deny: normalizePermissionList(value.deny),
+  };
+}
+
+function rolePresetPermissions(role) {
+  switch (normalizeRole(role)) {
+    case "owner":
+    case "admin":
+      return [...WORKSPACE_PERMISSIONS].sort();
+    case "manager":
+      return [
+        "workspace:read",
+        "member:invite",
+        "project:create",
+        "project:update",
+        "project:archive",
+        "task:create",
+        "task:update",
+        "task:assign",
+        "task:change_status",
+        "task:execute_agent",
+        "agent:assign",
+        "skill:read",
+        "skill:propose",
+        "skill:approve",
+        "skill:update",
+        "memory:read",
+        "memory:write_draft",
+        "memory:promote",
+        "runner:read",
+        "model:use_laf",
+        "model:use_local_cli",
+      ].sort();
+    case "member":
+      return [
+        "workspace:read",
+        "project:create",
+        "project:update",
+        "task:create",
+        "task:update",
+        "task:change_status",
+        "task:execute_agent",
+        "skill:read",
+        "skill:propose",
+        "memory:read",
+        "memory:write_draft",
+        "runner:read",
+        "model:use_local_cli",
+      ].sort();
+    case "viewer":
+      return ["workspace:read", "skill:read", "memory:read", "runner:read"];
+    default:
+      return rolePresetPermissions("member");
+  }
+}
+
+function effectivePermissions(membership) {
+  const role = normalizeRole(membership?.role);
+  if (role === "owner") return [...WORKSPACE_PERMISSIONS].sort();
+  const set = new Set(rolePresetPermissions(role));
+  const overrides = normalizePermissionOverride(membership?.permissions);
+  for (const permission of overrides.allow) set.add(permission);
+  for (const permission of overrides.deny) set.delete(permission);
+  return [...set].sort();
+}
+
+function hasPermission(membership, permission) {
+  return effectivePermissions(membership).includes(normalizePermission(permission));
+}
+
+function normalizeModelMode(raw) {
+  const value = String(raw || "").trim();
+  return ["laf_model", "local_cli", "record_only"].includes(value)
+    ? value
+    : "record_only";
+}
+
+function isSupportedLocalCLIRuntime(raw) {
+  const value = String(raw || "").trim().toLowerCase();
+  return SUPPORTED_LOCAL_CLI_RUNTIMES.includes(value);
+}
+
+function cliDetailDetected(detail) {
+  if (!detail || typeof detail !== "object") return false;
+  if (!("detected" in detail)) return true;
+  const detected = detail.detected;
+  if (typeof detected === "boolean") return detected;
+  return !["", "0", "false", "no", "off"].includes(String(detected).trim().toLowerCase());
+}
+
+function capabilitiesHaveSupportedLocalCLI(capabilities) {
+  if (!capabilities || typeof capabilities !== "object") return false;
+  const runtimes = Array.isArray(capabilities.provider_runtimes)
+    ? capabilities.provider_runtimes
+    : [];
+  if (runtimes.some(isSupportedLocalCLIRuntime)) return true;
+  const cliDetails =
+    capabilities.cli_details && typeof capabilities.cli_details === "object"
+      ? capabilities.cli_details
+      : {};
+  return Object.entries(cliDetails).some(
+    ([name, detail]) => isSupportedLocalCLIRuntime(name) && cliDetailDetected(detail),
+  );
+}
+
+function runnerHasSupportedLocalCLI(runner, capabilitiesByRunnerID) {
+  if (!runner || runner.revoked_at) return false;
+  return (
+    capabilitiesHaveSupportedLocalCLI(runner.capabilities) ||
+    capabilitiesHaveSupportedLocalCLI(capabilitiesByRunnerID[runner.id])
+  );
+}
+
+async function runnerModelAvailability(teamID) {
+  const runners = await rest("runners", {
+    query: {
+      select: "id,status,revoked_at,capabilities",
+      status: "eq.connected",
+      team_id: `eq.${teamID}`,
+    },
+  }).catch(() => []);
+  const activeRunners = (runners || []).filter((runner) => !runner.revoked_at);
+  const runnerIDs = activeRunners.map((runner) => runner.id).filter(Boolean);
+  const capabilitiesRows = runnerIDs.length > 0
+    ? await rest("runner_capabilities", {
+        query: {
+          runner_id: `in.(${runnerIDs.join(",")})`,
+          select: "runner_id,provider_runtimes,cli_details",
+        },
+      }).catch(() => [])
+    : [];
+  const capabilitiesByRunnerID = Object.fromEntries(
+    (capabilitiesRows || []).map((row) => [row.runner_id, row]),
+  );
+  return {
+    hasRunner: activeRunners.length > 0,
+    hasSupportedLocalCLI: activeRunners.some((runner) =>
+      runnerHasSupportedLocalCLI(runner, capabilitiesByRunnerID),
+    ),
+  };
+}
+
+async function modelAvailabilityForMembership(membership) {
+  let billingRows = [];
+  try {
+    billingRows = await rest("workspace_billing", {
+      query: { team_id: `eq.${membership.team_id}`, select: "*", limit: "1" },
+    });
+  } catch {
+    billingRows = [];
+  }
+  const billing = billingRows?.[0] || null;
+  const paid = billing
+    ? Boolean(billing.laf_model_enabled)
+    : truthy(process.env.LAF_OFFICE_WORKSPACE_PAID) ||
+      truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED);
+  const runnerState = await runnerModelAvailability(membership.team_id);
+  const lafAllowed = paid && hasPermission(membership, "model:use_laf");
+  const localAllowed =
+    runnerState.hasSupportedLocalCLI && hasPermission(membership, "model:use_local_cli");
+  const allowedModes = ["record_only"];
+  if (lafAllowed) allowedModes.unshift("laf_model");
+  if (localAllowed) allowedModes.push("local_cli");
+  const defaultMode = lafAllowed ? "laf_model" : localAllowed ? "local_cli" : "record_only";
+  return {
+    default_mode: defaultMode,
+    allowed_modes: allowedModes,
+    laf_model: {
+      available: lafAllowed,
+      reason: lafAllowed
+        ? ""
+        : paid
+          ? "permission required: model:use_laf"
+          : "workspace is not on a paid managed-model plan",
+    },
+    local_cli: {
+      available: localAllowed,
+      reason: localAllowed
+        ? ""
+        : !runnerState.hasRunner
+          ? "no connected local runner detected"
+          : !runnerState.hasSupportedLocalCLI
+            ? "no supported local CLI detected"
+            : "permission required: model:use_local_cli",
+    },
+    record_only: {
+      available: true,
+      reason: "records chat without agent execution",
+    },
+    reason: billing
+      ? "workspace billing loaded from DB"
+      : "workspace billing uses environment fallback",
+  };
+}
+
+async function resolveAllowedModelMode(membership, rawMode) {
+  const mode = normalizeModelMode(rawMode);
+  if (mode === "record_only") return mode;
+  const availability = await modelAvailabilityForMembership(membership);
+  if (!availability.allowed_modes.includes(mode)) {
+    throw new HTTPError(403, availability[mode]?.reason || `model mode unavailable: ${mode}`);
+  }
+  return mode;
+}
+
+function requirePermission(membership, permission) {
+  if (!hasPermission(membership, permission)) {
+    throw new HTTPError(403, `permission required: ${permission}`);
+  }
+}
+
+async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}) {
+  if (!membership?.team_id) return null;
+  try {
+    const [event] = await rest("audit_events", {
+      method: "POST",
+      body: {
+        action,
+        actor_user_id: membership.user_id,
+        metadata,
+        target_id: targetID || "",
+        target_type: targetType || "",
+        team_id: membership.team_id,
+      },
+    });
+    return event;
+  } catch {
+    return null;
+  }
 }
 
 async function handleAuthSession(req, res) {
@@ -378,6 +692,88 @@ async function handleAuthSession(req, res) {
     }
     throw err;
   }
+}
+
+async function adminUsersByID() {
+  try {
+    const adminUsers = await authFetch("admin/users", {
+      headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+    });
+    return Object.fromEntries((adminUsers?.users || []).map((user) => [user.id, user]));
+  } catch {
+    return {};
+  }
+}
+
+async function listTeamAuthUsers(teamID) {
+  const memberships = await rest("memberships", {
+    query: {
+      order: "created_at.asc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  const usersByID = await adminUsersByID();
+  return memberships.map((row) => {
+    const user = usersByID[row.user_id] || {
+      id: row.user_id,
+      email: row.user_id,
+      user_metadata: {},
+    };
+    return publicUser(user, row);
+  });
+}
+
+async function handleAuthUsers(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method === "GET") {
+    writeJSON(res, 200, {
+      users: await listTeamAuthUsers(membership.team_id),
+    });
+    return;
+  }
+  if (req.method !== "PATCH") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "member:manage_roles");
+  const body = await readBody(req);
+  const targetUserID = String(body.user_id || "").trim();
+  if (!targetUserID) throw new HTTPError(400, "user_id is required");
+  const nextRole = normalizeRole(body.role);
+  const [target] = await rest("memberships", {
+    query: {
+      limit: "1",
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${targetUserID}`,
+    },
+  });
+  if (!target) throw new HTTPError(404, "member not found");
+  if (normalizeRole(target.role) === "owner" && nextRole !== "owner") {
+    const owners = await rest("memberships", {
+      query: {
+        role: "eq.owner",
+        select: "id",
+        status: "eq.active",
+        team_id: `eq.${membership.team_id}`,
+      },
+    });
+    if ((owners || []).length <= 1) {
+      throw new HTTPError(409, "cannot remove the last owner");
+    }
+  }
+  const [updated] = await rest("memberships", {
+    method: "PATCH",
+    query: {
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${targetUserID}`,
+    },
+    body: { role: nextRole, updated_at: nowISO() },
+  });
+  await writeAuditEvent(membership, "member.role_updated", "user", targetUserID, {
+    role: nextRole,
+  });
+  const users = await listTeamAuthUsers(membership.team_id);
+  const user = users.find((candidate) => candidate.id === updated.user_id) || null;
+  writeJSON(res, 200, { user, users });
 }
 
 async function handleAuthLogin(req, res) {
@@ -468,6 +864,91 @@ async function handleAuthSignup(req, res) {
   });
 }
 
+async function handlePermissions(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method === "GET") {
+    const memberships = await rest("memberships", {
+      query: {
+        order: "created_at.asc",
+        select: "*",
+        team_id: `eq.${membership.team_id}`,
+      },
+    });
+    const usersByID = await adminUsersByID();
+    writeJSON(res, 200, {
+      roles: WORKSPACE_ROLES,
+      permissions: [...WORKSPACE_PERMISSIONS].sort(),
+      members: memberships.map((row) => {
+        const user = usersByID[row.user_id] || {};
+        return {
+          user_id: row.user_id,
+          email: user.email || row.user_id,
+          name: user.user_metadata?.name || user.email || row.user_id,
+          role: normalizeRole(row.role),
+          status: row.status || "active",
+          overrides: normalizePermissionOverride(row.permissions),
+          effective_permissions: effectivePermissions(row),
+        };
+      }),
+    });
+    return;
+  }
+  if (req.method !== "PATCH") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "member:manage_permissions");
+  const body = await readBody(req);
+  const targetUserID = String(body.user_id || "").trim();
+  if (!targetUserID) throw new HTTPError(400, "user_id is required");
+  const [target] = await rest("memberships", {
+    query: {
+      limit: "1",
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${targetUserID}`,
+    },
+  });
+  if (!target) throw new HTTPError(404, "member not found");
+  const patch = { updated_at: nowISO() };
+  if (body.role !== undefined) {
+    patch.role = normalizeRole(body.role);
+    if (normalizeRole(target.role) === "owner" && patch.role !== "owner") {
+      const owners = await rest("memberships", {
+        query: {
+          role: "eq.owner",
+          select: "id",
+          status: "eq.active",
+          team_id: `eq.${membership.team_id}`,
+        },
+      });
+      if ((owners || []).length <= 1) {
+        throw new HTTPError(409, "cannot remove the last owner");
+      }
+    }
+  }
+  if (body.permissions !== undefined) {
+    patch.permissions = normalizePermissionOverride(body.permissions);
+  }
+  const [updated] = await rest("memberships", {
+    method: "PATCH",
+    query: {
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${targetUserID}`,
+    },
+    body: patch,
+  });
+  await writeAuditEvent(membership, "permissions.updated", "user", targetUserID, {
+    role: updated.role,
+  });
+  writeJSON(res, 200, {
+    member: {
+      user_id: updated.user_id,
+      role: normalizeRole(updated.role),
+      status: updated.status,
+      overrides: normalizePermissionOverride(updated.permissions),
+      effective_permissions: effectivePermissions(updated),
+    },
+  });
+}
+
 async function handleInvites(req, res) {
   const { membership } = await requireUser(req);
   if (req.method === "GET") {
@@ -485,6 +966,7 @@ async function handleInvites(req, res) {
     return;
   }
   if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "member:invite");
   const body = await readBody(req);
   const token = `laf_invite_${crypto.randomBytes(18).toString("hex")}`;
   const [invite] = await rest("team_invites", {
@@ -494,13 +976,17 @@ async function handleInvites(req, res) {
       created_by: membership.user_id,
       email: String(body.email || "").trim().toLowerCase(),
       name: body.name || "",
-      role: body.role || "member",
+      role: normalizeRole(body.role || "member") === "owner" ? "member" : normalizeRole(body.role || "member"),
       status: "pending",
       team_id: membership.team_id,
       token_hash: hashToken(token),
     },
   });
   const publicRow = publicInvite({ ...invite, token }, req);
+  await writeAuditEvent(membership, "invite.created", "invite", invite.id, {
+    email: invite.email,
+    role: invite.role,
+  });
   writeJSON(res, 200, {
     email_sent: false,
     invite: publicRow,
@@ -573,16 +1059,21 @@ async function handleProjects(req, res) {
   if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
   const body = await readBody(req);
   if (body.action === "update") {
+    requirePermission(membership, "project:update");
     const project = await findProject(membership.team_id, body.id);
     const [updated] = await rest("projects", {
       method: "PATCH",
       query: { id: `eq.${project.id}` },
       body: projectPayload(body),
     });
+    await writeAuditEvent(membership, "project.updated", "project", updated.id, {
+      status: updated.status,
+    });
     writeJSON(res, 200, { project: publicProject(updated) });
     return;
   }
   if (body.action !== "create") throw new HTTPError(400, "unsupported action");
+  requirePermission(membership, "project:create");
 
   const localID = await uniqueProjectLocalID(
     membership.team_id,
@@ -598,6 +1089,9 @@ async function handleProjects(req, res) {
       status: body.status || "active",
       created_by: membership.user_id,
     },
+  });
+  await writeAuditEvent(membership, "project.created", "project", project.id, {
+    name: project.name,
   });
   writeJSON(res, 200, { project: publicProject(project) });
 }
@@ -666,6 +1160,8 @@ async function handleTasks(req, res) {
   const body = await readBody(req);
   const action = body.action || "create";
   if (action === "create") {
+    requirePermission(membership, "task:create");
+    if (body.owner && !isHuman(body.owner)) requirePermission(membership, "task:execute_agent");
     const result = await createTask(membership, body);
     writeJSON(res, 200, result);
     return;
@@ -673,6 +1169,10 @@ async function handleTasks(req, res) {
   const task = await findTask(membership.team_id, body.id);
   let updated;
   if (action === "update") {
+    requirePermission(membership, "task:update");
+    if (body.model_mode !== undefined) {
+      body.model_mode = await resolveAllowedModelMode(membership, body.model_mode);
+    }
     if (body.project_id) {
       const nextProject = await findProject(membership.team_id, body.project_id);
       body.project_id = nextProject.id;
@@ -683,16 +1183,29 @@ async function handleTasks(req, res) {
       body: taskUpdatePayload(body),
     });
   } else if (action === "reassign") {
+    requirePermission(membership, "task:assign");
+    if (body.owner && !isHuman(body.owner)) requirePermission(membership, "task:execute_agent");
+    const modelMode =
+      body.model_mode === undefined
+        ? normalizeModelMode(task.model_mode)
+        : await resolveAllowedModelMode(membership, body.model_mode);
     [updated] = await rest("tasks", {
       method: "PATCH",
       query: { id: `eq.${task.id}` },
       body: {
+        assignee_id: body.owner || null,
+        assignee_type: body.owner ? (isHuman(body.owner) ? "human" : "agent") : "none",
+        model_mode: modelMode,
         owner: body.owner || "",
         status: body.owner && !isHuman(body.owner) ? "in_progress" : "open",
         updated_at: nowISO(),
       },
     });
   } else {
+    requirePermission(membership, "task:change_status");
+    if (body.model_mode !== undefined) {
+      body.model_mode = await resolveAllowedModelMode(membership, body.model_mode);
+    }
     [updated] = await rest("tasks", {
       method: "PATCH",
       query: { id: `eq.${task.id}` },
@@ -720,19 +1233,27 @@ async function createTask(membership, body) {
     ? await findProject(membership.team_id, body.project_id)
     : null;
   const owner = String(body.owner || "").trim();
+  const assigneeID = String(body.assignee_id || owner || "").trim();
+  const assigneeType =
+    body.assignee_type || (assigneeID ? (isHuman(assigneeID) ? "human" : "agent") : "none");
   const status = body.status || (owner && !isHuman(owner) ? "in_progress" : "open");
   const executionMode =
     body.execution_mode || (project?.github_repo_url ? "local_worktree" : "office");
+  const modelMode = await resolveAllowedModelMode(membership, body.model_mode);
   const [task] = await rest("tasks", {
     method: "POST",
     body: {
       blocked: false,
+      assignee_id: assigneeID || null,
+      assignee_type: assigneeType,
       channel: body.channel || project?.channel || "general",
       created_by: membership.user_id,
       details: body.details || "",
       execution_mode: executionMode,
       human_details: body.human_details || body.details || "",
+      human_owner_user_id: body.human_owner_user_id || membership.user_id,
       local_id: body.id || `task-${shortID()}`,
+      model_mode: modelMode,
       owner,
       project_id: project?.id || null,
       status,
@@ -741,6 +1262,10 @@ async function createTask(membership, body) {
       thread_id: body.thread_id || "",
       title: body.title || "Untitled task",
     },
+  });
+  await writeAuditEvent(membership, "task.created", "task", task.id, {
+    model_mode: task.model_mode,
+    owner: task.owner,
   });
   const job = await ensureRunnerJobForTask(task, project);
   const projects = await projectMap(membership.team_id);
@@ -759,6 +1284,10 @@ function taskUpdatePayload(body) {
     "project_id",
     "channel",
     "owner",
+    "assignee_type",
+    "assignee_id",
+    "human_owner_user_id",
+    "model_mode",
     "task_type",
     "execution_mode",
   ]) {
@@ -768,6 +1297,11 @@ function taskUpdatePayload(body) {
     payload.details = "";
     payload.human_details = "";
   }
+  if (payload.owner !== undefined && payload.assignee_id === undefined) {
+    payload.assignee_id = payload.owner || null;
+    payload.assignee_type = payload.owner ? (isHuman(payload.owner) ? "human" : "agent") : "none";
+  }
+  if (payload.model_mode !== undefined) payload.model_mode = normalizeModelMode(payload.model_mode);
   return payload;
 }
 
@@ -775,6 +1309,8 @@ function taskStatusPayload(action, body) {
   const payload = { updated_at: nowISO() };
   if (action === "release") {
     payload.owner = "";
+    payload.assignee_id = null;
+    payload.assignee_type = "none";
     payload.status = "open";
     payload.blocked = false;
   } else if (action === "review") {
@@ -797,8 +1333,148 @@ function taskStatusPayload(action, body) {
   return payload;
 }
 
+async function handleModelAvailability(req, res) {
+  const { membership } = await requireUser(req);
+  writeJSON(res, 200, await modelAvailabilityForMembership(membership));
+}
+
+async function handleOrchestrationIntent(req, res) {
+  const { membership } = await requireUser(req);
+  const body = await readBody(req);
+  const message = String(body.message || "").trim();
+  if (!message) throw new HTTPError(400, "message is required");
+  const intent = buildOrchestrationIntent(message, {
+    model_mode: body.model_mode,
+    project_id: body.project_id,
+  });
+  for (const permission of intent.required_permissions) {
+    requirePermission(membership, permission);
+  }
+  await writeAuditEvent(membership, "orchestration.intent", "intent", intent.id, {
+    type: intent.type,
+  });
+  writeJSON(res, 200, { intent });
+}
+
+function buildOrchestrationIntent(message, context = {}) {
+  const id = crypto.randomUUID ? crypto.randomUUID() : shortID();
+  const now = nowISO();
+  const lower = message.toLowerCase();
+  const projectMatch = message.match(/(?:create|new|make|add)\s+(?:a\s+)?project\s+["']?([^"'\n]+)["']?/i);
+  const taskMatch = message.match(/(?:create|new|make|add)\s+(?:a\s+)?(?:task|work item)\s+["']?([^"'\n]+)["']?/i);
+  if (projectMatch || (message.includes("프로젝트") && (message.includes("만들") || message.includes("생성")))) {
+    const name = (projectMatch?.[1] || message.replace(/프로젝트|만들어|만들|생성/g, "")).trim() || "New Project";
+    return {
+      id,
+      type: "project.create",
+      risk: "medium",
+      summary: `Create project: ${name}`,
+      proposed_actions: [{
+        method: "POST",
+        path: "/projects",
+        body: { action: "create", name },
+      }],
+      required_permissions: ["project:create"],
+      status: "pending",
+      requires_confirmation: true,
+      created_at: now,
+    };
+  }
+  if (taskMatch || ((lower.includes("task") || message.includes("태스크") || message.includes("작업")) && (lower.includes("create") || lower.includes("add") || message.includes("만들") || message.includes("생성")))) {
+    const title = (taskMatch?.[1] || message).trim();
+    const actionBody = {
+      action: "create",
+      title,
+      model_mode: normalizeModelMode(context.model_mode),
+    };
+    if (context.project_id) actionBody.project_id = context.project_id;
+    return {
+      id,
+      type: "task.create",
+      risk: "medium",
+      summary: `Create task: ${title}`,
+      proposed_actions: [{
+        method: "POST",
+        path: "/tasks",
+        body: actionBody,
+      }],
+      required_permissions: ["task:create"],
+      status: "pending",
+      requires_confirmation: true,
+      created_at: now,
+    };
+  }
+  return {
+    id,
+    type: "chat",
+    risk: "low",
+    summary: "Route as normal home chat",
+    proposed_actions: [],
+    required_permissions: [],
+    status: "routed",
+    requires_confirmation: false,
+    created_at: now,
+  };
+}
+
+async function handleOrchestrationConfirm(req, res) {
+  const { membership } = await requireUser(req);
+  const body = await readBody(req);
+  const intent = body.intent || {};
+  if (!intent.id || !Array.isArray(intent.proposed_actions)) {
+    throw new HTTPError(400, "intent with proposed_actions is required");
+  }
+  for (const permission of intent.required_permissions || []) {
+    requirePermission(membership, permission);
+  }
+  const applied = [];
+  for (const action of intent.proposed_actions) {
+    applied.push(await applyOrchestrationAction(membership, action));
+  }
+  const confirmationID = crypto.randomUUID ? crypto.randomUUID() : shortID();
+  await writeAuditEvent(membership, "orchestration.confirmed", "intent", intent.id, {
+    confirmation_id: confirmationID,
+    type: intent.type,
+  });
+  writeJSON(res, 200, {
+    confirmation_id: confirmationID,
+    intent_id: intent.id,
+    applied,
+    status: "applied",
+  });
+}
+
+async function applyOrchestrationAction(membership, action) {
+  const path = String(action?.path || "");
+  const method = String(action?.method || "").toUpperCase();
+  const body = action?.body || {};
+  if (method !== "POST") throw new HTTPError(400, "unsupported orchestration action");
+  if (path === "/projects" && body.action === "create") {
+    requirePermission(membership, "project:create");
+    const localID = await uniqueProjectLocalID(membership.team_id, body.id || body.name);
+    const [project] = await rest("projects", {
+      method: "POST",
+      body: {
+        ...projectPayload(body),
+        created_by: membership.user_id,
+        local_id: localID,
+        name: String(body.name || localID),
+        status: body.status || "active",
+        team_id: membership.team_id,
+      },
+    });
+    return { path, project: publicProject(project) };
+  }
+  if (path === "/tasks" && body.action === "create") {
+    requirePermission(membership, "task:create");
+    return { path, ...(await createTask(membership, body)) };
+  }
+  throw new HTTPError(400, "unsupported orchestration action");
+}
+
 async function handleRunnerStatus(req, res) {
   const { membership } = await requireUser(req);
+  requirePermission(membership, "runner:read");
   const jobQuery = {
     team_id: `eq.${membership.team_id}`,
     select: "*",
@@ -840,6 +1516,7 @@ async function handleRunnerStatus(req, res) {
 
 async function handleRunnerPairingStart(req, res) {
   const { membership, user } = await requireUser(req);
+  requirePermission(membership, "runner:manage");
   const body = await readBody(req);
   const code = generatePairingCode();
   const now = nowISO();
@@ -934,6 +1611,7 @@ async function handleRunnerPairingClaim(req, res) {
 
 async function handleRunnerRegister(req, res) {
   const { membership } = await requireUser(req);
+  requirePermission(membership, "runner:manage");
   const body = await readBody(req);
   const teamID = body.team_id || membership.team_id;
   if (teamID !== membership.team_id) {
@@ -960,6 +1638,7 @@ async function handleRunnerRegister(req, res) {
 
 async function handleRunnerRevoke(req, res) {
   const { membership } = await requireUser(req);
+  requirePermission(membership, "runner:manage");
   const body = await readBody(req);
   const runnerID = String(body.runner_id || body.id || "").trim();
   if (!runnerID) throw new HTTPError(400, "runner_id is required");
@@ -1040,6 +1719,7 @@ async function handleRunnerCapabilities(req, res) {
     prefer: "resolution=merge-duplicates,return=representation",
     body: {
       arch: capabilities.arch || "",
+      cli_details: capabilities.cli_details || {},
       execution_modes: capabilities.execution_modes || [],
       gh_authenticated: Boolean(capabilities.gh_authenticated),
       gh_available: Boolean(capabilities.gh_available),
@@ -1268,6 +1948,162 @@ async function handleRunnerWikiWriteResult(req, res) {
   writeJSON(res, 200, { article: rows?.[0] || null });
 }
 
+async function handleSkills(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method === "GET") {
+    requirePermission(membership, "skill:read");
+    const rows = await rest("skills", {
+      query: {
+        order: "updated_at.desc",
+        select: "*",
+        status: "neq.archived",
+        team_id: `eq.${membership.team_id}`,
+      },
+    });
+    writeJSON(res, 200, { skills: rows || [] });
+    return;
+  }
+  if (req.method === "POST") {
+    const body = await readBody(req);
+    const action = String(body.action || "propose").trim();
+    if (action === "create") {
+      requirePermission(membership, "skill:create_active");
+    } else {
+      requirePermission(membership, "skill:propose");
+    }
+    const status = action === "create" ? "active" : "proposed";
+    const [skill] = await rest("skills", {
+      method: "POST",
+      body: {
+        channel: body.channel || "general",
+        content: String(body.content || ""),
+        created_by: body.created_by || membership.user_id,
+        created_by_user_id: membership.user_id,
+        description: body.description || "",
+        name: String(body.name || "").trim(),
+        risk: body.risk || "low",
+        status,
+        tags: Array.isArray(body.tags) ? body.tags : [],
+        team_id: membership.team_id,
+        title: body.title || body.name || "",
+        trigger: body.trigger || "",
+        workflow_definition: body.workflow_definition || "",
+        workflow_key: body.workflow_key || "",
+        workflow_provider: body.workflow_provider || "",
+        workflow_schedule: body.workflow_schedule || "",
+      },
+    });
+    await writeAuditEvent(membership, "skill.created", "skill", skill.id, {
+      name: skill.name,
+      status,
+    });
+    writeJSON(res, 200, { skill });
+    return;
+  }
+  if (req.method === "PUT") {
+    const body = await readBody(req);
+    const name = String(body.name || "").trim();
+    if (!name) throw new HTTPError(400, "name is required");
+    const [existing] = await rest("skills", {
+      query: {
+        limit: "1",
+        name: `eq.${name}`,
+        select: "*",
+        team_id: `eq.${membership.team_id}`,
+      },
+    });
+    if (!existing) throw new HTTPError(404, "skill not found");
+    const patch = { updated_at: nowISO() };
+    for (const key of [
+      "title",
+      "description",
+      "content",
+      "channel",
+      "trigger",
+      "workflow_provider",
+      "workflow_key",
+      "workflow_definition",
+      "workflow_schedule",
+      "risk",
+    ]) {
+      if (body[key] !== undefined) patch[key] = body[key];
+    }
+    if (body.tags !== undefined) patch.tags = Array.isArray(body.tags) ? body.tags : [];
+    if (body.status !== undefined) {
+      const nextStatus = String(body.status || "").trim();
+      if (nextStatus === "active" && existing.status !== "active") {
+        requirePermission(membership, "skill:approve");
+        patch.approved_at = nowISO();
+        patch.approved_by = membership.user_id;
+      } else if (nextStatus === "rejected") {
+        requirePermission(membership, "skill:approve");
+        patch.rejected_at = nowISO();
+        patch.rejected_by = membership.user_id;
+      } else {
+        requirePermission(membership, "skill:update");
+      }
+      patch.status = nextStatus;
+    } else {
+      requirePermission(membership, "skill:update");
+    }
+    const [skill] = await rest("skills", {
+      method: "PATCH",
+      query: { id: `eq.${existing.id}`, team_id: `eq.${membership.team_id}` },
+      body: patch,
+    });
+    await writeAuditEvent(membership, "skill.updated", "skill", skill.id, {
+      name: skill.name,
+      status: skill.status,
+    });
+    writeJSON(res, 200, { skill });
+    return;
+  }
+  if (req.method === "DELETE") {
+    requirePermission(membership, "skill:archive");
+    const body = await readBody(req);
+    const name = String(body.name || "").trim();
+    if (!name) throw new HTTPError(400, "name is required");
+    await rest("skills", {
+      method: "PATCH",
+      query: { name: `eq.${name}`, team_id: `eq.${membership.team_id}` },
+      body: { status: "archived", updated_at: nowISO() },
+    });
+    await writeAuditEvent(membership, "skill.archived", "skill", name);
+    writeJSON(res, 200, { ok: true });
+    return;
+  }
+  throw new HTTPError(405, "method not allowed");
+}
+
+async function handleSkillInvoke(req, res, name) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "skill:read");
+  const [skill] = await rest("skills", {
+    query: {
+      limit: "1",
+      name: `eq.${name}`,
+      select: "*",
+      status: "eq.active",
+      team_id: `eq.${membership.team_id}`,
+    },
+  });
+  if (!skill) throw new HTTPError(404, "skill not found");
+  const [updated] = await rest("skills", {
+    method: "PATCH",
+    query: { id: `eq.${skill.id}` },
+    body: {
+      last_execution_at: nowISO(),
+      last_execution_status: "invoked",
+      usage_count: Number(skill.usage_count || 0) + 1,
+      updated_at: nowISO(),
+    },
+  });
+  await writeAuditEvent(membership, "skill.invoked", "skill", updated.id, {
+    name: updated.name,
+  });
+  writeJSON(res, 200, { skill: updated });
+}
+
 async function requireRunner(req) {
   const token =
     bearer(req) ||
@@ -1355,15 +2191,23 @@ async function ensureRunnerJobForTask(task, project) {
     },
   });
   if (active?.length) return active[0];
+  const requestedBy =
+    task.human_owner_user_id || (isUUID(task.created_by) ? task.created_by : null);
+  const effective = requestedBy
+    ? await effectivePermissionsForUser(task.team_id, requestedBy)
+    : [];
   const [job] = await rest("runner_jobs", {
     method: "POST",
     body: {
       agent_memory_packet: await buildAgentMemoryPacket(task, project),
       agent_slug: task.owner || "",
+      effective_permissions: effective,
       execution_mode: task.execution_mode || "office",
+      model_mode: normalizeModelMode(task.model_mode),
       project_id: project?.id || null,
       provider_kind: normalizeProviderKind(task.provider_kind || task.required_provider || ""),
       repo_url: normalizeGitHubRepoURL(project?.github_repo_url || ""),
+      requested_by: requestedBy,
       status: "queued",
       task_id: task.id,
       team_id: task.team_id,
@@ -1372,6 +2216,19 @@ async function ensureRunnerJobForTask(task, project) {
   });
   await appendJobEvent(job, "", "queued", "info", "runner job queued for task execution");
   return job;
+}
+
+async function effectivePermissionsForUser(teamID, userID) {
+  const rows = await rest("memberships", {
+    query: {
+      limit: "1",
+      select: "*",
+      status: "eq.active",
+      team_id: `eq.${teamID}`,
+      user_id: `eq.${userID}`,
+    },
+  });
+  return rows?.[0] ? effectivePermissions(rows[0]) : [];
 }
 
 async function closeJobsForTask(task, status) {

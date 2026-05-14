@@ -350,6 +350,66 @@
   display: none;
 }
 
+.home-confirmation-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--warning-200);
+  border-radius: 8px;
+  background: var(--warning-100);
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.home-confirmation-card > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.home-confirmation-card strong {
+  font-size: 12px;
+}
+
+.home-confirmation-card span,
+.home-confirmation-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.home-confirmation-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.home-confirmation-actions button {
+  min-height: 28px;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.home-confirmation-actions button:first-child {
+  border-color: var(--warning-500);
+  background: var(--warning-500);
+  color: #fff;
+}
+
+.home-confirmation-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .home-context-chip {
   min-height: 22px;
   border: 1px solid var(--border-light);

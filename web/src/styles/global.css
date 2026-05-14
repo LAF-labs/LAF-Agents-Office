@@ -11,6 +11,47 @@
   padding: 0;
 }
 
+.model-mode-toggle {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.model-mode-toggle button {
+  min-height: 24px;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 700;
+  padding: 0 7px;
+  cursor: pointer;
+}
+
+.model-mode-toggle button.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent-strong);
+}
+
+.model-mode-toggle button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.model-mode-toggle span {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 :root {
   /* Neutral ramps are cool and quiet, with enough contrast for dense tools. */
   --neutral-950: #0a0d14;

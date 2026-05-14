@@ -534,6 +534,121 @@ test("hosted runner pairs with short setup code", async (t) => {
   assert.equal(duplicate.status, 410);
 });
 
+test("hosted model availability uses DB billing before env fallback", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runner_capabilities: [],
+    runners: [],
+    workspace_billing: [{ laf_model_enabled: false, team_id: "team-1" }],
+  };
+  const oldFetch = global.fetch;
+  const oldPaid = process.env.LAF_OFFICE_WORKSPACE_PAID;
+  t.after(() => {
+    global.fetch = oldFetch;
+    if (oldPaid === undefined) {
+      delete process.env.LAF_OFFICE_WORKSPACE_PAID;
+    } else {
+      process.env.LAF_OFFICE_WORKSPACE_PAID = oldPaid;
+    }
+  });
+  process.env.LAF_OFFICE_WORKSPACE_PAID = "true";
+  global.fetch = hostedFetch(db);
+
+  const availability = await invoke(["model", "availability"], "GET");
+
+  assert.equal(availability.status, 200);
+  assert.equal(availability.body.laf_model.available, false);
+  assert.equal(availability.body.allowed_modes.includes("laf_model"), false);
+  assert.equal(availability.body.reason, "workspace billing loaded from DB");
+});
+
+test("hosted local CLI mode requires a connected runner with supported CLI", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runner_capabilities: [],
+    runners: [
+      {
+        id: "runner-1",
+        capabilities: {},
+        status: "connected",
+        team_id: "team-1",
+      },
+    ],
+    workspace_billing: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const withoutCLI = await invoke(["model", "availability"], "GET");
+  assert.equal(withoutCLI.status, 200);
+  assert.equal(withoutCLI.body.local_cli.available, false);
+  assert.equal(withoutCLI.body.local_cli.reason, "no supported local CLI detected");
+
+  db.runner_capabilities.push({
+    cli_details: { codex: { detected: "true" } },
+    provider_runtimes: ["codex"],
+    runner_id: "runner-1",
+  });
+  const withCLI = await invoke(["model", "availability"], "GET");
+  assert.equal(withCLI.status, 200);
+  assert.equal(withCLI.body.local_cli.available, true);
+  assert.equal(withCLI.body.allowed_modes.includes("local_cli"), true);
+});
+
+test("hosted task mutation rejects unavailable model modes", async (t) => {
+  const db = {
+    audit_events: [],
+    delivery_receipts: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    projects: [],
+    runner_capabilities: [],
+    runner_job_events: [],
+    runner_jobs: [],
+    runners: [],
+    tasks: [],
+    workspace_billing: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const response = await invoke(["tasks"], "POST", {
+    action: "create",
+    model_mode: "local_cli",
+    title: "Run with unavailable runner",
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, "no connected local runner detected");
+  assert.equal(db.tasks.length, 0);
+});
+
 async function invoke(path, method, body, options = {}) {
   const req = {
     body,

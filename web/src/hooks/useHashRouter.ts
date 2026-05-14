@@ -149,7 +149,7 @@ function appStateToHash(state: {
       if (state.taskFocusId) {
         return `#/projects/${encodeURIComponent(
           state.projectFocusId,
-        )}/tickets/${encodeURIComponent(state.taskFocusId)}`;
+        )}/tasks/${encodeURIComponent(state.taskFocusId)}`;
       }
       return `#/projects/${encodeURIComponent(state.projectFocusId)}`;
     case "skills":

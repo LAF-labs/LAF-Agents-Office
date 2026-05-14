@@ -566,7 +566,7 @@ func (b *Broker) handleEntityGraphAll(w http.ResponseWriter, r *http.Request) {
 
 	// Discover every entity brief on disk and emit one node per file. The
 	// graph-level "kinds" (people|companies|customers) are the only valid
-	// node kinds — the TUI's richer palette (deals, tasks, tickets, …) is
+	// node kinds — the TUI's richer palette (deals, tasks, work items, …) is
 	// a fallback mapping the client can apply later.
 	root := worker.Repo().Root()
 	nodes := make([]GraphAllNode, 0, 16)
