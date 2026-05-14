@@ -923,6 +923,12 @@ git diff --check
 
 ### Phase 4 - `laf-bridge` CLI Skeleton
 
+Status: Partially implemented in the current workspace. The `laf-bridge` command
+exists with `pair`, `status`, `doctor`, `providers`, and one-shot `start`
+commands. `internal/bridge` now covers local config/token fallback, API pairing
+claim, Codex capability detection, pending-plan fetch, and Ed25519 execution
+plan validation. Project binding sync and daemon relay loop remain pending.
+
 Goal:
 
 Create the local bridge binary with pairing, config, capability detection, and
