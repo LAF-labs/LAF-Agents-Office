@@ -126,14 +126,28 @@ module.exports = async function handler(req, res) {
       await handleBridgePairingClaim(req, res);
       return;
     }
-    const bridgeDeviceActionMatch = path.match(/^bridge\/devices\/([^/]+)\/(heartbeat|revoke)$/);
-    if (bridgeDeviceActionMatch && req.method === "POST") {
+    const bridgeDeviceActionMatch = path.match(
+      /^bridge\/devices\/([^/]+)\/(heartbeat|revoke|pending-plans)$/,
+    );
+    if (
+      bridgeDeviceActionMatch &&
+      req.method === "POST" &&
+      ["heartbeat", "revoke"].includes(bridgeDeviceActionMatch[2])
+    ) {
       const [, deviceID, action] = bridgeDeviceActionMatch;
       if (action === "heartbeat") {
         await handleBridgeDeviceHeartbeat(req, res, decodeURIComponent(deviceID));
-      } else {
+      } else if (action === "revoke") {
         await handleBridgeDeviceRevoke(req, res, decodeURIComponent(deviceID));
       }
+      return;
+    }
+    if (
+      bridgeDeviceActionMatch &&
+      req.method === "GET" &&
+      bridgeDeviceActionMatch[2] === "pending-plans"
+    ) {
+      await handleBridgePendingPlans(req, res, decodeURIComponent(bridgeDeviceActionMatch[1]));
       return;
     }
     const localBindingMatch = path.match(
@@ -161,7 +175,9 @@ module.exports = async function handler(req, res) {
       await handleExecutionPlanCreate(req, res);
       return;
     }
-    const executionPlanMatch = path.match(/^execution\/plans\/([^/]+)(?:\/(cancel))?$/);
+    const executionPlanMatch = path.match(
+      /^execution\/plans\/([^/]+)(?:\/(ack|start|events|complete|cancel))?$/,
+    );
     if (executionPlanMatch) {
       const planID = decodeURIComponent(executionPlanMatch[1]);
       const action = executionPlanMatch[2] || "";
@@ -171,6 +187,14 @@ module.exports = async function handler(req, res) {
       }
       if (action === "cancel" && req.method === "POST") {
         await handleExecutionPlanCancel(req, res, planID);
+        return;
+      }
+      if (action === "events" && req.method === "GET") {
+        await handleExecutionPlanEvents(req, res, planID);
+        return;
+      }
+      if (["ack", "start", "events", "complete"].includes(action) && req.method === "POST") {
+        await handleBridgeExecutionPlanAction(req, res, planID, action);
         return;
       }
     }
@@ -1664,6 +1688,38 @@ async function handleBridgeDeviceRevoke(req, res, deviceID) {
   writeJSON(res, 200, { device: publicBridgeDevice(updated) });
 }
 
+async function handleBridgePendingPlans(req, res, deviceID) {
+  const device = await requireBridgeDevice(req);
+  if (device.id !== deviceID) throw new HTTPError(403, "bridge device token mismatch");
+  const rows = await rest("execution_plans", {
+    query: {
+      device_id: `eq.${device.id}`,
+      select: "*",
+      status: "in.(pending,dispatched,acknowledged,running)",
+      team_id: `eq.${device.team_id}`,
+      order: "created_at.asc",
+    },
+  }).catch(() => []);
+  const now = Date.now();
+  const plans = [];
+  for (const plan of rows || []) {
+    if (plan.expires_at && Date.parse(plan.expires_at) <= now) {
+      await rest("execution_plans", {
+        method: "PATCH",
+        query: {
+          id: `eq.${plan.id}`,
+          status: "not.in.(completed,failed,cancelled,expired)",
+          team_id: `eq.${device.team_id}`,
+        },
+        body: { last_error: "execution plan expired", status: "expired", updated_at: nowISO() },
+      }).catch(() => {});
+      continue;
+    }
+    plans.push(bridgeExecutionPlan(plan));
+  }
+  writeJSON(res, 200, { plans });
+}
+
 async function handleProjectLocalBindings(req, res, projectExternalID) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "bridge:read_own");
@@ -1843,6 +1899,159 @@ async function handleExecutionPlanCancel(req, res, planID) {
     },
   });
   writeJSON(res, 200, { plan: publicExecutionPlan(updated), cancelled: true });
+}
+
+async function handleExecutionPlanEvents(req, res, planID) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "execution:read");
+  const plan = await findExecutionPlan(membership.team_id, planID);
+  const rows = await rest("execution_events", {
+    query: {
+      order: "created_at.asc",
+      plan_id: `eq.${plan.id}`,
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+    },
+  }).catch(() => []);
+  writeJSON(res, 200, { events: (rows || []).map(publicExecutionEvent) });
+}
+
+async function handleBridgeExecutionPlanAction(req, res, planID, action) {
+  const device = await requireBridgeDevice(req);
+  const plan = await findExecutionPlanForBridge(device, planID);
+  if (action === "ack") {
+    await handleBridgeExecutionPlanAck(req, res, device, plan);
+    return;
+  }
+  if (action === "start") {
+    await handleBridgeExecutionPlanStart(req, res, device, plan);
+    return;
+  }
+  if (action === "events") {
+    await handleBridgeExecutionPlanEvent(req, res, device, plan);
+    return;
+  }
+  if (action === "complete") {
+    await handleBridgeExecutionPlanComplete(req, res, device, plan);
+  }
+}
+
+async function handleBridgeExecutionPlanAck(req, res, device, plan) {
+  ensureExecutionPlanNotTerminal(plan);
+  const body = await readBody(req);
+  const now = nowISO();
+  const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
+  const [updated] = await rest("execution_plans", {
+    method: "PATCH",
+    query: {
+      device_id: `eq.${device.id}`,
+      id: `eq.${plan.id}`,
+      status: "not.in.(completed,failed,cancelled,expired)",
+      team_id: `eq.${device.team_id}`,
+    },
+    body: {
+      acknowledged_at: plan.acknowledged_at || now,
+      lease_until: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
+      status:
+        plan.status === "pending" || plan.status === "dispatched"
+          ? "acknowledged"
+          : plan.status,
+      updated_at: now,
+    },
+  });
+  writeJSON(res, 200, { plan: bridgeExecutionPlan(updated || plan) });
+}
+
+async function handleBridgeExecutionPlanStart(req, res, device, plan) {
+  ensureExecutionPlanNotTerminal(plan);
+  const body = await readBody(req);
+  const now = nowISO();
+  const [updated] = await rest("execution_plans", {
+    method: "PATCH",
+    query: {
+      device_id: `eq.${device.id}`,
+      id: `eq.${plan.id}`,
+      status: "not.in.(completed,failed,cancelled,expired)",
+      team_id: `eq.${device.team_id}`,
+    },
+    body: {
+      lease_until: new Date(
+        Date.now() + clamp(Number(body.lease_seconds || 300), 30, 1800) * 1000,
+      ).toISOString(),
+      local_approval_status:
+        body.local_approval_status === "approved"
+          ? "approved"
+          : plan.local_approval_status || "pending",
+      started_at: plan.started_at || now,
+      status: "running",
+      updated_at: now,
+    },
+  });
+  writeJSON(res, 200, { plan: bridgeExecutionPlan(updated || plan) });
+}
+
+async function handleBridgeExecutionPlanEvent(req, res, device, plan) {
+  ensureExecutionPlanNotTerminal(plan);
+  const body = await readBody(req);
+  const sequence = Number(body.sequence);
+  if (!Number.isInteger(sequence) || sequence < 1) {
+    throw new HTTPError(400, "sequence must be a positive integer");
+  }
+  const eventType = String(body.event_type || body.kind || "").trim();
+  if (!eventType) throw new HTTPError(400, "event_type is required");
+  const [event] = await rest("execution_events", {
+    method: "POST",
+    body: {
+      created_at: nowISO(),
+      event_type: eventType,
+      payload: redactSensitiveValue(body.payload || {}),
+      plan_id: plan.id,
+      redacted: true,
+      sequence,
+      task_id: plan.task_id || null,
+      team_id: device.team_id,
+    },
+  });
+  writeJSON(res, 200, { event: publicExecutionEvent(event) });
+}
+
+async function handleBridgeExecutionPlanComplete(req, res, device, plan) {
+  const body = await readBody(req);
+  const status = normalizeExecutionTerminalStatus(body.status);
+  if (["completed", "failed", "cancelled"].includes(plan.status)) {
+    const existingReceipt = await findExecutionReceipt(plan.id);
+    if (!existingReceipt) {
+      throw new HTTPError(409, `execution plan is already terminal (${plan.status})`);
+    }
+    writeJSON(res, 200, {
+      plan: bridgeExecutionPlan(plan),
+      receipt: publicExecutionReceipt(existingReceipt),
+    });
+    return;
+  }
+  ensureExecutionPlanNotTerminal(plan);
+  const now = nowISO();
+  const [updated] = await rest("execution_plans", {
+    method: "PATCH",
+    query: {
+      device_id: `eq.${device.id}`,
+      id: `eq.${plan.id}`,
+      status: "not.in.(completed,failed,cancelled,expired)",
+      team_id: `eq.${device.team_id}`,
+    },
+    body: {
+      completed_at: now,
+      last_error: status === "failed" ? redactSensitiveText(body.error || body.summary || "") : "",
+      lease_until: null,
+      status,
+      updated_at: now,
+    },
+  });
+  const receipt = await ensureExecutionReceipt(updated || { ...plan, status, completed_at: now }, body);
+  writeJSON(res, 200, {
+    plan: bridgeExecutionPlan(updated || { ...plan, status, completed_at: now }),
+    receipt: publicExecutionReceipt(receipt),
+  });
 }
 
 async function handleOrchestrationIntent(req, res) {
@@ -2806,6 +3015,72 @@ async function findExecutionPlan(teamID, planID) {
   return rows[0];
 }
 
+async function findExecutionPlanForBridge(device, planID) {
+  const rows = await rest("execution_plans", {
+    query: {
+      device_id: `eq.${device.id}`,
+      id: `eq.${String(planID || "").trim()}`,
+      limit: "1",
+      select: "*",
+      team_id: `eq.${device.team_id}`,
+    },
+  });
+  const plan = rows?.[0];
+  if (!plan) throw new HTTPError(404, "execution plan not found");
+  if (plan.executor_user_id && plan.executor_user_id !== device.user_id) {
+    throw new HTTPError(403, "bridge device cannot execute this plan");
+  }
+  return plan;
+}
+
+async function findExecutionReceipt(planID) {
+  const rows = await rest("execution_receipts", {
+    query: {
+      limit: "1",
+      plan_id: `eq.${String(planID || "").trim()}`,
+      select: "*",
+    },
+  }).catch(() => []);
+  return rows?.[0] || null;
+}
+
+async function ensureExecutionReceipt(plan, body) {
+  const existing = await findExecutionReceipt(plan.id);
+  if (existing) return existing;
+  const now = nowISO();
+  const [receipt] = await rest("execution_receipts", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    query: { on_conflict: "plan_id" },
+    body: {
+      actor_user_id: plan.actor_user_id || null,
+      artifacts: redactSensitiveValue(arrayOrEmpty(body.artifacts)),
+      changed_files: redactSensitiveValue(arrayOrEmpty(body.changed_files)),
+      completed_at: plan.completed_at || now,
+      created_at: now,
+      device_id: plan.device_id || null,
+      executor_user_id: plan.executor_user_id || null,
+      mode: plan.mode,
+      plan_id: plan.id,
+      project_id: plan.project_id || null,
+      provider: plan.provider,
+      provider_version: truncateText(body.provider_version || "", 80),
+      started_at: plan.started_at || body.started_at || null,
+      status: normalizeExecutionTerminalStatus(plan.status),
+      summary: truncateText(redactSensitiveText(body.summary || body.message || ""), 2000),
+      task_id: plan.task_id || null,
+      team_id: plan.team_id,
+      test_results: redactSensitiveValue(arrayOrEmpty(body.test_results)),
+      usage: redactSensitiveValue(
+        body.usage && typeof body.usage === "object" && !Array.isArray(body.usage)
+          ? body.usage
+          : {},
+      ),
+    },
+  });
+  return receipt;
+}
+
 async function findRunnerJob(teamID, jobID) {
   const rows = await rest("runner_jobs", {
     query: { id: `eq.${jobID}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
@@ -3020,6 +3295,18 @@ function publicExecutionPlan(row) {
   const plan = { ...row };
   plan.prompt = "[REDACTED]";
   return plan;
+}
+
+function bridgeExecutionPlan(row) {
+  return { ...row };
+}
+
+function publicExecutionEvent(row) {
+  return { ...row };
+}
+
+function publicExecutionReceipt(row) {
+  return { ...row };
 }
 
 function publicRunnerJob(row, projects = {}, tasks = {}) {
@@ -3290,6 +3577,16 @@ function normalizeExecutionProvider(value, mode) {
   return "codex";
 }
 
+function normalizeExecutionTerminalStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  if (status === "completed" || status === "succeeded" || status === "success") {
+    return "completed";
+  }
+  if (status === "cancelled" || status === "canceled") return "cancelled";
+  if (status === "failed" || status === "error") return "failed";
+  throw new HTTPError(400, "status must be completed, failed, or cancelled");
+}
+
 async function resolveExecutionBinding({ bindingID, deviceID, membership, mode, project }) {
   if (mode !== "my_bridge") return null;
   if (!bindingID) throw new HTTPError(400, "binding_id is required for my_bridge mode");
@@ -3379,6 +3676,15 @@ function signExecutionPlan(plan) {
   };
 }
 
+function ensureExecutionPlanNotTerminal(plan) {
+  if (["completed", "failed", "cancelled", "expired"].includes(plan.status)) {
+    throw new HTTPError(409, `execution plan is already terminal (${plan.status})`);
+  }
+  if (plan.expires_at && Date.parse(plan.expires_at) <= Date.now()) {
+    throw new HTTPError(410, "execution plan expired");
+  }
+}
+
 function normalizeGitHubRepoURL(value) {
   const repoURL = String(value || "").trim();
   if (!repoURL) return "";
@@ -3403,6 +3709,8 @@ function redactSensitiveText(value) {
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
     .replace(/laf_runner_[A-Fa-f0-9]{20,}/g, "laf_runner_[REDACTED]")
     .replace(/lafr_[A-Za-z0-9_-]{20,}/g, "lafr_[REDACTED]")
+    .replace(/laf_bridge_[A-Fa-f0-9]{20,}/g, "laf_bridge_[REDACTED]")
+    .replace(/lafb_[A-Za-z0-9_-]{20,}/g, "lafb_[REDACTED]")
     .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "gh_[REDACTED]")
     .replace(/sk-(proj-)?[A-Za-z0-9_-]{20,}/g, "sk-[REDACTED]");
 }
@@ -3530,6 +3838,10 @@ function isUUID(value) {
 function clamp(value, min, max) {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+function arrayOrEmpty(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function compactObject(value) {

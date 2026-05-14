@@ -874,9 +874,11 @@ Tests:
 
 ### Phase 3 - Bridge API Control Plane
 
-Status: Partially implemented in the current workspace. Bridge availability,
-device list, pairing start/claim, heartbeat, own-device revoke, and web client
-types are in place. Local binding and execution-plan APIs remain pending.
+Status: Mostly implemented in the current workspace. Bridge availability,
+device list, pairing start/claim, heartbeat, own-device revoke, local binding
+CRUD, signed execution plan create/get/cancel, bridge pending-plan polling, and
+ack/start/event/complete lifecycle APIs are in place. Relay publication, full
+web UX wiring, and task-thread receipt surfacing remain for later phases.
 
 Goal:
 

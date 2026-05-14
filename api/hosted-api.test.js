@@ -47,6 +47,7 @@ test("desktop bridge execution migration defines idempotent schema, indexes, and
   assert.match(sql, /unique\(plan_id, sequence\)/);
   assert.match(sql, /unique\(plan_id\)/);
   assert.match(sql, /local_path_hash text not null/);
+  assert.match(sql, /updated_at timestamptz not null default now\(\)/);
   assert.doesNotMatch(sql, /\blocal_path text\b/);
   assert.doesNotMatch(sql, /create table public\./);
   assert.doesNotMatch(sql, /create index (?!if not exists)/);
@@ -957,6 +958,160 @@ test("hosted my_bridge execution plan create/get/cancel signs and redacts prompt
   assert.equal(cancelled.status, 200);
   assert.equal(cancelled.body.cancelled, true);
   assert.equal(cancelled.body.plan.status, "cancelled");
+});
+
+test("hosted bridge execution plan lifecycle records redacted events and idempotent receipt", async (t) => {
+  const db = {
+    audit_events: [],
+    bridge_devices: [],
+    bridge_pairing_codes: [],
+    execution_events: [],
+    execution_plans: [],
+    execution_receipts: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const start = await invoke(["bridge", "pairing", "start"], "POST", {
+    api_url: "https://office.test/api",
+  });
+  const claim = await invoke(
+    ["bridge", "pairing", "claim"],
+    "POST",
+    {
+      capabilities: { provider_runtimes: ["codex"] },
+      code: start.body.pairing.code,
+      device_label: "Kim's MacBook",
+      platform: "darwin",
+      public_key: "pub-ed25519",
+    },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(claim.status, 200);
+  const token = claim.body.bridge_token;
+  const device = db.bridge_devices[0];
+  const planID = "11111111-2222-4333-8444-555555555555";
+  db.execution_plans.push({
+    actor_user_id: "user-1",
+    binding_id: "binding-1",
+    context_refs: [],
+    created_at: new Date().toISOString(),
+    device_id: device.id,
+    effective_permissions: ["task:execute_agent"],
+    executor_user_id: "user-1",
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    id: planID,
+    local_approval_status: "pending",
+    mode: "my_bridge",
+    nonce: "nonce-1",
+    payload_hash: "hash-1",
+    policy: {},
+    project_id: "project-1",
+    prompt: "Secret implementation prompt",
+    provider: "codex",
+    required_permissions: [],
+    signature: "signature-1",
+    signature_alg: "ed25519",
+    signature_key_id: "key-1",
+    status: "pending",
+    task_id: "task-1",
+    team_id: "team-1",
+  });
+
+  const pending = await invoke(
+    ["bridge", "devices", device.id, "pending-plans"],
+    "GET",
+    undefined,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(pending.status, 200);
+  assert.equal(pending.body.plans.length, 1);
+  assert.equal(pending.body.plans[0].prompt, "Secret implementation prompt");
+
+  const ack = await invoke(
+    ["execution", "plans", planID, "ack"],
+    "POST",
+    { lease_seconds: 120 },
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(ack.status, 200);
+  assert.equal(ack.body.plan.status, "acknowledged");
+  assert.ok(db.execution_plans[0].acknowledged_at);
+  assert.ok(db.execution_plans[0].lease_until);
+
+  const started = await invoke(
+    ["execution", "plans", planID, "start"],
+    "POST",
+    { lease_seconds: 120, local_approval_status: "approved" },
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(started.status, 200);
+  assert.equal(started.body.plan.status, "running");
+  assert.equal(started.body.plan.local_approval_status, "approved");
+  assert.ok(db.execution_plans[0].started_at);
+
+  const event = await invoke(
+    ["execution", "plans", planID, "events"],
+    "POST",
+    {
+      event_type: "stdout",
+      payload: {
+        line: `using Bearer ${token}`,
+        nested: { bridge_token: token },
+      },
+      sequence: 1,
+    },
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(event.status, 200);
+  assert.equal(event.body.event.payload.line, "using Bearer [REDACTED]");
+  assert.equal(event.body.event.payload.nested.bridge_token, "[REDACTED]");
+
+  const events = await invoke(["execution", "plans", planID, "events"], "GET");
+  assert.equal(events.status, 200);
+  assert.equal(events.body.events.length, 1);
+  assert.equal(events.body.events[0].payload.nested.bridge_token, "[REDACTED]");
+
+  const completed = await invoke(
+    ["execution", "plans", planID, "complete"],
+    "POST",
+    {
+      changed_files: [{ path: "api/[...path].js" }],
+      provider_version: "codex-cli 1.2.3",
+      status: "completed",
+      summary: `Done with ${token}`,
+      test_results: [{ command: "node --test api/hosted-api.test.js", status: "passed" }],
+      usage: { output_tokens: 123 },
+    },
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(completed.status, 200);
+  assert.equal(completed.body.plan.status, "completed");
+  assert.equal(completed.body.receipt.status, "completed");
+  assert.equal(completed.body.receipt.summary, "Done with laf_bridge_[REDACTED]");
+  assert.equal(db.execution_receipts.length, 1);
+
+  const retried = await invoke(
+    ["execution", "plans", planID, "complete"],
+    "POST",
+    { status: "completed", summary: "retry should not duplicate" },
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(retried.status, 200);
+  assert.equal(retried.body.receipt.id, completed.body.receipt.id);
+  assert.equal(db.execution_receipts.length, 1);
 });
 
 test("hosted my_bridge execution plan requires trusted binding and own bridge execute permission", async (t) => {

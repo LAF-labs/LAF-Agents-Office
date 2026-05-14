@@ -338,6 +338,102 @@ export interface BridgeAvailability {
   reason?: string;
 }
 
+export interface ProjectLocalBinding {
+  id: string;
+  team_id: string;
+  project_id: string;
+  user_id: string;
+  device_id: string;
+  display_name: string;
+  local_path_hash: string;
+  git_root_hash?: string | null;
+  git_remote_hash?: string | null;
+  trusted: boolean;
+  trusted_at?: string | null;
+  last_used_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ExecutionPlan {
+  id: string;
+  team_id: string;
+  project_id?: string | null;
+  task_id?: string | null;
+  binding_id?: string | null;
+  actor_user_id: string;
+  executor_user_id?: string | null;
+  device_id?: string | null;
+  mode: ModelMode;
+  provider: "codex" | "claude_code" | "laf_model" | string;
+  status:
+    | "pending"
+    | "dispatched"
+    | "acknowledged"
+    | "running"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "expired"
+    | string;
+  prompt: string;
+  required_permissions?: WorkspacePermission[];
+  effective_permissions?: WorkspacePermission[];
+  context_refs?: unknown[];
+  policy?: Record<string, unknown>;
+  signature_alg?: string;
+  signature_key_id?: string;
+  payload_hash?: string;
+  signature?: string;
+  nonce?: string;
+  local_approval_status?: string;
+  expires_at?: string;
+  lease_until?: string | null;
+  dispatched_at?: string | null;
+  acknowledged_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  cancel_requested_at?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ExecutionEvent {
+  id: string;
+  team_id: string;
+  plan_id: string;
+  task_id?: string | null;
+  sequence: number;
+  event_type: string;
+  payload: Record<string, unknown>;
+  redacted: boolean;
+  created_at?: string;
+}
+
+export interface ExecutionReceipt {
+  id: string;
+  team_id: string;
+  project_id?: string | null;
+  task_id?: string | null;
+  plan_id?: string | null;
+  actor_user_id?: string | null;
+  executor_user_id?: string | null;
+  device_id?: string | null;
+  mode: ModelMode;
+  provider: string;
+  provider_version?: string;
+  status: "completed" | "failed" | "cancelled" | string;
+  summary?: string;
+  changed_files?: unknown[];
+  test_results?: unknown[];
+  artifacts?: unknown[];
+  usage?: Record<string, unknown>;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at?: string;
+}
+
 export interface OrchestrationIntent {
   id: string;
   type: string;
@@ -419,6 +515,71 @@ export function revokeBridgeDevice(deviceID: string) {
   return post<{ device: BridgeDevice }>(
     `/bridge/devices/${encodeURIComponent(deviceID)}/revoke`,
     {},
+  );
+}
+
+export function getProjectLocalBindings(projectID: string) {
+  return get<{ bindings: ProjectLocalBinding[] }>(
+    `/projects/${encodeURIComponent(projectID)}/local-bindings`,
+  );
+}
+
+export function createProjectLocalBinding(
+  projectID: string,
+  body: {
+    device_id: string;
+    local_path: string;
+    display_name?: string;
+    git_root?: string;
+    git_remote_url?: string;
+    trusted?: boolean;
+  },
+) {
+  return post<{ binding: ProjectLocalBinding }>(
+    `/projects/${encodeURIComponent(projectID)}/local-bindings`,
+    body,
+  );
+}
+
+export function deleteProjectLocalBinding(
+  projectID: string,
+  bindingID: string,
+) {
+  return del<{ binding: ProjectLocalBinding; deleted: boolean }>(
+    `/projects/${encodeURIComponent(projectID)}/local-bindings/${encodeURIComponent(bindingID)}`,
+  );
+}
+
+export function createExecutionPlan(body: {
+  task_id: string;
+  message: string;
+  mode: Exclude<ModelMode, "record_only">;
+  provider?: "codex" | "claude_code" | "laf_model";
+  binding_id?: string;
+  device_id?: string;
+  required_permissions?: WorkspacePermission[];
+  expires_in_seconds?: number;
+  policy?: Record<string, unknown>;
+}) {
+  return post<{ plan: ExecutionPlan }>("/execution/plans", body);
+}
+
+export function getExecutionPlan(planID: string) {
+  return get<{ plan: ExecutionPlan }>(
+    `/execution/plans/${encodeURIComponent(planID)}`,
+  );
+}
+
+export function cancelExecutionPlan(planID: string) {
+  return post<{ plan: ExecutionPlan; cancelled: boolean }>(
+    `/execution/plans/${encodeURIComponent(planID)}/cancel`,
+    {},
+  );
+}
+
+export function getExecutionPlanEvents(planID: string) {
+  return get<{ events: ExecutionEvent[] }>(
+    `/execution/plans/${encodeURIComponent(planID)}/events`,
   );
 }
 

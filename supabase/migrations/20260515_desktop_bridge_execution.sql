@@ -103,6 +103,7 @@ create table if not exists public.execution_plans (
   cancel_requested_at timestamptz,
   last_error text,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique(signature_key_id, nonce)
 );
 
