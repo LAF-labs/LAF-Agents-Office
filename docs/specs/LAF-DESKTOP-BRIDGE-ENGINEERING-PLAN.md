@@ -845,6 +845,8 @@ cd web && npm test -- src/components/apps/HomeApp.test.tsx src/components/apps/T
 
 ### Phase 2 - Bridge Persistence Schema
 
+Status: Implemented in the current workspace.
+
 Goal:
 
 Add bridge device, binding, execution plan, event, and receipt persistence.
@@ -909,8 +911,8 @@ Tests:
 Gate:
 
 ```bash
-node --check api/[...path].js
 node --test api/hosted-api.test.js
+git diff --check
 ```
 
 ### Phase 4 - `laf-bridge` CLI Skeleton

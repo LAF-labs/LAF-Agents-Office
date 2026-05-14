@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
 
 process.env.SUPABASE_URL = "https://supabase.test";
@@ -6,6 +8,51 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
 process.env.SUPABASE_ANON_KEY = "anon";
 
 const handler = require("./[...path].js");
+
+test("desktop bridge execution migration defines idempotent schema, indexes, and RLS", () => {
+  const sql = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260515_desktop_bridge_execution.sql"),
+    "utf8",
+  );
+  const tables = [
+    "bridge_devices",
+    "bridge_pairing_codes",
+    "project_local_bindings",
+    "execution_plans",
+    "execution_events",
+    "execution_receipts",
+  ];
+  for (const table of tables) {
+    assert.match(sql, new RegExp(`create table if not exists public\\.${table}\\b`));
+    assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`));
+  }
+  for (const index of [
+    "idx_bridge_devices_team_user",
+    "idx_bridge_devices_team_seen",
+    "idx_bridge_pairing_codes_team_user",
+    "idx_project_local_bindings_project_user",
+    "idx_execution_plans_team_status",
+    "idx_execution_plans_device_status",
+    "idx_execution_plans_task",
+    "idx_execution_events_plan_created",
+    "idx_execution_receipts_task_created",
+  ]) {
+    assert.match(sql, new RegExp(`create index if not exists ${index}\\b`));
+  }
+  assert.match(sql, /check \(device_kind in \('desktop', 'team_bridge'\)\)/);
+  assert.match(sql, /check \(status in \('online', 'offline', 'revoked'\)\)/);
+  assert.match(sql, /check \(mode in \('laf_model', 'my_bridge', 'team_bridge', 'record_only'\)\)/);
+  assert.match(sql, /check \(provider in \('codex', 'claude_code', 'laf_model'\)\)/);
+  assert.match(sql, /unique\(signature_key_id, nonce\)/);
+  assert.match(sql, /unique\(plan_id, sequence\)/);
+  assert.match(sql, /unique\(plan_id\)/);
+  assert.match(sql, /local_path_hash text not null/);
+  assert.doesNotMatch(sql, /\blocal_path text\b/);
+  assert.doesNotMatch(sql, /create table public\./);
+  assert.doesNotMatch(sql, /create index (?!if not exists)/);
+  assert.match(sql, /drop policy if exists "members can read bridge devices"/);
+  assert.match(sql, /drop policy if exists "members can read execution receipts"/);
+});
 
 test("hosted team bridge task creation queues a runner job with agent-memory/v1", async (t) => {
   const project = {
