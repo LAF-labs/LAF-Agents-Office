@@ -965,6 +965,7 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
     audit_events: [],
     bridge_devices: [],
     bridge_pairing_codes: [],
+    delivery_receipts: [],
     execution_events: [],
     execution_plans: [],
     execution_receipts: [],
@@ -1102,6 +1103,10 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(completed.body.receipt.status, "completed");
   assert.equal(completed.body.receipt.summary, "Done with laf_bridge_[REDACTED]");
   assert.equal(db.execution_receipts.length, 1);
+  assert.equal(db.delivery_receipts.length, 1);
+  assert.equal(db.delivery_receipts[0].delivery_status, "completed");
+  assert.equal(db.delivery_receipts[0].delivery_summary, "Done with laf_bridge_[REDACTED]");
+  assert.equal(db.delivery_receipts[0].task_id, "task-1");
 
   const retried = await invoke(
     ["execution", "plans", planID, "complete"],
@@ -1112,6 +1117,7 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(retried.status, 200);
   assert.equal(retried.body.receipt.id, completed.body.receipt.id);
   assert.equal(db.execution_receipts.length, 1);
+  assert.equal(db.delivery_receipts.length, 1);
 });
 
 test("hosted my_bridge execution plan requires trusted binding and own bridge execute permission", async (t) => {

@@ -2047,7 +2047,13 @@ async function handleBridgeExecutionPlanComplete(req, res, device, plan) {
       updated_at: now,
     },
   });
-  const receipt = await ensureExecutionReceipt(updated || { ...plan, status, completed_at: now }, body);
+  const { created: receiptCreated, receipt } = await ensureExecutionReceipt(
+    updated || { ...plan, status, completed_at: now },
+    body,
+  );
+  if (receiptCreated) {
+    await ensureExecutionDeliveryReceipt(updated || { ...plan, status, completed_at: now }, receipt);
+  }
   writeJSON(res, 200, {
     plan: bridgeExecutionPlan(updated || { ...plan, status, completed_at: now }),
     receipt: publicExecutionReceipt(receipt),
@@ -3046,7 +3052,7 @@ async function findExecutionReceipt(planID) {
 
 async function ensureExecutionReceipt(plan, body) {
   const existing = await findExecutionReceipt(plan.id);
-  if (existing) return existing;
+  if (existing) return { created: false, receipt: existing };
   const now = nowISO();
   const [receipt] = await rest("execution_receipts", {
     method: "POST",
@@ -3078,7 +3084,27 @@ async function ensureExecutionReceipt(plan, body) {
       ),
     },
   });
-  return receipt;
+  return { created: true, receipt };
+}
+
+async function ensureExecutionDeliveryReceipt(plan, receipt) {
+  if (!plan?.task_id || !plan?.team_id) return;
+  await rest("delivery_receipts", {
+    method: "POST",
+    body: {
+      delivery_checked_at: receipt.completed_at || nowISO(),
+      delivery_checks_status: "",
+      delivery_draft: false,
+      delivery_merge_state: "",
+      delivery_review_decision: "",
+      delivery_status: receipt.status || "",
+      delivery_summary: redactSensitiveText(receipt.summary || ""),
+      delivery_url: "",
+      project_id: plan.project_id || null,
+      task_id: plan.task_id,
+      team_id: plan.team_id,
+    },
+  });
 }
 
 async function findRunnerJob(teamID, jobID) {
