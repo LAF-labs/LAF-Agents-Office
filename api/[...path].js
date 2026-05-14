@@ -157,6 +157,23 @@ module.exports = async function handler(req, res) {
         return;
       }
     }
+    if (path === "execution/plans" && req.method === "POST") {
+      await handleExecutionPlanCreate(req, res);
+      return;
+    }
+    const executionPlanMatch = path.match(/^execution\/plans\/([^/]+)(?:\/(cancel))?$/);
+    if (executionPlanMatch) {
+      const planID = decodeURIComponent(executionPlanMatch[1]);
+      const action = executionPlanMatch[2] || "";
+      if (!action && req.method === "GET") {
+        await handleExecutionPlanGet(req, res, planID);
+        return;
+      }
+      if (action === "cancel" && req.method === "POST") {
+        await handleExecutionPlanCancel(req, res, planID);
+        return;
+      }
+    }
     if (path === "orchestration/intent" && req.method === "POST") {
       await handleOrchestrationIntent(req, res);
       return;
@@ -1724,6 +1741,110 @@ async function handleProjectLocalBindingDelete(req, res, projectExternalID, bind
   writeJSON(res, 200, { binding: publicProjectLocalBinding(binding), deleted: true });
 }
 
+async function handleExecutionPlanCreate(req, res) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "execution:plan_create");
+  requirePermission(membership, "task:execute_agent");
+  const body = await readBody(req);
+  const mode = normalizeModelMode(body.mode);
+  if (mode === "record_only") throw new HTTPError(400, "record_only mode cannot create execution plans");
+  if (mode === "my_bridge") requirePermission(membership, "bridge:execute_own");
+  if (mode === "team_bridge") requirePermission(membership, "bridge:execute_team");
+  const provider = normalizeExecutionProvider(body.provider, mode);
+  const task = await findTask(membership.team_id, body.task_id || body.taskID || body.taskId);
+  const project = task.project_id ? await getProjectByID(membership.team_id, task.project_id) : null;
+  const prompt = String(body.message || body.prompt || "").trim();
+  if (!prompt) throw new HTTPError(400, "message is required");
+  const bindingID = String(body.binding_id || "").trim();
+  const deviceID = String(body.device_id || "").trim();
+  const binding = await resolveExecutionBinding({
+    bindingID,
+    deviceID,
+    membership,
+    mode,
+    project,
+  });
+  const requiredPermissions = normalizeStringList(body.required_permissions || []);
+  const effective = effectivePermissions(membership);
+  for (const permission of requiredPermissions) {
+    if (!effective.includes(permission)) {
+      throw new HTTPError(403, `required permission exceeds actor scope: ${permission}`);
+    }
+  }
+  const now = Date.now();
+  const expiresInSeconds = clamp(Number(body.expires_in_seconds || 900), 120, 3600);
+  const planID = crypto.randomUUID ? crypto.randomUUID() : `plan-${shortID()}`;
+  const expiresAt = new Date(now + expiresInSeconds * 1000).toISOString();
+  const plan = {
+    actor_user_id: membership.user_id,
+    binding_id: binding?.id || null,
+    cancel_requested_at: null,
+    completed_at: null,
+    context_refs: [],
+    created_at: nowISO(),
+    device_id: deviceID || binding?.device_id || null,
+    dispatched_at: null,
+    effective_permissions: effective,
+    executor_user_id: membership.user_id,
+    expires_at: expiresAt,
+    id: planID,
+    mode,
+    policy: body.policy && typeof body.policy === "object" ? body.policy : {},
+    project_id: project?.id || null,
+    prompt,
+    provider,
+    required_permissions: requiredPermissions,
+    started_at: null,
+    status: "pending",
+    task_id: task.id,
+    team_id: membership.team_id,
+  };
+  const signed = signExecutionPlan(plan);
+  const [created] = await rest("execution_plans", {
+    method: "POST",
+    body: {
+      ...plan,
+      local_approval_status: "pending",
+      nonce: signed.nonce,
+      payload_hash: signed.payload_hash,
+      signature: signed.signature,
+      signature_alg: signed.signature_alg,
+      signature_key_id: signed.signature_key_id,
+      updated_at: nowISO(),
+    },
+  });
+  writeJSON(res, 200, { plan: publicExecutionPlan(created) });
+}
+
+async function handleExecutionPlanGet(req, res, planID) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "execution:read");
+  const plan = await findExecutionPlan(membership.team_id, planID);
+  writeJSON(res, 200, { plan: publicExecutionPlan(plan) });
+}
+
+async function handleExecutionPlanCancel(req, res, planID) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "execution:cancel");
+  const plan = await findExecutionPlan(membership.team_id, planID);
+  if (["completed", "failed", "cancelled", "expired"].includes(plan.status)) {
+    throw new HTTPError(409, `execution plan is already terminal (${plan.status})`);
+  }
+  const now = nowISO();
+  const [updated] = await rest("execution_plans", {
+    method: "PATCH",
+    query: { id: `eq.${plan.id}`, team_id: `eq.${membership.team_id}` },
+    body: {
+      cancel_requested_at: now,
+      status: plan.status === "pending" || plan.status === "dispatched" || plan.status === "acknowledged"
+        ? "cancelled"
+        : plan.status,
+      updated_at: now,
+    },
+  });
+  writeJSON(res, 200, { plan: publicExecutionPlan(updated), cancelled: true });
+}
+
 async function handleOrchestrationIntent(req, res) {
   const { membership } = await requireUser(req);
   const body = await readBody(req);
@@ -2672,6 +2793,19 @@ async function findTask(teamID, externalID) {
   return rows[0];
 }
 
+async function findExecutionPlan(teamID, planID) {
+  const rows = await rest("execution_plans", {
+    query: {
+      id: `eq.${String(planID || "").trim()}`,
+      limit: "1",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  if (!rows?.length) throw new HTTPError(404, "execution plan not found");
+  return rows[0];
+}
+
 async function findRunnerJob(teamID, jobID) {
   const rows = await rest("runner_jobs", {
     query: { id: `eq.${jobID}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
@@ -2880,6 +3014,12 @@ function publicBridgeDevice(row) {
 
 function publicProjectLocalBinding(row) {
   return { ...row };
+}
+
+function publicExecutionPlan(row) {
+  const plan = { ...row };
+  plan.prompt = "[REDACTED]";
+  return plan;
 }
 
 function publicRunnerJob(row, projects = {}, tasks = {}) {
@@ -3139,6 +3279,104 @@ function normalizeProviderKind(value) {
     return kind;
   }
   return "";
+}
+
+function normalizeExecutionProvider(value, mode) {
+  const provider = String(value || "").trim().toLowerCase().replace(/-/g, "_");
+  if (provider === "codex" || provider === "claude_code" || provider === "laf_model") {
+    return provider;
+  }
+  if (mode === "laf_model") return "laf_model";
+  return "codex";
+}
+
+async function resolveExecutionBinding({ bindingID, deviceID, membership, mode, project }) {
+  if (mode !== "my_bridge") return null;
+  if (!bindingID) throw new HTTPError(400, "binding_id is required for my_bridge mode");
+  if (!deviceID) throw new HTTPError(400, "device_id is required for my_bridge mode");
+  const devices = await rest("bridge_devices", {
+    query: {
+      id: `eq.${deviceID}`,
+      limit: "1",
+      select: "*",
+      status: "eq.online",
+      team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${membership.user_id}`,
+    },
+  });
+  const device = devices?.[0];
+  if (!device || device.revoked_at || device.status === "revoked") {
+    throw new HTTPError(400, "my_bridge requires an online non-revoked device");
+  }
+  const rows = await rest("project_local_bindings", {
+    query: {
+      id: `eq.${bindingID}`,
+      limit: "1",
+      project_id: `eq.${project?.id || ""}`,
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+      trusted: "eq.true",
+      user_id: `eq.${membership.user_id}`,
+      device_id: `eq.${deviceID}`,
+    },
+  });
+  const binding = rows?.[0];
+  if (!binding) throw new HTTPError(400, "my_bridge requires a trusted binding for project/device");
+  return binding;
+}
+
+function signingKeyPair() {
+  const privateKeyPEM = String(process.env.LAF_EXECUTION_PLAN_SIGNING_PRIVATE_KEY || "").trim();
+  const publicKeyPEM = String(process.env.LAF_EXECUTION_PLAN_SIGNING_PUBLIC_KEY || "").trim();
+  if (privateKeyPEM && publicKeyPEM) {
+    return {
+      key_id: String(process.env.LAF_EXECUTION_PLAN_SIGNING_KEY_ID || "execution-plan-ed25519"),
+      privateKey: crypto.createPrivateKey(privateKeyPEM),
+      publicKey: crypto.createPublicKey(publicKeyPEM),
+    };
+  }
+  const generated = crypto.generateKeyPairSync("ed25519");
+  return {
+    key_id: "execution-plan-dev-ephemeral",
+    privateKey: generated.privateKey,
+    publicKey: generated.publicKey,
+  };
+}
+
+function signExecutionPlan(plan) {
+  const fields = [
+    "id",
+    "team_id",
+    "project_id",
+    "task_id",
+    "binding_id",
+    "actor_user_id",
+    "executor_user_id",
+    "device_id",
+    "mode",
+    "provider",
+    "required_permissions",
+    "effective_permissions",
+    "context_refs",
+    "prompt",
+    "policy",
+    "expires_at",
+  ];
+  const payload = {};
+  for (const field of fields) payload[field] = plan[field] ?? null;
+  const nonce = crypto.randomBytes(16).toString("hex");
+  payload.nonce = nonce;
+  const canonical = JSON.stringify(payload);
+  const payloadHash = crypto.createHash("sha256").update(canonical).digest("hex");
+  const keyPair = signingKeyPair();
+  const signature = crypto.sign(null, Buffer.from(canonical), keyPair.privateKey).toString("base64");
+  return {
+    nonce,
+    payload_hash: payloadHash,
+    signature,
+    signature_alg: "ed25519",
+    signature_key_id: keyPair.key_id,
+  };
 }
 
 function normalizeGitHubRepoURL(value) {

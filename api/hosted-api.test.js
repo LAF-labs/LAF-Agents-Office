@@ -231,7 +231,7 @@ test("hosted non-team bridge tasks do not queue runner jobs", async (t) => {
     title: "Record only agent task",
   });
 
-  assert.equal(created.status, 200);
+  assert.equal(created.status, 200, JSON.stringify(created.body));
   assert.equal(created.body.task.model_mode, "record_only");
   assert.equal(created.body.runner_job, null);
 
@@ -664,7 +664,7 @@ test("hosted bridge pairs, heartbeats, lists, and revokes own devices", async (t
     bridge_pairing_codes: [],
     memberships: [
       {
-        role: "member",
+        role: "owner",
         status: "active",
         team_id: "team-1",
         user_id: "user-1",
@@ -788,7 +788,7 @@ test("hosted project local bindings CRUD hashes local metadata", async (t) => {
     ],
     memberships: [
       {
-        role: "member",
+        role: "owner",
         status: "active",
         team_id: "team-1",
         user_id: "user-1",
@@ -868,6 +868,178 @@ test("hosted project local bindings require own bridge permission", async (t) =>
   const response = await invoke(["projects", "project-a", "local-bindings"], "GET");
   assert.equal(response.status, 403);
   assert.equal(response.body.error, "permission required: bridge:read_own");
+});
+
+test("hosted my_bridge execution plan create/get/cancel signs and redacts prompt", async (t) => {
+  const db = {
+    bridge_devices: [
+      {
+        id: "bridge-device-1",
+        status: "online",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    execution_plans: [],
+    memberships: [
+      {
+        role: "member",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    project_local_bindings: [
+      {
+        id: "binding-1",
+        device_id: "bridge-device-1",
+        project_id: "11111111-1111-4111-8111-111111111111",
+        team_id: "team-1",
+        trusted: true,
+        user_id: "user-1",
+      },
+    ],
+    projects: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        local_id: "project-a",
+        name: "Project A",
+        team_id: "team-1",
+      },
+    ],
+    tasks: [
+      {
+        id: "task-1",
+        local_id: "task-a",
+        model_mode: "my_bridge",
+        project_id: "11111111-1111-4111-8111-111111111111",
+        status: "open",
+        team_id: "team-1",
+        title: "Bridge execution task",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const created = await invoke(["execution", "plans"], "POST", {
+    binding_id: "binding-1",
+    device_id: "bridge-device-1",
+    message: "Implement and run tests",
+    mode: "my_bridge",
+    provider: "codex",
+    task_id: "task-a",
+  });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.plan.mode, "my_bridge");
+  assert.equal(created.body.plan.provider, "codex");
+  assert.equal(created.body.plan.prompt, "[REDACTED]");
+  assert.equal(typeof created.body.plan.signature, "string");
+  assert.equal(typeof created.body.plan.signature_key_id, "string");
+  assert.equal(typeof created.body.plan.payload_hash, "string");
+  assert.equal(typeof created.body.plan.nonce, "string");
+  assert.equal(db.execution_plans.length, 1);
+  assert.equal(db.execution_plans[0].prompt, "Implement and run tests");
+
+  const fetched = await invoke(["execution", "plans", created.body.plan.id], "GET");
+  assert.equal(fetched.status, 200);
+  assert.equal(fetched.body.plan.prompt, "[REDACTED]");
+
+  const cancelled = await invoke(
+    ["execution", "plans", created.body.plan.id, "cancel"],
+    "POST",
+    {},
+  );
+  assert.equal(cancelled.status, 200);
+  assert.equal(cancelled.body.cancelled, true);
+  assert.equal(cancelled.body.plan.status, "cancelled");
+});
+
+test("hosted my_bridge execution plan requires trusted binding and own bridge execute permission", async (t) => {
+  const db = {
+    bridge_devices: [
+      {
+        id: "bridge-device-1",
+        status: "online",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    execution_plans: [],
+    memberships: [
+      {
+        role: "viewer",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    project_local_bindings: [
+      {
+        id: "binding-1",
+        device_id: "bridge-device-1",
+        project_id: "11111111-1111-4111-8111-111111111111",
+        team_id: "team-1",
+        trusted: false,
+        user_id: "user-1",
+      },
+    ],
+    projects: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        local_id: "project-a",
+        name: "Project A",
+        team_id: "team-1",
+      },
+    ],
+    tasks: [
+      {
+        id: "task-1",
+        local_id: "task-a",
+        model_mode: "my_bridge",
+        project_id: "11111111-1111-4111-8111-111111111111",
+        status: "open",
+        team_id: "team-1",
+        title: "Bridge execution task",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const noPerm = await invoke(["execution", "plans"], "POST", {
+    binding_id: "binding-1",
+    device_id: "bridge-device-1",
+    message: "Implement and run tests",
+    mode: "my_bridge",
+    provider: "codex",
+    task_id: "task-a",
+  });
+  assert.equal(noPerm.status, 403);
+  assert.equal(noPerm.body.error, "permission required: execution:plan_create");
+
+  db.memberships[0].role = "owner";
+  const untrusted = await invoke(["execution", "plans"], "POST", {
+    binding_id: "binding-1",
+    device_id: "bridge-device-1",
+    message: "Implement and run tests",
+    mode: "my_bridge",
+    provider: "codex",
+    task_id: "task-a",
+  });
+  assert.equal(untrusted.status, 400, JSON.stringify(untrusted.body));
+  assert.equal(
+    untrusted.body.error,
+    "my_bridge requires a trusted binding for project/device",
+  );
 });
 
 test("hosted model availability uses DB billing before env fallback", async (t) => {
