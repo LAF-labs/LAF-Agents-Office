@@ -630,6 +630,14 @@ func TestHostedTaskCreationQueuesRunnerJobWithoutLocalWorktree(t *testing.T) {
 	})
 	b.mu.Lock()
 	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
+	b.runners = []hostedRunner{{
+		ID:     "runner-1",
+		TeamID: "team-a",
+		Status: runnerStatusConnected,
+		Capabilities: runnerCapabilities{
+			ProviderRuntimes: []string{"codex"},
+		},
+	}}
 	b.wikiWorker = worker
 	b.mu.Unlock()
 	project := createProjectForTest(t, b, map[string]string{
@@ -657,6 +665,7 @@ func TestHostedTaskCreationQueuesRunnerJobWithoutLocalWorktree(t *testing.T) {
 		"owner":      "builder",
 		"created_by": "human",
 		"project_id": project.ID,
+		"model_mode": "team_bridge",
 	}))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("create task status = %d: %s", rec.Code, rec.Body.String())

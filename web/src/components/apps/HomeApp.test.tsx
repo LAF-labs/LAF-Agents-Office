@@ -48,7 +48,8 @@ describe("HomeApp", () => {
       allowed_modes: ["record_only"],
       default_mode: "record_only",
       laf_model: { available: false, reason: "paid workspace required" },
-      local_cli: { available: false, reason: "runner required" },
+      my_bridge: { available: false, reason: "bridge required" },
+      team_bridge: { available: false, reason: "runner required" },
       record_only: { available: true },
     });
     apiMocks.routeOrchestrationIntent.mockResolvedValue({

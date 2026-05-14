@@ -248,6 +248,7 @@ export type WorkspacePermission =
   | "skill:approve"
   | "skill:update"
   | "skill:archive"
+  | "skill:invoke"
   | "memory:read"
   | "memory:write_draft"
   | "memory:promote"
@@ -256,6 +257,20 @@ export type WorkspacePermission =
   | "runner:manage"
   | "model:use_laf"
   | "model:use_local_cli"
+  | "bridge:pair_own"
+  | "bridge:read_own"
+  | "bridge:execute_own"
+  | "bridge:manage_own"
+  | "bridge:read_team"
+  | "bridge:execute_team"
+  | "bridge:manage_team"
+  | "execution:plan_create"
+  | "execution:read"
+  | "execution:cancel"
+  | "execution:receipt_read"
+  | "execution:receipt_write"
+  | "mcp:use_task_context"
+  | "mcp:use_workspace_context"
   | "audit:read";
 
 export interface PermissionOverride {
@@ -279,13 +294,18 @@ export interface PermissionsResponse {
   members: PermissionMember[];
 }
 
-export type ModelMode = "laf_model" | "local_cli" | "record_only";
+export type ModelMode =
+  | "laf_model"
+  | "my_bridge"
+  | "team_bridge"
+  | "record_only";
 
 export interface ModelAvailability {
   default_mode: ModelMode;
   allowed_modes: ModelMode[];
   laf_model: { available: boolean; reason?: string };
-  local_cli: { available: boolean; reason?: string };
+  my_bridge: { available: boolean; reason?: string };
+  team_bridge: { available: boolean; reason?: string };
   record_only: { available: boolean; reason?: string };
   reason?: string;
 }
@@ -363,7 +383,7 @@ export function confirmOrchestrationIntent(intent: OrchestrationIntent) {
     intent_id: string;
     status: string;
     applied: unknown[];
-  }>("/orchestration/confirm", { intent });
+  }>("/orchestration/confirm", { intent_id: intent.id });
 }
 
 export function signup(body: {

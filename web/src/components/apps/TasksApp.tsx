@@ -377,7 +377,13 @@ function taskChannel(task: Task, project: Project): string {
 }
 
 function normalizeTaskModelMode(mode?: string | null): ModelMode {
-  if (mode === "laf_model" || mode === "local_cli" || mode === "record_only") {
+  if (mode === "local_cli") return "my_bridge";
+  if (
+    mode === "laf_model" ||
+    mode === "my_bridge" ||
+    mode === "team_bridge" ||
+    mode === "record_only"
+  ) {
     return mode;
   }
   return DEFAULT_MODEL_MODE;

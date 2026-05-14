@@ -10,11 +10,12 @@ import { cn } from "../lib/utils";
 
 const MODEL_MODE_LABELS: Record<ModelMode, string> = {
   laf_model: "LAF",
-  local_cli: "Local",
+  my_bridge: "Bridge",
+  team_bridge: "Team",
   record_only: "Record",
 };
 
-const MODEL_MODE_ORDER: ModelMode[] = ["laf_model", "local_cli", "record_only"];
+const MODEL_MODE_ORDER: ModelMode[] = ["laf_model", "my_bridge", "record_only"];
 
 function modeReason(
   availability: ModelAvailability | undefined,

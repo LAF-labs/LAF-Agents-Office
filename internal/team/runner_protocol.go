@@ -595,6 +595,9 @@ func taskNeedsRunnerJob(task teamTask) bool {
 	if task.Blocked || isTerminalTeamTaskStatus(task.Status) {
 		return false
 	}
+	if normalizeModelMode(task.ModelMode) != "team_bridge" {
+		return false
+	}
 	switch strings.ToLower(strings.TrimSpace(task.Status)) {
 	case taskStatusInProgress, taskStatusReview:
 		return true

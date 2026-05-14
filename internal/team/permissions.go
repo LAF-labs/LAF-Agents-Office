@@ -34,6 +34,7 @@ const (
 	permissionSkillApprove            = "skill:approve"
 	permissionSkillUpdate             = "skill:update"
 	permissionSkillArchive            = "skill:archive"
+	permissionSkillInvoke             = "skill:invoke"
 	permissionMemoryRead              = "memory:read"
 	permissionMemoryWriteDraft        = "memory:write_draft"
 	permissionMemoryPromote           = "memory:promote"
@@ -42,6 +43,20 @@ const (
 	permissionRunnerManage            = "runner:manage"
 	permissionModelUseLAF             = "model:use_laf"
 	permissionModelUseLocalCLI        = "model:use_local_cli"
+	permissionBridgePairOwn           = "bridge:pair_own"
+	permissionBridgeReadOwn           = "bridge:read_own"
+	permissionBridgeExecuteOwn        = "bridge:execute_own"
+	permissionBridgeManageOwn         = "bridge:manage_own"
+	permissionBridgeReadTeam          = "bridge:read_team"
+	permissionBridgeExecuteTeam       = "bridge:execute_team"
+	permissionBridgeManageTeam        = "bridge:manage_team"
+	permissionExecutionPlanCreate     = "execution:plan_create"
+	permissionExecutionRead           = "execution:read"
+	permissionExecutionCancel         = "execution:cancel"
+	permissionExecutionReceiptRead    = "execution:receipt_read"
+	permissionExecutionReceiptWrite   = "execution:receipt_write"
+	permissionMCPUseTaskContext       = "mcp:use_task_context"
+	permissionMCPUseWorkspaceContext  = "mcp:use_workspace_context"
 	permissionAuditRead               = "audit:read"
 )
 
@@ -68,6 +83,7 @@ var workspacePermissions = []string{
 	permissionSkillApprove,
 	permissionSkillUpdate,
 	permissionSkillArchive,
+	permissionSkillInvoke,
 	permissionMemoryRead,
 	permissionMemoryWriteDraft,
 	permissionMemoryPromote,
@@ -76,6 +92,20 @@ var workspacePermissions = []string{
 	permissionRunnerManage,
 	permissionModelUseLAF,
 	permissionModelUseLocalCLI,
+	permissionBridgePairOwn,
+	permissionBridgeReadOwn,
+	permissionBridgeExecuteOwn,
+	permissionBridgeManageOwn,
+	permissionBridgeReadTeam,
+	permissionBridgeExecuteTeam,
+	permissionBridgeManageTeam,
+	permissionExecutionPlanCreate,
+	permissionExecutionRead,
+	permissionExecutionCancel,
+	permissionExecutionReceiptRead,
+	permissionExecutionReceiptWrite,
+	permissionMCPUseTaskContext,
+	permissionMCPUseWorkspaceContext,
 	permissionAuditRead,
 }
 
@@ -159,12 +189,22 @@ func rolePresetPermissions(role string) []string {
 			permissionSkillPropose,
 			permissionSkillApprove,
 			permissionSkillUpdate,
+			permissionSkillInvoke,
 			permissionMemoryRead,
 			permissionMemoryWriteDraft,
 			permissionMemoryPromote,
 			permissionRunnerRead,
 			permissionModelUseLAF,
 			permissionModelUseLocalCLI,
+			permissionBridgeReadTeam,
+			permissionBridgeExecuteTeam,
+			permissionBridgeManageTeam,
+			permissionExecutionPlanCreate,
+			permissionExecutionRead,
+			permissionExecutionCancel,
+			permissionExecutionReceiptRead,
+			permissionMCPUseTaskContext,
+			permissionMCPUseWorkspaceContext,
 		}
 	case "member":
 		return []string{
@@ -177,10 +217,19 @@ func rolePresetPermissions(role string) []string {
 			permissionTaskExecuteAgent,
 			permissionSkillRead,
 			permissionSkillPropose,
+			permissionSkillInvoke,
 			permissionMemoryRead,
 			permissionMemoryWriteDraft,
 			permissionRunnerRead,
 			permissionModelUseLocalCLI,
+			permissionBridgePairOwn,
+			permissionBridgeReadOwn,
+			permissionBridgeExecuteOwn,
+			permissionExecutionPlanCreate,
+			permissionExecutionRead,
+			permissionExecutionCancel,
+			permissionExecutionReceiptRead,
+			permissionMCPUseTaskContext,
 		}
 	case "viewer":
 		return []string{
@@ -354,15 +403,17 @@ func (b *Broker) modelModeAvailableLocked(r *http.Request, mode string) (bool, s
 			return false, "permission required: " + permissionModelUseLAF
 		}
 		return true, ""
-	case "local_cli":
+	case "my_bridge":
+		return false, "no paired desktop bridge detected"
+	case "team_bridge":
 		if !b.hasConnectedLocalRunnerLocked() {
 			return false, "no connected local runner detected"
 		}
 		if !b.hasSupportedLocalCLIRunnerLocked() {
 			return false, "no supported local CLI detected"
 		}
-		if user != nil && !authUserHasPermission(user, permissionModelUseLocalCLI) {
-			return false, "permission required: " + permissionModelUseLocalCLI
+		if user != nil && !authUserHasPermission(user, permissionBridgeExecuteTeam) {
+			return false, "permission required: " + permissionBridgeExecuteTeam
 		}
 		return true, ""
 	default:
@@ -532,7 +583,7 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	hasRunner := b.hasConnectedLocalRunnerLocked()
 	hasSupportedLocalCLI := b.hasSupportedLocalCLIRunnerLocked()
 	canUseLAF := user == nil || authUserHasPermission(user, permissionModelUseLAF)
-	canUseLocal := user == nil || authUserHasPermission(user, permissionModelUseLocalCLI)
+	canUseTeamBridge := user == nil || authUserHasPermission(user, permissionBridgeExecuteTeam)
 	b.mu.Unlock()
 
 	paid := managedModelPaidFromEnv()
@@ -543,34 +594,39 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	} else if !canUseLAF {
 		laf.Reason = "permission required: " + permissionModelUseLAF
 	}
-	local := modelAvailabilityMode{Available: hasSupportedLocalCLI && canUseLocal}
+	myBridge := modelAvailabilityMode{Available: false, Reason: "no paired desktop bridge detected"}
+	teamBridge := modelAvailabilityMode{Available: hasSupportedLocalCLI && canUseTeamBridge}
 	if !hasRunner {
-		local.Reason = "no connected local runner detected"
+		teamBridge.Reason = "no connected local runner detected"
 	} else if !hasSupportedLocalCLI {
-		local.Reason = "no supported local CLI detected"
-	} else if !canUseLocal {
-		local.Reason = "permission required: " + permissionModelUseLocalCLI
+		teamBridge.Reason = "no supported local CLI detected"
+	} else if !canUseTeamBridge {
+		teamBridge.Reason = "permission required: " + permissionBridgeExecuteTeam
 	}
 	record := modelAvailabilityMode{Available: true, Reason: "records chat without agent execution"}
 
 	defaultMode := "record_only"
 	if laf.Available {
 		defaultMode = "laf_model"
-	} else if local.Available {
-		defaultMode = "local_cli"
+	} else if myBridge.Available {
+		defaultMode = "my_bridge"
 	}
 	allowed := []string{"record_only"}
 	if laf.Available {
 		allowed = append([]string{"laf_model"}, allowed...)
 	}
-	if local.Available {
-		allowed = append(allowed, "local_cli")
+	if myBridge.Available {
+		allowed = append(allowed, "my_bridge")
+	}
+	if teamBridge.Available {
+		allowed = append(allowed, "team_bridge")
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"default_mode":  defaultMode,
 		"allowed_modes": allowed,
 		"laf_model":     laf,
-		"local_cli":     local,
+		"my_bridge":     myBridge,
+		"team_bridge":   teamBridge,
 		"record_only":   record,
 		"reason":        "DB billing is used by hosted API; local broker uses environment fallback.",
 	})

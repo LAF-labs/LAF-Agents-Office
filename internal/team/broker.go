@@ -347,6 +347,7 @@ type teamSkill struct {
 	WorkflowKey         string   `json:"workflow_key,omitempty"`
 	WorkflowDefinition  string   `json:"workflow_definition,omitempty"`
 	WorkflowSchedule    string   `json:"workflow_schedule,omitempty"`
+	RequiredPermissions []string `json:"required_permissions,omitempty"`
 	RelayID             string   `json:"relay_id,omitempty"`
 	RelayPlatform       string   `json:"relay_platform,omitempty"`
 	RelayEventTypes     []string `json:"relay_event_types,omitempty"`
@@ -359,41 +360,42 @@ type teamSkill struct {
 }
 
 type brokerState struct {
-	ChannelStore      json.RawMessage              `json:"channel_store,omitempty"`
-	Messages          []channelMessage             `json:"messages"`
-	Members           []officeMember               `json:"members,omitempty"`
-	Channels          []teamChannel                `json:"channels,omitempty"`
-	SessionMode       string                       `json:"session_mode,omitempty"`
-	OneOnOneAgent     string                       `json:"one_on_one_agent,omitempty"`
-	FocusMode         bool                         `json:"focus_mode,omitempty"`
-	Projects          []teamProject                `json:"projects,omitempty"`
-	WorkspaceTeams    []workspaceTeam              `json:"workspace_teams,omitempty"`
-	AuthUsers         []authUser                   `json:"auth_users,omitempty"`
-	AuthSessions      []authSession                `json:"auth_sessions,omitempty"`
-	HumanMembers      []humanTeamMember            `json:"human_members,omitempty"`
-	Invites           []teamInvite                 `json:"invites,omitempty"`
-	Tasks             []teamTask                   `json:"tasks,omitempty"`
-	Runners           []hostedRunner               `json:"runners,omitempty"`
-	RunnerJobs        []runnerJob                  `json:"runner_jobs,omitempty"`
-	RunnerJobEvents   []runnerJobEvent             `json:"runner_job_events,omitempty"`
-	WikiWriteRequests []hostedWikiWriteRequest     `json:"wiki_write_requests,omitempty"`
-	WikiArticleIndex  []hostedWikiArticleIndex     `json:"wiki_article_index,omitempty"`
-	Requests          []humanInterview             `json:"requests,omitempty"`
-	Actions           []officeActionLog            `json:"actions,omitempty"`
-	Signals           []officeSignalRecord         `json:"signals,omitempty"`
-	Decisions         []officeDecisionRecord       `json:"decisions,omitempty"`
-	Watchdogs         []watchdogAlert              `json:"watchdogs,omitempty"`
-	Scheduler         []schedulerJob               `json:"scheduler,omitempty"`
-	Skills            []teamSkill                  `json:"skills,omitempty"`
-	SharedMemory      map[string]map[string]string `json:"shared_memory,omitempty"`
-	Counter           int                          `json:"counter"`
-	NotificationSince string                       `json:"notification_since,omitempty"`
-	InsightsSince     string                       `json:"insights_since,omitempty"`
-	PendingInterview  *humanInterview              `json:"pending_interview,omitempty"`
-	Usage             teamUsageState               `json:"usage,omitempty"`
-	Policies          []officePolicy               `json:"policies,omitempty"`
-	GPTOAuthClients   []gptOAuthClient             `json:"gpt_oauth_clients,omitempty"`
-	GPTOAuthTokens    []gptOAuthToken              `json:"gpt_oauth_tokens,omitempty"`
+	ChannelStore         json.RawMessage              `json:"channel_store,omitempty"`
+	Messages             []channelMessage             `json:"messages"`
+	Members              []officeMember               `json:"members,omitempty"`
+	Channels             []teamChannel                `json:"channels,omitempty"`
+	SessionMode          string                       `json:"session_mode,omitempty"`
+	OneOnOneAgent        string                       `json:"one_on_one_agent,omitempty"`
+	FocusMode            bool                         `json:"focus_mode,omitempty"`
+	Projects             []teamProject                `json:"projects,omitempty"`
+	WorkspaceTeams       []workspaceTeam              `json:"workspace_teams,omitempty"`
+	AuthUsers            []authUser                   `json:"auth_users,omitempty"`
+	AuthSessions         []authSession                `json:"auth_sessions,omitempty"`
+	HumanMembers         []humanTeamMember            `json:"human_members,omitempty"`
+	Invites              []teamInvite                 `json:"invites,omitempty"`
+	Tasks                []teamTask                   `json:"tasks,omitempty"`
+	Runners              []hostedRunner               `json:"runners,omitempty"`
+	RunnerJobs           []runnerJob                  `json:"runner_jobs,omitempty"`
+	RunnerJobEvents      []runnerJobEvent             `json:"runner_job_events,omitempty"`
+	OrchestrationIntents []orchestrationIntent        `json:"orchestration_intents,omitempty"`
+	WikiWriteRequests    []hostedWikiWriteRequest     `json:"wiki_write_requests,omitempty"`
+	WikiArticleIndex     []hostedWikiArticleIndex     `json:"wiki_article_index,omitempty"`
+	Requests             []humanInterview             `json:"requests,omitempty"`
+	Actions              []officeActionLog            `json:"actions,omitempty"`
+	Signals              []officeSignalRecord         `json:"signals,omitempty"`
+	Decisions            []officeDecisionRecord       `json:"decisions,omitempty"`
+	Watchdogs            []watchdogAlert              `json:"watchdogs,omitempty"`
+	Scheduler            []schedulerJob               `json:"scheduler,omitempty"`
+	Skills               []teamSkill                  `json:"skills,omitempty"`
+	SharedMemory         map[string]map[string]string `json:"shared_memory,omitempty"`
+	Counter              int                          `json:"counter"`
+	NotificationSince    string                       `json:"notification_since,omitempty"`
+	InsightsSince        string                       `json:"insights_since,omitempty"`
+	PendingInterview     *humanInterview              `json:"pending_interview,omitempty"`
+	Usage                teamUsageState               `json:"usage,omitempty"`
+	Policies             []officePolicy               `json:"policies,omitempty"`
+	GPTOAuthClients      []gptOAuthClient             `json:"gpt_oauth_clients,omitempty"`
+	GPTOAuthTokens       []gptOAuthToken              `json:"gpt_oauth_tokens,omitempty"`
 }
 
 type usageTotals struct {
@@ -440,6 +442,7 @@ type Broker struct {
 	runnerPairingCodes      []runnerPairingCode
 	runnerJobs              []runnerJob
 	runnerJobEvents         []runnerJobEvent
+	orchestrationIntents    []orchestrationIntent
 	wikiWriteRequests       []hostedWikiWriteRequest
 	wikiArticleIndex        []hostedWikiArticleIndex
 	requests                []humanInterview
@@ -3237,6 +3240,7 @@ func (b *Broker) resetWorkspaceStateLocked() {
 	b.runners = nil
 	b.runnerJobs = nil
 	b.runnerJobEvents = nil
+	b.orchestrationIntents = nil
 	b.wikiWriteRequests = nil
 	b.wikiArticleIndex = nil
 	b.signals = nil
@@ -3301,6 +3305,7 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.Runners) * 3
 	score += len(state.RunnerJobs) * 12
 	score += len(state.RunnerJobEvents) * 2
+	score += len(state.OrchestrationIntents) * 2
 	score += len(state.WikiWriteRequests) * 4
 	score += len(state.WikiArticleIndex) * 2
 	score += len(activeRequests(state.Requests)) * 10
@@ -3367,6 +3372,7 @@ func (b *Broker) loadState() error {
 	b.runners = state.Runners
 	b.runnerJobs = state.RunnerJobs
 	b.runnerJobEvents = state.RunnerJobEvents
+	b.orchestrationIntents = state.OrchestrationIntents
 	b.wikiWriteRequests = state.WikiWriteRequests
 	b.wikiArticleIndex = state.WikiArticleIndex
 	b.requests = state.Requests
@@ -3442,7 +3448,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3480,40 +3486,41 @@ func (b *Broker) saveLocked() error {
 		}
 	}
 	state := brokerState{
-		ChannelStore:      channelStoreRaw,
-		Messages:          b.messages,
-		Members:           b.members,
-		Channels:          b.channels,
-		SessionMode:       b.sessionMode,
-		OneOnOneAgent:     b.oneOnOneAgent,
-		FocusMode:         b.focusMode,
-		Projects:          b.projects,
-		WorkspaceTeams:    b.workspaceTeams,
-		AuthUsers:         b.authUsers,
-		AuthSessions:      authSessions,
-		HumanMembers:      b.humanMembers,
-		Invites:           b.invites,
-		Tasks:             b.tasks,
-		Runners:           b.runners,
-		RunnerJobs:        b.runnerJobs,
-		RunnerJobEvents:   b.runnerJobEvents,
-		WikiWriteRequests: b.wikiWriteRequests,
-		WikiArticleIndex:  b.wikiArticleIndex,
-		Requests:          b.requests,
-		Actions:           b.actions,
-		Signals:           b.signals,
-		Decisions:         b.decisions,
-		Watchdogs:         b.watchdogs,
-		Policies:          b.policies,
-		Scheduler:         b.scheduler,
-		Skills:            b.skills,
-		SharedMemory:      b.sharedMemory,
-		Counter:           b.counter,
-		NotificationSince: b.notificationSince,
-		InsightsSince:     b.insightsSince,
-		PendingInterview:  firstBlockingRequest(b.requests),
-		GPTOAuthClients:   gptClients,
-		GPTOAuthTokens:    gptTokens,
+		ChannelStore:         channelStoreRaw,
+		Messages:             b.messages,
+		Members:              b.members,
+		Channels:             b.channels,
+		SessionMode:          b.sessionMode,
+		OneOnOneAgent:        b.oneOnOneAgent,
+		FocusMode:            b.focusMode,
+		Projects:             b.projects,
+		WorkspaceTeams:       b.workspaceTeams,
+		AuthUsers:            b.authUsers,
+		AuthSessions:         authSessions,
+		HumanMembers:         b.humanMembers,
+		Invites:              b.invites,
+		Tasks:                b.tasks,
+		Runners:              b.runners,
+		RunnerJobs:           b.runnerJobs,
+		RunnerJobEvents:      b.runnerJobEvents,
+		OrchestrationIntents: b.orchestrationIntents,
+		WikiWriteRequests:    b.wikiWriteRequests,
+		WikiArticleIndex:     b.wikiArticleIndex,
+		Requests:             b.requests,
+		Actions:              b.actions,
+		Signals:              b.signals,
+		Decisions:            b.decisions,
+		Watchdogs:            b.watchdogs,
+		Policies:             b.policies,
+		Scheduler:            b.scheduler,
+		Skills:               b.skills,
+		SharedMemory:         b.sharedMemory,
+		Counter:              b.counter,
+		NotificationSince:    b.notificationSince,
+		InsightsSince:        b.insightsSince,
+		PendingInterview:     firstBlockingRequest(b.requests),
+		GPTOAuthClients:      gptClients,
+		GPTOAuthTokens:       gptTokens,
 		Usage: func() teamUsageState {
 			usage := b.usage
 			usage.Session = usageTotals{}
@@ -4098,6 +4105,10 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		if strings.TrimSpace(b.tasks[i].Channel) == "" {
 			b.tasks[i].Channel = "general"
 		}
+		b.tasks[i].ModelMode = normalizeModelMode(b.tasks[i].ModelMode)
+	}
+	for i := range b.runnerJobs {
+		b.runnerJobs[i].ModelMode = normalizeRunnerJobModelMode(b.runnerJobs[i].ModelMode)
 	}
 	for i := range b.requests {
 		if strings.TrimSpace(b.requests[i].Channel) == "" {
@@ -11938,6 +11949,24 @@ func (b *Broker) findSkillByWorkflowKeyLocked(key string) *teamSkill {
 	return nil
 }
 
+func uniquePermissionRequirements(raw []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		permission := strings.TrimSpace(strings.ToLower(item))
+		if permission == "" {
+			continue
+		}
+		if _, ok := seen[permission]; ok {
+			continue
+		}
+		seen[permission] = struct{}{}
+		out = append(out, permission)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (b *Broker) handleGetSkills(w http.ResponseWriter, r *http.Request) {
 	channelFilter := normalizeChannelSlug(r.URL.Query().Get("channel"))
 
@@ -11973,6 +12002,7 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		WorkflowKey         string   `json:"workflow_key"`
 		WorkflowDefinition  string   `json:"workflow_definition"`
 		WorkflowSchedule    string   `json:"workflow_schedule"`
+		RequiredPermissions []string `json:"required_permissions"`
 		RelayID             string   `json:"relay_id"`
 		RelayPlatform       string   `json:"relay_platform"`
 		RelayEventTypes     []string `json:"relay_event_types"`
@@ -12053,6 +12083,7 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 		WorkflowKey:         strings.TrimSpace(body.WorkflowKey),
 		WorkflowDefinition:  strings.TrimSpace(body.WorkflowDefinition),
 		WorkflowSchedule:    strings.TrimSpace(body.WorkflowSchedule),
+		RequiredPermissions: uniquePermissionRequirements(body.RequiredPermissions),
 		RelayID:             strings.TrimSpace(body.RelayID),
 		RelayPlatform:       strings.TrimSpace(body.RelayPlatform),
 		RelayEventTypes:     append([]string(nil), body.RelayEventTypes...),
@@ -12102,6 +12133,7 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 		WorkflowKey         string   `json:"workflow_key"`
 		WorkflowDefinition  string   `json:"workflow_definition"`
 		WorkflowSchedule    string   `json:"workflow_schedule"`
+		RequiredPermissions []string `json:"required_permissions"`
 		RelayID             string   `json:"relay_id"`
 		RelayPlatform       string   `json:"relay_platform"`
 		RelayEventTypes     []string `json:"relay_event_types"`
@@ -12174,6 +12206,9 @@ func (b *Broker) handlePutSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	if sched := strings.TrimSpace(body.WorkflowSchedule); sched != "" {
 		sk.WorkflowSchedule = sched
+	}
+	if body.RequiredPermissions != nil {
+		sk.RequiredPermissions = uniquePermissionRequirements(body.RequiredPermissions)
 	}
 	if relayID := strings.TrimSpace(body.RelayID); relayID != "" {
 		sk.RelayID = relayID
@@ -12307,11 +12342,19 @@ func (b *Broker) handleInvokeSkill(w http.ResponseWriter, r *http.Request) {
 	if b.denyIfMissingPermissionLocked(w, r, permissionSkillRead) {
 		return
 	}
+	if b.denyIfMissingPermissionLocked(w, r, permissionSkillInvoke) {
+		return
+	}
 
 	sk := b.findSkillByNameLocked(skillName)
 	if sk == nil {
 		http.Error(w, "skill not found", http.StatusNotFound)
 		return
+	}
+	for _, permission := range sk.RequiredPermissions {
+		if b.denyIfMissingPermissionLocked(w, r, permission) {
+			return
+		}
 	}
 
 	sk.UsageCount++

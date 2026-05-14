@@ -7,7 +7,7 @@ process.env.SUPABASE_ANON_KEY = "anon";
 
 const handler = require("./[...path].js");
 
-test("hosted task creation queues a runner job with agent-memory/v1", async (t) => {
+test("hosted team bridge task creation queues a runner job with agent-memory/v1", async (t) => {
   const project = {
     id: "11111111-1111-4111-8111-111111111111",
     local_id: "project-a",
@@ -65,6 +65,22 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
         },
       ]);
     }
+    if (table === "workspace_billing") {
+      return jsonResponse([]);
+    }
+    if (table === "runners") {
+      return jsonResponse([
+        {
+          id: "runner-1",
+          capabilities: { provider_runtimes: ["codex"] },
+          status: "connected",
+          team_id: "team-1",
+        },
+      ]);
+    }
+    if (table === "runner_capabilities") {
+      return jsonResponse([]);
+    }
     if (table === "projects") {
       if (url.searchParams.get("local_id") === "eq.project-a") {
         return jsonResponse([project]);
@@ -75,7 +91,8 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
       if ((init.method || "GET") === "GET") return jsonResponse([]);
       assert.equal(init.method, "POST");
       assert.equal(body.owner, "be");
-      return jsonResponse([task]);
+      assert.equal(body.model_mode, "team_bridge");
+      return jsonResponse([{ ...task, model_mode: body.model_mode }]);
     }
     if (table === "wiki_article_index") {
       return jsonResponse([
@@ -106,6 +123,7 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
 
   const response = await invoke(["tasks"], "POST", {
     action: "create",
+    model_mode: "team_bridge",
     owner: "be",
     project_id: "project-a",
     title: "Implement hosted job flow",
@@ -122,6 +140,64 @@ test("hosted task creation queues a runner job with agent-memory/v1", async (t) 
   );
   assert.equal(response.body.runner_job.agent_memory_packet.decisions[0].text, "Use runner jobs as the execution boundary.");
   assert.ok(calls.some((call) => call.path === "/rest/v1/runner_job_events"));
+});
+
+test("hosted non-team bridge tasks do not queue runner jobs", async (t) => {
+  const db = {
+    audit_events: [],
+    delivery_receipts: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    projects: [],
+    runner_capabilities: [],
+    runner_job_events: [],
+    runner_jobs: [],
+    runners: [],
+    tasks: [
+      {
+        id: "task-existing",
+        local_id: "task-existing",
+        model_mode: "my_bridge",
+        owner: "",
+        status: "open",
+        team_id: "team-1",
+        title: "Existing bridge task",
+      },
+    ],
+    workspace_billing: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const created = await invoke(["tasks"], "POST", {
+    action: "create",
+    owner: "be",
+    title: "Record only agent task",
+  });
+
+  assert.equal(created.status, 200);
+  assert.equal(created.body.task.model_mode, "record_only");
+  assert.equal(created.body.runner_job, null);
+
+  const reassigned = await invoke(["tasks"], "POST", {
+    action: "reassign",
+    id: "task-existing",
+    owner: "be",
+  });
+
+  assert.equal(reassigned.status, 200);
+  assert.equal(reassigned.body.task.model_mode, "my_bridge");
+  assert.equal(reassigned.body.runner_job, null);
+  assert.equal(db.runner_jobs.length, 0);
 });
 
 test("hosted project rejects unsafe repo URLs", async (t) => {
@@ -569,7 +645,7 @@ test("hosted model availability uses DB billing before env fallback", async (t) 
   assert.equal(availability.body.reason, "workspace billing loaded from DB");
 });
 
-test("hosted local CLI mode requires a connected runner with supported CLI", async (t) => {
+test("hosted team bridge mode requires a connected runner with supported CLI", async (t) => {
   const db = {
     memberships: [
       {
@@ -598,8 +674,10 @@ test("hosted local CLI mode requires a connected runner with supported CLI", asy
 
   const withoutCLI = await invoke(["model", "availability"], "GET");
   assert.equal(withoutCLI.status, 200);
-  assert.equal(withoutCLI.body.local_cli.available, false);
-  assert.equal(withoutCLI.body.local_cli.reason, "no supported local CLI detected");
+  assert.equal(withoutCLI.body.my_bridge.available, false);
+  assert.equal(withoutCLI.body.my_bridge.reason, "no paired desktop bridge detected");
+  assert.equal(withoutCLI.body.team_bridge.available, false);
+  assert.equal(withoutCLI.body.team_bridge.reason, "no supported local CLI detected");
 
   db.runner_capabilities.push({
     cli_details: { codex: { detected: "true" } },
@@ -608,8 +686,9 @@ test("hosted local CLI mode requires a connected runner with supported CLI", asy
   });
   const withCLI = await invoke(["model", "availability"], "GET");
   assert.equal(withCLI.status, 200);
-  assert.equal(withCLI.body.local_cli.available, true);
-  assert.equal(withCLI.body.allowed_modes.includes("local_cli"), true);
+  assert.equal(withCLI.body.team_bridge.available, true);
+  assert.equal(withCLI.body.allowed_modes.includes("team_bridge"), true);
+  assert.equal(withCLI.body.allowed_modes.includes("my_bridge"), false);
 });
 
 test("hosted task mutation rejects unavailable model modes", async (t) => {
@@ -645,8 +724,101 @@ test("hosted task mutation rejects unavailable model modes", async (t) => {
   });
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, "no connected local runner detected");
+  assert.equal(response.body.error, "no paired desktop bridge detected");
   assert.equal(db.tasks.length, 0);
+});
+
+test("hosted orchestration confirm uses stored intent instead of client actions", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    orchestration_intents: [],
+    projects: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const routed = await invoke(["orchestration", "intent"], "POST", {
+    message: "create project Alpha",
+  });
+  assert.equal(routed.status, 200);
+  assert.equal(db.orchestration_intents.length, 1);
+
+  const forged = await invoke(["orchestration", "confirm"], "POST", {
+    intent: {
+      id: routed.body.intent.id,
+      proposed_actions: [
+        {
+          method: "POST",
+          path: "/projects",
+          body: { action: "create", name: "Forged Project" },
+        },
+      ],
+      required_permissions: [],
+    },
+  });
+  assert.equal(forged.status, 400);
+  assert.equal(forged.body.error, "intent_id is required");
+  assert.equal(db.projects.length, 0);
+
+  const confirmed = await invoke(["orchestration", "confirm"], "POST", {
+    intent_id: routed.body.intent.id,
+  });
+  assert.equal(confirmed.status, 200);
+  assert.equal(confirmed.body.status, "applied");
+  assert.equal(db.projects.length, 1);
+  assert.equal(db.projects[0].name, "Alpha");
+  assert.equal(db.orchestration_intents[0].status, "applied");
+});
+
+test("hosted skill invocation requires invoke permission and manifest permissions", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "viewer",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    skills: [
+      {
+        id: "skill-1",
+        name: "deploy",
+        status: "active",
+        team_id: "team-1",
+        usage_count: 0,
+      },
+    ],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const missingInvoke = await invoke(["skills", "deploy", "invoke"], "POST", {});
+  assert.equal(missingInvoke.status, 403);
+  assert.equal(missingInvoke.body.error, "permission required: skill:invoke");
+  assert.equal(db.skills[0].usage_count, 0);
+
+  db.memberships[0].role = "member";
+  db.skills[0].required_permissions = ["runner:manage"];
+  const missingManifestPermission = await invoke(["skills", "deploy", "invoke"], "POST", {});
+  assert.equal(missingManifestPermission.status, 403);
+  assert.equal(missingManifestPermission.body.error, "permission required: runner:manage");
+  assert.equal(db.skills[0].usage_count, 0);
 });
 
 async function invoke(path, method, body, options = {}) {

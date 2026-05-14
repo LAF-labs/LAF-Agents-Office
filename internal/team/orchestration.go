@@ -20,6 +20,8 @@ type orchestrationIntent struct {
 	Status               string           `json:"status"`
 	RequiresConfirmation bool             `json:"requires_confirmation"`
 	CreatedAt            string           `json:"created_at"`
+	ConfirmedAt          string           `json:"confirmed_at,omitempty"`
+	ConfirmationID       string           `json:"confirmation_id,omitempty"`
 }
 
 var (
@@ -116,6 +118,14 @@ func (b *Broker) handleOrchestrationIntent(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	b.appendAuditEventLocked("human", "orchestration.intent", "intent", intent.ID, map[string]any{"type": intent.Type})
+	if intent.RequiresConfirmation {
+		b.orchestrationIntents = append(b.orchestrationIntents, intent)
+		if err := b.saveLocked(); err != nil {
+			b.mu.Unlock()
+			http.Error(w, "failed to persist orchestration intent", http.StatusInternalServerError)
+			return
+		}
+	}
 	b.mu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{"intent": intent})
 }
@@ -128,12 +138,23 @@ func firstRegexGroup(match []string, fallback string) string {
 }
 
 func normalizeModelMode(raw string) string {
-	switch strings.TrimSpace(raw) {
-	case "laf_model", "local_cli", "record_only":
-		return strings.TrimSpace(raw)
+	value := strings.TrimSpace(raw)
+	if value == "local_cli" {
+		return "my_bridge"
+	}
+	switch value {
+	case "laf_model", "my_bridge", "team_bridge", "record_only":
+		return value
 	default:
 		return "record_only"
 	}
+}
+
+func normalizeRunnerJobModelMode(raw string) string {
+	if strings.TrimSpace(raw) == "local_cli" {
+		return "team_bridge"
+	}
+	return normalizeModelMode(raw)
 }
 
 func (b *Broker) handleOrchestrationConfirm(w http.ResponseWriter, r *http.Request) {
@@ -142,26 +163,52 @@ func (b *Broker) handleOrchestrationConfirm(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var body struct {
-		Intent orchestrationIntent `json:"intent"`
+		IntentID string `json:"intent_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(body.Intent.ID) == "" || len(body.Intent.ProposedActions) == 0 {
-		http.Error(w, "intent with proposed_actions required", http.StatusBadRequest)
+	intentID := strings.TrimSpace(body.IntentID)
+	if intentID == "" {
+		http.Error(w, "intent_id required", http.StatusBadRequest)
 		return
 	}
-	for _, permission := range body.Intent.RequiredPermissions {
-		b.mu.Lock()
-		missing := b.denyIfMissingPermissionLocked(w, r, permission)
+	b.mu.Lock()
+	intentIndex := -1
+	var intent orchestrationIntent
+	for i := range b.orchestrationIntents {
+		if b.orchestrationIntents[i].ID == intentID {
+			intentIndex = i
+			intent = b.orchestrationIntents[i]
+			break
+		}
+	}
+	if intentIndex < 0 {
 		b.mu.Unlock()
-		if missing {
+		http.Error(w, "orchestration intent not found", http.StatusNotFound)
+		return
+	}
+	if intent.Status != "pending" {
+		b.mu.Unlock()
+		http.Error(w, "orchestration intent is "+intent.Status, http.StatusConflict)
+		return
+	}
+	if len(intent.ProposedActions) == 0 {
+		b.mu.Unlock()
+		http.Error(w, "orchestration intent has no proposed actions", http.StatusBadRequest)
+		return
+	}
+	for _, permission := range intent.RequiredPermissions {
+		if !b.requestUserHasPermissionLocked(r, permission) {
+			b.mu.Unlock()
+			http.Error(w, "permission required: "+permission, http.StatusForbidden)
 			return
 		}
 	}
-	applied := make([]any, 0, len(body.Intent.ProposedActions))
-	for _, action := range body.Intent.ProposedActions {
+	b.mu.Unlock()
+	applied := make([]any, 0, len(intent.ProposedActions))
+	for _, action := range intent.ProposedActions {
 		result, ok := b.applyOrchestrationAction(r, action)
 		if !ok {
 			http.Error(w, "unsupported orchestration action", http.StatusBadRequest)
@@ -169,12 +216,27 @@ func (b *Broker) handleOrchestrationConfirm(w http.ResponseWriter, r *http.Reque
 		}
 		applied = append(applied, result)
 	}
+	confirmationID := "confirmation-" + generateToken()
+	confirmedAt := time.Now().UTC().Format(time.RFC3339)
 	b.mu.Lock()
-	b.appendAuditEventLocked("human", "orchestration.confirmed", "intent", body.Intent.ID, map[string]any{"type": body.Intent.Type})
+	for i := range b.orchestrationIntents {
+		if b.orchestrationIntents[i].ID == intentID {
+			b.orchestrationIntents[i].Status = "applied"
+			b.orchestrationIntents[i].ConfirmedAt = confirmedAt
+			b.orchestrationIntents[i].ConfirmationID = confirmationID
+			break
+		}
+	}
+	b.appendAuditEventLocked("human", "orchestration.confirmed", "intent", intent.ID, map[string]any{"type": intent.Type})
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		http.Error(w, "failed to persist orchestration confirmation", http.StatusInternalServerError)
+		return
+	}
 	b.mu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"confirmation_id": "confirmation-" + generateToken(),
-		"intent_id":       body.Intent.ID,
+		"confirmation_id": confirmationID,
+		"intent_id":       intent.ID,
 		"applied":         applied,
 		"status":          "applied",
 	})

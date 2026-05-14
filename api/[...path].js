@@ -27,6 +27,7 @@ const WORKSPACE_PERMISSIONS = [
   "skill:approve",
   "skill:update",
   "skill:archive",
+  "skill:invoke",
   "memory:read",
   "memory:write_draft",
   "memory:promote",
@@ -35,6 +36,20 @@ const WORKSPACE_PERMISSIONS = [
   "runner:manage",
   "model:use_laf",
   "model:use_local_cli",
+  "bridge:pair_own",
+  "bridge:read_own",
+  "bridge:execute_own",
+  "bridge:manage_own",
+  "bridge:read_team",
+  "bridge:execute_team",
+  "bridge:manage_team",
+  "execution:plan_create",
+  "execution:read",
+  "execution:cancel",
+  "execution:receipt_read",
+  "execution:receipt_write",
+  "mcp:use_task_context",
+  "mcp:use_workspace_context",
   "audit:read",
 ];
 
@@ -472,12 +487,22 @@ function rolePresetPermissions(role) {
         "skill:propose",
         "skill:approve",
         "skill:update",
+        "skill:invoke",
         "memory:read",
         "memory:write_draft",
         "memory:promote",
         "runner:read",
         "model:use_laf",
         "model:use_local_cli",
+        "bridge:read_team",
+        "bridge:execute_team",
+        "bridge:manage_team",
+        "execution:plan_create",
+        "execution:read",
+        "execution:cancel",
+        "execution:receipt_read",
+        "mcp:use_task_context",
+        "mcp:use_workspace_context",
       ].sort();
     case "member":
       return [
@@ -490,10 +515,19 @@ function rolePresetPermissions(role) {
         "task:execute_agent",
         "skill:read",
         "skill:propose",
+        "skill:invoke",
         "memory:read",
         "memory:write_draft",
         "runner:read",
         "model:use_local_cli",
+        "bridge:pair_own",
+        "bridge:read_own",
+        "bridge:execute_own",
+        "execution:plan_create",
+        "execution:read",
+        "execution:cancel",
+        "execution:receipt_read",
+        "mcp:use_task_context",
       ].sort();
     case "viewer":
       return ["workspace:read", "skill:read", "memory:read", "runner:read"];
@@ -518,7 +552,8 @@ function hasPermission(membership, permission) {
 
 function normalizeModelMode(raw) {
   const value = String(raw || "").trim();
-  return ["laf_model", "local_cli", "record_only"].includes(value)
+  if (value === "local_cli") return "my_bridge";
+  return ["laf_model", "my_bridge", "team_bridge", "record_only"].includes(value)
     ? value
     : "record_only";
 }
@@ -604,12 +639,14 @@ async function modelAvailabilityForMembership(membership) {
       truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED);
   const runnerState = await runnerModelAvailability(membership.team_id);
   const lafAllowed = paid && hasPermission(membership, "model:use_laf");
-  const localAllowed =
-    runnerState.hasSupportedLocalCLI && hasPermission(membership, "model:use_local_cli");
+  const myBridgeAllowed = false;
+  const teamBridgeAllowed =
+    runnerState.hasSupportedLocalCLI && hasPermission(membership, "bridge:execute_team");
   const allowedModes = ["record_only"];
   if (lafAllowed) allowedModes.unshift("laf_model");
-  if (localAllowed) allowedModes.push("local_cli");
-  const defaultMode = lafAllowed ? "laf_model" : localAllowed ? "local_cli" : "record_only";
+  if (myBridgeAllowed) allowedModes.push("my_bridge");
+  if (teamBridgeAllowed) allowedModes.push("team_bridge");
+  const defaultMode = lafAllowed ? "laf_model" : myBridgeAllowed ? "my_bridge" : "record_only";
   return {
     default_mode: defaultMode,
     allowed_modes: allowedModes,
@@ -621,15 +658,19 @@ async function modelAvailabilityForMembership(membership) {
           ? "permission required: model:use_laf"
           : "workspace is not on a paid managed-model plan",
     },
-    local_cli: {
-      available: localAllowed,
-      reason: localAllowed
+    my_bridge: {
+      available: myBridgeAllowed,
+      reason: myBridgeAllowed ? "" : "no paired desktop bridge detected",
+    },
+    team_bridge: {
+      available: teamBridgeAllowed,
+      reason: teamBridgeAllowed
         ? ""
         : !runnerState.hasRunner
           ? "no connected local runner detected"
           : !runnerState.hasSupportedLocalCLI
             ? "no supported local CLI detected"
-            : "permission required: model:use_local_cli",
+            : "permission required: bridge:execute_team",
     },
     record_only: {
       available: true,
@@ -1350,10 +1391,33 @@ async function handleOrchestrationIntent(req, res) {
   for (const permission of intent.required_permissions) {
     requirePermission(membership, permission);
   }
+  await persistOrchestrationIntent(membership, intent);
   await writeAuditEvent(membership, "orchestration.intent", "intent", intent.id, {
     type: intent.type,
   });
   writeJSON(res, 200, { intent });
+}
+
+async function persistOrchestrationIntent(membership, intent) {
+  if (!intent.requires_confirmation || intent.status !== "pending") return null;
+  const [row] = await rest("orchestration_intents", {
+    method: "POST",
+    body: {
+      id: intent.id,
+      team_id: membership.team_id,
+      requested_by: membership.user_id,
+      type: intent.type,
+      risk: intent.risk || "low",
+      summary: intent.summary || "",
+      proposed_actions: Array.isArray(intent.proposed_actions) ? intent.proposed_actions : [],
+      required_permissions: Array.isArray(intent.required_permissions)
+        ? intent.required_permissions
+        : [],
+      status: "pending",
+      created_at: intent.created_at || nowISO(),
+    },
+  });
+  return row || null;
 }
 
 function buildOrchestrationIntent(message, context = {}) {
@@ -1420,9 +1484,26 @@ function buildOrchestrationIntent(message, context = {}) {
 async function handleOrchestrationConfirm(req, res) {
   const { membership } = await requireUser(req);
   const body = await readBody(req);
-  const intent = body.intent || {};
-  if (!intent.id || !Array.isArray(intent.proposed_actions)) {
-    throw new HTTPError(400, "intent with proposed_actions is required");
+  const intentID = String(body.intent_id || "").trim();
+  if (!intentID) {
+    throw new HTTPError(400, "intent_id is required");
+  }
+  const [intent] = await rest("orchestration_intents", {
+    query: {
+      id: `eq.${intentID}`,
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+      limit: "1",
+    },
+  });
+  if (!intent) {
+    throw new HTTPError(404, "orchestration intent not found");
+  }
+  if (intent.status !== "pending") {
+    throw new HTTPError(409, `orchestration intent is ${intent.status}`);
+  }
+  if (!Array.isArray(intent.proposed_actions) || intent.proposed_actions.length === 0) {
+    throw new HTTPError(400, "orchestration intent has no proposed actions");
   }
   for (const permission of intent.required_permissions || []) {
     requirePermission(membership, permission);
@@ -1432,6 +1513,18 @@ async function handleOrchestrationConfirm(req, res) {
     applied.push(await applyOrchestrationAction(membership, action));
   }
   const confirmationID = crypto.randomUUID ? crypto.randomUUID() : shortID();
+  await rest("orchestration_intents", {
+    method: "PATCH",
+    query: {
+      id: `eq.${intent.id}`,
+      team_id: `eq.${membership.team_id}`,
+    },
+    body: {
+      confirmed_at: nowISO(),
+      confirmation_id: confirmationID,
+      status: "applied",
+    },
+  });
   await writeAuditEvent(membership, "orchestration.confirmed", "intent", intent.id, {
     confirmation_id: confirmationID,
     type: intent.type,
@@ -1982,6 +2075,7 @@ async function handleSkills(req, res) {
         description: body.description || "",
         name: String(body.name || "").trim(),
         risk: body.risk || "low",
+        required_permissions: permissionRequirementList(body.required_permissions),
         status,
         tags: Array.isArray(body.tags) ? body.tags : [],
         team_id: membership.team_id,
@@ -2029,6 +2123,9 @@ async function handleSkills(req, res) {
       if (body[key] !== undefined) patch[key] = body[key];
     }
     if (body.tags !== undefined) patch.tags = Array.isArray(body.tags) ? body.tags : [];
+    if (body.required_permissions !== undefined) {
+      patch.required_permissions = permissionRequirementList(body.required_permissions);
+    }
     if (body.status !== undefined) {
       const nextStatus = String(body.status || "").trim();
       if (nextStatus === "active" && existing.status !== "active") {
@@ -2078,6 +2175,7 @@ async function handleSkills(req, res) {
 async function handleSkillInvoke(req, res, name) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "skill:read");
+  requirePermission(membership, "skill:invoke");
   const [skill] = await rest("skills", {
     query: {
       limit: "1",
@@ -2088,6 +2186,9 @@ async function handleSkillInvoke(req, res, name) {
     },
   });
   if (!skill) throw new HTTPError(404, "skill not found");
+  for (const permission of skillRequiredPermissions(skill)) {
+    requirePermission(membership, permission);
+  }
   const [updated] = await rest("skills", {
     method: "PATCH",
     query: { id: `eq.${skill.id}` },
@@ -2102,6 +2203,41 @@ async function handleSkillInvoke(req, res, name) {
     name: updated.name,
   });
   writeJSON(res, 200, { skill: updated });
+}
+
+function skillRequiredPermissions(skill) {
+  const out = [];
+  const add = (value) => {
+    if (Array.isArray(value)) {
+      for (const item of value) add(item);
+      return;
+    }
+    const permission = String(value || "").trim();
+    if (permission) out.push(permission);
+  };
+  add(skill?.required_permissions);
+  for (const key of ["workflow_definition", "content"]) {
+    const raw = skill?.[key];
+    if (typeof raw !== "string" || !raw.trim().startsWith("{")) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      add(parsed?.required_permissions);
+      add(parsed?.manifest?.required_permissions);
+    } catch {
+      // Plain-text skills are expected; JSON manifests are optional.
+    }
+  }
+  return [...new Set(out)];
+}
+
+function permissionRequirementList(raw) {
+  return [
+    ...new Set(
+      (Array.isArray(raw) ? raw : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 async function requireRunner(req) {
@@ -2278,6 +2414,7 @@ function taskNeedsRunnerJob(task) {
     task.owner &&
     !isHuman(task.owner) &&
     !task.blocked &&
+    normalizeModelMode(task.model_mode) === "team_bridge" &&
     ["in_progress", "review"].includes(task.status)
   );
 }
