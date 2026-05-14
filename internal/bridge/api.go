@@ -109,6 +109,62 @@ func (c Client) PendingPlans(ctx context.Context, deviceID string) ([]ExecutionP
 	return out.Plans, err
 }
 
+func (c Client) AckPlan(ctx context.Context, planID string, leaseSeconds int) (ExecutionPlan, error) {
+	var out struct {
+		Plan ExecutionPlan `json:"plan"`
+	}
+	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/ack", map[string]any{
+		"lease_seconds": leaseSeconds,
+	}, &out)
+	return out.Plan, err
+}
+
+func (c Client) StartPlan(ctx context.Context, planID string, leaseSeconds int) (ExecutionPlan, error) {
+	var out struct {
+		Plan ExecutionPlan `json:"plan"`
+	}
+	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/start", map[string]any{
+		"lease_seconds":         leaseSeconds,
+		"local_approval_status": "approved",
+	}, &out)
+	return out.Plan, err
+}
+
+func (c Client) UploadPlanEvent(
+	ctx context.Context,
+	planID string,
+	sequence int,
+	eventType string,
+	payload map[string]any,
+) (ExecutionEvent, error) {
+	var out struct {
+		Event ExecutionEvent `json:"event"`
+	}
+	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/events", map[string]any{
+		"event_type": eventType,
+		"payload":    payload,
+		"sequence":   sequence,
+	}, &out)
+	return out.Event, err
+}
+
+func (c Client) CompletePlan(
+	ctx context.Context,
+	planID string,
+	status string,
+	summary string,
+) (ExecutionPlan, ExecutionReceipt, error) {
+	var out struct {
+		Plan    ExecutionPlan    `json:"plan"`
+		Receipt ExecutionReceipt `json:"receipt"`
+	}
+	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/complete", map[string]any{
+		"status":  status,
+		"summary": summary,
+	}, &out)
+	return out.Plan, out.Receipt, err
+}
+
 func (c Client) post(ctx context.Context, path string, in, out any) error {
 	return c.do(ctx, http.MethodPost, path, in, out)
 }

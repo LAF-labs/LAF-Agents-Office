@@ -122,12 +122,11 @@ func runStart(args []string, stdout io.Writer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	client := bridge.Client{APIURL: cfg.APIURL, Token: token}
-	plans, err := client.PendingPlans(ctx, cfg.DeviceID)
+	results, err := bridge.RunPendingOnce(ctx, cfg, client, bridge.PlanValidator{Config: cfg})
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "pending plans: %d\n", len(plans))
-	return nil
+	return writeJSON(stdout, map[string]any{"results": results})
 }
 
 func writeJSON(w io.Writer, value any) error {
