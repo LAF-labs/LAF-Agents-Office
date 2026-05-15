@@ -27,6 +27,7 @@ func (f PendingRunnerFunc) RunPending(ctx context.Context) ([]RunResult, error) 
 
 type RelayLoop struct {
 	DeviceID     string
+	PollInterval time.Duration
 	ReconnectMin time.Duration
 	Runner       PendingRunner
 	Source       RelaySource
@@ -83,18 +84,45 @@ func (l RelayLoop) Run(ctx context.Context) error {
 			if _, err := l.Runner.RunPending(ctx); err != nil {
 				return err
 			}
+			var poll <-chan time.Time
+			var ticker *time.Ticker
+			if l.PollInterval > 0 {
+				ticker = time.NewTicker(l.PollInterval)
+				poll = ticker.C
+			}
 			for {
 				select {
 				case <-ctx.Done():
+					if ticker != nil {
+						ticker.Stop()
+					}
 					return ctx.Err()
 				case _, ok := <-hints:
 					if !ok {
+						if ticker != nil {
+							ticker.Stop()
+						}
 						goto reconnect
 					}
 					if _, err := l.Runner.RunPending(ctx); err != nil {
+						if ticker != nil {
+							ticker.Stop()
+						}
+						return err
+					}
+				case <-poll:
+					if _, err := l.Runner.RunPending(ctx); err != nil {
+						if ticker != nil {
+							ticker.Stop()
+						}
 						return err
 					}
 				}
+			}
+		}
+		if err != nil {
+			if _, runErr := l.Runner.RunPending(ctx); runErr != nil {
+				return runErr
 			}
 		}
 	reconnect:

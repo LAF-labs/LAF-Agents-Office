@@ -198,6 +198,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	once := fs.Bool("once", true, "poll once and exit")
 	interval := fs.Duration("interval", 15*time.Second, "polling interval when --once=false")
+	relay := fs.Bool("relay", true, "subscribe to the configured Supabase Realtime relay when --once=false")
 	providerName := fs.String("provider", "codex", "execution provider: codex or fake")
 	model := fs.String("model", "", "provider model override")
 	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
@@ -260,6 +261,22 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 		pollInterval := *interval
 		if pollInterval <= 0 {
 			pollInterval = 10 * time.Second
+		}
+		if *relay {
+			if source := bridge.SupabaseRelaySourceFromEnv(); source != nil {
+				fmt.Fprintf(stdout, "laf-bridge relay device %s via Supabase Realtime; polling fallback every %s\n", cfg.DeviceID, pollInterval.String())
+				err := (bridge.RelayLoop{
+					DeviceID:     cfg.DeviceID,
+					PollInterval: pollInterval,
+					ReconnectMin: 5 * time.Second,
+					Runner:       runner,
+					Source:       source,
+				}).Run(ctx)
+				if errors.Is(err, context.Canceled) {
+					return nil
+				}
+				return err
+			}
 		}
 		fmt.Fprintf(stdout, "laf-bridge polling device %s every %s\n", cfg.DeviceID, pollInterval.String())
 		err := (bridge.PollLoop{Interval: pollInterval, Runner: runner}).Run(ctx)
