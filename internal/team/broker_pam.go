@@ -25,15 +25,7 @@ import (
 	"time"
 )
 
-// pamSubscribersMu guards the SSE subscriber side-registry below. Same
-// side-table pattern as broker_playbook.go — avoids touching broker.go's
-// already-long struct.
-//
-// TODO: move these subscriber maps onto the Broker struct for cleaner
-// shutdown semantics (they currently leak across broker lifetimes if a
-// process ever hosts more than one Broker). Kept as globals for this PR
-// to match the existing broker_playbook.go pattern; the Pam dispatcher
-// itself has been moved onto Broker (see Broker.pamDispatcher).
+// pamSubscribersMu guards the SSE subscriber side-registry below.
 var (
 	pamSubscribersMu       sync.Mutex
 	pamStartedSubsByBroker = map[*Broker]map[int]chan PamActionStartedEvent{}
@@ -134,6 +126,23 @@ func (b *Broker) SubscribePamActionEvents(buffer int) (<-chan PamActionStartedEv
 			}
 		}
 	}
+}
+
+func (b *Broker) closePamActionSubscribers() {
+	pamSubscribersMu.Lock()
+	defer pamSubscribersMu.Unlock()
+	for _, ch := range pamStartedSubsByBroker[b] {
+		close(ch)
+	}
+	delete(pamStartedSubsByBroker, b)
+	for _, ch := range pamDoneSubsByBroker[b] {
+		close(ch)
+	}
+	delete(pamDoneSubsByBroker, b)
+	for _, ch := range pamFailedSubsByBroker[b] {
+		close(ch)
+	}
+	delete(pamFailedSubsByBroker, b)
 }
 
 // PublishPamActionStarted implements pamEventPublisher.

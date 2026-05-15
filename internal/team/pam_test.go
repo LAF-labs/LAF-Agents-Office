@@ -56,6 +56,34 @@ func (p *pamPublisherStub) lastFailedError() string {
 	return p.failed[len(p.failed)-1].Error
 }
 
+func TestBrokerStopClosesPamActionSubscribers(t *testing.T) {
+	b := newTestBroker(t)
+	started, done, failed, _ := b.SubscribePamActionEvents(1)
+
+	b.Stop()
+
+	if _, ok := <-started; ok {
+		t.Fatal("started subscriber channel remained open")
+	}
+	if _, ok := <-done; ok {
+		t.Fatal("done subscriber channel remained open")
+	}
+	if _, ok := <-failed; ok {
+		t.Fatal("failed subscriber channel remained open")
+	}
+	pamSubscribersMu.Lock()
+	defer pamSubscribersMu.Unlock()
+	if _, ok := pamStartedSubsByBroker[b]; ok {
+		t.Fatal("started subscriber registry retained stopped broker")
+	}
+	if _, ok := pamDoneSubsByBroker[b]; ok {
+		t.Fatal("done subscriber registry retained stopped broker")
+	}
+	if _, ok := pamFailedSubsByBroker[b]; ok {
+		t.Fatal("failed subscriber registry retained stopped broker")
+	}
+}
+
 // fakePamRunner is a deterministic PamRunner used in tests. It records the
 // prompts it was given so assertions can verify Pam received the article.
 // If entered is non-nil the runner signals it once per Run, right before

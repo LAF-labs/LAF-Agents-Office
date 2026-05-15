@@ -12,6 +12,33 @@ import (
 	"time"
 )
 
+func TestBrokerStopClosesPlaybookSideRegistries(t *testing.T) {
+	b := newTestBroker(t)
+	execCh, _ := b.SubscribePlaybookExecutionEvents(1)
+	synthCh, _ := b.SubscribePlaybookSynthesizedEvents(1)
+	b.SetPlaybookExecutionLog(NewExecutionLog(nil))
+
+	b.Stop()
+
+	if _, ok := <-execCh; ok {
+		t.Fatal("execution subscriber channel remained open")
+	}
+	if _, ok := <-synthCh; ok {
+		t.Fatal("synth subscriber channel remained open")
+	}
+	playbookSubscribersMu.Lock()
+	defer playbookSubscribersMu.Unlock()
+	if _, ok := playbookSubscribersByBroker[b]; ok {
+		t.Fatal("execution subscriber registry retained stopped broker")
+	}
+	if _, ok := playbookSynthSubsByBroker[b]; ok {
+		t.Fatal("synth subscriber registry retained stopped broker")
+	}
+	if _, ok := playbookExecutionLogByBroker[b]; ok {
+		t.Fatal("execution log registry retained stopped broker")
+	}
+}
+
 // newSynthBroker wires a broker with a live wiki worker + execution log +
 // synthesizer backed by a stub LLM. Returns the broker and a teardown.
 func newSynthBroker(

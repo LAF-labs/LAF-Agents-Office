@@ -1849,6 +1849,8 @@ func (b *Broker) Stop() {
 	if pamDisp != nil {
 		pamDisp.Stop()
 	}
+	b.closePlaybookSideRegistries()
+	b.closePamActionSubscribers()
 }
 
 func (b *Broker) rateLimitMiddleware(next http.Handler) http.Handler {

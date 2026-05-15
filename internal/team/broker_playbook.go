@@ -32,15 +32,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
-// playbookSubscribersMu guards lazy init of the subscriber map. We do NOT
-// add another field to the Broker struct — instead we stash the map in a
-// package-level registry keyed by broker pointer. Simplest zero-cost way to
-// extend without touching broker.go's long constructor.
-//
-// Rationale: broker.go is already on the long side and has a carefully
-// curated field order; the playbook surface does not need to participate
-// in any existing method's locking story except fanout, so a side map
-// keeps the diff narrow.
+// playbookSubscribersMu guards lazy init of the subscriber map.
 var (
 	playbookSubscribersMu        sync.Mutex
 	playbookSubscribersByBroker  = map[*Broker]map[int]chan PlaybookExecutionRecordedEvent{}
@@ -90,6 +82,20 @@ func (b *Broker) PublishPlaybookExecutionRecorded(evt PlaybookExecutionRecordedE
 		default:
 		}
 	}
+}
+
+func (b *Broker) closePlaybookSideRegistries() {
+	playbookSubscribersMu.Lock()
+	defer playbookSubscribersMu.Unlock()
+	for _, ch := range playbookSubscribersByBroker[b] {
+		close(ch)
+	}
+	delete(playbookSubscribersByBroker, b)
+	for _, ch := range playbookSynthSubsByBroker[b] {
+		close(ch)
+	}
+	delete(playbookSynthSubsByBroker, b)
+	delete(playbookExecutionLogByBroker, b)
 }
 
 // PlaybookExecutionLog returns the active ExecutionLog, or nil before
