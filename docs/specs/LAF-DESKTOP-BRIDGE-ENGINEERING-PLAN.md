@@ -974,6 +974,13 @@ go test ./cmd/laf-bridge/...
 
 ### Phase 5 - Codex Exec Adapter
 
+Status: Partially implemented in the current workspace. The bridge has a
+Codex exec adapter that detects `codex`, runs cancellable `codex exec --json`
+with stdin prompt and workspace-write sandbox, parses the existing Codex JSONL
+stream, emits normalized/redacted provider events, captures final summary,
+usage, and git changed files. Wiring this adapter into non-fake bridge plan
+execution remains pending.
+
 Goal:
 
 Run fake and real-compatible `codex exec --json` through the bridge adapter.
