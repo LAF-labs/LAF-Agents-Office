@@ -440,6 +440,12 @@ type TeamMemoryCardArgs struct {
 	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
+type SessionSearchArgs struct {
+	Query string `json:"query" jsonschema:"Past conversation text to search for"`
+	Scope string `json:"scope,omitempty" jsonschema:"One of: all, home, task, archived. Defaults to all."`
+	Limit int    `json:"limit,omitempty" jsonschema:"Maximum hits to return (default 10, max 30)."`
+}
+
 // TeamWikiWriteArgs is the contract for the team_wiki_write MCP tool.
 type TeamWikiWriteArgs struct {
 	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
@@ -650,6 +656,13 @@ func registerCoreMemoryCardTool(server *mcp.Server) {
 	), handleTeamMemoryCard)
 }
 
+func registerSessionSearchTool(server *mcp.Server) {
+	mcp.AddTool(server, readOnlyTool(
+		"session_search",
+		"Search prior live and archived LAF-Office conversations. Use when the human references an earlier discussion or when exact past wording matters. This is conversation recall, not canonical wiki/project memory.",
+	), handleSessionSearch)
+}
+
 func configureServerTools(server *mcp.Server, slug string, channel string, oneOnOne bool) {
 	if oneOnOne {
 		mcp.AddTool(server, officeWriteTool(
@@ -674,6 +687,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 
 		registerSharedMemoryTools(server)
 		registerCoreMemoryCardTool(server)
+		registerSessionSearchTool(server)
 
 		registerSkillAuthoringTools(server)
 
@@ -714,6 +728,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		), handleHumanInterview)
 		registerSharedMemoryTools(server)
 		registerCoreMemoryCardTool(server)
+		registerSessionSearchTool(server)
 		mcp.AddTool(server, officeWriteTool(
 			"team_skill_run",
 			"Invoke a named team skill. When the human's request matches an available skill, call this BEFORE replying — do not freelance. Bumps the skill's usage, logs a skill_invocation to the channel, and returns the skill's canonical step-by-step content for you to follow.",
@@ -784,6 +799,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 	), handleTeamTaskContext)
 
 	registerCoreMemoryCardTool(server)
+	registerSessionSearchTool(server)
 
 	mcp.AddTool(server, readOnlyTool(
 		"team_runtime_state",
@@ -1878,6 +1894,57 @@ func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args Team
 	default:
 		return toolError(fmt.Errorf("action must be one of list, replace, deactivate")), nil, nil
 	}
+}
+
+func handleSessionSearch(ctx context.Context, _ *mcp.CallToolRequest, args SessionSearchArgs) (*mcp.CallToolResult, any, error) {
+	query := strings.TrimSpace(args.Query)
+	if query == "" {
+		return toolError(fmt.Errorf("query is required")), nil, nil
+	}
+	values := url.Values{}
+	values.Set("q", query)
+	if args.Limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", args.Limit))
+	}
+	if scope := strings.TrimSpace(args.Scope); scope != "" {
+		values.Set("scope", scope)
+	}
+	var result struct {
+		Hits []struct {
+			Source    string `json:"source"`
+			Score     int    `json:"score"`
+			ThreadID  string `json:"thread_id,omitempty"`
+			MessageID string `json:"message_id"`
+			Channel   string `json:"channel,omitempty"`
+			From      string `json:"from,omitempty"`
+			Kind      string `json:"kind,omitempty"`
+			Title     string `json:"title,omitempty"`
+			Snippet   string `json:"snippet"`
+			ProjectID string `json:"project_id,omitempty"`
+			TaskID    string `json:"task_id,omitempty"`
+			Timestamp string `json:"timestamp,omitempty"`
+			Archived  bool   `json:"archived,omitempty"`
+		} `json:"hits"`
+	}
+	if err := brokerGetJSON(ctx, "/session/search?"+values.Encode(), &result); err != nil {
+		return toolError(err), nil, nil
+	}
+	if len(result.Hits) == 0 {
+		return textResult("No prior conversation hits."), nil, nil
+	}
+	lines := []string{"Session search hits:"}
+	for _, hit := range result.Hits {
+		where := hit.Channel
+		if hit.ThreadID != "" {
+			where += "/" + hit.ThreadID
+		}
+		flags := ""
+		if hit.Archived {
+			flags = " archived"
+		}
+		lines = append(lines, fmt.Sprintf("- %s%s %s @%s score=%d: %s", hit.MessageID, flags, where, hit.From, hit.Score, truncate(hit.Snippet, 260)))
+	}
+	return textResult(strings.Join(lines, "\n")), nil, nil
 }
 
 func handleTeamMemoryQuery(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryQueryArgs) (*mcp.CallToolResult, any, error) {

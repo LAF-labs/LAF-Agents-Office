@@ -106,6 +106,9 @@ func TestConfigureServerToolsRegistersTaskContext(t *testing.T) {
 	if !slices.Contains(names, "team_memory_card") {
 		t.Fatalf("expected team_memory_card in office mode; tools=%v", names)
 	}
+	if !slices.Contains(names, "session_search") {
+		t.Fatalf("expected session_search in office mode; tools=%v", names)
+	}
 }
 
 func TestConfigureServerToolsOmitsActionToolAnnotations(t *testing.T) {
@@ -585,6 +588,33 @@ func TestHandleTeamMemoryCardReplaceListAndDeactivate(t *testing.T) {
 	}
 	if text := textFromResult(t, result); !strings.Contains(text, "Deactivated core memory card agent_role/reviewer") {
 		t.Fatalf("expected deactivate confirmation, got %q", text)
+	}
+}
+
+func TestHandleSessionSearch(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	if _, err := b.PostMessage("human", "general", "Earlier we agreed to keep the beta launch gated.", nil, ""); err != nil {
+		t.Fatalf("post message: %v", err)
+	}
+	result, _, err := handleSessionSearch(context.Background(), nil, SessionSearchArgs{
+		Query: "beta launch gated",
+		Limit: 3,
+	})
+	if err != nil {
+		t.Fatalf("handleSessionSearch: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Session search hits:") || !strings.Contains(text, "beta launch gated") {
+		t.Fatalf("expected session hit, got %q", text)
 	}
 }
 

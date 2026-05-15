@@ -399,6 +399,7 @@ type brokerState struct {
 	Skills               []teamSkill                  `json:"skills,omitempty"`
 	SharedMemory         map[string]map[string]string `json:"shared_memory,omitempty"`
 	CoreMemoryCards      []coreMemoryCard             `json:"core_memory_cards,omitempty"`
+	SessionArchive       []sessionArchiveEntry        `json:"session_archive,omitempty"`
 	Counter              int                          `json:"counter"`
 	NotificationSince    string                       `json:"notification_since,omitempty"`
 	InsightsSince        string                       `json:"insights_since,omitempty"`
@@ -465,6 +466,7 @@ type Broker struct {
 	skills                  []teamSkill
 	sharedMemory            map[string]map[string]string // namespace → key → value
 	coreMemoryCards         []coreMemoryCard             // small always-injected context cards
+	sessionArchive          []sessionArchiveEntry        // compacted messages retained for session_search
 	lastTaggedAt            map[string]time.Time         // when each agent was last @mentioned
 	lastPaneSnapshot        map[string]string            // last captured pane content per agent (for change detection)
 	seenTelegramGroups      map[int64]string             // chat_id -> title, populated by transport
@@ -1707,6 +1709,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/tasks/ack", b.requireAuth(b.handleTaskAck))
 	mux.HandleFunc("/agent-logs", b.requireAuth(b.handleAgentLogs))
 	mux.HandleFunc("/workspace/search", b.requireAuth(b.handleWorkspaceSearch))
+	mux.HandleFunc("/session/search", b.requireAuth(b.handleSessionSearch))
 	mux.HandleFunc("/task-plan", b.requireAuth(b.handleTaskPlan))
 	mux.HandleFunc("/memory", b.requireAuth(b.handleMemory))
 	mux.HandleFunc("/wiki/write", b.requireAuth(b.handleWikiWrite))
@@ -3330,6 +3333,7 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.Skills) * 2
 	score += len(state.Policies)
 	score += len(state.CoreMemoryCards)
+	score += len(state.SessionArchive)
 	for _, ns := range state.SharedMemory {
 		score += len(ns)
 	}
@@ -3401,6 +3405,7 @@ func (b *Broker) loadState() error {
 	b.skills = state.Skills
 	b.sharedMemory = state.SharedMemory
 	b.coreMemoryCards = state.CoreMemoryCards
+	b.sessionArchive = state.SessionArchive
 	b.counter = state.Counter
 	b.notificationSince = state.NotificationSince
 	b.insightsSince = state.InsightsSince
@@ -3465,7 +3470,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.sessionArchive) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3533,6 +3538,7 @@ func (b *Broker) saveLocked() error {
 		Skills:               b.skills,
 		SharedMemory:         b.sharedMemory,
 		CoreMemoryCards:      b.coreMemoryCards,
+		SessionArchive:       b.sessionArchive,
 		Counter:              b.counter,
 		NotificationSince:    b.notificationSince,
 		InsightsSince:        b.insightsSince,
@@ -8967,6 +8973,7 @@ func (b *Broker) compactHomeThreadLocked(threadID, timestamp string) {
 		}
 		compactedMessages = append(compactedMessages, item.message)
 	}
+	b.archiveSessionMessagesLocked(threadID, compactedMessages, timestamp, "home_compaction")
 
 	summary := buildHomeSummaryMessage(threadID, previousSummary, compactedMessages, timestamp)
 	insertBefore := homeMessages[compactCount].index
