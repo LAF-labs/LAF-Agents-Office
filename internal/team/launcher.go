@@ -3956,6 +3956,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_poll: LAST RESORT — read recent 1:1 messages only if the pushed notification is missing context you genuinely need. Do NOT call this by default.\n")
 		sb.WriteString("- team_broadcast: Send a normal direct chat reply into the 1:1 conversation\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations only when the human refers to something discussed before or exact past wording matters\n")
+		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates after preferences, decisions, or reusable workflow details; use existing memory tools to store only after merging\n")
 		sb.WriteString("- human_message: Send an emphasized report, recommendation, or action card directly to the human when you want it to stand out\n")
 		sb.WriteString("- human_interview: Ask a blocking decision question only when you truly cannot proceed responsibly without it\n\n")
 		sb.WriteString("Use the git-native team wiki and your notebook only when prior context materially helps.\n\n")
@@ -3999,6 +4000,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_bridge: Carry context from one channel into another (lead only).\n")
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations when the human references earlier discussion. Prefer wiki/project memory for canonical facts.\n")
+		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates after preferences, decisions, or reusable workflow details; use existing memory tools to store only after merging.\n")
 		sb.WriteString("- team_skill_run: Invoke a saved skill by name when the request matches one. Use this BEFORE routing or replying — it returns the canonical playbook content to follow and logs a visible skill_invocation in the channel.\n")
 		sb.WriteString("- team_skill_create: Create or propose a reusable skill through structured fields. Use action=create only as lead when the human explicitly asked to create/activate a skill; use action=propose for proposed improvements from any agent.\n")
 		if markdownMemory {
@@ -4116,6 +4118,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString(fmt.Sprintf("- team_bridge: lead-only bridge for cross-channel context. Ask @%s to use it.\n", lead))
 		sb.WriteString("- team_task: Claim, complete, block, resume, or release tasks in your domain.\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations when the human or lead refers to earlier discussion. Prefer wiki/project memory for canonical facts.\n")
+		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates after preferences, decisions, or reusable workflow details; use existing memory tools to store only after merging.\n")
 		sb.WriteString(fmt.Sprintf("- team_skill_run: When @%s tells you to run a skill, or when the request clearly matches one, call team_skill_run(skill_name) BEFORE doing the work. It returns the canonical step-by-step content — follow it exactly instead of freelancing. Failing to invoke the skill leaves the office with no trace that the playbook was actually used.\n", lead))
 		sb.WriteString(fmt.Sprintf("- team_skill_create: Propose a reusable skill yourself with action=propose when you spot a repeatable workflow. You do not need to ask @%s to propose it for you. Only @%s may use action=create.\n", lead, lead))
 		if markdownMemory {

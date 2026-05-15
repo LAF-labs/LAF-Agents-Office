@@ -106,6 +106,9 @@ func TestConfigureServerToolsRegistersTaskContext(t *testing.T) {
 	if !slices.Contains(names, "team_memory_card") {
 		t.Fatalf("expected team_memory_card in office mode; tools=%v", names)
 	}
+	if !slices.Contains(names, "team_memory_reflect") {
+		t.Fatalf("expected team_memory_reflect in office mode; tools=%v", names)
+	}
 	if !slices.Contains(names, "session_search") {
 		t.Fatalf("expected session_search in office mode; tools=%v", names)
 	}
@@ -615,6 +618,38 @@ func TestHandleSessionSearch(t *testing.T) {
 	}
 	if text := textFromResult(t, result); !strings.Contains(text, "Session search hits:") || !strings.Contains(text, "beta launch gated") {
 		t.Fatalf("expected session hit, got %q", text)
+	}
+}
+
+func TestHandleTeamMemoryReflect(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	if _, err := b.PostMessage("human", "general", "I prefer concise Korean progress updates from now on.", nil, ""); err != nil {
+		t.Fatalf("post message: %v", err)
+	}
+	result, _, err := handleTeamMemoryReflect(context.Background(), nil, TeamMemoryReflectArgs{
+		Channel: "general",
+		MySlug:  "ceo",
+		Limit:   5,
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryReflect: %v", err)
+	}
+	text := textFromResult(t, result)
+	if !strings.Contains(text, "Memory candidates:") || !strings.Contains(text, "core:user_profile") {
+		t.Fatalf("expected memory candidate, got %q", text)
+	}
+	if strings.Contains(text, "Stored shared memory") || strings.Contains(text, "Replaced core memory card") {
+		t.Fatalf("reflect tool should not claim it stored memory, got %q", text)
 	}
 }
 

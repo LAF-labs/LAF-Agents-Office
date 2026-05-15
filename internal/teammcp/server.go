@@ -440,6 +440,12 @@ type TeamMemoryCardArgs struct {
 	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
+type TeamMemoryReflectArgs struct {
+	Channel string `json:"channel,omitempty" jsonschema:"Channel slug to scan. Defaults to the active conversation channel."`
+	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum pending candidates to return (default 8, max 25)."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+}
+
 type SessionSearchArgs struct {
 	Query string `json:"query" jsonschema:"Past conversation text to search for"`
 	Scope string `json:"scope,omitempty" jsonschema:"One of: all, home, task, archived. Defaults to all."`
@@ -656,6 +662,13 @@ func registerCoreMemoryCardTool(server *mcp.Server) {
 	), handleTeamMemoryCard)
 }
 
+func registerMemoryReflectionTool(server *mcp.Server) {
+	mcp.AddTool(server, officeWriteTool(
+		"team_memory_reflect",
+		"Review pending durable-memory candidates captured from recent conversation. This only suggests where memory may belong; use team_memory_card, team_memory_write, notebook, or wiki tools to actually store it.",
+	), handleTeamMemoryReflect)
+}
+
 func registerSessionSearchTool(server *mcp.Server) {
 	mcp.AddTool(server, readOnlyTool(
 		"session_search",
@@ -687,6 +700,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 
 		registerSharedMemoryTools(server)
 		registerCoreMemoryCardTool(server)
+		registerMemoryReflectionTool(server)
 		registerSessionSearchTool(server)
 
 		registerSkillAuthoringTools(server)
@@ -728,6 +742,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		), handleHumanInterview)
 		registerSharedMemoryTools(server)
 		registerCoreMemoryCardTool(server)
+		registerMemoryReflectionTool(server)
 		registerSessionSearchTool(server)
 		mcp.AddTool(server, officeWriteTool(
 			"team_skill_run",
@@ -799,6 +814,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 	), handleTeamTaskContext)
 
 	registerCoreMemoryCardTool(server)
+	registerMemoryReflectionTool(server)
 	registerSessionSearchTool(server)
 
 	mcp.AddTool(server, readOnlyTool(
@@ -1893,6 +1909,71 @@ func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args Team
 		return textResult(fmt.Sprintf("Deactivated core memory card %s/%s.", card.Scope, card.Subject)), nil, nil
 	default:
 		return toolError(fmt.Errorf("action must be one of list, replace, deactivate")), nil, nil
+	}
+}
+
+func handleTeamMemoryReflect(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryReflectArgs) (*mcp.CallToolResult, any, error) {
+	slug := resolveSlugOptional(args.MySlug)
+	channel := resolveConversationChannel(ctx, slug, args.Channel)
+	body := map[string]any{
+		"channel": channel,
+		"my_slug": slug,
+	}
+	if args.Limit > 0 {
+		body["limit"] = args.Limit
+	}
+	var result struct {
+		Candidates []struct {
+			ID              string `json:"id"`
+			Status          string `json:"status"`
+			Target          string `json:"target"`
+			Reason          string `json:"reason"`
+			Content         string `json:"content"`
+			SourceMessageID string `json:"source_message_id,omitempty"`
+			ThreadID        string `json:"thread_id,omitempty"`
+			Channel         string `json:"channel,omitempty"`
+			From            string `json:"from,omitempty"`
+			CreatedAt       string `json:"created_at"`
+			UpdatedAt       string `json:"updated_at"`
+		} `json:"candidates"`
+	}
+	if err := brokerPostJSON(ctx, "/memory/candidates/reflect", body, &result); err != nil {
+		return toolError(err), nil, nil
+	}
+	if len(result.Candidates) == 0 {
+		return textResult("No durable-memory candidates in recent conversation."), nil, nil
+	}
+	lines := []string{
+		"Memory candidates:",
+		"Review and merge before storing. This tool does not write canonical memory.",
+	}
+	for _, candidate := range result.Candidates {
+		where := candidate.Channel
+		if candidate.ThreadID != "" {
+			where += "/" + candidate.ThreadID
+		}
+		lines = append(lines, fmt.Sprintf("- %s target=%s reason=%s source=%s %s @%s: %s", candidate.ID, candidate.Target, candidate.Reason, candidate.SourceMessageID, where, candidate.From, truncate(candidate.Content, 260)))
+		if hint := memoryCandidateActionHint(candidate.Target); hint != "" {
+			lines = append(lines, "  next: "+hint)
+		}
+	}
+	return textResult(strings.Join(lines, "\n")), nil, nil
+}
+
+func memoryCandidateActionHint(target string) string {
+	switch {
+	case target == "core:user_profile":
+		return "list team_memory_card scope=user_profile, merge the candidate, then replace the card only if it is durable."
+	case target == "core:team_memory":
+		return "list team_memory_card scope=team_memory, merge the candidate, then replace the card only if it is team-wide and durable."
+	case strings.HasPrefix(target, "private:"):
+		return "use team_memory_write visibility=private for agent-local lessons."
+	case target == "shared":
+		return "use team_memory_write visibility=shared when the whole office should retrieve this later."
+	case target == "notebook":
+		return "use notebook_write for draft workflow notes, then notebook_promote or team_wiki_write after review."
+	default:
+		return ""
 	}
 }
 
