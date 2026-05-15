@@ -1117,6 +1117,14 @@ cd web && bun run build
 
 ### Phase 8 - MCP Context Gateway MVP
 
+Status: Partially implemented in the current workspace. The bridge now has a
+task-scoped MCP gateway package with signed expiring tokens derived from
+execution-plan permissions, permission-gated task context, wiki search, and
+receipt-write tools, a stdio MCP server wrapper, and Codex `--config`
+override support for injecting an MCP server into `codex exec`. API-backed
+context storage, CLI command wiring for `laf-bridge mcp-context`, and automatic
+per-run token/config lifecycle remain pending.
+
 Goal:
 
 Expose LAF task/wiki/skill context to Codex through a task-scoped local MCP

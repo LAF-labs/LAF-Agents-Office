@@ -12,10 +12,11 @@ import (
 )
 
 type CodexExec struct {
-	Path           string
-	Model          string
-	LookPath       func(file string) (string, error)
-	CommandContext func(ctx context.Context, name string, args ...string) *exec.Cmd
+	Path            string
+	Model           string
+	ConfigOverrides []string
+	LookPath        func(file string) (string, error)
+	CommandContext  func(ctx context.Context, name string, args ...string) *exec.Cmd
 }
 
 type CodexDetection struct {
@@ -114,6 +115,11 @@ func (c CodexExec) resolvePath() (string, error) {
 
 func (c CodexExec) args(workdir string) []string {
 	args := []string{"exec"}
+	for _, override := range c.ConfigOverrides {
+		if strings.TrimSpace(override) != "" {
+			args = append(args, "--config", strings.TrimSpace(override))
+		}
+	}
 	if strings.TrimSpace(c.Model) != "" {
 		args = append(args, "--model", strings.TrimSpace(c.Model))
 	}

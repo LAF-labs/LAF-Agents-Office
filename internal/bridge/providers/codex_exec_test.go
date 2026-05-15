@@ -38,6 +38,7 @@ func TestCodexExecRunParsesJSONLAndChangedFiles(t *testing.T) {
 	workdir := t.TempDir()
 	initGitRepo(t, workdir)
 	adapter := testCodexAdapter(t, recordFile, "success")
+	adapter.ConfigOverrides = []string{`mcp_servers.laf-bridge-context.command="/tmp/laf-bridge"`}
 
 	result, err := adapter.Run(context.Background(), workdir, "Ship with Bearer abcdef01234567890")
 	if err != nil {
@@ -68,6 +69,9 @@ func TestCodexExecRunParsesJSONLAndChangedFiles(t *testing.T) {
 	}
 	if !containsArg(records[0].Args, "--json") || !containsArg(records[0].Args, "--sandbox") {
 		t.Fatalf("codex args missing json/sandbox: %#v", records[0].Args)
+	}
+	if !containsArg(records[0].Args, "--config") || !containsArg(records[0].Args, `mcp_servers.laf-bridge-context.command="/tmp/laf-bridge"`) {
+		t.Fatalf("codex args missing MCP config override: %#v", records[0].Args)
 	}
 	if !strings.Contains(records[0].Stdin, "Ship with Bearer") {
 		t.Fatalf("prompt was not sent on stdin: %q", records[0].Stdin)
