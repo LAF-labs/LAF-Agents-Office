@@ -18,6 +18,9 @@ const (
 	memoryCandidateMaxLimit     = 25
 	memoryCandidateMaxStored    = 120
 	memoryCandidateMaxRunes     = 420
+
+	memoryCandidatePendingTTL = 30 * 24 * time.Hour
+	memoryCandidateIgnoredTTL = 7 * 24 * time.Hour
 )
 
 type memoryCandidate struct {
@@ -26,6 +29,7 @@ type memoryCandidate struct {
 	Target          string `json:"target"`
 	Reason          string `json:"reason"`
 	Content         string `json:"content"`
+	Fingerprint     string `json:"fingerprint,omitempty"`
 	SourceMessageID string `json:"source_message_id,omitempty"`
 	ThreadID        string `json:"thread_id,omitempty"`
 	Channel         string `json:"channel,omitempty"`
@@ -128,11 +132,11 @@ func (b *Broker) ReflectMemoryCandidates(req memoryReflectRequest) ([]memoryCand
 	mySlug := normalizeActorSlug(req.MySlug)
 
 	b.mu.Lock()
+	changed := b.pruneMemoryCandidatesLocked(time.Now())
 	start := len(b.messages) - (limit * 4)
 	if start < 0 {
 		start = 0
 	}
-	changed := false
 	for _, msg := range b.messages[start:] {
 		if channel != "" && normalizeChannelSlug(msg.Channel) != channel {
 			continue
@@ -231,18 +235,53 @@ func (b *Broker) MarkMemoryCandidateIgnored(id string) (memoryCandidate, error) 
 }
 
 func (b *Broker) captureMemoryCandidateFromMessageLocked(msg channelMessage) bool {
+	changed := b.pruneMemoryCandidatesLocked(time.Now())
 	candidate, ok := memoryCandidateFromMessage(msg)
 	if !ok {
-		return false
+		return changed
 	}
 	for _, existing := range b.memoryCandidates {
 		if existing.SourceMessageID == candidate.SourceMessageID && existing.Target == candidate.Target {
-			return false
+			return changed
+		}
+		if memoryCandidateEquivalent(existing, candidate) {
+			return changed
 		}
 	}
 	b.memoryCandidates = append(b.memoryCandidates, candidate)
 	b.trimMemoryCandidatesLocked()
 	return true
+}
+
+func (b *Broker) pruneMemoryCandidatesLocked(now time.Time) bool {
+	if len(b.memoryCandidates) == 0 {
+		return false
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	next := b.memoryCandidates[:0]
+	changed := false
+	for _, candidate := range b.memoryCandidates {
+		age := now.Sub(memoryCandidateUpdatedAt(candidate))
+		switch candidate.Status {
+		case memoryCandidateStatusIgnored:
+			if age > memoryCandidateIgnoredTTL {
+				changed = true
+				continue
+			}
+		case memoryCandidateStatusPending:
+			if age > memoryCandidatePendingTTL {
+				changed = true
+				continue
+			}
+		}
+		next = append(next, candidate)
+	}
+	if changed {
+		b.memoryCandidates = append([]memoryCandidate(nil), next...)
+	}
+	return changed
 }
 
 func (b *Broker) trimMemoryCandidatesLocked() {
@@ -287,12 +326,14 @@ func memoryCandidateFromMessage(msg channelMessage) (memoryCandidate, bool) {
 	if threadID == "" {
 		threadID = messageID
 	}
+	content = truncateRunes(strings.Join(strings.Fields(content), " "), memoryCandidateMaxRunes)
 	return memoryCandidate{
 		ID:              "memory-candidate-" + messageID + "-" + slugify(target),
 		Status:          memoryCandidateStatusPending,
 		Target:          target,
 		Reason:          reason,
-		Content:         truncateRunes(strings.Join(strings.Fields(content), " "), memoryCandidateMaxRunes),
+		Content:         content,
+		Fingerprint:     memoryCandidateFingerprint(target, content),
 		SourceMessageID: messageID,
 		ThreadID:        threadID,
 		Channel:         normalizeChannelSlug(msg.Channel),
@@ -312,7 +353,7 @@ func classifyMemoryCandidateTarget(from string, content string) (string, string)
 	):
 		return "core:user_profile", "human preference/profile"
 	case containsAnyNormalizedPhrase(text,
-		"we decided", "decided", "final decision", "approved", "canonical", "source of truth", "locked in",
+		"we decided", "decided", "decision", "final decision", "approved", "canonical", "source of truth", "locked in",
 		"결정", "확정", "합의", "승인",
 	):
 		return "core:team_memory", "durable team decision"
@@ -357,6 +398,65 @@ func containsSensitiveMemoryCandidateText(content string) bool {
 		}
 	}
 	return false
+}
+
+func memoryCandidateEquivalent(a, b memoryCandidate) bool {
+	if strings.TrimSpace(a.Target) == "" || strings.TrimSpace(a.Target) != strings.TrimSpace(b.Target) {
+		return false
+	}
+	aFingerprint := strings.TrimSpace(a.Fingerprint)
+	if aFingerprint == "" {
+		aFingerprint = memoryCandidateFingerprint(a.Target, a.Content)
+	}
+	bFingerprint := strings.TrimSpace(b.Fingerprint)
+	if bFingerprint == "" {
+		bFingerprint = memoryCandidateFingerprint(b.Target, b.Content)
+	}
+	return aFingerprint != "" && aFingerprint == bFingerprint
+}
+
+func memoryCandidateFingerprint(target, content string) string {
+	target = strings.TrimSpace(target)
+	normalized := normalizeMemorySearchText(content)
+	if target == "" || normalized == "" {
+		return ""
+	}
+	for _, prefix := range []string{
+		"we decided", "decided", "decision", "final decision", "approved", "canonical",
+		"i prefer", "my preference", "please always", "please never", "from now on",
+		"playbook", "runbook", "checklist", "handoff", "handover",
+	} {
+		normalized = strings.TrimSpace(strings.ReplaceAll(normalized, normalizeMemorySearchText(prefix), " "))
+	}
+	seen := map[string]struct{}{}
+	tokens := make([]string, 0, 16)
+	for _, token := range strings.Fields(normalized) {
+		if len([]rune(token)) < 2 {
+			continue
+		}
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		tokens = append(tokens, token)
+	}
+	if len(tokens) == 0 {
+		return ""
+	}
+	sort.Strings(tokens)
+	if len(tokens) > 24 {
+		tokens = tokens[:24]
+	}
+	return target + ":" + strings.Join(tokens, " ")
+}
+
+func memoryCandidateUpdatedAt(candidate memoryCandidate) time.Time {
+	for _, raw := range []string{candidate.UpdatedAt, candidate.CreatedAt} {
+		if parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(raw)); err == nil {
+			return parsed
+		}
+	}
+	return time.Time{}
 }
 
 func truncateRunes(value string, limit int) string {
