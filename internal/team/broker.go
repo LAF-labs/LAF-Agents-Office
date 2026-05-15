@@ -8769,6 +8769,80 @@ func isHomeThreadID(value string) bool {
 	return strings.HasPrefix(value, homeThreadPrefix) || strings.HasPrefix(value, legacyHomeThreadPrefix)
 }
 
+func stableHomeThreadPart(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		allowed := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.'
+		if allowed {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	part := strings.Trim(builder.String(), "-")
+	if part == "" {
+		part = "unknown"
+	}
+	if len(part) > 80 {
+		part = part[:80]
+	}
+	return part
+}
+
+func persistentHomeThreadIDForAuthUser(user authUser) string {
+	teamID := stableHomeThreadPart(user.TeamID)
+	userID := stableHomeThreadPart(user.ID)
+	if userID == "unknown" {
+		userID = stableHomeThreadPart(user.Email)
+	}
+	return homeThreadPrefix + teamID + ":" + userID
+}
+
+func (b *Broker) migrateLegacyHomeThreadsForUserLocked(user authUser) bool {
+	targetThreadID := persistentHomeThreadIDForAuthUser(user)
+	if !isHomeThreadID(targetThreadID) || strings.HasPrefix(targetThreadID, legacyHomeThreadPrefix) {
+		return false
+	}
+	legacyThreads := make(map[string]struct{})
+	for _, msg := range b.messages {
+		replyTo := strings.TrimSpace(msg.ReplyTo)
+		if strings.HasPrefix(replyTo, legacyHomeThreadPrefix) {
+			legacyThreads[replyTo] = struct{}{}
+		}
+	}
+	if len(legacyThreads) == 0 {
+		return false
+	}
+
+	changed := false
+	for legacyThreadID := range legacyThreads {
+		threadIDs := messageThreadIDs(b.messages, legacyThreadID)
+		if len(threadIDs) == 0 {
+			continue
+		}
+		for i := range b.messages {
+			id := strings.TrimSpace(b.messages[i].ID)
+			if _, ok := threadIDs[id]; !ok {
+				continue
+			}
+			if strings.TrimSpace(b.messages[i].ReplyTo) == legacyThreadID {
+				b.messages[i].ReplyTo = targetThreadID
+				changed = true
+			}
+		}
+	}
+	if changed {
+		b.compactHomeThreadLocked(targetThreadID, time.Now().UTC().Format(time.RFC3339))
+	}
+	return changed
+}
+
 func isHomeSummaryMessage(msg channelMessage, threadID string) bool {
 	if strings.TrimSpace(msg.Kind) != homeSummaryMessageKind {
 		return false
