@@ -44,13 +44,13 @@ func runWithContext(ctx context.Context, args []string, stdout, stderr io.Writer
 	}
 	switch args[0] {
 	case "pair":
-		return runPair(args[1:], stdout)
+		return runPair(ctx, args[1:], stdout)
 	case "status":
 		return runStatus(stdout)
 	case "doctor":
-		return runDoctor(stdout)
+		return runDoctor(ctx, stdout)
 	case "providers":
-		return runProviders(stdout)
+		return runProviders(ctx, stdout)
 	case "bindings":
 		return runBindings(stdout)
 	case "link-project":
@@ -60,14 +60,14 @@ func runWithContext(ctx context.Context, args []string, stdout, stderr io.Writer
 	case "start":
 		return runStart(ctx, args[1:], stdout)
 	case "mcp-context":
-		return runMCPContext(args[1:], stdout)
+		return runMCPContext(ctx, args[1:], stdout)
 	default:
 		usage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 }
 
-func runPair(args []string, stdout io.Writer) error {
+func runPair(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("pair", flag.ContinueOnError)
 	apiURL := fs.String("api-url", "", "LAF hosted API URL, usually https://host/api")
 	code := fs.String("code", "", "pairing code from the web app")
@@ -77,7 +77,7 @@ func runPair(args []string, stdout io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cfg, err := bridge.Pair(ctx, bridge.PairOptions{
 		APIURL:       *apiURL,
@@ -109,12 +109,12 @@ func runStatus(stdout io.Writer) error {
 	return writeJSON(stdout, status)
 }
 
-func runDoctor(stdout io.Writer) error {
+func runDoctor(ctx context.Context, stdout io.Writer) error {
 	cfg, err := bridge.LoadConfig("")
 	if err != nil {
 		return err
 	}
-	caps := bridge.DetectCapabilities(context.Background(), bridge.ProviderDetector{})
+	caps := bridge.DetectCapabilities(ctx, bridge.ProviderDetector{})
 	return writeJSON(stdout, map[string]any{
 		"config_path":                 bridge.ConfigPath(),
 		"configured":                  cfg.DeviceID != "",
@@ -126,10 +126,10 @@ func runDoctor(stdout io.Writer) error {
 	})
 }
 
-func runProviders(stdout io.Writer) error {
+func runProviders(ctx context.Context, stdout io.Writer) error {
 	return writeJSON(
 		stdout,
-		bridge.DetectCapabilities(context.Background(), bridge.ProviderDetector{}),
+		bridge.DetectCapabilities(ctx, bridge.ProviderDetector{}),
 	)
 }
 
@@ -262,7 +262,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	return writeJSON(stdout, map[string]any{"results": results})
 }
 
-func runMCPContext(args []string, stdout io.Writer) error {
+func runMCPContext(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("mcp-context", flag.ContinueOnError)
 	tokenFlag := fs.String("token", "", "task-scoped MCP token")
 	secretFlag := fs.String("secret", "", "MCP token HMAC secret, raw or base64")
@@ -300,7 +300,7 @@ func runMCPContext(args []string, stdout io.Writer) error {
 		Gateway: bridgemcp.Gateway{Issuer: issuer, Store: store},
 		Token:   token,
 	}
-	return server.RunStdio(context.Background())
+	return server.RunStdio(ctx)
 }
 
 type mcpOptions struct {
