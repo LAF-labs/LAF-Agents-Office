@@ -59,6 +59,12 @@ type sessionSearchRequest struct {
 	Scope string
 }
 
+type sessionSearchQuery struct {
+	Raw        string
+	Normalized string
+	Tokens     []string
+}
+
 func (b *Broker) handleSessionSearch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -154,10 +160,11 @@ func (b *Broker) SearchSessions(req sessionSearchRequest) ([]sessionSearchHit, e
 	archive := append([]sessionArchiveEntry(nil), b.sessionArchive...)
 	b.mu.Unlock()
 
+	searchQuery := buildSessionSearchQuery(query)
 	hits := make([]sessionSearchHit, 0, limit)
 	seen := map[string]struct{}{}
 	for _, msg := range messages {
-		hit, ok := sessionSearchHitFromMessage(msg, query, scope)
+		hit, ok := sessionSearchHitFromMessage(msg, searchQuery, scope)
 		if !ok {
 			continue
 		}
@@ -166,7 +173,7 @@ func (b *Broker) SearchSessions(req sessionSearchRequest) ([]sessionSearchHit, e
 		hits = append(hits, hit)
 	}
 	for _, entry := range archive {
-		hit, ok := sessionSearchHitFromArchive(entry, query, scope)
+		hit, ok := sessionSearchHitFromArchive(entry, searchQuery, scope)
 		if !ok {
 			continue
 		}
@@ -195,7 +202,7 @@ func (b *Broker) SearchSessions(req sessionSearchRequest) ([]sessionSearchHit, e
 	return hits, nil
 }
 
-func sessionSearchHitFromMessage(msg channelMessage, query string, scope string) (sessionSearchHit, bool) {
+func sessionSearchHitFromMessage(msg channelMessage, query sessionSearchQuery, scope string) (sessionSearchHit, bool) {
 	threadID := strings.TrimSpace(msg.ReplyTo)
 	if threadID == "" {
 		threadID = strings.TrimSpace(msg.ID)
@@ -203,11 +210,14 @@ func sessionSearchHitFromMessage(msg channelMessage, query string, scope string)
 	if !sessionSearchScopeMatches(scope, threadID, msg.TaskID, false) {
 		return sessionSearchHit{}, false
 	}
-	text := strings.Join([]string{msg.Title, msg.Content, msg.From, msg.Channel, msg.ProjectID, msg.TaskID}, "\n")
-	score := scoreSessionSearchText(text, query)
+	score := scoreSessionSearchFields(query,
+		[]string{msg.Title, msg.Content},
+		[]string{msg.From, msg.Channel, msg.ProjectID, msg.TaskID},
+	)
 	if score <= 0 {
 		return sessionSearchHit{}, false
 	}
+	snippetSource := strings.TrimSpace(strings.Join([]string{msg.Title, msg.Content}, " "))
 	return sessionSearchHit{
 		Source:    "live",
 		Score:     score,
@@ -217,22 +227,25 @@ func sessionSearchHitFromMessage(msg channelMessage, query string, scope string)
 		From:      strings.TrimSpace(msg.From),
 		Kind:      strings.TrimSpace(msg.Kind),
 		Title:     strings.TrimSpace(msg.Title),
-		Snippet:   sessionSearchSnippet(msg.Content, query),
+		Snippet:   sessionSearchSnippet(snippetSource, query.Raw),
 		ProjectID: strings.TrimSpace(msg.ProjectID),
 		TaskID:    strings.TrimSpace(msg.TaskID),
 		Timestamp: strings.TrimSpace(msg.Timestamp),
 	}, true
 }
 
-func sessionSearchHitFromArchive(entry sessionArchiveEntry, query string, scope string) (sessionSearchHit, bool) {
+func sessionSearchHitFromArchive(entry sessionArchiveEntry, query sessionSearchQuery, scope string) (sessionSearchHit, bool) {
 	if !sessionSearchScopeMatches(scope, entry.ThreadID, entry.TaskID, true) {
 		return sessionSearchHit{}, false
 	}
-	text := strings.Join([]string{entry.Title, entry.Content, entry.From, entry.Channel, entry.ProjectID, entry.TaskID}, "\n")
-	score := scoreSessionSearchText(text, query)
+	score := scoreSessionSearchFields(query,
+		[]string{entry.Title, entry.Content},
+		[]string{entry.From, entry.Channel, entry.ProjectID, entry.TaskID},
+	)
 	if score <= 0 {
 		return sessionSearchHit{}, false
 	}
+	snippetSource := strings.TrimSpace(strings.Join([]string{entry.Title, entry.Content}, " "))
 	return sessionSearchHit{
 		Source:    entry.Source,
 		Score:     score,
@@ -242,7 +255,7 @@ func sessionSearchHitFromArchive(entry sessionArchiveEntry, query string, scope 
 		From:      strings.TrimSpace(entry.From),
 		Kind:      strings.TrimSpace(entry.Kind),
 		Title:     strings.TrimSpace(entry.Title),
-		Snippet:   sessionSearchSnippet(entry.Content, query),
+		Snippet:   sessionSearchSnippet(snippetSource, query.Raw),
 		ProjectID: strings.TrimSpace(entry.ProjectID),
 		TaskID:    strings.TrimSpace(entry.TaskID),
 		Timestamp: strings.TrimSpace(entry.Timestamp),
@@ -266,21 +279,69 @@ func sessionSearchScopeMatches(scope, threadID, taskID string, archived bool) bo
 }
 
 func scoreSessionSearchText(text string, query string) int {
-	normalizedText := normalizeSessionSearchText(text)
-	normalizedQuery := normalizeSessionSearchText(query)
-	if normalizedText == "" || normalizedQuery == "" {
-		return 0
-	}
-	score := 0
-	if strings.Contains(normalizedText, normalizedQuery) {
-		score += 100
-	}
-	for _, token := range strings.Fields(normalizedQuery) {
+	return scoreSessionSearchFields(buildSessionSearchQuery(query), []string{text}, nil)
+}
+
+func buildSessionSearchQuery(raw string) sessionSearchQuery {
+	normalized := normalizeSessionSearchText(raw)
+	tokens := make([]string, 0, len(strings.Fields(normalized)))
+	seen := map[string]struct{}{}
+	for _, token := range strings.Fields(normalized) {
 		if len([]rune(token)) < 2 {
 			continue
 		}
-		if strings.Contains(normalizedText, token) {
-			score += 12
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		tokens = append(tokens, token)
+	}
+	return sessionSearchQuery{
+		Raw:        strings.TrimSpace(raw),
+		Normalized: normalized,
+		Tokens:     tokens,
+	}
+}
+
+func scoreSessionSearchFields(query sessionSearchQuery, primaryFields []string, metadataFields []string) int {
+	if query.Normalized == "" {
+		return 0
+	}
+	primaryText := normalizeSessionSearchText(strings.Join(primaryFields, "\n"))
+	metadataText := normalizeSessionSearchText(strings.Join(metadataFields, "\n"))
+	if primaryText == "" && metadataText == "" {
+		return 0
+	}
+
+	score := 0
+	matchedTokens := map[string]struct{}{}
+	exactPrimary := primaryText != "" && strings.Contains(primaryText, query.Normalized)
+	exactMetadata := metadataText != "" && strings.Contains(metadataText, query.Normalized)
+	if exactPrimary {
+		score += 180
+	} else if exactMetadata {
+		score += 40
+	}
+	for _, token := range query.Tokens {
+		if primaryText != "" && strings.Contains(primaryText, token) {
+			score += 16
+			matchedTokens[token] = struct{}{}
+		}
+		if metadataText != "" && strings.Contains(metadataText, token) {
+			score += 4
+			matchedTokens[token] = struct{}{}
+		}
+	}
+	if len(query.Tokens) > 1 {
+		required := 2
+		if len(query.Tokens) < required {
+			required = len(query.Tokens)
+		}
+		if !exactPrimary && !exactMetadata && len(matchedTokens) < required {
+			return 0
+		}
+		if len(matchedTokens) == len(query.Tokens) {
+			score += 45
 		}
 	}
 	return score

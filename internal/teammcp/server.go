@@ -667,14 +667,14 @@ func registerCoreMemoryCardTool(server *mcp.Server) {
 func registerMemoryReflectionTool(server *mcp.Server) {
 	mcp.AddTool(server, officeWriteTool(
 		"team_memory_reflect",
-		"Review pending durable-memory candidates captured from recent conversation. This only suggests where memory may belong; use team_memory_card, team_memory_write, notebook, or wiki tools to actually store it.",
+		"Review pending durable-memory candidates only after a clear durable signal such as a preference, decision, handoff, or reusable workflow. This only suggests where memory may belong; use team_memory_card, team_memory_write, notebook, or wiki tools to actually store it. Use action=ignore for rejected candidates.",
 	), handleTeamMemoryReflect)
 }
 
 func registerSessionSearchTool(server *mcp.Server) {
 	mcp.AddTool(server, readOnlyTool(
 		"session_search",
-		"Search prior live and archived LAF-Office conversations. Use when the human references an earlier discussion or when exact past wording matters. This is conversation recall, not canonical wiki/project memory.",
+		"Search prior live and archived LAF-Office conversations. Use only when the human references an earlier discussion or exact past wording matters; do not use it for current-turn context. This is conversation recall, not canonical wiki/project memory.",
 	), handleSessionSearch)
 }
 

@@ -45,6 +45,47 @@ func TestSessionSearchSnippetHandlesKoreanText(t *testing.T) {
 	}
 }
 
+func TestSessionSearchSuppressesSingleTokenNoiseForMultiTokenQuery(t *testing.T) {
+	b := newTestBroker(t)
+	if _, err := b.PostMessage("human", "general", "The rollout notes are ready.", nil, ""); err != nil {
+		t.Fatalf("post noisy message: %v", err)
+	}
+	want, err := b.PostMessage("human", "general", "Alpha launch needs a reversible rollout.", nil, "")
+	if err != nil {
+		t.Fatalf("post target message: %v", err)
+	}
+
+	hits, err := b.SearchSessions(sessionSearchRequest{Query: "alpha reversible rollout", Limit: 5})
+	if err != nil {
+		t.Fatalf("search sessions: %v", err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected one precise hit, got %+v", hits)
+	}
+	if hits[0].MessageID != want.ID {
+		t.Fatalf("expected target hit %s, got %+v", want.ID, hits[0])
+	}
+}
+
+func TestSessionSearchUsesTitleForSnippet(t *testing.T) {
+	b := newTestBroker(t)
+	msg, _, err := b.PostAutomationMessage("automation", "general", "Blue comet launch recap", "The body only says approved.", "event-title-search", "test", "Test", nil, "")
+	if err != nil {
+		t.Fatalf("post automation message: %v", err)
+	}
+
+	hits, err := b.SearchSessions(sessionSearchRequest{Query: "blue comet", Limit: 5})
+	if err != nil {
+		t.Fatalf("search sessions: %v", err)
+	}
+	if len(hits) != 1 || hits[0].MessageID != msg.ID {
+		t.Fatalf("expected title hit, got %+v", hits)
+	}
+	if !strings.Contains(hits[0].Snippet, "Blue comet launch recap") {
+		t.Fatalf("expected title in snippet, got %q", hits[0].Snippet)
+	}
+}
+
 func TestHomeCompactionArchivesSearchableMessages(t *testing.T) {
 	b := newTestBroker(t)
 	threadID := "home:team:user"
