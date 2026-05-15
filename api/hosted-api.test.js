@@ -764,6 +764,14 @@ test("hosted bridge pairs, heartbeats, lists, and revokes own devices", async (t
     { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
   );
   assert.equal(rejectedHeartbeat.status, 401);
+
+  const rejectedEventUpload = await invoke(
+    ["execution", "plans", "plan-after-revoke", "events"],
+    "POST",
+    { event_type: "stdout", payload: { line: "late output" }, sequence: 1 },
+    { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
+  );
+  assert.equal(rejectedEventUpload.status, 401);
 });
 
 test("hosted bridge pairing requires pair permission", async (t) => {
@@ -1093,6 +1101,7 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
       event_type: "stdout",
       payload: {
         line: `using Bearer ${token}`,
+        openai_key: `sk-proj-${"a".repeat(24)}`,
         nested: { bridge_token: token },
       },
       sequence: 1,
@@ -1101,7 +1110,22 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   );
   assert.equal(event.status, 200);
   assert.equal(event.body.event.payload.line, "using Bearer [REDACTED]");
+  assert.equal(event.body.event.payload.openai_key, "sk-[REDACTED]");
   assert.equal(event.body.event.payload.nested.bridge_token, "[REDACTED]");
+
+  const oversized = await invoke(
+    ["execution", "plans", planID, "events"],
+    "POST",
+    {
+      event_type: "stdout",
+      payload: { line: "x".repeat(70 * 1024) },
+      sequence: 2,
+    },
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  assert.equal(oversized.status, 413);
+  assert.match(oversized.body.error, /event payload exceeds/);
+  assert.equal(db.execution_events.length, 1);
 
   const events = await invoke(["execution", "plans", planID, "events"], "GET");
   assert.equal(events.status, 200);
@@ -1151,6 +1175,223 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(db.execution_receipts.length, 1);
   assert.equal(db.delivery_receipts.length, 1);
   assert.equal(db.execution_events.length, 2);
+});
+
+test("hosted bridge revoke requires audit durability before mutation", async (t) => {
+  const db = {
+    audit_events: [],
+    bridge_devices: [
+      {
+        device_kind: "desktop",
+        id: "bridge-device-1",
+        status: "online",
+        team_id: "team-1",
+        token_hash: "old-token-hash",
+        user_id: "user-1",
+      },
+    ],
+    failAuditWrite: true,
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const revoke = await invoke(["bridge", "devices", "bridge-device-1", "revoke"], "POST", {});
+
+  assert.equal(revoke.status, 500);
+  assert.equal(revoke.body.error, "audit write failed");
+  assert.equal(db.bridge_devices[0].status, "online");
+  assert.equal(db.bridge_devices[0].revoked_at, undefined);
+  assert.equal(db.bridge_devices[0].token_hash, "old-token-hash");
+});
+
+test("hosted bridge refuses stale completion for cancelled plan", async (t) => {
+  const db = {
+    audit_events: [],
+    bridge_devices: [],
+    bridge_pairing_codes: [],
+    delivery_receipts: [],
+    execution_events: [],
+    execution_plans: [],
+    execution_receipts: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    tasks: [
+      {
+        id: "task-1",
+        local_id: "task-a",
+        team_id: "team-1",
+        title: "Cancelled bridge task",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const start = await invoke(["bridge", "pairing", "start"], "POST", {
+    api_url: "https://office.test/api",
+  });
+  const claim = await invoke(
+    ["bridge", "pairing", "claim"],
+    "POST",
+    {
+      capabilities: { provider_runtimes: ["codex"] },
+      code: start.body.pairing.code,
+      device_label: "Kim's MacBook",
+      platform: "darwin",
+      public_key: "pub-ed25519",
+    },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(claim.status, 200);
+  const device = db.bridge_devices[0];
+  const planID = "11111111-2222-4333-8444-555555555556";
+  db.execution_plans.push({
+    actor_user_id: "user-1",
+    binding_id: null,
+    context_refs: [],
+    created_at: new Date().toISOString(),
+    device_id: device.id,
+    effective_permissions: ["task:execute_agent"],
+    executor_user_id: "user-1",
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    id: planID,
+    local_approval_status: "approved",
+    mode: "my_bridge",
+    nonce: "nonce-1",
+    payload_hash: "hash-1",
+    policy: {},
+    project_id: null,
+    prompt: "Cancelled implementation prompt",
+    provider: "codex",
+    required_permissions: [],
+    signature: "signature-1",
+    signature_alg: "ed25519",
+    signature_key_id: "key-1",
+    status: "cancelled",
+    task_id: "task-1",
+    team_id: "team-1",
+  });
+
+  const staleComplete = await invoke(
+    ["execution", "plans", planID, "complete"],
+    "POST",
+    { status: "completed", summary: "late success" },
+    { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
+  );
+
+  assert.equal(staleComplete.status, 409);
+  assert.match(staleComplete.body.error, /already terminal \(cancelled\)/);
+  assert.equal(db.execution_receipts.length, 0);
+  assert.equal(db.execution_plans[0].status, "cancelled");
+});
+
+test("hosted bridge persists local approval denial with audit", async (t) => {
+  const db = {
+    audit_events: [],
+    bridge_devices: [],
+    bridge_pairing_codes: [],
+    execution_plans: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const start = await invoke(["bridge", "pairing", "start"], "POST", {
+    api_url: "https://office.test/api",
+  });
+  const claim = await invoke(
+    ["bridge", "pairing", "claim"],
+    "POST",
+    {
+      capabilities: { provider_runtimes: ["codex"] },
+      code: start.body.pairing.code,
+      device_label: "Kim's MacBook",
+      platform: "darwin",
+      public_key: "pub-ed25519",
+    },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(claim.status, 200);
+  const device = db.bridge_devices[0];
+  const planID = "11111111-2222-4333-8444-555555555557";
+  db.execution_plans.push({
+    actor_user_id: "user-1",
+    binding_id: null,
+    context_refs: [],
+    created_at: new Date().toISOString(),
+    device_id: device.id,
+    effective_permissions: ["task:execute_agent"],
+    executor_user_id: "user-1",
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    id: planID,
+    local_approval_status: "pending",
+    mode: "my_bridge",
+    nonce: "nonce-1",
+    payload_hash: "hash-1",
+    policy: {},
+    project_id: null,
+    prompt: "Requires local approval",
+    provider: "codex",
+    required_permissions: [],
+    signature: "signature-1",
+    signature_alg: "ed25519",
+    signature_key_id: "key-1",
+    status: "acknowledged",
+    task_id: null,
+    team_id: "team-1",
+  });
+
+  const denied = await invoke(
+    ["execution", "plans", planID, "start"],
+    "POST",
+    {
+      local_approval_status: "denied",
+      reason: "Nope, token lafb_abcdefghijklmnopqrstuvwxyz should not leak",
+    },
+    { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
+  );
+
+  assert.equal(denied.status, 200, JSON.stringify(denied.body));
+  assert.equal(denied.body.plan.status, "cancelled");
+  assert.equal(denied.body.plan.local_approval_status, "denied");
+  assert.equal(db.execution_plans[0].status, "cancelled");
+  assert.equal(db.execution_plans[0].local_approval_status, "denied");
+  assert.match(db.execution_plans[0].last_error, /lafb_\[REDACTED\]/);
+  assert.equal(db.audit_events[0].action, "execution.local_approval_denied");
+  assert.match(db.audit_events[0].metadata.reason, /lafb_\[REDACTED\]/);
 });
 
 test("hosted execution plan create survives relay publish failure", async (t) => {
@@ -1625,6 +1866,9 @@ function hostedFetch(db) {
       return jsonResponse(filterRows(db[table], url.searchParams));
     }
     if (method === "POST") {
+      if (table === "audit_events" && db.failAuditWrite) {
+        return jsonResponse({ error: "audit unavailable" }, 503);
+      }
       const row = {
         id: body.id || `${table}-${db[table].length + 1}`,
         ...body,

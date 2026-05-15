@@ -1156,6 +1156,16 @@ Tests:
 
 ### Phase 9 - Security Hardening
 
+Status: Partially implemented in the current workspace. Hosted API request
+bodies and bridge execution-event payloads now have explicit byte caps, bridge
+pairing/heartbeat/event endpoints have per-process rate-limit guards, sensitive
+bridge revoke and execution cancel mutations require a durable audit write
+before state changes, revoked bridge devices rotate away from their old token
+hash, local approval denial is persisted as a cancelled execution plan with a
+blocking audit write, and bridge event/receipt payloads continue to be redacted.
+Durable distributed rate limits and full desktop approval persistence UX remain
+pending.
+
 Goal:
 
 Prepare the feature for real users.

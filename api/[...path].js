@@ -3,6 +3,15 @@ const crypto = require("node:crypto");
 const ACTIVE_JOB_STATUSES = ["queued", "leased", "running", "expired"];
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
 const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code", "opencode"];
+const MAX_REQUEST_BODY_BYTES = 512 * 1024;
+const MAX_EXECUTION_EVENT_PAYLOAD_BYTES = 64 * 1024;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMITS = {
+  bridgeEvents: 240,
+  bridgeHeartbeat: 120,
+  bridgePairingClaim: 30,
+  bridgePairingStart: 12,
+};
 const WORKSPACE_ROLES = ["owner", "admin", "manager", "member", "viewer"];
 const WORKSPACE_PERMISSIONS = [
   "workspace:read",
@@ -59,6 +68,8 @@ class HTTPError extends Error {
     this.status = status;
   }
 }
+
+const rateLimitBuckets = new Map();
 
 module.exports = async function handler(req, res) {
   try {
@@ -300,8 +311,14 @@ function requestPath(req) {
 }
 
 async function readBody(req) {
-  if (req.body && typeof req.body === "object") return req.body;
+  if (req.body && typeof req.body === "object") {
+    assertJSONByteSize(req.body, MAX_REQUEST_BODY_BYTES, "request body");
+    return req.body;
+  }
   if (typeof req.body === "string" && req.body.trim()) {
+    if (Buffer.byteLength(req.body, "utf8") > MAX_REQUEST_BODY_BYTES) {
+      throw new HTTPError(413, "request body exceeds 524288 bytes");
+    }
     try {
       return JSON.parse(req.body);
     } catch {
@@ -309,7 +326,14 @@ async function readBody(req) {
     }
   }
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += Buffer.byteLength(chunk);
+    if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+      throw new HTTPError(413, "request body exceeds 524288 bytes");
+    }
+    chunks.push(chunk);
+  }
   const text = Buffer.concat(chunks).toString("utf8").trim();
   if (!text) return {};
   try {
@@ -323,6 +347,42 @@ function writeJSON(res, status, payload) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.end(JSON.stringify(payload));
+}
+
+function jsonByteSize(value) {
+  return Buffer.byteLength(JSON.stringify(value ?? null), "utf8");
+}
+
+function assertJSONByteSize(value, maxBytes, label) {
+  if (jsonByteSize(value) > maxBytes) {
+    throw new HTTPError(413, `${label} exceeds ${maxBytes} bytes`);
+  }
+}
+
+function clientRateLimitKey(req) {
+  return String(
+    req.headers?.["x-forwarded-for"] ||
+      req.headers?.["x-real-ip"] ||
+      req.socket?.remoteAddress ||
+      req.connection?.remoteAddress ||
+      "unknown",
+  )
+    .split(",")[0]
+    .trim();
+}
+
+function enforceRateLimit(scope, key, limit, windowMs = RATE_LIMIT_WINDOW_MS) {
+  const bucketKey = `${scope}:${key || "anonymous"}`;
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(bucketKey);
+  if (!bucket || bucket.resetAt <= now) {
+    rateLimitBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
+    return;
+  }
+  bucket.count += 1;
+  if (bucket.count > limit) {
+    throw new HTTPError(429, "rate limit exceeded");
+  }
 }
 
 function supabaseURL(path) {
@@ -866,22 +926,55 @@ function requirePermission(membership, permission) {
   }
 }
 
-async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}) {
-  if (!membership?.team_id) return null;
+async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}, options = {}) {
+  return await writeTeamAuditEvent(
+    membership?.team_id,
+    membership?.user_id,
+    action,
+    targetType,
+    targetID,
+    metadata,
+    options,
+  );
+}
+
+async function writeBridgeAuditEvent(device, action, targetType, targetID, metadata = {}, options = {}) {
+  return await writeTeamAuditEvent(
+    device?.team_id,
+    device?.user_id,
+    action,
+    targetType,
+    targetID,
+    metadata,
+    options,
+  );
+}
+
+async function writeTeamAuditEvent(
+  teamID,
+  actorUserID,
+  action,
+  targetType,
+  targetID,
+  metadata = {},
+  options = {},
+) {
+  if (!teamID) return null;
   try {
     const [event] = await rest("audit_events", {
       method: "POST",
       body: {
         action,
-        actor_user_id: membership.user_id,
-        metadata,
+        actor_user_id: actorUserID || null,
+        metadata: redactSensitiveValue(metadata),
         target_id: targetID || "",
         target_type: targetType || "",
-        team_id: membership.team_id,
+        team_id: teamID,
       },
     });
     return event;
   } catch {
+    if (options.required) throw new HTTPError(500, "audit write failed");
     return null;
   }
 }
@@ -1568,6 +1661,11 @@ async function handleBridgeDevices(req, res) {
 async function handleBridgePairingStart(req, res) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "bridge:pair_own");
+  enforceRateLimit(
+    "bridge_pairing_start",
+    `${membership.team_id}:${membership.user_id}`,
+    RATE_LIMITS.bridgePairingStart,
+  );
   const body = await readBody(req);
   const code = generatePairingCode();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -1601,6 +1699,11 @@ async function handleBridgePairingClaim(req, res) {
   const body = await readBody(req);
   const code = normalizePairingCode(body.code || body.pairing_code || "");
   if (!code) throw new HTTPError(400, "pairing code is required");
+  enforceRateLimit(
+    "bridge_pairing_claim",
+    `${clientRateLimitKey(req)}:${hashToken(code).slice(0, 12)}`,
+    RATE_LIMITS.bridgePairingClaim,
+  );
   const publicKey = String(body.public_key || "").trim();
   if (!publicKey) throw new HTTPError(400, "public_key is required");
   const deviceLabel = String(body.device_label || body.name || "").trim();
@@ -1673,6 +1776,7 @@ async function handleBridgePairingClaim(req, res) {
 async function handleBridgeDeviceHeartbeat(req, res, deviceID) {
   const device = await requireBridgeDevice(req);
   if (device.id !== deviceID) throw new HTTPError(403, "bridge device token mismatch");
+  enforceRateLimit("bridge_heartbeat", device.id, RATE_LIMITS.bridgeHeartbeat);
   const body = await readBody(req);
   const now = nowISO();
   const [updated] = await rest("bridge_devices", {
@@ -1714,6 +1818,16 @@ async function handleBridgeDeviceRevoke(req, res, deviceID) {
     requirePermission(membership, "bridge:manage_team");
   }
   const now = nowISO();
+  await writeAuditEvent(
+    membership,
+    "bridge.device_revoked",
+    "bridge_device",
+    device.id,
+    {
+      device_kind: device.device_kind,
+    },
+    { required: true },
+  );
   const [updated] = await rest("bridge_devices", {
     method: "PATCH",
     query: { id: `eq.${device.id}`, team_id: `eq.${membership.team_id}` },
@@ -1721,11 +1835,9 @@ async function handleBridgeDeviceRevoke(req, res, deviceID) {
       revoked_at: now,
       revoked_by: membership.user_id,
       status: "revoked",
+      token_hash: hashToken(`${device.id}:${now}:revoked`),
       updated_at: now,
     },
-  });
-  await writeAuditEvent(membership, "bridge.device_revoked", "bridge_device", device.id, {
-    device_kind: device.device_kind,
   });
   writeJSON(res, 200, { device: publicBridgeDevice(updated) });
 }
@@ -1941,6 +2053,14 @@ async function handleExecutionPlanCancel(req, res, planID) {
     throw new HTTPError(409, `execution plan is already terminal (${plan.status})`);
   }
   const now = nowISO();
+  await writeAuditEvent(
+    membership,
+    "execution.plan_cancelled",
+    "execution_plan",
+    plan.id,
+    { status: plan.status },
+    { required: true },
+  );
   const [updated] = await rest("execution_plans", {
     method: "PATCH",
     query: { id: `eq.${plan.id}`, team_id: `eq.${membership.team_id}` },
@@ -2020,6 +2140,39 @@ async function handleBridgeExecutionPlanStart(req, res, device, plan) {
   ensureExecutionPlanNotTerminal(plan);
   const body = await readBody(req);
   const now = nowISO();
+  if (body.local_approval_status === "denied") {
+    const reason = truncateText(
+      redactSensitiveText(body.reason || body.error || "local approval denied"),
+      500,
+    );
+    await writeBridgeAuditEvent(
+      device,
+      "execution.local_approval_denied",
+      "execution_plan",
+      plan.id,
+      { reason },
+      { required: true },
+    );
+    const [updated] = await rest("execution_plans", {
+      method: "PATCH",
+      query: {
+        device_id: `eq.${device.id}`,
+        id: `eq.${plan.id}`,
+        status: "not.in.(completed,failed,cancelled,expired)",
+        team_id: `eq.${device.team_id}`,
+      },
+      body: {
+        cancel_requested_at: now,
+        last_error: reason,
+        lease_until: null,
+        local_approval_status: "denied",
+        status: "cancelled",
+        updated_at: now,
+      },
+    });
+    writeJSON(res, 200, { plan: bridgeExecutionPlan(updated || { ...plan, status: "cancelled" }) });
+    return;
+  }
   const [updated] = await rest("execution_plans", {
     method: "PATCH",
     query: {
@@ -2046,6 +2199,11 @@ async function handleBridgeExecutionPlanStart(req, res, device, plan) {
 
 async function handleBridgeExecutionPlanEvent(req, res, device, plan) {
   ensureExecutionPlanNotTerminal(plan);
+  enforceRateLimit(
+    "bridge_execution_events",
+    `${device.id}:${plan.id}`,
+    RATE_LIMITS.bridgeEvents,
+  );
   const body = await readBody(req);
   const sequence = Number(body.sequence);
   if (!Number.isInteger(sequence) || sequence < 1) {
@@ -2053,12 +2211,14 @@ async function handleBridgeExecutionPlanEvent(req, res, device, plan) {
   }
   const eventType = String(body.event_type || body.kind || "").trim();
   if (!eventType) throw new HTTPError(400, "event_type is required");
+  const payload = redactSensitiveValue(body.payload || {});
+  assertJSONByteSize(payload, MAX_EXECUTION_EVENT_PAYLOAD_BYTES, "event payload");
   const [event] = await rest("execution_events", {
     method: "POST",
     body: {
       created_at: nowISO(),
       event_type: eventType,
-      payload: redactSensitiveValue(body.payload || {}),
+      payload,
       plan_id: plan.id,
       redacted: true,
       sequence,
