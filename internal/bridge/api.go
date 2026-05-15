@@ -130,14 +130,39 @@ func (c Client) AckPlan(ctx context.Context, planID string, leaseSeconds int) (E
 	return out.Plan, err
 }
 
+type StartPlanOptions struct {
+	LeaseSeconds        int
+	LocalApprovalStatus string
+	Reason              string
+}
+
 func (c Client) StartPlan(ctx context.Context, planID string, leaseSeconds int) (ExecutionPlan, error) {
+	return c.StartPlanWithOptions(ctx, planID, StartPlanOptions{
+		LeaseSeconds:        leaseSeconds,
+		LocalApprovalStatus: LocalApprovalApproved,
+	})
+}
+
+func (c Client) StartPlanWithOptions(ctx context.Context, planID string, opts StartPlanOptions) (ExecutionPlan, error) {
 	var out struct {
 		Plan ExecutionPlan `json:"plan"`
 	}
-	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/start", map[string]any{
+	leaseSeconds := opts.LeaseSeconds
+	if leaseSeconds <= 0 {
+		leaseSeconds = 300
+	}
+	status := strings.TrimSpace(opts.LocalApprovalStatus)
+	if status == "" {
+		status = LocalApprovalApproved
+	}
+	body := map[string]any{
 		"lease_seconds":         leaseSeconds,
-		"local_approval_status": "approved",
-	}, &out)
+		"local_approval_status": status,
+	}
+	if strings.TrimSpace(opts.Reason) != "" {
+		body["reason"] = opts.Reason
+	}
+	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/start", body, &out)
 	return out.Plan, err
 }
 

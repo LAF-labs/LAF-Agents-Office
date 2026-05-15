@@ -2196,8 +2196,8 @@ async function handleBridgeExecutionPlanStart(req, res, device, plan) {
         Date.now() + clamp(Number(body.lease_seconds || 300), 30, 1800) * 1000,
       ).toISOString(),
       local_approval_status:
-        body.local_approval_status === "approved"
-          ? "approved"
+        body.local_approval_status === "approved" || body.local_approval_status === "not_required"
+          ? body.local_approval_status
           : plan.local_approval_status || "pending",
       started_at: plan.started_at || now,
       status: "running",

@@ -201,6 +201,12 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	providerName := fs.String("provider", "codex", "execution provider: codex or fake")
 	model := fs.String("model", "", "provider model override")
 	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
+	autoApprove := fs.Bool("auto-approve", false, "approve plans that require local approval")
+	allowDangerFullAccess := fs.Bool("allow-danger-full-access", false, "allow danger-full-access plan policy")
+	allowDeploy := fs.Bool("allow-deploy", false, "allow deploy plan policy")
+	allowDestructiveShell := fs.Bool("allow-destructive-shell", false, "allow destructive shell plan policy")
+	allowGitPush := fs.Bool("allow-git-push", false, "allow git push plan policy")
+	allowNetwork := fs.Bool("allow-network", false, "allow network plan policy")
 	mcpContext := fs.Bool("mcp-context", true, "inject task-scoped MCP context into codex exec")
 	mcpContextPath := fs.String("mcp-context-path", "", "optional local MCP context JSON file")
 	mcpCommand := fs.String("mcp-command", "", "laf-bridge command path for Codex MCP config")
@@ -232,8 +238,20 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 	guard := bridge.NewPlanRunGuard()
+	approver := bridge.LocalPolicyApprover{
+		Config: cfg,
+		Options: bridge.LocalPolicyOptions{
+			AutoApproveRequired:   *autoApprove,
+			AllowDangerFullAccess: *allowDangerFullAccess,
+			AllowDeploy:           *allowDeploy,
+			AllowDestructiveShell: *allowDestructiveShell,
+			AllowGitPush:          *allowGitPush,
+			AllowNetwork:          *allowNetwork,
+		},
+	}
 	runner := bridge.PendingRunnerFunc(func(runCtx context.Context) ([]bridge.RunResult, error) {
 		return bridge.RunPendingOnceWithOptions(runCtx, cfg, client, validator, bridge.RunPendingOptions{
+			Approver: approver,
 			Executor: executor,
 			Guard:    guard,
 		})
@@ -253,6 +271,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	runCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	results, err := bridge.RunPendingOnceWithOptions(runCtx, cfg, client, validator, bridge.RunPendingOptions{
+		Approver: approver,
 		Executor: executor,
 		Guard:    guard,
 	})

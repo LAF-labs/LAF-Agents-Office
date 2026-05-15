@@ -71,6 +71,7 @@ type RunResult struct {
 }
 
 type RunPendingOptions struct {
+	Approver PlanApprover
 	Executor PlanExecutor
 	Guard    *PlanRunGuard
 }
@@ -156,6 +157,12 @@ func RunPendingOnceWithOptions(
 	if executor == nil {
 		executor = FakeExecutor{}
 	}
+	approver := options.Approver
+	if approver == nil {
+		approver = PlanApproverFunc(func(context.Context, ExecutionPlan, ProjectBinding) (ApprovalDecision, error) {
+			return ApprovalDecision{Status: LocalApprovalApproved}, nil
+		})
+	}
 	plans, err := client.PendingPlans(ctx, cfg.DeviceID)
 	if err != nil {
 		return nil, err
@@ -178,11 +185,39 @@ func RunPendingOnceWithOptions(
 			options.Guard.Finish(plan.ID, false)
 			return results, fmt.Errorf("ack plan %s: %w", plan.ID, err)
 		}
-		if _, err := client.StartPlan(ctx, plan.ID, 300); err != nil {
+		binding := cfg.BindingForPlan(plan)
+		approval, err := approver.Decide(ctx, plan, binding)
+		if err != nil {
+			options.Guard.Finish(plan.ID, false)
+			return results, fmt.Errorf("approve plan %s: %w", plan.ID, err)
+		}
+		approval.Status = strings.TrimSpace(approval.Status)
+		if approval.Status == "" {
+			approval.Status = LocalApprovalApproved
+		}
+		if approval.Status == LocalApprovalDenied {
+			if _, err := client.StartPlanWithOptions(ctx, plan.ID, StartPlanOptions{
+				LeaseSeconds:        300,
+				LocalApprovalStatus: LocalApprovalDenied,
+				Reason:              approval.Reason,
+			}); err != nil {
+				options.Guard.Finish(plan.ID, false)
+				return results, fmt.Errorf("deny plan %s: %w", plan.ID, err)
+			}
+			options.Guard.Finish(plan.ID, true)
+			result.Status = "cancelled"
+			result.Error = RedactText(approval.Reason)
+			results = append(results, result)
+			continue
+		}
+		if _, err := client.StartPlanWithOptions(ctx, plan.ID, StartPlanOptions{
+			LeaseSeconds:        300,
+			LocalApprovalStatus: approval.Status,
+			Reason:              approval.Reason,
+		}); err != nil {
 			options.Guard.Finish(plan.ID, false)
 			return results, fmt.Errorf("start plan %s: %w", plan.ID, err)
 		}
-		binding := cfg.BindingForPlan(plan)
 		outcome, execErr := executor.Execute(ctx, plan, binding)
 		if execErr != nil {
 			outcome = ExecutionOutcome{

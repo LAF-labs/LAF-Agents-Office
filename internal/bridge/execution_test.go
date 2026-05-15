@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -132,6 +133,65 @@ func TestRunPendingOnceRejectsInvalidPlanWithoutExecuting(t *testing.T) {
 	}
 	if len(results) != 1 || results[0].Status != "rejected" {
 		t.Fatalf("unexpected results: %#v", results)
+	}
+}
+
+func TestRunPendingOnceDeniesPlanWhenLocalApprovalMissing(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := signedPlan(priv, func(plan *ExecutionPlan) {
+		plan.Policy = json.RawMessage(`{"sandbox":"workspace-write"}`)
+	})
+	var startBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case "GET /bridge/devices/device-1/pending-plans":
+			_ = json.NewEncoder(w).Encode(map[string]any{"plans": []ExecutionPlan{plan}})
+		case "POST /execution/plans/plan-1/ack":
+			_ = json.NewEncoder(w).Encode(map[string]any{"plan": plan})
+		case "POST /execution/plans/plan-1/start":
+			if err := json.NewDecoder(r.Body).Decode(&startBody); err != nil {
+				t.Fatal(err)
+			}
+			updated := plan
+			updated.Status = "cancelled"
+			_ = json.NewEncoder(w).Encode(map[string]any{"plan": updated})
+		default:
+			t.Fatalf("unexpected execution call: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	cfg := Config{
+		APIURL:   server.URL,
+		DeviceID: "device-1",
+		UserID:   "user-1",
+		Bindings: []ProjectBinding{
+			{ID: "binding-1", DeviceID: "device-1", LocalPath: "/work/project", Trusted: true},
+		},
+	}
+	results, err := RunPendingOnceWithOptions(
+		context.Background(),
+		cfg,
+		Client{APIURL: server.URL, Token: "bridge-token"},
+		PlanValidator{Config: cfg, Now: testValidator(pub).Now, PublicKey: pub},
+		RunPendingOptions{
+			Approver: LocalPolicyApprover{Config: cfg},
+			Executor: staticExecutor{},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Status != "cancelled" {
+		t.Fatalf("unexpected results: %#v", results)
+	}
+	if startBody["local_approval_status"] != "denied" {
+		t.Fatalf("start body did not deny approval: %#v", startBody)
+	}
+	if !strings.Contains(startBody["reason"].(string), "local approval required") {
+		t.Fatalf("start reason: %#v", startBody)
 	}
 }
 
