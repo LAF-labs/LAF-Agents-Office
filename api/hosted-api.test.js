@@ -977,6 +977,15 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
         user_id: "user-1",
       },
     ],
+    tasks: [
+      {
+        id: "task-1",
+        local_id: "task-1",
+        team_id: "team-1",
+        thread_id: "thread-1",
+        title: "Bridge lifecycle task",
+      },
+    ],
     teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
   };
   const oldFetch = global.fetch;
@@ -1107,6 +1116,10 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(db.delivery_receipts[0].delivery_status, "completed");
   assert.equal(db.delivery_receipts[0].delivery_summary, "Done with laf_bridge_[REDACTED]");
   assert.equal(db.delivery_receipts[0].task_id, "task-1");
+  assert.equal(db.execution_events.length, 2);
+  assert.equal(db.execution_events[1].event_type, "receipt.appended");
+  assert.equal(db.execution_events[1].payload.summary, "Done with laf_bridge_[REDACTED]");
+  assert.equal(db.execution_events[1].payload.thread_id, "thread-1");
 
   const retried = await invoke(
     ["execution", "plans", planID, "complete"],
@@ -1118,6 +1131,7 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(retried.body.receipt.id, completed.body.receipt.id);
   assert.equal(db.execution_receipts.length, 1);
   assert.equal(db.delivery_receipts.length, 1);
+  assert.equal(db.execution_events.length, 2);
 });
 
 test("hosted my_bridge execution plan requires trusted binding and own bridge execute permission", async (t) => {

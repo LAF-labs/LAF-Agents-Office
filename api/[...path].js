@@ -2052,7 +2052,9 @@ async function handleBridgeExecutionPlanComplete(req, res, device, plan) {
     body,
   );
   if (receiptCreated) {
-    await ensureExecutionDeliveryReceipt(updated || { ...plan, status, completed_at: now }, receipt);
+    const finalPlan = updated || { ...plan, status, completed_at: now };
+    await ensureExecutionDeliveryReceipt(finalPlan, receipt);
+    await ensureExecutionTaskThreadReceiptEvent(finalPlan, receipt);
   }
   writeJSON(res, 200, {
     plan: bridgeExecutionPlan(updated || { ...plan, status, completed_at: now }),
@@ -3105,6 +3107,48 @@ async function ensureExecutionDeliveryReceipt(plan, receipt) {
       team_id: plan.team_id,
     },
   });
+}
+
+async function ensureExecutionTaskThreadReceiptEvent(plan, receipt) {
+  if (!plan?.id || !plan?.task_id || !plan?.team_id) return;
+  const events = await rest("execution_events", {
+    query: {
+      plan_id: `eq.${plan.id}`,
+      select: "*",
+      team_id: `eq.${plan.team_id}`,
+    },
+  }).catch(() => []);
+  const maxSequence = (events || []).reduce((max, row) => {
+    const sequence = Number(row?.sequence);
+    return Number.isInteger(sequence) && sequence > max ? sequence : max;
+  }, 0);
+  const taskRows = await rest("tasks", {
+    query: {
+      id: `eq.${plan.task_id}`,
+      limit: "1",
+      select: "id,local_id,thread_id",
+      team_id: `eq.${plan.team_id}`,
+    },
+  }).catch(() => []);
+  const task = taskRows?.[0] || null;
+  await rest("execution_events", {
+    method: "POST",
+    body: {
+      created_at: nowISO(),
+      event_type: "receipt.appended",
+      payload: redactSensitiveValue({
+        summary: redactSensitiveText(receipt?.summary || ""),
+        task_id: plan.task_id,
+        task_local_id: task?.local_id || "",
+        thread_id: task?.thread_id || "",
+      }),
+      plan_id: plan.id,
+      redacted: true,
+      sequence: maxSequence + 1,
+      task_id: plan.task_id,
+      team_id: plan.team_id,
+    },
+  }).catch(() => null);
 }
 
 async function findRunnerJob(teamID, jobID) {
