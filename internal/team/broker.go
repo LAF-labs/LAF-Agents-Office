@@ -48,6 +48,16 @@ var atomicFileLocks sync.Map
 const defaultRateLimitRequestsPerWindow = 600
 const defaultRateLimitWindow = time.Minute
 
+const (
+	homeThreadPrefix                  = "home:"
+	legacyHomeThreadPrefix            = "home-chat-"
+	homeOrchestrationScope            = "home_orchestration"
+	homeSummaryMessageKind            = "home_summary"
+	homeThreadCompactionThreshold     = 100
+	homeThreadRecentMessageRetention  = 40
+	homeThreadSummaryExcerptMaxLength = 5000
+)
+
 // Per-agent rate limit. Applies even to authenticated requests that identify
 // themselves via the X-LAF-Office-Agent header. The threshold is high enough that
 // well-behaved agents will never trip it, but low enough that a prompt-injected
@@ -8480,6 +8490,7 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)
+	b.compactHomeThreadLocked(replyTo, msg.Timestamp)
 	total := len(b.messages)
 
 	// Track which agents were tagged — they should show "typing" immediately
@@ -8687,6 +8698,7 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)
+	b.compactHomeThreadLocked(replyTo, msg.Timestamp)
 	// Clear typing indicator — agent has replied
 	if b.lastTaggedAt != nil {
 		delete(b.lastTaggedAt, msg.From)
@@ -8740,10 +8752,242 @@ func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, s
 	}
 
 	b.appendMessageLocked(msg)
+	b.compactHomeThreadLocked(msg.ReplyTo, msg.Timestamp)
 	if err := b.saveLocked(); err != nil {
 		return channelMessage{}, false, err
 	}
 	return msg, false, nil
+}
+
+type indexedHomeMessage struct {
+	index   int
+	message channelMessage
+}
+
+func isHomeThreadID(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, homeThreadPrefix) || strings.HasPrefix(value, legacyHomeThreadPrefix)
+}
+
+func isHomeSummaryMessage(msg channelMessage, threadID string) bool {
+	if strings.TrimSpace(msg.Kind) != homeSummaryMessageKind {
+		return false
+	}
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return isHomeThreadID(msg.ReplyTo)
+	}
+	return strings.TrimSpace(msg.ReplyTo) == threadID
+}
+
+func (b *Broker) compactHomeThreadLocked(threadID, timestamp string) {
+	threadID = strings.TrimSpace(threadID)
+	if !isHomeThreadID(threadID) {
+		return
+	}
+	if timestamp = strings.TrimSpace(timestamp); timestamp == "" {
+		timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	threadIDs := messageThreadIDs(b.messages, threadID)
+	if len(threadIDs) == 0 {
+		return
+	}
+
+	var previousSummary *channelMessage
+	homeMessages := make([]indexedHomeMessage, 0, len(threadIDs))
+	for i, msg := range b.messages {
+		if _, ok := threadIDs[strings.TrimSpace(msg.ID)]; !ok {
+			continue
+		}
+		if isHomeSummaryMessage(msg, threadID) {
+			copyMsg := msg
+			previousSummary = &copyMsg
+			continue
+		}
+		homeMessages = append(homeMessages, indexedHomeMessage{index: i, message: msg})
+	}
+	if len(homeMessages) <= homeThreadCompactionThreshold {
+		return
+	}
+
+	compactCount := len(homeMessages) - homeThreadRecentMessageRetention
+	if compactCount <= 0 || compactCount >= len(homeMessages) {
+		return
+	}
+
+	compactedIDs := make(map[string]struct{}, compactCount)
+	compactedIndexes := make(map[int]struct{}, compactCount)
+	compactedMessages := make([]channelMessage, 0, compactCount)
+	for _, item := range homeMessages[:compactCount] {
+		compactedIndexes[item.index] = struct{}{}
+		if id := strings.TrimSpace(item.message.ID); id != "" {
+			compactedIDs[id] = struct{}{}
+		}
+		compactedMessages = append(compactedMessages, item.message)
+	}
+
+	summary := buildHomeSummaryMessage(threadID, previousSummary, compactedMessages, timestamp)
+	insertBefore := homeMessages[compactCount].index
+	next := make([]channelMessage, 0, len(b.messages)-compactCount+1)
+	insertedSummary := false
+	for i, msg := range b.messages {
+		if _, skip := compactedIndexes[i]; skip {
+			continue
+		}
+		if isHomeSummaryMessage(msg, threadID) {
+			continue
+		}
+		if !insertedSummary && i >= insertBefore {
+			next = append(next, summary)
+			insertedSummary = true
+		}
+		if _, inThread := threadIDs[strings.TrimSpace(msg.ID)]; inThread {
+			if _, parentCompacted := compactedIDs[strings.TrimSpace(msg.ReplyTo)]; parentCompacted {
+				msg.ReplyTo = threadID
+			}
+		}
+		next = append(next, msg)
+	}
+	if !insertedSummary {
+		next = append(next, summary)
+	}
+	b.messages = next
+}
+
+func buildHomeSummaryMessage(threadID string, previousSummary *channelMessage, compacted []channelMessage, timestamp string) channelMessage {
+	var builder strings.Builder
+	builder.WriteString("Auto-compressed Home summary.\n")
+	channel := "general"
+	if len(compacted) > 0 {
+		first := strings.TrimSpace(compacted[0].Timestamp)
+		last := strings.TrimSpace(compacted[len(compacted)-1].Timestamp)
+		if compactedChannel := normalizeChannelSlug(compacted[len(compacted)-1].Channel); compactedChannel != "" {
+			channel = compactedChannel
+		}
+		builder.WriteString(fmt.Sprintf("Covered %d older messages", len(compacted)))
+		if first != "" || last != "" {
+			builder.WriteString(fmt.Sprintf(" from %s to %s", first, last))
+		}
+		builder.WriteString(".")
+	} else if previousSummary != nil {
+		if summaryChannel := normalizeChannelSlug(previousSummary.Channel); summaryChannel != "" {
+			channel = summaryChannel
+		}
+	}
+
+	if previousSummary != nil && strings.TrimSpace(previousSummary.Content) != "" {
+		builder.WriteString("\n\nEarlier summary:\n")
+		builder.WriteString(truncateSummary(previousSummary.Content, 1400))
+	}
+
+	participants := map[string]struct{}{}
+	tags := map[string]struct{}{}
+	refs := map[string]struct{}{}
+	var userLines []string
+	var agentLines []string
+	for _, msg := range compacted {
+		from := strings.TrimSpace(msg.From)
+		if from == "" {
+			from = "unknown"
+		}
+		participants[from] = struct{}{}
+		for _, tag := range msg.Tagged {
+			if tag = strings.TrimSpace(tag); tag != "" {
+				tags[tag] = struct{}{}
+			}
+		}
+		if projectID := strings.TrimSpace(msg.ProjectID); projectID != "" {
+			refs["#"+projectID] = struct{}{}
+		}
+		if taskID := strings.TrimSpace(msg.TaskID); taskID != "" {
+			refs["task:"+taskID] = struct{}{}
+		}
+		line := fmt.Sprintf("- %s @%s: %s", strings.TrimSpace(msg.Timestamp), from, truncateSummary(msg.Content, 180))
+		if from == "you" || from == "human" {
+			userLines = appendCappedHomeSummaryLine(userLines, line, 6)
+		} else if from != "system" {
+			agentLines = appendCappedHomeSummaryLine(agentLines, line, 6)
+		}
+	}
+
+	if values := sortedHomeSummaryValues(participants); len(values) > 0 {
+		builder.WriteString("\nParticipants: ")
+		builder.WriteString(strings.Join(values, ", "))
+	}
+	if values := sortedHomeSummaryValues(tags); len(values) > 0 {
+		builder.WriteString("\nTagged agents: ")
+		builder.WriteString(strings.Join(values, ", "))
+	}
+	if values := sortedHomeSummaryValues(refs); len(values) > 0 {
+		builder.WriteString("\nReferences: ")
+		builder.WriteString(strings.Join(values, ", "))
+	}
+	if len(userLines) > 0 {
+		builder.WriteString("\n\nOlder user asks:\n")
+		builder.WriteString(strings.Join(userLines, "\n"))
+	}
+	if len(agentLines) > 0 {
+		builder.WriteString("\n\nOlder agent replies:\n")
+		builder.WriteString(strings.Join(agentLines, "\n"))
+	}
+
+	return channelMessage{
+		ID:        homeSummaryMessageID(threadID),
+		From:      "system",
+		Channel:   channel,
+		Kind:      homeSummaryMessageKind,
+		Title:     "Earlier Home conversation summary",
+		Content:   truncateSummary(builder.String(), homeThreadSummaryExcerptMaxLength),
+		Tagged:    nil,
+		ReplyTo:   threadID,
+		Scope:     homeOrchestrationScope,
+		Timestamp: timestamp,
+	}
+}
+
+func appendCappedHomeSummaryLine(lines []string, line string, limit int) []string {
+	lines = append(lines, line)
+	if len(lines) > limit {
+		lines = lines[len(lines)-limit:]
+	}
+	return lines
+}
+
+func sortedHomeSummaryValues(values map[string]struct{}) []string {
+	out := make([]string, 0, len(values))
+	for value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			out = append(out, value)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func homeSummaryMessageID(threadID string) string {
+	threadID = strings.ToLower(strings.TrimSpace(threadID))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range threadID {
+		allowed := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.'
+		if allowed {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	part := strings.Trim(builder.String(), "-")
+	if part == "" {
+		part = "thread"
+	}
+	if len(part) > 96 {
+		part = part[:96]
+	}
+	return "home-summary-" + part
 }
 
 func (b *Broker) CreateRequest(req humanInterview) (humanInterview, error) {

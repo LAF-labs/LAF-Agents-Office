@@ -2270,13 +2270,13 @@ func TestBuildNotificationContextDoesNotFallbackForHomeChatThread(t *testing.T) 
 	if _, err := b.PostMessage("you", "general", "Earlier channel message", nil, ""); err != nil {
 		t.Fatalf("post earlier: %v", err)
 	}
-	trigger, err := b.PostMessage("human", "general", "Fresh home ask", []string{"ceo"}, "home-chat-test")
+	trigger, err := b.PostMessage("human", "general", "Fresh home ask", []string{"ceo"}, "home:team-alpha:user-alpha")
 	if err != nil {
 		t.Fatalf("post trigger: %v", err)
 	}
 
 	l := &Launcher{broker: b}
-	ctx := l.buildNotificationContext("general", trigger.ID, "home-chat-test", 5)
+	ctx := l.buildNotificationContext("general", trigger.ID, "home:team-alpha:user-alpha", 5)
 
 	if ctx != "" {
 		t.Fatalf("expected no ambient channel context for home chat thread, got %q", ctx)

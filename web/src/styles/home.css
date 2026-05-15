@@ -275,6 +275,16 @@
   padding-top: 2px;
 }
 
+.home-message.is-summary .home-message-avatar {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+  color: var(--accent);
+}
+
+.home-message.is-summary .home-message-body {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  padding-left: 12px;
+}
+
 .home-message-meta {
   display: flex;
   align-items: baseline;

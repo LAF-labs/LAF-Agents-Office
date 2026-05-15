@@ -675,6 +675,7 @@ export interface Message {
   id: string;
   from: string;
   channel: string;
+  kind?: string;
   content: string;
   timestamp: string;
   reply_to?: string;

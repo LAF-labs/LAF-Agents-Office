@@ -179,7 +179,7 @@ func isBlankSlateLaunchSlug(value string) bool {
 }
 
 func isEphemeralHomeThreadID(value string) bool {
-	return strings.HasPrefix(strings.TrimSpace(value), "home-chat-")
+	return isHomeThreadID(value)
 }
 
 // NewLauncher creates a launcher for the given operation blueprint or legacy pack.
@@ -2487,8 +2487,8 @@ func (l *Launcher) reconfigureVisibleAgents() error {
 //
 // When threadRootID is empty, or when the thread has no displayable messages (e.g.
 // the trigger is the first message in a new thread), the function falls back to the
-// last N channel messages and labels the section "[Recent channel]". Ephemeral home
-// chat threads are the exception: they intentionally start with no inherited
+// last N channel messages and labels the section "[Recent channel]". Home chat
+// threads are the exception: they intentionally start with no inherited
 // channel context, so an empty thread returns no context instead.
 //
 // The trigger message (triggerMsgID) is always excluded — it is already delivered
@@ -2509,7 +2509,7 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 
 	// baseFilter excludes system messages, STATUS messages, and the trigger itself.
 	baseFilter := func(m channelMessage) bool {
-		if m.From == "system" {
+		if m.From == "system" && strings.TrimSpace(m.Kind) != homeSummaryMessageKind {
 			return false
 		}
 		if strings.TrimSpace(triggerMsgID) != "" && strings.TrimSpace(m.ID) == strings.TrimSpace(triggerMsgID) {
@@ -2555,10 +2555,30 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 			}
 		}
 		if rootMsg != nil || len(rest) > 0 {
-			// Take last (limit-1) from rest to leave a slot for the root.
+			// Take last messages from rest, keeping the compacted home summary
+			// visible when the thread has one.
 			remaining := limit
 			if rootMsg != nil {
 				remaining--
+			}
+			var summaryMsg *channelMessage
+			if isHomeThreadID(threadRoot) {
+				filteredRest := rest[:0]
+				for i := range rest {
+					if isHomeSummaryMessage(rest[i], threadRoot) {
+						copyMsg := rest[i]
+						summaryMsg = &copyMsg
+						continue
+					}
+					filteredRest = append(filteredRest, rest[i])
+				}
+				rest = filteredRest
+				if summaryMsg != nil {
+					remaining--
+				}
+			}
+			if remaining < 0 {
+				remaining = 0
 			}
 			if len(rest) > remaining {
 				rest = rest[len(rest)-remaining:]
@@ -2566,6 +2586,9 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 			var thread []channelMessage
 			if rootMsg != nil {
 				thread = append(thread, *rootMsg)
+			}
+			if summaryMsg != nil {
+				thread = append(thread, *summaryMsg)
 			}
 			thread = append(thread, rest...)
 			return "[Recent thread]\n" + formatContext(thread)

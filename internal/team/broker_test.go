@@ -720,6 +720,88 @@ func TestBrokerMessagesCanScopeToThread(t *testing.T) {
 	}
 }
 
+func TestBrokerCompactsPersistentHomeThread(t *testing.T) {
+	b := newTestBroker(t)
+	threadID := "home:team-alpha:user-alpha"
+	now := "2026-05-15T00:00:00Z"
+
+	b.mu.Lock()
+	b.messages = append(b.messages, channelMessage{
+		ID:        "unrelated",
+		From:      "you",
+		Channel:   "general",
+		Content:   "regular channel message",
+		Timestamp: now,
+	})
+	for i := 0; i < homeThreadCompactionThreshold+5; i++ {
+		parent := threadID
+		if i%2 == 1 {
+			parent = fmt.Sprintf("home-msg-%03d", i-1)
+		}
+		from := "human"
+		tagged := []string{"ceo"}
+		if i%2 == 1 {
+			from = "ceo"
+			tagged = nil
+		}
+		b.messages = append(b.messages, channelMessage{
+			ID:        fmt.Sprintf("home-msg-%03d", i),
+			From:      from,
+			Channel:   "general",
+			Content:   fmt.Sprintf("home content %03d", i),
+			Tagged:    tagged,
+			ReplyTo:   parent,
+			Timestamp: now,
+		})
+	}
+	b.compactHomeThreadLocked(threadID, now)
+	messages := append([]channelMessage(nil), b.messages...)
+	b.mu.Unlock()
+
+	if len(messages) != homeThreadRecentMessageRetention+2 {
+		t.Fatalf("expected unrelated + summary + retained home messages, got %d messages", len(messages))
+	}
+	var summary *channelMessage
+	for i := range messages {
+		if messages[i].ID == "home-msg-000" {
+			t.Fatalf("old home message was not compacted: %+v", messages[i])
+		}
+		if messages[i].ID == "unrelated" {
+			continue
+		}
+		if messages[i].Kind == homeSummaryMessageKind {
+			summary = &messages[i]
+		}
+	}
+	if summary == nil {
+		t.Fatalf("expected home summary message, got %+v", messages)
+	}
+	if summary.ReplyTo != threadID || !strings.Contains(summary.Content, "Auto-compressed Home summary") {
+		t.Fatalf("unexpected summary: %+v", *summary)
+	}
+
+	threadIDs := messageThreadIDs(messages, threadID)
+	threadCount := 0
+	var firstRetained *channelMessage
+	for i := range messages {
+		if _, ok := threadIDs[messages[i].ID]; ok {
+			threadCount++
+		}
+		if messages[i].ID == "home-msg-065" {
+			firstRetained = &messages[i]
+		}
+	}
+	if threadCount != homeThreadRecentMessageRetention+1 {
+		t.Fatalf("expected summary plus retained home messages in thread, got %d", threadCount)
+	}
+	if firstRetained == nil {
+		t.Fatalf("expected first retained message to remain")
+	}
+	if firstRetained.ReplyTo != threadID {
+		t.Fatalf("expected retained child with compacted parent to be re-anchored, got reply_to=%q", firstRetained.ReplyTo)
+	}
+}
+
 func TestBrokerMessagesCanScopeToAgentInbox(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()

@@ -14,6 +14,7 @@ import { HomeApp } from "./HomeApp";
 const apiMocks = vi.hoisted(() => ({
   confirmOrchestrationIntent: vi.fn(),
   createProject: vi.fn(),
+  getAuthSession: vi.fn(),
   getConfig: vi.fn(),
   getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
@@ -43,6 +44,23 @@ function renderHomeApp() {
 describe("HomeApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    apiMocks.getAuthSession.mockResolvedValue({
+      authenticated: true,
+      team: {
+        created_at: "2026-05-01T00:00:00Z",
+        id: "team-alpha",
+        name: "Alpha",
+        slug: "alpha",
+      },
+      user: {
+        email: "owner@example.com",
+        id: "user-alpha",
+        name: "Owner",
+        role: "owner",
+        status: "active",
+        team_id: "team-alpha",
+      },
+    });
     apiMocks.getConfig.mockResolvedValue({ team_lead_slug: "ceo" });
     apiMocks.getModelAvailability.mockResolvedValue({
       allowed_modes: ["record_only"],
@@ -150,7 +168,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "#new @ceo 이번 주 계획 정리해줘",
         "general",
-        expect.stringMatching(/^home-chat-/),
+        "home:team-alpha:user-alpha",
         ["ceo"],
         expect.objectContaining({
           model_mode: "record_only",
@@ -175,7 +193,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "@engineer 디자인 확인해줘",
         "general",
-        expect.stringMatching(/^home-chat-/),
+        "home:team-alpha:user-alpha",
         ["engineer"],
         expect.objectContaining({
           model_mode: "record_only",
@@ -219,14 +237,37 @@ describe("HomeApp", () => {
     expect(apiMocks.postMessage).not.toHaveBeenCalled();
   });
 
-  it("loads a fresh home thread so agent replies stay scoped to the new chat", async () => {
+  it("loads the persistent home thread for the authenticated user", async () => {
     renderHomeApp();
 
     await screen.findByText("오늘은 무슨 이야기를 할까요?");
 
     expect(apiMocks.getThreadMessages).toHaveBeenCalledWith(
       "general",
-      expect.stringMatching(/^home-chat-/),
+      "home:team-alpha:user-alpha",
     );
+  });
+
+  it("renders compacted home summaries as summary messages", async () => {
+    apiMocks.getThreadMessages.mockResolvedValue({
+      messages: [
+        {
+          channel: "general",
+          content: "Auto-compressed Home summary.",
+          from: "system",
+          id: "home-summary-team-alpha-user-alpha",
+          kind: "home_summary",
+          reply_to: "home:team-alpha:user-alpha",
+          timestamp: "2026-05-10T00:00:00Z",
+        },
+      ],
+    });
+
+    renderHomeApp();
+
+    expect(await screen.findByText("요약")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Auto-compressed Home summary."),
+    ).toBeInTheDocument();
   });
 });

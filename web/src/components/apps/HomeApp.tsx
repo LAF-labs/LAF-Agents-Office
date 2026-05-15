@@ -14,8 +14,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hashtag, Plus, SendDiagonal } from "iconoir-react";
 
 import {
+  type AuthSessionResponse,
   confirmOrchestrationIntent,
   createProject,
+  getAuthSession,
   getConfig,
   getProjects,
   getThreadMessages,
@@ -36,13 +38,45 @@ import { PixelAvatar } from "../ui/PixelAvatar";
 
 const HOME_CHANNEL = "general";
 const NON_AGENT_SLUGS = new Set(["human", "you", "system"]);
+const LOCAL_HOME_THREAD_KEY = "laf-office.home.thread_id";
 
-function createHomeChatThreadId(): string {
+function stableHomePart(value: string | undefined): string {
+  const safe = (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return safe || "unknown";
+}
+
+function createLocalHomeThreadId(): string {
   const cryptoUUID =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `home-chat-${cryptoUUID}`;
+  return `home:local:${cryptoUUID}`;
+}
+
+function localHomeThreadId(): string {
+  if (typeof window === "undefined") return "home:local:anonymous";
+  const existing = window.localStorage.getItem(LOCAL_HOME_THREAD_KEY);
+  if (existing?.startsWith("home:")) return existing;
+  const next = createLocalHomeThreadId();
+  window.localStorage.setItem(LOCAL_HOME_THREAD_KEY, next);
+  return next;
+}
+
+function createHomeChatThreadId(
+  session: AuthSessionResponse | null | undefined,
+): string | null {
+  if (!session) return null;
+  if (session.authenticated && session.user) {
+    const teamID = stableHomePart(session.user.team_id || session.team?.id);
+    const userID = stableHomePart(session.user.id || session.user.email);
+    return `home:${teamID}:${userID}`;
+  }
+  return localHomeThreadId();
 }
 
 function projectTime(project: Project): number {
@@ -458,14 +492,23 @@ function HomeMessage({
   agentSlugs: string[];
 }) {
   const isHuman = message.from === "you" || message.from === "human";
+  const isSummary = message.kind === "home_summary";
   return (
-    <article className={`home-message${isHuman ? " is-human" : ""}`}>
+    <article
+      className={`home-message${isHuman ? " is-human" : ""}${isSummary ? " is-summary" : ""}`}
+    >
       <div className="home-message-avatar">
-        {isHuman ? "You" : <PixelAvatar slug={message.from} size={24} />}
+        {isHuman ? (
+          "You"
+        ) : isSummary ? (
+          "Sum"
+        ) : (
+          <PixelAvatar slug={message.from} size={24} />
+        )}
       </div>
       <div className="home-message-body">
         <div className="home-message-meta">
-          <span>{isHuman ? "You" : message.from}</span>
+          <span>{isHuman ? "You" : isSummary ? "요약" : message.from}</span>
           <time dateTime={message.timestamp}>
             {formatTime(message.timestamp)}
           </time>
@@ -625,7 +668,7 @@ function HomeComposer({
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
     if (
-      !trimmed ||
+      !(trimmed && threadId) ||
       sendMutation.isPending ||
       confirmMutation.isPending ||
       sendLockedRef.current
@@ -634,7 +677,7 @@ function HomeComposer({
     sendLockedRef.current = true;
     setPendingIntent(null);
     sendMutation.mutate(trimmed);
-  }, [confirmMutation.isPending, text, sendMutation]);
+  }, [confirmMutation.isPending, text, sendMutation, threadId]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (isHomeIMEComposing(event, composingRef)) {
@@ -761,7 +804,7 @@ function HomeComposer({
           aria-label="보내기"
           title="보내기"
           disabled={
-            !text.trim() ||
+            !(text.trim() && threadId) ||
             sendMutation.isPending ||
             confirmMutation.isPending ||
             sendLockedRef.current
@@ -781,7 +824,15 @@ export function HomeApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
-  const [homeThreadId] = useState(createHomeChatThreadId);
+  const { data: authSession, isLoading: authLoading } = useQuery({
+    queryKey: ["auth-session"],
+    queryFn: getAuthSession,
+    staleTime: 60_000,
+  });
+  const homeThreadId = useMemo(
+    () => createHomeChatThreadId(authSession),
+    [authSession],
+  );
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
     queryKey: ["projects"],
     queryFn: () => getProjects(),
@@ -789,7 +840,8 @@ export function HomeApp() {
   });
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ["home-messages", HOME_CHANNEL, homeThreadId],
-    queryFn: () => getThreadMessages(HOME_CHANNEL, homeThreadId),
+    queryFn: () => getThreadMessages(HOME_CHANNEL, homeThreadId ?? ""),
+    enabled: !!homeThreadId,
     refetchInterval:
       typeof (globalThis as { EventSource?: typeof EventSource })
         .EventSource !== "undefined"
@@ -821,6 +873,7 @@ export function HomeApp() {
     [config?.team_lead_slug, agentMembers],
   );
   const hasMessages = (messagesData ?? []).length > 0;
+  const homeMessagesLoading = authLoading || messagesLoading;
 
   useEffect(() => {
     if (
@@ -844,14 +897,14 @@ export function HomeApp() {
       ) : null}
       <HomeMessageList
         messages={messagesData ?? []}
-        isLoading={messagesLoading}
+        isLoading={homeMessagesLoading}
         agentSlugs={agentSlugs}
       />
       <HomeComposer
         selectedProject={selectedProject}
         agentMembers={agentMembers}
         leadSlug={leadSlug}
-        threadId={homeThreadId}
+        threadId={homeThreadId ?? ""}
       />
     </div>
   );
