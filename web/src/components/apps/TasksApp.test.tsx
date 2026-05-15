@@ -270,6 +270,69 @@ describe("TasksApp project directory", () => {
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
 
+  it("shows the local bridge link command after trusting a project path", async () => {
+    const user = userEvent.setup();
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: true,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+      },
+    });
+    apiMocks.createProjectLocalBinding.mockResolvedValue({
+      binding: {
+        device_id: "device-1",
+        display_name: "Customer Portal",
+        id: "binding-1",
+        project_id: "customer-portal",
+        team_id: "team-local",
+        trusted: true,
+        user_id: "user-1",
+      },
+      commands: {
+        link: "laf-bridge link-project --binding-id binding-1 --project-id customer-portal --path '/Users/me/Customer Portal' --display-name 'Customer Portal'",
+      },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.type(
+      await screen.findByLabelText("Local path"),
+      "/Users/me/Customer Portal",
+    );
+    await user.click(screen.getByRole("button", { name: "Trust path" }));
+
+    await waitFor(() => {
+      expect(apiMocks.createProjectLocalBinding).toHaveBeenCalledWith(
+        "customer-portal",
+        expect.objectContaining({
+          device_id: "device-1",
+          local_path: "/Users/me/Customer Portal",
+          trusted: true,
+        }),
+      );
+    });
+    expect(
+      await screen.findByText("Run this once on the bridge machine"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/laf-bridge link-project --binding-id binding-1/),
+    ).toBeInTheDocument();
+  });
+
   it("creates a task inside the selected project", async () => {
     const user = userEvent.setup();
     apiMocks.createTask.mockResolvedValue({

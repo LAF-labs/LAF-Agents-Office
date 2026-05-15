@@ -362,6 +362,10 @@ export interface ProjectLocalBinding {
   updated_at?: string;
 }
 
+export interface ProjectLocalBindingCommandSet {
+  link?: string;
+}
+
 export interface ExecutionPlan {
   id: string;
   team_id: string;
@@ -543,7 +547,10 @@ export function createProjectLocalBinding(
     trusted?: boolean;
   },
 ) {
-  return post<{ binding: ProjectLocalBinding }>(
+  return post<{
+    binding: ProjectLocalBinding;
+    commands?: ProjectLocalBindingCommandSet;
+  }>(
     `/projects/${encodeURIComponent(projectID)}/local-bindings`,
     body,
   );

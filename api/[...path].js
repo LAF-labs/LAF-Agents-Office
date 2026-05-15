@@ -1909,6 +1909,7 @@ async function handleProjectLocalBindingCreate(req, res, projectExternalID) {
   if (!deviceID) throw new HTTPError(400, "device_id is required");
   const localPath = String(body.local_path || "").trim();
   if (!localPath) throw new HTTPError(400, "local_path is required");
+  const displayName = truncateText(String(body.display_name || "").trim() || basename(localPath), 128);
   const devices = await rest("bridge_devices", {
     query: {
       id: `eq.${deviceID}`,
@@ -1928,7 +1929,7 @@ async function handleProjectLocalBindingCreate(req, res, projectExternalID) {
     body: {
       created_at: now,
       device_id: device.id,
-      display_name: truncateText(String(body.display_name || "").trim() || basename(localPath), 128),
+      display_name: displayName,
       git_remote_hash: hashOrNull(body.git_remote_url || body.git_remote_hash),
       git_root_hash: hashOrNull(body.git_root || body.git_root_hash),
       last_used_at: now,
@@ -1940,7 +1941,17 @@ async function handleProjectLocalBindingCreate(req, res, projectExternalID) {
       user_id: membership.user_id,
     },
   });
-  writeJSON(res, 200, { binding: publicProjectLocalBinding(binding) });
+  writeJSON(res, 200, {
+    binding: publicProjectLocalBinding(binding),
+    commands: {
+      link: bridgeLinkProjectCommand({
+        bindingID: binding.id,
+        displayName,
+        localPath,
+        projectID: project.id,
+      }),
+    },
+  });
 }
 
 async function handleProjectLocalBindingDelete(req, res, projectExternalID, bindingID) {
@@ -4102,6 +4113,27 @@ function basename(localPath) {
   if (!normalized) return "Local Binding";
   const parts = normalized.split(/[\\/]/);
   return parts[parts.length - 1] || "Local Binding";
+}
+
+function bridgeLinkProjectCommand({ bindingID, displayName, localPath, projectID }) {
+  return [
+    "laf-bridge",
+    "link-project",
+    "--binding-id",
+    shellArg(bindingID),
+    "--project-id",
+    shellArg(projectID),
+    "--path",
+    shellArg(localPath),
+    "--display-name",
+    shellArg(displayName),
+  ].join(" ");
+}
+
+function shellArg(value) {
+  const text = String(value || "");
+  if (/^[A-Za-z0-9_./:=@+-]+$/.test(text)) return text;
+  return `'${text.replace(/'/g, `'\\''`)}'`;
 }
 
 function slugify(value) {

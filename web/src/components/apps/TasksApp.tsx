@@ -13,7 +13,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Plus } from "iconoir-react";
+import { Copy, Plus, Terminal } from "iconoir-react";
 
 import {
   type BridgeDevice,
@@ -1823,6 +1823,7 @@ function ProjectBridgeBindingPanel({
   const [localPath, setLocalPath] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [deviceID, setDeviceID] = useState("");
+  const [linkCommand, setLinkCommand] = useState("");
   const bridgeQuery = useQuery({
     queryKey: ["bridge-availability"],
     queryFn: () => getBridgeAvailability(),
@@ -1850,7 +1851,8 @@ function ProjectBridgeBindingPanel({
         local_path: localPath.trim(),
         trusted: true,
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setLinkCommand(result.commands?.link || "");
       setLocalPath("");
       setDisplayName("");
       void queryClient.invalidateQueries({
@@ -1872,6 +1874,11 @@ function ProjectBridgeBindingPanel({
     event.preventDefault();
     if (!canCreate || createMutation.isPending) return;
     createMutation.mutate();
+  }
+
+  async function copyLinkCommand() {
+    if (!linkCommand) return;
+    await navigator.clipboard.writeText(linkCommand);
   }
 
   return (
@@ -1977,6 +1984,26 @@ function ProjectBridgeBindingPanel({
             </p>
           ) : null}
         </form>
+        {linkCommand ? (
+          <div className="project-bridge-command">
+            <div className="project-bridge-command-label">
+              <Terminal width={14} height={14} />
+              <span>{t("tasks.bridgeLinkCommand")}</span>
+            </div>
+            <code className="project-bridge-command-code">{linkCommand}</code>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void copyLinkCommand();
+              }}
+            >
+              <Copy width={14} height={14} />
+              {t("tasks.bridgeCopyLinkCommand")}
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

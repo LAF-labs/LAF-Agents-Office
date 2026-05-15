@@ -2371,6 +2371,29 @@ html[data-theme="office"]
   gap: 12px;
   align-items: end;
 }
+.project-bridge-command {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  background: var(--surface-muted);
+}
+.project-bridge-command-label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.project-bridge-command-code {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+}
 .task-bridge-event-list {
   display: grid;
   gap: 0;

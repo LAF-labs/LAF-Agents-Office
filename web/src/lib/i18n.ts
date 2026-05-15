@@ -435,6 +435,8 @@ const messages = {
     "tasks.bridgeSaveBinding": "Trust path",
     "tasks.bridgeSavingBinding": "Saving...",
     "tasks.bridgeSaveFailed": "Could not save bridge binding",
+    "tasks.bridgeLinkCommand": "Run this once on the bridge machine",
+    "tasks.bridgeCopyLinkCommand": "Copy link command",
     "tasks.bridgeChecking": "Checking bridge",
     "tasks.bridgeUnavailable": "My Bridge is unavailable",
     "tasks.bridgeNoBindingReason":
@@ -1211,6 +1213,8 @@ const messages = {
     "tasks.bridgeSaveBinding": "경로 신뢰",
     "tasks.bridgeSavingBinding": "저장 중...",
     "tasks.bridgeSaveFailed": "브리지 바인딩을 저장하지 못했습니다",
+    "tasks.bridgeLinkCommand": "브리지 컴퓨터에서 한 번 실행",
+    "tasks.bridgeCopyLinkCommand": "연결 명령 복사",
     "tasks.bridgeChecking": "브리지 확인 중",
     "tasks.bridgeUnavailable": "My Bridge를 사용할 수 없습니다",
     "tasks.bridgeNoBindingReason":

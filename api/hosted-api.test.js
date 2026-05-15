@@ -926,6 +926,10 @@ test("hosted project local bindings CRUD hashes local metadata", async (t) => {
   assert.equal(created.status, 200);
   assert.equal(created.body.binding.display_name, "project-a");
   assert.equal(created.body.binding.trusted, true);
+  assert.match(
+    created.body.commands.link,
+    /laf-bridge link-project --binding-id .+ --project-id 11111111-1111-4111-8111-111111111111 --path \/Users\/kim\/src\/project-a --display-name project-a/,
+  );
   assert.equal(db.project_local_bindings[0].local_path_hash.length, 64);
   assert.equal(db.project_local_bindings[0].local_path, undefined);
   assert.equal(db.project_local_bindings[0].git_remote_hash.length, 64);
