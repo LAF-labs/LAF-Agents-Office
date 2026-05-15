@@ -89,6 +89,26 @@ func TestRelayLoopWithoutSourceRunsOnce(t *testing.T) {
 	}
 }
 
+func TestPollLoopRunsImmediatelyThenOnInterval(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pulls := 0
+	runner := PendingRunnerFunc(func(context.Context) ([]RunResult, error) {
+		pulls++
+		if pulls == 2 {
+			cancel()
+		}
+		return nil, nil
+	})
+	err := (PollLoop{Interval: time.Millisecond, Runner: runner}).Run(ctx)
+	if err != context.Canceled {
+		t.Fatalf("poll loop error: %v", err)
+	}
+	if pulls != 2 {
+		t.Fatalf("pulls: got %d want 2", pulls)
+	}
+}
+
 type scriptedRelaySource struct {
 	mu       sync.Mutex
 	channels []chan RelayHint

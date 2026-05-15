@@ -925,12 +925,12 @@ git diff --check
 ### Phase 4 - `laf-bridge` CLI Skeleton
 
 Status: Partially implemented in the current workspace. The `laf-bridge` command
-exists with `pair`, `status`, `doctor`, `providers`, and one-shot `start`
+exists with `pair`, `status`, `doctor`, `providers`, and `start`
 commands. `internal/bridge` now covers local config/token fallback, bridge
 identity generation, API pairing claim, Codex capability detection, local
 project binding config, pending-plan fetch, Ed25519 execution plan validation,
-and a one-shot fake execution loop that ack/start/event/complete cycles
-validated plans. Hosted binding sync and daemon relay loop remain pending.
+and fake execution loops that ack/start/event/complete cycle validated plans.
+Hosted binding sync and the concrete realtime relay source remain pending.
 
 Goal:
 
@@ -979,9 +979,9 @@ Status: Partially implemented in the current workspace. The bridge has a
 Codex exec adapter that detects `codex`, runs cancellable `codex exec --json`
 with stdin prompt and workspace-write sandbox, parses the existing Codex JSONL
 stream, emits normalized/redacted provider events, captures final summary,
-usage, and git changed files. One-shot `laf-bridge start --provider codex`
-now runs validated pending plans through the adapter; daemon relay loop and MCP
-context injection remain pending.
+usage, and git changed files. `laf-bridge start --provider codex`
+now runs validated pending plans through the adapter; MCP context injection is
+implemented and the concrete realtime relay source remains pending.
 
 Goal:
 
@@ -1030,9 +1030,9 @@ publishes a best-effort Supabase Broadcast hint after the durable
 `execution_plans` insert, and publish failures are returned as non-fatal relay
 metadata so the plan remains available through DB pull. The bridge has a relay
 loop abstraction that pulls pending plans on subscribe, reconnect, and incoming
-hints, with an in-process guard to avoid double-running the same terminal plan.
-The concrete Supabase websocket client, bridge daemon wiring, and web task-event
-subscription remain pending.
+hints, plus a `laf-bridge start --once=false` polling daemon fallback with an
+in-process guard to avoid double-running the same terminal plan. The concrete
+Supabase websocket client and web task-event subscription remain pending.
 
 Goal:
 

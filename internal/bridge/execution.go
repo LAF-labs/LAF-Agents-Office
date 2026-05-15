@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-const fakeExecutionSummary = "laf-bridge skeleton validated the plan; provider execution is not implemented yet"
+const fakeExecutionSummary = "laf-bridge fake executor validated the plan without provider side effects"
 
 type ProviderEvent struct {
 	Type    string         `json:"type"`
@@ -36,7 +36,7 @@ func (FakeExecutor) Execute(context.Context, ExecutionPlan, ProjectBinding) (Exe
 			{
 				Type: "bridge.fake_execution",
 				Payload: map[string]any{
-					"message": "plan validated by laf-bridge skeleton",
+					"message": "plan validated by laf-bridge fake executor",
 				},
 			},
 		},

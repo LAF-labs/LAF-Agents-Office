@@ -32,6 +32,36 @@ type RelayLoop struct {
 	Source       RelaySource
 }
 
+type PollLoop struct {
+	Interval time.Duration
+	Runner   PendingRunner
+}
+
+func (l PollLoop) Run(ctx context.Context) error {
+	if l.Runner == nil {
+		return nil
+	}
+	if _, err := l.Runner.RunPending(ctx); err != nil {
+		return err
+	}
+	interval := l.Interval
+	if interval <= 0 {
+		interval = 10 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if _, err := l.Runner.RunPending(ctx); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 func (l RelayLoop) Run(ctx context.Context) error {
 	if l.Runner == nil {
 		return nil

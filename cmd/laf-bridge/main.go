@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -23,13 +25,19 @@ const (
 )
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := runWithContext(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "laf-bridge:", err)
 		os.Exit(1)
 	}
 }
 
 func run(args []string, stdout, stderr io.Writer) error {
+	return runWithContext(context.Background(), args, stdout, stderr)
+}
+
+func runWithContext(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		usage(stderr)
 		return flag.ErrHelp
@@ -50,7 +58,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	case "unlink-project":
 		return runUnlinkProject(args[1:], stdout)
 	case "start":
-		return runStart(args[1:], stdout)
+		return runStart(ctx, args[1:], stdout)
 	case "mcp-context":
 		return runMCPContext(args[1:], stdout)
 	default:
@@ -186,9 +194,10 @@ func runUnlinkProject(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func runStart(args []string, stdout io.Writer) error {
+func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	once := fs.Bool("once", true, "poll once and exit")
+	interval := fs.Duration("interval", 15*time.Second, "polling interval when --once=false")
 	providerName := fs.String("provider", "codex", "execution provider: codex or fake")
 	model := fs.String("model", "", "provider model override")
 	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
@@ -197,9 +206,6 @@ func runStart(args []string, stdout io.Writer) error {
 	mcpCommand := fs.String("mcp-command", "", "laf-bridge command path for Codex MCP config")
 	if err := fs.Parse(args); err != nil {
 		return err
-	}
-	if !*once {
-		return fmt.Errorf("daemon mode is not implemented in the skeleton")
 	}
 	cfg, err := bridge.LoadConfig("")
 	if err != nil {
@@ -216,8 +222,6 @@ func runStart(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	client := bridge.Client{APIURL: cfg.APIURL, Token: token}
 	executor, err := bridgeExecutor(*providerName, *model, mcpOptions{
 		Command:     *mcpCommand,
@@ -227,9 +231,30 @@ func runStart(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	results, err := bridge.RunPendingOnceWithOptions(ctx, cfg, client, validator, bridge.RunPendingOptions{
+	guard := bridge.NewPlanRunGuard()
+	runner := bridge.PendingRunnerFunc(func(runCtx context.Context) ([]bridge.RunResult, error) {
+		return bridge.RunPendingOnceWithOptions(runCtx, cfg, client, validator, bridge.RunPendingOptions{
+			Executor: executor,
+			Guard:    guard,
+		})
+	})
+	if !*once {
+		pollInterval := *interval
+		if pollInterval <= 0 {
+			pollInterval = 10 * time.Second
+		}
+		fmt.Fprintf(stdout, "laf-bridge polling device %s every %s\n", cfg.DeviceID, pollInterval.String())
+		err := (bridge.PollLoop{Interval: pollInterval, Runner: runner}).Run(ctx)
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
+	runCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	results, err := bridge.RunPendingOnceWithOptions(runCtx, cfg, client, validator, bridge.RunPendingOptions{
 		Executor: executor,
-		Guard:    bridge.NewPlanRunGuard(),
+		Guard:    guard,
 	})
 	if err != nil {
 		return err
