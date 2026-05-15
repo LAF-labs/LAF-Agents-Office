@@ -651,6 +651,35 @@ func TestHandleTeamMemoryReflect(t *testing.T) {
 	if strings.Contains(text, "Stored shared memory") || strings.Contains(text, "Replaced core memory card") {
 		t.Fatalf("reflect tool should not claim it stored memory, got %q", text)
 	}
+	var listed struct {
+		Candidates []struct {
+			ID string `json:"id"`
+		} `json:"candidates"`
+	}
+	if err := brokerGetJSON(context.Background(), "/memory/candidates?limit=5", &listed); err != nil {
+		t.Fatalf("list memory candidates: %v", err)
+	}
+	if len(listed.Candidates) != 1 {
+		t.Fatalf("expected one stored candidate, got %+v", listed.Candidates)
+	}
+	result, _, err = handleTeamMemoryReflect(context.Background(), nil, TeamMemoryReflectArgs{
+		Action: "ignore",
+		ID:     listed.Candidates[0].ID,
+		MySlug: "ceo",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryReflect ignore: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Ignored memory candidate") {
+		t.Fatalf("expected ignore confirmation, got %q", text)
+	}
+	listed.Candidates = nil
+	if err := brokerGetJSON(context.Background(), "/memory/candidates?limit=5", &listed); err != nil {
+		t.Fatalf("list memory candidates after ignore: %v", err)
+	}
+	if len(listed.Candidates) != 0 {
+		t.Fatalf("expected candidate to be ignored, got pending %+v", listed.Candidates)
+	}
 }
 
 func TestHandleTeamMemoryWriteHintsPromotionForDurableNote(t *testing.T) {

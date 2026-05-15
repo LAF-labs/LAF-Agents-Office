@@ -441,6 +441,8 @@ type TeamMemoryCardArgs struct {
 }
 
 type TeamMemoryReflectArgs struct {
+	Action  string `json:"action,omitempty" jsonschema:"One of: reflect, list, ignore. Defaults to reflect."`
+	ID      string `json:"id,omitempty" jsonschema:"Candidate ID for action=ignore."`
 	Channel string `json:"channel,omitempty" jsonschema:"Channel slug to scan. Defaults to the active conversation channel."`
 	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum pending candidates to return (default 8, max 25)."`
 	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
@@ -1915,12 +1917,9 @@ func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args Team
 func handleTeamMemoryReflect(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryReflectArgs) (*mcp.CallToolResult, any, error) {
 	slug := resolveSlugOptional(args.MySlug)
 	channel := resolveConversationChannel(ctx, slug, args.Channel)
-	body := map[string]any{
-		"channel": channel,
-		"my_slug": slug,
-	}
-	if args.Limit > 0 {
-		body["limit"] = args.Limit
+	action := strings.TrimSpace(strings.ToLower(args.Action))
+	if action == "" {
+		action = "reflect"
 	}
 	var result struct {
 		Candidates []struct {
@@ -1937,8 +1936,43 @@ func handleTeamMemoryReflect(ctx context.Context, _ *mcp.CallToolRequest, args T
 			UpdatedAt       string `json:"updated_at"`
 		} `json:"candidates"`
 	}
-	if err := brokerPostJSON(ctx, "/memory/candidates/reflect", body, &result); err != nil {
-		return toolError(err), nil, nil
+	switch action {
+	case "reflect", "scan":
+		body := map[string]any{
+			"channel": channel,
+			"my_slug": slug,
+		}
+		if args.Limit > 0 {
+			body["limit"] = args.Limit
+		}
+		if err := brokerPostJSON(ctx, "/memory/candidates/reflect", body, &result); err != nil {
+			return toolError(err), nil, nil
+		}
+	case "list":
+		values := url.Values{}
+		values.Set("channel", channel)
+		if args.Limit > 0 {
+			values.Set("limit", fmt.Sprintf("%d", args.Limit))
+		}
+		if err := brokerGetJSON(ctx, "/memory/candidates?"+values.Encode(), &result); err != nil {
+			return toolError(err), nil, nil
+		}
+	case "ignore", "dismiss":
+		id := strings.TrimSpace(args.ID)
+		if id == "" {
+			return toolError(fmt.Errorf("id is required for action=ignore")), nil, nil
+		}
+		var ignored struct {
+			Candidate struct {
+				ID string `json:"id"`
+			} `json:"candidate"`
+		}
+		if err := brokerDeleteJSON(ctx, "/memory/candidates", map[string]any{"id": id}, &ignored); err != nil {
+			return toolError(err), nil, nil
+		}
+		return textResult("Ignored memory candidate " + ignored.Candidate.ID + "."), nil, nil
+	default:
+		return toolError(fmt.Errorf("action must be one of reflect, list, ignore")), nil, nil
 	}
 	if len(result.Candidates) == 0 {
 		return textResult("No durable-memory candidates in recent conversation."), nil, nil
