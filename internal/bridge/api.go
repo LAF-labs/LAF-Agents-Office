@@ -165,13 +165,26 @@ func (c Client) CompletePlan(
 	status string,
 	summary string,
 ) (ExecutionPlan, ExecutionReceipt, error) {
+	return c.CompletePlanOutcome(ctx, planID, ExecutionOutcome{
+		Status:  status,
+		Summary: summary,
+	})
+}
+
+func (c Client) CompletePlanOutcome(
+	ctx context.Context,
+	planID string,
+	outcome ExecutionOutcome,
+) (ExecutionPlan, ExecutionReceipt, error) {
 	var out struct {
 		Plan    ExecutionPlan    `json:"plan"`
 		Receipt ExecutionReceipt `json:"receipt"`
 	}
 	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/complete", map[string]any{
-		"status":  status,
-		"summary": summary,
+		"changed_files": outcome.ChangedFiles,
+		"status":        outcome.Status,
+		"summary":       outcome.Summary,
+		"usage":         outcome.Usage,
 	}, &out)
 	return out.Plan, out.Receipt, err
 }

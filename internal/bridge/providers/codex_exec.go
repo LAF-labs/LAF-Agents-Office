@@ -25,17 +25,7 @@ type CodexDetection struct {
 	Error    string `json:"error,omitempty"`
 }
 
-type ProviderEvent struct {
-	Type    string         `json:"type"`
-	Payload map[string]any `json:"payload"`
-}
-
-type CodexExecResult struct {
-	Summary      string               `json:"summary"`
-	Events       []ProviderEvent      `json:"events"`
-	ChangedFiles []bridge.ChangedFile `json:"changed_files"`
-	Usage        map[string]int       `json:"usage,omitempty"`
-}
+type CodexExecResult = bridge.ExecutionOutcome
 
 func (c CodexExec) Detect(ctx context.Context) CodexDetection {
 	path, err := c.resolvePath()
@@ -50,6 +40,13 @@ func (c CodexExec) Detect(ctx context.Context) CodexDetection {
 		return CodexDetection{Detected: false, Path: path, Error: strings.TrimSpace(err.Error() + ": " + string(out))}
 	}
 	return CodexDetection{Detected: true, Path: path, Version: strings.TrimSpace(string(out))}
+}
+
+func (c CodexExec) Execute(ctx context.Context, plan bridge.ExecutionPlan, binding bridge.ProjectBinding) (bridge.ExecutionOutcome, error) {
+	if strings.TrimSpace(binding.LocalPath) == "" {
+		return bridge.ExecutionOutcome{}, fmt.Errorf("codex execution requires a trusted local binding path")
+	}
+	return c.Run(ctx, binding.LocalPath, plan.Prompt)
 }
 
 func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (CodexExecResult, error) {
@@ -71,7 +68,7 @@ func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (Code
 		return CodexExecResult{}, err
 	}
 
-	var events []ProviderEvent
+	var events []bridge.ProviderEvent
 	streamResult, parseErr := provider.ReadCodexJSONStream(stdout, func(event provider.CodexStreamEvent) {
 		events = append(events, normalizeCodexEvent(event))
 	})
@@ -91,6 +88,7 @@ func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (Code
 		return CodexExecResult{}, fmt.Errorf("capture changed files: %w", err)
 	}
 	return CodexExecResult{
+		Status:       "completed",
 		Summary:      bridge.RedactText(strings.TrimSpace(streamResult.FinalMessage)),
 		Events:       events,
 		ChangedFiles: changedFiles,
@@ -138,7 +136,7 @@ func (c CodexExec) command(ctx context.Context, name string, args ...string) *ex
 	return exec.CommandContext(ctx, name, args...)
 }
 
-func normalizeCodexEvent(event provider.CodexStreamEvent) ProviderEvent {
+func normalizeCodexEvent(event provider.CodexStreamEvent) bridge.ProviderEvent {
 	payload := map[string]any{
 		"raw_type": event.RawType,
 	}
@@ -157,7 +155,7 @@ func normalizeCodexEvent(event provider.CodexStreamEvent) ProviderEvent {
 	if strings.TrimSpace(event.Detail) != "" {
 		payload["detail"] = event.Detail
 	}
-	return ProviderEvent{
+	return bridge.ProviderEvent{
 		Type:    "codex." + strings.TrimSpace(event.Type),
 		Payload: bridge.RedactValue(payload).(map[string]any),
 	}

@@ -3,9 +3,44 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 const fakeExecutionSummary = "laf-bridge skeleton validated the plan; provider execution is not implemented yet"
+
+type ProviderEvent struct {
+	Type    string         `json:"type"`
+	Payload map[string]any `json:"payload"`
+}
+
+type ExecutionOutcome struct {
+	Status       string          `json:"status"`
+	Summary      string          `json:"summary"`
+	Events       []ProviderEvent `json:"events,omitempty"`
+	ChangedFiles []ChangedFile   `json:"changed_files,omitempty"`
+	Usage        map[string]int  `json:"usage,omitempty"`
+}
+
+type PlanExecutor interface {
+	Execute(ctx context.Context, plan ExecutionPlan, binding ProjectBinding) (ExecutionOutcome, error)
+}
+
+type FakeExecutor struct{}
+
+func (FakeExecutor) Execute(context.Context, ExecutionPlan, ProjectBinding) (ExecutionOutcome, error) {
+	return ExecutionOutcome{
+		Status:  "completed",
+		Summary: fakeExecutionSummary,
+		Events: []ProviderEvent{
+			{
+				Type: "bridge.fake_execution",
+				Payload: map[string]any{
+					"message": "plan validated by laf-bridge skeleton",
+				},
+			},
+		},
+	}, nil
+}
 
 type ExecutionEvent struct {
 	ID        string         `json:"id"`
@@ -35,6 +70,16 @@ type RunResult struct {
 }
 
 func RunPendingOnce(ctx context.Context, cfg Config, client Client, validator PlanValidator) ([]RunResult, error) {
+	return RunPendingOnceWithExecutor(ctx, cfg, client, validator, FakeExecutor{})
+}
+
+func RunPendingOnceWithExecutor(
+	ctx context.Context,
+	cfg Config,
+	client Client,
+	validator PlanValidator,
+	executor PlanExecutor,
+) ([]RunResult, error) {
 	if client.Token == "" {
 		token, err := ResolveToken(cfg)
 		if err != nil {
@@ -47,6 +92,9 @@ func RunPendingOnce(ctx context.Context, cfg Config, client Client, validator Pl
 	}
 	if validator.Config.DeviceID == "" {
 		validator.Config = cfg
+	}
+	if executor == nil {
+		executor = FakeExecutor{}
 	}
 	plans, err := client.PendingPlans(ctx, cfg.DeviceID)
 	if err != nil {
@@ -67,15 +115,35 @@ func RunPendingOnce(ctx context.Context, cfg Config, client Client, validator Pl
 		if _, err := client.StartPlan(ctx, plan.ID, 300); err != nil {
 			return results, fmt.Errorf("start plan %s: %w", plan.ID, err)
 		}
-		if _, err := client.UploadPlanEvent(ctx, plan.ID, 1, "bridge.fake_execution", map[string]any{
-			"message": "plan validated by laf-bridge skeleton",
-		}); err != nil {
-			return results, fmt.Errorf("upload event for plan %s: %w", plan.ID, err)
+		binding := cfg.BindingForPlan(plan)
+		outcome, execErr := executor.Execute(ctx, plan, binding)
+		if execErr != nil {
+			outcome = ExecutionOutcome{
+				Status:  "failed",
+				Summary: RedactText(execErr.Error()),
+				Events: []ProviderEvent{{
+					Type: "bridge.execution_error",
+					Payload: map[string]any{
+						"error": RedactText(execErr.Error()),
+					},
+				}},
+			}
 		}
-		if _, _, err := client.CompletePlan(ctx, plan.ID, "completed", fakeExecutionSummary); err != nil {
+		if strings.TrimSpace(outcome.Status) == "" {
+			outcome.Status = "completed"
+		}
+		for i, event := range outcome.Events {
+			if _, err := client.UploadPlanEvent(ctx, plan.ID, i+1, event.Type, event.Payload); err != nil {
+				return results, fmt.Errorf("upload event for plan %s: %w", plan.ID, err)
+			}
+		}
+		if _, _, err := client.CompletePlanOutcome(ctx, plan.ID, outcome); err != nil {
 			return results, fmt.Errorf("complete plan %s: %w", plan.ID, err)
 		}
-		result.Status = "completed"
+		result.Status = outcome.Status
+		if execErr != nil {
+			result.Error = RedactText(execErr.Error())
+		}
 		results = append(results, result)
 	}
 	return results, nil

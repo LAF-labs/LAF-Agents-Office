@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/bridge"
+	bridgeproviders "github.com/LAF-labs/LAF-Agents-Office/internal/bridge/providers"
 )
 
 func main() {
@@ -177,6 +178,8 @@ func runUnlinkProject(args []string, stdout io.Writer) error {
 func runStart(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	once := fs.Bool("once", true, "poll once and exit")
+	providerName := fs.String("provider", "codex", "execution provider: codex or fake")
+	model := fs.String("model", "", "provider model override")
 	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -202,11 +205,26 @@ func runStart(args []string, stdout io.Writer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	client := bridge.Client{APIURL: cfg.APIURL, Token: token}
-	results, err := bridge.RunPendingOnce(ctx, cfg, client, validator)
+	executor, err := bridgeExecutor(*providerName, *model)
+	if err != nil {
+		return err
+	}
+	results, err := bridge.RunPendingOnceWithExecutor(ctx, cfg, client, validator, executor)
 	if err != nil {
 		return err
 	}
 	return writeJSON(stdout, map[string]any{"results": results})
+}
+
+func bridgeExecutor(providerName string, model string) (bridge.PlanExecutor, error) {
+	switch providerName {
+	case "", "codex":
+		return bridgeproviders.CodexExec{Model: model}, nil
+	case "fake":
+		return bridge.FakeExecutor{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported provider %q", providerName)
+	}
 }
 
 func writeJSON(w io.Writer, value any) error {

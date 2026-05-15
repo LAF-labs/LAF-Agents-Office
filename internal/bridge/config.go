@@ -179,3 +179,15 @@ func RemoveProjectBinding(cfg Config, bindingID string) (Config, bool) {
 	cfg.Bindings = filtered
 	return cfg, removed
 }
+
+func (cfg Config) BindingForPlan(plan ExecutionPlan) ProjectBinding {
+	if plan.BindingID == nil {
+		return ProjectBinding{}
+	}
+	for _, binding := range cfg.Bindings {
+		if binding.ID == *plan.BindingID {
+			return binding
+		}
+	}
+	return ProjectBinding{}
+}
