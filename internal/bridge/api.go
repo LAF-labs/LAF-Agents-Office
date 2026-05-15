@@ -33,13 +33,14 @@ type Device struct {
 }
 
 type PairOptions struct {
-	APIURL      string
-	Code        string
-	DeviceLabel string
-	PublicKey   string
-	ConfigPath  string
-	TokenPath   string
-	Detector    ProviderDetector
+	APIURL       string
+	Code         string
+	DeviceLabel  string
+	PublicKey    string
+	IdentityPath string
+	ConfigPath   string
+	TokenPath    string
+	Detector     ProviderDetector
 }
 
 type claimPairingResponse struct {
@@ -63,8 +64,14 @@ func Pair(ctx context.Context, opts PairOptions) (Config, error) {
 		label = "Desktop Bridge"
 	}
 	publicKey := strings.TrimSpace(opts.PublicKey)
+	identityRef := ""
 	if publicKey == "" {
-		publicKey = "laf-bridge-local-public-key-pending"
+		identity, err := LoadOrCreateIdentity(opts.IdentityPath)
+		if err != nil {
+			return Config{}, err
+		}
+		publicKey = PublicKeyString(identity.PublicKey)
+		identityRef = fileTokenPrefix + identity.Path
 	}
 	caps := DetectCapabilities(ctx, opts.Detector)
 	client := Client{APIURL: opts.APIURL}
@@ -95,6 +102,10 @@ func Pair(ctx context.Context, opts PairOptions) (Config, error) {
 	cfg.TeamID = out.Device.TeamID
 	cfg.UserID = out.Device.UserID
 	cfg.TokenRef = tokenRef
+	if identityRef != "" {
+		cfg.IdentityRef = identityRef
+	}
+	cfg.PublicKey = publicKey
 	if err := SaveConfig(opts.ConfigPath, cfg); err != nil {
 		return Config{}, err
 	}

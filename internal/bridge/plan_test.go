@@ -91,6 +91,22 @@ func TestParseEd25519PublicKeyAcceptsRawBase64(t *testing.T) {
 	}
 }
 
+func TestPlanValidatorFromConfigParsesSigningPublicKey(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validator, err := PlanValidatorFromConfig(Config{
+		PlanSigningPublicKey: base64.StdEncoding.EncodeToString(pub),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(validator.PublicKey) != string(pub) {
+		t.Fatal("validator public key mismatch")
+	}
+}
+
 func signedPlan(priv ed25519.PrivateKey, mutate func(*ExecutionPlan)) ExecutionPlan {
 	plan := ExecutionPlan{
 		ID:                   "plan-1",

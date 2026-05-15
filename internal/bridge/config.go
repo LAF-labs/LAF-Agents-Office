@@ -15,13 +15,16 @@ const fileTokenPrefix = "file:"
 // Config is the local desktop bridge configuration stored under
 // ~/.laf-office/bridge/config.json by default.
 type Config struct {
-	APIURL      string           `json:"api_url"`
-	DeviceID    string           `json:"device_id"`
-	DeviceLabel string           `json:"device_label,omitempty"`
-	TeamID      string           `json:"team_id,omitempty"`
-	UserID      string           `json:"user_id,omitempty"`
-	TokenRef    string           `json:"token_ref,omitempty"`
-	Bindings    []ProjectBinding `json:"bindings,omitempty"`
+	APIURL               string           `json:"api_url"`
+	DeviceID             string           `json:"device_id"`
+	DeviceLabel          string           `json:"device_label,omitempty"`
+	TeamID               string           `json:"team_id,omitempty"`
+	UserID               string           `json:"user_id,omitempty"`
+	TokenRef             string           `json:"token_ref,omitempty"`
+	IdentityRef          string           `json:"identity_ref,omitempty"`
+	PublicKey            string           `json:"public_key,omitempty"`
+	PlanSigningPublicKey string           `json:"plan_signing_public_key,omitempty"`
+	Bindings             []ProjectBinding `json:"bindings,omitempty"`
 }
 
 // ProjectBinding maps a hosted project binding to a trusted local path.
@@ -57,6 +60,13 @@ func TokenPath() string {
 		return p
 	}
 	return product.RuntimePath(RuntimeHomeDir(), "bridge", "token")
+}
+
+func IdentityPath() string {
+	if p := strings.TrimSpace(os.Getenv(product.Env("BRIDGE_IDENTITY_PATH"))); p != "" {
+		return p
+	}
+	return product.RuntimePath(RuntimeHomeDir(), "bridge", "identity.pem")
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -121,4 +131,51 @@ func ResolveToken(cfg Config) (string, error) {
 		return strings.TrimSpace(string(data)), nil
 	}
 	return ref, nil
+}
+
+func UpsertProjectBinding(cfg Config, binding ProjectBinding) (Config, error) {
+	binding.ID = strings.TrimSpace(binding.ID)
+	binding.ProjectID = strings.TrimSpace(binding.ProjectID)
+	binding.DeviceID = strings.TrimSpace(binding.DeviceID)
+	binding.DisplayName = strings.TrimSpace(binding.DisplayName)
+	binding.LocalPath = strings.TrimSpace(binding.LocalPath)
+	if binding.ID == "" {
+		return Config{}, errors.New("binding id is required")
+	}
+	if binding.LocalPath == "" {
+		return Config{}, errors.New("local path is required")
+	}
+	if binding.DeviceID == "" {
+		binding.DeviceID = cfg.DeviceID
+	}
+	replaced := false
+	for i, existing := range cfg.Bindings {
+		if existing.ID == binding.ID {
+			cfg.Bindings[i] = binding
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		cfg.Bindings = append(cfg.Bindings, binding)
+	}
+	return cfg, nil
+}
+
+func RemoveProjectBinding(cfg Config, bindingID string) (Config, bool) {
+	bindingID = strings.TrimSpace(bindingID)
+	if bindingID == "" {
+		return cfg, false
+	}
+	filtered := cfg.Bindings[:0]
+	removed := false
+	for _, binding := range cfg.Bindings {
+		if binding.ID == bindingID {
+			removed = true
+			continue
+		}
+		filtered = append(filtered, binding)
+	}
+	cfg.Bindings = filtered
+	return cfg, removed
 }

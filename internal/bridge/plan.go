@@ -11,8 +11,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
 type ExecutionPlan struct {
@@ -44,6 +47,23 @@ type PlanValidator struct {
 	Config    Config
 	PublicKey ed25519.PublicKey
 	Now       func() time.Time
+}
+
+func PlanValidatorFromConfig(cfg Config) (PlanValidator, error) {
+	raw := strings.TrimSpace(os.Getenv(product.Env("BRIDGE_PLAN_PUBLIC_KEY")))
+	if raw == "" {
+		raw = strings.TrimSpace(cfg.PlanSigningPublicKey)
+	}
+	validator := PlanValidator{Config: cfg}
+	if raw == "" {
+		return validator, nil
+	}
+	publicKey, err := ParseEd25519PublicKey(raw)
+	if err != nil {
+		return PlanValidator{}, err
+	}
+	validator.PublicKey = publicKey
+	return validator, nil
 }
 
 func (v PlanValidator) Validate(plan ExecutionPlan) error {

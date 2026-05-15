@@ -33,6 +33,12 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runDoctor(stdout)
 	case "providers":
 		return runProviders(stdout)
+	case "bindings":
+		return runBindings(stdout)
+	case "link-project":
+		return runLinkProject(args[1:], stdout)
+	case "unlink-project":
+		return runUnlinkProject(args[1:], stdout)
 	case "start":
 		return runStart(args[1:], stdout)
 	default:
@@ -47,16 +53,18 @@ func runPair(args []string, stdout io.Writer) error {
 	code := fs.String("code", "", "pairing code from the web app")
 	label := fs.String("device-label", "", "local device label")
 	publicKey := fs.String("public-key", "", "bridge public key")
+	identityPath := fs.String("identity-path", "", "bridge identity private key path")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cfg, err := bridge.Pair(ctx, bridge.PairOptions{
-		APIURL:      *apiURL,
-		Code:        *code,
-		DeviceLabel: *label,
-		PublicKey:   *publicKey,
+		APIURL:       *apiURL,
+		Code:         *code,
+		DeviceLabel:  *label,
+		IdentityPath: *identityPath,
+		PublicKey:    *publicKey,
 	})
 	if err != nil {
 		return err
@@ -71,11 +79,12 @@ func runStatus(stdout io.Writer) error {
 		return err
 	}
 	status := map[string]any{
-		"api_url":      cfg.APIURL,
-		"configured":   cfg.DeviceID != "",
-		"device_id":    cfg.DeviceID,
-		"device_label": cfg.DeviceLabel,
-		"team_id":      cfg.TeamID,
+		"api_url":       cfg.APIURL,
+		"configured":    cfg.DeviceID != "",
+		"device_id":     cfg.DeviceID,
+		"device_label":  cfg.DeviceLabel,
+		"binding_count": len(cfg.Bindings),
+		"team_id":       cfg.TeamID,
 	}
 	return writeJSON(stdout, status)
 }
@@ -87,11 +96,13 @@ func runDoctor(stdout io.Writer) error {
 	}
 	caps := bridge.DetectCapabilities(context.Background(), bridge.ProviderDetector{})
 	return writeJSON(stdout, map[string]any{
-		"config_path": bridge.ConfigPath(),
-		"configured":  cfg.DeviceID != "",
-		"device_id":   cfg.DeviceID,
-		"providers":   caps,
-		"token_path":  bridge.TokenPath(),
+		"config_path":                 bridge.ConfigPath(),
+		"configured":                  cfg.DeviceID != "",
+		"device_id":                   cfg.DeviceID,
+		"identity_path":               bridge.IdentityPath(),
+		"plan_signature_verification": cfg.PlanSigningPublicKey != "",
+		"providers":                   caps,
+		"token_path":                  bridge.TokenPath(),
 	})
 }
 
@@ -102,9 +113,71 @@ func runProviders(stdout io.Writer) error {
 	)
 }
 
+func runBindings(stdout io.Writer) error {
+	cfg, err := bridge.LoadConfig("")
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, map[string]any{"bindings": cfg.Bindings})
+}
+
+func runLinkProject(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("link-project", flag.ContinueOnError)
+	bindingID := fs.String("binding-id", "", "hosted project_local_bindings id")
+	projectID := fs.String("project-id", "", "hosted project id")
+	localPath := fs.String("path", "", "trusted local project path")
+	displayName := fs.String("display-name", "", "local binding display name")
+	trusted := fs.Bool("trusted", true, "mark the local binding as trusted")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	cfg, err := bridge.LoadConfig("")
+	if err != nil {
+		return err
+	}
+	next, err := bridge.UpsertProjectBinding(cfg, bridge.ProjectBinding{
+		ID:          *bindingID,
+		ProjectID:   *projectID,
+		DeviceID:    cfg.DeviceID,
+		DisplayName: *displayName,
+		LocalPath:   *localPath,
+		Trusted:     *trusted,
+	})
+	if err != nil {
+		return err
+	}
+	if err := bridge.SaveConfig("", next); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "linked binding %s\n", *bindingID)
+	return nil
+}
+
+func runUnlinkProject(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("unlink-project", flag.ContinueOnError)
+	bindingID := fs.String("binding-id", "", "hosted project_local_bindings id")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	cfg, err := bridge.LoadConfig("")
+	if err != nil {
+		return err
+	}
+	next, removed := bridge.RemoveProjectBinding(cfg, *bindingID)
+	if !removed {
+		return fmt.Errorf("binding %q is not configured", *bindingID)
+	}
+	if err := bridge.SaveConfig("", next); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "unlinked binding %s\n", *bindingID)
+	return nil
+}
+
 func runStart(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	once := fs.Bool("once", true, "poll once and exit")
+	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -119,10 +192,17 @@ func runStart(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if *planPublicKey != "" {
+		cfg.PlanSigningPublicKey = *planPublicKey
+	}
+	validator, err := bridge.PlanValidatorFromConfig(cfg)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	client := bridge.Client{APIURL: cfg.APIURL, Token: token}
-	results, err := bridge.RunPendingOnce(ctx, cfg, client, bridge.PlanValidator{Config: cfg})
+	results, err := bridge.RunPendingOnce(ctx, cfg, client, validator)
 	if err != nil {
 		return err
 	}
@@ -136,5 +216,5 @@ func writeJSON(w io.Writer, value any) error {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "usage: laf-bridge <pair|status|doctor|providers|start>")
+	fmt.Fprintln(w, "usage: laf-bridge <pair|status|doctor|providers|bindings|link-project|unlink-project|start>")
 }

@@ -37,6 +37,7 @@ func TestStoreTokenFallbackUses0600Permissions(t *testing.T) {
 func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.json")
+	identityPath := filepath.Join(tmp, "identity.pem")
 	tokenPath := filepath.Join(tmp, "token")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/bridge/pairing/claim" {
@@ -48,6 +49,9 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 		}
 		if body["code"] != "ABCD-EFGH-IJKL" {
 			t.Fatalf("pairing code not forwarded: %#v", body["code"])
+		}
+		if body["public_key"] == "" || body["public_key"] == "laf-bridge-local-public-key-pending" {
+			t.Fatalf("pairing public key was not generated: %#v", body["public_key"])
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"bridge_token": "laf_bridge_pair_token",
@@ -64,10 +68,11 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	defer server.Close()
 
 	cfg, err := Pair(context.Background(), PairOptions{
-		APIURL:      server.URL,
-		Code:        "ABCD-EFGH-IJKL",
-		ConfigPath:  configPath,
-		DeviceLabel: "Test Mac",
+		APIURL:       server.URL,
+		Code:         "ABCD-EFGH-IJKL",
+		ConfigPath:   configPath,
+		DeviceLabel:  "Test Mac",
+		IdentityPath: identityPath,
 		Detector: ProviderDetector{
 			LookPath: func(string) (string, error) { return "/bin/codex", nil },
 			Version:  func(context.Context, string) (string, error) { return "codex 1.2.3", nil },
@@ -83,6 +88,19 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	if cfg.TokenRef != fileTokenPrefix+tokenPath {
 		t.Fatalf("token ref: got %q", cfg.TokenRef)
 	}
+	if cfg.IdentityRef != fileTokenPrefix+identityPath {
+		t.Fatalf("identity ref: got %q", cfg.IdentityRef)
+	}
+	if cfg.PublicKey == "" {
+		t.Fatal("public key was not persisted")
+	}
+	identityInfo, err := os.Stat(identityPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := identityInfo.Mode().Perm(); got != 0o600 {
+		t.Fatalf("identity file mode: got %o want 0600", got)
+	}
 	saved, err := LoadConfig(configPath)
 	if err != nil {
 		t.Fatal(err)
@@ -96,5 +114,42 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	}
 	if token != "laf_bridge_pair_token" {
 		t.Fatalf("stored token: got %q", token)
+	}
+}
+
+func TestUpsertAndRemoveProjectBinding(t *testing.T) {
+	cfg := Config{DeviceID: "device-1"}
+	var err error
+	cfg, err = UpsertProjectBinding(cfg, ProjectBinding{
+		ID:        "binding-1",
+		LocalPath: "/work/project",
+		Trusted:   true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Bindings) != 1 {
+		t.Fatalf("binding count: got %d", len(cfg.Bindings))
+	}
+	if cfg.Bindings[0].DeviceID != "device-1" {
+		t.Fatalf("binding device default not applied: %#v", cfg.Bindings[0])
+	}
+	cfg, err = UpsertProjectBinding(cfg, ProjectBinding{
+		ID:        "binding-1",
+		LocalPath: "/work/project-renamed",
+		Trusted:   false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Bindings) != 1 || cfg.Bindings[0].LocalPath != "/work/project-renamed" {
+		t.Fatalf("binding was not replaced: %#v", cfg.Bindings)
+	}
+	cfg, removed := RemoveProjectBinding(cfg, "binding-1")
+	if !removed {
+		t.Fatal("expected binding to be removed")
+	}
+	if len(cfg.Bindings) != 0 {
+		t.Fatalf("binding count after remove: %d", len(cfg.Bindings))
 	}
 }

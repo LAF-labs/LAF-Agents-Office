@@ -925,10 +925,11 @@ git diff --check
 
 Status: Partially implemented in the current workspace. The `laf-bridge` command
 exists with `pair`, `status`, `doctor`, `providers`, and one-shot `start`
-commands. `internal/bridge` now covers local config/token fallback, API pairing
-claim, Codex capability detection, pending-plan fetch, and Ed25519 execution
-plan validation, plus a one-shot fake execution loop that ack/start/event/complete
-cycles validated plans. Project binding sync and daemon relay loop remain pending.
+commands. `internal/bridge` now covers local config/token fallback, bridge
+identity generation, API pairing claim, Codex capability detection, local
+project binding config, pending-plan fetch, Ed25519 execution plan validation,
+and a one-shot fake execution loop that ack/start/event/complete cycles
+validated plans. Hosted binding sync and daemon relay loop remain pending.
 
 Goal:
 
