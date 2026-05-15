@@ -594,6 +594,45 @@ func TestHandleTeamMemoryCardReplaceListAndDeactivate(t *testing.T) {
 	}
 }
 
+func TestHandleTeamMemoryCardPressureHint(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	nearLimit := strings.Repeat("a", 4900)
+	result, _, err := handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action:  "replace",
+		Scope:   "team_memory",
+		Content: nearLimit,
+		MySlug:  "ceo",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard replace: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "pressure:") {
+		t.Fatalf("expected pressure hint after replace, got %q", text)
+	}
+
+	result, _, err = handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action: "list",
+		Scope:  "team_memory",
+		MySlug: "ceo",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard list: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "pressure:") || !strings.Contains(text, "merge related bullets") {
+		t.Fatalf("expected list pressure hint, got %q", text)
+	}
+}
+
 func TestHandleSessionSearch(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 

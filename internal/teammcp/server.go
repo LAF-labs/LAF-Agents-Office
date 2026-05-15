@@ -1876,6 +1876,9 @@ func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args Team
 		lines := []string{"Core memory cards:"}
 		for _, card := range result.Cards {
 			lines = append(lines, fmt.Sprintf("- %s/%s (%d/%d chars): %s", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit, truncate(strings.ReplaceAll(strings.TrimSpace(card.Content), "\n", " "), 240)))
+			if hint := coreMemoryCardPressureHint(card); hint != "" {
+				lines = append(lines, "  pressure: "+hint)
+			}
 		}
 		return textResult(strings.Join(lines, "\n")), nil, nil
 	case "replace", "upsert":
@@ -1898,7 +1901,11 @@ func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args Team
 			return toolError(err), nil, nil
 		}
 		card := result.Card
-		return textResult(fmt.Sprintf("Replaced core memory card %s/%s (%d/%d chars).", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit)), nil, nil
+		message := fmt.Sprintf("Replaced core memory card %s/%s (%d/%d chars).", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit)
+		if hint := coreMemoryCardPressureHint(card); hint != "" {
+			message += "\npressure: " + hint
+		}
+		return textResult(message), nil, nil
 	case "deactivate", "delete":
 		var result brokerCoreMemoryCardResponse
 		if err := brokerDeleteJSON(ctx, "/memory-cards", map[string]any{
@@ -1912,6 +1919,22 @@ func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args Team
 	default:
 		return toolError(fmt.Errorf("action must be one of list, replace, deactivate")), nil, nil
 	}
+}
+
+func coreMemoryCardPressureHint(card brokerCoreMemoryCard) string {
+	limit := card.CharLimit
+	if limit <= 0 {
+		return ""
+	}
+	used := len([]rune(strings.TrimSpace(card.Content)))
+	percent := (used * 100) / limit
+	if percent < 80 {
+		return ""
+	}
+	if percent >= 95 {
+		return fmt.Sprintf("%d%% full; consolidate aggressively before adding more durable facts.", percent)
+	}
+	return fmt.Sprintf("%d%% full; merge related bullets and remove stale or duplicate facts before replacing.", percent)
 }
 
 func handleTeamMemoryReflect(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryReflectArgs) (*mcp.CallToolResult, any, error) {
