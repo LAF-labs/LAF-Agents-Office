@@ -214,6 +214,7 @@ execution:receipt_read
 execution:receipt_write
 mcp:use_task_context
 mcp:use_workspace_context
+wiki:read
 skill:invoke
 ```
 

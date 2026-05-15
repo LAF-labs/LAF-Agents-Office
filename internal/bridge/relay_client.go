@@ -36,6 +36,10 @@ func (l RelayLoop) Run(ctx context.Context) error {
 	if l.Runner == nil {
 		return nil
 	}
+	if l.Source == nil {
+		_, err := l.Runner.RunPending(ctx)
+		return err
+	}
 	delay := l.ReconnectMin
 	if delay <= 0 {
 		delay = 10 * time.Millisecond
@@ -73,10 +77,5 @@ func (l RelayLoop) Run(ctx context.Context) error {
 }
 
 func (l RelayLoop) subscribe(ctx context.Context) (<-chan RelayHint, error) {
-	if l.Source == nil {
-		ch := make(chan RelayHint)
-		close(ch)
-		return ch, nil
-	}
 	return l.Source.Subscribe(ctx, l.DeviceID)
 }

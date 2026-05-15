@@ -380,10 +380,11 @@ func TestRunnerLeaseIsTeamScopedAndCapabilityMatched(t *testing.T) {
 	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})
 	b.mu.Lock()
 	b.runnerJobs = []runnerJob{
-		{ID: "job-team-b", TeamID: "team-b", Status: runnerJobStatusQueued, CreatedAt: time.Now().UTC().Format(time.RFC3339)},
-		{ID: "job-local-worktree", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeLocalWorktree, CreatedAt: time.Now().UTC().Format(time.RFC3339)},
-		{ID: "job-codex-only", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ProviderKind: "codex", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
-		{ID: "job-team-a", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, TaskID: "task-1", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
+		{ID: "job-team-b", TeamID: "team-b", Status: runnerJobStatusQueued, ModelMode: "team_bridge", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
+		{ID: "job-local-worktree", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeLocalWorktree, ModelMode: "team_bridge", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
+		{ID: "job-codex-only", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ModelMode: "team_bridge", ProviderKind: "codex", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
+		{ID: "job-my-bridge", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ModelMode: "my_bridge", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
+		{ID: "job-team-a", TeamID: "team-a", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ModelMode: "team_bridge", TaskID: "task-1", CreatedAt: time.Now().UTC().Format(time.RFC3339)},
 	}
 	b.mu.Unlock()
 
@@ -403,7 +404,7 @@ func TestRunnerLeaseIsTeamScopedAndCapabilityMatched(t *testing.T) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.runnerJobs[0].Status != runnerJobStatusQueued || b.runnerJobs[1].Status != runnerJobStatusQueued || b.runnerJobs[2].Status != runnerJobStatusQueued {
+	if b.runnerJobs[0].Status != runnerJobStatusQueued || b.runnerJobs[1].Status != runnerJobStatusQueued || b.runnerJobs[2].Status != runnerJobStatusQueued || b.runnerJobs[3].Status != runnerJobStatusQueued {
 		t.Fatalf("runner leased wrong job set: %+v", b.runnerJobs)
 	}
 }
@@ -433,6 +434,7 @@ func TestRunnerLeaseRequeuesExpiredJob(t *testing.T) {
 		RunnerID:       "runner-old",
 		Status:         runnerJobStatusLeased,
 		ExecutionMode:  executionModeOffice,
+		ModelMode:      "team_bridge",
 		LeaseExpiresAt: expired,
 		CreatedAt:      expired,
 	}}
@@ -731,7 +733,7 @@ func TestRunnerCLIConnectExecutesAndCompletesLeasedJob(t *testing.T) {
 	b.workspaceTeams = []workspaceTeam{{ID: "team-a", Name: "Team A", Slug: "team-a"}}
 	now := time.Now().UTC().Format(time.RFC3339)
 	b.tasks = []teamTask{{ID: "task-1", Title: "Ship", Status: taskStatusInProgress, ExecutionMode: executionModeOffice, CreatedAt: now, UpdatedAt: now}}
-	b.runnerJobs = []runnerJob{{ID: "job-1", TeamID: "team-a", TaskID: "task-1", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, CreatedAt: now}}
+	b.runnerJobs = []runnerJob{{ID: "job-1", TeamID: "team-a", TaskID: "task-1", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ModelMode: "team_bridge", CreatedAt: now}}
 	b.mu.Unlock()
 
 	mux := http.NewServeMux()

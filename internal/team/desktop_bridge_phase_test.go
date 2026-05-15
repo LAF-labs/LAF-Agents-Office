@@ -143,3 +143,10 @@ func TestRunnerJobsOnlyQueueForTeamBridge(t *testing.T) {
 		t.Fatalf("team_bridge task should need runner job")
 	}
 }
+
+func TestWikiReadPermissionIsIssuedForMCPContext(t *testing.T) {
+	perms := effectivePermissions("member", permissionOverride{})
+	if !containsString(perms, permissionWikiRead) {
+		t.Fatalf("member permissions missing %s: %+v", permissionWikiRead, perms)
+	}
+}

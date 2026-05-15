@@ -39,6 +39,7 @@ const (
 	permissionMemoryWriteDraft        = "memory:write_draft"
 	permissionMemoryPromote           = "memory:promote"
 	permissionMemoryWriteCanonical    = "memory:write_canonical"
+	permissionWikiRead                = "wiki:read"
 	permissionRunnerRead              = "runner:read"
 	permissionRunnerManage            = "runner:manage"
 	permissionModelUseLAF             = "model:use_laf"
@@ -88,6 +89,7 @@ var workspacePermissions = []string{
 	permissionMemoryWriteDraft,
 	permissionMemoryPromote,
 	permissionMemoryWriteCanonical,
+	permissionWikiRead,
 	permissionRunnerRead,
 	permissionRunnerManage,
 	permissionModelUseLAF,
@@ -193,6 +195,7 @@ func rolePresetPermissions(role string) []string {
 			permissionMemoryRead,
 			permissionMemoryWriteDraft,
 			permissionMemoryPromote,
+			permissionWikiRead,
 			permissionRunnerRead,
 			permissionModelUseLAF,
 			permissionModelUseLocalCLI,
@@ -221,6 +224,7 @@ func rolePresetPermissions(role string) []string {
 			permissionSkillInvoke,
 			permissionMemoryRead,
 			permissionMemoryWriteDraft,
+			permissionWikiRead,
 			permissionRunnerRead,
 			permissionModelUseLocalCLI,
 			permissionBridgePairOwn,
@@ -238,6 +242,7 @@ func rolePresetPermissions(role string) []string {
 			permissionWorkspaceRead,
 			permissionSkillRead,
 			permissionMemoryRead,
+			permissionWikiRead,
 			permissionRunnerRead,
 			permissionExecutionReceiptRead,
 		}

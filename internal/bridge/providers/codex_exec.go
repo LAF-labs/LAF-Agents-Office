@@ -61,7 +61,9 @@ func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (Code
 	cmd := c.command(ctx, path, args...)
 	cmd.Dir = workdir
 	if len(c.Env) > 0 {
-		cmd.Env = os.Environ()
+		if len(cmd.Env) == 0 {
+			cmd.Env = os.Environ()
+		}
 		for key, value := range c.Env {
 			if strings.TrimSpace(key) != "" {
 				cmd.Env = append(cmd.Env, strings.TrimSpace(key)+"="+value)

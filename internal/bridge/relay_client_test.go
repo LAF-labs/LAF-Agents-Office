@@ -75,6 +75,20 @@ func TestRelayLoopPullsOnHints(t *testing.T) {
 	}
 }
 
+func TestRelayLoopWithoutSourceRunsOnce(t *testing.T) {
+	pulls := 0
+	runner := PendingRunnerFunc(func(context.Context) ([]RunResult, error) {
+		pulls++
+		return nil, nil
+	})
+	if err := (RelayLoop{Runner: runner}).Run(context.Background()); err != nil {
+		t.Fatalf("relay loop error: %v", err)
+	}
+	if pulls != 1 {
+		t.Fatalf("pulls: got %d want 1", pulls)
+	}
+}
+
 type scriptedRelaySource struct {
 	mu       sync.Mutex
 	channels []chan RelayHint

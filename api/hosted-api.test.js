@@ -1051,6 +1051,7 @@ test("hosted my_bridge execution plan create/get/cancel signs and redacts prompt
   assert.equal(typeof created.body.plan.nonce, "string");
   assert.equal(db.execution_plans.length, 1);
   assert.equal(db.execution_plans[0].prompt, "Implement and run tests");
+  assert.equal(db.execution_plans[0].effective_permissions.includes("wiki:read"), true);
 
   const fetched = await invoke(["execution", "plans", created.body.plan.id], "GET");
   assert.equal(fetched.status, 200);

@@ -253,6 +253,7 @@ export type WorkspacePermission =
   | "memory:write_draft"
   | "memory:promote"
   | "memory:write_canonical"
+  | "wiki:read"
   | "runner:read"
   | "runner:manage"
   | "model:use_laf"

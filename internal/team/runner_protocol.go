@@ -520,6 +520,9 @@ func runnerCanClaimJob(runner hostedRunner, job runnerJob) bool {
 	if job.Status != runnerJobStatusQueued && job.Status != runnerJobStatusExpired {
 		return false
 	}
+	if normalizeRunnerJobModelMode(job.ModelMode) != "team_bridge" {
+		return false
+	}
 	if mode := strings.TrimSpace(job.ExecutionMode); mode != "" && len(runner.Capabilities.ExecutionModes) > 0 && !containsString(runner.Capabilities.ExecutionModes, mode) {
 		return false
 	}

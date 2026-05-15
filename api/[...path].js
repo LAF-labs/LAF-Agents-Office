@@ -41,6 +41,7 @@ const WORKSPACE_PERMISSIONS = [
   "memory:write_draft",
   "memory:promote",
   "memory:write_canonical",
+  "wiki:read",
   "runner:read",
   "runner:manage",
   "model:use_laf",
@@ -681,6 +682,7 @@ function rolePresetPermissions(role) {
         "memory:read",
         "memory:write_draft",
         "memory:promote",
+        "wiki:read",
         "runner:read",
         "model:use_laf",
         "model:use_local_cli",
@@ -709,6 +711,7 @@ function rolePresetPermissions(role) {
         "skill:invoke",
         "memory:read",
         "memory:write_draft",
+        "wiki:read",
         "runner:read",
         "model:use_local_cli",
         "bridge:pair_own",
@@ -722,7 +725,7 @@ function rolePresetPermissions(role) {
         "mcp:use_task_context",
       ].sort();
     case "viewer":
-      return ["workspace:read", "skill:read", "memory:read", "runner:read", "execution:receipt_read"];
+      return ["workspace:read", "skill:read", "memory:read", "wiki:read", "runner:read", "execution:receipt_read"];
     default:
       return rolePresetPermissions("member");
   }
