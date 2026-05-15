@@ -199,6 +199,27 @@ func TestRunPendingOnceWithExecutorUploadsOutcomeFields(t *testing.T) {
 	}
 }
 
+func TestPlanRunGuardPreventsDuplicateTerminalRun(t *testing.T) {
+	guard := NewPlanRunGuard()
+	if !guard.TryStart("plan-1") {
+		t.Fatal("first start should be allowed")
+	}
+	if guard.TryStart("plan-1") {
+		t.Fatal("active duplicate should be blocked")
+	}
+	guard.Finish("plan-1", true)
+	if guard.TryStart("plan-1") {
+		t.Fatal("terminal duplicate should be blocked")
+	}
+	if !guard.TryStart("plan-2") {
+		t.Fatal("different plan should be allowed")
+	}
+	guard.Finish("plan-2", false)
+	if !guard.TryStart("plan-2") {
+		t.Fatal("non-terminal finish should allow retry")
+	}
+}
+
 type staticExecutor struct{}
 
 func (staticExecutor) Execute(context.Context, ExecutionPlan, ProjectBinding) (ExecutionOutcome, error) {

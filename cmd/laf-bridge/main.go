@@ -209,7 +209,10 @@ func runStart(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	results, err := bridge.RunPendingOnceWithExecutor(ctx, cfg, client, validator, executor)
+	results, err := bridge.RunPendingOnceWithOptions(ctx, cfg, client, validator, bridge.RunPendingOptions{
+		Executor: executor,
+		Guard:    bridge.NewPlanRunGuard(),
+	})
 	if err != nil {
 		return err
 	}

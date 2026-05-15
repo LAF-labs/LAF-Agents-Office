@@ -376,6 +376,48 @@ async function rest(table, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function publishRelayEvent(topic, event, payload) {
+  const endpoint = String(process.env.SUPABASE_REALTIME_BROADCAST_URL || "").trim()
+    || (truthy(process.env.LAF_BRIDGE_RELAY_ENABLED)
+      ? supabaseURL("/realtime/v1/api/broadcast")
+      : "");
+  if (!endpoint) return false;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: serviceHeaders(),
+    body: JSON.stringify({
+      messages: [
+        {
+          event,
+          payload,
+          topic,
+        },
+      ],
+    }),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new HTTPError(response.status, responseErrorMessage(text, response.statusText));
+  }
+  return true;
+}
+
+async function publishExecutionPlanCreated(plan) {
+  if (!plan?.device_id) return false;
+  return await publishRelayEvent(
+    `bridge:device:${plan.device_id}`,
+    "execution.plan.created",
+    {
+      created_at: plan.created_at,
+      expires_at: plan.expires_at,
+      plan_id: plan.id,
+      project_id: plan.project_id || null,
+      task_id: plan.task_id || null,
+      team_id: plan.team_id,
+    },
+  );
+}
+
 async function rpc(name, body = {}) {
   const response = await fetch(supabaseURL(`/rest/v1/rpc/${name}`), {
     method: "POST",
@@ -1869,7 +1911,13 @@ async function handleExecutionPlanCreate(req, res) {
       updated_at: nowISO(),
     },
   });
-  writeJSON(res, 200, { plan: publicExecutionPlan(created) });
+  let relay = { published: false };
+  try {
+    relay.published = await publishExecutionPlanCreated(created);
+  } catch (err) {
+    relay = { error: redactSensitiveText(err?.message || String(err)), published: false };
+  }
+  writeJSON(res, 200, { plan: publicExecutionPlan(created), relay });
 }
 
 async function handleExecutionPlanGet(req, res, planID) {

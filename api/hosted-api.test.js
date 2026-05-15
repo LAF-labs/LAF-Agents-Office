@@ -102,6 +102,13 @@ test("hosted team bridge task creation queues a runner job with agent-memory/v1"
         user_metadata: { name: "Owner" },
       });
     }
+    if (url.pathname === "/realtime/v1/api/broadcast") {
+      if (Array.isArray(db.relay_broadcasts)) db.relay_broadcasts.push(body);
+      if (db.failRelayBroadcast) {
+        return jsonResponse({ error: "relay unavailable" }, 503);
+      }
+      return jsonResponse({ ok: true });
+    }
     const table = url.pathname.replace("/rest/v1/", "");
     if (table === "memberships") {
       return jsonResponse([
@@ -261,6 +268,13 @@ test("hosted project rejects unsafe repo URLs", async (t) => {
         email: "owner@example.com",
         user_metadata: { name: "Owner" },
       });
+    }
+    if (url.pathname === "/realtime/v1/api/broadcast") {
+      if (Array.isArray(db.relay_broadcasts)) db.relay_broadcasts.push(body);
+      if (db.failRelayBroadcast) {
+        return jsonResponse({ error: "relay unavailable" }, 503);
+      }
+      return jsonResponse({ ok: true });
     }
     const table = url.pathname.replace("/rest/v1/", "");
     if (table === "memberships") {
@@ -1134,6 +1148,95 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(db.execution_events.length, 2);
 });
 
+test("hosted execution plan create survives relay publish failure", async (t) => {
+  const db = {
+    bridge_devices: [
+      {
+        id: "bridge-device-1",
+        status: "online",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    execution_plans: [],
+    failRelayBroadcast: true,
+    memberships: [
+      {
+        role: "member",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    project_local_bindings: [
+      {
+        id: "binding-1",
+        device_id: "bridge-device-1",
+        project_id: "11111111-1111-4111-8111-111111111111",
+        team_id: "team-1",
+        trusted: true,
+        user_id: "user-1",
+      },
+    ],
+    projects: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        local_id: "project-a",
+        name: "Project A",
+        team_id: "team-1",
+      },
+    ],
+    relay_broadcasts: [],
+    tasks: [
+      {
+        id: "task-1",
+        local_id: "task-a",
+        model_mode: "my_bridge",
+        project_id: "11111111-1111-4111-8111-111111111111",
+        status: "open",
+        team_id: "team-1",
+        title: "Bridge execution task",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  const oldBroadcastURL = process.env.SUPABASE_REALTIME_BROADCAST_URL;
+  const oldRelay = process.env.LAF_BRIDGE_RELAY_ENABLED;
+  t.after(() => {
+    global.fetch = oldFetch;
+    if (oldBroadcastURL === undefined) {
+      delete process.env.SUPABASE_REALTIME_BROADCAST_URL;
+    } else {
+      process.env.SUPABASE_REALTIME_BROADCAST_URL = oldBroadcastURL;
+    }
+    if (oldRelay === undefined) {
+      delete process.env.LAF_BRIDGE_RELAY_ENABLED;
+    } else {
+      process.env.LAF_BRIDGE_RELAY_ENABLED = oldRelay;
+    }
+  });
+  process.env.LAF_BRIDGE_RELAY_ENABLED = "true";
+  process.env.SUPABASE_REALTIME_BROADCAST_URL =
+    "https://supabase.test/realtime/v1/api/broadcast";
+  global.fetch = hostedFetch(db);
+
+  const created = await invoke(["execution", "plans"], "POST", {
+    binding_id: "binding-1",
+    device_id: "bridge-device-1",
+    message: "Implement and run tests",
+    mode: "my_bridge",
+    provider: "codex",
+    task_id: "task-a",
+  });
+  assert.equal(created.status, 200, JSON.stringify(created.body));
+  assert.equal(created.body.relay.published, false);
+  assert.match(created.body.relay.error, /relay unavailable/);
+  assert.equal(db.execution_plans.length, 1);
+  assert.equal(db.relay_broadcasts.length, 1);
+  assert.equal(db.relay_broadcasts[0].messages[0].event, "execution.plan.created");
+});
+
 test("hosted my_bridge execution plan requires trusted binding and own bridge execute permission", async (t) => {
   const db = {
     bridge_devices: [
@@ -1502,6 +1605,13 @@ function hostedFetch(db) {
         email: "owner@example.com",
         user_metadata: { name: "Owner" },
       });
+    }
+    if (url.pathname === "/realtime/v1/api/broadcast") {
+      if (Array.isArray(db.relay_broadcasts)) db.relay_broadcasts.push(body);
+      if (db.failRelayBroadcast) {
+        return jsonResponse({ error: "relay unavailable" }, 503);
+      }
+      return jsonResponse({ ok: true });
     }
     const table = url.pathname.replace("/rest/v1/", "");
     if (!Object.hasOwn(db, table)) return jsonResponse([]);

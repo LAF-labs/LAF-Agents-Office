@@ -1024,6 +1024,15 @@ go test ./internal/bridge/...
 
 ### Phase 6 - Relay MVP
 
+Status: Partially implemented in the current workspace. Hosted plan creation now
+publishes a best-effort Supabase Broadcast hint after the durable
+`execution_plans` insert, and publish failures are returned as non-fatal relay
+metadata so the plan remains available through DB pull. The bridge has a relay
+loop abstraction that pulls pending plans on subscribe, reconnect, and incoming
+hints, with an in-process guard to avoid double-running the same terminal plan.
+The concrete Supabase websocket client, bridge daemon wiring, and web task-event
+subscription remain pending.
+
 Goal:
 
 Add Supabase Broadcast as a low-latency hint layer while keeping DB pull as the
