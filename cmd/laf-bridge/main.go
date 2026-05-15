@@ -2,15 +2,24 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/bridge"
+	bridgemcp "github.com/LAF-labs/LAF-Agents-Office/internal/bridge/mcp"
 	bridgeproviders "github.com/LAF-labs/LAF-Agents-Office/internal/bridge/providers"
+)
+
+const (
+	mcpTokenEnv       = "LAF_BRIDGE_MCP_TOKEN"
+	mcpSecretEnv      = "LAF_BRIDGE_MCP_SECRET"
+	mcpContextPathEnv = "LAF_BRIDGE_MCP_CONTEXT_PATH"
 )
 
 func main() {
@@ -42,6 +51,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runUnlinkProject(args[1:], stdout)
 	case "start":
 		return runStart(args[1:], stdout)
+	case "mcp-context":
+		return runMCPContext(args[1:], stdout)
 	default:
 		usage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
@@ -181,6 +192,9 @@ func runStart(args []string, stdout io.Writer) error {
 	providerName := fs.String("provider", "codex", "execution provider: codex or fake")
 	model := fs.String("model", "", "provider model override")
 	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
+	mcpContext := fs.Bool("mcp-context", true, "inject task-scoped MCP context into codex exec")
+	mcpContextPath := fs.String("mcp-context-path", "", "optional local MCP context JSON file")
+	mcpCommand := fs.String("mcp-command", "", "laf-bridge command path for Codex MCP config")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -205,7 +219,11 @@ func runStart(args []string, stdout io.Writer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	client := bridge.Client{APIURL: cfg.APIURL, Token: token}
-	executor, err := bridgeExecutor(*providerName, *model)
+	executor, err := bridgeExecutor(*providerName, *model, mcpOptions{
+		Command:     *mcpCommand,
+		ContextPath: *mcpContextPath,
+		Enabled:     *mcpContext,
+	})
 	if err != nil {
 		return err
 	}
@@ -219,15 +237,151 @@ func runStart(args []string, stdout io.Writer) error {
 	return writeJSON(stdout, map[string]any{"results": results})
 }
 
-func bridgeExecutor(providerName string, model string) (bridge.PlanExecutor, error) {
+func runMCPContext(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("mcp-context", flag.ContinueOnError)
+	tokenFlag := fs.String("token", "", "task-scoped MCP token")
+	secretFlag := fs.String("secret", "", "MCP token HMAC secret, raw or base64")
+	contextPathFlag := fs.String("context-path", "", "local MCP context JSON file")
+	printConfig := fs.Bool("print-config", false, "print configuration summary and exit")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	token := firstNonEmpty(*tokenFlag, os.Getenv(mcpTokenEnv))
+	secretRaw := firstNonEmpty(*secretFlag, os.Getenv(mcpSecretEnv))
+	contextPath := firstNonEmpty(*contextPathFlag, os.Getenv(mcpContextPathEnv))
+	if strings.TrimSpace(token) == "" {
+		return fmt.Errorf("%s is required", mcpTokenEnv)
+	}
+	secret, err := decodeMCPSecret(secretRaw)
+	if err != nil {
+		return err
+	}
+	issuer := bridgemcp.NewTokenIssuer(secret)
+	if _, err := issuer.Validate(token); err != nil {
+		return err
+	}
+	store, err := bridgemcp.LoadStaticContextStore(contextPath)
+	if err != nil {
+		return err
+	}
+	if *printConfig {
+		return writeJSON(stdout, map[string]any{
+			"configured":   true,
+			"context_path": contextPath,
+			"token":        "present",
+		})
+	}
+	server := bridgemcp.ContextServer{
+		Gateway: bridgemcp.Gateway{Issuer: issuer, Store: store},
+		Token:   token,
+	}
+	return server.RunStdio(context.Background())
+}
+
+type mcpOptions struct {
+	Command     string
+	ContextPath string
+	Enabled     bool
+}
+
+type mcpCodexExecutor struct {
+	base        bridgeproviders.CodexExec
+	command     string
+	contextPath string
+	secret      []byte
+}
+
+func (e mcpCodexExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan, binding bridge.ProjectBinding) (bridge.ExecutionOutcome, error) {
+	issuer := bridgemcp.NewTokenIssuer(e.secret)
+	token, _, err := issuer.Issue(plan)
+	if err != nil {
+		return bridge.ExecutionOutcome{}, err
+	}
+	command := strings.TrimSpace(e.command)
+	if command == "" {
+		command = executablePath()
+	}
+	env := map[string]string{
+		mcpSecretEnv: base64.StdEncoding.EncodeToString(e.secret),
+		mcpTokenEnv:  token,
+	}
+	envVars := []string{mcpSecretEnv, mcpTokenEnv}
+	if strings.TrimSpace(e.contextPath) != "" {
+		env[mcpContextPathEnv] = strings.TrimSpace(e.contextPath)
+		envVars = append(envVars, mcpContextPathEnv)
+	}
+	exec := e.base
+	exec.Env = mergeEnv(exec.Env, env)
+	exec.ConfigOverrides = append(
+		append([]string(nil), exec.ConfigOverrides...),
+		bridgemcp.CodexConfigOverrides(command, []string{"mcp-context"}, envVars)...,
+	)
+	return exec.Execute(ctx, plan, binding)
+}
+
+func bridgeExecutor(providerName string, model string, opts mcpOptions) (bridge.PlanExecutor, error) {
 	switch providerName {
 	case "", "codex":
-		return bridgeproviders.CodexExec{Model: model}, nil
+		exec := bridgeproviders.CodexExec{Model: model}
+		if !opts.Enabled {
+			return exec, nil
+		}
+		secret, err := bridgemcp.GenerateSecret()
+		if err != nil {
+			return nil, err
+		}
+		return mcpCodexExecutor{
+			base:        exec,
+			command:     opts.Command,
+			contextPath: opts.ContextPath,
+			secret:      secret,
+		}, nil
 	case "fake":
 		return bridge.FakeExecutor{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported provider %q", providerName)
 	}
+}
+
+func decodeMCPSecret(raw string) ([]byte, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, fmt.Errorf("%s is required", mcpSecretEnv)
+	}
+	for _, decoder := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.RawURLEncoding} {
+		if decoded, err := decoder.DecodeString(raw); err == nil && len(decoded) > 0 {
+			return decoded, nil
+		}
+	}
+	return []byte(raw), nil
+}
+
+func executablePath() string {
+	path, err := os.Executable()
+	if err != nil || strings.TrimSpace(path) == "" {
+		return "laf-bridge"
+	}
+	return path
+}
+
+func mergeEnv(base map[string]string, override map[string]string) map[string]string {
+	out := map[string]string{}
+	for key, value := range base {
+		out[key] = value
+	}
+	for key, value := range override {
+		out[key] = value
+	}
+	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func writeJSON(w io.Writer, value any) error {
@@ -237,5 +391,5 @@ func writeJSON(w io.Writer, value any) error {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "usage: laf-bridge <pair|status|doctor|providers|bindings|link-project|unlink-project|start>")
+	fmt.Fprintln(w, "usage: laf-bridge <pair|status|doctor|providers|bindings|link-project|unlink-project|start|mcp-context>")
 }

@@ -1120,10 +1120,10 @@ cd web && bun run build
 Status: Partially implemented in the current workspace. The bridge now has a
 task-scoped MCP gateway package with signed expiring tokens derived from
 execution-plan permissions, permission-gated task context, wiki search, and
-receipt-write tools, a stdio MCP server wrapper, and Codex `--config`
-override support for injecting an MCP server into `codex exec`. API-backed
-context storage, CLI command wiring for `laf-bridge mcp-context`, and automatic
-per-run token/config lifecycle remain pending.
+receipt-write tools, a stdio MCP server wrapper, static local context-file
+storage, `laf-bridge mcp-context` CLI wiring, and Codex `--config`/env override
+support that injects the MCP server per Codex plan run. API-backed context
+storage and durable receipt writes back to hosted execution APIs remain pending.
 
 Goal:
 

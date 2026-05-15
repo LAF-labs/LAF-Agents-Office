@@ -13,9 +13,10 @@ import (
 )
 
 type codexRecord struct {
-	Args  []string `json:"args"`
-	Dir   string   `json:"dir"`
-	Stdin string   `json:"stdin"`
+	Args  []string          `json:"args"`
+	Dir   string            `json:"dir"`
+	Env   map[string]string `json:"env,omitempty"`
+	Stdin string            `json:"stdin"`
 }
 
 func TestCodexExecDetectsVersion(t *testing.T) {
@@ -39,6 +40,7 @@ func TestCodexExecRunParsesJSONLAndChangedFiles(t *testing.T) {
 	initGitRepo(t, workdir)
 	adapter := testCodexAdapter(t, recordFile, "success")
 	adapter.ConfigOverrides = []string{`mcp_servers.laf-bridge-context.command="/tmp/laf-bridge"`}
+	adapter.Env = map[string]string{"LAF_BRIDGE_MCP_TOKEN": "token-1"}
 
 	result, err := adapter.Run(context.Background(), workdir, "Ship with Bearer abcdef01234567890")
 	if err != nil {
@@ -72,6 +74,9 @@ func TestCodexExecRunParsesJSONLAndChangedFiles(t *testing.T) {
 	}
 	if !containsArg(records[0].Args, "--config") || !containsArg(records[0].Args, `mcp_servers.laf-bridge-context.command="/tmp/laf-bridge"`) {
 		t.Fatalf("codex args missing MCP config override: %#v", records[0].Args)
+	}
+	if records[0].Env["LAF_BRIDGE_MCP_TOKEN"] != "token-1" {
+		t.Fatalf("codex env missing MCP token: %#v", records[0].Env)
 	}
 	if !strings.Contains(records[0].Stdin, "Ship with Bearer") {
 		t.Fatalf("prompt was not sent on stdin: %q", records[0].Stdin)
@@ -137,7 +142,14 @@ func TestBridgeCodexHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 	stdin, _ := io.ReadAll(os.Stdin)
-	record := codexRecord{Args: codexArgs, Dir: mustGetwd(), Stdin: string(stdin)}
+	record := codexRecord{
+		Args: codexArgs,
+		Dir:  mustGetwd(),
+		Env: map[string]string{
+			"LAF_BRIDGE_MCP_TOKEN": os.Getenv("LAF_BRIDGE_MCP_TOKEN"),
+		},
+		Stdin: string(stdin),
+	}
 	appendRecord(record)
 	switch os.Getenv("BRIDGE_CODEX_SCENARIO") {
 	case "success":

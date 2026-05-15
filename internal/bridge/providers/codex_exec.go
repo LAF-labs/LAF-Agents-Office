@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ type CodexExec struct {
 	Path            string
 	Model           string
 	ConfigOverrides []string
+	Env             map[string]string
 	LookPath        func(file string) (string, error)
 	CommandContext  func(ctx context.Context, name string, args ...string) *exec.Cmd
 }
@@ -58,6 +60,14 @@ func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (Code
 	args := c.args(workdir)
 	cmd := c.command(ctx, path, args...)
 	cmd.Dir = workdir
+	if len(c.Env) > 0 {
+		cmd.Env = os.Environ()
+		for key, value := range c.Env {
+			if strings.TrimSpace(key) != "" {
+				cmd.Env = append(cmd.Env, strings.TrimSpace(key)+"="+value)
+			}
+		}
+	}
 	cmd.Stdin = strings.NewReader(prompt)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

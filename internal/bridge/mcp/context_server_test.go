@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -113,6 +115,42 @@ func TestCodexConfigOverrides(t *testing.T) {
 	}
 	if !strings.Contains(joined, `mcp_servers.laf-bridge-context.env_vars=["LAF_BRIDGE_MCP_TOKEN"]`) {
 		t.Fatalf("missing env vars override: %q", joined)
+	}
+}
+
+func TestStaticContextStoreLoadsFileAndWritesReceipt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "context.json")
+	if err := os.WriteFile(path, []byte(`{
+  "task_context": {"project_id":"project-1","task_id":"task-1","text":"Ship it"},
+  "wiki": [{"path":"team/projects/project-1.md","excerpt":"Launch checklist"}]
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store, err := LoadStaticContextStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims := TokenClaims{PlanID: "plan-1", ProjectID: "project-1", TaskID: "task-1"}
+	task, err := store.TaskContext(context.Background(), claims)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task.Text != "Ship it" {
+		t.Fatalf("task context = %+v", task)
+	}
+	hits, err := store.WikiSearch(context.Background(), claims, "launch", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || hits[0].Path == "" {
+		t.Fatalf("wiki hits = %+v", hits)
+	}
+	receipt, err := store.WriteReceipt(context.Background(), claims, ReceiptDraft{Status: "completed", Summary: "Done"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.PlanID != "plan-1" || receipt.Summary != "Done" {
+		t.Fatalf("receipt = %+v", receipt)
 	}
 }
 
