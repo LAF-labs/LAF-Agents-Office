@@ -398,6 +398,7 @@ type brokerState struct {
 	Scheduler            []schedulerJob               `json:"scheduler,omitempty"`
 	Skills               []teamSkill                  `json:"skills,omitempty"`
 	SharedMemory         map[string]map[string]string `json:"shared_memory,omitempty"`
+	CoreMemoryCards      []coreMemoryCard             `json:"core_memory_cards,omitempty"`
 	Counter              int                          `json:"counter"`
 	NotificationSince    string                       `json:"notification_since,omitempty"`
 	InsightsSince        string                       `json:"insights_since,omitempty"`
@@ -463,6 +464,7 @@ type Broker struct {
 	scheduler               []schedulerJob
 	skills                  []teamSkill
 	sharedMemory            map[string]map[string]string // namespace → key → value
+	coreMemoryCards         []coreMemoryCard             // small always-injected context cards
 	lastTaggedAt            map[string]time.Time         // when each agent was last @mentioned
 	lastPaneSnapshot        map[string]string            // last captured pane content per agent (for change detection)
 	seenTelegramGroups      map[int64]string             // chat_id -> title, populated by transport
@@ -1758,6 +1760,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/reset-dm", b.requireAuth(b.handleResetDM))
 	mux.HandleFunc("/usage", b.requireAuth(b.handleUsage))
 	mux.HandleFunc("/policies", b.requireAuth(b.handlePolicies))
+	mux.HandleFunc("/memory-cards", b.requireAuth(b.handleMemoryCards))
 	mux.HandleFunc("/signals", b.requireAuth(b.handleSignals))
 	mux.HandleFunc("/decisions", b.requireAuth(b.handleDecisions))
 	mux.HandleFunc("/watchdogs", b.requireAuth(b.handleWatchdogs))
@@ -3326,6 +3329,7 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.Decisions) * 4
 	score += len(state.Skills) * 2
 	score += len(state.Policies)
+	score += len(state.CoreMemoryCards)
 	for _, ns := range state.SharedMemory {
 		score += len(ns)
 	}
@@ -3396,6 +3400,7 @@ func (b *Broker) loadState() error {
 	b.scheduler = state.Scheduler
 	b.skills = state.Skills
 	b.sharedMemory = state.SharedMemory
+	b.coreMemoryCards = state.CoreMemoryCards
 	b.counter = state.Counter
 	b.notificationSince = state.NotificationSince
 	b.insightsSince = state.InsightsSince
@@ -3460,7 +3465,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3527,6 +3532,7 @@ func (b *Broker) saveLocked() error {
 		Scheduler:            b.scheduler,
 		Skills:               b.skills,
 		SharedMemory:         b.sharedMemory,
+		CoreMemoryCards:      b.coreMemoryCards,
 		Counter:              b.counter,
 		NotificationSince:    b.notificationSince,
 		InsightsSince:        b.insightsSince,
@@ -5696,6 +5702,68 @@ func (b *Broker) handlePolicies(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (b *Broker) handleMemoryCards(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		scope := r.URL.Query().Get("scope")
+		subject := r.URL.Query().Get("subject")
+		includeInactive := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("active")), "all")
+		cards := b.ListCoreMemoryCards(scope, subject, includeInactive)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"cards": cards})
+	case http.MethodPost:
+		var body struct {
+			Scope   string `json:"scope"`
+			Subject string `json:"subject"`
+			Content string `json:"content"`
+			Source  string `json:"source"`
+			Active  *bool  `json:"active,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		active := true
+		if body.Active != nil {
+			active = *body.Active
+		}
+		card, err := b.UpsertCoreMemoryCard(coreMemoryCardWrite{
+			Scope:   body.Scope,
+			Subject: body.Subject,
+			Content: body.Content,
+			Source:  body.Source,
+			Active:  active,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"card": card})
+	case http.MethodDelete:
+		var body struct {
+			Scope   string `json:"scope"`
+			Subject string `json:"subject"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Scope == "" {
+			body.Scope = r.URL.Query().Get("scope")
+		}
+		if body.Subject == "" {
+			body.Subject = r.URL.Query().Get("subject")
+		}
+		card, err := b.DeactivateCoreMemoryCard(body.Scope, body.Subject)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "card": card})
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}

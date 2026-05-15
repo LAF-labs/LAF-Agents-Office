@@ -181,6 +181,24 @@ type brokerMemoryNote struct {
 	UpdatedAt string `json:"updated_at,omitempty"`
 }
 
+type brokerCoreMemoryCardResponse struct {
+	Cards []brokerCoreMemoryCard `json:"cards,omitempty"`
+	Card  brokerCoreMemoryCard   `json:"card,omitempty"`
+	OK    bool                   `json:"ok,omitempty"`
+}
+
+type brokerCoreMemoryCard struct {
+	ID        string `json:"id"`
+	Scope     string `json:"scope"`
+	Subject   string `json:"subject"`
+	Content   string `json:"content"`
+	Source    string `json:"source,omitempty"`
+	Active    bool   `json:"active"`
+	CharLimit int    `json:"char_limit"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
 type brokerTaskSummary struct {
 	ID               string   `json:"id"`
 	Channel          string   `json:"channel"`
@@ -413,6 +431,15 @@ type TeamMemoryPromoteArgs struct {
 	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
+type TeamMemoryCardArgs struct {
+	Action  string `json:"action,omitempty" jsonschema:"One of: list, replace, deactivate. Defaults to list."`
+	Scope   string `json:"scope,omitempty" jsonschema:"One of: user_profile, team_memory, agent_role. Defaults to all for list and team_memory for replace."`
+	Subject string `json:"subject,omitempty" jsonschema:"Card subject. Defaults to global for team_memory, default for user_profile, and your slug for agent_role."`
+	Content string `json:"content,omitempty" jsonschema:"Full replacement content for action=replace. Keep it dense and durable; do not store secrets or task logs."`
+	Source  string `json:"source,omitempty" jsonschema:"Optional source label such as human_directed or agent_detected."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+}
+
 // TeamWikiWriteArgs is the contract for the team_wiki_write MCP tool.
 type TeamWikiWriteArgs struct {
 	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
@@ -616,6 +643,13 @@ func registerSharedMemoryTools(server *mcp.Server) {
 	}
 }
 
+func registerCoreMemoryCardTool(server *mcp.Server) {
+	mcp.AddTool(server, officeWriteTool(
+		"team_memory_card",
+		"List or replace small always-injected core memory cards. Use only for durable user/team/agent context that should shape future turns; use notebook/wiki for project facts and task logs. Active office policies and the current human message override these cards.",
+	), handleTeamMemoryCard)
+}
+
 func configureServerTools(server *mcp.Server, slug string, channel string, oneOnOne bool) {
 	if oneOnOne {
 		mcp.AddTool(server, officeWriteTool(
@@ -639,6 +673,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		), handleHumanMessage)
 
 		registerSharedMemoryTools(server)
+		registerCoreMemoryCardTool(server)
 
 		registerSkillAuthoringTools(server)
 
@@ -678,6 +713,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 			"Ask the human a blocking decision question.",
 		), handleHumanInterview)
 		registerSharedMemoryTools(server)
+		registerCoreMemoryCardTool(server)
 		mcp.AddTool(server, officeWriteTool(
 			"team_skill_run",
 			"Invoke a named team skill. When the human's request matches an available skill, call this BEFORE replying — do not freelance. Bumps the skill's usage, logs a skill_invocation to the channel, and returns the skill's canonical step-by-step content for you to follow.",
@@ -746,6 +782,8 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		"team_task_context",
 		"Reload the task-scoped agent memory packet for a task ID, including project wiki context, constraints, start-here guidance, and write-back rules.",
 	), handleTeamTaskContext)
+
+	registerCoreMemoryCardTool(server)
 
 	mcp.AddTool(server, readOnlyTool(
 		"team_runtime_state",
@@ -1766,6 +1804,80 @@ func handleTeamPlan(ctx context.Context, _ *mcp.CallToolRequest, args TeamPlanAr
 		lines = append(lines, line)
 	}
 	return textResult(fmt.Sprintf("Created %d tasks in #%s:\n%s", len(result.Tasks), channel, strings.Join(lines, "\n"))), nil, nil
+}
+
+func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryCardArgs) (*mcp.CallToolResult, any, error) {
+	mySlug, err := resolveSlug(args.MySlug)
+	if err != nil {
+		return toolError(err), nil, nil
+	}
+	action := strings.TrimSpace(strings.ToLower(args.Action))
+	if action == "" {
+		action = "list"
+	}
+	scope := strings.TrimSpace(args.Scope)
+	if scope == "" && action != "list" {
+		scope = "team_memory"
+	}
+	subject := strings.TrimSpace(args.Subject)
+	if subject == "" && strings.EqualFold(scope, "agent_role") {
+		subject = mySlug
+	}
+	switch action {
+	case "list":
+		values := url.Values{}
+		if strings.TrimSpace(args.Scope) != "" {
+			values.Set("scope", scope)
+		}
+		if subject != "" {
+			values.Set("subject", subject)
+		}
+		var result brokerCoreMemoryCardResponse
+		if err := brokerGetJSON(ctx, "/memory-cards?"+values.Encode(), &result); err != nil {
+			return toolError(err), nil, nil
+		}
+		if len(result.Cards) == 0 {
+			return textResult("No active core memory cards."), nil, nil
+		}
+		lines := []string{"Core memory cards:"}
+		for _, card := range result.Cards {
+			lines = append(lines, fmt.Sprintf("- %s/%s (%d/%d chars): %s", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit, truncate(strings.ReplaceAll(strings.TrimSpace(card.Content), "\n", " "), 240)))
+		}
+		return textResult(strings.Join(lines, "\n")), nil, nil
+	case "replace", "upsert":
+		content := strings.TrimSpace(args.Content)
+		if content == "" {
+			return toolError(fmt.Errorf("content is required for action=replace")), nil, nil
+		}
+		source := strings.TrimSpace(args.Source)
+		if source == "" {
+			source = "agent_detected:" + mySlug
+		}
+		var result brokerCoreMemoryCardResponse
+		if err := brokerPostJSON(ctx, "/memory-cards", map[string]any{
+			"scope":   scope,
+			"subject": subject,
+			"content": content,
+			"source":  source,
+			"active":  true,
+		}, &result); err != nil {
+			return toolError(err), nil, nil
+		}
+		card := result.Card
+		return textResult(fmt.Sprintf("Replaced core memory card %s/%s (%d/%d chars).", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit)), nil, nil
+	case "deactivate", "delete":
+		var result brokerCoreMemoryCardResponse
+		if err := brokerDeleteJSON(ctx, "/memory-cards", map[string]any{
+			"scope":   scope,
+			"subject": subject,
+		}, &result); err != nil {
+			return toolError(err), nil, nil
+		}
+		card := result.Card
+		return textResult(fmt.Sprintf("Deactivated core memory card %s/%s.", card.Scope, card.Subject)), nil, nil
+	default:
+		return toolError(fmt.Errorf("action must be one of list, replace, deactivate")), nil, nil
+	}
 }
 
 func handleTeamMemoryQuery(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryQueryArgs) (*mcp.CallToolResult, any, error) {
@@ -3198,6 +3310,32 @@ func brokerPostJSON(ctx context.Context, path string, body any, out any) error {
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
 		return fmt.Errorf("broker POST %s failed: %s %s", path, res.Status, strings.TrimSpace(string(respBody)))
+	}
+	if out == nil {
+		return nil
+	}
+	return json.NewDecoder(res.Body).Decode(out)
+}
+
+func brokerDeleteJSON(ctx context.Context, path string, body any, out any) error {
+	data, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, brokerBaseURL()+path, strings.NewReader(string(data)))
+	if err != nil {
+		return err
+	}
+	req.Header = authHeaders()
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return fmt.Errorf("broker DELETE %s failed: %s %s", path, res.Status, strings.TrimSpace(string(respBody)))
 	}
 	if out == nil {
 		return nil

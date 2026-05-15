@@ -103,6 +103,9 @@ func TestConfigureServerToolsRegistersTaskContext(t *testing.T) {
 	if !slices.Contains(names, "team_task_context") {
 		t.Fatalf("expected team_task_context in office mode; tools=%v", names)
 	}
+	if !slices.Contains(names, "team_memory_card") {
+		t.Fatalf("expected team_memory_card in office mode; tools=%v", names)
+	}
 }
 
 func TestConfigureServerToolsOmitsActionToolAnnotations(t *testing.T) {
@@ -532,6 +535,56 @@ func TestHandleTeamMemoryWriteAndQueryPrivate(t *testing.T) {
 	text := textFromResult(t, result)
 	if !strings.Contains(text, "Private memory:") || !strings.Contains(text, "launch-brief") || !strings.Contains(text, "Launch brief") {
 		t.Fatalf("expected private memory hit, got %q", text)
+	}
+}
+
+func TestHandleTeamMemoryCardReplaceListAndDeactivate(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	result, _, err := handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action:  "replace",
+		Scope:   "agent_role",
+		Content: "Reviewer should cite exact files and residual risk.",
+		MySlug:  "reviewer",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard replace: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "agent_role/reviewer") {
+		t.Fatalf("expected replace confirmation, got %q", text)
+	}
+
+	result, _, err = handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action: "list",
+		Scope:  "agent_role",
+		MySlug: "reviewer",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard list: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Reviewer should cite exact files") {
+		t.Fatalf("expected listed memory card, got %q", text)
+	}
+
+	result, _, err = handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action: "deactivate",
+		Scope:  "agent_role",
+		MySlug: "reviewer",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard deactivate: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Deactivated core memory card agent_role/reviewer") {
+		t.Fatalf("expected deactivate confirmation, got %q", text)
 	}
 }
 

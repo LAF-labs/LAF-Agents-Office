@@ -3937,10 +3937,15 @@ func (l *Launcher) buildPrompt(slug string) string {
 	var sb strings.Builder
 
 	companyCtx := config.CompanyContextBlock()
+	coreMemoryCtx := ""
+	if l.broker != nil {
+		coreMemoryCtx = renderCoreMemoryPromptBlock(l.broker.coreMemoryCardsForPrompt(slug))
+	}
 
 	if l.isOneOnOne() {
 		sb.WriteString(fmt.Sprintf("You are %s in a direct one-on-one LAF-Office session with the human.\n\n", agentCfg.Name))
 		sb.WriteString(companyCtx)
+		sb.WriteString(coreMemoryCtx)
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
@@ -3975,6 +3980,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 	if slug == lead {
 		sb.WriteString(fmt.Sprintf("You are the %s of the %s.\n\n", agentCfg.Name, l.PackName()))
 		sb.WriteString(companyCtx)
+		sb.WriteString(coreMemoryCtx)
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
 		sb.WriteString(coreTeamOperatingRulesBlock(slug, lead))
@@ -4088,6 +4094,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 	} else {
 		sb.WriteString(fmt.Sprintf("You are %s on the %s.\n", agentCfg.Name, l.PackName()))
 		sb.WriteString(companyCtx)
+		sb.WriteString(coreMemoryCtx)
 		sb.WriteString(fmt.Sprintf("Your expertise: %s\n\n", strings.Join(agentCfg.Expertise, ", ")))
 		sb.WriteString(fmt.Sprintf("Core personality: %s\n", agentCfg.Personality))
 		sb.WriteString(fmt.Sprintf("Voice and vibe: %s\n\n", teamVoiceForSlug(slug)))
