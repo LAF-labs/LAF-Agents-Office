@@ -550,10 +550,7 @@ export function createProjectLocalBinding(
   return post<{
     binding: ProjectLocalBinding;
     commands?: ProjectLocalBindingCommandSet;
-  }>(
-    `/projects/${encodeURIComponent(projectID)}/local-bindings`,
-    body,
-  );
+  }>(`/projects/${encodeURIComponent(projectID)}/local-bindings`, body);
 }
 
 export function deleteProjectLocalBinding(

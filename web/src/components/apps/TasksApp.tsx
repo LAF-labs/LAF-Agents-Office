@@ -44,6 +44,7 @@ import {
   updateProject,
   updateTask,
 } from "../../api/client";
+import { subscribeExecutionPlanEvents } from "../../api/executionEvents";
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
 import { formatTime } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
@@ -2579,6 +2580,19 @@ function TaskSidePanel({
         ? 3_000
         : false,
   });
+  useEffect(() => {
+    if (!activePlanID) return;
+    return subscribeExecutionPlanEvents(activePlanID, () => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["execution-plan", activePlanID],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["execution-plan-events", activePlanID],
+        }),
+      ]);
+    });
+  }, [activePlanID, queryClient]);
   const executionPlan = executionPlanQuery.data?.plan ?? createdPlan;
   const executionReceipt = executionPlanQuery.data?.receipt ?? null;
   const serverThreadMessages = threadMessagesQuery.data?.messages ?? [];

@@ -33,8 +33,12 @@ const apiMocks = vi.hoisted(() => ({
   updateProject: vi.fn(),
   updateTaskStatus: vi.fn(),
 }));
+const executionEventMocks = vi.hoisted(() => ({
+  subscribeExecutionPlanEvents: vi.fn(() => vi.fn()),
+}));
 
 vi.mock("../../api/client", () => apiMocks);
+vi.mock("../../api/executionEvents", () => executionEventMocks);
 vi.mock("../ui/Toast", () => ({ showNotice: vi.fn() }));
 
 function renderTasksApp() {
@@ -261,7 +265,9 @@ describe("TasksApp project directory", () => {
     expect(
       within(taskList).getByText("Implement signup flow"),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Team Bridge connected")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Team Bridge connected"),
+    ).toBeInTheDocument();
     expect(
       within(taskList).getByText("Review signup flow"),
     ).toBeInTheDocument();
@@ -625,6 +631,11 @@ describe("TasksApp project directory", () => {
     expect(
       await within(panel).findByText("Implemented locally."),
     ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        executionEventMocks.subscribeExecutionPlanEvents,
+      ).toHaveBeenCalledWith("plan-1", expect.any(Function));
+    });
   });
 });
 
