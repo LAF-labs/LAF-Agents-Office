@@ -53,6 +53,13 @@ test("desktop bridge execution migration defines idempotent schema, indexes, and
   assert.doesNotMatch(sql, /create index (?!if not exists)/);
   assert.match(sql, /drop policy if exists "members can read bridge devices"/);
   assert.match(sql, /drop policy if exists "members can read execution receipts"/);
+
+  const claimGuardSQL = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260515_team_bridge_runner_claim_guard.sql"),
+    "utf8",
+  );
+  assert.match(claimGuardSQL, /create or replace function public\.claim_runner_job/);
+  assert.match(claimGuardSQL, /j\.model_mode = 'team_bridge'/);
 });
 
 test("hosted team bridge task creation queues a runner job with agent-memory/v1", async (t) => {
@@ -410,6 +417,7 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
         },
         execution_mode: "local_worktree",
         id: "33333333-3333-4333-8333-333333333333",
+        model_mode: "team_bridge",
         project_id: "11111111-1111-4111-8111-111111111111",
         provider_kind: "codex",
         status: "queued",
@@ -558,6 +566,82 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.equal(db.delivery_receipts[0].delivery_summary, "PR opened and checks passed.");
   assert.ok(db.runner_job_events.some((event) => event.kind === "leased"));
   assert.ok(db.runner_job_events.some((event) => event.kind === "succeeded"));
+});
+
+test("hosted team bridge registration requires admin role", async (t) => {
+  const db = {
+    memberships: [
+      {
+        permissions: { allow: ["runner:manage"] },
+        role: "manager",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runners: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const registration = await invoke(["runner", "register"], "POST", {
+    name: "Build Mac",
+    team_id: "team-1",
+  });
+
+  assert.equal(registration.status, 403);
+  assert.equal(registration.body.error, "team bridge registration requires admin");
+  assert.equal(db.runners.length, 0);
+});
+
+test("hosted runner lease ignores non-team-bridge jobs", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runner_jobs: [
+      {
+        execution_mode: "local_worktree",
+        id: "runner-job-my-bridge",
+        model_mode: "my_bridge",
+        provider_kind: "codex",
+        status: "queued",
+        task_id: "task-1",
+        team_id: "team-1",
+      },
+    ],
+    runners: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const registration = await invoke(["runner", "register"], "POST", {
+    capabilities: { provider_runtimes: ["codex"] },
+    name: "Build Mac",
+    team_id: "team-1",
+  });
+  assert.equal(registration.status, 200);
+  const lease = await invoke(
+    ["runner", "jobs", "lease"],
+    "POST",
+    { provider_runtimes: ["codex"] },
+    { headers: { authorization: `Bearer ${registration.body.runner_token}` } },
+  );
+
+  assert.equal(lease.status, 200);
+  assert.equal(lease.body.job, null);
+  assert.equal(db.runner_jobs[0].status, "queued");
 });
 
 test("hosted runner revoke blocks runner token and expires active jobs", async (t) => {
@@ -1821,6 +1905,7 @@ function hostedFetch(db) {
       const job = db.runner_jobs.find((candidate) => {
         if (candidate.team_id !== body.p_team_id) return false;
         if (!["queued", "expired"].includes(candidate.status)) return false;
+        if (candidate.model_mode !== "team_bridge") return false;
         if (
           candidate.execution_mode &&
           modes.length > 0 &&

@@ -1190,6 +1190,15 @@ Tests:
 
 ### Phase 10 - Team Bridge / Runner Unification
 
+Status: Partially implemented in the current workspace. Runner endpoints remain
+stable for installed agents, but new Team Bridge registration and pairing setup
+now require an owner/admin role in hosted and local broker paths. Runner job
+claiming is guarded at both the hosted test adapter and Supabase RPC migration
+so only `model_mode = 'team_bridge'` jobs can be leased. Web-facing copy now
+labels the surface as Team Bridge while preserving the existing `laf-runner`
+binary/protocol names. Wrapping Team Bridge dispatch in signed execution plans
+remains optional future work.
+
 Goal:
 
 Reposition existing Runner as Team Bridge without disrupting background users.

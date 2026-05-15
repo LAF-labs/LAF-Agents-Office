@@ -64,6 +64,10 @@ func (b *Broker) handleRunnerPairingStart(w http.ResponseWriter, r *http.Request
 		b.mu.Unlock()
 		return
 	}
+	if b.denyIfNonAdminLocked(w, r, "team bridge registration requires admin") {
+		b.mu.Unlock()
+		return
+	}
 	b.mu.Unlock()
 	var body struct {
 		APIURL string `json:"api_url"`
@@ -190,6 +194,10 @@ func (b *Broker) handleRunnerRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	b.mu.Lock()
 	if b.denyIfMissingPermissionLocked(w, r, permissionRunnerManage) {
+		b.mu.Unlock()
+		return
+	}
+	if b.denyIfNonAdminLocked(w, r, "team bridge registration requires admin") {
 		b.mu.Unlock()
 		return
 	}

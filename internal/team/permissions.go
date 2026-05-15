@@ -285,6 +285,18 @@ func authUserHasPermission(user *authUser, permission string) bool {
 	return false
 }
 
+func authUserIsWorkspaceAdmin(user *authUser) bool {
+	if user == nil {
+		return false
+	}
+	switch normalizeAuthRole(user.Role) {
+	case "owner", "admin":
+		return true
+	default:
+		return false
+	}
+}
+
 func (b *Broker) requestUserHasPermissionLocked(r *http.Request, permission string) bool {
 	user, _, _, ok := b.currentAuthUserLocked(r)
 	if !ok {
@@ -300,6 +312,19 @@ func (b *Broker) denyIfMissingPermissionLocked(w http.ResponseWriter, r *http.Re
 		return false
 	}
 	http.Error(w, "permission required: "+permission, http.StatusForbidden)
+	return true
+}
+
+func (b *Broker) denyIfNonAdminLocked(w http.ResponseWriter, r *http.Request, message string) bool {
+	user, _, _, ok := b.currentAuthUserLocked(r)
+	if !ok {
+		// Preserve local-first broker compatibility for pre-auth local CLI flows.
+		return false
+	}
+	if authUserIsWorkspaceAdmin(user) {
+		return false
+	}
+	http.Error(w, message, http.StatusForbidden)
 	return true
 }
 
@@ -410,7 +435,7 @@ func (b *Broker) modelModeAvailableLocked(r *http.Request, mode string) (bool, s
 		return false, "no paired desktop bridge detected"
 	case "team_bridge":
 		if !b.hasConnectedLocalRunnerLocked() {
-			return false, "no connected local runner detected"
+			return false, "no connected team bridge detected"
 		}
 		if !b.hasSupportedLocalCLIRunnerLocked() {
 			return false, "no supported local CLI detected"
@@ -600,7 +625,7 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	myBridge := modelAvailabilityMode{Available: false, Reason: "no paired desktop bridge detected"}
 	teamBridge := modelAvailabilityMode{Available: hasSupportedLocalCLI && canUseTeamBridge}
 	if !hasRunner {
-		teamBridge.Reason = "no connected local runner detected"
+		teamBridge.Reason = "no connected team bridge detected"
 	} else if !hasSupportedLocalCLI {
 		teamBridge.Reason = "no supported local CLI detected"
 	} else if !canUseTeamBridge {

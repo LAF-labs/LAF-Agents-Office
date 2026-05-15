@@ -261,7 +261,7 @@ describe("TasksApp project directory", () => {
     expect(
       within(taskList).getByText("Implement signup flow"),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Runner connected")).toBeInTheDocument();
+    expect(await screen.findByText("Team Bridge connected")).toBeInTheDocument();
     expect(
       within(taskList).getByText("Review signup flow"),
     ).toBeInTheDocument();

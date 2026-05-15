@@ -895,7 +895,7 @@ async function modelAvailabilityForMembership(membership) {
       reason: teamBridgeAllowed
         ? ""
         : !runnerState.hasRunner
-          ? "no connected local runner detected"
+          ? "no connected team bridge detected"
           : !runnerState.hasSupportedLocalCLI
             ? "no supported local CLI detected"
             : "permission required: bridge:execute_team",
@@ -923,6 +923,13 @@ async function resolveAllowedModelMode(membership, rawMode) {
 function requirePermission(membership, permission) {
   if (!hasPermission(membership, permission)) {
     throw new HTTPError(403, `permission required: ${permission}`);
+  }
+}
+
+function requireAdminRole(membership, message = "admin role required") {
+  const role = normalizeRole(membership?.role);
+  if (role !== "owner" && role !== "admin") {
+    throw new HTTPError(403, message);
   }
 }
 
@@ -2507,6 +2514,7 @@ async function handleRunnerStatus(req, res) {
 async function handleRunnerPairingStart(req, res) {
   const { membership, user } = await requireUser(req);
   requirePermission(membership, "runner:manage");
+  requireAdminRole(membership, "team bridge registration requires admin");
   const body = await readBody(req);
   const code = generatePairingCode();
   const now = nowISO();
@@ -2602,6 +2610,7 @@ async function handleRunnerPairingClaim(req, res) {
 async function handleRunnerRegister(req, res) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "runner:manage");
+  requireAdminRole(membership, "team bridge registration requires admin");
   const body = await readBody(req);
   const teamID = body.team_id || membership.team_id;
   if (teamID !== membership.team_id) {
@@ -3694,7 +3703,7 @@ async function buildAgentMemoryPacket(task, project) {
     })),
     must_obey: [
       "Treat this packet as the first memory read for the task; do not re-ask for context already loaded here.",
-      "Hosted control plane queues work only; local runners own filesystem, git, GitHub, and provider CLI execution.",
+      "Hosted control plane queues work only; Team Bridge machines own filesystem, git, GitHub, and provider CLI execution.",
     ],
     must_read: project
       ? [

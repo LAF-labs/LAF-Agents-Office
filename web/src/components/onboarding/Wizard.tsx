@@ -313,7 +313,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       agentDescriptions: {
         ceo: "Orchestrates priorities, breaks work down, and routes decisions.",
         fe: "Builds the browser interface, interactions, and client-side flow.",
-        be: "Owns backend logic, data flow, and local runner integration.",
+        be: "Owns backend logic, data flow, and Team Bridge integration.",
         reviewer:
           "Checks output quality, regressions, and acceptance criteria.",
       },
@@ -442,7 +442,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       agentDescriptions: {
         ceo: "목표를 정리하고 우선순위와 담당 흐름을 조율합니다.",
         fe: "브라우저 화면, 인터랙션, 사용자 경험을 구현합니다.",
-        be: "서버 로직, 데이터 흐름, 로컬 러너 연동을 맡습니다.",
+        be: "서버 로직, 데이터 흐름, Team Bridge 연동을 맡습니다.",
         reviewer: "결과를 검수하고 누락, 회귀, 품질 기준을 확인합니다.",
       },
       categories: {
