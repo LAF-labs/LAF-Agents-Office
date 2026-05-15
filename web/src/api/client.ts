@@ -338,6 +338,12 @@ export interface BridgeAvailability {
   reason?: string;
 }
 
+export interface BridgePairingStartResponse {
+  api_url: string;
+  pairing: { code: string; expires_at: string; team_id: string };
+  commands: { pair: string };
+}
+
 export interface ProjectLocalBinding {
   id: string;
   team_id: string;
@@ -434,6 +440,11 @@ export interface ExecutionReceipt {
   created_at?: string;
 }
 
+export interface ExecutionPlanRelayResult {
+  published: boolean;
+  error?: string;
+}
+
 export interface OrchestrationIntent {
   id: string;
   type: string;
@@ -504,11 +515,7 @@ export function getBridgeDevices() {
 }
 
 export function startBridgePairing(body: { api_url?: string } = {}) {
-  return post<{
-    api_url: string;
-    pairing: { code: string; expires_at: string; team_id: string };
-    commands: { pair: string };
-  }>("/bridge/pairing/start", body);
+  return post<BridgePairingStartResponse>("/bridge/pairing/start", body);
 }
 
 export function revokeBridgeDevice(deviceID: string) {
@@ -561,11 +568,14 @@ export function createExecutionPlan(body: {
   expires_in_seconds?: number;
   policy?: Record<string, unknown>;
 }) {
-  return post<{ plan: ExecutionPlan }>("/execution/plans", body);
+  return post<{ plan: ExecutionPlan; relay?: ExecutionPlanRelayResult }>(
+    "/execution/plans",
+    body,
+  );
 }
 
 export function getExecutionPlan(planID: string) {
-  return get<{ plan: ExecutionPlan }>(
+  return get<{ plan: ExecutionPlan; receipt?: ExecutionReceipt | null }>(
     `/execution/plans/${encodeURIComponent(planID)}`,
   );
 }

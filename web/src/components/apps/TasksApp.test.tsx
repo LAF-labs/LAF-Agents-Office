@@ -7,13 +7,20 @@ import { useAppStore } from "../../stores/app";
 import { TasksApp } from "./TasksApp";
 
 const apiMocks = vi.hoisted(() => ({
+  createExecutionPlan: vi.fn(),
   createDM: vi.fn(),
   createProject: vi.fn(),
+  createProjectLocalBinding: vi.fn(),
   createTask: vi.fn(),
+  deleteProjectLocalBinding: vi.fn(),
   getActions: vi.fn(),
+  getBridgeAvailability: vi.fn(),
+  getExecutionPlan: vi.fn(),
+  getExecutionPlanEvents: vi.fn(),
   getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getOfficeTasks: vi.fn(),
+  getProjectLocalBindings: vi.fn(),
   getProjectRepoReadiness: vi.fn(),
   getProjects: vi.fn(),
   getRunnerStatus: vi.fn(),
@@ -112,6 +119,21 @@ function mockProjectDirectory() {
     ],
   });
   apiMocks.getActions.mockResolvedValue({ actions: [] });
+  apiMocks.getBridgeAvailability.mockResolvedValue({
+    devices: [],
+    my_bridge: {
+      available: false,
+      device_count: 0,
+      online_device_count: 0,
+      reason: "bridge required",
+    },
+  });
+  apiMocks.getProjectLocalBindings.mockResolvedValue({ bindings: [] });
+  apiMocks.getExecutionPlan.mockResolvedValue({
+    plan: { id: "plan-1", status: "pending" },
+    receipt: null,
+  });
+  apiMocks.getExecutionPlanEvents.mockResolvedValue({ events: [] });
   apiMocks.getModelAvailability.mockResolvedValue({
     allowed_modes: ["record_only"],
     default_mode: "record_only",
@@ -369,6 +391,176 @@ describe("TasksApp project directory", () => {
     ).toHaveClass("justify-end");
     expect(
       await within(panel).findByText("Engineer is typing..."),
+    ).toBeInTheDocument();
+  });
+
+  it("disables My Bridge execution until the project has a trusted binding", async () => {
+    const user = userEvent.setup();
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: true },
+      team_bridge: { available: false, reason: "runner required" },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: true,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+      },
+    });
+    apiMocks.getProjectLocalBindings.mockResolvedValue({ bindings: [] });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.type(within(panel).getByLabelText("Task chat"), "Run locally");
+
+    expect(
+      await within(panel).findByText(
+        "Add a trusted local binding for this project",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: "Create plan" }),
+    ).toBeDisabled();
+  });
+
+  it("creates a My Bridge execution plan and renders events with the receipt", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, "confirm", {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: true },
+      team_bridge: { available: false, reason: "runner required" },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: true,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+      },
+    });
+    apiMocks.getProjectLocalBindings.mockResolvedValue({
+      bindings: [
+        {
+          device_id: "device-1",
+          display_name: "Customer checkout",
+          id: "binding-1",
+          project_id: "customer-portal",
+          team_id: "team-local",
+          trusted: true,
+          user_id: "user-1",
+        },
+      ],
+    });
+    apiMocks.createExecutionPlan.mockResolvedValue({
+      plan: { id: "plan-1", status: "pending" },
+      relay: { published: true },
+    });
+    apiMocks.getExecutionPlan.mockResolvedValue({
+      plan: { id: "plan-1", status: "completed" },
+      receipt: {
+        id: "receipt-1",
+        mode: "my_bridge",
+        provider: "codex",
+        status: "completed",
+        summary: "Implemented locally.",
+        team_id: "team-local",
+      },
+    });
+    apiMocks.getExecutionPlanEvents.mockResolvedValue({
+      events: [
+        {
+          event_type: "provider.output",
+          id: "event-1",
+          payload: { line: "Running tests" },
+          plan_id: "plan-1",
+          redacted: false,
+          sequence: 1,
+          team_id: "team-local",
+        },
+      ],
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.type(
+      within(panel).getByLabelText("Task chat"),
+      "Run the local implementation",
+    );
+    await user.click(
+      await within(panel).findByRole("button", { name: "Create plan" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.createExecutionPlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          binding_id: "binding-1",
+          device_id: "device-1",
+          message: "Run the local implementation",
+          mode: "my_bridge",
+          task_id: "task-build",
+        }),
+      );
+    });
+    expect(apiMocks.postMessage).not.toHaveBeenCalledWith(
+      "Run the local implementation",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(await within(panel).findByText("Running tests")).toBeInTheDocument();
+    expect(
+      await within(panel).findByText("Implemented locally."),
     ).toBeInTheDocument();
   });
 });

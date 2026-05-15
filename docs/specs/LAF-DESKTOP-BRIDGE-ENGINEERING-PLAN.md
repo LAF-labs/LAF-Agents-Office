@@ -1062,6 +1062,16 @@ Tests:
 
 ### Phase 7 - Web UX Integration
 
+Status: Partially implemented in the current workspace. The hosted API now
+returns execution receipts on plan reads when the viewer can read receipts, the
+web API client has typed bridge/binding/execution methods with coverage, Settings
+has a My Bridge status, pairing, command-copy, and revoke panel, project detail
+has a local binding management panel, and task chat creates a confirmed
+`my_bridge` execution plan instead of posting a normal chat message. The task
+panel polls plan/events as the durable fallback and renders recent events plus
+the completion receipt. Full realtime relay subscription and broader visual QA
+remain pending.
+
 Goal:
 
 Make My Bridge usable from Settings, Project settings, and Task execution.

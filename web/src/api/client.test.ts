@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createExecutionPlan,
   createProject,
+  createProjectLocalBinding,
   createRunnerPairing,
   createTask,
+  deleteProjectLocalBinding,
   get,
+  getBridgeAvailability,
+  getExecutionPlan,
+  getExecutionPlanEvents,
+  getProjectLocalBindings,
   getProjectRepoReadiness,
   getRunnerStatus,
   initApi,
@@ -270,6 +277,173 @@ describe("runner api client", () => {
         body: JSON.stringify({ confirm: "i can spell responsibility" }),
       }),
     );
+  });
+});
+
+describe("desktop bridge api client", () => {
+  it("fetches bridge availability and project bindings", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/bridge/availability") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              devices: [{ id: "device-1", status: "online" }],
+              my_bridge: { available: true, default_device_id: "device-1" },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            bindings: [
+              {
+                id: "binding-1",
+                device_id: "device-1",
+                display_name: "Local checkout",
+                trusted: true,
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const availability = await getBridgeAvailability();
+    const bindings = await getProjectLocalBindings("customer-portal");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/bridge/availability",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/projects/customer-portal/local-bindings",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(availability.my_bridge.available).toBe(true);
+    expect(bindings.bindings[0]?.id).toBe("binding-1");
+  });
+
+  it("creates and deletes a trusted project binding", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            binding: {
+              id: "binding-1",
+              device_id: "device-1",
+              display_name: "Local checkout",
+              trusted: true,
+            },
+            deleted: true,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createProjectLocalBinding("customer-portal", {
+      device_id: "device-1",
+      display_name: "Local checkout",
+      local_path: "/Users/me/customer-portal",
+      trusted: true,
+    });
+    await deleteProjectLocalBinding("customer-portal", "binding-1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/projects/customer-portal/local-bindings",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          device_id: "device-1",
+          display_name: "Local checkout",
+          local_path: "/Users/me/customer-portal",
+          trusted: true,
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/projects/customer-portal/local-bindings/binding-1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("creates an execution plan and reads receipt-aware execution state", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url: string, init?: RequestInit) => {
+        if (url === "/api/execution/plans" && init?.method === "POST") {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                plan: { id: "plan-1", status: "pending" },
+                relay: { published: false },
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } },
+            ),
+          );
+        }
+        if (url === "/api/execution/plans/plan-1/events") {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                events: [{ id: "event-1", event_type: "provider.output" }],
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } },
+            ),
+          );
+        }
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              plan: { id: "plan-1", status: "completed" },
+              receipt: {
+                id: "receipt-1",
+                status: "completed",
+                summary: "Done",
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const created = await createExecutionPlan({
+      binding_id: "binding-1",
+      device_id: "device-1",
+      message: "Implement signup",
+      mode: "my_bridge",
+      task_id: "task-1",
+    });
+    const state = await getExecutionPlan("plan-1");
+    const events = await getExecutionPlanEvents("plan-1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/execution/plans",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          binding_id: "binding-1",
+          device_id: "device-1",
+          message: "Implement signup",
+          mode: "my_bridge",
+          task_id: "task-1",
+        }),
+      }),
+    );
+    expect(created.relay?.published).toBe(false);
+    expect(state.receipt?.summary).toBe("Done");
+    expect(events.events[0]?.event_type).toBe("provider.output");
   });
 });
 

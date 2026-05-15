@@ -31,6 +31,8 @@ import {
 
 import {
   type AuthUser,
+  type BridgeDevice,
+  type BridgePairingStartResponse,
   type ConfigSnapshot,
   type ConfigUpdate,
   createInvite,
@@ -40,6 +42,7 @@ import {
   generateAgent,
   getAuthSession,
   getAuthUsers,
+  getBridgeAvailability,
   getConfig,
   getInvites,
   getOfficeMembers,
@@ -49,8 +52,10 @@ import {
   type PermissionMember,
   type RunnerPairingStartResponse,
   resetWorkspace,
+  revokeBridgeDevice,
   revokeRunner,
   shredWorkspace,
+  startBridgePairing,
   updateAuthUserRole,
   updateConfig,
   updatePermissions,
@@ -68,6 +73,7 @@ type SectionId =
   | "team"
   | "access"
   | "company"
+  | "bridge"
   | "runner"
   | "keys"
   | "danger";
@@ -81,6 +87,7 @@ interface Section {
     | "settings.section.team"
     | "settings.section.access"
     | "settings.section.company"
+    | "settings.section.bridge"
     | "settings.section.runner"
     | "settings.section.keys"
     | "settings.section.danger";
@@ -94,6 +101,8 @@ interface SectionGroup {
     | "settings.group.advanced";
   items: Section[];
 }
+
+type TranslationFn = ReturnType<typeof useI18n>["t"];
 
 const SECTION_GROUPS: SectionGroup[] = [
   {
@@ -117,6 +126,7 @@ const SECTION_GROUPS: SectionGroup[] = [
   {
     labelKey: "settings.group.system",
     items: [
+      { id: "bridge", Icon: Laptop, nameKey: "settings.section.bridge" },
       { id: "runner", Icon: Refresh, nameKey: "settings.section.runner" },
     ],
   },
@@ -1797,6 +1807,170 @@ const RUNNER_INSTALLERS: RunnerInstallerOption[] = [
   },
 ];
 
+function BridgeSection() {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [pairing, setPairing] = useState<BridgePairingStartResponse | null>(
+    null,
+  );
+  const statusQuery = useQuery({
+    queryKey: ["bridge-availability", "settings"],
+    queryFn: () => getBridgeAvailability(),
+    refetchInterval: 5_000,
+  });
+  const pairingMutation = useMutation({
+    mutationFn: () => startBridgePairing({ api_url: browserRunnerAPIURL() }),
+    onSuccess: (result) => {
+      setPairing(result);
+      showNotice(t("settings.bridge.codeReady"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error
+          ? err.message
+          : t("settings.bridge.generateFailed"),
+        "error",
+      );
+    },
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (deviceID: string) => revokeBridgeDevice(deviceID),
+    onSuccess: () => {
+      setPairing(null);
+      queryClient.invalidateQueries({ queryKey: ["bridge-availability"] });
+      showNotice(t("settings.bridge.revoked"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error ? err.message : t("settings.bridge.revokeFailed"),
+        "error",
+      );
+    },
+  });
+
+  const devices = statusQuery.data?.devices ?? [];
+  const bridge = preferredBridgeDevice(devices);
+  const availability = statusQuery.data?.my_bridge;
+  const command =
+    pairing?.commands.pair ||
+    `laf-bridge pair --api-url ${browserRunnerAPIURL()} --code <setup-code>`;
+
+  const copyCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      showNotice(t("settings.bridge.commandCopied"), "success");
+    } catch {
+      showNotice(t("settings.bridge.copyFailed"), "error");
+    }
+  };
+  const confirmRevokeBridge = () => {
+    if (!bridge) return;
+    confirm({
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("settings.bridge.revokeConfirm"),
+      danger: true,
+      message: t("settings.bridge.revokeMessage"),
+      onConfirm: async () => {
+        await revokeMutation.mutateAsync(bridge.id);
+      },
+      title: t("settings.bridge.revokeTitle"),
+    });
+  };
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>{t("settings.bridge.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.bridge.desc")}</p>
+
+      <Field
+        label={t("settings.bridge.status")}
+        hint={
+          bridge
+            ? bridgeStatusHint(bridge)
+            : availability?.reason || t("settings.bridge.optionalHint")
+        }
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={styles.statusDot(bridgeStatusColor(bridge))} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {bridgeStatusLabel(t, bridge)}
+          </span>
+        </div>
+      </Field>
+
+      <BridgeManagementField
+        bridge={bridge}
+        isPending={revokeMutation.isPending}
+        onRevoke={confirmRevokeBridge}
+        t={t}
+      />
+
+      <BridgeToolsField bridge={bridge} t={t} />
+
+      <div style={styles.groupTitle}>{t("settings.bridge.setupTitle")}</div>
+      <p style={styles.runnerSetupDesc}>{t("settings.bridge.setupDesc")}</p>
+      <div style={styles.runnerActionRow}>
+        <button
+          type="button"
+          style={{
+            ...styles.primaryButton,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+          onClick={() => pairingMutation.mutate()}
+          disabled={pairingMutation.isPending}
+        >
+          <Refresh width={14} height={14} />
+          {pairingMutation.isPending
+            ? t("settings.bridge.generating")
+            : t("settings.bridge.generate")}
+        </button>
+      </div>
+
+      {pairing ? (
+        <>
+          <Field
+            label={t("settings.bridge.codeLabel")}
+            hint={`${t("settings.bridge.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "0",
+                padding: "6px 0",
+                userSelect: "all",
+              }}
+            >
+              {pairing.pairing.code}
+            </div>
+          </Field>
+          <Field
+            label={t("settings.bridge.commandLabel")}
+            hint={t("settings.bridge.commandHint")}
+          >
+            <div style={{ display: "grid", gap: 8 }}>
+              <code style={styles.filePath}>{command}</code>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={copyCommand}
+                style={{ justifySelf: "start" }}
+              >
+                <Terminal width={13} height={13} />
+                <Copy width={13} height={13} />
+                {t("settings.bridge.copyCommand")}
+              </button>
+            </div>
+          </Field>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function RunnerSection() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -2115,6 +2289,35 @@ function RunnerManagementField({
   );
 }
 
+function BridgeManagementField({
+  bridge,
+  isPending,
+  t,
+  onRevoke,
+}: {
+  bridge?: BridgeDevice;
+  isPending: boolean;
+  t: TranslationFn;
+  onRevoke: () => void;
+}) {
+  if (!bridge) return null;
+  return (
+    <Field
+      label={t("settings.bridge.management")}
+      hint={t("settings.bridge.managementHint")}
+    >
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        onClick={onRevoke}
+        disabled={isPending}
+      >
+        {isPending ? t("common.working") : t("settings.bridge.revoke")}
+      </button>
+    </Field>
+  );
+}
+
 function RunnerToolsField({
   runner,
   t,
@@ -2161,6 +2364,45 @@ function RunnerToolsField({
   );
 }
 
+function BridgeToolsField({
+  bridge,
+  t,
+}: {
+  bridge?: BridgeDevice;
+  t: TranslationFn;
+}) {
+  const capabilities = bridge?.capabilities ?? {};
+  const runtimes = Array.isArray(capabilities.provider_runtimes)
+    ? capabilities.provider_runtimes.map(String).join(", ")
+    : "";
+  return (
+    <Field label={t("settings.bridge.tools")} hint={bridge?.device_label || ""}>
+      {bridge ? (
+        <div style={{ display: "grid", gap: 8 }}>
+          <RunnerCapability
+            ok={Boolean(runtimes)}
+            label={
+              runtimes
+                ? `${t("settings.bridge.providerReady")} ${runtimes}`
+                : t("settings.bridge.providerMissing")
+            }
+          />
+          <RunnerCapability
+            ok={bridge.status === "online"}
+            label={
+              bridge.status === "online"
+                ? t("settings.bridge.online")
+                : t("settings.bridge.offline")
+            }
+          />
+        </div>
+      ) : (
+        <div style={styles.emptyState}>{t("settings.bridge.toolsUnknown")}</div>
+      )}
+    </Field>
+  );
+}
+
 function RunnerCapability({ ok, label }: { ok: boolean; label: string }) {
   return (
     <div
@@ -2187,6 +2429,34 @@ function preferredRunner(runners: HostedRunner[]) {
     active.find((runner) => runner.status === "stale") ||
     active[0]
   );
+}
+
+function preferredBridgeDevice(devices: BridgeDevice[]) {
+  const active = devices.filter((device) => device.status !== "revoked");
+  return (
+    active.find((device) => device.status === "online") ||
+    active.find((device) => device.status === "offline") ||
+    active[0]
+  );
+}
+
+function bridgeStatusLabel(t: TranslationFn, bridge?: BridgeDevice) {
+  if (!bridge) return t("settings.bridge.noBridge");
+  if (bridge.status === "online") return t("settings.bridge.connected");
+  if (bridge.status === "offline") return t("settings.bridge.disconnected");
+  return t("settings.bridge.needsAttention");
+}
+
+function bridgeStatusColor(bridge?: BridgeDevice) {
+  if (!bridge) return "var(--text-tertiary)";
+  if (bridge.status === "online") return "var(--green)";
+  if (bridge.status === "offline") return "var(--yellow)";
+  return "var(--text-tertiary)";
+}
+
+function bridgeStatusHint(bridge?: BridgeDevice) {
+  if (!bridge?.last_seen_at) return bridge?.device_label || "";
+  return `${bridge.device_label || bridge.id} · ${new Date(bridge.last_seen_at).toLocaleString()}`;
 }
 
 function runnerStatusLabel(
@@ -2746,6 +3016,7 @@ export function SettingsApp() {
         {section === "team" && <TeamSection />}
         {section === "access" && <AccessControlSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
+        {section === "bridge" && <BridgeSection />}
         {section === "runner" && <RunnerSection />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}
         {section === "danger" && <DangerZoneSection />}

@@ -1924,7 +1924,13 @@ async function handleExecutionPlanGet(req, res, planID) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "execution:read");
   const plan = await findExecutionPlan(membership.team_id, planID);
-  writeJSON(res, 200, { plan: publicExecutionPlan(plan) });
+  const receipt = hasPermission(membership, "execution:receipt_read")
+    ? await findExecutionReceipt(plan.id)
+    : null;
+  writeJSON(res, 200, {
+    plan: publicExecutionPlan(plan),
+    receipt: receipt ? publicExecutionReceipt(receipt) : null,
+  });
 }
 
 async function handleExecutionPlanCancel(req, res, planID) {

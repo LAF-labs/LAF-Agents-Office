@@ -1135,6 +1135,11 @@ test("hosted bridge execution plan lifecycle records redacted events and idempot
   assert.equal(db.execution_events[1].payload.summary, "Done with laf_bridge_[REDACTED]");
   assert.equal(db.execution_events[1].payload.thread_id, "thread-1");
 
+  const fetched = await invoke(["execution", "plans", planID], "GET");
+  assert.equal(fetched.status, 200);
+  assert.equal(fetched.body.plan.prompt, "[REDACTED]");
+  assert.equal(fetched.body.receipt.summary, "Done with laf_bridge_[REDACTED]");
+
   const retried = await invoke(
     ["execution", "plans", planID, "complete"],
     "POST",
