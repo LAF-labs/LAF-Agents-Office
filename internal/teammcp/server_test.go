@@ -112,6 +112,16 @@ func TestConfigureServerToolsRegistersTaskContext(t *testing.T) {
 	if !slices.Contains(names, "session_search") {
 		t.Fatalf("expected session_search in office mode; tools=%v", names)
 	}
+	if !slices.Contains(names, "team_delegate") || !slices.Contains(names, "team_work_result") {
+		t.Fatalf("expected hidden collaboration tools in office mode; tools=%v", names)
+	}
+}
+
+func TestConfigureServerToolsOmitsCollaborationToolsInOneOnOne(t *testing.T) {
+	names := listRegisteredTools(t, "general", true)
+	if slices.Contains(names, "team_delegate") || slices.Contains(names, "team_work_result") {
+		t.Fatalf("did not expect hidden collaboration tools in direct 1:1 mode; tools=%v", names)
+	}
 }
 
 func TestConfigureServerToolsOmitsActionToolAnnotations(t *testing.T) {
@@ -1272,6 +1282,103 @@ func TestHandleTeamBroadcastDefaultsToLatestTaggedChannelAndThread(t *testing.T)
 	got := launch.Messages[len(launch.Messages)-1]
 	if got.From != "fe" || got.ReplyTo != "msg-1" {
 		t.Fatalf("expected FE reply in launch thread, got %+v", got)
+	}
+}
+
+func TestHandleTeamDelegateAndWorkResultStayInternal(t *testing.T) {
+	ctx := context.Background()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("LAF_OFFICE_CHANNEL", "general")
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+	ensureBrokerMembers(t, ctx, "ceo", "be", "fe")
+
+	if err := brokerPostJSON(ctx, "/messages", map[string]any{
+		"channel":  "general",
+		"from":     "you",
+		"content":  "Coordinate backend and frontend, but keep internal work quiet.",
+		"tagged":   []string{"ceo"},
+		"reply_to": "home:team-alpha:user-alpha",
+		"scope":    "home_orchestration",
+	}, nil); err != nil {
+		t.Fatalf("post human message: %v", err)
+	}
+
+	delegateResult, _, err := handleTeamDelegate(ctx, nil, TeamDelegateArgs{
+		MySlug:  "ceo",
+		To:      []string{"be"},
+		Request: "Check the API contract and report any blocker.",
+		Context: "Frontend is waiting on auth payload shape.",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamDelegate: %v", err)
+	}
+	if text := textFromResult(t, delegateResult); !strings.Contains(text, "Queued hidden collaboration request") {
+		t.Fatalf("unexpected delegate result %q", text)
+	}
+
+	var beInbox brokerMessagesResponse
+	if err := brokerGetJSON(ctx, "/messages?channel=general&viewer_slug=be&my_slug=be&scope=agent&limit=20", &beInbox); err != nil {
+		t.Fatalf("fetch be inbox: %v", err)
+	}
+	var request brokerMessage
+	for _, msg := range beInbox.Messages {
+		if msg.Kind == collaborationRequestKind {
+			request = msg
+			break
+		}
+	}
+	if request.ID == "" || request.Visibility != internalCollaborationVisibility {
+		t.Fatalf("expected internal collaboration request in be inbox, got %+v", beInbox.Messages)
+	}
+	if request.PublicReplyTo != "home:team-alpha:user-alpha" {
+		t.Fatalf("expected request to preserve public home reply target, got %+v", request)
+	}
+
+	workResult, _, err := handleTeamWorkResult(ctx, nil, TeamWorkResultArgs{
+		MySlug:    "be",
+		RequestID: request.ID,
+		Content:   "API contract is stable; no backend blocker.",
+		Status:    "done",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamWorkResult: %v", err)
+	}
+	if text := textFromResult(t, workResult); !strings.Contains(text, "Returned hidden work result") {
+		t.Fatalf("unexpected work result %q", text)
+	}
+
+	var humanThread brokerMessagesResponse
+	if err := brokerGetJSON(ctx, "/messages?channel=general&viewer_slug=human&thread_id=home%3Ateam-alpha%3Auser-alpha&limit=20", &humanThread); err != nil {
+		t.Fatalf("fetch human thread: %v", err)
+	}
+	for _, msg := range humanThread.Messages {
+		if msg.Visibility == internalCollaborationVisibility || strings.Contains(msg.Content, "API contract is stable") {
+			t.Fatalf("did not expect human thread to include internal collaboration message: %+v", msg)
+		}
+	}
+
+	var ceoInbox brokerMessagesResponse
+	if err := brokerGetJSON(ctx, "/messages?channel=general&viewer_slug=ceo&my_slug=ceo&scope=agent&limit=20", &ceoInbox); err != nil {
+		t.Fatalf("fetch ceo inbox: %v", err)
+	}
+	seenResult := false
+	for _, msg := range ceoInbox.Messages {
+		if msg.Kind == collaborationResultKind && strings.Contains(msg.Content, "API contract is stable") {
+			seenResult = true
+			if msg.Visibility != internalCollaborationVisibility || msg.ReplyTo != request.ID || msg.PublicReplyTo != "home:team-alpha:user-alpha" {
+				t.Fatalf("unexpected internal result shape: %+v", msg)
+			}
+		}
+	}
+	if !seenResult {
+		t.Fatalf("expected requester inbox to receive hidden work result, got %+v", ceoInbox.Messages)
 	}
 }
 

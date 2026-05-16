@@ -61,19 +61,25 @@ func officeDestructiveTool(name, description string) *mcp.Tool {
 }
 
 type brokerMessage struct {
-	ID          string   `json:"id"`
-	From        string   `json:"from"`
-	Channel     string   `json:"channel,omitempty"`
-	Kind        string   `json:"kind,omitempty"`
-	Source      string   `json:"source,omitempty"`
-	SourceLabel string   `json:"source_label,omitempty"`
-	EventID     string   `json:"event_id,omitempty"`
-	Title       string   `json:"title,omitempty"`
-	Content     string   `json:"content"`
-	Tagged      []string `json:"tagged,omitempty"`
-	ReplyTo     string   `json:"reply_to,omitempty"`
-	Timestamp   string   `json:"timestamp"`
-	Usage       *struct {
+	ID            string   `json:"id"`
+	From          string   `json:"from"`
+	Channel       string   `json:"channel,omitempty"`
+	Kind          string   `json:"kind,omitempty"`
+	Source        string   `json:"source,omitempty"`
+	SourceLabel   string   `json:"source_label,omitempty"`
+	EventID       string   `json:"event_id,omitempty"`
+	Title         string   `json:"title,omitempty"`
+	Content       string   `json:"content"`
+	Tagged        []string `json:"tagged,omitempty"`
+	ReplyTo       string   `json:"reply_to,omitempty"`
+	PublicReplyTo string   `json:"public_reply_to,omitempty"`
+	ProjectID     string   `json:"project_id,omitempty"`
+	TaskID        string   `json:"task_id,omitempty"`
+	Visibility    string   `json:"visibility,omitempty"`
+	RunID         string   `json:"run_id,omitempty"`
+	Audience      []string `json:"audience,omitempty"`
+	Timestamp     string   `json:"timestamp"`
+	Usage         *struct {
 		InputTokens         int `json:"input_tokens,omitempty"`
 		OutputTokens        int `json:"output_tokens,omitempty"`
 		CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
@@ -237,6 +243,29 @@ type TeamBroadcastArgs struct {
 	NewTopic  bool     `json:"new_topic,omitempty" jsonschema:"Set true only when this genuinely needs to start a new top-level thread"`
 }
 
+type TeamDelegateArgs struct {
+	Channel   string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
+	To        []string `json:"to" jsonschema:"One or more agent slugs to ask for hidden internal collaboration"`
+	Request   string   `json:"request" jsonschema:"The concrete, bounded help you need from the target agents"`
+	Reason    string   `json:"reason,omitempty" jsonschema:"Why this collaboration is needed for the current user-visible work"`
+	Context   string   `json:"context,omitempty" jsonschema:"Minimal context or constraints the target agents need. Do not paste long transcripts."`
+	MySlug    string   `json:"my_slug,omitempty" jsonschema:"Agent slug sending the request. Defaults to LAF_OFFICE_AGENT_SLUG."`
+	ReplyToID string   `json:"reply_to_id,omitempty" jsonschema:"Visible or internal message ID this collaboration belongs to"`
+	RunID     string   `json:"run_id,omitempty" jsonschema:"Optional workflow/run identifier to keep hidden collaboration grouped"`
+	TaskID    string   `json:"task_id,omitempty" jsonschema:"Optional task ID this collaboration supports"`
+}
+
+type TeamWorkResultArgs struct {
+	Channel   string   `json:"channel,omitempty" jsonschema:"Channel slug. Defaults to the agent's current channel or general."`
+	RequestID string   `json:"request_id,omitempty" jsonschema:"The collaboration_request message ID you are answering. Defaults to the current pushed reply_to_id when available."`
+	Content   string   `json:"content" jsonschema:"Concise result, finding, blocker, or recommendation for the requesting agent. This is hidden from the human."`
+	Status    string   `json:"status,omitempty" jsonschema:"One of: done, blocked, partial. Defaults to done."`
+	MySlug    string   `json:"my_slug,omitempty" jsonschema:"Agent slug sending the result. Defaults to LAF_OFFICE_AGENT_SLUG."`
+	Tagged    []string `json:"tagged,omitempty" jsonschema:"Optional additional agent slugs who need this hidden result"`
+	RunID     string   `json:"run_id,omitempty" jsonschema:"Optional workflow/run identifier. Defaults from the request when available."`
+	TaskID    string   `json:"task_id,omitempty" jsonschema:"Optional task ID this result supports. Defaults from the request when available."`
+}
+
 type TeamReactArgs struct {
 	MessageID string `json:"message_id" jsonschema:"The message ID to react to"`
 	Emoji     string `json:"emoji" jsonschema:"Emoji reaction (e.g. 👍, 💯, 🔥, 👀, ✅)"`
@@ -356,7 +385,7 @@ type TeamChannelArgs struct {
 }
 
 type TeamDMOpenArgs struct {
-	Members []string `json:"members" jsonschema:"Array of member slugs. Must include 'human'. For 1:1 DMs: ['human', 'agent-slug']. Agent-to-agent DMs are not allowed."`
+	Members []string `json:"members" jsonschema:"Array of member slugs. Must include 'human'. For 1:1 DMs: ['human', 'agent-slug']. Use team_delegate/team_work_result for agent-to-agent collaboration."`
 	Type    string   `json:"type,omitempty" jsonschema:"Channel type: 'direct' (default, 1:1) or 'group' (multi-member). Defaults to direct."`
 }
 
@@ -678,6 +707,17 @@ func registerSessionSearchTool(server *mcp.Server) {
 	), handleSessionSearch)
 }
 
+func registerCollaborationTools(server *mcp.Server) {
+	mcp.AddTool(server, officeWriteTool(
+		"team_delegate",
+		"Ask other agents for hidden internal collaboration. Use this instead of team_broadcast when agent-to-agent help is needed; it wakes the target agents but does not show the request in the human Home chat.",
+	), handleTeamDelegate)
+	mcp.AddTool(server, officeWriteTool(
+		"team_work_result",
+		"Answer a hidden team_delegate request. Use this for internal findings, blockers, or recommendations; it returns the result to the requesting agent without posting to the human Home chat.",
+	), handleTeamWorkResult)
+}
+
 func configureServerTools(server *mcp.Server, slug string, channel string, oneOnOne bool) {
 	if oneOnOne {
 		mcp.AddTool(server, officeWriteTool(
@@ -751,6 +791,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 			"Invoke a named team skill. When the human's request matches an available skill, call this BEFORE replying — do not freelance. Bumps the skill's usage, logs a skill_invocation to the channel, and returns the skill's canonical step-by-step content for you to follow.",
 		), handleTeamSkillRun)
 		registerSkillAuthoringTools(server)
+		registerCollaborationTools(server)
 		if hasActionProvider() {
 			registerActionTools(server)
 		}
@@ -797,7 +838,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 
 	mcp.AddTool(server, officeWriteTool(
 		"team_dm_open",
-		"Open or find a direct message channel with the human. Use this when the human explicitly asks to DM an agent. Agent-to-agent DMs are not allowed — all inter-agent communication must happen in public channels.",
+		"Open or find a direct message channel with the human. Use this when the human explicitly asks to DM an agent. For agent-to-agent work, use team_delegate/team_work_result instead.",
 	), handleTeamDMOpen)
 
 	mcp.AddTool(server, readOnlyTool(
@@ -859,6 +900,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		"Invoke a named team skill. When the request matches an available skill (see the skill list in your prompt), call this BEFORE doing the work — do not freelance. Bumps the skill's usage, logs a skill_invocation in the channel so the office sees you followed the playbook, and returns the skill's canonical step-by-step content for you to execute.",
 	), handleTeamSkillRun)
 	registerSkillAuthoringTools(server)
+	registerCollaborationTools(server)
 
 	// Gate external-action tools behind a configured provider. Registering 14
 	// empty action tools inflates the MCP tool schema and pushes the total
@@ -974,6 +1016,335 @@ func handleTeamBroadcast(ctx context.Context, _ *mcp.CallToolRequest, args TeamB
 	}
 
 	return textResult(text), nil, nil
+}
+
+const (
+	internalCollaborationVisibility = "internal"
+	collaborationRequestKind        = "collaboration_request"
+	collaborationResultKind         = "work_result"
+)
+
+func handleTeamDelegate(ctx context.Context, _ *mcp.CallToolRequest, args TeamDelegateArgs) (*mcp.CallToolResult, any, error) {
+	slug, err := resolveSlug(args.MySlug)
+	if err != nil {
+		return toolError(err), nil, nil
+	}
+	request := strings.TrimSpace(args.Request)
+	if request == "" {
+		return toolError(fmt.Errorf("request is required")), nil, nil
+	}
+	targets := normalizeCollaborationTargets(args.To, slug)
+	if len(targets) == 0 {
+		return toolError(fmt.Errorf("to must include at least one agent slug other than your own")), nil, nil
+	}
+
+	location := resolveConversationContext(ctx, slug, args.Channel, args.ReplyToID)
+	channel := location.Channel
+	replyTo := strings.TrimSpace(args.ReplyToID)
+	if replyTo == "" {
+		replyTo = location.ReplyToID
+	}
+	publicReplyTo := publicReplyTargetForCollaboration(ctx, slug, channel, replyTo)
+	runID := collaborationRunID(args.RunID, replyTo)
+	audience := uniqueCollaborationSlugs(append([]string{slug}, targets...))
+	content := formatCollaborationRequestContent(args)
+
+	var result struct {
+		ID string `json:"id"`
+	}
+	if err := brokerPostJSON(ctx, "/messages", map[string]any{
+		"channel":         channel,
+		"from":            slug,
+		"kind":            collaborationRequestKind,
+		"title":           "Internal collaboration request",
+		"content":         content,
+		"tagged":          targets,
+		"reply_to":        replyTo,
+		"public_reply_to": publicReplyTo,
+		"task_id":         strings.TrimSpace(args.TaskID),
+		"visibility":      internalCollaborationVisibility,
+		"run_id":          runID,
+		"audience":        audience,
+	}, &result); err != nil {
+		return toolError(err), nil, nil
+	}
+
+	text := fmt.Sprintf("Queued hidden collaboration request for %s in #%s", strings.Join(targets, ", "), channel)
+	if result.ID != "" {
+		text += " (" + result.ID + ")"
+	}
+	if replyTo != "" {
+		text += " in reply to " + replyTo
+	}
+	text += ". They should answer with team_work_result, not team_broadcast."
+	return textResult(text), nil, nil
+}
+
+func handleTeamWorkResult(ctx context.Context, _ *mcp.CallToolRequest, args TeamWorkResultArgs) (*mcp.CallToolResult, any, error) {
+	slug, err := resolveSlug(args.MySlug)
+	if err != nil {
+		return toolError(err), nil, nil
+	}
+	content := strings.TrimSpace(args.Content)
+	if content == "" {
+		return toolError(fmt.Errorf("content is required")), nil, nil
+	}
+	requestID := strings.TrimSpace(args.RequestID)
+	location := resolveConversationContext(ctx, slug, args.Channel, requestID)
+	channel := location.Channel
+	if requestID == "" {
+		requestID = strings.TrimSpace(location.ReplyToID)
+	}
+	if requestID == "" {
+		return toolError(fmt.Errorf("request_id is required when no current collaboration request can be inferred")), nil, nil
+	}
+
+	requestMsg, requestChannel, ok := fetchAccessibleMessageByID(ctx, slug, channel, requestID)
+	if !ok {
+		return toolError(fmt.Errorf("collaboration request %s not found or not visible to @%s", requestID, slug)), nil, nil
+	}
+	if requestChannel != "" {
+		channel = requestChannel
+	}
+	publicReplyTo := strings.TrimSpace(requestMsg.PublicReplyTo)
+	if publicReplyTo == "" {
+		publicReplyTo = publicReplyTargetForCollaboration(ctx, slug, channel, requestMsg.ReplyTo)
+	}
+
+	requester := normalizeCollaborationSlug(requestMsg.From)
+	targets := normalizeCollaborationTargets(args.Tagged, slug)
+	if requester != "" && requester != slug && !isReservedCollaborationSlug(requester) {
+		targets = uniqueCollaborationSlugs(append([]string{requester}, targets...))
+	}
+	if len(targets) == 0 {
+		return toolError(fmt.Errorf("could not determine the requesting agent for %s; pass tagged explicitly", requestID)), nil, nil
+	}
+
+	runID := collaborationRunID(args.RunID, requestID)
+	if strings.TrimSpace(args.RunID) == "" && strings.TrimSpace(requestMsg.RunID) != "" {
+		runID = strings.TrimSpace(requestMsg.RunID)
+	}
+	taskID := strings.TrimSpace(args.TaskID)
+	if taskID == "" {
+		taskID = strings.TrimSpace(requestMsg.TaskID)
+	}
+	audience := uniqueCollaborationSlugs(append(append([]string{slug}, targets...), requestMsg.Audience...))
+
+	var result struct {
+		ID string `json:"id"`
+	}
+	if err := brokerPostJSON(ctx, "/messages", map[string]any{
+		"channel":         channel,
+		"from":            slug,
+		"kind":            collaborationResultKind,
+		"title":           "Internal collaboration result",
+		"content":         formatCollaborationResultContent(args),
+		"tagged":          targets,
+		"reply_to":        requestID,
+		"public_reply_to": publicReplyTo,
+		"task_id":         taskID,
+		"visibility":      internalCollaborationVisibility,
+		"run_id":          runID,
+		"audience":        audience,
+	}, &result); err != nil {
+		return toolError(err), nil, nil
+	}
+
+	text := fmt.Sprintf("Returned hidden work result to %s in #%s", strings.Join(targets, ", "), channel)
+	if result.ID != "" {
+		text += " (" + result.ID + ")"
+	}
+	text += "."
+	return textResult(text), nil, nil
+}
+
+func formatCollaborationRequestContent(args TeamDelegateArgs) string {
+	var lines []string
+	lines = append(lines, "Internal collaboration request", "", "Request: "+strings.TrimSpace(args.Request))
+	if reason := strings.TrimSpace(args.Reason); reason != "" {
+		lines = append(lines, "Reason: "+reason)
+	}
+	if contextText := strings.TrimSpace(args.Context); contextText != "" {
+		lines = append(lines, "", "Context:", contextText)
+	}
+	if taskID := strings.TrimSpace(args.TaskID); taskID != "" {
+		lines = append(lines, "", "Task: "+taskID)
+	}
+	lines = append(lines, "", "Reply with team_work_result using this request_id.")
+	return strings.Join(lines, "\n")
+}
+
+func formatCollaborationResultContent(args TeamWorkResultArgs) string {
+	status := normalizeCollaborationStatus(args.Status)
+	return fmt.Sprintf("Internal work result (%s)\n\n%s", status, strings.TrimSpace(args.Content))
+}
+
+func normalizeCollaborationStatus(status string) string {
+	switch strings.TrimSpace(strings.ToLower(status)) {
+	case "", "done", "complete", "completed":
+		return "done"
+	case "blocked", "blocker":
+		return "blocked"
+	case "partial", "wip", "in_progress":
+		return "partial"
+	default:
+		return "done"
+	}
+}
+
+func collaborationRunID(requested, replyTo string) string {
+	if requested = strings.TrimSpace(requested); requested != "" {
+		return requested
+	}
+	if replyTo = strings.TrimSpace(replyTo); replyTo != "" {
+		return "run:" + replyTo
+	}
+	return ""
+}
+
+func publicReplyTargetForCollaboration(ctx context.Context, slug, channel, replyTo string) string {
+	replyTo = strings.TrimSpace(replyTo)
+	if replyTo == "" {
+		return ""
+	}
+	if isHomeConversationThreadID(replyTo) {
+		return replyTo
+	}
+	messages := fetchChannelMessages(ctx, channel, slug, "", 100)
+	byID := make(map[string]brokerMessage, len(messages))
+	for _, msg := range messages {
+		if id := strings.TrimSpace(msg.ID); id != "" {
+			byID[id] = msg
+		}
+	}
+	return publicReplyTargetFromMessages(replyTo, byID)
+}
+
+func publicReplyTargetFromMessages(startID string, byID map[string]brokerMessage) string {
+	currentID := strings.TrimSpace(startID)
+	if currentID == "" {
+		return ""
+	}
+	seen := map[string]bool{}
+	for depth := 0; depth < 16 && currentID != ""; depth++ {
+		if isHomeConversationThreadID(currentID) {
+			return currentID
+		}
+		if seen[currentID] {
+			return currentID
+		}
+		seen[currentID] = true
+		msg, ok := byID[currentID]
+		if !ok {
+			return currentID
+		}
+		if target := strings.TrimSpace(msg.PublicReplyTo); target != "" {
+			return target
+		}
+		if !brokerMessageIsInternal(msg) {
+			return threadTargetForMessage(msg, byID)
+		}
+		currentID = strings.TrimSpace(msg.ReplyTo)
+	}
+	return strings.TrimSpace(startID)
+}
+
+func brokerMessageIsInternal(msg brokerMessage) bool {
+	return strings.EqualFold(strings.TrimSpace(msg.Visibility), internalCollaborationVisibility)
+}
+
+func isHomeConversationThreadID(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "home:") || strings.HasPrefix(value, "home-")
+}
+
+func fetchAccessibleMessageByID(ctx context.Context, slug, requestedChannel, messageID string) (brokerMessage, string, bool) {
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return brokerMessage{}, "", false
+	}
+	if channel := resolveChannelHint(requestedChannel); channel != "" {
+		if msg, ok := fetchMessageByID(ctx, channel, slug, messageID); ok {
+			return msg, channel, true
+		}
+		return brokerMessage{}, channel, false
+	}
+	for _, ch := range fetchAccessibleChannels(ctx, slug) {
+		if msg, ok := fetchMessageByID(ctx, ch.Slug, slug, messageID); ok {
+			return msg, ch.Slug, true
+		}
+	}
+	return brokerMessage{}, "", false
+}
+
+func fetchMessageByID(ctx context.Context, channel, slug, messageID string) (brokerMessage, bool) {
+	values := url.Values{}
+	values.Set("channel", channel)
+	values.Set("limit", "100")
+	if slug = strings.TrimSpace(slug); slug != "" {
+		values.Set("my_slug", slug)
+		values.Set("viewer_slug", slug)
+	}
+	var result brokerMessagesResponse
+	if err := brokerGetJSON(ctx, "/messages?"+values.Encode(), &result); err != nil {
+		return brokerMessage{}, false
+	}
+	for _, msg := range result.Messages {
+		if strings.TrimSpace(msg.ID) == messageID {
+			return msg, true
+		}
+	}
+	return brokerMessage{}, false
+}
+
+func normalizeCollaborationTargets(values []string, sender string) []string {
+	sender = normalizeCollaborationSlug(sender)
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		slug := normalizeCollaborationSlug(value)
+		if slug == "" || slug == sender || isReservedCollaborationSlug(slug) {
+			continue
+		}
+		out = append(out, slug)
+	}
+	return uniqueCollaborationSlugs(out)
+}
+
+func normalizeCollaborationSlug(value string) string {
+	value = strings.TrimSpace(strings.TrimLeft(value, "@"))
+	value = strings.ReplaceAll(value, "_", "-")
+	value = strings.ReplaceAll(value, " ", "-")
+	value = strings.ToLower(value)
+	if mapped := office.MapLegacyAgentSlug(value); mapped != "" {
+		value = mapped
+	}
+	return strings.TrimSpace(value)
+}
+
+func isReservedCollaborationSlug(slug string) bool {
+	switch normalizeCollaborationSlug(slug) {
+	case "", "you", "human", "system", "automation", "all", "everyone", "team", "channel":
+		return true
+	default:
+		return false
+	}
+}
+
+func uniqueCollaborationSlugs(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		slug := normalizeCollaborationSlug(value)
+		if slug == "" || isReservedCollaborationSlug(slug) {
+			continue
+		}
+		if _, exists := seen[slug]; exists {
+			continue
+		}
+		seen[slug] = struct{}{}
+		out = append(out, slug)
+	}
+	return out
 }
 
 // detectUntaggedMentions returns @-slugs found in content that are not in the
@@ -2669,7 +3040,8 @@ func handleTeamDMOpen(ctx context.Context, _ *mcp.CallToolRequest, args TeamDMOp
 	if len(args.Members) < 2 {
 		return toolError(fmt.Errorf("members must have at least 2 entries (e.g. [\"human\", \"engineering\"])")), nil, nil
 	}
-	// Validate: must include human. Agent-to-agent DMs are not allowed.
+	// Validate: must include human. Agent-to-agent collaboration uses
+	// team_delegate/team_work_result so the human-facing chat stays clean.
 	hasHuman := false
 	for _, m := range args.Members {
 		if m == "human" || m == "you" {
@@ -2678,7 +3050,7 @@ func handleTeamDMOpen(ctx context.Context, _ *mcp.CallToolRequest, args TeamDMOp
 		}
 	}
 	if !hasHuman {
-		return toolError(fmt.Errorf("DM must include 'human' as a member; agent-to-agent DMs are not allowed")), nil, nil
+		return toolError(fmt.Errorf("DM must include 'human' as a member; use team_delegate/team_work_result for agent-to-agent collaboration")), nil, nil
 	}
 
 	dmType := strings.TrimSpace(strings.ToLower(args.Type))

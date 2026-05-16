@@ -8456,17 +8456,21 @@ func otlpFloatValue(raw string) float64 {
 
 func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		From      string   `json:"from"`
-		Channel   string   `json:"channel"`
-		Kind      string   `json:"kind"`
-		Title     string   `json:"title"`
-		Content   string   `json:"content"`
-		Tagged    []string `json:"tagged"`
-		ReplyTo   string   `json:"reply_to"`
-		ProjectID string   `json:"project_id"`
-		TaskID    string   `json:"task_id"`
-		Scope     string   `json:"scope"`
-		ModelMode string   `json:"model_mode"`
+		From          string   `json:"from"`
+		Channel       string   `json:"channel"`
+		Kind          string   `json:"kind"`
+		Title         string   `json:"title"`
+		Content       string   `json:"content"`
+		Tagged        []string `json:"tagged"`
+		ReplyTo       string   `json:"reply_to"`
+		PublicReplyTo string   `json:"public_reply_to"`
+		ProjectID     string   `json:"project_id"`
+		TaskID        string   `json:"task_id"`
+		Scope         string   `json:"scope"`
+		Visibility    string   `json:"visibility"`
+		RunID         string   `json:"run_id"`
+		Audience      []string `json:"audience"`
+		ModelMode     string   `json:"model_mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -8618,19 +8622,23 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		messageModelMode = normalizeModelMode(body.ModelMode)
 	}
 	msg := channelMessage{
-		ID:        fmt.Sprintf("msg-%d", b.counter),
-		From:      from,
-		Channel:   channel,
-		Kind:      strings.TrimSpace(body.Kind),
-		Title:     strings.TrimSpace(body.Title),
-		Content:   body.Content,
-		Tagged:    tagged,
-		ReplyTo:   replyTo,
-		ProjectID: normalizeProjectID(body.ProjectID),
-		TaskID:    strings.TrimSpace(body.TaskID),
-		Scope:     strings.TrimSpace(body.Scope),
-		ModelMode: messageModelMode,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		ID:            fmt.Sprintf("msg-%d", b.counter),
+		From:          from,
+		Channel:       channel,
+		Kind:          strings.TrimSpace(body.Kind),
+		Title:         strings.TrimSpace(body.Title),
+		Content:       body.Content,
+		Tagged:        tagged,
+		ReplyTo:       replyTo,
+		PublicReplyTo: strings.TrimSpace(body.PublicReplyTo),
+		ProjectID:     normalizeProjectID(body.ProjectID),
+		TaskID:        strings.TrimSpace(body.TaskID),
+		Scope:         strings.TrimSpace(body.Scope),
+		Visibility:    normalizeMessageVisibility(body.Visibility),
+		RunID:         strings.TrimSpace(body.RunID),
+		Audience:      normalizeMessageAudience(body.Audience),
+		ModelMode:     messageModelMode,
+		Timestamp:     time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)
 	b.compactHomeThreadLocked(replyTo, msg.Timestamp)
@@ -9021,6 +9029,9 @@ func (b *Broker) compactHomeThreadLocked(threadID, timestamp string) {
 			previousSummary = &copyMsg
 			continue
 		}
+		if messageIsInternal(msg) {
+			continue
+		}
 		homeMessages = append(homeMessages, indexedHomeMessage{index: i, message: msg})
 	}
 	if len(homeMessages) <= homeThreadCompactionThreshold {
@@ -9306,6 +9317,9 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 		if b.sessionMode == SessionModeOneOnOne && !b.isOneOnOneDMMessage(msg) {
 			continue
 		}
+		if messageIsInternal(msg) && !b.messageInternalVisibleToViewerLocked(msg, accessSlug, messageIndex) {
+			continue
+		}
 		if threadID != "" {
 			if _, ok := threadIDs[strings.TrimSpace(msg.ID)]; !ok {
 				continue
@@ -9398,6 +9412,35 @@ func normalizeMessageScope(value string) string {
 	}
 }
 
+const messageVisibilityInternal = "internal"
+
+func normalizeMessageVisibility(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "", "public", "default", "human":
+		return ""
+	case messageVisibilityInternal:
+		return messageVisibilityInternal
+	default:
+		return ""
+	}
+}
+
+func normalizeMessageAudience(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = normalizeActorSlug(value)
+		if value == "" {
+			continue
+		}
+		out = append(out, value)
+	}
+	return uniqueSlugs(out)
+}
+
+func messageIsInternal(msg channelMessage) bool {
+	return strings.EqualFold(strings.TrimSpace(msg.Visibility), messageVisibilityInternal)
+}
+
 func messageMatchesViewerScope(msg channelMessage, viewerSlug, scope string, messagesByID map[string]channelMessage) bool {
 	scope = normalizeMessageScope(scope)
 	switch scope {
@@ -9414,6 +9457,32 @@ func messageMatchesViewerScope(msg channelMessage, viewerSlug, scope string, mes
 
 func messageVisibleToViewer(msg channelMessage, viewerSlug string, messagesByID map[string]channelMessage) bool {
 	return messageBelongsToViewerOutbox(msg, viewerSlug) || messageBelongsToViewerInbox(msg, viewerSlug, messagesByID)
+}
+
+func (b *Broker) messageInternalVisibleToViewerLocked(msg channelMessage, viewerSlug string, messagesByID map[string]channelMessage) bool {
+	viewerSlug = normalizeActorSlug(viewerSlug)
+	if viewerSlug == "" || viewerSlug == "you" || viewerSlug == "human" || viewerSlug == "system" {
+		return false
+	}
+	if b.findMemberLocked(viewerSlug) == nil {
+		return false
+	}
+	if strings.TrimSpace(msg.From) == viewerSlug {
+		return true
+	}
+	for _, audience := range msg.Audience {
+		audience = normalizeActorSlug(audience)
+		if audience == viewerSlug || audience == "all" {
+			return true
+		}
+	}
+	for _, tagged := range msg.Tagged {
+		tagged = normalizeActorSlug(tagged)
+		if tagged == viewerSlug || tagged == "all" {
+			return true
+		}
+	}
+	return messageRepliesToViewerThread(msg, viewerSlug, messagesByID)
 }
 
 func messageBelongsToViewerOutbox(msg channelMessage, viewerSlug string) bool {
@@ -12297,6 +12366,9 @@ func FormatChannelView(messages []channelMessage) string {
 
 	var sb strings.Builder
 	for _, m := range messages {
+		if messageIsInternal(m) {
+			continue
+		}
 		ts := m.Timestamp
 		if len(ts) > 19 {
 			ts = ts[11:19]
@@ -12324,6 +12396,9 @@ func FormatChannelView(messages []channelMessage) string {
 			}
 			sb.WriteString(fmt.Sprintf("  %s%s  @%s: %s%s\n", ts, thread, prefix, m.Content, formatMessageUsageSuffix(m.Usage)))
 		}
+	}
+	if sb.Len() == 0 {
+		return "  No messages yet. The team is getting set up..."
 	}
 	return sb.String()
 }

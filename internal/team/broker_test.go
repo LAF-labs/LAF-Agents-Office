@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,6 +166,20 @@ func TestFormatChannelViewIncludesThreadReference(t *testing.T) {
 
 	if !strings.Contains(got, "10:01:00 ↳ msg-1  @fe: Replying here") {
 		t.Fatalf("expected threaded message to include reply marker, got %q", got)
+	}
+}
+
+func TestFormatChannelViewHidesInternalMessages(t *testing.T) {
+	got := FormatChannelView([]channelMessage{
+		{ID: "msg-1", From: "ceo", Content: "Visible topic", Timestamp: "2026-03-24T10:00:00Z"},
+		{ID: "msg-2", From: "be", Content: "Hidden API finding", Visibility: messageVisibilityInternal, Timestamp: "2026-03-24T10:01:00Z"},
+	})
+
+	if strings.Contains(got, "Hidden API finding") {
+		t.Fatalf("expected internal message to stay out of channel view, got %q", got)
+	}
+	if !strings.Contains(got, "Visible topic") {
+		t.Fatalf("expected visible message to remain in channel view, got %q", got)
 	}
 }
 
@@ -869,6 +884,84 @@ func TestBrokerMessagesCanScopeToAgentInbox(t *testing.T) {
 	}
 	if !seen[tagged.ID] || !seen[own.ID] {
 		t.Fatalf("expected tagged and own messages in scoped view, got %+v", result.Messages)
+	}
+}
+
+func TestBrokerInternalMessagesHiddenFromHumanVisibleToAudience(t *testing.T) {
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("failed to start broker: %v", err)
+	}
+	defer b.Stop()
+
+	root, err := b.PostMessage("you", "general", "Please coordinate quietly.", []string{"ceo"}, "")
+	if err != nil {
+		t.Fatalf("post root message: %v", err)
+	}
+
+	base := fmt.Sprintf("http://%s", b.Addr())
+	body, _ := json.Marshal(map[string]any{
+		"channel":    "general",
+		"from":       "be",
+		"kind":       "collaboration_request",
+		"content":    "Internal backend note",
+		"tagged":     []string{"fe"},
+		"reply_to":   root.ID,
+		"visibility": "internal",
+		"audience":   []string{"be", "fe"},
+		"run_id":     "run:" + root.ID,
+	})
+	req, _ := http.NewRequest(http.MethodPost, base+"/messages", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+b.Token())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post internal message: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200 posting internal message, got %d: %s", resp.StatusCode, raw)
+	}
+
+	fetch := func(query string) []channelMessage {
+		t.Helper()
+		req, _ := http.NewRequest(http.MethodGet, base+"/messages?channel=general&"+query, nil)
+		req.Header.Set("Authorization", "Bearer "+b.Token())
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("get messages %q: %v", query, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			raw, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 200 for %q, got %d: %s", query, resp.StatusCode, raw)
+		}
+		var result struct {
+			Messages []channelMessage `json:"messages"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("decode messages %q: %v", query, err)
+		}
+		return result.Messages
+	}
+	containsInternal := func(messages []channelMessage) bool {
+		for _, msg := range messages {
+			if msg.Content == "Internal backend note" {
+				return true
+			}
+		}
+		return false
+	}
+
+	if containsInternal(fetch("viewer_slug=human&thread_id=" + url.QueryEscape(root.ID))) {
+		t.Fatalf("did not expect human thread view to include internal messages")
+	}
+	if !containsInternal(fetch("viewer_slug=fe&my_slug=fe&scope=agent")) {
+		t.Fatalf("expected target agent to see internal collaboration message")
+	}
+	if containsInternal(fetch("viewer_slug=reviewer&my_slug=reviewer&scope=agent")) {
+		t.Fatalf("did not expect unrelated agent to see internal collaboration message")
 	}
 }
 

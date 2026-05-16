@@ -2584,6 +2584,9 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 
 	// baseFilter excludes system messages, STATUS messages, and the trigger itself.
 	baseFilter := func(m channelMessage) bool {
+		if messageIsInternal(m) {
+			return false
+		}
 		if m.From == "system" && strings.TrimSpace(m.Kind) != homeSummaryMessageKind {
 			return false
 		}
@@ -3166,7 +3169,9 @@ func (l *Launcher) sendChannelUpdate(target notificationTarget, msg channelMessa
 		channel = "general"
 	}
 	notification := ""
-	if l.isOneOnOne() {
+	if isInternalCollaborationMessage(msg) {
+		notification = l.internalCollaborationNotification(target, msg, channel)
+	} else if l.isOneOnOne() {
 		notification = fmt.Sprintf(
 			"[New from @%s]: %s\n%s Reply using team_broadcast with my_slug \"%s\" and channel \"%s\" reply_to_id \"%s\". Once you have posted the needed reply, STOP and wait for the next pushed notification.",
 			msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), target.Slug, channel, msg.ID,
@@ -3184,6 +3189,120 @@ func (l *Launcher) sendChannelUpdate(target notificationTarget, msg channelMessa
 		return
 	}
 	l.queuePaneNotification(target.Slug, target.PaneTarget, notification)
+}
+
+func isInternalCollaborationMessage(msg channelMessage) bool {
+	if !strings.EqualFold(strings.TrimSpace(msg.Visibility), messageVisibilityInternal) {
+		return false
+	}
+	switch strings.TrimSpace(msg.Kind) {
+	case "collaboration_request", "work_result":
+		return true
+	default:
+		return true
+	}
+}
+
+func (l *Launcher) publicReplyTargetForMessage(channel string, msg channelMessage) string {
+	if target := strings.TrimSpace(msg.PublicReplyTo); target != "" {
+		return target
+	}
+	startID := strings.TrimSpace(msg.ReplyTo)
+	if startID == "" {
+		return ""
+	}
+	if isHomeThreadID(startID) {
+		return startID
+	}
+	if l == nil || l.broker == nil {
+		return startID
+	}
+	messages := l.broker.ChannelMessages(channel)
+	byID := make(map[string]channelMessage, len(messages))
+	for _, item := range messages {
+		if id := strings.TrimSpace(item.ID); id != "" {
+			byID[id] = item
+		}
+	}
+	return publicReplyTargetFromChannelMessages(startID, byID)
+}
+
+func publicReplyTargetFromChannelMessages(startID string, byID map[string]channelMessage) string {
+	currentID := strings.TrimSpace(startID)
+	if currentID == "" {
+		return ""
+	}
+	seen := map[string]bool{}
+	for depth := 0; depth < 16 && currentID != ""; depth++ {
+		if isHomeThreadID(currentID) {
+			return currentID
+		}
+		if seen[currentID] {
+			return currentID
+		}
+		seen[currentID] = true
+		msg, ok := byID[currentID]
+		if !ok {
+			return currentID
+		}
+		if target := strings.TrimSpace(msg.PublicReplyTo); target != "" {
+			return target
+		}
+		if !messageIsInternal(msg) {
+			return threadTargetForChannelMessage(msg, byID)
+		}
+		currentID = strings.TrimSpace(msg.ReplyTo)
+	}
+	return strings.TrimSpace(startID)
+}
+
+func threadTargetForChannelMessage(msg channelMessage, byID map[string]channelMessage) string {
+	current := strings.TrimSpace(msg.ID)
+	parent := strings.TrimSpace(msg.ReplyTo)
+	if parent == "" {
+		return current
+	}
+	seen := map[string]bool{}
+	for parent != "" {
+		if isHomeThreadID(parent) || seen[parent] {
+			return parent
+		}
+		seen[parent] = true
+		next, ok := byID[parent]
+		if !ok || strings.TrimSpace(next.ReplyTo) == "" {
+			return parent
+		}
+		parent = strings.TrimSpace(next.ReplyTo)
+	}
+	return current
+}
+
+func (l *Launcher) internalCollaborationNotification(target notificationTarget, msg channelMessage, channel string) string {
+	packet := l.buildMessageWorkPacket(msg, target.Slug)
+	switch strings.TrimSpace(msg.Kind) {
+	case "collaboration_request":
+		return fmt.Sprintf(
+			"%s\n---\n[Hidden internal request from @%s]: %s\nThis is not shown to the human. Do the bounded work requested here, then call team_work_result with my_slug \"%s\", channel \"%s\", request_id \"%s\". Do not call team_broadcast for this internal answer. If another specialist is needed, call team_delegate with the minimal context. After posting the hidden result, STOP and wait for the next pushed notification.",
+			packet, msg.From, truncate(msg.Content, 1200), target.Slug, channel, msg.ID,
+		)
+	case "work_result":
+		publicReplyTo := l.publicReplyTargetForMessage(channel, msg)
+		if publicReplyTo == "" {
+			return fmt.Sprintf(
+				"%s\n---\n[Hidden work result from @%s]: %s\nThis is not shown to the human. Use it to continue the current workflow. If this completes the user-visible work, post exactly one human-visible answer with team_broadcast using my_slug \"%s\", channel \"%s\", new_topic true. If more internal help is needed, call team_delegate. Do not expose raw internal coordination or use the hidden result ID as reply_to_id.",
+				packet, msg.From, truncate(msg.Content, 1200), target.Slug, channel,
+			)
+		}
+		return fmt.Sprintf(
+			"%s\n---\n[Hidden work result from @%s]: %s\nThis is not shown to the human. Use it to continue the current workflow. If this completes the user-visible work, post exactly one human-visible answer with team_broadcast using my_slug \"%s\", channel \"%s\", reply_to_id \"%s\". If more internal help is needed, call team_delegate. Do not expose raw internal coordination.",
+			packet, msg.From, truncate(msg.Content, 1200), target.Slug, channel, publicReplyTo,
+		)
+	default:
+		return fmt.Sprintf(
+			"%s\n---\n[Hidden internal note from @%s]: %s\nThis is not shown to the human. Continue the workflow using team_delegate/team_work_result for internal coordination, and only use team_broadcast when you are deliberately producing the next human-visible answer.",
+			packet, msg.From, truncate(msg.Content, 1200),
+		)
+	}
 }
 
 // shouldUseHeadlessDispatch returns true when notifications must be delivered
@@ -4071,6 +4190,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("\n== TEAM CHANNEL ==\n")
 		sb.WriteString("Your tools default to the active conversation context.\n")
 		sb.WriteString("- team_broadcast: Post to channel. CRITICAL: text @-mentions alone do NOT wake agents — include the slug in the `tagged` parameter.\n")
+		sb.WriteString("- team_delegate: Ask one or more agents for hidden internal help when you need parallel specialist work. This wakes them without showing the request in the human Home chat.\n")
+		sb.WriteString("- team_work_result: Reply to a hidden team_delegate request. Use this for internal findings; do not use team_broadcast for agent-to-agent work results.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context, task state, and active agents.\n")
 		sb.WriteString("- team_bridge: Carry context from one channel into another (lead only).\n")
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
@@ -4087,6 +4208,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("== TOOL HYGIENE ==\n")
 		sb.WriteString("All team_*, human_*, and mcp__laf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
 		sb.WriteString("Do not read unrelated files (MEMORY.md, arbitrary docs) unless the current packet's task requires it. Every tool call pays full turn cost.\n")
+		sb.WriteString("Use team_broadcast only for human-visible channel messages. Use team_delegate/team_work_result for hidden agent collaboration.\n")
 		sb.WriteString("Emit at most one team_broadcast per turn unless you are deliberately crossing channels. Never re-post the same content in different wording.\n\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeMemoryBlock())
@@ -4189,6 +4311,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("\n== TEAM CHANNEL ==\n")
 		sb.WriteString("Your tools default to the active conversation context.\n")
 		sb.WriteString("- team_broadcast: Post to channel. CRITICAL: text @-mentions alone do NOT wake agents — include the slug in the `tagged` parameter.\n")
+		sb.WriteString("- team_delegate: Ask one or more agents for hidden internal help when you need parallel specialist work. This wakes them without showing the request in the human Home chat.\n")
+		sb.WriteString("- team_work_result: Reply to a hidden team_delegate request. Use this for internal findings; do not use team_broadcast for agent-to-agent work results.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context and task state.\n")
 		sb.WriteString(fmt.Sprintf("- team_bridge: lead-only bridge for cross-channel context. Ask @%s to use it.\n", lead))
 		sb.WriteString("- team_task: Claim, complete, block, resume, or release tasks in your domain.\n")
@@ -4205,6 +4329,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("== TOOL HYGIENE ==\n")
 		sb.WriteString("All team_*, human_*, and mcp__laf-office__* tools listed above are ALREADY registered. Call them directly. Do NOT use ToolSearch/select: to look them up — that wastes a full turn.\n")
 		sb.WriteString("Do not read unrelated files (MEMORY.md, arbitrary docs) unless the current packet's task requires it. Every tool call pays full turn cost.\n")
+		sb.WriteString("Use team_broadcast only for human-visible channel messages. Use team_delegate/team_work_result for hidden agent collaboration.\n")
 		sb.WriteString("Emit at most one team_broadcast per turn unless you are deliberately crossing channels. Never re-post the same content in different wording.\n\n")
 		if markdownMemory {
 			sb.WriteString(markdownKnowledgeMemoryBlock())

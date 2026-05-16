@@ -339,6 +339,47 @@ describe("HomeApp", () => {
     expect(await screen.findByText(/확인할게요/)).toBeInTheDocument();
   });
 
+  it("keeps hidden internal collaboration messages out of the home chat", async () => {
+    apiMocks.getThreadMessages.mockResolvedValue({
+      messages: [
+        {
+          channel: "general",
+          content: "Internal planning secret",
+          from: "engineer",
+          id: "msg-internal-existing",
+          reply_to: "home:team-alpha:user-alpha",
+          timestamp: "2026-05-10T00:00:00Z",
+          visibility: "internal",
+        },
+      ],
+    });
+    renderHomeApp();
+
+    await screen.findByText("오늘은 무슨 이야기를 할까요?");
+    expect(
+      screen.queryByText("Internal planning secret"),
+    ).not.toBeInTheDocument();
+
+    act(() => {
+      eventMocks.emit("message", {
+        message: {
+          channel: "general",
+          content: "Hidden work result",
+          from: "engineer",
+          id: "msg-internal-event",
+          kind: "work_result",
+          reply_to: "home:team-alpha:user-alpha",
+          timestamp: new Date().toISOString(),
+          visibility: "internal",
+        },
+      });
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByText("Hidden work result")).not.toBeInTheDocument(),
+    );
+  });
+
   it("does not submit the home composer twice while the first send is pending", async () => {
     const user = userEvent.setup();
     let resolvePost!: (value: unknown) => void;

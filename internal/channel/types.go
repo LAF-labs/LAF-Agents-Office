@@ -44,19 +44,23 @@ type ChannelFilter struct {
 // Message represents a single message in a channel.
 // Moved from internal/team/broker.go channelMessage.
 type Message struct {
-	ID          string            `json:"id"`
-	From        string            `json:"from"`
-	Channel     string            `json:"channel,omitempty"`
-	Kind        string            `json:"kind,omitempty"`
-	Source      string            `json:"source,omitempty"`
-	SourceLabel string            `json:"source_label,omitempty"`
-	EventID     string            `json:"event_id,omitempty"`
-	Title       string            `json:"title,omitempty"`
-	Content     string            `json:"content"`
-	Tagged      []string          `json:"tagged"`
-	ReplyTo     string            `json:"reply_to,omitempty"`
-	Timestamp   string            `json:"timestamp"`
-	Reactions   []MessageReaction `json:"reactions,omitempty"`
+	ID            string            `json:"id"`
+	From          string            `json:"from"`
+	Channel       string            `json:"channel,omitempty"`
+	Kind          string            `json:"kind,omitempty"`
+	Source        string            `json:"source,omitempty"`
+	SourceLabel   string            `json:"source_label,omitempty"`
+	EventID       string            `json:"event_id,omitempty"`
+	Title         string            `json:"title,omitempty"`
+	Content       string            `json:"content"`
+	Tagged        []string          `json:"tagged"`
+	ReplyTo       string            `json:"reply_to,omitempty"`
+	PublicReplyTo string            `json:"public_reply_to,omitempty"`
+	Visibility    string            `json:"visibility,omitempty"`
+	RunID         string            `json:"run_id,omitempty"`
+	Audience      []string          `json:"audience,omitempty"`
+	Timestamp     string            `json:"timestamp"`
+	Reactions     []MessageReaction `json:"reactions,omitempty"`
 }
 
 // MessageReaction represents a reaction to a message.

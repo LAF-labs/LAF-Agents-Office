@@ -680,6 +680,7 @@ export interface Message {
   content: string;
   timestamp: string;
   reply_to?: string;
+  public_reply_to?: string;
   thread_id?: string;
   thread_count?: number;
   reactions?: Record<string, string[]>;
@@ -687,6 +688,9 @@ export interface Message {
   project_id?: string;
   task_id?: string;
   scope?: string;
+  visibility?: string;
+  run_id?: string;
+  audience?: string[];
   model_mode?: ModelMode;
   usage?: TokenUsage;
 }

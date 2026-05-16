@@ -1948,6 +1948,24 @@ func TestBuildNotificationContextFiltersSystem(t *testing.T) {
 	}
 }
 
+func TestBuildNotificationContextFiltersInternalMessages(t *testing.T) {
+	b := newTestBroker(t)
+	b.messages = []channelMessage{
+		{ID: "msg-public", From: "you", Channel: "general", Content: "Visible user request", Timestamp: "2026-05-16T10:00:00Z"},
+		{ID: "msg-hidden", From: "be", Channel: "general", Content: "Hidden implementation detail", ReplyTo: "msg-public", Visibility: messageVisibilityInternal, Timestamp: "2026-05-16T10:01:00Z"},
+	}
+
+	l := &Launcher{broker: b}
+	ctx := l.buildNotificationContext("general", "", "msg-public", 5)
+
+	if strings.Contains(ctx, "Hidden implementation detail") {
+		t.Fatalf("internal collaboration leaked into notification context: %q", ctx)
+	}
+	if !strings.Contains(ctx, "Visible user request") {
+		t.Fatalf("expected public thread anchor to remain, got %q", ctx)
+	}
+}
+
 func TestBuildNotificationContextRespectsLimit(t *testing.T) {
 	b := newTestBroker(t)
 	if err := b.StartOnPort(0); err != nil {
@@ -2398,6 +2416,25 @@ func TestBuildNotificationContextDoesNotFallbackForHomeChatThread(t *testing.T) 
 
 	if ctx != "" {
 		t.Fatalf("expected no ambient channel context for home chat thread, got %q", ctx)
+	}
+}
+
+func TestInternalWorkResultNotificationUsesPublicReplyTarget(t *testing.T) {
+	b := newTestBroker(t)
+	b.messages = []channelMessage{
+		{ID: "msg-user", From: "you", Channel: "general", Content: "Please check the backend path", ReplyTo: "home:team-alpha:user-alpha", Timestamp: "2026-05-16T10:00:00Z"},
+		{ID: "msg-request", From: "ceo", Channel: "general", Kind: "collaboration_request", Content: "Check backend path", ReplyTo: "msg-user", Visibility: messageVisibilityInternal, PublicReplyTo: "home:team-alpha:user-alpha", Timestamp: "2026-05-16T10:01:00Z"},
+		{ID: "msg-result", From: "be", Channel: "general", Kind: "work_result", Content: "Backend path is healthy", ReplyTo: "msg-request", Visibility: messageVisibilityInternal, PublicReplyTo: "home:team-alpha:user-alpha", Timestamp: "2026-05-16T10:02:00Z"},
+	}
+
+	l := &Launcher{broker: b}
+	got := l.internalCollaborationNotification(notificationTarget{Slug: "ceo"}, b.messages[2], "general")
+
+	if !strings.Contains(got, `reply_to_id "home:team-alpha:user-alpha"`) {
+		t.Fatalf("expected public home thread as reply target, got %q", got)
+	}
+	if strings.Contains(got, `reply_to_id "msg-result"`) || strings.Contains(got, `reply_to_id "msg-request"`) {
+		t.Fatalf("hidden collaboration IDs must not be used for public reply target, got %q", got)
 	}
 }
 

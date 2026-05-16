@@ -332,14 +332,26 @@ function isHomeSummaryMessage(message: Message): boolean {
   return message.kind === "home_summary";
 }
 
+function isInternalMessage(message: Message): boolean {
+  return message.visibility === "internal";
+}
+
 function shouldStreamHomeMessage(message: Message): boolean {
   return Boolean(
-    message.id && !isHumanMessage(message) && !isHomeSummaryMessage(message),
+    message.id &&
+      !isHumanMessage(message) &&
+      !isHomeSummaryMessage(message) &&
+      !isInternalMessage(message),
   );
 }
 
 function isAgentReplyAfter(message: Message, since: number | null): boolean {
-  if (!since || isHumanMessage(message) || isHomeSummaryMessage(message)) {
+  if (
+    !since ||
+    isHumanMessage(message) ||
+    isHomeSummaryMessage(message) ||
+    isInternalMessage(message)
+  ) {
     return false;
   }
   const timestamp = Date.parse(message.timestamp || "");
@@ -372,13 +384,17 @@ function messageBelongsToHomeThread(
   homeThreadId: string,
   threadMessageIds: Set<string>,
 ): boolean {
+  if (isInternalMessage(message)) return false;
   const replyTo = message.reply_to?.trim() ?? "";
+  const publicReplyTo = message.public_reply_to?.trim() ?? "";
   return Boolean(
     replyTo === homeThreadId ||
+      publicReplyTo === homeThreadId ||
       message.thread_id === homeThreadId ||
       message.scope === "home_orchestration" ||
       message.kind === "home_summary" ||
-      (replyTo && threadMessageIds.has(replyTo)),
+      (replyTo && threadMessageIds.has(replyTo)) ||
+      (publicReplyTo && threadMessageIds.has(publicReplyTo)),
   );
 }
 
@@ -407,6 +423,7 @@ function shouldAttachIncomingHomeMessage({
   messages: Message[];
 }): boolean {
   if (message.channel !== HOME_CHANNEL) return false;
+  if (isInternalMessage(message)) return false;
   const threadIDs = homeThreadMessageIDs(messages);
   return (
     messageBelongsToHomeThread(message, homeThreadId, threadIDs) ||
@@ -1049,7 +1066,8 @@ export function HomeApp() {
     queryFn: () => getThreadMessages(HOME_CHANNEL, homeThreadId ?? ""),
     enabled: !!homeThreadId,
     refetchInterval: HOME_MESSAGE_REFETCH_MS,
-    select: (data) => data.messages ?? [],
+    select: (data) =>
+      (data.messages ?? []).filter((message) => !isInternalMessage(message)),
   });
   const { data: config } = useQuery({
     queryKey: ["config"],
@@ -1076,7 +1094,11 @@ export function HomeApp() {
     () => resolveLeadSlug(config?.team_lead_slug, agentMembers),
     [config?.team_lead_slug, agentMembers],
   );
-  const hasMessages = (messagesData ?? []).length > 0;
+  const visibleMessages = useMemo(
+    () => (messagesData ?? []).filter((message) => !isInternalMessage(message)),
+    [messagesData],
+  );
+  const hasMessages = visibleMessages.length > 0;
   const homeMessagesLoading = authLoading || messagesLoading;
   const markMessageForStreaming = useCallback((message: Message) => {
     if (!shouldStreamHomeMessage(message)) return;
@@ -1108,13 +1130,16 @@ export function HomeApp() {
         HOME_CHANNEL,
         homeThreadId,
       ]);
+      const cachedMessages = (cached?.messages ?? []).filter(
+        (item) => !isInternalMessage(item),
+      );
       if (
         !shouldAttachIncomingHomeMessage({
           agentSlugs,
           awaitingReplySince,
           homeThreadId,
           message,
-          messages: cached?.messages ?? [],
+          messages: cachedMessages,
         })
       ) {
         return;
@@ -1122,7 +1147,10 @@ export function HomeApp() {
       queryClient.setQueryData<{ messages: Message[] }>(
         ["home-messages", HOME_CHANNEL, homeThreadId],
         (old) => ({
-          messages: mergeIncomingHomeMessage(old?.messages ?? [], message),
+          messages: mergeIncomingHomeMessage(
+            (old?.messages ?? []).filter((item) => !isInternalMessage(item)),
+            message,
+          ),
         }),
       );
       markMessageForStreaming(message);
@@ -1141,9 +1169,10 @@ export function HomeApp() {
 
   useEffect(() => {
     if (!awaitingReplySince) return;
-    const replies = (messagesData ?? []).filter((message) => {
+    const replies = visibleMessages.filter((message) => {
       if (message.from === "you" || message.from === "human") return false;
       if (message.kind === "home_summary") return false;
+      if (isInternalMessage(message)) return false;
       const timestamp = Date.parse(message.timestamp || "");
       return (
         Number.isFinite(timestamp) && timestamp >= awaitingReplySince - 1000
@@ -1153,12 +1182,12 @@ export function HomeApp() {
       for (const message of replies) markMessageForStreaming(message);
       setAwaitingReplySince(null);
     }
-  }, [awaitingReplySince, markMessageForStreaming, messagesData]);
+  }, [awaitingReplySince, markMessageForStreaming, visibleMessages]);
 
   return (
     <div className={`home-app${hasMessages ? "" : " is-empty"}`}>
       <HomeMessageList
-        messages={messagesData ?? []}
+        messages={visibleMessages}
         isLoading={homeMessagesLoading}
         agentSlugs={agentSlugs}
         showThinking={Boolean(awaitingReplySince)}

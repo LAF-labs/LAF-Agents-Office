@@ -14,24 +14,28 @@ type MessageUsage struct {
 }
 
 type ChannelMessage struct {
-	ID          string            `json:"id"`
-	From        string            `json:"from"`
-	Channel     string            `json:"channel,omitempty"`
-	Kind        string            `json:"kind,omitempty"`
-	Source      string            `json:"source,omitempty"`
-	SourceLabel string            `json:"source_label,omitempty"`
-	EventID     string            `json:"event_id,omitempty"`
-	Title       string            `json:"title,omitempty"`
-	Content     string            `json:"content"`
-	Tagged      []string          `json:"tagged"`
-	ReplyTo     string            `json:"reply_to,omitempty"`
-	ProjectID   string            `json:"project_id,omitempty"`
-	TaskID      string            `json:"task_id,omitempty"`
-	Scope       string            `json:"scope,omitempty"`
-	ModelMode   string            `json:"model_mode,omitempty"`
-	Timestamp   string            `json:"timestamp"`
-	Usage       *MessageUsage     `json:"usage,omitempty"`
-	Reactions   []MessageReaction `json:"reactions,omitempty"`
+	ID            string            `json:"id"`
+	From          string            `json:"from"`
+	Channel       string            `json:"channel,omitempty"`
+	Kind          string            `json:"kind,omitempty"`
+	Source        string            `json:"source,omitempty"`
+	SourceLabel   string            `json:"source_label,omitempty"`
+	EventID       string            `json:"event_id,omitempty"`
+	Title         string            `json:"title,omitempty"`
+	Content       string            `json:"content"`
+	Tagged        []string          `json:"tagged"`
+	ReplyTo       string            `json:"reply_to,omitempty"`
+	PublicReplyTo string            `json:"public_reply_to,omitempty"`
+	ProjectID     string            `json:"project_id,omitempty"`
+	TaskID        string            `json:"task_id,omitempty"`
+	Scope         string            `json:"scope,omitempty"`
+	Visibility    string            `json:"visibility,omitempty"`
+	RunID         string            `json:"run_id,omitempty"`
+	Audience      []string          `json:"audience,omitempty"`
+	ModelMode     string            `json:"model_mode,omitempty"`
+	Timestamp     string            `json:"timestamp"`
+	Usage         *MessageUsage     `json:"usage,omitempty"`
+	Reactions     []MessageReaction `json:"reactions,omitempty"`
 }
 
 type TeamTask struct {
