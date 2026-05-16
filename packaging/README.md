@@ -1,94 +1,26 @@
-# Runner Packaging
+# LAF Bridge Packaging
 
-The hosted product needs a local runner installer because the browser cannot
-launch Codex CLI or Claude Code CLI directly. The installer puts `laf-runner`
-on the user machine and registers the `laf-runner://` URL handler used by
-Settings -> Runner -> Connect this computer.
-
-## Windows
-
-Build a development zip on Windows:
-
-```powershell
-.\packaging\windows\build-runner-dev-package.ps1 -Architecture x64
-```
-
-The zip is named `laf-runner-windows-<arch>-<version>.zip` and contains:
-
-- `laf-runner.exe`
-- `laf-runner-installer.exe`
-- fallback PowerShell install/uninstall helpers
-- `README-FIRST.txt`
-
-For a non-developer first run, the user opens the zip and double-clicks
-`laf-runner-installer.exe`. The installer copies `laf-runner.exe` to the user's
-local app data directory and registers the `laf-runner://` link handler under
-HKCU, so admin rights are not required. It also registers a per-user login
-startup entry that runs `laf-runner connect`; before pairing, that command exits
-without doing work, and after pairing it keeps the machine available for queued
-runner jobs.
-
-Production releases should sign `laf-runner.exe`, `laf-runner-installer.exe`,
-and the final zip when certificate infrastructure is available.
-
-Build an unsigned per-user MSI with WiX:
-
-```powershell
-.\packaging\windows\build-runner-msi.ps1 -Architecture x64
-```
-
-WiX 7 requires explicit OSMF EULA acceptance before `wix build` can run. Accept
-it yourself once with:
-
-```powershell
-& "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
-```
-
-or pass `-AcceptWix7Eula` to the build script after you have confirmed the
-terms. The MSI is named `laf-runner-windows-<arch>-<version>.msi`, installs to
-`%LOCALAPPDATA%\LAF-Office\Runner`, registers the same per-user
-`laf-runner://` URL handler as the development installer, and starts the runner
-at user login. Production releases should also sign the final MSI.
-
-Windows Installer versions use three numeric fields, so four-part repo versions
-are encoded into the third MSI field. For example, repo version `0.0.7.1`
-becomes MSI ProductVersion `0.0.7001`; the artifact filename still keeps the
-human repo version.
-
-The web app serves the current Windows x64 MSI from
-`web/public/downloads/laf-runner-windows-x64-<version>.msi` so Settings ->
-Runner can offer a direct download without waiting for a GitHub Release page.
-GitHub releases also attach the unsigned Windows x64 and arm64 zip/MSI files as
-dedicated runner assets.
-
-The browser URL handler only trusts official `laf-office.team` origins,
-loopback development origins, the already configured runner API origin, or
-hosts listed in `LAF_OFFICE_RUNNER_TRUSTED_API_HOSTS`. Self-hosted deployments
-should set that environment variable or use the manual `laf-runner pair`
-fallback for the first connection.
-
-## macOS
-
-Build an unsigned PKG on macOS:
+Native LAF Bridge installers are paused. The supported hosted onboarding path is
+command-only on macOS and Linux:
 
 ```sh
-packaging/macos/build-runner-pkg.sh
+curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh
 ```
 
-To sign the package:
+For source checkouts or release tarballs, run the install script directly:
 
 ```sh
-MACOS_INSTALLER_SIGN_IDENTITY="Developer ID Installer: Example, Inc. (TEAMID)" \
-  packaging/macos/build-runner-pkg.sh
+LAF_OFFICE_INSTALL_BINARY=laf-runner sh scripts/install.sh
 ```
 
-The package installs `/usr/local/bin/laf-runner` and registers a small
-`/Applications/LAF Runner Link.app` URL handler for `laf-runner://` links.
+Then create a setup command in Settings -> LAF Bridge and connect the machine:
 
-## Manual Protocol Helpers
+```sh
+laf-runner pair --api-url https://<your-hosted-app>/api --code <setup-code> --background
+```
 
-The protocol-only helpers remain available for development and emergency
-support:
+Windows support, PKG/MSI installers, and URL-handler pairing are intentionally
+out of the supported path until the command-line runner flow is stable.
 
-- `packaging/windows/install-runner-protocol.ps1`
-- `packaging/macos/install-runner-protocol.sh`
+The platform-specific scripts in this directory are retained as historical
+implementation experiments and should not be presented in product onboarding.

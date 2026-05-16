@@ -39,29 +39,31 @@ npm install -g laf-office && laf-office
 ```
 
 For the hosted product, the browser app is not the execution runtime. Install
-the local runner on any machine that should execute coding work. On Windows,
-download the Windows runner zip from the latest release and double-click
-`laf-runner-installer.exe`. In the hosted UI, open Settings -> Runner, generate
-a setup code, then click `Connect this computer`. The installer registers a
-`laf-runner://` URL handler so the browser can hand the setup code to the local
-runner without opening PowerShell or Terminal. It also starts the runner at user
-login after pairing.
+the local runner from the command line on any macOS or Linux machine that should
+execute coding work:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh
+```
+
+In the hosted UI, open Settings -> LAF Bridge, create a setup command, then run
+the printed command on the bridge machine. The command installs `laf-runner` if
+needed, pairs it with the workspace, and starts it in the background:
+
+```bash
+laf-runner pair --api-url https://<your-hosted-app>/api --code <setup-code> --background
+```
 
 You can still use the hosted workspace without installing a runner. Planning,
 project memory, task creation, and review queues remain available; local
 Codex/Claude execution waits until a runner connects.
 
-If the URL handler is not installed yet, use the fallback command:
-
-```bash
-laf-runner pair --api-url https://<your-hosted-app>/api --code <setup-code> --connect
-```
-
 `npx laf-office` remains a convenient developer bootstrap for the local
 workspace. The hosted product boundary is the runner protocol: the web app
 creates jobs, and a local or managed runner leases and executes them.
 
-For macOS/Linux release tarballs, the installer can install just the runner:
+For source checkouts or release tarballs, the install script can install just
+the runner:
 
 ```bash
 LAF_OFFICE_INSTALL_BINARY=laf-runner sh scripts/install.sh
@@ -208,8 +210,8 @@ Local runner:
 
 The local runner is a first-class product component, not an npm requirement.
 NPM is only a developer-friendly bootstrap for the local workspace binary. The
-hosted path should ship signed native runner builds (`laf-runner`) for Windows,
-macOS, and Linux, with package-manager installers layered on top.
+hosted path currently supports command-line runner installation on macOS and
+Linux. Windows and native package installers are intentionally paused.
 
 The default active team is CEO, Frontend Engineer, Backend Engineer, and
 Reviewer. Focus/delegation mode is the default; `--collab` is an opt-in mode for

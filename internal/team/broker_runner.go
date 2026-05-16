@@ -417,9 +417,18 @@ func runnerPairingStartResponse(apiURL, code, teamID, expiresAt string) map[stri
 
 func runnerPairingCommands(apiURL, code string) map[string]string {
 	apiURL = strings.TrimRight(strings.TrimSpace(apiURL), "/")
+	connectCommand := "laf-runner pair --api-url " + runnerShellQuote(apiURL) + " --code " + runnerShellQuote(code) + " --background"
+	installCommand := "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh"
+	setupCommand := "PATH=\"$HOME/.local/bin:$PATH\"; if ! command -v laf-runner >/dev/null 2>&1; then " + installCommand + " || exit 1; fi; LAF_RUNNER_BIN=\"$(command -v laf-runner || printf '%s/.local/bin/laf-runner' \"$HOME\")\"; \"$LAF_RUNNER_BIN\" pair --api-url " + runnerShellQuote(apiURL) + " --code " + runnerShellQuote(code) + " --background"
 	return map[string]string{
-		"connect": "laf-runner pair --api-url " + apiURL + " --code " + code + " --connect",
+		"install": installCommand,
+		"connect": connectCommand,
+		"setup":   setupCommand,
 	}
+}
+
+func runnerShellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 func runnerLooksStale(lastSeenAt string, now time.Time) bool {

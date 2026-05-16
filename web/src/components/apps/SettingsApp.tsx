@@ -10,29 +10,22 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AppleMac,
   Building,
   Check,
   Copy,
-  Download,
   Key,
   Laptop,
-  Link,
-  NavArrowRight,
-  OpenNewWindow,
   PeopleTag,
   Refresh,
   SendMail,
   Settings as SettingsIcon,
   Terminal,
   WarningTriangle,
-  Windows,
 } from "iconoir-react";
 
 import {
   type AuthUser,
   type BridgeDevice,
-  type BridgePairingStartResponse,
   type ConfigSnapshot,
   type ConfigUpdate,
   createInvite,
@@ -52,10 +45,7 @@ import {
   type PermissionMember,
   type RunnerPairingStartResponse,
   resetWorkspace,
-  revokeBridgeDevice,
-  revokeRunner,
   shredWorkspace,
-  startBridgePairing,
   updateAuthUserRole,
   updateConfig,
   updatePermissions,
@@ -64,7 +54,6 @@ import {
 } from "../../api/client";
 import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
-import { confirm } from "../ui/ConfirmDialog";
 import { showNotice } from "../ui/Toast";
 
 type SectionId =
@@ -74,7 +63,6 @@ type SectionId =
   | "access"
   | "company"
   | "bridge"
-  | "runner"
   | "keys"
   | "danger";
 
@@ -88,7 +76,6 @@ interface Section {
     | "settings.section.access"
     | "settings.section.company"
     | "settings.section.bridge"
-    | "settings.section.runner"
     | "settings.section.keys"
     | "settings.section.danger";
 }
@@ -125,10 +112,7 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
   {
     labelKey: "settings.group.system",
-    items: [
-      { id: "bridge", Icon: Laptop, nameKey: "settings.section.bridge" },
-      { id: "runner", Icon: Refresh, nameKey: "settings.section.runner" },
-    ],
+    items: [{ id: "bridge", Icon: Laptop, nameKey: "settings.section.bridge" }],
   },
   {
     labelKey: "settings.group.advanced",
@@ -429,57 +413,36 @@ const styles = {
     fontSize: 11,
     fontWeight: 700,
   }),
-  runnerInstallerList: {
+  bridgeHelpBox: {
     display: "grid",
-    gap: 0,
+    gap: 8,
+    padding: "12px 0",
     marginBottom: 14,
     borderTop: "1px solid var(--border-light)",
-  } as const,
-  runnerInstallerRow: {
-    display: "grid",
-    gridTemplateColumns: "auto minmax(0, 1fr) auto",
-    gap: 12,
-    alignItems: "center",
-    padding: "12px 0",
     borderBottom: "1px solid var(--border-light)",
   } as const,
-  runnerInstallerIcon: {
-    width: 30,
-    height: 30,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    border: "1px solid var(--border-light)",
+  bridgeHelpTitle: {
+    fontSize: 12,
+    fontWeight: 750,
+    color: "var(--text-primary)",
+  } as const,
+  bridgeHelpText: {
+    margin: 0,
     color: "var(--text-secondary)",
-    background: "transparent",
+    fontSize: 12,
+    lineHeight: 1.5,
   } as const,
-  runnerInstallerName: {
-    display: "flex",
-    alignItems: "center",
+  bridgeStepList: {
+    display: "grid",
     gap: 8,
-    flexWrap: "wrap",
-    minWidth: 0,
-    fontSize: 13,
-    fontWeight: 700,
+    margin: "0 0 14px",
+    paddingLeft: 18,
+    color: "var(--text-secondary)",
+    fontSize: 12,
+    lineHeight: 1.5,
   } as const,
-  runnerInstallerMeta: {
-    marginTop: 2,
-    color: "var(--text-tertiary)",
-    fontSize: 11,
-    lineHeight: 1.4,
-    wordBreak: "break-word" as const,
-  } as const,
-  runnerBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    minHeight: 18,
-    padding: "0 7px",
-    borderRadius: "var(--radius-full)",
-    border: "1px solid var(--accent-border)",
-    color: "var(--accent)",
-    fontSize: 10,
-    fontWeight: 700,
+  bridgeStepItem: {
+    paddingLeft: 2,
   } as const,
   runnerActionRow: {
     display: "flex",
@@ -487,14 +450,6 @@ const styles = {
     flexWrap: "wrap",
     alignItems: "center",
     marginBottom: 14,
-  } as const,
-  runnerPrimaryLink: {
-    minHeight: 34,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    textDecoration: "none",
   } as const,
 };
 
@@ -1748,81 +1703,39 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 // ─── Danger Zone ────────────────────────────────────────────────────────
 
-const RUNNER_VERSION = "0.0.7.1";
-const RUNNER_MACOS_PKG_PATH = `/downloads/laf-runner-macos-arm64-${RUNNER_VERSION}.pkg`;
-const RUNNER_WINDOWS_MSI_NAME = `laf-runner-windows-x64-${RUNNER_VERSION}.msi`;
-const RUNNER_WINDOWS_MSI_PATH = `/downloads/${RUNNER_WINDOWS_MSI_NAME}`;
-const RUNNER_RELEASE_URL =
-  "https://github.com/LAF-labs/LAF-Agents-Office/releases/latest";
-
-type RunnerPlatform = "macos" | "windows" | "other";
-
-interface RunnerInstallerOption {
-  id: RunnerPlatform;
-  Icon: ComponentType<{ className?: string; style?: CSSProperties }>;
-  nameKey:
-    | "settings.runner.installerMac"
-    | "settings.runner.installerWindows"
-    | "settings.runner.installerOther";
-  metaKey:
-    | "settings.runner.installerMacMeta"
-    | "settings.runner.installerWindowsMeta"
-    | "settings.runner.installerOtherMeta";
-  href: string;
-  actionKey:
-    | "settings.runner.downloadMsi"
-    | "settings.runner.downloadPkg"
-    | "settings.runner.openRelease";
-  download?: string;
-  external?: boolean;
-}
-
-const RUNNER_INSTALLERS: RunnerInstallerOption[] = [
-  {
-    id: "macos",
-    Icon: AppleMac,
-    nameKey: "settings.runner.installerMac",
-    metaKey: "settings.runner.installerMacMeta",
-    href: RUNNER_MACOS_PKG_PATH,
-    actionKey: "settings.runner.downloadPkg",
-    download: `laf-runner-macos-arm64-${RUNNER_VERSION}.pkg`,
-  },
-  {
-    id: "windows",
-    Icon: Windows,
-    nameKey: "settings.runner.installerWindows",
-    metaKey: "settings.runner.installerWindowsMeta",
-    href: RUNNER_WINDOWS_MSI_PATH,
-    actionKey: "settings.runner.downloadMsi",
-    download: RUNNER_WINDOWS_MSI_NAME,
-  },
-  {
-    id: "other",
-    Icon: Laptop,
-    nameKey: "settings.runner.installerOther",
-    metaKey: "settings.runner.installerOtherMeta",
-    href: RUNNER_RELEASE_URL,
-    actionKey: "settings.runner.openRelease",
-    external: true,
-  },
-];
+const RUNNER_INSTALL_COMMAND =
+  "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh";
 
 function BridgeSection() {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
-  const [pairing, setPairing] = useState<BridgePairingStartResponse | null>(
+  const [pairing, setPairing] = useState<RunnerPairingStartResponse | null>(
     null,
   );
-  const statusQuery = useQuery({
+  const bridgeQuery = useQuery({
     queryKey: ["bridge-availability", "settings"],
     queryFn: () => getBridgeAvailability(),
     refetchInterval: 5_000,
   });
+  const runnerQuery = useQuery({
+    queryKey: ["runner-status", "settings"],
+    queryFn: () => getRunnerStatus(),
+    refetchInterval: 5_000,
+  });
   const pairingMutation = useMutation({
-    mutationFn: () => startBridgePairing({ api_url: browserRunnerAPIURL() }),
-    onSuccess: (result) => {
+    mutationFn: () => createRunnerPairing(browserRunnerAPIURL()),
+    onSuccess: async (result) => {
       setPairing(result);
-      showNotice(t("settings.bridge.codeReady"), "success");
+      const command = result.commands.setup || result.commands.connect || "";
+      if (!command) {
+        showNotice(t("settings.bridge.codeReady"), "success");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(command);
+        showNotice(t("settings.bridge.commandReadyCopied"), "success");
+      } catch {
+        showNotice(t("settings.bridge.codeReady"), "success");
+      }
     },
     onError: (err) => {
       showNotice(
@@ -1833,48 +1746,25 @@ function BridgeSection() {
       );
     },
   });
-  const revokeMutation = useMutation({
-    mutationFn: (deviceID: string) => revokeBridgeDevice(deviceID),
-    onSuccess: () => {
-      setPairing(null);
-      queryClient.invalidateQueries({ queryKey: ["bridge-availability"] });
-      showNotice(t("settings.bridge.revoked"), "success");
-    },
-    onError: (err) => {
-      showNotice(
-        err instanceof Error ? err.message : t("settings.bridge.revokeFailed"),
-        "error",
-      );
-    },
-  });
 
-  const devices = statusQuery.data?.devices ?? [];
+  const devices = bridgeQuery.data?.devices ?? [];
   const bridge = preferredBridgeDevice(devices);
-  const availability = statusQuery.data?.my_bridge;
-  const command =
-    pairing?.commands.pair ||
-    `laf-bridge pair --api-url ${browserRunnerAPIURL()} --code <setup-code>`;
+  const runners = runnerQuery.data?.runners ?? [];
+  const runner = preferredRunner(runners);
+  const connected = lafBridgeConnected(runner, bridge);
+  const setupCommand =
+    pairing?.commands.setup || pairing?.commands.connect || "";
 
-  const copyCommand = async () => {
+  const copyCommand = async (
+    command: string,
+    successMessage = t("settings.bridge.commandCopied"),
+  ) => {
     try {
       await navigator.clipboard.writeText(command);
-      showNotice(t("settings.bridge.commandCopied"), "success");
+      showNotice(successMessage, "success");
     } catch {
       showNotice(t("settings.bridge.copyFailed"), "error");
     }
-  };
-  const confirmRevokeBridge = () => {
-    if (!bridge) return;
-    confirm({
-      cancelLabel: t("common.cancel"),
-      confirmLabel: t("settings.bridge.revokeConfirm"),
-      danger: true,
-      message: t("settings.bridge.revokeMessage"),
-      onConfirm: async () => {
-        await revokeMutation.mutateAsync(bridge.id);
-      },
-      title: t("settings.bridge.revokeTitle"),
-    });
   };
 
   return (
@@ -1884,298 +1774,113 @@ function BridgeSection() {
 
       <Field
         label={t("settings.bridge.status")}
-        hint={
-          bridge
-            ? bridgeStatusHint(bridge)
-            : availability?.reason || t("settings.bridge.optionalHint")
-        }
+        hint={lafBridgeStatusHint(t, runner, bridge)}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={styles.statusDot(bridgeStatusColor(bridge))} />
+          <span
+            style={styles.statusDot(lafBridgeStatusColor(runner, bridge))}
+          />
           <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {bridgeStatusLabel(t, bridge)}
+            {lafBridgeStatusLabel(t, runner, bridge)}
           </span>
         </div>
       </Field>
-
-      <BridgeManagementField
-        bridge={bridge}
-        isPending={revokeMutation.isPending}
-        onRevoke={confirmRevokeBridge}
-        t={t}
-      />
-
-      <BridgeToolsField bridge={bridge} t={t} />
 
       <div style={styles.groupTitle}>{t("settings.bridge.setupTitle")}</div>
       <p style={styles.runnerSetupDesc}>{t("settings.bridge.setupDesc")}</p>
-      <div style={styles.runnerActionRow}>
-        <button
-          type="button"
-          style={{
-            ...styles.primaryButton,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-          }}
-          onClick={() => pairingMutation.mutate()}
-          disabled={pairingMutation.isPending}
-        >
-          <Refresh width={14} height={14} />
-          {pairingMutation.isPending
-            ? t("settings.bridge.generating")
-            : t("settings.bridge.generate")}
-        </button>
-      </div>
-
-      {pairing ? (
-        <>
-          <Field
-            label={t("settings.bridge.codeLabel")}
-            hint={`${t("settings.bridge.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 22,
-                fontWeight: 700,
-                letterSpacing: "0",
-                padding: "6px 0",
-                userSelect: "all",
-              }}
-            >
-              {pairing.pairing.code}
-            </div>
-          </Field>
-          <Field
-            label={t("settings.bridge.commandLabel")}
-            hint={t("settings.bridge.commandHint")}
-          >
-            <div style={{ display: "grid", gap: 8 }}>
-              <code style={styles.filePath}>{command}</code>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={copyCommand}
-                style={{ justifySelf: "start" }}
-              >
-                <Terminal width={13} height={13} />
-                <Copy width={13} height={13} />
-                {t("settings.bridge.copyCommand")}
-              </button>
-            </div>
-          </Field>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function RunnerSection() {
-  const { t } = useI18n();
-  const queryClient = useQueryClient();
-  const [pairing, setPairing] = useState<RunnerPairingStartResponse | null>(
-    null,
-  );
-  const statusQuery = useQuery({
-    queryKey: ["runner-status", "settings"],
-    queryFn: () => getRunnerStatus(),
-    refetchInterval: 5_000,
-  });
-  const pairingMutation = useMutation({
-    mutationFn: () => createRunnerPairing(browserRunnerAPIURL()),
-    onSuccess: (result) => {
-      setPairing(result);
-      showNotice(t("settings.runner.codeReady"), "success");
-    },
-    onError: (err) => {
-      showNotice(
-        err instanceof Error
-          ? err.message
-          : t("settings.runner.generateFailed"),
-        "error",
-      );
-    },
-  });
-  const revokeMutation = useMutation({
-    mutationFn: (runnerId: string) => revokeRunner(runnerId),
-    onSuccess: () => {
-      setPairing(null);
-      queryClient.invalidateQueries({ queryKey: ["runner-status"] });
-      showNotice(t("settings.runner.revoked"), "success");
-    },
-    onError: (err) => {
-      showNotice(
-        err instanceof Error ? err.message : t("settings.runner.revokeFailed"),
-        "error",
-      );
-    },
-  });
-
-  const runners = statusQuery.data?.runners ?? [];
-  const runner = preferredRunner(runners);
-  const platform = detectRunnerPlatform();
-  const command =
-    pairing?.commands.connect ||
-    `laf-runner pair --api-url ${browserRunnerAPIURL()} --code <setup-code> --connect`;
-  const deepLink = pairing ? runnerPairingDeepLink(pairing) : "";
-
-  const copyCommand = async () => {
-    try {
-      await navigator.clipboard.writeText(command);
-      showNotice(t("settings.runner.commandCopied"), "success");
-    } catch {
-      showNotice(t("settings.runner.copyFailed"), "error");
-    }
-  };
-  const confirmRevokeRunner = () => {
-    if (!runner) return;
-    confirm({
-      cancelLabel: t("common.cancel"),
-      confirmLabel: t("settings.runner.revokeConfirm"),
-      danger: true,
-      message: t("settings.runner.revokeMessage"),
-      onConfirm: async () => {
-        await revokeMutation.mutateAsync(runner.id);
-      },
-      title: t("settings.runner.revokeTitle"),
-    });
-  };
-
-  return (
-    <div>
-      <h2 style={styles.sectionTitle}>{t("settings.runner.title")}</h2>
-      <p style={styles.sectionDesc}>{t("settings.runner.desc")}</p>
-
-      <Field
-        label={t("settings.runner.status")}
-        hint={
-          runner ? runnerStatusHint(runner) : t("settings.runner.optionalHint")
-        }
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={styles.statusDot(runnerStatusColor(runner))} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {runnerStatusLabel(t, runner)}
-          </span>
+      <div style={styles.bridgeHelpBox}>
+        <div style={styles.bridgeHelpTitle}>
+          {t("settings.bridge.whyTitle")}
         </div>
-      </Field>
-
-      <RunnerManagementField
-        isPending={revokeMutation.isPending}
-        onRevoke={confirmRevokeRunner}
-        runner={runner}
-        t={t}
-      />
-
-      <RunnerToolsField runner={runner} t={t} />
-
-      <div style={styles.groupTitle}>{t("settings.runner.setupTitle")}</div>
-      <p style={styles.runnerSetupDesc}>{t("settings.runner.setupDesc")}</p>
-      <RunnerSetupProgress
-        pairingReady={Boolean(pairing)}
-        runner={runner}
-        t={t}
-      />
-      <RunnerInstallerOptions platform={platform} t={t} />
-      <div style={styles.runnerActionRow}>
-        <button
-          type="button"
-          style={{
-            ...styles.primaryButton,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-          }}
-          onClick={() => pairingMutation.mutate()}
-          disabled={pairingMutation.isPending}
-        >
-          <Refresh width={14} height={14} />
-          {pairingMutation.isPending
-            ? t("settings.runner.generating")
-            : t("settings.runner.generate")}
-        </button>
-        {pairing ? (
-          <a
-            href={deepLink}
-            style={{ ...styles.primaryButton, ...styles.runnerPrimaryLink }}
-          >
-            <Link width={14} height={14} />
-            {t("settings.runner.connectComputer")}
-            <NavArrowRight width={14} height={14} />
-          </a>
-        ) : null}
+        <p style={styles.bridgeHelpText}>{t("settings.bridge.whyBody")}</p>
       </div>
+      <LafBridgeSetupProgress
+        connected={connected}
+        commandReady={Boolean(pairing)}
+        t={t}
+      />
+      {!connected ? (
+        <ol style={styles.bridgeStepList}>
+          <li style={styles.bridgeStepItem}>
+            {t("settings.bridge.helpOpenTerminal")}
+          </li>
+          <li style={styles.bridgeStepItem}>
+            {t("settings.bridge.helpCreateCopy")}
+          </li>
+          <li style={styles.bridgeStepItem}>
+            {t("settings.bridge.helpPasteEnter")}
+          </li>
+          <li style={styles.bridgeStepItem}>
+            {t("settings.bridge.helpReturn")}
+          </li>
+        </ol>
+      ) : null}
+      {!connected ? (
+        <div style={styles.runnerActionRow}>
+          <button
+            type="button"
+            style={{
+              ...styles.primaryButton,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+            }}
+            onClick={() => pairingMutation.mutate()}
+            disabled={pairingMutation.isPending}
+          >
+            <Refresh width={14} height={14} />
+            {pairingMutation.isPending
+              ? t("settings.bridge.generating")
+              : t("settings.bridge.generate")}
+          </button>
+        </div>
+      ) : null}
 
-      {pairing ? (
-        <>
-          <Field
-            label={t("settings.runner.codeLabel")}
-            hint={`${t("settings.runner.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 22,
-                fontWeight: 700,
-                letterSpacing: "0",
-                padding: "6px 0",
-                userSelect: "all",
-              }}
+      {pairing && setupCommand && !connected ? (
+        <Field
+          label={t("settings.bridge.commandLabel")}
+          hint={`${t("settings.bridge.commandHint")} ${t("settings.bridge.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
+        >
+          <div style={{ display: "grid", gap: 8 }}>
+            <code style={styles.filePath}>{setupCommand}</code>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => copyCommand(setupCommand)}
+              style={{ justifySelf: "start" }}
             >
-              {pairing.pairing.code}
-            </div>
-          </Field>
-          <Field
-            label={t("settings.runner.commandLabel")}
-            hint={t("settings.runner.commandHint")}
-          >
-            <div style={{ display: "grid", gap: 8 }}>
-              <code style={styles.filePath}>{command}</code>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={copyCommand}
-                style={{ justifySelf: "start" }}
-              >
-                <Terminal width={13} height={13} />
-                <Copy width={13} height={13} />
-                {t("settings.runner.copyCommand")}
-              </button>
-            </div>
-          </Field>
-        </>
+              <Terminal width={13} height={13} />
+              <Copy width={13} height={13} />
+              {t("settings.bridge.copyCommand")}
+            </button>
+          </div>
+        </Field>
       ) : null}
     </div>
   );
 }
 
-function RunnerSetupProgress({
-  pairingReady,
-  runner,
+function LafBridgeSetupProgress({
+  connected,
+  commandReady,
   t,
 }: {
-  pairingReady: boolean;
-  runner?: HostedRunner;
+  connected: boolean;
+  commandReady: boolean;
   t: ReturnType<typeof useI18n>["t"];
 }) {
-  const connected = runner?.status === "connected";
   const steps = [
     {
-      done: Boolean(runner) || pairingReady,
-      label: t("settings.runner.stepInstall"),
-    },
-    {
-      done: pairingReady || connected,
-      label: t("settings.runner.stepCode"),
+      done: commandReady || connected,
+      label: t("settings.bridge.stepCommand"),
     },
     {
       done: connected,
-      label: t("settings.runner.stepConnect"),
+      label: t("settings.bridge.stepConnect"),
     },
     {
       done: connected,
-      label: t("settings.runner.stepReady"),
+      label: t("settings.bridge.stepReady"),
     },
   ];
   const firstOpenIndex = steps.findIndex((step) => !step.done);
@@ -2183,7 +1888,7 @@ function RunnerSetupProgress({
   return (
     <div style={styles.runnerStepRail}>
       {steps.map((step, index) => {
-        const active = index === firstOpenIndex || (connected && index === 3);
+        const active = index === firstOpenIndex || (connected && index === 2);
         return (
           <div
             key={step.label}
@@ -2197,227 +1902,6 @@ function RunnerSetupProgress({
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function RunnerInstallerOptions({
-  platform,
-  t,
-}: {
-  platform: RunnerPlatform;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  return (
-    <div style={styles.runnerInstallerList}>
-      {RUNNER_INSTALLERS.map((installer) => {
-        const {
-          Icon,
-          actionKey,
-          download,
-          external,
-          href,
-          id,
-          metaKey,
-          nameKey,
-        } = installer;
-        const recommended = id === platform;
-        return (
-          <div key={id} style={styles.runnerInstallerRow}>
-            <span style={styles.runnerInstallerIcon}>
-              <Icon style={{ width: 18, height: 18 }} />
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={styles.runnerInstallerName}>
-                <span>{t(nameKey)}</span>
-                {recommended ? (
-                  <span style={styles.runnerBadge}>
-                    {t("settings.runner.recommended")}
-                  </span>
-                ) : null}
-              </div>
-              <div style={styles.runnerInstallerMeta}>{t(metaKey)}</div>
-            </div>
-            <a
-              className="btn btn-secondary btn-sm"
-              href={href}
-              download={download}
-              target={external ? "_blank" : undefined}
-              rel={external ? "noreferrer" : undefined}
-              style={{ whiteSpace: "nowrap" }}
-            >
-              {external ? (
-                <OpenNewWindow width={13} height={13} />
-              ) : (
-                <Download width={13} height={13} />
-              )}
-              {t(actionKey)}
-            </a>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function RunnerManagementField({
-  isPending,
-  onRevoke,
-  runner,
-  t,
-}: {
-  isPending: boolean;
-  onRevoke: () => void;
-  runner?: HostedRunner;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  if (!runner) return null;
-  return (
-    <Field
-      label={t("settings.runner.management")}
-      hint={t("settings.runner.managementHint")}
-    >
-      <button
-        type="button"
-        className="btn btn-danger btn-sm"
-        onClick={onRevoke}
-        disabled={isPending}
-      >
-        {isPending ? t("common.working") : t("settings.runner.revoke")}
-      </button>
-    </Field>
-  );
-}
-
-function BridgeManagementField({
-  bridge,
-  isPending,
-  t,
-  onRevoke,
-}: {
-  bridge?: BridgeDevice;
-  isPending: boolean;
-  t: TranslationFn;
-  onRevoke: () => void;
-}) {
-  if (!bridge) return null;
-  return (
-    <Field
-      label={t("settings.bridge.management")}
-      hint={t("settings.bridge.managementHint")}
-    >
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm"
-        onClick={onRevoke}
-        disabled={isPending}
-      >
-        {isPending ? t("common.working") : t("settings.bridge.revoke")}
-      </button>
-    </Field>
-  );
-}
-
-function RunnerToolsField({
-  runner,
-  t,
-}: {
-  runner?: HostedRunner;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  const capabilities = runner?.capabilities ?? {};
-  const providerReady = Boolean(capabilities.provider_runtimes?.length);
-
-  return (
-    <Field label={t("settings.runner.tools")} hint={runner?.name || ""}>
-      {runner ? (
-        <div style={{ display: "grid", gap: 6 }}>
-          <RunnerCapability
-            ok={providerReady}
-            label={
-              providerReady
-                ? `${t("settings.runner.providerReady")} ${capabilities.provider_runtimes?.join(", ")}`
-                : t("settings.runner.providerMissing")
-            }
-          />
-          <RunnerCapability
-            ok={Boolean(capabilities.git_available)}
-            label={
-              capabilities.git_available
-                ? t("settings.runner.gitReady")
-                : t("settings.runner.gitMissing")
-            }
-          />
-          <RunnerCapability
-            ok={Boolean(capabilities.gh_authenticated)}
-            label={
-              capabilities.gh_authenticated
-                ? t("settings.runner.githubReady")
-                : t("settings.runner.githubMissing")
-            }
-          />
-        </div>
-      ) : (
-        <div style={styles.emptyState}>{t("settings.runner.toolsUnknown")}</div>
-      )}
-    </Field>
-  );
-}
-
-function BridgeToolsField({
-  bridge,
-  t,
-}: {
-  bridge?: BridgeDevice;
-  t: TranslationFn;
-}) {
-  const capabilities = bridge?.capabilities ?? {};
-  const runtimes = Array.isArray(capabilities.provider_runtimes)
-    ? capabilities.provider_runtimes.map(String).join(", ")
-    : "";
-  return (
-    <Field label={t("settings.bridge.tools")} hint={bridge?.device_label || ""}>
-      {bridge ? (
-        <div style={{ display: "grid", gap: 8 }}>
-          <RunnerCapability
-            ok={Boolean(runtimes)}
-            label={
-              runtimes
-                ? `${t("settings.bridge.providerReady")} ${runtimes}`
-                : t("settings.bridge.providerMissing")
-            }
-          />
-          <RunnerCapability
-            ok={bridge.status === "online"}
-            label={
-              bridge.status === "online"
-                ? t("settings.bridge.online")
-                : t("settings.bridge.offline")
-            }
-          />
-        </div>
-      ) : (
-        <div style={styles.emptyState}>{t("settings.bridge.toolsUnknown")}</div>
-      )}
-    </Field>
-  );
-}
-
-function RunnerCapability({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 7,
-        color: ok ? "var(--text)" : "var(--text-tertiary)",
-        fontSize: 12,
-      }}
-    >
-      <span
-        style={styles.statusDot(ok ? "var(--green)" : "var(--text-tertiary)")}
-      />
-      <span>{label}</span>
     </div>
   );
 }
@@ -2440,40 +1924,43 @@ function preferredBridgeDevice(devices: BridgeDevice[]) {
   );
 }
 
-function bridgeStatusLabel(t: TranslationFn, bridge?: BridgeDevice) {
-  if (!bridge) return t("settings.bridge.noBridge");
-  if (bridge.status === "online") return t("settings.bridge.connected");
-  if (bridge.status === "offline") return t("settings.bridge.disconnected");
-  return t("settings.bridge.needsAttention");
+function lafBridgeConnected(runner?: HostedRunner, bridge?: BridgeDevice) {
+  return runner?.status === "connected" || bridge?.status === "online";
 }
 
-function bridgeStatusColor(bridge?: BridgeDevice) {
-  if (!bridge) return "var(--text-tertiary)";
-  if (bridge.status === "online") return "var(--green)";
-  if (bridge.status === "offline") return "var(--yellow)";
+function lafBridgeStatusLabel(
+  t: TranslationFn,
+  runner?: HostedRunner,
+  bridge?: BridgeDevice,
+) {
+  if (lafBridgeConnected(runner, bridge)) return t("settings.bridge.connected");
+  if (runner?.status === "stale" || bridge?.status === "offline") {
+    return t("settings.bridge.needsAttention");
+  }
+  return t("settings.bridge.noBridge");
+}
+
+function lafBridgeStatusColor(runner?: HostedRunner, bridge?: BridgeDevice) {
+  if (lafBridgeConnected(runner, bridge)) return "var(--green)";
+  if (runner?.status === "stale" || bridge?.status === "offline") {
+    return "var(--yellow)";
+  }
   return "var(--text-tertiary)";
+}
+
+function lafBridgeStatusHint(
+  t: TranslationFn,
+  runner?: HostedRunner,
+  bridge?: BridgeDevice,
+) {
+  if (runner?.last_seen_at) return runnerStatusHint(runner);
+  if (bridge) return bridgeStatusHint(bridge);
+  return t("settings.bridge.optionalHint");
 }
 
 function bridgeStatusHint(bridge?: BridgeDevice) {
   if (!bridge?.last_seen_at) return bridge?.device_label || "";
   return `${bridge.device_label || bridge.id} · ${new Date(bridge.last_seen_at).toLocaleString()}`;
-}
-
-function runnerStatusLabel(
-  t: ReturnType<typeof useI18n>["t"],
-  runner?: HostedRunner,
-) {
-  if (!runner) return t("settings.runner.noRunner");
-  if (runner.status === "connected") return t("settings.runner.connected");
-  if (runner.status === "stale") return t("settings.runner.stale");
-  return t("settings.runner.disconnected");
-}
-
-function runnerStatusColor(runner?: HostedRunner) {
-  if (!runner) return "var(--text-tertiary)";
-  if (runner.status === "connected") return "var(--green)";
-  if (runner.status === "stale") return "var(--yellow)";
-  return "var(--text-tertiary)";
 }
 
 function runnerStatusHint(runner?: HostedRunner) {
@@ -2484,30 +1971,6 @@ function runnerStatusHint(runner?: HostedRunner) {
 function browserRunnerAPIURL() {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/api`;
-}
-
-function detectRunnerPlatformFrom(raw: string): RunnerPlatform {
-  if (/mac|iphone|ipad|ipod/i.test(raw)) return "macos";
-  if (/win/i.test(raw)) return "windows";
-  return "other";
-}
-
-function detectRunnerPlatform(): RunnerPlatform {
-  if (typeof navigator === "undefined") return "other";
-  const nav = navigator as Navigator & {
-    userAgentData?: { platform?: string };
-  };
-  const raw = `${nav.userAgentData?.platform || ""} ${navigator.platform || ""} ${navigator.userAgent || ""}`;
-  return detectRunnerPlatformFrom(raw);
-}
-
-function runnerPairingDeepLink(pairing: RunnerPairingStartResponse) {
-  const params = new URLSearchParams({
-    api_url: pairing.api_url,
-    code: pairing.pairing.code,
-    connect: "1",
-  });
-  return `laf-runner://pair?${params.toString()}`;
 }
 
 function formatPairingExpiry(value: string) {
@@ -3017,7 +2480,6 @@ export function SettingsApp() {
         {section === "access" && <AccessControlSection />}
         {section === "company" && <CompanySection cfg={data} save={save} />}
         {section === "bridge" && <BridgeSection />}
-        {section === "runner" && <RunnerSection />}
         {section === "keys" && <KeysSection cfg={data} save={save} />}
         {section === "danger" && <DangerZoneSection />}
       </div>
@@ -3026,8 +2488,5 @@ export function SettingsApp() {
 }
 
 export const __test__ = {
-  RUNNER_INSTALLERS,
-  RUNNER_MACOS_PKG_PATH,
-  RUNNER_WINDOWS_MSI_PATH,
-  detectRunnerPlatformFrom,
+  RUNNER_INSTALL_COMMAND,
 };

@@ -3724,7 +3724,7 @@ async function buildAgentMemoryPacket(task, project) {
     })),
     must_obey: [
       "Treat this packet as the first memory read for the task; do not re-ask for context already loaded here.",
-      "Hosted control plane queues work only; Team Bridge machines own filesystem, git, GitHub, and provider CLI execution.",
+      "Hosted control plane queues work only; LAF Bridge machines own filesystem, git, GitHub, and provider CLI execution.",
     ],
     must_read: project
       ? [
@@ -4096,6 +4096,10 @@ function runnerPairingRequestAPIURL(req) {
 
 function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
   const normalizedAPIURL = normalizeRunnerPairingAPIURL(apiURL);
+  const installCommand =
+    "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh";
+  const connectCommand = `laf-runner pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)} --background`;
+  const setupCommand = `PATH="$HOME/.local/bin:$PATH"; if ! command -v laf-runner >/dev/null 2>&1; then ${installCommand} || exit 1; fi; LAF_RUNNER_BIN="$(command -v laf-runner || printf '%s/.local/bin/laf-runner' "$HOME")"; "$LAF_RUNNER_BIN" pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)} --background`;
   return {
     api_url: normalizedAPIURL,
     pairing: {
@@ -4104,9 +4108,15 @@ function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
       team_id: teamID,
     },
     commands: {
-      connect: `laf-runner pair --api-url ${normalizedAPIURL} --code ${code} --connect`,
+      install: installCommand,
+      connect: connectCommand,
+      setup: setupCommand,
     },
   };
+}
+
+function shellQuote(value) {
+  return `'${String(value || "").replaceAll("'", "'\"'\"'")}'`;
 }
 
 function hashOrNull(value) {

@@ -1186,7 +1186,9 @@ export interface RunnerPairingStartResponse {
     expires_at: string;
   };
   commands: {
+    install?: string;
     connect: string;
+    setup?: string;
   };
 }
 

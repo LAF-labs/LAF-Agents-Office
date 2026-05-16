@@ -265,9 +265,7 @@ describe("TasksApp project directory", () => {
     expect(
       within(taskList).getByText("Implement signup flow"),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText("Team Bridge connected"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("LAF Bridge connected")).toBeInTheDocument();
     expect(
       within(taskList).getByText("Review signup flow"),
     ).toBeInTheDocument();
@@ -463,7 +461,7 @@ describe("TasksApp project directory", () => {
     ).toBeInTheDocument();
   });
 
-  it("disables My Bridge execution until the project has a trusted binding", async () => {
+  it("disables LAF Bridge execution until the project has a trusted binding", async () => {
     const user = userEvent.setup();
     apiMocks.getModelAvailability.mockResolvedValue({
       allowed_modes: ["my_bridge", "record_only"],
@@ -516,7 +514,7 @@ describe("TasksApp project directory", () => {
     ).toBeDisabled();
   });
 
-  it("creates a My Bridge execution plan and renders events with the receipt", async () => {
+  it("creates a LAF Bridge execution plan and renders events with the receipt", async () => {
     const user = userEvent.setup();
     Object.defineProperty(window, "confirm", {
       configurable: true,

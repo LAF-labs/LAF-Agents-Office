@@ -637,7 +637,6 @@ MVP local config paths:
 ```text
 macOS:   ~/Library/Application Support/LAF Bridge/config.json
 Linux:   ~/.config/laf-bridge/config.json
-Windows: %APPDATA%\LAF Bridge\config.json
 ```
 
 Secret storage:
@@ -722,16 +721,17 @@ Auth:
 Mode selector after Phase 1:
 
 ```text
-LAF Model | My Bridge | Record Only
+LAF Model | LAF Bridge | Record Only
 ```
 
-`Team Bridge` can be hidden or disabled until Phase 10.
+The old `my_bridge` and `team_bridge` internal modes should present as one
+LAF Bridge surface.
 
 Required UI surfaces:
 
 - Settings: bridge device list, pairing code, revoke, provider status.
 - Project settings: local folder binding status and link instructions.
-- Task composer/detail: execution mode selector and My Bridge availability.
+- Task composer/detail: execution mode selector and LAF Bridge availability.
 - Execution confirmation dialog.
 - Execution event stream in task chat/detail.
 - Receipt card after completion.
@@ -1066,7 +1066,7 @@ Tests:
 Status: Partially implemented in the current workspace. The hosted API now
 returns execution receipts on plan reads when the viewer can read receipts, the
 web API client has typed bridge/binding/execution methods with coverage, Settings
-has a My Bridge status, pairing, command-copy, and revoke panel, project detail
+has a LAF Bridge status, pairing, command-copy, and revoke panel, project detail
 has a local binding management panel, and task chat creates a confirmed
 `my_bridge` execution plan instead of posting a normal chat message. The task
 panel polls plan/events as the durable fallback and renders recent events plus
@@ -1075,7 +1075,7 @@ remain pending.
 
 Goal:
 
-Make My Bridge usable from Settings, Project settings, and Task execution.
+Make LAF Bridge usable from Settings, Project settings, and Task execution.
 
 Files:
 
@@ -1097,13 +1097,13 @@ Work:
 - Add project local binding panel.
 - Add execution confirmation dialog.
 - Add event stream and receipt card.
-- Use `createExecutionPlan` for My Bridge execution.
+- Use `createExecutionPlan` for LAF Bridge execution.
 - Show clear disabled reasons for unavailable bridge/binding/provider.
 
 Tests:
 
-- My Bridge disabled when no bridge is paired.
-- My Bridge disabled when project binding is missing.
+- LAF Bridge disabled when no bridge is paired.
+- LAF Bridge disabled when project binding is missing.
 - Pairing flow renders code and expiry.
 - Execution confirmation submits plan creation.
 - Event stream renders events.
@@ -1189,24 +1189,24 @@ Tests:
 - Revoked device cannot heartbeat or upload events.
 - Cancelled plan cannot be completed by stale bridge process.
 
-### Phase 10 - Team Bridge / Runner Unification
+### Phase 10 - LAF Bridge / Runner Unification
 
 Status: Partially implemented in the current workspace. Runner endpoints remain
-stable for installed agents, but new Team Bridge registration and pairing setup
+stable for installed agents, but new LAF Bridge registration and pairing setup
 now require an owner/admin role in hosted and local broker paths. Runner job
 claiming is guarded at both the hosted test adapter and Supabase RPC migration
 so only `model_mode = 'team_bridge'` jobs can be leased. Web-facing copy now
-labels the surface as Team Bridge while preserving the existing `laf-runner`
-binary/protocol names. Wrapping Team Bridge dispatch in signed execution plans
+labels the surface as LAF Bridge while preserving the existing `laf-runner`
+binary/protocol names. Wrapping LAF Bridge dispatch in signed execution plans
 remains optional future work.
 
 Goal:
 
-Reposition existing Runner as Team Bridge without disrupting background users.
+Reposition existing Runner as LAF Bridge without disrupting background users.
 
 Work:
 
-- Rename product copy from Runner to Team Bridge where user-facing.
+- Rename product copy from Runner to LAF Bridge where user-facing.
 - Restrict team bridge registration to admins.
 - Ensure `runner_jobs` are created only for `team_bridge`.
 - Optionally wrap team bridge dispatch in `execution_plans`.
@@ -1228,7 +1228,7 @@ Move from developer CLI to polished desktop bridge.
 Work:
 
 - Tauri tray app wrapper.
-- Signed macOS/Windows installers.
+- Native installers after the command-line bridge path stabilizes.
 - Auto-update.
 - Durable Objects relay.
 - Enterprise self-hosted relay option.

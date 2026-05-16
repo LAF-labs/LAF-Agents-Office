@@ -71,29 +71,20 @@ is the preferred executable for hosted use; `laf-office runner <command>` stays
 as a compatibility path for existing local workspace installs.
 
 NPM is not part of the hosted execution architecture. It may remain as a
-developer bootstrap for `laf-office`, but production runner distribution should
-use signed native artifacts:
+developer bootstrap for `laf-office`, but hosted runner onboarding is
+command-only for now:
 
-- Windows: signed runner zip or MSI plus `winget` package. The current
-  no-terminal bootstrap is a per-user `laf-runner-installer.exe` that copies the
-  runner and registers the URL handler without admin rights.
-- macOS: Developer ID signed and notarized package or app wrapper. The package
-  installs the runner and registers a LaunchServices URL-handler app.
-- Linux: tarball plus package-manager wrappers such as deb/rpm.
+- macOS/Linux: install `laf-runner` from the release tarball via
+  `scripts/install.sh` or the hosted setup command.
+- Windows: support is paused.
+- Native package installers and URL handlers are paused until the command-line
+  runner path has stabilized.
 
 Every runner install path should converge on the same protocol: create a
-short-lived setup code in the web UI, claim it through `laf-runner://pair?...`
-for non-developers or `laf-runner pair --connect` as a fallback, report
+short-lived setup code in the web UI, claim it through a generated setup
+command that runs `laf-runner pair --background`, report
 capabilities, heartbeat, lease jobs, renew leases, upload events, and complete
 jobs.
-
-Installers must register the `laf-runner://` URL scheme:
-
-- Windows: per-user `HKCU\Software\Classes\laf-runner` handler that runs
-  `laf-runner pair-url "%1"`, plus a per-user login startup entry that runs
-  `laf-runner connect` after the runner has been paired.
-- macOS: a small URL-handler app registered with LaunchServices that calls
-  `laf-runner pair-url "$URL"`.
 
 The hosted workspace must remain usable before any runner is installed. Missing
 runners block local Codex/Claude execution only; planning, project memory, task
