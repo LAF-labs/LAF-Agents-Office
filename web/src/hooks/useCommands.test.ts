@@ -62,6 +62,20 @@ describe("toAutocomplete", () => {
     expect(mapped[0].desc).toBe("Custom override description");
   });
 
+  it("localizes known broker commands for Korean UI", () => {
+    const broker: SlashCommandDescriptor[] = [
+      { name: "ask", description: "Ask the team lead", webSupported: true },
+      {
+        name: "brand-new-command",
+        description: "Future command",
+        webSupported: true,
+      },
+    ];
+    const mapped = toAutocomplete(broker, "ko");
+    expect(mapped[0].desc).toBe("팀 리드에게 묻기");
+    expect(mapped[1].desc).toBe("Future command");
+  });
+
   it("returns an empty array when every command is TUI-only", () => {
     const broker: SlashCommandDescriptor[] = [
       { name: "object", description: "TUI", webSupported: false },

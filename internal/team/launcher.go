@@ -1079,11 +1079,12 @@ func (l *Launcher) sendTaskUpdate(target notificationTarget, action officeAction
 	if channel == "" {
 		channel = "general"
 	}
-	notification := l.buildTaskExecutionPacket(target.Slug, action, task, content)
 	if l.shouldUseHeadlessDispatchForTarget(target) {
+		notification := l.buildHeadlessTaskExecutionPacket(target.Slug, action, task, content)
 		l.enqueueHeadlessCodexTurn(target.Slug, headlessSandboxNote()+notification, channel)
 		return
 	}
+	notification := l.buildTaskExecutionPacket(target.Slug, action, task, content)
 	l.queuePaneNotification(target.Slug, target.PaneTarget, notification)
 }
 
@@ -3073,6 +3074,14 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 }
 
 func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog, task teamTask, content string) string {
+	return l.buildTaskExecutionPacketWithTransport(slug, action, task, content, agentReplyTransportBroadcast)
+}
+
+func (l *Launcher) buildHeadlessTaskExecutionPacket(slug string, action officeActionLog, task teamTask, content string) string {
+	return l.buildTaskExecutionPacketWithTransport(slug, action, task, content, agentReplyTransportFinal)
+}
+
+func (l *Launcher) buildTaskExecutionPacketWithTransport(slug string, action officeActionLog, task teamTask, content string, transport agentReplyTransport) string {
 	channel := normalizeChannelSlug(task.Channel)
 	if channel == "" {
 		channel = "general"
@@ -3101,7 +3110,11 @@ func (l *Launcher) buildTaskExecutionPacket(slug string, action officeActionLog,
 		replyToID = strings.TrimSpace(task.ID)
 	}
 	if replyToID != "" {
-		lines = append(lines, fmt.Sprintf("- Task chat reply: use team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\" for human-visible progress and blockers.", slug, channel, replyToID))
+		if transport == agentReplyTransportFinal {
+			lines = append(lines, "- Task chat reply: for human-visible progress and blockers, write the update as your final answer text. "+headlessFinalReplyInstruction(slug, channel, replyToID))
+		} else {
+			lines = append(lines, fmt.Sprintf("- Task chat reply: use team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\" for human-visible progress and blockers.", slug, channel, replyToID))
+		}
 	}
 	lines = append(lines, fmt.Sprintf("- Mutation channel: use #%s when claiming or completing #%s", channel, task.ID))
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {

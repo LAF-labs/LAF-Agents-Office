@@ -601,6 +601,45 @@ func TestSendChannelUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
 	}
 }
 
+func TestSendTaskUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
+	b := newTestBroker(t)
+	l := newHeadlessLauncherForTest(t)
+	l.broker = b
+	l.provider = "codex"
+
+	processed := make(chan headlessCodexTurn, 1)
+	setHeadlessCodexRunTurnRecordForTest(t, func(_ *Launcher, _ context.Context, _ string, turn headlessCodexTurn) error {
+		processed <- turn
+		return nil
+	})
+
+	l.sendTaskUpdate(notificationTarget{Slug: "eng"}, officeActionLog{
+		Kind:  "task_created",
+		Actor: "ceo",
+	}, teamTask{
+		ID:       "task-42",
+		Channel:  "general",
+		ThreadID: "msg-root",
+		Title:    "Fix payment delay",
+		Owner:    "eng",
+		Status:   "in_progress",
+	}, "Start this task.")
+
+	turn := waitForHeadlessTurn(t, processed)
+	if !strings.Contains(turn.Prompt, "Headless reply transport") {
+		t.Fatalf("expected headless final-answer transport instruction, got %q", turn.Prompt)
+	}
+	if !strings.Contains(turn.Prompt, `reply_to_id "msg-root"`) {
+		t.Fatalf("expected task thread reply target, got %q", turn.Prompt)
+	}
+	if strings.Contains(turn.Prompt, "team_broadcast") {
+		t.Fatalf("headless task update must not require team_broadcast, got %q", turn.Prompt)
+	}
+	if !strings.Contains(turn.Prompt, "team_task") {
+		t.Fatalf("headless task packet should still require durable task mutation, got %q", turn.Prompt)
+	}
+}
+
 func TestSendChannelUpdateSuppressesFinalPostForHiddenCollaborationRequest(t *testing.T) {
 	b := newTestBroker(t)
 	l := newHeadlessLauncherForTest(t)

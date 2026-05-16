@@ -710,8 +710,11 @@ func TestPostHeadlessFailureNoticeRepliesInThreadDespitePendingRequest(t *testin
 	if got == nil {
 		t.Fatalf("expected threaded architect failure notice, got messages %+v", messages)
 	}
-	if !strings.Contains(got.Content, "failed before posting a response") {
+	if !strings.Contains(got.Content, "응답을 완료하지 못했습니다") {
 		t.Fatalf("unexpected failure notice content: %q", got.Content)
+	}
+	if strings.Contains(got.Content, "Last error") || strings.Contains(got.Content, "runtime failed") {
+		t.Fatalf("failure notice should not expose raw runtime details: %q", got.Content)
 	}
 	if !utf8.ValidString(got.Content) {
 		t.Fatalf("failure notice is not valid UTF-8: %q", got.Content)

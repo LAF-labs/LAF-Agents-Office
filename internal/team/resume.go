@@ -65,11 +65,11 @@ func findUnansweredMessages(humanMsgs, allMessages []channelMessage) []channelMe
 	return out
 }
 
-type resumeReplyTransport string
+type agentReplyTransport string
 
 const (
-	resumeReplyTransportBroadcast resumeReplyTransport = "broadcast"
-	resumeReplyTransportFinal     resumeReplyTransport = "final"
+	agentReplyTransportBroadcast agentReplyTransport = "broadcast"
+	agentReplyTransportFinal     agentReplyTransport = "final"
 )
 
 type resumeWork struct {
@@ -82,11 +82,11 @@ type resumeWork struct {
 // and any unanswered human messages (with channel/reply_to routing instructions).
 // Returns an empty string when there is nothing to resume.
 func buildResumePacket(slug string, tasks []teamTask, msgs []channelMessage) string {
-	return buildResumePacketWithTransport(slug, tasks, msgs, resumeReplyTransportBroadcast)
+	return buildResumePacketWithTransport(slug, tasks, msgs, agentReplyTransportBroadcast)
 }
 
 func buildHeadlessResumePacket(slug string, tasks []teamTask, msgs []channelMessage) string {
-	return buildResumePacketWithTransport(slug, tasks, msgs, resumeReplyTransportFinal)
+	return buildResumePacketWithTransport(slug, tasks, msgs, agentReplyTransportFinal)
 }
 
 func buildHeadlessResumeTurns(slug string, work resumeWork) []headlessCodexTurn {
@@ -122,7 +122,7 @@ func buildHeadlessResumeTurns(slug string, work resumeWork) []headlessCodexTurn 
 	return turns
 }
 
-func buildResumePacketWithTransport(slug string, tasks []teamTask, msgs []channelMessage, transport resumeReplyTransport) string {
+func buildResumePacketWithTransport(slug string, tasks []teamTask, msgs []channelMessage, transport agentReplyTransport) string {
 	if len(tasks) == 0 && len(msgs) == 0 {
 		return ""
 	}
@@ -155,7 +155,7 @@ func buildResumePacketWithTransport(slug string, tasks []teamTask, msgs []channe
 		}
 		sb.WriteString("\n")
 		switch transport {
-		case resumeReplyTransportFinal:
+		case agentReplyTransportFinal:
 			target := msgs[len(msgs)-1]
 			channel := normalizeChannelSlug(target.Channel)
 			if channel == "" {

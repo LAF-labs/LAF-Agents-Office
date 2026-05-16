@@ -742,6 +742,10 @@ func (l *Launcher) wakeLeadAfterSpecialist(specialistSlug string) {
 		}
 		return
 	}
+	if isDM, _ := l.isChannelDM(normalizeChannelSlug(lastMsg.Channel)); isDM {
+		appendHeadlessCodexLog(lead, fmt.Sprintf("wake-lead: skipped direct-message reply from @%s (msg %s)", specialistSlug, lastMsg.ID))
+		return
+	}
 	if l.messageIsHomeSpecialistOnlyThread(*lastMsg, lead) {
 		appendHeadlessCodexLog(lead, fmt.Sprintf("wake-lead: skipped home direct specialist reply from @%s (msg %s)", specialistSlug, lastMsg.ID))
 		return
@@ -915,18 +919,29 @@ func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessC
 			}
 		}
 	}
-	trimmed := strings.TrimSpace(sanitizeHeadlessPromptText(detail))
-	if trimmed == "" {
-		trimmed = "unknown agent runtime error"
-	}
-	detailText := sanitizeHeadlessPromptText(truncate(trimmed, 220))
-	text := fmt.Sprintf("I couldn't finish that reply because @%s failed before posting a response. Last error: %s", strings.TrimSpace(slug), detailText)
+	text := headlessFailureNoticeText(slug, detail)
 	if _, err := l.broker.PostMessage(slug, targetChannel, text, nil, replyTo); err != nil {
 		appendHeadlessCodexLog(slug, "failure-notice-post-error: "+err.Error())
 		l.broker.ClearRoutingTargets([]string{slug})
 		return
 	}
 	appendHeadlessCodexLog(slug, fmt.Sprintf("failure-notice-post: posted failure notice to #%s reply_to=%s", targetChannel, replyTo))
+}
+
+func headlessFailureNoticeText(slug string, detail string) string {
+	name := strings.TrimSpace(slug)
+	if name == "" {
+		name = "agent"
+	}
+	trimmed := strings.ToLower(strings.TrimSpace(detail))
+	switch {
+	case strings.Contains(trimmed, "timed out"):
+		return fmt.Sprintf("@%s 응답 시간이 길어져 이번 답변을 완료하지 못했습니다. 잠시 후 다시 요청해 주세요.", name)
+	case strings.Contains(trimmed, "not found"), strings.Contains(trimmed, "authentication"), strings.Contains(trimmed, "auth"), strings.Contains(trimmed, "permission denied"):
+		return fmt.Sprintf("@%s 실행에 필요한 CLI 설치 또는 로그인 상태를 확인해야 합니다. 설정에서 CLI 연결 상태를 확인한 뒤 다시 요청해 주세요.", name)
+	default:
+		return fmt.Sprintf("@%s 응답을 완료하지 못했습니다. 설정에서 CLI 연결 상태를 확인한 뒤 다시 요청해 주세요.", name)
+	}
 }
 
 func headlessReplyToID(notification string) string {
