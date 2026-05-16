@@ -39,13 +39,56 @@ const WORKSPACE_PERMISSIONS = [
 ];
 
 class HTTPError extends Error {
-  constructor(status, message) {
+  constructor(status, message, opts = {}) {
     super(message);
     this.status = status;
+    // When safe=true the caller has confirmed the message is generic enough
+    // to forward to the client. Upstream Supabase/auth errors should default
+    // to safe=false so we don't leak internal detail to attackers.
+    this.safe = opts.safe !== false;
   }
 }
 
+const ALLOWED_ORIGINS = String(process.env.LAF_OFFICE_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function applyBaselineSecurityHeaders(res) {
+  // Conservative defaults. The web bundle is served same-origin via Vercel
+  // rewrites, so the API doesn't need a permissive CSP; we just lock down
+  // common XSS/clickjacking/MIME-sniffing vectors here.
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains",
+  );
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+}
+
+function applyCORSHeaders(req, res) {
+  const origin = String(req.headers.origin || "").trim();
+  if (!origin) return;
+  if (!ALLOWED_ORIGINS.includes(origin)) return;
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Authorization, Content-Type, X-Requested-With",
+  );
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PATCH, DELETE, OPTIONS",
+  );
+  res.setHeader("Access-Control-Max-Age", "600");
+}
+
 module.exports = async function handler(req, res) {
+  applyBaselineSecurityHeaders(res);
+  applyCORSHeaders(req, res);
   try {
     if (req.method === "OPTIONS") {
       res.status(204).end();
@@ -89,6 +132,10 @@ module.exports = async function handler(req, res) {
     }
     if (path === "permissions") {
       await handlePermissions(req, res);
+      return;
+    }
+    if (path === "audit" && req.method === "GET") {
+      await handleAuditEvents(req, res);
       return;
     }
     if (path === "model/availability" && req.method === "GET") {
@@ -175,17 +222,43 @@ module.exports = async function handler(req, res) {
     writeJSON(res, 404, { error: "hosted API route not found" });
   } catch (err) {
     const status = err instanceof HTTPError ? err.status : 500;
-    const message =
-      err instanceof HTTPError ? err.message : "hosted API internal error";
+    let message;
+    if (err instanceof HTTPError) {
+      // Only forward HTTPError.message when explicitly marked safe. Upstream
+      // (Supabase/auth) detail is wrapped with safe=false so we expose a
+      // generic message and log the real one server-side.
+      message = err.safe === false ? defaultMessageForStatus(status) : err.message;
+    } else {
+      message = "hosted API internal error";
+    }
+    if (status >= 500 || (err instanceof HTTPError && err.safe === false)) {
+      try {
+        console.error("[laf-office:api]", req.method, requestPath(req), err);
+      } catch {
+        // best-effort logging
+      }
+    }
     writeJSON(res, status, { error: message });
   }
 };
+
+function defaultMessageForStatus(status) {
+  if (status === 400) return "invalid request";
+  if (status === 401) return "authentication required";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "not found";
+  if (status === 409) return "conflict";
+  if (status === 410) return "gone";
+  if (status === 429) return "rate limited";
+  if (status >= 500) return "upstream error";
+  return "request failed";
+}
 
 function assertSupabaseEnv() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new HTTPError(
       503,
-      "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+      "supabase environment is not configured",
     );
   }
 }
@@ -202,7 +275,7 @@ async function readBody(req) {
     try {
       return JSON.parse(req.body);
     } catch {
-      throw new HTTPError(400, "invalid JSON body");
+      throw new HTTPError(400, "invalid json body");
     }
   }
   const chunks = [];
@@ -212,7 +285,7 @@ async function readBody(req) {
   try {
     return JSON.parse(text);
   } catch {
-    throw new HTTPError(400, "invalid JSON body");
+    throw new HTTPError(400, "invalid json body");
   }
 }
 
@@ -265,9 +338,13 @@ async function rest(table, options = {}) {
   });
   const text = await response.text();
   if (!response.ok) {
+    // safe=false: upstream PostgREST errors can include column names,
+    // constraint identifiers, or RLS detail that should not reach the
+    // browser. The catch in handler() will redact and log.
     throw new HTTPError(
       response.status,
       responseErrorMessage(text, response.statusText),
+      { safe: false },
     );
   }
   return text ? JSON.parse(text) : null;
@@ -284,6 +361,7 @@ async function rpc(name, body = {}) {
     throw new HTTPError(
       response.status,
       responseErrorMessage(text, response.statusText),
+      { safe: false },
     );
   }
   return text ? JSON.parse(text) : null;
@@ -300,6 +378,7 @@ async function authFetch(path, options = {}) {
     throw new HTTPError(
       response.status,
       responseErrorMessage(text, response.statusText),
+      { safe: false },
     );
   }
   return text ? JSON.parse(text) : null;
@@ -657,6 +736,40 @@ function requirePermission(membership, permission) {
   }
 }
 
+async function handleAuditEvents(req, res) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "audit:read");
+  const limit = clamp(Number(req.query?.limit) || 100, 1, 500);
+  const beforeRaw = String(req.query?.before || "").trim();
+  let beforeISO = "";
+  if (beforeRaw) {
+    const parsed = new Date(beforeRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new HTTPError(400, "before must be an ISO-8601 timestamp");
+    }
+    beforeISO = parsed.toISOString();
+  }
+  const query = {
+    order: "created_at.desc",
+    select: "*",
+    team_id: `eq.${membership.team_id}`,
+    limit: String(limit),
+  };
+  if (beforeISO) query.created_at = `lt.${beforeISO}`;
+  const rows = await rest("audit_events", { query });
+  writeJSON(res, 200, {
+    events: (rows || []).map((row) => ({
+      action: row.action,
+      actor_user_id: row.actor_user_id,
+      created_at: row.created_at,
+      id: row.id,
+      metadata: row.metadata || {},
+      target_id: row.target_id || "",
+      target_type: row.target_type || "",
+    })),
+  });
+}
+
 async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}) {
   if (!membership?.team_id) return null;
   try {
@@ -694,15 +807,38 @@ async function handleAuthSession(req, res) {
   }
 }
 
-async function adminUsersByID() {
+// adminUserByID fetches a single auth user via the admin endpoint. Unlike the
+// previous adminUsersByID() that pulled the entire project user list, this
+// scoped variant only requests the ids that the caller actually needs (and
+// for which permission has already been verified via memberships RLS).
+async function adminUserByID(userID) {
+  if (!userID) return null;
   try {
-    const adminUsers = await authFetch("admin/users", {
+    const user = await authFetch(`admin/users/${encodeURIComponent(userID)}`, {
       headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
     });
-    return Object.fromEntries((adminUsers?.users || []).map((user) => [user.id, user]));
+    return user && typeof user === "object" ? user : null;
   } catch {
-    return {};
+    return null;
   }
+}
+
+async function adminUsersByIDs(userIDs) {
+  const unique = Array.from(new Set((userIDs || []).filter(Boolean)));
+  if (unique.length === 0) return {};
+  // Bounded fan-out: 16 concurrent admin/users lookups is plenty for any
+  // realistic team size while keeping the Supabase admin endpoint healthy.
+  const concurrency = 16;
+  const result = {};
+  for (let i = 0; i < unique.length; i += concurrency) {
+    const slice = unique.slice(i, i + concurrency);
+    const users = await Promise.all(slice.map(adminUserByID));
+    for (let j = 0; j < slice.length; j += 1) {
+      const user = users[j];
+      if (user && user.id) result[user.id] = user;
+    }
+  }
+  return result;
 }
 
 async function listTeamAuthUsers(teamID) {
@@ -713,7 +849,7 @@ async function listTeamAuthUsers(teamID) {
       team_id: `eq.${teamID}`,
     },
   });
-  const usersByID = await adminUsersByID();
+  const usersByID = await adminUsersByIDs(memberships.map((row) => row.user_id));
   return memberships.map((row) => {
     const user = usersByID[row.user_id] || {
       id: row.user_id,
@@ -738,6 +874,11 @@ async function handleAuthUsers(req, res) {
   const targetUserID = String(body.user_id || "").trim();
   if (!targetUserID) throw new HTTPError(400, "user_id is required");
   const nextRole = normalizeRole(body.role);
+  // Block self-role changes. An admin must not be able to self-promote to
+  // owner; ownership transfer should go through a separate, explicit flow.
+  if (targetUserID === membership.user_id && nextRole !== normalizeRole(membership.role)) {
+    throw new HTTPError(403, "cannot change your own role");
+  }
   const [target] = await rest("memberships", {
     query: {
       limit: "1",
@@ -874,7 +1015,7 @@ async function handlePermissions(req, res) {
         team_id: `eq.${membership.team_id}`,
       },
     });
-    const usersByID = await adminUsersByID();
+    const usersByID = await adminUsersByIDs(memberships.map((row) => row.user_id));
     writeJSON(res, 200, {
       roles: WORKSPACE_ROLES,
       permissions: [...WORKSPACE_PERMISSIONS].sort(),
@@ -898,6 +1039,16 @@ async function handlePermissions(req, res) {
   const body = await readBody(req);
   const targetUserID = String(body.user_id || "").trim();
   if (!targetUserID) throw new HTTPError(400, "user_id is required");
+  // Block self-permission edits. Even users with member:manage_permissions
+  // should not be able to override their own permission set or escalate
+  // themselves to a higher role.
+  const isSelf = targetUserID === membership.user_id;
+  if (isSelf && body.role !== undefined && normalizeRole(body.role) !== normalizeRole(membership.role)) {
+    throw new HTTPError(403, "cannot change your own role");
+  }
+  if (isSelf && body.permissions !== undefined) {
+    throw new HTTPError(403, "cannot change your own permissions");
+  }
   const [target] = await rest("memberships", {
     query: {
       limit: "1",
@@ -982,15 +1133,25 @@ async function handleInvites(req, res) {
       token_hash: hashToken(token),
     },
   });
-  const publicRow = publicInvite({ ...invite, token }, req);
+  // Token-bearing fields are returned ONCE on creation and never again.
+  // GET /invites and /invites/lookup only see token_hash from the DB, so
+  // they cannot reconstruct the plaintext token. We strip the raw `token`
+  // string from the embedded invite object — clients should consume the
+  // generated URL, not the raw token — and reduce the surface where a
+  // careless logger persists it.
+  const withToken = publicInvite({ ...invite, token }, req);
+  const oneTimeURL = withToken.invite_url;
+  const inviteForBody = { ...withToken };
+  delete inviteForBody.token;
   await writeAuditEvent(membership, "invite.created", "invite", invite.id, {
     email: invite.email,
     role: invite.role,
   });
   writeJSON(res, 200, {
     email_sent: false,
-    invite: publicRow,
-    invite_url: publicRow.invite_url,
+    invite: inviteForBody,
+    invite_url: oneTimeURL,
+    one_time_invite_url: oneTimeURL,
   });
 }
 
@@ -1427,6 +1588,13 @@ async function handleOrchestrationConfirm(req, res) {
   for (const permission of intent.required_permissions || []) {
     requirePermission(membership, permission);
   }
+  // Apply mutating actions sequentially when they could race on a unique
+  // identifier (e.g. project local_id is minted via a read-then-write inside
+  // applyOrchestrationAction → uniqueProjectLocalID). Read-only actions and
+  // those targeting distinct entity types can safely run in parallel, but
+  // since the current orchestrator emits at most a handful of actions per
+  // intent the simplicity of a sequential loop is worth the trivial latency
+  // cost — and avoids silent duplicate-row creation under contention.
   const applied = [];
   for (const action of intent.proposed_actions) {
     applied.push(await applyOrchestrationAction(membership, action));
@@ -2395,9 +2563,21 @@ function publicTeam(row) {
   };
 }
 
+// publicInvite renders an invite row for the client. The plaintext token is
+// only included when explicitly passed (row.token is only present on the
+// one-time creation response and on the recipient-side /invites/lookup path
+// that already requires the token to be known). The general /invites listing
+// and audit responses never see the token.
 function publicInvite(row, req) {
   const token = row.token || "";
-  const inviteURL = token ? `${originFor(req)}/invite/${encodeURIComponent(token)}` : "";
+  let inviteURL = "";
+  if (token) {
+    try {
+      inviteURL = `${originFor(req)}/invite/${encodeURIComponent(token)}`;
+    } catch {
+      inviteURL = "";
+    }
+  }
   const result = {
     accepted_at: row.accepted_at,
     accepted_by: row.accepted_by,
@@ -2423,42 +2603,46 @@ function publicInvite(row, req) {
 async function buildAgentMemoryPacket(task, project) {
   const wikiPath = project ? `team/projects/${project.local_id || project.id}.md` : "";
   const unavailable = [];
-  const wikiRows = project
-    ? await rest("wiki_article_index", {
-        query: {
-          order: "updated_at.desc",
-          project_id: `eq.${project.id}`,
-          select: "*",
-          team_id: `eq.${task.team_id}`,
-        },
-      })
-    : [];
+  // Fetch the three independent project context queries in parallel. Each
+  // one was previously awaited serially, costing 3× the round-trip latency
+  // on Vercel's 10s function budget. They are independent reads against
+  // separate tables with no ordering dependency.
+  const [wikiRows, receipts, recentTasks] = project
+    ? await Promise.all([
+        rest("wiki_article_index", {
+          query: {
+            order: "updated_at.desc",
+            project_id: `eq.${project.id}`,
+            select: "*",
+            team_id: `eq.${task.team_id}`,
+          },
+        }),
+        rest("delivery_receipts", {
+          query: {
+            order: "created_at.desc",
+            project_id: `eq.${project.id}`,
+            select: "*",
+            team_id: `eq.${task.team_id}`,
+            limit: "50",
+          },
+        }),
+        rest("tasks", {
+          query: {
+            order: "updated_at.desc",
+            project_id: `eq.${project.id}`,
+            select: "*",
+            status: "in.(done,canceled,review)",
+            team_id: `eq.${task.team_id}`,
+            limit: "20",
+          },
+        }),
+      ])
+    : [[], [], []];
   if (!project) {
     unavailable.push("No project is attached to this task.");
   } else if (!wikiRows?.length) {
     unavailable.push(`No hosted wiki index entries are available for ${wikiPath}.`);
   }
-  const receipts = project
-    ? await rest("delivery_receipts", {
-        query: {
-          order: "created_at.desc",
-          project_id: `eq.${project.id}`,
-          select: "*",
-          team_id: `eq.${task.team_id}`,
-        },
-      })
-    : [];
-  const recentTasks = project
-    ? await rest("tasks", {
-        query: {
-          order: "updated_at.desc",
-          project_id: `eq.${project.id}`,
-          select: "*",
-          status: "in.(done,canceled,review)",
-          team_id: `eq.${task.team_id}`,
-        },
-      })
-    : [];
   const indexedRows = (wikiRows || []).slice(0, 5);
   const packet = {
     decisions: memoryItemsFromRows(indexedRows, "decisions"),
@@ -2694,9 +2878,11 @@ function normalizeRunnerPairingAPIURL(value) {
 }
 
 function runnerPairingRequestAPIURL(req) {
-  const proto = String(req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
-  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").trim();
-  return host ? `${proto}://${host}/api` : "";
+  try {
+    return `${trustedPublicOrigin(req)}/api`;
+  } catch {
+    return "";
+  }
 }
 
 function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
@@ -2752,10 +2938,37 @@ function compactObject(value) {
   );
 }
 
-function originFor(req) {
-  const proto =
-    req.headers["x-forwarded-proto"] ||
-    (process.env.NODE_ENV === "production" ? "https" : "http");
-  const host = req.headers["x-forwarded-host"] || req.headers.host || "";
+// trustedPublicOrigin resolves the absolute origin used in user-facing URLs
+// (invite links, pairing URLs, etc.). It never trusts request headers in
+// production, because Host / x-forwarded-host are client-controlled when the
+// API is reached through unexpected proxies, enabling host-header injection
+// against invite recipients. The canonical host is configured via
+// LAF_OFFICE_PUBLIC_HOST (or VERCEL_URL on Vercel), and only falls back to
+// request headers in local development (NODE_ENV !== "production").
+function trustedPublicOrigin(req) {
+  const configured = String(
+    process.env.LAF_OFFICE_PUBLIC_HOST || process.env.VERCEL_URL || "",
+  ).trim();
+  if (configured) {
+    const stripped = configured.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    return `https://${stripped}`;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new HTTPError(
+      503,
+      "LAF_OFFICE_PUBLIC_HOST is not configured for production",
+    );
+  }
+  const proto = String(req.headers["x-forwarded-proto"] || "http")
+    .split(",")[0]
+    .trim();
+  const host = String(req.headers.host || "").trim();
+  if (!host) {
+    throw new HTTPError(400, "cannot resolve public origin");
+  }
   return `${proto}://${host}`;
+}
+
+function originFor(req) {
+  return trustedPublicOrigin(req);
 }
