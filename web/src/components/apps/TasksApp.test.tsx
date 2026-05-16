@@ -252,7 +252,7 @@ describe("TasksApp project directory", () => {
     const modal = await screen.findByRole("dialog", {
       name: "Create a new project",
     });
-    expect(within(modal).getByText("Required")).toBeInTheDocument();
+    expect(within(modal).getAllByText("Required").length).toBeGreaterThan(0);
     expect(within(modal).getAllByText("Recommended").length).toBeGreaterThan(0);
     expect(within(directory).getByText("Customer Portal")).toBeInTheDocument();
 
@@ -260,6 +260,7 @@ describe("TasksApp project directory", () => {
       within(modal).getByLabelText("Project name"),
       "Customer onboarding",
     );
+    await user.type(within(modal).getByLabelText("Project code"), "cust");
     await user.type(
       within(modal).getByLabelText("Project summary"),
       "Improve the first-run customer experience.",
@@ -280,6 +281,7 @@ describe("TasksApp project directory", () => {
       expect(apiMocks.createProject).toHaveBeenCalledWith(
         expect.objectContaining({
           additional_info: "Keep billing copy unchanged until approved.",
+          code: "CUST",
           created_by: "human",
           description: "Improve the first-run customer experience.",
           name: "Customer onboarding",
@@ -314,6 +316,14 @@ describe("TasksApp project directory", () => {
     expect(
       await screen.findByRole("heading", { name: "Customer Portal" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Managed checkout")).toBeInTheDocument();
+    expect(screen.getByText("Team runner connected")).toBeInTheDocument();
+    expect(
+      screen.queryByText("LAF Bridge is unavailable"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No local binding for this project yet."),
+    ).not.toBeInTheDocument();
 
     const taskList = screen.getByRole("region", { name: "Tasks" });
     expect(
@@ -323,7 +333,9 @@ describe("TasksApp project directory", () => {
     expect(
       within(taskList).getByText("Review signup flow"),
     ).toBeInTheDocument();
-    expect(within(taskList).getByText("Created by")).toBeInTheDocument();
+    expect(within(taskList).getAllByText("Created by").length).toBeGreaterThan(
+      0,
+    );
     expect(within(taskList).getAllByText("@ceo").length).toBeGreaterThan(0);
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
@@ -366,6 +378,9 @@ describe("TasksApp project directory", () => {
 
     await user.click(
       await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByText("Advanced: use an existing local folder"),
     );
     await user.type(
       await screen.findByLabelText("Local path"),
@@ -811,12 +826,19 @@ describe("TasksApp project creation", () => {
     await user.click(
       await screen.findByRole("button", { name: "New project" }),
     );
-    await user.type(screen.getByLabelText("Project name"), "Mobile App");
-    await user.keyboard("{Enter}");
+    const modal = await screen.findByRole("dialog", {
+      name: "Create a new project",
+    });
+    await user.type(within(modal).getByLabelText("Project name"), "Mobile App");
+    await user.type(within(modal).getByLabelText("Project code"), "mobi");
+    await user.click(
+      within(modal).getByRole("button", { name: "Create project" }),
+    );
 
     await waitFor(() => {
       expect(apiMocks.createProject).toHaveBeenCalledWith(
         expect.objectContaining({
+          code: "MOBI",
           created_by: "human",
           name: "Mobile App",
         }),

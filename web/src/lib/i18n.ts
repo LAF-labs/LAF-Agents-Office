@@ -479,6 +479,26 @@ const messages = {
     "tasks.bridgeBindings": "LAF Bridge binding",
     "tasks.bridgeBindingsDesc":
       "Trust a local checkout path before sending this project to LAF Bridge.",
+    "tasks.bridgeWorkspaceTitle": "LAF Bridge work location",
+    "tasks.bridgeWorkspaceDesc":
+      "By default, the team runner creates and manages a checkout for this project. Personal folders are optional per user.",
+    "tasks.bridgeWorkspaceAutoTitle": "Managed checkout",
+    "tasks.bridgeWorkspaceAutoBadge": "Default",
+    "tasks.bridgeWorkspaceAutoDesc":
+      "LAF Bridge uses a dedicated checkout for this project and keeps it separate from your personal folders.",
+    "tasks.bridgeWorkspaceRunnerReady": "Team runner connected",
+    "tasks.bridgeWorkspaceRunnerWaiting": "Waiting for team runner",
+    "tasks.bridgeWorkspacePersonalTitle":
+      "Advanced: use an existing local folder",
+    "tasks.bridgeWorkspacePersonalDesc":
+      "Use this only when this computer already has the project checked out and you want agent work to run there. This setting is personal to you.",
+    "tasks.bridgeWorkspacePersonalConfigured":
+      "A personal folder is connected. Managed checkout remains the default unless you open advanced settings.",
+    "tasks.bridgeWorkspacePersonalExisting": "Existing personal folder",
+    "tasks.bridgeWorkspacePersonalEmpty":
+      "No personal folder is connected. Managed checkout is still the default.",
+    "tasks.bridgePersonalDeviceUnavailable":
+      "Connect LAF Bridge on this computer to use a personal folder.",
     "tasks.bridgeBinding": "Project binding",
     "tasks.bridgeTrusted": "trusted",
     "tasks.bridgeUntrusted": "not trusted",
@@ -630,6 +650,12 @@ const messages = {
     "tasks.createWorkItem": "Create task",
     "tasks.noTasks": "No tasks yet",
     "tasks.noTasksDesc": "Create the first task for this project.",
+    "tasks.kanban.todo": "To do",
+    "tasks.kanban.inProgress": "In progress",
+    "tasks.kanban.review": "Review",
+    "tasks.kanban.blocked": "Blocked",
+    "tasks.kanban.done": "Done",
+    "tasks.kanban.empty": "No tasks here",
     "tasks.noTaskDetails": "No details written yet.",
     "tasks.unassigned": "Unassigned",
     "tasks.you": "You",
@@ -1315,6 +1341,25 @@ const messages = {
     "tasks.bridgeBindings": "LAF Bridge 바인딩",
     "tasks.bridgeBindingsDesc":
       "이 프로젝트를 LAF Bridge에 보내기 전에 로컬 체크아웃 경로를 신뢰하세요.",
+    "tasks.bridgeWorkspaceTitle": "LAF Bridge 작업 위치",
+    "tasks.bridgeWorkspaceDesc":
+      "기본은 팀 러너가 이 프로젝트 전용 체크아웃을 자동으로 만들고 관리합니다. 개인 로컬 폴더는 필요한 사람만 따로 연결합니다.",
+    "tasks.bridgeWorkspaceAutoTitle": "자동 관리 체크아웃",
+    "tasks.bridgeWorkspaceAutoBadge": "기본",
+    "tasks.bridgeWorkspaceAutoDesc":
+      "LAF Bridge가 이 프로젝트 전용 작업 폴더를 만들고 관리합니다. 팀원마다 자기 컴퓨터에서 별도로 적용됩니다.",
+    "tasks.bridgeWorkspaceRunnerReady": "팀 러너 연결됨",
+    "tasks.bridgeWorkspaceRunnerWaiting": "팀 러너 연결 대기",
+    "tasks.bridgeWorkspacePersonalTitle": "고급: 기존 로컬 폴더 사용",
+    "tasks.bridgeWorkspacePersonalDesc":
+      "이미 이 컴퓨터에 받아둔 프로젝트 폴더에서 실행하고 싶을 때만 사용합니다. 이 설정은 개인별로 적용됩니다.",
+    "tasks.bridgeWorkspacePersonalConfigured":
+      "개인 폴더가 연결되어 있습니다. 고급 설정을 열기 전에는 자동 관리 체크아웃을 기본으로 사용합니다.",
+    "tasks.bridgeWorkspacePersonalExisting": "기존 개인 폴더",
+    "tasks.bridgeWorkspacePersonalEmpty":
+      "연결된 개인 폴더가 없습니다. 기본은 자동 관리 체크아웃입니다.",
+    "tasks.bridgePersonalDeviceUnavailable":
+      "개인 폴더를 쓰려면 이 컴퓨터에서 LAF Bridge를 먼저 연결하세요.",
     "tasks.bridgeBinding": "프로젝트 바인딩",
     "tasks.bridgeTrusted": "신뢰됨",
     "tasks.bridgeUntrusted": "신뢰 안 됨",
@@ -1466,6 +1511,12 @@ const messages = {
     "tasks.createWorkItem": "업무 만들기",
     "tasks.noTasks": "아직 업무 없음",
     "tasks.noTasksDesc": "이 프로젝트의 첫 업무를 만들어보세요.",
+    "tasks.kanban.todo": "할 일",
+    "tasks.kanban.inProgress": "진행 중",
+    "tasks.kanban.review": "리뷰",
+    "tasks.kanban.blocked": "막힘",
+    "tasks.kanban.done": "완료",
+    "tasks.kanban.empty": "이 칸에는 업무가 없습니다",
     "tasks.noTaskDetails": "아직 상세 내용이 없습니다.",
     "tasks.unassigned": "미지정",
     "tasks.you": "나",
