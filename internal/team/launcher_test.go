@@ -749,6 +749,60 @@ func TestNotificationTargetsHomeChatDefaultLeadTagWakesLead(t *testing.T) {
 	}
 }
 
+func TestNotificationTargetsHomeChatSpecialistReplyDoesNotWakeLead(t *testing.T) {
+	b := newTestBroker(t)
+	b.mu.Lock()
+	b.messages = append(b.messages,
+		channelMessage{
+			ID:        "home-user-1",
+			From:      "you",
+			Channel:   "general",
+			Content:   "@be 테스트",
+			Tagged:    []string{"be"},
+			ReplyTo:   "home:team-laf:user-test",
+			Scope:     homeOrchestrationScope,
+			Timestamp: time.Now().UTC().Add(-time.Second).Format(time.RFC3339),
+		},
+		channelMessage{
+			ID:        "home-be-1",
+			From:      "be",
+			Channel:   "general",
+			Content:   "@ceo 백엔드 응답 경로도 정상입니다.",
+			Tagged:    []string{"ceo"},
+			ReplyTo:   "home-user-1",
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		},
+	)
+	b.mu.Unlock()
+	l := &Launcher{
+		broker: b,
+		pack: &agent.PackDefinition{
+			LeadSlug: "ceo",
+			Agents: []agent.AgentConfig{
+				{Slug: "ceo", Name: "CEO"},
+				{Slug: "be", Name: "Backend Engineer"},
+			},
+		},
+	}
+
+	immediate, delayed := l.notificationTargetsForMessage(channelMessage{
+		ID:        "home-be-1",
+		From:      "be",
+		Channel:   "general",
+		Content:   "@ceo 백엔드 응답 경로도 정상입니다.",
+		Tagged:    []string{"ceo"},
+		ReplyTo:   "home-user-1",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+
+	if containsNotificationTarget(immediate, "ceo") {
+		t.Fatalf("home direct specialist reply should not wake lead, got %+v", immediate)
+	}
+	if len(delayed) != 0 {
+		t.Fatalf("expected no delayed targets, got %+v", delayed)
+	}
+}
+
 func TestTaskThreadCommentsBypassPendingInterviewGate(t *testing.T) {
 	if !messageBypassesPendingInterview(channelMessage{
 		From:    "you",

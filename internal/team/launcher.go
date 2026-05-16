@@ -1309,6 +1309,15 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 				addImmediate(slug)
 			}
 		}
+	case l.messageIsHomeSpecialistOnlyThread(msg, lead):
+		if owner != "" && owner != lead && allowTarget(owner) {
+			addImmediate(owner)
+		}
+		for _, slug := range msg.Tagged {
+			if slug != lead && allowTarget(slug) {
+				addImmediate(slug)
+			}
+		}
 	case containsSlug(msg.Tagged, lead):
 		addImmediate(lead)
 		if owner != "" && owner != lead && allowTarget(owner) {
@@ -1335,6 +1344,48 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 		}
 	}
 	return immediate, delayed
+}
+
+func (l *Launcher) messageIsHomeSpecialistOnlyThread(msg channelMessage, lead string) bool {
+	if l == nil || l.broker == nil || messageComesFromHumanOrSystem(msg) {
+		return false
+	}
+	anchor, ok := l.homeThreadAnchorMessage(msg)
+	return ok && homeMessageTargetsSpecialistsOnly(anchor, lead)
+}
+
+func (l *Launcher) homeThreadAnchorMessage(msg channelMessage) (channelMessage, bool) {
+	if l == nil || l.broker == nil {
+		return channelMessage{}, false
+	}
+	replyTo := strings.TrimSpace(msg.ReplyTo)
+	if replyTo == "" {
+		return channelMessage{}, false
+	}
+	msgs := l.broker.ChannelMessages(msg.Channel)
+	byID := make(map[string]channelMessage, len(msgs))
+	for _, candidate := range msgs {
+		if id := strings.TrimSpace(candidate.ID); id != "" {
+			byID[id] = candidate
+		}
+	}
+	currentID := replyTo
+	var anchor channelMessage
+	found := false
+	for depth := 0; depth < 8; depth++ {
+		current, ok := byID[currentID]
+		if !ok {
+			break
+		}
+		anchor = current
+		found = true
+		parent := strings.TrimSpace(current.ReplyTo)
+		if parent == "" || isHomeThreadID(parent) {
+			break
+		}
+		currentID = parent
+	}
+	return anchor, found
 }
 
 func homeMessageTargetsSpecialistsOnly(msg channelMessage, lead string) bool {

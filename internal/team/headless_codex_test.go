@@ -1220,6 +1220,58 @@ func TestWakeLeadAfterSpecialistFallsBackToCompletedTaskUpdateWhenNoBroadcast(t 
 	}
 }
 
+func TestWakeLeadAfterSpecialistSkipsHomeDirectSpecialistReply(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	notifications := make(chan string, 1)
+	setHeadlessCodexRunTurnForTest(t, func(_ *Launcher, _ context.Context, slug, notification string, channel ...string) error {
+		if slug == "ceo" {
+			notifications <- notification
+		}
+		return nil
+	})
+
+	b := newTestBroker(t)
+	ensureTestMemberAccess(b, "general", "be", "Backend Engineer")
+	b.mu.Lock()
+	b.messages = append(b.messages,
+		channelMessage{
+			ID:        "home-user-1",
+			From:      "you",
+			Channel:   "general",
+			Content:   "@be 테스트",
+			Tagged:    []string{"be"},
+			ReplyTo:   "home:team-laf:user-test",
+			Scope:     homeOrchestrationScope,
+			Timestamp: time.Now().UTC().Add(-time.Second).Format(time.RFC3339),
+		},
+		channelMessage{
+			ID:        "home-be-1",
+			From:      "be",
+			Channel:   "general",
+			Content:   "@ceo 백엔드 응답 경로도 정상입니다.",
+			Tagged:    nil,
+			ReplyTo:   "home-user-1",
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		},
+	)
+	b.mu.Unlock()
+
+	l := newHeadlessLauncherForTest(t)
+	l.broker = b
+	l.provider = "codex"
+	l.sessionName = "test"
+
+	l.wakeLeadAfterSpecialist("be")
+
+	select {
+	case got := <-notifications:
+		t.Fatalf("expected no CEO notification for home direct specialist reply, got %q", got)
+	case <-time.After(150 * time.Millisecond):
+		// correct: direct specialist home replies stay between the human and specialist.
+	}
+}
+
 func TestRecoverTimedOutHeadlessTurnBlocksTaskWithoutSubstantiveReply(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 

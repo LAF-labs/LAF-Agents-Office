@@ -706,6 +706,10 @@ func (l *Launcher) wakeLeadAfterSpecialist(specialistSlug string) {
 		}
 		return
 	}
+	if l.messageIsHomeSpecialistOnlyThread(*lastMsg, lead) {
+		appendHeadlessCodexLog(lead, fmt.Sprintf("wake-lead: skipped home direct specialist reply from @%s (msg %s)", specialistSlug, lastMsg.ID))
+		return
+	}
 	appendHeadlessCodexLog(lead, fmt.Sprintf("wake-lead: re-delivering specialist completion from @%s (msg %s)", specialistSlug, lastMsg.ID))
 	l.sendChannelUpdate(target, *lastMsg)
 }
