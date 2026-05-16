@@ -139,12 +139,17 @@ type RunnerSignal = {
 };
 type ProjectInfoDraft = {
   additionalInfo: string;
+  code: string;
   description: string;
   githubRepoUrl: string;
   name: string;
   recipeFileName: string;
   recipeMarkdown: string;
 };
+
+function normalizeProjectCodeInput(value: string) {
+  return value.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 12);
+}
 
 function normalizeStatus(raw: string): StatusGroup {
   const status = raw.toLowerCase().replace(/[\s-]+/g, "_");
@@ -654,6 +659,7 @@ function useProjectCreator(
 ) {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
+  const [newProjectCode, setNewProjectCode] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectAdditionalInfo, setNewProjectAdditionalInfo] = useState("");
@@ -665,6 +671,7 @@ function useProjectCreator(
   function handleCancelProjectCreate() {
     setIsCreatingProject(false);
     setIsSavingProject(false);
+    setNewProjectCode("");
     setNewProjectName("");
     setNewProjectDescription("");
     setNewProjectAdditionalInfo("");
@@ -676,7 +683,8 @@ function useProjectCreator(
 
   async function handleCreateProject(): Promise<boolean> {
     const name = newProjectName.trim();
-    if (!name || isSavingProject) return false;
+    const code = normalizeProjectCodeInput(newProjectCode);
+    if (!name || !code || isSavingProject) return false;
     setProjectError(null);
     setIsSavingProject(true);
     const recipeMarkdown = newProjectRecipeMarkdown.trim();
@@ -686,6 +694,7 @@ function useProjectCreator(
     try {
       const { project } = await createProject({
         additional_info: newProjectAdditionalInfo.trim(),
+        code,
         created_by: HUMAN_SLUG,
         description: newProjectDescription.trim(),
         github_repo_url: newProjectGitHubRepoUrl.trim(),
@@ -730,6 +739,7 @@ function useProjectCreator(
     isCreatingProject,
     isSavingProject,
     newProjectAdditionalInfo,
+    newProjectCode,
     newProjectDescription,
     newProjectGitHubRepoUrl,
     newProjectName,
@@ -737,6 +747,7 @@ function useProjectCreator(
     newProjectRecipeMarkdown,
     projectError,
     setNewProjectAdditionalInfo,
+    setNewProjectCode,
     setNewProjectDescription,
     setNewProjectGitHubRepoUrl,
     setIsCreatingProject,
@@ -860,6 +871,7 @@ function useTaskCreator(
 function projectInfoDraftFromProject(project: Project): ProjectInfoDraft {
   return {
     additionalInfo: project.additional_info ?? "",
+    code: normalizeProjectCodeInput(project.code ?? ""),
     description: project.description ?? "",
     githubRepoUrl: project.github_repo_url ?? "",
     name: project.name || project.id,
@@ -909,10 +921,17 @@ function useProjectInfoEditor(
       clearTimeout(saveTimer.current);
       saveTimer.current = null;
     }
+    const code = normalizeProjectCodeInput(nextDraft.code);
+    if (!code) {
+      setSaveState("error");
+      setError(t("tasks.projectCodeRequired"));
+      return;
+    }
     setSaveState("saving");
     setError(null);
     try {
       const { project: updated } = await updateProject({
+        code,
         id: project.id,
         name: nextDraft.name.trim() || project.name || project.id,
         description: nextDraft.description,
@@ -957,7 +976,10 @@ function useProjectInfoEditor(
     value: ProjectInfoDraft[K],
   ) {
     setDraft((current) => {
-      const next = { ...current, [field]: value };
+      const next = { ...current };
+      next[field] = (
+        field === "code" ? normalizeProjectCodeInput(String(value)) : value
+      ) as ProjectInfoDraft[K];
       draftRef.current = next;
       schedulePersist(next);
       return next;
@@ -1402,6 +1424,28 @@ function ProjectCreateModal({
                 required
               />
             </label>
+            <label className="creation-field" htmlFor="project-create-code">
+              <span>
+                {t("tasks.projectCode")}
+                <em>{t("tasks.requiredField")}</em>
+              </span>
+              <Input
+                id="project-create-code"
+                value={projectCreator.newProjectCode}
+                onChange={(event) =>
+                  projectCreator.setNewProjectCode(
+                    normalizeProjectCodeInput(event.currentTarget.value),
+                  )
+                }
+                placeholder={t("tasks.projectCodePlaceholder")}
+                aria-label={t("tasks.projectCode")}
+                disabled={saving}
+                required
+              />
+              <small className="creation-field-help">
+                {t("tasks.projectCodeHelp")}
+              </small>
+            </label>
             <label className="creation-field" htmlFor="project-create-github">
               <span>
                 {t("tasks.githubRepoUrl")}
@@ -1525,7 +1569,14 @@ function ProjectCreateModal({
           >
             {t("tasks.cancel")}
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button
+            type="submit"
+            disabled={
+              saving ||
+              !projectCreator.newProjectName.trim() ||
+              !projectCreator.newProjectCode.trim()
+            }
+          >
             {saving
               ? t("tasks.projectCreateSaving")
               : t("tasks.projectCreateSubmit")}
@@ -1563,7 +1614,7 @@ function ProjectDirectoryRow({
               {project.name || project.id}
             </strong>
             <small className="truncate text-xs text-muted-foreground">
-              {project.id}
+              {project.code ? `${project.code} · ${project.id}` : project.id}
             </small>
           </span>
         </Button>
@@ -1668,7 +1719,11 @@ function ProjectDetailView({
         t={t}
         onCreateTask={openTaskDraft}
       />
-      <ProjectInfoPanel editor={projectInfoEditor} t={t} />
+      <ProjectInfoPanel
+        codeLocked={tasks.length > 0}
+        editor={projectInfoEditor}
+        t={t}
+      />
       <ProjectBridgeBindingPanel project={project} t={t} />
       <ProjectTaskList
         members={members}
@@ -1790,9 +1845,11 @@ function ProjectTaskToolbar({
 }
 
 function ProjectInfoPanel({
+  codeLocked,
   editor,
   t,
 }: {
+  codeLocked: boolean;
   editor: ReturnType<typeof useProjectInfoEditor>;
   t: TranslationFn;
 }) {
@@ -1839,6 +1896,29 @@ function ProjectInfoPanel({
                 onKeyDown={commitOnEnter}
                 aria-label={t("tasks.projectInfoName")}
               />
+            </label>
+            <label className="project-info-field" htmlFor="project-info-code">
+              <span>{t("tasks.projectInfoCode")}</span>
+              <Input
+                id="project-info-code"
+                value={editor.draft.code}
+                disabled={codeLocked}
+                onBlur={() => void editor.persist()}
+                onChange={(event) =>
+                  editor.updateField(
+                    "code",
+                    normalizeProjectCodeInput(event.currentTarget.value),
+                  )
+                }
+                onKeyDown={commitOnEnter}
+                placeholder={t("tasks.projectCodePlaceholder")}
+                aria-label={t("tasks.projectInfoCode")}
+              />
+              <small className="project-info-help">
+                {codeLocked
+                  ? t("tasks.projectCodeLocked")
+                  : t("tasks.projectCodeHelp")}
+              </small>
             </label>
             <label className="project-info-field" htmlFor="project-info-github">
               <span>{t("tasks.projectInfoGithub")}</span>

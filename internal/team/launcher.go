@@ -1046,8 +1046,13 @@ func (l *Launcher) taskProjectPacketLines(task teamTask) []string {
 		repo = "not connected"
 	}
 	projectID := normalizeProjectID(project.ID)
+	projectCode := normalizeProjectCode(project.Code)
+	projectRef := projectID
+	if projectCode != "" {
+		projectRef = projectCode + ", " + projectID
+	}
 	lines := []string{
-		fmt.Sprintf("- Project: %s (%s)", projectPacketName(project), projectID),
+		fmt.Sprintf("- Project: %s (%s)", projectPacketName(project), projectRef),
 		fmt.Sprintf("- Project wiki: %s", projectWikiArticlePath(projectID)),
 		fmt.Sprintf("- GitHub repo: %s", repo),
 		"Project memory rule: read the project wiki before work. Durable task lifecycle updates are appended to that project wiki.",
@@ -1070,6 +1075,9 @@ func (l *Launcher) taskProjectNotificationFragment(task teamTask) string {
 	projectID := normalizeProjectID(project.ID)
 	if projectID == "" {
 		return ""
+	}
+	if code := normalizeProjectCode(project.Code); code != "" {
+		return ", project " + code + "/" + projectID
 	}
 	return ", project " + projectID
 }

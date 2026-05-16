@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -91,6 +92,8 @@ var (
 		"CODEX_TUI_RECORD_SESSION",
 		"CODEX_TUI_SESSION_LOG_PATH",
 	}
+	headlessCodexLegacyTaskIDPattern  = regexp.MustCompile(`#(task-[0-9]+|blank-slate-[A-Za-z0-9-]+)`)
+	headlessCodexProjectTaskIDPattern = regexp.MustCompile(`#([A-Za-z]+)-([0-9]+)`)
 )
 
 const headlessCodexLocalWorktreeRetryLimit = 2
@@ -808,23 +811,14 @@ func (l *Launcher) latestLeadWakeTaskAction(specialistSlug string) (officeAction
 }
 
 func headlessCodexTaskID(prompt string) string {
-	prefixes := []string{"#task-", "#blank-slate-"}
-	for _, prefix := range prefixes {
-		idx := strings.Index(prompt, prefix)
-		if idx == -1 {
-			continue
+	if match := headlessCodexLegacyTaskIDPattern.FindStringSubmatch(prompt); len(match) == 2 {
+		return strings.TrimSpace(match[1])
+	}
+	if match := headlessCodexProjectTaskIDPattern.FindStringSubmatch(prompt); len(match) == 3 {
+		code := normalizeProjectCode(match[1])
+		if code != "" {
+			return code + "-" + match[2]
 		}
-		start := idx + 1
-		end := start
-		for end < len(prompt) {
-			ch := prompt[end]
-			if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' {
-				end++
-				continue
-			}
-			break
-		}
-		return strings.TrimSpace(prompt[start:end])
 	}
 	return ""
 }

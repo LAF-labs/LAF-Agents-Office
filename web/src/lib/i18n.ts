@@ -384,6 +384,13 @@ const messages = {
       "Add enough context now so agents can understand the project without asking you to repeat it later.",
     "tasks.projectName": "Project name",
     "tasks.projectNamePlaceholder": "Customer onboarding redesign",
+    "tasks.projectCode": "Project code",
+    "tasks.projectCodePlaceholder": "SAJU",
+    "tasks.projectCodeHelp":
+      "Letters only. Task numbers will use this prefix, for example SAJU-1.",
+    "tasks.projectCodeLocked":
+      "This code is locked because the project already has tasks.",
+    "tasks.projectCodeRequired": "Project code is required.",
     "tasks.githubRepoUrlOptional": "GitHub repo URL (optional)",
     "tasks.githubRepoUrl": "GitHub repository URL",
     "tasks.requiredField": "Required",
@@ -597,6 +604,7 @@ const messages = {
     "tasks.backToProjects": "Projects",
     "tasks.projectInfo": "Project information",
     "tasks.projectInfoName": "Project name",
+    "tasks.projectInfoCode": "Project code",
     "tasks.projectInfoSummary": "Summary",
     "tasks.projectInfoSummaryPlaceholder":
       "What should agents and stakeholders understand first?",
@@ -1211,6 +1219,13 @@ const messages = {
       "처음부터 맥락을 충분히 적어두면 에이전트가 같은 설명을 다시 묻지 않고 바로 이해할 수 있습니다.",
     "tasks.projectName": "프로젝트 이름",
     "tasks.projectNamePlaceholder": "고객 온보딩 개선",
+    "tasks.projectCode": "프로젝트 코드",
+    "tasks.projectCodePlaceholder": "SAJU",
+    "tasks.projectCodeHelp":
+      "알파벳만 입력합니다. 이 프로젝트의 업무 번호가 예: SAJU-1처럼 만들어집니다.",
+    "tasks.projectCodeLocked":
+      "이미 업무가 있는 프로젝트라 코드를 바꿀 수 없습니다.",
+    "tasks.projectCodeRequired": "프로젝트 코드는 필수입니다.",
     "tasks.githubRepoUrlOptional": "GitHub 저장소 URL (선택)",
     "tasks.githubRepoUrl": "GitHub 저장소 URL",
     "tasks.requiredField": "필수",
@@ -1425,6 +1440,7 @@ const messages = {
     "tasks.backToProjects": "프로젝트",
     "tasks.projectInfo": "프로젝트 정보",
     "tasks.projectInfoName": "프로젝트명",
+    "tasks.projectInfoCode": "프로젝트 코드",
     "tasks.projectInfoSummary": "설명",
     "tasks.projectInfoSummaryPlaceholder":
       "에이전트와 이해관계자가 가장 먼저 알아야 할 내용을 적으세요.",

@@ -43,6 +43,7 @@ type AgentMemoryTask struct {
 
 type AgentMemoryProject struct {
 	ID          string `json:"id"`
+	Code        string `json:"code,omitempty"`
 	Name        string `json:"name"`
 	WikiPath    string `json:"wiki_path"`
 	GitHubRepo  string `json:"github_repo,omitempty"`
@@ -430,6 +431,7 @@ func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, pr
 	repo := strings.TrimSpace(project.GitHubRepoURL)
 	packet.Project = &AgentMemoryProject{
 		ID:          projectID,
+		Code:        normalizeProjectCode(project.Code),
 		Name:        projectPacketName(project),
 		WikiPath:    path,
 		GitHubRepo:  repo,
@@ -1129,6 +1131,9 @@ func renderProjectWikiProjectInfoSections(project teamProject) string {
 	var sb strings.Builder
 	sb.WriteString("## Snapshot\n\n")
 	fmt.Fprintf(&sb, "- Project ID: `%s`\n", project.ID)
+	if code := normalizeProjectCode(project.Code); code != "" {
+		fmt.Fprintf(&sb, "- Project code: `%s`\n", code)
+	}
 	if name := strings.TrimSpace(project.Name); name != "" {
 		fmt.Fprintf(&sb, "- Project name: %s\n", name)
 	}
@@ -1174,6 +1179,9 @@ func renderProjectLiveMemory(project teamProject) string {
 	var sb strings.Builder
 	sb.WriteString("Live project reference from the project detail panel:\n")
 	fmt.Fprintf(&sb, "- Project ID: `%s`\n", project.ID)
+	if code := normalizeProjectCode(project.Code); code != "" {
+		fmt.Fprintf(&sb, "- Project code: `%s`\n", code)
+	}
 	if name := strings.TrimSpace(project.Name); name != "" {
 		fmt.Fprintf(&sb, "- Project name: %s\n", name)
 	}

@@ -66,6 +66,9 @@ func (b *Broker) handleOrchestrationIntent(w http.ResponseWriter, r *http.Reques
 		if name == "" {
 			name = "New Project"
 		}
+		b.mu.Lock()
+		code := b.suggestProjectCodeLocked(name, "")
+		b.mu.Unlock()
 		intent.Type = "project.create"
 		intent.Risk = "medium"
 		intent.Summary = "Create project: " + name
@@ -77,6 +80,7 @@ func (b *Broker) handleOrchestrationIntent(w http.ResponseWriter, r *http.Reques
 			"path":   "/projects",
 			"body": map[string]any{
 				"action":     "create",
+				"code":       code,
 				"name":       name,
 				"created_by": "human",
 			},

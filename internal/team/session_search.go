@@ -270,7 +270,7 @@ func sessionSearchScopeMatches(scope, threadID, taskID string, archived bool) bo
 	case "home":
 		return isHomeThreadID(threadID)
 	case "task":
-		return strings.TrimSpace(taskID) != "" || strings.HasPrefix(strings.TrimSpace(threadID), "task-")
+		return strings.TrimSpace(taskID) != "" || isTaskIdentifier(threadID)
 	case "archived":
 		return archived
 	default:

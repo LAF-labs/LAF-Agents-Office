@@ -35,6 +35,7 @@ describe("project api client", () => {
         JSON.stringify({
           project: {
             id: "customer-portal",
+            code: "CUST",
             name: "Customer Portal",
             lead_agent: "founding-engineer",
             github_repo_url: "https://github.com/laf-labs/customer-portal",
@@ -47,6 +48,7 @@ describe("project api client", () => {
 
     const result = await createProject({
       name: "Customer Portal",
+      code: "CUST",
       lead_agent: "founding-engineer",
       github_repo_url: "https://github.com/laf-labs/customer-portal",
     });
@@ -59,6 +61,7 @@ describe("project api client", () => {
           action: "create",
           created_by: "human",
           name: "Customer Portal",
+          code: "CUST",
           lead_agent: "founding-engineer",
           github_repo_url: "https://github.com/laf-labs/customer-portal",
         }),
@@ -76,6 +79,7 @@ describe("project api client", () => {
         JSON.stringify({
           project: {
             id: "customer-portal",
+            code: "CUST",
             name: "Customer Portal",
             lead_agent: "pm",
             github_repo_url: "https://github.com/laf-labs/customer-portal",
@@ -88,6 +92,7 @@ describe("project api client", () => {
 
     const result = await updateProject({
       id: "customer-portal",
+      code: "CUST",
       name: "Customer Portal",
       description: "Investor-ready customer portal.",
       additional_info: "Use this for board-demo context.",
@@ -105,6 +110,7 @@ describe("project api client", () => {
           action: "update",
           created_by: "human",
           id: "customer-portal",
+          code: "CUST",
           name: "Customer Portal",
           description: "Investor-ready customer portal.",
           additional_info: "Use this for board-demo context.",

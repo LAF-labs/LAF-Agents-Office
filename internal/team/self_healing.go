@@ -91,9 +91,8 @@ func (b *Broker) requestSelfHealingLocked(agentSlug, taskID string, reason agent
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	b.counter++
 	task := teamTask{
-		ID:            fmt.Sprintf("task-%d", b.counter),
+		ID:            b.nextLegacyTaskIDLocked(),
 		Channel:       channel,
 		Title:         title,
 		Details:       details,

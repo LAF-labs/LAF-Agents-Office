@@ -3375,6 +3375,7 @@ func (b *Broker) loadState() error {
 			state = snapshot
 		}
 	}
+	projectCodeMigration := brokerStateNeedsProjectCodeMigration(state)
 	b.messages = state.Messages
 	b.members = state.Members
 	b.channels = state.Channels
@@ -3461,7 +3462,7 @@ func (b *Broker) loadState() error {
 	b.ensureDefaultOfficeMembersLocked()
 	legacyRoster := legacyCoreRosterPresent(b.members)
 	b.normalizeLoadedStateLocked()
-	if legacyRoster {
+	if legacyRoster || projectCodeMigration {
 		return b.saveLocked()
 	}
 	return nil
@@ -4194,7 +4195,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		}
 		normalizedProjects = append(normalizedProjects, project)
 	}
-	b.projects = normalizedProjects
+	b.projects = b.normalizeProjectCodesLocked(normalizedProjects)
 	seenHumans := make(map[string]struct{}, len(b.humanMembers))
 	normalizedHumans := make([]humanTeamMember, 0, len(b.humanMembers))
 	for _, member := range b.humanMembers {
@@ -4233,6 +4234,9 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		}
 		b.tasks[i].ProjectID = normalizeProjectID(b.tasks[i].ProjectID)
 		normalizeTaskPlan(&b.tasks[i])
+	}
+	b.migrateProjectTaskIDsLocked()
+	for i := range b.tasks {
 		b.ensureTaskOwnerChannelMembershipLocked(b.tasks[i].Channel, b.tasks[i].Owner)
 		b.queueTaskBehindActiveOwnerLaneLocked(&b.tasks[i])
 		b.scheduleTaskLifecycleLocked(&b.tasks[i])
@@ -9980,6 +9984,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Action         string  `json:"action"`
 		ID             string  `json:"id"`
+		Code           *string `json:"code"`
 		Name           *string `json:"name"`
 		Description    *string `json:"description"`
 		AdditionalInfo *string `json:"additional_info"`
@@ -10040,14 +10045,29 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if id == "" {
 			id = normalizeProjectID(name)
 		}
-		if id == "" || name == "" || strings.TrimSpace(body.CreatedBy) == "" {
+		rawCode := ""
+		if body.Code != nil {
+			rawCode = strings.TrimSpace(optionalString(body.Code))
+		}
+		code := normalizeProjectCode(rawCode)
+		if rawCode != "" && code == "" {
 			b.mu.Unlock()
-			http.Error(w, "id/name and created_by required", http.StatusBadRequest)
+			http.Error(w, "project code must contain letters only", http.StatusBadRequest)
+			return
+		}
+		if id == "" || name == "" || strings.TrimSpace(body.CreatedBy) == "" || code == "" {
+			b.mu.Unlock()
+			http.Error(w, "id/name/code and created_by required", http.StatusBadRequest)
 			return
 		}
 		if existing := b.findProjectLocked(id); existing != nil {
 			b.mu.Unlock()
 			http.Error(w, "project already exists", http.StatusConflict)
+			return
+		}
+		if b.projectCodeInUseLocked(code, id) {
+			b.mu.Unlock()
+			http.Error(w, "project code already exists", http.StatusConflict)
 			return
 		}
 		status := strings.TrimSpace(optionalString(body.Status))
@@ -10063,6 +10083,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		}
 		project := teamProject{
 			ID:             id,
+			Code:           code,
 			Name:           name,
 			Description:    strings.TrimSpace(optionalString(body.Description)),
 			AdditionalInfo: strings.TrimSpace(optionalString(body.AdditionalInfo)),
@@ -10118,6 +10139,27 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		if name := strings.TrimSpace(optionalString(body.Name)); name != "" {
 			project.Name = name
 		}
+		if body.Code != nil {
+			code := normalizeProjectCode(optionalString(body.Code))
+			if code == "" || !validProjectCodeInput(optionalString(body.Code)) {
+				b.mu.Unlock()
+				http.Error(w, "project code must contain letters only", http.StatusBadRequest)
+				return
+			}
+			if code != normalizeProjectCode(project.Code) {
+				if b.projectHasTasksLocked(project.ID) {
+					b.mu.Unlock()
+					http.Error(w, "project code cannot change after tasks exist", http.StatusConflict)
+					return
+				}
+				if b.projectCodeInUseLocked(code, project.ID) {
+					b.mu.Unlock()
+					http.Error(w, "project code already exists", http.StatusConflict)
+					return
+				}
+				project.Code = code
+			}
+		}
 		if action == "archive" {
 			project.Status = "archived"
 		} else if status := strings.TrimSpace(optionalString(body.Status)); status != "" {
@@ -10172,6 +10214,7 @@ func (b *Broker) handlePostProject(w http.ResponseWriter, r *http.Request) {
 		}
 		responseProject := *project
 		shouldSyncProjectInfo := body.Name != nil ||
+			body.Code != nil ||
 			body.Description != nil ||
 			body.AdditionalInfo != nil ||
 			body.GitHubRepoURL != nil ||
@@ -10526,9 +10569,13 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
 			return
 		}
-		b.counter++
+		taskID, err := b.nextTaskIDLocked(projectID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		task := teamTask{
-			ID:               fmt.Sprintf("task-%d", b.counter),
+			ID:               taskID,
 			ProjectID:        projectID,
 			Channel:          channel,
 			Title:            strings.TrimSpace(body.Title),
@@ -11152,6 +11199,7 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Channel   string `json:"channel"`
+		ProjectID string `json:"project_id"`
 		CreatedBy string `json:"created_by"`
 		Tasks     []struct {
 			Title         string   `json:"title"`
@@ -11175,11 +11223,16 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 	if channel == "" {
 		channel = "general"
 	}
+	projectID := normalizeProjectID(body.ProjectID)
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.findChannelLocked(channel) == nil {
 		http.Error(w, "channel not found", http.StatusNotFound)
+		return
+	}
+	if projectID != "" && b.findProjectLocked(projectID) == nil {
+		http.Error(w, "project not found", http.StatusNotFound)
 		return
 	}
 
@@ -11212,9 +11265,10 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if existing := b.findReusableTaskLocked(taskReuseMatch{
-			Channel: taskChannel,
-			Title:   strings.TrimSpace(item.Title),
-			Owner:   assignee,
+			Channel:   taskChannel,
+			ProjectID: projectID,
+			Title:     strings.TrimSpace(item.Title),
+			Owner:     assignee,
 		}); existing != nil {
 			titleToID[strings.TrimSpace(item.Title)] = existing.ID
 			if details := strings.TrimSpace(item.Details); details != "" {
@@ -11254,12 +11308,16 @@ func (b *Broker) handleTaskPlan(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		b.counter++
-		taskID := fmt.Sprintf("task-%d", b.counter)
+		taskID, err := b.nextTaskIDLocked(projectID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		titleToID[strings.TrimSpace(item.Title)] = taskID
 
 		task := teamTask{
 			ID:            taskID,
+			ProjectID:     projectID,
 			Channel:       taskChannel,
 			Title:         strings.TrimSpace(item.Title),
 			Details:       strings.TrimSpace(item.Details),
@@ -11512,9 +11570,8 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 		return *existing, true, nil
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	b.counter++
 	task := teamTask{
-		ID:           fmt.Sprintf("task-%d", b.counter),
+		ID:           b.nextLegacyTaskIDLocked(),
 		Channel:      channel,
 		Title:        title,
 		Details:      strings.TrimSpace(details),
@@ -11551,6 +11608,7 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 
 type plannedTaskInput struct {
 	Channel          string
+	ProjectID        string
 	Title            string
 	Details          string
 	Owner            string
@@ -11575,6 +11633,10 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 	if !b.canAccessChannelLocked(input.CreatedBy, channel) {
 		return teamTask{}, false, fmt.Errorf("channel access denied")
 	}
+	projectID := normalizeProjectID(input.ProjectID)
+	if projectID != "" && b.findProjectLocked(projectID) == nil {
+		return teamTask{}, false, fmt.Errorf("project not found")
+	}
 	title := strings.TrimSpace(input.Title)
 	humanDetails := ""
 	if isHumanActorSlug(input.CreatedBy) {
@@ -11582,6 +11644,7 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 	}
 	if existing := b.findReusableTaskLocked(taskReuseMatch{
 		Channel:          channel,
+		ProjectID:        projectID,
 		Title:            title,
 		ThreadID:         strings.TrimSpace(input.ThreadID),
 		Owner:            strings.TrimSpace(input.Owner),
@@ -11636,9 +11699,13 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		return *existing, true, nil
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	b.counter++
+	taskID, err := b.nextTaskIDLocked(projectID)
+	if err != nil {
+		return teamTask{}, false, err
+	}
 	task := teamTask{
-		ID:               fmt.Sprintf("task-%d", b.counter),
+		ID:               taskID,
+		ProjectID:        projectID,
 		Channel:          channel,
 		Title:            title,
 		Details:          strings.TrimSpace(input.Details),

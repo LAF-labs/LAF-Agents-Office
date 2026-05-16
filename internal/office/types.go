@@ -84,6 +84,7 @@ type TeamTask struct {
 
 type TeamProject struct {
 	ID              string `json:"id"`
+	Code            string `json:"code"`
 	Name            string `json:"name"`
 	Description     string `json:"description,omitempty"`
 	AdditionalInfo  string `json:"additional_info,omitempty"`

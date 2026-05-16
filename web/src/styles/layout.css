@@ -1575,6 +1575,13 @@ html[data-theme="office"]
   font-style: normal;
   font-weight: 680;
 }
+.creation-field-help,
+.project-info-help {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.4;
+}
 .creation-field textarea {
   resize: vertical;
   line-height: 1.5;

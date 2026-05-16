@@ -1118,6 +1118,7 @@ export interface Task {
 
 export interface Project {
   id: string;
+  code: string;
   name: string;
   description?: string;
   additional_info?: string;
@@ -1264,6 +1265,7 @@ export function revokeRunner(runnerId: string) {
 
 export function createProject(body: {
   id?: string;
+  code: string;
   name: string;
   description?: string;
   additional_info?: string;
@@ -1283,6 +1285,7 @@ export function createProject(body: {
 
 export function updateProject(body: {
   id: string;
+  code?: string;
   name?: string;
   description?: string;
   additional_info?: string;

@@ -76,6 +76,180 @@ func TestProjectsAPIAndTaskFiltering(t *testing.T) {
 	}
 }
 
+func TestProjectCodesScopeTaskIDs(t *testing.T) {
+	b := newTestBroker(t)
+
+	saju := createProjectForTest(t, b, map[string]string{
+		"code":       "saju",
+		"name":       "sajuhook",
+		"created_by": "human",
+	})
+	abcd := createProjectForTest(t, b, map[string]string{
+		"code":       "ABCD",
+		"name":       "ABCD research",
+		"created_by": "human",
+	})
+	if saju.Code != "SAJU" {
+		t.Fatalf("project code = %q, want SAJU", saju.Code)
+	}
+
+	first := createTaskForProjectTest(t, b, "Read landing funnel", saju.ID)
+	second := createTaskForProjectTest(t, b, "Fix signup copy", saju.ID)
+	other := createTaskForProjectTest(t, b, "Audit pricing page", abcd.ID)
+	if first.ID != "SAJU-1" || second.ID != "SAJU-2" || other.ID != "ABCD-1" {
+		t.Fatalf("project task ids = %q %q %q", first.ID, second.ID, other.ID)
+	}
+
+	duplicateCode := httptest.NewRecorder()
+	b.handleProjects(duplicateCode, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":     "create",
+		"code":       "saju",
+		"name":       "Duplicate code",
+		"created_by": "human",
+	}))
+	if duplicateCode.Code != http.StatusConflict {
+		t.Fatalf("duplicate code status = %d, want %d: %s", duplicateCode.Code, http.StatusConflict, duplicateCode.Body.String())
+	}
+
+	invalidCode := httptest.NewRecorder()
+	b.handleProjects(invalidCode, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":     "create",
+		"code":       "SAJU1",
+		"name":       "Invalid code",
+		"created_by": "human",
+	}))
+	if invalidCode.Code != http.StatusBadRequest {
+		t.Fatalf("invalid code status = %d, want %d: %s", invalidCode.Code, http.StatusBadRequest, invalidCode.Body.String())
+	}
+
+	lockedCode := httptest.NewRecorder()
+	b.handleProjects(lockedCode, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":     "update",
+		"id":         saju.ID,
+		"code":       "HOOK",
+		"created_by": "human",
+	}))
+	if lockedCode.Code != http.StatusConflict {
+		t.Fatalf("locked code status = %d, want %d: %s", lockedCode.Code, http.StatusConflict, lockedCode.Body.String())
+	}
+
+	fresh := createProjectForTest(t, b, map[string]string{
+		"code":       "TEMP",
+		"name":       "No tasks yet",
+		"created_by": "human",
+	})
+	editableCode := httptest.NewRecorder()
+	b.handleProjects(editableCode, jsonRequestForTest(t, "/projects", map[string]string{
+		"action":     "update",
+		"id":         fresh.ID,
+		"code":       "LIVE",
+		"created_by": "human",
+	}))
+	if editableCode.Code != http.StatusOK {
+		t.Fatalf("editable code status = %d, want %d: %s", editableCode.Code, http.StatusOK, editableCode.Body.String())
+	}
+	var updated struct {
+		Project teamProject `json:"project"`
+	}
+	if err := json.NewDecoder(editableCode.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode updated code: %v", err)
+	}
+	if updated.Project.Code != "LIVE" {
+		t.Fatalf("updated code = %q, want LIVE", updated.Project.Code)
+	}
+}
+
+func TestProjectCodeMigrationRenamesLegacyProjectTasks(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "broker-state.json")
+	state := brokerState{
+		Projects: []teamProject{{
+			ID:   "sajuhook",
+			Name: "sajuhook",
+		}, {
+			ID:   "abcd",
+			Name: "ABCD research",
+		}},
+		Tasks: []teamTask{{
+			ID:        "task-1",
+			ProjectID: "sajuhook",
+			Title:     "Landing audit",
+			DependsOn: []string{"task-2"},
+			ThreadID:  "task-1",
+		}, {
+			ID:        "task-2",
+			ProjectID: "sajuhook",
+			Title:     "Signup copy",
+		}, {
+			ID:        "task-3",
+			ProjectID: "abcd",
+			Title:     "Pricing audit",
+		}, {
+			ID:    "task-99",
+			Title: "General office task",
+		}},
+		Messages: []channelMessage{{
+			ID:            "msg-1",
+			Channel:       "general",
+			TaskID:        "task-1",
+			ReplyTo:       "task-2",
+			PublicReplyTo: "task-1",
+		}},
+		RunnerJobs: []runnerJob{{
+			ID:     "job-1",
+			TeamID: "team-a",
+			TaskID: "task-1",
+			Status: runnerJobStatusQueued,
+		}},
+		Actions: []officeActionLog{{
+			Kind:      "task_created",
+			RelatedID: "task-2",
+		}},
+	}
+	raw, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("marshal legacy state: %v", err)
+	}
+	if err := os.WriteFile(statePath, raw, 0o600); err != nil {
+		t.Fatalf("write legacy state: %v", err)
+	}
+
+	loaded := NewBrokerAt(statePath)
+	if err := loaded.loadState(); err != nil {
+		t.Fatalf("load migrated state: %v", err)
+	}
+
+	saju := loaded.findProjectLocked("sajuhook")
+	abcd := loaded.findProjectLocked("abcd")
+	if saju == nil || saju.Code != "SAJU" || abcd == nil || abcd.Code != "ABCD" {
+		t.Fatalf("migrated project codes = sajuhook:%+v abcd:%+v", saju, abcd)
+	}
+	taskByTitle := map[string]teamTask{}
+	for _, task := range loaded.tasks {
+		taskByTitle[task.Title] = task
+	}
+	if taskByTitle["Landing audit"].ID != "SAJU-1" || taskByTitle["Signup copy"].ID != "SAJU-2" || taskByTitle["Pricing audit"].ID != "ABCD-1" {
+		t.Fatalf("migrated task ids = %+v", taskByTitle)
+	}
+	if taskByTitle["General office task"].ID != "task-99" {
+		t.Fatalf("general task id changed: %+v", taskByTitle["General office task"])
+	}
+	if got := taskByTitle["Landing audit"].DependsOn; len(got) != 1 || got[0] != "SAJU-2" {
+		t.Fatalf("migrated depends_on = %+v", got)
+	}
+	if taskByTitle["Landing audit"].ThreadID != "SAJU-1" {
+		t.Fatalf("migrated task thread_id = %q", taskByTitle["Landing audit"].ThreadID)
+	}
+	if loaded.messages[0].TaskID != "SAJU-1" || loaded.messages[0].ReplyTo != "SAJU-2" || loaded.messages[0].PublicReplyTo != "SAJU-1" {
+		t.Fatalf("migrated message refs = %+v", loaded.messages[0])
+	}
+	if loaded.runnerJobs[0].TaskID != "SAJU-1" {
+		t.Fatalf("migrated runner job = %+v", loaded.runnerJobs[0])
+	}
+	if loaded.actions[0].RelatedID != "SAJU-2" {
+		t.Fatalf("migrated action = %+v", loaded.actions[0])
+	}
+}
+
 func TestProjectStatePersistsWithTasks(t *testing.T) {
 	statePath := filepath.Join(t.TempDir(), "broker-state.json")
 	b := NewBrokerAt(statePath)
@@ -995,9 +1169,13 @@ func TestProjectCodingTaskAutoCreatesPullRequestReceipt(t *testing.T) {
 		}
 	}
 	projectTaskRunGH = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
-		switch got := strings.Join(args, " "); got {
-		case "pr create --title Implement the signup flow --body Task: #task-1\n\nBuild the code path and tests.\n\nCreated by LAF-Office project task delivery. --head laf-office-project-task --base main":
+		got := strings.Join(args, " ")
+		if strings.HasPrefix(got, "pr create --title Implement the signup flow --body Task: #") &&
+			strings.Contains(got, "\n\nBuild the code path and tests.\n\nCreated by LAF-Office project task delivery.") &&
+			strings.HasSuffix(got, " --head laf-office-project-task --base main") {
 			return []byte("https://github.com/LAF-labs/agent-lab/pull/7\n"), nil
+		}
+		switch got {
 		case projectTaskPRViewCommand("https://github.com/LAF-labs/agent-lab/pull/7"):
 			return projectTaskPRViewResponse("OPEN", "APPROVED", "CLEAN", false, "SUCCESS"), nil
 		default:
@@ -1724,6 +1902,12 @@ func TestFailedProjectCodingTaskUpdateDoesNotStoreDeliveryReceipt(t *testing.T) 
 
 func createProjectForTest(t *testing.T, b *Broker, body map[string]string) teamProject {
 	t.Helper()
+	if strings.TrimSpace(body["code"]) == "" {
+		body["code"] = deriveProjectCode(teamProject{
+			ID:   body["id"],
+			Name: body["name"],
+		}, map[string]struct{}{})
+	}
 	rec := httptest.NewRecorder()
 	b.handleProjects(rec, jsonRequestForTest(t, "/projects", body))
 	if rec.Code != http.StatusOK {

@@ -29,6 +29,18 @@ type processedTurn struct {
 	channel      string
 }
 
+func TestHeadlessCodexTaskIDRecognizesProjectScopedIDs(t *testing.T) {
+	if got := headlessCodexTaskID("Work on #SAJU-12 now"); got != "SAJU-12" {
+		t.Fatalf("project task id = %q, want SAJU-12", got)
+	}
+	if got := headlessCodexTaskID("Work on #saju-12 now"); got != "SAJU-12" {
+		t.Fatalf("lowercase project task id = %q, want SAJU-12", got)
+	}
+	if got := headlessCodexTaskID("Legacy #task-12 still works"); got != "task-12" {
+		t.Fatalf("legacy task id = %q, want task-12", got)
+	}
+}
+
 func TestNewLauncherUsesCodexProviderFromConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
