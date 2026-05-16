@@ -102,6 +102,7 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 	pr, pw := io.Pipe()
 	teedStdout := io.TeeReader(stdout, pw)
 	go func() {
+		defer func() { _ = pr.Close() }()
 		scanner := bufio.NewScanner(pr)
 		scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 		for scanner.Scan() {

@@ -5,15 +5,23 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const authSessionCookieName = "laf_office_session"
+
+// bcryptCost balances login latency vs. brute-force resistance. Cost 12 is
+// ~250ms on a modern laptop, well above the bcrypt default of 10 and still
+// comfortable for an interactive login. We never store a legacy SHA-256 hash
+// for new passwords — see verifyPassword for the migration path.
+const bcryptCost = 12
 
 func normalizeTeamSlug(raw string) string {
 	slug := normalizeProjectID(raw)
@@ -23,9 +31,49 @@ func normalizeTeamSlug(raw string) string {
 	return slug
 }
 
-func hashPassword(password, salt string) string {
+// hashPassword produces a bcrypt hash for new passwords. Salt is generated
+// and embedded by bcrypt itself; callers no longer pass an external salt.
+// The legacy SHA-256(salt:password) path lives separately in legacySHA256Hash
+// and is only used by verifyPassword during the rolling migration.
+func hashPassword(password string) (string, error) {
+	if password == "" {
+		return "", errors.New("password must not be empty")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+// legacySHA256Hash mirrors the original hashing scheme so we can verify and
+// migrate existing PasswordHash values written before the bcrypt rollout.
+func legacySHA256Hash(password, salt string) string {
 	sum := sha256.Sum256([]byte(salt + ":" + password))
 	return hex.EncodeToString(sum[:])
+}
+
+func isBcryptHash(hash string) bool {
+	return strings.HasPrefix(hash, "$2a$") || strings.HasPrefix(hash, "$2b$") || strings.HasPrefix(hash, "$2y$")
+}
+
+// verifyPassword returns (ok, needsUpgrade). When ok && needsUpgrade is true,
+// the caller must re-hash with hashPassword and persist before responding so
+// the legacy SHA-256 hash never survives a successful login.
+func verifyPassword(password string, user *authUser) (bool, bool) {
+	if user == nil {
+		return false, false
+	}
+	if isBcryptHash(user.PasswordHash) {
+		err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+		return err == nil, false
+	}
+	// Legacy path: SHA-256(salt:password).
+	want := legacySHA256Hash(password, user.PasswordSalt)
+	if subtle.ConstantTimeCompare([]byte(want), []byte(user.PasswordHash)) != 1 {
+		return false, false
+	}
+	return true, true
 }
 
 func publicAuthUser(user authUser) authUser {
@@ -263,7 +311,18 @@ func (b *Broker) handleAuthUsers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "user not found", http.StatusNotFound)
 			return
 		}
-		if target.ID == requester.ID && normalizeAuthRole(target.Role) == "owner" && nextRole != "owner" && b.ownerCountForTeamLocked(target.TeamID) <= 1 {
+		currentRole := normalizeAuthRole(target.Role)
+		// Block self-role changes outright. Admins must not be able to self-
+		// promote to owner; owners can still be demoted by another owner. This
+		// also prevents an owner from accidentally locking themselves out
+		// (separately, the last-owner guard below still applies for inter-user
+		// demotions).
+		if target.ID == requester.ID && nextRole != currentRole {
+			b.mu.Unlock()
+			http.Error(w, "cannot change your own role", http.StatusForbidden)
+			return
+		}
+		if currentRole == "owner" && nextRole != "owner" && b.ownerCountForTeamLocked(target.TeamID) <= 1 {
 			b.mu.Unlock()
 			http.Error(w, "cannot remove the last owner", http.StatusConflict)
 			return
@@ -389,7 +448,11 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	salt := generateToken()
+	passwordHash, err := hashPassword(password)
+	if err != nil {
+		http.Error(w, "failed to hash password", http.StatusInternalServerError)
+		return
+	}
 	user := authUser{
 		ID:           userID,
 		Email:        email,
@@ -397,8 +460,8 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 		TeamID:       team.ID,
 		Role:         role,
 		Status:       "active",
-		PasswordSalt: salt,
-		PasswordHash: hashPassword(password, salt),
+		PasswordSalt: "",
+		PasswordHash: passwordHash,
 		CreatedAt:    nowText,
 		UpdatedAt:    nowText,
 		LastLoginAt:  nowText,
@@ -458,10 +521,16 @@ func (b *Broker) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
-	want := hashPassword(password, user.PasswordSalt)
-	if subtle.ConstantTimeCompare([]byte(want), []byte(user.PasswordHash)) != 1 {
+	ok, needsUpgrade := verifyPassword(password, user)
+	if !ok {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
+	}
+	if needsUpgrade {
+		if newHash, err := hashPassword(password); err == nil {
+			user.PasswordHash = newHash
+			user.PasswordSalt = ""
+		}
 	}
 	now := time.Now().UTC()
 	user.LastLoginAt = now.Format(time.RFC3339)

@@ -136,6 +136,20 @@ function formatBlock(trimmed: string): string | null {
   return null;
 }
 
+// Only http/https/mailto and same-origin path / fragment URLs are allowed in
+// rendered links. Agent output is "trusted" only insofar as it comes from the
+// broker, but the broker can relay attacker-controlled context (emails,
+// calendar, CRM), so we must still defend against javascript:/data:/vbscript:
+// payloads. The negative lookahead on the path branch rejects protocol-
+// relative URLs like `//evil.com/x`, which the browser otherwise resolves
+// against the current scheme.
+const SAFE_URL_SCHEME = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
+
+function safeURL(raw: string): string {
+  const trimmed = raw.trim();
+  return SAFE_URL_SCHEME.test(trimmed) ? trimmed : "#";
+}
+
 function formatInline(text: string): string {
   let s = escapeHtml(text);
   // Bold
@@ -147,7 +161,8 @@ function formatInline(text: string): string {
   // Links
   s = s.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a class="msg-link" href="$2" target="_blank" rel="noopener">$1</a>',
+    (_, label, url) =>
+      `<a class="msg-link" href="${safeURL(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`,
   );
   // @mentions
   s = s.replace(/@(\w[\w-]*)/g, '<span class="mention">@$1</span>');
