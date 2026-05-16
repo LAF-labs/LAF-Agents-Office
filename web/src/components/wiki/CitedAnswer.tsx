@@ -8,6 +8,7 @@ import {
   buildRehypePlugins,
   buildRemarkPlugins,
 } from "../../lib/wikiMarkdownConfig";
+import { useUiText } from "../../lib/uiText";
 import Hatnote from "./Hatnote";
 
 // QueryAnswer mirrors the JSON shape returned by GET /wiki/lookup.
@@ -56,6 +57,7 @@ export interface CitedAnswerProps {
  *   - Answer: full composition
  */
 export default function CitedAnswer({ query }: CitedAnswerProps) {
+  const { wiki: copy } = useUiText();
   const [answer, setAnswer] = useState<QueryAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,9 +106,9 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
         className="wk-cited-answer wk-cited-answer--loading"
         role="status"
         aria-busy="true"
-        aria-label="Loading cited answer…"
+        aria-label={copy.citedAnswerLoadingAria}
       >
-        <p className="wk-lookup-status">Searching the wiki…</p>
+        <p className="wk-lookup-status">{copy.searchingWiki}</p>
       </div>
     );
   }
@@ -116,7 +118,7 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
     return (
       <div className="wk-cited-answer wk-cited-answer--error">
         <Hatnote>
-          <em>Wiki lookup failed:</em> {error}
+          <em>{copy.wikiLookupFailed}</em> {error}
         </Hatnote>
       </div>
     );
@@ -141,9 +143,9 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
     <article className="wk-cited-answer">
       {/* Hatnote — always present, coverage context */}
       <Hatnote>
-        <em>From the wiki</em>
-        {answer.coverage === "partial" ? " (partial match)" : null}
-        {answer.coverage === "none" ? " (no match)" : null}
+        <em>{copy.fromTheWiki}</em>
+        {answer.coverage === "partial" ? copy.partialMatch : null}
+        {answer.coverage === "none" ? copy.noMatch : null}
       </Hatnote>
 
       {/* Body — only when there is an answer */}
@@ -161,10 +163,7 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
 
       {/* Out-of-scope: no sources block */}
       {isOutOfScope ? (
-        <p className="wk-cited-answer-oos">
-          I can help with questions about people, companies, and activities in
-          your workspace.
-        </p>
+        <p className="wk-cited-answer-oos">{copy.outOfScope}</p>
       ) : null}
 
       {/* Sources — only cited entries, only when not out-of-scope.
@@ -173,7 +172,7 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
           drops sources 1, 2, 4 entirely). */}
       {!isOutOfScope && citedSources.length > 0 ? (
         <section className="wk-sources" aria-labelledby="ca-sources-heading">
-          <h2 id="ca-sources-heading">Sources</h2>
+          <h2 id="ca-sources-heading">{copy.sources}</h2>
           <ol>
             {answer.sources
               .map((src, i) => ({ src, n: i + 1 }))
@@ -210,14 +209,11 @@ export default function CitedAnswer({ query }: CitedAnswerProps) {
       <div className="wk-page-footer">
         <div className="wk-actions">
           {mostRecentValidFrom ? (
-            <span>Last updated: {mostRecentValidFrom}</span>
+            <span>{copy.lastUpdated(mostRecentValidFrom)}</span>
           ) : null}
           <span>{answer.latency_ms}ms</span>
           {answer.sources.length > 0 ? (
-            <span>
-              {answer.sources.length}{" "}
-              {answer.sources.length === 1 ? "source" : "sources"}
-            </span>
+            <span>{copy.sourceCount(answer.sources.length)}</span>
           ) : null}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import type { DiscoveredSection, WikiCatalogEntry } from "../../api/wiki";
 import { resolveGroupOrder } from "../../lib/groupOrder";
+import { useUiText } from "../../lib/uiText";
 
 /** Left-rail thematic dir groups + Tools section + search. */
 
@@ -36,6 +37,7 @@ export default function WikiSidebar({
   onNavigateAudit,
   onNavigateLint,
 }: WikiSidebarProps) {
+  const { wiki: copy } = useUiText();
   const [query, setQuery] = useState("");
   const [bannerSlug, setBannerSlug] = useState<string | null>(null);
 
@@ -78,12 +80,13 @@ export default function WikiSidebar({
       <input
         type="search"
         className="search"
-        placeholder="Search wiki…"
+        placeholder={copy.searchPlaceholder}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
       {bannerSlug ? (
         <AddToBlueprintBanner
+          copy={copy}
           slug={bannerSlug}
           onDismiss={() => setBannerSlug(null)}
         />
@@ -95,6 +98,7 @@ export default function WikiSidebar({
                 key={section.slug}
                 section={section}
                 entries={section.entries}
+                copy={copy}
                 currentPath={currentPath}
                 isNew={newSectionSlugs.has(section.slug)}
                 onNavigate={onNavigate}
@@ -143,7 +147,7 @@ export default function WikiSidebar({
               onNavigateAudit();
             }}
           >
-            View history →
+            {copy.viewHistory}
           </button>
         </div>
       ) : null}
@@ -157,7 +161,7 @@ export default function WikiSidebar({
               onNavigateLint();
             }}
           >
-            Check wiki health →
+            {copy.checkHealth}
           </button>
         </div>
       ) : null}
@@ -172,6 +176,7 @@ interface SectionWithEntries extends DiscoveredSection {
 interface SectionGroupProps {
   section: DiscoveredSection;
   entries: WikiCatalogEntry[];
+  copy: ReturnType<typeof useUiText>["wiki"];
   currentPath?: string | null;
   isNew: boolean;
   onNavigate: (path: string) => void;
@@ -181,6 +186,7 @@ interface SectionGroupProps {
 function SectionGroup({
   section,
   entries,
+  copy,
   currentPath,
   isNew,
   onNavigate,
@@ -193,8 +199,12 @@ function SectionGroup({
         <span className="wk-section-marker" aria-hidden="true" />
       ) : null}
       {isNew ? (
-        <span className="wk-section-new" role="status" aria-label="New section">
-          new
+        <span
+          className="wk-section-new"
+          role="status"
+          aria-label={copy.newSectionAria}
+        >
+          {copy.newSection}
         </span>
       ) : null}
     </>
@@ -206,8 +216,8 @@ function SectionGroup({
         className={`wk-section-header wk-section-${section.from_schema ? "schema" : "discovered"}`}
         title={
           section.from_schema
-            ? "Declared in your blueprint"
-            : "Discovered from articles your team has written"
+            ? copy.schemaSectionTitle
+            : copy.discoveredSectionTitle
         }
       >
         {section.from_schema ? (
@@ -226,7 +236,7 @@ function SectionGroup({
       <ul>
         {entries.length === 0 ? (
           <li className="wk-section-empty">
-            <em>No articles yet</em>
+            <em>{copy.noArticles}</em>
           </li>
         ) : (
           entries.map((item) => (
@@ -252,26 +262,28 @@ function SectionGroup({
 }
 
 interface AddToBlueprintBannerProps {
+  copy: ReturnType<typeof useUiText>["wiki"];
   slug: string;
   onDismiss: () => void;
 }
 
-function AddToBlueprintBanner({ slug, onDismiss }: AddToBlueprintBannerProps) {
+function AddToBlueprintBanner({
+  copy,
+  slug,
+  onDismiss,
+}: AddToBlueprintBannerProps) {
   return (
     <div
       className="wk-section-banner"
       role="status"
       data-testid="section-banner"
     >
-      <div className="wk-section-banner-body">
-        <strong>“{slug}”</strong> is a new section your team built organically.
-        Add it to your blueprint to make it permanent.
-      </div>
+      <div className="wk-section-banner-body">{copy.blueprintBanner(slug)}</div>
       <button
         type="button"
         className="wk-section-banner-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss banner"
+        aria-label={copy.dismissBanner}
       >
         ×
       </button>

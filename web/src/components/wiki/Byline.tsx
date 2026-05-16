@@ -1,5 +1,6 @@
 import type { HumanIdentity } from "../../api/wiki";
 import { formatRelativeTime } from "../../lib/format";
+import { useUiText } from "../../lib/uiText";
 import PixelAvatar from "./PixelAvatar";
 
 /** Article byline: pixel avatar + last-edited-by + amber ts pulse + started date. */
@@ -30,6 +31,7 @@ export default function Byline({
   revisions,
   humans,
 }: BylineProps) {
+  const { wiki: copy } = useUiText();
   // v1.4 legacy: `human` was the single synthetic author for every human
   // edit. v1.5 replaces that with per-human identities from GET /humans.
   // Both paths take a distinct "human pill" style so readers can tell
@@ -37,12 +39,12 @@ export default function Byline({
   const registeredHuman = humans?.find((h) => h.slug === authorSlug);
   const isLegacyHuman = authorSlug === "human";
   const isHuman = Boolean(registeredHuman) || isLegacyHuman;
-  const humanLabel = registeredHuman?.name ?? "Human";
+  const humanLabel = registeredHuman?.name ?? copy.human;
   return (
     <div className="wk-byline">
       <PixelAvatar slug={authorSlug} size={22} />
       <span>
-        Last edited by{" "}
+        {copy.lastEditedBy}{" "}
         {isHuman ? (
           <span className="wk-name wk-human-pill" data-testid="wk-human-byline">
             {humanLabel}
@@ -58,15 +60,21 @@ export default function Byline({
         <>
           <span className="wk-dot">•</span>
           <span>
-            started <span className="wk-started-date">{startedDate}</span>
-            {startedBy ? <> by {startedBy}</> : null}
+            {copy.started}{" "}
+            <span className="wk-started-date">{startedDate}</span>
+            {startedBy ? (
+              <>
+                {" "}
+                {copy.by} {startedBy}
+              </>
+            ) : null}
           </span>
         </>
       ) : null}
       {typeof revisions === "number" && revisions > 0 && (
         <>
           <span className="wk-dot">•</span>
-          <span>{revisions} revisions</span>
+          <span>{copy.revisionsCount(revisions)}</span>
         </>
       )}
     </div>

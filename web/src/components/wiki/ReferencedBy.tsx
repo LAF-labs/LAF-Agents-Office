@@ -1,4 +1,5 @@
 import { formatAgentName } from "../../lib/agentName";
+import { useUiText } from "../../lib/uiText";
 import PixelAvatar from "./PixelAvatar";
 
 /** Right-rail backlinks: articles that link TO this article. */
@@ -18,10 +19,11 @@ export default function ReferencedBy({
   backlinks,
   onNavigate,
 }: ReferencedByProps) {
+  const { wiki: copy } = useUiText();
   return (
     <div>
       <h4>
-        Referenced by
+        {copy.referencedBy}
         <span className="wk-toggle" data-testid="wk-backlink-count">
           {backlinks.length}
         </span>

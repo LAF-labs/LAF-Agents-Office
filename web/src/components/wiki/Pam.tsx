@@ -14,6 +14,7 @@ import {
   subscribePamEvents,
 } from "../../api/pam";
 import { buildPamMenu, type PamMenuEntry } from "../../lib/pamActions";
+import { useUiText } from "../../lib/uiText";
 import { PixelAvatar } from "../ui/PixelAvatar";
 import "../../styles/pam.css";
 
@@ -50,6 +51,7 @@ const STATUS_CLEAR_MS = 4000;
  * disable themselves when no article is open.
  */
 export default function Pam({ articlePath, onActionDone }: PamProps) {
+  const { wiki: copy } = useUiText();
   const [menu, setMenu] = useState<PamMenuEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -101,14 +103,14 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
         if (cancelled) return;
         console.error("pam: failed to load action registry", err);
         setLoadError(
-          err instanceof Error ? err.message : "Could not load Pam’s menu.",
+          err instanceof Error ? err.message : copy.pamMenuLoadFailed,
         );
         setMenu([]);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [copy]);
 
   // Subscribe to Pam's SSE progress events exactly once. The handler reads
   // the latest activeJobId / menu / onActionDone via refs so the
@@ -121,12 +123,13 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
         setActiveJobId,
         scheduleClear,
         onActionDone: onActionDoneRef.current,
+        finishFailed: copy.pamFinishFailed,
       });
     });
     return () => {
       unsub();
     };
-  }, [scheduleClear]);
+  }, [scheduleClear, copy]);
 
   // Close menu on outside click so it doesn't linger when the user moves
   // on. Keep it simple: single global listener, cleaned up on unmount.
@@ -170,13 +173,13 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
         const { job_id } = await entry.run({ articlePath });
         setActiveJobId(job_id);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Pam could not start.";
+        const msg = err instanceof Error ? err.message : copy.pamStartFailed;
         setStatus({ kind: "failed", message: msg });
         setActiveJobId(null);
         scheduleClear();
       }
     },
-    [articlePath, scheduleClear],
+    [articlePath, scheduleClear, copy],
   );
 
   const onMenuKeyDown = useCallback(
@@ -197,8 +200,8 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
         data-busy={busy ? "true" : "false"}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        aria-label="Pam the Archivist"
-        title="Pam — click for options"
+        aria-label={copy.pamAria}
+        title={copy.pamTitle}
         onClick={() => setMenuOpen((v) => !v)}
       >
         <PixelAvatar slug="pam" size={18} className="pam-avatar" />
@@ -214,6 +217,7 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
           articlePath={articlePath}
           busy={busy}
           runAction={runAction}
+          copy={copy}
         />
       ) : null}
 
@@ -224,7 +228,7 @@ export default function Pam({ articlePath, onActionDone }: PamProps) {
           aria-live="polite"
           aria-hidden={menuOpen}
         >
-          {renderStatus(status)}
+          {renderStatus(status, copy)}
         </div>
       )}
     </div>
@@ -239,6 +243,7 @@ interface PamMenuProps {
   articlePath: string | null;
   busy: boolean;
   runAction: (entry: PamMenuEntry) => Promise<void>;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function PamMenu({
@@ -249,22 +254,24 @@ function PamMenu({
   articlePath,
   busy,
   runAction,
+  copy,
 }: PamMenuProps) {
   return (
     <div
       ref={menuElRef}
       className="pam-menu"
       role="menu"
-      aria-label="Pam's actions"
+      aria-label={copy.pamActionsAria}
       onKeyDown={onMenuKeyDown}
     >
-      <div className="pam-menu-header">Pam can help with</div>
+      <div className="pam-menu-header">{copy.pamMenuHeader}</div>
       <PamMenuItems
         menu={menu}
         loadError={loadError}
         articlePath={articlePath}
         busy={busy}
         runAction={runAction}
+        copy={copy}
       />
     </div>
   );
@@ -276,23 +283,25 @@ function PamMenuItems({
   articlePath,
   busy,
   runAction,
+  copy,
 }: Pick<
   PamMenuProps,
   "menu" | "loadError" | "articlePath" | "busy" | "runAction"
->) {
-  if (menu === null) return <div className="pam-menu-empty">Loading…</div>;
+> & { copy: ReturnType<typeof useUiText>["wiki"] }) {
+  if (menu === null)
+    return <div className="pam-menu-empty">{copy.pamMenuLoading}</div>;
   if (loadError) {
     return (
       <div className="pam-menu-empty" role="alert">
-        Could not load Pam’s menu.
+        {copy.pamMenuLoadFailed}
       </div>
     );
   }
   if (menu.length === 0) {
-    return <div className="pam-menu-empty">No actions available.</div>;
+    return <div className="pam-menu-empty">{copy.pamNoActions}</div>;
   }
   if (!articlePath) {
-    return <div className="pam-menu-empty">Open an article to use Pam.</div>;
+    return <div className="pam-menu-empty">{copy.pamOpenArticle}</div>;
   }
   return (
     <>
@@ -318,16 +327,19 @@ function assertNever(x: never): never {
   throw new Error(`pam: unexpected status kind ${JSON.stringify(x)}`);
 }
 
-function renderStatus(status: Status): string {
+function renderStatus(
+  status: Status,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   switch (status.kind) {
     case "idle":
       return "";
     case "running":
-      return `Pam is working: ${status.label}…`;
+      return copy.pamRunning(status.label);
     case "done":
-      return `Done: ${status.label}`;
+      return copy.pamDone(status.label);
     case "failed":
-      return `Pam: ${status.message}`;
+      return copy.pamFailed(status.message);
     default:
       return assertNever(status);
   }
@@ -348,6 +360,7 @@ function handlePamEvent(
     setActiveJobId: (id: number | null) => void;
     scheduleClear: () => void;
     onActionDone?: () => void;
+    finishFailed: string;
   },
 ) {
   if (currentJobId === null || evt.job_id !== currentJobId) return;
@@ -371,7 +384,7 @@ function handlePamEvent(
   if (evt.kind === "failed") {
     actions.setStatus({
       kind: "failed",
-      message: evt.error || "Pam could not finish.",
+      message: evt.error || actions.finishFailed,
     });
     actions.setActiveJobId(null);
     actions.scheduleClear();

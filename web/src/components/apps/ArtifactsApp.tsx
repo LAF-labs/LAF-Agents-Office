@@ -12,6 +12,7 @@ import {
   type Task,
 } from "../../api/client";
 import { formatTokens } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import { type Insight, InsightsList } from "../activity/InsightsList";
 import { Timeline, type TimelineEvent } from "../activity/Timeline";
 
@@ -19,6 +20,110 @@ const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined";
 const ACTIVITY_LIVE_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
+
+const ACTIVITY_COPY = {
+  en: {
+    loading: "Loading workspace activity...",
+    title: "Office activity",
+    desc: "Which lanes are moving, which agents are active, what decisions just got made, and where work is blocked.",
+    blockedTask: "Blocked task",
+    watchdogAlert: "Watchdog alert",
+    decision: "Decision",
+    action: "Action",
+    activeLanes: "Active lanes",
+    activeLanesCopy: "Live tasks currently moving.",
+    blockedLanes: "Blocked lanes",
+    blockedLanesCopy: "Tasks needing operator attention.",
+    watchdogAlerts: "Watchdog alerts",
+    watchdogAlertsCopy: "Watchdogs firing right now.",
+    agentsInMotion: "Agents in motion",
+    agentsInMotionCopy: "Specialists currently shipping or plotting.",
+    recentActions: "Recent actions",
+    recentActionsCopy: "Automation and system actions logged.",
+    dueAutomations: "Due automations",
+    dueAutomationsCopy: "Scheduled jobs that are due now.",
+    sessionTokens: "Session tokens",
+    sessionTokensCopy: "Live token burn this session.",
+    needsAttention: "Needs attention",
+    items: (count: number) => `${count} items`,
+    noBlockers: "No active blockers or watchdog alerts.",
+    recentActivity: "Recent activity",
+    events: (count: number) => `${count} events`,
+    noTimeline: "No decisions or actions logged yet.",
+    openOrMoving: (count: number) => `${count} open or moving`,
+    noActiveLanes: "No active lanes right now.",
+    untitledTask: "Untitled task",
+    agentPulse: "Agent pulse",
+    activeNow: (count: number) => `${count} active right now`,
+    noAgents: "No agents are visibly moving right now.",
+    recorded: (count: number) => `${count} recorded`,
+    noActions: "No actions recorded yet.",
+    related: (id: string) => `Related: ${id}`,
+    dueNow: (count: number) => `${count} due now`,
+    noJobs: "No jobs are due right now.",
+    scheduledJob: "Scheduled job",
+    scrollToDetails: (kicker: string, value: string) =>
+      `${kicker}: ${value}. Scroll to details.`,
+    activityState: {
+      shipping: "Shipping",
+      plotting: "Plotting",
+      lurking: "Idle",
+    },
+  },
+  ko: {
+    loading: "워크스페이스 활동을 불러오는 중...",
+    title: "오피스 활동",
+    desc: "어떤 작업이 움직이고 있는지, 어떤 에이전트가 활동 중인지, 방금 어떤 결정이 내려졌고 어디에서 막혔는지 보여줍니다.",
+    blockedTask: "막힌 작업",
+    watchdogAlert: "워치독 알림",
+    decision: "결정",
+    action: "작업",
+    activeLanes: "활성 작업",
+    activeLanesCopy: "현재 진행 중인 작업입니다.",
+    blockedLanes: "막힌 작업",
+    blockedLanesCopy: "운영자 확인이 필요한 작업입니다.",
+    watchdogAlerts: "워치독 알림",
+    watchdogAlertsCopy: "지금 감지된 워치독 알림입니다.",
+    agentsInMotion: "활동 중인 에이전트",
+    agentsInMotionCopy: "현재 실행하거나 준비 중인 담당자입니다.",
+    recentActions: "최근 작업",
+    recentActionsCopy: "자동화와 시스템 작업 기록입니다.",
+    dueAutomations: "실행 예정 자동화",
+    dueAutomationsCopy: "지금 실행 시점이 된 예약 작업입니다.",
+    sessionTokens: "세션 토큰",
+    sessionTokensCopy: "이 세션에서 사용한 토큰입니다.",
+    needsAttention: "확인 필요",
+    items: (count: number) => `${count}개 항목`,
+    noBlockers: "현재 막힌 작업이나 워치독 알림이 없습니다.",
+    recentActivity: "최근 활동",
+    events: (count: number) => `이벤트 ${count}개`,
+    noTimeline: "아직 결정이나 작업 기록이 없습니다.",
+    openOrMoving: (count: number) => `열림 또는 진행 중 ${count}개`,
+    noActiveLanes: "지금 진행 중인 작업이 없습니다.",
+    untitledTask: "제목 없는 작업",
+    agentPulse: "에이전트 활동",
+    activeNow: (count: number) => `현재 활성 ${count}명`,
+    noAgents: "현재 눈에 띄게 움직이는 에이전트가 없습니다.",
+    recorded: (count: number) => `기록 ${count}개`,
+    noActions: "아직 작업 기록이 없습니다.",
+    related: (id: string) => `관련 항목: ${id}`,
+    dueNow: (count: number) => `지금 실행 ${count}개`,
+    noJobs: "지금 실행할 예약 작업이 없습니다.",
+    scheduledJob: "예약 작업",
+    scrollToDetails: (kicker: string, value: string) =>
+      `${kicker}: ${value}. 자세한 내용으로 이동합니다.`,
+    activityState: {
+      shipping: "실행 중",
+      plotting: "준비 중",
+      lurking: "대기",
+    },
+  },
+} as const;
+
+function useActivityCopy() {
+  const { language } = useI18n();
+  return ACTIVITY_COPY[language] ?? ACTIVITY_COPY.en;
+}
 
 /** Minimal action/decision/watchdog shapes from the untyped endpoints. */
 interface ActionRecord {
@@ -89,6 +194,7 @@ function classifyMemberActivity(member: OfficeMember): {
 }
 
 export function ArtifactsApp() {
+  const copy = useActivityCopy();
   const tasks = useQuery({
     queryKey: ["activity-tasks"],
     queryFn: () => getOfficeTasks({ includeDone: true }),
@@ -141,9 +247,7 @@ export function ArtifactsApp() {
     members.isLoading;
 
   if (isLoading) {
-    return (
-      <div className="app-loading-state">Loading workspace activity...</div>
-    );
+    return <div className="app-loading-state">{copy.loading}</div>;
   }
 
   const allTasks = tasks.data?.tasks ?? [];
@@ -185,7 +289,7 @@ export function ArtifactsApp() {
     ...blockedTasks.map<Insight>((t) => ({
       priority: "high",
       category: "task",
-      title: t.title || t.id || "Blocked task",
+      title: t.title || t.id || copy.blockedTask,
       body: t.description,
       target:
         [t.channel ? `#${t.channel}` : "", t.owner ? `@${t.owner}` : ""]
@@ -201,7 +305,7 @@ export function ArtifactsApp() {
     ...allWatchdogs.map<Insight>((w) => ({
       priority: w.kind?.toLowerCase() === "critical" ? "critical" : "high",
       category: w.kind || "watchdog",
-      title: w.summary || w.kind || "Watchdog alert",
+      title: w.summary || w.kind || copy.watchdogAlert,
       body: w.target_type
         ? `${w.target_type}${w.target_id ? ` · ${w.target_id}` : ""}`
         : undefined,
@@ -223,7 +327,7 @@ export function ArtifactsApp() {
         type: d.blocking ? "watchdog" : "decision",
         timestamp: d.created_at || "",
         actor: d.owner,
-        content: d.summary || d.reason || d.kind || "Decision",
+        content: d.summary || d.reason || d.kind || copy.decision,
         meta:
           [d.channel ? `#${d.channel}` : "", d.kind || ""]
             .filter(Boolean)
@@ -235,7 +339,7 @@ export function ArtifactsApp() {
         type: "action",
         timestamp: a.created_at || "",
         actor: a.actor,
-        content: a.summary || a.name || a.title || "Action",
+        content: a.summary || a.name || a.title || copy.action,
         meta:
           [a.channel ? `#${a.channel}` : "", a.kind || a.type || ""]
             .filter(Boolean)
@@ -257,6 +361,7 @@ export function ArtifactsApp() {
         actions={allActions.length}
         jobs={allJobs.length}
         sessionTokens={formatTokens(usageData?.session?.total_tokens ?? 0)}
+        copy={copy}
       />
       <div
         className="activity-columns"
@@ -266,11 +371,13 @@ export function ArtifactsApp() {
           activeTasks={activeTasks}
           liveAgents={liveAgents}
           actions={allActions}
+          copy={copy}
         />
         <RightActivityColumn
           insights={insights}
           timelineEvents={timelineEvents}
           jobs={allJobs}
+          copy={copy}
         />
       </div>
     </div>
@@ -280,6 +387,7 @@ export function ArtifactsApp() {
 /* ── Shared sub-components ── */
 
 function ActivityHero() {
+  const copy = useActivityCopy();
   return (
     <div
       className="activity-hero"
@@ -290,7 +398,7 @@ function ActivityHero() {
       }}
     >
       <div>
-        <h3 style={{ fontSize: 18, fontWeight: 700 }}>Office activity</h3>
+        <h3 style={{ fontSize: 18, fontWeight: 700 }}>{copy.title}</h3>
         <div
           style={{
             fontSize: 13,
@@ -298,8 +406,7 @@ function ActivityHero() {
             marginTop: 4,
           }}
         >
-          Which lanes are moving, which agents are active, what decisions just
-          got made, and where work is blocked.
+          {copy.desc}
         </div>
       </div>
       <div
@@ -326,6 +433,7 @@ function StatsGrid({
   actions,
   jobs,
   sessionTokens,
+  copy,
 }: {
   activeTasks: number;
   blockedTasks: number;
@@ -334,6 +442,7 @@ function StatsGrid({
   actions: number;
   jobs: number;
   sessionTokens: string;
+  copy: ReturnType<typeof useActivityCopy>;
 }) {
   return (
     <div
@@ -345,41 +454,41 @@ function StatsGrid({
       }}
     >
       <StatCard
-        kicker="Active lanes"
+        kicker={copy.activeLanes}
         value={String(activeTasks)}
-        copy="Live tasks currently moving."
+        copy={copy.activeLanesCopy}
       />
       <StatCard
-        kicker="Blocked lanes"
+        kicker={copy.blockedLanes}
         value={String(blockedTasks)}
-        copy="Tasks needing operator attention."
+        copy={copy.blockedLanesCopy}
         anchorId="needs-attention"
       />
       <StatCard
-        kicker="Watchdog alerts"
+        kicker={copy.watchdogAlerts}
         value={String(watchdogs)}
-        copy="Watchdogs firing right now."
+        copy={copy.watchdogAlertsCopy}
         anchorId="needs-attention"
       />
       <StatCard
-        kicker="Agents in motion"
+        kicker={copy.agentsInMotion}
         value={String(liveAgents)}
-        copy="Specialists currently shipping or plotting."
+        copy={copy.agentsInMotionCopy}
       />
       <StatCard
-        kicker="Recent actions"
+        kicker={copy.recentActions}
         value={String(actions)}
-        copy="Automation and system actions logged."
+        copy={copy.recentActionsCopy}
       />
       <StatCard
-        kicker="Due automations"
+        kicker={copy.dueAutomations}
         value={String(jobs)}
-        copy="Scheduled jobs that are due now."
+        copy={copy.dueAutomationsCopy}
       />
       <StatCard
-        kicker="Session tokens"
+        kicker={copy.sessionTokens}
         value={sessionTokens}
-        copy="Live token burn this session."
+        copy={copy.sessionTokensCopy}
       />
     </div>
   );
@@ -389,19 +498,21 @@ function LeftActivityColumn({
   activeTasks,
   liveAgents,
   actions,
+  copy,
 }: {
   activeTasks: Task[];
   liveAgents: OfficeMember[];
   actions: ActionRecord[];
+  copy: ReturnType<typeof useActivityCopy>;
 }) {
   return (
     <div
       className="activity-column activity-column-left"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <ActiveLanesSection activeTasks={activeTasks} />
-      <AgentPulseSection liveAgents={liveAgents} />
-      <RecentActionsSection actions={actions} />
+      <ActiveLanesSection activeTasks={activeTasks} copy={copy} />
+      <AgentPulseSection liveAgents={liveAgents} copy={copy} />
+      <RecentActionsSection actions={actions} copy={copy} />
     </div>
   );
 }
@@ -410,10 +521,12 @@ function RightActivityColumn({
   insights,
   timelineEvents,
   jobs,
+  copy,
 }: {
   insights: Insight[];
   timelineEvents: TimelineEvent[];
   jobs: SchedulerJobRaw[];
+  copy: ReturnType<typeof useActivityCopy>;
 }) {
   return (
     <div
@@ -421,46 +534,52 @@ function RightActivityColumn({
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <ActivitySection
-        title="Needs attention"
-        meta={`${insights.length} items`}
+        title={copy.needsAttention}
+        meta={copy.items(insights.length)}
         anchorId="needs-attention"
       >
         <InsightsList
           insights={insights}
-          emptyLabel="No active blockers or watchdog alerts."
+          emptyLabel={copy.noBlockers}
           limit={12}
         />
       </ActivitySection>
       <ActivitySection
-        title="Recent activity"
-        meta={`${timelineEvents.length} events`}
+        title={copy.recentActivity}
+        meta={copy.events(timelineEvents.length)}
       >
         <Timeline
           events={timelineEvents}
-          emptyLabel="No decisions or actions logged yet."
+          emptyLabel={copy.noTimeline}
           limit={14}
         />
       </ActivitySection>
-      <DueAutomationsSection jobs={jobs} />
+      <DueAutomationsSection jobs={jobs} copy={copy} />
     </div>
   );
 }
 
-function ActiveLanesSection({ activeTasks }: { activeTasks: Task[] }) {
+function ActiveLanesSection({
+  activeTasks,
+  copy,
+}: {
+  activeTasks: Task[];
+  copy: ReturnType<typeof useActivityCopy>;
+}) {
   return (
     <ActivitySection
-      title="Active lanes"
-      meta={`${activeTasks.length} open or moving`}
+      title={copy.activeLanes}
+      meta={copy.openOrMoving(activeTasks.length)}
     >
       {activeTasks.length === 0 ? (
-        <EmptyState>No active lanes right now.</EmptyState>
+        <EmptyState>{copy.noActiveLanes}</EmptyState>
       ) : (
         activeTasks
           .slice(0, 10)
           .map((task) => (
             <ActivityItem
               key={task.id}
-              title={task.title || task.id || "Untitled task"}
+              title={task.title || task.id || copy.untitledTask}
               body={task.description ?? ""}
               meta={[
                 task.channel ? `#${task.channel}` : "",
@@ -474,14 +593,20 @@ function ActiveLanesSection({ activeTasks }: { activeTasks: Task[] }) {
   );
 }
 
-function AgentPulseSection({ liveAgents }: { liveAgents: OfficeMember[] }) {
+function AgentPulseSection({
+  liveAgents,
+  copy,
+}: {
+  liveAgents: OfficeMember[];
+  copy: ReturnType<typeof useActivityCopy>;
+}) {
   return (
     <ActivitySection
-      title="Agent pulse"
-      meta={`${liveAgents.length} active right now`}
+      title={copy.agentPulse}
+      meta={copy.activeNow(liveAgents.length)}
     >
       {liveAgents.length === 0 ? (
-        <EmptyState>No agents are visibly moving right now.</EmptyState>
+        <EmptyState>{copy.noAgents}</EmptyState>
       ) : (
         liveAgents.slice(0, 10).map((member) => {
           const activity = classifyMemberActivity(member);
@@ -501,7 +626,11 @@ function AgentPulseSection({ liveAgents }: { liveAgents: OfficeMember[] }) {
                   {member.name || member.slug}
                 </div>
                 <div className="app-card-meta">
-                  {member.task || activity.label}
+                  {member.task ||
+                    copy.activityState[
+                      activity.state as keyof typeof copy.activityState
+                    ] ||
+                    activity.label}
                 </div>
               </div>
             </div>
@@ -512,19 +641,30 @@ function AgentPulseSection({ liveAgents }: { liveAgents: OfficeMember[] }) {
   );
 }
 
-function RecentActionsSection({ actions }: { actions: ActionRecord[] }) {
+function RecentActionsSection({
+  actions,
+  copy,
+}: {
+  actions: ActionRecord[];
+  copy: ReturnType<typeof useActivityCopy>;
+}) {
   return (
-    <ActivitySection title="Recent actions" meta={`${actions.length} recorded`}>
+    <ActivitySection
+      title={copy.recentActions}
+      meta={copy.recorded(actions.length)}
+    >
       {actions.length === 0 ? (
-        <EmptyState>No actions recorded yet.</EmptyState>
+        <EmptyState>{copy.noActions}</EmptyState>
       ) : (
         actions
           .slice(0, 12)
           .map((action) => (
             <ActivityItem
               key={actionKey(action)}
-              title={action.summary || action.name || action.title || "Action"}
-              body={action.related_id ? `Related: ${action.related_id}` : ""}
+              title={
+                action.summary || action.name || action.title || copy.action
+              }
+              body={action.related_id ? copy.related(action.related_id) : ""}
               meta={[
                 action.channel ? `#${action.channel}` : "",
                 action.actor ? `@${action.actor}` : "",
@@ -540,18 +680,27 @@ function RecentActionsSection({ actions }: { actions: ActionRecord[] }) {
   );
 }
 
-function DueAutomationsSection({ jobs }: { jobs: SchedulerJobRaw[] }) {
+function DueAutomationsSection({
+  jobs,
+  copy,
+}: {
+  jobs: SchedulerJobRaw[];
+  copy: ReturnType<typeof useActivityCopy>;
+}) {
   return (
-    <ActivitySection title="Due automations" meta={`${jobs.length} due now`}>
+    <ActivitySection
+      title={copy.dueAutomations}
+      meta={copy.dueNow(jobs.length)}
+    >
       {jobs.length === 0 ? (
-        <EmptyState>No jobs are due right now.</EmptyState>
+        <EmptyState>{copy.noJobs}</EmptyState>
       ) : (
         jobs
           .slice(0, 6)
           .map((job, idx) => (
             <ActivityItem
               key={job.slug ?? job.id ?? `due-${idx}`}
-              title={job.label || job.slug || "Scheduled job"}
+              title={job.label || job.slug || copy.scheduledJob}
               body={job.workflow_key || job.skill_name || job.kind || ""}
               meta={[
                 job.channel ? `#${job.channel}` : "",
@@ -576,6 +725,7 @@ interface StatCardProps {
 }
 
 function StatCard({ kicker, value, copy, anchorId }: StatCardProps) {
+  const activityCopy = useActivityCopy();
   const activate = () => {
     if (!anchorId) return;
     const target = document.getElementById(anchorId);
@@ -624,7 +774,7 @@ function StatCard({ kicker, value, copy, anchorId }: StatCardProps) {
         e.preventDefault();
         activate();
       }}
-      aria-label={`${kicker}: ${value}. Scroll to details.`}
+      aria-label={activityCopy.scrollToDetails(kicker, value)}
     >
       {content}
     </a>

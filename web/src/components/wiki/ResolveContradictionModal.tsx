@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { type LintFinding, resolveContradiction } from "../../api/wiki";
+import { useUiText } from "../../lib/uiText";
 import { showNotice } from "../ui/Toast";
 
 /**
@@ -33,6 +34,7 @@ export default function ResolveContradictionModal({
   onClose,
   onResolved,
 }: ResolveContradictionModalProps) {
+  const { wiki: copy } = useUiText();
   const [submitting, setSubmitting] = useState(false);
   /**
    * Which button the user clicked. Only that button shows the spinner +
@@ -80,7 +82,7 @@ export default function ResolveContradictionModal({
       // sha mirrors git's default display width.
       const shortSha = (res.commit_sha || "").slice(0, 7);
       showNotice(
-        shortSha ? `Resolved. Commit ${shortSha}.` : "Resolved.",
+        shortSha ? copy.resolvedCommit(shortSha) : copy.resolved,
         "success",
       );
       onResolved();
@@ -89,17 +91,15 @@ export default function ResolveContradictionModal({
       // tolerates it today, but it's a latent footgun).
       return;
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Failed to resolve contradiction.",
-      );
+      setError(err instanceof Error ? err.message : copy.resolveFailed);
       setSubmitting(false);
       setPendingWinner(null);
     }
   }
 
   // resolve_actions is always [factAText, factBText, "Both"] for contradictions.
-  const factA = finding.resolve_actions?.[0] ?? "Fact A";
-  const factB = finding.resolve_actions?.[1] ?? "Fact B";
+  const factA = finding.resolve_actions?.[0] ?? copy.factA;
+  const factB = finding.resolve_actions?.[1] ?? copy.factB;
 
   return (
     <div
@@ -116,22 +116,28 @@ export default function ResolveContradictionModal({
       tabIndex={-1}
     >
       <div className="wk-modal">
-        <h2 id="wk-resolve-title">Resolve contradiction</h2>
+        <h2 id="wk-resolve-title">{copy.resolveContradictionTitle}</h2>
 
         <p className="wk-editor-help">
-          Entity: <strong>{finding.entity_slug ?? "(unknown)"}</strong>
+          {copy.entity}: <strong>{finding.entity_slug ?? copy.unknown}</strong>
           {finding.fact_ids && finding.fact_ids.length > 0 && (
-            <> &mdash; facts: {finding.fact_ids.join(", ")}</>
+            <>
+              {" "}
+              &mdash; {copy.facts}: {finding.fact_ids.join(", ")}
+            </>
           )}
         </p>
 
-        <section className="wk-resolve-facts" aria-label="Conflicting facts">
+        <section
+          className="wk-resolve-facts"
+          aria-label={copy.conflictingFactsAria}
+        >
           <div className="wk-resolve-fact">
-            <span className="wk-resolve-fact-label">Fact A</span>
+            <span className="wk-resolve-fact-label">{copy.factA}</span>
             <p>{factA}</p>
           </div>
           <div className="wk-resolve-fact">
-            <span className="wk-resolve-fact-label">Fact B</span>
+            <span className="wk-resolve-fact-label">{copy.factB}</span>
             <p>{factB}</p>
           </div>
         </section>
@@ -145,10 +151,7 @@ export default function ResolveContradictionModal({
           </div>
         ) : null}
 
-        <p className="wk-editor-help">
-          Pick which fact is authoritative. The other will be marked superseded.
-          Choose <em>Both</em> to keep both as non-contradictory.
-        </p>
+        <p className="wk-editor-help">{copy.resolveHelp}</p>
 
         <div className="wk-editor-actions">
           <button
@@ -162,10 +165,10 @@ export default function ResolveContradictionModal({
             {pendingWinner === "A" ? (
               <>
                 <span className="wk-spinner" aria-hidden="true" />
-                Resolving…
+                {copy.resolving}
               </>
             ) : (
-              "Fact A"
+              copy.factA
             )}
           </button>
           <button
@@ -179,10 +182,10 @@ export default function ResolveContradictionModal({
             {pendingWinner === "B" ? (
               <>
                 <span className="wk-spinner" aria-hidden="true" />
-                Resolving…
+                {copy.resolving}
               </>
             ) : (
-              "Fact B"
+              copy.factB
             )}
           </button>
           <button
@@ -196,10 +199,10 @@ export default function ResolveContradictionModal({
             {pendingWinner === "Both" ? (
               <>
                 <span className="wk-spinner" aria-hidden="true" />
-                Resolving…
+                {copy.resolving}
               </>
             ) : (
-              "Both"
+              copy.both
             )}
           </button>
           <button
@@ -209,7 +212,7 @@ export default function ResolveContradictionModal({
             onClick={onClose}
             disabled={submitting}
           >
-            Cancel
+            {copy.cancel}
           </button>
         </div>
       </div>

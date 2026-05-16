@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchAuditLog, type WikiAuditEntry } from "../../api/wiki";
 import { formatAgentName } from "../../lib/agentName";
 import { formatRelativeTime } from "../../lib/format";
+import { useUiText } from "../../lib/uiText";
 import PixelAvatar from "./PixelAvatar";
 
 /**
@@ -29,6 +30,7 @@ interface WikiAuditProps {
 type AuthorBucket = "all" | "agents" | "system" | string;
 
 export default function WikiAudit({ onNavigate }: WikiAuditProps) {
+  const { wiki: copy } = useUiText();
   const [entries, setEntries] = useState<WikiAuditEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,27 +93,24 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
     <main className="wk-audit" data-testid="wk-audit">
       <header className="wk-audit-header">
         <div>
-          <h1 className="wk-audit-title">Memory history</h1>
-          <p className="wk-audit-strapline">
-            Every project memory update, newest first. Use this to check what
-            changed, who changed it, and which pages were touched.
-          </p>
+          <h1 className="wk-audit-title">{copy.auditTitle}</h1>
+          <p className="wk-audit-strapline">{copy.auditDesc}</p>
         </div>
         <div className="wk-audit-stats" aria-live="polite">
-          {auditStatsLabel(loading, error, stats)}
+          {auditStatsLabel(loading, error, stats, copy)}
         </div>
       </header>
 
-      <section className="wk-audit-filters" aria-label="Filters">
+      <section className="wk-audit-filters" aria-label={copy.filtersAria}>
         <label className="wk-audit-filter">
-          <span>Author</span>
+          <span>{copy.author}</span>
           <select
             value={authorFilter}
             onChange={(e) => setAuthorFilter(e.target.value as AuthorBucket)}
           >
-            <option value="all">All</option>
-            <option value="agents">Agents only</option>
-            <option value="system">System (bootstrap + recovery + init)</option>
+            <option value="all">{copy.all}</option>
+            <option value="agents">{copy.agentsOnly}</option>
+            <option value="system">{copy.systemOnly}</option>
             {knownAuthors.map((a) => (
               <option key={a} value={a}>
                 @{a}
@@ -120,16 +119,16 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
           </select>
         </label>
         <label className="wk-audit-filter">
-          <span>Search</span>
+          <span>{copy.search}</span>
           <input
             type="search"
-            placeholder="Match message or path (e.g. playbooks, renewal, sarah)"
+            placeholder={copy.auditSearchPlaceholder}
             value={pathQuery}
             onChange={(e) => setPathQuery(e.target.value)}
           />
         </label>
         <label className="wk-audit-filter">
-          <span>Window</span>
+          <span>{copy.window}</span>
           <select
             value={sinceDays ?? "all"}
             onChange={(e) => {
@@ -137,15 +136,15 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
               setSinceDays(v === "all" ? null : Number(v));
             }}
           >
-            <option value="all">All time</option>
-            <option value="1">Last 24 hours</option>
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
+            <option value="all">{copy.allTime}</option>
+            <option value="1">{copy.last24Hours}</option>
+            <option value="7">{copy.last7Days}</option>
+            <option value="30">{copy.last30Days}</option>
+            <option value="90">{copy.last90Days}</option>
           </select>
         </label>
         <label className="wk-audit-filter">
-          <span>Limit</span>
+          <span>{copy.limit}</span>
           <select
             value={String(limit)}
             onChange={(e) => setLimit(Number(e.target.value))}
@@ -153,7 +152,7 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
             <option value="50">50</option>
             <option value="200">200</option>
             <option value="500">500</option>
-            <option value="0">No limit</option>
+            <option value="0">{copy.noLimit}</option>
           </select>
         </label>
         <button
@@ -162,7 +161,7 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
           onClick={() => downloadCSV(filtered)}
           disabled={filtered.length === 0}
         >
-          Export CSV
+          {copy.exportCsv}
         </button>
       </section>
 
@@ -172,6 +171,7 @@ export default function WikiAudit({ onNavigate }: WikiAuditProps) {
         error={error}
         filtered={filtered}
         onNavigate={onNavigate}
+        copy={copy}
       />
     </main>
   );
@@ -181,10 +181,11 @@ function auditStatsLabel(
   loading: boolean,
   error: string | null,
   stats: ReturnType<typeof summarize>,
+  copy: ReturnType<typeof useUiText>["wiki"],
 ): string {
-  if (loading) return "Loading…";
-  if (error) return "Error";
-  return `${stats.total} entries · ${stats.authors} authors · ${stats.paths} paths touched`;
+  if (loading) return copy.auditStatsLoading;
+  if (error) return copy.auditStatsError;
+  return copy.auditStatsLabel(stats.total, stats.authors, stats.paths);
 }
 
 interface AuditResultsProps {
@@ -193,6 +194,7 @@ interface AuditResultsProps {
   error: string | null;
   filtered: WikiAuditEntry[];
   onNavigate: (path: string | null) => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function AuditResults({
@@ -201,38 +203,39 @@ function AuditResults({
   error,
   filtered,
   onNavigate,
+  copy,
 }: AuditResultsProps) {
   if (loading && !entries)
-    return <div className="wk-loading">Loading memory history...</div>;
-  if (error) return <div className="wk-error">Error: {error}</div>;
+    return <div className="wk-loading">{copy.loadingHistory}</div>;
+  if (error) return <div className="wk-error">{copy.articleError(error)}</div>;
   if (filtered.length === 0) {
     return (
       <div className="wk-audit-empty">
-        {entries && entries.length === 0
-          ? "No edits yet. Project memory updates will appear here."
-          : "No entries match your filters."}
+        {entries && entries.length === 0 ? copy.noEdits : copy.noFilterMatches}
       </div>
     );
   }
-  return <AuditTable entries={filtered} onNavigate={onNavigate} />;
+  return <AuditTable entries={filtered} onNavigate={onNavigate} copy={copy} />;
 }
 
 function AuditTable({
   entries,
   onNavigate,
+  copy,
 }: {
   entries: WikiAuditEntry[];
   onNavigate: (path: string | null) => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }) {
   return (
     <table className="wk-audit-table">
       <thead>
         <tr>
-          <th scope="col">When</th>
-          <th scope="col">Author</th>
-          <th scope="col">Message</th>
-          <th scope="col">Paths</th>
-          <th scope="col">SHA</th>
+          <th scope="col">{copy.when}</th>
+          <th scope="col">{copy.author}</th>
+          <th scope="col">{copy.message}</th>
+          <th scope="col">{copy.paths}</th>
+          <th scope="col">{copy.sha}</th>
         </tr>
       </thead>
       <tbody>

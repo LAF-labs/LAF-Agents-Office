@@ -10,6 +10,7 @@ import {
   synthesizeNow,
 } from "../../api/playbook";
 import { formatAgentName } from "../../lib/agentName";
+import { useUiText } from "../../lib/uiText";
 
 interface PlaybookExecutionLogProps {
   slug: string;
@@ -34,6 +35,7 @@ type SynthState = "idle" | "pending" | "success" | "error";
 export default function PlaybookExecutionLog({
   slug,
 }: PlaybookExecutionLogProps) {
+  const { wiki: copy } = useUiText();
   const [entries, setEntries] = useState<PlaybookExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -116,7 +118,7 @@ export default function PlaybookExecutionLog({
         onClick={() => setExpanded((v) => !v)}
       >
         <h2 id="wk-playbook-executions-heading">
-          Execution log
+          {copy.executionLog}
           <span className="wk-playbook-executions__count">
             {" "}
             ({entries.length})
@@ -134,11 +136,13 @@ export default function PlaybookExecutionLog({
             visible={visible}
             showAll={showAll}
             onToggleShowAll={() => setShowAll((v) => !v)}
+            copy={copy}
           />
           <SynthesisFooter
             status={status}
             synthState={synthState}
             onResynthesize={handleResynthesize}
+            copy={copy}
           />
         </div>
       ) : null}
@@ -152,6 +156,7 @@ interface ExecutionEntriesProps {
   visible: PlaybookExecution[];
   showAll: boolean;
   onToggleShowAll: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function ExecutionEntries({
@@ -160,19 +165,17 @@ function ExecutionEntries({
   visible,
   showAll,
   onToggleShowAll,
+  copy,
 }: ExecutionEntriesProps) {
   if (loading) {
     return (
-      <p className="wk-playbook-executions__loading">loading executions…</p>
+      <p className="wk-playbook-executions__loading">
+        {copy.loadingExecutions}
+      </p>
     );
   }
   if (entries.length === 0) {
-    return (
-      <p className="wk-playbook-executions__empty">
-        No executions recorded yet. Agents will log outcomes here as they run
-        the playbook.
-      </p>
-    );
+    return <p className="wk-playbook-executions__empty">{copy.noExecutions}</p>;
   }
   return (
     <>
@@ -188,8 +191,8 @@ function ExecutionEntries({
           onClick={onToggleShowAll}
         >
           {showAll
-            ? "show recent only"
-            : `show all (${entries.length - INITIAL_LIMIT} more)`}
+            ? copy.showRecentOnly
+            : copy.showAllMore(entries.length - INITIAL_LIMIT)}
         </button>
       ) : null}
     </>
@@ -227,26 +230,31 @@ interface SynthesisFooterProps {
   status: PlaybookSynthesisStatus | null;
   synthState: SynthState;
   onResynthesize: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function SynthesisFooter({
   status,
   synthState,
   onResynthesize,
+  copy,
 }: SynthesisFooterProps) {
   const lastLabel = status?.last_synthesized_ts
-    ? `Last synthesis: ${formatRelativeTs(status.last_synthesized_ts)} · ${status.execution_count} execution${status.execution_count === 1 ? "" : "s"}`
-    : "No synthesis yet — learnings will be added after the first archivist run.";
+    ? copy.lastSynthesis(
+        formatRelativeTs(status.last_synthesized_ts, copy),
+        status.execution_count,
+      )
+    : copy.noSynthesis;
   const pendingLabel =
     status && status.executions_since_last_synthesis > 0
-      ? `${status.executions_since_last_synthesis} new execution${status.executions_since_last_synthesis === 1 ? "" : "s"} since last synthesis`
+      ? copy.newExecutionsSince(status.executions_since_last_synthesis)
       : null;
 
   const buttonDisabled = synthState === "pending";
-  let buttonLabel = "Re-synthesize";
-  if (synthState === "pending") buttonLabel = "Synthesizing…";
-  if (synthState === "success") buttonLabel = "Synthesized ✓";
-  if (synthState === "error") buttonLabel = "Retry synthesis";
+  let buttonLabel: string = copy.resynthesize;
+  if (synthState === "pending") buttonLabel = copy.synthesizing;
+  if (synthState === "success") buttonLabel = copy.synthesized;
+  if (synthState === "error") buttonLabel = copy.retrySynthesis;
 
   return (
     <div
@@ -279,17 +287,20 @@ function formatShortTs(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-function formatRelativeTs(iso: string): string {
+function formatRelativeTs(
+  iso: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const diffMs = Date.now() - d.getTime();
-  if (diffMs < 0) return "just now";
+  if (diffMs < 0) return copy.justNow;
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return copy.justNow;
+  if (mins < 60) return copy.minutesAgo(mins);
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return copy.hoursAgo(hours);
   const days = Math.floor(hours / 24);
-  if (days < 14) return `${days}d ago`;
+  if (days < 14) return copy.daysAgo(days);
   return d.toISOString().slice(0, 10);
 }

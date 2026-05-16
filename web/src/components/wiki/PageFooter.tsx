@@ -1,3 +1,5 @@
+import { useUiText } from "../../lib/uiText";
+
 interface PageFooterProps {
   lastEditedBy: string;
   lastEditedTs: string;
@@ -5,51 +7,43 @@ interface PageFooterProps {
   actions?: Array<{ label: string; onClick?: () => void }>;
 }
 
-const DEFAULT_ACTIONS = [
-  { label: "View memory history" },
-  { label: "Copy page link" },
-  { label: "Download markdown" },
-  { label: "Export PDF" },
-];
-
 export default function PageFooter({
   lastEditedBy,
   lastEditedTs,
   articlePath,
-  actions = DEFAULT_ACTIONS,
+  actions,
 }: PageFooterProps) {
+  const { wiki: copy } = useUiText();
+  const renderedActions: Array<{ label: string; onClick?: () => void }> =
+    actions ?? copy.footerActions.map((label) => ({ label }));
   return (
     <div className="wk-page-footer">
       <div>
-        This article was last edited on{" "}
-        <span className="wk-last-edit-ts">{formatFull(lastEditedTs)}</span> by{" "}
-        <span className="wk-last-edit-name">{lastEditedBy}</span>. Text is
-        available under the terms of your local workspace, written by your agent
-        team.
+        {copy.footerEdited(formatFull(lastEditedTs, copy), lastEditedBy)}
       </div>
       <div className="wk-actions">
-        {actions.map((action) => (
+        {renderedActions.map((action) => (
           <button key={action.label} type="button" onClick={action.onClick}>
             {action.label}
           </button>
         ))}
       </div>
-      <div className="wk-dim">
-        Changes to {articlePath} are attributed to the person or agent that
-        saved them.
-      </div>
+      <div className="wk-dim">{copy.footerAttribution(articlePath)}</div>
     </div>
   );
 }
 
-function formatFull(iso: string): string {
+function formatFull(
+  iso: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
     const date = d.toISOString().slice(0, 10);
     const hours = String(d.getUTCHours()).padStart(2, "0");
     const mins = String(d.getUTCMinutes()).padStart(2, "0");
-    return `${date} at ${hours}:${mins} UTC`;
+    return copy.fullDate(date, `${hours}:${mins}`);
   } catch {
     return iso;
   }

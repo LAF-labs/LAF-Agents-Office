@@ -10,6 +10,7 @@ import { logout } from "../../api/client";
 import { useBrokerEvents } from "../../hooks/useBrokerEvents";
 import { useHashRouter } from "../../hooks/useHashRouter";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { useI18n } from "../../lib/i18n";
 import {
   loadArtifactsApp,
   loadCitedAnswer,
@@ -69,11 +70,12 @@ interface WorkspaceAppProps {
 }
 
 function WorkspaceLoadingFallback() {
+  const { t } = useI18n();
   return (
     <div
       className="workspace-route-skeleton"
       role="status"
-      aria-label="Loading workspace view"
+      aria-label={t("workspace.loadingView")}
       aria-busy="true"
     >
       <div className="workspace-route-skeleton-header">
@@ -95,6 +97,7 @@ function WorkspaceLoadingFallback() {
 }
 
 function MainContent() {
+  const { t } = useI18n();
   const currentApp = useAppStore((s) => s.currentApp);
   const currentChannel = useAppStore((s) => s.currentChannel);
   const channelMeta = useAppStore((s) => s.channelMeta);
@@ -219,7 +222,7 @@ function MainContent() {
               fontSize: 14,
             }}
           >
-            Unknown app: {currentApp}
+            {t("workspace.unknownApp").replace("{app}", currentApp)}
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useUiText } from "../../lib/uiText";
 import WikiLink from "./WikiLink";
 
 /** "See also" italic list at the bottom of an article. */
@@ -14,10 +15,11 @@ interface SeeAlsoProps {
 }
 
 export default function SeeAlso({ items, onNavigate }: SeeAlsoProps) {
+  const { wiki: copy } = useUiText();
   if (items.length === 0) return null;
   return (
     <section className="wk-see-also" aria-labelledby="wk-see-also-heading">
-      <h2 id="wk-see-also-heading">See also</h2>
+      <h2 id="wk-see-also-heading">{copy.seeAlso}</h2>
       <ul>
         {items.map((item) => (
           <li key={item.slug}>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { type LintFinding, type LintReport, runLint } from "../../api/wiki";
+import { useUiText } from "../../lib/uiText";
 import ResolveContradictionModal from "./ResolveContradictionModal";
 
 /**
@@ -19,6 +20,7 @@ interface WikiLintProps {
 }
 
 export default function WikiLint({ onNavigate }: WikiLintProps) {
+  const { wiki: copy } = useUiText();
   const [report, setReport] = useState<LintReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,31 +48,26 @@ export default function WikiLint({ onNavigate }: WikiLintProps) {
     <main className="wk-audit" data-testid="wk-lint">
       <header className="wk-audit-header">
         <div>
-          <h1 className="wk-audit-title">Wiki health check</h1>
-          <p className="wk-audit-strapline">
-            A daily sweep of the whole wiki to surface things worth your
-            attention: conflicting facts, pages with no links in or out, claims
-            that may be out of date, entities that should probably be linked,
-            and possible duplicates.
-          </p>
+          <h1 className="wk-audit-title">{copy.wikiHealthTitle}</h1>
+          <p className="wk-audit-strapline">{copy.wikiHealthDesc}</p>
         </div>
         <div className="wk-audit-stats" aria-live="polite">
-          {lintStatsLabel(loading, error, report)}
+          {lintStatsLabel(loading, error, report, copy)}
         </div>
       </header>
 
-      <section className="wk-audit-filters" aria-label="Actions">
+      <section className="wk-audit-filters" aria-label={copy.actionsAria}>
         <button
           type="button"
           className="wk-audit-export"
           onClick={loadReport}
           disabled={loading}
         >
-          {loading ? "Checking…" : "Check again now"}
+          {loading ? copy.checking : copy.checkAgainNow}
         </button>
         {report ? (
           <span className="wk-audit-strapline" style={{ alignSelf: "center" }}>
-            Last checked: {report.date}
+            {copy.lastChecked(report.date)}
           </span>
         ) : null}
       </section>
@@ -81,6 +78,7 @@ export default function WikiLint({ onNavigate }: WikiLintProps) {
         report={report}
         onNavigate={onNavigate}
         onResolve={(finding, idx) => setResolveTarget({ finding, idx })}
+        copy={copy}
       />
 
       {resolveTarget && report ? (
@@ -103,11 +101,16 @@ function lintStatsLabel(
   loading: boolean,
   error: string | null,
   report: LintReport | null,
+  copy: ReturnType<typeof useUiText>["wiki"],
 ): string {
-  if (loading) return "Checking…";
-  if (error) return "Error";
+  if (loading) return copy.checking;
+  if (error) return copy.auditStatsError;
   if (!report) return "";
-  return `${countBySev(report, "critical")} need attention · ${countBySev(report, "warning")} worth a look · ${countBySev(report, "info")} FYI`;
+  return copy.lintStatsLabel(
+    countBySev(report, "critical"),
+    countBySev(report, "warning"),
+    countBySev(report, "info"),
+  );
 }
 
 function countBySev(report: LintReport, severity: string): number {
@@ -121,6 +124,7 @@ interface LintResultsProps {
   report: LintReport | null;
   onNavigate: (path: string | null) => void;
   onResolve: (finding: LintFinding, idx: number) => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function LintResults({
@@ -129,14 +133,15 @@ function LintResults({
   report,
   onNavigate,
   onResolve,
+  copy,
 }: LintResultsProps) {
   if (loading && !report)
-    return <div className="wk-loading">Checking the wiki…</div>;
-  if (error) return <div className="wk-error">Error: {error}</div>;
+    return <div className="wk-loading">{copy.checkingWiki}</div>;
+  if (error) return <div className="wk-error">{copy.articleError(error)}</div>;
   if (report && report.findings.length === 0) {
     return (
       <div className="wk-audit-empty" data-testid="wk-lint-empty">
-        All clear. Nothing needs your attention right now.
+        {copy.allClear}
       </div>
     );
   }
@@ -146,6 +151,7 @@ function LintResults({
       findings={report.findings}
       onNavigate={onNavigate}
       onResolve={onResolve}
+      copy={copy}
     />
   );
 }
@@ -154,20 +160,22 @@ function LintTable({
   findings,
   onNavigate,
   onResolve,
+  copy,
 }: {
   findings: LintFinding[];
   onNavigate: (path: string | null) => void;
   onResolve: (finding: LintFinding, idx: number) => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }) {
   return (
     <table className="wk-audit-table wk-lint-table">
       <thead>
         <tr>
-          <th scope="col">Priority</th>
-          <th scope="col">Issue</th>
-          <th scope="col">Page</th>
-          <th scope="col">What's going on</th>
-          <th scope="col">Action</th>
+          <th scope="col">{copy.priority}</th>
+          <th scope="col">{copy.issue}</th>
+          <th scope="col">{copy.page}</th>
+          <th scope="col">{copy.whatsGoingOn}</th>
+          <th scope="col">{copy.action}</th>
         </tr>
       </thead>
       <tbody>
@@ -178,6 +186,7 @@ function LintTable({
             key={lintFindingKey(finding)}
             onNavigate={onNavigate}
             onResolve={onResolve}
+            copy={copy}
           />
         ))}
       </tbody>
@@ -190,11 +199,13 @@ function LintRow({
   idx,
   onNavigate,
   onResolve,
+  copy,
 }: {
   finding: LintFinding;
   idx: number;
   onNavigate: (path: string | null) => void;
   onResolve: (finding: LintFinding, idx: number) => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }) {
   const canResolve =
     finding.type === "contradictions" && finding.resolve_actions;
@@ -203,12 +214,12 @@ function LintRow({
       <td className="wk-audit-when">
         <span
           className={`wk-lint-severity wk-lint-severity--${finding.severity}`}
-          title={`${severityLabel(finding.severity)} finding`}
+          title={copy.findingTitle(severityLabel(finding.severity, copy))}
         >
-          {severityLabel(finding.severity)}
+          {severityLabel(finding.severity, copy)}
         </span>
       </td>
-      <td className="wk-audit-msg">{humanType(finding.type)}</td>
+      <td className="wk-audit-msg">{humanType(finding.type, copy)}</td>
       <td className="wk-audit-author">
         {finding.entity_slug ? (
           <a
@@ -235,7 +246,7 @@ function LintRow({
             style={{ padding: "4px 10px", fontSize: 12 }}
             onClick={() => onResolve(finding, idx)}
           >
-            Resolve
+            {copy.resolve}
           </button>
         ) : (
           <span aria-hidden="true">—</span>
@@ -246,18 +257,21 @@ function LintRow({
 }
 
 /** Translate the engineering finding type into plain operator language. */
-function humanType(t: string): string {
+function humanType(
+  t: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   switch (t) {
     case "contradictions":
-      return "Conflicting facts";
+      return copy.findingTypes.contradictions;
     case "orphans":
-      return "Page with no links";
+      return copy.findingTypes.orphans;
     case "stale":
-      return "May be out of date";
+      return copy.findingTypes.stale;
     case "missing_crossrefs":
-      return "Should probably be linked";
+      return copy.findingTypes.missing_crossrefs;
     case "dedup_review":
-      return "Possible duplicate";
+      return copy.findingTypes.dedup_review;
     default:
       return t.replace(/_/g, " ");
   }
@@ -275,14 +289,17 @@ function lintFindingKey(finding: LintFinding): string {
     .join("|");
 }
 
-function severityLabel(sev: string): string {
+function severityLabel(
+  sev: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   switch (sev) {
     case "critical":
-      return "Needs attention";
+      return copy.severities.critical;
     case "warning":
-      return "Worth a look";
+      return copy.severities.warning;
     case "info":
-      return "FYI";
+      return copy.severities.info;
     default:
       return sev;
   }

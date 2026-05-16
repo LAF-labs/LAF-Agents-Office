@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { WikiCatalogEntry } from "../../api/wiki";
 import { formatRelativeTime } from "../../lib/format";
 import { resolveGroupOrder } from "../../lib/groupOrder";
+import { useUiText } from "../../lib/uiText";
 import NewArticleModal from "./NewArticleModal";
 import PixelAvatar from "./PixelAvatar";
 
@@ -24,6 +25,7 @@ export default function WikiCatalog({
   articlesCount,
   agentsCount,
 }: WikiCatalogProps) {
+  const { wiki: copy } = useUiText();
   const [showNew, setShowNew] = useState(false);
   const grouped = useMemo(() => groupByGroup(catalog), [catalog]);
   const groupOrder = useMemo(
@@ -41,22 +43,23 @@ export default function WikiCatalog({
   const stats = useMemo(
     () =>
       [
-        `${articlesCount ?? catalog.length} articles`,
-        typeof agentsCount === "number" ? `${agentsCount} agent updates` : null,
+        copy.statsArticles(articlesCount ?? catalog.length),
+        typeof agentsCount === "number"
+          ? copy.statsAgentUpdates(agentsCount)
+          : null,
       ]
         .filter(Boolean)
         .join(" · "),
-    [catalog.length, articlesCount, agentsCount],
+    [catalog.length, articlesCount, agentsCount, copy],
   );
 
   return (
     <main className="wk-catalog" data-testid="wk-catalog">
       <header className="wk-catalog-header">
-        <h1 className="wk-catalog-title">Project memory</h1>
+        <h1 className="wk-catalog-title">{copy.catalogTitle}</h1>
         <div className="wk-catalog-stats">{stats}</div>
         <div className="wk-catalog-clone">
-          Project goals, decisions, task history, and delivery notes that agents
-          read before work.
+          {copy.catalogDesc}
           {" · "}
           <button
             type="button"
@@ -64,7 +67,7 @@ export default function WikiCatalog({
             data-testid="wk-catalog-new"
             onClick={() => setShowNew(true)}
           >
-            + New memory page
+            {copy.newMemoryPage}
           </button>
           {onOpenAudit ? (
             <>
@@ -77,23 +80,17 @@ export default function WikiCatalog({
                   onOpenAudit();
                 }}
               >
-                History
+                {copy.history}
               </button>
             </>
           ) : null}
         </div>
       </header>
-      <section
-        className="wk-memory-overview"
-        aria-label="Project memory overview"
-      >
+      <section className="wk-memory-overview" aria-label={copy.overviewAria}>
         <section className="wk-memory-panel wk-memory-panel-primary">
           <div>
-            <h2>Project pages</h2>
-            <p>
-              Start from the project page when you need goals, constraints, and
-              the latest task decisions.
-            </p>
+            <h2>{copy.projectPages}</h2>
+            <p>{copy.projectPagesDesc}</p>
           </div>
           {projectPages.length > 0 ? (
             <ul>
@@ -109,15 +106,13 @@ export default function WikiCatalog({
               ))}
             </ul>
           ) : (
-            <p className="wk-memory-empty">
-              Create a project first; its memory page will appear here.
-            </p>
+            <p className="wk-memory-empty">{copy.projectPagesEmpty}</p>
           )}
         </section>
         <section className="wk-memory-panel">
           <div>
-            <h2>Recent updates</h2>
-            <p>Use this to scan what changed before starting new work.</p>
+            <h2>{copy.recentUpdates}</h2>
+            <p>{copy.recentUpdatesDesc}</p>
           </div>
           {recentPages.length > 0 ? (
             <ul>
@@ -133,7 +128,7 @@ export default function WikiCatalog({
               ))}
             </ul>
           ) : (
-            <p className="wk-memory-empty">No memory pages yet.</p>
+            <p className="wk-memory-empty">{copy.noMemoryPages}</p>
           )}
         </section>
       </section>

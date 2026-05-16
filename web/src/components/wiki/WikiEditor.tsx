@@ -15,6 +15,7 @@ import {
   buildRehypePlugins,
   buildRemarkPlugins,
 } from "../../lib/wikiMarkdownConfig";
+import { useUiText } from "../../lib/uiText";
 
 interface WikiEditorProps {
   /** Target article path, e.g. `team/people/nazz.md`. */
@@ -91,21 +92,24 @@ function clearDraft(path: string): void {
   }
 }
 
-function formatAgo(isoOrMs: string): string {
+function formatAgo(
+  isoOrMs: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   const t =
     typeof isoOrMs === "string" && isoOrMs.length > 0
       ? Date.parse(isoOrMs)
       : NaN;
-  if (!Number.isFinite(t)) return "moments ago";
+  if (!Number.isFinite(t)) return copy.momentsAgo;
   const deltaSec = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (deltaSec < 5) return "just now";
-  if (deltaSec < 60) return `${deltaSec}s ago`;
+  if (deltaSec < 5) return copy.justNow;
+  if (deltaSec < 60) return copy.secondsAgo(deltaSec);
   const mins = Math.floor(deltaSec / 60);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return copy.minutesAgo(mins);
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return copy.hoursAgo(hrs);
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return copy.daysAgo(days);
 }
 
 /** Narrow viewport detector — mobile layout collapses split view to tabs. */
@@ -153,6 +157,7 @@ export default function WikiEditor({
   onSaved,
   onCancel,
 }: WikiEditorProps) {
+  const { wiki: copy } = useUiText();
   const [content, setContent] = useState(initialContent);
   const [commitMessage, setCommitMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -230,7 +235,7 @@ export default function WikiEditor({
     setError(null);
     setConflict(null);
     if (!content.trim()) {
-      setError("Article content cannot be empty.");
+      setError(copy.editorEmptyError);
       return;
     }
     setSaving(true);
@@ -251,7 +256,7 @@ export default function WikiEditor({
       setDraft(null);
       onSaved(result.commit_sha);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Save failed.");
+      setError(err instanceof Error ? err.message : copy.editorSaveFailed);
     } finally {
       setSaving(false);
     }
@@ -290,16 +295,19 @@ export default function WikiEditor({
         draft={draft}
         onRestore={handleRestoreDraft}
         onDiscard={handleDiscardDraft}
+        copy={copy}
       />
       <EditorConflictBanner
         conflict={conflict}
         onReload={handleReloadConflict}
+        copy={copy}
       />
       <EditorErrorBanner error={error} conflict={conflict} />
       <EditorMobileTabs
         visible={previewOn && isMobile}
         mobileView={mobileView}
         onChange={setMobileView}
+        copy={copy}
       />
       <EditorPanes
         path={path}
@@ -311,16 +319,17 @@ export default function WikiEditor({
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
         markdownComponents={markdownComponents}
+        copy={copy}
       />
       <label className="wk-editor-label" htmlFor="wk-editor-commit-msg">
-        Edit summary
+        {copy.editorSummary}
       </label>
       <input
         id="wk-editor-commit-msg"
         className="wk-editor-commit"
         data-testid="wk-editor-commit"
         type="text"
-        placeholder="human: short description of the edit"
+        placeholder={copy.editorSummaryPlaceholder}
         value={commitMessage}
         onChange={(e) => setCommitMessage(e.target.value)}
       />
@@ -330,9 +339,10 @@ export default function WikiEditor({
         onSave={handleSave}
         onCancel={onCancel}
         onTogglePreview={() => setPreviewOn((v) => !v)}
+        copy={copy}
       />
       <p className="wk-editor-help">
-        Markdown is supported. <code>[[slug]]</code> links another memory page.
+        {copy.editorHelp}
       </p>
     </div>
   );
@@ -342,12 +352,14 @@ interface EditorDraftBannerProps {
   draft: DraftPayload | null;
   onRestore: () => void;
   onDiscard: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function EditorDraftBanner({
   draft,
   onRestore,
   onDiscard,
+  copy,
 }: EditorDraftBannerProps) {
   if (!draft) return null;
 
@@ -357,21 +369,21 @@ function EditorDraftBanner({
       role="alert"
       data-testid="wk-editor-draft-banner"
     >
-      Unsaved draft from {formatAgo(draft.saved_at)}.
+      {copy.editorDraftFrom(formatAgo(draft.saved_at, copy))}
       <div className="wk-editor-banner-actions">
         <button
           type="button"
           onClick={onRestore}
           data-testid="wk-editor-draft-restore"
         >
-          Restore draft
+          {copy.restoreDraft}
         </button>
         <button
           type="button"
           onClick={onDiscard}
           data-testid="wk-editor-draft-discard"
         >
-          Discard
+          {copy.discard}
         </button>
       </div>
     </div>
@@ -381,21 +393,22 @@ function EditorDraftBanner({
 interface EditorConflictBannerProps {
   conflict: WriteHumanConflict | null;
   onReload: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function EditorConflictBanner({
   conflict,
   onReload,
+  copy,
 }: EditorConflictBannerProps) {
   if (!conflict) return null;
 
   return (
     <div className="wk-editor-banner wk-editor-banner--conflict" role="alert">
-      <strong>Someone else edited this article.</strong> Your save was rejected
-      because the article changed since you opened it.
+      <strong>{copy.conflictTitle}</strong> {copy.conflictBody}
       <div className="wk-editor-banner-actions">
         <button type="button" onClick={onReload}>
-          Reload latest &amp; re-apply
+          {copy.reloadLatest}
         </button>
       </div>
     </div>
@@ -421,12 +434,14 @@ interface EditorMobileTabsProps {
   visible: boolean;
   mobileView: "source" | "preview";
   onChange: (view: "source" | "preview") => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function EditorMobileTabs({
   visible,
   mobileView,
   onChange,
+  copy,
 }: EditorMobileTabsProps) {
   if (!visible) return null;
 
@@ -444,7 +459,7 @@ function EditorMobileTabs({
         onClick={() => onChange("source")}
         data-testid="wk-editor-mobile-source"
       >
-        Source
+        {copy.source}
       </button>
       <button
         type="button"
@@ -454,7 +469,7 @@ function EditorMobileTabs({
         onClick={() => onChange("preview")}
         data-testid="wk-editor-mobile-preview"
       >
-        Preview
+        {copy.preview}
       </button>
     </div>
   );
@@ -470,6 +485,7 @@ interface EditorPanesProps {
   remarkPlugins: ReturnType<typeof buildRemarkPlugins>;
   rehypePlugins: ReturnType<typeof buildRehypePlugins>;
   markdownComponents: ReturnType<typeof buildMarkdownComponents>;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function EditorPanes({
@@ -482,13 +498,14 @@ function EditorPanes({
   remarkPlugins,
   rehypePlugins,
   markdownComponents,
+  copy,
 }: EditorPanesProps) {
   return (
     <div className="wk-editor-panes">
       {showSource ? (
         <div className="wk-editor-pane wk-editor-pane--source">
           <label className="wk-editor-label" htmlFor="wk-editor-textarea">
-            Article source ({path})
+            {copy.articleSource(path)}
           </label>
           <textarea
             id="wk-editor-textarea"
@@ -506,7 +523,7 @@ function EditorPanes({
         <section
           className="wk-editor-pane wk-editor-pane--preview"
           data-testid="wk-editor-preview"
-          aria-label="Live preview"
+          aria-label={copy.livePreviewAria}
         >
           <div className="wk-editor-preview-body wk-article-body">
             <ReactMarkdown
@@ -529,6 +546,7 @@ interface EditorActionsProps {
   onSave: () => void;
   onCancel: () => void;
   onTogglePreview: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function EditorActions({
@@ -537,6 +555,7 @@ function EditorActions({
   onSave,
   onCancel,
   onTogglePreview,
+  copy,
 }: EditorActionsProps) {
   return (
     <div className="wk-editor-actions">
@@ -547,7 +566,7 @@ function EditorActions({
         onClick={onSave}
         disabled={saving}
       >
-        {saving ? "Saving…" : "Save changes"}
+        {saving ? copy.saving : copy.saveChanges}
       </button>
       <button
         type="button"
@@ -555,7 +574,7 @@ function EditorActions({
         onClick={onCancel}
         disabled={saving}
       >
-        Cancel
+        {copy.cancel}
       </button>
       <button
         type="button"
@@ -564,7 +583,7 @@ function EditorActions({
         aria-pressed={previewOn}
         onClick={onTogglePreview}
       >
-        {previewOn ? "Hide preview" : "Preview"}
+        {previewOn ? copy.hidePreview : copy.preview}
       </button>
     </div>
   );

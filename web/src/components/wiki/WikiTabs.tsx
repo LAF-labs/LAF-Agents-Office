@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchReviews } from "../../api/notebook";
+import { useUiText } from "../../lib/uiText";
 import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import Pam from "./Pam";
 
@@ -41,6 +42,7 @@ export default function WikiTabs({
   pamArticlePath = null,
   onPamActionDone,
 }: WikiTabsProps) {
+  const { wiki: copy } = useUiText();
   const { data: reviews } = useQuery({
     queryKey: ["reviews-tab-badge"],
     queryFn: fetchReviews,
@@ -55,17 +57,17 @@ export default function WikiTabs({
   ).length;
 
   const tabs: Array<{ id: WikiTab; label: string; badge?: number }> = [
-    { id: "wiki", label: "Wiki" },
-    { id: "notebooks", label: "Notebooks" },
+    { id: "wiki", label: copy.tabs.wiki },
+    { id: "notebooks", label: copy.tabs.notebooks },
     {
       id: "reviews",
-      label: "Reviews",
+      label: copy.tabs.reviews,
       badge: pendingReviews > 0 ? pendingReviews : undefined,
     },
   ];
 
   return (
-    <nav className="wiki-tabs" aria-label="Wiki surfaces">
+    <nav className="wiki-tabs" aria-label={copy.tabAria}>
       {tabs.map((tab) => {
         const isActive = current === tab.id;
         return (
@@ -81,7 +83,10 @@ export default function WikiTabs({
           >
             <span className="wiki-tab-label">{tab.label}</span>
             {tab.badge !== undefined && (
-              <span className="wiki-tab-badge" title={`${tab.badge} pending`}>
+              <span
+                className="wiki-tab-badge"
+                title={copy.pendingBadge(tab.badge)}
+              >
                 {tab.badge}
               </span>
             )}

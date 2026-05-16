@@ -3,6 +3,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { getChannels, getMessages, type Message } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { formatRelativeTime } from "../../lib/format";
+import { useUiText } from "../../lib/uiText";
 import { useAppStore } from "../../stores/app";
 import { PixelAvatar } from "../ui/PixelAvatar";
 
@@ -19,6 +20,7 @@ interface ThreadRow {
  * reply count so the loudest conversations surface first.
  */
 export function ThreadsApp() {
+  const { threads: copy } = useUiText();
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
   const setActiveThreadId = useAppStore((s) => s.setActiveThreadId);
@@ -67,30 +69,35 @@ export function ThreadsApp() {
   return (
     <div className="threads-view">
       <div className="threads-view-header">
-        <span className="threads-view-title">Threads</span>
+        <span className="threads-view-title">{copy.title}</span>
         <span className="threads-view-count">
-          {threads.length} active thread{threads.length === 1 ? "" : "s"}
+          {copy.active(threads.length)}
         </span>
       </div>
 
       {loading && threads.length === 0 ? (
-        <div className="threads-view-empty">Loading threads...</div>
+        <div className="threads-view-empty">{copy.loading}</div>
       ) : threads.length === 0 ? (
-        <div className="threads-view-empty">
-          No threads yet. Reply to a message to start one.
-        </div>
+        <div className="threads-view-empty">{copy.empty}</div>
       ) : (
-        <ThreadList threads={threads} members={members} onOpen={openThread} />
+        <ThreadList
+          copy={copy}
+          threads={threads}
+          members={members}
+          onOpen={openThread}
+        />
       )}
     </div>
   );
 }
 
 function ThreadList({
+  copy,
   threads,
   members,
   onOpen,
 }: {
+  copy: ReturnType<typeof useUiText>["threads"];
   threads: ThreadRow[];
   members: Array<{ slug: string; name: string }>;
   onOpen: (thread: ThreadRow) => void;
@@ -100,6 +107,7 @@ function ThreadList({
       {threads.map((thread) => (
         <ThreadListItem
           key={`${thread.channel}-${thread.id}`}
+          copy={copy}
           thread={thread}
           agent={members.find((member) => member.slug === thread.message.from)}
           onOpen={onOpen}
@@ -110,15 +118,17 @@ function ThreadList({
 }
 
 function ThreadListItem({
+  copy,
   thread,
   agent,
   onOpen,
 }: {
+  copy: ReturnType<typeof useUiText>["threads"];
   thread: ThreadRow;
   agent?: { slug: string; name: string };
   onOpen: (thread: ThreadRow) => void;
 }) {
-  const preview = messagePreview(thread.message.content);
+  const preview = messagePreview(thread.message.content, copy);
   return (
     <button
       type="button"
@@ -136,7 +146,7 @@ function ThreadListItem({
         <div className="thread-list-item-preview">{preview}</div>
         <div className="thread-list-item-meta">
           <span className="thread-list-item-replies">
-            {thread.replyCount} repl{thread.replyCount === 1 ? "y" : "ies"}
+            {copy.replies(thread.replyCount)}
           </span>
           {agent ? <span>{agent.name}</span> : null}
           <span>#{thread.channel}</span>
@@ -149,7 +159,10 @@ function ThreadListItem({
   );
 }
 
-function messagePreview(content: string | null | undefined): string {
-  if (!content) return "(no content)";
+function messagePreview(
+  content: string | null | undefined,
+  copy: ReturnType<typeof useUiText>["threads"],
+): string {
+  if (!content) return copy.noContent;
   return content.length > 120 ? `${content.slice(0, 120)}\u2026` : content;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchPlaybooks, type PlaybookSummary } from "../../api/playbook";
+import { useUiText } from "../../lib/uiText";
 
 interface PlaybookSkillBadgeProps {
   slug: string;
@@ -13,6 +14,7 @@ interface PlaybookSkillBadgeProps {
  * this milestone).
  */
 export default function PlaybookSkillBadge({ slug }: PlaybookSkillBadgeProps) {
+  const { wiki: copy } = useUiText();
   const [playbook, setPlaybook] = useState<PlaybookSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,17 +61,16 @@ export default function PlaybookSkillBadge({ slug }: PlaybookSkillBadgeProps) {
       <span className="wk-playbook-badge__label">
         {compiled ? (
           <>
-            Compiled skill:{" "}
+            {copy.compiledSkill}{" "}
             <code className="wk-playbook-badge__path">{skillPath}</code>
           </>
         ) : (
-          <>Compiled skill pending — recompiling…</>
+          <>{copy.compiledSkillPending}</>
         )}
       </span>
       {compiled && playbook ? (
         <span className="wk-playbook-badge__meta">
-          {playbook.execution_count} execution
-          {playbook.execution_count === 1 ? "" : "s"} logged
+          {copy.executionsLogged(playbook.execution_count)}
         </span>
       ) : null}
     </div>

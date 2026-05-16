@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useUiText } from "../../lib/uiText";
+
 /** Right-rail "Cite this page" panel: shows the canonical wikilink + copy button. */
 
 interface CiteThisPagePanelProps {
@@ -7,6 +9,7 @@ interface CiteThisPagePanelProps {
 }
 
 export default function CiteThisPagePanel({ slug }: CiteThisPagePanelProps) {
+  const { wiki: copy } = useUiText();
   const [copied, setCopied] = useState(false);
   const wikilink = `[[${slug}]]`;
 
@@ -27,19 +30,19 @@ export default function CiteThisPagePanel({ slug }: CiteThisPagePanelProps) {
 
   return (
     <div className="wk-cite-panel">
-      <h4>Cite this page</h4>
+      <h4>{copy.citeThisPage}</h4>
       <div className="wk-wikilink-code">
         <code>{wikilink}</code>
         <button
           type="button"
           className="wk-copy-btn"
           onClick={handleCopy}
-          aria-label="Copy wikilink"
+          aria-label={copy.copyWikilink}
         >
-          {copied ? "copied" : "copy"}
+          {copied ? copy.copied : copy.copy}
         </button>
       </div>
-      <div className="wk-hint">Paste this in any article to link here.</div>
+      <div className="wk-hint">{copy.citeHint}</div>
     </div>
   );
 }

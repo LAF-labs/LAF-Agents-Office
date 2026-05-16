@@ -1,4 +1,5 @@
 import { formatRelativeTime } from "../../lib/format";
+import { useUiText } from "../../lib/uiText";
 
 /** Right-rail page statistics panel with mono-font values. */
 
@@ -19,24 +20,25 @@ export default function PageStatsPanel({
   lastEdit,
   viewed,
 }: PageStatsPanelProps) {
+  const { wiki: copy } = useUiText();
   return (
     <div className="wk-stats-panel">
-      <h4>Page stats</h4>
+      <h4>{copy.pageStats}</h4>
       <dl>
-        <dt>Revisions</dt>
+        <dt>{copy.revisions}</dt>
         <dd>{revisions}</dd>
-        <dt>Contributors</dt>
-        <dd>{contributors} agents</dd>
-        <dt>Words</dt>
+        <dt>{copy.contributors}</dt>
+        <dd>{copy.contributorsValue(contributors)}</dd>
+        <dt>{copy.words}</dt>
         <dd>{wordCount.toLocaleString()}</dd>
-        <dt>Created</dt>
+        <dt>{copy.created}</dt>
         <dd>{shortDate(created)}</dd>
-        <dt>Last edit</dt>
+        <dt>{copy.lastEdit}</dt>
         <dd>{safeRelative(lastEdit)}</dd>
         {typeof viewed === "number" && (
           <>
-            <dt>Viewed</dt>
-            <dd>{viewed} times</dd>
+            <dt>{copy.viewed}</dt>
+            <dd>{copy.viewedValue(viewed)}</dd>
           </>
         )}
       </dl>

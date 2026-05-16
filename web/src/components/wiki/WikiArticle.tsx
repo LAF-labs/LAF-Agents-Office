@@ -20,6 +20,7 @@ import {
   buildRehypePlugins,
   buildRemarkPlugins,
 } from "../../lib/wikiMarkdownConfig";
+import { useUiText } from "../../lib/uiText";
 import ArticleStatusBanner from "./ArticleStatusBanner";
 import ArticleTitle from "./ArticleTitle";
 import Byline from "./Byline";
@@ -199,6 +200,7 @@ export default function WikiArticle({
   onNavigate,
   externalRefreshNonce = 0,
 }: WikiArticleProps) {
+  const { wiki: copy } = useUiText();
   const [tab, setTab] = useState<HatBarTab>("article");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const humans = useHumanIdentities();
@@ -244,9 +246,9 @@ export default function WikiArticle({
     [resolver, onNavigate],
   );
 
-  if (loading) return <div className="wk-loading">Loading article…</div>;
-  if (error) return <div className="wk-error">Error: {error}</div>;
-  if (!article) return <div className="wk-error">Article not found.</div>;
+  if (loading) return <div className="wk-loading">{copy.articleLoading}</div>;
+  if (error) return <div className="wk-error">{copy.articleError(error)}</div>;
+  if (!article) return <div className="wk-error">{copy.articleNotFound}</div>;
 
   const toc = buildTocFromMarkdown(article.content);
   const entity = detectEntity(article.path);
@@ -266,7 +268,11 @@ export default function WikiArticle({
   return (
     <>
       <main className="wk-article-col">
-        <LiveArticleStatus liveAgent={liveAgent} article={article} />
+        <LiveArticleStatus
+          liveAgent={liveAgent}
+          article={article}
+          copy={copy}
+        />
         <ArticleIdentityPanels
           entity={entity}
           playbook={playbook}
@@ -277,13 +283,14 @@ export default function WikiArticle({
           onChange={setTab}
           rightRail={context ? [context] : undefined}
         />
-        <ArticleBreadcrumb article={article} onNavigate={onNavigate} />
-        <ArticleTitle title={article.title} />
+        <ArticleBreadcrumb
+          article={article}
+          onNavigate={onNavigate}
+          rootLabel={copy.breadcrumbRoot}
+        />
+        <ArticleTitle title={article.title} strapline={copy.articleStrapline} />
         {byline}
-        <Hatnote>
-          This article is auto-generated from team activity. See the commit
-          history for the full trail.
-        </Hatnote>
+        <Hatnote>{copy.articleHatnote}</Hatnote>
         {tab === "article" && (
           <div className="wk-article-body" data-testid="wk-article-body">
             <ReactMarkdown
@@ -330,9 +337,7 @@ export default function WikiArticle({
           </pre>
         )}
         {tab === "history" && (
-          <div className="wk-loading">
-            Memory history for this page is being prepared.
-          </div>
+          <div className="wk-loading">{copy.articleHistoryPreparing}</div>
         )}
         <ArticleSupplementPanels
           entity={entity}
@@ -351,7 +356,11 @@ export default function WikiArticle({
         )}
         <CategoriesFooter tags={article.categories} />
         <PageFooter
-          lastEditedBy={formatAgentName(article.last_edited_by)}
+          lastEditedBy={formatArticleAuthor(
+            article.last_edited_by,
+            humans,
+            copy,
+          )}
           lastEditedTs={article.last_edited_ts}
           articlePath={article.path}
         />
@@ -383,14 +392,19 @@ type DetectedPlaybook = ReturnType<typeof detectPlaybook>;
 interface LiveArticleStatusProps {
   liveAgent: string | null;
   article: WikiArticleT;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
-function LiveArticleStatus({ liveAgent, article }: LiveArticleStatusProps) {
+function LiveArticleStatus({
+  liveAgent,
+  article,
+  copy,
+}: LiveArticleStatusProps) {
   if (!liveAgent) return null;
 
   return (
     <ArticleStatusBanner
-      message={`${formatAgentName(liveAgent)} is editing this article right now.`}
+      message={copy.liveEditing(formatAgentName(liveAgent))}
       liveAgent={liveAgent}
       revisions={article.revisions}
       contributors={article.contributors.length}
@@ -459,19 +473,35 @@ function buildBreadcrumbItems(articlePath: string): BreadcrumbItem[] {
     });
 }
 
+function formatArticleAuthor(
+  authorSlug: string,
+  humans: HumanIdentity[],
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
+  const registeredHuman = humans.find((human) => human.slug === authorSlug);
+  if (registeredHuman) return registeredHuman.name;
+  if (authorSlug.toLowerCase() === "human") return copy.human;
+  return formatAgentName(authorSlug);
+}
+
 interface ArticleBreadcrumbProps {
   article: WikiArticleT;
   onNavigate: (path: string) => void;
+  rootLabel: string;
 }
 
-function ArticleBreadcrumb({ article, onNavigate }: ArticleBreadcrumbProps) {
+function ArticleBreadcrumb({
+  article,
+  onNavigate,
+  rootLabel,
+}: ArticleBreadcrumbProps) {
   const breadcrumbItems = buildBreadcrumbItems(article.path);
   const lastBreadcrumbPath = breadcrumbItems[breadcrumbItems.length - 1]?.path;
 
   return (
     <div className="wk-breadcrumb">
       <button type="button" onClick={() => onNavigate("")}>
-        Project memory
+        {rootLabel}
       </button>
       {breadcrumbItems.map(({ segment, path: itemPath }) => (
         <span key={itemPath} style={{ display: "contents" }}>

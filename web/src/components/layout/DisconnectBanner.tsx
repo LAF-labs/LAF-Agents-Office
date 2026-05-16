@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { initApi } from "../../api/client";
+import { useUiText } from "../../lib/uiText";
 import { useAppStore } from "../../stores/app";
 
 export function DisconnectBanner() {
+  const { disconnect: copy } = useUiText();
   const brokerConnected = useAppStore((s) => s.brokerConnected);
   const setBrokerConnected = useAppStore((s) => s.setBrokerConnected);
 
@@ -68,7 +70,7 @@ export function DisconnectBanner() {
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
-        <span>Connection lost. Reconnecting...</span>
+        <span>{copy.lost}</span>
       </div>
       <div className="disconnect-banner-actions">
         <button
@@ -77,13 +79,13 @@ export function DisconnectBanner() {
           disabled={retrying}
           type="button"
         >
-          {retrying ? "Retrying..." : "Retry"}
+          {retrying ? copy.retrying : copy.retry}
         </button>
         <button
           className="disconnect-banner-dismiss"
           onClick={handleDismiss}
           type="button"
-          aria-label="Dismiss"
+          aria-label={copy.dismiss}
         >
           <svg
             aria-hidden="true"

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { type AgentLog, getAgentLogs } from "../../api/client";
 import { formatRelativeTime, formatTokens, formatUSD } from "../../lib/format";
+import { useUiText } from "../../lib/uiText";
 
 export function ReceiptsApp() {
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
@@ -24,6 +25,7 @@ function ReceiptList({
 }: {
   onSelectTask: (taskId: string) => void;
 }) {
+  const { receipts: copy } = useUiText();
   const { data, isLoading, error } = useQuery({
     queryKey: ["agent-logs"],
     queryFn: () => getAgentLogs({ limit: 100 }),
@@ -33,39 +35,38 @@ function ReceiptList({
   return (
     <>
       <div className="app-section-heading">
-        <h3>Receipts</h3>
-        <p>
-          What each agent actually did, tool by tool. No claims {"\u2014"} just
-          the log.
-        </p>
+        <h3>{copy.title}</h3>
+        <p>{copy.desc}</p>
       </div>
 
-      {isLoading ? <div className="app-loading-state">Loading...</div> : null}
-
-      {error ? (
-        <div className="app-empty-state">Could not load receipts.</div>
+      {isLoading ? (
+        <div className="app-loading-state">{copy.loading}</div>
       ) : null}
 
+      {error ? <div className="app-empty-state">{copy.loadError}</div> : null}
+
       {!(isLoading || error) ? (
-        <LogTable logs={data?.logs ?? []} onSelectTask={onSelectTask} />
+        <LogTable
+          copy={copy}
+          logs={data?.logs ?? []}
+          onSelectTask={onSelectTask}
+        />
       ) : null}
     </>
   );
 }
 
 function LogTable({
+  copy,
   logs,
   onSelectTask,
 }: {
+  copy: ReturnType<typeof useUiText>["receipts"];
   logs: AgentLog[];
   onSelectTask: (taskId: string) => void;
 }) {
   if (logs.length === 0) {
-    return (
-      <div className="app-empty-state">
-        No receipts yet. Agents write one when they use a tool.
-      </div>
-    );
+    return <div className="app-empty-state">{copy.empty}</div>;
   }
 
   return (
@@ -73,11 +74,11 @@ function LogTable({
       <table className="app-table">
         <thead>
           <tr>
-            <th>Agent</th>
-            <th>Action</th>
-            <th>Time</th>
-            <th style={{ textAlign: "right" }}>Tokens</th>
-            <th style={{ textAlign: "right" }}>Cost</th>
+            <th>{copy.agent}</th>
+            <th>{copy.action}</th>
+            <th>{copy.time}</th>
+            <th style={{ textAlign: "right" }}>{copy.tokens}</th>
+            <th style={{ textAlign: "right" }}>{copy.cost}</th>
           </tr>
         </thead>
         <tbody>
@@ -90,11 +91,11 @@ function LogTable({
                 data-clickable={log.task ? "true" : undefined}
                 onClick={() => log.task && onSelectTask(log.task)}
               >
-                <td data-label="Agent" style={{ fontWeight: 600 }}>
+                <td data-label={copy.agent} style={{ fontWeight: 600 }}>
                   {log.agent || "\u2014"}
                 </td>
                 <td
-                  data-label="Action"
+                  data-label={copy.action}
                   style={{
                     color: "var(--text-secondary)",
                   }}
@@ -102,7 +103,7 @@ function LogTable({
                   {log.action || log.content?.slice(0, 60) || "\u2014"}
                 </td>
                 <td
-                  data-label="Time"
+                  data-label={copy.time}
                   style={{
                     color: "var(--text-secondary)",
                   }}
@@ -110,7 +111,7 @@ function LogTable({
                   {log.timestamp ? formatRelativeTime(log.timestamp) : "\u2014"}
                 </td>
                 <td
-                  data-label="Tokens"
+                  data-label={copy.tokens}
                   style={{
                     textAlign: "right",
                     fontFamily: "var(--font-mono)",
@@ -120,7 +121,7 @@ function LogTable({
                   {totalTokens > 0 ? formatTokens(totalTokens) : "\u2014"}
                 </td>
                 <td
-                  data-label="Cost"
+                  data-label={copy.cost}
                   style={{
                     textAlign: "right",
                     fontFamily: "var(--font-mono)",
@@ -145,6 +146,7 @@ function ReceiptDetail({
   taskId: string;
   onBack: () => void;
 }) {
+  const { receipts: copy } = useUiText();
   const { data, isLoading, error } = useQuery({
     queryKey: ["agent-logs", taskId],
     queryFn: () => getAgentLogs({ task: taskId }),
@@ -159,22 +161,22 @@ function ReceiptDetail({
         className="btn btn-secondary btn-sm app-back-button"
         onClick={onBack}
       >
-        {"\u2190"} Back to receipts
+        {"\u2190"} {copy.back}
       </button>
 
       <div className="app-section-heading">
         <h3 style={{ fontFamily: "var(--font-mono)" }}>{taskId}</h3>
-        <p>Tool-by-tool trace of this task.</p>
+        <p>{copy.traceDesc}</p>
       </div>
 
-      {isLoading ? <div className="app-loading-state">Loading...</div> : null}
-
-      {error ? (
-        <div className="app-empty-state">Could not load task trace.</div>
+      {isLoading ? (
+        <div className="app-loading-state">{copy.loading}</div>
       ) : null}
 
+      {error ? <div className="app-empty-state">{copy.traceError}</div> : null}
+
       {!(isLoading || error) && logs.length === 0 ? (
-        <div className="app-empty-state">No tool calls in this task yet.</div>
+        <div className="app-empty-state">{copy.traceEmpty}</div>
       ) : null}
 
       {!(isLoading || error) && logs.length > 0 ? (
@@ -189,7 +191,7 @@ function ReceiptDetail({
                     : "\u2014"}
                 </span>
                 <span className="app-trace-action">
-                  {entry.action || "(unknown)"}
+                  {entry.action || copy.unknown}
                 </span>
                 {entry.agent ? (
                   <span className="app-trace-agent">@{entry.agent}</span>

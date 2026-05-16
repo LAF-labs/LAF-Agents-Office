@@ -7,6 +7,7 @@ import {
   subscribeEntityEvents,
 } from "../../api/entity";
 import { formatAgentName } from "../../lib/agentName";
+import { useUiText } from "../../lib/uiText";
 import PixelAvatar from "./PixelAvatar";
 
 interface FactsOnFileProps {
@@ -17,6 +18,7 @@ interface FactsOnFileProps {
 const INITIAL_LIMIT = 50;
 
 export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
+  const { wiki: copy } = useUiText();
   const [facts, setFacts] = useState<Fact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load facts");
+        setError(err instanceof Error ? err.message : copy.loadFactsFailed);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -41,7 +43,7 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
     return () => {
       cancelled = true;
     };
-  }, [kind, slug]);
+  }, [kind, slug, copy]);
 
   const handleFact = useCallback(
     (ev: { fact_id: string; recorded_by: string; timestamp: string }) => {
@@ -92,7 +94,7 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
       aria-labelledby="wk-facts-heading"
       data-testid="wk-facts-on-file"
     >
-      <h2 id="wk-facts-heading">Facts on file</h2>
+      <h2 id="wk-facts-heading">{copy.factsOnFile}</h2>
       <FactsBody
         loading={loading}
         error={error}
@@ -100,6 +102,7 @@ export default function FactsOnFile({ kind, slug }: FactsOnFileProps) {
         visibleFacts={visibleFacts}
         showAll={showAll}
         onToggleShowAll={() => setShowAll((v) => !v)}
+        copy={copy}
       />
     </section>
   );
@@ -112,6 +115,7 @@ interface FactsBodyProps {
   visibleFacts: Fact[];
   showAll: boolean;
   onToggleShowAll: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function FactsBody({
@@ -121,21 +125,18 @@ function FactsBody({
   visibleFacts,
   showAll,
   onToggleShowAll,
+  copy,
 }: FactsBodyProps) {
-  if (loading) return <p className="wk-facts-loading">loading facts…</p>;
+  if (loading) return <p className="wk-facts-loading">{copy.loadingFacts}</p>;
   if (error) return <p className="wk-facts-error">{error}</p>;
   if (facts.length === 0) {
-    return (
-      <p className="wk-facts-empty">
-        0 facts recorded yet. Agents will add facts as they work.
-      </p>
-    );
+    return <p className="wk-facts-empty">{copy.noFacts}</p>;
   }
   return (
     <>
       <ol className="wk-facts-items">
         {visibleFacts.map((fact) => (
-          <FactItem fact={fact} key={fact.id} />
+          <FactItem fact={fact} key={fact.id} copy={copy} />
         ))}
       </ol>
       {facts.length > INITIAL_LIMIT ? (
@@ -145,15 +146,21 @@ function FactsBody({
           onClick={onToggleShowAll}
         >
           {showAll
-            ? "show recent only"
-            : `show all (${facts.length - INITIAL_LIMIT} more)`}
+            ? copy.showRecentOnly
+            : copy.showAllMore(facts.length - INITIAL_LIMIT)}
         </button>
       ) : null}
     </>
   );
 }
 
-function FactItem({ fact }: { fact: Fact }) {
+function FactItem({
+  fact,
+  copy,
+}: {
+  fact: Fact;
+  copy: ReturnType<typeof useUiText>["wiki"];
+}) {
   return (
     <li
       className="wk-facts-item"
@@ -164,7 +171,7 @@ function FactItem({ fact }: { fact: Fact }) {
       <div className="wk-facts-body">
         <span className="wk-facts-text">{fact.text}</span>
         {fact.triplet ? <FactTriplet fact={fact} /> : null}
-        <FactMeta fact={fact} />
+        <FactMeta fact={fact} copy={copy} />
       </div>
     </li>
   );
@@ -182,8 +189,14 @@ function FactTriplet({ fact }: { fact: Fact }) {
   );
 }
 
-function FactMeta({ fact }: { fact: Fact }) {
-  const validity = formatValidity(fact);
+function FactMeta({
+  fact,
+  copy,
+}: {
+  fact: Fact;
+  copy: ReturnType<typeof useUiText>["wiki"];
+}) {
+  const validity = formatValidity(fact, copy);
   const hasFactStats = Boolean(
     fact.type || typeof fact.confidence === "number",
   );
@@ -212,7 +225,7 @@ function FactMeta({ fact }: { fact: Fact }) {
         <>
           {" · "}
           <span className="wk-facts-reinforced">
-            reinforced {formatShortTs(fact.reinforced_at)}
+            {copy.reinforced(formatShortTs(fact.reinforced_at))}
           </span>
         </>
       ) : null}
@@ -223,7 +236,7 @@ function FactMeta({ fact }: { fact: Fact }) {
         <>
           {" · "}
           <span className="wk-facts-supersedes">
-            supersedes {fact.supersedes.length} prior
+            {copy.supersedesPrior(fact.supersedes.length)}
           </span>
         </>
       ) : null}
@@ -284,12 +297,15 @@ function isSuperseded(f: Fact): boolean {
   return Boolean(f.valid_until);
 }
 
-function formatValidity(f: Fact): string | null {
+function formatValidity(
+  f: Fact,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string | null {
   if (!(f.valid_from || f.valid_until)) return null;
   const from = f.valid_from ? formatShortTs(f.valid_from) : null;
   const until = f.valid_until ? formatShortTs(f.valid_until) : null;
-  if (from && until) return `valid ${from} → ${until}`;
-  if (until) return `valid until ${until}`;
-  if (from) return `valid from ${from}`;
+  if (from && until) return copy.validRange(from, until);
+  if (until) return copy.validUntil(until);
+  if (from) return copy.validFrom(from);
   return null;
 }

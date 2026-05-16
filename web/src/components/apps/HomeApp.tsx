@@ -32,6 +32,7 @@ import {
 import { subscribeBrokerEvent } from "../../api/events";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { formatTime } from "../../lib/format";
+import { useI18n } from "../../lib/i18n";
 import { formatMarkdown } from "../../lib/markdown";
 import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
 import { ModelModeToggle } from "../ModelModeToggle";
@@ -699,6 +700,7 @@ function HomeComposer({
   threadId: string;
   onAwaitingReply: (since: number | null) => void;
 }) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const [caret, setCaret] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -927,11 +929,14 @@ function HomeComposer({
       {pendingIntent ? (
         <div className="home-confirmation-card" role="status">
           <div>
-            <strong>Confirm workspace change</strong>
+            <strong>{t("home.confirmWorkspaceChange")}</strong>
             <span>{pendingIntent.summary}</span>
             {pendingIntent.required_permissions.length > 0 ? (
               <small>
-                Requires {pendingIntent.required_permissions.join(", ")}
+                {t("home.requires").replace(
+                  "{permissions}",
+                  pendingIntent.required_permissions.join(", "),
+                )}
               </small>
             ) : null}
           </div>
@@ -941,14 +946,14 @@ function HomeComposer({
               disabled={confirmMutation.isPending}
               onClick={() => confirmMutation.mutate(pendingIntent)}
             >
-              Confirm
+              {t("home.confirm")}
             </button>
             <button
               type="button"
               disabled={confirmMutation.isPending}
               onClick={() => setPendingIntent(null)}
             >
-              Cancel
+              {t("home.cancel")}
             </button>
           </div>
         </div>

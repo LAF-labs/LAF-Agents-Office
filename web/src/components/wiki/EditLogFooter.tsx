@@ -6,6 +6,7 @@ import {
   type WikiEditLogEntry,
 } from "../../api/wiki";
 import { formatRelativeTime } from "../../lib/format";
+import { useUiText } from "../../lib/uiText";
 import PixelAvatar from "./PixelAvatar";
 
 /** Fixed-bottom live edit-log: streams wiki:write events, newest on the left. */
@@ -22,6 +23,7 @@ export default function EditLogFooter({
   initialEntries,
   onNavigate,
 }: EditLogFooterProps) {
+  const { wiki: copy } = useUiText();
   const [entries, setEntries] = useState<WikiEditLogEntry[]>(
     initialEntries ?? MOCK_EDIT_LOG,
   );
@@ -34,8 +36,8 @@ export default function EditLogFooter({
   }, []);
 
   return (
-    <section className="wk-edit-log" aria-label="Live wiki edit log">
-      <span className="wk-label">Live</span>
+    <section className="wk-edit-log" aria-label={copy.liveWikiEditLog}>
+      <span className="wk-label">{copy.live.replace(":", "")}</span>
       {entries.map((entry, idx) => {
         const isLive = idx === 0;
         return (
@@ -60,7 +62,7 @@ export default function EditLogFooter({
               {entry.article_title}
             </a>{" "}
             <span className="wk-when">
-              {isLive ? "just now" : safeRelative(entry.timestamp)}
+              {isLive ? copy.justNowLower : safeRelative(entry.timestamp)}
             </span>
           </span>
         );

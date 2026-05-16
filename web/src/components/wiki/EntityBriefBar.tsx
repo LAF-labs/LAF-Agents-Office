@@ -7,6 +7,7 @@ import {
   requestBriefSynthesis,
   subscribeEntityEvents,
 } from "../../api/entity";
+import { useUiText } from "../../lib/uiText";
 
 interface EntityBriefBarProps {
   kind: EntityKind;
@@ -29,8 +30,11 @@ async function fetchBriefSummary(
   return rows.find((row) => row.kind === kind && row.slug === slug) ?? null;
 }
 
-function briefErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Failed to load brief status";
+function briefErrorMessage(
+  err: unknown,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
+  return err instanceof Error ? err.message : copy.briefLoadFailed;
 }
 
 export default function EntityBriefBar({
@@ -38,6 +42,7 @@ export default function EntityBriefBar({
   slug,
   onSynthesized,
 }: EntityBriefBarProps) {
+  const { wiki: copy } = useUiText();
   const [brief, setBrief] = useState<BriefSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +57,11 @@ export default function EntityBriefBar({
       setPendingOverride(null);
       setError(null);
     } catch (err: unknown) {
-      setError(briefErrorMessage(err));
+      setError(briefErrorMessage(err, copy));
     } finally {
       setLoading(false);
     }
-  }, [kind, slug]);
+  }, [kind, slug, copy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +73,7 @@ export default function EntityBriefBar({
         setPendingOverride(null);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(briefErrorMessage(err));
+        if (!cancelled) setError(briefErrorMessage(err, copy));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -76,7 +81,7 @@ export default function EntityBriefBar({
     return () => {
       cancelled = true;
     };
-  }, [kind, slug]);
+  }, [kind, slug, copy]);
 
   useEffect(() => {
     const unsubscribe = subscribeEntityEvents(
@@ -110,9 +115,9 @@ export default function EntityBriefBar({
       // the label hang will reload and see the fresh brief on next render.
     } catch (err: unknown) {
       setState("idle");
-      setError(err instanceof Error ? err.message : "Synthesis request failed");
+      setError(err instanceof Error ? err.message : copy.synthesisFailed);
     }
-  }, [kind, slug]);
+  }, [kind, slug, copy]);
 
   const pending = useMemo(() => {
     if (pendingOverride !== null) return pendingOverride;
@@ -130,8 +135,8 @@ export default function EntityBriefBar({
   // for the body.
   const synthesizedTs = brief?.last_synthesized_ts ?? "";
   const relativeSynth = synthesizedTs
-    ? formatRelativeTime(synthesizedTs)
-    : "never";
+    ? formatRelativeTime(synthesizedTs, copy)
+    : copy.never;
   const hasPending = pending > 0;
   const cls = hasPending
     ? "wk-entity-brief-bar wk-entity-brief-bar--pending"
@@ -146,6 +151,7 @@ export default function EntityBriefBar({
       state={state}
       error={error}
       onRefresh={handleRefresh}
+      copy={copy}
     />
   );
 }
@@ -158,6 +164,7 @@ interface EntityBriefStatusProps {
   state: BarState;
   error: string | null;
   onRefresh: () => void;
+  copy: ReturnType<typeof useUiText>["wiki"];
 }
 
 function EntityBriefStatus({
@@ -168,6 +175,7 @@ function EntityBriefStatus({
   state,
   error,
   onRefresh,
+  copy,
 }: EntityBriefStatusProps) {
   return (
     <div
@@ -178,12 +186,9 @@ function EntityBriefStatus({
     >
       <span className="wk-entity-brief-bar__label">
         {hasPending ? (
-          <>
-            <strong>{pending}</strong> new {pending === 1 ? "fact" : "facts"}{" "}
-            since last synthesis
-          </>
+          <>{copy.newFactsSince(pending)}</>
         ) : (
-          <>Brief synthesized {relativeSynth}. 0 new facts since.</>
+          <>{copy.briefSynthesized(relativeSynth)}</>
         )}
       </span>
       {hasPending ? (
@@ -193,7 +198,7 @@ function EntityBriefStatus({
           onClick={onRefresh}
           disabled={state === "synthesizing"}
         >
-          {state === "synthesizing" ? "Synthesizing…" : "Refresh brief"}
+          {state === "synthesizing" ? copy.synthesizing : copy.refreshBrief}
         </button>
       ) : null}
       {error ? (
@@ -203,13 +208,16 @@ function EntityBriefStatus({
   );
 }
 
-function formatRelativeTime(iso: string): string {
+function formatRelativeTime(
+  iso: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return iso;
   const diffMs = Date.now() - t;
-  if (diffMs < 0) return "just now";
+  if (diffMs < 0) return copy.justNow;
   const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return copy.justNow;
   const units = [
     { name: "minute", value: Math.floor(seconds / 60), max: 60 },
     { name: "hour", value: Math.floor(seconds / 3600), max: 24 },
@@ -217,10 +225,25 @@ function formatRelativeTime(iso: string): string {
     { name: "month", value: Math.floor(seconds / 2592000), max: 12 },
   ];
   const unit = units.find((candidate) => candidate.value < candidate.max);
-  if (unit) return formatAgo(unit.value, unit.name);
-  return formatAgo(Math.floor(seconds / 31536000), "year");
+  if (unit) return formatAgo(unit.value, unit.name, copy);
+  return formatAgo(Math.floor(seconds / 31536000), "year", copy);
 }
 
-function formatAgo(value: number, unit: string): string {
-  return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
+function formatAgo(
+  value: number,
+  unit: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string {
+  switch (unit) {
+    case "minute":
+      return copy.minutesAgo(value);
+    case "hour":
+      return copy.hoursAgo(value);
+    case "day":
+      return copy.daysAgo(value);
+    case "month":
+      return copy.monthsAgo(value);
+    default:
+      return copy.yearsAgo(value);
+  }
 }

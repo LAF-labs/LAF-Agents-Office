@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useUiText } from "../../lib/uiText";
+
 /** Right-rail Contents box with nested numbered entries and a [hide] toggle. */
 
 export interface TocEntry {
@@ -14,19 +16,20 @@ interface TocBoxProps {
 }
 
 export default function TocBox({ entries }: TocBoxProps) {
+  const { wiki: copy } = useUiText();
   const [hidden, setHidden] = useState(false);
   return (
     <div className="wk-toc-nested">
       <div className="wk-toc-box">
         <div className="wk-toc-title">
-          Contents
+          {copy.contents}
           <button
             type="button"
             className="wk-hide-link"
             onClick={() => setHidden((v) => !v)}
             aria-expanded={!hidden}
           >
-            [{hidden ? "show" : "hide"}]
+            [{hidden ? copy.show : copy.hide}]
           </button>
         </div>
         {!hidden

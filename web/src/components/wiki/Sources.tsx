@@ -1,4 +1,5 @@
 import { formatAgentName } from "../../lib/agentName";
+import { useUiText } from "../../lib/uiText";
 import PixelAvatar from "./PixelAvatar";
 
 /** Numbered references — each entry is one git commit that informed the article. */
@@ -18,18 +19,19 @@ interface SourcesProps {
 }
 
 export default function Sources({ items, loading = false }: SourcesProps) {
+  const { wiki: copy } = useUiText();
   if (loading && items.length === 0) {
     return (
       <section className="wk-sources" aria-labelledby="wk-sources-heading">
-        <h2 id="wk-sources-heading">Sources</h2>
-        <p className="wk-sources-loading">loading sources…</p>
+        <h2 id="wk-sources-heading">{copy.sources}</h2>
+        <p className="wk-sources-loading">{copy.loadingSources}</p>
       </section>
     );
   }
   if (items.length === 0) return null;
   return (
     <section className="wk-sources" aria-labelledby="wk-sources-heading">
-      <h2 id="wk-sources-heading">Sources</h2>
+      <h2 id="wk-sources-heading">{copy.sources}</h2>
       <ol>
         {items.map((item, i) => (
           <li key={item.commitSha || `src-${i}`} id={`s${i + 1}`}>

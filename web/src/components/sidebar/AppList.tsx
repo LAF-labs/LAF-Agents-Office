@@ -84,10 +84,9 @@ function SidebarAppGroup({
   const showProjects = app.id === "tasks" && isActive;
   const showExpandable = showProjects;
   const expanded = projectsExpanded;
-  const toggleLabel =
-    expanded
-      ? t("tasks.sidebar.collapseProjects")
-      : t("tasks.sidebar.expandProjects");
+  const toggleLabel = expanded
+    ? t("tasks.sidebar.collapseProjects")
+    : t("tasks.sidebar.expandProjects");
 
   return (
     <div className="sidebar-app-group">
@@ -115,7 +114,13 @@ function SidebarAppGroup({
           )}
           <span style={{ flex: 1 }}>{appName}</span>
           {badge !== null ? (
-            <span className="sidebar-badge" title={`${badge} pending`}>
+            <span
+              className="sidebar-badge"
+              title={t("sidebar.pendingCount").replace(
+                "{count}",
+                String(badge),
+              )}
+            >
               {badge}
             </span>
           ) : null}

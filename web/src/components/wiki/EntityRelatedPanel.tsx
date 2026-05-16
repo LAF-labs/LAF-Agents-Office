@@ -6,6 +6,7 @@ import {
   type GraphEdge,
   subscribeEntityEvents,
 } from "../../api/entity";
+import { useUiText } from "../../lib/uiText";
 
 interface EntityRelatedPanelProps {
   kind: EntityKind;
@@ -27,6 +28,7 @@ export default function EntityRelatedPanel({
   kind,
   slug,
 }: EntityRelatedPanelProps) {
+  const { wiki: copy } = useUiText();
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +44,7 @@ export default function EntityRelatedPanel({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load related entities",
-        );
+        setError(err instanceof Error ? err.message : copy.relatedLoadFailed);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -54,7 +52,7 @@ export default function EntityRelatedPanel({
     return () => {
       cancelled = true;
     };
-  }, [kind, slug]);
+  }, [kind, slug, copy]);
 
   useEffect(() => {
     // New facts on this entity can introduce new edges. Refetch the graph on
@@ -84,16 +82,13 @@ export default function EntityRelatedPanel({
       aria-labelledby="wk-related-heading"
       data-testid="wk-related-panel"
     >
-      <h2 id="wk-related-heading">Related</h2>
+      <h2 id="wk-related-heading">{copy.related}</h2>
       {loading ? (
-        <p className="wk-related-loading">loading related entities…</p>
+        <p className="wk-related-loading">{copy.loadingRelated}</p>
       ) : error ? (
         <p className="wk-related-error">{error}</p>
       ) : edges.length === 0 ? (
-        <p className="wk-related-empty">
-          No related entities yet. Wikilinks in recorded facts will connect this
-          page to others.
-        </p>
+        <p className="wk-related-empty">{copy.relatedEmpty}</p>
       ) : (
         <ul className="wk-related-items">
           {visible.map((edge) => {
@@ -108,7 +103,10 @@ export default function EntityRelatedPanel({
                   {target}
                 </a>
                 {edge.occurrence_count > 1 && (
-                  <span className="wk-related-count" title="Occurrence count">
+                  <span
+                    className="wk-related-count"
+                    title={copy.occurrenceCount}
+                  >
                     ×{edge.occurrence_count}
                   </span>
                 )}

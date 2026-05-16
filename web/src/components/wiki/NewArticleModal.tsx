@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { type WikiCatalogEntry, writeHumanArticle } from "../../api/wiki";
+import { useUiText } from "../../lib/uiText";
 
 interface NewArticleModalProps {
   catalog: WikiCatalogEntry[];
@@ -22,6 +23,7 @@ export default function NewArticleModal({
   onCancel,
   onCreated,
 }: NewArticleModalProps) {
+  const { wiki: copy } = useUiText();
   const existingGroups = useMemo(() => {
     const set = new Set<string>();
     for (const e of catalog) set.add(e.group);
@@ -40,23 +42,23 @@ export default function NewArticleModal({
 
   async function handleCreate() {
     setError(null);
-    const groupErr = validateSegment(resolvedGroup, "Section");
+    const groupErr = validateSegment(resolvedGroup, copy.section, copy);
     if (groupErr) {
       setError(groupErr);
       return;
     }
-    const slugErr = validateSegment(slug, "Slug");
+    const slugErr = validateSegment(slug, copy.slug, copy);
     if (slugErr) {
       setError(slugErr);
       return;
     }
     if (!title.trim()) {
-      setError("Title is required.");
+      setError(copy.titleRequired);
       return;
     }
 
     const fullPath = `team/${resolvedGroup}/${slug}.md`;
-    const body = `# ${title.trim()}\n\n_Stub — write something useful here._\n`;
+    const body = `# ${title.trim()}\n\n_${copy.newArticleStub}_\n`;
 
     setSubmitting(true);
     try {
@@ -67,16 +69,12 @@ export default function NewArticleModal({
         expectedSha: "",
       });
       if ("conflict" in result) {
-        setError(
-          "An article already exists at that path. Pick a different slug.",
-        );
+        setError(copy.articleExists);
         return;
       }
       onCreated(fullPath);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create article.",
-      );
+      setError(err instanceof Error ? err.message : copy.createArticleFailed);
     } finally {
       setSubmitting(false);
     }
@@ -91,10 +89,10 @@ export default function NewArticleModal({
       aria-labelledby="wk-new-article-title"
     >
       <div className="wk-modal">
-        <h2 id="wk-new-article-title">New wiki article</h2>
+        <h2 id="wk-new-article-title">{copy.newWikiArticle}</h2>
 
         <label className="wk-editor-label" htmlFor="wk-new-group">
-          Section
+          {copy.section}
         </label>
         <select
           id="wk-new-group"
@@ -106,7 +104,7 @@ export default function NewArticleModal({
               {g}
             </option>
           ))}
-          <option value="__custom__">+ New section…</option>
+          <option value="__custom__">{copy.newSectionOption}</option>
         </select>
         {group === "__custom__" && (
           <input
@@ -119,7 +117,7 @@ export default function NewArticleModal({
         )}
 
         <label className="wk-editor-label" htmlFor="wk-new-slug">
-          Slug
+          {copy.slug}
         </label>
         <input
           id="wk-new-slug"
@@ -134,7 +132,7 @@ export default function NewArticleModal({
         />
 
         <label className="wk-editor-label" htmlFor="wk-new-title">
-          Title
+          {copy.title}
         </label>
         <input
           id="wk-new-title"
@@ -146,9 +144,7 @@ export default function NewArticleModal({
         />
 
         {path ? (
-          <p className="wk-editor-help">
-            Will create <code>{path}</code>
-          </p>
+          <p className="wk-editor-help">{copy.willCreate(path)}</p>
         ) : null}
 
         {error ? (
@@ -168,7 +164,7 @@ export default function NewArticleModal({
             onClick={handleCreate}
             disabled={submitting}
           >
-            {submitting ? "Creating…" : "Create article"}
+            {submitting ? copy.creating : copy.createArticle}
           </button>
           <button
             type="button"
@@ -176,7 +172,7 @@ export default function NewArticleModal({
             onClick={onCancel}
             disabled={submitting}
           >
-            Cancel
+            {copy.cancel}
           </button>
         </div>
       </div>
@@ -189,14 +185,18 @@ export default function NewArticleModal({
  * leading slash, empty input, and non-slug characters so the user hears
  * the error before an HTTP round-trip.
  */
-function validateSegment(seg: string, label: string): string | null {
+function validateSegment(
+  seg: string,
+  label: string,
+  copy: ReturnType<typeof useUiText>["wiki"],
+): string | null {
   const trimmed = seg.trim();
-  if (!trimmed) return `${label} is required.`;
+  if (!trimmed) return copy.segmentRequired(label);
   if (trimmed.startsWith(".") || trimmed.includes(".."))
-    return `${label} cannot contain "..".`;
-  if (trimmed.includes("/")) return `${label} cannot contain "/".`;
+    return copy.segmentCannotContain(label, "..");
+  if (trimmed.includes("/")) return copy.segmentCannotContain(label, "/");
   if (!/^[a-z0-9][a-z0-9-]*$/.test(trimmed)) {
-    return `${label} must be lowercase letters, numbers, and hyphens only.`;
+    return copy.segmentSlugOnly(label);
   }
   return null;
 }
