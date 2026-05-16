@@ -113,6 +113,18 @@ var workspacePermissions = []string{
 
 var workspaceRoles = []string{"owner", "admin", "manager", "member", "viewer"}
 var supportedLocalCLIRuntimes = []string{"codex", "claude-code", "opencode"}
+var detectLocalCLIRuntimes = func() []string {
+	var runtimes []string
+	if commandExists("codex") {
+		runtimes = append(runtimes, "codex")
+	}
+	if commandExists("claude", "claude-code") {
+		runtimes = append(runtimes, "claude-code")
+	}
+	runtimes = uniqueStrings(runtimes)
+	sort.Strings(runtimes)
+	return runtimes
+}
 
 type permissionOverride struct {
 	Allow []string `json:"allow,omitempty"`
@@ -602,8 +614,21 @@ func (b *Broker) handlePatchPermissions(w http.ResponseWriter, r *http.Request) 
 }
 
 type modelAvailabilityMode struct {
-	Available bool   `json:"available"`
-	Reason    string `json:"reason,omitempty"`
+	Available bool     `json:"available"`
+	Reason    string   `json:"reason,omitempty"`
+	Runtimes  []string `json:"runtimes,omitempty"`
+}
+
+func localCLIAvailabilityMode() modelAvailabilityMode {
+	runtimes := detectLocalCLIRuntimes()
+	if len(runtimes) == 0 {
+		return modelAvailabilityMode{Available: false, Reason: "local CLI not detected"}
+	}
+	return modelAvailabilityMode{
+		Available: true,
+		Reason:    "local CLI detected",
+		Runtimes:  runtimes,
+	}
 }
 
 func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request) {
@@ -636,6 +661,7 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	} else if !canUseTeamBridge {
 		teamBridge.Reason = "permission required: " + permissionBridgeExecuteTeam
 	}
+	localCLI := localCLIAvailabilityMode()
 	record := modelAvailabilityMode{Available: true, Reason: "records chat without agent execution"}
 
 	defaultMode := "record_only"
@@ -643,6 +669,8 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 		defaultMode = "laf_model"
 	} else if myBridge.Available {
 		defaultMode = "my_bridge"
+	} else if teamBridge.Available {
+		defaultMode = "team_bridge"
 	}
 	allowed := []string{"record_only"}
 	if laf.Available {
@@ -660,6 +688,7 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 		"laf_model":     laf,
 		"my_bridge":     myBridge,
 		"team_bridge":   teamBridge,
+		"local_cli":     localCLI,
 		"record_only":   record,
 		"reason":        "DB billing is used by hosted API; local broker uses environment fallback.",
 	})

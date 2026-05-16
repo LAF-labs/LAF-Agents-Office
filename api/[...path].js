@@ -903,6 +903,13 @@ async function modelAvailabilityForMembership(membership) {
             ? "no supported local CLI detected"
             : "permission required: bridge:execute_team",
     },
+    local_cli: {
+      available: myBridgeAllowed || teamBridgeAllowed,
+      reason:
+        myBridgeAllowed || teamBridgeAllowed
+          ? "CLI execution available"
+          : "local CLI not detected",
+    },
     record_only: {
       available: true,
       reason: "records chat without agent execution",
