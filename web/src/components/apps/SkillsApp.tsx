@@ -1,4 +1,13 @@
-import { type FormEvent, useCallback, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flash } from "iconoir-react";
 
@@ -138,9 +147,14 @@ interface SkillsCopy {
   skillDescription: string;
   skillLoading: string;
   skillLoadError: string;
+  newSkill: string;
+  requiredField: string;
+  recommendedField: string;
   editorCreateTitle: string;
   editorEditTitle: string;
   editorDescription: string;
+  editorRequiredDescription: string;
+  editorRecommendedDescription: string;
   skillName: string;
   skillNamePlaceholder: string;
   title: string;
@@ -163,6 +177,7 @@ interface SkillsCopy {
   registerSkill: string;
   saving: string;
   cancelEdit: string;
+  closeEditor: string;
   sharedTeamSkillsTitle: string;
   sharedTeamSkillsDescription: string;
   noSkills: string;
@@ -275,10 +290,17 @@ const SKILLS_COPY = {
       "Register reusable instructions, approve agent proposals, and keep the team skill list up to date without leaving this screen.",
     skillLoading: "Loading skills...",
     skillLoadError: "Could not load skills.",
+    newSkill: "New skill",
+    requiredField: "Required",
+    recommendedField: "Recommended",
     editorCreateTitle: "Register a skill manually",
     editorEditTitle: "Edit skill",
     editorDescription:
       "A skill is a reusable instruction the team can call with / in chat. Keep the name short and write the steps clearly.",
+    editorRequiredDescription:
+      "These fields are required so the skill can be found and executed reliably.",
+    editorRecommendedDescription:
+      "Recommended fields help teammates understand when and why to use the skill.",
     skillName: "Skill name",
     skillNamePlaceholder: "daily-standup",
     title: "Title",
@@ -302,6 +324,7 @@ const SKILLS_COPY = {
     registerSkill: "Register skill",
     saving: "Saving...",
     cancelEdit: "Cancel edit",
+    closeEditor: "Close skill editor",
     sharedTeamSkillsTitle: "Shared team skills",
     sharedTeamSkillsDescription:
       "Skills that agents can use in this workspace. Proposed skills stay inactive until someone approves them.",
@@ -418,10 +441,17 @@ const SKILLS_COPY = {
       "반복해서 쓸 지시문을 등록하고, 에이전트가 제안한 스킬을 승인하거나 수정합니다.",
     skillLoading: "스킬을 불러오는 중...",
     skillLoadError: "스킬을 불러오지 못했습니다.",
+    newSkill: "새 스킬",
+    requiredField: "필수",
+    recommendedField: "권장",
     editorCreateTitle: "스킬 직접 등록",
     editorEditTitle: "스킬 수정",
     editorDescription:
       "스킬은 채팅에서 /로 불러 쓸 수 있는 재사용 지시문입니다. 이름은 짧게, 실행 단계는 명확하게 적어주세요.",
+    editorRequiredDescription:
+      "스킬을 안정적으로 찾고 실행하려면 아래 항목이 필요합니다.",
+    editorRecommendedDescription:
+      "권장 항목을 채우면 팀원이 언제 왜 이 스킬을 써야 하는지 이해하기 쉬워집니다.",
     skillName: "스킬 이름",
     skillNamePlaceholder: "daily-standup",
     title: "제목",
@@ -445,6 +475,7 @@ const SKILLS_COPY = {
     registerSkill: "스킬 등록",
     saving: "저장 중...",
     cancelEdit: "수정 취소",
+    closeEditor: "스킬 편집기 닫기",
     sharedTeamSkillsTitle: "팀 공유 스킬",
     sharedTeamSkillsDescription:
       "이 워크스페이스의 에이전트가 사용할 수 있는 스킬입니다. 승인 대기 스킬은 승인 전까지 비활성 상태입니다.",
@@ -879,6 +910,7 @@ function SkillManager() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<SkillFormState>(EMPTY_SKILL_FORM);
   const [editingName, setEditingName] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [submitState, setSubmitState] = useState<"idle" | "saving">("idle");
   const { data, isLoading, error } = useQuery({
     queryKey: ["skills"],
@@ -900,12 +932,20 @@ function SkillManager() {
   const resetForm = useCallback(() => {
     setForm(EMPTY_SKILL_FORM);
     setEditingName(null);
+    setEditorOpen(false);
+  }, []);
+
+  const startCreate = useCallback(() => {
+    setForm(EMPTY_SKILL_FORM);
+    setEditingName(null);
+    setEditorOpen(true);
   }, []);
 
   const startEdit = useCallback((skill: Skill) => {
     if (!skill.name) return;
     setEditingName(skill.name);
     setForm(skillToForm(skill));
+    setEditorOpen(true);
   }, []);
 
   const handleSubmit = useCallback(
@@ -953,16 +993,18 @@ function SkillManager() {
 
   return (
     <>
-      <SkillsManagementHeader copy={copy} />
-      <SkillEditor
-        copy={copy}
-        form={form}
-        isEditing={!!editingName}
-        isSaving={submitState !== "idle"}
-        onCancel={resetForm}
-        onChange={updateForm}
-        onSubmit={handleSubmit}
-      />
+      <SkillsManagementHeader copy={copy} onCreate={startCreate} />
+      {editorOpen ? (
+        <SkillEditor
+          copy={copy}
+          form={form}
+          isEditing={!!editingName}
+          isSaving={submitState !== "idle"}
+          onCancel={resetForm}
+          onChange={updateForm}
+          onSubmit={handleSubmit}
+        />
+      ) : null}
       {isLoading ? (
         <div className="app-loading-state">{copy.skillLoading}</div>
       ) : error ? (
@@ -974,7 +1016,13 @@ function SkillManager() {
   );
 }
 
-function SkillsManagementHeader({ copy }: { copy: SkillsCopy }) {
+function SkillsManagementHeader({
+  copy,
+  onCreate,
+}: {
+  copy: SkillsCopy;
+  onCreate: () => void;
+}) {
   return (
     <div className="skills-hero">
       <div>
@@ -982,6 +1030,10 @@ function SkillsManagementHeader({ copy }: { copy: SkillsCopy }) {
         <h2>{copy.skillTitle}</h2>
         <p>{copy.skillDescription}</p>
       </div>
+      <button type="button" className="skills-create-button" onClick={onCreate}>
+        <span aria-hidden="true">+</span>
+        {copy.newSkill}
+      </button>
     </div>
   );
 }
@@ -1003,110 +1055,188 @@ function SkillEditor({
   onChange: (field: keyof SkillFormState, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const primaryLabel = isEditing
     ? copy.updateSkill
     : form.action === "propose"
       ? copy.submitForApproval
       : copy.registerSkill;
+  const closeIfIdle = useCallback(() => {
+    if (!isSaving) onCancel();
+  }, [isSaving, onCancel]);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
+
+  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) closeIfIdle();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") closeIfIdle();
+  }
 
   return (
-    <section className="skills-panel is-wide skills-editor-panel">
-      <div className="skills-section-head">
-        <h3>{isEditing ? copy.editorEditTitle : copy.editorCreateTitle}</h3>
-        <p>{copy.editorDescription}</p>
-      </div>
-      <form className="skills-editor-form" onSubmit={onSubmit}>
-        <div className="skills-editor-grid">
-          <label className="skills-field">
-            <span>{copy.skillName}</span>
-            <input
-              value={form.name}
-              disabled={isEditing}
-              onChange={(event) => onChange("name", event.target.value)}
-              placeholder={copy.skillNamePlaceholder}
-            />
-          </label>
-          <label className="skills-field">
-            <span>{copy.title}</span>
-            <input
-              value={form.title}
-              onChange={(event) => onChange("title", event.target.value)}
-              placeholder={copy.titlePlaceholder}
-            />
-          </label>
-          <label className="skills-field">
-            <span>{copy.shortSummary}</span>
-            <input
-              value={form.description}
-              onChange={(event) => onChange("description", event.target.value)}
-              placeholder={copy.shortSummaryPlaceholder}
-            />
-          </label>
-          <label className="skills-field">
-            <span>{copy.triggerHint}</span>
-            <input
-              value={form.trigger}
-              onChange={(event) => onChange("trigger", event.target.value)}
-              placeholder={copy.triggerPlaceholder}
-            />
-          </label>
-          <label className="skills-field">
-            <span>{copy.tags}</span>
-            <input
-              value={form.tags}
-              onChange={(event) => onChange("tags", event.target.value)}
-              placeholder={copy.tagsPlaceholder}
-            />
-          </label>
-          <label className="skills-field">
-            <span>{copy.permissions}</span>
-            <input
-              value={form.requiredPermissions}
-              onChange={(event) =>
-                onChange("requiredPermissions", event.target.value)
-              }
-              placeholder={copy.permissionsPlaceholder}
-            />
-          </label>
-          <label className="skills-field">
-            <span>{copy.registrationMode}</span>
-            <select
-              value={form.action}
-              onChange={(event) =>
-                onChange("action", event.target.value as SkillPublishMode)
-              }
+    <div
+      className="creation-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="skill-editor-title"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+    >
+      <form className="creation-modal skill-editor-modal" onSubmit={onSubmit}>
+        <header className="creation-modal-header">
+          <div>
+            <p className="creation-modal-kicker">{copy.skillKicker}</p>
+            <h2 id="skill-editor-title">
+              {isEditing ? copy.editorEditTitle : copy.editorCreateTitle}
+            </h2>
+            <p>{copy.editorDescription}</p>
+          </div>
+          <button
+            type="button"
+            className="creation-modal-close"
+            onClick={closeIfIdle}
+            aria-label={copy.closeEditor}
+            disabled={isSaving}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+        <div className="creation-modal-body">
+          <section className="creation-modal-section">
+            <div className="creation-modal-section-head">
+              <div>
+                <h3>{copy.requiredField}</h3>
+                <p>{copy.editorRequiredDescription}</p>
+              </div>
+              <span className="creation-field-badge is-required">
+                {copy.requiredField}
+              </span>
+            </div>
+            <label className="skills-field" htmlFor="skill-editor-name">
+              <span>{copy.skillName}</span>
+              <input
+                ref={nameRef}
+                id="skill-editor-name"
+                value={form.name}
+                disabled={isEditing || isSaving}
+                onChange={(event) => onChange("name", event.target.value)}
+                placeholder={copy.skillNamePlaceholder}
+                required
+              />
+            </label>
+            <label
+              className="skills-field skills-field-full"
+              htmlFor="skill-editor-instructions"
             >
-              <option value="propose">{copy.needsApproval}</option>
-              <option value="create">{copy.useImmediately}</option>
-            </select>
-          </label>
+              <span>{copy.instructions}</span>
+              <textarea
+                id="skill-editor-instructions"
+                value={form.content}
+                onChange={(event) => onChange("content", event.target.value)}
+                placeholder={copy.instructionsPlaceholder}
+                rows={14}
+                disabled={isSaving}
+                required
+              />
+            </label>
+          </section>
+
+          <section className="creation-modal-section">
+            <div className="creation-modal-section-head">
+              <div>
+                <h3>{copy.recommendedField}</h3>
+                <p>{copy.editorRecommendedDescription}</p>
+              </div>
+              <span className="creation-field-badge">
+                {copy.recommendedField}
+              </span>
+            </div>
+            <div className="skills-editor-grid">
+              <label className="skills-field">
+                <span>{copy.title}</span>
+                <input
+                  value={form.title}
+                  onChange={(event) => onChange("title", event.target.value)}
+                  placeholder={copy.titlePlaceholder}
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="skills-field">
+                <span>{copy.shortSummary}</span>
+                <input
+                  value={form.description}
+                  onChange={(event) =>
+                    onChange("description", event.target.value)
+                  }
+                  placeholder={copy.shortSummaryPlaceholder}
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="skills-field">
+                <span>{copy.triggerHint}</span>
+                <input
+                  value={form.trigger}
+                  onChange={(event) => onChange("trigger", event.target.value)}
+                  placeholder={copy.triggerPlaceholder}
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="skills-field">
+                <span>{copy.tags}</span>
+                <input
+                  value={form.tags}
+                  onChange={(event) => onChange("tags", event.target.value)}
+                  placeholder={copy.tagsPlaceholder}
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="skills-field">
+                <span>{copy.permissions}</span>
+                <input
+                  value={form.requiredPermissions}
+                  onChange={(event) =>
+                    onChange("requiredPermissions", event.target.value)
+                  }
+                  placeholder={copy.permissionsPlaceholder}
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="skills-field">
+                <span>{copy.registrationMode}</span>
+                <select
+                  value={form.action}
+                  onChange={(event) =>
+                    onChange("action", event.target.value as SkillPublishMode)
+                  }
+                  disabled={isSaving}
+                >
+                  <option value="propose">{copy.needsApproval}</option>
+                  <option value="create">{copy.useImmediately}</option>
+                </select>
+              </label>
+            </div>
+          </section>
         </div>
-        <label className="skills-field skills-field-full">
-          <span>{copy.instructions}</span>
-          <textarea
-            value={form.content}
-            onChange={(event) => onChange("content", event.target.value)}
-            placeholder={copy.instructionsPlaceholder}
-            rows={8}
-          />
-        </label>
-        <div className="skills-editor-actions">
+        <footer className="creation-modal-footer">
+          <button
+            type="button"
+            className="skills-link-button"
+            onClick={closeIfIdle}
+            disabled={isSaving}
+          >
+            {isEditing ? copy.cancelEdit : copy.closeEditor}
+          </button>
           <button type="submit" className="skills-invoke" disabled={isSaving}>
             {isSaving ? copy.saving : primaryLabel}
           </button>
-          {isEditing ? (
-            <button
-              type="button"
-              className="skills-link-button"
-              onClick={onCancel}
-              disabled={isSaving}
-            >
-              {copy.cancelEdit}
-            </button>
-          ) : null}
-        </div>
+        </footer>
       </form>
-    </section>
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@
   type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
+  type MouseEvent,
   useEffect,
   useMemo,
   useRef,
@@ -654,26 +655,43 @@ function useProjectCreator(
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [newProjectAdditionalInfo, setNewProjectAdditionalInfo] = useState("");
+  const [newProjectGitHubRepoUrl, setNewProjectGitHubRepoUrl] = useState("");
+  const [newProjectRecipeFileName, setNewProjectRecipeFileName] = useState("");
+  const [newProjectRecipeMarkdown, setNewProjectRecipeMarkdown] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
 
   function handleCancelProjectCreate() {
     setIsCreatingProject(false);
     setIsSavingProject(false);
     setNewProjectName("");
+    setNewProjectDescription("");
+    setNewProjectAdditionalInfo("");
+    setNewProjectGitHubRepoUrl("");
+    setNewProjectRecipeFileName("");
+    setNewProjectRecipeMarkdown("");
     setProjectError(null);
   }
 
-  async function handleCreateProjectFromName(
-    nameInput = newProjectName,
-  ): Promise<boolean> {
-    const name = nameInput.trim();
+  async function handleCreateProject(): Promise<boolean> {
+    const name = newProjectName.trim();
     if (!name || isSavingProject) return false;
     setProjectError(null);
     setIsSavingProject(true);
+    const recipeMarkdown = newProjectRecipeMarkdown.trim();
+    const recipeFileName = recipeMarkdown
+      ? newProjectRecipeFileName.trim() || "project-brief.md"
+      : newProjectRecipeFileName.trim();
     try {
       const { project } = await createProject({
+        additional_info: newProjectAdditionalInfo.trim(),
         created_by: HUMAN_SLUG,
+        description: newProjectDescription.trim(),
+        github_repo_url: newProjectGitHubRepoUrl.trim(),
         name,
+        recipe_filename: recipeFileName,
+        recipe_markdown: recipeMarkdown,
       });
       queryClient.setQueryData<{ projects: Project[] }>(
         ["projects"],
@@ -689,8 +707,7 @@ function useProjectCreator(
           return { projects: nextProjects };
         },
       );
-      setNewProjectName("");
-      setIsCreatingProject(false);
+      handleCancelProjectCreate();
       onProjectCreated(project.id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["projects"] }),
@@ -709,13 +726,23 @@ function useProjectCreator(
 
   return {
     handleCancelProjectCreate,
-    handleCreateProjectFromName,
+    handleCreateProject,
     isCreatingProject,
     isSavingProject,
+    newProjectAdditionalInfo,
+    newProjectDescription,
+    newProjectGitHubRepoUrl,
     newProjectName,
+    newProjectRecipeFileName,
+    newProjectRecipeMarkdown,
     projectError,
+    setNewProjectAdditionalInfo,
+    setNewProjectDescription,
+    setNewProjectGitHubRepoUrl,
     setIsCreatingProject,
     setNewProjectName,
+    setNewProjectRecipeFileName,
+    setNewProjectRecipeMarkdown,
     setProjectError,
   };
 }
@@ -1047,6 +1074,11 @@ export function TasksApp() {
   const handleOpenProjectCreator = () => {
     projectCreator.setProjectError(null);
     projectCreator.setNewProjectName("");
+    projectCreator.setNewProjectDescription("");
+    projectCreator.setNewProjectAdditionalInfo("");
+    projectCreator.setNewProjectGitHubRepoUrl("");
+    projectCreator.setNewProjectRecipeFileName("project-brief.md");
+    projectCreator.setNewProjectRecipeMarkdown("");
     projectCreator.setIsCreatingProject(true);
   };
 
@@ -1092,6 +1124,13 @@ export function TasksApp() {
         onCreateProject={handleOpenProjectCreator}
         onFocusProject={setProjectFocusId}
       />
+      {projectCreator.isCreatingProject ? (
+        <ProjectCreateModal
+          projectCreator={projectCreator}
+          t={t}
+          onClose={projectCreator.handleCancelProjectCreate}
+        />
+      ) : null}
     </main>
   );
 }
@@ -1195,7 +1234,7 @@ function ProjectDirectoryList({
       ?.scrollIntoView({ block: "center" });
   }, [focusedProjectId]);
 
-  if (projects.length === 0 && !projectCreator.isCreatingProject) {
+  if (projects.length === 0) {
     return (
       <Card className="project-directory-card project-empty-card">
         <CardContent className="grid gap-3 py-10 text-center">
@@ -1237,14 +1276,6 @@ function ProjectDirectoryList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projectCreator.isCreatingProject ? (
-                <ProjectDraftRow
-                  isStatsReady={isStatsReady}
-                  language={language}
-                  projectCreator={projectCreator}
-                  t={t}
-                />
-              ) : null}
               {projects.map((project) => {
                 const projectTasks = tasks.filter(
                   (task) => task.project_id === project.id,
@@ -1286,119 +1317,222 @@ interface ProjectDirectoryRowProps {
   onFocus: () => void;
 }
 
-function ProjectDraftRow({
-  isStatsReady,
-  language,
+function ProjectCreateModal({
   projectCreator,
   t,
+  onClose,
 }: {
-  isStatsReady: boolean;
-  language: Language;
   projectCreator: ProjectCreatorState;
   t: TranslationFn;
+  onClose: () => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const counts: ProjectTaskCounts = {
-    done: 0,
-    inProgress: 0,
-    notStarted: 0,
-    total: 0,
-    waiting: 0,
-  };
-  const countValue = (value: number) => (isStatsReady ? value : "...");
+  const nameRef = useRef<HTMLInputElement>(null);
+  const saving = projectCreator.isSavingProject;
 
   useEffect(() => {
-    inputRef.current?.focus();
+    nameRef.current?.focus();
   }, []);
 
-  async function commitDraft() {
-    const name = projectCreator.newProjectName.trim();
-    if (!name) {
-      projectCreator.handleCancelProjectCreate();
-      return;
-    }
-    await projectCreator.handleCreateProjectFromName(name);
+  function handleClose() {
+    if (!saving) onClose();
+  }
+
+  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) handleClose();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") handleClose();
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void projectCreator.handleCreateProject();
   }
 
   return (
-    <TableRow className="project-draft-row" data-state="selected">
-      <TableCell className="min-w-[220px]">
-        <span className="grid min-w-0 gap-1">
-          <Input
-            ref={inputRef}
-            id="project-name"
-            className="project-row-input"
-            type="text"
-            value={projectCreator.newProjectName}
-            onBlur={() => {
-              void commitDraft();
-            }}
-            onChange={(event) =>
-              projectCreator.setNewProjectName(event.currentTarget.value)
-            }
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void commitDraft();
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                projectCreator.handleCancelProjectCreate();
-              }
-            }}
-            placeholder={t("tasks.projectName")}
-            aria-label={t("tasks.projectName")}
-            disabled={projectCreator.isSavingProject}
-          />
-          {projectCreator.projectError ? (
-            <small className="project-draft-error">
-              {projectCreator.projectError}
-            </small>
-          ) : null}
-        </span>
-      </TableCell>
-      <TableCell>
-        <span className="project-inline-status is-not_started">
-          {isStatsReady ? t("tasks.projectStatus.notStarted") : "..."}
-        </span>
-      </TableCell>
-      <TableCell>
-        <div className="project-task-metrics">
-          <span className="project-task-metric">
-            <strong>{countValue(counts.notStarted)}</strong>
-            {t("tasks.projectTasks.notStarted")}
-          </span>
-          <span className="project-task-metric">
-            <strong>{countValue(counts.inProgress)}</strong>
-            {t("tasks.projectTasks.inProgress")}
-          </span>
-          <span className="project-task-metric">
-            <strong>{countValue(counts.waiting)}</strong>
-            {t("tasks.projectTasks.waiting")}
-          </span>
-          <span className="project-task-metric">
-            <strong>{countValue(counts.done)}</strong>
-            {t("tasks.projectTasks.done")}
-          </span>
-          <span className="project-task-metric is-total">
-            {isStatsReady
-              ? countLabel(counts.total, "task", "tasks", "업무", language)
-              : "..."}
-          </span>
+    <div
+      className="creation-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="project-create-title"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+    >
+      <form className="creation-modal" onSubmit={handleSubmit}>
+        <header className="creation-modal-header">
+          <div>
+            <p className="creation-modal-kicker">{t("tasks.newProject")}</p>
+            <h2 id="project-create-title">{t("tasks.newProjectModalTitle")}</h2>
+            <p>{t("tasks.newProjectModalDescription")}</p>
+          </div>
           <Button
             type="button"
             size="icon"
             variant="ghost"
-            className="project-draft-cancel"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={projectCreator.handleCancelProjectCreate}
+            className="creation-modal-close"
+            onClick={handleClose}
             aria-label={t("tasks.cancel")}
-            disabled={projectCreator.isSavingProject}
+            disabled={saving}
           >
             <TaskPanelCloseIcon />
           </Button>
+        </header>
+        <div className="creation-modal-body">
+          <section className="creation-modal-section">
+            <div className="creation-modal-section-head">
+              <h3>{t("tasks.projectName")}</h3>
+              <span className="creation-field-badge is-required">
+                {t("tasks.requiredField")}
+              </span>
+            </div>
+            <label className="creation-field" htmlFor="project-create-name">
+              <span>{t("tasks.projectName")}</span>
+              <Input
+                ref={nameRef}
+                id="project-create-name"
+                value={projectCreator.newProjectName}
+                onChange={(event) =>
+                  projectCreator.setNewProjectName(event.currentTarget.value)
+                }
+                placeholder={t("tasks.projectNamePlaceholder")}
+                aria-label={t("tasks.projectName")}
+                disabled={saving}
+                required
+              />
+            </label>
+            <label className="creation-field" htmlFor="project-create-github">
+              <span>
+                {t("tasks.githubRepoUrl")}
+                <em>{t("tasks.recommendedField")}</em>
+              </span>
+              <Input
+                id="project-create-github"
+                type="url"
+                value={projectCreator.newProjectGitHubRepoUrl}
+                onChange={(event) =>
+                  projectCreator.setNewProjectGitHubRepoUrl(
+                    event.currentTarget.value,
+                  )
+                }
+                placeholder="https://github.com/org/repo"
+                aria-label={t("tasks.githubRepoUrl")}
+                disabled={saving}
+              />
+            </label>
+          </section>
+
+          <section className="creation-modal-section">
+            <div className="creation-modal-section-head">
+              <div>
+                <h3>{t("tasks.projectCreateContextTitle")}</h3>
+                <p>{t("tasks.projectCreateContextDescription")}</p>
+              </div>
+              <span className="creation-field-badge">
+                {t("tasks.recommendedField")}
+              </span>
+            </div>
+            <label className="creation-field" htmlFor="project-create-summary">
+              <span>{t("tasks.projectCreateSummary")}</span>
+              <Textarea
+                id="project-create-summary"
+                value={projectCreator.newProjectDescription}
+                onChange={(event) =>
+                  projectCreator.setNewProjectDescription(
+                    event.currentTarget.value,
+                  )
+                }
+                placeholder={t("tasks.projectCreateSummaryPlaceholder")}
+                rows={4}
+                aria-label={t("tasks.projectCreateSummary")}
+                disabled={saving}
+              />
+            </label>
+            <label className="creation-field" htmlFor="project-create-notes">
+              <span>{t("tasks.projectCreateAdditional")}</span>
+              <Textarea
+                id="project-create-notes"
+                value={projectCreator.newProjectAdditionalInfo}
+                onChange={(event) =>
+                  projectCreator.setNewProjectAdditionalInfo(
+                    event.currentTarget.value,
+                  )
+                }
+                placeholder={t("tasks.projectCreateAdditionalPlaceholder")}
+                rows={6}
+                aria-label={t("tasks.projectCreateAdditional")}
+                disabled={saving}
+              />
+            </label>
+          </section>
+
+          <section className="creation-modal-section is-wide">
+            <div className="creation-modal-section-head">
+              <div>
+                <h3>{t("tasks.projectCreateRecipe")}</h3>
+                <p>{t("tasks.projectCreateRecipeDescription")}</p>
+              </div>
+              <span className="creation-field-badge">
+                {t("tasks.recommendedField")}
+              </span>
+            </div>
+            <label
+              className="creation-field"
+              htmlFor="project-create-recipe-file"
+            >
+              <span>{t("tasks.projectCreateRecipeFile")}</span>
+              <Input
+                id="project-create-recipe-file"
+                value={projectCreator.newProjectRecipeFileName}
+                onChange={(event) =>
+                  projectCreator.setNewProjectRecipeFileName(
+                    event.currentTarget.value,
+                  )
+                }
+                placeholder={t("tasks.projectCreateRecipeFilePlaceholder")}
+                aria-label={t("tasks.projectCreateRecipeFile")}
+                disabled={saving}
+              />
+            </label>
+            <label className="creation-field" htmlFor="project-create-recipe">
+              <span>{t("tasks.projectCreateRecipe")}</span>
+              <Textarea
+                id="project-create-recipe"
+                value={projectCreator.newProjectRecipeMarkdown}
+                onChange={(event) =>
+                  projectCreator.setNewProjectRecipeMarkdown(
+                    event.currentTarget.value,
+                  )
+                }
+                placeholder={t("tasks.projectCreateRecipePlaceholder")}
+                rows={10}
+                aria-label={t("tasks.projectCreateRecipe")}
+                disabled={saving}
+              />
+            </label>
+          </section>
         </div>
-      </TableCell>
-    </TableRow>
+        {projectCreator.projectError ? (
+          <p className="creation-modal-error">{projectCreator.projectError}</p>
+        ) : null}
+        <footer className="creation-modal-footer">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleClose}
+            disabled={saving}
+          >
+            {t("tasks.cancel")}
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving
+              ? t("tasks.projectCreateSaving")
+              : t("tasks.projectCreateSubmit")}
+          </Button>
+        </footer>
+      </form>
+    </div>
   );
 }
 

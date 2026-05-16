@@ -236,6 +236,60 @@ describe("TasksApp project directory", () => {
     expect(screen.queryByText("Work items")).not.toBeInTheDocument();
   });
 
+  it("opens a detailed project creation modal and submits recommended context", async () => {
+    const user = userEvent.setup();
+    apiMocks.createProject.mockResolvedValue({
+      project: {
+        id: "customer-onboarding",
+        name: "Customer onboarding",
+      },
+    });
+    renderTasksApp();
+
+    const directory = await screen.findByRole("region", { name: "Projects" });
+    await user.click(screen.getByRole("button", { name: "New project" }));
+
+    const modal = await screen.findByRole("dialog", {
+      name: "Create a new project",
+    });
+    expect(within(modal).getByText("Required")).toBeInTheDocument();
+    expect(within(modal).getAllByText("Recommended").length).toBeGreaterThan(0);
+    expect(within(directory).getByText("Customer Portal")).toBeInTheDocument();
+
+    await user.type(
+      within(modal).getByLabelText("Project name"),
+      "Customer onboarding",
+    );
+    await user.type(
+      within(modal).getByLabelText("Project summary"),
+      "Improve the first-run customer experience.",
+    );
+    await user.type(
+      within(modal).getByLabelText("Goals, constraints, and notes"),
+      "Keep billing copy unchanged until approved.",
+    );
+    await user.type(
+      within(modal).getByLabelText("Operating guide"),
+      "Verify locally before reporting done.",
+    );
+    await user.click(
+      within(modal).getByRole("button", { name: "Create project" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          additional_info: "Keep billing copy unchanged until approved.",
+          created_by: "human",
+          description: "Improve the first-run customer experience.",
+          name: "Customer onboarding",
+          recipe_filename: "project-brief.md",
+          recipe_markdown: "Verify locally before reporting done.",
+        }),
+      );
+    });
+  });
+
   it("opens a project detail view with its task list", async () => {
     const user = userEvent.setup();
     apiMocks.getRunnerStatus.mockResolvedValue({

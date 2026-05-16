@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Skill } from "../../api/client";
 import type { NotebookCatalogSummary, ReviewItem } from "../../api/notebook";
@@ -6,7 +9,56 @@ import type {
   PlaybookSummary,
   PlaybookSynthesisStatus,
 } from "../../api/playbook";
-import { __test__ } from "./SkillsApp";
+import { useAppStore } from "../../stores/app";
+import { __test__, SkillsApp } from "./SkillsApp";
+
+const apiMocks = vi.hoisted(() => ({
+  createSkill: vi.fn(),
+  deleteSkill: vi.fn(),
+  getSkills: vi.fn(),
+  getUsage: vi.fn(),
+  invokeSkill: vi.fn(),
+  updateSkill: vi.fn(),
+}));
+
+vi.mock("../../api/client", () => apiMocks);
+vi.mock("../ui/Toast", () => ({ showNotice: vi.fn() }));
+
+function renderSkillsApp() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      mutations: { retry: false },
+      queries: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SkillsApp />
+    </QueryClientProvider>,
+  );
+}
+
+function mockSkillsList() {
+  vi.clearAllMocks();
+  useAppStore.setState({
+    currentApp: "skills",
+    language: "en",
+    projectFocusId: null,
+    wikiPath: null,
+  });
+  apiMocks.getSkills.mockResolvedValue({
+    skills: [
+      {
+        description: "Collect blockers and next actions.",
+        name: "daily-standup",
+        status: "active",
+        title: "Daily Standup",
+        updated_at: "2026-05-12T00:00:00Z",
+      },
+    ],
+  });
+}
 
 function playbook(
   slug: string,
@@ -40,6 +92,81 @@ function status(
     ...overrides,
   };
 }
+
+describe("SkillsApp management UI", () => {
+  beforeEach(mockSkillsList);
+
+  it("keeps the skill list visible until the large manual-registration modal is opened", async () => {
+    const user = userEvent.setup();
+    renderSkillsApp();
+
+    expect(
+      await screen.findByRole("heading", { name: "Shared team skills" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Daily Standup")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Register a skill manually" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "New skill" }));
+
+    const modal = await screen.findByRole("dialog", {
+      name: "Register a skill manually",
+    });
+    expect(
+      within(modal).getByRole("heading", { name: "Required" }),
+    ).toBeInTheDocument();
+    expect(
+      within(modal).getByRole("heading", { name: "Recommended" }),
+    ).toBeInTheDocument();
+    expect(within(modal).getByLabelText("Skill name")).toBeInTheDocument();
+    expect(within(modal).getByLabelText("Instructions")).toBeInTheDocument();
+    expect(screen.getByText("Daily Standup")).toBeInTheDocument();
+  });
+
+  it("submits a manually registered skill from the modal", async () => {
+    const user = userEvent.setup();
+    apiMocks.createSkill.mockResolvedValue({
+      skill: { name: "handoff-check", status: "proposed" },
+    });
+    renderSkillsApp();
+
+    await user.click(await screen.findByRole("button", { name: "New skill" }));
+    const modal = await screen.findByRole("dialog", {
+      name: "Register a skill manually",
+    });
+    await user.type(
+      within(modal).getByLabelText("Skill name"),
+      "handoff-check",
+    );
+    await user.type(
+      within(modal).getByLabelText("Instructions"),
+      "Check owner, due date, and next action before closing a handoff.",
+    );
+    await user.type(within(modal).getByLabelText("Title"), "Handoff Check");
+    await user.type(
+      within(modal).getByLabelText("Short summary"),
+      "Review handoff readiness.",
+    );
+    await user.click(
+      within(modal).getByRole("button", { name: "Submit for approval" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.createSkill).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "propose",
+          content:
+            "Check owner, due date, and next action before closing a handoff.",
+          created_by: "human",
+          description: "Review handoff readiness.",
+          name: "handoff-check",
+          title: "Handoff Check",
+        }),
+      );
+    });
+  });
+});
 
 describe("Skills growth model", () => {
   it("builds dashboard metrics and growth inbox from existing APIs", () => {

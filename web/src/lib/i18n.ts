@@ -379,9 +379,33 @@ const messages = {
     "tasks.workspace.title": "Project workspace",
     "tasks.newProject": "New project",
     "tasks.newProjectCta": "Create new project",
+    "tasks.newProjectModalTitle": "Create a new project",
+    "tasks.newProjectModalDescription":
+      "Add enough context now so agents can understand the project without asking you to repeat it later.",
     "tasks.projectName": "Project name",
+    "tasks.projectNamePlaceholder": "Customer onboarding redesign",
     "tasks.githubRepoUrlOptional": "GitHub repo URL (optional)",
     "tasks.githubRepoUrl": "GitHub repository URL",
+    "tasks.requiredField": "Required",
+    "tasks.recommendedField": "Recommended",
+    "tasks.projectCreateContextTitle": "Context agents should know",
+    "tasks.projectCreateContextDescription":
+      "Recommended fields are optional, but filling them in makes the first agent handoff much smoother.",
+    "tasks.projectCreateSummary": "Project summary",
+    "tasks.projectCreateSummaryPlaceholder":
+      "What are we trying to achieve, and why does it matter?",
+    "tasks.projectCreateAdditional": "Goals, constraints, and notes",
+    "tasks.projectCreateAdditionalPlaceholder":
+      "Success criteria, important links, constraints, stakeholders, or anything the team should remember.",
+    "tasks.projectCreateRecipe": "Operating guide",
+    "tasks.projectCreateRecipeDescription":
+      "Use this for recurring rules or step-by-step instructions agents should follow in this project.",
+    "tasks.projectCreateRecipeFile": "Guide file name",
+    "tasks.projectCreateRecipeFilePlaceholder": "project-brief.md",
+    "tasks.projectCreateRecipePlaceholder":
+      "Example: Always verify changes locally before reporting done. Keep PR summaries short. Ask before changing billing settings.",
+    "tasks.projectCreateSubmit": "Create project",
+    "tasks.projectCreateSaving": "Creating...",
     "tasks.create": "Create",
     "tasks.loadProjectTasksError": "Could not load project tasks.",
     "tasks.loadingProjectTasks": "Loading project tasks...",
@@ -1182,9 +1206,33 @@ const messages = {
     "tasks.workspace.title": "프로젝트 워크스페이스",
     "tasks.newProject": "새 프로젝트",
     "tasks.newProjectCta": "새 프로젝트 만들기",
+    "tasks.newProjectModalTitle": "새 프로젝트 만들기",
+    "tasks.newProjectModalDescription":
+      "처음부터 맥락을 충분히 적어두면 에이전트가 같은 설명을 다시 묻지 않고 바로 이해할 수 있습니다.",
     "tasks.projectName": "프로젝트 이름",
+    "tasks.projectNamePlaceholder": "고객 온보딩 개선",
     "tasks.githubRepoUrlOptional": "GitHub 저장소 URL (선택)",
     "tasks.githubRepoUrl": "GitHub 저장소 URL",
+    "tasks.requiredField": "필수",
+    "tasks.recommendedField": "권장",
+    "tasks.projectCreateContextTitle": "에이전트가 알아야 할 맥락",
+    "tasks.projectCreateContextDescription":
+      "권장 항목은 선택이지만, 적어둘수록 첫 작업 인계가 훨씬 쉬워집니다.",
+    "tasks.projectCreateSummary": "프로젝트 요약",
+    "tasks.projectCreateSummaryPlaceholder":
+      "무엇을 달성하려는 프로젝트이고, 왜 중요한가요?",
+    "tasks.projectCreateAdditional": "목표, 제약, 참고 메모",
+    "tasks.projectCreateAdditionalPlaceholder":
+      "성공 기준, 중요한 링크, 제약 조건, 이해관계자, 팀이 기억해야 할 내용을 적어주세요.",
+    "tasks.projectCreateRecipe": "운영 가이드",
+    "tasks.projectCreateRecipeDescription":
+      "이 프로젝트에서 에이전트가 반복해서 따라야 할 규칙이나 절차가 있다면 적어주세요.",
+    "tasks.projectCreateRecipeFile": "가이드 파일 이름",
+    "tasks.projectCreateRecipeFilePlaceholder": "project-brief.md",
+    "tasks.projectCreateRecipePlaceholder":
+      "예: 완료 보고 전 반드시 로컬에서 검증합니다. PR 요약은 짧게 씁니다. 결제 설정 변경 전에는 먼저 확인합니다.",
+    "tasks.projectCreateSubmit": "프로젝트 만들기",
+    "tasks.projectCreateSaving": "만드는 중...",
     "tasks.create": "만들기",
     "tasks.loadProjectTasksError": "프로젝트 작업을 불러오지 못했습니다.",
     "tasks.loadingProjectTasks": "프로젝트 작업을 불러오는 중...",
