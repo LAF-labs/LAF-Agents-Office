@@ -305,7 +305,7 @@ test("hosted project rejects unsafe repo URLs", async (t) => {
   assert.equal(response.status, 400);
 });
 
-test("hosted auth login returns readable upstream errors", async (t) => {
+test("hosted auth login redacts upstream errors", async (t) => {
   const oldFetch = global.fetch;
   t.after(() => {
     global.fetch = oldFetch;
@@ -333,10 +333,10 @@ test("hosted auth login returns readable upstream errors", async (t) => {
   );
 
   assert.equal(response.status, 400);
-  assert.equal(response.body.error, "Invalid login credentials");
+  assert.equal(response.body.error, "invalid request");
 });
 
-test("hosted auth signup returns readable upstream errors", async (t) => {
+test("hosted auth signup redacts upstream errors", async (t) => {
   const oldFetch = global.fetch;
   t.after(() => {
     global.fetch = oldFetch;
@@ -370,10 +370,7 @@ test("hosted auth signup returns readable upstream errors", async (t) => {
   );
 
   assert.equal(response.status, 400);
-  assert.equal(
-    response.body.error,
-    "Unable to validate email address: invalid format",
-  );
+  assert.equal(response.body.error, "invalid request");
 });
 
 test("hosted auth rejects malformed JSON as a bad request", async () => {
@@ -385,7 +382,7 @@ test("hosted auth rejects malformed JSON as a bad request", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.equal(response.body.error, "invalid JSON body");
+  assert.equal(response.body.error, "invalid json body");
 });
 
 test("hosted runner can register, heartbeat, lease, report, and complete", async (t) => {
