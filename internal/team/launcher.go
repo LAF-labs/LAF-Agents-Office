@@ -3163,32 +3163,70 @@ func headlessSandboxNote() string {
 	return "Runtime: this office is already running. Never launch another `laf-office`, copied `laf-office` binary, `/reset`, browser instance, or local server/`--web-port` process from inside your turn. For `execution_mode=local_worktree`, make edits directly in the assigned working_directory instead of re-auditing or trying to boot a second office. Never search parent or sibling temp directories (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`) from a task worktree; stay inside the assigned working_directory. If shell commands fail with 'operation not permitted' or 'permission denied' (go build cache, localhost bind, sandboxed writes), stop retrying them and continue from code inspection or the existing running office.\n\n"
 }
 
+func headlessFinalReplyInstruction(slug string, channel string, replyToID string) string {
+	target := fmt.Sprintf("to channel %q as a new topic", channel)
+	if strings.TrimSpace(replyToID) != "" {
+		target = fmt.Sprintf("to channel %q with reply_to_id %q", channel, replyToID)
+	}
+	return fmt.Sprintf(
+		"Headless reply transport: for this normal human-visible chat reply, write the reply as your final answer text. LAF-Office will post that final answer as @%s %s after the turn. Use office tools only for durable task/memory/delegation changes or deliberate extra posts; the normal chat reply itself does not need an office tool. After the final answer, STOP and wait for the next pushed notification.",
+		slug, target,
+	)
+}
+
 func (l *Launcher) sendChannelUpdate(target notificationTarget, msg channelMessage) {
 	channel := normalizeChannelSlug(msg.Channel)
 	if channel == "" {
 		channel = "general"
 	}
+	headless := l.shouldUseHeadlessDispatchForTarget(target)
 	notification := ""
 	if isInternalCollaborationMessage(msg) {
 		notification = l.internalCollaborationNotification(target, msg, channel)
 	} else if l.isOneOnOne() {
-		notification = fmt.Sprintf(
-			"[New from @%s]: %s\n%s Reply using team_broadcast with my_slug \"%s\" and channel \"%s\" reply_to_id \"%s\". Once you have posted the needed reply, STOP and wait for the next pushed notification.",
-			msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), target.Slug, channel, msg.ID,
-		)
+		if headless {
+			notification = fmt.Sprintf(
+				"[New from @%s]: %s\n%s %s",
+				msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), headlessFinalReplyInstruction(target.Slug, channel, msg.ID),
+			)
+		} else {
+			notification = fmt.Sprintf(
+				"[New from @%s]: %s\n%s Reply using team_broadcast with my_slug \"%s\" and channel \"%s\" reply_to_id \"%s\". Once you have posted the needed reply, STOP and wait for the next pushed notification.",
+				msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), target.Slug, channel, msg.ID,
+			)
+		}
 	} else {
 		packet := l.buildMessageWorkPacket(msg, target.Slug)
-		notification = fmt.Sprintf(
-			"%s\n---\n[New from @%s]: %s\n%s This packet is your complete context — do NOT call team_poll or team_tasks. Just do the work and reply via team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\". Once you have posted the needed update, STOP and wait for the next pushed notification.",
-			packet, msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), target.Slug, channel, msg.ID,
-		)
+		if headless {
+			notification = fmt.Sprintf(
+				"%s\n---\n[New from @%s]: %s\n%s This packet is your complete context — do NOT call team_poll or team_tasks. Just do the work and write the human-visible update as your final answer. %s",
+				packet, msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), headlessFinalReplyInstruction(target.Slug, channel, msg.ID),
+			)
+		} else {
+			notification = fmt.Sprintf(
+				"%s\n---\n[New from @%s]: %s\n%s This packet is your complete context — do NOT call team_poll or team_tasks. Just do the work and reply via team_broadcast with my_slug \"%s\", channel \"%s\", reply_to_id \"%s\". Once you have posted the needed update, STOP and wait for the next pushed notification.",
+				packet, msg.From, truncate(msg.Content, 1000), l.responseInstructionForTarget(msg, target.Slug), target.Slug, channel, msg.ID,
+			)
+		}
 	}
 
-	if l.shouldUseHeadlessDispatchForTarget(target) {
-		l.enqueueHeadlessCodexTurn(target.Slug, headlessSandboxNote()+notification, channel)
+	if headless {
+		l.enqueueHeadlessCodexTurnWithPolicy(target.Slug, headlessSandboxNote()+notification, headlessFinalPostPolicyForMessage(msg), channel)
 		return
 	}
 	l.queuePaneNotification(target.Slug, target.PaneTarget, notification)
+}
+
+func headlessFinalPostPolicyForMessage(msg channelMessage) headlessFinalPostPolicy {
+	if !isInternalCollaborationMessage(msg) {
+		return headlessFinalPostAllow
+	}
+	switch strings.TrimSpace(msg.Kind) {
+	case "work_result":
+		return headlessFinalPostAllow
+	default:
+		return headlessFinalPostSuppress
+	}
 }
 
 func isInternalCollaborationMessage(msg channelMessage) bool {
@@ -3279,6 +3317,7 @@ func threadTargetForChannelMessage(msg channelMessage, byID map[string]channelMe
 
 func (l *Launcher) internalCollaborationNotification(target notificationTarget, msg channelMessage, channel string) string {
 	packet := l.buildMessageWorkPacket(msg, target.Slug)
+	headless := l.shouldUseHeadlessDispatchForTarget(target)
 	switch strings.TrimSpace(msg.Kind) {
 	case "collaboration_request":
 		return fmt.Sprintf(
@@ -3288,9 +3327,21 @@ func (l *Launcher) internalCollaborationNotification(target notificationTarget, 
 	case "work_result":
 		publicReplyTo := l.publicReplyTargetForMessage(channel, msg)
 		if publicReplyTo == "" {
+			if headless {
+				return fmt.Sprintf(
+					"%s\n---\n[Hidden work result from @%s]: %s\nThis is not shown to the human. Use it to continue the current workflow. If this completes the user-visible work, write exactly one human-visible answer as your final answer text. %s If more internal help is needed, call team_delegate. Do not expose raw internal coordination.",
+					packet, msg.From, truncate(msg.Content, 1200), headlessFinalReplyInstruction(target.Slug, channel, ""),
+				)
+			}
 			return fmt.Sprintf(
 				"%s\n---\n[Hidden work result from @%s]: %s\nThis is not shown to the human. Use it to continue the current workflow. If this completes the user-visible work, post exactly one human-visible answer with team_broadcast using my_slug \"%s\", channel \"%s\", new_topic true. If more internal help is needed, call team_delegate. Do not expose raw internal coordination or use the hidden result ID as reply_to_id.",
 				packet, msg.From, truncate(msg.Content, 1200), target.Slug, channel,
+			)
+		}
+		if headless {
+			return fmt.Sprintf(
+				"%s\n---\n[Hidden work result from @%s]: %s\nThis is not shown to the human. Use it to continue the current workflow. If this completes the user-visible work, write exactly one human-visible answer as your final answer text. %s If more internal help is needed, call team_delegate. Do not expose raw internal coordination.",
+				packet, msg.From, truncate(msg.Content, 1200), headlessFinalReplyInstruction(target.Slug, channel, publicReplyTo),
 			)
 		}
 		return fmt.Sprintf(

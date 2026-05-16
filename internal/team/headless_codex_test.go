@@ -647,6 +647,35 @@ func TestPostHeadlessFinalMessageIfSilentPostsFinalOutput(t *testing.T) {
 	}
 }
 
+func TestPostHeadlessFinalMessageSuppressesHiddenInternalOutput(t *testing.T) {
+	b := newTestBroker(t)
+	root, err := b.PostMessage("ceo", "general", "hidden work request", nil, "")
+	if err != nil {
+		t.Fatalf("post hidden request fixture: %v", err)
+	}
+	l := &Launcher{broker: b}
+
+	msg, posted, err := l.postHeadlessFinalMessageIfAllowed(
+		"be",
+		"general",
+		fmt.Sprintf(`call team_work_result request_id "%s"`, root.ID),
+		"internal-only result",
+		time.Now().UTC().Add(-time.Second),
+		headlessFinalPostSuppress,
+	)
+	if err != nil {
+		t.Fatalf("suppressed fallback post: %v", err)
+	}
+	if posted || msg.ID != "" {
+		t.Fatalf("expected hidden final output to stay off public channel, got posted=%v msg=%+v", posted, msg)
+	}
+	for _, item := range b.AllMessages() {
+		if item.From == "be" && strings.Contains(item.Content, "internal-only result") {
+			t.Fatalf("hidden internal output leaked into broker messages: %+v", item)
+		}
+	}
+}
+
 func TestPostHeadlessFailureNoticeRepliesInThreadDespitePendingRequest(t *testing.T) {
 	b := newTestBroker(t)
 	root, err := b.PostMessage("you", "general", "깃 연결 확인 필요", []string{"architect"}, "")
@@ -2291,6 +2320,17 @@ func waitForProcessedTurn(t *testing.T, ch <-chan processedTurn) processedTurn {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for processed turn")
 		return processedTurn{}
+	}
+}
+
+func waitForHeadlessTurn(t *testing.T, ch <-chan headlessCodexTurn) headlessCodexTurn {
+	t.Helper()
+	select {
+	case value := <-ch:
+		return value
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for headless turn")
+		return headlessCodexTurn{}
 	}
 }
 

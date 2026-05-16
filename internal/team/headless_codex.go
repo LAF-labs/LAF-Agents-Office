@@ -33,7 +33,7 @@ var (
 	//
 	// Production callers go through headlessCodexRunTurn(...) which reads
 	// the atomic and falls back to defaultHeadlessCodexRunTurn.
-	headlessCodexRunTurnOverride atomic.Pointer[func(l *Launcher, ctx context.Context, slug, notification string, channel ...string) error]
+	headlessCodexRunTurnOverride atomic.Pointer[func(l *Launcher, ctx context.Context, slug string, turn headlessCodexTurn) error]
 	// headlessWakeLeadFn is nil in production; override in tests to intercept
 	// lead wake-ups. Always access via headlessWakeLeadFnMu to avoid races
 	// with leaked goroutines from concurrent tests.
@@ -44,29 +44,29 @@ var (
 // defaultHeadlessCodexRunTurn is the production implementation of
 // headlessCodexRunTurn. Routes by provider kind to the codex/opencode/claude
 // turn runner. Tests substitute via setHeadlessCodexRunTurnForTest.
-func defaultHeadlessCodexRunTurn(l *Launcher, ctx context.Context, slug, notification string, channel ...string) error {
+func defaultHeadlessCodexRunTurn(l *Launcher, ctx context.Context, slug string, turn headlessCodexTurn) error {
 	if l != nil {
 		switch l.memberEffectiveProviderKind(slug) {
 		case provider.KindCodex:
-			return l.runHeadlessCodexTurn(ctx, slug, notification, channel...)
+			return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
 		case provider.KindOpencode:
-			return l.runHeadlessOpencodeTurn(ctx, slug, notification, channel...)
+			return l.runHeadlessOpencodeTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
 		default:
-			return l.runHeadlessClaudeTurn(ctx, slug, notification, channel...)
+			return l.runHeadlessClaudeTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
 		}
 	}
-	return l.runHeadlessCodexTurn(ctx, slug, notification, channel...)
+	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
 }
 
 // headlessCodexRunTurn dispatches a queued turn to whichever runner the
 // member's effective provider kind picks. Reads the test override via
 // atomic.Pointer.Load so a worker goroutine that spawned before a test's
 // override-restore cleanup ran cannot race against the assignment.
-func headlessCodexRunTurn(l *Launcher, ctx context.Context, slug, notification string, channel ...string) error {
+func headlessCodexRunTurn(l *Launcher, ctx context.Context, slug string, turn headlessCodexTurn) error {
 	if p := headlessCodexRunTurnOverride.Load(); p != nil {
-		return (*p)(l, ctx, slug, notification, channel...)
+		return (*p)(l, ctx, slug, turn)
 	}
-	return defaultHeadlessCodexRunTurn(l, ctx, slug, notification, channel...)
+	return defaultHeadlessCodexRunTurn(l, ctx, slug, turn)
 }
 
 var (
@@ -102,6 +102,31 @@ type headlessCodexTurn struct {
 	TaskID     string
 	Attempts   int
 	EnqueuedAt time.Time
+
+	// FinalPostPolicy defines whether a headless provider's final stdout text is
+	// a human-visible channel reply. Normal pushed chat/task turns allow this so
+	// Codex/Claude CLI can answer without knowing LAF-Office's broker internals.
+	// Hidden agent-collaboration turns suppress it so internal work results never
+	// leak into Home chat if a provider fails to call team_work_result.
+	FinalPostPolicy headlessFinalPostPolicy
+}
+
+type headlessFinalPostPolicy string
+
+const (
+	headlessFinalPostAllow    headlessFinalPostPolicy = ""
+	headlessFinalPostSuppress headlessFinalPostPolicy = "suppress"
+)
+
+func (p headlessFinalPostPolicy) allowsFinalPost() bool {
+	return p != headlessFinalPostSuppress
+}
+
+func channelArgsForHeadlessTurn(turn headlessCodexTurn) []string {
+	if strings.TrimSpace(turn.Channel) == "" {
+		return nil
+	}
+	return []string{turn.Channel}
 }
 
 type headlessCodexActiveTurn struct {
@@ -157,6 +182,10 @@ func (l *Launcher) launchHeadlessCodex() error {
 }
 
 func (l *Launcher) enqueueHeadlessCodexTurn(slug string, prompt string, channel ...string) {
+	l.enqueueHeadlessCodexTurnWithPolicy(slug, prompt, headlessFinalPostAllow, channel...)
+}
+
+func (l *Launcher) enqueueHeadlessCodexTurnWithPolicy(slug string, prompt string, policy headlessFinalPostPolicy, channel ...string) {
 	ch := ""
 	if len(channel) > 0 {
 		ch = channel[0]
@@ -167,10 +196,11 @@ func (l *Launcher) enqueueHeadlessCodexTurn(slug string, prompt string, channel 
 		return
 	}
 	l.enqueueHeadlessCodexTurnRecord(slug, headlessCodexTurn{
-		Prompt:     prompt,
-		Channel:    ch,
-		TaskID:     headlessCodexTaskID(prompt),
-		EnqueuedAt: time.Now(),
+		Prompt:          prompt,
+		Channel:         ch,
+		TaskID:          headlessCodexTaskID(prompt),
+		EnqueuedAt:      time.Now(),
+		FinalPostPolicy: policy,
 	})
 }
 
@@ -423,7 +453,7 @@ func (l *Launcher) runHeadlessCodexQueue(slug string, stop <-chan struct{}) {
 			appendHeadlessCodexLatency(slug, fmt.Sprintf("stage=started queue_wait_ms=%d", time.Since(turn.EnqueuedAt).Milliseconds()))
 			l.updateHeadlessProgress(slug, "active", "queued", "queued work packet received", headlessProgressMetrics{})
 
-			err := headlessCodexRunTurn(l, turnCtx, slug, turn.Prompt, turn.Channel)
+			err := headlessCodexRunTurn(l, turnCtx, slug, turn)
 			ctxErr := turnCtx.Err()
 			isDurabilityError := false
 			if err == nil {
@@ -648,7 +678,8 @@ func (l *Launcher) finishHeadlessTurn(slug string) {
 	l.headlessMu.Unlock()
 
 	if deferredLead != nil {
-		l.enqueueHeadlessCodexTurn(lead, deferredLead.Prompt, deferredLead.Channel)
+		deferredLead.EnqueuedAt = time.Now()
+		l.enqueueHeadlessCodexTurnRecord(lead, *deferredLead)
 		return
 	}
 	if shouldWakeLead {
@@ -843,8 +874,19 @@ func (l *Launcher) postHeadlessFinalMessageIfSilent(slug string, targetChannel s
 	return msg, true, nil
 }
 
+func (l *Launcher) postHeadlessFinalMessageIfAllowed(slug string, targetChannel string, notification string, text string, startedAt time.Time, policy headlessFinalPostPolicy) (channelMessage, bool, error) {
+	if !policy.allowsFinalPost() {
+		return channelMessage{}, false, nil
+	}
+	return l.postHeadlessFinalMessageIfSilent(slug, targetChannel, notification, text, startedAt)
+}
+
 func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessCodexTurn, startedAt time.Time, detail string) {
 	if l == nil || l.broker == nil {
+		return
+	}
+	if !turn.FinalPostPolicy.allowsFinalPost() {
+		appendHeadlessCodexLog(slug, "failure-notice-suppressed: hidden/internal turn")
 		return
 	}
 	targetChannel := normalizeChannelSlug(turn.Channel)
@@ -1132,6 +1174,10 @@ func (l *Launcher) headlessCodexStaleCancelAfterForTurn(turn headlessCodexTurn) 
 }
 
 func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notification string, channel ...string) error {
+	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, notification, headlessFinalPostAllow, channel...)
+}
+
+func (l *Launcher) runHeadlessCodexTurnWithPolicy(ctx context.Context, slug string, notification string, finalPostPolicy headlessFinalPostPolicy, channel ...string) error {
 	if _, err := headlessCodexLookPath("codex"); err != nil {
 		return fmt.Errorf("codex not found: %w", err)
 	}
@@ -1344,11 +1390,13 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	if text := strings.TrimSpace(firstNonEmpty(result.FinalMessage, result.LastPlainLine)); text != "" {
 		appendHeadlessCodexLog(slug, "result: "+text)
 		target := firstNonEmpty(channel...)
-		msg, posted, err := l.postHeadlessFinalMessageIfSilent(slug, target, notification, text, startedAt)
+		msg, posted, err := l.postHeadlessFinalMessageIfAllowed(slug, target, notification, text, startedAt, finalPostPolicy)
 		if err != nil {
 			appendHeadlessCodexLog(slug, "fallback-post-error: "+err.Error())
 		} else if posted {
 			appendHeadlessCodexLog(slug, fmt.Sprintf("fallback-post: posted final output to #%s as %s", msg.Channel, msg.ID))
+		} else if !finalPostPolicy.allowsFinalPost() {
+			appendHeadlessCodexLog(slug, "fallback-post-suppressed: hidden/internal turn")
 		}
 	}
 	return nil

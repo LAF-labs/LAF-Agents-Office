@@ -47,6 +47,10 @@ var headlessOpencodeSecretEnvVars = []string{
 // structured JSONL, so this path is a thinner version of runHeadlessCodexTurn
 // with no tool-event parsing and no Codex-specific auth/config layering.
 func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, notification string, channel ...string) error {
+	return l.runHeadlessOpencodeTurnWithPolicy(ctx, slug, notification, headlessFinalPostAllow, channel...)
+}
+
+func (l *Launcher) runHeadlessOpencodeTurnWithPolicy(ctx context.Context, slug string, notification string, finalPostPolicy headlessFinalPostPolicy, channel ...string) error {
 	if _, err := headlessOpencodeLookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found: %w", err)
 	}
@@ -241,11 +245,13 @@ func (l *Launcher) runHeadlessOpencodeTurn(ctx context.Context, slug string, not
 	if text != "" {
 		appendHeadlessCodexLog(slug, "opencode_result: "+text)
 		target := firstNonEmpty(channel...)
-		msg, posted, err := l.postHeadlessFinalMessageIfSilent(slug, target, notification, text, startedAt)
+		msg, posted, err := l.postHeadlessFinalMessageIfAllowed(slug, target, notification, text, startedAt, finalPostPolicy)
 		if err != nil {
 			appendHeadlessCodexLog(slug, "opencode_fallback-post-error: "+err.Error())
 		} else if posted {
 			appendHeadlessCodexLog(slug, fmt.Sprintf("opencode_fallback-post: posted final output to #%s as %s", msg.Channel, msg.ID))
+		} else if !finalPostPolicy.allowsFinalPost() {
+			appendHeadlessCodexLog(slug, "opencode_fallback-post-suppressed: hidden/internal turn")
 		}
 	}
 	return nil

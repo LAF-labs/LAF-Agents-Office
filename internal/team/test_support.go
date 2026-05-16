@@ -84,6 +84,14 @@ func DisableRealTaskWorktreeForTests() {
 // this helper instead.
 func setHeadlessCodexRunTurnForTest(t *testing.T, fn func(l *Launcher, ctx context.Context, slug, notification string, channel ...string) error) {
 	t.Helper()
+	wrapped := func(l *Launcher, ctx context.Context, slug string, turn headlessCodexTurn) error {
+		return fn(l, ctx, slug, turn.Prompt, channelArgsForHeadlessTurn(turn)...)
+	}
+	setHeadlessCodexRunTurnRecordForTest(t, wrapped)
+}
+
+func setHeadlessCodexRunTurnRecordForTest(t *testing.T, fn func(l *Launcher, ctx context.Context, slug string, turn headlessCodexTurn) error) {
+	t.Helper()
 	prior := headlessCodexRunTurnOverride.Load()
 	headlessCodexRunTurnOverride.Store(&fn)
 	t.Cleanup(func() {

@@ -565,6 +565,111 @@ func TestDeliverDMMessageQueuesCodexHeadlessTurn(t *testing.T) {
 	}
 }
 
+func TestSendChannelUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
+	b := newTestBroker(t)
+	l := newHeadlessLauncherForTest(t)
+	l.broker = b
+	l.provider = "codex"
+	l.notifyLastDelivered = make(map[string]time.Time)
+
+	processed := make(chan headlessCodexTurn, 1)
+	setHeadlessCodexRunTurnRecordForTest(t, func(_ *Launcher, _ context.Context, _ string, turn headlessCodexTurn) error {
+		processed <- turn
+		return nil
+	})
+
+	l.sendChannelUpdate(notificationTarget{Slug: "reviewer"}, channelMessage{
+		ID:      "msg-238",
+		From:    "you",
+		Channel: "general",
+		Content: `@reviewer 아무도 태그하지 말고, "야임마"라고만 써봐`,
+		Tagged:  []string{"reviewer"},
+	})
+
+	turn := waitForHeadlessTurn(t, processed)
+	if turn.FinalPostPolicy != headlessFinalPostAllow {
+		t.Fatalf("expected normal channel reply to allow final-post fallback, got %q", turn.FinalPostPolicy)
+	}
+	if !strings.Contains(turn.Prompt, "Headless reply transport") {
+		t.Fatalf("expected headless final-answer transport instruction, got %q", turn.Prompt)
+	}
+	if strings.Contains(turn.Prompt, "Reply using team_broadcast") || strings.Contains(turn.Prompt, "reply via team_broadcast") {
+		t.Fatalf("headless normal reply must not require team_broadcast, got %q", turn.Prompt)
+	}
+	if !strings.Contains(turn.Prompt, `reply_to_id "msg-238"`) {
+		t.Fatalf("expected threaded final-post target, got %q", turn.Prompt)
+	}
+}
+
+func TestSendChannelUpdateSuppressesFinalPostForHiddenCollaborationRequest(t *testing.T) {
+	b := newTestBroker(t)
+	l := newHeadlessLauncherForTest(t)
+	l.broker = b
+	l.provider = "codex"
+	l.notifyLastDelivered = make(map[string]time.Time)
+
+	processed := make(chan headlessCodexTurn, 1)
+	setHeadlessCodexRunTurnRecordForTest(t, func(_ *Launcher, _ context.Context, _ string, turn headlessCodexTurn) error {
+		processed <- turn
+		return nil
+	})
+
+	l.sendChannelUpdate(notificationTarget{Slug: "be"}, channelMessage{
+		ID:         "msg-internal-request",
+		From:       "ceo",
+		Channel:    "general",
+		Kind:       "collaboration_request",
+		Visibility: messageVisibilityInternal,
+		Content:    "백엔드 응답 경로만 확인해줘.",
+	})
+
+	turn := waitForHeadlessTurn(t, processed)
+	if turn.FinalPostPolicy != headlessFinalPostSuppress {
+		t.Fatalf("expected hidden collaboration request to suppress final-post fallback, got %q", turn.FinalPostPolicy)
+	}
+	if !strings.Contains(turn.Prompt, "team_work_result") {
+		t.Fatalf("expected hidden request to require team_work_result, got %q", turn.Prompt)
+	}
+}
+
+func TestSendChannelUpdateAllowsFinalPostForHiddenWorkResultSynthesis(t *testing.T) {
+	b := newTestBroker(t)
+	l := newHeadlessLauncherForTest(t)
+	l.broker = b
+	l.provider = "codex"
+	l.notifyLastDelivered = make(map[string]time.Time)
+
+	processed := make(chan headlessCodexTurn, 1)
+	setHeadlessCodexRunTurnRecordForTest(t, func(_ *Launcher, _ context.Context, _ string, turn headlessCodexTurn) error {
+		processed <- turn
+		return nil
+	})
+
+	l.sendChannelUpdate(notificationTarget{Slug: "ceo"}, channelMessage{
+		ID:            "msg-work-result",
+		From:          "be",
+		Channel:       "general",
+		Kind:          "work_result",
+		Visibility:    messageVisibilityInternal,
+		PublicReplyTo: "home:team-alpha:user-alpha",
+		Content:       "백엔드 응답 경로는 정상입니다.",
+	})
+
+	turn := waitForHeadlessTurn(t, processed)
+	if turn.FinalPostPolicy != headlessFinalPostAllow {
+		t.Fatalf("expected hidden work result synthesis to allow final-post fallback, got %q", turn.FinalPostPolicy)
+	}
+	if !strings.Contains(turn.Prompt, `reply_to_id "home:team-alpha:user-alpha"`) {
+		t.Fatalf("expected public reply target in work-result notification, got %q", turn.Prompt)
+	}
+	if !strings.Contains(turn.Prompt, "Headless reply transport") {
+		t.Fatalf("expected hidden work-result synthesis to use final-answer transport, got %q", turn.Prompt)
+	}
+	if strings.Contains(turn.Prompt, "team_broadcast") {
+		t.Fatalf("headless work-result synthesis must not require team_broadcast, got %q", turn.Prompt)
+	}
+}
+
 func TestNotificationTargetsForDMChannelNewSlugFormat(t *testing.T) {
 	// New-style deterministic DM slugs (e.g. "fe__human") should route the same
 	// way as legacy "dm-fe" slugs: only the target agent is notified.
