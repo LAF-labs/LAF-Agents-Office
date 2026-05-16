@@ -109,6 +109,11 @@ type headlessCodexTurn struct {
 	// Hidden agent-collaboration turns suppress it so internal work results never
 	// leak into Home chat if a provider fails to call team_work_result.
 	FinalPostPolicy headlessFinalPostPolicy
+
+	// BypassLeadQueueCap is reserved for startup resume turns. Those may need
+	// one independent reply per unanswered human thread; collapsing them into the
+	// lead's normal single pending slot loses user-visible replies.
+	BypassLeadQueueCap bool
 }
 
 type headlessFinalPostPolicy string
@@ -297,7 +302,7 @@ func (l *Launcher) enqueueHeadlessCodexTurnRecord(slug string, turn headlessCode
 	// stack up redundant CEO turns that each re-route the same task. One pending
 	// turn is enough to catch the latest state; extras are dropped.
 	const leadMaxPending = 1
-	if slug == l.officeLeadSlug() && len(l.headlessQueues[slug]) >= leadMaxPending {
+	if slug == l.officeLeadSlug() && len(l.headlessQueues[slug]) >= leadMaxPending && !turn.BypassLeadQueueCap {
 		if urgentLeadTurn {
 			l.headlessQueues[slug][len(l.headlessQueues[slug])-1] = turn
 			if !l.headlessWorkers[slug] {

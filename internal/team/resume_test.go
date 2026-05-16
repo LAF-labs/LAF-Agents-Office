@@ -511,6 +511,23 @@ func TestBuildResumePacketIncludesReplyToInstructions(t *testing.T) {
 	}
 }
 
+func TestBuildHeadlessResumePacketUsesFinalAnswerTransport(t *testing.T) {
+	msgs := []channelMessage{
+		{ID: "h1", From: "you", Channel: "general", Content: "What is the plan?", Timestamp: "2026-04-14T10:00:00Z"},
+	}
+	packet := buildHeadlessResumePacket("ceo", nil, msgs)
+
+	if !strings.Contains(packet, "Headless reply transport") {
+		t.Fatalf("expected headless final-answer transport, got packet:\n%s", packet)
+	}
+	if !strings.Contains(packet, `reply_to_id "h1"`) {
+		t.Fatalf("expected explicit reply_to_id marker for fallback posting, got packet:\n%s", packet)
+	}
+	if strings.Contains(packet, "Reply using team_broadcast") || strings.Contains(packet, "reply via team_broadcast") {
+		t.Fatalf("headless resume packet must not require team_broadcast, got packet:\n%s", packet)
+	}
+}
+
 func TestBuildResumePacketReplyInstructionsMentionsSlug(t *testing.T) {
 	msgs := []channelMessage{
 		{ID: "h2", From: "you", Channel: "engineering", Content: "Can you review this?", Timestamp: "2026-04-14T10:00:00Z"},
@@ -635,6 +652,98 @@ func TestBuildResumePacketSpecSectionMessagesLabel(t *testing.T) {
 	}
 	if strings.Contains(packet, "## Unanswered messages awaiting your response") {
 		t.Error("old section label '## Unanswered messages awaiting your response' must not appear")
+	}
+}
+
+func TestResumeInFlightWorkHeadlessQueuesFinalAnswerPacket(t *testing.T) {
+	b := newTestBroker(t)
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{ID: "h1", From: "you", Channel: "general", Content: "what is the strategy?", Tagged: []string{"ceo"}, Timestamp: "2026-04-14T10:00:00Z"},
+	}
+	b.mu.Unlock()
+
+	l := &Launcher{
+		provider: "codex",
+		broker:   b,
+		pack: &agent.PackDefinition{
+			Slug:     "founding-team",
+			LeadSlug: "ceo",
+			Agents: []agent.AgentConfig{
+				{Slug: "ceo", Name: "CEO"},
+			},
+		},
+		headlessWorkers: map[string]bool{"ceo": true},
+		headlessActive:  make(map[string]*headlessCodexActiveTurn),
+		headlessQueues:  make(map[string][]headlessCodexTurn),
+	}
+
+	l.resumeInFlightWork()
+
+	l.headlessMu.Lock()
+	queue := append([]headlessCodexTurn(nil), l.headlessQueues["ceo"]...)
+	l.headlessMu.Unlock()
+
+	if len(queue) != 1 {
+		t.Fatalf("expected one queued headless resume turn, got %#v", queue)
+	}
+	if queue[0].FinalPostPolicy != headlessFinalPostAllow {
+		t.Fatalf("expected final-post fallback to stay enabled for human resume reply, got %q", queue[0].FinalPostPolicy)
+	}
+	if !queue[0].BypassLeadQueueCap {
+		t.Fatal("expected resume message turn to bypass the lead queue cap")
+	}
+	if !strings.Contains(queue[0].Prompt, "Headless reply transport") {
+		t.Fatalf("expected headless final-answer transport, got packet:\n%s", queue[0].Prompt)
+	}
+	if strings.Contains(queue[0].Prompt, "Reply using team_broadcast") || strings.Contains(queue[0].Prompt, "reply via team_broadcast") {
+		t.Fatalf("headless resume packet must not require team_broadcast, got packet:\n%s", queue[0].Prompt)
+	}
+}
+
+func TestResumeInFlightWorkHeadlessSplitsUnansweredMessagesByThread(t *testing.T) {
+	b := newTestBroker(t)
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{ID: "h1", From: "you", Channel: "general", Content: "first unanswered", Tagged: []string{"ceo"}, Timestamp: "2026-04-14T10:00:00Z"},
+		{ID: "h2", From: "you", Channel: "general", Content: "second unanswered", Tagged: []string{"ceo"}, Timestamp: "2026-04-14T10:01:00Z"},
+	}
+	b.mu.Unlock()
+
+	l := &Launcher{
+		provider: "codex",
+		broker:   b,
+		pack: &agent.PackDefinition{
+			Slug:     "founding-team",
+			LeadSlug: "ceo",
+			Agents: []agent.AgentConfig{
+				{Slug: "ceo", Name: "CEO"},
+			},
+		},
+		headlessWorkers: map[string]bool{"ceo": true},
+		headlessActive:  make(map[string]*headlessCodexActiveTurn),
+		headlessQueues:  make(map[string][]headlessCodexTurn),
+	}
+
+	l.resumeInFlightWork()
+
+	l.headlessMu.Lock()
+	queue := append([]headlessCodexTurn(nil), l.headlessQueues["ceo"]...)
+	l.headlessMu.Unlock()
+
+	if len(queue) != 2 {
+		t.Fatalf("expected one queued headless resume turn per unanswered thread, got %#v", queue)
+	}
+	if !strings.Contains(queue[0].Prompt, `reply_to_id "h1"`) || !strings.Contains(queue[1].Prompt, `reply_to_id "h2"`) {
+		t.Fatalf("expected each resume turn to keep its own reply target, got %#v", []string{queue[0].Prompt, queue[1].Prompt})
+	}
+	for _, turn := range queue {
+		if strings.Contains(turn.Prompt, "Reply using team_broadcast") || strings.Contains(turn.Prompt, "reply via team_broadcast") {
+			t.Fatalf("headless resume turns must not require team_broadcast, got packet:\n%s", turn.Prompt)
+		}
+		if !turn.BypassLeadQueueCap {
+			t.Fatalf("resume message turn should bypass lead queue cap: %+v", turn)
+		}
 	}
 }
 

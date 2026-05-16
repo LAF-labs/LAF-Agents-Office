@@ -65,11 +65,64 @@ func findUnansweredMessages(humanMsgs, allMessages []channelMessage) []channelMe
 	return out
 }
 
+type resumeReplyTransport string
+
+const (
+	resumeReplyTransportBroadcast resumeReplyTransport = "broadcast"
+	resumeReplyTransportFinal     resumeReplyTransport = "final"
+)
+
+type resumeWork struct {
+	Tasks    []teamTask
+	Messages []channelMessage
+}
+
 // buildResumePacket constructs a context string that an agent can use to resume
 // in-flight work. It combines the agent's assigned tasks (with worktree paths)
 // and any unanswered human messages (with channel/reply_to routing instructions).
 // Returns an empty string when there is nothing to resume.
 func buildResumePacket(slug string, tasks []teamTask, msgs []channelMessage) string {
+	return buildResumePacketWithTransport(slug, tasks, msgs, resumeReplyTransportBroadcast)
+}
+
+func buildHeadlessResumePacket(slug string, tasks []teamTask, msgs []channelMessage) string {
+	return buildResumePacketWithTransport(slug, tasks, msgs, resumeReplyTransportFinal)
+}
+
+func buildHeadlessResumeTurns(slug string, work resumeWork) []headlessCodexTurn {
+	var turns []headlessCodexTurn
+	if len(work.Tasks) > 0 {
+		if packet := buildHeadlessResumePacket(slug, work.Tasks, nil); packet != "" {
+			turns = append(turns, headlessCodexTurn{
+				Prompt:          packet,
+				TaskID:          headlessCodexTaskID(packet),
+				EnqueuedAt:      time.Now(),
+				FinalPostPolicy: headlessFinalPostAllow,
+			})
+		}
+	}
+	for _, msg := range work.Messages {
+		packet := buildHeadlessResumePacket(slug, nil, []channelMessage{msg})
+		if packet == "" {
+			continue
+		}
+		channel := normalizeChannelSlug(msg.Channel)
+		if channel == "" {
+			channel = "general"
+		}
+		turns = append(turns, headlessCodexTurn{
+			Prompt:             packet,
+			Channel:            channel,
+			TaskID:             headlessCodexTaskID(packet),
+			EnqueuedAt:         time.Now(),
+			FinalPostPolicy:    headlessFinalPostAllow,
+			BypassLeadQueueCap: true,
+		})
+	}
+	return turns
+}
+
+func buildResumePacketWithTransport(slug string, tasks []teamTask, msgs []channelMessage, transport resumeReplyTransport) string {
 	if len(tasks) == 0 && len(msgs) == 0 {
 		return ""
 	}
@@ -101,24 +154,29 @@ func buildResumePacket(slug string, tasks []teamTask, msgs []channelMessage) str
 			sb.WriteString(fmt.Sprintf("- @%s (channel: %q, reply_to_id: %q): %s\n", msg.From, channel, msg.ID, msg.Content))
 		}
 		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf("Reply using team_broadcast with my_slug %q and the channel and reply_to_id shown above.\n", slug))
+		switch transport {
+		case resumeReplyTransportFinal:
+			target := msgs[len(msgs)-1]
+			channel := normalizeChannelSlug(target.Channel)
+			if channel == "" {
+				channel = "general"
+			}
+			if len(msgs) == 1 {
+				sb.WriteString(headlessFinalReplyInstruction(slug, channel, target.ID))
+				sb.WriteString("\n")
+			} else {
+				sb.WriteString(fmt.Sprintf("Headless resume transport: write one final answer for the last listed unanswered message. LAF-Office will post that final answer as @%s to channel %q with reply_to_id %q after the turn. If you can answer other listed messages with office tools, do so; otherwise do not block on missing tools.\n", slug, channel, target.ID))
+			}
+		default:
+			sb.WriteString(fmt.Sprintf("Reply using team_broadcast with my_slug %q and the channel and reply_to_id shown above.\n", slug))
+		}
 	}
 
 	sb.WriteString("Please pick up where you left off.\n")
 	return sb.String()
 }
 
-// buildResumePackets scans the broker for in-flight tasks and unanswered
-// human messages, then builds a resume packet per agent. Routing:
-//   - tasks: routed to their owner slug
-//   - tagged messages: each tagged agent receives the message
-//   - untagged messages: the pack lead receives the message
-//
-// Only agents in the current pack receive packets. Agents not in the pack
-// (e.g. removed members with leftover tasks) are silently skipped.
-//
-// Returns a map of agent slug → resume packet (empty strings are omitted).
-func (l *Launcher) buildResumePackets() map[string]string {
+func (l *Launcher) collectResumeWork() map[string]resumeWork {
 	if l.broker == nil {
 		return nil
 	}
@@ -198,7 +256,7 @@ func (l *Launcher) buildResumePackets() map[string]string {
 		}
 	}
 
-	// Build packets — include an agent only if they have tasks or messages.
+	// Build work — include an agent only if they have tasks or messages.
 	allSlugs := make(map[string]struct{})
 	for slug := range tasksByAgent {
 		allSlugs[slug] = struct{}{}
@@ -207,9 +265,34 @@ func (l *Launcher) buildResumePackets() map[string]string {
 		allSlugs[slug] = struct{}{}
 	}
 
-	packets := make(map[string]string)
+	workByAgent := make(map[string]resumeWork)
 	for slug := range allSlugs {
-		packet := buildResumePacket(slug, tasksByAgent[slug], msgsByAgent[slug])
+		work := resumeWork{
+			Tasks:    tasksByAgent[slug],
+			Messages: msgsByAgent[slug],
+		}
+		if len(work.Tasks) > 0 || len(work.Messages) > 0 {
+			workByAgent[slug] = work
+		}
+	}
+	return workByAgent
+}
+
+// buildResumePackets scans the broker for in-flight tasks and unanswered
+// human messages, then builds a resume packet per agent. Routing:
+//   - tasks: routed to their owner slug
+//   - tagged messages: each tagged agent receives the message
+//   - untagged messages: the pack lead receives the message
+//
+// Only agents in the current pack receive packets. Agents not in the pack
+// (e.g. removed members with leftover tasks) are silently skipped.
+//
+// Returns a map of agent slug → resume packet (empty strings are omitted).
+func (l *Launcher) buildResumePackets() map[string]string {
+	workByAgent := l.collectResumeWork()
+	packets := make(map[string]string)
+	for slug, work := range workByAgent {
+		packet := buildResumePacket(slug, work.Tasks, work.Messages)
 		if packet != "" {
 			packets[slug] = packet
 		}
@@ -233,33 +316,41 @@ func (l *Launcher) buildResumePackets() map[string]string {
 // queue is non-empty. Enqueuing the lead before specialists ensures the lead's
 // resume packet is not silently dropped at startup.
 func (l *Launcher) resumeInFlightWork() {
-	packets := l.buildResumePackets()
-	if len(packets) == 0 {
+	workByAgent := l.collectResumeWork()
+	if len(workByAgent) == 0 {
 		return
 	}
 
 	paneTargets := l.agentPaneTargets()
-	routePacket := func(slug, packet string) {
+	routeWork := func(slug string, work resumeWork) {
 		if l.memberUsesHeadlessOneShotRuntime(slug) || !l.paneBackedAgents {
-			l.enqueueHeadlessCodexTurn(slug, packet)
+			for _, turn := range buildHeadlessResumeTurns(slug, work) {
+				l.enqueueHeadlessCodexTurnRecord(slug, turn)
+			}
 			return
 		}
 		target, ok := paneTargets[slug]
 		if !ok {
-			l.enqueueHeadlessCodexTurn(slug, packet)
+			for _, turn := range buildHeadlessResumeTurns(slug, work) {
+				l.enqueueHeadlessCodexTurnRecord(slug, turn)
+			}
+			return
+		}
+		packet := buildResumePacket(slug, work.Tasks, work.Messages)
+		if packet == "" {
 			return
 		}
 		launcherSendNotificationToPane(l, target.PaneTarget, packet)
 	}
 
 	lead := l.officeLeadSlug()
-	if packet, ok := packets[lead]; ok {
-		routePacket(lead, packet)
+	if work, ok := workByAgent[lead]; ok {
+		routeWork(lead, work)
 	}
-	for slug, packet := range packets {
+	for slug, work := range workByAgent {
 		if slug == lead {
 			continue
 		}
-		routePacket(slug, packet)
+		routeWork(slug, work)
 	}
 }
