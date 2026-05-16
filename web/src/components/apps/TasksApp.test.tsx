@@ -339,6 +339,10 @@ describe("TasksApp project directory", () => {
     expect(within(taskList).getAllByText("@ceo").length).toBeGreaterThan(0);
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
+});
+
+describe("TasksApp project bridge workspace", () => {
+  beforeEach(mockProjectDirectory);
 
   it("shows the local bridge link command after trusting a project path", async () => {
     const user = userEvent.setup();
@@ -405,6 +409,10 @@ describe("TasksApp project directory", () => {
       screen.getByText(/laf-bridge link-project --binding-id binding-1/),
     ).toBeInTheDocument();
   });
+});
+
+describe("TasksApp project task chat", () => {
+  beforeEach(mockProjectDirectory);
 
   it("creates a task inside the selected project", async () => {
     const user = userEvent.setup();
@@ -529,6 +537,10 @@ describe("TasksApp project directory", () => {
       await within(panel).findByText("Engineer is typing..."),
     ).toBeInTheDocument();
   });
+});
+
+describe("TasksApp task bridge execution", () => {
+  beforeEach(mockProjectDirectory);
 
   it("disables LAF Bridge execution until the project has a trusted binding", async () => {
     const user = userEvent.setup();

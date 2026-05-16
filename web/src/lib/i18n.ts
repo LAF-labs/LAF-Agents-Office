@@ -476,9 +476,6 @@ const messages = {
     "tasks.runnerNoCapable": "No capable LAF Bridge",
     "tasks.runnerJobQueued": "Job queued",
     "tasks.runnerJobRunning": "Job running",
-    "tasks.bridgeBindings": "LAF Bridge binding",
-    "tasks.bridgeBindingsDesc":
-      "Trust a local checkout path before sending this project to LAF Bridge.",
     "tasks.bridgeWorkspaceTitle": "LAF Bridge work location",
     "tasks.bridgeWorkspaceDesc":
       "By default, the team runner creates and manages a checkout for this project. Personal folders are optional per user.",
@@ -499,13 +496,10 @@ const messages = {
       "No personal folder is connected. Managed checkout is still the default.",
     "tasks.bridgePersonalDeviceUnavailable":
       "Connect LAF Bridge on this computer to use a personal folder.",
-    "tasks.bridgeBinding": "Project binding",
     "tasks.bridgeTrusted": "trusted",
     "tasks.bridgeUntrusted": "not trusted",
     "tasks.bridgeRemoveBinding": "Remove",
-    "tasks.bridgeNoBindings": "No local binding for this project yet.",
     "tasks.bridgeDevice": "Bridge device",
-    "tasks.bridgeNoOnlineDevices": "No online bridge",
     "tasks.bridgeLocalPath": "Local path",
     "tasks.bridgeDisplayName": "Display name",
     "tasks.bridgeSaveBinding": "Trust path",
@@ -1338,9 +1332,6 @@ const messages = {
     "tasks.runnerNoCapable": "실행 가능한 LAF Bridge 없음",
     "tasks.runnerJobQueued": "작업 대기 중",
     "tasks.runnerJobRunning": "작업 실행 중",
-    "tasks.bridgeBindings": "LAF Bridge 바인딩",
-    "tasks.bridgeBindingsDesc":
-      "이 프로젝트를 LAF Bridge에 보내기 전에 로컬 체크아웃 경로를 신뢰하세요.",
     "tasks.bridgeWorkspaceTitle": "LAF Bridge 작업 위치",
     "tasks.bridgeWorkspaceDesc":
       "기본은 팀 러너가 이 프로젝트 전용 체크아웃을 자동으로 만들고 관리합니다. 개인 로컬 폴더는 필요한 사람만 따로 연결합니다.",
@@ -1360,13 +1351,10 @@ const messages = {
       "연결된 개인 폴더가 없습니다. 기본은 자동 관리 체크아웃입니다.",
     "tasks.bridgePersonalDeviceUnavailable":
       "개인 폴더를 쓰려면 이 컴퓨터에서 LAF Bridge를 먼저 연결하세요.",
-    "tasks.bridgeBinding": "프로젝트 바인딩",
     "tasks.bridgeTrusted": "신뢰됨",
     "tasks.bridgeUntrusted": "신뢰 안 됨",
     "tasks.bridgeRemoveBinding": "제거",
-    "tasks.bridgeNoBindings": "아직 이 프로젝트의 로컬 바인딩이 없습니다.",
     "tasks.bridgeDevice": "브리지 기기",
-    "tasks.bridgeNoOnlineDevices": "온라인 브리지 없음",
     "tasks.bridgeLocalPath": "로컬 경로",
     "tasks.bridgeDisplayName": "표시 이름",
     "tasks.bridgeSaveBinding": "경로 신뢰",

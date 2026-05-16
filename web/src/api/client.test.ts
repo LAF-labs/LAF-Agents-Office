@@ -205,7 +205,7 @@ describe("runner api client", () => {
           api_url: "https://office.test/api",
           commands: {
             setup:
-              "PATH=\"$HOME/.local/bin:$PATH\"; if ! command -v laf-runner >/dev/null 2>&1; then curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh || exit 1; fi; LAF_RUNNER_BIN=\"$(command -v laf-runner || printf '%s/.local/bin/laf-runner' \"$HOME\")\"; \"$LAF_RUNNER_BIN\" pair --api-url 'https://office.test/api' --code 'ABCD-1234-EF56' --background",
+              'PATH="$HOME/.local/bin:$PATH"; if ! command -v laf-runner >/dev/null 2>&1; then curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh || exit 1; fi; LAF_RUNNER_BIN="$(command -v laf-runner || printf \'%s/.local/bin/laf-runner\' "$HOME")"; "$LAF_RUNNER_BIN" pair --api-url \'https://office.test/api\' --code \'ABCD-1234-EF56\' --background',
             connect:
               "laf-runner pair --api-url 'https://office.test/api' --code 'ABCD-1234-EF56' --background",
           },

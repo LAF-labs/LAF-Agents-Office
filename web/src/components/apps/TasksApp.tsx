@@ -10,19 +10,15 @@
 } from "react";
 import {
   type QueryClient,
-  useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Copy, Plus, Terminal } from "iconoir-react";
+import { Plus } from "iconoir-react";
 
 import {
-  type BridgeDevice,
   createExecutionPlan,
   createProject,
-  createProjectLocalBinding,
   createTask,
-  deleteProjectLocalBinding,
   type ExecutionEvent,
   type ExecutionPlan,
   type ExecutionReceipt,
@@ -37,7 +33,6 @@ import {
   type Message,
   type ModelMode,
   type Project,
-  type ProjectLocalBinding,
   postMessage,
   postMessageAs,
   type RunnerStatusResponse,
@@ -83,6 +78,22 @@ import {
   TableRow,
 } from "../ui/table";
 import { Textarea } from "../ui/textarea";
+import {
+  bridgeDeviceForBinding,
+  defaultProjectBinding,
+} from "./tasks/bridgeUtils";
+import { ProjectBridgeWorkspacePanel } from "./tasks/ProjectBridgeWorkspacePanel";
+import { ProjectTaskKanban } from "./tasks/ProjectTaskKanban";
+import {
+  agentLabel,
+  isHumanSlug,
+  normalizeStatus,
+  STATUS_LABEL_KEYS,
+  STATUS_ORDER,
+  type StatusGroup,
+  taskOwnerLabel,
+  userEnteredTaskDetails,
+} from "./tasks/taskDisplay";
 
 const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
@@ -93,27 +104,6 @@ const HUMAN_SLUG = "human";
 const DEFAULT_AGENT = "ceo";
 const DEFAULT_MODEL_MODE: ModelMode = "record_only";
 
-const STATUS_ORDER = [
-  "in_progress",
-  "open",
-  "review",
-  "pending",
-  "blocked",
-  "done",
-  "canceled",
-] as const;
-
-const STATUS_LABEL_KEYS: Record<StatusGroup, I18nKey> = {
-  in_progress: "tasks.status.inProgress",
-  open: "tasks.status.open",
-  review: "tasks.status.review",
-  pending: "tasks.status.pending",
-  blocked: "tasks.status.blocked",
-  done: "tasks.status.done",
-  canceled: "tasks.status.canceled",
-};
-
-type StatusGroup = (typeof STATUS_ORDER)[number];
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type TaskCreatorState = ReturnType<typeof useTaskCreator>;
 type TranslationFn = (key: I18nKey) => string;
@@ -137,12 +127,6 @@ type RunnerSignal = {
   labelKey: I18nKey;
   state: RunnerSignalState;
 };
-type ProjectKanbanColumnID =
-  | "todo"
-  | "in_progress"
-  | "review"
-  | "blocked"
-  | "done";
 type ProjectInfoDraft = {
   additionalInfo: string;
   code: string;
@@ -153,38 +137,11 @@ type ProjectInfoDraft = {
   recipeMarkdown: string;
 };
 
-const PROJECT_KANBAN_COLUMNS: Array<{
-  id: ProjectKanbanColumnID;
-  labelKey: I18nKey;
-  statuses: StatusGroup[];
-}> = [
-  { id: "todo", labelKey: "tasks.kanban.todo", statuses: ["open", "pending"] },
-  {
-    id: "in_progress",
-    labelKey: "tasks.kanban.inProgress",
-    statuses: ["in_progress"],
-  },
-  { id: "review", labelKey: "tasks.kanban.review", statuses: ["review"] },
-  { id: "blocked", labelKey: "tasks.kanban.blocked", statuses: ["blocked"] },
-  { id: "done", labelKey: "tasks.kanban.done", statuses: ["done", "canceled"] },
-];
-
 function normalizeProjectCodeInput(value: string) {
   return value
     .replace(/[^A-Za-z]/g, "")
     .toUpperCase()
     .slice(0, 12);
-}
-
-function normalizeStatus(raw: string): StatusGroup {
-  const status = raw.toLowerCase().replace(/[\s-]+/g, "_");
-  if (status === "completed") return "done";
-  if (status === "in_review") return "review";
-  if (status === "cancelled") return "canceled";
-  if ((STATUS_ORDER as readonly string[]).includes(status)) {
-    return status as StatusGroup;
-  }
-  return "open";
 }
 
 function countLabel(
@@ -299,14 +256,6 @@ function runnerSignalFromStatus(
   return { labelKey: "tasks.runnerNoCapable", state: "no_runner" };
 }
 
-function hasConnectedTeamRunner(
-  status: RunnerStatusResponse | undefined,
-): boolean {
-  return Boolean(
-    status?.runners?.some((runner) => runner.status === "connected"),
-  );
-}
-
 function projectLoadMessage(
   isLoading: boolean,
   error: unknown,
@@ -342,14 +291,6 @@ function sortProjectTasks(tasks: Task[]): Task[] {
   });
 }
 
-function projectKanbanColumnID(task: Task): ProjectKanbanColumnID {
-  const status = normalizeStatus(task.status);
-  return (
-    PROJECT_KANBAN_COLUMNS.find((column) => column.statuses.includes(status))
-      ?.id ?? "todo"
-  );
-}
-
 function agentSlugs(members: OfficeMember[], preferred?: string): string[] {
   const seen = new Set<string>();
   const slugs: string[] = [];
@@ -366,32 +307,11 @@ function agentSlugs(members: OfficeMember[], preferred?: string): string[] {
   return slugs;
 }
 
-function agentLabel(slug: string, members: OfficeMember[]): string {
-  const member = members.find((candidate) => candidate.slug === slug);
-  if (!member?.name || member.name.toLowerCase() === slug) return `@${slug}`;
-  return `${member.name} @${slug}`;
-}
-
 function defaultProjectAgent(
   project: Project | null,
   members: OfficeMember[],
 ): string {
   return agentSlugs(members, project?.lead_agent || DEFAULT_AGENT)[0] ?? "";
-}
-
-function taskOwnerLabel(task: Task, members: OfficeMember[], t: TranslationFn) {
-  return task.owner ? agentLabel(task.owner, members) : t("tasks.unassigned");
-}
-
-function taskCreatorLabel(
-  task: Task,
-  members: OfficeMember[],
-  t: TranslationFn,
-) {
-  const creator = task.created_by?.trim();
-  if (!creator) return t("tasks.unassigned");
-  if (isHumanSlug(creator)) return t("tasks.you");
-  return agentLabel(creator, members);
 }
 
 function updateCachedTask(queryClient: QueryClient, task: Task) {
@@ -451,35 +371,6 @@ function normalizeTaskModelMode(mode?: string | null): ModelMode {
   return DEFAULT_MODEL_MODE;
 }
 
-function onlineBridgeDevices(devices: BridgeDevice[]): BridgeDevice[] {
-  return devices.filter((device) => device.status === "online");
-}
-
-function defaultProjectBinding(
-  bindings: ProjectLocalBinding[],
-  devices: BridgeDevice[],
-): ProjectLocalBinding | null {
-  const onlineIDs = new Set(
-    onlineBridgeDevices(devices).map((device) => device.id),
-  );
-  return (
-    bindings.find(
-      (binding) => binding.trusted && onlineIDs.has(binding.device_id),
-    ) ||
-    bindings.find((binding) => binding.trusted) ||
-    bindings[0] ||
-    null
-  );
-}
-
-function bridgeDeviceForBinding(
-  binding: ProjectLocalBinding | null,
-  devices: BridgeDevice[],
-): BridgeDevice | null {
-  if (!binding) return null;
-  return devices.find((device) => device.id === binding.device_id) || null;
-}
-
 function executionPlanIsTerminal(plan?: ExecutionPlan | null): boolean {
   return ["completed", "failed", "cancelled", "expired"].includes(
     String(plan?.status || ""),
@@ -499,57 +390,8 @@ function eventPayloadPreview(event: ExecutionEvent): string {
   }
 }
 
-function isHumanSlug(slug: string): boolean {
-  return slug === "human" || slug === "you";
-}
-
 function assignmentAck(t: TranslationFn): string {
   return t("tasks.assignmentAck");
-}
-
-function extractQuotedHumanDetail(raw: string): string {
-  const reportedIssue = raw.match(/(?:reported .*? issue|issue):\s*`([^`]+)`/i);
-  if (reportedIssue?.[1]) return reportedIssue[1].trim();
-
-  const quoted = raw.match(/[??]([^??]+)[??]/);
-  if (quoted?.[1]) return quoted[1].trim();
-
-  const beforeTreat = raw.match(/issue:\s*(.+?)\s+Treat this as/i);
-  if (beforeTreat?.[1]) return beforeTreat[1].trim().replace(/^[:\s]+/, "");
-
-  return "";
-}
-
-function looksGeneratedTaskDetail(raw: string): boolean {
-  return (
-    /^Still blocked:/i.test(raw) ||
-    /^Automatic error recovery:/i.test(raw) ||
-    raw.includes("Automatic error recovery:") ||
-    (/^Picking up the reported /i.test(raw) && /bugfix lane/i.test(raw)) ||
-    (/^Pick up the .* issue:/i.test(raw) && /Treat this as/i.test(raw)) ||
-    (/^No isolated .* worktree/i.test(raw) &&
-      /(Task|Task) chat now routes/i.test(raw)) ||
-    (/^No isolated .* worktree/i.test(raw) &&
-      /The narrow repo fix/i.test(raw)) ||
-    (/Inspect the .* flow/i.test(raw) &&
-      /report the exact verification/i.test(raw))
-  );
-}
-
-function userEnteredTaskDetails(task: Task): string {
-  const humanDetails = task.human_details?.trim();
-  if (humanDetails) {
-    const extracted = extractQuotedHumanDetail(humanDetails);
-    if (extracted) return extracted;
-    return looksGeneratedTaskDetail(humanDetails) ? "" : humanDetails;
-  }
-  const raw = (task.details || task.description || "").trim();
-  if (!raw) return "";
-  const extracted = extractQuotedHumanDetail(raw);
-  if (extracted) return extracted;
-  const creator = (task.created_by || "").trim();
-  if (!isHumanSlug(creator)) return "";
-  return looksGeneratedTaskDetail(raw) ? "" : raw;
 }
 
 async function postTaskAssignmentAck(
@@ -1768,7 +1610,7 @@ function ProjectDetailView({
         runnerStatus={runnerStatusQuery.data}
         t={t}
       />
-      <ProjectTaskList
+      <ProjectTaskKanban
         members={members}
         selectedTaskId={selectedTaskId}
         tasks={sortedTasks}
@@ -2070,486 +1912,6 @@ function ProjectInfoPanel({
   );
 }
 
-function ProjectBridgeWorkspacePanel({
-  project,
-  runnerSignal,
-  runnerStatus,
-  t,
-}: {
-  project: Project;
-  runnerSignal: RunnerSignal;
-  runnerStatus: RunnerStatusResponse | undefined;
-  t: TranslationFn;
-}) {
-  const queryClient = useQueryClient();
-  const [useExistingFolder, setUseExistingFolder] = useState(false);
-  const [localPath, setLocalPath] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [deviceID, setDeviceID] = useState("");
-  const [linkCommand, setLinkCommand] = useState("");
-  const bindingsQuery = useQuery({
-    queryKey: ["project-local-bindings", project.id],
-    queryFn: () => getProjectLocalBindings(project.id),
-    staleTime: 15_000,
-  });
-  const bindings = bindingsQuery.data?.bindings ?? [];
-  const shouldLoadPersonalBridge = useExistingFolder || bindings.length > 0;
-  const bridgeQuery = useQuery({
-    queryKey: ["bridge-availability"],
-    queryFn: () => getBridgeAvailability(),
-    enabled: shouldLoadPersonalBridge,
-    staleTime: 30_000,
-  });
-  const devices = bridgeQuery.data?.devices ?? [];
-  const onlineDevices = onlineBridgeDevices(devices);
-  const selectedDeviceID =
-    deviceID ||
-    bridgeQuery.data?.my_bridge.default_device_id ||
-    onlineDevices[0]?.id ||
-    "";
-  const runnerConnected = hasConnectedTeamRunner(runnerStatus);
-  const workspaceStatusLabel =
-    runnerSignal.state === "loading"
-      ? t("tasks.runnerChecking")
-      : runnerConnected
-        ? t("tasks.bridgeWorkspaceRunnerReady")
-        : t("tasks.bridgeWorkspaceRunnerWaiting");
-  const canCreate = Boolean(
-    useExistingFolder && selectedDeviceID && localPath.trim(),
-  );
-  const createMutation = useMutation({
-    mutationFn: () =>
-      createProjectLocalBinding(project.id, {
-        device_id: selectedDeviceID,
-        display_name: displayName.trim() || project.name || project.id,
-        local_path: localPath.trim(),
-        trusted: true,
-      }),
-    onSuccess: (result) => {
-      setLinkCommand(result.commands?.link || "");
-      setLocalPath("");
-      setDisplayName("");
-      void queryClient.invalidateQueries({
-        queryKey: ["project-local-bindings", project.id],
-      });
-    },
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (bindingID: string) =>
-      deleteProjectLocalBinding(project.id, bindingID),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["project-local-bindings", project.id],
-      });
-    },
-  });
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canCreate || createMutation.isPending) return;
-    createMutation.mutate();
-  }
-
-  async function copyLinkCommand() {
-    if (!linkCommand) return;
-    await navigator.clipboard.writeText(linkCommand);
-  }
-
-  return (
-    <Card className="project-directory-card project-bridge-card">
-      <CardHeader className="project-bridge-header">
-        <CardTitle>{t("tasks.bridgeWorkspaceTitle")}</CardTitle>
-        <CardDescription>{t("tasks.bridgeWorkspaceDesc")}</CardDescription>
-      </CardHeader>
-      <CardContent className="project-bridge-content">
-        <ManagedCheckoutCard
-          isReady={runnerConnected}
-          statusLabel={workspaceStatusLabel}
-          t={t}
-        />
-
-        {bindings.length > 0 && !useExistingFolder ? (
-          <p className="project-workspace-note">
-            {t("tasks.bridgeWorkspacePersonalConfigured")}
-          </p>
-        ) : null}
-
-        <WorkspaceAdvancedToggle
-          checked={useExistingFolder}
-          t={t}
-          onChange={setUseExistingFolder}
-        />
-
-        {useExistingFolder ? (
-          <>
-            <WorkspaceAdvancedPanel
-              bindings={bindings}
-              bridgeIsLoading={bridgeQuery.isLoading}
-              canCreate={canCreate}
-              createError={createMutation.error}
-              devices={devices}
-              displayName={displayName}
-              isDeleting={deleteMutation.isPending}
-              isLoadingBindings={bindingsQuery.isLoading}
-              isSaving={createMutation.isPending}
-              localPath={localPath}
-              onlineDevices={onlineDevices}
-              project={project}
-              selectedDeviceID={selectedDeviceID}
-              t={t}
-              onDeleteBinding={(bindingID) => deleteMutation.mutate(bindingID)}
-              onDeviceIDChange={setDeviceID}
-              onDisplayNameChange={setDisplayName}
-              onLocalPathChange={setLocalPath}
-              onSubmit={handleSubmit}
-            />
-            <BridgeLinkCommand
-              command={linkCommand}
-              t={t}
-              onCopy={copyLinkCommand}
-            />
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ManagedCheckoutCard({
-  isReady,
-  statusLabel,
-  t,
-}: {
-  isReady: boolean;
-  statusLabel: string;
-  t: TranslationFn;
-}) {
-  return (
-    <div className="project-workspace-mode-card is-active">
-      <div className="project-workspace-mode-head">
-        <div className="project-workspace-mode-copy">
-          <div className="project-workspace-title-row">
-            <strong>{t("tasks.bridgeWorkspaceAutoTitle")}</strong>
-            <span className="project-workspace-badge">
-              {t("tasks.bridgeWorkspaceAutoBadge")}
-            </span>
-          </div>
-          <p>{t("tasks.bridgeWorkspaceAutoDesc")}</p>
-        </div>
-        <span
-          className={cn(
-            "project-workspace-status",
-            isReady ? "is-ready" : "is-waiting",
-          )}
-        >
-          {statusLabel}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function WorkspaceAdvancedToggle({
-  checked,
-  t,
-  onChange,
-}: {
-  checked: boolean;
-  t: TranslationFn;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="project-workspace-advanced-toggle">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-        aria-expanded={checked}
-      />
-      <span>
-        <strong>{t("tasks.bridgeWorkspacePersonalTitle")}</strong>
-        <small>{t("tasks.bridgeWorkspacePersonalDesc")}</small>
-      </span>
-    </label>
-  );
-}
-
-function WorkspaceAdvancedPanel({
-  bindings,
-  bridgeIsLoading,
-  canCreate,
-  createError,
-  devices,
-  displayName,
-  isDeleting,
-  isLoadingBindings,
-  isSaving,
-  localPath,
-  onlineDevices,
-  project,
-  selectedDeviceID,
-  t,
-  onDeleteBinding,
-  onDeviceIDChange,
-  onDisplayNameChange,
-  onLocalPathChange,
-  onSubmit,
-}: {
-  bindings: ProjectLocalBinding[];
-  bridgeIsLoading: boolean;
-  canCreate: boolean;
-  createError: unknown;
-  devices: BridgeDevice[];
-  displayName: string;
-  isDeleting: boolean;
-  isLoadingBindings: boolean;
-  isSaving: boolean;
-  localPath: string;
-  onlineDevices: BridgeDevice[];
-  project: Project;
-  selectedDeviceID: string;
-  t: TranslationFn;
-  onDeleteBinding: (bindingID: string) => void;
-  onDeviceIDChange: (deviceID: string) => void;
-  onDisplayNameChange: (displayName: string) => void;
-  onLocalPathChange: (localPath: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <div className="project-workspace-advanced-panel">
-      <PersonalBindingList
-        bindings={bindings}
-        devices={devices}
-        isDeleting={isDeleting}
-        isLoading={isLoadingBindings}
-        t={t}
-        onDeleteBinding={onDeleteBinding}
-      />
-      <PersonalFolderForm
-        bridgeIsLoading={bridgeIsLoading}
-        canCreate={canCreate}
-        createError={createError}
-        displayName={displayName}
-        isSaving={isSaving}
-        localPath={localPath}
-        onlineDevices={onlineDevices}
-        project={project}
-        selectedDeviceID={selectedDeviceID}
-        t={t}
-        onDeviceIDChange={onDeviceIDChange}
-        onDisplayNameChange={onDisplayNameChange}
-        onLocalPathChange={onLocalPathChange}
-        onSubmit={onSubmit}
-      />
-    </div>
-  );
-}
-
-function PersonalBindingList({
-  bindings,
-  devices,
-  isDeleting,
-  isLoading,
-  t,
-  onDeleteBinding,
-}: {
-  bindings: ProjectLocalBinding[];
-  devices: BridgeDevice[];
-  isDeleting: boolean;
-  isLoading: boolean;
-  t: TranslationFn;
-  onDeleteBinding: (bindingID: string) => void;
-}) {
-  if (isLoading) {
-    return <p className="project-bridge-empty">{t("tasks.loadingTasks")}</p>;
-  }
-  if (bindings.length === 0) {
-    return (
-      <p className="project-bridge-empty">
-        {t("tasks.bridgeWorkspacePersonalEmpty")}
-      </p>
-    );
-  }
-
-  return (
-    <div className="project-bridge-binding-list">
-      {bindings.map((binding) => (
-        <PersonalBindingRow
-          binding={binding}
-          device={bridgeDeviceForBinding(binding, devices)}
-          isDeleting={isDeleting}
-          key={binding.id}
-          t={t}
-          onDelete={() => onDeleteBinding(binding.id)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function PersonalBindingRow({
-  binding,
-  device,
-  isDeleting,
-  t,
-  onDelete,
-}: {
-  binding: ProjectLocalBinding;
-  device: BridgeDevice | null;
-  isDeleting: boolean;
-  t: TranslationFn;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="project-bridge-binding-row">
-      <div className="min-w-0">
-        <div className="project-bridge-binding-name">
-          {binding.display_name || t("tasks.bridgeWorkspacePersonalExisting")}
-        </div>
-        <div className="project-bridge-binding-meta">
-          {device?.device_label || binding.device_id} ·{" "}
-          {binding.trusted
-            ? t("tasks.bridgeTrusted")
-            : t("tasks.bridgeUntrusted")}
-        </div>
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onDelete}
-        disabled={isDeleting}
-      >
-        {t("tasks.bridgeRemoveBinding")}
-      </Button>
-    </div>
-  );
-}
-
-function PersonalFolderForm({
-  bridgeIsLoading,
-  canCreate,
-  createError,
-  displayName,
-  isSaving,
-  localPath,
-  onlineDevices,
-  project,
-  selectedDeviceID,
-  t,
-  onDeviceIDChange,
-  onDisplayNameChange,
-  onLocalPathChange,
-  onSubmit,
-}: {
-  bridgeIsLoading: boolean;
-  canCreate: boolean;
-  createError: unknown;
-  displayName: string;
-  isSaving: boolean;
-  localPath: string;
-  onlineDevices: BridgeDevice[];
-  project: Project;
-  selectedDeviceID: string;
-  t: TranslationFn;
-  onDeviceIDChange: (deviceID: string) => void;
-  onDisplayNameChange: (displayName: string) => void;
-  onLocalPathChange: (localPath: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const emptyDeviceLabel = bridgeIsLoading
-    ? t("tasks.bridgeChecking")
-    : t("tasks.bridgePersonalDeviceUnavailable");
-
-  return (
-    <form className="project-bridge-form" onSubmit={onSubmit}>
-      <label className="project-info-field" htmlFor="project-bridge-device">
-        <span>{t("tasks.bridgeDevice")}</span>
-        <Select
-          id="project-bridge-device"
-          value={selectedDeviceID}
-          onChange={(event) => onDeviceIDChange(event.currentTarget.value)}
-          aria-label={t("tasks.bridgeDevice")}
-          disabled={onlineDevices.length === 0}
-        >
-          {onlineDevices.length === 0 ? (
-            <option value="">{emptyDeviceLabel}</option>
-          ) : null}
-          {onlineDevices.map((device) => (
-            <option key={device.id} value={device.id}>
-              {device.device_label || device.id}
-            </option>
-          ))}
-        </Select>
-      </label>
-      <label className="project-info-field" htmlFor="project-bridge-path">
-        <span>{t("tasks.bridgeLocalPath")}</span>
-        <Input
-          id="project-bridge-path"
-          value={localPath}
-          onChange={(event) => onLocalPathChange(event.currentTarget.value)}
-          placeholder="/Users/me/project"
-          aria-label={t("tasks.bridgeLocalPath")}
-        />
-      </label>
-      <label className="project-info-field" htmlFor="project-bridge-name">
-        <span>{t("tasks.bridgeDisplayName")}</span>
-        <Input
-          id="project-bridge-name"
-          value={displayName}
-          onChange={(event) => onDisplayNameChange(event.currentTarget.value)}
-          placeholder={project.name || project.id}
-          aria-label={t("tasks.bridgeDisplayName")}
-        />
-      </label>
-      <Button type="submit" variant="outline" disabled={!canCreate || isSaving}>
-        {isSaving
-          ? t("tasks.bridgeSavingBinding")
-          : t("tasks.bridgeSaveBinding")}
-      </Button>
-      {createError ? (
-        <p className="project-bridge-error">
-          {createError instanceof Error
-            ? createError.message
-            : t("tasks.bridgeSaveFailed")}
-        </p>
-      ) : null}
-    </form>
-  );
-}
-
-function BridgeLinkCommand({
-  command,
-  t,
-  onCopy,
-}: {
-  command: string;
-  t: TranslationFn;
-  onCopy: () => Promise<void>;
-}) {
-  if (!command) return null;
-  return (
-    <div className="project-bridge-command">
-      <div className="project-bridge-command-label">
-        <Terminal width={14} height={14} />
-        <span>{t("tasks.bridgeLinkCommand")}</span>
-      </div>
-      <code className="project-bridge-command-code">{command}</code>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          void onCopy();
-        }}
-      >
-        <Copy width={14} height={14} />
-        {t("tasks.bridgeCopyLinkCommand")}
-      </Button>
-    </div>
-  );
-}
-
 function TaskDraftSidePanel({
   members,
   project,
@@ -2692,148 +2054,6 @@ function TaskDraftSidePanel({
         </form>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function ProjectTaskList({
-  members,
-  selectedTaskId,
-  tasks,
-  t,
-  onCreateTask,
-  onSelectTask,
-}: {
-  members: OfficeMember[];
-  selectedTaskId: string | null;
-  tasks: Task[];
-  t: TranslationFn;
-  onCreateTask: () => void;
-  onSelectTask: (taskId: string) => void;
-}) {
-  if (tasks.length === 0) {
-    return (
-      <Card className="project-directory-card project-empty-card">
-        <CardContent className="grid gap-3 py-10 text-center">
-          <div className="project-empty-icon" aria-hidden="true">
-            <Plus width={18} height={18} />
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            {t("tasks.noTasks")}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t("tasks.noTasksDesc")}
-          </p>
-          <Button
-            className="project-empty-action"
-            type="button"
-            variant="outline"
-            onClick={onCreateTask}
-          >
-            <Plus width={16} height={16} />
-            {t("tasks.newTask")}
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const tasksByColumn = PROJECT_KANBAN_COLUMNS.map((column) => ({
-    ...column,
-    tasks: tasks.filter((task) => projectKanbanColumnID(task) === column.id),
-  }));
-
-  return (
-    <Card className="project-directory-card project-task-list-card project-kanban-card">
-      <CardContent className="project-kanban-content">
-        <section
-          className="project-kanban-section"
-          aria-label={t("tasks.tasks")}
-        >
-          <div className="project-kanban-board">
-            {tasksByColumn.map((column) => (
-              <section
-                className={cn("project-kanban-column", `is-${column.id}`)}
-                key={column.id}
-                aria-label={t(column.labelKey)}
-              >
-                <header className="project-kanban-column-header">
-                  <h4>{t(column.labelKey)}</h4>
-                  <span className="project-kanban-count">
-                    {column.tasks.length}
-                  </span>
-                </header>
-                <div className="project-kanban-stack">
-                  {column.tasks.length > 0 ? (
-                    column.tasks.map((task) => (
-                      <TaskKanbanCard
-                        isSelected={selectedTaskId === task.id}
-                        key={task.id}
-                        members={members}
-                        task={task}
-                        t={t}
-                        onSelect={() => onSelectTask(task.id)}
-                      />
-                    ))
-                  ) : (
-                    <p className="project-kanban-empty">
-                      {t("tasks.kanban.empty")}
-                    </p>
-                  )}
-                </div>
-              </section>
-            ))}
-          </div>
-        </section>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TaskKanbanCard({
-  isSelected,
-  members,
-  task,
-  t,
-  onSelect,
-}: {
-  isSelected: boolean;
-  members: OfficeMember[];
-  task: Task;
-  t: TranslationFn;
-  onSelect: () => void;
-}) {
-  const status = normalizeStatus(task.status);
-  const detail = userEnteredTaskDetails(task);
-  return (
-    <button
-      type="button"
-      className={cn("project-kanban-task", isSelected && "is-selected")}
-      onClick={onSelect}
-      aria-current={isSelected ? "true" : undefined}
-    >
-      <span className="project-kanban-task-topline">
-        <span className="project-kanban-task-id">{task.id}</span>
-        <span className={cn("task-inline-status", `is-${status}`)}>
-          {t(STATUS_LABEL_KEYS[status])}
-        </span>
-      </span>
-      <strong className="project-kanban-task-title">
-        {task.title || t("tasks.untitled")}
-      </strong>
-      {detail ? (
-        <span className="project-kanban-task-detail">{detail}</span>
-      ) : null}
-      <span className="project-kanban-task-meta">
-        <span>
-          <small>{t("tasks.detail.assignedTo")}</small>
-          <strong>{taskOwnerLabel(task, members, t)}</strong>
-        </span>
-        <span>
-          <small>{t("tasks.detail.createdBy")}</small>
-          <strong>{taskCreatorLabel(task, members, t)}</strong>
-        </span>
-      </span>
-    </button>
   );
 }
 
@@ -3037,46 +2257,95 @@ function TaskDetailSection({
   );
 }
 
-function TaskSidePanel({
-  members,
-  project,
-  queryClient,
-  task,
+function taskBridgeBlocker({
+  bridgeReason,
+  deviceIsOnline,
+  hasBinding,
+  isLoading,
+  modelMode,
+  myBridgeAvailable,
   t,
-  onClose,
 }: {
-  members: OfficeMember[];
-  project: Project;
-  queryClient: QueryClient;
-  task: Task;
+  bridgeReason?: string;
+  deviceIsOnline: boolean;
+  hasBinding: boolean;
+  isLoading: boolean;
+  modelMode: ModelMode;
+  myBridgeAvailable: boolean;
   t: TranslationFn;
-  onClose: () => void;
+}): string {
+  if (modelMode !== "my_bridge") return "";
+  if (isLoading) return t("tasks.bridgeChecking");
+  if (!myBridgeAvailable) return bridgeReason || t("tasks.bridgeUnavailable");
+  if (!hasBinding) return t("tasks.bridgeNoBindingReason");
+  if (!deviceIsOnline) return t("tasks.bridgeBindingOfflineReason");
+  return "";
+}
+
+function taskRouteHint({
+  bridgeBlocker,
+  commentTargets,
+  instruction,
+  members,
+  modelMode,
+  t,
+}: {
+  bridgeBlocker: string;
+  commentTargets: string[];
+  instruction: string;
+  members: OfficeMember[];
+  modelMode: ModelMode;
+  t: TranslationFn;
+}): string {
+  if (modelMode === "my_bridge") {
+    return bridgeBlocker || t("tasks.bridgeReadyToRun");
+  }
+  if (!instruction.trim() || commentTargets.length === 0) {
+    return t("tasks.mentionHint");
+  }
+  return `${t("tasks.notify")} ${commentTargets
+    .map((slug) => agentLabel(slug, members))
+    .join(", ")}`;
+}
+
+function taskComposerStatusText({
+  modelMode,
+  routeHint,
+  sendError,
+  sent,
+  t,
+}: {
+  modelMode: ModelMode;
+  routeHint: string;
+  sendError: string | null;
+  sent: boolean;
+  t: TranslationFn;
+}): string {
+  if (sendError) return sendError;
+  if (!sent) return routeHint;
+  return modelMode === "my_bridge"
+    ? t("tasks.bridgePlanCreated")
+    : t("tasks.sent");
+}
+
+type BridgeExecutionSubmitResult = { ok: true } | { error: string; ok: false };
+
+function useTaskBridgeExecutionState({
+  modelMode,
+  projectID,
+  queryClient,
+  taskID,
+  threadKey,
+  t,
+}: {
+  modelMode: ModelMode;
+  projectID: string;
+  queryClient: QueryClient;
+  taskID: string;
+  threadKey: string;
+  t: TranslationFn;
 }) {
-  const [instruction, setInstruction] = useState("");
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [modelMode, setModelMode] = useState<ModelMode>(() =>
-    normalizeTaskModelMode(task.model_mode),
-  );
   const [createdPlan, setCreatedPlan] = useState<ExecutionPlan | null>(null);
-  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
-  const [pendingReply, setPendingReply] = useState<{
-    afterMessageId: string | null;
-    sentAt: number | null;
-    slugs: string[];
-  }>({ afterMessageId: null, sentAt: null, slugs: [] });
-  const status = normalizeStatus(task.status);
-  const channel = taskChannel(task, project);
-  const threadId = task.thread_id || task.id;
-  const threadKey = `${channel}:${threadId}`;
-  const previousThreadKeyRef = useRef(threadKey);
-  const threadMessagesQuery = useQuery({
-    queryKey: ["thread-messages", channel, threadId],
-    queryFn: () => getThreadMessages(channel, threadId),
-    enabled: Boolean(threadId),
-    refetchInterval: TASK_REFETCH_MS,
-  });
   const bridgeAvailabilityQuery = useQuery({
     queryKey: ["bridge-availability"],
     queryFn: () => getBridgeAvailability(),
@@ -3084,8 +2353,8 @@ function TaskSidePanel({
     staleTime: 30_000,
   });
   const bridgeBindingsQuery = useQuery({
-    queryKey: ["project-local-bindings", project.id],
-    queryFn: () => getProjectLocalBindings(project.id),
+    queryKey: ["project-local-bindings", projectID],
+    queryFn: () => getProjectLocalBindings(projectID),
     enabled: modelMode === "my_bridge",
     staleTime: 15_000,
   });
@@ -3095,26 +2364,31 @@ function TaskSidePanel({
     bridgeDevices,
   );
   const bridgeDevice = bridgeDeviceForBinding(bridgeBinding, bridgeDevices);
-  const bridgeBlocker =
-    modelMode !== "my_bridge"
-      ? ""
-      : bridgeAvailabilityQuery.isLoading || bridgeBindingsQuery.isLoading
-        ? t("tasks.bridgeChecking")
-        : !bridgeAvailabilityQuery.data?.my_bridge.available
-          ? bridgeAvailabilityQuery.data?.my_bridge.reason ||
-            t("tasks.bridgeUnavailable")
-          : !bridgeBinding
-            ? t("tasks.bridgeNoBindingReason")
-            : bridgeDevice?.status !== "online"
-              ? t("tasks.bridgeBindingOfflineReason")
-              : "";
+  const bridgeBlocker = taskBridgeBlocker({
+    bridgeReason: bridgeAvailabilityQuery.data?.my_bridge.reason,
+    deviceIsOnline: bridgeDevice?.status === "online",
+    hasBinding: Boolean(bridgeBinding),
+    isLoading:
+      bridgeAvailabilityQuery.isLoading || bridgeBindingsQuery.isLoading,
+    modelMode,
+    myBridgeAvailable: Boolean(
+      bridgeAvailabilityQuery.data?.my_bridge.available,
+    ),
+    t,
+  });
   const activePlanID = createdPlan?.id || "";
   const executionPlanQuery = useQuery({
     queryKey: ["execution-plan", activePlanID],
     queryFn: () => getExecutionPlan(activePlanID),
     enabled: Boolean(activePlanID),
-    refetchInterval:
-      activePlanID && !executionPlanIsTerminal(createdPlan) ? 3_000 : false,
+    refetchInterval: (query) => {
+      const latestPlan =
+        (query.state.data as { plan?: ExecutionPlan } | undefined)?.plan ??
+        createdPlan;
+      return activePlanID && !executionPlanIsTerminal(latestPlan)
+        ? 3_000
+        : false;
+    },
   });
   const executionEventsQuery = useQuery({
     queryKey: ["execution-plan-events", activePlanID],
@@ -3125,6 +2399,12 @@ function TaskSidePanel({
         ? 3_000
         : false,
   });
+  const executionPlan = executionPlanQuery.data?.plan ?? createdPlan;
+
+  useEffect(() => {
+    if (threadKey) setCreatedPlan(null);
+  }, [threadKey]);
+
   useEffect(() => {
     if (!activePlanID) return;
     return subscribeExecutionPlanEvents(activePlanID, () => {
@@ -3138,8 +2418,99 @@ function TaskSidePanel({
       ]);
     });
   }, [activePlanID, queryClient]);
-  const executionPlan = executionPlanQuery.data?.plan ?? createdPlan;
-  const executionReceipt = executionPlanQuery.data?.receipt ?? null;
+
+  async function submitExecutionPlan(
+    text: string,
+  ): Promise<BridgeExecutionSubmitResult> {
+    if (bridgeBlocker || !bridgeBinding) {
+      return {
+        error: bridgeBlocker || t("tasks.bridgeNoBindingReason"),
+        ok: false,
+      };
+    }
+    try {
+      const result = await createExecutionPlan({
+        binding_id: bridgeBinding.id,
+        device_id: bridgeBinding.device_id,
+        message: text,
+        mode: "my_bridge",
+        provider: "codex",
+        task_id: taskID,
+      });
+      setCreatedPlan(result.plan);
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["execution-plan", result.plan.id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["execution-plan-events", result.plan.id],
+        }),
+      ]);
+      return { ok: true };
+    } catch (err) {
+      return {
+        error: err instanceof Error ? err.message : t("tasks.bridgePlanFailed"),
+        ok: false,
+      };
+    }
+  }
+
+  return {
+    activePlanID,
+    bridgeBlocker,
+    executionEvents: executionEventsQuery.data?.events ?? [],
+    executionPlan,
+    executionPlanIsLoading: executionPlanQuery.isLoading,
+    executionReceipt: executionPlanQuery.data?.receipt ?? null,
+    submitExecutionPlan,
+  };
+}
+
+function useTaskSidePanelController({
+  members,
+  project,
+  queryClient,
+  task,
+  t,
+}: {
+  members: OfficeMember[];
+  project: Project;
+  queryClient: QueryClient;
+  task: Task;
+  t: TranslationFn;
+}) {
+  const [instruction, setInstruction] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [modelMode, setModelMode] = useState<ModelMode>(() =>
+    normalizeTaskModelMode(task.model_mode),
+  );
+  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [pendingReply, setPendingReply] = useState<{
+    afterMessageId: string | null;
+    sentAt: number | null;
+    slugs: string[];
+  }>({ afterMessageId: null, sentAt: null, slugs: [] });
+  const status = normalizeStatus(task.status);
+  const channel = taskChannel(task, project);
+  const threadId = task.thread_id || task.id;
+  const threadKey = `${channel}:${threadId}`;
+  const previousThreadKeyRef = useRef(threadKey);
+  const bridgeExecution = useTaskBridgeExecutionState({
+    modelMode,
+    projectID: project.id,
+    queryClient,
+    taskID: task.id,
+    threadKey,
+    t,
+  });
+  const threadMessagesQuery = useQuery({
+    queryKey: ["thread-messages", channel, threadId],
+    queryFn: () => getThreadMessages(channel, threadId),
+    enabled: Boolean(threadId),
+    refetchInterval: TASK_REFETCH_MS,
+  });
   const serverThreadMessages = threadMessagesQuery.data?.messages ?? [];
   const threadMessages = useMemo(() => {
     if (optimisticMessages.length === 0) return serverThreadMessages;
@@ -3154,12 +2525,14 @@ function TaskSidePanel({
     ...activeTaskTypingSlugs(members, task),
   ]);
   const commentTargets = taskCommentTargets(instruction, task, members);
-  const routeHint =
-    modelMode === "my_bridge"
-      ? bridgeBlocker || t("tasks.bridgeReadyToRun")
-      : instruction.trim() && commentTargets.length > 0
-        ? `${t("tasks.notify")} ${commentTargets.map((slug) => agentLabel(slug, members)).join(", ")}`
-        : t("tasks.mentionHint");
+  const routeHint = taskRouteHint({
+    bridgeBlocker: bridgeExecution.bridgeBlocker,
+    commentTargets,
+    instruction,
+    members,
+    modelMode,
+    t,
+  });
 
   useEffect(() => {
     setModelMode(normalizeTaskModelMode(task.model_mode));
@@ -3186,7 +2559,6 @@ function TaskSidePanel({
     previousThreadKeyRef.current = threadKey;
     setPendingReply({ afterMessageId: null, sentAt: null, slugs: [] });
     setOptimisticMessages([]);
-    setCreatedPlan(null);
     setSendError(null);
     setSent(false);
   }, [threadKey]);
@@ -3210,37 +2582,17 @@ function TaskSidePanel({
   }, [pendingReply.sentAt, pendingReply.slugs.length]);
 
   async function submitBridgeExecutionPlan(text: string) {
-    if (bridgeBlocker || !bridgeBinding) {
-      setSendError(bridgeBlocker || t("tasks.bridgeNoBindingReason"));
-      return;
-    }
     setIsSending(true);
     setSendError(null);
     setSent(false);
     try {
-      const result = await createExecutionPlan({
-        binding_id: bridgeBinding.id,
-        device_id: bridgeBinding.device_id,
-        message: text,
-        mode: "my_bridge",
-        provider: "codex",
-        task_id: task.id,
-      });
-      setCreatedPlan(result.plan);
+      const result = await bridgeExecution.submitExecutionPlan(text);
+      if (!result.ok) {
+        setSendError(result.error);
+        return;
+      }
       setInstruction("");
       setSent(true);
-      void Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["execution-plan", result.plan.id],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["execution-plan-events", result.plan.id],
-        }),
-      ]);
-    } catch (err) {
-      setSendError(
-        err instanceof Error ? err.message : t("tasks.bridgePlanFailed"),
-      );
     } finally {
       setIsSending(false);
     }
@@ -3251,8 +2603,8 @@ function TaskSidePanel({
     const text = instruction.trim();
     if (!text || isSending) return;
     if (modelMode === "my_bridge") {
-      if (bridgeBlocker) {
-        setSendError(bridgeBlocker);
+      if (bridgeExecution.bridgeBlocker) {
+        setSendError(bridgeExecution.bridgeBlocker);
         return;
       }
       confirm({
@@ -3318,6 +2670,55 @@ function TaskSidePanel({
     }
   }
 
+  return {
+    activePlanID: bridgeExecution.activePlanID,
+    bridgeBlocker: bridgeExecution.bridgeBlocker,
+    executionEvents: bridgeExecution.executionEvents,
+    executionPlan: bridgeExecution.executionPlan,
+    executionPlanIsLoading: bridgeExecution.executionPlanIsLoading,
+    executionReceipt: bridgeExecution.executionReceipt,
+    handleInstructionChange: (value: string) => {
+      setInstruction(value);
+      setSent(false);
+    },
+    handleSendInstruction,
+    instruction,
+    isSending,
+    modelMode,
+    routeHint,
+    sendError,
+    sent,
+    setModelMode,
+    status,
+    threadMessages,
+    threadMessagesIsLoading: threadMessagesQuery.isLoading,
+    typingSlugs,
+  };
+}
+
+function TaskSidePanel({
+  members,
+  project,
+  queryClient,
+  task,
+  t,
+  onClose,
+}: {
+  members: OfficeMember[];
+  project: Project;
+  queryClient: QueryClient;
+  task: Task;
+  t: TranslationFn;
+  onClose: () => void;
+}) {
+  const controller = useTaskSidePanelController({
+    members,
+    project,
+    queryClient,
+    task,
+    t,
+  });
+
   return (
     <Sheet>
       <SheetContent
@@ -3330,137 +2731,278 @@ function TaskSidePanel({
         role="complementary"
         aria-label={t("tasks.taskDetails")}
       >
-        <div className="task-side-panel-header flex items-start justify-between gap-4 border-b px-6 py-5">
-          <SheetHeader className="min-w-0">
-            <SheetDescription>{task.id}</SheetDescription>
-            <SheetTitle className="truncate">
-              {task.title || t("tasks.untitled")}
-            </SheetTitle>
-          </SheetHeader>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={onClose}
-            aria-label={t("tasks.close")}
-            className="task-panel-close"
-          >
-            <TaskPanelCloseIcon />
-          </Button>
-        </div>
+        <TaskSidePanelHeader task={task} t={t} onClose={onClose} />
 
-        <div className="task-side-panel-body flex min-h-0 flex-1 flex-col">
-          <div className="task-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
-            <div className="grid gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                {t("tasks.status")}
-              </span>
-              <span className={cn("task-inline-status", `is-${status}`)}>
-                {t(STATUS_LABEL_KEYS[status])}
-              </span>
-            </div>
-            <div className="grid min-w-0 gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                {t("tasks.detail.owner")}
-              </span>
-              <span className="truncate text-sm font-medium text-foreground">
-                {taskOwnerLabel(task, members, t)}
-              </span>
-            </div>
-          </div>
-
-          <TaskDetailSection
-            project={project}
-            queryClient={queryClient}
-            task={task}
-            t={t}
-          />
-
-          <Separator />
-
-          <form
-            className="task-side-panel-form flex min-h-0 flex-1 flex-col"
-            onSubmit={handleSendInstruction}
-          >
-            <div className="task-chat-heading px-6 py-4">
-              <h5 className="text-sm font-medium text-foreground">
-                {t("tasks.agentInstruction")}
-              </h5>
-            </div>
-            <TaskChatFeed
-              isLoading={threadMessagesQuery.isLoading}
-              members={members}
-              messages={threadMessages}
-              t={t}
-              typingSlugs={typingSlugs}
-            />
-            {activePlanID ? (
-              <BridgeExecutionPanel
-                events={executionEventsQuery.data?.events ?? []}
-                isLoading={executionPlanQuery.isLoading}
-                plan={executionPlan}
-                receipt={executionReceipt}
-                t={t}
-              />
-            ) : null}
-            <div className="task-chat-composer-shell border-t bg-background p-4">
-              <div className="task-chat-composer overflow-hidden border-y bg-transparent shadow-none focus-within:border-ring">
-                <Textarea
-                  className="task-chat-input min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-                  value={instruction}
-                  onChange={(event) => {
-                    setInstruction(event.currentTarget.value);
-                    setSent(false);
-                  }}
-                  onKeyDown={submitTaskCommentOnEnter}
-                  placeholder={t("tasks.agentInstructionPlaceholder")}
-                  aria-label={t("tasks.agentInstruction")}
-                  rows={4}
-                />
-                <div className="task-chat-composer-footer grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-transparent p-2">
-                  <div className="grid min-w-0 gap-2">
-                    <span
-                      className={cn(
-                        "truncate text-xs",
-                        sendError
-                          ? "text-destructive"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {sendError
-                        ? sendError
-                        : sent
-                          ? modelMode === "my_bridge"
-                            ? t("tasks.bridgePlanCreated")
-                            : t("tasks.sent")
-                          : routeHint}
-                    </span>
-                    <ModelModeToggle
-                      value={modelMode}
-                      onChange={setModelMode}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={
-                      !instruction.trim() ||
-                      isSending ||
-                      (modelMode === "my_bridge" && Boolean(bridgeBlocker))
-                    }
-                  >
-                    {isSending
-                      ? t("tasks.sending")
-                      : modelMode === "my_bridge"
-                        ? t("tasks.createExecutionPlan")
-                        : t("tasks.sendInstruction")}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
+        <TaskSidePanelBody
+          activePlanID={controller.activePlanID}
+          bridgeBlocker={controller.bridgeBlocker}
+          executionEvents={controller.executionEvents}
+          executionPlan={controller.executionPlan}
+          executionPlanIsLoading={controller.executionPlanIsLoading}
+          executionReceipt={controller.executionReceipt}
+          instruction={controller.instruction}
+          isSending={controller.isSending}
+          members={members}
+          modelMode={controller.modelMode}
+          project={project}
+          queryClient={queryClient}
+          routeHint={controller.routeHint}
+          sendError={controller.sendError}
+          sent={controller.sent}
+          status={controller.status}
+          task={task}
+          t={t}
+          threadMessages={controller.threadMessages}
+          threadMessagesIsLoading={controller.threadMessagesIsLoading}
+          typingSlugs={controller.typingSlugs}
+          onInstructionChange={controller.handleInstructionChange}
+          onModelModeChange={controller.setModelMode}
+          onSubmit={controller.handleSendInstruction}
+        />
       </SheetContent>
     </Sheet>
+  );
+}
+
+function TaskSidePanelBody({
+  activePlanID,
+  bridgeBlocker,
+  executionEvents,
+  executionPlan,
+  executionPlanIsLoading,
+  executionReceipt,
+  instruction,
+  isSending,
+  members,
+  modelMode,
+  project,
+  queryClient,
+  routeHint,
+  sendError,
+  sent,
+  status,
+  task,
+  t,
+  threadMessages,
+  threadMessagesIsLoading,
+  typingSlugs,
+  onInstructionChange,
+  onModelModeChange,
+  onSubmit,
+}: {
+  activePlanID: string;
+  bridgeBlocker: string;
+  executionEvents: ExecutionEvent[];
+  executionPlan: ExecutionPlan | null;
+  executionPlanIsLoading: boolean;
+  executionReceipt: ExecutionReceipt | null;
+  instruction: string;
+  isSending: boolean;
+  members: OfficeMember[];
+  modelMode: ModelMode;
+  project: Project;
+  queryClient: QueryClient;
+  routeHint: string;
+  sendError: string | null;
+  sent: boolean;
+  status: StatusGroup;
+  task: Task;
+  t: TranslationFn;
+  threadMessages: Message[];
+  threadMessagesIsLoading: boolean;
+  typingSlugs: string[];
+  onInstructionChange: (value: string) => void;
+  onModelModeChange: (mode: ModelMode) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <div className="task-side-panel-body flex min-h-0 flex-1 flex-col">
+      <TaskSidePanelMeta members={members} status={status} task={task} t={t} />
+      <TaskDetailSection
+        project={project}
+        queryClient={queryClient}
+        task={task}
+        t={t}
+      />
+      <Separator />
+      <form
+        className="task-side-panel-form flex min-h-0 flex-1 flex-col"
+        onSubmit={onSubmit}
+      >
+        <div className="task-chat-heading px-6 py-4">
+          <h5 className="text-sm font-medium text-foreground">
+            {t("tasks.agentInstruction")}
+          </h5>
+        </div>
+        <TaskChatFeed
+          isLoading={threadMessagesIsLoading}
+          members={members}
+          messages={threadMessages}
+          t={t}
+          typingSlugs={typingSlugs}
+        />
+        {activePlanID ? (
+          <BridgeExecutionPanel
+            events={executionEvents}
+            isLoading={executionPlanIsLoading}
+            plan={executionPlan}
+            receipt={executionReceipt}
+            t={t}
+          />
+        ) : null}
+        <TaskChatComposer
+          bridgeBlocker={bridgeBlocker}
+          instruction={instruction}
+          isSending={isSending}
+          modelMode={modelMode}
+          routeHint={routeHint}
+          sendError={sendError}
+          sent={sent}
+          t={t}
+          onInstructionChange={onInstructionChange}
+          onModelModeChange={onModelModeChange}
+        />
+      </form>
+    </div>
+  );
+}
+
+function TaskSidePanelHeader({
+  task,
+  t,
+  onClose,
+}: {
+  task: Task;
+  t: TranslationFn;
+  onClose: () => void;
+}) {
+  return (
+    <div className="task-side-panel-header flex items-start justify-between gap-4 border-b px-6 py-5">
+      <SheetHeader className="min-w-0">
+        <SheetDescription>{task.id}</SheetDescription>
+        <SheetTitle className="truncate">
+          {task.title || t("tasks.untitled")}
+        </SheetTitle>
+      </SheetHeader>
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        onClick={onClose}
+        aria-label={t("tasks.close")}
+        className="task-panel-close"
+      >
+        <TaskPanelCloseIcon />
+      </Button>
+    </div>
+  );
+}
+
+function TaskSidePanelMeta({
+  members,
+  status,
+  task,
+  t,
+}: {
+  members: OfficeMember[];
+  status: StatusGroup;
+  task: Task;
+  t: TranslationFn;
+}) {
+  return (
+    <div className="task-side-panel-meta grid grid-cols-2 gap-4 px-6 py-4">
+      <div className="grid gap-1">
+        <span className="text-xs font-medium text-muted-foreground">
+          {t("tasks.status")}
+        </span>
+        <span className={cn("task-inline-status", `is-${status}`)}>
+          {t(STATUS_LABEL_KEYS[status])}
+        </span>
+      </div>
+      <div className="grid min-w-0 gap-1">
+        <span className="text-xs font-medium text-muted-foreground">
+          {t("tasks.detail.owner")}
+        </span>
+        <span className="truncate text-sm font-medium text-foreground">
+          {taskOwnerLabel(task, members, t)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TaskChatComposer({
+  bridgeBlocker,
+  instruction,
+  isSending,
+  modelMode,
+  routeHint,
+  sendError,
+  sent,
+  t,
+  onInstructionChange,
+  onModelModeChange,
+}: {
+  bridgeBlocker: string;
+  instruction: string;
+  isSending: boolean;
+  modelMode: ModelMode;
+  routeHint: string;
+  sendError: string | null;
+  sent: boolean;
+  t: TranslationFn;
+  onInstructionChange: (value: string) => void;
+  onModelModeChange: (mode: ModelMode) => void;
+}) {
+  const statusText = taskComposerStatusText({
+    modelMode,
+    routeHint,
+    sendError,
+    sent,
+    t,
+  });
+
+  return (
+    <div className="task-chat-composer-shell border-t bg-background p-4">
+      <div className="task-chat-composer overflow-hidden border-y bg-transparent shadow-none focus-within:border-ring">
+        <Textarea
+          className="task-chat-input min-h-24 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+          value={instruction}
+          onChange={(event) => onInstructionChange(event.currentTarget.value)}
+          onKeyDown={submitTaskCommentOnEnter}
+          placeholder={t("tasks.agentInstructionPlaceholder")}
+          aria-label={t("tasks.agentInstruction")}
+          rows={4}
+        />
+        <div className="task-chat-composer-footer grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t bg-transparent p-2">
+          <div className="grid min-w-0 gap-2">
+            <span
+              className={cn(
+                "truncate text-xs",
+                sendError ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {statusText}
+            </span>
+            <ModelModeToggle value={modelMode} onChange={onModelModeChange} />
+          </div>
+          <Button
+            type="submit"
+            disabled={
+              !instruction.trim() ||
+              isSending ||
+              (modelMode === "my_bridge" && Boolean(bridgeBlocker))
+            }
+          >
+            {isSending
+              ? t("tasks.sending")
+              : modelMode === "my_bridge"
+                ? t("tasks.createExecutionPlan")
+                : t("tasks.sendInstruction")}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
