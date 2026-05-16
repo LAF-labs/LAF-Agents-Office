@@ -627,6 +627,7 @@ func TestPostHeadlessFinalMessageIfSilentPostsFinalOutput(t *testing.T) {
 		fmt.Sprintf(`Reply using team_broadcast with reply_to_id "%s".`, root.ID),
 		"REAL_AGENT_TYPING_OK",
 		startedAt,
+		headlessFinalPostTarget{ReplyToID: root.ID},
 	)
 	if err != nil {
 		t.Fatalf("fallback post: %v", err)
@@ -638,7 +639,7 @@ func TestPostHeadlessFinalMessageIfSilentPostsFinalOutput(t *testing.T) {
 		t.Fatalf("unexpected fallback message: %+v", msg)
 	}
 
-	_, posted, err = l.postHeadlessFinalMessageIfSilent("ceo", channel, "", "duplicate", startedAt)
+	_, posted, err = l.postHeadlessFinalMessageIfSilent("ceo", channel, "", "duplicate", startedAt, headlessFinalPostTarget{})
 	if err != nil {
 		t.Fatalf("second fallback post: %v", err)
 	}
@@ -662,6 +663,7 @@ func TestPostHeadlessFinalMessageSuppressesHiddenInternalOutput(t *testing.T) {
 		"internal-only result",
 		time.Now().UTC().Add(-time.Second),
 		headlessFinalPostSuppress,
+		headlessFinalPostTarget{CollaborationRequestID: root.ID},
 	)
 	if err != nil {
 		t.Fatalf("suppressed fallback post: %v", err)
@@ -673,6 +675,111 @@ func TestPostHeadlessFinalMessageSuppressesHiddenInternalOutput(t *testing.T) {
 		if item.From == "be" && strings.Contains(item.Content, "internal-only result") {
 			t.Fatalf("hidden internal output leaked into broker messages: %+v", item)
 		}
+	}
+}
+
+func TestPostHeadlessFinalMessageStoresCollaborationRequestFallbackAsInternalWorkResult(t *testing.T) {
+	b := newTestBroker(t)
+	requestTime := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339)
+	b.mu.Lock()
+	b.members = []officeMember{
+		{Slug: "ceo", Name: "CEO", Role: "Lead", BuiltIn: true},
+		{Slug: "be", Name: "Backend", Role: "Backend"},
+	}
+	b.channels = []teamChannel{
+		{Slug: "general", Name: "General", Members: []string{"ceo", "be"}},
+	}
+	b.messages = append(b.messages, channelMessage{
+		ID:            "msg-request",
+		From:          "ceo",
+		Channel:       "general",
+		Kind:          "collaboration_request",
+		Content:       "Check backend path",
+		ReplyTo:       "msg-human",
+		PublicReplyTo: "home:team-alpha:user-alpha",
+		Visibility:    messageVisibilityInternal,
+		TaskID:        "task-1",
+		RunID:         "run-1",
+		Audience:      []string{"ceo", "be"},
+		Timestamp:     requestTime,
+	})
+	b.mu.Unlock()
+
+	l := newHeadlessLauncherForTest(t)
+	l.broker = b
+	l.provider = "codex"
+	l.notifyLastDelivered = make(map[string]time.Time)
+	l.pack = &agent.PackDefinition{
+		LeadSlug: "ceo",
+		Agents: []agent.AgentConfig{
+			{Slug: "ceo", Name: "CEO"},
+			{Slug: "be", Name: "Backend"},
+		},
+	}
+
+	processed := make(chan headlessCodexTurn, 1)
+	setHeadlessCodexRunTurnRecordForTest(t, func(_ *Launcher, _ context.Context, _ string, turn headlessCodexTurn) error {
+		processed <- turn
+		return nil
+	})
+
+	startedAt := time.Now().UTC().Add(-time.Second)
+	msg, posted, err := l.postHeadlessFinalMessageIfAllowed(
+		"be",
+		"general",
+		"Hidden result transport: structured collaboration target is attached to this turn.",
+		"Backend path is healthy.",
+		startedAt,
+		headlessFinalPostInternalWorkResult,
+		headlessFinalPostTarget{CollaborationRequestID: "msg-request"},
+	)
+	if err != nil {
+		t.Fatalf("internal work-result fallback: %v", err)
+	}
+	if !posted {
+		t.Fatal("expected final output fallback to become an internal work_result")
+	}
+	if msg.From != "be" || msg.Channel != "general" || msg.Kind != "work_result" || msg.Visibility != messageVisibilityInternal {
+		t.Fatalf("unexpected fallback work_result: %+v", msg)
+	}
+	if msg.ReplyTo != "msg-request" || msg.PublicReplyTo != "home:team-alpha:user-alpha" || msg.TaskID != "task-1" || msg.RunID != "run-1" {
+		t.Fatalf("fallback did not preserve request routing metadata: %+v", msg)
+	}
+	if !strings.Contains(msg.Content, "Backend path is healthy.") {
+		t.Fatalf("fallback content missing final answer text: %q", msg.Content)
+	}
+	if !containsSlug(msg.Tagged, "ceo") || !containsSlug(msg.Audience, "ceo") || !containsSlug(msg.Audience, "be") {
+		t.Fatalf("fallback should target requester and preserve audience, got tagged=%v audience=%v", msg.Tagged, msg.Audience)
+	}
+
+	leadTurn := waitForHeadlessTurn(t, processed)
+	if leadTurn.FinalPostPolicy != headlessFinalPostAllow {
+		t.Fatalf("expected requester synthesis turn to allow human-visible final reply, got %q", leadTurn.FinalPostPolicy)
+	}
+	if !strings.Contains(leadTurn.Prompt, "Backend path is healthy.") || !strings.Contains(leadTurn.Prompt, `reply_to_id "home:team-alpha:user-alpha"`) {
+		t.Fatalf("requester synthesis turn lost hidden result or public reply target, got %q", leadTurn.Prompt)
+	}
+	if leadTurn.FinalPostTarget.ReplyToID != "home:team-alpha:user-alpha" {
+		t.Fatalf("requester synthesis turn lost structured public reply target: %+v", leadTurn.FinalPostTarget)
+	}
+	if strings.Contains(leadTurn.Prompt, "team_broadcast") {
+		t.Fatalf("headless requester synthesis must use final-answer transport, got %q", leadTurn.Prompt)
+	}
+
+	_, posted, err = l.postHeadlessFinalMessageIfAllowed(
+		"be",
+		"general",
+		"Hidden result transport: structured collaboration target is attached to this turn.",
+		"Duplicate backend result.",
+		startedAt,
+		headlessFinalPostInternalWorkResult,
+		headlessFinalPostTarget{CollaborationRequestID: "msg-request"},
+	)
+	if err != nil {
+		t.Fatalf("duplicate internal work-result fallback: %v", err)
+	}
+	if posted {
+		t.Fatal("expected duplicate final output fallback to be ignored")
 	}
 }
 

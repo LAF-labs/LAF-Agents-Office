@@ -48,14 +48,14 @@ func defaultHeadlessCodexRunTurn(l *Launcher, ctx context.Context, slug string, 
 	if l != nil {
 		switch l.memberEffectiveProviderKind(slug) {
 		case provider.KindCodex:
-			return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
+			return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, turn.FinalPostTarget, channelArgsForHeadlessTurn(turn)...)
 		case provider.KindOpencode:
-			return l.runHeadlessOpencodeTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
+			return l.runHeadlessOpencodeTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, turn.FinalPostTarget, channelArgsForHeadlessTurn(turn)...)
 		default:
-			return l.runHeadlessClaudeTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
+			return l.runHeadlessClaudeTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, turn.FinalPostTarget, channelArgsForHeadlessTurn(turn)...)
 		}
 	}
-	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, channelArgsForHeadlessTurn(turn)...)
+	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, turn.FinalPostTarget, channelArgsForHeadlessTurn(turn)...)
 }
 
 // headlessCodexRunTurn dispatches a queued turn to whichever runner the
@@ -106,9 +106,10 @@ type headlessCodexTurn struct {
 	// FinalPostPolicy defines whether a headless provider's final stdout text is
 	// a human-visible channel reply. Normal pushed chat/task turns allow this so
 	// Codex/Claude CLI can answer without knowing LAF-Office's broker internals.
-	// Hidden agent-collaboration turns suppress it so internal work results never
-	// leak into Home chat if a provider fails to call team_work_result.
+	// Hidden agent-collaboration requests store fallback final output as an
+	// internal work_result, while human-visible turns post it into chat.
 	FinalPostPolicy headlessFinalPostPolicy
+	FinalPostTarget headlessFinalPostTarget
 
 	// BypassLeadQueueCap is reserved for startup resume turns. Those may need
 	// one independent reply per unanswered human thread; collapsing them into the
@@ -116,15 +117,36 @@ type headlessCodexTurn struct {
 	BypassLeadQueueCap bool
 }
 
+type headlessFinalPostTarget struct {
+	// ReplyToID is the human-visible thread target for provider final output.
+	ReplyToID string
+	// CollaborationRequestID is the hidden team_delegate request that should
+	// receive provider final output as an internal work_result.
+	CollaborationRequestID string
+}
+
+func (t headlessFinalPostTarget) normalized() headlessFinalPostTarget {
+	return headlessFinalPostTarget{
+		ReplyToID:              strings.TrimSpace(t.ReplyToID),
+		CollaborationRequestID: strings.TrimSpace(t.CollaborationRequestID),
+	}
+}
+
 type headlessFinalPostPolicy string
 
 const (
-	headlessFinalPostAllow    headlessFinalPostPolicy = ""
-	headlessFinalPostSuppress headlessFinalPostPolicy = "suppress"
+	headlessFinalPostAllow              headlessFinalPostPolicy = ""
+	headlessFinalPostSuppress           headlessFinalPostPolicy = "suppress"
+	headlessFinalPostInternalWorkResult headlessFinalPostPolicy = "internal_work_result"
 )
 
-func (p headlessFinalPostPolicy) allowsFinalPost() bool {
-	return p != headlessFinalPostSuppress
+func (p headlessFinalPostPolicy) handlesProviderFinalOutput() bool {
+	switch p {
+	case headlessFinalPostAllow, headlessFinalPostInternalWorkResult:
+		return true
+	default:
+		return false
+	}
 }
 
 func channelArgsForHeadlessTurn(turn headlessCodexTurn) []string {
@@ -191,6 +213,10 @@ func (l *Launcher) enqueueHeadlessCodexTurn(slug string, prompt string, channel 
 }
 
 func (l *Launcher) enqueueHeadlessCodexTurnWithPolicy(slug string, prompt string, policy headlessFinalPostPolicy, channel ...string) {
+	l.enqueueHeadlessCodexTurnWithPolicyAndTarget(slug, prompt, policy, headlessFinalPostTarget{}, channel...)
+}
+
+func (l *Launcher) enqueueHeadlessCodexTurnWithPolicyAndTarget(slug string, prompt string, policy headlessFinalPostPolicy, finalTarget headlessFinalPostTarget, channel ...string) {
 	ch := ""
 	if len(channel) > 0 {
 		ch = channel[0]
@@ -206,6 +232,7 @@ func (l *Launcher) enqueueHeadlessCodexTurnWithPolicy(slug string, prompt string
 		TaskID:          headlessCodexTaskID(prompt),
 		EnqueuedAt:      time.Now(),
 		FinalPostPolicy: policy,
+		FinalPostTarget: finalTarget,
 	})
 }
 
@@ -214,6 +241,7 @@ func (l *Launcher) enqueueHeadlessCodexTurnRecord(slug string, turn headlessCode
 	turn.Prompt = strings.TrimSpace(turn.Prompt)
 	turn.Channel = strings.TrimSpace(turn.Channel)
 	turn.TaskID = strings.TrimSpace(turn.TaskID)
+	turn.FinalPostTarget = turn.FinalPostTarget.normalized()
 	if slug == "" || turn.Prompt == "" {
 		return
 	}
@@ -856,7 +884,7 @@ func (l *Launcher) agentPostedSubstantiveMessageToChannelSince(slug string, targ
 	return false
 }
 
-func (l *Launcher) postHeadlessFinalMessageIfSilent(slug string, targetChannel string, notification string, text string, startedAt time.Time) (channelMessage, bool, error) {
+func (l *Launcher) postHeadlessFinalMessageIfSilent(slug string, targetChannel string, notification string, text string, startedAt time.Time, finalTarget headlessFinalPostTarget) (channelMessage, bool, error) {
 	if l == nil || l.broker == nil {
 		return channelMessage{}, false, nil
 	}
@@ -876,25 +904,34 @@ func (l *Launcher) postHeadlessFinalMessageIfSilent(slug string, targetChannel s
 	if l.agentPostedSubstantiveMessageToChannelSince(slug, targetChannel, startedAt) {
 		return channelMessage{}, false, nil
 	}
-	msg, err := l.broker.PostMessage(slug, targetChannel, text, nil, headlessReplyToID(notification))
+	replyToID := strings.TrimSpace(finalTarget.ReplyToID)
+	if replyToID == "" {
+		replyToID = headlessReplyToID(notification)
+	}
+	msg, err := l.broker.PostMessage(slug, targetChannel, text, nil, replyToID)
 	if err != nil {
 		return channelMessage{}, false, err
 	}
 	return msg, true, nil
 }
 
-func (l *Launcher) postHeadlessFinalMessageIfAllowed(slug string, targetChannel string, notification string, text string, startedAt time.Time, policy headlessFinalPostPolicy) (channelMessage, bool, error) {
-	if !policy.allowsFinalPost() {
+func (l *Launcher) postHeadlessFinalMessageIfAllowed(slug string, targetChannel string, notification string, text string, startedAt time.Time, policy headlessFinalPostPolicy, finalTarget headlessFinalPostTarget) (channelMessage, bool, error) {
+	finalTarget = finalTarget.normalized()
+	switch policy {
+	case headlessFinalPostInternalWorkResult:
+		return l.postHeadlessInternalWorkResultIfSilent(slug, targetChannel, notification, text, startedAt, finalTarget)
+	case headlessFinalPostAllow:
+		return l.postHeadlessFinalMessageIfSilent(slug, targetChannel, notification, text, startedAt, finalTarget)
+	default:
 		return channelMessage{}, false, nil
 	}
-	return l.postHeadlessFinalMessageIfSilent(slug, targetChannel, notification, text, startedAt)
 }
 
 func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessCodexTurn, startedAt time.Time, detail string) {
 	if l == nil || l.broker == nil {
 		return
 	}
-	if !turn.FinalPostPolicy.allowsFinalPost() {
+	if turn.FinalPostPolicy != headlessFinalPostAllow {
 		appendHeadlessCodexLog(slug, "failure-notice-suppressed: hidden/internal turn")
 		return
 	}
@@ -910,7 +947,10 @@ func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessC
 	if l.agentPostedSubstantiveMessageToChannelSince(slug, targetChannel, startedAt) {
 		return
 	}
-	replyTo := headlessReplyToID(turn.Prompt)
+	replyTo := strings.TrimSpace(turn.FinalPostTarget.ReplyToID)
+	if replyTo == "" {
+		replyTo = headlessReplyToID(turn.Prompt)
+	}
 	if replyTo == "" {
 		if task := l.timedOutTaskForTurn(slug, turn); task != nil {
 			replyTo = strings.TrimSpace(task.ThreadID)
@@ -926,6 +966,97 @@ func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessC
 		return
 	}
 	appendHeadlessCodexLog(slug, fmt.Sprintf("failure-notice-post: posted failure notice to #%s reply_to=%s", targetChannel, replyTo))
+}
+
+func (l *Launcher) postHeadlessInternalWorkResultIfSilent(slug string, targetChannel string, notification string, text string, startedAt time.Time, finalTarget headlessFinalPostTarget) (channelMessage, bool, error) {
+	if l == nil || l.broker == nil {
+		return channelMessage{}, false, nil
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return channelMessage{}, false, nil
+	}
+	requestID := strings.TrimSpace(finalTarget.CollaborationRequestID)
+	if requestID == "" {
+		requestID = headlessCollaborationRequestID(notification)
+	}
+	if requestID == "" {
+		return channelMessage{}, false, nil
+	}
+	targetChannel = normalizeChannelSlug(targetChannel)
+	if targetChannel == "" {
+		targetChannel = "general"
+	}
+
+	l.broker.mu.Lock()
+	var request channelMessage
+	for _, msg := range l.broker.messages {
+		if strings.TrimSpace(msg.ID) == requestID {
+			request = msg
+			break
+		}
+	}
+	if strings.TrimSpace(request.ID) == "" {
+		l.broker.mu.Unlock()
+		return channelMessage{}, false, fmt.Errorf("collaboration request %s not found", requestID)
+	}
+	if ch := normalizeChannelSlug(request.Channel); ch != "" {
+		targetChannel = ch
+	}
+	if l.broker.findChannelLocked(targetChannel) == nil {
+		l.broker.mu.Unlock()
+		return channelMessage{}, false, fmt.Errorf("channel not found")
+	}
+	if !l.broker.canAccessChannelLocked(slug, targetChannel) {
+		l.broker.mu.Unlock()
+		return channelMessage{}, false, fmt.Errorf("channel access denied")
+	}
+	for _, msg := range l.broker.messages {
+		if msg.From != slug || strings.TrimSpace(msg.ReplyTo) != requestID || strings.TrimSpace(msg.Kind) != "work_result" {
+			continue
+		}
+		when, err := time.Parse(time.RFC3339, msg.Timestamp)
+		if err == nil && when.Add(time.Second).After(startedAt) {
+			l.broker.mu.Unlock()
+			return channelMessage{}, false, nil
+		}
+	}
+	requester := normalizeActorSlug(request.From)
+	tagged := []string{}
+	if requester != "" && requester != slug && !isHumanOrSystemSender(requester) {
+		tagged = append(tagged, requester)
+	}
+	audience := uniqueSlugs(append(append([]string{slug}, tagged...), request.Audience...))
+	l.broker.counter++
+	msg := channelMessage{
+		ID:            fmt.Sprintf("msg-%d", l.broker.counter),
+		From:          strings.TrimSpace(slug),
+		Channel:       targetChannel,
+		Kind:          "work_result",
+		Title:         "Internal collaboration result",
+		Content:       "Internal work result (done)\n\n" + text,
+		Tagged:        tagged,
+		ReplyTo:       requestID,
+		PublicReplyTo: strings.TrimSpace(request.PublicReplyTo),
+		TaskID:        strings.TrimSpace(request.TaskID),
+		Visibility:    messageVisibilityInternal,
+		RunID:         strings.TrimSpace(request.RunID),
+		Audience:      audience,
+		Timestamp:     time.Now().UTC().Format(time.RFC3339),
+	}
+	l.broker.appendMessageLocked(msg)
+	l.broker.compactHomeThreadLocked(requestID, msg.Timestamp)
+	if l.broker.lastTaggedAt != nil {
+		delete(l.broker.lastTaggedAt, msg.From)
+	}
+	if err := l.broker.saveLocked(); err != nil {
+		l.broker.mu.Unlock()
+		return channelMessage{}, false, err
+	}
+	l.broker.mu.Unlock()
+
+	l.deliverMessageNotification(msg)
+	return msg, true, nil
 }
 
 func headlessFailureNoticeText(slug string, detail string) string {
@@ -1194,10 +1325,10 @@ func (l *Launcher) headlessCodexStaleCancelAfterForTurn(turn headlessCodexTurn) 
 }
 
 func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notification string, channel ...string) error {
-	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, notification, headlessFinalPostAllow, channel...)
+	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, notification, headlessFinalPostAllow, headlessFinalPostTarget{}, channel...)
 }
 
-func (l *Launcher) runHeadlessCodexTurnWithPolicy(ctx context.Context, slug string, notification string, finalPostPolicy headlessFinalPostPolicy, channel ...string) error {
+func (l *Launcher) runHeadlessCodexTurnWithPolicy(ctx context.Context, slug string, notification string, finalPostPolicy headlessFinalPostPolicy, finalPostTarget headlessFinalPostTarget, channel ...string) error {
 	if _, err := headlessCodexLookPath("codex"); err != nil {
 		return fmt.Errorf("codex not found: %w", err)
 	}
@@ -1410,12 +1541,12 @@ func (l *Launcher) runHeadlessCodexTurnWithPolicy(ctx context.Context, slug stri
 	if text := strings.TrimSpace(firstNonEmpty(result.FinalMessage, result.LastPlainLine)); text != "" {
 		appendHeadlessCodexLog(slug, "result: "+text)
 		target := firstNonEmpty(channel...)
-		msg, posted, err := l.postHeadlessFinalMessageIfAllowed(slug, target, notification, text, startedAt, finalPostPolicy)
+		msg, posted, err := l.postHeadlessFinalMessageIfAllowed(slug, target, notification, text, startedAt, finalPostPolicy, finalPostTarget)
 		if err != nil {
 			appendHeadlessCodexLog(slug, "fallback-post-error: "+err.Error())
 		} else if posted {
 			appendHeadlessCodexLog(slug, fmt.Sprintf("fallback-post: posted final output to #%s as %s", msg.Channel, msg.ID))
-		} else if !finalPostPolicy.allowsFinalPost() {
+		} else if !finalPostPolicy.handlesProviderFinalOutput() {
 			appendHeadlessCodexLog(slug, "fallback-post-suppressed: hidden/internal turn")
 		}
 	}

@@ -599,6 +599,9 @@ func TestSendChannelUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
 	if !strings.Contains(turn.Prompt, `reply_to_id "msg-238"`) {
 		t.Fatalf("expected threaded final-post target, got %q", turn.Prompt)
 	}
+	if turn.FinalPostTarget.ReplyToID != "msg-238" {
+		t.Fatalf("expected structured final-post reply target, got %+v", turn.FinalPostTarget)
+	}
 }
 
 func TestSendTaskUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
@@ -632,6 +635,9 @@ func TestSendTaskUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
 	if !strings.Contains(turn.Prompt, `reply_to_id "msg-root"`) {
 		t.Fatalf("expected task thread reply target, got %q", turn.Prompt)
 	}
+	if turn.FinalPostTarget.ReplyToID != "msg-root" {
+		t.Fatalf("expected structured task reply target, got %+v", turn.FinalPostTarget)
+	}
 	if strings.Contains(turn.Prompt, "team_broadcast") {
 		t.Fatalf("headless task update must not require team_broadcast, got %q", turn.Prompt)
 	}
@@ -640,7 +646,7 @@ func TestSendTaskUpdateHeadlessUsesFinalAnswerTransport(t *testing.T) {
 	}
 }
 
-func TestSendChannelUpdateSuppressesFinalPostForHiddenCollaborationRequest(t *testing.T) {
+func TestSendChannelUpdateStoresHiddenCollaborationFallbackInternally(t *testing.T) {
 	b := newTestBroker(t)
 	l := newHeadlessLauncherForTest(t)
 	l.broker = b
@@ -663,11 +669,20 @@ func TestSendChannelUpdateSuppressesFinalPostForHiddenCollaborationRequest(t *te
 	})
 
 	turn := waitForHeadlessTurn(t, processed)
-	if turn.FinalPostPolicy != headlessFinalPostSuppress {
-		t.Fatalf("expected hidden collaboration request to suppress final-post fallback, got %q", turn.FinalPostPolicy)
+	if turn.FinalPostPolicy != headlessFinalPostInternalWorkResult {
+		t.Fatalf("expected hidden collaboration request to store final output as internal work_result, got %q", turn.FinalPostPolicy)
 	}
-	if !strings.Contains(turn.Prompt, "team_work_result") {
-		t.Fatalf("expected hidden request to require team_work_result, got %q", turn.Prompt)
+	if !strings.Contains(turn.Prompt, "Hidden result transport") || !strings.Contains(turn.Prompt, "team_work_result") {
+		t.Fatalf("expected hidden request to explain internal result transport, got %q", turn.Prompt)
+	}
+	if !strings.Contains(turn.Prompt, `request_id "msg-internal-request"`) {
+		t.Fatalf("expected hidden request prompt to include stable request id, got %q", turn.Prompt)
+	}
+	if turn.FinalPostTarget.CollaborationRequestID != "msg-internal-request" {
+		t.Fatalf("expected structured collaboration request target, got %+v", turn.FinalPostTarget)
+	}
+	if strings.Contains(turn.Prompt, "team_broadcast") {
+		t.Fatalf("hidden collaboration request must not mention human-visible broadcast transport, got %q", turn.Prompt)
 	}
 }
 
@@ -700,6 +715,9 @@ func TestSendChannelUpdateAllowsFinalPostForHiddenWorkResultSynthesis(t *testing
 	}
 	if !strings.Contains(turn.Prompt, `reply_to_id "home:team-alpha:user-alpha"`) {
 		t.Fatalf("expected public reply target in work-result notification, got %q", turn.Prompt)
+	}
+	if turn.FinalPostTarget.ReplyToID != "home:team-alpha:user-alpha" {
+		t.Fatalf("expected structured public reply target, got %+v", turn.FinalPostTarget)
 	}
 	if !strings.Contains(turn.Prompt, "Headless reply transport") {
 		t.Fatalf("expected hidden work-result synthesis to use final-answer transport, got %q", turn.Prompt)
@@ -2572,7 +2590,7 @@ func TestInternalWorkResultNotificationUsesPublicReplyTarget(t *testing.T) {
 	}
 
 	l := &Launcher{broker: b}
-	got := l.internalCollaborationNotification(notificationTarget{Slug: "ceo"}, b.messages[2], "general")
+	got := l.internalCollaborationNotification(notificationTarget{Slug: "ceo"}, b.messages[2], "general", agentReplyTransportBroadcast)
 
 	if !strings.Contains(got, `reply_to_id "home:team-alpha:user-alpha"`) {
 		t.Fatalf("expected public home thread as reply target, got %q", got)

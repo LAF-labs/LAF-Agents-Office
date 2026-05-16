@@ -23,10 +23,10 @@ var (
 )
 
 func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notification string, channel ...string) error {
-	return l.runHeadlessClaudeTurnWithPolicy(ctx, slug, notification, headlessFinalPostAllow, channel...)
+	return l.runHeadlessClaudeTurnWithPolicy(ctx, slug, notification, headlessFinalPostAllow, headlessFinalPostTarget{}, channel...)
 }
 
-func (l *Launcher) runHeadlessClaudeTurnWithPolicy(ctx context.Context, slug string, notification string, finalPostPolicy headlessFinalPostPolicy, channel ...string) error {
+func (l *Launcher) runHeadlessClaudeTurnWithPolicy(ctx context.Context, slug string, notification string, finalPostPolicy headlessFinalPostPolicy, finalPostTarget headlessFinalPostTarget, channel ...string) error {
 	if _, err := headlessClaudeLookPath("claude"); err != nil {
 		return fmt.Errorf("claude not found: %w", err)
 	}
@@ -229,12 +229,12 @@ func (l *Launcher) runHeadlessClaudeTurnWithPolicy(ctx context.Context, slug str
 	if text := strings.TrimSpace(result.FinalMessage); text != "" {
 		appendHeadlessClaudeLog(slug, "result: "+text)
 		target := firstNonEmpty(channel...)
-		msg, posted, err := l.postHeadlessFinalMessageIfAllowed(slug, target, notification, text, startedAt, finalPostPolicy)
+		msg, posted, err := l.postHeadlessFinalMessageIfAllowed(slug, target, notification, text, startedAt, finalPostPolicy, finalPostTarget)
 		if err != nil {
 			appendHeadlessClaudeLog(slug, "fallback-post-error: "+err.Error())
 		} else if posted {
 			appendHeadlessClaudeLog(slug, fmt.Sprintf("fallback-post: posted final output to #%s as %s", msg.Channel, msg.ID))
-		} else if !finalPostPolicy.allowsFinalPost() {
+		} else if !finalPostPolicy.handlesProviderFinalOutput() {
 			appendHeadlessClaudeLog(slug, "fallback-post-suppressed: hidden/internal turn")
 		}
 	}

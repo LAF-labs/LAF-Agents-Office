@@ -65,13 +65,6 @@ func findUnansweredMessages(humanMsgs, allMessages []channelMessage) []channelMe
 	return out
 }
 
-type agentReplyTransport string
-
-const (
-	agentReplyTransportBroadcast agentReplyTransport = "broadcast"
-	agentReplyTransportFinal     agentReplyTransport = "final"
-)
-
 type resumeWork struct {
 	Tasks    []teamTask
 	Messages []channelMessage
@@ -116,6 +109,7 @@ func buildHeadlessResumeTurns(slug string, work resumeWork) []headlessCodexTurn 
 			TaskID:             headlessCodexTaskID(packet),
 			EnqueuedAt:         time.Now(),
 			FinalPostPolicy:    headlessFinalPostAllow,
+			FinalPostTarget:    headlessFinalPostTarget{ReplyToID: strings.TrimSpace(msg.ID)},
 			BypassLeadQueueCap: true,
 		})
 	}
@@ -162,13 +156,14 @@ func buildResumePacketWithTransport(slug string, tasks []teamTask, msgs []channe
 				channel = "general"
 			}
 			if len(msgs) == 1 {
-				sb.WriteString(headlessFinalReplyInstruction(slug, channel, target.ID))
+				sb.WriteString(publicReplyInstruction(transport, slug, channel, target.ID))
 				sb.WriteString("\n")
 			} else {
 				sb.WriteString(fmt.Sprintf("Headless resume transport: write one final answer for the last listed unanswered message. LAF-Office will post that final answer as @%s to channel %q with reply_to_id %q after the turn. If you can answer other listed messages with office tools, do so; otherwise do not block on missing tools.\n", slug, channel, target.ID))
 			}
 		default:
-			sb.WriteString(fmt.Sprintf("Reply using team_broadcast with my_slug %q and the channel and reply_to_id shown above.\n", slug))
+			sb.WriteString(broadcastReplyInstructionForShownTargets(slug))
+			sb.WriteString("\n")
 		}
 	}
 
