@@ -78,7 +78,7 @@ func TestHandleCommands_ReturnsRegistrySubset(t *testing.T) {
 	// slash.go and add it here.
 	webSupported := []string{
 		"ask", "search", "remember", "help", "clear", "reset",
-		"requests", "skills", "tasks",
+		"growth", "requests", "skills", "tasks",
 		"threads", "provider", "focus", "collab",
 		"pause", "resume", "1o1", "task", "cancel",
 		"hire-agent", "assign-task", "daily-standup", "review-office",

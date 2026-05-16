@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flash } from "iconoir-react";
 
 import {
+  createSkill,
+  deleteSkill,
   getSkills,
   getUsage,
   invokeSkill,
@@ -24,7 +26,7 @@ import {
 } from "../../api/playbook";
 import { fetchCatalog as fetchWikiCatalog } from "../../api/wiki";
 import { formatTokens, formatUSD } from "../../lib/format";
-import { type SkillsSection, useAppStore } from "../../stores/app";
+import { useAppStore } from "../../stores/app";
 import { showNotice } from "../ui/Toast";
 
 const SYNTHESIS_STATUS_LIMIT = 20;
@@ -52,25 +54,48 @@ type PlaybookMaturityRow = {
   status: PlaybookSynthesisStatus | null;
 };
 
-export function SkillsApp() {
-  const section = useAppStore((s) => s.skillsSection);
-  const setSection = useAppStore((s) => s.setSkillsSection);
+type SkillPublishMode = "propose" | "create";
 
+type SkillFormState = {
+  name: string;
+  title: string;
+  description: string;
+  content: string;
+  trigger: string;
+  tags: string;
+  requiredPermissions: string;
+  action: SkillPublishMode;
+};
+
+const EMPTY_SKILL_FORM: SkillFormState = {
+  name: "",
+  title: "",
+  description: "",
+  content: "",
+  trigger: "",
+  tags: "",
+  requiredPermissions: "",
+  action: "propose",
+};
+
+export function GrowthCenterApp() {
   return (
-    <section className="skills-growth" aria-label="Skills Growth Center">
-      <SkillsHeader section={section} onSectionChange={setSection} />
-      {section === "list" ? <SkillList /> : <SkillsDashboard />}
+    <section className="skills-growth" aria-label="Growth Center">
+      <GrowthCenterHeader />
+      <SkillsDashboard />
     </section>
   );
 }
 
-function SkillsHeader({
-  section,
-  onSectionChange,
-}: {
-  section: SkillsSection;
-  onSectionChange: (section: SkillsSection) => void;
-}) {
+export function SkillsApp() {
+  return (
+    <section className="skills-growth" aria-label="Skills">
+      <SkillManager />
+    </section>
+  );
+}
+
+function GrowthCenterHeader() {
   return (
     <div className="skills-hero">
       <div>
@@ -80,26 +105,6 @@ function SkillsHeader({
           Notebook drafts become reviewed wiki memory, playbooks compile into
           skills, and execution logs feed the next version of the workspace.
         </p>
-      </div>
-      <div className="skills-tabs" role="tablist" aria-label="Skills sections">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={section === "dashboard"}
-          className={section === "dashboard" ? "is-active" : ""}
-          onClick={() => onSectionChange("dashboard")}
-        >
-          스킬 대시보드
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={section === "list"}
-          className={section === "list" ? "is-active" : ""}
-          onClick={() => onSectionChange("list")}
-        >
-          Skill list
-        </button>
       </div>
     </div>
   );
@@ -440,7 +445,11 @@ function PlaybookMaturity({ rows }: { rows: PlaybookMaturityRow[] }) {
   );
 }
 
-function SkillList() {
+function SkillManager() {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<SkillFormState>(EMPTY_SKILL_FORM);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<"idle" | "saving">("idle");
   const { data, isLoading, error } = useQuery({
     queryKey: ["skills"],
     queryFn: () => getSkills(),
@@ -451,21 +460,245 @@ function SkillList() {
     [data?.skills],
   );
 
-  if (isLoading) {
-    return <div className="app-loading-state">Loading skills...</div>;
-  }
+  const updateForm = useCallback(
+    (field: keyof SkillFormState, value: string) => {
+      setForm((current) => ({ ...current, [field]: value }));
+    },
+    [],
+  );
 
-  if (error) {
-    return <div className="app-empty-state">Could not load skills.</div>;
-  }
+  const resetForm = useCallback(() => {
+    setForm(EMPTY_SKILL_FORM);
+    setEditingName(null);
+  }, []);
 
+  const startEdit = useCallback((skill: Skill) => {
+    if (!skill.name) return;
+    setEditingName(skill.name);
+    setForm(skillToForm(skill));
+  }, []);
+
+  const handleSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const validation = validateSkillForm(form);
+      if (validation) {
+        showNotice(validation, "error");
+        return;
+      }
+      setSubmitState("saving");
+      const payload = skillPayloadFromForm(form);
+      const request = editingName
+        ? updateSkill({
+            ...payload,
+            name: editingName,
+            status: form.action === "propose" ? "proposed" : "active",
+          })
+        : createSkill({
+            ...payload,
+            action: form.action,
+            created_by: "human",
+          });
+
+      request
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["skills"] });
+          resetForm();
+          showNotice(
+            editingName
+              ? "Skill updated."
+              : form.action === "propose"
+                ? "Skill submitted for approval."
+                : "Skill registered.",
+            "success",
+          );
+        })
+        .catch((e: Error) => {
+          showNotice(`Skill save failed: ${e.message}`, "error");
+        })
+        .finally(() => setSubmitState("idle"));
+    },
+    [editingName, form, queryClient, resetForm],
+  );
+
+  return (
+    <>
+      <SkillsManagementHeader />
+      <SkillEditor
+        form={form}
+        isEditing={!!editingName}
+        isSaving={submitState !== "idle"}
+        onCancel={resetForm}
+        onChange={updateForm}
+        onSubmit={handleSubmit}
+      />
+      {isLoading ? (
+        <div className="app-loading-state">Loading skills...</div>
+      ) : error ? (
+        <div className="app-empty-state">Could not load skills.</div>
+      ) : (
+        <SkillTable skills={skills} onEdit={startEdit} />
+      )}
+    </>
+  );
+}
+
+function SkillsManagementHeader() {
+  return (
+    <div className="skills-hero">
+      <div>
+        <p className="skills-kicker">Team skill registry</p>
+        <h2>Skills</h2>
+        <p>
+          Register reusable instructions, approve agent proposals, and keep
+          the team skill list up to date without leaving this screen.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SkillEditor({
+  form,
+  isEditing,
+  isSaving,
+  onCancel,
+  onChange,
+  onSubmit,
+}: {
+  form: SkillFormState;
+  isEditing: boolean;
+  isSaving: boolean;
+  onCancel: () => void;
+  onChange: (field: keyof SkillFormState, value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const primaryLabel = isEditing
+    ? "Update skill"
+    : form.action === "propose"
+      ? "Submit for approval"
+      : "Register skill";
+
+  return (
+    <section className="skills-panel is-wide skills-editor-panel">
+      <div className="skills-section-head">
+        <h3>{isEditing ? "Edit skill" : "Register a skill manually"}</h3>
+        <p>
+          A skill is a reusable instruction the team can call with / in chat.
+          Keep the name short and write the steps clearly.
+        </p>
+      </div>
+      <form className="skills-editor-form" onSubmit={onSubmit}>
+        <div className="skills-editor-grid">
+          <label className="skills-field">
+            <span>Skill name</span>
+            <input
+              value={form.name}
+              disabled={isEditing}
+              onChange={(event) => onChange("name", event.target.value)}
+              placeholder="daily-standup"
+            />
+          </label>
+          <label className="skills-field">
+            <span>Title</span>
+            <input
+              value={form.title}
+              onChange={(event) => onChange("title", event.target.value)}
+              placeholder="Daily standup"
+            />
+          </label>
+          <label className="skills-field">
+            <span>Short summary</span>
+            <input
+              value={form.description}
+              onChange={(event) =>
+                onChange("description", event.target.value)
+              }
+              placeholder="Collect blockers and next actions from the team"
+            />
+          </label>
+          <label className="skills-field">
+            <span>Trigger hint</span>
+            <input
+              value={form.trigger}
+              onChange={(event) => onChange("trigger", event.target.value)}
+              placeholder="/daily-standup"
+            />
+          </label>
+          <label className="skills-field">
+            <span>Tags</span>
+            <input
+              value={form.tags}
+              onChange={(event) => onChange("tags", event.target.value)}
+              placeholder="ops, review"
+            />
+          </label>
+          <label className="skills-field">
+            <span>Permissions</span>
+            <input
+              value={form.requiredPermissions}
+              onChange={(event) =>
+                onChange("requiredPermissions", event.target.value)
+              }
+              placeholder="optional, comma separated"
+            />
+          </label>
+          <label className="skills-field">
+            <span>Registration mode</span>
+            <select
+              value={form.action}
+              onChange={(event) =>
+                onChange("action", event.target.value as SkillPublishMode)
+              }
+            >
+              <option value="propose">Needs approval</option>
+              <option value="create">Use immediately</option>
+            </select>
+          </label>
+        </div>
+        <label className="skills-field skills-field-full">
+          <span>Instructions</span>
+          <textarea
+            value={form.content}
+            onChange={(event) => onChange("content", event.target.value)}
+            placeholder="Write the steps the agent should follow when this skill is used."
+            rows={8}
+          />
+        </label>
+        <div className="skills-editor-actions">
+          <button type="submit" className="skills-invoke" disabled={isSaving}>
+            {isSaving ? "Saving..." : primaryLabel}
+          </button>
+          {isEditing ? (
+            <button
+              type="button"
+              className="skills-link-button"
+              onClick={onCancel}
+              disabled={isSaving}
+            >
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function SkillTable({
+  skills,
+  onEdit,
+}: {
+  skills: Skill[];
+  onEdit: (skill: Skill) => void;
+}) {
   return (
     <section className="skills-panel is-wide">
       <div className="skills-section-head">
         <h3>Shared team skills</h3>
         <p>
-          Broker skills available to agents in this workspace. Updated dates
-          come from durable skill state.
+          Skills that agents can use in this workspace. Proposed skills stay
+          inactive until someone approves them.
         </p>
       </div>
       {skills.length === 0 ? (
@@ -482,12 +715,16 @@ function SkillList() {
                 <th>Usage</th>
                 <th>Last run</th>
                 <th>Source</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {skills.map((skill) => (
-                <SkillRow key={skill.id || skill.name} skill={skill} />
+                <SkillRow
+                  key={skill.id || skill.name}
+                  skill={skill}
+                  onEdit={onEdit}
+                />
               ))}
             </tbody>
           </table>
@@ -497,7 +734,13 @@ function SkillList() {
   );
 }
 
-function SkillRow({ skill }: { skill: Skill }) {
+function SkillRow({
+  skill,
+  onEdit,
+}: {
+  skill: Skill;
+  onEdit: (skill: Skill) => void;
+}) {
   const source = skill.source || skill.channel || skill.created_by || "-";
   const isProposed = (skill.status || "active") === "proposed";
   return (
@@ -533,11 +776,24 @@ function SkillRow({ skill }: { skill: Skill }) {
       </td>
       <td>{source}</td>
       <td>
-        {isProposed ? (
-          <SkillApprovalActions skill={skill} />
-        ) : (
-          <InvokeSkillButton skill={skill} />
-        )}
+        <div className="skills-action-stack">
+          {isProposed ? (
+            <SkillApprovalActions skill={skill} />
+          ) : (
+            <InvokeSkillButton skill={skill} />
+          )}
+          <div className="skills-action-row">
+            <button
+              type="button"
+              className="skills-link-button"
+              disabled={!skill.name}
+              onClick={() => onEdit(skill)}
+            >
+              Edit
+            </button>
+            <SkillDeleteButton skill={skill} />
+          </div>
+        </div>
       </td>
     </tr>
   );
@@ -630,6 +886,40 @@ function InvokeSkillButton({ skill }: { skill: Skill }) {
   );
 }
 
+function SkillDeleteButton({ skill }: { skill: Skill }) {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<"idle" | "deleting">("idle");
+
+  const handleDelete = useCallback(() => {
+    if (!skill.name) return;
+    const confirmed = window.confirm(
+      `Archive skill "${skill.title || skill.name}"? Agents will no longer see it in the skill list.`,
+    );
+    if (!confirmed) return;
+    setState("deleting");
+    deleteSkill(skill.name)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["skills"] });
+        showNotice("Skill archived.", "success");
+      })
+      .catch((e: Error) => {
+        showNotice(`Skill archive failed: ${e.message}`, "error");
+      })
+      .finally(() => setState("idle"));
+  }, [queryClient, skill.name, skill.title]);
+
+  return (
+    <button
+      type="button"
+      className="skills-link-button is-danger"
+      disabled={state !== "idle" || !skill.name}
+      onClick={handleDelete}
+    >
+      {state === "deleting" ? "Deleting..." : "Delete"}
+    </button>
+  );
+}
+
 function StatusPill({
   active,
   children,
@@ -646,6 +936,47 @@ function StatusPill({
 
 function InlineError({ message }: { message: string }) {
   return <div className="skills-inline-error">{message}</div>;
+}
+
+function skillToForm(skill: Skill): SkillFormState {
+  return {
+    name: skill.name || "",
+    title: skill.title || "",
+    description: skill.description || "",
+    content: skill.content || "",
+    trigger: skill.trigger || "",
+    tags: (skill.tags ?? []).join(", "),
+    requiredPermissions: (skill.required_permissions ?? []).join(", "),
+    action: skill.status === "proposed" ? "propose" : "create",
+  };
+}
+
+function skillPayloadFromForm(form: SkillFormState) {
+  const name = form.name.trim();
+  const title = form.title.trim() || name;
+  return {
+    name,
+    title,
+    description: form.description.trim(),
+    content: form.content.trim(),
+    trigger: form.trigger.trim(),
+    tags: splitCommaList(form.tags),
+    required_permissions: splitCommaList(form.requiredPermissions),
+    channel: "general",
+  };
+}
+
+function validateSkillForm(form: SkillFormState): string | null {
+  if (!form.name.trim()) return "Skill name is required.";
+  if (!form.content.trim()) return "Instructions are required.";
+  return null;
+}
+
+function splitCommaList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function buildGrowthModel({
@@ -852,6 +1183,9 @@ function formatCount(value?: number): string {
 
 export const __test__ = {
   buildGrowthModel,
+  skillPayloadFromForm,
+  skillToForm,
+  splitCommaList,
   sortPlaybookMaturityRows,
   sortSkillsByUpdated,
   formatDateTime,

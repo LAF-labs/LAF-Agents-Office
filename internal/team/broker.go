@@ -12515,7 +12515,7 @@ func (b *Broker) handlePostSkill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createdBy := mapLegacyTaskActorToCore(body.CreatedBy)
-	if action == "propose" {
+	if action == "propose" && !isHumanActorSlug(createdBy) {
 		if b.findMemberLocked(createdBy) == nil {
 			http.Error(w, "created_by must be a registered agent for skill proposals", http.StatusForbidden)
 			return

@@ -1,6 +1,7 @@
 import { type ComponentType, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   BookStack,
   CheckCircle,
   Flash,
@@ -19,7 +20,7 @@ import { useOverflow } from "../../hooks/useOverflow";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
-import { type SkillsSection, useAppStore } from "../../stores/app";
+import { useAppStore } from "../../stores/app";
 import { Button } from "../ui/button";
 
 // Notebooks and reviews render inside the Wiki app shell via tabs, so the
@@ -32,6 +33,7 @@ const REVIEW_BADGE_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   home: HomeSimple,
+  growth: Activity,
   studio: Play,
   wiki: BookStack,
   tasks: CheckCircle,
@@ -42,11 +44,6 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 type SidebarApp = (typeof SIDEBAR_APPS)[number];
-
-const SKILLS_NAV_ITEMS: Array<{ id: SkillsSection; label: string }> = [
-  { id: "dashboard", label: "스킬 대시보드" },
-  { id: "list", label: "Skill list" },
-];
 
 function badgeForApp(
   appId: string,
@@ -62,10 +59,8 @@ interface SidebarAppGroupProps {
   currentApp: string | null;
   projectFocusId: string | null;
   projects: Project[];
-  skillsSection: SkillsSection;
   setCurrentApp: (app: string | null) => void;
   setProjectFocusId: (projectId: string | null) => void;
-  setSkillsSection: (section: SkillsSection) => void;
   t: (key: I18nKey) => string;
 }
 
@@ -75,14 +70,11 @@ function SidebarAppGroup({
   currentApp,
   projectFocusId,
   projects,
-  skillsSection,
   setCurrentApp,
   setProjectFocusId,
-  setSkillsSection,
   t,
 }: SidebarAppGroupProps) {
   const [projectsExpanded, setProjectsExpanded] = useState(true);
-  const [skillsExpanded, setSkillsExpanded] = useState(true);
   const Icon = APP_ICONS[app.id];
   const isActive =
     app.id === "wiki"
@@ -90,17 +82,12 @@ function SidebarAppGroup({
       : currentApp === app.id;
   const appName = t(`app.${app.id}` as I18nKey);
   const showProjects = app.id === "tasks" && isActive;
-  const showSkills = app.id === "skills" && isActive;
-  const showExpandable = showProjects || showSkills;
-  const expanded = showProjects ? projectsExpanded : skillsExpanded;
+  const showExpandable = showProjects;
+  const expanded = projectsExpanded;
   const toggleLabel =
-    app.id === "tasks"
-      ? expanded
-        ? t("tasks.sidebar.collapseProjects")
-        : t("tasks.sidebar.expandProjects")
-      : expanded
-        ? "Collapse Skills"
-        : "Expand Skills";
+    expanded
+      ? t("tasks.sidebar.collapseProjects")
+      : t("tasks.sidebar.expandProjects");
 
   return (
     <div className="sidebar-app-group">
@@ -115,10 +102,6 @@ function SidebarAppGroup({
             if (app.id === "tasks") {
               setProjectFocusId(null);
               setProjectsExpanded(true);
-            }
-            if (app.id === "skills") {
-              setSkillsSection("dashboard");
-              setSkillsExpanded(true);
             }
             setCurrentApp(app.id);
           }}
@@ -148,7 +131,6 @@ function SidebarAppGroup({
             title={toggleLabel}
             onClick={() => {
               if (showProjects) setProjectsExpanded((value) => !value);
-              if (showSkills) setSkillsExpanded((value) => !value);
             }}
           >
             {expanded ? (
@@ -166,13 +148,6 @@ function SidebarAppGroup({
           setCurrentApp={setCurrentApp}
           setProjectFocusId={setProjectFocusId}
           t={t}
-        />
-      ) : null}
-      {showSkills && skillsExpanded ? (
-        <SidebarSkillsList
-          current={skillsSection}
-          setCurrentApp={setCurrentApp}
-          setSkillsSection={setSkillsSection}
         />
       ) : null}
     </div>
@@ -216,46 +191,11 @@ function SidebarProjectsList({
   );
 }
 
-function SidebarSkillsList({
-  current,
-  setCurrentApp,
-  setSkillsSection,
-}: {
-  current: SkillsSection;
-  setCurrentApp: (app: string | null) => void;
-  setSkillsSection: (section: SkillsSection) => void;
-}) {
-  return (
-    <nav className="sidebar-projects-list" aria-label="Skills sections">
-      {SKILLS_NAV_ITEMS.map((item) => (
-        <Button
-          type="button"
-          key={item.id}
-          className={`sidebar-project-link${
-            current === item.id ? " active" : ""
-          }`}
-          variant="ghost"
-          aria-label={item.label}
-          title={item.label}
-          onClick={() => {
-            setSkillsSection(item.id);
-            setCurrentApp("skills");
-          }}
-        >
-          <span>{item.label}</span>
-        </Button>
-      ))}
-    </nav>
-  );
-}
-
 export function AppList() {
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const projectFocusId = useAppStore((s) => s.projectFocusId);
   const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
-  const skillsSection = useAppStore((s) => s.skillsSection);
-  const setSkillsSection = useAppStore((s) => s.setSkillsSection);
   const { t } = useI18n();
 
   const { data: reviewsData } = useQuery({
@@ -289,10 +229,8 @@ export function AppList() {
             currentApp={currentApp}
             projectFocusId={projectFocusId}
             projects={projectsData?.projects ?? []}
-            skillsSection={skillsSection}
             setCurrentApp={setCurrentApp}
             setProjectFocusId={setProjectFocusId}
-            setSkillsSection={setSkillsSection}
             t={t}
           />
         ))}

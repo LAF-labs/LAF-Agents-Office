@@ -58,16 +58,18 @@ describe("useHashRouter project routes", () => {
     });
   });
 
-  it("accepts skills growth center routes", () => {
+  it("accepts growth center and skills routes", () => {
+    expect(__test__.parseHash("#/growth")).toEqual({
+      view: "app",
+      app: "growth",
+    });
     expect(__test__.parseHash("#/skills")).toEqual({
       view: "app",
       app: "skills",
-      skillsSection: "dashboard",
     });
     expect(__test__.parseHash("#/skills/list")).toEqual({
       view: "app",
       app: "skills",
-      skillsSection: "list",
     });
     expect(__test__.parseHash("#/apps/skills")).toEqual({
       view: "app",
@@ -93,7 +95,13 @@ describe("useHashRouter project routes", () => {
     ).toBe("#/home");
   });
 
-  it("canonicalizes the skills app to the growth center routes", () => {
+  it("canonicalizes growth center and skills app routes", () => {
+    expect(
+      __test__.stateToHash({
+        ...baseState,
+        currentApp: "growth",
+      }),
+    ).toBe("#/growth");
     expect(
       __test__.stateToHash({
         ...baseState,
@@ -106,7 +114,7 @@ describe("useHashRouter project routes", () => {
         currentApp: "skills",
         skillsSection: "list",
       }),
-    ).toBe("#/skills/list");
+    ).toBe("#/skills");
   });
 
   it("keeps the focused project in the project route", () => {

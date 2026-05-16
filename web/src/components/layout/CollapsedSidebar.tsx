@@ -29,6 +29,7 @@ import { useAppStore } from "../../stores/app";
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   home: HomeSimple,
+  growth: Activity,
   studio: Play,
   wiki: BookStack,
   tasks: CheckCircle,
@@ -45,7 +46,6 @@ export function CollapsedSidebar() {
   const toggleCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
-  const setSkillsSection = useAppStore((s) => s.setSkillsSection);
   const { t } = useI18n();
   const [popover, setPopover] = useState<Popover>(null);
   const [hint, setHint] = useState<HintState>(null);
@@ -140,7 +140,6 @@ export function CollapsedSidebar() {
               className={`sidebar-icon-btn${isActive ? " active" : ""}`}
               aria-label={appName}
               onClick={() => {
-                if (app.id === "skills") setSkillsSection("dashboard");
                 setCurrentApp(app.id);
               }}
               onFocus={() => preloadWorkspaceSurface(app.id)}

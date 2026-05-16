@@ -1490,6 +1490,7 @@ export interface Skill {
   workflow_key?: string;
   workflow_definition?: string;
   workflow_schedule?: string;
+  required_permissions?: string[];
   relay_id?: string;
   relay_platform?: string;
   relay_event_types?: string[];
@@ -1514,6 +1515,17 @@ export function getSkills() {
 
 export function invokeSkill(name: string, params?: Record<string, unknown>) {
   return post(`/skills/${encodeURIComponent(name)}/invoke`, params ?? {});
+}
+
+export function createSkill(
+  body: Partial<Skill> & {
+    name: string;
+    content: string;
+    created_by: string;
+    action?: "create" | "propose";
+  },
+) {
+  return post<{ skill: Skill }>("/skills", body);
 }
 
 export function updateSkill(body: Partial<Skill> & { name: string }) {

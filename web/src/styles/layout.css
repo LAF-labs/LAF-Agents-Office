@@ -1325,6 +1325,66 @@ html[data-theme="office"]
   font-size: 12px;
   line-height: 1.45;
 }
+.skills-editor-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+.skills-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.skills-field {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.skills-field span {
+  color: var(--text-secondary);
+}
+.skills-field input,
+.skills-field select,
+.skills-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 520;
+  padding: 10px 11px;
+  outline: none;
+}
+.skills-field textarea {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.skills-field input:focus,
+.skills-field select:focus,
+.skills-field textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.skills-field input:disabled {
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+}
+.skills-field-full {
+  grid-column: 1 / -1;
+}
+.skills-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .skills-empty-inline {
   padding: 22px 16px;
   color: var(--text-tertiary);
@@ -1437,7 +1497,7 @@ html[data-theme="office"]
 }
 .skills-table th:last-child,
 .skills-table td:last-child {
-  width: 96px;
+  width: 156px;
 }
 .skills-status {
   display: inline-flex !important;
@@ -1486,6 +1546,13 @@ html[data-theme="office"]
   align-items: center;
   gap: 6px;
 }
+.skills-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+.skills-link-button.is-danger:hover:not(:disabled),
 .skills-invoke.is-danger:hover:not(:disabled) {
   background: var(--error-100);
   border-color: var(--error-300);
@@ -1546,6 +1613,7 @@ html[data-theme="office"]
   .skills-loop,
   .skills-metric-strip,
   .skills-dashboard-grid,
+  .skills-editor-grid,
   .skills-budget-grid {
     grid-template-columns: 1fr;
   }

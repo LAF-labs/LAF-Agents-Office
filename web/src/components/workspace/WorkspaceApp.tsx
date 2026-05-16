@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   loadArtifactsApp,
   loadCitedAnswer,
+  loadGrowthCenterApp,
   loadHomeApp,
   loadNotebook,
   loadReceiptsApp,
@@ -53,6 +54,7 @@ const ReceiptsApp = lazy(loadReceiptsApp);
 const RequestsApp = lazy(loadRequestsApp);
 const SettingsApp = lazy(loadSettingsApp);
 const SkillsApp = lazy(loadSkillsApp);
+const GrowthCenterApp = lazy(loadGrowthCenterApp);
 const TasksApp = lazy(loadTasksApp);
 const ThreadsApp = lazy(loadThreadsApp);
 const CitedAnswer = lazy(loadCitedAnswer);
@@ -191,6 +193,7 @@ function MainContent() {
     const panels: Record<string, PanelComponent> = {
       home: HomeApp,
       tasks: TasksApp,
+      growth: GrowthCenterApp,
       requests: RequestsApp,
       skills: SkillsApp,
       activity: ArtifactsApp,

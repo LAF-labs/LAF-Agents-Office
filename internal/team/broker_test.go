@@ -5902,6 +5902,39 @@ func TestPostSkillProposeCreatesApprovalRequest(t *testing.T) {
 	}
 }
 
+func TestPostHumanSkillProposeCreatesApprovalRequest(t *testing.T) {
+	tmpDir := t.TempDir()
+	b := NewBrokerAt(filepath.Join(tmpDir, "broker-state.json"))
+	body := bytes.NewBufferString(`{
+		"action":"propose",
+		"name":"manual-human-skill",
+		"title":"Manual Human Skill",
+		"description":"Created from the Skills UI.",
+		"content":"1. Do the reviewed thing",
+		"created_by":"human",
+		"channel":"general"
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/skills", body)
+	rec := httptest.NewRecorder()
+
+	b.handlePostSkill(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.skills) != 1 {
+		t.Fatalf("expected proposed skill, got %+v", b.skills)
+	}
+	if b.skills[0].Status != "proposed" || b.skills[0].CreatedBy != "human" {
+		t.Fatalf("unexpected human proposed skill: %+v", b.skills[0])
+	}
+	if len(b.requests) != 1 || b.requests[0].Kind != "skill_proposal" {
+		t.Fatalf("expected human skill approval request, got %+v", b.requests)
+	}
+}
+
 // Test 7: Answering "accept" via HTTP activates the skill.
 func TestSkillProposalAcceptCallbackActivatesSkill(t *testing.T) {
 	b := newTestBroker(t)

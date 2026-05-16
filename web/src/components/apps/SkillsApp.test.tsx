@@ -169,4 +169,33 @@ describe("Skills growth model", () => {
       /^2026\.05\.12 \d{2}:\d{2}$/,
     );
   });
+
+  it("maps editable skill form data into the broker payload shape", () => {
+    const form = __test__.skillToForm({
+      name: "daily-standup",
+      title: "Daily Standup",
+      description: "Summarize blockers.",
+      content: "1. Ask each owner for blockers.",
+      trigger: "/daily-standup",
+      tags: ["ops", "review"],
+      required_permissions: ["workspace:read", "skill:invoke"],
+      status: "proposed",
+    });
+
+    expect(form.action).toBe("propose");
+    expect(form.tags).toBe("ops, review");
+    expect(__test__.skillPayloadFromForm(form)).toEqual(
+      expect.objectContaining({
+        name: "daily-standup",
+        title: "Daily Standup",
+        tags: ["ops", "review"],
+        required_permissions: ["workspace:read", "skill:invoke"],
+        channel: "general",
+      }),
+    );
+    expect(__test__.splitCommaList(" ops, , review ")).toEqual([
+      "ops",
+      "review",
+    ]);
+  });
 });

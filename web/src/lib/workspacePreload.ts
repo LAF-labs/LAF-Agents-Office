@@ -34,6 +34,12 @@ export function loadSkillsApp() {
   }));
 }
 
+export function loadGrowthCenterApp() {
+  return import("../components/apps/SkillsApp").then((module) => ({
+    default: module.GrowthCenterApp,
+  }));
+}
+
 export function loadTasksApp() {
   return import("../components/apps/TasksApp").then((module) => ({
     default: module.TasksApp,
@@ -69,6 +75,9 @@ export function preloadWorkspaceSurface(surface: string | null | undefined) {
       break;
     case "home":
       void loadHomeApp();
+      break;
+    case "growth":
+      void loadGrowthCenterApp();
       break;
     case "notebooks":
       void loadNotebook();

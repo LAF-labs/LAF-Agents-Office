@@ -690,6 +690,7 @@ interface CommandDeps {
 }
 
 const PALETTE_APP_COMMANDS: Record<string, string> = {
+  "/growth": "growth",
   "/requests": "requests",
   "/skills": "skills",
   "/tasks": "tasks",

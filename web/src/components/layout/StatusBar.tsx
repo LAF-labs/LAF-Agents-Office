@@ -15,6 +15,7 @@ interface HealthSnapshot {
 }
 
 const STATUS_APP_TITLE_KEYS: Record<string, I18nKey> = {
+  growth: "app.growth",
   wiki: "app.wiki",
   tasks: "app.tasks",
   requests: "app.requests",

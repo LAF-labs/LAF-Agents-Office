@@ -29,7 +29,6 @@ const DEFAULT_ROUTE: Route = HOME_ROUTE;
 
 function appRoute(app: string): Route {
   if (app === "projects") return { view: "app", app: "tasks" };
-  if (app === "skills") return { view: "app", app: "skills" };
   return { view: "app", app };
 }
 
@@ -62,11 +61,9 @@ function parseHash(hash: string): Route {
             : null,
       };
     case "skills":
-      return {
-        view: "app",
-        app: "skills",
-        skillsSection: parts[1] === "list" ? "list" : "dashboard",
-      };
+      return { view: "app", app: "skills" };
+    case "growth":
+      return { view: "app", app: "growth" };
     case "threads":
       return { view: "app", app: "threads" };
     case "wiki":
@@ -152,8 +149,10 @@ function appStateToHash(state: {
         )}/tasks/${encodeURIComponent(state.taskFocusId)}`;
       }
       return `#/projects/${encodeURIComponent(state.projectFocusId)}`;
+    case "growth":
+      return "#/growth";
     case "skills":
-      return state.skillsSection === "list" ? "#/skills/list" : "#/skills";
+      return "#/skills";
     case null:
       return null;
     default:
@@ -202,9 +201,6 @@ function applyRoute(route: Route, actions: HashRouteActions) {
       actions.setTaskFocusId(
         route.app === "tasks" ? (route.taskId ?? null) : null,
       );
-      if (route.app === "skills") {
-        actions.setSkillsSection(route.skillsSection ?? "dashboard");
-      }
       actions.setCurrentApp(route.app);
       break;
     case "wiki-lookup":
