@@ -2,9 +2,11 @@ package mcp
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const (
@@ -48,8 +50,10 @@ type ContextStore interface {
 }
 
 type Gateway struct {
-	Issuer TokenIssuer
-	Store  ContextStore
+	Issuer       TokenIssuer
+	Store        ContextStore
+	StaticToken  string
+	StaticClaims *TokenClaims
 }
 
 type ToolResult struct {
@@ -71,7 +75,7 @@ func (g Gateway) CallTool(ctx context.Context, token, name string, args json.Raw
 	if g.Store == nil {
 		return ToolResult{}, fmt.Errorf("bridge MCP context store is not configured")
 	}
-	claims, err := g.Issuer.Validate(token)
+	claims, err := g.claimsForToken(token)
 	if err != nil {
 		return ToolResult{}, err
 	}
@@ -132,6 +136,20 @@ func (g Gateway) CallTool(ctx context.Context, token, name string, args json.Raw
 	default:
 		return ToolResult{}, fmt.Errorf("unknown bridge MCP tool %q", name)
 	}
+}
+
+func (g Gateway) claimsForToken(token string) (TokenClaims, error) {
+	if g.StaticClaims != nil {
+		if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(token)), []byte(strings.TrimSpace(g.StaticToken))) != 1 {
+			return TokenClaims{}, ErrInvalidToken
+		}
+		claims := *g.StaticClaims
+		if claims.ExpiresAt <= time.Now().Unix() {
+			return TokenClaims{}, ErrExpiredToken
+		}
+		return claims, nil
+	}
+	return g.Issuer.Validate(token)
 }
 
 func requirePermission(claims TokenClaims, permission string) error {

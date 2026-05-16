@@ -31,8 +31,10 @@ func assertExpected(raw string, parsed any, expected expectedBlock) matchResult 
 		}
 	}
 
-	if expected.Structured != nil && parsed != nil {
-		if errs := partialMatch(expected.Structured, parsed, ""); len(errs) > 0 {
+	if expected.Structured != nil {
+		if parsed == nil {
+			failures = append(failures, "structured: expected structured output, but output was not parsed")
+		} else if errs := partialMatch(expected.Structured, parsed, ""); len(errs) > 0 {
 			failures = append(failures, errs...)
 		}
 	}

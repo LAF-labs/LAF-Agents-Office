@@ -69,13 +69,17 @@ func main() {
 	// Always echo the report to stdout.
 	fmt.Print(report)
 
-	if agg.PassRate < cfg.Gate {
+	effectiveGate := agg.Gate
+	if effectiveGate <= 0 {
+		effectiveGate = runner.Defaults().Gate
+	}
+	if agg.PassRate < effectiveGate {
 		fmt.Fprintf(os.Stderr, "\nSHIP GATE RED — pass rate %.2f%% < gate %.0f%%\n",
-			agg.PassRate*100, cfg.Gate*100)
+			agg.PassRate*100, effectiveGate*100)
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "\nSHIP GATE GREEN — pass rate %.2f%% >= gate %.0f%%\n",
-		agg.PassRate*100, cfg.Gate*100)
+		agg.PassRate*100, effectiveGate*100)
 }
 
 // defaultPath returns bench/slice-1/{name} resolved from the current working

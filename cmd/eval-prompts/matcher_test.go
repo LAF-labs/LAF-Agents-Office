@@ -184,6 +184,28 @@ func TestStructuredFlatMatch(t *testing.T) {
 	}
 }
 
+func TestStructuredExpectationFailsWhenParsedOutputMissing(t *testing.T) {
+	res := assertExpected(`plain text`, nil, expectedBlock{
+		Structured: map[string]any{
+			"query_class": "status",
+		},
+	})
+
+	if res.pass {
+		t.Fatalf("expected structured nil parsed output to fail")
+	}
+	found := false
+	for _, failure := range res.failures {
+		if contains(failure, "expected structured output") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected clear structured parsing failure, got %v", res.failures)
+	}
+}
+
 func TestStructuredNestedMatch(t *testing.T) {
 	// Tests partial-deep-match: nested object inside expected must match the
 	// corresponding nested object in actual.

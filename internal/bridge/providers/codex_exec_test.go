@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/bridge"
 )
 
 type codexRecord struct {
@@ -80,6 +82,33 @@ func TestCodexExecRunParsesJSONLAndChangedFiles(t *testing.T) {
 	}
 	if !strings.Contains(records[0].Stdin, "Ship with Bearer") {
 		t.Fatalf("prompt was not sent on stdin: %q", records[0].Stdin)
+	}
+}
+
+func TestCodexExecExecuteHonorsReadOnlyPlanSandbox(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	recordFile := filepath.Join(t.TempDir(), "record.jsonl")
+	workdir := t.TempDir()
+	initGitRepo(t, workdir)
+	adapter := testCodexAdapter(t, recordFile, "success")
+
+	_, err := adapter.Execute(context.Background(), bridge.ExecutionPlan{
+		Provider: "codex",
+		Policy:   json.RawMessage(`{"sandbox":"read-only"}`),
+		Prompt:   "Inspect only",
+	}, bridge.ProjectBinding{LocalPath: workdir})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	records := readCodexRecords(t, recordFile)
+	if len(records) != 1 {
+		t.Fatalf("records: %#v", records)
+	}
+	if !containsArgSequence(records[0].Args, "--sandbox", "read-only") {
+		t.Fatalf("codex did not receive read-only sandbox: %#v", records[0].Args)
 	}
 }
 
@@ -218,6 +247,15 @@ func runGit(t *testing.T, dir string, args ...string) {
 func containsArg(args []string, want string) bool {
 	for _, arg := range args {
 		if arg == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsArgSequence(args []string, first string, second string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == first && args[i+1] == second {
 			return true
 		}
 	}

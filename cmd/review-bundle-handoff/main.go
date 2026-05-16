@@ -314,11 +314,25 @@ func buildApprovalGateFromStatus(inputs bundleInputs, forceApprove bool) approva
 		gate.Blockers = append(gate.Blockers, fmt.Sprintf("Approval status artifact has unsupported gate_status %q.", status.GateStatus))
 		gate.Status = "blocked"
 	}
+	claimedReleaseReady := gate.Status == "release_ready"
 	if len(gate.Approvers) == 0 && inputs.ApprovalPacket != nil {
 		gate.Approvers = cloneApprovers(inputs.ApprovalPacket.Approvers)
 	}
 	if len(gate.Approvers) == 0 {
 		gate.Blockers = append(gate.Blockers, "No approver states were found in the approval artifacts.")
+		gate.Status = "blocked"
+	}
+	for _, approver := range gate.Approvers {
+		if normalizeStatus(approver.Status) != "approved" {
+			gate.Blockers = append(gate.Blockers, fmt.Sprintf("%s is not approved.", approver.Role))
+			gate.Status = "blocked"
+		}
+	}
+	if claimedReleaseReady && len(gate.Blockers) > 0 {
+		gate.Status = "blocked"
+	}
+	if claimedReleaseReady && len(gate.ReleaseWhen) > 0 {
+		gate.Blockers = append(gate.Blockers, "Approval status artifact still contains release conditions.")
 		gate.Status = "blocked"
 	}
 	if inputs.ApprovalPacket != nil && strings.TrimSpace(inputs.ApprovalPacket.NotionStatus) != "" {
@@ -351,10 +365,7 @@ func buildApprovalGateFromNotion(notion notionPayload, forceApprove bool) approv
 	}
 
 	normalizedStatus := normalizeStatus(notion.Status)
-	if normalizedStatus == "" || strings.Contains(normalizedStatus, "pending") {
-		gate.Blockers = append(gate.Blockers, fmt.Sprintf("Notion approval status is %q.", notion.Status))
-	}
-	if strings.Contains(normalizedStatus, "reject") || strings.Contains(normalizedStatus, "block") {
+	if !isApprovalCompleteStatus(normalizedStatus) {
 		gate.Blockers = append(gate.Blockers, fmt.Sprintf("Notion approval status is %q.", notion.Status))
 	}
 
@@ -389,6 +400,15 @@ func buildApprovalGateFromNotion(notion notionPayload, forceApprove bool) approv
 	}
 
 	return gate
+}
+
+func isApprovalCompleteStatus(status string) bool {
+	switch normalizeStatus(status) {
+	case "approved", "approval_complete", "approval_completed", "release_ready", "released_live", "complete", "completed":
+		return true
+	default:
+		return false
+	}
 }
 
 func buildConsumers(inputs bundleInputs, gate approvalGate, outDir string) []consumerDispatch {

@@ -15,6 +15,7 @@ import (
 type CodexExec struct {
 	Path            string
 	Model           string
+	DefaultSandbox  string
 	ConfigOverrides []string
 	Env             map[string]string
 	LookPath        func(file string) (string, error)
@@ -49,15 +50,23 @@ func (c CodexExec) Execute(ctx context.Context, plan bridge.ExecutionPlan, bindi
 	if strings.TrimSpace(binding.LocalPath) == "" {
 		return bridge.ExecutionOutcome{}, fmt.Errorf("codex execution requires a trusted local binding path")
 	}
-	return c.Run(ctx, binding.LocalPath, plan.Prompt)
+	sandbox, err := bridge.CodexSandboxForPlan(plan, c.DefaultSandbox)
+	if err != nil {
+		return bridge.ExecutionOutcome{}, err
+	}
+	return c.RunWithSandbox(ctx, binding.LocalPath, plan.Prompt, sandbox)
 }
 
 func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (CodexExecResult, error) {
+	return c.RunWithSandbox(ctx, workdir, prompt, "workspace-write")
+}
+
+func (c CodexExec) RunWithSandbox(ctx context.Context, workdir string, prompt string, sandbox string) (CodexExecResult, error) {
 	path, err := c.resolvePath()
 	if err != nil {
 		return CodexExecResult{}, err
 	}
-	args := c.args(workdir)
+	args := c.args(workdir, sandbox)
 	cmd := c.command(ctx, path, args...)
 	cmd.Dir = workdir
 	if len(c.Env) > 0 {
@@ -125,7 +134,11 @@ func (c CodexExec) resolvePath() (string, error) {
 	return lookPath("codex")
 }
 
-func (c CodexExec) args(workdir string) []string {
+func (c CodexExec) args(workdir string, sandbox string) []string {
+	sandbox = strings.TrimSpace(sandbox)
+	if sandbox == "" {
+		sandbox = "workspace-write"
+	}
 	args := []string{"exec"}
 	for _, override := range c.ConfigOverrides {
 		if strings.TrimSpace(override) != "" {
@@ -141,7 +154,7 @@ func (c CodexExec) args(workdir string) []string {
 		"--ephemeral",
 		"--color", "never",
 		"--json",
-		"--sandbox", "workspace-write",
+		"--sandbox", sandbox,
 		"-",
 	)
 	return args

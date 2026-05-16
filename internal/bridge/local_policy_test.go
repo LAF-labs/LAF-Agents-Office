@@ -32,6 +32,17 @@ func TestLocalPolicyReadOnlySameActorDoesNotRequireApproval(t *testing.T) {
 	}
 }
 
+func TestCodexSandboxForPlanCanonicalizesReadOnly(t *testing.T) {
+	plan := localPolicyPlan(json.RawMessage(`{"sandbox":"readonly"}`))
+	got, err := CodexSandboxForPlan(plan, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "read-only" {
+		t.Fatalf("sandbox = %q", got)
+	}
+}
+
 func TestLocalPolicyWorkspaceWriteDeniedWithoutApprovalChannel(t *testing.T) {
 	plan := localPolicyPlan(json.RawMessage(`{"sandbox":"workspace-write"}`))
 	decision, err := (LocalPolicyApprover{Config: Config{UserID: "user-1"}}).Decide(

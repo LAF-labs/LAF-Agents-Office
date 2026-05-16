@@ -84,10 +84,13 @@ func (v PlanValidator) Validate(plan ExecutionPlan) error {
 	if plan.ExecutorUserID != nil && v.Config.UserID != "" && *plan.ExecutorUserID != v.Config.UserID {
 		return errors.New("execution plan targets a different executor")
 	}
-	if plan.Mode == "my_bridge" {
-		if plan.BindingID == nil || !v.hasTrustedBinding(*plan.BindingID) {
+	if plan.BindingID != nil && strings.TrimSpace(*plan.BindingID) != "" {
+		if !v.hasTrustedBinding(*plan.BindingID) {
 			return errors.New("execution plan references an unknown local binding")
 		}
+	}
+	if plan.Mode == "my_bridge" && (plan.BindingID == nil || strings.TrimSpace(*plan.BindingID) == "") {
+		return errors.New("execution plan references an unknown local binding")
 	}
 	if len(v.PublicKey) > 0 {
 		if err := VerifyPlanSignature(plan, v.PublicKey); err != nil {

@@ -169,6 +169,25 @@ func TestCreateClaudeCodeStreamFnShowsLoginError(t *testing.T) {
 	}
 }
 
+func TestRunClaudeOneShotDrainsLargeStream(t *testing.T) {
+	recordFile := filepath.Join(t.TempDir(), "claude-large-record.jsonl")
+	cwd := t.TempDir()
+
+	restore := stubClaudeRuntime(t, recordFile, "large-oneshot", cwd)
+	defer restore()
+	oldDelay := claudeStreamChunkDelay
+	claudeStreamChunkDelay = 0
+	t.Cleanup(func() { claudeStreamChunkDelay = oldDelay })
+
+	text, err := RunClaudeOneShot("system", "prompt", cwd)
+	if err != nil {
+		t.Fatalf("RunClaudeOneShot: %v", err)
+	}
+	if text != "final large result" {
+		t.Fatalf("unexpected one-shot result: %q", text)
+	}
+}
+
 type claudeHelperRecord struct {
 	Args  []string `json:"args"`
 	Stdin string   `json:"stdin"`
@@ -378,6 +397,15 @@ func TestClaudeHelperProcess(t *testing.T) {
 		_, _ = os.Stdout.WriteString("{\"type\":\"result\",\"subtype\":\"error\",\"result\":\"Please run claude login\",\"errors\":[\"Please run claude login\"]}\n")
 		_, _ = os.Stderr.WriteString("authentication required\n")
 		os.Exit(1)
+	case "large-oneshot":
+		var words []string
+		for i := 0; i < 700; i++ {
+			words = append(words, "word")
+		}
+		payload, _ := json.Marshal(strings.Join(words, " "))
+		_, _ = os.Stdout.WriteString("{\"type\":\"assistant\",\"session_id\":\"large-sess\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":" + string(payload) + "}]}}\n")
+		_, _ = os.Stdout.WriteString("{\"type\":\"result\",\"session_id\":\"large-sess\",\"result\":\"final large result\"}\n")
+		os.Exit(0)
 	case "persist-across-restart":
 		switch callCount {
 		case 1:

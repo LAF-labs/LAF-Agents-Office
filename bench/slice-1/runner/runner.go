@@ -87,6 +87,7 @@ type QueryResult struct {
 	Recall          float64
 	MinRecallTarget float64
 	Passed          bool
+	PrecisionFailed bool
 	// Median retrieval latency across Config.Iterations runs for this query.
 	RetrievalMedianMs float64
 	// Single-shot classify latency (cheap heuristic; one sample is enough).
@@ -100,6 +101,7 @@ type QueryResult struct {
 type Aggregate struct {
 	TotalQueries       int
 	PassingQueries     int
+	Gate               float64
 	MicroRecall        float64 // sum(intersection) / sum(|expected|)
 	PassRate           float64 // passingQueries / totalQueries
 	RetrievalP50Ms     float64
@@ -261,7 +263,10 @@ func MaterialiseCorpus(root string, arts []Artifact) (int, error) {
 
 	total := 0
 	for _, slug := range slugs {
-		path := filepath.Join(factsDir, slug+".jsonl")
+		path, err := factJSONLPath(factsDir, slug)
+		if err != nil {
+			return total, err
+		}
 		f, err := os.Create(path)
 		if err != nil {
 			return total, fmt.Errorf("create %s: %w", path, err)
@@ -280,6 +285,39 @@ func MaterialiseCorpus(root string, arts []Artifact) (int, error) {
 		}
 	}
 	return total, nil
+}
+
+func factJSONLPath(factsDir, slug string) (string, error) {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return "", fmt.Errorf("empty entity_slug")
+	}
+	if filepath.IsAbs(slug) || filepath.VolumeName(slug) != "" {
+		return "", fmt.Errorf("unsafe entity_slug %q", slug)
+	}
+	if strings.ContainsAny(slug, `/\`) {
+		return "", fmt.Errorf("unsafe entity_slug %q", slug)
+	}
+	if slug == "." || slug == ".." || strings.Contains(slug, "..") {
+		return "", fmt.Errorf("unsafe entity_slug %q", slug)
+	}
+	path := filepath.Join(factsDir, slug+".jsonl")
+	cleanFactsDir, err := filepath.Abs(factsDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve facts dir: %w", err)
+	}
+	cleanPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve fact path: %w", err)
+	}
+	rel, err := filepath.Rel(cleanFactsDir, cleanPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve fact path: %w", err)
+	}
+	if rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." {
+		return "", fmt.Errorf("unsafe entity_slug %q", slug)
+	}
+	return cleanPath, nil
 }
 
 // ----- Execution ------------------------------------------------------------
@@ -370,12 +408,9 @@ func Run(ctx context.Context, cfg Config) (*Aggregate, []QueryResult, error) {
 		}
 		recall, intersection := scoreRecall(q.ExpectedFactIDs, got)
 
-		// Out-of-scope queries (no expected fact IDs) auto-pass the recall
-		// gate by "vacuous truth" convention from README — the retriever
-		// should return nothing, and precision failures are flagged in the
-		// aggregate report below, not on the recall gate.
-		passed := true
-		if len(q.ExpectedFactIDs) > 0 && recall < q.ExpectedMinRecallAt20 {
+		precisionFailed := len(q.ExpectedFactIDs) == 0 && len(got) > 0
+		passed := !precisionFailed
+		if passed && len(q.ExpectedFactIDs) > 0 && recall < q.ExpectedMinRecallAt20 {
 			passed = false
 		}
 
@@ -386,6 +421,7 @@ func Run(ctx context.Context, cfg Config) (*Aggregate, []QueryResult, error) {
 			Recall:               recall,
 			MinRecallTarget:      q.ExpectedMinRecallAt20,
 			Passed:               passed,
+			PrecisionFailed:      precisionFailed,
 			RetrievalMedianMs:    median(perQ),
 			ClassifyMicros:       classifyMicros,
 			ClassifierClass:      string(klass),
@@ -400,6 +436,7 @@ func Run(ctx context.Context, cfg Config) (*Aggregate, []QueryResult, error) {
 		TotalQueries:       len(qs),
 		TotalFactsIndexed:  factCount,
 		TotalArtifactsRead: len(arts),
+		Gate:               cfg.Gate,
 		PerClass:           map[string]ClassBreakdown{},
 		ReconcileWallMs:    reconcileMs,
 	}
@@ -568,13 +605,17 @@ func dirSize(path string) int64 {
 // RESULTS.md. Deterministic given the same Aggregate/results input.
 func FormatReport(agg *Aggregate, results []QueryResult) string {
 	var b strings.Builder
+	gate := agg.Gate
+	if gate <= 0 {
+		gate = 0.85
+	}
 	verdict := "FAIL"
-	if agg.PassRate >= 0.85 {
+	if agg.PassRate >= gate {
 		verdict = "PASS"
 	}
 	fmt.Fprintf(&b, "Slice 1 Week 0 benchmark — recall@20 ship gate\n")
 	fmt.Fprintf(&b, "================================================\n\n")
-	fmt.Fprintf(&b, "Gate: PassRate >= 85%% — verdict: %s\n\n", verdict)
+	fmt.Fprintf(&b, "Gate: PassRate >= %.0f%% — verdict: %s\n\n", gate*100, verdict)
 
 	fmt.Fprintf(&b, "Aggregate\n---------\n")
 	fmt.Fprintf(&b, "  Queries                  : %d\n", agg.TotalQueries)
@@ -623,9 +664,14 @@ func FormatReport(agg *Aggregate, results []QueryResult) string {
 		b.WriteString(strings.Repeat("-", 60))
 		b.WriteByte('\n')
 		for _, r := range agg.FailingQueries {
-			fmt.Fprintf(&b, "\n  %s [%s] recall=%.1f%% target=%.1f%%\n    query    : %s\n    expected : %v\n    got      : %v\n",
+			reason := "recall"
+			if r.PrecisionFailed {
+				reason = "precision_false_positive"
+			}
+			fmt.Fprintf(&b, "\n  %s [%s] reason=%s recall=%.1f%% target=%.1f%%\n    query    : %s\n    expected : %v\n    got      : %v\n",
 				r.Query.QueryID,
 				r.Query.QueryClass,
+				reason,
 				r.Recall*100,
 				r.MinRecallTarget*100,
 				r.Query.Query,

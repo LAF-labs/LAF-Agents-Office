@@ -185,7 +185,7 @@ func (cfg Config) BindingForPlan(plan ExecutionPlan) ProjectBinding {
 		return ProjectBinding{}
 	}
 	for _, binding := range cfg.Bindings {
-		if binding.ID == *plan.BindingID {
+		if binding.ID == *plan.BindingID && binding.Trusted && (binding.DeviceID == "" || binding.DeviceID == cfg.DeviceID) {
 			return binding
 		}
 	}

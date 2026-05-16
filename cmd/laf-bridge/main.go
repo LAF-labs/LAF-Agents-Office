@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -22,6 +23,7 @@ const (
 	mcpTokenEnv       = "LAF_BRIDGE_MCP_TOKEN"
 	mcpSecretEnv      = "LAF_BRIDGE_MCP_SECRET"
 	mcpContextPathEnv = "LAF_BRIDGE_MCP_CONTEXT_PATH"
+	mcpClaimsPathEnv  = "LAF_BRIDGE_MCP_CLAIMS_PATH"
 )
 
 func main() {
@@ -285,9 +287,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		return err
 	}
-	runCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	results, err := bridge.RunPendingOnceWithOptions(runCtx, cfg, client, validator, bridge.RunPendingOptions{
+	results, err := bridge.RunPendingOnceWithOptions(ctx, cfg, client, validator, bridge.RunPendingOptions{
 		Approver: approver,
 		Executor: executor,
 		Guard:    guard,
@@ -310,20 +310,38 @@ func runMCPContext(ctx context.Context, args []string, stdout io.Writer) error {
 	token := firstNonEmpty(*tokenFlag, os.Getenv(mcpTokenEnv))
 	secretRaw := firstNonEmpty(*secretFlag, os.Getenv(mcpSecretEnv))
 	contextPath := firstNonEmpty(*contextPathFlag, os.Getenv(mcpContextPathEnv))
+	claimsPath := strings.TrimSpace(os.Getenv(mcpClaimsPathEnv))
 	if strings.TrimSpace(token) == "" {
 		return fmt.Errorf("%s is required", mcpTokenEnv)
-	}
-	secret, err := decodeMCPSecret(secretRaw)
-	if err != nil {
-		return err
-	}
-	issuer := bridgemcp.NewTokenIssuer(secret)
-	if _, err := issuer.Validate(token); err != nil {
-		return err
 	}
 	store, err := bridgemcp.LoadStaticContextStore(contextPath)
 	if err != nil {
 		return err
+	}
+	var gateway bridgemcp.Gateway
+	if claimsPath != "" {
+		envelope, err := loadMCPClaimsEnvelope(claimsPath)
+		if err != nil {
+			return err
+		}
+		if envelope.Token != token {
+			return bridgemcp.ErrInvalidToken
+		}
+		gateway = bridgemcp.Gateway{
+			StaticToken:  envelope.Token,
+			StaticClaims: &envelope.Claims,
+			Store:        store,
+		}
+	} else {
+		secret, err := decodeMCPSecret(secretRaw)
+		if err != nil {
+			return err
+		}
+		issuer := bridgemcp.NewTokenIssuer(secret)
+		if _, err := issuer.Validate(token); err != nil {
+			return err
+		}
+		gateway = bridgemcp.Gateway{Issuer: issuer, Store: store}
 	}
 	if *printConfig {
 		return writeJSON(stdout, map[string]any{
@@ -333,10 +351,30 @@ func runMCPContext(ctx context.Context, args []string, stdout io.Writer) error {
 		})
 	}
 	server := bridgemcp.ContextServer{
-		Gateway: bridgemcp.Gateway{Issuer: issuer, Store: store},
+		Gateway: gateway,
 		Token:   token,
 	}
 	return server.RunStdio(ctx)
+}
+
+type mcpClaimsEnvelope struct {
+	Token  string                `json:"token"`
+	Claims bridgemcp.TokenClaims `json:"claims"`
+}
+
+func loadMCPClaimsEnvelope(path string) (mcpClaimsEnvelope, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return mcpClaimsEnvelope{}, err
+	}
+	var envelope mcpClaimsEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return mcpClaimsEnvelope{}, err
+	}
+	if strings.TrimSpace(envelope.Token) == "" {
+		return mcpClaimsEnvelope{}, fmt.Errorf("MCP claims file missing token")
+	}
+	return envelope, nil
 }
 
 type mcpOptions struct {
@@ -354,19 +392,28 @@ type mcpCodexExecutor struct {
 
 func (e mcpCodexExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan, binding bridge.ProjectBinding) (bridge.ExecutionOutcome, error) {
 	issuer := bridgemcp.NewTokenIssuer(e.secret)
-	token, _, err := issuer.Issue(plan)
+	_, claims, err := issuer.Issue(plan)
 	if err != nil {
 		return bridge.ExecutionOutcome{}, err
 	}
+	token, err := randomMCPToken()
+	if err != nil {
+		return bridge.ExecutionOutcome{}, err
+	}
+	claimsPath, err := writeMCPClaimsEnvelope(mcpClaimsEnvelope{Token: token, Claims: claims})
+	if err != nil {
+		return bridge.ExecutionOutcome{}, err
+	}
+	defer func() { _ = os.Remove(claimsPath) }()
 	command := strings.TrimSpace(e.command)
 	if command == "" {
 		command = executablePath()
 	}
 	env := map[string]string{
-		mcpSecretEnv: base64.StdEncoding.EncodeToString(e.secret),
-		mcpTokenEnv:  token,
+		mcpTokenEnv:      token,
+		mcpClaimsPathEnv: claimsPath,
 	}
-	envVars := []string{mcpSecretEnv, mcpTokenEnv}
+	envVars := []string{mcpTokenEnv, mcpClaimsPathEnv}
 	if strings.TrimSpace(e.contextPath) != "" {
 		env[mcpContextPathEnv] = strings.TrimSpace(e.contextPath)
 		envVars = append(envVars, mcpContextPathEnv)
@@ -378,6 +425,38 @@ func (e mcpCodexExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan
 		bridgemcp.CodexConfigOverrides(command, []string{"mcp-context"}, envVars)...,
 	)
 	return exec.Execute(ctx, plan, binding)
+}
+
+func randomMCPToken() (string, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func writeMCPClaimsEnvelope(envelope mcpClaimsEnvelope) (string, error) {
+	file, err := os.CreateTemp("", "laf-bridge-mcp-claims-*.json")
+	if err != nil {
+		return "", err
+	}
+	path := file.Name()
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(envelope); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return "", err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		_ = os.Remove(path)
+		return "", err
+	}
+	return path, nil
 }
 
 func bridgeExecutor(providerName string, model string, opts mcpOptions) (bridge.PlanExecutor, error) {

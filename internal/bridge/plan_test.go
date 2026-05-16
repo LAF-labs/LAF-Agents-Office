@@ -77,6 +77,23 @@ func TestPlanValidatorRejectsWrongDeviceExecutorAndUnknownBinding(t *testing.T) 
 	}
 }
 
+func TestPlanValidatorRejectsUntrustedBindingForAnyMode(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := signedPlan(priv, func(plan *ExecutionPlan) {
+		plan.Mode = "team_bridge"
+		plan.BindingID = strPtr("binding-1")
+	})
+	validator := testValidator(pub)
+	validator.Config.Bindings[0].Trusted = false
+
+	if err := validator.Validate(plan); err == nil {
+		t.Fatal("expected untrusted binding to be rejected")
+	}
+}
+
 func TestParseEd25519PublicKeyAcceptsRawBase64(t *testing.T) {
 	pub, _, err := ed25519.GenerateKey(nil)
 	if err != nil {

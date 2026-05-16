@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -79,6 +80,38 @@ func TestRunMCPContextPrintConfig(t *testing.T) {
 	}, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("mcp-context: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"configured": true`) {
+		t.Fatalf("unexpected mcp-context output: %s", stdout.String())
+	}
+}
+
+func TestRunMCPContextAcceptsClaimsFileWithoutSigningSecret(t *testing.T) {
+	token := "opaque-token"
+	claimsPath, err := writeMCPClaimsEnvelope(mcpClaimsEnvelope{
+		Token: token,
+		Claims: bridgemcp.TokenClaims{
+			ExpiresAt:   time.Now().Add(time.Minute).Unix(),
+			Permissions: []string{bridgemcp.PermissionTaskContext},
+			PlanID:      "plan-1",
+			TeamID:      "team-1",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(claimsPath)
+	t.Setenv(mcpClaimsPathEnv, claimsPath)
+	t.Setenv(mcpSecretEnv, "")
+
+	var stdout, stderr bytes.Buffer
+	err = run([]string{
+		"mcp-context",
+		"--print-config",
+		"--token", token,
+	}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("mcp-context with claims file: %v stderr=%s", err, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), `"configured": true`) {
 		t.Fatalf("unexpected mcp-context output: %s", stdout.String())

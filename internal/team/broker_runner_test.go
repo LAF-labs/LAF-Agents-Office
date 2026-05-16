@@ -776,6 +776,60 @@ func TestRunnerCLIConnectExecutesAndCompletesLeasedJob(t *testing.T) {
 	if b.tasks[0].DeliveryURL != "https://github.com/LAF-labs/agent-lab/pull/7" || b.tasks[0].DeliverySummary == "" {
 		t.Fatalf("task receipt = %+v", b.tasks[0])
 	}
+	cfg, err := loadRunnerCLIConfig()
+	if err != nil {
+		t.Fatalf("load runner config: %v", err)
+	}
+	if cfg.RunnerToken == "" {
+		t.Fatal("expected narrow runner token to be persisted")
+	}
+	if cfg.APIToken != "" {
+		t.Fatalf("full API token should not be persisted after registration, got %q", cfg.APIToken)
+	}
+}
+
+func TestRunnerCLIConnectCompletesCanceledJobWithFreshContext(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	token := seedRunnerForTest(b, "team-a", runnerCapabilities{ExecutionModes: []string{executionModeOffice}})
+	now := time.Now().UTC().Format(time.RFC3339)
+	b.mu.Lock()
+	b.tasks = []teamTask{{ID: "task-1", Title: "Ship", Status: taskStatusInProgress, ExecutionMode: executionModeOffice, CreatedAt: now, UpdatedAt: now}}
+	b.runnerJobs = []runnerJob{{ID: "job-1", TeamID: "team-a", TaskID: "task-1", Status: runnerJobStatusQueued, ExecutionMode: executionModeOffice, ModelMode: "team_bridge", CreatedAt: now}}
+	b.mu.Unlock()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/runner/heartbeat", b.handleRunnerHeartbeat)
+	mux.HandleFunc("/runner/capabilities", b.handleRunnerCapabilities)
+	mux.HandleFunc("/runner/jobs/lease", b.handleRunnerJobsLease)
+	mux.HandleFunc("/runner/jobs/", b.handleRunnerJobSubpath)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	oldExecute := runnerCLIExecuteJob
+	runnerCLIExecuteJob = func(_ context.Context, job runnerJob, _ io.Writer) (runnerExecutionResult, error) {
+		if job.ID != "job-1" {
+			t.Fatalf("unexpected job passed to executor: %+v", job)
+		}
+		cancel()
+		return runnerExecutionResult{Status: runnerJobStatusCanceled, Message: "interrupted"}, context.Canceled
+	}
+	t.Cleanup(func() {
+		runnerCLIExecuteJob = oldExecute
+		cancel()
+	})
+
+	cfg := runnerCLIConfig{APIURL: srv.URL, TeamID: "team-a", RunnerToken: token}
+	session := runnerConnectSession{}
+	if leased, err := runnerConnectOnce(ctx, &cfg, &session, io.Discard); err != nil || !leased {
+		t.Fatalf("runner connect canceled job leased=%v err=%v", leased, err)
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.runnerJobs[0].Status != runnerJobStatusCanceled || b.runnerJobs[0].CompletedAt == "" {
+		t.Fatalf("runner job was not completed as canceled: %+v", b.runnerJobs[0])
+	}
 }
 
 func TestRunnerConnectOnceReportsCapabilitiesOnlyWhenChanged(t *testing.T) {

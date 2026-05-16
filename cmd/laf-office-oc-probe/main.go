@@ -3,7 +3,7 @@
 //
 //	OPENCLAW_TOKEN=... go run ./cmd/laf-office-oc-probe
 //
-// It performs: handshake → sessions.list → subscribe → sessions.send, and
+// It performs: handshake → sessions.create → subscribe → sessions.send, and
 // prints session.message events for ~5 seconds. Used to validate protocol
 // assumptions against a real `openclaw daemon` install without polluting the
 // unit-test suite.
@@ -47,23 +47,6 @@ func main() {
 	defer func() { _ = client.Close() }()
 	fmt.Println("dialed + handshake ok")
 
-	rows, err := client.SessionsList(ctx, openclaw.SessionsListFilter{Limit: 5, IncludeLastMessage: true})
-	if err != nil {
-		die("sessions.list: %v", err)
-	}
-	fmt.Printf("found %d session(s)\n", len(rows))
-	if len(rows) == 0 {
-		fmt.Println("PASS (no sessions to send to, but protocol works)")
-		return
-	}
-	sess := rows[0]
-	fmt.Printf("first session: key=%s displayName=%q kind=%s\n", sess.Key, sess.DisplayName, sess.Kind)
-
-	if err := client.SessionsMessagesSubscribe(ctx, sess.Key); err != nil {
-		die("subscribe: %v", err)
-	}
-	fmt.Println("subscribed")
-
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -83,7 +66,18 @@ func main() {
 		}
 	}()
 
-	res, err := client.SessionsSend(ctx, sess.Key, "hello from laf-office Go probe", fmt.Sprintf("probe-%d", time.Now().UnixNano()))
+	sessionKey, err := client.SessionsCreate(ctx, "main", fmt.Sprintf("laf-office-go-probe-%d", time.Now().UnixNano()))
+	if err != nil {
+		die("sessions.create: %v", err)
+	}
+	fmt.Printf("created isolated probe session: key=%s\n", sessionKey)
+
+	if err := client.SessionsMessagesSubscribe(ctx, sessionKey); err != nil {
+		die("subscribe: %v", err)
+	}
+	fmt.Println("subscribed")
+
+	res, err := client.SessionsSend(ctx, sessionKey, "hello from laf-office Go probe", fmt.Sprintf("probe-%d", time.Now().UnixNano()))
 	if err != nil {
 		die("sessions.send: %v", err)
 	}

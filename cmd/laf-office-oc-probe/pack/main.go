@@ -35,7 +35,7 @@ type packMember struct {
 
 func main() {
 	token := resolveToken()
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 
 	realIdentityPath := config.ResolveOpenclawIdentityPath()
@@ -84,17 +84,8 @@ func main() {
 		die("tmp home: %v", err)
 	}
 	defer func() { _ = os.RemoveAll(tmpHome) }()
-	if err := os.Setenv("HOME", tmpHome); err != nil {
-		die("setenv HOME: %v", err)
-	}
-	if err := os.MkdirAll(product.RuntimePath(tmpHome), 0o700); err != nil {
-		die("mkdir .laf-office: %v", err)
-	}
-	if err := os.Setenv(product.Env("OPENCLAW_IDENTITY_PATH"), realIdentityPath); err != nil {
-		die("setenv identity path: %v", err)
-	}
-	if err := os.Setenv(product.Env("OPENCLAW_TOKEN"), token); err != nil {
-		die("setenv token: %v", err)
+	if err := isolateProbeRuntime(tmpHome, realIdentityPath, token); err != nil {
+		die("isolate runtime: %v", err)
 	}
 
 	bindings := make([]config.OpenclawBridgeBinding, len(members))
@@ -161,6 +152,7 @@ func main() {
 	fmt.Printf("\nSEND #general (@%s @%s): %q\n", members[0].slug, members[1].slug, channelPrompt)
 	channelReplies := waitForReplies(broker, before, map[string]bool{members[0].slug: false, members[1].slug: false}, "general", 30*time.Second)
 	for slug, reply := range channelReplies {
+		requireExactReply(slug, reply, "pong")
 		fmt.Printf("  RECV #general from %s: %q\n", slug, truncate(reply, 140))
 	}
 
@@ -183,6 +175,10 @@ func main() {
 		fmt.Printf("\nSEND DM→%s (%s): %q\n", m.slug, dmSlug, prompt)
 		want := map[string]bool{m.slug: false}
 		replies := waitForReplies(broker, beforeDM, want, dmSlug, 30*time.Second)
+		requireExactReply(m.slug, replies[m.slug], map[string]string{
+			members[0].slug: "alpha",
+			members[1].slug: "bravo",
+		}[m.slug])
 		fmt.Printf("  RECV DM←%s: %q\n", m.slug, truncate(replies[m.slug], 140))
 	}
 
@@ -204,6 +200,14 @@ func main() {
 		fmt.Printf("SEND ch-turn-%d: %q\n", i+1, prompt)
 		want := map[string]bool{members[0].slug: false}
 		r := waitForReplies(broker, beforeT, want, "general", 45*time.Second)
+		switch i {
+		case 0:
+			requireExactReply(members[0].slug, r[members[0].slug], "ok, 42")
+		case 1:
+			requireExactReply(members[0].slug, r[members[0].slug], "42")
+		case 2:
+			requireExactReply(members[0].slug, r[members[0].slug], "50")
+		}
 		fmt.Printf("  RECV ch-turn-%d from %s: %q\n", i+1, members[0].slug, truncate(r[members[0].slug], 160))
 	}
 
@@ -256,12 +260,50 @@ func main() {
 	r := waitForReplies(broker, beforeTask, want, pmDM, 60*time.Second)
 	taskReply := strings.TrimSpace(r[members[0].slug])
 	fmt.Printf("  RECV task from %s: %q\n", members[0].slug, truncate(taskReply, 160))
-	if !strings.Contains(taskReply, "40") {
-		die("task answer does not contain expected value 40 — got %q", taskReply)
-	}
+	requireExactReply(members[0].slug, taskReply, "40")
 
 	fmt.Println("\nall checks passed")
 	fmt.Println("PASS")
+}
+
+func isolateProbeRuntime(tmpHome, realIdentityPath, token string) error {
+	if err := os.Setenv("HOME", tmpHome); err != nil {
+		return fmt.Errorf("set HOME: %w", err)
+	}
+	if err := os.Setenv(product.Env("RUNTIME_HOME"), tmpHome); err != nil {
+		return fmt.Errorf("set runtime home: %w", err)
+	}
+	if err := os.Setenv(product.Env("CONFIG_PATH"), product.RuntimePath(tmpHome, "config.json")); err != nil {
+		return fmt.Errorf("set config path: %w", err)
+	}
+	if err := os.Setenv(product.Env("BROKER_STATE_PATH"), product.RuntimePath(tmpHome, "team", "broker-state.json")); err != nil {
+		return fmt.Errorf("set broker state path: %w", err)
+	}
+	if err := os.MkdirAll(product.RuntimePath(tmpHome, "team"), 0o700); err != nil {
+		return fmt.Errorf("mkdir runtime: %w", err)
+	}
+	if err := os.Setenv(product.Env("OPENCLAW_IDENTITY_PATH"), realIdentityPath); err != nil {
+		return fmt.Errorf("set identity path: %w", err)
+	}
+	if err := os.Setenv(product.Env("OPENCLAW_TOKEN"), token); err != nil {
+		return fmt.Errorf("set token: %w", err)
+	}
+	return nil
+}
+
+func requireExactReply(slug, got, want string) {
+	normalizedGot := normalizeReplyForCheck(got)
+	normalizedWant := normalizeReplyForCheck(want)
+	if normalizedGot != normalizedWant {
+		die("unexpected reply from %s: got %q want exactly %q", slug, got, want)
+	}
+}
+
+func normalizeReplyForCheck(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.Trim(value, "\"'` \t\r\n")
+	value = strings.TrimSuffix(value, ".")
+	return strings.TrimSpace(value)
 }
 
 // waitForReplies polls broker.AllMessages() from `before` onward until each

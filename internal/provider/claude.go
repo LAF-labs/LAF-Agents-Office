@@ -26,6 +26,7 @@ var (
 	claudeCommand          = exec.Command
 	claudeGetwd            = os.Getwd
 	claudeConfigureProcess = configureClaudeProcess
+	claudeStreamChunkDelay = 40 * time.Millisecond
 )
 
 // claudeStreamMsg is the NDJSON envelope emitted by `claude --output-format stream-json`.
@@ -430,8 +431,8 @@ func streamTextChunks(ch chan<- agent.StreamChunk, text string) {
 			end = len(words)
 		}
 		ch <- agent.StreamChunk{Type: "text", Content: strings.Join(words[i:end], " ")}
-		if end < len(words) {
-			time.Sleep(40 * time.Millisecond)
+		if end < len(words) && claudeStreamChunkDelay > 0 {
+			time.Sleep(claudeStreamChunkDelay)
 		}
 	}
 }

@@ -64,43 +64,20 @@ func main() {
 		die("identity: %v", err)
 	}
 
-	// 1. List real sessions on the daemon (creates one implicitly if needed).
+	// 1. Create a dedicated session so the smoke test never contaminates an
+	// existing user conversation.
 	pre, err := openclaw.Dial(ctx, openclaw.Config{URL: "ws://127.0.0.1:18789", Token: token, Identity: identity})
 	if err != nil {
 		die("pre-dial: %v", err)
 	}
-	rows, err := pre.SessionsList(ctx, openclaw.SessionsListFilter{Limit: 5})
+	sessKey, err := pre.SessionsCreate(ctx, "main", "laf-office-smoke-"+fmt.Sprint(time.Now().UnixNano()))
 	if err != nil {
-		die("list: %v", err)
+		die("sessions.create: %v", err)
 	}
 	if err := pre.Close(); err != nil {
 		die("pre.Close: %v", err)
 	}
-	var sessKey string
-	if len(rows) == 0 {
-		// sessions.send requires a pre-existing session, so create one.
-		create, err := openclaw.Dial(ctx, openclaw.Config{URL: "ws://127.0.0.1:18789", Token: token, Identity: identity})
-		if err != nil {
-			die("create-dial: %v", err)
-		}
-		defer func() { _ = create.Close() }()
-		raw, err := create.Call(ctx, "sessions.create", map[string]any{"agentId": "main", "label": "laf-office-smoke"})
-		if err != nil {
-			die("sessions.create: %v", err)
-		}
-		var out struct {
-			Key string `json:"key"`
-		}
-		_ = json.Unmarshal(raw, &out)
-		if out.Key == "" {
-			die("sessions.create returned no key: %s", string(raw))
-		}
-		sessKey = out.Key
-		fmt.Println("created new session:", sessKey)
-	} else {
-		sessKey = rows[0].Key
-		fmt.Printf("target session: key=%s kind=%s\n", sessKey, rows[0].Kind)
-	}
+	fmt.Println("created isolated smoke session:", sessKey)
 
 	// 2. Seed a temporary LAF-Office HOME so broker state doesn't clash with the
 	// user's real install. Point identity + token back at the paired daemon.
@@ -109,17 +86,8 @@ func main() {
 		die("tmp home: %v", err)
 	}
 	defer func() { _ = os.RemoveAll(tmpHome) }()
-	if err := os.Setenv("HOME", tmpHome); err != nil {
-		die("setenv HOME: %v", err)
-	}
-	if err := os.MkdirAll(product.RuntimePath(tmpHome), 0o700); err != nil {
-		die("mkdir .laf-office: %v", err)
-	}
-	if err := os.Setenv(product.Env("OPENCLAW_IDENTITY_PATH"), realIdentityPath); err != nil {
-		die("setenv identity path: %v", err)
-	}
-	if err := os.Setenv(product.Env("OPENCLAW_TOKEN"), token); err != nil {
-		die("setenv token: %v", err)
+	if err := isolateProbeRuntime(tmpHome, realIdentityPath, token); err != nil {
+		die("isolate runtime: %v", err)
 	}
 	if err := config.Save(config.Config{
 		OpenclawGatewayURL: "ws://127.0.0.1:18789",
@@ -213,6 +181,31 @@ func main() {
 	// still fired 3 times cleanly.
 	fmt.Printf("\nback-and-forth OK: %d turns, %d replies\n", len(prompts), len(repliesByTurn))
 	fmt.Println("PASS")
+}
+
+func isolateProbeRuntime(tmpHome, realIdentityPath, token string) error {
+	if err := os.Setenv("HOME", tmpHome); err != nil {
+		return fmt.Errorf("set HOME: %w", err)
+	}
+	if err := os.Setenv(product.Env("RUNTIME_HOME"), tmpHome); err != nil {
+		return fmt.Errorf("set runtime home: %w", err)
+	}
+	if err := os.Setenv(product.Env("CONFIG_PATH"), product.RuntimePath(tmpHome, "config.json")); err != nil {
+		return fmt.Errorf("set config path: %w", err)
+	}
+	if err := os.Setenv(product.Env("BROKER_STATE_PATH"), product.RuntimePath(tmpHome, "team", "broker-state.json")); err != nil {
+		return fmt.Errorf("set broker state path: %w", err)
+	}
+	if err := os.MkdirAll(product.RuntimePath(tmpHome, "team"), 0o700); err != nil {
+		return fmt.Errorf("mkdir runtime: %w", err)
+	}
+	if err := os.Setenv(product.Env("OPENCLAW_IDENTITY_PATH"), realIdentityPath); err != nil {
+		return fmt.Errorf("set identity path: %w", err)
+	}
+	if err := os.Setenv(product.Env("OPENCLAW_TOKEN"), token); err != nil {
+		return fmt.Errorf("set token: %w", err)
+	}
+	return nil
 }
 
 func die(format string, args ...any) {

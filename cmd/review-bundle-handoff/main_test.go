@@ -185,6 +185,63 @@ func TestBuildApprovalGateBlocksContradictoryArtifacts(t *testing.T) {
 	}
 }
 
+func TestBuildApprovalGateBlocksReleaseReadyArtifactWithPendingApprover(t *testing.T) {
+	dir := t.TempDir()
+	writeFixtureBundle(t, dir, "approved", []string{
+		"loopsmith_reviewer: Reviewer (approved)",
+		"client_operator: Pilot Client Alpha (pending)",
+	}, true)
+	mustWriteFile(t, filepath.Join(dir, "approval-status.json"), `{
+  "gate_status": "release_ready",
+  "source_status": "approved",
+  "approvers": [
+    {"role":"loopsmith_reviewer","name":"Reviewer","status":"approved"},
+    {"role":"client_operator","name":"Pilot Client Alpha","status":"pending"}
+  ],
+  "blockers": ["client_operator is still pending."],
+  "release_when": [],
+  "forced_approve": false
+}
+`)
+
+	inputs, err := loadBundle(dir)
+	if err != nil {
+		t.Fatalf("loadBundle() error = %v", err)
+	}
+
+	gate := buildApprovalGate(inputs, false)
+	if gate.Status != "blocked" {
+		t.Fatalf("gate.Status = %q, want blocked", gate.Status)
+	}
+	consumers := buildConsumers(inputs, gate, resolveOutDir(inputs.BundleDir))
+	for _, consumer := range consumers {
+		if consumer.Status != "staged_pending_approval" {
+			t.Fatalf("consumer %s status = %q, want staged_pending_approval", consumer.Consumer, consumer.Status)
+		}
+	}
+}
+
+func TestBuildApprovalGateBlocksUnknownNotionStatus(t *testing.T) {
+	dir := t.TempDir()
+	writeFixtureBundle(t, dir, "in_review", []string{
+		"loopsmith_reviewer: Reviewer (approved)",
+		"client_operator: Pilot Client Alpha (approved)",
+	}, false)
+
+	inputs, err := loadBundle(dir)
+	if err != nil {
+		t.Fatalf("loadBundle() error = %v", err)
+	}
+
+	gate := buildApprovalGate(inputs, false)
+	if gate.Status != "blocked" {
+		t.Fatalf("gate.Status = %q, want blocked", gate.Status)
+	}
+	if len(gate.Blockers) == 0 {
+		t.Fatal("expected blocker for unknown Notion status")
+	}
+}
+
 func TestCheckedInApprovedBundleReleasesConsumers(t *testing.T) {
 	dir := t.TempDir()
 	writeFixtureBundle(t, dir, "approved", []string{

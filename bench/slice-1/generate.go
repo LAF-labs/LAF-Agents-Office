@@ -650,7 +650,14 @@ func buildSupersedingArtifact(s *genState, idx int, occurred time.Time) artifact
 			break
 		}
 	}
-	// Override company so supersede stays within the same employer by default.
+	// Superseding role changes stay within the currently known employer.
+	prev := s.facts[factKey(chosen, "role_at")]
+	currentCompany := p.Company
+	if len(prev) > 0 {
+		if companySlug := strings.TrimPrefix(prev[len(prev)-1].Object, "company:"); strings.TrimSpace(companySlug) != "" {
+			currentCompany = companySlug
+		}
+	}
 	artSHA := artifactSHA(idx)
 	role := promotionRoles[s.rng.Intn(len(promotionRoles))]
 	pattern := roleStatusPatterns[idx%len(roleStatusPatterns)]
@@ -658,7 +665,7 @@ func buildSupersedingArtifact(s *genState, idx int, occurred time.Time) artifact
 	sentence := applyPattern(pattern, map[string]string{
 		"{name}":    p.Display,
 		"{role}":    humanizeRole(role),
-		"{company}": companyDisplayName(p.Company),
+		"{company}": companyDisplayName(currentCompany),
 		"{date}":    formatDate(occurred),
 	})
 
@@ -667,11 +674,10 @@ func buildSupersedingArtifact(s *genState, idx int, occurred time.Time) artifact
 
 	subject := p.Slug
 	predicate := "role_at"
-	object := "company:" + p.Company
+	object := "company:" + currentCompany
 	factID := team.ComputeFactID(artSHA, offset, subject, predicate, object)
 
 	// Supersedes previous fact (same key).
-	prev := s.facts[factKey(subject, predicate)]
 	var supersedes []string
 	if len(prev) > 0 {
 		supersedes = []string{prev[len(prev)-1].FactID}
@@ -687,7 +693,7 @@ func buildSupersedingArtifact(s *genState, idx int, occurred time.Time) artifact
 	}
 	s.facts[factKey(subject, predicate)] = append(s.facts[factKey(subject, predicate)], factRef{FactID: factID, Object: object})
 	s.allFactIDs[factID] = ef
-	s.personCompany[subject] = p.Company
+	s.personCompany[subject] = currentCompany
 
 	return artifact{
 		ArtifactID:    fmt.Sprintf("art_%04d", idx),
@@ -1428,11 +1434,28 @@ func validate(arts []artifact, qs []query) error {
 }
 
 func writeJSONL(path string, rows interface{}) error {
-	f, err := os.Create(path)
+	switch rows.(type) {
+	case []artifact, []query:
+	default:
+		return fmt.Errorf("unsupported row type")
+	}
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
+	tmpPath := f.Name()
+	committed := false
+	defer func() {
+		_ = f.Close()
+		if !committed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
 	enc := json.NewEncoder(f)
 	enc.SetEscapeHTML(false)
 
@@ -1449,9 +1472,14 @@ func writeJSONL(path string, rows interface{}) error {
 				return err
 			}
 		}
-	default:
-		return fmt.Errorf("unsupported row type")
 	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	committed = true
 	return nil
 }
 

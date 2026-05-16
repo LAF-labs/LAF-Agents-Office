@@ -104,6 +104,32 @@ func TestAllowedToolSucceeds(t *testing.T) {
 	}
 }
 
+func TestGatewayAcceptsStaticTokenWithoutSigningSecret(t *testing.T) {
+	claims := TokenClaims{
+		ExpiresAt:   time.Now().Add(time.Minute).Unix(),
+		Permissions: []string{PermissionTaskContext},
+		PlanID:      "plan-static",
+		TaskID:      "task-static",
+		TeamID:      "team-1",
+	}
+	gateway := Gateway{
+		StaticToken:  "opaque-token",
+		StaticClaims: &claims,
+		Store:        &memoryStore{},
+	}
+	result, err := gateway.CallTool(context.Background(), "opaque-token", ToolTaskContext, nil)
+	if err != nil {
+		t.Fatalf("static token call: %v", err)
+	}
+	task := result.Payload.(TaskContext)
+	if task.TaskID != "task-1" {
+		t.Fatalf("task context = %+v", task)
+	}
+	if _, err := gateway.CallTool(context.Background(), "wrong-token", ToolTaskContext, nil); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("wrong token error = %v", err)
+	}
+}
+
 func TestCodexConfigOverrides(t *testing.T) {
 	overrides := CodexConfigOverrides("/tmp/laf-bridge", []string{"mcp-context"}, []string{"LAF_BRIDGE_MCP_TOKEN"})
 	joined := strings.Join(overrides, "\n")

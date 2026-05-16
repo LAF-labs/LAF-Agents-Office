@@ -502,6 +502,7 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runne
 		cfg.RunnerID = response.Runner.ID
 		cfg.TeamID = response.Runner.TeamID
 		cfg.RunnerToken = response.RunnerToken
+		cfg.APIToken = ""
 		if session != nil {
 			session.capabilitiesReported = false
 		}
@@ -547,13 +548,26 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runne
 	result, err := runnerCLIExecuteJob(ctx, *lease.Job, stdout)
 	stopRenewal()
 	if err != nil {
-		result.Status = runnerJobStatusFailed
-		result.Message = err.Error()
+		if result.Status == "" {
+			result.Status = runnerJobStatusFailed
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || normalizeRunnerJobStatus(result.Status) == runnerJobStatusCanceled {
+			result.Status = runnerJobStatusCanceled
+		}
+		if strings.TrimSpace(result.Message) == "" {
+			result.Message = err.Error()
+		}
 	}
 	if result.Status == "" {
 		result.Status = runnerJobStatusSucceeded
 	}
-	if err := runnerPostJSON(ctx, cfg.APIURL, "/runner/jobs/"+lease.Job.ID+"/complete", cfg.RunnerToken, map[string]any{
+	completeCtx := ctx
+	var cancelComplete context.CancelFunc
+	if ctx.Err() != nil || normalizeRunnerJobStatus(result.Status) == runnerJobStatusCanceled {
+		completeCtx, cancelComplete = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelComplete()
+	}
+	if err := runnerPostJSON(completeCtx, cfg.APIURL, "/runner/jobs/"+lease.Job.ID+"/complete", cfg.RunnerToken, map[string]any{
 		"status":                   result.Status,
 		"message":                  result.Message,
 		"error":                    runnerResultError(result),

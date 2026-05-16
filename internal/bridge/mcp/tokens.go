@@ -49,12 +49,26 @@ func (i TokenIssuer) Issue(plan bridge.ExecutionPlan) (string, TokenClaims, erro
 	if len(i.Secret) == 0 {
 		return "", TokenClaims{}, errors.New("bridge MCP token secret is required")
 	}
-	now := i.now()
-	expiresAt := now.Add(i.ttl())
+	claims := ClaimsForPlan(plan, i.now(), i.ttl())
+	token, err := i.sign(claims)
+	if err != nil {
+		return "", TokenClaims{}, err
+	}
+	return token, claims, nil
+}
+
+func ClaimsForPlan(plan bridge.ExecutionPlan, now time.Time, ttl time.Duration) TokenClaims {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if ttl <= 0 {
+		ttl = 15 * time.Minute
+	}
+	expiresAt := now.Add(ttl)
 	if parsed, err := time.Parse(time.RFC3339, plan.ExpiresAt); err == nil && parsed.Before(expiresAt) {
 		expiresAt = parsed
 	}
-	claims := TokenClaims{
+	return TokenClaims{
 		ExpiresAt:   expiresAt.Unix(),
 		Permissions: uniquePermissions(plan.EffectivePermissions),
 		PlanID:      strings.TrimSpace(plan.ID),
@@ -62,11 +76,6 @@ func (i TokenIssuer) Issue(plan bridge.ExecutionPlan) (string, TokenClaims, erro
 		TaskID:      stringPtr(plan.TaskID),
 		TeamID:      strings.TrimSpace(plan.TeamID),
 	}
-	token, err := i.sign(claims)
-	if err != nil {
-		return "", TokenClaims{}, err
-	}
-	return token, claims, nil
 }
 
 func (i TokenIssuer) Validate(token string) (TokenClaims, error) {

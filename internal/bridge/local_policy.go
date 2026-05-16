@@ -77,16 +77,7 @@ type LocalPolicyReview struct {
 
 func ReviewLocalPolicy(plan ExecutionPlan, cfg Config, opts LocalPolicyOptions) LocalPolicyReview {
 	policy := parsePlanPolicy(plan.Policy)
-	sandbox := normalizePolicyToken(policy.stringValue("sandbox"))
-	if sandbox == "" && strings.EqualFold(strings.TrimSpace(plan.Provider), "codex") {
-		sandbox = normalizePolicyToken(opts.DefaultSandboxForCodex)
-		if sandbox == "" {
-			sandbox = "workspace-write"
-		}
-	}
-	if sandbox == "" {
-		sandbox = "read-only"
-	}
+	sandbox := EffectiveSandboxForPlan(plan, opts.DefaultSandboxForCodex)
 
 	review := LocalPolicyReview{Sandbox: sandbox}
 	require := func(reason string) {
@@ -165,6 +156,34 @@ func ReviewLocalPolicy(plan ExecutionPlan, cfg Config, opts LocalPolicyOptions) 
 		}
 	}
 	return review
+}
+
+func EffectiveSandboxForPlan(plan ExecutionPlan, defaultSandboxForCodex string) string {
+	policy := parsePlanPolicy(plan.Policy)
+	sandbox := normalizePolicyToken(policy.stringValue("sandbox"))
+	if sandbox == "" && strings.EqualFold(strings.TrimSpace(plan.Provider), "codex") {
+		sandbox = normalizePolicyToken(defaultSandboxForCodex)
+		if sandbox == "" {
+			sandbox = "workspace-write"
+		}
+	}
+	if sandbox == "" {
+		sandbox = "read-only"
+	}
+	return sandbox
+}
+
+func CodexSandboxForPlan(plan ExecutionPlan, defaultSandboxForCodex string) (string, error) {
+	switch EffectiveSandboxForPlan(plan, defaultSandboxForCodex) {
+	case "read-only", "readonly", "read":
+		return "read-only", nil
+	case "workspace-write", "workspace", "write":
+		return "workspace-write", nil
+	case "danger-full-access", "full-access", "danger":
+		return "danger-full-access", nil
+	default:
+		return "", fmt.Errorf("codex cannot enforce sandbox %q", EffectiveSandboxForPlan(plan, defaultSandboxForCodex))
+	}
 }
 
 type planPolicy map[string]any
