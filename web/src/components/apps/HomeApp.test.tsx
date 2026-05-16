@@ -9,7 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HomeApp } from "./HomeApp";
+import { __test__, HomeApp } from "./HomeApp";
 
 const apiMocks = vi.hoisted(() => ({
   confirmOrchestrationIntent: vi.fn(),
@@ -167,7 +167,7 @@ describe("HomeApp", () => {
     expect(screen.queryByPlaceholderText("프로젝트 이름")).toBeNull();
   });
 
-  it("defaults chat to CEO without adding a project hashtag", async () => {
+  it("defaults chat to the orchestrator without showing an artificial mention", async () => {
     const user = userEvent.setup();
     renderHomeApp();
 
@@ -179,7 +179,7 @@ describe("HomeApp", () => {
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "@ceo 이번 주 계획 정리해줘",
+        "이번 주 계획 정리해줘",
         "general",
         "home:team-alpha:user-alpha",
         ["ceo"],
@@ -188,6 +188,12 @@ describe("HomeApp", () => {
           scope: "home_orchestration",
         }),
       );
+    });
+    expect(
+      __test__.buildOutboundMessage("이번 주 계획 정리해줘", ["ceo"], "ceo"),
+    ).toEqual({
+      content: "이번 주 계획 정리해줘",
+      tagged: ["ceo"],
     });
   });
 
@@ -232,7 +238,7 @@ describe("HomeApp", () => {
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "@ceo #aurora-revenue-os 정리해줘",
+        "#aurora-revenue-os 정리해줘",
         "general",
         "home:team-alpha:user-alpha",
         ["ceo"],
@@ -269,7 +275,7 @@ describe("HomeApp", () => {
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "@ceo /deploy-check 실행해줘",
+        "/deploy-check 실행해줘",
         "general",
         "home:team-alpha:user-alpha",
         ["ceo"],

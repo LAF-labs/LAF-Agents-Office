@@ -437,7 +437,7 @@ function buildOutboundMessage(
     };
   }
   return {
-    content: `@${leadSlug} ${trimmed}`.trim(),
+    content: trimmed,
     tagged: [leadSlug],
   };
 }

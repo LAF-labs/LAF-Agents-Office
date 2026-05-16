@@ -685,6 +685,70 @@ func TestNotificationTargetsExplicitTagsAlwaysDeliverRegardlessOfDomain(t *testi
 	}
 }
 
+func TestNotificationTargetsHomeChatExplicitSpecialistSkipsLead(t *testing.T) {
+	l := &Launcher{
+		pack: &agent.PackDefinition{
+			LeadSlug: "ceo",
+			Agents: []agent.AgentConfig{
+				{Slug: "ceo", Name: "CEO"},
+				{Slug: "fe", Name: "Frontend Engineer"},
+				{Slug: "pm", Name: "Product Manager"},
+			},
+		},
+	}
+
+	immediate, delayed := l.notificationTargetsForMessage(channelMessage{
+		From:    "you",
+		Channel: "general",
+		Content: "@fe please check the homepage chat polish.",
+		Tagged:  []string{"fe"},
+		Scope:   homeOrchestrationScope,
+	})
+
+	if !containsNotificationTarget(immediate, "fe") {
+		t.Fatalf("expected explicitly mentioned specialist to wake, got %+v", immediate)
+	}
+	if containsNotificationTarget(immediate, "ceo") {
+		t.Fatalf("home chat direct specialist mention should not wake lead, got %+v", immediate)
+	}
+	if containsNotificationTarget(immediate, "pm") {
+		t.Fatalf("unexpected unrelated specialist wake, got %+v", immediate)
+	}
+	if len(delayed) != 0 {
+		t.Fatalf("expected no delayed targets, got %+v", delayed)
+	}
+}
+
+func TestNotificationTargetsHomeChatDefaultLeadTagWakesLead(t *testing.T) {
+	l := &Launcher{
+		pack: &agent.PackDefinition{
+			LeadSlug: "ceo",
+			Agents: []agent.AgentConfig{
+				{Slug: "ceo", Name: "CEO"},
+				{Slug: "fe", Name: "Frontend Engineer"},
+			},
+		},
+	}
+
+	immediate, delayed := l.notificationTargetsForMessage(channelMessage{
+		From:    "you",
+		Channel: "general",
+		Content: "Summarize this week's priorities.",
+		Tagged:  []string{"ceo"},
+		Scope:   homeOrchestrationScope,
+	})
+
+	if !containsNotificationTarget(immediate, "ceo") {
+		t.Fatalf("expected default home chat route to wake lead, got %+v", immediate)
+	}
+	if containsNotificationTarget(immediate, "fe") {
+		t.Fatalf("unexpected specialist wake for default home chat route, got %+v", immediate)
+	}
+	if len(delayed) != 0 {
+		t.Fatalf("expected no delayed targets, got %+v", delayed)
+	}
+}
+
 func TestTaskThreadCommentsBypassPendingInterviewGate(t *testing.T) {
 	if !messageBypassesPendingInterview(channelMessage{
 		From:    "you",

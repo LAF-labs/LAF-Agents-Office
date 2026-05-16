@@ -1292,7 +1292,9 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 			}
 			break
 		}
-		addImmediate(lead)
+		if !homeMessageTargetsSpecialistsOnly(msg, lead) {
+			addImmediate(lead)
+		}
 		if owner != "" && owner != lead && allowTarget(owner) {
 			addImmediate(owner)
 		}
@@ -1333,6 +1335,28 @@ func (l *Launcher) notificationTargetsForMessage(msg channelMessage) (immediate 
 		}
 	}
 	return immediate, delayed
+}
+
+func homeMessageTargetsSpecialistsOnly(msg channelMessage, lead string) bool {
+	if strings.TrimSpace(msg.Scope) != homeOrchestrationScope {
+		return false
+	}
+	if !messageComesFromHumanOrSystem(msg) {
+		return false
+	}
+	hasSpecialist := false
+	for _, slug := range msg.Tagged {
+		slug = strings.TrimSpace(slug)
+		switch {
+		case slug == "" || slug == "you" || slug == "human" || slug == "system":
+			continue
+		case slug == "all" || slug == lead:
+			return false
+		default:
+			hasSpecialist = true
+		}
+	}
+	return hasSpecialist
 }
 
 func (l *Launcher) wakePolicyOutcome(msg channelMessage, immediate []notificationTarget, delayed []notificationTarget) (string, string) {
