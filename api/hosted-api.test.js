@@ -722,6 +722,8 @@ test("hosted runner pairs with short setup code", async (t) => {
   assert.match(start.body.pairing.code, /^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/);
   assert.equal(start.body.api_url, "https://office.test/api");
   assert.match(start.body.commands.connect, /laf-runner pair/);
+  assert.match(start.body.commands.connect, /--background/);
+  assert.match(start.body.commands.setup, /LAF_OFFICE_INSTALL_BINARY=laf-runner/);
   assert.equal(db.runner_pairing_codes[0].status, "pending");
   assert.equal(db.runner_pairing_codes[0].code_hash.length, 64);
 

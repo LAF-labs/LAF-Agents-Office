@@ -571,15 +571,31 @@ func (b *Broker) handleAuthSession(w http.ResponseWriter, r *http.Request) {
 	}
 	b.mu.Lock()
 	user, team, _, ok := b.currentAuthUserLocked(r)
-	b.mu.Unlock()
-	w.Header().Set("Content-Type", "application/json")
 	if !ok {
+		b.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"authenticated": false})
 		return
 	}
+	if b.migrateLegacyHomeThreadsForUserLocked(*user) {
+		if err := b.saveLocked(); err != nil {
+			b.mu.Unlock()
+			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+			return
+		}
+	}
+	publicUser := publicAuthUser(*user)
+	var publicTeam *workspaceTeam
+	if team != nil {
+		teamCopy := *team
+		publicTeam = &teamCopy
+	}
+	b.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"authenticated": true,
-		"user":          publicAuthUser(*user),
-		"team":          team,
+		"user":          publicUser,
+		"team":          publicTeam,
 	})
 }

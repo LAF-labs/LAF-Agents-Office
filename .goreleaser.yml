@@ -7,7 +7,6 @@ builds:
     goos:
       - darwin
       - linux
-      - windows
     goarch:
       - amd64
       - arm64
@@ -28,49 +27,25 @@ builds:
     goos:
       - darwin
       - linux
-      - windows
     goarch:
       - amd64
       - arm64
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
-      - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.Version={{.Version}}
-      - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.BuildTimestamp={{.Date}}
-  - id: laf-runner-installer
-    main: ./cmd/laf-runner-installer
-    binary: laf-runner-installer
-    goos:
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -H=windowsgui
       - -s -w
       - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.Version={{.Version}}
       - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.BuildTimestamp={{.Date}}
 
 archives:
-  - formats: [tar.gz]
-    format_overrides:
-      - goos: windows
-        formats: [zip]
+  - ids:
+      - laf-office
+      - laf-runner
+    formats: [tar.gz]
     name_template: "laf-office_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - packaging/README.md
-      - packaging/windows/build-runner-msi.ps1
-      - packaging/windows/build-runner-dev-package.ps1
-      - packaging/windows/install-runner.ps1
-      - packaging/windows/install-runner-protocol.ps1
-      - packaging/windows/laf-runner.wxs
-      - packaging/windows/uninstall-runner.ps1
-      - packaging/macos/build-runner-pkg.sh
-      - packaging/macos/install-runner-protocol.sh
 
 checksum:
   name_template: checksums.txt

@@ -103,6 +103,15 @@ func TestConfigureServerToolsRegistersTaskContext(t *testing.T) {
 	if !slices.Contains(names, "team_task_context") {
 		t.Fatalf("expected team_task_context in office mode; tools=%v", names)
 	}
+	if !slices.Contains(names, "team_memory_card") {
+		t.Fatalf("expected team_memory_card in office mode; tools=%v", names)
+	}
+	if !slices.Contains(names, "team_memory_reflect") {
+		t.Fatalf("expected team_memory_reflect in office mode; tools=%v", names)
+	}
+	if !slices.Contains(names, "session_search") {
+		t.Fatalf("expected session_search in office mode; tools=%v", names)
+	}
 }
 
 func TestConfigureServerToolsOmitsActionToolAnnotations(t *testing.T) {
@@ -532,6 +541,183 @@ func TestHandleTeamMemoryWriteAndQueryPrivate(t *testing.T) {
 	text := textFromResult(t, result)
 	if !strings.Contains(text, "Private memory:") || !strings.Contains(text, "launch-brief") || !strings.Contains(text, "Launch brief") {
 		t.Fatalf("expected private memory hit, got %q", text)
+	}
+}
+
+func TestHandleTeamMemoryCardReplaceListAndDeactivate(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	result, _, err := handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action:  "replace",
+		Scope:   "agent_role",
+		Content: "Reviewer should cite exact files and residual risk.",
+		MySlug:  "reviewer",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard replace: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "agent_role/reviewer") {
+		t.Fatalf("expected replace confirmation, got %q", text)
+	}
+
+	result, _, err = handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action: "list",
+		Scope:  "agent_role",
+		MySlug: "reviewer",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard list: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Reviewer should cite exact files") {
+		t.Fatalf("expected listed memory card, got %q", text)
+	}
+
+	result, _, err = handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action: "deactivate",
+		Scope:  "agent_role",
+		MySlug: "reviewer",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard deactivate: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Deactivated core memory card agent_role/reviewer") {
+		t.Fatalf("expected deactivate confirmation, got %q", text)
+	}
+}
+
+func TestHandleTeamMemoryCardPressureHint(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	nearLimit := strings.Repeat("a", 4900)
+	result, _, err := handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action:  "replace",
+		Scope:   "team_memory",
+		Content: nearLimit,
+		MySlug:  "ceo",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard replace: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "pressure:") {
+		t.Fatalf("expected pressure hint after replace, got %q", text)
+	}
+
+	result, _, err = handleTeamMemoryCard(context.Background(), nil, TeamMemoryCardArgs{
+		Action: "list",
+		Scope:  "team_memory",
+		MySlug: "ceo",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryCard list: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "pressure:") || !strings.Contains(text, "merge related bullets") {
+		t.Fatalf("expected list pressure hint, got %q", text)
+	}
+}
+
+func TestHandleSessionSearch(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	if _, err := b.PostMessage("human", "general", "Earlier we agreed to keep the beta launch gated.", nil, ""); err != nil {
+		t.Fatalf("post message: %v", err)
+	}
+	result, _, err := handleSessionSearch(context.Background(), nil, SessionSearchArgs{
+		Query: "beta launch gated",
+		Limit: 3,
+	})
+	if err != nil {
+		t.Fatalf("handleSessionSearch: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Session search hits:") || !strings.Contains(text, "beta launch gated") {
+		t.Fatalf("expected session hit, got %q", text)
+	}
+}
+
+func TestHandleTeamMemoryReflect(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	b := newTestBroker(t)
+	if err := b.StartOnPort(0); err != nil {
+		t.Fatalf("start broker: %v", err)
+	}
+	defer b.Stop()
+
+	t.Setenv("LAF_OFFICE_TEAM_BROKER_URL", "http://"+b.Addr())
+	t.Setenv("LAF_OFFICE_BROKER_TOKEN", b.Token())
+
+	if _, err := b.PostMessage("human", "general", "I prefer concise Korean progress updates from now on.", nil, ""); err != nil {
+		t.Fatalf("post message: %v", err)
+	}
+	result, _, err := handleTeamMemoryReflect(context.Background(), nil, TeamMemoryReflectArgs{
+		Channel: "general",
+		MySlug:  "ceo",
+		Limit:   5,
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryReflect: %v", err)
+	}
+	text := textFromResult(t, result)
+	if !strings.Contains(text, "Memory candidates:") || !strings.Contains(text, "core:user_profile") {
+		t.Fatalf("expected memory candidate, got %q", text)
+	}
+	if strings.Contains(text, "Stored shared memory") || strings.Contains(text, "Replaced core memory card") {
+		t.Fatalf("reflect tool should not claim it stored memory, got %q", text)
+	}
+	var listed struct {
+		Candidates []struct {
+			ID string `json:"id"`
+		} `json:"candidates"`
+	}
+	if err := brokerGetJSON(context.Background(), "/memory/candidates?limit=5", &listed); err != nil {
+		t.Fatalf("list memory candidates: %v", err)
+	}
+	if len(listed.Candidates) != 1 {
+		t.Fatalf("expected one stored candidate, got %+v", listed.Candidates)
+	}
+	result, _, err = handleTeamMemoryReflect(context.Background(), nil, TeamMemoryReflectArgs{
+		Action: "ignore",
+		ID:     listed.Candidates[0].ID,
+		MySlug: "ceo",
+	})
+	if err != nil {
+		t.Fatalf("handleTeamMemoryReflect ignore: %v", err)
+	}
+	if text := textFromResult(t, result); !strings.Contains(text, "Ignored memory candidate") {
+		t.Fatalf("expected ignore confirmation, got %q", text)
+	}
+	listed.Candidates = nil
+	if err := brokerGetJSON(context.Background(), "/memory/candidates?limit=5", &listed); err != nil {
+		t.Fatalf("list memory candidates after ignore: %v", err)
+	}
+	if len(listed.Candidates) != 0 {
+		t.Fatalf("expected candidate to be ignored, got pending %+v", listed.Candidates)
 	}
 }
 

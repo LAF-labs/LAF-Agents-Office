@@ -307,6 +307,7 @@ export interface ModelAvailability {
   laf_model: { available: boolean; reason?: string };
   my_bridge: { available: boolean; reason?: string };
   team_bridge: { available: boolean; reason?: string };
+  local_cli?: { available: boolean; reason?: string; runtimes?: string[] };
   record_only: { available: boolean; reason?: string };
   reason?: string;
 }
@@ -1185,7 +1186,9 @@ export interface RunnerPairingStartResponse {
     expires_at: string;
   };
   commands: {
+    install?: string;
     connect: string;
+    setup?: string;
   };
 }
 

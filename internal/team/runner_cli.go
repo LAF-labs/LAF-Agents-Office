@@ -90,6 +90,7 @@ func printRunnerHelp(w io.Writer) {
 	fmt.Fprintln(w, "laf-runner - connect this machine as a local execution runner")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
+	fmt.Fprintln(w, "  laf-runner pair --api-url <url> --code <setup-code> --background")
 	fmt.Fprintln(w, "  laf-runner pair --api-url <url> --code <setup-code> --connect")
 	fmt.Fprintln(w, "  laf-runner pair-url <laf-runner://pair?...>")
 	fmt.Fprintln(w, "  laf-runner login --api-url <url> --team-id <team> --api-token <token>")
@@ -139,8 +140,12 @@ func runRunnerPair(ctx context.Context, args []string, stdout, stderr io.Writer)
 	code := fs.String("code", "", "Setup code shown in the web app")
 	name := fs.String("name", cfg.Name, "Runner display name")
 	connect := fs.Bool("connect", false, "Connect immediately after pairing")
+	background := fs.Bool("background", false, "Start accepting work in the background after pairing")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *connect && *background {
+		return errors.New("runner pair accepts either --connect or --background, not both")
 	}
 	cfg.APIURL = strings.TrimRight(strings.TrimSpace(*apiURL), "/")
 	cfg.Name = strings.TrimSpace(*name)
@@ -174,6 +179,13 @@ func runRunnerPair(ctx context.Context, args []string, stdout, stderr io.Writer)
 		return err
 	}
 	fmt.Fprintf(stdout, "Runner paired as %s for team %s\n", valueOrUnset(cfg.RunnerID), valueOrUnset(cfg.TeamID))
+	if *background {
+		if err := startRunnerConnectBackground(stdout); err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, "Runner started in the background.")
+		return nil
+	}
 	if *connect {
 		return runRunnerConnect(ctx, nil, stdout, stderr)
 	}

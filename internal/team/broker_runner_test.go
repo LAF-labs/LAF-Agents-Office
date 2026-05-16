@@ -146,7 +146,10 @@ func TestRunnerPairingStartAndClaim(t *testing.T) {
 	if err := json.NewDecoder(start.Body).Decode(&startBody); err != nil {
 		t.Fatalf("decode pairing start: %v", err)
 	}
-	if startBody.Pairing.Code == "" || startBody.Pairing.TeamID != "team-a" || !strings.Contains(startBody.Commands["connect"], "--connect") {
+	if startBody.Pairing.Code == "" ||
+		startBody.Pairing.TeamID != "team-a" ||
+		!strings.Contains(startBody.Commands["connect"], "--background") ||
+		!strings.Contains(startBody.Commands["setup"], "LAF_OFFICE_INSTALL_BINARY=laf-runner") {
 		t.Fatalf("pairing start body = %+v", startBody)
 	}
 

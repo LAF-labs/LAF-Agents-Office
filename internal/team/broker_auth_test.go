@@ -103,6 +103,84 @@ func TestAuthSignupCanCreateTeamAndSession(t *testing.T) {
 	}
 }
 
+func TestAuthSessionMigratesLegacyHomeChatThreads(t *testing.T) {
+	b := newTestBroker(t)
+	signup := signupForTest(t, b, "legacy@example.com", "Legacy User", "create", "Legacy Team", "")
+	targetThreadID := persistentHomeThreadIDForAuthUser(signup.User)
+	now := "2026-05-15T00:00:00Z"
+
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{
+			ID:        "legacy-root-a",
+			From:      "human",
+			Channel:   "general",
+			Content:   "old ask a",
+			ReplyTo:   "home-chat-a",
+			Timestamp: now,
+		},
+		{
+			ID:        "legacy-reply-a",
+			From:      "ceo",
+			Channel:   "general",
+			Content:   "old reply a",
+			ReplyTo:   "legacy-root-a",
+			Timestamp: now,
+		},
+		{
+			ID:        "legacy-root-b",
+			From:      "human",
+			Channel:   "general",
+			Content:   "old ask b",
+			ReplyTo:   "home-chat-b",
+			Timestamp: now,
+		},
+		{
+			ID:        "new-home",
+			From:      "human",
+			Channel:   "general",
+			Content:   "already migrated",
+			ReplyTo:   targetThreadID,
+			Timestamp: now,
+		},
+	}
+	b.mu.Unlock()
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+	req.AddCookie(signup.Cookie)
+	rec := httptest.NewRecorder()
+	b.handleAuthSession(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("session status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	reloaded := reloadedBroker(t, b)
+	reloaded.mu.Lock()
+	defer reloaded.mu.Unlock()
+	byID := make(map[string]channelMessage, len(reloaded.messages))
+	for _, msg := range reloaded.messages {
+		byID[msg.ID] = msg
+	}
+	if byID["legacy-root-a"].ReplyTo != targetThreadID {
+		t.Fatalf("legacy root a reply_to = %q, want %q", byID["legacy-root-a"].ReplyTo, targetThreadID)
+	}
+	if byID["legacy-root-b"].ReplyTo != targetThreadID {
+		t.Fatalf("legacy root b reply_to = %q, want %q", byID["legacy-root-b"].ReplyTo, targetThreadID)
+	}
+	if byID["legacy-reply-a"].ReplyTo != "legacy-root-a" {
+		t.Fatalf("nested legacy reply was unexpectedly rewritten: %+v", byID["legacy-reply-a"])
+	}
+	if byID["new-home"].ReplyTo != targetThreadID {
+		t.Fatalf("existing persistent home message changed: %+v", byID["new-home"])
+	}
+	threadIDs := messageThreadIDs(reloaded.messages, targetThreadID)
+	for _, id := range []string{"legacy-root-a", "legacy-reply-a", "legacy-root-b", "new-home"} {
+		if _, ok := threadIDs[id]; !ok {
+			t.Fatalf("expected %s to be reachable from migrated home thread; thread ids=%+v", id, threadIDs)
+		}
+	}
+}
+
 func TestAuthSignupCanJoinExistingTeamWithInvite(t *testing.T) {
 	b := newTestBroker(t)
 	owner := signupForTest(t, b, "owner@example.com", "Owner", "create", "Ops Team", "")

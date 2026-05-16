@@ -398,6 +398,9 @@ type brokerState struct {
 	Scheduler            []schedulerJob               `json:"scheduler,omitempty"`
 	Skills               []teamSkill                  `json:"skills,omitempty"`
 	SharedMemory         map[string]map[string]string `json:"shared_memory,omitempty"`
+	CoreMemoryCards      []coreMemoryCard             `json:"core_memory_cards,omitempty"`
+	SessionArchive       []sessionArchiveEntry        `json:"session_archive,omitempty"`
+	MemoryCandidates     []memoryCandidate            `json:"memory_candidates,omitempty"`
 	Counter              int                          `json:"counter"`
 	NotificationSince    string                       `json:"notification_since,omitempty"`
 	InsightsSince        string                       `json:"insights_since,omitempty"`
@@ -463,6 +466,9 @@ type Broker struct {
 	scheduler               []schedulerJob
 	skills                  []teamSkill
 	sharedMemory            map[string]map[string]string // namespace → key → value
+	coreMemoryCards         []coreMemoryCard             // small always-injected context cards
+	sessionArchive          []sessionArchiveEntry        // compacted messages retained for session_search
+	memoryCandidates        []memoryCandidate            // pending durable-memory candidates; never canonical by itself
 	lastTaggedAt            map[string]time.Time         // when each agent was last @mentioned
 	lastPaneSnapshot        map[string]string            // last captured pane content per agent (for change detection)
 	seenTelegramGroups      map[int64]string             // chat_id -> title, populated by transport
@@ -1144,6 +1150,7 @@ func NewBrokerAt(statePath string) *Broker {
 
 func (b *Broker) appendMessageLocked(msg channelMessage) {
 	b.messages = append(b.messages, msg)
+	b.captureMemoryCandidateFromMessageLocked(msg)
 	b.publishMessageLocked(msg)
 }
 
@@ -1705,8 +1712,11 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/tasks/ack", b.requireAuth(b.handleTaskAck))
 	mux.HandleFunc("/agent-logs", b.requireAuth(b.handleAgentLogs))
 	mux.HandleFunc("/workspace/search", b.requireAuth(b.handleWorkspaceSearch))
+	mux.HandleFunc("/session/search", b.requireAuth(b.handleSessionSearch))
 	mux.HandleFunc("/task-plan", b.requireAuth(b.handleTaskPlan))
 	mux.HandleFunc("/memory", b.requireAuth(b.handleMemory))
+	mux.HandleFunc("/memory/candidates", b.requireAuth(b.handleMemoryCandidates))
+	mux.HandleFunc("/memory/candidates/reflect", b.requireAuth(b.handleMemoryCandidatesReflect))
 	mux.HandleFunc("/wiki/write", b.requireAuth(b.handleWikiWrite))
 	mux.HandleFunc("/wiki/write-human", b.requireAuth(b.handleWikiWriteHuman))
 	mux.HandleFunc("/humans", b.requireAuth(b.handleHumans))
@@ -1758,6 +1768,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/reset-dm", b.requireAuth(b.handleResetDM))
 	mux.HandleFunc("/usage", b.requireAuth(b.handleUsage))
 	mux.HandleFunc("/policies", b.requireAuth(b.handlePolicies))
+	mux.HandleFunc("/memory-cards", b.requireAuth(b.handleMemoryCards))
 	mux.HandleFunc("/signals", b.requireAuth(b.handleSignals))
 	mux.HandleFunc("/decisions", b.requireAuth(b.handleDecisions))
 	mux.HandleFunc("/watchdogs", b.requireAuth(b.handleWatchdogs))
@@ -3326,6 +3337,9 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.Decisions) * 4
 	score += len(state.Skills) * 2
 	score += len(state.Policies)
+	score += len(state.CoreMemoryCards)
+	score += len(state.SessionArchive)
+	score += len(state.MemoryCandidates)
 	for _, ns := range state.SharedMemory {
 		score += len(ns)
 	}
@@ -3396,6 +3410,9 @@ func (b *Broker) loadState() error {
 	b.scheduler = state.Scheduler
 	b.skills = state.Skills
 	b.sharedMemory = state.SharedMemory
+	b.coreMemoryCards = state.CoreMemoryCards
+	b.sessionArchive = state.SessionArchive
+	b.memoryCandidates = state.MemoryCandidates
 	b.counter = state.Counter
 	b.notificationSince = state.NotificationSince
 	b.insightsSince = state.InsightsSince
@@ -3460,7 +3477,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.sessionArchive) == 0 && len(b.memoryCandidates) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3527,6 +3544,9 @@ func (b *Broker) saveLocked() error {
 		Scheduler:            b.scheduler,
 		Skills:               b.skills,
 		SharedMemory:         b.sharedMemory,
+		CoreMemoryCards:      b.coreMemoryCards,
+		SessionArchive:       b.sessionArchive,
+		MemoryCandidates:     b.memoryCandidates,
 		Counter:              b.counter,
 		NotificationSince:    b.notificationSince,
 		InsightsSince:        b.insightsSince,
@@ -5696,6 +5716,68 @@ func (b *Broker) handlePolicies(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (b *Broker) handleMemoryCards(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		scope := r.URL.Query().Get("scope")
+		subject := r.URL.Query().Get("subject")
+		includeInactive := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("active")), "all")
+		cards := b.ListCoreMemoryCards(scope, subject, includeInactive)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"cards": cards})
+	case http.MethodPost:
+		var body struct {
+			Scope   string `json:"scope"`
+			Subject string `json:"subject"`
+			Content string `json:"content"`
+			Source  string `json:"source"`
+			Active  *bool  `json:"active,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		active := true
+		if body.Active != nil {
+			active = *body.Active
+		}
+		card, err := b.UpsertCoreMemoryCard(coreMemoryCardWrite{
+			Scope:   body.Scope,
+			Subject: body.Subject,
+			Content: body.Content,
+			Source:  body.Source,
+			Active:  active,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"card": card})
+	case http.MethodDelete:
+		var body struct {
+			Scope   string `json:"scope"`
+			Subject string `json:"subject"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Scope == "" {
+			body.Scope = r.URL.Query().Get("scope")
+		}
+		if body.Subject == "" {
+			body.Subject = r.URL.Query().Get("subject")
+		}
+		card, err := b.DeactivateCoreMemoryCard(body.Scope, body.Subject)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "card": card})
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -8769,6 +8851,80 @@ func isHomeThreadID(value string) bool {
 	return strings.HasPrefix(value, homeThreadPrefix) || strings.HasPrefix(value, legacyHomeThreadPrefix)
 }
 
+func stableHomeThreadPart(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		allowed := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.'
+		if allowed {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	part := strings.Trim(builder.String(), "-")
+	if part == "" {
+		part = "unknown"
+	}
+	if len(part) > 80 {
+		part = part[:80]
+	}
+	return part
+}
+
+func persistentHomeThreadIDForAuthUser(user authUser) string {
+	teamID := stableHomeThreadPart(user.TeamID)
+	userID := stableHomeThreadPart(user.ID)
+	if userID == "unknown" {
+		userID = stableHomeThreadPart(user.Email)
+	}
+	return homeThreadPrefix + teamID + ":" + userID
+}
+
+func (b *Broker) migrateLegacyHomeThreadsForUserLocked(user authUser) bool {
+	targetThreadID := persistentHomeThreadIDForAuthUser(user)
+	if !isHomeThreadID(targetThreadID) || strings.HasPrefix(targetThreadID, legacyHomeThreadPrefix) {
+		return false
+	}
+	legacyThreads := make(map[string]struct{})
+	for _, msg := range b.messages {
+		replyTo := strings.TrimSpace(msg.ReplyTo)
+		if strings.HasPrefix(replyTo, legacyHomeThreadPrefix) {
+			legacyThreads[replyTo] = struct{}{}
+		}
+	}
+	if len(legacyThreads) == 0 {
+		return false
+	}
+
+	changed := false
+	for legacyThreadID := range legacyThreads {
+		threadIDs := messageThreadIDs(b.messages, legacyThreadID)
+		if len(threadIDs) == 0 {
+			continue
+		}
+		for i := range b.messages {
+			id := strings.TrimSpace(b.messages[i].ID)
+			if _, ok := threadIDs[id]; !ok {
+				continue
+			}
+			if strings.TrimSpace(b.messages[i].ReplyTo) == legacyThreadID {
+				b.messages[i].ReplyTo = targetThreadID
+				changed = true
+			}
+		}
+	}
+	if changed {
+		b.compactHomeThreadLocked(targetThreadID, time.Now().UTC().Format(time.RFC3339))
+	}
+	return changed
+}
+
 func isHomeSummaryMessage(msg channelMessage, threadID string) bool {
 	if strings.TrimSpace(msg.Kind) != homeSummaryMessageKind {
 		return false
@@ -8825,6 +8981,7 @@ func (b *Broker) compactHomeThreadLocked(threadID, timestamp string) {
 		}
 		compactedMessages = append(compactedMessages, item.message)
 	}
+	b.archiveSessionMessagesLocked(threadID, compactedMessages, timestamp, "home_compaction")
 
 	summary := buildHomeSummaryMessage(threadID, previousSummary, compactedMessages, timestamp)
 	insertBefore := homeMessages[compactCount].index

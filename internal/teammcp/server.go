@@ -181,6 +181,24 @@ type brokerMemoryNote struct {
 	UpdatedAt string `json:"updated_at,omitempty"`
 }
 
+type brokerCoreMemoryCardResponse struct {
+	Cards []brokerCoreMemoryCard `json:"cards,omitempty"`
+	Card  brokerCoreMemoryCard   `json:"card,omitempty"`
+	OK    bool                   `json:"ok,omitempty"`
+}
+
+type brokerCoreMemoryCard struct {
+	ID        string `json:"id"`
+	Scope     string `json:"scope"`
+	Subject   string `json:"subject"`
+	Content   string `json:"content"`
+	Source    string `json:"source,omitempty"`
+	Active    bool   `json:"active"`
+	CharLimit int    `json:"char_limit"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
 type brokerTaskSummary struct {
 	ID               string   `json:"id"`
 	Channel          string   `json:"channel"`
@@ -413,6 +431,29 @@ type TeamMemoryPromoteArgs struct {
 	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
+type TeamMemoryCardArgs struct {
+	Action  string `json:"action,omitempty" jsonschema:"One of: list, replace, deactivate. Defaults to list."`
+	Scope   string `json:"scope,omitempty" jsonschema:"One of: user_profile, team_memory, agent_role. Defaults to all for list and team_memory for replace."`
+	Subject string `json:"subject,omitempty" jsonschema:"Card subject. Defaults to global for team_memory, default for user_profile, and your slug for agent_role."`
+	Content string `json:"content,omitempty" jsonschema:"Full replacement content for action=replace. Keep it dense and durable; do not store secrets or task logs."`
+	Source  string `json:"source,omitempty" jsonschema:"Optional source label such as human_directed or agent_detected."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+}
+
+type TeamMemoryReflectArgs struct {
+	Action  string `json:"action,omitempty" jsonschema:"One of: reflect, list, ignore. Defaults to reflect."`
+	ID      string `json:"id,omitempty" jsonschema:"Candidate ID for action=ignore."`
+	Channel string `json:"channel,omitempty" jsonschema:"Channel slug to scan. Defaults to the active conversation channel."`
+	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum pending candidates to return (default 8, max 25)."`
+	MySlug  string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+}
+
+type SessionSearchArgs struct {
+	Query string `json:"query" jsonschema:"Past conversation text to search for"`
+	Scope string `json:"scope,omitempty" jsonschema:"One of: all, home, task, archived. Defaults to all."`
+	Limit int    `json:"limit,omitempty" jsonschema:"Maximum hits to return (default 10, max 30)."`
+}
+
 // TeamWikiWriteArgs is the contract for the team_wiki_write MCP tool.
 type TeamWikiWriteArgs struct {
 	MySlug      string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG env."`
@@ -616,6 +657,27 @@ func registerSharedMemoryTools(server *mcp.Server) {
 	}
 }
 
+func registerCoreMemoryCardTool(server *mcp.Server) {
+	mcp.AddTool(server, officeWriteTool(
+		"team_memory_card",
+		"List or replace small always-injected core memory cards. Use only for durable user/team/agent context that should shape future turns; use notebook/wiki for project facts and task logs. Active office policies and the current human message override these cards.",
+	), handleTeamMemoryCard)
+}
+
+func registerMemoryReflectionTool(server *mcp.Server) {
+	mcp.AddTool(server, officeWriteTool(
+		"team_memory_reflect",
+		"Review pending durable-memory candidates only after a clear durable signal such as a preference, decision, handoff, or reusable workflow. This only suggests where memory may belong; use team_memory_card, team_memory_write, notebook, or wiki tools to actually store it. Use action=ignore for rejected candidates.",
+	), handleTeamMemoryReflect)
+}
+
+func registerSessionSearchTool(server *mcp.Server) {
+	mcp.AddTool(server, readOnlyTool(
+		"session_search",
+		"Search prior live and archived LAF-Office conversations. Use only when the human references an earlier discussion or exact past wording matters; do not use it for current-turn context. This is conversation recall, not canonical wiki/project memory.",
+	), handleSessionSearch)
+}
+
 func configureServerTools(server *mcp.Server, slug string, channel string, oneOnOne bool) {
 	if oneOnOne {
 		mcp.AddTool(server, officeWriteTool(
@@ -639,6 +701,9 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		), handleHumanMessage)
 
 		registerSharedMemoryTools(server)
+		registerCoreMemoryCardTool(server)
+		registerMemoryReflectionTool(server)
+		registerSessionSearchTool(server)
 
 		registerSkillAuthoringTools(server)
 
@@ -678,6 +743,9 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 			"Ask the human a blocking decision question.",
 		), handleHumanInterview)
 		registerSharedMemoryTools(server)
+		registerCoreMemoryCardTool(server)
+		registerMemoryReflectionTool(server)
+		registerSessionSearchTool(server)
 		mcp.AddTool(server, officeWriteTool(
 			"team_skill_run",
 			"Invoke a named team skill. When the human's request matches an available skill, call this BEFORE replying — do not freelance. Bumps the skill's usage, logs a skill_invocation to the channel, and returns the skill's canonical step-by-step content for you to follow.",
@@ -746,6 +814,10 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 		"team_task_context",
 		"Reload the task-scoped agent memory packet for a task ID, including project wiki context, constraints, start-here guidance, and write-back rules.",
 	), handleTeamTaskContext)
+
+	registerCoreMemoryCardTool(server)
+	registerMemoryReflectionTool(server)
+	registerSessionSearchTool(server)
 
 	mcp.AddTool(server, readOnlyTool(
 		"team_runtime_state",
@@ -1766,6 +1838,251 @@ func handleTeamPlan(ctx context.Context, _ *mcp.CallToolRequest, args TeamPlanAr
 		lines = append(lines, line)
 	}
 	return textResult(fmt.Sprintf("Created %d tasks in #%s:\n%s", len(result.Tasks), channel, strings.Join(lines, "\n"))), nil, nil
+}
+
+func handleTeamMemoryCard(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryCardArgs) (*mcp.CallToolResult, any, error) {
+	mySlug, err := resolveSlug(args.MySlug)
+	if err != nil {
+		return toolError(err), nil, nil
+	}
+	action := strings.TrimSpace(strings.ToLower(args.Action))
+	if action == "" {
+		action = "list"
+	}
+	scope := strings.TrimSpace(args.Scope)
+	if scope == "" && action != "list" {
+		scope = "team_memory"
+	}
+	subject := strings.TrimSpace(args.Subject)
+	if subject == "" && strings.EqualFold(scope, "agent_role") {
+		subject = mySlug
+	}
+	switch action {
+	case "list":
+		values := url.Values{}
+		if strings.TrimSpace(args.Scope) != "" {
+			values.Set("scope", scope)
+		}
+		if subject != "" {
+			values.Set("subject", subject)
+		}
+		var result brokerCoreMemoryCardResponse
+		if err := brokerGetJSON(ctx, "/memory-cards?"+values.Encode(), &result); err != nil {
+			return toolError(err), nil, nil
+		}
+		if len(result.Cards) == 0 {
+			return textResult("No active core memory cards."), nil, nil
+		}
+		lines := []string{"Core memory cards:"}
+		for _, card := range result.Cards {
+			lines = append(lines, fmt.Sprintf("- %s/%s (%d/%d chars): %s", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit, truncate(strings.ReplaceAll(strings.TrimSpace(card.Content), "\n", " "), 240)))
+			if hint := coreMemoryCardPressureHint(card); hint != "" {
+				lines = append(lines, "  pressure: "+hint)
+			}
+		}
+		return textResult(strings.Join(lines, "\n")), nil, nil
+	case "replace", "upsert":
+		content := strings.TrimSpace(args.Content)
+		if content == "" {
+			return toolError(fmt.Errorf("content is required for action=replace")), nil, nil
+		}
+		source := strings.TrimSpace(args.Source)
+		if source == "" {
+			source = "agent_detected:" + mySlug
+		}
+		var result brokerCoreMemoryCardResponse
+		if err := brokerPostJSON(ctx, "/memory-cards", map[string]any{
+			"scope":   scope,
+			"subject": subject,
+			"content": content,
+			"source":  source,
+			"active":  true,
+		}, &result); err != nil {
+			return toolError(err), nil, nil
+		}
+		card := result.Card
+		message := fmt.Sprintf("Replaced core memory card %s/%s (%d/%d chars).", card.Scope, card.Subject, len([]rune(card.Content)), card.CharLimit)
+		if hint := coreMemoryCardPressureHint(card); hint != "" {
+			message += "\npressure: " + hint
+		}
+		return textResult(message), nil, nil
+	case "deactivate", "delete":
+		var result brokerCoreMemoryCardResponse
+		if err := brokerDeleteJSON(ctx, "/memory-cards", map[string]any{
+			"scope":   scope,
+			"subject": subject,
+		}, &result); err != nil {
+			return toolError(err), nil, nil
+		}
+		card := result.Card
+		return textResult(fmt.Sprintf("Deactivated core memory card %s/%s.", card.Scope, card.Subject)), nil, nil
+	default:
+		return toolError(fmt.Errorf("action must be one of list, replace, deactivate")), nil, nil
+	}
+}
+
+func coreMemoryCardPressureHint(card brokerCoreMemoryCard) string {
+	limit := card.CharLimit
+	if limit <= 0 {
+		return ""
+	}
+	used := len([]rune(strings.TrimSpace(card.Content)))
+	percent := (used * 100) / limit
+	if percent < 80 {
+		return ""
+	}
+	if percent >= 95 {
+		return fmt.Sprintf("%d%% full; consolidate aggressively before adding more durable facts.", percent)
+	}
+	return fmt.Sprintf("%d%% full; merge related bullets and remove stale or duplicate facts before replacing.", percent)
+}
+
+func handleTeamMemoryReflect(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryReflectArgs) (*mcp.CallToolResult, any, error) {
+	slug := resolveSlugOptional(args.MySlug)
+	channel := resolveConversationChannel(ctx, slug, args.Channel)
+	action := strings.TrimSpace(strings.ToLower(args.Action))
+	if action == "" {
+		action = "reflect"
+	}
+	var result struct {
+		Candidates []struct {
+			ID              string `json:"id"`
+			Status          string `json:"status"`
+			Target          string `json:"target"`
+			Reason          string `json:"reason"`
+			Content         string `json:"content"`
+			SourceMessageID string `json:"source_message_id,omitempty"`
+			ThreadID        string `json:"thread_id,omitempty"`
+			Channel         string `json:"channel,omitempty"`
+			From            string `json:"from,omitempty"`
+			CreatedAt       string `json:"created_at"`
+			UpdatedAt       string `json:"updated_at"`
+		} `json:"candidates"`
+	}
+	switch action {
+	case "reflect", "scan":
+		body := map[string]any{
+			"channel": channel,
+			"my_slug": slug,
+		}
+		if args.Limit > 0 {
+			body["limit"] = args.Limit
+		}
+		if err := brokerPostJSON(ctx, "/memory/candidates/reflect", body, &result); err != nil {
+			return toolError(err), nil, nil
+		}
+	case "list":
+		values := url.Values{}
+		values.Set("channel", channel)
+		if args.Limit > 0 {
+			values.Set("limit", fmt.Sprintf("%d", args.Limit))
+		}
+		if err := brokerGetJSON(ctx, "/memory/candidates?"+values.Encode(), &result); err != nil {
+			return toolError(err), nil, nil
+		}
+	case "ignore", "dismiss":
+		id := strings.TrimSpace(args.ID)
+		if id == "" {
+			return toolError(fmt.Errorf("id is required for action=ignore")), nil, nil
+		}
+		var ignored struct {
+			Candidate struct {
+				ID string `json:"id"`
+			} `json:"candidate"`
+		}
+		if err := brokerDeleteJSON(ctx, "/memory/candidates", map[string]any{"id": id}, &ignored); err != nil {
+			return toolError(err), nil, nil
+		}
+		return textResult("Ignored memory candidate " + ignored.Candidate.ID + "."), nil, nil
+	default:
+		return toolError(fmt.Errorf("action must be one of reflect, list, ignore")), nil, nil
+	}
+	if len(result.Candidates) == 0 {
+		return textResult("No durable-memory candidates in recent conversation."), nil, nil
+	}
+	lines := []string{
+		"Memory candidates:",
+		"Review and merge before storing. This tool does not write canonical memory.",
+	}
+	for _, candidate := range result.Candidates {
+		where := candidate.Channel
+		if candidate.ThreadID != "" {
+			where += "/" + candidate.ThreadID
+		}
+		lines = append(lines, fmt.Sprintf("- %s target=%s reason=%s source=%s %s @%s: %s", candidate.ID, candidate.Target, candidate.Reason, candidate.SourceMessageID, where, candidate.From, truncate(candidate.Content, 260)))
+		if hint := memoryCandidateActionHint(candidate.Target); hint != "" {
+			lines = append(lines, "  next: "+hint)
+		}
+	}
+	return textResult(strings.Join(lines, "\n")), nil, nil
+}
+
+func memoryCandidateActionHint(target string) string {
+	switch {
+	case target == "core:user_profile":
+		return "list team_memory_card scope=user_profile, merge the candidate, then replace the card only if it is durable."
+	case target == "core:team_memory":
+		return "list team_memory_card scope=team_memory, merge the candidate, then replace the card only if it is team-wide and durable."
+	case strings.HasPrefix(target, "private:"):
+		return "use team_memory_write visibility=private for agent-local lessons."
+	case target == "shared":
+		return "use team_memory_write visibility=shared when the whole office should retrieve this later."
+	case target == "notebook":
+		return "use notebook_write for draft workflow notes, then notebook_promote or team_wiki_write after review."
+	default:
+		return ""
+	}
+}
+
+func handleSessionSearch(ctx context.Context, _ *mcp.CallToolRequest, args SessionSearchArgs) (*mcp.CallToolResult, any, error) {
+	query := strings.TrimSpace(args.Query)
+	if query == "" {
+		return toolError(fmt.Errorf("query is required")), nil, nil
+	}
+	values := url.Values{}
+	values.Set("q", query)
+	if args.Limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", args.Limit))
+	}
+	if scope := strings.TrimSpace(args.Scope); scope != "" {
+		values.Set("scope", scope)
+	}
+	var result struct {
+		Hits []struct {
+			Source    string `json:"source"`
+			Score     int    `json:"score"`
+			ThreadID  string `json:"thread_id,omitempty"`
+			MessageID string `json:"message_id"`
+			Channel   string `json:"channel,omitempty"`
+			From      string `json:"from,omitempty"`
+			Kind      string `json:"kind,omitempty"`
+			Title     string `json:"title,omitempty"`
+			Snippet   string `json:"snippet"`
+			ProjectID string `json:"project_id,omitempty"`
+			TaskID    string `json:"task_id,omitempty"`
+			Timestamp string `json:"timestamp,omitempty"`
+			Archived  bool   `json:"archived,omitempty"`
+		} `json:"hits"`
+	}
+	if err := brokerGetJSON(ctx, "/session/search?"+values.Encode(), &result); err != nil {
+		return toolError(err), nil, nil
+	}
+	if len(result.Hits) == 0 {
+		return textResult("No prior conversation hits."), nil, nil
+	}
+	lines := []string{"Session search hits:"}
+	for _, hit := range result.Hits {
+		where := hit.Channel
+		if hit.ThreadID != "" {
+			where += "/" + hit.ThreadID
+		}
+		flags := ""
+		if hit.Archived {
+			flags = " archived"
+		}
+		lines = append(lines, fmt.Sprintf("- %s%s %s @%s score=%d: %s", hit.MessageID, flags, where, hit.From, hit.Score, truncate(hit.Snippet, 260)))
+	}
+	return textResult(strings.Join(lines, "\n")), nil, nil
 }
 
 func handleTeamMemoryQuery(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemoryQueryArgs) (*mcp.CallToolResult, any, error) {
@@ -3198,6 +3515,32 @@ func brokerPostJSON(ctx context.Context, path string, body any, out any) error {
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
 		return fmt.Errorf("broker POST %s failed: %s %s", path, res.Status, strings.TrimSpace(string(respBody)))
+	}
+	if out == nil {
+		return nil
+	}
+	return json.NewDecoder(res.Body).Decode(out)
+}
+
+func brokerDeleteJSON(ctx context.Context, path string, body any, out any) error {
+	data, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, brokerBaseURL()+path, strings.NewReader(string(data)))
+	if err != nil {
+		return err
+	}
+	req.Header = authHeaders()
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return fmt.Errorf("broker DELETE %s failed: %s %s", path, res.Status, strings.TrimSpace(string(respBody)))
 	}
 	if out == nil {
 		return nil

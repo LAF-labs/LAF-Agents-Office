@@ -50,11 +50,15 @@ if [ -n "$URL" ]; then
   VERSION="${LAF_OFFICE_INSTALL_VERSION_OVERRIDE:-snapshot}"
   ARCHIVE="$(basename "$URL")"
 else
-  # Resolve latest version tag from GitHub redirect
-  VERSION="$(curl -sSL -o /dev/null -w '%{url_effective}' "${REPO_BASE_URL}/releases/latest" | rev | cut -d'/' -f1 | rev)"
-  if [ -z "$VERSION" ]; then
-    printf "Error: could not determine latest version\n" >&2
-    exit 1
+  if [ -n "${LAF_OFFICE_INSTALL_VERSION_OVERRIDE:-}" ]; then
+    VERSION="${LAF_OFFICE_INSTALL_VERSION_OVERRIDE}"
+  else
+    # Resolve latest version tag from GitHub redirect
+    VERSION="$(curl -sSL -o /dev/null -w '%{url_effective}' "${REPO_BASE_URL}/releases/latest" | rev | cut -d'/' -f1 | rev)"
+    if [ -z "$VERSION" ]; then
+      printf "Error: could not determine latest version\n" >&2
+      exit 1
+    fi
   fi
 
   # goreleaser strips the leading 'v' from the tag in archive names
@@ -72,23 +76,36 @@ curl -sSL "$URL" -o "${TMPDIR}/${ARCHIVE}"
 printf "Extracting...\n"
 tar -xzf "${TMPDIR}/${ARCHIVE}" -C "$TMPDIR"
 
+codesign_if_needed() {
+  if [ "$OS" = "darwin" ] && command -v codesign >/dev/null 2>&1; then
+    codesign --force --sign - "$1" >/dev/null 2>&1 || true
+  fi
+}
+
+find_extracted_binary() {
+  find "$TMPDIR" -type f -name "$1" 2>/dev/null | head -n 1
+}
+
 # Install binary
-INSTALL_DIR="/usr/local/bin"
-if [ ! -w "$INSTALL_DIR" ]; then
+INSTALL_DIR="${LAF_OFFICE_INSTALL_DIR_OVERRIDE:-/usr/local/bin}"
+if [ -n "${LAF_OFFICE_INSTALL_DIR_OVERRIDE:-}" ]; then
+  mkdir -p "$INSTALL_DIR"
+  printf "Installing to %s\n" "$INSTALL_DIR"
+elif [ ! -w "$INSTALL_DIR" ]; then
   INSTALL_DIR="${HOME}/.local/bin"
   mkdir -p "$INSTALL_DIR"
   printf "Installing to %s (no write access to /usr/local/bin)\n" "$INSTALL_DIR"
 fi
 
-cp "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
-chmod +x "${INSTALL_DIR}/${BINARY}"
-
-# macOS: re-apply ad-hoc code signature.
-# goreleaser's linker-embedded signature is invalidated by the cp+chmod sequence
-# on macOS 15+, causing the kernel to SIGKILL the binary with
-# "Code Signature Invalid" / "Taskgated Invalid Signature".
-if [ "$OS" = "darwin" ] && command -v codesign >/dev/null 2>&1; then
-  codesign --force --sign - "${INSTALL_DIR}/${BINARY}" >/dev/null 2>&1 || true
+REQUESTED_PATH="$(find_extracted_binary "$BINARY")"
+if [ -n "$REQUESTED_PATH" ]; then
+  cp "$REQUESTED_PATH" "${INSTALL_DIR}/${BINARY}"
+  chmod +x "${INSTALL_DIR}/${BINARY}"
+  codesign_if_needed "${INSTALL_DIR}/${BINARY}"
+else
+  printf "Error: release archive %s did not contain %s.\n" "$ARCHIVE" "$BINARY" >&2
+  printf "Use a newer LAF Office release that includes %s, or build it from this checkout for local development.\n" "$BINARY" >&2
+  exit 1
 fi
 
 # Verify
