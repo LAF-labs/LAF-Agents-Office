@@ -15,15 +15,16 @@ import (
 )
 
 type MemberSpec struct {
-	Slug           string                   `json:"slug"`
-	Name           string                   `json:"name"`
-	Role           string                   `json:"role,omitempty"`
-	Expertise      []string                 `json:"expertise,omitempty"`
-	Personality    string                   `json:"personality,omitempty"`
-	PermissionMode string                   `json:"permission_mode,omitempty"`
-	AllowedTools   []string                 `json:"allowed_tools,omitempty"`
-	System         bool                     `json:"system,omitempty"`
-	Provider       provider.ProviderBinding `json:"provider,omitempty"`
+	Slug           string                      `json:"slug"`
+	Name           string                      `json:"name"`
+	Role           string                      `json:"role,omitempty"`
+	Expertise      []string                    `json:"expertise,omitempty"`
+	Personality    string                      `json:"personality,omitempty"`
+	PermissionMode string                      `json:"permission_mode,omitempty"`
+	AllowedTools   []string                    `json:"allowed_tools,omitempty"`
+	System         bool                        `json:"system,omitempty"`
+	Provider       provider.ProviderBinding    `json:"provider,omitempty"`
+	ModelDefaults  provider.AgentModelDefaults `json:"model_defaults,omitempty"`
 }
 
 type ChannelSurfaceSpec struct {

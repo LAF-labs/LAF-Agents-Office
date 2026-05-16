@@ -17,6 +17,11 @@ func TestMemberFromSpec_CopiesProvider(t *testing.T) {
 		Slug:     "pm-bot",
 		Name:     "PM Bot",
 		Provider: provider.ProviderBinding{Kind: provider.KindCodex, Model: "gpt-5.4"},
+		ModelDefaults: provider.AgentModelDefaults{
+			Claude: "opus",
+			Codex:  "gpt-5.5",
+			LAF:    "frontier",
+		},
 	}
 	m := memberFromSpec(spec, "test", "2026-04-16T00:00:00Z", false)
 	if m.Slug != "pm-bot" || m.Name != "PM Bot" {
@@ -24,6 +29,9 @@ func TestMemberFromSpec_CopiesProvider(t *testing.T) {
 	}
 	if m.Provider.Kind != provider.KindCodex || m.Provider.Model != "gpt-5.4" {
 		t.Fatalf("provider not copied: %+v", m.Provider)
+	}
+	if m.ModelDefaults.Claude != "opus" || m.ModelDefaults.Codex != "gpt-5.5" || m.ModelDefaults.LAF != "frontier" {
+		t.Fatalf("model defaults not copied: %+v", m.ModelDefaults)
 	}
 }
 
@@ -61,6 +69,56 @@ func TestHandleOfficeMembers_CreateWithProvider(t *testing.T) {
 	}
 	if m.Provider.Openclaw == nil || m.Provider.Openclaw.SessionKey != "agent:test:pm" {
 		t.Fatalf("openclaw binding lost: %+v", m.Provider.Openclaw)
+	}
+}
+
+func TestHandleOfficeMembers_CreateAndUpdateModelDefaults(t *testing.T) {
+	b, ts, token := newBrokerHTTPTest(t)
+	defer ts.Close()
+
+	create := map[string]any{
+		"action": "create",
+		"slug":   "model-bot",
+		"name":   "Model Bot",
+		"model_defaults": map[string]any{
+			"claude": "opus",
+			"codex":  "gpt-5.5",
+			"laf":    "frontier",
+		},
+	}
+	if r := doBrokerPost(t, ts, token, "/office-members", create); r.StatusCode != http.StatusOK {
+		t.Fatalf("create status=%d", r.StatusCode)
+	}
+	if got := b.MemberModelDefault("model-bot", provider.KindClaudeCode); got != "opus" {
+		t.Fatalf("claude default = %q", got)
+	}
+	if got := b.MemberModelDefault("model-bot", provider.KindCodex); got != "gpt-5.5" {
+		t.Fatalf("codex default = %q", got)
+	}
+	if got := b.MemberModelDefault("model-bot", "laf_model"); got != "frontier" {
+		t.Fatalf("laf default = %q", got)
+	}
+
+	update := map[string]any{
+		"action": "update",
+		"slug":   "model-bot",
+		"model_defaults": map[string]any{
+			"claude": "sonnet",
+			"codex":  "gpt-5.4-mini",
+			"laf":    "economy",
+		},
+	}
+	if r := doBrokerPost(t, ts, token, "/office-members", update); r.StatusCode != http.StatusOK {
+		t.Fatalf("update status=%d", r.StatusCode)
+	}
+	if got := b.MemberModelDefault("model-bot", provider.KindClaudeCode); got != "sonnet" {
+		t.Fatalf("updated claude default = %q", got)
+	}
+	if got := b.MemberModelDefault("model-bot", provider.KindCodex); got != "gpt-5.4-mini" {
+		t.Fatalf("updated codex default = %q", got)
+	}
+	if got := b.MemberModelDefault("model-bot", "laf_model"); got != "economy" {
+		t.Fatalf("updated laf default = %q", got)
 	}
 }
 

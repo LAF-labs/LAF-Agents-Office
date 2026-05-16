@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/LAF-labs/LAF-Agents-Office/internal/agent"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/provider"
 )
 
 // minimalLauncher builds a Launcher with a predictable two-member pack so
@@ -97,6 +98,22 @@ func TestHeadlessClaudeModel_CustomLeadSlug(t *testing.T) {
 				t.Fatalf("slug=%q: want %q, got %q", tc.slug, tc.want, got)
 			}
 		})
+	}
+}
+
+func TestHeadlessClaudeModel_UsesMemberDefault(t *testing.T) {
+	l := minimalLauncher(false)
+	l.broker = newTestBroker(t)
+	if err := l.broker.SetMemberProvider("ceo", provider.ProviderBinding{}); err != nil {
+		t.Fatalf("SetMemberProvider: %v", err)
+	}
+	l.broker.mu.Lock()
+	member := l.broker.findMemberLocked("ceo")
+	member.ModelDefaults = provider.AgentModelDefaults{Claude: "opus"}
+	l.broker.mu.Unlock()
+
+	if got := l.headlessClaudeModel("ceo"); got != "opus" {
+		t.Fatalf("expected member model default opus, got %q", got)
 	}
 }
 

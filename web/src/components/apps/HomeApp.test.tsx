@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +13,6 @@ import { HomeApp } from "./HomeApp";
 
 const apiMocks = vi.hoisted(() => ({
   confirmOrchestrationIntent: vi.fn(),
-  createProject: vi.fn(),
   getAuthSession: vi.fn(),
   getConfig: vi.fn(),
   getModelAvailability: vi.fn(),
@@ -23,8 +22,41 @@ const apiMocks = vi.hoisted(() => ({
   postMessage: vi.fn(),
   routeOrchestrationIntent: vi.fn(),
 }));
+const eventMocks = vi.hoisted(() => {
+  const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+  return {
+    reset: () => listeners.clear(),
+    emit: (name: string, payload: unknown) => {
+      const event = new MessageEvent(name, {
+        data: JSON.stringify(payload),
+      });
+      for (const listener of listeners.get(name) ?? []) {
+        if (typeof listener === "function") {
+          listener(event);
+        } else {
+          listener.handleEvent(event);
+        }
+      }
+    },
+    subscribeBrokerEvent: vi.fn(
+      (name: string, listener: EventListenerOrEventListenerObject) => {
+        const next =
+          listeners.get(name) ?? new Set<EventListenerOrEventListenerObject>();
+        next.add(listener);
+        listeners.set(name, next);
+        return () => {
+          next.delete(listener);
+          if (next.size === 0) listeners.delete(name);
+        };
+      },
+    ),
+  };
+});
 
 vi.mock("../../api/client", () => apiMocks);
+vi.mock("../../api/events", () => ({
+  subscribeBrokerEvent: eventMocks.subscribeBrokerEvent,
+}));
 
 function renderHomeApp() {
   const queryClient = new QueryClient({
@@ -44,6 +76,7 @@ function renderHomeApp() {
 describe("HomeApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    eventMocks.reset();
     apiMocks.getAuthSession.mockResolvedValue({
       authenticated: true,
       team: {
@@ -94,79 +127,42 @@ describe("HomeApp", () => {
       projects: [
         {
           created_at: "2026-05-01T00:00:00Z",
-          id: "old",
-          name: "Old Project",
-          updated_at: "2026-05-01T00:00:00Z",
+          id: "sajuhook",
+          name: "sajuhook",
+          updated_at: "2026-05-04T00:00:00Z",
         },
         {
           created_at: "2026-05-02T00:00:00Z",
-          id: "new",
-          name: "New Project",
+          id: "aurora-revenue-os",
+          name: "Aurora Revenue OS",
           updated_at: "2026-05-09T00:00:00Z",
-        },
-        {
-          created_at: "2026-05-03T00:00:00Z",
-          id: "middle",
-          name: "Middle Project",
-          updated_at: "2026-05-04T00:00:00Z",
         },
       ],
     });
     apiMocks.postMessage.mockResolvedValue({ id: "msg-1" });
   });
 
-  it("shows project cards in recent update order", async () => {
+  it("does not render the project picker on the home page", async () => {
     renderHomeApp();
 
-    const region = await screen.findByRole("region", { name: "프로젝트" });
-    await within(region).findByText("New Project");
-    const projectNames = within(region)
-      .getAllByText(/Project$/)
-      .map((node) => node.textContent);
-
-    expect(projectNames).toEqual([
-      "New Project",
-      "Middle Project",
-      "Old Project",
-    ]);
+    await screen.findByText("오늘은 무슨 이야기를 할까요?");
+    expect(screen.queryByRole("region", { name: "프로젝트" })).toBeNull();
+    expect(screen.queryByPlaceholderText("프로젝트 이름")).toBeNull();
   });
 
-  it("creates a project from only its name when there are no projects", async () => {
-    const user = userEvent.setup();
-    apiMocks.getProjects.mockResolvedValue({ projects: [] });
-    apiMocks.createProject.mockResolvedValue({
-      project: { id: "launch", name: "Launch" },
-    });
-
-    renderHomeApp();
-
-    await user.type(
-      await screen.findByPlaceholderText("프로젝트 이름"),
-      "Launch",
-    );
-    await user.click(screen.getByRole("button", { name: "만들기" }));
-
-    await waitFor(() => {
-      expect(apiMocks.createProject).toHaveBeenCalledWith({ name: "Launch" });
-    });
-  });
-
-  it("adds the selected project hashtag and defaults chat to CEO", async () => {
+  it("defaults chat to CEO without adding a project hashtag", async () => {
     const user = userEvent.setup();
     renderHomeApp();
 
-    await user.click(
-      await screen.findByRole("button", { name: /New Project/ }),
-    );
     await user.type(
-      screen.getByPlaceholderText("무엇이든 물어보세요"),
+      await screen.findByPlaceholderText("무엇이든 물어보세요"),
       "이번 주 계획 정리해줘",
     );
     await user.click(screen.getByRole("button", { name: "보내기" }));
 
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "#new @ceo 이번 주 계획 정리해줘",
+        "@ceo 이번 주 계획 정리해줘",
         "general",
         "home:team-alpha:user-alpha",
         ["ceo"],
@@ -182,9 +178,8 @@ describe("HomeApp", () => {
     const user = userEvent.setup();
     renderHomeApp();
 
-    await screen.findByText("New Project");
     await user.type(
-      screen.getByPlaceholderText("무엇이든 물어보세요"),
+      await screen.findByPlaceholderText("무엇이든 물어보세요"),
       "@engineer 디자인 확인해줘",
     );
     await user.click(screen.getByRole("button", { name: "보내기" }));
@@ -203,6 +198,87 @@ describe("HomeApp", () => {
     });
   });
 
+  it("shows project autocomplete for # and sends the selected project hashtag", async () => {
+    const user = userEvent.setup();
+    renderHomeApp();
+
+    await user.type(
+      await screen.findByPlaceholderText("무엇이든 물어보세요"),
+      "#aur",
+    );
+    await user.click(await screen.findByText("#aurora-revenue-os"));
+    await user.type(
+      screen.getByPlaceholderText("무엇이든 물어보세요"),
+      "정리해줘",
+    );
+    await user.click(screen.getByRole("button", { name: "보내기" }));
+
+    await waitFor(() => {
+      expect(apiMocks.postMessage).toHaveBeenCalledWith(
+        "@ceo #aurora-revenue-os 정리해줘",
+        "general",
+        "home:team-alpha:user-alpha",
+        ["ceo"],
+        expect.objectContaining({
+          model_mode: "record_only",
+          scope: "home_orchestration",
+        }),
+      );
+    });
+  });
+
+  it("shows a thinking bubble and streams an incoming agent reply", async () => {
+    const user = userEvent.setup();
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      local_cli: { available: true, runtimes: ["codex"] },
+      my_bridge: { available: true },
+      record_only: { available: true },
+      team_bridge: { available: false, reason: "runner required" },
+    });
+    renderHomeApp();
+
+    await waitFor(() =>
+      expect(screen.getByText("Codex CLI를 사용합니다.")).toBeInTheDocument(),
+    );
+    await user.type(
+      await screen.findByPlaceholderText("무엇이든 물어보세요"),
+      "현재 상태 알려줘",
+    );
+    await user.click(screen.getByRole("button", { name: "보내기" }));
+
+    await waitFor(() =>
+      expect(document.querySelector(".home-message.is-thinking")).toBeTruthy(),
+    );
+    expect(document.querySelectorAll(".home-typing-dots span")).toHaveLength(3);
+
+    act(() => {
+      eventMocks.emit("message", {
+        message: {
+          channel: "general",
+          content: "좋아요. 바로 확인할게요.",
+          from: "ceo",
+          id: "msg-agent-1",
+          reply_to: "msg-1",
+          timestamp: new Date().toISOString(),
+        },
+      });
+    });
+
+    await waitFor(() =>
+      expect(
+        document.querySelector(".home-message-text.is-streaming"),
+      ).toBeTruthy(),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("생각 중")).not.toBeInTheDocument(),
+    );
+    expect(await screen.findByText(/좋아요/)).toBeInTheDocument();
+    expect(await screen.findByText(/확인할게요/)).toBeInTheDocument();
+  });
+
   it("does not submit the home composer twice while the first send is pending", async () => {
     const user = userEvent.setup();
     let resolvePost!: (value: unknown) => void;
@@ -214,8 +290,10 @@ describe("HomeApp", () => {
     );
     renderHomeApp();
 
-    await screen.findByText("New Project");
-    await user.type(screen.getByPlaceholderText("무엇이든 물어보세요"), "ㅇㅋ");
+    await user.type(
+      await screen.findByPlaceholderText("무엇이든 물어보세요"),
+      "ㅇㅋ",
+    );
     const sendButton = screen.getByRole("button", { name: "보내기" });
     await user.click(sendButton);
     await user.click(sendButton);
@@ -227,8 +305,7 @@ describe("HomeApp", () => {
   it("does not submit Enter while Korean IME composition is active", async () => {
     renderHomeApp();
 
-    await screen.findByText("New Project");
-    const input = screen.getByPlaceholderText("무엇이든 물어보세요");
+    const input = await screen.findByPlaceholderText("무엇이든 물어보세요");
     fireEvent.change(input, {
       target: { value: "ㅇ", selectionStart: 1 },
     });

@@ -25,6 +25,16 @@ type ProviderBinding struct {
 	Openclaw *OpenclawProviderBinding `json:"openclaw,omitempty"`
 }
 
+// AgentModelDefaults stores the team-wide default model choice for an agent
+// across every execution surface the product exposes. Runtime dispatch still
+// picks the active surface separately; this struct only answers "which model
+// should this agent use when that surface is selected?"
+type AgentModelDefaults struct {
+	Claude string `json:"claude,omitempty"`
+	Codex  string `json:"codex,omitempty"`
+	LAF    string `json:"laf,omitempty"`
+}
+
 // OpenclawProviderBinding holds OpenClaw-specific parameters. SessionKey is
 // the gateway's identifier for the agent's persistent conversation. AgentID
 // is the OpenClaw agent config name (defaults to "main" at creation time).

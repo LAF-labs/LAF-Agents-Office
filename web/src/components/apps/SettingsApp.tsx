@@ -24,6 +24,7 @@ import {
 } from "iconoir-react";
 
 import {
+  type AgentModelDefaults,
   type AuthUser,
   type BridgeDevice,
   type ConfigSnapshot,
@@ -42,12 +43,14 @@ import {
   getPermissions,
   getRunnerStatus,
   type HostedRunner,
+  type OfficeMember,
   type PermissionMember,
   type RunnerPairingStartResponse,
   resetWorkspace,
   shredWorkspace,
   updateAuthUserRole,
   updateConfig,
+  updateOfficeMember,
   updatePermissions,
   type WorkspaceRole,
   type WorkspaceWipeResult,
@@ -813,11 +816,239 @@ function normalizeDraft(template?: GeneratedAgentTemplate | null) {
   };
 }
 
+const CLAUDE_MODEL_OPTIONS = [
+  {
+    value: "sonnet",
+    label: "Sonnet",
+    desc: "Everyday coding and agent work",
+  },
+  {
+    value: "opus",
+    label: "Opus",
+    desc: "Hard reasoning and planning",
+  },
+  {
+    value: "opusplan",
+    label: "Opus Plan",
+    desc: "Opus for planning, Sonnet for execution",
+  },
+  {
+    value: "haiku",
+    label: "Haiku",
+    desc: "Fast, smaller tasks",
+  },
+  {
+    value: "sonnet[1m]",
+    label: "Sonnet 1M",
+    desc: "Long-context sessions",
+  },
+];
+
+const CODEX_MODEL_OPTIONS = [
+  {
+    value: "gpt-5.5",
+    label: "GPT-5.5",
+    desc: "Frontier work",
+  },
+  {
+    value: "gpt-5.4",
+    label: "GPT-5.4",
+    desc: "Strong everyday coding",
+  },
+  {
+    value: "gpt-5.3-codex",
+    label: "GPT-5.3 Codex",
+    desc: "Coding-optimized",
+  },
+  {
+    value: "gpt-5.3-codex-spark",
+    label: "Codex Spark",
+    desc: "Fast coding turns",
+  },
+  {
+    value: "gpt-5.4-mini",
+    label: "GPT-5.4 Mini",
+    desc: "Small and efficient",
+  },
+];
+
+const LAF_MODEL_OPTIONS = [
+  { value: "economy", label: "1 · Economy", desc: "Lowest cost" },
+  { value: "standard", label: "2 · Standard", desc: "Routine work" },
+  { value: "balanced", label: "3 · Balanced", desc: "Default high setting" },
+  { value: "advanced", label: "4 · Advanced", desc: "Harder work" },
+  { value: "frontier", label: "5 · Frontier", desc: "Best available LAF tier" },
+];
+
+const DEFAULT_AGENT_MODEL_DEFAULTS: Required<AgentModelDefaults> = {
+  claude: "sonnet",
+  codex: "gpt-5.4",
+  laf: "balanced",
+};
+
+function normalizeAgentModelDefaults(
+  value?: AgentModelDefaults | null,
+): Required<AgentModelDefaults> {
+  return {
+    claude: value?.claude?.trim() || DEFAULT_AGENT_MODEL_DEFAULTS.claude,
+    codex: value?.codex?.trim() || DEFAULT_AGENT_MODEL_DEFAULTS.codex,
+    laf: value?.laf?.trim() || DEFAULT_AGENT_MODEL_DEFAULTS.laf,
+  };
+}
+
+function sameModelDefaults(
+  a: AgentModelDefaults,
+  b: AgentModelDefaults,
+): boolean {
+  const left = normalizeAgentModelDefaults(a);
+  const right = normalizeAgentModelDefaults(b);
+  return (
+    left.claude === right.claude &&
+    left.codex === right.codex &&
+    left.laf === right.laf
+  );
+}
+
+function ModelSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string; desc: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label style={{ display: "grid", gap: 3, minWidth: 0 }}>
+      <span style={{ ...styles.rowLabelHint, marginTop: 0 }}>{label}</span>
+      <select
+        style={{ ...styles.input, height: 30, fontSize: 12 }}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label} · {option.desc}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function AgentModelDefaultsRow({
+  member,
+  busy,
+  onSave,
+}: {
+  member: OfficeMember;
+  busy: boolean;
+  onSave: (slug: string, defaults: Required<AgentModelDefaults>) => void;
+}) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(() =>
+    normalizeAgentModelDefaults(member.model_defaults),
+  );
+  const saved = normalizeAgentModelDefaults(member.model_defaults);
+  const changed = !sameModelDefaults(draft, saved);
+
+  useEffect(() => {
+    setDraft(normalizeAgentModelDefaults(member.model_defaults));
+  }, [member.model_defaults]);
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gap: 10,
+        padding: "12px 0",
+        borderBottom: "1px solid var(--border-light)",
+      }}
+    >
+      <div
+        style={{
+          alignItems: "baseline",
+          display: "flex",
+          gap: 8,
+          justifyContent: "space-between",
+          minWidth: 0,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <strong style={{ color: "var(--text-primary)", fontSize: 12 }}>
+            @{member.slug}
+          </strong>
+          <div
+            style={{
+              color: "var(--text-tertiary)",
+              fontSize: 11,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={member.role || member.name}
+          >
+            {member.role || member.name}
+          </div>
+        </div>
+        {member.built_in ? (
+          <span style={{ color: "var(--text-tertiary)", fontSize: 11 }}>
+            protected
+          </span>
+        ) : null}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gap: 8,
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+        }}
+      >
+        <ModelSelect
+          label="Claude"
+          value={draft.claude}
+          options={CLAUDE_MODEL_OPTIONS}
+          onChange={(claude) => setDraft((current) => ({ ...current, claude }))}
+        />
+        <ModelSelect
+          label="Codex"
+          value={draft.codex}
+          options={CODEX_MODEL_OPTIONS}
+          onChange={(codex) => setDraft((current) => ({ ...current, codex }))}
+        />
+        <ModelSelect
+          label="LAF"
+          value={draft.laf}
+          options={LAF_MODEL_OPTIONS}
+          onChange={(laf) => setDraft((current) => ({ ...current, laf }))}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={!changed || busy}
+          onClick={() => onSave(member.slug, draft)}
+          style={{ minHeight: 30 }}
+        >
+          {busy ? t("common.saving") : t("settings.agents.saveModels")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AgentMakerSection() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState(normalizeDraft(null));
+  const [modelDraft, setModelDraft] = useState<Required<AgentModelDefaults>>(
+    () => ({ ...DEFAULT_AGENT_MODEL_DEFAULTS }),
+  );
+  const [savingModelSlug, setSavingModelSlug] = useState<string | null>(null);
 
   const { data: memberData } = useQuery({
     queryKey: ["office-members"],
@@ -841,6 +1072,27 @@ function AgentMakerSection() {
     },
   });
 
+  const updateModelDefaultsMutation = useMutation({
+    mutationFn: ({
+      slug,
+      model_defaults,
+    }: {
+      slug: string;
+      model_defaults: Required<AgentModelDefaults>;
+    }) => updateOfficeMember({ slug, model_defaults }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["office-members"] });
+      showNotice(t("settings.agents.modelsSaved"), "success");
+    },
+    onError: (err) => {
+      showNotice(
+        err instanceof Error ? err.message : t("settings.agents.modelsFailed"),
+        "error",
+      );
+    },
+    onSettled: () => setSavingModelSlug(null),
+  });
+
   const createMutation = useMutation({
     mutationFn: () =>
       createOfficeMember({
@@ -853,11 +1105,13 @@ function AgentMakerSection() {
           .filter(Boolean),
         personality: draft.personality.trim(),
         permission_mode: "plan",
+        model_defaults: modelDraft,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["office-members"] });
       setPrompt("");
       setDraft(normalizeDraft(null));
+      setModelDraft({ ...DEFAULT_AGENT_MODEL_DEFAULTS });
       showNotice(t("settings.agents.created"), "success");
     },
     onError: (err) => {
@@ -873,6 +1127,13 @@ function AgentMakerSection() {
     draft.slug.trim() !== "" &&
     draft.name.trim() !== "" &&
     !createMutation.isPending;
+  const saveModelDefaults = (
+    slug: string,
+    model_defaults: Required<AgentModelDefaults>,
+  ) => {
+    setSavingModelSlug(slug);
+    updateModelDefaultsMutation.mutate({ slug, model_defaults });
+  };
 
   return (
     <div>
@@ -880,7 +1141,8 @@ function AgentMakerSection() {
       <p style={styles.sectionDesc}>{t("settings.agents.desc")}</p>
 
       <div style={styles.groupTitle}>{t("settings.agents.coreTeam")}</div>
-      <div style={styles.emptyState}>
+      <p style={styles.runnerSetupDesc}>{t("settings.agents.modelDesc")}</p>
+      <div style={{ ...styles.emptyState, paddingTop: 2 }}>
         {members.map((member, index) => (
           <div
             key={member.slug}
@@ -906,6 +1168,23 @@ function AgentMakerSection() {
               </span>
             ) : null}
           </div>
+        ))}
+      </div>
+
+      <div style={styles.groupTitle}>{t("settings.agents.modelDefaults")}</div>
+      <div
+        style={{
+          borderTop: "1px solid var(--border-light)",
+          marginBottom: 24,
+        }}
+      >
+        {members.map((member) => (
+          <AgentModelDefaultsRow
+            key={member.slug}
+            member={member}
+            busy={savingModelSlug === member.slug}
+            onSave={saveModelDefaults}
+          />
         ))}
       </div>
 
@@ -993,6 +1272,43 @@ function AgentMakerSection() {
             }))
           }
         />
+      </Field>
+      <Field
+        label={t("settings.agents.modelDefaults")}
+        hint={t("settings.agents.modelHint")}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: 8,
+          }}
+        >
+          <ModelSelect
+            label="Claude"
+            value={modelDraft.claude}
+            options={CLAUDE_MODEL_OPTIONS}
+            onChange={(claude) =>
+              setModelDraft((current) => ({ ...current, claude }))
+            }
+          />
+          <ModelSelect
+            label="Codex"
+            value={modelDraft.codex}
+            options={CODEX_MODEL_OPTIONS}
+            onChange={(codex) =>
+              setModelDraft((current) => ({ ...current, codex }))
+            }
+          />
+          <ModelSelect
+            label="LAF"
+            value={modelDraft.laf}
+            options={LAF_MODEL_OPTIONS}
+            onChange={(laf) =>
+              setModelDraft((current) => ({ ...current, laf }))
+            }
+          />
+        </div>
       </Field>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button
@@ -2488,5 +2804,9 @@ export function SettingsApp() {
 }
 
 export const __test__ = {
+  CODEX_MODEL_OPTIONS,
+  DEFAULT_AGENT_MODEL_DEFAULTS,
+  LAF_MODEL_OPTIONS,
   RUNNER_INSTALL_COMMAND,
+  normalizeAgentModelDefaults,
 };

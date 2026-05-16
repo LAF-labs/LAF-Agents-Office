@@ -798,6 +798,12 @@ export interface ProviderBinding {
   model?: string;
 }
 
+export interface AgentModelDefaults {
+  claude?: string;
+  codex?: string;
+  laf?: string;
+}
+
 export interface OfficeMember {
   slug: string;
   name: string;
@@ -811,6 +817,7 @@ export interface OfficeMember {
   task?: string;
   channel?: string;
   provider?: ProviderBinding | string;
+  model_defaults?: AgentModelDefaults;
   /** Broker-provided: serialized as `built_in`. Built-ins are the protected core team. */
   built_in?: boolean;
   /** Per-channel disabled state when the list is sourced from `/members?channel=…`. */
@@ -830,10 +837,27 @@ export function createOfficeMember(body: {
   permission_mode?: string;
   created_by?: string;
   provider?: ProviderBinding;
+  model_defaults?: AgentModelDefaults;
 }) {
   return post<{ member: OfficeMember }>("/office-members", {
     action: "create",
     created_by: "agent-maker",
+    ...body,
+  });
+}
+
+export function updateOfficeMember(body: {
+  slug: string;
+  name?: string;
+  role?: string;
+  expertise?: string[];
+  personality?: string;
+  permission_mode?: string;
+  provider?: ProviderBinding;
+  model_defaults?: AgentModelDefaults;
+}) {
+  return post<{ member: OfficeMember }>("/office-members", {
+    action: "update",
     ...body,
   });
 }

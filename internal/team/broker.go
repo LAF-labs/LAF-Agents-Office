@@ -298,17 +298,18 @@ func canonicalDMTargetAgent(slug string) string {
 }
 
 type officeMember struct {
-	Slug           string                   `json:"slug"`
-	Name           string                   `json:"name"`
-	Role           string                   `json:"role,omitempty"`
-	Expertise      []string                 `json:"expertise,omitempty"`
-	Personality    string                   `json:"personality,omitempty"`
-	PermissionMode string                   `json:"permission_mode,omitempty"`
-	AllowedTools   []string                 `json:"allowed_tools,omitempty"`
-	CreatedBy      string                   `json:"created_by,omitempty"`
-	CreatedAt      string                   `json:"created_at,omitempty"`
-	BuiltIn        bool                     `json:"built_in,omitempty"`
-	Provider       provider.ProviderBinding `json:"provider,omitempty"`
+	Slug           string                      `json:"slug"`
+	Name           string                      `json:"name"`
+	Role           string                      `json:"role,omitempty"`
+	Expertise      []string                    `json:"expertise,omitempty"`
+	Personality    string                      `json:"personality,omitempty"`
+	PermissionMode string                      `json:"permission_mode,omitempty"`
+	AllowedTools   []string                    `json:"allowed_tools,omitempty"`
+	CreatedBy      string                      `json:"created_by,omitempty"`
+	CreatedAt      string                      `json:"created_at,omitempty"`
+	BuiltIn        bool                        `json:"built_in,omitempty"`
+	Provider       provider.ProviderBinding    `json:"provider,omitempty"`
+	ModelDefaults  provider.AgentModelDefaults `json:"model_defaults,omitempty"`
 }
 
 type watchdogAlert struct {
@@ -3640,7 +3641,9 @@ func defaultOfficeMembers() []officeMember {
 	members := make([]officeMember, 0, len(manifest.Members))
 	for _, cfg := range manifest.Members {
 		builtIn := cfg.System || cfg.Slug == manifest.Lead || office.IsCoreAgentSlug(cfg.Slug)
-		members = append(members, memberFromSpec(cfg, "laf-office", now, builtIn))
+		member := memberFromSpec(cfg, "laf-office", now, builtIn)
+		applyOfficeMemberDefaults(&member)
+		members = append(members, member)
 	}
 	return members
 }
@@ -4046,6 +4049,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		member.BuiltIn = member.Slug == office.DefaultLeadAgentSlug || office.IsCoreAgentSlug(member.Slug)
 		member.Expertise = normalizeStringList(member.Expertise)
 		member.AllowedTools = normalizeStringList(member.AllowedTools)
+		applyOfficeMemberDefaults(&member)
 		normalizedMembers = append(normalizedMembers, member)
 	}
 	b.members = normalizedMembers
@@ -4462,6 +4466,18 @@ func (b *Broker) MemberProviderKind(slug string) string {
 	return m.Provider.Kind
 }
 
+// MemberModelDefault returns the normalized model default for the requested
+// provider surface. Empty means the member or provider surface is unknown.
+func (b *Broker) MemberModelDefault(slug string, providerKind string) string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	m := b.findMemberLocked(slug)
+	if m == nil {
+		return ""
+	}
+	return memberModelDefaultForProvider(m.ModelDefaults, providerKind)
+}
+
 // memberFromSpec builds an officeMember from a manifest MemberSpec, threading
 // Provider through. Used by defaultOfficeMembers and by HTTP create paths so
 // field-copy logic lives in one place.
@@ -4478,6 +4494,7 @@ func memberFromSpec(spec company.MemberSpec, createdBy, createdAt string, builtI
 		CreatedAt:      createdAt,
 		BuiltIn:        builtIn,
 		Provider:       spec.Provider,
+		ModelDefaults:  spec.ModelDefaults,
 	}
 }
 
@@ -4917,6 +4934,43 @@ func applyOfficeMemberDefaults(member *officeMember) {
 	}
 	if member.PermissionMode == "" {
 		member.PermissionMode = "plan"
+	}
+	member.ModelDefaults = normalizeAgentModelDefaults(member.ModelDefaults)
+}
+
+const (
+	defaultClaudeAgentModel = "sonnet"
+	defaultCodexAgentModel  = "gpt-5.4"
+	defaultLAFAgentModel    = "balanced"
+)
+
+func normalizeAgentModelDefaults(defaults provider.AgentModelDefaults) provider.AgentModelDefaults {
+	defaults.Claude = strings.TrimSpace(defaults.Claude)
+	defaults.Codex = strings.TrimSpace(defaults.Codex)
+	defaults.LAF = strings.TrimSpace(defaults.LAF)
+	if defaults.Claude == "" {
+		defaults.Claude = defaultClaudeAgentModel
+	}
+	if defaults.Codex == "" {
+		defaults.Codex = defaultCodexAgentModel
+	}
+	if defaults.LAF == "" {
+		defaults.LAF = defaultLAFAgentModel
+	}
+	return defaults
+}
+
+func memberModelDefaultForProvider(defaults provider.AgentModelDefaults, providerKind string) string {
+	defaults = normalizeAgentModelDefaults(defaults)
+	switch normalizeProviderKind(providerKind) {
+	case provider.KindClaudeCode:
+		return defaults.Claude
+	case provider.KindCodex:
+		return defaults.Codex
+	case "laf_model":
+		return defaults.LAF
+	default:
+		return ""
 	}
 }
 
@@ -7209,17 +7263,18 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"members": members})
 	case http.MethodPost:
 		var body struct {
-			Action         string                    `json:"action"`
-			Slug           string                    `json:"slug"`
-			Name           string                    `json:"name"`
-			Role           string                    `json:"role"`
-			Expertise      []string                  `json:"expertise"`
-			Personality    string                    `json:"personality"`
-			PermissionMode string                    `json:"permission_mode"`
-			AllowedTools   []string                  `json:"allowed_tools"`
-			CreatedBy      string                    `json:"created_by"`
-			Confirm        string                    `json:"confirm"`
-			Provider       *provider.ProviderBinding `json:"provider,omitempty"`
+			Action         string                       `json:"action"`
+			Slug           string                       `json:"slug"`
+			Name           string                       `json:"name"`
+			Role           string                       `json:"role"`
+			Expertise      []string                     `json:"expertise"`
+			Personality    string                       `json:"personality"`
+			PermissionMode string                       `json:"permission_mode"`
+			AllowedTools   []string                     `json:"allowed_tools"`
+			CreatedBy      string                       `json:"created_by"`
+			Confirm        string                       `json:"confirm"`
+			Provider       *provider.ProviderBinding    `json:"provider,omitempty"`
+			ModelDefaults  *provider.AgentModelDefaults `json:"model_defaults,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -7268,6 +7323,9 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 			}
 			if body.Provider != nil {
 				member.Provider = *body.Provider
+			}
+			if body.ModelDefaults != nil {
+				member.ModelDefaults = *body.ModelDefaults
 			}
 			applyOfficeMemberDefaults(&member)
 
@@ -7451,6 +7509,9 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 				}
 
 				member.Provider = newBinding
+			}
+			if body.ModelDefaults != nil {
+				member.ModelDefaults = *body.ModelDefaults
 			}
 			applyOfficeMemberDefaults(member)
 			if err := b.saveLocked(); err != nil {

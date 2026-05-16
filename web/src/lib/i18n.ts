@@ -71,6 +71,13 @@ const messages = {
     "settings.agents.generating": "Generating...",
     "settings.agents.generated": "Agent draft generated.",
     "settings.agents.generateFailed": "Failed to generate agent",
+    "settings.agents.modelDefaults": "Model defaults",
+    "settings.agents.modelDesc":
+      "These defaults apply to the whole team. Each agent keeps a Claude, Codex, and LAF choice so switching execution modes does not require reconfiguring the roster.",
+    "settings.agents.modelHint": "Used when this agent runs on that surface",
+    "settings.agents.saveModels": "Save",
+    "settings.agents.modelsSaved": "Model defaults saved.",
+    "settings.agents.modelsFailed": "Failed to save model defaults",
     "settings.agents.draft": "Draft",
     "settings.agents.name": "Name",
     "settings.agents.role": "Role",
@@ -857,6 +864,14 @@ const messages = {
     "settings.agents.generating": "생성 중...",
     "settings.agents.generated": "에이전트 초안을 만들었습니다.",
     "settings.agents.generateFailed": "에이전트를 생성하지 못했습니다",
+    "settings.agents.modelDefaults": "모델 기본값",
+    "settings.agents.modelDesc":
+      "이 기본값은 팀 전체에 적용됩니다. 실행 방식을 바꿔도 다시 설정하지 않도록 각 에이전트는 Claude, Codex, LAF 값을 모두 가집니다.",
+    "settings.agents.modelHint":
+      "이 에이전트가 해당 방식으로 실행될 때 사용됩니다",
+    "settings.agents.saveModels": "저장",
+    "settings.agents.modelsSaved": "모델 기본값을 저장했습니다.",
+    "settings.agents.modelsFailed": "모델 기본값을 저장하지 못했습니다",
     "settings.agents.draft": "초안",
     "settings.agents.name": "이름",
     "settings.agents.role": "역할",

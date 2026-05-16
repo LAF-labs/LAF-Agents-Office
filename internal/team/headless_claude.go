@@ -236,6 +236,11 @@ func (l *Launcher) runHeadlessClaudeTurn(ctx context.Context, slug string, notif
 }
 
 func (l *Launcher) headlessClaudeModel(slug string) string {
+	if l != nil && l.broker != nil {
+		if model := strings.TrimSpace(l.broker.MemberModelDefault(slug, provider.KindClaudeCode)); model != "" {
+			return model
+		}
+	}
 	if l.opusCEO && slug == l.officeLeadSlug() {
 		return "claude-opus-4-6"
 	}

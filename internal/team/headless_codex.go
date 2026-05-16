@@ -1171,7 +1171,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 		"--color", "never",
 		"--json",
 	)
-	if model := strings.TrimSpace(config.ResolveCodexModel(l.cwd)); model != "" {
+	if model := strings.TrimSpace(l.headlessCodexModel(slug)); model != "" {
 		args = append(args, "--model", model)
 	}
 	for _, override := range overrides {
@@ -1335,7 +1335,7 @@ func (l *Launcher) runHeadlessCodexTurn(ctx context.Context, slug string, notifi
 	}
 	l.updateHeadlessProgress(slug, "idle", "idle", summary, metrics)
 	if l.broker != nil && (result.Usage.InputTokens != 0 || result.Usage.OutputTokens != 0 || result.Usage.CacheReadTokens != 0 || result.Usage.CacheCreationTokens != 0 || result.Usage.CostUSD != 0) {
-		l.broker.RecordAgentUsage(slug, config.ResolveCodexModel(l.cwd), result.Usage)
+		l.broker.RecordAgentUsage(slug, l.headlessCodexModel(slug), result.Usage)
 	}
 	if text := strings.TrimSpace(firstNonEmpty(result.FinalMessage, result.LastPlainLine)); text != "" {
 		appendHeadlessCodexLog(slug, "result: "+text)
@@ -1359,6 +1359,18 @@ func (l *Launcher) headlessCodexNeedsDangerousBypass(slug string) bool {
 		return false
 	}
 	return isLocalWorktreeExecutionMode(task.ExecutionMode)
+}
+
+func (l *Launcher) headlessCodexModel(slug string) string {
+	if l != nil && l.broker != nil {
+		if model := strings.TrimSpace(l.broker.MemberModelDefault(slug, provider.KindCodex)); model != "" {
+			return model
+		}
+	}
+	if l == nil {
+		return config.ResolveCodexModel("")
+	}
+	return config.ResolveCodexModel(l.cwd)
 }
 
 func (l *Launcher) buildHeadlessCodexEnv(slug string, workspaceDir string, channel string) []string {

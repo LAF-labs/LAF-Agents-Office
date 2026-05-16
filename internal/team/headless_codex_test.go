@@ -180,6 +180,9 @@ func TestRunHeadlessCodexTurnUsesHeadlessOfficeRuntime(t *testing.T) {
 	if !strings.Contains(joinedArgs, "--disable plugins") {
 		t.Fatalf("expected plugins feature to be disabled, got %#v", record.Args)
 	}
+	if !strings.Contains(joinedArgs, "--model gpt-5.4") {
+		t.Fatalf("expected per-agent codex model default, got %#v", record.Args)
+	}
 	if !strings.Contains(joinedArgs, `mcp_servers.laf-office.command="/tmp/laf-office"`) {
 		t.Fatalf("expected office MCP override, got %#v", record.Args)
 	}

@@ -10,4 +10,16 @@ describe("SettingsApp runner setup", () => {
     expect(__test__.RUNNER_INSTALL_COMMAND).toContain("laf-runner");
     expect(__test__.RUNNER_INSTALL_COMMAND).not.toMatch(/\.pkg|\.msi|\.exe/i);
   });
+
+  it("fills every agent model surface with team defaults", () => {
+    expect(__test__.normalizeAgentModelDefaults({})).toEqual({
+      claude: "sonnet",
+      codex: "gpt-5.4",
+      laf: "balanced",
+    });
+    expect(__test__.LAF_MODEL_OPTIONS).toHaveLength(5);
+    expect(
+      __test__.CODEX_MODEL_OPTIONS.map((option) => option.value),
+    ).toContain("gpt-5.4");
+  });
 });
