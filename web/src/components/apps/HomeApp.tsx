@@ -18,6 +18,7 @@ import {
   getAuthSession,
   getConfig,
   getProjects,
+  getSkills,
   getThreadMessages,
   type Message,
   type ModelMode,
@@ -26,6 +27,7 @@ import {
   type Project,
   postMessage,
   routeOrchestrationIntent,
+  type Skill,
 } from "../../api/client";
 import { subscribeBrokerEvent } from "../../api/events";
 import { useOfficeMembers } from "../../hooks/useMembers";
@@ -46,7 +48,7 @@ const HOME_MESSAGE_REFETCH_MS =
 const HOME_STREAM_INITIAL_CHARS = 10;
 const HOME_STREAM_INTERVAL_MS = 18;
 
-type HomeAutocompleteType = "mention" | "project";
+type HomeAutocompleteType = "mention" | "project" | "skill";
 
 interface HomeAutocompleteTrigger {
   type: HomeAutocompleteType;
@@ -174,12 +176,12 @@ function currentAutocompleteTrigger(
   caret: number,
 ): HomeAutocompleteTrigger | null {
   const before = value.slice(0, caret);
-  const atIdx = before.lastIndexOf("@");
-  const hashIdx = before.lastIndexOf("#");
-  const trigger =
-    hashIdx > atIdx
-      ? { idx: hashIdx, type: "project" as const }
-      : { idx: atIdx, type: "mention" as const };
+  const triggers: Array<{ idx: number; type: HomeAutocompleteType }> = [
+    { idx: before.lastIndexOf("@"), type: "mention" },
+    { idx: before.lastIndexOf("#"), type: "project" },
+    { idx: before.lastIndexOf("/"), type: "skill" },
+  ];
+  const [trigger] = triggers.sort((a, b) => b.idx - a.idx);
   if (trigger.idx === -1) return null;
   const prevChar = trigger.idx === 0 ? "" : before[trigger.idx - 1];
   if (prevChar !== "" && !/\s/.test(prevChar)) return null;
@@ -247,6 +249,49 @@ function projectOptions(
       label: projectHashtag(project),
       desc: project.name || project.id,
     }))
+    .slice(0, 8);
+}
+
+function skillSummary(skill: Skill): string {
+  return (
+    skill.description?.trim() ||
+    skill.trigger?.trim() ||
+    skill.content
+      ?.split("\n")
+      .find((line) => line.trim())
+      ?.trim() ||
+    "팀에 등록된 스킬"
+  );
+}
+
+function skillCommand(skill: Skill): string {
+  return `/${stableHomePart(skill.name)}`;
+}
+
+function skillOptions(query: string, skills: Skill[]): HomeAutocompleteItem[] {
+  const q = query.toLowerCase();
+  return skills
+    .filter((skill) => !skill.status || skill.status === "active")
+    .filter((skill) => {
+      if (!q) return true;
+      return [
+        skill.name,
+        skill.title,
+        skill.description,
+        skill.trigger,
+        ...(skill.tags ?? []),
+      ]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(q));
+    })
+    .map((skill) => ({
+      insert: skillCommand(skill),
+      label: skillCommand(skill),
+      desc: skill.title
+        ? `${skill.title} - ${skillSummary(skill)}`
+        : skillSummary(skill),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
     .slice(0, 8);
 }
 
@@ -396,6 +441,15 @@ function buildOutboundMessage(
   };
 }
 
+function renderHomeToken(token: string, key: string): ReactNode {
+  const isSkill = token.startsWith("/");
+  return (
+    <span key={key} className={isSkill ? "home-skill-token" : "home-hash"}>
+      {token}
+    </span>
+  );
+}
+
 function renderHomeText(content: string, agentSlugs: string[]): ReactNode[] {
   const mentionNodes = renderMentions(content, agentSlugs);
   const out: ReactNode[] = [];
@@ -406,18 +460,16 @@ function renderHomeText(content: string, agentSlugs: string[]): ReactNode[] {
       continue;
     }
     const parts: ReactNode[] = [];
-    const re = /#[a-zA-Z0-9][a-zA-Z0-9-_]{1,80}\b/g;
+    const re = /([#/])[a-zA-Z0-9][a-zA-Z0-9-_]{1,80}\b/g;
     let last = 0;
     for (const match of node.matchAll(re)) {
       if (match.index === undefined) continue;
       if (match.index > last) parts.push(node.slice(last, match.index));
       parts.push(
-        <span
-          key={`hash-${textOffset + match.index}-${match[0]}`}
-          className="home-hash"
-        >
-          {match[0]}
-        </span>,
+        renderHomeToken(
+          match[0],
+          `token-${textOffset + match.index}-${match[0]}`,
+        ),
       );
       last = match.index + match[0].length;
     }
@@ -636,12 +688,14 @@ function HomeComposer({
   agentMembers,
   leadSlug,
   projects,
+  skills,
   threadId,
   onAwaitingReply,
 }: {
   agentMembers: OfficeMember[];
   leadSlug: string;
   projects: Project[];
+  skills: Skill[];
   threadId: string;
   onAwaitingReply: (since: number | null) => void;
 }) {
@@ -676,9 +730,13 @@ function HomeComposer({
         ? mentionOptions(trigger.query, agentMembers)
         : trigger?.type === "project"
           ? projectOptions(trigger.query, projects)
-          : [],
-    [trigger, agentMembers, projects],
+          : trigger?.type === "skill"
+            ? skillOptions(trigger.query, skills)
+            : [],
+    [trigger, agentMembers, projects, skills],
   );
+  const showAutocomplete =
+    autocompleteItems.length > 0 || trigger?.type === "skill";
 
   const sendMutation = useMutation({
     mutationFn: async (messageText: string) => {
@@ -896,22 +954,32 @@ function HomeComposer({
         </div>
       ) : null}
       <div className="home-composer">
-        {autocompleteItems.length > 0 ? (
-          <div className="home-autocomplete" role="listbox">
-            {autocompleteItems.map((item, idx) => (
-              <button
-                type="button"
-                key={item.insert}
-                className={idx === selectedIdx ? "is-selected" : ""}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  pickAutocomplete(item);
-                }}
-              >
-                <span>{item.label}</span>
-                {item.desc ? <small>{item.desc}</small> : null}
-              </button>
-            ))}
+        {showAutocomplete ? (
+          <div
+            className={`home-autocomplete${trigger?.type === "skill" ? " is-skill" : ""}`}
+            role="listbox"
+          >
+            {autocompleteItems.length > 0 ? (
+              autocompleteItems.map((item, idx) => (
+                <button
+                  type="button"
+                  key={item.insert}
+                  className={idx === selectedIdx ? "is-selected" : ""}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    pickAutocomplete(item);
+                  }}
+                >
+                  <span>{item.label}</span>
+                  {item.desc ? <small>{item.desc}</small> : null}
+                </button>
+              ))
+            ) : (
+              <div className="home-autocomplete-empty">
+                <span>등록된 활성 스킬이 없습니다</span>
+                <small>직접 /스킬이름 을 입력할 수 있습니다.</small>
+              </div>
+            )}
           </div>
         ) : null}
         <textarea
@@ -986,6 +1054,11 @@ export function HomeApp() {
   const { data: projectsData } = useQuery({
     queryKey: ["projects"],
     queryFn: () => getProjects(),
+    staleTime: 30_000,
+  });
+  const { data: skillsData } = useQuery({
+    queryKey: ["skills"],
+    queryFn: () => getSkills(),
     staleTime: 30_000,
   });
   const { data: members = [] } = useOfficeMembers();
@@ -1092,6 +1165,7 @@ export function HomeApp() {
         agentMembers={agentMembers}
         leadSlug={leadSlug}
         projects={projectsData?.projects ?? []}
+        skills={skillsData?.skills ?? []}
         threadId={homeThreadId ?? ""}
         onAwaitingReply={setAwaitingReplySince}
       />

@@ -7064,7 +7064,7 @@ html[data-theme^="office"] .home-context-chip.is-project {
 
 html[data-theme^="office"] .home-composer {
   border: 1px solid var(--surface-line);
-  border-radius: var(--panel-radius);
+  border-radius: 24px;
   background: rgba(255, 255, 255, 0.88);
   box-shadow:
     0 18px 44px rgba(15, 23, 42, 0.07),
@@ -7096,7 +7096,7 @@ html[data-theme^="office"] .home-send {
   height: 34px;
   min-height: 34px;
   border: 0;
-  border-radius: var(--control-radius);
+  border-radius: var(--radius-full);
   background: var(--color-ink);
   color: var(--color-snow);
 }

@@ -18,6 +18,7 @@ const apiMocks = vi.hoisted(() => ({
   getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getProjects: vi.fn(),
+  getSkills: vi.fn(),
   getThreadMessages: vi.fn(),
   postMessage: vi.fn(),
   routeOrchestrationIntent: vi.fn(),
@@ -139,6 +140,22 @@ describe("HomeApp", () => {
         },
       ],
     });
+    apiMocks.getSkills.mockResolvedValue({
+      skills: [
+        {
+          description: "Release readiness runbook.",
+          name: "deploy-check",
+          status: "active",
+          title: "Deploy Check",
+        },
+        {
+          description: "Archived skill.",
+          name: "old-skill",
+          status: "archived",
+          title: "Old Skill",
+        },
+      ],
+    });
     apiMocks.postMessage.mockResolvedValue({ id: "msg-1" });
   });
 
@@ -216,6 +233,43 @@ describe("HomeApp", () => {
     await waitFor(() => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "@ceo #aurora-revenue-os 정리해줘",
+        "general",
+        "home:team-alpha:user-alpha",
+        ["ceo"],
+        expect.objectContaining({
+          model_mode: "record_only",
+          scope: "home_orchestration",
+        }),
+      );
+    });
+  });
+
+  it("shows skill autocomplete for / with summaries and sends the selected skill command", async () => {
+    const user = userEvent.setup();
+    renderHomeApp();
+
+    await user.type(
+      await screen.findByPlaceholderText("무엇이든 물어보세요"),
+      "/dep",
+    );
+
+    expect(await screen.findByText("/deploy-check")).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Release readiness runbook/),
+    ).toBeInTheDocument();
+    expect(document.querySelector(".home-autocomplete.is-skill")).toBeTruthy();
+    expect(screen.queryByText("/old-skill")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("/deploy-check"));
+    await user.type(
+      screen.getByPlaceholderText("무엇이든 물어보세요"),
+      "실행해줘",
+    );
+    await user.click(screen.getByRole("button", { name: "보내기" }));
+
+    await waitFor(() => {
+      expect(apiMocks.postMessage).toHaveBeenCalledWith(
+        "@ceo /deploy-check 실행해줘",
         "general",
         "home:team-alpha:user-alpha",
         ["ceo"],
