@@ -2759,6 +2759,65 @@ func TestRelevantTaskForTargetUsesRosterMetadata(t *testing.T) {
 	}
 }
 
+func TestDirectTaggedReplyIgnoresInactiveTaskBlockers(t *testing.T) {
+	b := newTestBroker(t)
+	b.mu.Lock()
+	b.tasks = []teamTask{
+		{
+			ID:      "AURO-13",
+			Channel: "general",
+			Title:   "Review UX for investor screen share",
+			Owner:   "reviewer",
+			Status:  "canceled",
+			Details: "Blocked: missing demo artifact should not leak into a new literal reply.",
+		},
+		{
+			ID:      "AURO-14",
+			Channel: "general",
+			Title:   "Review investor demo visual density",
+			Owner:   "reviewer",
+			Status:  "blocked",
+			Blocked: true,
+			Details: "Blocked: old blocked task should not be treated as active work.",
+		},
+	}
+	b.mu.Unlock()
+
+	l := &Launcher{
+		broker: b,
+		pack: &agent.PackDefinition{
+			LeadSlug: "ceo",
+			Agents: []agent.AgentConfig{
+				{Slug: "ceo", Name: "CEO"},
+				{Slug: "reviewer", Name: "Reviewer"},
+			},
+		},
+	}
+	msg := channelMessage{
+		ID:      "msg-literal",
+		From:    "you",
+		Channel: "general",
+		Content: `@reviewer 아무도 태그하지 말고, "야임마"라고만 써봐`,
+		Tagged:  []string{"reviewer"},
+		ReplyTo: "home:team-laf:user-1",
+	}
+
+	if task, ok := l.relevantTaskForTarget(msg, "reviewer"); ok {
+		t.Fatalf("inactive task should not be routed as current work, got %+v", task)
+	}
+	packet := l.buildMessageWorkPacket(msg, "reviewer")
+	if strings.Contains(packet, "Active task:") {
+		t.Fatalf("inactive blocker should not appear as active task context: %q", packet)
+	}
+	if strings.Contains(packet, "missing demo artifact") || strings.Contains(packet, "old blocked task") {
+		t.Fatalf("stale blocker details leaked into direct reply packet: %q", packet)
+	}
+	instruction := l.responseInstructionForTarget(msg, "reviewer")
+	if !strings.Contains(instruction, "current human message") || !strings.Contains(instruction, "exact wording") {
+		t.Fatalf("direct tag instruction should prioritize literal current asks, got %q", instruction)
+	}
+}
+
 func TestBlockedTaskNotificationAndUnblockFlow(t *testing.T) {
 	// Verifies the full research→marketing dependency chain:
 	// 1. CEO creates marketing task with depends_on: [research-task] while research is in_progress

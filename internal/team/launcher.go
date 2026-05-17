@@ -2828,7 +2828,7 @@ func (l *Launcher) buildTaskNotificationContext(channel, slug string, limit int)
 		if len(lines) >= limit {
 			return
 		}
-		if strings.EqualFold(strings.TrimSpace(task.Status), "done") {
+		if taskIsInactiveForRouting(task) {
 			return
 		}
 		if _, ok := seen[task.ID]; ok {
@@ -2874,6 +2874,22 @@ func (l *Launcher) buildTaskNotificationContext(channel, slug string, limit int)
 	return result
 }
 
+func taskIsClosedForRouting(task teamTask) bool {
+	switch strings.ToLower(strings.TrimSpace(task.Status)) {
+	case "done", "completed", "canceled", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
+func taskIsInactiveForRouting(task teamTask) bool {
+	if taskIsClosedForRouting(task) {
+		return true
+	}
+	return task.Blocked || strings.EqualFold(strings.TrimSpace(task.Status), taskStatusBlocked)
+}
+
 func (l *Launcher) relevantTaskForTarget(msg channelMessage, slug string) (teamTask, bool) {
 	if l.broker == nil || slug == "" {
 		return teamTask{}, false
@@ -2890,7 +2906,7 @@ func (l *Launcher) relevantTaskForTarget(msg channelMessage, slug string) (teamT
 	var domainOwned teamTask
 	bestOwnedScore := 0.0
 	for _, task := range l.broker.AllTasks() {
-		if strings.EqualFold(strings.TrimSpace(task.Status), "done") {
+		if taskIsInactiveForRouting(task) {
 			continue
 		}
 		if strings.TrimSpace(task.Owner) != slug {
@@ -2935,7 +2951,7 @@ func (l *Launcher) responseInstructionForTarget(msg channelMessage, slug string)
 		return fmt.Sprintf("You are @%s. The human is messaging you directly in a DM. Respond helpfully from your domain expertise.", slug)
 	}
 	if containsSlug(msg.Tagged, slug) {
-		return fmt.Sprintf("You are @%s. You were directly tagged. Reply only from your domain with concrete progress, a blocker, or a handoff.", slug)
+		return fmt.Sprintf("You are @%s. You were directly tagged. Treat the current human message as the task for this turn, above older thread or task context. If the current message asks for exact wording, a short reply, or to say only a specific phrase, output that requested reply and do not mention unrelated blockers or old tasks. Otherwise reply only from your domain with concrete progress, a current blocker, or a handoff.", slug)
 	}
 	if task, ok := l.relevantTaskForTarget(msg, slug); ok && strings.TrimSpace(task.Owner) == slug {
 		if taskRequiresRealExternalExecution(&task) {
@@ -2954,6 +2970,7 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 	lines := []string{
 		"Work packet:",
 		fmt.Sprintf("- Thread: #%s reply_to %s", channel, msg.ID),
+		"- Current-message rule: answer the current human message first. Older thread, task, and blocker context is background only unless the current message asks about it.",
 	}
 	// Add DM context preamble when the agent is receiving a direct message.
 	// This replaces the "stay quiet unless tagged" default with explicit DM semantics.
