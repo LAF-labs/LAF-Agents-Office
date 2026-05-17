@@ -182,6 +182,8 @@ func isEphemeralHomeThreadID(value string) bool {
 	return isHomeThreadID(value)
 }
 
+const homeThreadInlineContextLimit = 2
+
 // NewLauncher creates a launcher for the given operation blueprint or legacy pack.
 func NewLauncher(packSlug string) (*Launcher, error) {
 	cfg, _ := config.Load()
@@ -2667,6 +2669,9 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 			if remaining < 0 {
 				remaining = 0
 			}
+			if isHomeThreadID(threadRoot) && remaining > homeThreadInlineContextLimit {
+				remaining = homeThreadInlineContextLimit
+			}
 			if len(rest) > remaining {
 				rest = rest[len(rest)-remaining:]
 			}
@@ -3039,48 +3044,53 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 		// the race-condition case where a specialist was notified but hasn't posted yet.
 		// Rule: if a specialist is in this list, HOLD — do not tag them.
 		activeAgents := map[string]struct{}{}
+		activeThreadRoot := strings.TrimSpace(l.ultimateThreadRoot(channel, msg.ReplyTo))
+		if activeThreadRoot == "" {
+			activeThreadRoot = strings.TrimSpace(msg.ID)
+		}
+		isHomeScopedThread := isHomeThreadID(activeThreadRoot)
 		if l.broker != nil {
 			// Collect all message IDs that belong to this thread (full BFS from
 			// the ultimate root). This prevents the CEO from re-routing specialists
 			// who already acted at any depth, including the case of parallel
 			// delegations where two specialists both replied to the original ask.
-			threadRoot := strings.TrimSpace(l.ultimateThreadRoot(channel, msg.ReplyTo))
-			if threadRoot == "" {
-				threadRoot = strings.TrimSpace(msg.ID)
-			}
-			threadIDs := l.threadMessageIDs(channel, threadRoot)
-			allMsgs := l.broker.ChannelMessages(channel)
-			for _, tm := range allMsgs {
-				if _, inThread := threadIDs[strings.TrimSpace(tm.ID)]; !inThread {
-					continue
-				}
-				if tm.From != "" && tm.From != "you" && tm.From != "human" && tm.From != "automation" && tm.From != slug {
-					activeAgents[tm.From] = struct{}{}
+			if !isHomeScopedThread {
+				threadIDs := l.threadMessageIDs(channel, activeThreadRoot)
+				allMsgs := l.broker.ChannelMessages(channel)
+				for _, tm := range allMsgs {
+					if _, inThread := threadIDs[strings.TrimSpace(tm.ID)]; !inThread {
+						continue
+					}
+					if tm.From != "" && tm.From != "you" && tm.From != "human" && tm.From != "automation" && tm.From != slug {
+						activeAgents[tm.From] = struct{}{}
+					}
 				}
 			}
 		}
 		// Also include specialists who have pending or active headless turns.
 		// These agents were notified but may not have posted to the broker yet,
 		// causing a timing gap where the broker list misses them.
-		l.headlessMu.Lock()
-		for workerSlug, queue := range l.headlessQueues {
-			if workerSlug == slug {
-				continue
+		if !isHomeScopedThread {
+			l.headlessMu.Lock()
+			for workerSlug, queue := range l.headlessQueues {
+				if workerSlug == slug {
+					continue
+				}
+				if len(queue) > 0 {
+					activeAgents[workerSlug] = struct{}{}
+				}
 			}
-			if len(queue) > 0 {
-				activeAgents[workerSlug] = struct{}{}
+			for workerSlug, active := range l.headlessActive {
+				// Skip the lead itself — it should never list itself as "already active".
+				if workerSlug == slug {
+					continue
+				}
+				if active != nil {
+					activeAgents[workerSlug] = struct{}{}
+				}
 			}
+			l.headlessMu.Unlock()
 		}
-		for workerSlug, active := range l.headlessActive {
-			// Skip the lead itself — it should never list itself as "already active".
-			if workerSlug == slug {
-				continue
-			}
-			if active != nil {
-				activeAgents[workerSlug] = struct{}{}
-			}
-		}
-		l.headlessMu.Unlock()
 		if len(activeAgents) > 0 {
 			names := make([]string, 0, len(activeAgents))
 			for name := range activeAgents {
