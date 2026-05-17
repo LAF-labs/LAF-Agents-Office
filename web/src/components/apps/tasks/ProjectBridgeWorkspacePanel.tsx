@@ -15,13 +15,6 @@ import {
 import type { I18nKey } from "../../../lib/i18n";
 import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Select } from "../../ui/select";
 import { bridgeDeviceForBinding, onlineBridgeDevices } from "./bridgeUtils";
@@ -126,121 +119,78 @@ export function ProjectBridgeWorkspacePanel({
   }
 
   return (
-    <Card className="project-directory-card project-bridge-card">
-      <CardHeader className="project-bridge-header">
-        <CardTitle>{t("tasks.bridgeWorkspaceTitle")}</CardTitle>
-        <CardDescription>{t("tasks.bridgeWorkspaceDesc")}</CardDescription>
-      </CardHeader>
-      <CardContent className="project-bridge-content">
-        <ManagedCheckoutCard
-          isReady={runnerConnected}
-          statusLabel={workspaceStatusLabel}
-          t={t}
-        />
-
-        {bindings.length > 0 && !useExistingFolder ? (
-          <p className="project-workspace-note">
-            {t("tasks.bridgeWorkspacePersonalConfigured")}
-          </p>
-        ) : null}
-
-        <WorkspaceAdvancedToggle
-          checked={useExistingFolder}
-          t={t}
-          onChange={setUseExistingFolder}
-        />
-
-        {useExistingFolder ? (
-          <>
-            <WorkspaceAdvancedPanel
-              bindings={bindings}
-              bridgeIsLoading={bridgeQuery.isLoading}
-              canCreate={canCreate}
-              createError={createMutation.error}
-              devices={devices}
-              displayName={displayName}
-              isDeleting={deleteMutation.isPending}
-              isLoadingBindings={bindingsQuery.isLoading}
-              isSaving={createMutation.isPending}
-              localPath={localPath}
-              onlineDevices={onlineDevices}
-              project={project}
-              selectedDeviceID={selectedDeviceID}
-              t={t}
-              onDeleteBinding={(bindingID) => deleteMutation.mutate(bindingID)}
-              onDeviceIDChange={setDeviceID}
-              onDisplayNameChange={setDisplayName}
-              onLocalPathChange={setLocalPath}
-              onSubmit={handleSubmit}
-            />
-            <BridgeLinkCommand
-              command={linkCommand}
-              t={t}
-              onCopy={copyLinkCommand}
-            />
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ManagedCheckoutCard({
-  isReady,
-  statusLabel,
-  t,
-}: {
-  isReady: boolean;
-  statusLabel: string;
-  t: TranslationFn;
-}) {
-  return (
-    <div className="project-workspace-mode-card is-active">
-      <div className="project-workspace-mode-head">
-        <div className="project-workspace-mode-copy">
-          <div className="project-workspace-title-row">
-            <strong>{t("tasks.bridgeWorkspaceAutoTitle")}</strong>
-            <span className="project-workspace-badge">
-              {t("tasks.bridgeWorkspaceAutoBadge")}
-            </span>
-          </div>
-          <p>{t("tasks.bridgeWorkspaceAutoDesc")}</p>
+    <div className="project-bridge-inline">
+      <div className="project-bridge-inline-main">
+        <div className="project-bridge-inline-label">
+          <strong>{t("tasks.bridgeWorkspaceTitle")}</strong>
+          <small>{t("tasks.bridgeWorkspaceDesc")}</small>
         </div>
-        <span
-          className={cn(
-            "project-workspace-status",
-            isReady ? "is-ready" : "is-waiting",
-          )}
-        >
-          {statusLabel}
-        </span>
+        <div className="project-bridge-inline-controls">
+          <span className="project-workspace-badge">
+            {t("tasks.bridgeWorkspaceAutoTitle")}
+          </span>
+          <span
+            className={cn(
+              "project-workspace-status",
+              runnerConnected ? "is-ready" : "is-waiting",
+            )}
+          >
+            {workspaceStatusLabel}
+          </span>
+          {bindings.length > 0 && !useExistingFolder ? (
+            <span className="project-workspace-status is-ready">
+              {t("tasks.bridgeWorkspacePersonalExisting")}
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="project-bridge-advanced-button"
+            aria-expanded={useExistingFolder}
+            onClick={() => setUseExistingFolder((current) => !current)}
+          >
+            {useExistingFolder
+              ? t("tasks.bridgeWorkspacePersonalClose")
+              : t("tasks.bridgeWorkspacePersonalAction")}
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-}
 
-function WorkspaceAdvancedToggle({
-  checked,
-  t,
-  onChange,
-}: {
-  checked: boolean;
-  t: TranslationFn;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="project-workspace-advanced-toggle">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-        aria-expanded={checked}
-      />
-      <span>
-        <strong>{t("tasks.bridgeWorkspacePersonalTitle")}</strong>
-        <small>{t("tasks.bridgeWorkspacePersonalDesc")}</small>
-      </span>
-    </label>
+      {useExistingFolder ? (
+        <div className="project-bridge-inline-expanded">
+          <p className="project-bridge-inline-help">
+            {t("tasks.bridgeWorkspacePersonalDesc")}
+          </p>
+          <WorkspaceAdvancedPanel
+            bindings={bindings}
+            bridgeIsLoading={bridgeQuery.isLoading}
+            canCreate={canCreate}
+            createError={createMutation.error}
+            devices={devices}
+            displayName={displayName}
+            isDeleting={deleteMutation.isPending}
+            isLoadingBindings={bindingsQuery.isLoading}
+            isSaving={createMutation.isPending}
+            localPath={localPath}
+            onlineDevices={onlineDevices}
+            project={project}
+            selectedDeviceID={selectedDeviceID}
+            t={t}
+            onDeleteBinding={(bindingID) => deleteMutation.mutate(bindingID)}
+            onDeviceIDChange={setDeviceID}
+            onDisplayNameChange={setDisplayName}
+            onLocalPathChange={setLocalPath}
+            onSubmit={handleSubmit}
+          />
+          <BridgeLinkCommand
+            command={linkCommand}
+            t={t}
+            onCopy={copyLinkCommand}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

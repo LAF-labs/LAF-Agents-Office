@@ -2818,15 +2818,13 @@ func TestDirectTaggedReplyIgnoresInactiveTaskBlockers(t *testing.T) {
 	}
 }
 
-func TestHomeWorkPacketDoesNotPromoteStaleSiblingBlockers(t *testing.T) {
-	homeThread := "home:team-laf:user-1"
+func TestHomeSessionWorkPacketDoesNotTreatPastParticipantsAsActive(t *testing.T) {
+	homeThread := "home:team-laf:user-1:s-current"
 	b := newTestBroker(t)
 	b.mu.Lock()
 	b.messages = []channelMessage{
-		{ID: "msg-old-ask", From: "you", Channel: "general", Content: `@reviewer 아무도 태그하지 말고, "야임마"라고만 써봐`, Tagged: []string{"reviewer"}, ReplyTo: homeThread},
-		{ID: "msg-old-blocked", From: "reviewer", Channel: "general", Content: "Blocked: investor screen-share UX review still cannot proceed without the actual demo artifact.", ReplyTo: "msg-old-ask"},
-		{ID: "msg-literal-ask", From: "you", Channel: "general", Content: `@reviewer 아무도 태그하지 말고, "야임마"라고만 써봐`, Tagged: []string{"reviewer"}, ReplyTo: homeThread},
-		{ID: "msg-literal-ok", From: "reviewer", Channel: "general", Content: "야임마", ReplyTo: "msg-literal-ask"},
+		{ID: "msg-old-ask", From: "you", Channel: "general", Content: "@reviewer 이전 화면 검토해줘", Tagged: []string{"reviewer"}, ReplyTo: homeThread},
+		{ID: "msg-old-reply", From: "reviewer", Channel: "general", Content: "검토했습니다.", ReplyTo: "msg-old-ask"},
 	}
 	b.mu.Unlock()
 
@@ -2847,20 +2845,17 @@ func TestHomeWorkPacketDoesNotPromoteStaleSiblingBlockers(t *testing.T) {
 		ID:      "msg-current",
 		From:    "you",
 		Channel: "general",
-		Content: "응답 시 발생할만한 오류 있을까? 현재 상태 점검해서 알려줘",
+		Content: "이번 질문은 새로 라우팅해줘",
 		Tagged:  []string{"ceo"},
 		ReplyTo: homeThread,
 	}
 
 	packet := l.buildMessageWorkPacket(msg, "ceo")
-	if strings.Contains(packet, "investor screen-share") || strings.Contains(packet, "demo artifact") {
-		t.Fatalf("stale sibling blocker leaked into home work packet: %q", packet)
-	}
 	if strings.Contains(packet, "Already active in this thread") {
-		t.Fatalf("persistent home thread must not be treated as a single active work thread: %q", packet)
+		t.Fatalf("home chat sessions must not pin old participants as active work blockers: %q", packet)
 	}
-	if !strings.Contains(packet, "야임마") {
-		t.Fatalf("expected only recent home context to remain available, got %q", packet)
+	if !strings.Contains(packet, "검토했습니다.") {
+		t.Fatalf("expected recent session context to remain available, got %q", packet)
 	}
 }
 

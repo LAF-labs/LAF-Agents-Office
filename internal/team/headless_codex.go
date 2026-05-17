@@ -123,6 +123,10 @@ type headlessCodexTurn struct {
 type headlessFinalPostTarget struct {
 	// ReplyToID is the human-visible thread target for provider final output.
 	ReplyToID string
+	// HomeSessionThreadID is the private home chat session for this turn. It is
+	// used only as routing metadata so stale deleted sessions can suppress late
+	// provider output without exposing private thread IDs through tasks.
+	HomeSessionThreadID string
 	// CollaborationRequestID is the hidden team_delegate request that should
 	// receive provider final output as an internal work_result.
 	CollaborationRequestID string
@@ -131,6 +135,7 @@ type headlessFinalPostTarget struct {
 func (t headlessFinalPostTarget) normalized() headlessFinalPostTarget {
 	return headlessFinalPostTarget{
 		ReplyToID:              strings.TrimSpace(t.ReplyToID),
+		HomeSessionThreadID:    strings.TrimSpace(t.HomeSessionThreadID),
 		CollaborationRequestID: strings.TrimSpace(t.CollaborationRequestID),
 	}
 }
@@ -902,8 +907,11 @@ func (l *Launcher) postHeadlessFinalMessageIfSilent(slug string, targetChannel s
 	if replyToID == "" {
 		replyToID = headlessReplyToID(notification)
 	}
-	msg, err := l.broker.PostMessage(slug, targetChannel, text, nil, replyToID)
+	msg, err := l.broker.PostMessageWithHomeSession(slug, targetChannel, text, nil, replyToID, finalTarget.HomeSessionThreadID)
 	if err != nil {
+		if errors.Is(err, errHomeSessionDeleted) {
+			return channelMessage{}, false, nil
+		}
 		return channelMessage{}, false, err
 	}
 	return msg, true, nil
@@ -954,7 +962,11 @@ func (l *Launcher) postHeadlessFailureNoticeIfSilent(slug string, turn headlessC
 		}
 	}
 	text := headlessFailureNoticeText(slug, detail)
-	if _, err := l.broker.PostMessage(slug, targetChannel, text, nil, replyTo); err != nil {
+	if _, err := l.broker.PostMessageWithHomeSession(slug, targetChannel, text, nil, replyTo, turn.FinalPostTarget.HomeSessionThreadID); err != nil {
+		if errors.Is(err, errHomeSessionDeleted) {
+			appendHeadlessCodexLog(slug, "failure-notice-suppressed: deleted home session")
+			return
+		}
 		appendHeadlessCodexLog(slug, "failure-notice-post-error: "+err.Error())
 		l.broker.ClearRoutingTargets([]string{slug})
 		return
@@ -1005,6 +1017,11 @@ func (l *Launcher) postHeadlessInternalWorkResultIfSilent(slug string, targetCha
 		l.broker.mu.Unlock()
 		return channelMessage{}, false, fmt.Errorf("channel access denied")
 	}
+	homeSessionThreadID := l.broker.homeSessionThreadIDFromCandidatesLocked(finalTarget.HomeSessionThreadID, request.ReplyTo, request.PublicReplyTo)
+	if _, deleted := l.broker.homeSessionTombstoneLocked(homeSessionThreadID); deleted {
+		l.broker.mu.Unlock()
+		return channelMessage{}, false, nil
+	}
 	for _, msg := range l.broker.messages {
 		if msg.From != slug || strings.TrimSpace(msg.ReplyTo) != requestID || strings.TrimSpace(msg.Kind) != "work_result" {
 			continue
@@ -1023,23 +1040,24 @@ func (l *Launcher) postHeadlessInternalWorkResultIfSilent(slug string, targetCha
 	audience := uniqueSlugs(append(append([]string{slug}, tagged...), request.Audience...))
 	l.broker.counter++
 	msg := channelMessage{
-		ID:            fmt.Sprintf("msg-%d", l.broker.counter),
-		From:          strings.TrimSpace(slug),
-		Channel:       targetChannel,
-		Kind:          "work_result",
-		Title:         "Internal collaboration result",
-		Content:       "Internal work result (done)\n\n" + text,
-		Tagged:        tagged,
-		ReplyTo:       requestID,
-		PublicReplyTo: strings.TrimSpace(request.PublicReplyTo),
-		TaskID:        strings.TrimSpace(request.TaskID),
-		Visibility:    messageVisibilityInternal,
-		RunID:         strings.TrimSpace(request.RunID),
-		Audience:      audience,
-		Timestamp:     time.Now().UTC().Format(time.RFC3339),
+		ID:                  fmt.Sprintf("msg-%d", l.broker.counter),
+		From:                strings.TrimSpace(slug),
+		Channel:             targetChannel,
+		Kind:                "work_result",
+		Title:               "Internal collaboration result",
+		Content:             "Internal work result (done)\n\n" + text,
+		Tagged:              tagged,
+		ReplyTo:             requestID,
+		PublicReplyTo:       strings.TrimSpace(request.PublicReplyTo),
+		HomeSessionThreadID: homeSessionThreadID,
+		TaskID:              strings.TrimSpace(request.TaskID),
+		Visibility:          messageVisibilityInternal,
+		RunID:               strings.TrimSpace(request.RunID),
+		Audience:            audience,
+		Timestamp:           time.Now().UTC().Format(time.RFC3339),
 	}
 	l.broker.appendMessageLocked(msg)
-	l.broker.compactHomeThreadLocked(requestID, msg.Timestamp)
+	l.broker.compactHomeThreadLocked(firstNonEmptyString(homeSessionThreadID, request.PublicReplyTo, requestID), msg.Timestamp)
 	if l.broker.lastTaggedAt != nil {
 		delete(l.broker.lastTaggedAt, msg.From)
 	}

@@ -182,8 +182,6 @@ func isEphemeralHomeThreadID(value string) bool {
 	return isHomeThreadID(value)
 }
 
-const homeThreadInlineContextLimit = 2
-
 // NewLauncher creates a launcher for the given operation blueprint or legacy pack.
 func NewLauncher(packSlug string) (*Launcher, error) {
 	cfg, _ := config.Load()
@@ -2669,9 +2667,6 @@ func (l *Launcher) buildNotificationContext(channel, triggerMsgID, threadRootID 
 			if remaining < 0 {
 				remaining = 0
 			}
-			if isHomeThreadID(threadRoot) && remaining > homeThreadInlineContextLimit {
-				remaining = homeThreadInlineContextLimit
-			}
 			if len(rest) > remaining {
 				rest = rest[len(rest)-remaining:]
 			}
@@ -3048,13 +3043,13 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 		if activeThreadRoot == "" {
 			activeThreadRoot = strings.TrimSpace(msg.ID)
 		}
-		isHomeScopedThread := isHomeThreadID(activeThreadRoot)
+		isHomeSessionThread := isHomeThreadID(activeThreadRoot)
 		if l.broker != nil {
 			// Collect all message IDs that belong to this thread (full BFS from
 			// the ultimate root). This prevents the CEO from re-routing specialists
 			// who already acted at any depth, including the case of parallel
 			// delegations where two specialists both replied to the original ask.
-			if !isHomeScopedThread {
+			if !isHomeSessionThread {
 				threadIDs := l.threadMessageIDs(channel, activeThreadRoot)
 				allMsgs := l.broker.ChannelMessages(channel)
 				for _, tm := range allMsgs {
@@ -3070,7 +3065,7 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 		// Also include specialists who have pending or active headless turns.
 		// These agents were notified but may not have posted to the broker yet,
 		// causing a timing gap where the broker list misses them.
-		if !isHomeScopedThread {
+		if !isHomeSessionThread {
 			l.headlessMu.Lock()
 			for workerSlug, queue := range l.headlessQueues {
 				if workerSlug == slug {
@@ -3242,16 +3237,31 @@ func (l *Launcher) sendChannelUpdate(target notificationTarget, msg channelMessa
 }
 
 func (l *Launcher) headlessFinalPostTargetForMessage(channel string, msg channelMessage) headlessFinalPostTarget {
+	homeSessionThreadID := strings.TrimSpace(msg.HomeSessionThreadID)
+	if homeSessionThreadID == "" && l != nil && l.broker != nil {
+		l.broker.mu.Lock()
+		homeSessionThreadID = l.broker.messageHomeSessionThreadIDLocked(msg)
+		l.broker.mu.Unlock()
+	}
 	if !isInternalCollaborationMessage(msg) {
-		return headlessFinalPostTarget{ReplyToID: strings.TrimSpace(msg.ID)}
+		return headlessFinalPostTarget{
+			ReplyToID:           strings.TrimSpace(msg.ID),
+			HomeSessionThreadID: homeSessionThreadID,
+		}
 	}
 	switch strings.TrimSpace(msg.Kind) {
 	case "collaboration_request":
-		return headlessFinalPostTarget{CollaborationRequestID: strings.TrimSpace(msg.ID)}
+		return headlessFinalPostTarget{
+			CollaborationRequestID: strings.TrimSpace(msg.ID),
+			HomeSessionThreadID:    homeSessionThreadID,
+		}
 	case "work_result":
-		return headlessFinalPostTarget{ReplyToID: l.publicReplyTargetForMessage(channel, msg)}
+		return headlessFinalPostTarget{
+			ReplyToID:           l.publicReplyTargetForMessage(channel, msg),
+			HomeSessionThreadID: homeSessionThreadID,
+		}
 	default:
-		return headlessFinalPostTarget{}
+		return headlessFinalPostTarget{HomeSessionThreadID: homeSessionThreadID}
 	}
 }
 

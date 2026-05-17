@@ -3,6 +3,7 @@
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -13,7 +14,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Plus } from "iconoir-react";
+import { NavArrowLeft, Plus } from "iconoir-react";
 
 import {
   createExecutionPlan,
@@ -1588,28 +1589,33 @@ function ProjectDetailView({
   };
 
   return (
-    <main className="project-app">
-      <ProjectDetailHeader project={project} t={t} onBack={onBack} />
-      <ProjectTaskToolbar
-        counts={counts}
-        isStatsReady={isStatsReady}
-        language={language}
-        runnerSignal={runnerSignal}
-        status={lifecycle}
-        t={t}
-        onCreateTask={openTaskDraft}
-      />
-      <ProjectInfoPanel
+    <main className="project-app project-detail-app">
+      <ProjectDetailHeader
+        bridgeWorkspace={
+          <ProjectBridgeWorkspacePanel
+            project={project}
+            runnerSignal={runnerSignal}
+            runnerStatus={runnerStatusQuery.data}
+            t={t}
+          />
+        }
         codeLocked={tasks.length > 0}
         editor={projectInfoEditor}
-        t={t}
-      />
-      <ProjectBridgeWorkspacePanel
         project={project}
-        runnerSignal={runnerSignal}
-        runnerStatus={runnerStatusQuery.data}
         t={t}
+        onBack={onBack}
       />
+      <div className="project-detail-overview">
+        <ProjectTaskToolbar
+          counts={counts}
+          isStatsReady={isStatsReady}
+          language={language}
+          runnerSignal={runnerSignal}
+          status={lifecycle}
+          t={t}
+          onCreateTask={openTaskDraft}
+        />
+      </div>
       <ProjectTaskKanban
         members={members}
         selectedTaskId={selectedTaskId}
@@ -1642,17 +1648,39 @@ function ProjectDetailView({
 }
 
 function ProjectDetailHeader({
+  bridgeWorkspace,
+  codeLocked,
+  editor,
   project,
   t,
   onBack,
 }: {
+  bridgeWorkspace: ReactNode;
+  codeLocked: boolean;
+  editor: ReturnType<typeof useProjectInfoEditor>;
   project: Project;
   t: TranslationFn;
   onBack: () => void;
 }) {
+  const projectCode = project.code || project.id;
+  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
+  const saveLabel =
+    editor.saveState === "saving"
+      ? t("tasks.projectInfoSaving")
+      : editor.saveState === "saved"
+        ? t("tasks.projectInfoSaved")
+        : editor.saveState === "error"
+          ? editor.error || t("tasks.projectInfoSaveFailed")
+          : t("tasks.projectInfoAutosave");
+  const showSaveState = isInfoExpanded || editor.saveState !== "idle";
+
+  useEffect(() => {
+    if (editor.saveState === "error") setIsInfoExpanded(true);
+  }, [editor.saveState]);
+
   return (
     <section
-      className="project-detail-header"
+      className={cn("project-detail-header", isInfoExpanded && "is-expanded")}
       aria-label={project.name || project.id}
     >
       <div className="project-detail-heading">
@@ -1664,12 +1692,46 @@ function ProjectDetailHeader({
           onClick={onBack}
           aria-label={`${project.name || project.id} ${t("tasks.backToProjects")}`}
         >
+          <NavArrowLeft width={18} height={18} aria-hidden="true" />
           <span className="sr-only">{t("tasks.backToProjects")}</span>
         </Button>
-        <h3 className="project-detail-title truncate">
-          {project.name || project.id}
-        </h3>
+        <div className="project-detail-title-block">
+          <div className="project-detail-title-row">
+            <span className="project-detail-code">{projectCode}</span>
+            <h3 className="project-detail-title truncate">
+              {project.name || project.id}
+            </h3>
+          </div>
+          <p className="project-detail-subtitle">{project.id}</p>
+        </div>
+        <div className="project-detail-actions">
+          {showSaveState ? (
+            <span className={cn("project-info-save-state", editor.saveState)}>
+              {saveLabel}
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="project-info-toggle"
+            aria-expanded={isInfoExpanded}
+            onClick={() => setIsInfoExpanded((current) => !current)}
+          >
+            {isInfoExpanded
+              ? t("tasks.projectInfoCollapse")
+              : t("tasks.projectInfoExpand")}
+          </Button>
+        </div>
       </div>
+      {isInfoExpanded ? (
+        <ProjectInfoPanel
+          bridgeWorkspace={bridgeWorkspace}
+          codeLocked={codeLocked}
+          editor={editor}
+          t={t}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1730,23 +1792,17 @@ function ProjectTaskToolbar({
 }
 
 function ProjectInfoPanel({
+  bridgeWorkspace,
   codeLocked,
   editor,
   t,
 }: {
+  bridgeWorkspace: ReactNode;
   codeLocked: boolean;
   editor: ReturnType<typeof useProjectInfoEditor>;
   t: TranslationFn;
 }) {
   const recipeInputRef = useRef<HTMLInputElement>(null);
-  const saveLabel =
-    editor.saveState === "saving"
-      ? t("tasks.projectInfoSaving")
-      : editor.saveState === "saved"
-        ? t("tasks.projectInfoSaved")
-        : editor.saveState === "error"
-          ? editor.error || t("tasks.projectInfoSaveFailed")
-          : t("tasks.projectInfoAutosave");
 
   function commitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
@@ -1756,162 +1812,151 @@ function ProjectInfoPanel({
   }
 
   return (
-    <Card className="project-directory-card project-info-card">
-      <CardContent className="project-info-content">
-        <section
-          aria-label={t("tasks.projectInfo")}
-          className="project-info-form"
-        >
-          <div className="project-info-topline">
-            <h4>{t("tasks.projectInfo")}</h4>
-            <span className={cn("project-info-save-state", editor.saveState)}>
-              {saveLabel}
-            </span>
+    <section
+      aria-label={t("tasks.projectInfo")}
+      className="project-info-form project-detail-info-panel"
+    >
+      <div className="project-info-body">
+        <div className="project-info-grid">
+          <label className="project-info-field" htmlFor="project-info-name">
+            <span>{t("tasks.projectInfoName")}</span>
+            <Input
+              id="project-info-name"
+              value={editor.draft.name}
+              onBlur={() => void editor.persist()}
+              onChange={(event) =>
+                editor.updateField("name", event.currentTarget.value)
+              }
+              onKeyDown={commitOnEnter}
+              aria-label={t("tasks.projectInfoName")}
+            />
+          </label>
+          <label className="project-info-field" htmlFor="project-info-code">
+            <span>{t("tasks.projectInfoCode")}</span>
+            <Input
+              id="project-info-code"
+              value={editor.draft.code}
+              disabled={codeLocked}
+              onBlur={() => void editor.persist()}
+              onChange={(event) =>
+                editor.updateField(
+                  "code",
+                  normalizeProjectCodeInput(event.currentTarget.value),
+                )
+              }
+              onKeyDown={commitOnEnter}
+              placeholder={t("tasks.projectCodePlaceholder")}
+              aria-label={t("tasks.projectInfoCode")}
+            />
+            <small className="project-info-help">
+              {codeLocked
+                ? t("tasks.projectCodeLocked")
+                : t("tasks.projectCodeHelp")}
+            </small>
+          </label>
+          <label className="project-info-field" htmlFor="project-info-github">
+            <span>{t("tasks.projectInfoGithub")}</span>
+            <Input
+              id="project-info-github"
+              type="url"
+              value={editor.draft.githubRepoUrl}
+              onBlur={() => void editor.persist()}
+              onChange={(event) =>
+                editor.updateField("githubRepoUrl", event.currentTarget.value)
+              }
+              onKeyDown={commitOnEnter}
+              placeholder="https://github.com/org/repo"
+              aria-label={t("tasks.projectInfoGithub")}
+            />
+          </label>
+        </div>
+        {bridgeWorkspace}
+        <label className="project-info-field" htmlFor="project-info-summary">
+          <span>{t("tasks.projectInfoSummary")}</span>
+          <Textarea
+            id="project-info-summary"
+            value={editor.draft.description}
+            onBlur={() => void editor.persist()}
+            onChange={(event) =>
+              editor.updateField("description", event.currentTarget.value)
+            }
+            placeholder={t("tasks.projectInfoSummaryPlaceholder")}
+            rows={2}
+            aria-label={t("tasks.projectInfoSummary")}
+          />
+        </label>
+        <label className="project-info-field" htmlFor="project-info-additional">
+          <span>{t("tasks.projectInfoAdditional")}</span>
+          <Textarea
+            id="project-info-additional"
+            value={editor.draft.additionalInfo}
+            onBlur={() => void editor.persist()}
+            onChange={(event) =>
+              editor.updateField("additionalInfo", event.currentTarget.value)
+            }
+            placeholder={t("tasks.projectInfoAdditionalPlaceholder")}
+            rows={4}
+            aria-label={t("tasks.projectInfoAdditional")}
+          />
+        </label>
+        <div className="project-info-field project-recipe-field">
+          <div className="project-recipe-heading">
+            <span>{t("tasks.projectRecipe")}</span>
+            <input
+              ref={recipeInputRef}
+              type="file"
+              accept=".md,text/markdown"
+              className="sr-only"
+              onChange={editor.handleRecipeUpload}
+              aria-label={t("tasks.projectRecipeUpload")}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="project-recipe-upload"
+              onClick={() => recipeInputRef.current?.click()}
+            >
+              {t("tasks.projectRecipeUpload")}
+            </Button>
+            {editor.draft.recipeFileName ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="project-recipe-clear"
+                onClick={() => void editor.clearRecipe()}
+              >
+                {t("tasks.projectRecipeClear")}
+              </Button>
+            ) : null}
           </div>
-          <div className="project-info-grid">
-            <label className="project-info-field" htmlFor="project-info-name">
-              <span>{t("tasks.projectInfoName")}</span>
-              <Input
-                id="project-info-name"
-                value={editor.draft.name}
-                onBlur={() => void editor.persist()}
-                onChange={(event) =>
-                  editor.updateField("name", event.currentTarget.value)
-                }
-                onKeyDown={commitOnEnter}
-                aria-label={t("tasks.projectInfoName")}
-              />
-            </label>
-            <label className="project-info-field" htmlFor="project-info-code">
-              <span>{t("tasks.projectInfoCode")}</span>
-              <Input
-                id="project-info-code"
-                value={editor.draft.code}
-                disabled={codeLocked}
+          {editor.draft.recipeFileName ? (
+            <>
+              <small className="project-recipe-file">
+                {editor.draft.recipeFileName}
+              </small>
+              <Textarea
+                value={editor.draft.recipeMarkdown}
                 onBlur={() => void editor.persist()}
                 onChange={(event) =>
                   editor.updateField(
-                    "code",
-                    normalizeProjectCodeInput(event.currentTarget.value),
+                    "recipeMarkdown",
+                    event.currentTarget.value,
                   )
                 }
-                onKeyDown={commitOnEnter}
-                placeholder={t("tasks.projectCodePlaceholder")}
-                aria-label={t("tasks.projectInfoCode")}
+                rows={7}
+                aria-label={t("tasks.projectRecipe")}
               />
-              <small className="project-info-help">
-                {codeLocked
-                  ? t("tasks.projectCodeLocked")
-                  : t("tasks.projectCodeHelp")}
-              </small>
-            </label>
-            <label className="project-info-field" htmlFor="project-info-github">
-              <span>{t("tasks.projectInfoGithub")}</span>
-              <Input
-                id="project-info-github"
-                type="url"
-                value={editor.draft.githubRepoUrl}
-                onBlur={() => void editor.persist()}
-                onChange={(event) =>
-                  editor.updateField("githubRepoUrl", event.currentTarget.value)
-                }
-                onKeyDown={commitOnEnter}
-                placeholder="https://github.com/org/repo"
-                aria-label={t("tasks.projectInfoGithub")}
-              />
-            </label>
-          </div>
-          <label className="project-info-field" htmlFor="project-info-summary">
-            <span>{t("tasks.projectInfoSummary")}</span>
-            <Textarea
-              id="project-info-summary"
-              value={editor.draft.description}
-              onBlur={() => void editor.persist()}
-              onChange={(event) =>
-                editor.updateField("description", event.currentTarget.value)
-              }
-              placeholder={t("tasks.projectInfoSummaryPlaceholder")}
-              rows={2}
-              aria-label={t("tasks.projectInfoSummary")}
-            />
-          </label>
-          <label
-            className="project-info-field"
-            htmlFor="project-info-additional"
-          >
-            <span>{t("tasks.projectInfoAdditional")}</span>
-            <Textarea
-              id="project-info-additional"
-              value={editor.draft.additionalInfo}
-              onBlur={() => void editor.persist()}
-              onChange={(event) =>
-                editor.updateField("additionalInfo", event.currentTarget.value)
-              }
-              placeholder={t("tasks.projectInfoAdditionalPlaceholder")}
-              rows={4}
-              aria-label={t("tasks.projectInfoAdditional")}
-            />
-          </label>
-          <div className="project-info-field project-recipe-field">
-            <div className="project-recipe-heading">
-              <span>{t("tasks.projectRecipe")}</span>
-              <input
-                ref={recipeInputRef}
-                type="file"
-                accept=".md,text/markdown"
-                className="sr-only"
-                onChange={editor.handleRecipeUpload}
-                aria-label={t("tasks.projectRecipeUpload")}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="project-recipe-upload"
-                onClick={() => recipeInputRef.current?.click()}
-              >
-                {t("tasks.projectRecipeUpload")}
-              </Button>
-              {editor.draft.recipeFileName ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="project-recipe-clear"
-                  onClick={() => void editor.clearRecipe()}
-                >
-                  {t("tasks.projectRecipeClear")}
-                </Button>
-              ) : null}
-            </div>
-            {editor.draft.recipeFileName ? (
-              <>
-                <small className="project-recipe-file">
-                  {editor.draft.recipeFileName}
-                </small>
-                <Textarea
-                  value={editor.draft.recipeMarkdown}
-                  onBlur={() => void editor.persist()}
-                  onChange={(event) =>
-                    editor.updateField(
-                      "recipeMarkdown",
-                      event.currentTarget.value,
-                    )
-                  }
-                  rows={7}
-                  aria-label={t("tasks.projectRecipe")}
-                />
-              </>
-            ) : (
-              <p className="project-recipe-empty">
-                {t("tasks.projectRecipeEmpty")}
-              </p>
-            )}
-          </div>
-        </section>
-      </CardContent>
-    </Card>
+            </>
+          ) : (
+            <p className="project-recipe-empty">
+              {t("tasks.projectRecipeEmpty")}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
-
 function TaskDraftSidePanel({
   members,
   project,

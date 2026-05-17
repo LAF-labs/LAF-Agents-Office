@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -814,6 +815,232 @@ func TestBrokerCompactsPersistentHomeThread(t *testing.T) {
 	}
 	if firstRetained.ReplyTo != threadID {
 		t.Fatalf("expected retained child with compacted parent to be re-anchored, got reply_to=%q", firstRetained.ReplyTo)
+	}
+}
+
+func TestHomeChatSessionsAreScopedAndSorted(t *testing.T) {
+	b := newTestBroker(t)
+	base := "home:team-alpha:user-alpha"
+	oldThread := base + ":s-old"
+	newThread := base + ":s-new"
+	otherUserThread := "home:team-alpha:user-beta:s-other"
+
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{ID: "old-1", From: "you", Channel: "general", Content: "이전 투자자 검토", ReplyTo: oldThread, Timestamp: "2026-05-10T09:00:00Z"},
+		{ID: "old-2", From: "ceo", Channel: "general", Content: "검토했습니다", ReplyTo: "old-1", Timestamp: "2026-05-10T09:01:00Z"},
+		{ID: "new-1", From: "you", Channel: "general", Content: "새 제품 점검", ReplyTo: newThread, Timestamp: "2026-05-12T11:00:00Z"},
+		{ID: "new-internal", From: "engineer", Channel: "general", Content: "hidden", ReplyTo: "new-1", Visibility: messageVisibilityInternal, Timestamp: "2026-05-12T11:01:00Z"},
+		{ID: "other-1", From: "you", Channel: "general", Content: "다른 사용자", ReplyTo: otherUserThread, Timestamp: "2026-05-13T11:00:00Z"},
+	}
+	sessions := b.homeChatSessionsLocked(base, parseBrokerTimestamp("2026-05-17T00:00:00Z"))
+	b.mu.Unlock()
+
+	if len(sessions) != 2 {
+		t.Fatalf("expected two sessions for base user, got %+v", sessions)
+	}
+	if sessions[0].ThreadID != newThread || sessions[1].ThreadID != oldThread {
+		t.Fatalf("expected sessions sorted by recent update, got %+v", sessions)
+	}
+	if sessions[0].Title != "새 제품 점검" || sessions[0].MessageCount != 1 {
+		t.Fatalf("expected visible user title and count only, got %+v", sessions[0])
+	}
+	if sessions[1].Title != "이전 투자자 검토" || sessions[1].MessageCount != 2 {
+		t.Fatalf("unexpected old session summary: %+v", sessions[1])
+	}
+}
+
+func TestHomeChatSessionPruneAndDelete(t *testing.T) {
+	b := newTestBroker(t)
+	base := "home:team-alpha:user-alpha"
+	expiredThread := base + ":s-expired"
+	recentThread := base + ":s-recent"
+	now := parseBrokerTimestamp("2026-05-17T00:00:00Z")
+
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{ID: "expired-1", From: "you", Channel: "general", Content: "old", ReplyTo: expiredThread, Timestamp: "2026-04-01T00:00:00Z"},
+		{ID: "expired-2", From: "ceo", Channel: "general", Content: "old reply", ReplyTo: "expired-1", Timestamp: "2026-04-01T00:01:00Z"},
+		{ID: "recent-1", From: "you", Channel: "general", Content: "recent", ReplyTo: recentThread, Timestamp: "2026-05-16T00:00:00Z"},
+	}
+	b.sessionArchive = []sessionArchiveEntry{
+		{ID: "archive-old", ThreadID: expiredThread, MessageID: "expired-0", Content: "old"},
+		{ID: "archive-recent", ThreadID: recentThread, MessageID: "recent-0", Content: "recent"},
+	}
+	if !b.pruneExpiredHomeSessionsLocked(now) {
+		t.Fatalf("expected expired home session prune")
+	}
+	for _, msg := range b.messages {
+		if strings.HasPrefix(msg.ID, "expired") {
+			t.Fatalf("expired message survived prune: %+v", msg)
+		}
+	}
+	if len(b.sessionArchive) != 1 || b.sessionArchive[0].ThreadID != recentThread {
+		t.Fatalf("expected only recent archive to remain, got %+v", b.sessionArchive)
+	}
+	if len(b.homeSessionTombstones) != 1 || b.homeSessionTombstones[0].ThreadID != expiredThread {
+		t.Fatalf("expected expired tombstone, got %+v", b.homeSessionTombstones)
+	}
+	if !b.deleteHomeSessionLocked(recentThread, "manual", now.Format(time.RFC3339)) {
+		t.Fatalf("expected recent session delete")
+	}
+	if len(b.messages) != 0 || len(b.sessionArchive) != 0 {
+		t.Fatalf("expected delete to remove messages and archive, messages=%+v archive=%+v", b.messages, b.sessionArchive)
+	}
+	if len(b.homeSessionTombstones) != 2 {
+		t.Fatalf("expected tombstones for expired and manually deleted sessions, got %+v", b.homeSessionTombstones)
+	}
+	b.mu.Unlock()
+}
+
+func TestHomeSessionRetentionUsesLastHumanMessage(t *testing.T) {
+	b := newTestBroker(t)
+	base := "home:team-alpha:user-alpha"
+	expiredThread := base + ":s-agent-recent"
+	recentThread := base + ":s-human-recent"
+	now := parseBrokerTimestamp("2026-05-17T00:00:00Z")
+
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{ID: "old-human", From: "you", Channel: "general", Content: "old", ReplyTo: expiredThread, HomeSessionThreadID: expiredThread, Timestamp: "2026-04-01T00:00:00Z"},
+		{ID: "recent-agent", From: "ceo", Channel: "general", Content: "recent agent only", ReplyTo: "old-human", HomeSessionThreadID: expiredThread, Timestamp: "2026-05-16T00:00:00Z"},
+		{ID: "recent-human", From: "you", Channel: "general", Content: "recent human", ReplyTo: recentThread, HomeSessionThreadID: recentThread, Timestamp: "2026-05-16T00:00:00Z"},
+	}
+	if !b.pruneExpiredHomeSessionsLocked(now) {
+		t.Fatalf("expected retention prune to remove old human session")
+	}
+	if _, deleted := b.homeSessionTombstoneLocked(expiredThread); !deleted {
+		t.Fatalf("expected expired thread tombstone")
+	}
+	if _, deleted := b.homeSessionTombstoneLocked(recentThread); deleted {
+		t.Fatalf("did not expect recent human thread tombstone")
+	}
+	for _, msg := range b.messages {
+		if msg.HomeSessionThreadID == expiredThread {
+			t.Fatalf("expired session message survived: %+v", msg)
+		}
+	}
+	b.mu.Unlock()
+}
+
+func TestDeletedHomeSessionSuppressesLateWrites(t *testing.T) {
+	b := newTestBroker(t)
+	threadID := "home:team-alpha:user-alpha:s-deleted"
+	deletedAt := "2026-05-17T00:00:00Z"
+
+	b.mu.Lock()
+	b.deleteHomeSessionLocked(threadID, "manual", deletedAt)
+	b.mu.Unlock()
+
+	if _, err := b.PostMessageWithHomeSession("ceo", "general", "late", nil, "msg-old", threadID); err == nil || !errors.Is(err, errHomeSessionDeleted) {
+		t.Fatalf("expected errHomeSessionDeleted from PostMessageWithHomeSession, got %v", err)
+	}
+
+	humanRec := httptest.NewRecorder()
+	b.handlePostMessage(humanRec, jsonRequestForTest(t, "/messages", map[string]any{
+		"from":                   "you",
+		"channel":                "general",
+		"content":                "stale human send",
+		"reply_to":               threadID,
+		"home_session_thread_id": threadID,
+	}))
+	if humanRec.Code != http.StatusGone {
+		t.Fatalf("stale human send status = %d, want 410 body=%s", humanRec.Code, humanRec.Body.String())
+	}
+
+	agentRec := httptest.NewRecorder()
+	b.handlePostMessage(agentRec, jsonRequestForTest(t, "/messages", map[string]any{
+		"from":                   "ceo",
+		"channel":                "general",
+		"content":                "late agent send",
+		"reply_to":               threadID,
+		"home_session_thread_id": threadID,
+	}))
+	if agentRec.Code != http.StatusOK {
+		t.Fatalf("stale agent send status = %d body=%s", agentRec.Code, agentRec.Body.String())
+	}
+
+	if _, dup, err := b.PostAutomationMessage("automation", "general", "late", "late automation", "evt-late", "test", "Test", nil, threadID); err != nil || dup {
+		t.Fatalf("late automation result = dup %v err %v", dup, err)
+	}
+
+	b.mu.Lock()
+	if len(b.messages) != 0 {
+		t.Fatalf("deleted home session late writes were persisted: %+v", b.messages)
+	}
+	b.messages = append(b.messages, channelMessage{
+		ID:                  "request-late",
+		From:                "ceo",
+		Channel:             "general",
+		Kind:                "collaboration_request",
+		Content:             "hidden ask",
+		ReplyTo:             "msg-human",
+		PublicReplyTo:       threadID,
+		HomeSessionThreadID: threadID,
+		Visibility:          messageVisibilityInternal,
+		Timestamp:           "2026-05-17T00:00:01Z",
+	})
+	b.mu.Unlock()
+	launcher := &Launcher{broker: b}
+	if _, posted, err := launcher.postHeadlessInternalWorkResultIfSilent("ceo", "general", "", "done", parseBrokerTimestamp("2026-05-17T00:00:00Z"), headlessFinalPostTarget{CollaborationRequestID: "request-late", HomeSessionThreadID: threadID}); err != nil || posted {
+		t.Fatalf("late internal work result posted=%v err=%v", posted, err)
+	}
+	b.mu.Lock()
+	if len(b.messages) != 1 {
+		t.Fatalf("expected internal work result to be suppressed, got messages %+v", b.messages)
+	}
+	b.mu.Unlock()
+}
+
+func TestHomeConversationRefsKeepPrivateThreadIDsOutOfTasksAndRequests(t *testing.T) {
+	b := newTestBroker(t)
+	threadID := "home:team-alpha:user-alpha:s-private"
+	deletedAt := "2026-05-17T00:00:00Z"
+
+	b.mu.Lock()
+	b.messages = []channelMessage{
+		{ID: "home-human", From: "you", Channel: "general", Content: "make a task", ReplyTo: threadID, HomeSessionThreadID: threadID, Timestamp: "2026-05-16T00:00:00Z"},
+	}
+	b.mu.Unlock()
+
+	task, _, err := b.EnsureTask("general", "Private source task", "details", "ceo", "you", "home-human")
+	if err != nil {
+		t.Fatalf("EnsureTask: %v", err)
+	}
+	if task.ThreadID != "" {
+		t.Fatalf("task exposed private home thread/message id: %+v", task)
+	}
+
+	rec := httptest.NewRecorder()
+	b.handlePostRequest(rec, jsonRequestForTest(t, "/requests", map[string]any{
+		"from":     "ceo",
+		"channel":  "general",
+		"question": "Need input",
+		"reply_to": "home-human",
+	}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("request create status = %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	b.mu.Lock()
+	if len(b.tasks) != 1 || b.tasks[0].ThreadID != "" {
+		t.Fatalf("stored task should not expose private home id: %+v", b.tasks)
+	}
+	if len(b.requests) != 1 || b.requests[0].ReplyTo != "" {
+		t.Fatalf("stored request should not expose private home id: %+v", b.requests)
+	}
+	if !b.deleteHomeSessionLocked(threadID, "manual", deletedAt) {
+		t.Fatalf("expected delete")
+	}
+	taskResponse := b.responseTaskLocked(b.tasks[0])
+	requestResponse := b.responseRequestLocked(b.requests[0])
+	b.mu.Unlock()
+
+	if taskResponse.SourceConversationDeletedAt != deletedAt {
+		t.Fatalf("task source_conversation_deleted_at = %q, want %q", taskResponse.SourceConversationDeletedAt, deletedAt)
+	}
+	if requestResponse.SourceConversationDeletedAt != deletedAt {
+		t.Fatalf("request source_conversation_deleted_at = %q, want %q", requestResponse.SourceConversationDeletedAt, deletedAt)
 	}
 }
 

@@ -10,9 +10,206 @@ html[data-theme^="office"] .app-panel.home-panel {
 .home-app {
   flex: 1;
   min-height: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--app-bg);
+}
+
+.home-session-toolbar {
+  position: absolute;
+  top: 14px;
+  right: clamp(16px, 3vw, 34px);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-session-icon-button,
+.home-session-new-button,
+.home-session-close,
+.home-session-delete {
+  border: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--bg-card) 96%, transparent);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.home-session-icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+}
+
+.home-session-icon-button[aria-pressed="true"],
+.home-session-icon-button:hover,
+.home-session-new-button:hover,
+.home-session-close:hover,
+.home-session-delete:hover {
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+  background: var(--accent-bg);
+}
+
+.home-session-new-button {
+  min-height: 34px;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 12px 0 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.home-session-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: min(360px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--bg-card) 98%, var(--app-bg));
+  box-shadow: -18px 0 42px rgba(15, 23, 42, 0.08);
+}
+
+.home-session-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.home-session-drawer-header > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.home-session-drawer-header strong {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.home-session-drawer-header span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.home-session-close,
+.home-session-delete {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+.home-session-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 10px;
+}
+
+.home-session-empty {
+  display: grid;
+  gap: 4px;
+  padding: 18px 12px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.home-session-empty strong {
+  color: var(--text-primary);
+}
+
+.home-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+}
+
+.home-session-row.is-active {
+  background: var(--accent-bg);
+}
+
+.home-session-load {
+  min-width: 0;
+  min-height: 52px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-session-load:hover {
+  background: var(--accent-bg);
+}
+
+.home-session-load:disabled {
+  cursor: default;
+}
+
+.home-session-title-row,
+.home-session-title,
+.home-session-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-session-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-session-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.home-session-current {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  color: var(--accent-strong);
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.home-session-meta {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.home-session-delete {
+  box-shadow: none;
+}
+
+.home-session-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .home-muted,
@@ -32,7 +229,7 @@ html[data-theme^="office"] .app-panel.home-panel {
   overflow-y: auto;
   display: flex;
   justify-content: flex-start;
-  padding: 10px clamp(18px, 4vw, 52px) 28px;
+  padding: 58px clamp(18px, 4vw, 52px) 28px;
 }
 
 .home-chat-empty {
@@ -514,8 +711,21 @@ html[data-theme^="office"] .app-panel.home-panel {
 }
 
 @media (max-width: 720px) {
+  .home-session-toolbar {
+    top: 10px;
+    right: 12px;
+  }
+
+  .home-session-new-button {
+    padding: 0 10px;
+  }
+
+  .home-session-drawer {
+    width: min(340px, calc(100% - 16px));
+  }
+
   .home-chat-stream {
-    padding: 10px 14px 24px;
+    padding: 54px 14px 24px;
   }
 
   .home-app.is-empty .home-chat-stream {

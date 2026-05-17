@@ -10,16 +10,19 @@ import {
   useState,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { SendDiagonal } from "iconoir-react";
+import { Clock, Plus, SendDiagonal, Trash, Xmark } from "iconoir-react";
 
 import {
   type AuthSessionResponse,
   confirmOrchestrationIntent,
+  deleteHomeSession,
   getAuthSession,
   getConfig,
+  getHomeSessions,
   getProjects,
   getSkills,
   getThreadMessages,
+  type HomeChatSession,
   type Message,
   type ModelMode,
   type OfficeMember,
@@ -40,7 +43,6 @@ import { PixelAvatar } from "../ui/PixelAvatar";
 
 const HOME_CHANNEL = "general";
 const NON_AGENT_SLUGS = new Set(["human", "you", "system"]);
-const LOCAL_HOME_THREAD_KEY = "laf-office.home.thread_id";
 const HOME_MESSAGE_REFETCH_MS =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined"
@@ -73,24 +75,61 @@ function stableHomePart(value: string | undefined): string {
   return safe || "unknown";
 }
 
-function createLocalHomeThreadId(): string {
+function createHomeSessionToken(): string {
   const cryptoUUID =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `home:local:${cryptoUUID}`;
+  return `s-${stableHomePart(cryptoUUID)}`;
 }
 
-function localHomeThreadId(): string {
-  if (typeof window === "undefined") return "home:local:anonymous";
-  const existing = window.localStorage.getItem(LOCAL_HOME_THREAD_KEY);
-  if (existing?.startsWith("home:")) return existing;
-  const next = createLocalHomeThreadId();
-  window.localStorage.setItem(LOCAL_HOME_THREAD_KEY, next);
-  return next;
+function createHomeSessionThreadId(baseThreadId: string): string {
+  return `${baseThreadId}:${createHomeSessionToken()}`;
 }
 
-function createHomeChatThreadId(
+const homeSessionRuntimeStore = {
+  activeByBase: new Map<string, string>(),
+  localBaseThreadId: null as string | null,
+  current(baseThreadId: string): string {
+    const existing = this.activeByBase.get(baseThreadId);
+    if (existing) return existing;
+    const next = createHomeSessionThreadId(baseThreadId);
+    this.activeByBase.set(baseThreadId, next);
+    return next;
+  },
+  remember(baseThreadId: string, threadId: string) {
+    if (!baseThreadId || !threadId) return;
+    this.activeByBase.set(baseThreadId, threadId);
+  },
+  reset() {
+    this.activeByBase.clear();
+    this.localBaseThreadId = null;
+  },
+  localBase(): string {
+    if (!this.localBaseThreadId) {
+      this.localBaseThreadId = `home:local:${createHomeSessionToken()}`;
+    }
+    return this.localBaseThreadId;
+  },
+};
+
+function currentHomeSessionThreadId(baseThreadId: string): string {
+  return homeSessionRuntimeStore.current(baseThreadId);
+}
+
+function rememberHomeSessionThread(baseThreadId: string, threadId: string) {
+  homeSessionRuntimeStore.remember(baseThreadId, threadId);
+}
+
+function resetHomeSessionMemory() {
+  homeSessionRuntimeStore.reset();
+}
+
+function createLocalHomeBaseThreadId(): string {
+  return homeSessionRuntimeStore.localBase();
+}
+
+function createHomeChatBaseThreadId(
   session: AuthSessionResponse | null | undefined,
 ): string | null {
   if (!session) return null;
@@ -99,7 +138,7 @@ function createHomeChatThreadId(
     const userID = stableHomePart(session.user.id || session.user.email);
     return `home:${teamID}:${userID}`;
   }
-  return localHomeThreadId();
+  return createLocalHomeBaseThreadId();
 }
 
 function resolveLeadSlug(
@@ -385,14 +424,14 @@ function messageBelongsToHomeThread(
   threadMessageIds: Set<string>,
 ): boolean {
   if (isInternalMessage(message)) return false;
+  const explicitHomeThreadId = message.home_session_thread_id?.trim() ?? "";
+  if (explicitHomeThreadId) return explicitHomeThreadId === homeThreadId;
   const replyTo = message.reply_to?.trim() ?? "";
   const publicReplyTo = message.public_reply_to?.trim() ?? "";
   return Boolean(
     replyTo === homeThreadId ||
       publicReplyTo === homeThreadId ||
       message.thread_id === homeThreadId ||
-      message.scope === "home_orchestration" ||
-      message.kind === "home_summary" ||
       (replyTo && threadMessageIds.has(replyTo)) ||
       (publicReplyTo && threadMessageIds.has(publicReplyTo)),
   );
@@ -424,6 +463,8 @@ function shouldAttachIncomingHomeMessage({
 }): boolean {
   if (message.channel !== HOME_CHANNEL) return false;
   if (isInternalMessage(message)) return false;
+  const explicitHomeThreadId = message.home_session_thread_id?.trim() ?? "";
+  if (explicitHomeThreadId) return explicitHomeThreadId === homeThreadId;
   const threadIDs = homeThreadMessageIDs(messages);
   return (
     messageBelongsToHomeThread(message, homeThreadId, threadIDs) ||
@@ -457,6 +498,17 @@ function buildOutboundMessage(
     content: trimmed,
     tagged: [leadSlug],
   };
+}
+
+function formatSessionDate(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function renderHomeToken(token: string, key: string): ReactNode {
@@ -775,6 +827,7 @@ function HomeComposer({
         {
           model_mode: modelMode,
           scope: "home_orchestration",
+          home_session_thread_id: threadId,
         },
       );
       const sentMessage: Message = {
@@ -784,6 +837,7 @@ function HomeComposer({
         content: outbound.content,
         tagged: outbound.tagged,
         reply_to: threadId,
+        home_session_thread_id: threadId,
         timestamp: new Date().toISOString(),
         model_mode: modelMode,
         scope: "home_orchestration",
@@ -815,6 +869,7 @@ function HomeComposer({
       onAwaitingReply(
         result.waitsForReply ? Date.parse(result.message.timestamp) : null,
       );
+      queryClient.invalidateQueries({ queryKey: ["home-sessions"] });
       queryClient.invalidateQueries({
         queryKey: ["home-messages", HOME_CHANNEL, threadId],
       });
@@ -1044,6 +1099,166 @@ function HomeComposer({
   );
 }
 
+function HomeSessionToolbar({
+  onNewSession,
+  onToggleHistory,
+  historyOpen,
+}: {
+  onNewSession: () => void;
+  onToggleHistory: () => void;
+  historyOpen: boolean;
+}) {
+  return (
+    <div className="home-session-toolbar" aria-label="홈 채팅 세션">
+      <button
+        type="button"
+        className="home-session-new-button"
+        onClick={onNewSession}
+      >
+        <Plus width={16} height={16} />
+        <span>새 세션 시작</span>
+      </button>
+      <button
+        type="button"
+        className="home-session-icon-button"
+        aria-label="대화 기록"
+        aria-pressed={historyOpen}
+        title="대화 기록"
+        onClick={onToggleHistory}
+      >
+        <Clock width={18} height={18} />
+      </button>
+    </div>
+  );
+}
+
+function HomeSessionDrawer({
+  activeThreadId,
+  baseThreadId,
+  open,
+  onClose,
+  onDeletedActive,
+  onLoad,
+}: {
+  activeThreadId: string | null;
+  baseThreadId: string | null;
+  open: boolean;
+  onClose: () => void;
+  onDeletedActive: () => void;
+  onLoad: (threadId: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const sessionsQuery = useQuery({
+    queryKey: ["home-sessions", baseThreadId],
+    queryFn: () => getHomeSessions(baseThreadId ?? ""),
+    enabled: open && Boolean(baseThreadId),
+    staleTime: 10_000,
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (threadId: string) => deleteHomeSession(threadId),
+    onSuccess: (_result, threadId) => {
+      queryClient.invalidateQueries({ queryKey: ["home-sessions"] });
+      queryClient.removeQueries({
+        queryKey: ["home-messages", HOME_CHANNEL, threadId],
+      });
+      if (threadId === activeThreadId) onDeletedActive();
+    },
+  });
+  const sessions = sessionsQuery.data?.sessions ?? [];
+
+  if (!open) return null;
+
+  return (
+    <aside className="home-session-drawer" aria-label="홈 채팅 기록">
+      <div className="home-session-drawer-header">
+        <div>
+          <strong>최근 대화</strong>
+          <span>최근 30일 기록만 보관됩니다.</span>
+        </div>
+        <button
+          type="button"
+          aria-label="대화 기록 닫기"
+          className="home-session-close"
+          onClick={onClose}
+        >
+          <Xmark width={18} height={18} />
+        </button>
+      </div>
+      <div className="home-session-list">
+        {sessionsQuery.isLoading ? (
+          <div className="home-session-empty">대화 기록을 불러오는 중</div>
+        ) : sessions.length === 0 ? (
+          <div className="home-session-empty">
+            <strong>저장된 대화가 없습니다</strong>
+            <span>메시지를 보내면 이곳에 자동으로 저장됩니다.</span>
+          </div>
+        ) : (
+          sessions.map((session) => (
+            <HomeSessionRow
+              key={session.thread_id}
+              active={session.thread_id === activeThreadId}
+              deleting={deleteMutation.isPending}
+              session={session}
+              onDelete={() => {
+                const ok =
+                  typeof window === "undefined" ||
+                  window.confirm("이 대화 기록을 삭제할까요?");
+                if (!ok) return;
+                deleteMutation.mutate(session.thread_id);
+              }}
+              onLoad={() => onLoad(session.thread_id)}
+            />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function HomeSessionRow({
+  active,
+  deleting,
+  onDelete,
+  onLoad,
+  session,
+}: {
+  active: boolean;
+  deleting: boolean;
+  onDelete: () => void;
+  onLoad: () => void;
+  session: HomeChatSession;
+}) {
+  return (
+    <div className={`home-session-row${active ? " is-active" : ""}`}>
+      <button
+        type="button"
+        className="home-session-load"
+        disabled={active}
+        onClick={onLoad}
+      >
+        <span className="home-session-title-row">
+          <span className="home-session-title">
+            {session.title || "제목 없는 대화"}
+          </span>
+          {active ? <span className="home-session-current">현재</span> : null}
+        </span>
+        <span className="home-session-meta">
+          {formatSessionDate(session.updated_at)}
+        </span>
+      </button>
+      <button
+        type="button"
+        className="home-session-delete"
+        aria-label={`대화 삭제: ${session.title || "새 대화"}`}
+        disabled={deleting}
+        onClick={onDelete}
+      >
+        <Trash width={16} height={16} />
+      </button>
+    </div>
+  );
+}
+
 export function HomeApp() {
   const queryClient = useQueryClient();
   const [awaitingReplySince, setAwaitingReplySince] = useState<number | null>(
@@ -1057,10 +1272,12 @@ export function HomeApp() {
     queryFn: getAuthSession,
     staleTime: 60_000,
   });
-  const homeThreadId = useMemo(
-    () => createHomeChatThreadId(authSession),
+  const homeBaseThreadId = useMemo(
+    () => createHomeChatBaseThreadId(authSession),
     [authSession],
   );
+  const [homeThreadId, setHomeThreadId] = useState<string | null>(null);
+  const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ["home-messages", HOME_CHANNEL, homeThreadId],
     queryFn: () => getThreadMessages(HOME_CHANNEL, homeThreadId ?? ""),
@@ -1100,6 +1317,29 @@ export function HomeApp() {
   );
   const hasMessages = visibleMessages.length > 0;
   const homeMessagesLoading = authLoading || messagesLoading;
+  const startNewSession = useCallback(() => {
+    if (!homeBaseThreadId) return;
+    const next = createHomeSessionThreadId(homeBaseThreadId);
+    rememberHomeSessionThread(homeBaseThreadId, next);
+    setHomeThreadId(next);
+    setAwaitingReplySince(null);
+    setStreamingMessageIds(new Set());
+    queryClient.setQueryData<{ messages: Message[] }>(
+      ["home-messages", HOME_CHANNEL, next],
+      { messages: [] },
+    );
+  }, [homeBaseThreadId, queryClient]);
+  const loadSession = useCallback(
+    (threadId: string) => {
+      if (!homeBaseThreadId) return;
+      rememberHomeSessionThread(homeBaseThreadId, threadId);
+      setHomeThreadId(threadId);
+      setAwaitingReplySince(null);
+      setStreamingMessageIds(new Set());
+      setSessionDrawerOpen(false);
+    },
+    [homeBaseThreadId],
+  );
   const markMessageForStreaming = useCallback((message: Message) => {
     if (!shouldStreamHomeMessage(message)) return;
     setStreamingMessageIds((current) => {
@@ -1117,6 +1357,14 @@ export function HomeApp() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (!homeBaseThreadId) {
+      setHomeThreadId(null);
+      return;
+    }
+    setHomeThreadId(currentHomeSessionThreadId(homeBaseThreadId));
+  }, [homeBaseThreadId]);
 
   useEffect(() => {
     if (!homeThreadId) return;
@@ -1186,6 +1434,19 @@ export function HomeApp() {
 
   return (
     <div className={`home-app${hasMessages ? "" : " is-empty"}`}>
+      <HomeSessionToolbar
+        historyOpen={sessionDrawerOpen}
+        onNewSession={startNewSession}
+        onToggleHistory={() => setSessionDrawerOpen((open) => !open)}
+      />
+      <HomeSessionDrawer
+        activeThreadId={homeThreadId}
+        baseThreadId={homeBaseThreadId}
+        open={sessionDrawerOpen}
+        onClose={() => setSessionDrawerOpen(false)}
+        onDeletedActive={startNewSession}
+        onLoad={loadSession}
+      />
       <HomeMessageList
         messages={visibleMessages}
         isLoading={homeMessagesLoading}
@@ -1209,8 +1470,11 @@ export function HomeApp() {
 
 export const __test__ = {
   buildOutboundMessage,
-  createHomeChatThreadId,
+  createHomeChatBaseThreadId,
+  createHomeSessionThreadId,
+  homeSessionRuntimeStore,
   projectOptions,
+  resetHomeSessionMemory,
   sortProjectsByRecent,
   visibleTargets,
 };

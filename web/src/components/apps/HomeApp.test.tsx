@@ -13,8 +13,10 @@ import { __test__, HomeApp } from "./HomeApp";
 
 const apiMocks = vi.hoisted(() => ({
   confirmOrchestrationIntent: vi.fn(),
+  deleteHomeSession: vi.fn(),
   getAuthSession: vi.fn(),
   getConfig: vi.fn(),
+  getHomeSessions: vi.fn(),
   getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getProjects: vi.fn(),
@@ -78,6 +80,7 @@ describe("HomeApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     eventMocks.reset();
+    __test__.resetHomeSessionMemory();
     apiMocks.getAuthSession.mockResolvedValue({
       authenticated: true,
       team: {
@@ -117,6 +120,8 @@ describe("HomeApp", () => {
       },
     });
     apiMocks.getThreadMessages.mockResolvedValue({ messages: [] });
+    apiMocks.getHomeSessions.mockResolvedValue({ sessions: [] });
+    apiMocks.deleteHomeSession.mockResolvedValue({ ok: true, deleted: true });
     apiMocks.getOfficeMembers.mockResolvedValue({
       members: [
         { built_in: true, name: "CEO", role: "Lead", slug: "ceo" },
@@ -181,9 +186,12 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "이번 주 계획 정리해줘",
         "general",
-        "home:team-alpha:user-alpha",
+        expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["ceo"],
         expect.objectContaining({
+          home_session_thread_id: expect.stringMatching(
+            /^home:team-alpha:user-alpha:s-/,
+          ),
           model_mode: "record_only",
           scope: "home_orchestration",
         }),
@@ -211,7 +219,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "@engineer 디자인 확인해줘",
         "general",
-        "home:team-alpha:user-alpha",
+        expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["engineer"],
         expect.objectContaining({
           model_mode: "record_only",
@@ -240,7 +248,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "#aurora-revenue-os 정리해줘",
         "general",
-        "home:team-alpha:user-alpha",
+        expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["ceo"],
         expect.objectContaining({
           model_mode: "record_only",
@@ -277,7 +285,7 @@ describe("HomeApp", () => {
       expect(apiMocks.postMessage).toHaveBeenCalledWith(
         "/deploy-check 실행해줘",
         "general",
-        "home:team-alpha:user-alpha",
+        expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["ceo"],
         expect.objectContaining({
           model_mode: "record_only",
@@ -313,6 +321,23 @@ describe("HomeApp", () => {
       expect(document.querySelector(".home-message.is-thinking")).toBeTruthy(),
     );
     expect(document.querySelectorAll(".home-typing-dots span")).toHaveLength(3);
+    const postCalls = apiMocks.postMessage.mock.calls;
+    const activeThreadId = postCalls[postCalls.length - 1]?.[2] as string;
+
+    act(() => {
+      eventMocks.emit("message", {
+        message: {
+          channel: "general",
+          content: "다른 세션 응답",
+          from: "ceo",
+          home_session_thread_id: "home:team-alpha:user-alpha:s-other",
+          id: "msg-agent-other",
+          reply_to: "msg-1",
+          timestamp: new Date().toISOString(),
+        },
+      });
+    });
+    expect(screen.queryByText("다른 세션 응답")).not.toBeInTheDocument();
 
     act(() => {
       eventMocks.emit("message", {
@@ -320,6 +345,7 @@ describe("HomeApp", () => {
           channel: "general",
           content: "좋아요. 바로 확인할게요.",
           from: "ceo",
+          home_session_thread_id: activeThreadId,
           id: "msg-agent-1",
           reply_to: "msg-1",
           timestamp: new Date().toISOString(),
@@ -340,6 +366,7 @@ describe("HomeApp", () => {
   });
 
   it("keeps hidden internal collaboration messages out of the home chat", async () => {
+    let activeThread = "";
     apiMocks.getThreadMessages.mockResolvedValue({
       messages: [
         {
@@ -347,11 +374,27 @@ describe("HomeApp", () => {
           content: "Internal planning secret",
           from: "engineer",
           id: "msg-internal-existing",
-          reply_to: "home:team-alpha:user-alpha",
+          reply_to: "home:team-alpha:user-alpha:s-existing",
           timestamp: "2026-05-10T00:00:00Z",
           visibility: "internal",
         },
       ],
+    });
+    apiMocks.getThreadMessages.mockImplementation((_channel, threadId) => {
+      activeThread = threadId;
+      return Promise.resolve({
+        messages: [
+          {
+            channel: "general",
+            content: "Internal planning secret",
+            from: "engineer",
+            id: "msg-internal-existing",
+            reply_to: activeThread,
+            timestamp: "2026-05-10T00:00:00Z",
+            visibility: "internal",
+          },
+        ],
+      });
     });
     renderHomeApp();
 
@@ -368,7 +411,7 @@ describe("HomeApp", () => {
           from: "engineer",
           id: "msg-internal-event",
           kind: "work_result",
-          reply_to: "home:team-alpha:user-alpha",
+          reply_to: activeThread,
           timestamp: new Date().toISOString(),
           visibility: "internal",
         },
@@ -415,30 +458,105 @@ describe("HomeApp", () => {
     expect(apiMocks.postMessage).not.toHaveBeenCalled();
   });
 
-  it("loads the persistent home thread for the authenticated user", async () => {
+  it("starts a fresh home chat session for the authenticated user", async () => {
     renderHomeApp();
 
     await screen.findByText("오늘은 무슨 이야기를 할까요?");
 
-    expect(apiMocks.getThreadMessages).toHaveBeenCalledWith(
-      "general",
-      "home:team-alpha:user-alpha",
+    await waitFor(() =>
+      expect(apiMocks.getThreadMessages).toHaveBeenCalledWith(
+        "general",
+        expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
+      ),
     );
   });
 
-  it("renders compacted home summaries as summary messages", async () => {
-    apiMocks.getThreadMessages.mockResolvedValue({
-      messages: [
+  it("places the new-session action before the history icon", async () => {
+    renderHomeApp();
+
+    await screen.findByText("오늘은 무슨 이야기를 할까요?");
+    const toolbar = document.querySelector(".home-session-toolbar");
+    const buttons = Array.from(toolbar?.querySelectorAll("button") ?? []);
+
+    expect(buttons[0]?.textContent).toContain("새 세션 시작");
+    expect(buttons[1]?.getAttribute("aria-label")).toBe("대화 기록");
+  });
+
+  it("opens the home session panel and loads an existing session", async () => {
+    const user = userEvent.setup();
+    apiMocks.getHomeSessions.mockResolvedValue({
+      sessions: [
         {
-          channel: "general",
-          content: "Auto-compressed Home summary.",
-          from: "system",
-          id: "home-summary-team-alpha-user-alpha",
-          kind: "home_summary",
-          reply_to: "home:team-alpha:user-alpha",
-          timestamp: "2026-05-10T00:00:00Z",
+          created_at: "2026-05-10T00:00:00Z",
+          id: "s-old",
+          message_count: 4,
+          thread_id: "home:team-alpha:user-alpha:s-old",
+          title: "이전 투자자 검토",
+          updated_at: "2026-05-12T10:00:00Z",
         },
       ],
+    });
+    renderHomeApp();
+
+    await user.click(await screen.findByRole("button", { name: "대화 기록" }));
+    expect(await screen.findByText("최근 대화")).toBeInTheDocument();
+    expect(screen.queryByText(/메시지 4개/)).not.toBeInTheDocument();
+    expect(apiMocks.getHomeSessions).toHaveBeenCalledWith(
+      "home:team-alpha:user-alpha",
+    );
+
+    await user.click(await screen.findByText("이전 투자자 검토"));
+
+    await waitFor(() => {
+      expect(apiMocks.getThreadMessages).toHaveBeenCalledWith(
+        "general",
+        "home:team-alpha:user-alpha:s-old",
+      );
+    });
+  });
+
+  it("deletes a home session from the session panel", async () => {
+    const user = userEvent.setup();
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    apiMocks.getHomeSessions.mockResolvedValue({
+      sessions: [
+        {
+          created_at: "2026-05-10T00:00:00Z",
+          id: "s-old",
+          message_count: 2,
+          thread_id: "home:team-alpha:user-alpha:s-old",
+          title: "삭제할 대화",
+          updated_at: "2026-05-12T10:00:00Z",
+        },
+      ],
+    });
+    renderHomeApp();
+
+    await user.click(await screen.findByRole("button", { name: "대화 기록" }));
+    await user.click(await screen.findByRole("button", { name: /대화 삭제/ }));
+
+    expect(apiMocks.deleteHomeSession).toHaveBeenCalledWith(
+      "home:team-alpha:user-alpha:s-old",
+    );
+    window.confirm = originalConfirm;
+  });
+
+  it("renders compacted home summaries as summary messages", async () => {
+    apiMocks.getThreadMessages.mockImplementation((_channel, threadId) => {
+      return Promise.resolve({
+        messages: [
+          {
+            channel: "general",
+            content: "Auto-compressed Home summary.",
+            from: "system",
+            id: "home-summary-team-alpha-user-alpha",
+            kind: "home_summary",
+            reply_to: threadId,
+            timestamp: "2026-05-10T00:00:00Z",
+          },
+        ],
+      });
     });
 
     renderHomeApp();

@@ -316,6 +316,17 @@ describe("TasksApp project directory", () => {
     expect(
       await screen.findByRole("heading", { name: "Customer Portal" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show info" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByText("Managed checkout")).not.toBeInTheDocument();
+
+    const taskList = screen.getByRole("region", { name: "Tasks" });
+    expect(
+      within(taskList).getByText("Implement signup flow"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show info" }));
     expect(screen.getByText("Managed checkout")).toBeInTheDocument();
     expect(screen.getByText("Team runner connected")).toBeInTheDocument();
     expect(
@@ -325,10 +336,6 @@ describe("TasksApp project directory", () => {
       screen.queryByText("No local binding for this project yet."),
     ).not.toBeInTheDocument();
 
-    const taskList = screen.getByRole("region", { name: "Tasks" });
-    expect(
-      within(taskList).getByText("Implement signup flow"),
-    ).toBeInTheDocument();
     expect(await screen.findByText("LAF Bridge connected")).toBeInTheDocument();
     expect(
       within(taskList).getByText("Review signup flow"),
@@ -383,8 +390,9 @@ describe("TasksApp project bridge workspace", () => {
     await user.click(
       await screen.findByRole("button", { name: /Customer Portal/ }),
     );
+    await user.click(await screen.findByRole("button", { name: "Show info" }));
     await user.click(
-      await screen.findByText("Advanced: use an existing local folder"),
+      await screen.findByRole("button", { name: "Use existing folder" }),
     );
     await user.type(
       await screen.findByLabelText("Local path"),

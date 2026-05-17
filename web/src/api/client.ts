@@ -681,6 +681,7 @@ export interface Message {
   timestamp: string;
   reply_to?: string;
   public_reply_to?: string;
+  home_session_thread_id?: string;
   thread_id?: string;
   thread_count?: number;
   reactions?: Record<string, string[]>;
@@ -702,6 +703,15 @@ export interface TokenUsage {
   cache_creation_tokens?: number;
   total_tokens?: number;
   cost_usd?: number;
+}
+
+export interface HomeChatSession {
+  id: string;
+  thread_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
 }
 
 export function getMessages(
@@ -752,6 +762,18 @@ export function getThreadMessages(channel: string, threadId: string) {
     thread_id: threadId,
     viewer_slug: "human",
     limit: 50,
+  });
+}
+
+export function getHomeSessions(baseThreadId: string) {
+  return get<{ sessions: HomeChatSession[] }>("/home-sessions", {
+    base_thread_id: baseThreadId,
+  });
+}
+
+export function deleteHomeSession(threadId: string) {
+  return del<{ ok: boolean; deleted: boolean }>("/home-sessions", {
+    thread_id: threadId,
   });
 }
 
@@ -1029,6 +1051,7 @@ export interface AgentRequest {
   recommended_id?: string;
   created_at?: string;
   updated_at?: string;
+  source_conversation_deleted_at?: string;
 }
 
 export function getRequests(channel: string) {
@@ -1087,6 +1110,7 @@ export interface Task {
   project_id?: string;
   channel?: string;
   thread_id?: string;
+  source_conversation_deleted_at?: string;
   task_type?: string;
   pipeline_id?: string;
   pipeline_stage?: string;

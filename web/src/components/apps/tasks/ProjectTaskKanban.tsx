@@ -5,7 +5,6 @@ import type { OfficeMember } from "../../../hooks/useMembers";
 import type { I18nKey } from "../../../lib/i18n";
 import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
-import { Card, CardContent } from "../../ui/card";
 import {
   normalizeStatus,
   STATUS_LABEL_KEYS,
@@ -64,28 +63,29 @@ export function ProjectTaskKanban({
 }) {
   if (tasks.length === 0) {
     return (
-      <Card className="project-directory-card project-empty-card">
-        <CardContent className="grid gap-3 py-10 text-center">
-          <div className="project-empty-icon" aria-hidden="true">
-            <Plus width={18} height={18} />
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            {t("tasks.noTasks")}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t("tasks.noTasksDesc")}
-          </p>
-          <Button
-            className="project-empty-action"
-            type="button"
-            variant="outline"
-            onClick={onCreateTask}
-          >
-            <Plus width={16} height={16} />
-            {t("tasks.newTask")}
-          </Button>
-        </CardContent>
-      </Card>
+      <section
+        className="project-kanban-section project-kanban-empty-board"
+        aria-label={t("tasks.tasks")}
+      >
+        <div className="project-empty-icon" aria-hidden="true">
+          <Plus width={18} height={18} />
+        </div>
+        <p className="text-sm font-medium text-foreground">
+          {t("tasks.noTasks")}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {t("tasks.noTasksDesc")}
+        </p>
+        <Button
+          className="project-empty-action"
+          type="button"
+          variant="outline"
+          onClick={onCreateTask}
+        >
+          <Plus width={16} height={16} />
+          {t("tasks.newTask")}
+        </Button>
+      </section>
     );
   }
 
@@ -95,49 +95,42 @@ export function ProjectTaskKanban({
   }));
 
   return (
-    <Card className="project-directory-card project-task-list-card project-kanban-card">
-      <CardContent className="project-kanban-content">
-        <section
-          className="project-kanban-section"
-          aria-label={t("tasks.tasks")}
-        >
-          <div className="project-kanban-board">
-            {tasksByColumn.map((column) => (
-              <section
-                className={cn("project-kanban-column", `is-${column.id}`)}
-                key={column.id}
-                aria-label={t(column.labelKey)}
-              >
-                <header className="project-kanban-column-header">
-                  <h4>{t(column.labelKey)}</h4>
-                  <span className="project-kanban-count">
-                    {column.tasks.length}
-                  </span>
-                </header>
-                <div className="project-kanban-stack">
-                  {column.tasks.length > 0 ? (
-                    column.tasks.map((task) => (
-                      <TaskKanbanCard
-                        isSelected={selectedTaskId === task.id}
-                        key={task.id}
-                        members={members}
-                        task={task}
-                        t={t}
-                        onSelect={() => onSelectTask(task.id)}
-                      />
-                    ))
-                  ) : (
-                    <p className="project-kanban-empty">
-                      {t("tasks.kanban.empty")}
-                    </p>
-                  )}
-                </div>
-              </section>
-            ))}
-          </div>
-        </section>
-      </CardContent>
-    </Card>
+    <section className="project-kanban-section" aria-label={t("tasks.tasks")}>
+      <div className="project-kanban-board">
+        {tasksByColumn.map((column) => (
+          <section
+            className={cn("project-kanban-column", `is-${column.id}`)}
+            key={column.id}
+            aria-label={t(column.labelKey)}
+          >
+            <header className="project-kanban-column-header">
+              <h4>{t(column.labelKey)}</h4>
+              <span className="project-kanban-count">
+                {column.tasks.length}
+              </span>
+            </header>
+            <div className="project-kanban-stack">
+              {column.tasks.length > 0 ? (
+                column.tasks.map((task) => (
+                  <TaskKanbanCard
+                    isSelected={selectedTaskId === task.id}
+                    key={task.id}
+                    members={members}
+                    task={task}
+                    t={t}
+                    onSelect={() => onSelectTask(task.id)}
+                  />
+                ))
+              ) : (
+                <p className="project-kanban-empty">
+                  {t("tasks.kanban.empty")}
+                </p>
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+    </section>
   );
 }
 

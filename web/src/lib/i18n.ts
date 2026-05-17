@@ -487,6 +487,8 @@ const messages = {
     "tasks.bridgeWorkspaceRunnerWaiting": "Waiting for team runner",
     "tasks.bridgeWorkspacePersonalTitle":
       "Advanced: use an existing local folder",
+    "tasks.bridgeWorkspacePersonalAction": "Use existing folder",
+    "tasks.bridgeWorkspacePersonalClose": "Hide",
     "tasks.bridgeWorkspacePersonalDesc":
       "Use this only when this computer already has the project checked out and you want agent work to run there. This setting is personal to you.",
     "tasks.bridgeWorkspacePersonalConfigured":
@@ -630,6 +632,8 @@ const messages = {
     "tasks.projectInfoSaving": "Saving...",
     "tasks.projectInfoSaved": "Saved",
     "tasks.projectInfoSaveFailed": "Could not save project information.",
+    "tasks.projectInfoExpand": "Show info",
+    "tasks.projectInfoCollapse": "Hide info",
     "tasks.projectRecipe": "Agent recipe",
     "tasks.projectRecipeUpload": "Upload .md",
     "tasks.projectRecipeClear": "Remove",
@@ -1342,6 +1346,8 @@ const messages = {
     "tasks.bridgeWorkspaceRunnerReady": "팀 러너 연결됨",
     "tasks.bridgeWorkspaceRunnerWaiting": "팀 러너 연결 대기",
     "tasks.bridgeWorkspacePersonalTitle": "고급: 기존 로컬 폴더 사용",
+    "tasks.bridgeWorkspacePersonalAction": "기존 폴더 사용",
+    "tasks.bridgeWorkspacePersonalClose": "숨기기",
     "tasks.bridgeWorkspacePersonalDesc":
       "이미 이 컴퓨터에 받아둔 프로젝트 폴더에서 실행하고 싶을 때만 사용합니다. 이 설정은 개인별로 적용됩니다.",
     "tasks.bridgeWorkspacePersonalConfigured":
@@ -1485,6 +1491,8 @@ const messages = {
     "tasks.projectInfoSaving": "저장 중...",
     "tasks.projectInfoSaved": "저장됨",
     "tasks.projectInfoSaveFailed": "프로젝트 정보를 저장하지 못했습니다.",
+    "tasks.projectInfoExpand": "정보 펼치기",
+    "tasks.projectInfoCollapse": "정보 접기",
     "tasks.projectRecipe": "에이전트 레시피",
     "tasks.projectRecipeUpload": ".md 업로드",
     "tasks.projectRecipeClear": "삭제",

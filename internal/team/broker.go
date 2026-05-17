@@ -56,6 +56,8 @@ const (
 	homeThreadCompactionThreshold     = 100
 	homeThreadRecentMessageRetention  = 40
 	homeThreadSummaryExcerptMaxLength = 5000
+	homeSessionRetention              = 30 * 24 * time.Hour
+	homeSessionTombstoneRetention     = 37 * 24 * time.Hour
 )
 
 // Per-agent rate limit. Applies even to authenticated requests that identify
@@ -76,6 +78,7 @@ const agentRateLimitHeader = "X-LAF-Office-Agent"
 var studioPackageGenerator = provider.RunConfiguredOneShot
 
 var externalRetryAfterPattern = regexp.MustCompile(`(?i)retry after ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-]+Z?)`)
+var errHomeSessionDeleted = errors.New("home session deleted")
 
 // agentStreamBuffer holds recent stdout/stderr lines from a headless agent
 // process and fans them out to SSE subscribers in real time.
@@ -139,27 +142,28 @@ type interviewAnswer struct {
 }
 
 type humanInterview struct {
-	ID            string            `json:"id"`
-	Kind          string            `json:"kind,omitempty"`
-	Status        string            `json:"status,omitempty"`
-	From          string            `json:"from"`
-	Channel       string            `json:"channel,omitempty"`
-	Title         string            `json:"title,omitempty"`
-	Question      string            `json:"question"`
-	Context       string            `json:"context,omitempty"`
-	Options       []interviewOption `json:"options,omitempty"`
-	RecommendedID string            `json:"recommended_id,omitempty"`
-	Blocking      bool              `json:"blocking,omitempty"`
-	Required      bool              `json:"required,omitempty"`
-	Secret        bool              `json:"secret,omitempty"`
-	ReplyTo       string            `json:"reply_to,omitempty"`
-	DueAt         string            `json:"due_at,omitempty"`
-	FollowUpAt    string            `json:"follow_up_at,omitempty"`
-	ReminderAt    string            `json:"reminder_at,omitempty"`
-	RecheckAt     string            `json:"recheck_at,omitempty"`
-	CreatedAt     string            `json:"created_at"`
-	UpdatedAt     string            `json:"updated_at,omitempty"`
-	Answered      *interviewAnswer  `json:"answered,omitempty"`
+	ID                          string            `json:"id"`
+	Kind                        string            `json:"kind,omitempty"`
+	Status                      string            `json:"status,omitempty"`
+	From                        string            `json:"from"`
+	Channel                     string            `json:"channel,omitempty"`
+	Title                       string            `json:"title,omitempty"`
+	Question                    string            `json:"question"`
+	Context                     string            `json:"context,omitempty"`
+	Options                     []interviewOption `json:"options,omitempty"`
+	RecommendedID               string            `json:"recommended_id,omitempty"`
+	Blocking                    bool              `json:"blocking,omitempty"`
+	Required                    bool              `json:"required,omitempty"`
+	Secret                      bool              `json:"secret,omitempty"`
+	ReplyTo                     string            `json:"reply_to,omitempty"`
+	SourceConversationDeletedAt string            `json:"source_conversation_deleted_at,omitempty"`
+	DueAt                       string            `json:"due_at,omitempty"`
+	FollowUpAt                  string            `json:"follow_up_at,omitempty"`
+	ReminderAt                  string            `json:"reminder_at,omitempty"`
+	RecheckAt                   string            `json:"recheck_at,omitempty"`
+	CreatedAt                   string            `json:"created_at"`
+	UpdatedAt                   string            `json:"updated_at,omitempty"`
+	Answered                    *interviewAnswer  `json:"answered,omitempty"`
 }
 
 type humanTeamMember struct {
@@ -370,46 +374,72 @@ type teamSkill struct {
 	UpdatedAt           string   `json:"updated_at"`
 }
 
+type homeChatSession struct {
+	ID           string `json:"id"`
+	ThreadID     string `json:"thread_id"`
+	Title        string `json:"title"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	MessageCount int    `json:"message_count"`
+}
+
+type homeSessionTombstone struct {
+	ThreadID     string `json:"thread_id"`
+	BaseThreadID string `json:"base_thread_id,omitempty"`
+	DeletedAt    string `json:"deleted_at"`
+	Reason       string `json:"reason,omitempty"`
+}
+
+type homeConversationRef struct {
+	SubjectKind         string `json:"subject_kind"`
+	SubjectID           string `json:"subject_id"`
+	HomeSessionThreadID string `json:"home_session_thread_id"`
+	CreatedAt           string `json:"created_at"`
+	DeletedAt           string `json:"deleted_at,omitempty"`
+}
+
 type brokerState struct {
-	ChannelStore         json.RawMessage              `json:"channel_store,omitempty"`
-	Messages             []channelMessage             `json:"messages"`
-	Members              []officeMember               `json:"members,omitempty"`
-	Channels             []teamChannel                `json:"channels,omitempty"`
-	SessionMode          string                       `json:"session_mode,omitempty"`
-	OneOnOneAgent        string                       `json:"one_on_one_agent,omitempty"`
-	FocusMode            bool                         `json:"focus_mode,omitempty"`
-	Projects             []teamProject                `json:"projects,omitempty"`
-	WorkspaceTeams       []workspaceTeam              `json:"workspace_teams,omitempty"`
-	AuthUsers            []authUser                   `json:"auth_users,omitempty"`
-	AuthSessions         []authSession                `json:"auth_sessions,omitempty"`
-	HumanMembers         []humanTeamMember            `json:"human_members,omitempty"`
-	Invites              []teamInvite                 `json:"invites,omitempty"`
-	Tasks                []teamTask                   `json:"tasks,omitempty"`
-	Runners              []hostedRunner               `json:"runners,omitempty"`
-	RunnerJobs           []runnerJob                  `json:"runner_jobs,omitempty"`
-	RunnerJobEvents      []runnerJobEvent             `json:"runner_job_events,omitempty"`
-	OrchestrationIntents []orchestrationIntent        `json:"orchestration_intents,omitempty"`
-	WikiWriteRequests    []hostedWikiWriteRequest     `json:"wiki_write_requests,omitempty"`
-	WikiArticleIndex     []hostedWikiArticleIndex     `json:"wiki_article_index,omitempty"`
-	Requests             []humanInterview             `json:"requests,omitempty"`
-	Actions              []officeActionLog            `json:"actions,omitempty"`
-	Signals              []officeSignalRecord         `json:"signals,omitempty"`
-	Decisions            []officeDecisionRecord       `json:"decisions,omitempty"`
-	Watchdogs            []watchdogAlert              `json:"watchdogs,omitempty"`
-	Scheduler            []schedulerJob               `json:"scheduler,omitempty"`
-	Skills               []teamSkill                  `json:"skills,omitempty"`
-	SharedMemory         map[string]map[string]string `json:"shared_memory,omitempty"`
-	CoreMemoryCards      []coreMemoryCard             `json:"core_memory_cards,omitempty"`
-	SessionArchive       []sessionArchiveEntry        `json:"session_archive,omitempty"`
-	MemoryCandidates     []memoryCandidate            `json:"memory_candidates,omitempty"`
-	Counter              int                          `json:"counter"`
-	NotificationSince    string                       `json:"notification_since,omitempty"`
-	InsightsSince        string                       `json:"insights_since,omitempty"`
-	PendingInterview     *humanInterview              `json:"pending_interview,omitempty"`
-	Usage                teamUsageState               `json:"usage,omitempty"`
-	Policies             []officePolicy               `json:"policies,omitempty"`
-	GPTOAuthClients      []gptOAuthClient             `json:"gpt_oauth_clients,omitempty"`
-	GPTOAuthTokens       []gptOAuthToken              `json:"gpt_oauth_tokens,omitempty"`
+	ChannelStore          json.RawMessage              `json:"channel_store,omitempty"`
+	Messages              []channelMessage             `json:"messages"`
+	Members               []officeMember               `json:"members,omitempty"`
+	Channels              []teamChannel                `json:"channels,omitempty"`
+	SessionMode           string                       `json:"session_mode,omitempty"`
+	OneOnOneAgent         string                       `json:"one_on_one_agent,omitempty"`
+	FocusMode             bool                         `json:"focus_mode,omitempty"`
+	Projects              []teamProject                `json:"projects,omitempty"`
+	WorkspaceTeams        []workspaceTeam              `json:"workspace_teams,omitempty"`
+	AuthUsers             []authUser                   `json:"auth_users,omitempty"`
+	AuthSessions          []authSession                `json:"auth_sessions,omitempty"`
+	HumanMembers          []humanTeamMember            `json:"human_members,omitempty"`
+	Invites               []teamInvite                 `json:"invites,omitempty"`
+	Tasks                 []teamTask                   `json:"tasks,omitempty"`
+	Runners               []hostedRunner               `json:"runners,omitempty"`
+	RunnerJobs            []runnerJob                  `json:"runner_jobs,omitempty"`
+	RunnerJobEvents       []runnerJobEvent             `json:"runner_job_events,omitempty"`
+	OrchestrationIntents  []orchestrationIntent        `json:"orchestration_intents,omitempty"`
+	WikiWriteRequests     []hostedWikiWriteRequest     `json:"wiki_write_requests,omitempty"`
+	WikiArticleIndex      []hostedWikiArticleIndex     `json:"wiki_article_index,omitempty"`
+	Requests              []humanInterview             `json:"requests,omitempty"`
+	Actions               []officeActionLog            `json:"actions,omitempty"`
+	Signals               []officeSignalRecord         `json:"signals,omitempty"`
+	Decisions             []officeDecisionRecord       `json:"decisions,omitempty"`
+	Watchdogs             []watchdogAlert              `json:"watchdogs,omitempty"`
+	Scheduler             []schedulerJob               `json:"scheduler,omitempty"`
+	Skills                []teamSkill                  `json:"skills,omitempty"`
+	SharedMemory          map[string]map[string]string `json:"shared_memory,omitempty"`
+	CoreMemoryCards       []coreMemoryCard             `json:"core_memory_cards,omitempty"`
+	SessionArchive        []sessionArchiveEntry        `json:"session_archive,omitempty"`
+	HomeSessionTombstones []homeSessionTombstone       `json:"home_session_tombstones,omitempty"`
+	HomeConversationRefs  []homeConversationRef        `json:"home_conversation_refs,omitempty"`
+	MemoryCandidates      []memoryCandidate            `json:"memory_candidates,omitempty"`
+	Counter               int                          `json:"counter"`
+	NotificationSince     string                       `json:"notification_since,omitempty"`
+	InsightsSince         string                       `json:"insights_since,omitempty"`
+	PendingInterview      *humanInterview              `json:"pending_interview,omitempty"`
+	Usage                 teamUsageState               `json:"usage,omitempty"`
+	Policies              []officePolicy               `json:"policies,omitempty"`
+	GPTOAuthClients       []gptOAuthClient             `json:"gpt_oauth_clients,omitempty"`
+	GPTOAuthTokens        []gptOAuthToken              `json:"gpt_oauth_tokens,omitempty"`
 }
 
 type usageTotals struct {
@@ -469,6 +499,8 @@ type Broker struct {
 	sharedMemory            map[string]map[string]string // namespace → key → value
 	coreMemoryCards         []coreMemoryCard             // small always-injected context cards
 	sessionArchive          []sessionArchiveEntry        // compacted messages retained for session_search
+	homeSessionTombstones   []homeSessionTombstone       // deleted/expired home sessions; stores no message content
+	homeConversationRefs    []homeConversationRef        // private links from durable work items to private home sessions
 	memoryCandidates        []memoryCandidate            // pending durable-memory candidates; never canonical by itself
 	lastTaggedAt            map[string]time.Time         // when each agent was last @mentioned
 	lastPaneSnapshot        map[string]string            // last captured pane content per agent (for change detection)
@@ -540,8 +572,9 @@ type Broker struct {
 	lastAgentRateLimitPrune time.Time
 	agentLogRoot            string // override for tests; empty means agent.DefaultTaskLogRoot()
 
-	stopCh   chan struct{} // closed by Stop(); signals background goroutines to exit
-	stopOnce sync.Once
+	stopCh                chan struct{} // closed by Stop(); signals background goroutines to exit
+	stopOnce              sync.Once
+	homeRetentionCronOnce sync.Once
 
 	// statePath is the on-disk broker-state.json path bound at construction.
 	// NewBrokerAt(path) sets this directly; NewBroker() resolves
@@ -1694,6 +1727,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/session-mode", b.requireAuth(b.handleSessionMode))
 	mux.HandleFunc("/focus-mode", b.requireAuth(b.handleFocusMode))
 	mux.HandleFunc("/messages", b.requireAuth(b.handleMessages))
+	mux.HandleFunc("/home-sessions", b.requireAuth(b.handleHomeSessions))
 	mux.HandleFunc("/reactions", b.requireAuth(b.handleReactions))
 	mux.HandleFunc("/notifications/automation", b.requireAuth(b.handleAutomationNotifications))
 	mux.HandleFunc("/office-members", b.requireAuth(b.handleOfficeMembers))
@@ -1836,6 +1870,10 @@ func (b *Broker) StartOnPort(port int) error {
 	go func() {
 		_ = b.server.Serve(ln)
 	}()
+	b.homeRetentionCronOnce.Do(func() {
+		ctx, _ := b.newBrokerLifetimeContext()
+		b.startHomeSessionRetentionCron(ctx)
+	})
 	if err := b.ensureOpenclawBridgeRunning(); err != nil {
 		log.Printf("openclaw bridge bootstrap skipped: %v", err)
 	}
@@ -3146,7 +3184,7 @@ func (b *Broker) Requests(channel string, includeResolved bool) []humanInterview
 		if !includeResolved && !requestIsActive(req) {
 			continue
 		}
-		out = append(out, req)
+		out = append(out, b.responseRequestLocked(req))
 	}
 	return out
 }
@@ -3340,6 +3378,8 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.Policies)
 	score += len(state.CoreMemoryCards)
 	score += len(state.SessionArchive)
+	score += len(state.HomeSessionTombstones)
+	score += len(state.HomeConversationRefs)
 	score += len(state.MemoryCandidates)
 	for _, ns := range state.SharedMemory {
 		score += len(ns)
@@ -3414,6 +3454,8 @@ func (b *Broker) loadState() error {
 	b.sharedMemory = state.SharedMemory
 	b.coreMemoryCards = state.CoreMemoryCards
 	b.sessionArchive = state.SessionArchive
+	b.homeSessionTombstones = state.HomeSessionTombstones
+	b.homeConversationRefs = state.HomeConversationRefs
 	b.memoryCandidates = state.MemoryCandidates
 	b.counter = state.Counter
 	b.notificationSince = state.NotificationSince
@@ -3479,7 +3521,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.sessionArchive) == 0 && len(b.memoryCandidates) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.sessionArchive) == 0 && len(b.homeSessionTombstones) == 0 && len(b.homeConversationRefs) == 0 && len(b.memoryCandidates) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3517,44 +3559,46 @@ func (b *Broker) saveLocked() error {
 		}
 	}
 	state := brokerState{
-		ChannelStore:         channelStoreRaw,
-		Messages:             b.messages,
-		Members:              b.members,
-		Channels:             b.channels,
-		SessionMode:          b.sessionMode,
-		OneOnOneAgent:        b.oneOnOneAgent,
-		FocusMode:            b.focusMode,
-		Projects:             b.projects,
-		WorkspaceTeams:       b.workspaceTeams,
-		AuthUsers:            b.authUsers,
-		AuthSessions:         authSessions,
-		HumanMembers:         b.humanMembers,
-		Invites:              b.invites,
-		Tasks:                b.tasks,
-		Runners:              b.runners,
-		RunnerJobs:           b.runnerJobs,
-		RunnerJobEvents:      b.runnerJobEvents,
-		OrchestrationIntents: b.orchestrationIntents,
-		WikiWriteRequests:    b.wikiWriteRequests,
-		WikiArticleIndex:     b.wikiArticleIndex,
-		Requests:             b.requests,
-		Actions:              b.actions,
-		Signals:              b.signals,
-		Decisions:            b.decisions,
-		Watchdogs:            b.watchdogs,
-		Policies:             b.policies,
-		Scheduler:            b.scheduler,
-		Skills:               b.skills,
-		SharedMemory:         b.sharedMemory,
-		CoreMemoryCards:      b.coreMemoryCards,
-		SessionArchive:       b.sessionArchive,
-		MemoryCandidates:     b.memoryCandidates,
-		Counter:              b.counter,
-		NotificationSince:    b.notificationSince,
-		InsightsSince:        b.insightsSince,
-		PendingInterview:     firstBlockingRequest(b.requests),
-		GPTOAuthClients:      gptClients,
-		GPTOAuthTokens:       gptTokens,
+		ChannelStore:          channelStoreRaw,
+		Messages:              b.messages,
+		Members:               b.members,
+		Channels:              b.channels,
+		SessionMode:           b.sessionMode,
+		OneOnOneAgent:         b.oneOnOneAgent,
+		FocusMode:             b.focusMode,
+		Projects:              b.projects,
+		WorkspaceTeams:        b.workspaceTeams,
+		AuthUsers:             b.authUsers,
+		AuthSessions:          authSessions,
+		HumanMembers:          b.humanMembers,
+		Invites:               b.invites,
+		Tasks:                 b.tasks,
+		Runners:               b.runners,
+		RunnerJobs:            b.runnerJobs,
+		RunnerJobEvents:       b.runnerJobEvents,
+		OrchestrationIntents:  b.orchestrationIntents,
+		WikiWriteRequests:     b.wikiWriteRequests,
+		WikiArticleIndex:      b.wikiArticleIndex,
+		Requests:              b.requests,
+		Actions:               b.actions,
+		Signals:               b.signals,
+		Decisions:             b.decisions,
+		Watchdogs:             b.watchdogs,
+		Policies:              b.policies,
+		Scheduler:             b.scheduler,
+		Skills:                b.skills,
+		SharedMemory:          b.sharedMemory,
+		CoreMemoryCards:       b.coreMemoryCards,
+		SessionArchive:        b.sessionArchive,
+		HomeSessionTombstones: b.homeSessionTombstones,
+		HomeConversationRefs:  b.homeConversationRefs,
+		MemoryCandidates:      b.memoryCandidates,
+		Counter:               b.counter,
+		NotificationSince:     b.notificationSince,
+		InsightsSince:         b.insightsSince,
+		PendingInterview:      firstBlockingRequest(b.requests),
+		GPTOAuthClients:       gptClients,
+		GPTOAuthTokens:        gptTokens,
 		Usage: func() teamUsageState {
 			usage := b.usage
 			usage.Session = usageTotals{}
@@ -4169,6 +4213,7 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		}
 		b.scheduleRequestLifecycleLocked(&b.requests[i])
 	}
+	b.migrateHomeConversationRefsLocked(time.Now().UTC().Format(time.RFC3339))
 	seenProjects := make(map[string]struct{}, len(b.projects))
 	normalizedProjects := make([]teamProject, 0, len(b.projects))
 	for _, project := range b.projects {
@@ -8460,21 +8505,22 @@ func otlpFloatValue(raw string) float64 {
 
 func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		From          string   `json:"from"`
-		Channel       string   `json:"channel"`
-		Kind          string   `json:"kind"`
-		Title         string   `json:"title"`
-		Content       string   `json:"content"`
-		Tagged        []string `json:"tagged"`
-		ReplyTo       string   `json:"reply_to"`
-		PublicReplyTo string   `json:"public_reply_to"`
-		ProjectID     string   `json:"project_id"`
-		TaskID        string   `json:"task_id"`
-		Scope         string   `json:"scope"`
-		Visibility    string   `json:"visibility"`
-		RunID         string   `json:"run_id"`
-		Audience      []string `json:"audience"`
-		ModelMode     string   `json:"model_mode"`
+		From                string   `json:"from"`
+		Channel             string   `json:"channel"`
+		Kind                string   `json:"kind"`
+		Title               string   `json:"title"`
+		Content             string   `json:"content"`
+		Tagged              []string `json:"tagged"`
+		ReplyTo             string   `json:"reply_to"`
+		PublicReplyTo       string   `json:"public_reply_to"`
+		HomeSessionThreadID string   `json:"home_session_thread_id"`
+		ProjectID           string   `json:"project_id"`
+		TaskID              string   `json:"task_id"`
+		Scope               string   `json:"scope"`
+		Visibility          string   `json:"visibility"`
+		RunID               string   `json:"run_id"`
+		Audience            []string `json:"audience"`
+		ModelMode           string   `json:"model_mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -8517,6 +8563,22 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	if !b.canAccessChannelLocked(from, channel) {
 		b.mu.Unlock()
 		http.Error(w, "channel access denied", http.StatusForbidden)
+		return
+	}
+	homeSessionThreadID := b.homeSessionThreadIDFromCandidatesLocked(body.HomeSessionThreadID, replyTo, body.PublicReplyTo)
+	if _, deleted := b.homeSessionTombstoneLocked(homeSessionThreadID); deleted {
+		b.counter--
+		b.mu.Unlock()
+		if from == "" || from == "you" || from == "human" {
+			http.Error(w, "home session deleted", http.StatusGone)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":         "",
+			"suppressed": "deleted home session",
+			"total":      len(b.messages),
+		})
 		return
 	}
 	// Auto-promote @slug mentions in the body into the tagged array. If a
@@ -8626,26 +8688,27 @@ func (b *Broker) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		messageModelMode = normalizeModelMode(body.ModelMode)
 	}
 	msg := channelMessage{
-		ID:            fmt.Sprintf("msg-%d", b.counter),
-		From:          from,
-		Channel:       channel,
-		Kind:          strings.TrimSpace(body.Kind),
-		Title:         strings.TrimSpace(body.Title),
-		Content:       body.Content,
-		Tagged:        tagged,
-		ReplyTo:       replyTo,
-		PublicReplyTo: strings.TrimSpace(body.PublicReplyTo),
-		ProjectID:     normalizeProjectID(body.ProjectID),
-		TaskID:        strings.TrimSpace(body.TaskID),
-		Scope:         strings.TrimSpace(body.Scope),
-		Visibility:    normalizeMessageVisibility(body.Visibility),
-		RunID:         strings.TrimSpace(body.RunID),
-		Audience:      normalizeMessageAudience(body.Audience),
-		ModelMode:     messageModelMode,
-		Timestamp:     time.Now().UTC().Format(time.RFC3339),
+		ID:                  fmt.Sprintf("msg-%d", b.counter),
+		From:                from,
+		Channel:             channel,
+		Kind:                strings.TrimSpace(body.Kind),
+		Title:               strings.TrimSpace(body.Title),
+		Content:             body.Content,
+		Tagged:              tagged,
+		ReplyTo:             replyTo,
+		PublicReplyTo:       strings.TrimSpace(body.PublicReplyTo),
+		HomeSessionThreadID: homeSessionThreadID,
+		ProjectID:           normalizeProjectID(body.ProjectID),
+		TaskID:              strings.TrimSpace(body.TaskID),
+		Scope:               strings.TrimSpace(body.Scope),
+		Visibility:          normalizeMessageVisibility(body.Visibility),
+		RunID:               strings.TrimSpace(body.RunID),
+		Audience:            normalizeMessageAudience(body.Audience),
+		ModelMode:           messageModelMode,
+		Timestamp:           time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)
-	b.compactHomeThreadLocked(replyTo, msg.Timestamp)
+	b.compactHomeThreadLocked(firstNonEmptyString(homeSessionThreadID, replyTo), msg.Timestamp)
 	total := len(b.messages)
 
 	// Track which agents were tagged — they should show "typing" immediately
@@ -8817,6 +8880,10 @@ func (b *Broker) PostSystemMessage(channel, content, kind string) {
 }
 
 func (b *Broker) PostMessage(from, channel, content string, tagged []string, replyTo string) (channelMessage, error) {
+	return b.PostMessageWithHomeSession(from, channel, content, tagged, replyTo, "")
+}
+
+func (b *Broker) PostMessageWithHomeSession(from, channel, content string, tagged []string, replyTo, homeSessionThreadID string) (channelMessage, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	replyTo = strings.TrimSpace(replyTo)
@@ -8840,20 +8907,25 @@ func (b *Broker) PostMessage(from, channel, content string, tagged []string, rep
 	if !b.canAccessChannelLocked(from, channel) {
 		return channelMessage{}, fmt.Errorf("channel access denied")
 	}
+	homeSessionThreadID = b.homeSessionThreadIDFromCandidatesLocked(homeSessionThreadID, replyTo, "")
+	if _, deleted := b.homeSessionTombstoneLocked(homeSessionThreadID); deleted {
+		return channelMessage{}, errHomeSessionDeleted
+	}
 	b.counter++
 	msg := channelMessage{
-		ID:        fmt.Sprintf("msg-%d", b.counter),
-		From:      from,
-		Channel:   channel,
-		Kind:      "",
-		Title:     "",
-		Content:   strings.TrimSpace(content),
-		Tagged:    uniqueSlugs(tagged),
-		ReplyTo:   replyTo,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		ID:                  fmt.Sprintf("msg-%d", b.counter),
+		From:                from,
+		Channel:             channel,
+		Kind:                "",
+		Title:               "",
+		Content:             strings.TrimSpace(content),
+		Tagged:              uniqueSlugs(tagged),
+		ReplyTo:             replyTo,
+		HomeSessionThreadID: homeSessionThreadID,
+		Timestamp:           time.Now().UTC().Format(time.RFC3339),
 	}
 	b.appendMessageLocked(msg)
-	b.compactHomeThreadLocked(replyTo, msg.Timestamp)
+	b.compactHomeThreadLocked(firstNonEmptyString(homeSessionThreadID, replyTo), msg.Timestamp)
 	// Clear typing indicator — agent has replied
 	if b.lastTaggedAt != nil {
 		delete(b.lastTaggedAt, msg.From)
@@ -8905,9 +8977,15 @@ func (b *Broker) PostAutomationMessage(from, channel, title, content, eventID, s
 	if msg.From == "" {
 		msg.From = "automation"
 	}
+	homeSessionThreadID := b.homeSessionThreadIDFromCandidatesLocked("", msg.ReplyTo, "")
+	if _, deleted := b.homeSessionTombstoneLocked(homeSessionThreadID); deleted {
+		b.counter--
+		return channelMessage{}, false, nil
+	}
+	msg.HomeSessionThreadID = homeSessionThreadID
 
 	b.appendMessageLocked(msg)
-	b.compactHomeThreadLocked(msg.ReplyTo, msg.Timestamp)
+	b.compactHomeThreadLocked(firstNonEmptyString(homeSessionThreadID, msg.ReplyTo), msg.Timestamp)
 	if err := b.saveLocked(); err != nil {
 		return channelMessage{}, false, err
 	}
@@ -8922,6 +9000,260 @@ type indexedHomeMessage struct {
 func isHomeThreadID(value string) bool {
 	value = strings.TrimSpace(value)
 	return strings.HasPrefix(value, homeThreadPrefix) || strings.HasPrefix(value, legacyHomeThreadPrefix)
+}
+
+func homeSessionBaseThreadID(threadID string) string {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return ""
+	}
+	if idx := strings.LastIndex(threadID, ":s-"); idx > len(homeThreadPrefix) {
+		return threadID[:idx]
+	}
+	return threadID
+}
+
+func (b *Broker) homeSessionTombstoneLocked(threadID string) (homeSessionTombstone, bool) {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return homeSessionTombstone{}, false
+	}
+	for _, tombstone := range b.homeSessionTombstones {
+		if strings.TrimSpace(tombstone.ThreadID) == threadID && strings.TrimSpace(tombstone.DeletedAt) != "" {
+			return tombstone, true
+		}
+	}
+	return homeSessionTombstone{}, false
+}
+
+func (b *Broker) homeSessionDeletedAtLocked(threadID string) string {
+	if tombstone, ok := b.homeSessionTombstoneLocked(threadID); ok {
+		return strings.TrimSpace(tombstone.DeletedAt)
+	}
+	return ""
+}
+
+func (b *Broker) upsertHomeSessionTombstoneLocked(threadID, reason, deletedAt string) bool {
+	threadID = strings.TrimSpace(threadID)
+	if !isHomeThreadID(threadID) {
+		return false
+	}
+	deletedAt = strings.TrimSpace(deletedAt)
+	if deletedAt == "" {
+		deletedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	reason = strings.TrimSpace(reason)
+	baseThreadID := homeSessionBaseThreadID(threadID)
+	for i := range b.homeSessionTombstones {
+		if strings.TrimSpace(b.homeSessionTombstones[i].ThreadID) != threadID {
+			continue
+		}
+		changed := false
+		if b.homeSessionTombstones[i].BaseThreadID != baseThreadID {
+			b.homeSessionTombstones[i].BaseThreadID = baseThreadID
+			changed = true
+		}
+		if b.homeSessionTombstones[i].DeletedAt != deletedAt {
+			b.homeSessionTombstones[i].DeletedAt = deletedAt
+			changed = true
+		}
+		if b.homeSessionTombstones[i].Reason != reason {
+			b.homeSessionTombstones[i].Reason = reason
+			changed = true
+		}
+		return changed
+	}
+	b.homeSessionTombstones = append(b.homeSessionTombstones, homeSessionTombstone{
+		ThreadID:     threadID,
+		BaseThreadID: baseThreadID,
+		DeletedAt:    deletedAt,
+		Reason:       reason,
+	})
+	return true
+}
+
+func (b *Broker) pruneHomeSessionTombstonesLocked(now time.Time) bool {
+	if len(b.homeSessionTombstones) == 0 {
+		return false
+	}
+	cutoff := now.Add(-homeSessionTombstoneRetention)
+	changed := false
+	next := b.homeSessionTombstones[:0]
+	for _, tombstone := range b.homeSessionTombstones {
+		deletedAt := parseBrokerTimestamp(tombstone.DeletedAt)
+		if deletedAt.IsZero() || deletedAt.After(cutoff) {
+			next = append(next, tombstone)
+			continue
+		}
+		changed = true
+	}
+	b.homeSessionTombstones = next
+	return changed
+}
+
+func (b *Broker) homeSessionThreadIDFromCandidatesLocked(explicit, replyTo, publicReplyTo string) string {
+	for _, candidate := range []string{strings.TrimSpace(explicit), strings.TrimSpace(publicReplyTo), strings.TrimSpace(replyTo)} {
+		if isHomeThreadID(candidate) {
+			return candidate
+		}
+	}
+	roots := b.homeSessionRootsByMessageIDLocked()
+	for _, candidate := range []string{strings.TrimSpace(publicReplyTo), strings.TrimSpace(replyTo)} {
+		if root := strings.TrimSpace(roots[candidate]); root != "" {
+			return root
+		}
+	}
+	return ""
+}
+
+func (b *Broker) messageHomeSessionThreadIDLocked(msg channelMessage) string {
+	if homeThreadID := strings.TrimSpace(msg.HomeSessionThreadID); isHomeThreadID(homeThreadID) {
+		return homeThreadID
+	}
+	roots := b.homeSessionRootsByMessageIDLocked()
+	return strings.TrimSpace(roots[strings.TrimSpace(msg.ID)])
+}
+
+func (b *Broker) upsertHomeConversationRefLocked(subjectKind, subjectID, homeSessionThreadID, createdAt string) bool {
+	subjectKind = strings.TrimSpace(subjectKind)
+	subjectID = strings.TrimSpace(subjectID)
+	homeSessionThreadID = strings.TrimSpace(homeSessionThreadID)
+	if subjectKind == "" || subjectID == "" || !isHomeThreadID(homeSessionThreadID) {
+		return false
+	}
+	if createdAt = strings.TrimSpace(createdAt); createdAt == "" {
+		createdAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	deletedAt := b.homeSessionDeletedAtLocked(homeSessionThreadID)
+	for i := range b.homeConversationRefs {
+		ref := &b.homeConversationRefs[i]
+		if strings.TrimSpace(ref.SubjectKind) != subjectKind || strings.TrimSpace(ref.SubjectID) != subjectID || strings.TrimSpace(ref.HomeSessionThreadID) != homeSessionThreadID {
+			continue
+		}
+		changed := false
+		if strings.TrimSpace(ref.CreatedAt) == "" {
+			ref.CreatedAt = createdAt
+			changed = true
+		}
+		if ref.DeletedAt != deletedAt {
+			ref.DeletedAt = deletedAt
+			changed = true
+		}
+		return changed
+	}
+	b.homeConversationRefs = append(b.homeConversationRefs, homeConversationRef{
+		SubjectKind:         subjectKind,
+		SubjectID:           subjectID,
+		HomeSessionThreadID: homeSessionThreadID,
+		CreatedAt:           createdAt,
+		DeletedAt:           deletedAt,
+	})
+	return true
+}
+
+func (b *Broker) markHomeConversationRefsDeletedLocked(homeSessionThreadID, deletedAt string) bool {
+	homeSessionThreadID = strings.TrimSpace(homeSessionThreadID)
+	if !isHomeThreadID(homeSessionThreadID) {
+		return false
+	}
+	deletedAt = strings.TrimSpace(deletedAt)
+	if deletedAt == "" {
+		deletedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	changed := false
+	for i := range b.homeConversationRefs {
+		if strings.TrimSpace(b.homeConversationRefs[i].HomeSessionThreadID) != homeSessionThreadID {
+			continue
+		}
+		if b.homeConversationRefs[i].DeletedAt != deletedAt {
+			b.homeConversationRefs[i].DeletedAt = deletedAt
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (b *Broker) sourceConversationDeletedAtLocked(subjectKind, subjectID string) string {
+	subjectKind = strings.TrimSpace(subjectKind)
+	subjectID = strings.TrimSpace(subjectID)
+	if subjectKind == "" || subjectID == "" {
+		return ""
+	}
+	var deletedAt string
+	for _, ref := range b.homeConversationRefs {
+		if strings.TrimSpace(ref.SubjectKind) != subjectKind || strings.TrimSpace(ref.SubjectID) != subjectID {
+			continue
+		}
+		candidate := strings.TrimSpace(ref.DeletedAt)
+		if candidate == "" {
+			candidate = b.homeSessionDeletedAtLocked(ref.HomeSessionThreadID)
+		}
+		if candidate == "" {
+			continue
+		}
+		if deletedAt == "" || parseBrokerTimestamp(candidate).After(parseBrokerTimestamp(deletedAt)) {
+			deletedAt = candidate
+		}
+	}
+	return deletedAt
+}
+
+func (b *Broker) responseTaskLocked(task teamTask) teamTask {
+	task.SourceConversationDeletedAt = b.sourceConversationDeletedAtLocked("task", task.ID)
+	return task
+}
+
+func (b *Broker) responseRequestLocked(req humanInterview) humanInterview {
+	req.SourceConversationDeletedAt = b.sourceConversationDeletedAtLocked("request", req.ID)
+	return req
+}
+
+func (b *Broker) migrateHomeConversationRefsLocked(now string) bool {
+	if now = strings.TrimSpace(now); now == "" {
+		now = time.Now().UTC().Format(time.RFC3339)
+	}
+	changed := false
+	roots := b.homeSessionRootsByMessageIDLocked()
+	for i := range b.messages {
+		id := strings.TrimSpace(b.messages[i].ID)
+		if strings.TrimSpace(b.messages[i].HomeSessionThreadID) == "" {
+			if root := strings.TrimSpace(roots[id]); root != "" {
+				b.messages[i].HomeSessionThreadID = root
+				changed = true
+			}
+		}
+	}
+	for i := range b.tasks {
+		threadID := strings.TrimSpace(b.tasks[i].ThreadID)
+		homeThreadID := threadID
+		if !isHomeThreadID(homeThreadID) {
+			homeThreadID = strings.TrimSpace(roots[threadID])
+		}
+		if !isHomeThreadID(homeThreadID) {
+			continue
+		}
+		if b.upsertHomeConversationRefLocked("task", b.tasks[i].ID, homeThreadID, firstNonEmptyString(b.tasks[i].CreatedAt, now)) {
+			changed = true
+		}
+		b.tasks[i].ThreadID = ""
+		changed = true
+	}
+	for i := range b.requests {
+		replyTo := strings.TrimSpace(b.requests[i].ReplyTo)
+		homeThreadID := replyTo
+		if !isHomeThreadID(homeThreadID) {
+			homeThreadID = strings.TrimSpace(roots[replyTo])
+		}
+		if !isHomeThreadID(homeThreadID) {
+			continue
+		}
+		if b.upsertHomeConversationRefLocked("request", b.requests[i].ID, homeThreadID, firstNonEmptyString(b.requests[i].CreatedAt, now)) {
+			changed = true
+		}
+		b.requests[i].ReplyTo = ""
+		changed = true
+	}
+	return changed
 }
 
 func stableHomeThreadPart(value string) string {
@@ -9374,6 +9706,339 @@ func (b *Broker) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (b *Broker) handleHomeSessions(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		b.handleGetHomeSessions(w, r)
+	case http.MethodDelete:
+		b.handleDeleteHomeSession(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (b *Broker) handleGetHomeSessions(w http.ResponseWriter, r *http.Request) {
+	baseThreadID := strings.TrimSpace(r.URL.Query().Get("base_thread_id"))
+	if requestBaseThreadID := b.homeBaseThreadIDForRequest(r); requestBaseThreadID != "" {
+		if baseThreadID == "" {
+			baseThreadID = requestBaseThreadID
+		} else if baseThreadID != requestBaseThreadID {
+			http.Error(w, "home session access denied", http.StatusForbidden)
+			return
+		}
+	}
+	if !isHomeThreadID(baseThreadID) {
+		http.Error(w, "invalid home base thread", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().UTC()
+	b.mu.Lock()
+	pruned := b.pruneHomeSessionTombstonesLocked(now)
+	sessions := b.homeChatSessionsLocked(baseThreadID, now)
+	if pruned {
+		_ = b.saveLocked()
+	}
+	b.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"sessions": sessions})
+}
+
+func (b *Broker) handleDeleteHomeSession(w http.ResponseWriter, r *http.Request) {
+	threadID := strings.TrimSpace(r.URL.Query().Get("thread_id"))
+	if threadID == "" {
+		var body struct {
+			ThreadID string `json:"thread_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			threadID = strings.TrimSpace(body.ThreadID)
+		}
+	}
+	if !isHomeThreadID(threadID) {
+		http.Error(w, "invalid home thread", http.StatusBadRequest)
+		return
+	}
+	if baseThreadID := b.homeBaseThreadIDForRequest(r); baseThreadID != "" && !homeSessionBelongsToBase(threadID, baseThreadID) {
+		http.Error(w, "home session access denied", http.StatusForbidden)
+		return
+	}
+
+	b.mu.Lock()
+	deleted := b.deleteHomeSessionLocked(threadID, "manual", time.Now().UTC().Format(time.RFC3339))
+	if deleted {
+		_ = b.saveLocked()
+	}
+	b.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok":      true,
+		"deleted": deleted,
+	})
+}
+
+func (b *Broker) homeBaseThreadIDForRequest(r *http.Request) string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	user, team, _, ok := b.currentAuthUserLocked(r)
+	if !ok || user == nil {
+		return ""
+	}
+	teamID := strings.TrimSpace(user.TeamID)
+	if teamID == "" && team != nil {
+		teamID = team.ID
+	}
+	userID := strings.TrimSpace(user.ID)
+	if userID == "" {
+		userID = user.Email
+	}
+	return "home:" + stableHomeThreadPart(teamID) + ":" + stableHomeThreadPart(userID)
+}
+
+type homeSessionAccumulator struct {
+	session      homeChatSession
+	firstHumanAt time.Time
+	updatedAt    time.Time
+	lastHumanAt  time.Time
+}
+
+func (b *Broker) homeChatSessionsLocked(baseThreadID string, now time.Time) []homeChatSession {
+	baseThreadID = strings.TrimSpace(baseThreadID)
+	if baseThreadID == "" {
+		return nil
+	}
+	roots := b.homeSessionRootsByMessageIDLocked()
+	sessions := make(map[string]*homeSessionAccumulator)
+	cutoff := now.Add(-homeSessionRetention)
+
+	for _, msg := range b.messages {
+		if messageIsInternal(msg) {
+			continue
+		}
+		root := roots[strings.TrimSpace(msg.ID)]
+		if !homeSessionBelongsToBase(root, baseThreadID) {
+			continue
+		}
+		if _, deleted := b.homeSessionTombstoneLocked(root); deleted {
+			continue
+		}
+		if isHomeSummaryMessage(msg, root) {
+			continue
+		}
+		ts := parseBrokerTimestamp(msg.Timestamp)
+		if ts.IsZero() {
+			ts = now
+		}
+		acc := sessions[root]
+		if acc == nil {
+			acc = &homeSessionAccumulator{
+				session: homeChatSession{
+					ID:        homeSessionIDFromThread(root),
+					ThreadID:  root,
+					Title:     "새 대화",
+					CreatedAt: ts.Format(time.RFC3339),
+					UpdatedAt: ts.Format(time.RFC3339),
+				},
+				updatedAt: ts,
+			}
+			sessions[root] = acc
+		}
+		if created := parseBrokerTimestamp(acc.session.CreatedAt); created.IsZero() || ts.Before(created) {
+			acc.session.CreatedAt = ts.Format(time.RFC3339)
+		}
+		if ts.After(acc.updatedAt) || acc.updatedAt.IsZero() {
+			acc.updatedAt = ts
+			acc.session.UpdatedAt = ts.Format(time.RFC3339)
+		}
+		acc.session.MessageCount++
+		if isHumanActorSlug(msg.From) && strings.TrimSpace(msg.Content) != "" {
+			if ts.After(acc.lastHumanAt) || acc.lastHumanAt.IsZero() {
+				acc.lastHumanAt = ts
+			}
+			if acc.firstHumanAt.IsZero() || ts.Before(acc.firstHumanAt) {
+				acc.firstHumanAt = ts
+				acc.session.Title = homeSessionTitleFromContent(msg.Content)
+			}
+		}
+	}
+
+	out := make([]homeChatSession, 0, len(sessions))
+	for _, acc := range sessions {
+		if acc.lastHumanAt.IsZero() || acc.lastHumanAt.Before(cutoff) {
+			continue
+		}
+		out = append(out, acc.session)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left := parseBrokerTimestamp(out[i].UpdatedAt)
+		right := parseBrokerTimestamp(out[j].UpdatedAt)
+		if !left.Equal(right) {
+			return left.After(right)
+		}
+		return out[i].ThreadID > out[j].ThreadID
+	})
+	return out
+}
+
+func (b *Broker) pruneExpiredHomeSessionsLocked(now time.Time) bool {
+	roots := b.homeSessionRootsByMessageIDLocked()
+	lastHumanByRoot := make(map[string]time.Time)
+	for _, msg := range b.messages {
+		root := roots[strings.TrimSpace(msg.ID)]
+		if !isHomeThreadID(root) || messageIsInternal(msg) || isHomeSummaryMessage(msg, root) || !isHumanActorSlug(msg.From) {
+			continue
+		}
+		ts := parseBrokerTimestamp(msg.Timestamp)
+		if ts.IsZero() {
+			continue
+		}
+		if previous := lastHumanByRoot[root]; previous.IsZero() || ts.After(previous) {
+			lastHumanByRoot[root] = ts
+		}
+	}
+	cutoff := now.Add(-homeSessionRetention)
+	changed := false
+	deletedAt := now.UTC().Format(time.RFC3339)
+	for root, lastHumanAt := range lastHumanByRoot {
+		if lastHumanAt.Before(cutoff) {
+			if b.deleteHomeSessionLocked(root, "retention", deletedAt) {
+				changed = true
+			}
+		}
+	}
+	if b.pruneHomeSessionTombstonesLocked(now) {
+		changed = true
+	}
+	return changed
+}
+
+func (b *Broker) deleteHomeSessionLocked(threadID, reason, deletedAt string) bool {
+	threadID = strings.TrimSpace(threadID)
+	if !isHomeThreadID(threadID) {
+		return false
+	}
+	roots := b.homeSessionRootsByMessageIDLocked()
+	deleted := false
+	next := b.messages[:0]
+	for _, msg := range b.messages {
+		if strings.TrimSpace(msg.HomeSessionThreadID) == threadID || roots[strings.TrimSpace(msg.ID)] == threadID {
+			deleted = true
+			continue
+		}
+		next = append(next, msg)
+	}
+	b.messages = next
+	if b.removeHomeSessionArchivesLocked(map[string]struct{}{threadID: {}}) {
+		deleted = true
+	}
+	if b.upsertHomeSessionTombstoneLocked(threadID, reason, deletedAt) {
+		deleted = true
+	}
+	if b.markHomeConversationRefsDeletedLocked(threadID, deletedAt) {
+		deleted = true
+	}
+	return deleted
+}
+
+func (b *Broker) removeHomeSessionArchivesLocked(threadIDs map[string]struct{}) bool {
+	if len(threadIDs) == 0 || len(b.sessionArchive) == 0 {
+		return false
+	}
+	changed := false
+	next := b.sessionArchive[:0]
+	for _, entry := range b.sessionArchive {
+		if _, drop := threadIDs[strings.TrimSpace(entry.ThreadID)]; drop {
+			changed = true
+			continue
+		}
+		next = append(next, entry)
+	}
+	b.sessionArchive = next
+	return changed
+}
+
+func (b *Broker) homeSessionRootsByMessageIDLocked() map[string]string {
+	byID := make(map[string]channelMessage, len(b.messages))
+	for _, msg := range b.messages {
+		if id := strings.TrimSpace(msg.ID); id != "" {
+			byID[id] = msg
+		}
+	}
+	roots := make(map[string]string, len(b.messages))
+	var rootFor func(channelMessage, map[string]struct{}) string
+	rootFor = func(msg channelMessage, seen map[string]struct{}) string {
+		if id := strings.TrimSpace(msg.ID); id != "" {
+			if root, ok := roots[id]; ok {
+				return root
+			}
+			if _, ok := seen[id]; ok {
+				return ""
+			}
+			seen[id] = struct{}{}
+			defer delete(seen, id)
+		}
+		if explicit := strings.TrimSpace(msg.HomeSessionThreadID); isHomeThreadID(explicit) {
+			if id := strings.TrimSpace(msg.ID); id != "" {
+				roots[id] = explicit
+			}
+			return explicit
+		}
+		for _, candidate := range []string{strings.TrimSpace(msg.PublicReplyTo), strings.TrimSpace(msg.ReplyTo)} {
+			if isHomeThreadID(candidate) {
+				if id := strings.TrimSpace(msg.ID); id != "" {
+					roots[id] = candidate
+				}
+				return candidate
+			}
+			parent, ok := byID[candidate]
+			if ok {
+				root := rootFor(parent, seen)
+				if root != "" {
+					if id := strings.TrimSpace(msg.ID); id != "" {
+						roots[id] = root
+					}
+					return root
+				}
+			}
+		}
+		return ""
+	}
+	for _, msg := range b.messages {
+		if id := strings.TrimSpace(msg.ID); id != "" {
+			roots[id] = rootFor(msg, map[string]struct{}{})
+		}
+	}
+	return roots
+}
+
+func homeSessionBelongsToBase(threadID, baseThreadID string) bool {
+	threadID = strings.TrimSpace(threadID)
+	baseThreadID = strings.TrimSpace(baseThreadID)
+	return threadID == baseThreadID || strings.HasPrefix(threadID, baseThreadID+":")
+}
+
+func homeSessionIDFromThread(threadID string) string {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return ""
+	}
+	parts := strings.Split(threadID, ":")
+	return parts[len(parts)-1]
+}
+
+func homeSessionTitleFromContent(content string) string {
+	title := strings.Join(strings.Fields(content), " ")
+	if title == "" {
+		return "새 대화"
+	}
+	runes := []rune(title)
+	if len(runes) > 42 {
+		return string(runes[:42]) + "..."
+	}
+	return title
+}
+
 func messageThreadIDs(messages []channelMessage, threadID string) map[string]struct{} {
 	threadID = strings.TrimSpace(threadID)
 	result := make(map[string]struct{})
@@ -9383,11 +10048,15 @@ func messageThreadIDs(messages []channelMessage, threadID string) map[string]str
 	byParent := make(map[string][]string, len(messages))
 	for _, msg := range messages {
 		id := strings.TrimSpace(msg.ID)
-		parent := strings.TrimSpace(msg.ReplyTo)
-		if id == "" || parent == "" {
+		if id == "" {
 			continue
 		}
-		byParent[parent] = append(byParent[parent], id)
+		if strings.TrimSpace(msg.HomeSessionThreadID) == threadID || strings.TrimSpace(msg.PublicReplyTo) == threadID {
+			byParent[threadID] = append(byParent[threadID], id)
+		}
+		if parent := strings.TrimSpace(msg.ReplyTo); parent != "" {
+			byParent[parent] = append(byParent[parent], id)
+		}
 	}
 	result[threadID] = struct{}{}
 	queue := []string{threadID}
@@ -10331,7 +11000,7 @@ func (b *Broker) handleGetTasks(w http.ResponseWriter, r *http.Request) {
 		if mySlug != "" && task.Owner != "" && task.Owner != mySlug {
 			continue
 		}
-		result = append(result, task)
+		result = append(result, b.responseTaskLocked(task))
 	}
 	b.mu.Unlock()
 
@@ -10480,15 +11149,21 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		owner := mapLegacyTaskActorToCore(body.Owner)
+		homeSessionThreadID := b.homeSessionThreadIDFromCandidatesLocked("", body.ThreadID, "")
+		taskThreadID := strings.TrimSpace(body.ThreadID)
+		if homeSessionThreadID != "" {
+			taskThreadID = ""
+		}
 		if existing := b.findReusableTaskLocked(taskReuseMatch{
-			Channel:          channel,
-			ProjectID:        projectID,
-			Title:            strings.TrimSpace(body.Title),
-			ThreadID:         strings.TrimSpace(body.ThreadID),
-			Owner:            owner,
-			PipelineID:       strings.TrimSpace(body.PipelineID),
-			SourceSignalID:   strings.TrimSpace(body.SourceSignalID),
-			SourceDecisionID: strings.TrimSpace(body.SourceDecisionID),
+			Channel:             channel,
+			ProjectID:           projectID,
+			Title:               strings.TrimSpace(body.Title),
+			ThreadID:            taskThreadID,
+			HomeSessionThreadID: homeSessionThreadID,
+			Owner:               owner,
+			PipelineID:          strings.TrimSpace(body.PipelineID),
+			SourceSignalID:      strings.TrimSpace(body.SourceSignalID),
+			SourceDecisionID:    strings.TrimSpace(body.SourceDecisionID),
 		}); existing != nil {
 			if details := strings.TrimSpace(body.Details); details != "" {
 				existing.Details = details
@@ -10539,8 +11214,8 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			populateTaskGovernanceFields(existing, body.ModelMode)
 			applyTaskDeliveryReceipt(existing, body.DeliveryURL, body.DeliverySummary, now)
 			applyTaskDeliveryVerification(existing, deliveryVerification)
-			if existing.ThreadID == "" && strings.TrimSpace(body.ThreadID) != "" {
-				existing.ThreadID = strings.TrimSpace(body.ThreadID)
+			if existing.ThreadID == "" && taskThreadID != "" {
+				existing.ThreadID = taskThreadID
 			}
 			b.ensureTaskOwnerChannelMembershipLocked(channel, existing.Owner)
 			existing.UpdatedAt = now
@@ -10548,6 +11223,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if err := b.syncTaskWorktreeLocked(existing); err != nil {
 				http.Error(w, "failed to manage task worktree", http.StatusInternalServerError)
 				return
+			}
+			if homeSessionThreadID != "" {
+				b.upsertHomeConversationRefLocked("task", existing.ID, homeSessionThreadID, firstNonEmptyString(existing.CreatedAt, now))
 			}
 			var responseRunnerJob *runnerJob
 			if job, _ := b.ensureRunnerJobForTaskLocked(*existing, nowTime); strings.TrimSpace(job.ID) != "" {
@@ -10559,7 +11237,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 				return
 			}
-			responseTask := *existing
+			responseTask := b.responseTaskLocked(*existing)
 			unlock()
 			if err := b.appendProjectTaskWikiEvent(r.Context(), responseTask, body.CreatedBy, "updated"); err != nil {
 				http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
@@ -10588,7 +11266,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			ModelMode:        normalizeModelMode(body.ModelMode),
 			Status:           "open",
 			CreatedBy:        strings.TrimSpace(body.CreatedBy),
-			ThreadID:         strings.TrimSpace(body.ThreadID),
+			ThreadID:         taskThreadID,
 			TaskType:         strings.TrimSpace(body.TaskType),
 			PipelineID:       strings.TrimSpace(body.PipelineID),
 			ExecutionMode:    executionMode,
@@ -10623,6 +11301,9 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to manage task worktree", http.StatusInternalServerError)
 			return
 		}
+		if homeSessionThreadID != "" {
+			b.upsertHomeConversationRefLocked("task", task.ID, homeSessionThreadID, now)
+		}
 		b.tasks = append(b.tasks, task)
 		var responseRunnerJob *runnerJob
 		if job, _ := b.ensureRunnerJobForTaskLocked(task, nowTime); strings.TrimSpace(job.ID) != "" {
@@ -10634,7 +11315,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 			return
 		}
-		responseTask := task
+		responseTask := b.responseTaskLocked(task)
 		unlock()
 		if err := b.appendProjectTaskWikiEvent(r.Context(), responseTask, body.CreatedBy, "created"); err != nil {
 			http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
@@ -10885,7 +11566,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
 			return
 		}
-		responseTask := *task
+		responseTask := b.responseTaskLocked(*task)
 		unlock()
 		if err := b.appendProjectTaskWikiEvent(r.Context(), responseTask, body.CreatedBy, "updated"); err != nil {
 			http.Error(w, "failed to record project task memory", http.StatusInternalServerError)
@@ -11511,7 +12192,7 @@ func (b *Broker) handleTaskAck(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{"task": b.tasks[i]})
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": b.responseTaskLocked(b.tasks[i])})
 			return
 		}
 	}
@@ -11533,11 +12214,17 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 	if isHumanActorSlug(createdBy) {
 		humanDetails = strings.TrimSpace(details)
 	}
+	homeSessionThreadID := b.homeSessionThreadIDFromCandidatesLocked("", threadID, "")
+	taskThreadID := strings.TrimSpace(threadID)
+	if homeSessionThreadID != "" {
+		taskThreadID = ""
+	}
 	if existing := b.findReusableTaskLocked(taskReuseMatch{
-		Channel:  channel,
-		Title:    title,
-		ThreadID: strings.TrimSpace(threadID),
-		Owner:    strings.TrimSpace(owner),
+		Channel:             channel,
+		Title:               title,
+		ThreadID:            taskThreadID,
+		HomeSessionThreadID: homeSessionThreadID,
+		Owner:               strings.TrimSpace(owner),
 	}); existing != nil {
 		if existing.Details == "" && strings.TrimSpace(details) != "" {
 			existing.Details = strings.TrimSpace(details)
@@ -11551,8 +12238,8 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 				existing.Status = "in_progress"
 			}
 		}
-		if existing.ThreadID == "" && strings.TrimSpace(threadID) != "" {
-			existing.ThreadID = strings.TrimSpace(threadID)
+		if existing.ThreadID == "" && taskThreadID != "" {
+			existing.ThreadID = taskThreadID
 		}
 		b.ensureTaskOwnerChannelMembershipLocked(channel, existing.Owner)
 		existing.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
@@ -11563,6 +12250,9 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 		b.scheduleTaskLifecycleLocked(existing)
 		if err := b.syncTaskWorktreeLocked(existing); err != nil {
 			return teamTask{}, false, err
+		}
+		if homeSessionThreadID != "" {
+			b.upsertHomeConversationRefLocked("task", existing.ID, homeSessionThreadID, firstNonEmptyString(existing.CreatedAt, time.Now().UTC().Format(time.RFC3339)))
 		}
 		if err := b.saveLocked(); err != nil {
 			return teamTask{}, false, err
@@ -11579,7 +12269,7 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 		Owner:        strings.TrimSpace(owner),
 		Status:       "open",
 		CreatedBy:    strings.TrimSpace(createdBy),
-		ThreadID:     strings.TrimSpace(threadID),
+		ThreadID:     taskThreadID,
 		DependsOn:    dependsOn,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -11597,6 +12287,9 @@ func (b *Broker) EnsureTask(channel, title, details, owner, createdBy, threadID 
 	b.scheduleTaskLifecycleLocked(&task)
 	if err := b.syncTaskWorktreeLocked(&task); err != nil {
 		return teamTask{}, false, err
+	}
+	if homeSessionThreadID != "" {
+		b.upsertHomeConversationRefLocked("task", task.ID, homeSessionThreadID, now)
 	}
 	b.tasks = append(b.tasks, task)
 	b.appendActionLocked("task_created", "office", channel, createdBy, truncateSummary(task.Title, 140), task.ID)
@@ -11642,15 +12335,21 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 	if isHumanActorSlug(input.CreatedBy) {
 		humanDetails = strings.TrimSpace(input.Details)
 	}
+	homeSessionThreadID := b.homeSessionThreadIDFromCandidatesLocked("", input.ThreadID, "")
+	taskThreadID := strings.TrimSpace(input.ThreadID)
+	if homeSessionThreadID != "" {
+		taskThreadID = ""
+	}
 	if existing := b.findReusableTaskLocked(taskReuseMatch{
-		Channel:          channel,
-		ProjectID:        projectID,
-		Title:            title,
-		ThreadID:         strings.TrimSpace(input.ThreadID),
-		Owner:            strings.TrimSpace(input.Owner),
-		PipelineID:       strings.TrimSpace(input.PipelineID),
-		SourceSignalID:   strings.TrimSpace(input.SourceSignalID),
-		SourceDecisionID: strings.TrimSpace(input.SourceDecisionID),
+		Channel:             channel,
+		ProjectID:           projectID,
+		Title:               title,
+		ThreadID:            taskThreadID,
+		HomeSessionThreadID: homeSessionThreadID,
+		Owner:               strings.TrimSpace(input.Owner),
+		PipelineID:          strings.TrimSpace(input.PipelineID),
+		SourceSignalID:      strings.TrimSpace(input.SourceSignalID),
+		SourceDecisionID:    strings.TrimSpace(input.SourceDecisionID),
 	}); existing != nil {
 		if existing.Details == "" && strings.TrimSpace(input.Details) != "" {
 			existing.Details = strings.TrimSpace(input.Details)
@@ -11662,8 +12361,8 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 			existing.Owner = strings.TrimSpace(input.Owner)
 			existing.Status = "in_progress"
 		}
-		if existing.ThreadID == "" && strings.TrimSpace(input.ThreadID) != "" {
-			existing.ThreadID = strings.TrimSpace(input.ThreadID)
+		if existing.ThreadID == "" && taskThreadID != "" {
+			existing.ThreadID = taskThreadID
 		}
 		if existing.TaskType == "" && strings.TrimSpace(input.TaskType) != "" {
 			existing.TaskType = strings.TrimSpace(input.TaskType)
@@ -11693,6 +12392,9 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		if err := b.syncTaskWorktreeLocked(existing); err != nil {
 			return teamTask{}, false, err
 		}
+		if homeSessionThreadID != "" {
+			b.upsertHomeConversationRefLocked("task", existing.ID, homeSessionThreadID, firstNonEmptyString(existing.CreatedAt, time.Now().UTC().Format(time.RFC3339)))
+		}
 		if err := b.saveLocked(); err != nil {
 			return teamTask{}, false, err
 		}
@@ -11713,7 +12415,7 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 		Owner:            strings.TrimSpace(input.Owner),
 		Status:           "open",
 		CreatedBy:        strings.TrimSpace(input.CreatedBy),
-		ThreadID:         strings.TrimSpace(input.ThreadID),
+		ThreadID:         taskThreadID,
 		TaskType:         strings.TrimSpace(input.TaskType),
 		PipelineID:       strings.TrimSpace(input.PipelineID),
 		ExecutionMode:    strings.TrimSpace(input.ExecutionMode),
@@ -11737,6 +12439,9 @@ func (b *Broker) EnsurePlannedTask(input plannedTaskInput) (teamTask, bool, erro
 	b.scheduleTaskLifecycleLocked(&task)
 	if err := b.syncTaskWorktreeLocked(&task); err != nil {
 		return teamTask{}, false, err
+	}
+	if homeSessionThreadID != "" {
+		b.upsertHomeConversationRefLocked("task", task.ID, homeSessionThreadID, now)
 	}
 	b.tasks = append(b.tasks, task)
 	b.appendActionWithRefsLocked("task_created", "office", channel, input.CreatedBy, truncateSummary(task.Title, 140), task.ID, compactStringList([]string{task.SourceSignalID}), task.SourceDecisionID)
@@ -11867,14 +12572,15 @@ func (b *Broker) unblockDependentsLocked(completedTaskID string) {
 }
 
 type taskReuseMatch struct {
-	Channel          string
-	ProjectID        string
-	Title            string
-	ThreadID         string
-	Owner            string
-	PipelineID       string
-	SourceSignalID   string
-	SourceDecisionID string
+	Channel             string
+	ProjectID           string
+	Title               string
+	ThreadID            string
+	HomeSessionThreadID string
+	Owner               string
+	PipelineID          string
+	SourceSignalID      string
+	SourceDecisionID    string
 }
 
 func (m taskReuseMatch) hasScopedIdentity() bool {
@@ -11914,11 +12620,27 @@ func scopedTaskIdentityMatches(task *teamTask, match taskReuseMatch) bool {
 	return true
 }
 
+func (b *Broker) subjectLinkedToHomeSessionLocked(subjectKind, subjectID, homeSessionThreadID string) bool {
+	homeSessionThreadID = strings.TrimSpace(homeSessionThreadID)
+	if homeSessionThreadID == "" {
+		return true
+	}
+	for _, ref := range b.homeConversationRefs {
+		if strings.TrimSpace(ref.SubjectKind) == subjectKind &&
+			strings.TrimSpace(ref.SubjectID) == subjectID &&
+			strings.TrimSpace(ref.HomeSessionThreadID) == homeSessionThreadID {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *Broker) findReusableTaskLocked(match taskReuseMatch) *teamTask {
 	channel := normalizeChannelSlug(match.Channel)
 	projectID := normalizeProjectID(match.ProjectID)
 	title := strings.TrimSpace(match.Title)
 	threadID := strings.TrimSpace(match.ThreadID)
+	homeSessionThreadID := strings.TrimSpace(match.HomeSessionThreadID)
 	owner := strings.TrimSpace(match.Owner)
 	scopedIdentity := match.hasScopedIdentity()
 	for i := range b.tasks {
@@ -11930,6 +12652,9 @@ func (b *Broker) findReusableTaskLocked(match taskReuseMatch) *teamTask {
 			continue
 		}
 		if isTerminalTeamTaskStatus(task.Status) {
+			continue
+		}
+		if !b.subjectLinkedToHomeSessionLocked("task", task.ID, homeSessionThreadID) {
 			continue
 		}
 		sameTitle := title != "" && strings.EqualFold(strings.TrimSpace(task.Title), title)
@@ -12017,7 +12742,7 @@ func (b *Broker) handleGetRequests(w http.ResponseWriter, r *http.Request) {
 		if !includeResolved && !requestIsActive(req) {
 			continue
 		}
-		requests = append(requests, req)
+		requests = append(requests, b.responseRequestLocked(req))
 	}
 	pending := firstBlockingRequest(requests)
 	b.mu.Unlock()
@@ -12077,6 +12802,11 @@ func (b *Broker) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "channel access denied", http.StatusForbidden)
 			return
 		}
+		homeSessionThreadID := b.homeSessionThreadIDFromCandidatesLocked("", body.ReplyTo, "")
+		replyTo := strings.TrimSpace(body.ReplyTo)
+		if homeSessionThreadID != "" {
+			replyTo = ""
+		}
 		b.counter++
 		req := humanInterview{
 			ID:            fmt.Sprintf("request-%d", b.counter),
@@ -12092,7 +12822,7 @@ func (b *Broker) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 			Blocking:      body.Blocking,
 			Required:      body.Required,
 			Secret:        body.Secret,
-			ReplyTo:       strings.TrimSpace(body.ReplyTo),
+			ReplyTo:       replyTo,
 			CreatedAt:     time.Now().UTC().Format(time.RFC3339),
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 		}
@@ -12105,6 +12835,9 @@ func (b *Broker) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 			req.Title = "Request"
 		}
 		b.scheduleRequestLifecycleLocked(&req)
+		if homeSessionThreadID != "" {
+			b.upsertHomeConversationRefLocked("request", req.ID, homeSessionThreadID, req.CreatedAt)
+		}
 		b.requests = append(b.requests, req)
 		b.pendingInterview = firstBlockingRequest(b.requests)
 		b.appendActionLocked("request_created", "office", channel, req.From, truncateSummary(req.Title+" "+req.Question, 140), req.ID)
@@ -12113,7 +12846,7 @@ func (b *Broker) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"request": req, "id": req.ID})
+		_ = json.NewEncoder(w).Encode(map[string]any{"request": b.responseRequestLocked(req), "id": req.ID})
 	case "cancel":
 		id := strings.TrimSpace(body.ID)
 		if id == "" {
@@ -12138,7 +12871,7 @@ func (b *Broker) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{"request": b.requests[i]})
+			_ = json.NewEncoder(w).Encode(map[string]any{"request": b.responseRequestLocked(b.requests[i])})
 			return
 		}
 		http.Error(w, "request not found", http.StatusNotFound)
