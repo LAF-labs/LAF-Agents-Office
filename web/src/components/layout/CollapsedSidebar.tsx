@@ -20,12 +20,14 @@ import {
   SidebarExpand,
 } from "iconoir-react";
 
-import { getUsage } from "../../api/client";
+import { getAuthSession, getModelAvailability, getUsage } from "../../api/client";
 import { SIDEBAR_APPS } from "../../lib/constants";
-import { formatTokens, formatUSD } from "../../lib/format";
+import { formatTokens } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
+import { normalizeProfileAvatarId } from "../../lib/profileAvatar";
 import { preloadWorkspaceSurface } from "../../lib/workspacePreload";
 import { useAppStore } from "../../stores/app";
+import { PixelAvatar } from "../ui/PixelAvatar";
 
 const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   home: HomeSimple,
@@ -46,6 +48,7 @@ export function CollapsedSidebar() {
   const toggleCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const setSettingsSection = useAppStore((s) => s.setSettingsSection);
   const { t } = useI18n();
   const [popover, setPopover] = useState<Popover>(null);
   const [hint, setHint] = useState<HintState>(null);
@@ -164,6 +167,12 @@ export function CollapsedSidebar() {
         onLeave={scheduleClose}
         active={popover === "usage"}
       />
+      <ProfileRail
+        onOpen={() => {
+          setSettingsSection("profile");
+          setCurrentApp("settings");
+        }}
+      />
 
       {popover
         ? createPortal(
@@ -201,13 +210,6 @@ export function CollapsedSidebar() {
   );
 }
 
-function formatCompactUSD(v: number): string {
-  if (v >= 1000) return `$${(v / 1000).toFixed(1)}k`;
-  if (v >= 100) return `$${v.toFixed(0)}`;
-  if (v >= 10) return `$${v.toFixed(1)}`;
-  return `$${v.toFixed(2)}`;
-}
-
 function UsageRail({
   onEnter,
   onLeave,
@@ -218,29 +220,43 @@ function UsageRail({
   active: boolean;
 }) {
   const { t } = useI18n();
-  const { data: usage } = useQuery({
-    queryKey: ["usage"],
-    queryFn: () => getUsage(),
-    refetchInterval: 30_000,
-  });
-  const totalCost = usage?.total?.cost_usd ?? 0;
   return (
     <button
       type="button"
       className={`sidebar-rail-bottom${active ? " is-open" : ""}`}
-      aria-label={`${t("sidebar.usage")} ${formatUSD(totalCost)}`}
+      aria-label={t("sidebar.usage")}
       aria-haspopup="dialog"
       aria-expanded={active}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onFocus={onEnter}
       onBlur={onLeave}
-      title={`${t("sidebar.usage")} ${formatUSD(totalCost)}`}
+      title={t("sidebar.usage")}
     >
       <Activity className="sidebar-rail-usage-icon" />
-      <span className="sidebar-rail-usage-value">
-        {formatCompactUSD(totalCost)}
-      </span>
+    </button>
+  );
+}
+
+function ProfileRail({ onOpen }: { onOpen: () => void }) {
+  const { t } = useI18n();
+  const { data } = useQuery({
+    queryKey: ["auth-session"],
+    queryFn: () => getAuthSession(),
+    staleTime: 30_000,
+  });
+  const user = data?.user;
+  const name = (user?.name || user?.email || t("settings.section.profile")).trim();
+  const avatarID = normalizeProfileAvatarId(user?.avatar_id);
+  return (
+    <button
+      type="button"
+      className="sidebar-rail-bottom sidebar-rail-profile"
+      aria-label={name}
+      title={name}
+      onClick={onOpen}
+    >
+      <PixelAvatar slug={avatarID} size={24} />
     </button>
   );
 }
@@ -252,59 +268,32 @@ function UsageBody() {
     queryFn: () => getUsage(),
     refetchInterval: 5000,
   });
-  const totalCost = usage?.total?.cost_usd ?? 0;
-  const agents = usage?.agents ?? {};
-  const slugs = Object.keys(agents).sort();
-  if (slugs.length === 0 && totalCost === 0) {
-    return (
-      <p
-        style={{
-          fontSize: 11,
-          color: "var(--text-tertiary)",
-          padding: "8px 14px",
-        }}
-      >
-        {t("sidebar.noUsage")}
-      </p>
-    );
-  }
+  const { data: availability } = useQuery({
+    queryKey: ["model-availability"],
+    queryFn: () => getModelAvailability(),
+    staleTime: 30_000,
+  });
+  const cliTokens =
+    usage?.personal_cli?.total_tokens ?? usage?.session?.total_tokens ?? 0;
+  const lafLocked = availability?.laf_model?.available === false;
+  const lafPercent =
+    usage?.laf_ai?.limit_percent ?? usage?.laf_ai?.percent ?? null;
+  const lafLabel = !availability
+    ? "-"
+    : lafLocked
+      ? t("sidebar.usageLocked")
+      : typeof lafPercent === "number"
+        ? `${Math.max(0, Math.min(100, lafPercent)).toFixed(0)}%`
+        : t("sidebar.usageAvailable");
   return (
     <div className="sidebar-rail-usage-panel">
-      <table className="usage-table">
-        <thead>
-          <tr>
-            {[
-              t("sidebar.usageAgent"),
-              t("sidebar.usageIn"),
-              t("sidebar.usageOut"),
-              t("sidebar.usageCache"),
-              t("sidebar.usageCost"),
-            ].map((h) => (
-              <th key={h}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {slugs.map((slug) => {
-            const a = agents[slug];
-            return (
-              <tr key={slug}>
-                <td>{slug}</td>
-                <td>{formatTokens(a.input_tokens)}</td>
-                <td>{formatTokens(a.output_tokens)}</td>
-                <td>{formatTokens(a.cache_read_tokens)}</td>
-                <td>{formatUSD(a.cost_usd)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div className="usage-total">
-        <span>
-          {t("sidebar.usageSession")}:{" "}
-          {formatTokens(usage?.session?.total_tokens ?? 0)} tokens
-        </span>
-        <span className="usage-total-cost">{formatUSD(totalCost)}</span>
+      <div className="usage-compact-line">
+        <span>{t("sidebar.usagePersonalCli")}</span>
+        <strong>{formatTokens(cliTokens)} tokens</strong>
+      </div>
+      <div className="usage-compact-line">
+        <span>{t("sidebar.usageLafAi")}</span>
+        <strong>{lafLabel}</strong>
       </div>
     </div>
   );

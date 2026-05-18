@@ -214,6 +214,7 @@ type authUser struct {
 	ID           string             `json:"id"`
 	Email        string             `json:"email"`
 	Name         string             `json:"name"`
+	AvatarID     string             `json:"avatar_id,omitempty"`
 	TeamID       string             `json:"team_id"`
 	Role         string             `json:"role"`
 	Status       string             `json:"status"`
@@ -1708,6 +1709,8 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/auth/login", b.handleAuthLogin)
 	mux.HandleFunc("/auth/logout", b.handleAuthLogout)
 	mux.HandleFunc("/auth/session", b.handleAuthSession)
+	mux.HandleFunc("/auth/me", b.requireAuth(b.handleAuthMe))
+	mux.HandleFunc("/auth/me/password", b.requireAuth(b.handleAuthMePassword))
 	mux.HandleFunc("/auth/users", b.requireAuth(b.handleAuthUsers))
 	mux.HandleFunc("/teams", b.handleTeams)
 	mux.HandleFunc("/permissions", b.requireAuth(b.handlePermissions))

@@ -79,6 +79,7 @@ func verifyPassword(password string, user *authUser) (bool, bool) {
 func publicAuthUser(user authUser) authUser {
 	user.PasswordSalt = ""
 	user.PasswordHash = ""
+	user.AvatarID = normalizeProfileAvatarID(user.AvatarID)
 	return user
 }
 
@@ -97,6 +98,29 @@ func normalizeAuthRole(role string) string {
 	default:
 		return ""
 	}
+}
+
+const defaultProfileAvatarID = "human"
+
+var profileAvatarIDs = map[string]struct{}{
+	"human":    {},
+	"ceo":      {},
+	"pm":       {},
+	"fe":       {},
+	"be":       {},
+	"designer": {},
+	"cmo":      {},
+	"cro":      {},
+	"qa":       {},
+	"content":  {},
+}
+
+func normalizeProfileAvatarID(raw string) string {
+	id := strings.ToLower(strings.TrimSpace(raw))
+	if _, ok := profileAvatarIDs[id]; ok {
+		return id
+	}
+	return defaultProfileAvatarID
 }
 
 func canManageAuthRoles(user *authUser) bool {
@@ -263,6 +287,113 @@ func (b *Broker) handleTeams(w http.ResponseWriter, r *http.Request) {
 	b.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"teams": teams})
+}
+
+func (b *Broker) handleAuthMe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Name     string `json:"name"`
+		AvatarID string `json:"avatar_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	if name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	if len(name) > 80 {
+		http.Error(w, "name must be 80 characters or fewer", http.StatusBadRequest)
+		return
+	}
+	avatarID := normalizeProfileAvatarID(body.AvatarID)
+
+	b.mu.Lock()
+	user, _, _, ok := b.currentAuthUserLocked(r)
+	if !ok {
+		b.mu.Unlock()
+		http.Error(w, "auth session required", http.StatusUnauthorized)
+		return
+	}
+	user.Name = name
+	user.AvatarID = avatarID
+	user.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	for i := range b.humanMembers {
+		if b.humanMembers[i].UserID == user.ID {
+			b.humanMembers[i].Name = name
+		}
+	}
+	updated := publicAuthUser(*user)
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+		return
+	}
+	b.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"user": updated})
+}
+
+func (b *Broker) handleAuthMePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	currentPassword := strings.TrimSpace(body.CurrentPassword)
+	newPassword := strings.TrimSpace(body.NewPassword)
+	if currentPassword == "" {
+		http.Error(w, "current_password is required", http.StatusBadRequest)
+		return
+	}
+	if len(newPassword) < 8 {
+		http.Error(w, "new_password length >= 8 required", http.StatusBadRequest)
+		return
+	}
+	newHash, err := hashPassword(newPassword)
+	if err != nil {
+		http.Error(w, "failed to hash password", http.StatusInternalServerError)
+		return
+	}
+
+	b.mu.Lock()
+	user, _, _, ok := b.currentAuthUserLocked(r)
+	if !ok {
+		b.mu.Unlock()
+		http.Error(w, "auth session required", http.StatusUnauthorized)
+		return
+	}
+	okPassword, _ := verifyPassword(currentPassword, user)
+	if !okPassword {
+		b.mu.Unlock()
+		http.Error(w, "current password is incorrect", http.StatusForbidden)
+		return
+	}
+	user.PasswordSalt = ""
+	user.PasswordHash = newHash
+	user.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	if err := b.saveLocked(); err != nil {
+		b.mu.Unlock()
+		http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
+		return
+	}
+	b.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (b *Broker) handleAuthUsers(w http.ResponseWriter, r *http.Request) {
@@ -457,6 +588,7 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 		ID:           userID,
 		Email:        email,
 		Name:         name,
+		AvatarID:     defaultProfileAvatarID,
 		TeamID:       team.ID,
 		Role:         role,
 		Status:       "active",

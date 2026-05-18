@@ -260,6 +260,98 @@ func TestAuthLoginAndLogout(t *testing.T) {
 	}
 }
 
+func TestAuthMeUpdatesOwnProfile(t *testing.T) {
+	b := newTestBroker(t)
+	signup := signupForTest(t, b, "profile@example.com", "Profile User", "create", "Profile Team", "")
+
+	req := jsonRequestForTest(t, "/auth/me", map[string]string{
+		"name":      "Pixel Founder",
+		"avatar_id": "designer",
+	})
+	req.Method = http.MethodPatch
+	req.AddCookie(signup.Cookie)
+	rec := httptest.NewRecorder()
+	b.handleAuthMe(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("profile update status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		User authUser `json:"user"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode profile update: %v", err)
+	}
+	if body.User.Name != "Pixel Founder" || body.User.AvatarID != "designer" {
+		t.Fatalf("unexpected updated user: %+v", body.User)
+	}
+
+	reloaded := reloadedBroker(t, b)
+	loginRec := httptest.NewRecorder()
+	reloaded.handleAuthLogin(loginRec, jsonRequestForTest(t, "/auth/login", map[string]string{
+		"email":    "profile@example.com",
+		"password": "local-password",
+	}))
+	if loginRec.Code != http.StatusOK {
+		t.Fatalf("login after profile update status = %d: %s", loginRec.Code, loginRec.Body.String())
+	}
+	var loginBody struct {
+		User authUser `json:"user"`
+	}
+	if err := json.NewDecoder(loginRec.Body).Decode(&loginBody); err != nil {
+		t.Fatalf("decode login: %v", err)
+	}
+	if loginBody.User.Name != "Pixel Founder" || loginBody.User.AvatarID != "designer" {
+		t.Fatalf("profile did not persist: %+v", loginBody.User)
+	}
+}
+
+func TestAuthMePasswordChangesOwnPassword(t *testing.T) {
+	b := newTestBroker(t)
+	signup := signupForTest(t, b, "password@example.com", "Password User", "create", "Password Team", "")
+
+	badReq := jsonRequestForTest(t, "/auth/me/password", map[string]string{
+		"current_password": "wrong-password",
+		"new_password":     "new-local-password",
+	})
+	badReq.Method = http.MethodPatch
+	badReq.AddCookie(signup.Cookie)
+	badRec := httptest.NewRecorder()
+	b.handleAuthMePassword(badRec, badReq)
+	if badRec.Code != http.StatusForbidden {
+		t.Fatalf("wrong current password status = %d, want %d", badRec.Code, http.StatusForbidden)
+	}
+
+	req := jsonRequestForTest(t, "/auth/me/password", map[string]string{
+		"current_password": "local-password",
+		"new_password":     "new-local-password",
+	})
+	req.Method = http.MethodPatch
+	req.AddCookie(signup.Cookie)
+	rec := httptest.NewRecorder()
+	b.handleAuthMePassword(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("password update status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	oldLogin := httptest.NewRecorder()
+	b.handleAuthLogin(oldLogin, jsonRequestForTest(t, "/auth/login", map[string]string{
+		"email":    "password@example.com",
+		"password": "local-password",
+	}))
+	if oldLogin.Code != http.StatusUnauthorized {
+		t.Fatalf("old password login status = %d, want %d", oldLogin.Code, http.StatusUnauthorized)
+	}
+
+	newLogin := httptest.NewRecorder()
+	b.handleAuthLogin(newLogin, jsonRequestForTest(t, "/auth/login", map[string]string{
+		"email":    "password@example.com",
+		"password": "new-local-password",
+	}))
+	if newLogin.Code != http.StatusOK {
+		t.Fatalf("new password login status = %d, want %d: %s", newLogin.Code, http.StatusOK, newLogin.Body.String())
+	}
+}
+
 func TestAuthLoginSurvivesBrokerReload(t *testing.T) {
 	b := newTestBroker(t)
 	signupForTest(t, b, "reload@example.com", "Reload User", "create", "Reload Team", "")

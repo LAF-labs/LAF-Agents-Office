@@ -4,7 +4,7 @@ import { useI18n } from "../../lib/i18n";
 import { useAppStore } from "../../stores/app";
 import { AppList } from "../sidebar/AppList";
 import { UsagePanel } from "../sidebar/UsagePanel";
-import { WorkspaceSummary } from "../sidebar/WorkspaceSummary";
+import { UserProfileFooter } from "../sidebar/UserProfileFooter";
 import { CollapsedSidebar } from "./CollapsedSidebar";
 
 export function Sidebar() {
@@ -48,8 +48,9 @@ export function Sidebar() {
             <p className="sidebar-section-title">{t("sidebar.workspace")}</p>
           </div>
           <AppList />
-          <WorkspaceSummary />
           <UsagePanel />
+          <div className="sidebar-footer-divider" aria-hidden="true" />
+          <UserProfileFooter />
         </>
       )}
     </aside>

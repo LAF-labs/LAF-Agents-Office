@@ -29,6 +29,7 @@ import {
   type BridgeDevice,
   type ConfigSnapshot,
   type ConfigUpdate,
+  changeOwnPassword,
   createInvite,
   createOfficeMember,
   createRunnerPairing,
@@ -52,15 +53,22 @@ import {
   updateAuthUserRole,
   updateConfig,
   updateOfficeMember,
+  updateOwnProfile,
   updatePermissions,
   type WorkspaceRole,
   type WorkspaceWipeResult,
 } from "../../api/client";
 import { useI18n } from "../../lib/i18n";
+import {
+  PROFILE_AVATAR_IDS,
+  normalizeProfileAvatarId,
+} from "../../lib/profileAvatar";
 import { useAppStore } from "../../stores/app";
+import { PixelAvatar } from "../ui/PixelAvatar";
 import { showNotice } from "../ui/Toast";
 
 type SectionId =
+  | "profile"
   | "general"
   | "agents"
   | "team"
@@ -74,6 +82,7 @@ interface Section {
   id: SectionId;
   Icon: ComponentType<{ className?: string; style?: CSSProperties }>;
   nameKey:
+    | "settings.section.profile"
     | "settings.section.general"
     | "settings.section.agents"
     | "settings.section.team"
@@ -99,6 +108,7 @@ const SECTION_GROUPS: SectionGroup[] = [
   {
     labelKey: "settings.group.workspace",
     items: [
+      { id: "profile", Icon: PeopleTag, nameKey: "settings.section.profile" },
       {
         id: "general",
         Icon: SettingsIcon,
@@ -517,6 +527,160 @@ function SaveButton({ label, onSave }: SaveButtonProps) {
             : label}
       </button>
     </div>
+  );
+}
+
+function ProfileSection() {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["auth-session"],
+    queryFn: getAuthSession,
+    staleTime: 30_000,
+  });
+  const user = data?.user;
+  const [name, setName] = useState("");
+  const [avatarID, setAvatarID] = useState("human");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name || user.email || "");
+    setAvatarID(normalizeProfileAvatarId(user.avatar_id));
+  }, [user]);
+
+  const profileMutation = useMutation({
+    mutationFn: updateOwnProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth-session"] });
+      queryClient.invalidateQueries({ queryKey: ["auth-users"] });
+      queryClient.invalidateQueries({ queryKey: ["mention-people"] });
+      showNotice(t("settings.profile.saved"), "success");
+    },
+  });
+  const passwordMutation = useMutation({
+    mutationFn: changeOwnPassword,
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      showNotice(t("settings.profile.passwordSaved"), "success");
+    },
+  });
+
+  if (isLoading) {
+    return <div className="app-loading-state">{t("settings.loading")}</div>;
+  }
+
+  if (!user) {
+    return (
+      <div style={styles.emptyState}>{t("settings.profile.sessionMissing")}</div>
+    );
+  }
+
+  const saveProfile = async () => {
+    await profileMutation.mutateAsync({
+      avatar_id: avatarID,
+      name: name.trim(),
+    });
+  };
+  const savePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      throw new Error(t("settings.profile.passwordMismatch"));
+    }
+    await passwordMutation.mutateAsync({
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  };
+
+  return (
+    <section>
+      <h2 style={styles.sectionTitle}>{t("settings.profile.title")}</h2>
+      <p style={styles.sectionDesc}>{t("settings.profile.desc")}</p>
+
+      <p style={styles.groupTitle}>{t("settings.profile.identityGroup")}</p>
+      <Field
+        label={t("settings.profile.nickname")}
+        hint={t("settings.profile.nicknameHint")}
+      >
+        <input
+          className="input"
+          style={styles.input}
+          value={name}
+          maxLength={80}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Field>
+      <Field
+        label={t("settings.profile.avatar")}
+        hint={t("settings.profile.avatarHint")}
+      >
+        <div className="profile-avatar-grid">
+          {PROFILE_AVATAR_IDS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={`profile-avatar-option${avatarID === id ? " is-selected" : ""}`}
+              aria-label={id}
+              aria-pressed={avatarID === id}
+              onClick={() => setAvatarID(id)}
+            >
+              <PixelAvatar slug={id} size={34} />
+            </button>
+          ))}
+        </div>
+      </Field>
+      <SaveButton label={t("settings.profile.save")} onSave={saveProfile} />
+
+      <p style={{ ...styles.groupTitle, marginTop: 24 }}>
+        {t("settings.profile.passwordGroup")}
+      </p>
+      <Field label={t("settings.profile.currentPassword")}>
+        <input
+          className="input"
+          style={styles.input}
+          type="password"
+          autoComplete="current-password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+        />
+      </Field>
+      <Field
+        label={t("settings.profile.newPassword")}
+        hint={t("settings.profile.newPasswordHint")}
+      >
+        <input
+          className="input"
+          style={styles.input}
+          type="password"
+          autoComplete="new-password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+      </Field>
+      <Field label={t("settings.profile.confirmPassword")}>
+        <input
+          className="input"
+          style={styles.input}
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+      </Field>
+      <SaveButton
+        label={t("settings.profile.changePassword")}
+        onSave={savePassword}
+      />
+
+      <p style={{ ...styles.groupTitle, marginTop: 24 }}>
+        {t("settings.profile.preferencesGroup")}
+      </p>
+      <div style={styles.emptyState}>{t("settings.profile.preferencesHint")}</div>
+    </section>
   );
 }
 
@@ -2829,6 +2993,7 @@ export function SettingsApp() {
         ))}
       </nav>
       <div className="settings-body" style={styles.body} key={dataKey}>
+        {section === "profile" && <ProfileSection />}
         {section === "general" && <GeneralSection cfg={data} save={save} />}
         {section === "agents" && <AgentMakerSection />}
         {section === "team" && <TeamSection />}

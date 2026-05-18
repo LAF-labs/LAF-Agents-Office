@@ -15,6 +15,19 @@ const RATE_LIMITS = {
   bridgePairingClaim: 30,
   bridgePairingStart: 12,
 };
+const DEFAULT_PROFILE_AVATAR_ID = "human";
+const PROFILE_AVATAR_IDS = new Set([
+  "human",
+  "ceo",
+  "pm",
+  "fe",
+  "be",
+  "designer",
+  "cmo",
+  "cro",
+  "qa",
+  "content",
+]);
 const WORKSPACE_ROLES = ["owner", "admin", "manager", "member", "viewer"];
 const WORKSPACE_PERMISSIONS = [
   "workspace:read",
@@ -133,6 +146,14 @@ module.exports = async function handler(req, res) {
     }
     if (path === "auth/users") {
       await handleAuthUsers(req, res);
+      return;
+    }
+    if (path === "auth/me" && req.method === "PATCH") {
+      await handleAuthMe(req, res);
+      return;
+    }
+    if (path === "auth/me/password" && req.method === "PATCH") {
+      await handleAuthMePassword(req, res);
       return;
     }
     if (path === "auth/login" && req.method === "POST") {
@@ -706,6 +727,7 @@ function publicUser(user, membership) {
     id: user.id,
     email: user.email || "",
     name: user.user_metadata?.name || user.email || "User",
+    avatar_id: normalizeProfileAvatarID(user.user_metadata?.avatar_id),
     permissions: normalizePermissionOverride(membership.permissions),
     team_id: membership.team_id,
     role: normalizeRole(membership.role),
@@ -714,6 +736,11 @@ function publicUser(user, membership) {
     updated_at: user.updated_at,
     last_login_at: user.last_sign_in_at,
   };
+}
+
+function normalizeProfileAvatarID(value) {
+  const id = String(value || "").trim().toLowerCase();
+  return PROFILE_AVATAR_IDS.has(id) ? id : DEFAULT_PROFILE_AVATAR_ID;
 }
 
 function normalizeRole(role) {
@@ -1239,6 +1266,74 @@ async function handleAuthUsers(req, res) {
   writeJSON(res, 200, { user, users });
 }
 
+async function handleAuthMe(req, res) {
+  const { membership, token, user } = await requireUser(req);
+  const body = await readBody(req);
+  const name = String(body.name || "").trim();
+  if (!name) throw new HTTPError(400, "name is required");
+  if (name.length > 80) {
+    throw new HTTPError(400, "name must be 80 characters or fewer");
+  }
+  const avatarID = normalizeProfileAvatarID(body.avatar_id);
+  const currentMetadata =
+    user.user_metadata && typeof user.user_metadata === "object"
+      ? user.user_metadata
+      : {};
+  const updated = await authFetch("user", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: {
+      data: {
+        ...currentMetadata,
+        avatar_id: avatarID,
+        name,
+      },
+    },
+  });
+  await writeAuditEvent(membership, "profile.updated", "user", user.id, {
+    avatar_id: avatarID,
+  });
+  writeJSON(res, 200, {
+    user: publicUser(
+      updated || {
+        ...user,
+        user_metadata: { ...currentMetadata, name, avatar_id: avatarID },
+      },
+      membership,
+    ),
+  });
+}
+
+async function handleAuthMePassword(req, res) {
+  const { membership, user } = await requireUser(req);
+  const body = await readBody(req);
+  const currentPassword = String(body.current_password || "").trim();
+  const newPassword = String(body.new_password || "").trim();
+  if (!currentPassword) throw new HTTPError(400, "current_password is required");
+  if (newPassword.length < 8) {
+    throw new HTTPError(400, "new_password length >= 8 required");
+  }
+  let verifiedSession;
+  try {
+    verifiedSession = await authFetch("token?grant_type=password", {
+      method: "POST",
+      body: { email: user.email, password: currentPassword },
+    });
+  } catch {
+    throw new HTTPError(403, "current password is incorrect");
+  }
+  const accessToken = verifiedSession?.access_token;
+  if (!accessToken) throw new HTTPError(403, "current password is incorrect");
+  await authFetch("user", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: { password: newPassword },
+  });
+  setAuthCookies(res, verifiedSession);
+  await writeAuditEvent(membership, "profile.password_changed", "user", user.id);
+  writeJSON(res, 200, { status: "ok" });
+}
+
 async function handleAuthLogin(req, res) {
   const body = await readBody(req);
   const session = await authFetch("token?grant_type=password", {
@@ -1262,7 +1357,10 @@ async function handleAuthSignup(req, res) {
     body: {
       email: body.email,
       password: body.password,
-      data: { name: body.name || "" },
+      data: {
+        avatar_id: DEFAULT_PROFILE_AVATAR_ID,
+        name: body.name || "",
+      },
     },
   });
   const user = session.user;

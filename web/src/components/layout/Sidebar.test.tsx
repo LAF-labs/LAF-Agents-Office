@@ -12,8 +12,8 @@ vi.mock("../sidebar/UsagePanel", () => ({
   UsagePanel: () => <div data-testid="usage-panel" />,
 }));
 
-vi.mock("../sidebar/WorkspaceSummary", () => ({
-  WorkspaceSummary: () => <div data-testid="workspace-summary" />,
+vi.mock("../sidebar/UserProfileFooter", () => ({
+  UserProfileFooter: () => <div data-testid="user-profile-footer" />,
 }));
 
 describe("Sidebar navigation hierarchy", () => {
@@ -31,6 +31,7 @@ describe("Sidebar navigation hierarchy", () => {
     expect(screen.getByText("프로젝트 작업")).toBeInTheDocument();
     expect(screen.queryByText("앱")).not.toBeInTheDocument();
     expect(screen.getByTestId("workspace-nav")).toBeInTheDocument();
+    expect(screen.getByTestId("user-profile-footer")).toBeInTheDocument();
     expect(screen.queryByText("팀")).not.toBeInTheDocument();
     expect(screen.queryByText("채널")).not.toBeInTheDocument();
     expect(container.textContent).not.toContain("새 에이전트");

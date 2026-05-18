@@ -215,64 +215,8 @@ html[data-theme^="office"] .sidebar .sidebar-section + .sidebar-section,
 html[data-theme^="office"] .sidebar .sidebar-apps + .sidebar-section {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
-html[data-theme^="office"] .sidebar .usage-toggle {
-  color: rgba(255, 255, 255, 0.78);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
-html[data-theme^="office"] .sidebar .usage-toggle:hover {
-  color: #ffffff;
-  background: var(--accent-bg);
-}
-html[data-theme^="office"] .sidebar .usage-toggle.open {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-top-color: rgba(0, 0, 0, 0.08);
-}
-html[data-theme^="office"] .sidebar .usage-toggle.open > span,
-html[data-theme^="office"] .sidebar .usage-toggle.open > svg {
-  color: var(--accent-ink);
-  stroke: var(--accent-ink);
-}
 html[data-theme^="office"] .sidebar {
   --sidebar-fade-color: rgba(247, 250, 255, 0.92);
-}
-html[data-theme^="office"] .sidebar .usage-panel {
-  color: rgba(255, 255, 255, 0.78);
-}
-html[data-theme^="office"] .sidebar .usage-table th {
-  color: rgba(255, 255, 255, 0.55);
-  border-bottom-color: rgba(255, 255, 255, 0.12);
-}
-html[data-theme^="office"] .sidebar .usage-table td {
-  color: rgba(255, 255, 255, 0.78);
-}
-html[data-theme^="office"] .sidebar .usage-total {
-  color: #ffffff;
-  border-top-color: rgba(255, 255, 255, 0.12);
-}
-html[data-theme^="office"] .sidebar .usage-total-cost {
-  color: #ffffff;
-}
-html[data-theme^="office"] .sidebar .usage-toggle > span {
-  color: #ffffff;
-}
-html[data-theme^="office"] .sidebar .usage-panel.open {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-table th {
-  color: rgba(255, 255, 255, 0.72);
-  border-bottom-color: rgba(255, 255, 255, 0.18);
-}
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-table td {
-  color: var(--accent-ink);
-}
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-total {
-  color: var(--accent-ink);
-  border-top-color: rgba(255, 255, 255, 0.18);
-}
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-total-cost {
-  color: var(--accent-ink);
 }
 html[data-theme^="office"] .sidebar .sidebar-summary {
   color: rgba(255, 255, 255, 0.55);
@@ -392,19 +336,8 @@ html[data-theme^="office"] .sidebar-btn-sm {
   border-radius: var(--radius-md);
 }
 
-/* ?? Sticky bottom bar (color owned by sidebar rules above) ?? */
-html[data-theme^="office"] .usage-toggle {
-  flex-shrink: 0;
-  font-size: 11px;
-}
+/* ?? Sticky usage panel (color owned by sidebar rules above) ?? */
 html[data-theme^="office"] .usage-panel {
-  flex-shrink: 0;
-}
-
-html[data-theme^="office"] .sidebar-bottom {
-  background: var(--office-sidebar);
-  border-top: 1px solid var(--border);
-  padding: 10px 16px;
   flex-shrink: 0;
 }
 html[data-theme^="office"] .sidebar-btn {
@@ -1410,14 +1343,12 @@ html[data-theme^="office"] .sidebar-logo::before {
 
 html[data-theme^="office"] .sidebar .sidebar-section-title,
 html[data-theme^="office"] .sidebar .sidebar-summary,
-html[data-theme^="office"] .sidebar .sidebar-hint,
-html[data-theme^="office"] .sidebar .usage-table th {
+html[data-theme^="office"] .sidebar .sidebar-hint {
   color: var(--text-tertiary);
 }
 
 html[data-theme^="office"] .sidebar .sidebar-icon-btn,
 html[data-theme^="office"] .sidebar .sidebar-btn,
-html[data-theme^="office"] .sidebar .usage-toggle,
 html[data-theme^="office"] .sidebar .sidebar-item {
   color: var(--office-sidebar-text);
 }
@@ -1431,7 +1362,6 @@ html[data-theme^="office"] .sidebar-project-toggle {
 html[data-theme^="office"] .sidebar .sidebar-icon-btn:hover,
 html[data-theme^="office"] .sidebar .sidebar-btn:hover,
 html[data-theme^="office"] .sidebar-project-toggle:hover,
-html[data-theme^="office"] .sidebar .usage-toggle:hover,
 html[data-theme^="office"] .sidebar .sidebar-item:hover {
   background: var(--office-sidebar-hover);
   color: var(--office-sidebar-text-active);
@@ -1439,29 +1369,16 @@ html[data-theme^="office"] .sidebar .sidebar-item:hover {
 
 html[data-theme^="office"] .sidebar .sidebar-icon-btn.active,
 html[data-theme^="office"] .sidebar .sidebar-item.active,
-html[data-theme^="office"] .sidebar-project-link.active,
-html[data-theme^="office"] .sidebar .usage-toggle.open {
+html[data-theme^="office"] .sidebar-project-link.active {
   background: var(--office-sidebar-active);
   color: var(--office-sidebar-text-active);
   box-shadow: none;
-}
-
-html[data-theme^="office"] .sidebar .usage-toggle.open > span,
-html[data-theme^="office"] .sidebar .usage-toggle.open > svg {
-  color: var(--office-sidebar-text-active);
-  stroke: currentcolor;
 }
 
 html[data-theme^="office"] .sidebar-badge {
   background: var(--accent);
   color: var(--accent-ink);
   box-shadow: none;
-}
-
-html[data-theme^="office"] .sidebar .usage-panel.open {
-  background: var(--glass-bg-strong);
-  color: var(--text-primary);
-  border-top: 1px solid var(--border-light);
 }
 
 html[data-theme^="office"] .main,
@@ -3226,39 +3143,6 @@ html[data-theme^="office"] .dm-live-stream {
   -webkit-backdrop-filter: none;
 }
 
-html[data-theme^="office"] .sidebar .usage-toggle,
-html[data-theme^="office"] .sidebar .usage-toggle.open {
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-html[data-theme^="office"] .sidebar .usage-toggle {
-  border-top: 1px solid var(--border-light);
-}
-
-html[data-theme^="office"] .sidebar .usage-toggle.open {
-  color: var(--office-sidebar-text-active);
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
-html[data-theme^="office"] .sidebar .usage-panel.open {
-  margin: 0;
-  padding: 8px 12px 10px;
-  border-top: 1px solid var(--border-light);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-html[data-theme^="office"] .sidebar .usage-panel.open .usage-total-cost {
-  margin-right: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--accent);
-}
-
 html[data-theme^="office"] .btn:not(:disabled):hover {
   transform: none;
 }
@@ -4301,8 +4185,7 @@ html[data-theme^="office"] .sidebar-logo::before {
 
 html[data-theme^="office"] .sidebar .sidebar-section-title,
 html[data-theme^="office"] .sidebar .sidebar-summary,
-html[data-theme^="office"] .sidebar .sidebar-hint,
-html[data-theme^="office"] .sidebar .usage-table th {
+html[data-theme^="office"] .sidebar .sidebar-hint {
   color: var(--color-graphite);
   letter-spacing: 0;
 }
@@ -4311,8 +4194,7 @@ html[data-theme^="office"] .sidebar .sidebar-item,
 html[data-theme^="office"] .sidebar .sidebar-project-link,
 html[data-theme^="office"] .sidebar .sidebar-project-toggle,
 html[data-theme^="office"] .sidebar .sidebar-btn,
-html[data-theme^="office"] .sidebar .sidebar-icon-btn,
-html[data-theme^="office"] .sidebar .usage-toggle {
+html[data-theme^="office"] .sidebar .sidebar-icon-btn {
   color: var(--color-ash);
   border-radius: var(--radius-full);
   background: transparent;
@@ -4324,7 +4206,6 @@ html[data-theme^="office"] .sidebar .sidebar-project-link:hover,
 html[data-theme^="office"] .sidebar .sidebar-project-toggle:hover,
 html[data-theme^="office"] .sidebar .sidebar-btn:hover,
 html[data-theme^="office"] .sidebar .sidebar-icon-btn:hover,
-html[data-theme^="office"] .sidebar .usage-toggle:hover,
 html[data-theme^="office"] .channel-action-btn:hover,
 html[data-theme^="office"] .status-bar-shortcut:hover,
 html[data-theme^="office"] .runtime-pill:hover {
@@ -4334,8 +4215,7 @@ html[data-theme^="office"] .runtime-pill:hover {
 
 html[data-theme^="office"] .sidebar .sidebar-item.active,
 html[data-theme^="office"] .sidebar .sidebar-project-link.active,
-html[data-theme^="office"] .sidebar .sidebar-icon-btn.active,
-html[data-theme^="office"] .sidebar .usage-toggle.open {
+html[data-theme^="office"] .sidebar .sidebar-icon-btn.active {
   background: var(--color-silver-mist);
   color: var(--color-ink);
   border-color: transparent;
@@ -4343,7 +4223,6 @@ html[data-theme^="office"] .sidebar .usage-toggle.open {
 }
 
 html[data-theme^="office"] .sidebar-header,
-html[data-theme^="office"] .sidebar-bottom,
 html[data-theme^="office"] .channel-header,
 html[data-theme^="office"] .runtime-strip,
 html[data-theme^="office"] .status-bar,
@@ -6210,8 +6089,7 @@ html[data-theme^="office"] .sidebar .sidebar-item,
 html[data-theme^="office"] .sidebar .sidebar-project-link,
 html[data-theme^="office"] .sidebar .sidebar-project-toggle,
 html[data-theme^="office"] .sidebar .sidebar-btn,
-html[data-theme^="office"] .sidebar .sidebar-icon-btn,
-html[data-theme^="office"] .sidebar .usage-toggle {
+html[data-theme^="office"] .sidebar .sidebar-icon-btn {
   border-radius: var(--row-radius);
 }
 
@@ -6220,6 +6098,59 @@ html[data-theme^="office"] .runtime-strip,
 html[data-theme^="office"] .status-bar {
   background: rgba(255, 255, 255, 0.9);
   border-color: var(--surface-line);
+}
+
+/* Sidebar footer controls: keep usage/profile as loose rows, not a card shell. */
+html[data-theme^="office"] .sidebar .sidebar-usage-block {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .sidebar .sidebar-usage-button,
+html[data-theme^="office"] .sidebar .sidebar-usage-button.open {
+  border: 0;
+  border-top: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--office-sidebar-text);
+}
+
+html[data-theme^="office"] .sidebar .sidebar-usage-button:hover,
+html[data-theme^="office"] .sidebar .sidebar-usage-button:focus,
+html[data-theme^="office"] .sidebar .sidebar-usage-button:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  color: var(--office-sidebar-text-active);
+}
+
+html[data-theme^="office"] .sidebar .usage-panel,
+html[data-theme^="office"] .sidebar .usage-panel.open {
+  border: 0;
+  border-top: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .sidebar .sidebar-footer-divider {
+  height: 1px;
+  border: 0;
+  border-radius: 0;
+  background: var(--border-light);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .sidebar .sidebar-profile-button,
+html[data-theme^="office"] .sidebar .sidebar-profile-button:hover,
+html[data-theme^="office"] .sidebar .sidebar-profile-button:focus,
+html[data-theme^="office"] .sidebar .sidebar-profile-button:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 html[data-theme^="office"] .composer {

@@ -471,6 +471,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  avatar_id?: string;
   team_id: string;
   role: WorkspaceRole | string;
   status: string;
@@ -654,6 +655,17 @@ export function updateAuthUserRole(body: {
   role: WorkspaceRole;
 }) {
   return patchJSON<{ user: AuthUser; users: AuthUser[] }>("/auth/users", body);
+}
+
+export function updateOwnProfile(body: { name: string; avatar_id: string }) {
+  return patchJSON<{ user: AuthUser }>("/auth/me", body);
+}
+
+export function changeOwnPassword(body: {
+  current_password: string;
+  new_password: string;
+}) {
+  return patchJSON<{ status: string }>("/auth/me/password", body);
 }
 
 export interface HumanIdentity {
@@ -1630,6 +1642,8 @@ export interface UsageOptimizationStats {
 export interface UsageData {
   total?: { cost_usd: number; total_tokens?: number };
   session?: { total_tokens: number };
+  personal_cli?: { total_tokens?: number };
+  laf_ai?: { limit_percent?: number; percent?: number };
   agents?: Record<string, AgentUsage>;
   optimization?: UsageOptimizationStats;
 }
