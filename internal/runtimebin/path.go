@@ -61,11 +61,17 @@ func fallbackDirs(name string) []string {
 	if home, err := userHomeFn(); err == nil && strings.TrimSpace(home) != "" {
 		add(filepath.Join(home, ".opencode", "bin"))
 		add(filepath.Join(home, ".local", "bin"))
+		add(filepath.Join(home, ".claude", "bin"))
+		add(filepath.Join(home, ".claude", "local"))
+		add(filepath.Join(home, ".claude", "local", "bin"))
 		add(filepath.Join(home, ".bun", "bin"))
 		add(filepath.Join(home, "Library", "pnpm"))
 		add(filepath.Join(home, ".npm-global", "bin"))
 		add(filepath.Join(home, ".deno", "bin"))
 		add(filepath.Join(home, ".cargo", "bin"))
+		for _, dir := range applicationSupportDirs(home, name) {
+			add(dir)
+		}
 		for _, dir := range appBundleDirs(filepath.Join(home, "Applications"), name) {
 			add(dir)
 		}
@@ -91,8 +97,25 @@ func fallbackDirs(name string) []string {
 	return out
 }
 
+func applicationSupportDirs(home, name string) []string {
+	switch name {
+	case "claude":
+		return []string{
+			filepath.Join(home, "Library", "Application Support", "Claude Code", "bin"),
+			filepath.Join(home, "Library", "Application Support", "Claude", "bin"),
+		}
+	default:
+		return nil
+	}
+}
+
 func appBundleDirs(appsRoot, name string) []string {
 	switch name {
+	case "claude":
+		return []string{
+			filepath.Join(appsRoot, "Claude.app", "Contents", "Resources"),
+			filepath.Join(appsRoot, "Claude Code.app", "Contents", "Resources"),
+		}
 	case "codex":
 		return []string{filepath.Join(appsRoot, "Codex.app", "Contents", "Resources")}
 	default:

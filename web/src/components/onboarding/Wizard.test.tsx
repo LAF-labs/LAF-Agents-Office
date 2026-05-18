@@ -156,6 +156,17 @@ describe("Wizard keyboard advancement", () => {
     expect(screen.getByPlaceholderText("OPENAI_API_KEY")).toBeInTheDocument();
   });
 
+  it("only offers Claude Code and Codex as agent runtimes", async () => {
+    render(<Wizard onComplete={vi.fn()} />);
+    await advanceToSetupStep();
+
+    expect(screen.getByText("Claude Code")).toBeInTheDocument();
+    expect(screen.getByText("Codex")).toBeInTheDocument();
+    expect(screen.queryByText("Opencode")).toBeNull();
+    expect(screen.queryByText("Cursor")).toBeNull();
+    expect(screen.queryByText("Windsurf")).toBeNull();
+  });
+
   it("does not show a one-option project wiki selector on the setup step", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     await advanceToSetupStep();

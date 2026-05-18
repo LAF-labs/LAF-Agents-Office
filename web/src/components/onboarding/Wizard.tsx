@@ -69,7 +69,7 @@ interface RuntimeSpec {
   label: string;
   binary: string;
   installUrl: string;
-  provider: "claude-code" | "codex" | "opencode" | null;
+  provider: "claude-code" | "codex";
 }
 
 const RUNTIMES: readonly RuntimeSpec[] = [
@@ -84,24 +84,6 @@ const RUNTIMES: readonly RuntimeSpec[] = [
     binary: "codex",
     installUrl: "https://github.com/openai/codex",
     provider: "codex",
-  },
-  {
-    label: "Opencode",
-    binary: "opencode",
-    installUrl: "https://opencode.ai",
-    provider: "opencode",
-  },
-  {
-    label: "Cursor",
-    binary: "cursor",
-    installUrl: "https://cursor.com/",
-    provider: null,
-  },
-  {
-    label: "Windsurf",
-    binary: "windsurf",
-    installUrl: "https://codeium.com/windsurf",
-    provider: null,
   },
 ] as const;
 
@@ -1474,7 +1456,7 @@ function blueprintReadinessCheck(
   };
 }
 
-type SupportedProvider = "claude-code" | "codex" | "opencode";
+type SupportedProvider = "claude-code" | "codex";
 
 function providerPriorityFromLabels(
   runtimePriority: string[],
@@ -1483,7 +1465,7 @@ function providerPriorityFromLabels(
     .map(
       (label) => RUNTIMES.find((runtime) => runtime.label === label)?.provider,
     )
-    .filter((provider): provider is SupportedProvider => provider !== null);
+    .filter((provider): provider is SupportedProvider => Boolean(provider));
 }
 
 interface ConfigPayloadOptions {
@@ -1865,11 +1847,7 @@ export function Wizard({ onComplete }: WizardProps) {
     async (skipTask: boolean) => {
       setSubmitting(true);
       try {
-        // Translate UI labels to the provider ids the broker validates. Only
-        // labels that map to a supported provider ("claude-code", "codex",
-        // "opencode") are persisted — aspirational runtimes (Cursor, Windsurf)
-        // are shown in the UI but can't yet be dispatched, so we drop them
-        // from the priority list we send to the server.
+        // Translate UI labels to the provider ids the broker validates.
         const providerPriority = providerPriorityFromLabels(runtimePriority);
 
         // Persist memory backend + LLM provider choice + priority fallback

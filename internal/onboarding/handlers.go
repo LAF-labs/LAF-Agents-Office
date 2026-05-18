@@ -404,7 +404,7 @@ func HandleChecklistDone(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandlePrereqs handles GET /onboarding/prereqs.
-// Returns JSON array of PrereqResult for node, git, and claude CLI.
+// Returns JSON array of PrereqResult for node, git, Claude Code, and Codex.
 func HandlePrereqs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

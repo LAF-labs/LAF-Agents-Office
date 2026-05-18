@@ -47,11 +47,10 @@ var prereqSpecs = map[string]prereqSpec{
 	"windsurf": {required: false, installURL: "https://codeium.com/windsurf"},
 }
 
-// CheckAll returns a PrereqResult for each tracked binary in a stable order:
-// node, git, claude, codex, opencode, cursor, windsurf. At least one of the
-// CLI runtimes must be present for laf-office to actually run a turn, but all are
-// marked optional here so the user can proceed with whichever runtime
-// they have.
+// CheckAll returns a PrereqResult for each onboarding-facing binary in a stable
+// order: node, git, claude, codex. At least one CLI runtime must be present for
+// laf-office to actually run a turn, but runtimes are marked optional here so
+// the user can proceed with whichever supported runtime they have.
 //
 // Probes run concurrently. CheckOne's per-probe timeout is 10s (see comment
 // there for rationale) and CheckAll is invoked from an HTTP handler with a
@@ -60,7 +59,7 @@ var prereqSpecs = map[string]prereqSpec{
 // budget. Concurrent probes cap wall-clock at max(probe), well under the
 // client timeout. Order of `names` is preserved in the returned slice.
 func CheckAll() []PrereqResult {
-	names := []string{"node", "git", "claude", "codex", "opencode", "cursor", "windsurf"}
+	names := []string{"node", "git", "claude", "codex"}
 	results := make([]PrereqResult, len(names))
 	var wg sync.WaitGroup
 	wg.Add(len(names))
