@@ -117,6 +117,66 @@ func TestWebUIProxyHandlerCanRouteHostedAPIWithoutBrokerAuth(t *testing.T) {
 	}
 }
 
+func TestWebUIHostedProxyKeepsLocalOnboardingAPI(t *testing.T) {
+	var localPath string
+	var localAuth string
+	var hostedPath string
+	var hostedAuth string
+
+	localUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		localPath = r.URL.Path
+		localAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"local":true}`)
+	}))
+	defer localUpstream.Close()
+
+	hostedUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hostedPath = r.URL.Path
+		hostedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"hosted":true}`)
+	}))
+	defer hostedUpstream.Close()
+
+	b := newTestBroker(t)
+	mux := http.NewServeMux()
+	registerWebUILocalAPIProxies(mux, b.webUIProxyHandler(localUpstream.URL, "/api"))
+	mux.Handle("/api/", b.webUIProxyHandlerWithOptions(hostedUpstream.URL+"/api", "/api", webUIProxyOptions{
+		attachBrokerAuth:   false,
+		preserveRunnerAuth: false,
+	}))
+
+	onboardingReq := httptest.NewRequest(http.MethodGet, "/api/onboarding/prereqs", nil)
+	onboardingRec := httptest.NewRecorder()
+	mux.ServeHTTP(onboardingRec, onboardingReq)
+	if onboardingRec.Code != http.StatusOK {
+		t.Fatalf("expected local onboarding 200, got %d: %s", onboardingRec.Code, onboardingRec.Body.String())
+	}
+	if localPath != "/onboarding/prereqs" {
+		t.Fatalf("expected local onboarding path, got %q", localPath)
+	}
+	if localAuth != "Bearer "+b.Token() {
+		t.Fatalf("expected broker auth on local onboarding route, got %q", localAuth)
+	}
+	if hostedPath != "" {
+		t.Fatalf("expected hosted API not to receive onboarding route, got %q", hostedPath)
+	}
+
+	hostedReq := httptest.NewRequest(http.MethodGet, "/api/auth/session", nil)
+	hostedRec := httptest.NewRecorder()
+	mux.ServeHTTP(hostedRec, hostedReq)
+	if hostedRec.Code != http.StatusOK {
+		t.Fatalf("expected hosted auth 200, got %d: %s", hostedRec.Code, hostedRec.Body.String())
+	}
+	if hostedPath != "/api/auth/session" {
+		t.Fatalf("expected hosted auth path, got %q", hostedPath)
+	}
+	if hostedAuth != "" {
+		t.Fatalf("expected no broker auth on hosted API route, got %q", hostedAuth)
+	}
+}
+
 func TestWebUIHostedAPIProxyURLNormalizesBaseURL(t *testing.T) {
 	t.Setenv("LAF_OFFICE_HOSTED_API_PROXY_URL", "")
 	t.Setenv("LAF_OFFICE_BASE_URL", "http://127.0.0.1:30000")

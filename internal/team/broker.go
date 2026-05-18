@@ -2657,6 +2657,8 @@ func (b *Broker) ServeWebUI(port int) {
 	// Bearer token server-side, so without a Host/RemoteAddr check, a DNS-rebinding
 	// attack against an attacker-controlled hostname that resolves to 127.0.0.1
 	// would ride the token and control the entire office.
+	localAPIProxy := webUIRebindGuard(b.webUIProxyHandler(brokerURL, "/api"))
+	registerWebUILocalAPIProxies(mux, localAPIProxy)
 	mux.Handle("/api/", webUIRebindGuard(apiProxy))
 	mux.Handle("/onboarding/", webUIRebindGuard(b.webUIProxyHandler(brokerURL, "")))
 	// Token endpoint — no auth needed, but we require a same-origin loopback request.
@@ -2680,6 +2682,23 @@ func (b *Broker) ServeWebUI(port int) {
 			log.Printf("broker web UI proxy: listen on :%d: %v", port, err)
 		}
 	}()
+}
+
+func registerWebUILocalAPIProxies(mux *http.ServeMux, localAPIProxy http.Handler) {
+	// The browser API client prefixes broker calls with /api. When a hosted API
+	// proxy is configured, tenant-data routes should go to the hosted API, but
+	// these local-control routes must still land on the broker so onboarding can
+	// inspect CLI installs and persist runtime config.
+	for _, pattern := range []string{
+		"/api/config",
+		"/api/config/",
+		"/api/health",
+		"/api/onboarding/",
+		"/api/version",
+		"/api/workspace/",
+	} {
+		mux.Handle(pattern, localAPIProxy)
+	}
 }
 
 // cacheControlMiddleware sets conservative cache headers on the web UI so
