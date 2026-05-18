@@ -2,6 +2,9 @@
   "name": "laf-office-dev-tooling",
   "private": true,
   "description": "Root-level dev tooling (secretlint, commitlint). The app itself is Go; web UI lives in ./web with its own package.json.",
+  "scripts": {
+    "hosted-api:dev": "node scripts/hosted-api-dev-server.cjs"
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",

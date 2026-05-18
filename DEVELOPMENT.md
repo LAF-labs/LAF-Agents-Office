@@ -105,3 +105,21 @@ unset LAF_OFFICE_BASE_URL
 ```
 
 or set it directly in `.zshrc` or `.bashrc`.
+
+### Local web UI with Supabase auth
+
+To test the localhost web UI against the Supabase-backed hosted API instead of
+the local broker auth store:
+
+```bash
+# terminal 1: serves /api from api/[...path].js using .env.local
+npm run hosted-api:dev
+
+# terminal 2: serves the normal local UI, but proxies /api to terminal 1
+LAF_OFFICE_BASE_URL="http://127.0.0.1:30000" \
+  go run ./cmd/laf-office --no-open --provider codex --web-port 7891
+```
+
+With `LAF_OFFICE_BASE_URL` set, only the browser `/api/*` proxy is redirected to
+the hosted API. Local onboarding and local agent execution still run through the
+local broker.

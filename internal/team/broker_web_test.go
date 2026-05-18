@@ -79,6 +79,58 @@ func TestWebUIProxyHandlerPreservesRunnerTokenForRunnerRoutes(t *testing.T) {
 	}
 }
 
+func TestWebUIProxyHandlerCanRouteHostedAPIWithoutBrokerAuth(t *testing.T) {
+	var gotPath string
+	var gotAuth string
+	var gotCookie string
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		gotCookie = r.Header.Get("Cookie")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer upstream.Close()
+
+	b := newTestBroker(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/session", nil)
+	req.Header.Set("Cookie", "laf_access=session-token")
+	rec := httptest.NewRecorder()
+
+	b.webUIProxyHandlerWithOptions(upstream.URL+"/api", "/api", webUIProxyOptions{
+		attachBrokerAuth:   false,
+		preserveRunnerAuth: false,
+	}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if gotPath != "/api/auth/session" {
+		t.Fatalf("expected hosted API path, got %q", gotPath)
+	}
+	if gotAuth != "" {
+		t.Fatalf("expected no broker auth header, got %q", gotAuth)
+	}
+	if gotCookie != "laf_access=session-token" {
+		t.Fatalf("expected cookie to be forwarded, got %q", gotCookie)
+	}
+}
+
+func TestWebUIHostedAPIProxyURLNormalizesBaseURL(t *testing.T) {
+	t.Setenv("LAF_OFFICE_HOSTED_API_PROXY_URL", "")
+	t.Setenv("LAF_OFFICE_BASE_URL", "http://127.0.0.1:30000")
+	if got, want := webUIHostedAPIProxyURL(), "http://127.0.0.1:30000/api"; got != want {
+		t.Fatalf("base URL: got %q, want %q", got, want)
+	}
+
+	t.Setenv("LAF_OFFICE_BASE_URL", "")
+	t.Setenv("LAF_OFFICE_HOSTED_API_PROXY_URL", "https://example.test/api/")
+	if got, want := webUIHostedAPIProxyURL(), "https://example.test/api"; got != want {
+		t.Fatalf("API URL: got %q, want %q", got, want)
+	}
+}
+
 func TestWorkspaceShredRouteResetsBrokerWithoutShutdown(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("LAF_OFFICE_RUNTIME_HOME", home)

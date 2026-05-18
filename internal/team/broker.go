@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -2643,12 +2644,20 @@ func (b *Broker) ServeWebUI(port int) {
 	if addr := strings.TrimSpace(b.Addr()); addr != "" {
 		brokerURL = "http://" + addr
 	}
+	apiProxy := b.webUIProxyHandler(brokerURL, "/api")
+	if hostedAPIURL := webUIHostedAPIProxyURL(); hostedAPIURL != "" {
+		log.Printf("broker web UI proxy: routing /api to hosted API %s", hostedAPIURL)
+		apiProxy = b.webUIProxyHandlerWithOptions(hostedAPIURL, "/api", webUIProxyOptions{
+			attachBrokerAuth:   false,
+			preserveRunnerAuth: false,
+		})
+	}
 	// Same-origin proxy to the broker for app API routes and onboarding wizard routes.
 	// Both are wrapped in webUIRebindGuard: the proxy auto-attaches the broker's
 	// Bearer token server-side, so without a Host/RemoteAddr check, a DNS-rebinding
 	// attack against an attacker-controlled hostname that resolves to 127.0.0.1
 	// would ride the token and control the entire office.
-	mux.Handle("/api/", webUIRebindGuard(b.webUIProxyHandler(brokerURL, "/api")))
+	mux.Handle("/api/", webUIRebindGuard(apiProxy))
 	mux.Handle("/onboarding/", webUIRebindGuard(b.webUIProxyHandler(brokerURL, "")))
 	// Token endpoint — no auth needed, but we require a same-origin loopback request.
 	// Otherwise this endpoint leaks the broker bearer to any browser page that
@@ -2693,7 +2702,43 @@ func cacheControlMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type webUIProxyOptions struct {
+	attachBrokerAuth   bool
+	preserveRunnerAuth bool
+}
+
+func webUIHostedAPIProxyURL() string {
+	raw := strings.TrimSpace(os.Getenv(product.Env("HOSTED_API_PROXY_URL")))
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv(product.Env("BASE_URL")))
+	}
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		log.Printf("broker web UI proxy: ignoring invalid hosted API URL %q", raw)
+		return ""
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	u.Path = strings.TrimRight(u.Path, "/")
+	if u.Path == "" {
+		u.Path = "/api"
+	} else if !strings.HasSuffix(u.Path, "/api") {
+		u.Path += "/api"
+	}
+	return strings.TrimRight(u.String(), "/")
+}
+
 func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
+	return b.webUIProxyHandlerWithOptions(brokerURL, stripPrefix, webUIProxyOptions{
+		attachBrokerAuth:   true,
+		preserveRunnerAuth: true,
+	})
+}
+
+func (b *Broker) webUIProxyHandlerWithOptions(brokerURL, stripPrefix string, opts webUIProxyOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		targetPath := r.URL.Path
 		if stripPrefix != "" {
@@ -2713,13 +2758,22 @@ func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 			return
 		}
 		setProxyClientIPHeaders(proxyReq.Header, r.RemoteAddr)
-		if strings.HasPrefix(targetPath, "/runner/") {
+		if opts.preserveRunnerAuth && strings.HasPrefix(targetPath, "/runner/") {
 			if runnerToken := runnerTokenFromRequest(r); runnerToken != "" {
 				proxyReq.Header.Set("X-LAF-Runner-Token", runnerToken)
 			}
 		}
-		proxyReq.Header.Set("Authorization", "Bearer "+b.token)
-		proxyReq.Header.Set("Content-Type", r.Header.Get("Content-Type"))
+		if opts.attachBrokerAuth {
+			proxyReq.Header.Set("Authorization", "Bearer "+b.token)
+		} else if auth := r.Header.Get("Authorization"); auth != "" {
+			proxyReq.Header.Set("Authorization", auth)
+		}
+		if contentType := r.Header.Get("Content-Type"); contentType != "" {
+			proxyReq.Header.Set("Content-Type", contentType)
+		}
+		if accept := r.Header.Get("Accept"); accept != "" {
+			proxyReq.Header.Set("Accept", accept)
+		}
 		if cookie := r.Header.Get("Cookie"); cookie != "" {
 			proxyReq.Header.Set("Cookie", cookie)
 		}
