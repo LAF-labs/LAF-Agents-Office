@@ -5,10 +5,10 @@ REPO="LAF-labs/LAF-Agents-Office"
 ARCHIVE_PREFIX="laf-office"
 BINARY="${LAF_OFFICE_INSTALL_BINARY:-laf-office}"
 case "$BINARY" in
-  laf-office|laf-runner) ;;
+  laf-office|laf-runner|laf-bridge) ;;
   *)
     printf "Error: unsupported install binary: %s\n" "$BINARY" >&2
-    printf "Supported values: laf-office, laf-runner\n" >&2
+    printf "Supported values: laf-office, laf-runner, laf-bridge\n" >&2
     exit 1
     ;;
 esac

@@ -1666,37 +1666,331 @@ async function handleHostedDMChannel(req, res) {
 async function handleHostedMessages(req, res) {
   const { membership } = await requireUser(req);
   if (req.method === "GET") {
-    writeJSON(res, 200, { messages: [] });
+    writeJSON(res, 200, await listHostedChannelMessages(membership, req.query || {}));
     return;
   }
   if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
   const body = await readBody(req);
-  const channel = String(body.channel || "general").trim() || "general";
+  const message = await createHostedChannelMessage(membership, body);
+  let executionPlan = null;
+  if (shouldCreateHomeBridgePlan(message)) {
+    try {
+      const created = await createHomeBridgeExecutionPlan(membership, message, body);
+      executionPlan = created.plan;
+    } catch (err) {
+      await createHostedChannelMessage(membership, {
+        channel: message.channel,
+        content: homeBridgeFailureMessage(err),
+        from: "system",
+        home_session_thread_id: message.home_session_thread_id || message.thread_id,
+        kind: "system",
+        model_mode: message.model_mode,
+        reply_to: message.id,
+        scope: message.scope,
+        thread_id: message.thread_id || message.home_session_thread_id,
+      }).catch(() => null);
+    }
+  }
   writeJSON(res, 200, {
-    audience: [],
-    channel,
-    content: String(body.content || ""),
-    from: String(body.from || "you"),
-    id: `msg-${shortID()}`,
-    kind: "message",
-    tagged: Array.isArray(body.tagged) ? body.tagged : [],
-    team_id: membership.team_id,
-    thread_id: body.thread_id || body.home_session_thread_id || "",
-    timestamp: nowISO(),
+    ...message,
+    execution_plan_id: executionPlan?.id || "",
   });
 }
 
 async function handleHostedHomeSessions(req, res) {
-  await requireUser(req);
+  const { membership } = await requireUser(req);
   if (req.method === "GET") {
-    writeJSON(res, 200, { sessions: [] });
+    writeJSON(res, 200, await listHostedHomeSessions(membership, req.query || {}));
     return;
   }
   if (req.method === "DELETE") {
-    writeJSON(res, 200, { deleted: true, ok: true });
+    const threadID = String(req.query?.thread_id || "").trim();
+    if (!threadID) throw new HTTPError(400, "thread_id is required");
+    const now = nowISO();
+    const rows = await rest("channel_messages", {
+      method: "PATCH",
+      query: {
+        home_session_thread_id: `eq.${threadID}`,
+        team_id: `eq.${membership.team_id}`,
+      },
+      body: { deleted_at: now, updated_at: now },
+    }).catch((err) => {
+      if (isMissingChannelMessagesError(err)) return [];
+      throw err;
+    });
+    writeJSON(res, 200, { deleted: (rows || []).length > 0, ok: true });
     return;
   }
   throw new HTTPError(405, "method not allowed");
+}
+
+async function listHostedChannelMessages(membership, query = {}) {
+  const channel = String(query.channel || "general").trim() || "general";
+  const limit = clamp(Number(query.limit) || 100, 1, 500);
+  const threadID = String(query.thread_id || "").trim();
+  const sinceID = String(query.since_id || "").trim();
+  const rows = await rest("channel_messages", {
+    query: {
+      channel: `eq.${channel}`,
+      order: "created_at.asc",
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+      limit: String(threadID ? 500 : limit),
+    },
+  }).catch((err) => {
+    if (isMissingChannelMessagesError(err)) return [];
+    throw err;
+  });
+  let messages = (rows || []).filter((row) => !row.deleted_at);
+  if (threadID) {
+    messages = messages.filter((row) => hostedMessageBelongsToThread(row, threadID));
+  }
+  if (sinceID) {
+    const index = messages.findIndex((row) => String(row.id || "") === sinceID);
+    if (index >= 0) messages = messages.slice(index + 1);
+  }
+  if (messages.length > limit) messages = messages.slice(-limit);
+  return { messages: messages.map(publicChannelMessage) };
+}
+
+async function listHostedHomeSessions(membership, query = {}) {
+  const baseThreadID = String(query.base_thread_id || "").trim();
+  if (!baseThreadID) return { sessions: [] };
+  const rows = await rest("channel_messages", {
+    query: {
+      channel: "eq.general",
+      limit: "500",
+      order: "created_at.asc",
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+    },
+  }).catch((err) => {
+    if (isMissingChannelMessagesError(err)) return [];
+    throw err;
+  });
+  const sessions = new Map();
+  for (const row of rows || []) {
+    if (row.deleted_at) continue;
+    const threadID = String(row.home_session_thread_id || row.thread_id || "").trim();
+    if (!threadID || !(threadID === baseThreadID || threadID.startsWith(`${baseThreadID}:`))) {
+      continue;
+    }
+    const current = sessions.get(threadID) || {
+      created_at: row.created_at || nowISO(),
+      id: threadID,
+      message_count: 0,
+      thread_id: threadID,
+      title: "",
+      updated_at: row.created_at || nowISO(),
+    };
+    current.message_count += 1;
+    current.updated_at = row.created_at || current.updated_at;
+    if (!current.title && isHuman(row.sender_slug)) {
+      current.title = sessionTitleFromContent(row.content);
+    }
+    sessions.set(threadID, current);
+  }
+  return {
+    sessions: [...sessions.values()]
+      .map((session) => ({
+        ...session,
+        title: session.title || "새 대화",
+      }))
+      .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
+      .slice(0, 30),
+  };
+}
+
+async function createHostedChannelMessage(membership, body = {}) {
+  const now = nowISO();
+  const content = String(body.content || "").trim();
+  if (!content) throw new HTTPError(400, "content is required");
+  const channel = String(body.channel || "general").trim() || "general";
+  const homeSessionThreadID = String(body.home_session_thread_id || "").trim();
+  const threadID = String(body.thread_id || homeSessionThreadID || body.reply_to || "").trim();
+  const [row] = await rest("channel_messages", {
+    method: "POST",
+    body: {
+      audience: normalizeStringList(body.audience || []),
+      channel,
+      content,
+      created_at: now,
+      home_session_thread_id: homeSessionThreadID || null,
+      kind: String(body.kind || "message").trim() || "message",
+      metadata: objectValue(body.metadata),
+      model_mode: normalizeModelMode(body.model_mode),
+      project_id: body.project_id ? String(body.project_id) : null,
+      public_reply_to: body.public_reply_to ? String(body.public_reply_to) : null,
+      reply_to: body.reply_to ? String(body.reply_to) : null,
+      run_id: body.run_id ? String(body.run_id) : null,
+      scope: body.scope ? String(body.scope) : null,
+      sender_slug: String(body.from || body.sender_slug || "you").trim() || "you",
+      tagged: normalizeStringList(body.tagged || []),
+      task_id: body.task_id ? String(body.task_id) : null,
+      team_id: membership.team_id,
+      thread_id: threadID || null,
+      updated_at: now,
+      visibility: body.visibility ? String(body.visibility) : null,
+    },
+  });
+  return publicChannelMessage(row);
+}
+
+function publicChannelMessage(row = {}) {
+  const threadID = row.thread_id || row.home_session_thread_id || row.reply_to || "";
+  return {
+    audience: normalizeStringList(row.audience || []),
+    channel: row.channel || "general",
+    content: row.content || "",
+    from: row.sender_slug || row.from || "system",
+    home_session_thread_id: row.home_session_thread_id || "",
+    id: row.id || `msg-${shortID()}`,
+    kind: row.kind || "message",
+    model_mode: row.model_mode || "record_only",
+    project_id: row.project_id || "",
+    public_reply_to: row.public_reply_to || row.reply_to || "",
+    reactions: row.reactions || {},
+    reply_to: row.reply_to || "",
+    run_id: row.run_id || "",
+    scope: row.scope || "",
+    tagged: normalizeStringList(row.tagged || []),
+    task_id: row.task_id || "",
+    team_id: row.team_id || "",
+    thread_id: threadID,
+    timestamp: row.created_at || row.timestamp || nowISO(),
+    visibility: row.visibility || "",
+  };
+}
+
+function hostedMessageBelongsToThread(row, threadID) {
+  return [
+    row.thread_id,
+    row.home_session_thread_id,
+    row.reply_to,
+    row.public_reply_to,
+  ].some((value) => String(value || "").trim() === threadID);
+}
+
+function sessionTitleFromContent(content) {
+  return truncateText(String(content || "").replace(/^@\S+\s*/, ""), 48) || "새 대화";
+}
+
+function isMissingChannelMessagesError(err) {
+  return (
+    err instanceof HTTPError &&
+    err.status === 404 &&
+    String(err.message || "").includes("channel_messages")
+  );
+}
+
+function shouldCreateHomeBridgePlan(message) {
+  const mode = normalizeModelMode(message?.model_mode);
+  return message?.scope === "home_orchestration" && (mode === "my_bridge" || mode === "team_bridge");
+}
+
+async function createHomeBridgeExecutionPlan(membership, message, body = {}) {
+  const mode = normalizeModelMode(message.model_mode);
+  if (mode === "my_bridge") {
+    requirePermission(membership, "bridge:execute_own");
+  } else if (mode === "team_bridge") {
+    requirePermission(membership, "bridge:execute_team");
+  } else {
+    throw new HTTPError(400, "home bridge plan requires my_bridge or team_bridge mode");
+  }
+  requirePermission(membership, "execution:plan_create");
+  requirePermission(membership, "task:execute_agent");
+  const devices = await bridgeDevicesForMembership(membership, {
+    includeTeam: mode === "team_bridge",
+  });
+  const onlineDevices = (devices || []).filter(
+    (device) => !device.revoked_at && device.status === "online",
+  );
+  const device =
+    mode === "my_bridge"
+      ? onlineDevices.find((candidate) => candidate.user_id === membership.user_id)
+      : onlineDevices.find((candidate) => candidate.device_kind === "team_bridge") ||
+        onlineDevices[0];
+  if (!device) {
+    throw new HTTPError(409, "online LAF Bridge device is required");
+  }
+
+  const requiredPermissions = [];
+  const effective = effectivePermissions(membership);
+  const expiresInSeconds = clamp(Number(body.expires_in_seconds || 900), 120, 3600);
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+  const planID = crypto.randomUUID ? crypto.randomUUID() : `plan-${shortID()}`;
+  const agentSlug = normalizeStringList(message.tagged || [])[0] || "ceo";
+  const policy = {
+    ...objectValue(body.policy),
+    agent_slug: agentSlug,
+    channel: message.channel || "general",
+    home_session_thread_id: message.home_session_thread_id || message.thread_id || "",
+    message_id: message.id,
+    sandbox: objectValue(body.policy).sandbox || "read-only",
+    source: "home_message",
+  };
+  const plan = {
+    actor_user_id: membership.user_id,
+    binding_id: null,
+    cancel_requested_at: null,
+    completed_at: null,
+    context_refs: [],
+    created_at: nowISO(),
+    device_id: device.id,
+    dispatched_at: null,
+    effective_permissions: effective,
+    executor_user_id: device.user_id || membership.user_id,
+    expires_at: expiresAt,
+    id: planID,
+    mode,
+    policy,
+    project_id: null,
+    prompt: homeBridgePrompt(message, agentSlug),
+    provider: normalizeExecutionProvider(body.provider, mode),
+    required_permissions: requiredPermissions,
+    started_at: null,
+    status: "pending",
+    task_id: null,
+    team_id: membership.team_id,
+  };
+  const signed = signExecutionPlan(plan);
+  const [created] = await rest("execution_plans", {
+    method: "POST",
+    body: {
+      ...plan,
+      local_approval_status: "pending",
+      nonce: signed.nonce,
+      payload_hash: signed.payload_hash,
+      signature: signed.signature,
+      signature_alg: signed.signature_alg,
+      signature_key_id: signed.signature_key_id,
+      updated_at: nowISO(),
+    },
+  });
+  let relay = { published: false };
+  try {
+    relay.published = await publishExecutionPlanCreated(created);
+  } catch (err) {
+    relay = { error: redactSensitiveText(err?.message || String(err)), published: false };
+  }
+  return { plan: created, relay };
+}
+
+function homeBridgePrompt(message, agentSlug) {
+  return [
+    `You are @${agentSlug} in LAF Office home chat.`,
+    "Answer the user's latest message directly and concisely.",
+    "Use the same language as the user unless they ask otherwise.",
+    "Do not modify files, run deploys, or perform destructive actions from this home chat plan.",
+    "",
+    "User message:",
+    message.content || "",
+  ].join("\n");
+}
+
+function homeBridgeFailureMessage(err) {
+  const detail = err instanceof HTTPError ? err.message : err?.message || String(err || "");
+  return `LAF Bridge 실행을 시작하지 못했습니다. ${redactSensitiveText(detail || "브릿지 상태를 확인해 주세요.")}`;
 }
 
 async function handleHostedCommandRun(req, res) {
@@ -2646,17 +2940,7 @@ async function handleBridgePairingStart(req, res) {
     },
   });
   const apiURL = normalizeRunnerPairingAPIURL(body.api_url) || runnerPairingRequestAPIURL(req);
-  writeJSON(res, 200, {
-    api_url: apiURL,
-    pairing: {
-      code,
-      expires_at: expiresAt,
-      team_id: membership.team_id,
-    },
-    commands: {
-      pair: `laf-bridge pair --api-url ${apiURL} --code ${code}`,
-    },
-  });
+  writeJSON(res, 200, bridgePairingStartResponse(apiURL, code, membership.team_id, expiresAt));
 }
 
 async function handleBridgePairingClaim(req, res) {
@@ -3240,11 +3524,12 @@ async function handleBridgeExecutionPlanComplete(req, res, device, plan) {
     updated || { ...plan, status, completed_at: now },
     body,
   );
+  const finalPlan = updated || { ...plan, status, completed_at: now };
   if (receiptCreated) {
-    const finalPlan = updated || { ...plan, status, completed_at: now };
     await ensureExecutionDeliveryReceipt(finalPlan, receipt);
     await ensureExecutionTaskThreadReceiptEvent(finalPlan, receipt);
   }
+  await ensureExecutionHomeReplyMessage(finalPlan, receipt);
   writeJSON(res, 200, {
     plan: bridgeExecutionPlan(updated || { ...plan, status, completed_at: now }),
     receipt: publicExecutionReceipt(receipt),
@@ -4352,6 +4637,62 @@ async function ensureExecutionTaskThreadReceiptEvent(plan, receipt) {
   }).catch(() => null);
 }
 
+async function ensureExecutionHomeReplyMessage(plan, receipt) {
+  if (!plan?.id || !plan?.team_id) return;
+  const policy = objectValue(plan.policy);
+  if (policy.source !== "home_message") return;
+  const threadID = String(policy.home_session_thread_id || "").trim();
+  if (!threadID) return;
+  const existing = await rest("channel_messages", {
+    query: {
+      limit: "1",
+      run_id: `eq.${plan.id}`,
+      select: "id",
+      team_id: `eq.${plan.team_id}`,
+    },
+  }).catch((err) => {
+    if (isMissingChannelMessagesError(err)) return [];
+    throw err;
+  });
+  if (existing?.length) return;
+  const summary =
+    truncateText(redactSensitiveText(receipt?.summary || ""), 4000) ||
+    (receipt?.status === "failed"
+      ? "LAF Bridge 실행이 실패했습니다."
+      : "LAF Bridge 실행이 완료되었습니다.");
+  await rest("channel_messages", {
+    method: "POST",
+    body: {
+      audience: [],
+      channel: policy.channel || "general",
+      content: summary,
+      created_at: nowISO(),
+      home_session_thread_id: threadID,
+      kind: "message",
+      metadata: {
+        execution_status: receipt?.status || plan.status || "",
+        provider: receipt?.provider || plan.provider || "",
+      },
+      model_mode: plan.mode || "my_bridge",
+      project_id: null,
+      public_reply_to: policy.message_id || null,
+      reply_to: policy.message_id || null,
+      run_id: plan.id,
+      scope: "home_orchestration",
+      sender_slug: policy.agent_slug || "ceo",
+      tagged: [],
+      task_id: null,
+      team_id: plan.team_id,
+      thread_id: threadID,
+      updated_at: nowISO(),
+      visibility: "team",
+    },
+  }).catch((err) => {
+    if (isMissingChannelMessagesError(err)) return null;
+    throw err;
+  });
+}
+
 async function findRunnerJob(teamID, jobID) {
   const rows = await rest("runner_jobs", {
     query: { id: `eq.${jobID}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
@@ -5320,6 +5661,29 @@ function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
       install: installCommand,
       connect: connectCommand,
       setup: setupCommand,
+    },
+  };
+}
+
+function bridgePairingStartResponse(apiURL, code, teamID, expiresAt) {
+  const normalizedAPIURL = normalizeRunnerPairingAPIURL(apiURL);
+  const installCommand =
+    "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-bridge sh";
+  const pairCommand = `laf-bridge pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)}`;
+  const startCommand = "laf-bridge start --once=false";
+  const setupCommand = `PATH="$HOME/.local/bin:/usr/local/bin:$PATH"; if ! command -v laf-bridge >/dev/null 2>&1; then ${installCommand} || exit 1; fi; LAF_BRIDGE_BIN="$(command -v laf-bridge || printf '%s/.local/bin/laf-bridge' "$HOME")"; "$LAF_BRIDGE_BIN" pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)} && "$LAF_BRIDGE_BIN" start --once=false`;
+  return {
+    api_url: normalizedAPIURL,
+    pairing: {
+      code,
+      expires_at: expiresAt,
+      team_id: teamID,
+    },
+    commands: {
+      install: installCommand,
+      pair: pairCommand,
+      setup: setupCommand,
+      start: startCommand,
     },
   };
 }

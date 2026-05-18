@@ -78,6 +78,32 @@ test("workspace settings migration defines hosted onboarding/config state", () =
   assert.match(sql, /managers can update workspace settings/);
 });
 
+test("channel messages migration defines hosted chat persistence", () => {
+  const sql = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260519_channel_messages.sql"),
+    "utf8",
+  );
+  assert.match(sql, /create table if not exists public\.channel_messages\b/);
+  assert.match(sql, /team_id uuid not null references public\.teams\(id\) on delete cascade/);
+  assert.match(sql, /home_session_thread_id text/);
+  assert.match(sql, /thread_id text/);
+  assert.match(sql, /run_id text/);
+  assert.match(sql, /metadata jsonb not null default '\{\}'::jsonb/);
+  for (const index of [
+    "idx_channel_messages_team_channel_created",
+    "idx_channel_messages_team_thread",
+    "idx_channel_messages_home_session",
+    "idx_channel_messages_task",
+    "idx_channel_messages_run",
+  ]) {
+    assert.match(sql, new RegExp(`create index if not exists ${index}\\b`));
+  }
+  assert.match(sql, /alter table public\.channel_messages enable row level security/);
+  assert.match(sql, /members can read channel messages/);
+  assert.match(sql, /members can insert channel messages/);
+  assert.match(sql, /members can update own channel messages/);
+});
+
 test("hosted config and onboarding routes persist team workspace settings", async (t) => {
   const db = {
     audit_events: [],
@@ -155,6 +181,7 @@ test("hosted config and onboarding routes persist team workspace settings", asyn
 
 test("hosted workspace compatibility routes avoid broker-only 404s", async (t) => {
   const db = {
+    channel_messages: [],
     memberships: [
       {
         role: "owner",
@@ -211,6 +238,14 @@ test("hosted workspace compatibility routes avoid broker-only 404s", async (t) =
   });
   assert.equal(posted.status, 200);
   assert.equal(posted.body.content, "Hello hosted workspace");
+  assert.equal(db.channel_messages.length, 1);
+
+  const fetched = await invoke(["messages"], "GET", undefined, {
+    query: { channel: "general", thread_id: posted.body.thread_id },
+  });
+  assert.equal(fetched.status, 200);
+  assert.equal(fetched.body.messages.length, 1);
+  assert.equal(fetched.body.messages[0].content, "Hello hosted workspace");
 });
 
 test("hosted onboarding falls back safely before workspace settings migration is applied", async (t) => {
@@ -1153,6 +1188,10 @@ test("hosted bridge pairs, heartbeats, lists, and revokes own devices", async (t
   assert.equal(start.status, 200);
   assert.match(start.body.pairing.code, /^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/);
   assert.match(start.body.commands.pair, /laf-bridge pair/);
+  assert.match(start.body.commands.setup, /LAF_OFFICE_INSTALL_BINARY=laf-bridge/);
+  assert.match(start.body.commands.setup, /start --once=false/);
+  assert.doesNotMatch(start.body.commands.setup, /--background/);
+  assert.equal(start.body.commands.start, "laf-bridge start --once=false");
   assert.equal(db.bridge_pairing_codes[0].status, "pending");
   assert.equal(db.bridge_pairing_codes[0].code_hash.length, 64);
 
@@ -1250,6 +1289,115 @@ test("hosted bridge pairing requires pair permission", async (t) => {
   assert.equal(response.status, 403);
   assert.equal(response.body.error, "permission required: bridge:pair_own");
   assert.equal(db.bridge_pairing_codes.length, 0);
+});
+
+test("hosted home bridge chat persists messages and appends execution replies", async (t) => {
+  const db = {
+    audit_events: [],
+    bridge_devices: [],
+    bridge_pairing_codes: [],
+    channel_messages: [],
+    execution_events: [],
+    execution_plans: [],
+    execution_receipts: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    relay_broadcasts: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_billing: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const start = await invoke(["bridge", "pairing", "start"], "POST", {
+    api_url: "https://office.test/api",
+  });
+  const claim = await invoke(
+    ["bridge", "pairing", "claim"],
+    "POST",
+    {
+      capabilities: { provider_runtimes: ["codex"] },
+      code: start.body.pairing.code,
+      device_label: "Owner Mac",
+      public_key: "pub-ed25519",
+    },
+    { headers: { authorization: "" } },
+  );
+  assert.equal(claim.status, 200);
+
+  const sent = await invoke(["messages"], "POST", {
+    channel: "general",
+    content: "지금 연결됐어?",
+    from: "you",
+    home_session_thread_id: "home:team-1:user-1:s-1",
+    model_mode: "my_bridge",
+    reply_to: "home:team-1:user-1:s-1",
+    scope: "home_orchestration",
+    tagged: ["ceo"],
+  });
+  assert.equal(sent.status, 200, JSON.stringify(sent.body));
+  assert.equal(db.channel_messages.length, 1);
+  assert.equal(db.channel_messages[0].content, "지금 연결됐어?");
+  assert.equal(db.execution_plans.length, 1);
+  assert.equal(db.execution_plans[0].binding_id, null);
+  assert.equal(db.execution_plans[0].project_id, null);
+  assert.equal(db.execution_plans[0].task_id, null);
+  assert.equal(db.execution_plans[0].policy.source, "home_message");
+  assert.equal(db.execution_plans[0].policy.home_session_thread_id, "home:team-1:user-1:s-1");
+
+  const beforeComplete = await invoke(["messages"], "GET", undefined, {
+    query: { channel: "general", thread_id: "home:team-1:user-1:s-1" },
+  });
+  assert.equal(beforeComplete.status, 200);
+  assert.equal(beforeComplete.body.messages.length, 1);
+  assert.equal(beforeComplete.body.messages[0].content, "지금 연결됐어?");
+
+  const completed = await invoke(
+    ["execution", "plans", db.execution_plans[0].id, "complete"],
+    "POST",
+    {
+      provider_version: "codex-cli 1.2.3",
+      status: "completed",
+      summary: "네, LAF Bridge로 연결됐습니다.",
+    },
+    { headers: { authorization: `Bearer ${claim.body.bridge_token}` } },
+  );
+  assert.equal(completed.status, 200);
+  assert.equal(db.execution_receipts.length, 1);
+  assert.equal(db.channel_messages.length, 2);
+  assert.equal(db.channel_messages[1].sender_slug, "ceo");
+  assert.equal(db.channel_messages[1].run_id, db.execution_plans[0].id);
+  assert.equal(db.channel_messages[1].content, "네, LAF Bridge로 연결됐습니다.");
+
+  const afterComplete = await invoke(["messages"], "GET", undefined, {
+    query: { channel: "general", thread_id: "home:team-1:user-1:s-1" },
+  });
+  assert.equal(afterComplete.status, 200);
+  assert.equal(afterComplete.body.messages.length, 2);
+  assert.equal(afterComplete.body.messages[1].from, "ceo");
+
+  const sessions = await invoke(["home-sessions"], "GET", undefined, {
+    query: { base_thread_id: "home:team-1:user-1" },
+  });
+  assert.equal(sessions.status, 200);
+  assert.equal(sessions.body.sessions.length, 1);
+  assert.equal(sessions.body.sessions[0].message_count, 2);
+
+  const deleted = await invoke(["home-sessions"], "DELETE", undefined, {
+    query: { thread_id: "home:team-1:user-1:s-1" },
+  });
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.body.deleted, true);
+  assert.ok(db.channel_messages.every((row) => row.deleted_at));
 });
 
 test("hosted project local bindings CRUD hashes local metadata", async (t) => {

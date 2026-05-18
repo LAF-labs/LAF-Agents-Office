@@ -112,6 +112,47 @@ func TestCodexExecExecuteHonorsReadOnlyPlanSandbox(t *testing.T) {
 	}
 }
 
+func TestCodexExecExecuteUsesDefaultWorkdirForHomePlan(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	runtimeHome := t.TempDir()
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", runtimeHome)
+	recordFile := filepath.Join(t.TempDir(), "record.jsonl")
+	adapter := testCodexAdapter(t, recordFile, "success")
+
+	_, err := adapter.Execute(context.Background(), bridge.ExecutionPlan{
+		Provider: "codex",
+		Policy:   json.RawMessage(`{"source":"home_message","sandbox":"read-only"}`),
+		Prompt:   "Answer the home chat",
+	}, bridge.ProjectBinding{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	records := readCodexRecords(t, recordFile)
+	if len(records) != 1 {
+		t.Fatalf("records: %#v", records)
+	}
+	wantDir := filepath.Join(runtimeHome, ".laf-office", "bridge", "workspace", "home")
+	resolvedWantDir, err := filepath.EvalSymlinks(wantDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[0].Dir != resolvedWantDir {
+		t.Fatalf("home workdir: got %q want %q", records[0].Dir, resolvedWantDir)
+	}
+	if !containsArgSequence(records[0].Args, "-C", wantDir) {
+		t.Fatalf("codex args missing home workdir: %#v", records[0].Args)
+	}
+	if !containsArgSequence(records[0].Args, "--sandbox", "read-only") {
+		t.Fatalf("codex args missing read-only sandbox: %#v", records[0].Args)
+	}
+	if !strings.Contains(records[0].Stdin, "Answer the home chat") {
+		t.Fatalf("prompt was not sent on stdin: %q", records[0].Stdin)
+	}
+}
+
 func TestCodexExecCancellationTerminatesProcess(t *testing.T) {
 	recordFile := filepath.Join(t.TempDir(), "record.jsonl")
 	workdir := t.TempDir()

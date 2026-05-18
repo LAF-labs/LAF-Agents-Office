@@ -16,8 +16,11 @@ func CaptureChangedFiles(ctx context.Context, dir string) ([]ChangedFile, error)
 		return nil, nil
 	}
 	cmd := exec.CommandContext(ctx, "git", "-C", dir, "status", "--porcelain")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if strings.Contains(string(out), "not a git repository") {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var files []ChangedFile

@@ -28,12 +28,12 @@ import {
   type AgentModelDefaults,
   type AuthUser,
   type BridgeDevice,
+  type BridgePairingStartResponse,
   type ConfigSnapshot,
   type ConfigUpdate,
   changeOwnPassword,
   createInvite,
   createOfficeMember,
-  createRunnerPairing,
   type GeneratedAgentTemplate,
   generateAgent,
   getAuthSession,
@@ -49,9 +49,9 @@ import {
   type OfficeMember,
   type PermissionMember,
   type RunnerDiagnostic,
-  type RunnerPairingStartResponse,
   resetWorkspace,
   shredWorkspace,
+  startBridgePairing,
   updateAuthUserRole,
   updateConfig,
   updateOfficeMember,
@@ -2211,12 +2211,12 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 // ─── Danger Zone ────────────────────────────────────────────────────────
 
-const RUNNER_INSTALL_COMMAND =
-  "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh";
+const BRIDGE_INSTALL_COMMAND =
+  "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-bridge sh";
 
 function BridgeSection() {
   const { t } = useI18n();
-  const [pairing, setPairing] = useState<RunnerPairingStartResponse | null>(
+  const [pairing, setPairing] = useState<BridgePairingStartResponse | null>(
     null,
   );
   const bridgeQuery = useQuery({
@@ -2230,10 +2230,10 @@ function BridgeSection() {
     refetchInterval: 5_000,
   });
   const pairingMutation = useMutation({
-    mutationFn: () => createRunnerPairing(browserRunnerAPIURL()),
+    mutationFn: () => startBridgePairing({ api_url: browserRunnerAPIURL() }),
     onSuccess: async (result) => {
       setPairing(result);
-      const command = result.commands.setup || result.commands.connect || "";
+      const command = result.commands.setup || result.commands.pair || "";
       if (!command) {
         showNotice(t("settings.bridge.codeReady"), "success");
         return;
@@ -2261,8 +2261,7 @@ function BridgeSection() {
   const runnerDiagnostics = runnerQuery.data?.diagnostics ?? [];
   const runner = preferredRunner(runners);
   const connected = lafBridgeConnected(runner, bridge);
-  const setupCommand =
-    pairing?.commands.setup || pairing?.commands.connect || "";
+  const setupCommand = pairing?.commands.setup || pairing?.commands.pair || "";
 
   const copyCommand = async (
     command: string,
@@ -3066,7 +3065,7 @@ export function SettingsApp() {
 export const __test__ = {
   CODEX_MODEL_OPTIONS,
   DEFAULT_AGENT_MODEL_DEFAULTS,
+  BRIDGE_INSTALL_COMMAND,
   LAF_MODEL_OPTIONS,
-  RUNNER_INSTALL_COMMAND,
   normalizeAgentModelDefaults,
 };

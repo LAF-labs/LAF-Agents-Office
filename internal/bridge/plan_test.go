@@ -94,6 +94,23 @@ func TestPlanValidatorRejectsUntrustedBindingForAnyMode(t *testing.T) {
 	}
 }
 
+func TestPlanValidatorAllowsHomeBridgePlanWithoutBinding(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := signedPlan(priv, func(plan *ExecutionPlan) {
+		plan.ProjectID = nil
+		plan.TaskID = nil
+		plan.BindingID = nil
+		plan.Policy = json.RawMessage(`{"source":"home_message","sandbox":"read-only"}`)
+	})
+
+	if err := testValidator(pub).Validate(plan); err != nil {
+		t.Fatalf("home plan without binding should validate: %v", err)
+	}
+}
+
 func TestParseEd25519PublicKeyAcceptsRawBase64(t *testing.T) {
 	pub, _, err := ed25519.GenerateKey(nil)
 	if err != nil {

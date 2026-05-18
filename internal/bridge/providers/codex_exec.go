@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -47,14 +48,18 @@ func (c CodexExec) Detect(ctx context.Context) CodexDetection {
 }
 
 func (c CodexExec) Execute(ctx context.Context, plan bridge.ExecutionPlan, binding bridge.ProjectBinding) (bridge.ExecutionOutcome, error) {
-	if strings.TrimSpace(binding.LocalPath) == "" {
-		return bridge.ExecutionOutcome{}, fmt.Errorf("codex execution requires a trusted local binding path")
+	workdir := strings.TrimSpace(binding.LocalPath)
+	if workdir == "" {
+		workdir = filepath.Join(bridge.DefaultExecutionWorkdir(), "home")
+		if err := os.MkdirAll(workdir, 0o700); err != nil {
+			return bridge.ExecutionOutcome{}, fmt.Errorf("prepare home execution workdir: %w", err)
+		}
 	}
 	sandbox, err := bridge.CodexSandboxForPlan(plan, c.DefaultSandbox)
 	if err != nil {
 		return bridge.ExecutionOutcome{}, err
 	}
-	return c.RunWithSandbox(ctx, binding.LocalPath, plan.Prompt, sandbox)
+	return c.RunWithSandbox(ctx, workdir, plan.Prompt, sandbox)
 }
 
 func (c CodexExec) Run(ctx context.Context, workdir string, prompt string) (CodexExecResult, error) {

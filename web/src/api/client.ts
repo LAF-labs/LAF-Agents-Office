@@ -370,7 +370,12 @@ export interface BridgeAvailability {
 export interface BridgePairingStartResponse {
   api_url: string;
   pairing: { code: string; expires_at: string; team_id: string };
-  commands: { pair: string };
+  commands: {
+    install?: string;
+    pair: string;
+    setup?: string;
+    start?: string;
+  };
 }
 
 export interface ProjectLocalBinding {

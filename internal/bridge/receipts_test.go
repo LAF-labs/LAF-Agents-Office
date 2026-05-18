@@ -44,6 +44,19 @@ func TestCaptureChangedFilesFromGitStatus(t *testing.T) {
 	}
 }
 
+func TestCaptureChangedFilesIgnoresNonGitDirectory(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	files, err := CaptureChangedFiles(context.Background(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("expected no changed files outside git repo, got %#v", files)
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	all := append([]string{"-C", dir}, args...)

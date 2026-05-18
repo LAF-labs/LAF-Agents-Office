@@ -168,7 +168,7 @@ const messages = {
     "settings.bridge.expires": "Valid until",
     "settings.bridge.commandLabel": "Terminal command",
     "settings.bridge.commandHint":
-      "This installs LAF Bridge if needed, pairs it, and starts it in the background.",
+      "This installs LAF Bridge if needed, pairs it, and starts the local bridge loop. Keep the terminal open while you want local CLI answers.",
     "settings.bridge.copyCommand": "Copy command",
     "settings.bridge.commandReadyCopied":
       "Setup command copied. Open Terminal, paste it, and press Enter.",
@@ -1146,7 +1146,7 @@ const messages = {
     "settings.bridge.expires": "유효 시간",
     "settings.bridge.commandLabel": "터미널에 붙여넣을 명령",
     "settings.bridge.commandHint":
-      "필요하면 LAF Bridge를 설치하고, 워크스페이스에 연결한 뒤 백그라운드로 실행합니다.",
+      "필요하면 LAF Bridge를 설치하고, 워크스페이스에 연결한 뒤 로컬 브릿지 루프를 시작합니다. 로컬 CLI 답변을 받는 동안 터미널을 열어두세요.",
     "settings.bridge.copyCommand": "명령 복사",
     "settings.bridge.commandReadyCopied":
       "설정 명령을 복사했습니다. 터미널을 열고 붙여넣은 뒤 Enter를 누르세요.",

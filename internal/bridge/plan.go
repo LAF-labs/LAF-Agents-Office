@@ -89,7 +89,9 @@ func (v PlanValidator) Validate(plan ExecutionPlan) error {
 			return errors.New("execution plan references an unknown local binding")
 		}
 	}
-	if plan.Mode == "my_bridge" && (plan.BindingID == nil || strings.TrimSpace(*plan.BindingID) == "") {
+	if plan.Mode == "my_bridge" &&
+		planRequiresProjectBinding(plan) &&
+		(plan.BindingID == nil || strings.TrimSpace(*plan.BindingID) == "") {
 		return errors.New("execution plan references an unknown local binding")
 	}
 	if len(v.PublicKey) > 0 {
@@ -98,6 +100,10 @@ func (v PlanValidator) Validate(plan ExecutionPlan) error {
 		}
 	}
 	return nil
+}
+
+func planRequiresProjectBinding(plan ExecutionPlan) bool {
+	return plan.ProjectID != nil || plan.TaskID != nil
 }
 
 func (v PlanValidator) hasTrustedBinding(id string) bool {

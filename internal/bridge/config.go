@@ -69,6 +69,10 @@ func IdentityPath() string {
 	return product.RuntimePath(RuntimeHomeDir(), "bridge", "identity.pem")
 }
 
+func DefaultExecutionWorkdir() string {
+	return product.RuntimePath(RuntimeHomeDir(), "bridge", "workspace")
+}
+
 func LoadConfig(path string) (Config, error) {
 	if strings.TrimSpace(path) == "" {
 		path = ConfigPath()
