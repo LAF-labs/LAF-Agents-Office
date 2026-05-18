@@ -45,7 +45,7 @@ function pressEnterOn(
   });
 }
 
-async function advanceToSetupStep() {
+async function advanceToTaskStep() {
   pressEnterOn(window);
   await waitFor(() => screen.getByLabelText(/Company or project name/i));
 
@@ -59,14 +59,12 @@ async function advanceToSetupStep() {
   pressEnterOn(window);
   await waitFor(() => screen.getByText(/Name your agents\./i));
   pressEnterOn(window);
-  await waitFor(() => screen.getByText(/How should agents run\?/i));
-}
-
-async function finishFromSetupWithoutTask() {
-  fireEvent.click(screen.getByRole("button", { name: /Ready/i }));
   await waitFor(() =>
     screen.getByText(/What should the project team do first\?/i),
   );
+}
+
+async function finishFromTaskWithoutTask() {
   fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
   await waitFor(() => screen.getByText(/You're set/i));
   fireEvent.click(screen.getByRole("button", { name: /Get started/i }));
@@ -127,7 +125,7 @@ describe("Wizard keyboard advancement", () => {
     expect(screen.queryByText(/첫 실제 고객 루프/i)).not.toBeInTheDocument();
   });
 
-  it("keeps API key fallback collapsed when Codex CLI is detected", async () => {
+  it("skips runtime setup after agent naming", async () => {
     getMock.mockImplementation(async (path: string) => {
       if (path === "/onboarding/prereqs") {
         return {
@@ -146,55 +144,50 @@ describe("Wizard keyboard advancement", () => {
     });
 
     render(<Wizard onComplete={vi.fn()} />);
-    await advanceToSetupStep();
+    await advanceToTaskStep();
 
-    expect(screen.getByText(/Codex CLI detected/i)).toBeInTheDocument();
+    expect(screen.queryByText(/How should agents run\?/i)).toBeNull();
+    expect(screen.queryByText(/Codex CLI detected/i)).toBeNull();
     expect(screen.queryByPlaceholderText("OPENAI_API_KEY")).toBeNull();
-    expect(screen.queryByText(/GPT Actions OAuth/i)).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: /API key fallback/i }));
-    expect(screen.getByPlaceholderText("OPENAI_API_KEY")).toBeInTheDocument();
+    expect(getMock).not.toHaveBeenCalledWith("/onboarding/prereqs");
   });
 
-  it("only offers Claude Code and Codex as agent runtimes", async () => {
+  it("does not expose runtime choices during onboarding", async () => {
     render(<Wizard onComplete={vi.fn()} />);
-    await advanceToSetupStep();
+    await advanceToTaskStep();
 
-    expect(screen.getByText("Claude Code")).toBeInTheDocument();
-    expect(screen.getByText("Codex")).toBeInTheDocument();
+    expect(screen.queryByText("Claude Code")).toBeNull();
+    expect(screen.queryByText("Codex")).toBeNull();
     expect(screen.queryByText("Opencode")).toBeNull();
     expect(screen.queryByText("Cursor")).toBeNull();
     expect(screen.queryByText("Windsurf")).toBeNull();
   });
 
-  it("does not show a one-option project wiki selector on the setup step", async () => {
+  it("does not show a one-option project wiki selector during onboarding", async () => {
     render(<Wizard onComplete={vi.fn()} />);
-    await advanceToSetupStep();
+    await advanceToTaskStep();
 
     expect(screen.queryByText("Project wiki (default)")).toBeNull();
     expect(screen.queryByText(/Project wiki is the shared memory/i)).toBeNull();
   });
 
-  it("does not expose the deferred GPT OAuth gateway during onboarding", async () => {
+  it("does not post runtime providers or API keys during onboarding", async () => {
     render(<Wizard onComplete={vi.fn()} />);
-    await advanceToSetupStep();
+    await advanceToTaskStep();
 
     expect(screen.queryByText("GPT OAuth gateway")).toBeNull();
     expect(screen.queryByText(/OpenClaw/i)).toBeNull();
     expect(screen.queryByLabelText("Gateway URL")).toBeNull();
     expect(screen.queryByLabelText("Gateway token")).toBeNull();
+    expect(screen.queryByPlaceholderText("OPENAI_API_KEY")).toBeNull();
 
-    fireEvent.change(screen.getByPlaceholderText("OPENAI_API_KEY"), {
-      target: { value: "sk-test" },
-    });
-
-    await finishFromSetupWithoutTask();
+    await finishFromTaskWithoutTask();
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith(
         "/config",
         expect.objectContaining({
-          openai_api_key: "sk-test",
+          memory_backend: "markdown",
         }),
       );
     });
@@ -203,6 +196,26 @@ describe("Wizard keyboard advancement", () => {
       expect.anything(),
     );
     for (const call of postMock.mock.calls) {
+      expect(call[1]).not.toEqual(
+        expect.objectContaining({
+          llm_provider: expect.anything(),
+        }),
+      );
+      expect(call[1]).not.toEqual(
+        expect.objectContaining({
+          llm_provider_priority: expect.anything(),
+        }),
+      );
+      expect(call[1]).not.toEqual(
+        expect.objectContaining({
+          openai_api_key: expect.anything(),
+        }),
+      );
+      expect(call[1]).not.toEqual(
+        expect.objectContaining({
+          api_keys: expect.anything(),
+        }),
+      );
       expect(call[1]).not.toEqual(
         expect.objectContaining({
           openclaw_gateway_url: expect.anything(),
@@ -286,12 +299,7 @@ describe("Wizard keyboard advancement", () => {
       return {};
     });
     render(<Wizard onComplete={vi.fn()} />);
-    await advanceToSetupStep();
-
-    fireEvent.click(screen.getByRole("button", { name: /Ready/i }));
-    await waitFor(() =>
-      screen.getByText(/What should the project team do first\?/i),
-    );
+    await advanceToTaskStep();
     fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
 
     await waitFor(() => screen.getByText(/You're set/i));
@@ -438,14 +446,13 @@ describe("Wizard product copy", () => {
     pressEnterOn(window);
     await waitFor(() => screen.getByText(/에이전트의 이름을 지어주세요/i));
     pressEnterOn(window);
-    await waitFor(() => screen.getByText(/어떻게 실행할까요/i));
-    fireEvent.click(screen.getByRole("button", { name: /준비 완료/i }));
 
     await waitFor(() =>
       screen.getByPlaceholderText(
         "예: 프로젝트 저장소를 연결하고 첫 개발 작업을 만들기",
       ),
     );
+    expect(screen.queryByText(/에이전트를 어떻게 실행할까요/i)).toBeNull();
     expect(
       screen.queryByPlaceholderText(
         "예: 첫 고객 세그먼트를 위한 출시 계획 초안 작성",

@@ -42,7 +42,6 @@ type WizardStep =
   | "welcome"
   | "templates"
   | "identity"
-  | "setup"
   | "task"
   | "ready";
 
@@ -56,45 +55,9 @@ const STEP_ORDER: readonly WizardStep[] = [
   "welcome",
   "identity",
   "templates",
-  "setup",
   "task",
   "ready",
 ] as const;
-
-// Each runtime has a display label, the binary name the broker's prereqs
-// check looks for, a canonical install page to link to when missing, and
-// — for the runtimes the broker can actually dispatch agents to — the
-// provider id the broker expects on POST /config.
-interface RuntimeSpec {
-  label: string;
-  binary: string;
-  installUrl: string;
-  provider: "claude-code" | "codex";
-}
-
-const RUNTIMES: readonly RuntimeSpec[] = [
-  {
-    label: "Claude Code",
-    binary: "claude",
-    installUrl: "https://claude.ai/code",
-    provider: "claude-code",
-  },
-  {
-    label: "Codex",
-    binary: "codex",
-    installUrl: "https://github.com/openai/codex",
-    provider: "codex",
-  },
-] as const;
-
-interface PrereqResult {
-  name: string;
-  required: boolean;
-  found: boolean;
-  ok?: boolean;
-  version?: string;
-  install_url?: string;
-}
 
 // "Start from scratch" starter roster. Mirrors scratchProjectTeamBlueprint
 // in internal/team/broker_onboarding.go — the broker seeds these exact slugs
@@ -149,20 +112,6 @@ const BLUEPRINT_CATEGORIES: ReadonlyArray<{
 
 const BLUEPRINT_DISPLAY: Record<string, BlueprintDisplay> = {};
 
-const API_KEY_FIELDS = [
-  {
-    key: "ANTHROPIC_API_KEY",
-    label: "Anthropic",
-    hint: "Powers Claude-based agents",
-  },
-  { key: "OPENAI_API_KEY", label: "OpenAI", hint: "Powers GPT-based agents" },
-  {
-    key: "GOOGLE_API_KEY",
-    label: "Google",
-    hint: "Powers Gemini-based agents",
-  },
-] as const;
-
 type MemoryBackend = "markdown";
 
 interface WizardCopy {
@@ -202,30 +151,6 @@ interface WizardCopy {
     priorityPlaceholder: string;
     next: string;
   };
-  setup: {
-    title: string;
-    description: string;
-    checkingRuntimes: string;
-    installed: string;
-    notInstalled: string;
-    install: string;
-    notInstalledTitle: (label: string) => string;
-    priorityTitle: (priority: number) => string;
-    fallbackOrder: string;
-    fallbackHint: string;
-    moveUp: (label: string) => string;
-    moveDown: (label: string) => string;
-    remove: (label: string) => string;
-    apiKeysRequiredTitle: string;
-    apiKeysOptionalHint: string;
-    apiKeysRequiredHint: string;
-    runtimeReadyTitle: (label: string) => string;
-    runtimeReadyHint: string;
-    apiKeysFallbackButton: string;
-    apiKeysFallbackHide: string;
-    apiKeyHints: Record<string, string>;
-    next: string;
-  };
   task: {
     title: string;
     subhead: string;
@@ -245,11 +170,6 @@ interface WizardCopy {
   readiness: {
     sessionLabel: string;
     sessionReady: string;
-    runtimeLabel: string;
-    runtimeInstalled: (label: string) => string;
-    runtimeSelectedMissing: (label: string) => string;
-    runtimeKeyReady: string;
-    runtimeMissing: string;
     memoryLabel: string;
     memoryMarkdown: string;
     githubLabel: string;
@@ -270,7 +190,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       welcome: "Start",
       identity: "Project",
       templates: "Agents",
-      setup: "Run",
       task: "Task",
       ready: "Review",
     },
@@ -318,38 +237,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       priorityPlaceholder: "Create the first GitHub-backed development task",
       next: "Name agents",
     },
-    setup: {
-      title: "How should agents run?",
-      description:
-        "Choose the local coding runtime agents should use. API keys are only a fallback when a selected runtime cannot run.",
-      checkingRuntimes: "Checking which CLIs are installed...",
-      installed: "Installed",
-      notInstalled: "Not installed",
-      install: "install",
-      notInstalledTitle: (label) => `${label} — not installed`,
-      priorityTitle: (priority) => `Priority ${priority}`,
-      fallbackOrder: "Fallback order",
-      fallbackHint: "Agents try these in order. Use the arrows to reorder.",
-      moveUp: (label) => `Move ${label} up`,
-      moveDown: (label) => `Move ${label} down`,
-      remove: (label) => `Remove ${label}`,
-      apiKeysRequiredTitle: "API keys (required)",
-      apiKeysOptionalHint:
-        "Only used if every selected runtime fails. Leave blank to rely on local CLI auth.",
-      apiKeysRequiredHint:
-        "No installed CLI selected. Add at least one key so agents can reason.",
-      runtimeReadyTitle: (label) => `${label} CLI detected`,
-      runtimeReadyHint:
-        "This runtime uses its own local login. Add provider API keys only when you want a fallback.",
-      apiKeysFallbackButton: "API key fallback",
-      apiKeysFallbackHide: "Hide API key fallback",
-      apiKeyHints: {
-        ANTHROPIC_API_KEY: "Powers Claude-based agents",
-        OPENAI_API_KEY: "Powers GPT-based agents",
-        GOOGLE_API_KEY: "Powers Gemini-based agents",
-      },
-      next: "Ready",
-    },
     task: {
       title: "What should the project team do first?",
       subhead:
@@ -372,12 +259,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     readiness: {
       sessionLabel: "Session runtime",
       sessionReady: "Web session. No tmux required in the browser.",
-      runtimeLabel: "LLM runtime",
-      runtimeInstalled: (label) => `${label} installed`,
-      runtimeSelectedMissing: (label) =>
-        `${label} selected but not installed. Install before agents can reason.`,
-      runtimeKeyReady: "Provider API key will drive agent runs.",
-      runtimeMissing: "Pick a CLI or add a provider key on the Setup step.",
       memoryLabel: "Project wiki",
       memoryMarkdown:
         "Project wiki stores goals, decisions, and task history for agents.",
@@ -398,7 +279,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       welcome: "시작",
       identity: "프로젝트",
       templates: "에이전트",
-      setup: "실행",
       task: "첫 작업",
       ready: "검토",
     },
@@ -446,39 +326,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       priorityPlaceholder: "첫 GitHub 연결 개발 작업 만들기",
       next: "에이전트 이름 설정",
     },
-    setup: {
-      title: "에이전트를 어떻게 실행할까요?",
-      description:
-        "에이전트가 사용할 로컬 코딩 런타임을 고릅니다. API 키는 선택한 런타임이 실행되지 않을 때 쓰는 대체 수단입니다.",
-      checkingRuntimes: "설치된 CLI 확인 중...",
-      installed: "설치됨",
-      notInstalled: "설치되지 않음",
-      install: "설치",
-      notInstalledTitle: (label) => `${label} - 설치되지 않음`,
-      priorityTitle: (priority) => `우선순위 ${priority}`,
-      fallbackOrder: "대체 실행 순서",
-      fallbackHint:
-        "에이전트는 이 순서대로 시도합니다. 화살표로 순서를 바꾸세요.",
-      moveUp: (label) => `${label} 위로 이동`,
-      moveDown: (label) => `${label} 아래로 이동`,
-      remove: (label) => `${label} 제거`,
-      apiKeysRequiredTitle: "API 키 (필수)",
-      apiKeysOptionalHint:
-        "선택한 런타임이 모두 실패할 때만 사용합니다. 로컬 CLI 인증을 사용할 거라면 비워두세요.",
-      apiKeysRequiredHint:
-        "설치된 CLI가 선택되지 않았습니다. 에이전트가 추론할 수 있도록 하나 이상의 키를 추가하세요.",
-      runtimeReadyTitle: (label) => `${label} CLI 감지됨`,
-      runtimeReadyHint:
-        "이 런타임은 로컬 로그인 정보를 사용합니다. 제공자 API 키는 대체 실행이 필요할 때만 추가하세요.",
-      apiKeysFallbackButton: "API 키 대체 실행",
-      apiKeysFallbackHide: "API 키 대체 실행 숨기기",
-      apiKeyHints: {
-        ANTHROPIC_API_KEY: "Claude 기반 에이전트 실행",
-        OPENAI_API_KEY: "GPT 기반 에이전트 실행",
-        GOOGLE_API_KEY: "Gemini 기반 에이전트 실행",
-      },
-      next: "준비 완료",
-    },
     task: {
       title: "프로젝트 팀이 가장 먼저 할 일은 무엇인가요?",
       subhead:
@@ -500,12 +347,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     readiness: {
       sessionLabel: "세션 런타임",
       sessionReady: "웹 세션입니다. 브라우저에서는 tmux가 필요하지 않습니다.",
-      runtimeLabel: "LLM 런타임",
-      runtimeInstalled: (label) => `${label} 설치됨`,
-      runtimeSelectedMissing: (label) =>
-        `${label}을 선택했지만 설치되어 있지 않습니다. 에이전트가 추론하려면 먼저 설치해야 합니다.`,
-      runtimeKeyReady: "제공자 API 키로 에이전트를 실행합니다.",
-      runtimeMissing: "CLI를 선택하거나 설정 단계에서 제공자 키를 추가하세요.",
       memoryLabel: "프로젝트 위키",
       memoryMarkdown:
         "프로젝트 목표, 결정, 작업 기록을 에이전트가 읽는 위키에 저장합니다.",
@@ -763,400 +604,7 @@ function IdentityStep({
   );
 }
 
-/* ─── Step 4: Setup ─── */
-
-interface SetupStepProps {
-  copy: WizardCopy;
-  prereqs: PrereqResult[];
-  prereqsLoading: boolean;
-  runtimePriority: string[];
-  onToggleRuntime: (label: string) => void;
-  onReorderRuntime: (label: string, direction: -1 | 1) => void;
-  apiKeys: Record<string, string>;
-  onChangeApiKey: (key: string, value: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}
-
-function detectedBinary(
-  prereqs: PrereqResult[],
-  binary: string,
-): PrereqResult | undefined {
-  return prereqs.find((p) => p.name === binary);
-}
-
-function primaryInstalledRuntimeLabel(
-  runtimePriority: string[],
-  prereqs: PrereqResult[],
-): string | undefined {
-  return runtimePriority.find((label) => {
-    const spec = RUNTIMES.find((runtime) => runtime.label === label);
-    return Boolean(spec && detectedBinary(prereqs, spec.binary)?.found);
-  });
-}
-
-function RuntimeGrid({
-  copy,
-  prereqsLoading,
-  prereqs,
-  runtimePriority,
-  onToggleRuntime,
-}: {
-  copy: WizardCopy;
-  prereqsLoading: boolean;
-  prereqs: PrereqResult[];
-  runtimePriority: string[];
-  onToggleRuntime: (label: string) => void;
-}) {
-  if (prereqsLoading) {
-    return (
-      <div
-        style={{
-          color: "var(--text-tertiary)",
-          fontSize: 13,
-          padding: "8px 0",
-        }}
-      >
-        {copy.setup.checkingRuntimes}
-      </div>
-    );
-  }
-
-  return (
-    <div className="runtime-grid">
-      {RUNTIMES.map((spec) => (
-        <RuntimeTile
-          key={spec.label}
-          copy={copy}
-          spec={spec}
-          detection={detectedBinary(prereqs, spec.binary)}
-          priorityIdx={runtimePriority.indexOf(spec.label)}
-          onToggleRuntime={onToggleRuntime}
-        />
-      ))}
-    </div>
-  );
-}
-
-function RuntimeTile({
-  copy,
-  spec,
-  detection,
-  priorityIdx,
-  onToggleRuntime,
-}: {
-  copy: WizardCopy;
-  spec: RuntimeSpec;
-  detection: PrereqResult | undefined;
-  priorityIdx: number;
-  onToggleRuntime: (label: string) => void;
-}) {
-  const installed = Boolean(detection?.found);
-  const selected = priorityIdx >= 0;
-  const classes = [
-    "runtime-tile",
-    selected ? "selected" : "",
-    installed ? "" : "disabled",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <button
-      className={classes}
-      onClick={() => {
-        if (!installed) return;
-        onToggleRuntime(spec.label);
-      }}
-      type="button"
-      disabled={!installed}
-      aria-disabled={!installed}
-      aria-pressed={selected}
-      title={runtimeTileTitle(spec, detection, installed, copy)}
-    >
-      {selected ? (
-        <span
-          className="runtime-priority-badge"
-          title={copy.setup.priorityTitle(priorityIdx + 1)}
-        >
-          {priorityIdx + 1}
-        </span>
-      ) : null}
-      <div className="runtime-tile-head">
-        <span
-          className={`runtime-tile-status ${installed ? "installed" : ""}`}
-          aria-hidden="true"
-        />
-        {spec.label}
-      </div>
-      <RuntimeTileMeta
-        copy={copy}
-        spec={spec}
-        detection={detection}
-        installed={installed}
-      />
-    </button>
-  );
-}
-
-function runtimeTileTitle(
-  spec: RuntimeSpec,
-  detection: PrereqResult | undefined,
-  installed: boolean,
-  copy: WizardCopy,
-): string {
-  if (!installed) return copy.setup.notInstalledTitle(spec.label);
-  return detection?.version
-    ? `${spec.label} — ${detection.version}`
-    : spec.label;
-}
-
-function RuntimeTileMeta({
-  copy,
-  spec,
-  detection,
-  installed,
-}: {
-  copy: WizardCopy;
-  spec: RuntimeSpec;
-  detection: PrereqResult | undefined;
-  installed: boolean;
-}) {
-  if (installed) {
-    return (
-      <div className="runtime-tile-meta">
-        {detection?.version ? detection.version : copy.setup.installed}
-      </div>
-    );
-  }
-
-  return (
-    <div className="runtime-tile-meta">
-      {copy.setup.notInstalled}{" "}
-      <a
-        className="runtime-tile-install-link"
-        href={spec.installUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {copy.setup.install}
-      </a>
-    </div>
-  );
-}
-
-function SetupStep({
-  copy,
-  prereqs,
-  prereqsLoading,
-  runtimePriority,
-  onToggleRuntime,
-  onReorderRuntime,
-  apiKeys,
-  onChangeApiKey,
-  onNext,
-  onBack,
-}: SetupStepProps) {
-  // A runtime is usable only when its binary is actually present on PATH.
-  // "Selected and installed" drives whether we can continue without keys.
-  const hasInstalledSelection = hasInstalledRuntimeSelection(
-    runtimePriority,
-    prereqs,
-  );
-  const hasAnyApiKey = Object.values(apiKeys).some((v) => v.trim().length > 0);
-  const canContinue = hasInstalledSelection || hasAnyApiKey;
-  const primaryRuntimeLabel =
-    primaryInstalledRuntimeLabel(runtimePriority, prereqs) ??
-    runtimePriority[0] ??
-    "CLI";
-
-  return (
-    <div className="wizard-step">
-      <div className="wizard-panel">
-        <p className="wizard-panel-title">{copy.setup.title}</p>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            margin: "-8px 0 12px 0",
-          }}
-        >
-          {copy.setup.description}
-        </p>
-
-        <RuntimeGrid
-          copy={copy}
-          prereqsLoading={prereqsLoading}
-          prereqs={prereqs}
-          runtimePriority={runtimePriority}
-          onToggleRuntime={onToggleRuntime}
-        />
-
-        {runtimePriority.length > 1 && (
-          <div className="runtime-priority-controls">
-            <p className="runtime-priority-title">{copy.setup.fallbackOrder}</p>
-            <p className="runtime-priority-hint">{copy.setup.fallbackHint}</p>
-            {runtimePriority.map((label, idx) => (
-              <div key={label} className="runtime-priority-row">
-                <span className="runtime-priority-row-rank">#{idx + 1}</span>
-                <span className="runtime-priority-row-label">{label}</span>
-                <button
-                  type="button"
-                  className="runtime-priority-btn"
-                  onClick={() => onReorderRuntime(label, -1)}
-                  disabled={idx === 0}
-                  aria-label={copy.setup.moveUp(label)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="runtime-priority-btn"
-                  onClick={() => onReorderRuntime(label, 1)}
-                  disabled={idx === runtimePriority.length - 1}
-                  aria-label={copy.setup.moveDown(label)}
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  className="runtime-priority-btn"
-                  onClick={() => onToggleRuntime(label)}
-                  aria-label={copy.setup.remove(label)}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {hasInstalledSelection ? (
-          <RuntimeReadyCard copy={copy} label={primaryRuntimeLabel} />
-        ) : null}
-
-        <ApiKeyFallbackPanel
-          copy={copy}
-          hasInstalledSelection={hasInstalledSelection}
-          apiKeys={apiKeys}
-          onChangeApiKey={onChangeApiKey}
-        />
-      </div>
-
-      <div className="wizard-nav">
-        <button className="btn btn-ghost" onClick={onBack} type="button">
-          {copy.common.back}
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={onNext}
-          disabled={!canContinue}
-          type="button"
-        >
-          {copy.setup.next}
-          <ArrowIcon />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function RuntimeReadyCard({
-  copy,
-  label,
-}: {
-  copy: WizardCopy;
-  label: string;
-}) {
-  return (
-    <div className="runtime-ready-card">
-      <span className="runtime-ready-glyph" aria-hidden="true">
-        ✓
-      </span>
-      <div>
-        <p className="runtime-ready-title">
-          {copy.setup.runtimeReadyTitle(label)}
-        </p>
-        <p className="runtime-ready-hint">{copy.setup.runtimeReadyHint}</p>
-      </div>
-    </div>
-  );
-}
-
-function ApiKeyFallbackPanel({
-  copy,
-  hasInstalledSelection,
-  apiKeys,
-  onChangeApiKey,
-}: {
-  copy: WizardCopy;
-  hasInstalledSelection: boolean;
-  apiKeys: Record<string, string>;
-  onChangeApiKey: (key: string, value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const showFields = !hasInstalledSelection || open;
-
-  return (
-    <div className="setup-api-panel">
-      {hasInstalledSelection ? (
-        <button
-          type="button"
-          className="setup-disclosure"
-          aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
-        >
-          <span>
-            {open
-              ? copy.setup.apiKeysFallbackHide
-              : copy.setup.apiKeysFallbackButton}
-          </span>
-          <span aria-hidden="true">{open ? "−" : "+"}</span>
-        </button>
-      ) : (
-        <div className="setup-required-copy">
-          <p className="setup-section-title">
-            {copy.setup.apiKeysRequiredTitle}
-          </p>
-          <p className="setup-section-hint">{copy.setup.apiKeysRequiredHint}</p>
-        </div>
-      )}
-
-      {showFields ? (
-        <div className="setup-api-fields">
-          {hasInstalledSelection ? (
-            <p className="setup-section-hint">
-              {copy.setup.apiKeysOptionalHint}
-            </p>
-          ) : null}
-          {API_KEY_FIELDS.map((field) => (
-            <div className="key-row" key={field.key}>
-              <div className="key-label-wrap">
-                <span className="key-label">{field.label}</span>
-                <span className="key-hint">
-                  {copy.setup.apiKeyHints[field.key] ?? field.hint}
-                </span>
-              </div>
-              <div className="key-input-wrap">
-                <input
-                  className="input"
-                  type="password"
-                  placeholder={field.key}
-                  value={apiKeys[field.key] ?? ""}
-                  onChange={(e) => onChangeApiKey(field.key, e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/* ─── Step 6: First Task ─── */
+/* ─── Step 4: First Task ─── */
 
 interface TaskStepProps {
   copy: WizardCopy;
@@ -1347,9 +795,6 @@ function ReadyStep({
 
 interface ReadinessOptions {
   copy: WizardCopy;
-  runtimePriority: string[];
-  prereqs: PrereqResult[];
-  apiKeys: Record<string, string>;
   memoryBackend: MemoryBackend;
   selectedBlueprint: string | null;
   blueprints: BlueprintTemplate[];
@@ -1362,7 +807,6 @@ function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
       status: "ready",
       detail: options.copy.readiness.sessionReady,
     },
-    runtimeReadinessCheck(options),
     memoryReadinessCheck(options.copy),
     githubReadinessCheck(options.copy),
     blueprintReadinessCheck(
@@ -1371,50 +815,6 @@ function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
       options.copy,
     ),
   ];
-}
-
-function runtimeReadinessCheck(options: ReadinessOptions): ReadinessCheck {
-  const [primaryLabel] = options.runtimePriority;
-  const primarySpec = primaryLabel
-    ? RUNTIMES.find((runtime) => runtime.label === primaryLabel)
-    : undefined;
-  const primaryDetection = primarySpec
-    ? detectedBinary(options.prereqs, primarySpec.binary)
-    : undefined;
-
-  if (primarySpec && primaryDetection?.found) {
-    return {
-      label: options.copy.readiness.runtimeLabel,
-      status: "ready",
-      detail: primaryDetection.version
-        ? `${primarySpec.label} — ${primaryDetection.version}`
-        : options.copy.readiness.runtimeInstalled(primarySpec.label),
-    };
-  }
-  if (primarySpec) {
-    return {
-      label: options.copy.readiness.runtimeLabel,
-      status: "next",
-      detail: options.copy.readiness.runtimeSelectedMissing(primarySpec.label),
-    };
-  }
-  return apiKeyRuntimeReadiness(options.apiKeys, options.copy);
-}
-
-function apiKeyRuntimeReadiness(
-  apiKeys: Record<string, string>,
-  copy: WizardCopy,
-): ReadinessCheck {
-  const hasAnyKey = Object.values(apiKeys).some(
-    (value) => value.trim().length > 0,
-  );
-  return {
-    label: copy.readiness.runtimeLabel,
-    status: hasAnyKey ? "ready" : "missing",
-    detail: hasAnyKey
-      ? copy.readiness.runtimeKeyReady
-      : copy.readiness.runtimeMissing,
-  };
 }
 
 function memoryReadinessCheck(copy: WizardCopy): ReadinessCheck {
@@ -1456,64 +856,15 @@ function blueprintReadinessCheck(
   };
 }
 
-type SupportedProvider = "claude-code" | "codex";
-
-function providerPriorityFromLabels(
-  runtimePriority: string[],
-): SupportedProvider[] {
-  return runtimePriority
-    .map(
-      (label) => RUNTIMES.find((runtime) => runtime.label === label)?.provider,
-    )
-    .filter((provider): provider is SupportedProvider => Boolean(provider));
-}
-
 interface ConfigPayloadOptions {
   memoryBackend: MemoryBackend;
-  providerPriority: SupportedProvider[];
-  apiKeys: Record<string, string>;
 }
 
 function buildOnboardingConfigPayload({
   memoryBackend,
-  providerPriority,
-  apiKeys,
 }: ConfigPayloadOptions): Record<string, unknown> {
   const payload: Record<string, unknown> = { memory_backend: memoryBackend };
-  addProviderConfig(payload, providerPriority);
-  addGenericApiKeys(payload, apiKeys);
   return payload;
-}
-
-function addProviderConfig(
-  payload: Record<string, unknown>,
-  providerPriority: SupportedProvider[],
-) {
-  if (providerPriority.length === 0) return;
-  payload.llm_provider = providerPriority[0];
-  payload.llm_provider_priority = providerPriority;
-}
-
-function addTrimmedValue(
-  payload: Record<string, unknown>,
-  field: string,
-  value: string,
-) {
-  const trimmed = value.trim();
-  if (trimmed.length > 0) payload[field] = trimmed;
-}
-
-function addGenericApiKeys(
-  payload: Record<string, unknown>,
-  apiKeys: Record<string, string>,
-) {
-  addTrimmedValue(
-    payload,
-    "anthropic_api_key",
-    apiKeys.ANTHROPIC_API_KEY ?? "",
-  );
-  addTrimmedValue(payload, "openai_api_key", apiKeys.OPENAI_API_KEY ?? "");
-  addTrimmedValue(payload, "gemini_api_key", apiKeys.GOOGLE_API_KEY ?? "");
 }
 
 function agentNamePayload(agents: BlueprintAgent[]): Record<string, string> {
@@ -1531,9 +882,6 @@ interface WizardKeyContext {
   company: string;
   description: string;
   agents: BlueprintAgent[];
-  runtimePriority: string[];
-  prereqs: PrereqResult[];
-  apiKeys: Record<string, string>;
   submitting: boolean;
   taskText: string;
   goTo: (step: WizardStep) => void;
@@ -1547,13 +895,11 @@ function handleWizardKey(e: KeyboardEvent, context: WizardKeyContext) {
   const canIdentityContinue =
     context.company.trim().length > 0 && context.description.trim().length > 0;
   const canAgentsContinue = hasCompleteAgentNames(context.agents);
-  const canSetupContinue = canContinueSetup(context);
   advanceWizardFromKey(
     e,
     context,
     canIdentityContinue,
     canAgentsContinue,
-    canSetupContinue,
   );
 }
 
@@ -1568,34 +914,11 @@ function shouldHandleWizardEnter(e: KeyboardEvent): boolean {
   return !(inTextarea && !isSubmitCombo);
 }
 
-function canContinueSetup(context: WizardKeyContext): boolean {
-  const hasInstalledSelection = hasInstalledRuntimeSelection(
-    context.runtimePriority,
-    context.prereqs,
-  );
-  const hasAnyApiKey = Object.values(context.apiKeys).some(
-    (value) => value.trim().length > 0,
-  );
-  return hasInstalledSelection || hasAnyApiKey;
-}
-
-function hasInstalledRuntimeSelection(
-  runtimePriority: string[],
-  prereqs: PrereqResult[],
-): boolean {
-  return runtimePriority.some((label) => {
-    const spec = RUNTIMES.find((runtime) => runtime.label === label);
-    if (!spec) return false;
-    return Boolean(detectedBinary(prereqs, spec.binary)?.found);
-  });
-}
-
 function advanceWizardFromKey(
   e: KeyboardEvent,
   context: WizardKeyContext,
   canIdentityContinue: boolean,
   canAgentsContinue: boolean,
-  canSetupContinue: boolean,
 ) {
   const isSubmitCombo = e.metaKey || e.ctrlKey;
   switch (context.step) {
@@ -1608,9 +931,6 @@ function advanceWizardFromKey(
       return;
     case "identity":
       advanceIfAllowed(e, canIdentityContinue, context.nextStep);
-      return;
-    case "setup":
-      advanceIfAllowed(e, canSetupContinue, context.nextStep);
       return;
     case "task":
       advanceIfAllowed(e, isSubmitCombo, context.nextStep);
@@ -1671,15 +991,6 @@ export function Wizard({ onComplete }: WizardProps) {
     SCRATCH_PROJECT_TEAM.map((agent) => ({ ...agent })),
   );
 
-  // Step 5: setup
-  const [prereqs, setPrereqs] = useState<PrereqResult[]>([]);
-  const [prereqsLoading, setPrereqsLoading] = useState(true);
-  // Ordered list of runtime labels (matches RUNTIMES[].label). Position in
-  // the array is the fallback priority. Initially empty — we auto-populate
-  // with the first installed CLI once prereqs land so the happy path still
-  // works with zero clicks.
-  const [runtimePriority, setRuntimePriority] = useState<string[]>([]);
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   // Project wiki is the only memory backend exposed in onboarding; keep it as
   // an internal fixed value instead of rendering a one-choice selector.
   const memoryBackend: MemoryBackend = "markdown";
@@ -1713,60 +1024,6 @@ export function Wizard({ onComplete }: WizardProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // Fetch prereqs on mount so the runtime picker shows which CLIs are
-  // actually installed. Auto-select the first detected runtime so users
-  // with a single CLI installed don't have to click.
-  useEffect(() => {
-    let cancelled = false;
-    setPrereqsLoading(true);
-
-    get<{ prereqs?: PrereqResult[] } | PrereqResult[]>("/onboarding/prereqs")
-      .then((data) => {
-        if (cancelled) return;
-        const list = Array.isArray(data) ? data : (data.prereqs ?? []);
-        setPrereqs(list);
-        setRuntimePriority((current) => {
-          if (current.length > 0) return current;
-          const firstInstalled = RUNTIMES.find((spec) => {
-            const det = list.find((p) => p.name === spec.binary);
-            return Boolean(det?.found);
-          });
-          return firstInstalled ? [firstInstalled.label] : [];
-        });
-      })
-      .catch(() => {
-        // Broker may not expose the endpoint yet; leave prereqs empty and
-        // the user can still add API keys to proceed.
-      })
-      .finally(() => {
-        if (!cancelled) setPrereqsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const toggleRuntime = useCallback((label: string) => {
-    setRuntimePriority((prev) => {
-      if (prev.includes(label)) return prev.filter((l) => l !== label);
-      return [...prev, label];
-    });
-  }, []);
-
-  const reorderRuntime = useCallback((label: string, direction: -1 | 1) => {
-    setRuntimePriority((prev) => {
-      const idx = prev.indexOf(label);
-      if (idx < 0) return prev;
-      const next = idx + direction;
-      if (next < 0 || next >= prev.length) return prev;
-      const out = [...prev];
-      const [item] = out.splice(idx, 1);
-      out.splice(next, 0, item);
-      return out;
-    });
   }, []);
 
   // When a blueprint is selected, populate agents AND first tasks from that
@@ -1827,16 +1084,8 @@ export function Wizard({ onComplete }: WizardProps) {
     );
   }, []);
 
-  // API key handler
-  const handleApiKeyChange = useCallback((key: string, value: string) => {
-    setApiKeys((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
   const readinessChecks = buildReadinessChecks({
     copy,
-    runtimePriority,
-    prereqs,
-    apiKeys,
     memoryBackend,
     selectedBlueprint,
     blueprints,
@@ -1847,39 +1096,22 @@ export function Wizard({ onComplete }: WizardProps) {
     async (skipTask: boolean) => {
       setSubmitting(true);
       try {
-        // Translate UI labels to the provider ids the broker validates.
-        const providerPriority = providerPriorityFromLabels(runtimePriority);
-
-        // Persist memory backend + LLM provider choice + priority fallback
-        // list + API keys so the broker reads them on next launch. Send as a
+        // Persist memory backend so the broker reads it on next launch. Send as a
         // single POST — the broker's handleConfig does a non-atomic read-
         // mutate-write, so two parallel calls race and corrupt config.json.
-        // Keys go through this path (not /onboarding/complete) because the
-        // broker's /config endpoint is the canonical persistence surface
-        // for config.APIKey, OpenAIAPIKey, AnthropicAPIKey, etc.
         const configPayload = buildOnboardingConfigPayload({
           memoryBackend,
-          providerPriority,
-          apiKeys,
         });
         await post("/config", configPayload).catch(() => {});
-
-        // Primary runtime label for the onboarding payload (best-effort;
-        // the broker only acts on {task, skip_task} today, but the extra
-        // fields are forward-compatible).
-        const primaryRuntime = runtimePriority[0] ?? "";
 
         await post("/onboarding/complete", {
           company,
           description,
           priority,
-          runtime: primaryRuntime,
-          runtime_priority: runtimePriority,
           memory_backend: memoryBackend,
           blueprint: selectedBlueprint,
           agents: agents.filter((a) => a.checked).map((a) => a.slug),
           agent_names: agentNamePayload(agents),
-          api_keys: apiKeys,
           task: skipTask ? "" : taskText.trim(),
           skip_task: skipTask,
         });
@@ -1895,10 +1127,8 @@ export function Wizard({ onComplete }: WizardProps) {
       company,
       description,
       priority,
-      runtimePriority,
       selectedBlueprint,
       agents,
-      apiKeys,
       taskText,
       setOnboardingComplete,
       onComplete,
@@ -1915,9 +1145,6 @@ export function Wizard({ onComplete }: WizardProps) {
         company,
         description,
         agents,
-        runtimePriority,
-        prereqs,
-        apiKeys,
         submitting,
         taskText,
         goTo,
@@ -1934,9 +1161,6 @@ export function Wizard({ onComplete }: WizardProps) {
     company,
     description,
     agents,
-    runtimePriority,
-    prereqs,
-    apiKeys,
     submitting,
     taskText,
     goTo,
@@ -1972,21 +1196,6 @@ export function Wizard({ onComplete }: WizardProps) {
             onChangeCompany={setCompany}
             onChangeDescription={setDescription}
             onChangePriority={setPriority}
-            onNext={nextStep}
-            onBack={prevStep}
-          />
-        )}
-
-        {step === "setup" && (
-          <SetupStep
-            copy={copy}
-            prereqs={prereqs}
-            prereqsLoading={prereqsLoading}
-            runtimePriority={runtimePriority}
-            onToggleRuntime={toggleRuntime}
-            onReorderRuntime={reorderRuntime}
-            apiKeys={apiKeys}
-            onChangeApiKey={handleApiKeyChange}
             onNext={nextStep}
             onBack={prevStep}
           />
