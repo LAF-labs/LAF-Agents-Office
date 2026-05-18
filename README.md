@@ -1,331 +1,315 @@
 # LAF-Office
 
 <p align="center">
-  <img src="assets/hero.png" alt="LAF-Office onboarding — Your AI team, visible and working." width="720" />
+  <img src="assets/hero.png" alt="LAF-Office onboarding - Your AI team, visible and working." width="720" />
 </p>
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
 [![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 
-### AI workspace for small startup teams.
+**한국어** | [English](#english)
 
-LAF-Office is a local-first workspace where founder teams plan product work with AI agents, keep durable context in a markdown LLM wiki, and hand implementation tasks to connected coding runtimes.
+## 한국어
 
-One command. One shared project workspace. Product, planning, engineering, and review agents are visible in the project flow, claiming tasks and producing work instead of disappearing behind an API.
+### 작은 팀을 위한 로컬 우선 AI 워크스페이스
 
-> _30-second teaser — what the project workspace feels like when the agents are actually working._
+LAF-Office는 스타트업 팀이 AI 에이전트와 함께 제품 기획, 작업 분해,
+구현, 리뷰, 팀 메모리를 한 공간에서 운영할 수 있게 만드는
+local-first 워크스페이스입니다.
 
-<video width="630" height="300" src="https://github.com/user-attachments/assets/36661391-a0ee-43d6-80d9-177776a53bc9"></video>
+브라우저 UI는 프로젝트, 태스크, 에이전트 활동, 위키 메모리, 실행 결과를
+보여줍니다. 실제 코드 실행은 로컬 또는 연결된 러너가 맡기 때문에, 팀은
+작업이 어디서 실행되는지 보면서 안전하게 운영할 수 있습니다.
 
-> _Full walkthrough — launch to first shipped task, end to end._
+### 핵심 기능
 
-<video width="630" height="300" src="https://github.com/user-attachments/assets/f4cdffbf-4388-49bc-891d-6bd050ff8247"></video>
+- **프로젝트 보드**: 프로젝트별 태스크, 담당자, 상태, 리뷰 흐름을 관리합니다.
+- **AI 팀 런타임**: CEO, Frontend Engineer, Backend Engineer, Reviewer가 기본 팀으로 동작합니다.
+- **로컬 실행**: Codex CLI, Claude Code, OpenCode 같은 로컬 CLI 런타임을 사용할 수 있습니다.
+- **LAF Bridge / Runner**: 호스팅된 웹 앱은 작업을 큐에 넣고, 연결된 로컬 러너가 파일시스템, git, GitHub, CLI 실행을 담당합니다.
+- **Markdown Wiki**: 팀 위키와 에이전트별 노트북이 로컬 markdown/git 기반으로 저장됩니다.
+- **가시적인 작업 흐름**: 에이전트 응답, 태스크, PR 영수증, 위키 업데이트가 UI와 파일에 남습니다.
 
-## Get Started
+### 빠른 시작
 
-**Prerequisites:** one coding agent CLI — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by default, or [Codex CLI](https://github.com/openai/codex) when you pass `--provider codex`.
+필수 조건:
+
+- Go 1.25 이상
+- Node/npm
+- 에이전트 실행을 원하면 Codex CLI, Claude Code, 또는 OpenCode 중 하나
+
+로컬 워크스페이스 실행:
 
 ```bash
 npx laf-office
 ```
 
-That's it. The browser opens automatically and you're in the project workspace.
+브라우저가 자동으로 열리고 기본 포트는 `http://localhost:7891`입니다.
 
-Prefer a global install?
+전역 설치를 선호한다면:
 
 ```bash
-npm install -g laf-office && laf-office
+npm install -g laf-office
+laf-office
 ```
 
-For the hosted product, the browser app is not the execution runtime. Install
-the local runner from the command line on any macOS or Linux machine that should
-execute coding work:
+소스에서 직접 실행:
+
+```bash
+git clone https://github.com/LAF-labs/LAF-Agents-Office.git
+cd LAF-Agents-Office
+go run ./cmd/laf-office --provider codex --web-port 7891
+```
+
+### 호스팅과 LAF Bridge
+
+LAF-Office는 로컬 워크스페이스로 바로 사용할 수 있고, hosted control plane
+구조도 지원하도록 설계되어 있습니다.
+
+중요한 경계:
+
+- 웹 브라우저와 호스팅 API는 사용자의 로컬 Codex/Claude CLI를 직접 실행하지 않습니다.
+- 호스팅된 워크스페이스에서 로컬 코드 작업을 실행하려면 LAF Bridge 또는 `laf-runner`가 연결되어야 합니다.
+- Bridge가 없어도 프로젝트 관리, 태스크 기록, 위키, 리뷰 큐는 사용할 수 있습니다.
+- Bridge가 연결되면 러너가 작업을 lease하고 로컬 파일시스템, git, GitHub CLI, 에이전트 CLI를 사용해 실행합니다.
+
+러너만 설치:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh
 ```
 
-In the hosted UI, open Settings -> LAF Bridge, create a setup command, then run
-the printed command on the bridge machine. The command installs `laf-runner` if
-needed, pairs it with the workspace, and starts it in the background:
+호스팅 UI의 **Settings -> LAF Bridge**에서 setup command를 만든 뒤, 실행할
+Mac/Linux 머신에서 명령을 실행합니다.
 
 ```bash
 laf-runner pair --api-url https://<your-hosted-app>/api --code <setup-code> --background
 ```
 
-You can still use the hosted workspace without installing a runner. Planning,
-project memory, task creation, and review queues remain available; local
-Codex/Claude execution waits until a runner connects.
+자세한 경계와 배포 흐름은
+[HOSTED-PRODUCT-BOUNDARY.md](docs/specs/HOSTED-PRODUCT-BOUNDARY.md)와
+[HOSTED-DEPLOYMENT-RUNBOOK.md](docs/specs/HOSTED-DEPLOYMENT-RUNBOOK.md)를 참고하세요.
 
-`npx laf-office` remains a convenient developer bootstrap for the local
-workspace. The hosted product boundary is the runner protocol: the web app
-creates jobs, and a local or managed runner leases and executes them.
+### 개발 및 테스트
 
-For source checkouts or release tarballs, the install script can install just
-the runner:
+프론트엔드 의존성 설치:
 
 ```bash
-LAF_OFFICE_INSTALL_BINARY=laf-runner sh scripts/install.sh
+cd web
+npm install
+cd ..
 ```
 
-Building from source (requires Go):
+백엔드/브로커 테스트:
+
+```bash
+go test ./...
+```
+
+Hosted API 테스트:
+
+```bash
+node --test api/hosted-api.test.js
+```
+
+프론트엔드 테스트:
+
+```bash
+cd web
+npm run typecheck
+npm test
+npm run build
+```
+
+로컬 확인:
+
+```bash
+go run ./cmd/laf-office --no-open --provider codex --web-port 7891
+curl -I http://localhost:7891
+curl -fsS http://localhost:7891/api/runner/status
+```
+
+참고: 현재 전체 `web npm run check`는 기존 lint backlog 때문에 실패할 수
+있습니다. PR 리뷰 전에는 변경 파일 중심의 lint와 함께 `typecheck`,
+`npm test`, `npm run build`, `go test ./...`를 우선 기준으로 사용하세요.
+
+### 주요 명령
+
+```bash
+laf-office init          # 첫 설정
+laf-office --no-open     # 브라우저 자동 실행 없이 시작
+laf-office --provider codex
+laf-office --provider claude-code
+laf-office --collab      # 모든 에이전트가 같은 채널을 보는 협업 모드
+laf-office shred         # 로컬 워크스페이스 상태 초기화
+```
+
+### 문서
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): 로컬 런타임 구조
+- [AGENTS.md](AGENTS.md): 에이전트 운영 규칙
+- [FORKING.md](FORKING.md): 포크/브랜딩 변경 가이드
+- [PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md): 프로젝트 태스크 보드
+- [HOSTED-RUNNER-PROTOCOL.md](docs/specs/HOSTED-RUNNER-PROTOCOL.md): hosted runner 프로토콜
+- [WIKI-SCHEMA.md](docs/specs/WIKI-SCHEMA.md): markdown wiki 계약
+
+### 상태
+
+LAF-Office는 pre-1.0 프로젝트입니다. `main`은 빠르게 움직입니다. 제품에
+포크하거나 배포하려면 release tag를 기준으로 고정하는 것을 권장합니다.
+
+라이선스: MIT
+
+---
+
+## English
+
+### A local-first AI workspace for small startup teams
+
+LAF-Office is a local-first workspace for planning product work with AI agents,
+breaking it into tasks, executing implementation lanes, reviewing results, and
+keeping durable team memory in markdown.
+
+The browser UI shows projects, tasks, agent activity, wiki memory, and delivery
+receipts. Execution happens in a local runtime or a connected runner, so teams
+can see what is running, where it runs, and what it changed.
+
+### Highlights
+
+- **Project task boards**: Track project-scoped tasks, owners, status, review, and delivery.
+- **AI team runtime**: CEO, Frontend Engineer, Backend Engineer, and Reviewer are the default team.
+- **Local execution**: Use Codex CLI, Claude Code, or OpenCode as local agent runtimes.
+- **LAF Bridge / Runner**: Hosted web apps queue work; connected runners own filesystem, git, GitHub, and CLI execution.
+- **Markdown wiki**: Shared team wiki plus per-agent notebooks, backed by local markdown/git.
+- **Visible workflow**: Agent replies, task state, PR receipts, and wiki updates remain inspectable.
+
+### Quick Start
+
+Prerequisites:
+
+- Go 1.25+
+- Node/npm
+- One supported agent CLI if you want execution: Codex CLI, Claude Code, or OpenCode
+
+Run the local workspace:
+
+```bash
+npx laf-office
+```
+
+The browser opens automatically. The default UI URL is `http://localhost:7891`.
+
+Prefer a global install?
+
+```bash
+npm install -g laf-office
+laf-office
+```
+
+Run from source:
 
 ```bash
 git clone https://github.com/LAF-labs/LAF-Agents-Office.git
-cd laf-office
-go build -o laf-office ./cmd/laf-office
-go build -o laf-runner ./cmd/laf-runner
-./laf-office
+cd LAF-Agents-Office
+go run ./cmd/laf-office --provider codex --web-port 7891
 ```
 
-> **Forking this?** See [FORKING.md](FORKING.md) for swapping branding and adding your own agent packs. For the internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
+### Hosted Mode and LAF Bridge
 
-> **Stability:** pre-1.0. `main` moves daily. Pin your fork to a release tag, not `main`.
+LAF-Office works as a local workspace today and is designed around a hosted
+control-plane boundary.
 
-## Setup prompt (for AI agents)
+Important boundary:
 
-Paste this into Claude Code, Codex, or Cursor and let your agent drive the install:
+- The browser and hosted API do not directly run a user's local Codex/Claude CLI.
+- Hosted local-code execution requires a paired LAF Bridge or `laf-runner`.
+- Without a bridge, project management, task records, wiki, and review queues still work.
+- With a bridge, the runner leases jobs and executes them using the local filesystem, git, GitHub CLI, and agent CLI.
 
-```text
-Set up https://github.com/LAF-labs/LAF-Agents-Office for me. Read `README.md` first, then run
-`npx laf-office` to install and launch the project workspace — the web UI opens at
-http://localhost:7891 automatically.
+Install only the runner:
 
-Once it is running, confirm you can open Projects, see the project workspace,
-and use the composer. If anything looks off, re-read the "What You Should See"
-and "Other Commands" sections of README.md before retrying — do not skip to
-flags.
-
-For agent conventions and the MCP tools each teammate gets, read `AGENTS.md`.
-For internals and how the broker, workspaces, and memory fit together, read
-`ARCHITECTURE.md`. If I mention forking or rebranding, read `FORKING.md`.
-
-After it is installed and running, open https://github.com/LAF-labs/LAF-Agents-Office in my
-browser. If I am logged in to GitHub, ask me whether you should star the repo
-for me as a quick demo that the browser interaction works — only click the star
-if I say yes. If I am not logged in, just open https://laf-office.team.
+```bash
+curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh
 ```
 
-## Options
+In the hosted UI, open **Settings -> LAF Bridge**, create a setup command, and
+run it on the Mac/Linux machine that should execute work.
 
-| Flag | What it does |
-|------|-------------|
-| `--no-open` | Don't auto-open the browser |
-| `--opus-ceo` | Upgrade CEO from Sonnet to Opus |
-| `--provider <name>` | LLM provider override (`claude-code`, `codex`) |
-| `--collab` | Opt into collaborative mode, where all agents see all messages |
-| `--unsafe` | Bypass agent permission checks (local dev only) |
-| `--web-port <n>` | Change the web UI port (default 7891) |
+```bash
+laf-runner pair --api-url https://<your-hosted-app>/api --code <setup-code> --background
+```
 
-## Memory: Notebooks and the Wiki
+For details, see
+[HOSTED-PRODUCT-BOUNDARY.md](docs/specs/HOSTED-PRODUCT-BOUNDARY.md) and
+[HOSTED-DEPLOYMENT-RUNBOOK.md](docs/specs/HOSTED-DEPLOYMENT-RUNBOOK.md).
 
-Every agent gets its own **notebook**. The team shares a **wiki**. New installs get the wiki as a local git repo of markdown articles — file-over-app, readable, `git clone`-able.
+### Development and Tests
 
-**The promotion flow:**
+Install frontend dependencies:
 
-1. Agent works on a task and writes raw context, observations, and tentative conclusions to its **notebook** (per-agent, scoped, local to LAF-Office).
-2. When something in the notebook looks durable (a recurring playbook, a verified entity fact, a confirmed preference), the agent gets a promotion hint.
-3. The agent promotes it to the **wiki** (workspace-wide markdown). Now every other agent can query it.
-4. The wiki points other agents at whoever last recorded the context, so they know who to @mention for fresher working detail.
+```bash
+cd web
+npm install
+cd ..
+```
 
-Nothing is promoted automatically. Agents decide what graduates from notebook to wiki.
+Backend and broker tests:
 
-**The wiki is local markdown.**
+```bash
+go test ./...
+```
 
-New installs use a git-backed markdown wiki at `~/.laf-office/wiki/`. It supports sourced facts, per-entity fact logs, LLM-synthesized briefs committed under the `archivist` identity, `/lookup` cited-answer retrieval, and `/lint` checks for contradictions, stale claims, and broken cross-references. It is readable with normal tools: `cat`, `rg`, `git log`, and `git clone` all work.
+Hosted API tests:
 
-**Internal naming (for code spelunkers):** the notebook is `private` memory, the wiki is `shared` memory. On the team-wiki backend (`markdown`) the MCP tools are `notebook_write | notebook_read | notebook_list | notebook_search | notebook_promote | team_wiki_read | team_wiki_search | team_wiki_list | team_wiki_write | laf_office_wiki_lookup | run_lint | resolve_contradiction`. See `DESIGN-WIKI.md` for the reading view and `docs/specs/WIKI-SCHEMA.md` for the operational contract.
+```bash
+node --test api/hosted-api.test.js
+```
 
-## Other Commands
+Frontend checks:
 
-The examples below assume `laf-office` is on your `PATH`. If you just built the binary and haven't moved it, prefix with `./` (as in Get Started above) or run `go install ./cmd/laf-office` to drop it in `$GOPATH/bin`.
+```bash
+cd web
+npm run typecheck
+npm test
+npm run build
+```
+
+Local smoke test:
+
+```bash
+go run ./cmd/laf-office --no-open --provider codex --web-port 7891
+curl -I http://localhost:7891
+curl -fsS http://localhost:7891/api/runner/status
+```
+
+Note: the full `web npm run check` can fail on existing lint backlog. For PR
+review, use targeted lint on changed files plus `typecheck`, `npm test`,
+`npm run build`, and `go test ./...`.
+
+### Common Commands
 
 ```bash
 laf-office init          # First-time setup
-laf-office shred         # Kill a running session
-laf-office --1o1         # 1:1 with the CEO
-laf-office --1o1 ceo     # 1:1 with the CEO explicitly
-laf-office --1o1 fe      # 1:1 with a specific core agent
+laf-office --no-open     # Start without opening a browser
+laf-office --provider codex
+laf-office --provider claude-code
+laf-office --collab      # Shared-channel collaboration mode
+laf-office shred         # Reset local workspace state
 ```
 
-## What You Should See
+### Documentation
 
-- A browser tab at `localhost:7891` with the project workspace
-- The Projects view with project wiki, task queue, agents, and repo status
-- The team visible and ready to claim work
-- A composer to send messages and slash commands
+- [ARCHITECTURE.md](ARCHITECTURE.md): local runtime architecture
+- [AGENTS.md](AGENTS.md): agent operating rules
+- [FORKING.md](FORKING.md): forking and rebranding guide
+- [PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md): project task board
+- [HOSTED-RUNNER-PROTOCOL.md](docs/specs/HOSTED-RUNNER-PROTOCOL.md): hosted runner protocol
+- [WIKI-SCHEMA.md](docs/specs/WIKI-SCHEMA.md): markdown wiki contract
 
-If it feels like a hidden agent loop, something is wrong. The work should be visible in projects, tasks, receipts, and the wiki.
+### Status
 
-## Project Task Boards
+LAF-Office is pre-1.0. `main` moves quickly. If you fork or deploy it, pin to a
+release tag rather than tracking `main` directly.
 
-The Tasks app includes a lightweight Jira-style project board. Create projects,
-switch the board by project, and keep the existing LAF-Office task lifecycle
-(`open`, `in_progress`, `review`, `blocked`, `done`, `canceled`) scoped to that
-project. The same project tasks are available through `/projects` and
-`/tasks?project_id=<id>` for local automation.
-
-Each project also gets a wiki article at `team/projects/{project_id}.md`.
-Project creation materializes the article, task lifecycle updates append to it,
-and project task packets include a bounded excerpt so agents read the project
-memory before work without a separate lookup unless they need the full article.
-For connected coding projects, review or completion pushes the assigned branch
-and creates a GitHub PR when no manual delivery receipt was supplied. The task
-stores the resulting `delivery_url`, summary, timestamp, PR state, review
-decision, check status, and merge state so the board and wiki point back to a
-real PR in the connected repo; PR creation or verification failures block
-completion and are written to project memory. Closed, draft, failing-check,
-changes-requested, and merge-conflict PRs stay visible as receipts but cannot
-complete the task until they are fixed or replaced.
-The project workspace checks repository readiness with the GitHub CLI before
-creating coding work: missing `gh`, missing `gh auth login`, invalid repo URLs,
-or inaccessible repos keep the request composer in planning/task-breakdown mode
-instead of failing later during worktree or PR setup.
-
-See [docs/specs/PROJECT-TASK-TRACKING-MVP.md](docs/specs/PROJECT-TASK-TRACKING-MVP.md).
-
-## Hosted Boundary
-
-The current runtime is local-first, but the product is being shaped around the
-same hosted boundary: Supabase owns auth and durable team/project/task records,
-Vercel owns the web/API request layer, and a separate runner owns agent
-execution, git checkouts, wiki writes, and GitHub PR creation. GitHub remains
-optional and project-scoped. CRM, email, calendar, notification, and managed
-integration state stay out of the product until LAF-Office ships its own
-implementation.
-
-Cloud control plane:
-
-- team, project, task, wiki index, and runner state
-- hosted API and web UI
-- Supabase Auth/Postgres
-
-Local runner:
-
-- runs on a teammate machine or VM
-- owns filesystem, git, `gh`, Codex, Claude Code, and Opencode execution
-- leases jobs from the cloud and renews long-running leases
-- reports progress, completion, delivery receipts, and wiki index results
-
-The local runner is a first-class product component, not an npm requirement.
-NPM is only a developer-friendly bootstrap for the local workspace binary. The
-hosted path currently supports command-line runner installation on macOS and
-Linux. Windows and native package installers are intentionally paused.
-
-The default active team is CEO, Frontend Engineer, Backend Engineer, and
-Reviewer. Focus/delegation mode is the default; `--collab` is an opt-in mode for
-shared-channel visibility.
-
-See [docs/specs/HOSTED-PRODUCT-BOUNDARY.md](docs/specs/HOSTED-PRODUCT-BOUNDARY.md).
-
-## Login and Team Sessions
-
-The web UI now starts with a local login/signup gate. A new user can create a
-workspace team, or join an existing team with an invite token. Auth creates an
-HTTP-only session cookie and attaches users/invites to a `team_id`; the broker
-bearer token remains available for local agent and CLI workflows. Member roles
-and invites live in Settings → Team.
-
-See [docs/specs/AUTH-SESSIONS-MVP.md](docs/specs/AUTH-SESSIONS-MVP.md).
-
-## Human Teammate Invites
-
-The Team sidebar can invite human teammates by email. If SMTP is configured,
-LAF-Office sends the invite directly; otherwise it creates a copyable invite link and
-`mailto:` draft. Opening the invite link lets the teammate create an account and
-join the inviter's team.
-
-See [docs/specs/HUMAN-INVITES-MVP.md](docs/specs/HUMAN-INVITES-MVP.md).
-
-## Why LAF-Office
-
-| Feature | How it works |
-|---|---|
-| Sessions | Fresh per turn (no accumulated context) |
-| Tools | Per-agent scoped (DM loads 4, full workspace loads 27) |
-| Agent wakes | Push-driven (zero idle burn) |
-| Live visibility | Stdout streaming |
-| Mid-task steering | DM any agent, no restart |
-| Runtimes | Use Claude Code, Codex, or Opencode-backed agents in one workspace |
-| Memory | Per-agent notebook + shared markdown workspace wiki |
-| Price | Free and open source (MIT, self-hosted, your API keys) |
-
-## Benchmark
-
-10-turn CEO session on Codex. All numbers measured from live runs.
-
-| Metric | LAF-Office |
-|---|---|
-| Input per turn | Flat ~87k tokens |
-| Billed per turn (after cache) | ~40k tokens |
-| 10-turn total | ~286k tokens |
-| Cache hit rate | 97% (Claude API prompt cache) |
-| Claude Code cost (5-turn) | $0.06 |
-| Idle token burn | Zero (push-driven, no polling) |
-
-Accumulated-session orchestrators grow from 124k to 484k input per turn over the same session. LAF-Office stays flat. 7x difference measured over 8 turns.
-
-**Fresh sessions.** Each agent turn starts clean. No conversation history accumulates.
-
-**Prompt caching.** Claude Code gets 97% cache read because identical prompt prefixes across fresh sessions align with Anthropic's prompt cache.
-
-**Per-role tools.** DM mode loads 4 MCP tools instead of 27. Fewer tool schemas = smaller prompt = better cache hits.
-
-**Zero idle burn.** Agents only spawn when the broker pushes a notification. No heartbeat polling.
-
-### Reproduce it
-
-```bash
-laf-office &
-./scripts/benchmark.sh
-```
-
-All numbers are live-measured on your machine with your keys.
-
-## Claim Status
-
-Every claim in this README, grounded to the code that makes it true.
-
-| Claim | Status | Where it lives |
-|---|---|---|
-| CEO on Sonnet by default, `--opus-ceo` to upgrade | ✅ shipped | `internal/team/headless_claude.go:203` |
-| Focus/delegation mode default, `--collab` and `/collab` opt into shared visibility | ✅ shipped | `cmd/laf-office/channel.go` (`/collab`, `/focus`) |
-| Per-agent MCP scoping (DM loads 4 tools, not 27) | ✅ shipped | `internal/teammcp/` |
-| Fresh session per turn (no `--resume` accumulation) | ✅ shipped | `internal/team/headless_claude.go` |
-| Push-driven agent wakes (no heartbeat) | ✅ shipped | `internal/team/broker.go` |
-| Workspace isolation per agent | ✅ shipped | `internal/team/worktree.go` |
-| `laf-office import` — migrate from external orchestrator state | ✅ shipped | `cmd/laf-office/import.go` |
-| Live web-view agent streaming | 🟡 partial | `web/index.html` + broker stream |
-| Prebuilt workspace + runner binaries via goreleaser | 🟡 config ready | `.goreleaser.yml` — tags pending |
-| Resume in-flight work on restart | ✅ shipped v0.0.2.0 | see `CHANGELOG.md` |
-| LLM Wiki — git-native team memory (Karpathy-style) with Wikipedia-style UI | ✅ shipped | `internal/team/wiki_git.go`, `internal/team/wiki_worker.go`, `web/src/components/wiki/`, `DESIGN-WIKI.md` |
-| Markdown team wiki as default shared memory | ✅ shipped | `internal/config/config.go` (`MemoryBackendMarkdown`) |
-
-Legend: ✅ shipped · 🟡 partial · 🔜 planned. If a claim and a status disagree, the code wins — file an issue.
-
-## Evaluate This Repo
-
-Before you fork, run this prompt against the codebase with any AI coding assistant (Claude Code, Cursor, Codex, etc.). It tells the assistant to play a cynical senior engineer doing a fork-or-skip review — no marketing spin, just file paths, line numbers, and a verdict in under 500 words. Drop it in, read the answer, decide.
-
-```
-You are a cynical senior engineer evaluating whether to fork this repo as the
-base for a multi-agent project workspace product. No prior context — explore it
-as you naturally would. Tell me: should I fork this, and what's your honest
-take? Be specific: file paths, line numbers, actual evidence. "The docs are
-bad" is useless. Under 500 words.
-```
-
-We run this ourselves before every release. If the AI finds something we missed, [file an issue](https://github.com/LAF-labs/LAF-Agents-Office/issues).
-
-## Watch the wiki write itself
-
-5-minute terminal walkthrough of the Karpathy LLM-wiki loop: an agent records five facts, the synthesis threshold fires, the broker shells out to your own LLM CLI, the result commits to a git repo under the `archivist` identity, and the full author chain is visible in `git log`.
-
-```bash
-LAF_OFFICE_MEMORY_BACKEND=markdown HOME="$HOME/.laf-office-dev-home" \
-  ./laf-office-dev --broker-port 7899 --web-port 7900 &
-./scripts/demo-entity-synthesis.sh
-```
-
-Requirements: `curl`, `python3`, a running broker with the default markdown wiki, and any supported LLM CLI (`claude`, `codex`, or `opencode`) on PATH. Env vars `BROKER`, `ENTITY_KIND`, `ENTITY_SLUG`, `AGENT_SLUG`, `THRESHOLD` override the defaults — see the header of `scripts/demo-entity-synthesis.sh`.
+License: MIT
