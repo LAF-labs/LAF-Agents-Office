@@ -29,11 +29,6 @@ const PROVIDERS: ProviderOption[] = [
     desc: "Anthropic Claude via Claude Code CLI",
   },
   { id: "codex", name: "Codex", desc: "OpenAI Codex CLI agent" },
-  {
-    id: "opencode",
-    name: "Opencode",
-    desc: "Opencode CLI — routes to Claude, OpenAI, or local/Ollama",
-  },
 ];
 
 export function ProviderSwitcherHost() {

@@ -191,10 +191,8 @@ export default function App() {
   }, [theme]);
 
   // Init API and determine onboarding state.
-  // Source of truth: GET /onboarding/state.onboarded (backed by ~/.laf-office/onboarded.json).
-  // Broker health / default agents must not skip the wizard — the broker seeds 7
-  // default agents on every boot, so a health-based check was making the wizard
-  // permanently unreachable for fresh installs.
+  // Source of truth: GET /onboarding/state.onboarded from the hosted workspace
+  // settings. Execution connectivity is handled separately by Bridge/Runner.
   useEffect(() => {
     let cancelled = false;
     initApi()
@@ -237,7 +235,7 @@ export default function App() {
   if (!apiReady) {
     // The static skeleton in index.html already covers this case, but
     // render a matching React fallback so nothing flashes.
-    body = <AppBootScreen label="Connecting to broker..." />;
+    body = <AppBootScreen label="Loading workspace..." />;
   } else if (inviteToken) {
     body = <InviteAcceptPage token={inviteToken} />;
   } else if (!authSession.authenticated) {

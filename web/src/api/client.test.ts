@@ -15,11 +15,13 @@ import {
   getProjectRepoReadiness,
   getRunnerStatus,
   initApi,
+  isLocalhostRuntime,
   login,
   resetWorkspace,
   revokeRunner,
   shredWorkspace,
   signup,
+  supportsBrokerEvents,
   updateProject,
   updateTask,
 } from "./client";
@@ -555,6 +557,38 @@ describe("task and session api client", () => {
     );
     expect(result.readiness.can_create_coding_tasks).toBe(true);
     expect(result.readiness.default_branch).toBe("main");
+  });
+
+  it("uses hosted /api directly and skips local broker discovery off localhost", async () => {
+    vi.stubGlobal("location", { hostname: "laf-co.com" });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await initApi();
+    await get("/auth/session");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/session",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith("/api-token", expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("localhost:7890"),
+      expect.anything(),
+    );
+    expect(supportsBrokerEvents()).toBe(false);
+  });
+
+  it("identifies localhost as the only browser broker-event runtime", () => {
+    expect(isLocalhostRuntime("localhost")).toBe(true);
+    expect(isLocalhostRuntime("127.0.0.1")).toBe(true);
+    expect(isLocalhostRuntime("laf-co.com")).toBe(false);
   });
 
   it("keeps same-origin proxy mode when the dev proxy is temporarily unavailable", async () => {

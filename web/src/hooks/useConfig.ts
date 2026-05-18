@@ -16,7 +16,6 @@ export function useDefaultHarness(): HarnessKind {
     staleTime: 60_000,
   });
   const raw = data?.llm_provider;
-  if (raw === "claude-code" || raw === "codex" || raw === "opencode")
-    return raw;
+  if (raw === "claude-code" || raw === "codex") return raw;
   return DEFAULT_HARNESS;
 }

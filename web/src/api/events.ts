@@ -1,4 +1,4 @@
-import { sseURL } from "./client";
+import { sseURL, supportsBrokerEvents } from "./client";
 
 type Listener = EventListenerOrEventListenerObject;
 
@@ -36,6 +36,7 @@ function eventSourceIsClosed(
 }
 
 function ensureBrokerEventSource(): EventSource | null {
+  if (!supportsBrokerEvents()) return null;
   const ES = eventSourceConstructor();
   if (!ES) return null;
 

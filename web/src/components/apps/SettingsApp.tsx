@@ -6,6 +6,7 @@ import {
   type ReactNode,
   useEffect,
   useId,
+  useMemo,
   useState,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +45,7 @@ import {
   getPermissions,
   getRunnerStatus,
   type HostedRunner,
+  isLocalhostRuntime,
   type OfficeMember,
   type PermissionMember,
   type RunnerDiagnostic,
@@ -60,8 +62,8 @@ import {
 } from "../../api/client";
 import { useI18n } from "../../lib/i18n";
 import {
-  PROFILE_AVATAR_IDS,
   normalizeProfileAvatarId,
+  PROFILE_AVATAR_IDS,
 } from "../../lib/profileAvatar";
 import { useAppStore } from "../../stores/app";
 import { PixelAvatar } from "../ui/PixelAvatar";
@@ -139,6 +141,21 @@ const SECTION_GROUPS: SectionGroup[] = [
     ],
   },
 ];
+
+function visibleSectionGroups(): SectionGroup[] {
+  if (isLocalhostRuntime()) return SECTION_GROUPS;
+  const hidden = new Set<SectionId>(["danger", "keys"]);
+  return SECTION_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !hidden.has(item.id)),
+  })).filter((group) => group.items.length > 0);
+}
+
+function sectionIsVisible(section: string, groups: SectionGroup[]): boolean {
+  return groups.some((group) =>
+    group.items.some((item) => item.id === section),
+  );
+}
 
 // ─── Styles ─────────────────────────────────────────────────────────────
 
@@ -576,7 +593,9 @@ function ProfileSection() {
 
   if (!user) {
     return (
-      <div style={styles.emptyState}>{t("settings.profile.sessionMissing")}</div>
+      <div style={styles.emptyState}>
+        {t("settings.profile.sessionMissing")}
+      </div>
     );
   }
 
@@ -679,7 +698,9 @@ function ProfileSection() {
       <p style={{ ...styles.groupTitle, marginTop: 24 }}>
         {t("settings.profile.preferencesGroup")}
       </p>
-      <div style={styles.emptyState}>{t("settings.profile.preferencesHint")}</div>
+      <div style={styles.emptyState}>
+        {t("settings.profile.preferencesHint")}
+      </div>
     </section>
   );
 }
@@ -735,6 +756,7 @@ interface SectionProps {
 function GeneralSection({ cfg, save }: SectionProps) {
   const { language, t } = useI18n();
   const setLanguage = useAppStore((s) => s.setLanguage);
+  const showLocalRuntimeSettings = isLocalhostRuntime();
   const [provider, setProvider] = useState(cfg.llm_provider ?? "claude-code");
   const [teamLead, setTeamLead] = useState(cfg.team_lead_slug ?? "");
   const [maxConcurrent, setMaxConcurrent] = useState(
@@ -751,9 +773,9 @@ function GeneralSection({ cfg, save }: SectionProps) {
       llm_provider: provider as ConfigUpdate["llm_provider"],
       memory_backend: "markdown",
       default_format: format,
-      dev_url: devUrl,
       team_lead_slug: teamLead,
     };
+    if (showLocalRuntimeSettings) patch.dev_url = devUrl;
     if (maxConcurrent)
       patch.max_concurrent_agents = parseInt(maxConcurrent, 10);
     if (timeout) patch.default_timeout = parseInt(timeout, 10);
@@ -765,25 +787,27 @@ function GeneralSection({ cfg, save }: SectionProps) {
       <h2 style={styles.sectionTitle}>{t("settings.general.title")}</h2>
       <p style={styles.sectionDesc}>{t("settings.general.desc")}</p>
 
-      <div style={styles.banner}>
-        <span style={{ fontSize: 14, flexShrink: 0 }}>{"\u26A0"}</span>
-        <div>
-          <strong>{t("settings.general.restartTitle")} </strong>
-          {t("settings.general.restartBody")}{" "}
-          <code
-            style={{
-              fontFamily: "var(--font-mono)",
-              padding: "1px 6px",
-              background: "var(--accent-bg)",
-              color: "var(--accent-strong)",
-              borderRadius: 3,
-            }}
-          >
-            laf-office shred
-          </code>{" "}
-          {t("settings.general.restartTail")}
+      {showLocalRuntimeSettings ? (
+        <div style={styles.banner}>
+          <span style={{ fontSize: 14, flexShrink: 0 }}>{"\u26A0"}</span>
+          <div>
+            <strong>{t("settings.general.restartTitle")} </strong>
+            {t("settings.general.restartBody")}{" "}
+            <code
+              style={{
+                fontFamily: "var(--font-mono)",
+                padding: "1px 6px",
+                background: "var(--accent-bg)",
+                color: "var(--accent-strong)",
+                borderRadius: 3,
+              }}
+            >
+              laf-office shred
+            </code>{" "}
+            {t("settings.general.restartTail")}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div style={styles.groupTitle}>{t("settings.general.languageGroup")}</div>
       <Field
@@ -809,7 +833,6 @@ function GeneralSection({ cfg, save }: SectionProps) {
         >
           <option value="claude-code">Claude Code</option>
           <option value="codex">Codex</option>
-          <option value="opencode">Opencode</option>
         </select>
       </Field>
 
@@ -868,26 +891,30 @@ function GeneralSection({ cfg, save }: SectionProps) {
         />
       </Field>
 
-      <div style={{ ...styles.groupTitle, marginTop: 24 }}>
-        {t("settings.general.developmentGroup")}
-      </div>
-      <Field
-        label={t("settings.general.devUrl")}
-        hint={t("settings.general.devUrlHint")}
-      >
-        <input
-          style={styles.input}
-          placeholder="http://localhost:7890"
-          value={devUrl}
-          onChange={(e) => setDevUrl(e.target.value)}
-        />
-      </Field>
+      {showLocalRuntimeSettings ? (
+        <>
+          <div style={{ ...styles.groupTitle, marginTop: 24 }}>
+            {t("settings.general.developmentGroup")}
+          </div>
+          <Field
+            label={t("settings.general.devUrl")}
+            hint={t("settings.general.devUrlHint")}
+          >
+            <input
+              style={styles.input}
+              placeholder="http://localhost:7890"
+              value={devUrl}
+              onChange={(e) => setDevUrl(e.target.value)}
+            />
+          </Field>
+        </>
+      ) : null}
 
       <div style={{ marginTop: 24 }}>
         <SaveButton label={t("settings.general.save")} onSave={onSave} />
       </div>
 
-      {cfg.config_path ? (
+      {showLocalRuntimeSettings && cfg.config_path ? (
         <div style={{ marginTop: 24 }}>
           <div style={styles.groupTitle}>
             {t("settings.general.configFile")}
@@ -2905,11 +2932,53 @@ function DangerZoneSection() {
   );
 }
 
+function SettingsLoadError({ error }: { error: unknown }) {
+  const { t } = useI18n();
+  const errorMessage =
+    error instanceof Error ? error.message : String(error || "");
+  const suffix = /hosted API route not found/i.test(errorMessage)
+    ? ""
+    : ` ${errorMessage}`;
+  return (
+    <div className="app-empty-state">
+      {t("settings.loadFailed")}
+      {suffix}
+    </div>
+  );
+}
+
+function SettingsSectionBody({
+  data,
+  save,
+  section,
+}: {
+  data: ConfigSnapshot;
+  save: (patch: ConfigUpdate) => Promise<void>;
+  section: SectionId;
+}) {
+  const showLocalRuntimeSettings = isLocalhostRuntime();
+  if (section === "profile") return <ProfileSection />;
+  if (section === "general") return <GeneralSection cfg={data} save={save} />;
+  if (section === "agents") return <AgentMakerSection />;
+  if (section === "team") return <TeamSection />;
+  if (section === "access") return <AccessControlSection />;
+  if (section === "company") return <CompanySection cfg={data} save={save} />;
+  if (section === "bridge") return <BridgeSection />;
+  if (showLocalRuntimeSettings && section === "keys") {
+    return <KeysSection cfg={data} save={save} />;
+  }
+  if (showLocalRuntimeSettings && section === "danger") {
+    return <DangerZoneSection />;
+  }
+  return null;
+}
+
 // ─── Main component ─────────────────────────────────────────────────────
 
 export function SettingsApp() {
   const { t } = useI18n();
   const [section, setSection] = useState<SectionId>("general");
+  const sectionGroups = useMemo(() => visibleSectionGroups(), []);
   const queryClient = useQueryClient();
   const requestedSection = useAppStore((s) => s.settingsSection);
   const setSettingsSection = useAppStore((s) => s.setSettingsSection);
@@ -2941,15 +3010,15 @@ export function SettingsApp() {
 
   useEffect(() => {
     if (!requestedSection) return;
-    if (
-      SECTION_GROUPS.some((group) =>
-        group.items.some((item) => item.id === requestedSection),
-      )
-    ) {
+    if (sectionIsVisible(requestedSection, sectionGroups)) {
       setSection(requestedSection as SectionId);
     }
     setSettingsSection(null);
-  }, [requestedSection, setSettingsSection]);
+  }, [requestedSection, sectionGroups, setSettingsSection]);
+
+  useEffect(() => {
+    if (!sectionIsVisible(section, sectionGroups)) setSection("general");
+  }, [section, sectionGroups]);
 
   const save = async (patch: ConfigUpdate) => {
     await saveMutation.mutateAsync(patch);
@@ -2960,18 +3029,13 @@ export function SettingsApp() {
   }
 
   if (error || !data) {
-    return (
-      <div className="app-empty-state">
-        {t("settings.loadFailed")}{" "}
-        {error instanceof Error ? error.message : String(error)}
-      </div>
-    );
+    return <SettingsLoadError error={error} />;
   }
 
   return (
     <div className="settings-shell" style={styles.shell}>
       <nav className="settings-nav" style={styles.nav}>
-        {SECTION_GROUPS.map((group) => (
+        {sectionGroups.map((group) => (
           <div key={group.labelKey}>
             <p style={styles.navGroupLabel}>{t(group.labelKey)}</p>
             {group.items.map((sec) => {
@@ -2993,15 +3057,7 @@ export function SettingsApp() {
         ))}
       </nav>
       <div className="settings-body" style={styles.body} key={dataKey}>
-        {section === "profile" && <ProfileSection />}
-        {section === "general" && <GeneralSection cfg={data} save={save} />}
-        {section === "agents" && <AgentMakerSection />}
-        {section === "team" && <TeamSection />}
-        {section === "access" && <AccessControlSection />}
-        {section === "company" && <CompanySection cfg={data} save={save} />}
-        {section === "bridge" && <BridgeSection />}
-        {section === "keys" && <KeysSection cfg={data} save={save} />}
-        {section === "danger" && <DangerZoneSection />}
+        <SettingsSectionBody data={data} save={save} section={section} />
       </div>
     </div>
   );

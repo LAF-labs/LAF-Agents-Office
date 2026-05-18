@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { supportsBrokerEvents } from "../api/client";
 import { subscribeBrokerEvent } from "../api/events";
 import { useAppStore } from "../stores/app";
 
@@ -17,7 +18,7 @@ export function useBrokerEvents(enabled: boolean) {
   const setBrokerConnected = useAppStore((s) => s.setBrokerConnected);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!(enabled && supportsBrokerEvents())) return;
 
     const pending = new Map<string, QueryKey>();
     let timer: ReturnType<typeof setTimeout> | null = null;

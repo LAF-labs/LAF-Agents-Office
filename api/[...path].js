@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 
 const ACTIVE_JOB_STATUSES = ["queued", "leased", "running", "expired"];
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
-const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code", "opencode"];
+const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code"];
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_EXECUTION_EVENT_PAYLOAD_BYTES = 64 * 1024;
 const RUNNER_DIAGNOSTIC_LIMIT = 20;
@@ -141,6 +141,13 @@ module.exports = async function handler(req, res) {
     assertSupabaseEnv();
 
     const path = requestPath(req);
+    if (path === "health" && req.method === "GET") {
+      writeJSON(res, 200, {
+        service: "laf-hosted-api",
+        status: "ok",
+      });
+      return;
+    }
     if (path === "auth/session" && req.method === "GET") {
       await handleAuthSession(req, res);
       return;
@@ -168,6 +175,110 @@ module.exports = async function handler(req, res) {
     if (path === "auth/logout" && req.method === "POST") {
       clearAuthCookies(res);
       writeJSON(res, 200, { status: "ok" });
+      return;
+    }
+    if (path === "config") {
+      await handleHostedConfig(req, res);
+      return;
+    }
+    if (path === "onboarding/state" && req.method === "GET") {
+      await handleHostedOnboardingState(req, res);
+      return;
+    }
+    if (path === "onboarding/complete" && req.method === "POST") {
+      await handleHostedOnboardingComplete(req, res);
+      return;
+    }
+    if (path === "onboarding/prereqs" && req.method === "GET") {
+      writeJSON(res, 200, { prereqs: [] });
+      return;
+    }
+    if (path === "onboarding/blueprints" && req.method === "GET") {
+      writeJSON(res, 200, { templates: [] });
+      return;
+    }
+    if (path === "humans" && req.method === "GET") {
+      await handleHostedHumans(req, res);
+      return;
+    }
+    if (path === "teams" && req.method === "GET") {
+      await handleHostedTeams(req, res);
+      return;
+    }
+    if (path === "office-members") {
+      await handleHostedOfficeMembers(req, res);
+      return;
+    }
+    if (path === "office-members/generate" && req.method === "POST") {
+      await handleHostedOfficeMemberGenerate(req, res);
+      return;
+    }
+    if (path === "members" && req.method === "GET") {
+      await handleHostedChannelMembers(req, res);
+      return;
+    }
+    if (path === "channels") {
+      await handleHostedChannels(req, res);
+      return;
+    }
+    if (path === "channels/generate" && req.method === "POST") {
+      await handleHostedChannelGenerate(req, res);
+      return;
+    }
+    if (path === "channels/dm" && req.method === "POST") {
+      await handleHostedDMChannel(req, res);
+      return;
+    }
+    if (path === "messages") {
+      await handleHostedMessages(req, res);
+      return;
+    }
+    if (path === "messages/react" && req.method === "POST") {
+      writeJSON(res, 200, { ok: true });
+      return;
+    }
+    if (path === "home-sessions") {
+      await handleHostedHomeSessions(req, res);
+      return;
+    }
+    if (path === "commands" && req.method === "GET") {
+      writeJSON(res, 200, []);
+      return;
+    }
+    if (path === "commands/run" && req.method === "POST") {
+      await handleHostedCommandRun(req, res);
+      return;
+    }
+    if (path === "requests" && req.method === "GET") {
+      writeJSON(res, 200, { requests: [] });
+      return;
+    }
+    if (path === "requests/answer" && req.method === "POST") {
+      writeJSON(res, 200, { ok: true });
+      return;
+    }
+    if (["actions", "signals", "decisions", "watchdogs"].includes(path) && req.method === "GET") {
+      writeJSON(res, 200, { [path]: [] });
+      return;
+    }
+    if (path === "scheduler" && req.method === "GET") {
+      writeJSON(res, 200, { jobs: [] });
+      return;
+    }
+    if (path === "usage" && req.method === "GET") {
+      writeJSON(res, 200, { total: { cost_usd: 0, total_tokens: 0 } });
+      return;
+    }
+    if (path === "agent-logs" && req.method === "GET") {
+      writeJSON(res, 200, { logs: [] });
+      return;
+    }
+    if (path === "memory") {
+      await handleHostedMemory(req, res);
+      return;
+    }
+    if (path === "projects/repo-readiness" && req.method === "GET") {
+      await handleHostedProjectRepoReadiness(req, res);
       return;
     }
     if (path === "invites/lookup" && req.method === "GET") {
@@ -1172,6 +1283,517 @@ async function handleAuthSession(req, res) {
     }
     throw err;
   }
+}
+
+async function handleHostedConfig(req, res) {
+  const { membership, team, user } = await requireUser(req);
+  if (req.method === "GET") {
+    const settings = await workspaceSettings(membership.team_id);
+    writeJSON(res, 200, hostedConfigSnapshot({ settings, team, user }));
+    return;
+  }
+  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+
+  const body = await readBody(req);
+  const existing = await workspaceSettings(membership.team_id);
+  const patch = workspaceSettingsPatch(existing, body);
+  const settings = await upsertWorkspaceSettings(membership.team_id, patch);
+  writeJSON(res, 200, {
+    config: hostedConfigSnapshot({ settings, team, user }),
+    status: "ok",
+  });
+}
+
+async function handleHostedOnboardingState(req, res) {
+  const { membership } = await requireUser(req);
+  const settings = await workspaceSettings(membership.team_id);
+  const fallbackOnboarded = settings
+    ? false
+    : await workspaceHasAnyProject(membership.team_id);
+  writeJSON(res, 200, {
+    onboarded: Boolean(settings?.onboarding_completed_at) || fallbackOnboarded,
+    onboarding_completed_at: settings?.onboarding_completed_at || null,
+  });
+}
+
+async function handleHostedOnboardingComplete(req, res) {
+  const { membership, team, user } = await requireUser(req);
+  const body = await readBody(req);
+  const existing = await workspaceSettings(membership.team_id);
+  const patch = workspaceSettingsPatch(existing, body);
+  patch.onboarding_completed_at =
+    existing?.onboarding_completed_at || nowISO();
+
+  const settings = await upsertWorkspaceSettings(membership.team_id, patch);
+  const seeded = existing?.onboarding_completed_at
+    ? { project: null, task: null }
+    : await seedOnboardingWorkspace(membership, team, body);
+  await writeAuditEvent(membership, "onboarding.completed", "team", membership.team_id, {
+    project_id: seeded.project?.id || "",
+    task_id: seeded.task?.id || "",
+  });
+  writeJSON(res, 200, {
+    config: hostedConfigSnapshot({ settings, team, user }),
+    onboarded: true,
+    project: seeded.project ? publicProject(seeded.project) : null,
+    status: "ok",
+    task: seeded.task ? publicTask(seeded.task, { [seeded.project.id]: seeded.project }) : null,
+  });
+}
+
+async function workspaceSettings(teamID) {
+  try {
+    const rows = await rest("workspace_settings", {
+      query: {
+        limit: "1",
+        select: "*",
+        team_id: `eq.${teamID}`,
+      },
+    });
+    return rows?.[0] || null;
+  } catch (err) {
+    if (isMissingWorkspaceSettingsError(err)) return null;
+    throw err;
+  }
+}
+
+async function upsertWorkspaceSettings(teamID, patch) {
+  try {
+    const [settings] = await rest("workspace_settings", {
+      method: "POST",
+      prefer: "resolution=merge-duplicates,return=representation",
+      query: { on_conflict: "team_id" },
+      body: {
+        ...patch,
+        team_id: teamID,
+        updated_at: nowISO(),
+      },
+    });
+    return settings || { ...patch, team_id: teamID };
+  } catch (err) {
+    if (isMissingWorkspaceSettingsError(err)) {
+      return { ...patch, team_id: teamID, updated_at: nowISO() };
+    }
+    throw err;
+  }
+}
+
+function workspaceSettingsPatch(existing, body) {
+  const currentProfile = objectValue(existing?.company_profile);
+  const currentPreferences = objectValue(existing?.preferences);
+  const companyProfile = {
+    ...currentProfile,
+    ...companyProfilePatch(body),
+  };
+  const preferences = {
+    ...currentPreferences,
+    ...workspacePreferencesPatch(body),
+  };
+  const patch = {
+    company_profile: companyProfile,
+    preferences,
+  };
+  if (body.llm_provider !== undefined) {
+    patch.llm_provider = normalizeHostedLLMProvider(body.llm_provider);
+  } else if (!existing?.llm_provider) {
+    patch.llm_provider = "claude-code";
+  }
+  if (body.team_lead_slug !== undefined) {
+    patch.team_lead_slug = truncateText(body.team_lead_slug, 80);
+  } else if (!existing?.team_lead_slug) {
+    patch.team_lead_slug = "ceo";
+  }
+  return patch;
+}
+
+function companyProfilePatch(body) {
+  const profile = objectValue(body.company_profile);
+  const out = { ...profile };
+  const companyName = body.company_name ?? body.company;
+  if (companyName !== undefined) out.name = truncateText(companyName, 160);
+  const companyDescription = body.company_description ?? body.description;
+  if (companyDescription !== undefined) {
+    out.description = truncateText(companyDescription, 2000);
+  }
+  if (body.company_goals !== undefined) out.goals = truncateText(body.company_goals, 2000);
+  if (body.company_size !== undefined) out.size = truncateText(body.company_size, 120);
+  const priority = body.company_priority ?? body.priority;
+  if (priority !== undefined) out.priority = truncateText(priority, 1000);
+  return out;
+}
+
+function workspacePreferencesPatch(body) {
+  const out = {};
+  for (const key of [
+    "action_provider",
+    "blueprint",
+    "default_format",
+    "memory_backend",
+    "openclaw_gateway_url",
+  ]) {
+    if (body[key] !== undefined) out[key] = truncateText(body[key], 1000);
+  }
+  for (const key of [
+    "default_timeout",
+    "insights_poll_minutes",
+    "max_concurrent_agents",
+    "task_follow_up_minutes",
+    "task_recheck_minutes",
+    "task_reminder_minutes",
+  ]) {
+    if (body[key] !== undefined && Number.isFinite(Number(body[key]))) {
+      out[key] = Number(body[key]);
+    }
+  }
+  for (const key of ["agent_names", "agents"]) {
+    if (Array.isArray(body[key])) out[key] = body[key].map((item) => truncateText(item, 120));
+  }
+  const firstTask = body.task ?? body.first_task;
+  if (firstTask !== undefined) out.first_task = truncateText(firstTask, 1000);
+  return out;
+}
+
+function hostedConfigSnapshot({ settings, team, user }) {
+  const company = objectValue(settings?.company_profile);
+  const preferences = objectValue(settings?.preferences);
+  return {
+    action_provider: preferences.action_provider || "",
+    anthropic_key_set: false,
+    api_key_set: false,
+    blueprint: preferences.blueprint || "",
+    company_description: company.description || "",
+    company_goals: company.goals || "",
+    company_name: company.name || team?.name || "",
+    company_priority: company.priority || "",
+    company_size: company.size || "",
+    composio_key_set: false,
+    config_path: "",
+    default_format: preferences.default_format || "text",
+    default_timeout: Number(preferences.default_timeout || 120000),
+    dev_url: "",
+    email: user?.email || "",
+    gemini_key_set: false,
+    insights_poll_minutes: Number(preferences.insights_poll_minutes || 60),
+    llm_provider: normalizeHostedLLMProvider(settings?.llm_provider),
+    max_concurrent_agents: Number(preferences.max_concurrent_agents || 3),
+    memory_backend: preferences.memory_backend || "markdown",
+    minimax_key_set: false,
+    one_key_set: false,
+    openai_key_set: false,
+    openclaw_gateway_url: preferences.openclaw_gateway_url || "",
+    openclaw_token_set: false,
+    task_follow_up_minutes: Number(preferences.task_follow_up_minutes || 1440),
+    task_recheck_minutes: Number(preferences.task_recheck_minutes || 1440),
+    task_reminder_minutes: Number(preferences.task_reminder_minutes || 60),
+    team_lead_slug: settings?.team_lead_slug || "ceo",
+    telegram_token_set: false,
+    workspace_id: team?.id || "",
+    workspace_slug: team?.slug || "",
+  };
+}
+
+async function seedOnboardingWorkspace(membership, team, body) {
+  const title = truncateText(body.task || body.first_task || "", 200);
+  if (!title || body.skip_task === true) return { project: null, task: null };
+
+  let project = await firstTeamProject(membership.team_id);
+  if (!project) {
+    const name = truncateText(body.company || body.company_name || team?.name || "First project", 120);
+    const [created] = await rest("projects", {
+      method: "POST",
+      body: {
+        additional_info: truncateText(body.priority || body.company_priority || "", 1000),
+        channel: "general",
+        created_by: membership.user_id,
+        description: truncateText(body.description || body.company_description || "", 2000),
+        local_id: await uniqueProjectLocalID(membership.team_id, name),
+        name,
+        status: "active",
+        team_id: membership.team_id,
+      },
+    });
+    project = created;
+    await writeAuditEvent(membership, "project.created", "project", project.id, {
+      source: "onboarding",
+    });
+  }
+
+  const { task } = await createTask(membership, {
+    action: "create",
+    channel: project.channel || "general",
+    details: truncateText(body.description || "", 2000),
+    execution_mode: "office",
+    model_mode: "record_only",
+    project_id: project.local_id || project.id,
+    title,
+  });
+  return {
+    project,
+    task: await findTask(membership.team_id, task.id),
+  };
+}
+
+async function firstTeamProject(teamID) {
+  const rows = await rest("projects", {
+    query: {
+      limit: "1",
+      order: "created_at.asc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  return rows?.[0] || null;
+}
+
+async function workspaceHasAnyProject(teamID) {
+  const rows = await rest("projects", {
+    query: {
+      limit: "1",
+      select: "id",
+      team_id: `eq.${teamID}`,
+    },
+  }).catch(() => []);
+  return Boolean(rows?.length);
+}
+
+function normalizeHostedLLMProvider(value) {
+  const provider = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+  if (provider === "codex") return "codex";
+  if (provider === "claude" || provider === "claude-code") return "claude-code";
+  return "claude-code";
+}
+
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function isMissingWorkspaceSettingsError(err) {
+  if (!(err instanceof HTTPError)) return false;
+  if (err.status !== 404) return false;
+  return String(err.message || "").includes("workspace_settings");
+}
+
+async function handleHostedHumans(req, res) {
+  const { membership, user } = await requireUser(req);
+  writeJSON(res, 200, {
+    humans: [
+      {
+        email: user.email || "",
+        name: user.user_metadata?.name || user.email || "You",
+        slug: "human",
+        team_id: membership.team_id,
+      },
+    ],
+  });
+}
+
+async function handleHostedTeams(req, res) {
+  const { team } = await requireUser(req);
+  writeJSON(res, 200, { teams: [publicTeam(team)] });
+}
+
+async function handleHostedOfficeMembers(req, res) {
+  const { user } = await requireUser(req);
+  if (req.method === "GET") {
+    writeJSON(res, 200, { members: hostedOfficeMembers(user) });
+    return;
+  }
+  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+  const body = await readBody(req);
+  const member = hostedOfficeMember({
+    built_in: false,
+    name: body.name || body.slug || "Agent",
+    role: body.role || "",
+    slug: body.slug || slugify(body.name || "agent") || `agent-${shortID()}`,
+  });
+  writeJSON(res, 200, { member });
+}
+
+async function handleHostedOfficeMemberGenerate(req, res) {
+  await requireUser(req);
+  const body = await readBody(req);
+  const prompt = truncateText(body.prompt || "", 120);
+  const slug = slugify(prompt) || `agent-${shortID()}`;
+  writeJSON(res, 200, {
+    expertise: [],
+    name: prompt || "Specialist Agent",
+    personality: "",
+    role: prompt || "Specialist",
+    slug,
+  });
+}
+
+async function handleHostedChannelMembers(req, res) {
+  const { user } = await requireUser(req);
+  writeJSON(res, 200, { members: hostedOfficeMembers(user) });
+}
+
+async function handleHostedChannels(req, res) {
+  await requireUser(req);
+  if (req.method === "GET") {
+    writeJSON(res, 200, {
+      channels: [hostedChannel("general", "General", "Workspace home")],
+    });
+    return;
+  }
+  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+  const body = await readBody(req);
+  const slug = slugify(body.slug || body.name || "channel") || `channel-${shortID()}`;
+  writeJSON(res, 200, hostedChannel(slug, body.name || slug, body.description || ""));
+}
+
+async function handleHostedChannelGenerate(req, res) {
+  await requireUser(req);
+  const body = await readBody(req);
+  const name = truncateText(body.prompt || "Generated channel", 80);
+  const slug = slugify(name) || `channel-${shortID()}`;
+  writeJSON(res, 200, hostedChannel(slug, name, ""));
+}
+
+async function handleHostedDMChannel(req, res) {
+  await requireUser(req);
+  const body = await readBody(req);
+  const members = Array.isArray(body.members) ? body.members.map((item) => String(item || "")) : [];
+  const agent = members.find((member) => !["human", "you"].includes(member)) || "agent";
+  writeJSON(res, 200, {
+    ...hostedChannel(`dm-${slugify(agent) || "agent"}`, `@${agent}`, ""),
+    created: false,
+    members,
+    type: "direct",
+  });
+}
+
+async function handleHostedMessages(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method === "GET") {
+    writeJSON(res, 200, { messages: [] });
+    return;
+  }
+  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+  const body = await readBody(req);
+  const channel = String(body.channel || "general").trim() || "general";
+  writeJSON(res, 200, {
+    audience: [],
+    channel,
+    content: String(body.content || ""),
+    from: String(body.from || "you"),
+    id: `msg-${shortID()}`,
+    kind: "message",
+    tagged: Array.isArray(body.tagged) ? body.tagged : [],
+    team_id: membership.team_id,
+    thread_id: body.thread_id || body.home_session_thread_id || "",
+    timestamp: nowISO(),
+  });
+}
+
+async function handleHostedHomeSessions(req, res) {
+  await requireUser(req);
+  if (req.method === "GET") {
+    writeJSON(res, 200, { sessions: [] });
+    return;
+  }
+  if (req.method === "DELETE") {
+    writeJSON(res, 200, { deleted: true, ok: true });
+    return;
+  }
+  throw new HTTPError(405, "method not allowed");
+}
+
+async function handleHostedCommandRun(req, res) {
+  await requireUser(req);
+  const body = await readBody(req);
+  const channel = String(body.channel || "general").trim() || "general";
+  const content = String(body.input || "");
+  writeJSON(res, 200, {
+    message: {
+      channel,
+      content,
+      from: "system",
+      id: `msg-${shortID()}`,
+      kind: "system",
+      timestamp: nowISO(),
+    },
+    output: "",
+  });
+}
+
+async function handleHostedMemory(req, res) {
+  await requireUser(req);
+  if (req.method === "GET") {
+    writeJSON(res, 200, { memory: {}, namespaces: [] });
+    return;
+  }
+  if (req.method === "POST") {
+    writeJSON(res, 200, { ok: true });
+    return;
+  }
+  throw new HTTPError(405, "method not allowed");
+}
+
+async function handleHostedProjectRepoReadiness(req, res) {
+  const { membership } = await requireUser(req);
+  const projectID = String(req.query?.id || req.query?.project_id || "").trim();
+  const project = projectID
+    ? await findProject(membership.team_id, projectID).catch(() => null)
+    : null;
+  let repoURL = "";
+  try {
+    repoURL = normalizeGitHubRepoURL(project?.github_repo_url || "");
+  } catch {
+    repoURL = "";
+  }
+  writeJSON(res, 200, {
+    readiness: {
+      can_create_coding_tasks: Boolean(repoURL),
+      default_branch: "",
+      message: repoURL
+        ? "Repository URL is configured. Connect LAF Bridge before local execution."
+        : "No GitHub repository is configured for this project yet.",
+      project_id: project?.local_id || project?.id || projectID,
+      repo_url: repoURL,
+      status: repoURL ? "ready" : "missing_repo",
+    },
+  });
+}
+
+function hostedOfficeMembers(user) {
+  return [
+    hostedOfficeMember({
+      built_in: true,
+      name: user.user_metadata?.name || user.email || "You",
+      role: "Human owner",
+      slug: "human",
+    }),
+    hostedOfficeMember({ built_in: true, name: "CEO", role: "Company lead", slug: "ceo" }),
+    hostedOfficeMember({ built_in: true, name: "PM", role: "Product manager", slug: "pm" }),
+    hostedOfficeMember({ built_in: true, name: "Frontend Engineer", role: "Frontend", slug: "fe" }),
+    hostedOfficeMember({ built_in: true, name: "Backend Engineer", role: "Backend", slug: "be" }),
+    hostedOfficeMember({ built_in: true, name: "Reviewer", role: "Reviewer", slug: "reviewer" }),
+  ];
+}
+
+function hostedOfficeMember(member) {
+  return {
+    activity: "",
+    built_in: Boolean(member.built_in),
+    detail: "",
+    name: String(member.name || member.slug || "Agent"),
+    provider: { kind: "claude-code" },
+    role: String(member.role || ""),
+    slug: String(member.slug || "agent"),
+    status: "idle",
+  };
+}
+
+function hostedChannel(slug, name, description) {
+  return {
+    created_by: "system",
+    description: String(description || ""),
+    members: ["human", "ceo", "pm", "fe", "be", "reviewer"],
+    name: String(name || slug),
+    slug: String(slug || "general"),
+    type: "public",
+  };
 }
 
 // adminUserByID fetches a single auth user via the admin endpoint. Unlike the

@@ -42,7 +42,7 @@ const messages = {
     "settings.section.danger": "Danger Zone",
     "settings.general.title": "General",
     "settings.general.desc":
-      "Core local runtime settings for the agents in this workspace.",
+      "Workspace defaults for agents, project setup, and execution preferences.",
     "settings.general.languageGroup": "Interface",
     "settings.general.languageLabel": "Language",
     "settings.general.languageHint": "Applies immediately to this browser",
@@ -74,7 +74,8 @@ const messages = {
       "Manage your sidebar identity, avatar, password, and personal preferences.",
     "settings.profile.identityGroup": "Identity",
     "settings.profile.nickname": "Nickname",
-    "settings.profile.nicknameHint": "Shown in your profile footer and team views",
+    "settings.profile.nicknameHint":
+      "Shown in your profile footer and team views",
     "settings.profile.avatar": "Profile image",
     "settings.profile.avatarHint": "Choose one of the office pixel portraits",
     "settings.profile.save": "Save profile",
@@ -112,7 +113,7 @@ const messages = {
     "settings.agents.createFailed": "Failed to add agent",
     "settings.bridge.title": "LAF Bridge",
     "settings.bridge.desc":
-      "Connect local Codex CLI or Claude Code CLI execution to this workspace.",
+      "Connect Desktop Bridge or team runner execution to this workspace.",
     "settings.bridge.status": "Status",
     "settings.bridge.connected": "LAF Bridge online",
     "settings.bridge.disconnected": "LAF Bridge offline",
@@ -139,7 +140,7 @@ const messages = {
       "Install or expose Codex CLI or Claude Code CLI to LAF Bridge",
     "settings.bridge.setupTitle": "Setup",
     "settings.bridge.setupDesc":
-      "Create one Terminal command, paste it into the Mac or Linux machine that should run local CLI work, and keep using the hosted workspace while it connects.",
+      "Create one Terminal command, paste it into the Mac or Linux machine that should handle approved agent execution, and keep using the workspace while it connects.",
     "settings.bridge.whyTitle": "Why this is needed",
     "settings.bridge.whyBody":
       "The browser cannot directly run Codex CLI or Claude Code CLI on your computer. LAF Bridge is the small helper that receives approved work from this workspace and runs it locally.",
@@ -153,7 +154,7 @@ const messages = {
       "Come back to this page. When the status says LAF Bridge online, setup is done.",
     "settings.bridge.installCommandLabel": "1. Install LAF Bridge",
     "settings.bridge.installCommandHint":
-      "Run once on the Mac or Linux machine that will handle local CLI work",
+      "Run once on the Mac or Linux machine that will handle approved agent execution",
     "settings.bridge.stepCommand": "Create command",
     "settings.bridge.stepInstall": "Install",
     "settings.bridge.stepConnect": "Run command",
@@ -928,7 +929,7 @@ const messages = {
     "settings.section.danger": "위험 구역",
     "settings.general.title": "일반",
     "settings.general.desc":
-      "이 워크스페이스의 에이전트가 사용할 핵심 로컬 런타임 설정입니다.",
+      "이 워크스페이스의 에이전트, 프로젝트 설정, 실행 기본값입니다.",
     "settings.general.languageGroup": "인터페이스",
     "settings.general.languageLabel": "언어",
     "settings.general.languageHint": "이 브라우저에 즉시 적용됩니다",
@@ -1090,7 +1091,7 @@ const messages = {
     "settings.keys.save": "API 키 저장",
     "settings.bridge.title": "LAF Bridge",
     "settings.bridge.desc":
-      "이 워크스페이스에 로컬 Codex CLI 또는 Claude Code CLI 실행을 연결합니다.",
+      "이 워크스페이스에 Desktop Bridge 또는 팀 러너 실행을 연결합니다.",
     "settings.bridge.status": "상태",
     "settings.bridge.connected": "LAF Bridge 온라인",
     "settings.bridge.disconnected": "LAF Bridge 오프라인",
@@ -1117,7 +1118,7 @@ const messages = {
       "LAF Bridge에서 Codex CLI 또는 Claude Code CLI를 사용할 수 있게 설정하세요",
     "settings.bridge.setupTitle": "설정 방법",
     "settings.bridge.setupDesc":
-      "터미널 명령 하나를 만든 뒤, 로컬 CLI 작업을 실행할 Mac 또는 Linux 머신에 붙여넣어 실행하세요. 설정 코드는 임시 보안 코드이며 명령 안에 자동으로 들어갑니다.",
+      "터미널 명령 하나를 만든 뒤, 승인된 에이전트 실행을 처리할 Mac 또는 Linux 머신에 붙여넣어 실행하세요. 설정 코드는 임시 보안 코드이며 명령 안에 자동으로 들어갑니다.",
     "settings.bridge.whyTitle": "왜 필요한가요?",
     "settings.bridge.whyBody":
       "브라우저는 이 컴퓨터의 Codex CLI나 Claude Code CLI를 직접 실행할 수 없습니다. LAF Bridge는 워크스페이스에서 승인된 작업을 받아 이 컴퓨터에서 실행해주는 작은 연결 도구입니다.",
@@ -1131,7 +1132,7 @@ const messages = {
       "이 화면으로 돌아오세요. 상태가 LAF Bridge 온라인으로 바뀌면 끝입니다.",
     "settings.bridge.installCommandLabel": "1. LAF Bridge 설치",
     "settings.bridge.installCommandHint":
-      "로컬 CLI 작업을 실행할 Mac 또는 Linux 머신에서 한 번 실행하세요",
+      "승인된 에이전트 실행을 처리할 Mac 또는 Linux 머신에서 한 번 실행하세요",
     "settings.bridge.stepCommand": "명령 만들기",
     "settings.bridge.stepInstall": "설치",
     "settings.bridge.stepConnect": "명령 실행",

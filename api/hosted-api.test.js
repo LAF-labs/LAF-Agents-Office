@@ -62,6 +62,205 @@ test("desktop bridge execution migration defines idempotent schema, indexes, and
   assert.match(claimGuardSQL, /j\.model_mode = 'team_bridge'/);
 });
 
+test("workspace settings migration defines hosted onboarding/config state", () => {
+  const sql = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260518_workspace_settings.sql"),
+    "utf8",
+  );
+  assert.match(sql, /create table if not exists public\.workspace_settings\b/);
+  assert.match(sql, /team_id uuid primary key references public\.teams\(id\) on delete cascade/);
+  assert.match(sql, /onboarding_completed_at timestamptz/);
+  assert.match(sql, /company_profile jsonb not null default '\{\}'::jsonb/);
+  assert.match(sql, /preferences jsonb not null default '\{\}'::jsonb/);
+  assert.match(sql, /alter table public\.workspace_settings enable row level security/);
+  assert.match(sql, /members can read workspace settings/);
+  assert.match(sql, /managers can insert workspace settings/);
+  assert.match(sql, /managers can update workspace settings/);
+});
+
+test("hosted config and onboarding routes persist team workspace settings", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    projects: [],
+    tasks: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_settings: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const health = await invoke(["health"], "GET", undefined, {
+    headers: { authorization: "" },
+  });
+  assert.equal(health.status, 200);
+  assert.equal(health.body.status, "ok");
+
+  const prereqs = await invoke(["onboarding", "prereqs"], "GET", undefined, {
+    headers: { authorization: "" },
+  });
+  assert.equal(prereqs.status, 200);
+  assert.deepEqual(prereqs.body.prereqs, []);
+
+  const initialConfig = await invoke(["config"], "GET");
+  assert.equal(initialConfig.status, 200);
+  assert.equal(initialConfig.body.workspace_slug, "team-one");
+  assert.equal(initialConfig.body.llm_provider, "claude-code");
+
+  const initialState = await invoke(["onboarding", "state"], "GET");
+  assert.equal(initialState.status, 200);
+  assert.equal(initialState.body.onboarded, false);
+
+  const saved = await invoke(["config"], "POST", {
+    company_name: "LAF Labs",
+    default_timeout: 90000,
+    llm_provider: "codex",
+    team_lead_slug: "ceo",
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.config.company_name, "LAF Labs");
+  assert.equal(saved.body.config.llm_provider, "codex");
+  assert.equal(db.workspace_settings.length, 1);
+  assert.equal(db.workspace_settings[0].company_profile.name, "LAF Labs");
+
+  const completed = await invoke(["onboarding", "complete"], "POST", {
+    company: "LAF Labs",
+    description: "AI agent workspace",
+    priority: "Ship the hosted SaaS path",
+    task: "Invite the first teammate",
+  });
+  assert.equal(completed.status, 200, JSON.stringify(completed.body));
+  assert.equal(completed.body.onboarded, true);
+  assert.ok(db.workspace_settings[0].onboarding_completed_at);
+  assert.equal(db.projects.length, 1);
+  assert.equal(db.projects[0].name, "LAF Labs");
+  assert.equal(db.tasks.length, 1);
+  assert.equal(db.tasks[0].title, "Invite the first teammate");
+  assert.equal(db.tasks[0].model_mode, "record_only");
+
+  const finalState = await invoke(["onboarding", "state"], "GET");
+  assert.equal(finalState.status, 200);
+  assert.equal(finalState.body.onboarded, true);
+});
+
+test("hosted workspace compatibility routes avoid broker-only 404s", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    projects: [
+      {
+        id: "project-1",
+        local_id: "project-a",
+        name: "Project A",
+        team_id: "team-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  for (const path of [
+    ["office-members"],
+    ["members"],
+    ["channels"],
+    ["messages"],
+    ["home-sessions"],
+    ["requests"],
+    ["actions"],
+    ["signals"],
+    ["decisions"],
+    ["watchdogs"],
+    ["scheduler"],
+    ["usage"],
+    ["agent-logs"],
+    ["memory"],
+    ["commands"],
+    ["projects", "repo-readiness"],
+  ]) {
+    const response = await invoke(path, "GET", undefined, {
+      query: path.join("/") === "projects/repo-readiness" ? { id: "project-a" } : {},
+    });
+    assert.notEqual(response.status, 404, path.join("/"));
+    assert.ok(response.status < 500, path.join("/"));
+  }
+
+  const posted = await invoke(["messages"], "POST", {
+    channel: "general",
+    content: "Hello hosted workspace",
+    from: "you",
+  });
+  assert.equal(posted.status, 200);
+  assert.equal(posted.body.content, "Hello hosted workspace");
+});
+
+test("hosted onboarding falls back safely before workspace settings migration is applied", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    projects: [],
+    tasks: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  const fallbackFetch = hostedFetch(db);
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = async (input, init = {}) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/rest/v1/workspace_settings") {
+      return jsonResponse(
+        { message: "Could not find the table public.workspace_settings" },
+        404,
+      );
+    }
+    return fallbackFetch(input, init);
+  };
+
+  const initialState = await invoke(["onboarding", "state"], "GET");
+  assert.equal(initialState.status, 200);
+  assert.equal(initialState.body.onboarded, false);
+
+  const completed = await invoke(["onboarding", "complete"], "POST", {
+    company: "Fallback Team",
+    task: "Create first hosted task",
+  });
+  assert.equal(completed.status, 200, JSON.stringify(completed.body));
+  assert.equal(db.projects.length, 1);
+  assert.equal(db.tasks.length, 1);
+
+  const finalState = await invoke(["onboarding", "state"], "GET");
+  assert.equal(finalState.status, 200);
+  assert.equal(finalState.body.onboarded, true);
+});
+
 test("hosted team bridge task creation queues a runner job with agent-memory/v1", async (t) => {
   const project = {
     id: "11111111-1111-4111-8111-111111111111",

@@ -10,7 +10,29 @@ let token: string | null = null;
 
 // ── Init ──
 
+export function isLocalhostRuntime(
+  hostname = globalThis.location?.hostname ?? "",
+): boolean {
+  const host = String(hostname || "").toLowerCase();
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host.endsWith(".localhost")
+  );
+}
+
+export function supportsBrokerEvents(): boolean {
+  return isLocalhostRuntime();
+}
+
 export async function initApi(): Promise<void> {
+  if (!isLocalhostRuntime()) {
+    useProxy = true;
+    token = null;
+    return;
+  }
   try {
     const r = await fetch("/api-token", { credentials: "include" });
     if (!r.ok) {
@@ -32,6 +54,11 @@ export async function initApi(): Promise<void> {
     }
     useProxy = true;
   } catch {
+    if (!isLocalhostRuntime()) {
+      useProxy = true;
+      token = null;
+      return;
+    }
     useProxy = false;
     try {
       const r = await fetch(`${brokerDirect}/web-token`, {
@@ -1692,7 +1719,7 @@ export function setMemory(namespace: string, key: string, value: string) {
 
 // ── Config (Settings) ──
 
-export type LLMProvider = "claude-code" | "codex" | "opencode";
+export type LLMProvider = "claude-code" | "codex";
 export type MemoryBackend = "markdown";
 export type ActionProvider = "auto" | "one" | "composio" | "";
 

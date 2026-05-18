@@ -7,6 +7,7 @@ import { useBrokerEvents } from "./useBrokerEvents";
 
 vi.mock("../api/client", () => ({
   sseURL: () => "/events",
+  supportsBrokerEvents: () => true,
 }));
 
 type Listener = EventListenerOrEventListenerObject;

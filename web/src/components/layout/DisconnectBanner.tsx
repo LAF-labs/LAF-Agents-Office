@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { initApi } from "../../api/client";
+import { initApi, supportsBrokerEvents } from "../../api/client";
 import { useUiText } from "../../lib/uiText";
 import { useAppStore } from "../../stores/app";
 
 export function DisconnectBanner() {
   const { disconnect: copy } = useUiText();
+  const showBrokerBanner = supportsBrokerEvents();
   const brokerConnected = useAppStore((s) => s.brokerConnected);
   const setBrokerConnected = useAppStore((s) => s.setBrokerConnected);
 
@@ -49,7 +50,7 @@ export function DisconnectBanner() {
 
   // Only show when: previously connected, currently disconnected, not dismissed
   const visible = hadConnection && !brokerConnected && !dismissed;
-  if (!visible) return null;
+  if (!(showBrokerBanner && visible)) return null;
 
   return (
     <div className="disconnect-banner" role="alert">
