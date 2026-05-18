@@ -33,7 +33,7 @@ func LookPath(name string) (string, error) {
 	if filepath.Base(name) != name {
 		return "", exec.ErrNotFound
 	}
-	for _, dir := range fallbackDirs() {
+	for _, dir := range fallbackDirs(name) {
 		for _, candidate := range executableCandidates(dir, name) {
 			if isExecutable(candidate) {
 				ensureDirOnPATH(filepath.Dir(candidate))
@@ -44,7 +44,7 @@ func LookPath(name string) (string, error) {
 	return "", exec.ErrNotFound
 }
 
-func fallbackDirs() []string {
+func fallbackDirs(name string) []string {
 	var dirs []string
 	add := func(dir string) {
 		dir = strings.TrimSpace(dir)
@@ -66,11 +66,17 @@ func fallbackDirs() []string {
 		add(filepath.Join(home, ".npm-global", "bin"))
 		add(filepath.Join(home, ".deno", "bin"))
 		add(filepath.Join(home, ".cargo", "bin"))
+		for _, dir := range appBundleDirs(filepath.Join(home, "Applications"), name) {
+			add(dir)
+		}
 	}
 
 	add("/opt/homebrew/bin")
 	add("/usr/local/bin")
 	add("/home/linuxbrew/.linuxbrew/bin")
+	for _, dir := range appBundleDirs("/Applications", name) {
+		add(dir)
+	}
 
 	seen := make(map[string]bool, len(dirs))
 	out := dirs[:0]
@@ -83,6 +89,15 @@ func fallbackDirs() []string {
 		out = append(out, clean)
 	}
 	return out
+}
+
+func appBundleDirs(appsRoot, name string) []string {
+	switch name {
+	case "codex":
+		return []string{filepath.Join(appsRoot, "Codex.app", "Contents", "Resources")}
+	default:
+		return nil
+	}
 }
 
 func executableCandidates(dir, name string) []string {

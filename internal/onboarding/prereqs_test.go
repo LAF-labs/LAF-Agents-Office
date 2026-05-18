@@ -144,3 +144,36 @@ func TestCheckOneFindsOpencodeInCommonUserBinWhenPATHIsMinimal(t *testing.T) {
 		t.Fatalf("expected PATH to include discovered opencode dir, got %q", got)
 	}
 }
+
+func TestCheckOneFindsCodexInMacAppBundleWhenPATHIsMinimal(t *testing.T) {
+	home := t.TempDir()
+	binDir := filepath.Join(home, "Applications", "Codex.app", "Contents", "Resources")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir codex app bundle bin: %v", err)
+	}
+	exeName := "codex"
+	body := "#!/bin/sh\nprintf 'codex-cli 9.9.9\\n'\n"
+	if runtime.GOOS == "windows" {
+		exeName = "codex.cmd"
+		body = "@echo off\r\necho codex-cli 9.9.9\r\n"
+	}
+	codexPath := filepath.Join(binDir, exeName)
+	if err := os.WriteFile(codexPath, []byte(body), 0o755); err != nil {
+		t.Fatalf("write fake codex: %v", err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("PATH", filepath.Join(home, "minimal-path"))
+
+	r := CheckOne("codex")
+	if !r.Found {
+		t.Fatal("expected fallback codex app bundle CLI to be found")
+	}
+	if r.Version != "codex-cli 9.9.9" {
+		t.Fatalf("Version: got %q, want %q", r.Version, "codex-cli 9.9.9")
+	}
+	if got := os.Getenv("PATH"); !strings.Contains(got, binDir) {
+		t.Fatalf("expected PATH to include discovered codex app bundle dir, got %q", got)
+	}
+}
