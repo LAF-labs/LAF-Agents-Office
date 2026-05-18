@@ -2859,6 +2859,66 @@ func TestHomeSessionWorkPacketDoesNotTreatPastParticipantsAsActive(t *testing.T)
 	}
 }
 
+func TestMessageWorkPacketInjectsRuntimeBoundaryCapsuleForHostedBridgeQuestions(t *testing.T) {
+	l := &Launcher{}
+	packet := l.buildMessageWorkPacket(channelMessage{
+		ID:        "msg-runtime-boundary",
+		From:      "you",
+		Channel:   "general",
+		Content:   "LAF Bridge가 꺼져 있는데 Headless reply transport로 답했으면 웹호스팅에서도 로컬 CLI 실행이 되는 건가?",
+		ModelMode: "team_bridge",
+	}, "ceo")
+	for _, want := range []string{
+		runtimeBoundaryCapsuleHeading,
+		"does not prove hosted LAF Bridge or laf-runner is connected",
+		"Hosted web/API can queue and control work",
+		"team_bridge office tool carries context between channels",
+		"check model/availability and runner/status",
+	} {
+		if !strings.Contains(packet, want) {
+			t.Fatalf("runtime boundary capsule missing %q in packet: %q", want, packet)
+		}
+	}
+}
+
+func TestMessageWorkPacketDoesNotInjectRuntimeBoundaryCapsuleForUnrelatedWork(t *testing.T) {
+	l := &Launcher{}
+	packet := l.buildMessageWorkPacket(channelMessage{
+		ID:      "msg-normal",
+		From:    "you",
+		Channel: "general",
+		Content: "Review the button copy and suggest a shorter label.",
+	}, "reviewer")
+	if strings.Contains(packet, runtimeBoundaryCapsuleHeading) {
+		t.Fatalf("runtime boundary capsule should stay out of unrelated work packet: %q", packet)
+	}
+}
+
+func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForRunnerMode(t *testing.T) {
+	l := &Launcher{}
+	packet := l.buildTaskExecutionPacket("eng", officeActionLog{
+		Kind:  "task_updated",
+		Actor: "ceo",
+	}, teamTask{
+		ID:        "task-runtime-boundary",
+		Channel:   "general",
+		Title:     "Diagnose hosted team_bridge runner execution",
+		Details:   "Explain why record_only still works when no connected team runner exists.",
+		ModelMode: "team_bridge",
+		Owner:     "eng",
+		Status:    "in_progress",
+	}, "Compare execution_plans and runner_jobs before answering.")
+	for _, want := range []string{
+		runtimeBoundaryCapsuleHeading,
+		"record_only records chat/tasks without agent execution",
+		"team_bridge model mode queues runner_jobs",
+	} {
+		if !strings.Contains(packet, want) {
+			t.Fatalf("runtime boundary capsule missing %q in task packet: %q", want, packet)
+		}
+	}
+}
+
 func TestBlockedTaskNotificationAndUnblockFlow(t *testing.T) {
 	// Verifies the full research→marketing dependency chain:
 	// 1. CEO creates marketing task with depends_on: [research-task] while research is in_progress

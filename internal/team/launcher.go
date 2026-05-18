@@ -2972,6 +2972,9 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 		fmt.Sprintf("- Thread: #%s reply_to %s", channel, msg.ID),
 		"- Current-message rule: answer the current human message first. Older thread, task, and blocker context is background only unless the current message asks about it.",
 	}
+	if capsule := runtimeBoundaryCapsuleForParts(msg.Title, msg.Content, msg.ModelMode, msg.Scope); capsule != "" {
+		lines = append(lines, capsule)
+	}
 	// Add DM context preamble when the agent is receiving a direct message.
 	// This replaces the "stay quiet unless tagged" default with explicit DM semantics.
 	if isDM, _ := l.isChannelDM(channel); isDM {
@@ -3124,6 +3127,9 @@ func (l *Launcher) buildTaskExecutionPacketWithTransport(slug string, action off
 		fmt.Sprintf("- Owner: @%s", slug),
 	}
 	lines = append(lines, l.taskProjectPacketLines(task)...)
+	if capsule := runtimeBoundaryCapsuleForParts(task.Title, task.Details, task.HumanDetails, task.ModelMode, task.ExecutionMode, content); capsule != "" {
+		lines = append(lines, capsule)
+	}
 	if details := strings.TrimSpace(task.Details); details != "" {
 		lines = append(lines, fmt.Sprintf("- Details: %s", truncate(details, 512)))
 	}
