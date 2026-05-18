@@ -10,6 +10,7 @@ const RUNNER_LEASE_EXPIRING_MS = 60 * 1000;
 const RUNNER_STALE_MS = 10 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMITS = {
+  authSignup: 12,
   bridgeEvents: 240,
   bridgeHeartbeat: 120,
   bridgePairingClaim: 30,
@@ -614,6 +615,23 @@ async function authFetch(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function authAdminFetch(path, options = {}) {
+  const response = await fetch(supabaseURL(`/auth/v1/${path}`), {
+    method: options.method || "GET",
+    headers: serviceHeaders(options.headers),
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new HTTPError(
+      response.status,
+      responseErrorMessage(text, response.statusText),
+      { safe: false },
+    );
+  }
+  return text ? JSON.parse(text) : null;
+}
+
 function responseErrorMessage(text, fallback) {
   const trimmed = String(text || "").trim();
   if (!trimmed) return fallback;
@@ -1163,13 +1181,16 @@ async function handleAuthSession(req, res) {
 async function adminUserByID(userID) {
   if (!userID) return null;
   try {
-    const user = await authFetch(`admin/users/${encodeURIComponent(userID)}`, {
-      headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-    });
+    const user = await strictAdminUserByID(userID);
     return user && typeof user === "object" ? user : null;
   } catch {
     return null;
   }
+}
+
+async function strictAdminUserByID(userID) {
+  if (!userID) return null;
+  return await authAdminFetch(`admin/users/${encodeURIComponent(userID)}`);
 }
 
 async function adminUsersByIDs(userIDs) {
@@ -1351,20 +1372,13 @@ async function handleAuthLogin(req, res) {
 }
 
 async function handleAuthSignup(req, res) {
+  enforceRateLimit("auth_signup", clientRateLimitKey(req), RATE_LIMITS.authSignup);
   const body = await readBody(req);
-  const session = await authFetch("signup", {
-    method: "POST",
-    body: {
-      email: body.email,
-      password: body.password,
-      data: {
-        avatar_id: DEFAULT_PROFILE_AVATAR_ID,
-        name: body.name || "",
-      },
-    },
-  });
+  const session = await createConfirmedSignupSession(body);
+  const authenticated = Boolean(session?.access_token);
   const user = session.user;
   if (!user?.id) throw new HTTPError(400, "signup did not return a user");
+  const emailConfirmationRequired = !authenticated;
 
   if (body.team_action === "join") {
     const invite = await inviteByToken(body.invite_token);
@@ -1392,8 +1406,10 @@ async function handleAuthSignup(req, res) {
       },
     });
     const team = await getTeam(invite.team_id);
-    if (session.access_token) setAuthCookies(res, session);
+    if (authenticated) setAuthCookies(res, session);
     writeJSON(res, 200, {
+      authenticated,
+      email_confirmation_required: emailConfirmationRequired,
       team: publicTeam(team),
       user: publicUser(user, membership),
     });
@@ -1418,11 +1434,58 @@ async function handleAuthSignup(req, res) {
       user_id: user.id,
     },
   });
-  if (session.access_token) setAuthCookies(res, session);
+  if (authenticated) setAuthCookies(res, session);
   writeJSON(res, 200, {
+    authenticated,
+    email_confirmation_required: emailConfirmationRequired,
     team: publicTeam(team),
     user: publicUser(user, membership),
   });
+}
+
+async function createConfirmedSignupSession(body) {
+  const email = String(body.email || "").trim();
+  const password = String(body.password || "");
+  const name = String(body.name || "").trim();
+  try {
+    await authAdminFetch("admin/users", {
+      method: "POST",
+      body: {
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          avatar_id: DEFAULT_PROFILE_AVATAR_ID,
+          name,
+        },
+      },
+    });
+  } catch (err) {
+    if (isDuplicateSignupError(err)) {
+      throw new HTTPError(409, "account already exists");
+    }
+    throw err;
+  }
+
+  const session = await authFetch("token?grant_type=password", {
+    method: "POST",
+    body: { email, password },
+  });
+  if (!session?.access_token || !session?.user?.id) {
+    throw new HTTPError(502, "signup session was not issued");
+  }
+  return session;
+}
+
+function isDuplicateSignupError(err) {
+  if (!(err instanceof HTTPError)) return false;
+  if (![400, 409, 422].includes(err.status)) return false;
+  const message = String(err.message || "").toLowerCase();
+  return (
+    message.includes("already") ||
+    message.includes("registered") ||
+    message.includes("exists")
+  );
 }
 
 async function handlePermissions(req, res) {

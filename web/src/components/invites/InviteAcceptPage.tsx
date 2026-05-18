@@ -43,13 +43,16 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
     if (!(invite && trimmed) || password.length < 8) return;
     setMessage("");
     try {
-      await signup({
+      const result = await signup({
         email: invite.email,
         name: trimmed,
         password,
         team_action: "join",
         invite_token: token,
       });
+      if (result.authenticated === false || result.email_confirmation_required) {
+        setMessage(t("auth.checkEmail"));
+      }
       setStatus("done");
     } catch (err) {
       setStatus("error");
@@ -67,6 +70,7 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
         ) : status === "done" ? (
           <>
             <p className="invite-muted">{t("invite.done")}</p>
+            {message ? <p className="invite-muted">{message}</p> : null}
             <a className="invite-primary" href="/">
               {t("invite.openOffice")}
             </a>

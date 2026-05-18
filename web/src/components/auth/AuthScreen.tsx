@@ -24,23 +24,38 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [inviteToken, setInviteToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setNotice(null);
     setBusy(true);
     try {
-      const result =
-        mode === "login"
-          ? await login({ email: email.trim(), password })
-          : await signup({
-              email: email.trim(),
-              name: name.trim(),
-              password,
-              team_action: teamAction,
-              team_name: teamName.trim(),
-              invite_token: inviteToken.trim(),
-            });
+      if (mode === "login") {
+        const result = await login({ email: email.trim(), password });
+        onAuthenticated({
+          authenticated: true,
+          user: result.user,
+          team: result.team,
+        });
+        return;
+      }
+
+      const result = await signup({
+        email: email.trim(),
+        name: name.trim(),
+        password,
+        team_action: teamAction,
+        team_name: teamName.trim(),
+        invite_token: inviteToken.trim(),
+      });
+      if (result.authenticated === false || result.email_confirmation_required) {
+        setNotice(t("auth.checkEmail"));
+        setMode("login");
+        setPassword("");
+        return;
+      }
       onAuthenticated({
         authenticated: true,
         user: result.user,
@@ -199,6 +214,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           ) : null}
 
           {error ? <div className="auth-error">{error}</div> : null}
+          {notice ? <div className="auth-notice">{notice}</div> : null}
 
           <button
             className="auth-submit"
@@ -222,6 +238,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               type="button"
               onClick={() => {
                 setError(null);
+                setNotice(null);
                 setMode(isSignup ? "login" : "signup");
               }}
             >

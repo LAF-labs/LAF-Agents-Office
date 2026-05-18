@@ -246,6 +246,15 @@
   font-size: 12px;
 }
 
+.auth-notice {
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 60%);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+  color: var(--accent);
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
 .auth-mode-switch {
   display: flex;
   flex-wrap: wrap;
@@ -691,6 +700,7 @@
 }
 
 .auth-error,
+.auth-notice,
 .invite-error {
   border-radius: var(--radius-lg);
 }

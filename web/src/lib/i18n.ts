@@ -853,6 +853,8 @@ const messages = {
     "auth.working": "Working...",
     "auth.createAccount": "Create account",
     "auth.failed": "Authentication failed",
+    "auth.checkEmail":
+      "Account created. Check your email to confirm it, then log in.",
     "auth.aria": "LAF-Office sign in",
     "auth.signOut": "Sign out",
     "messages.loading": "Loading messages...",
@@ -1741,6 +1743,8 @@ const messages = {
     "auth.working": "처리 중...",
     "auth.createAccount": "계정 만들기",
     "auth.failed": "인증에 실패했습니다",
+    "auth.checkEmail":
+      "계정이 생성되었습니다. 이메일 인증을 마친 뒤 로그인하세요.",
     "auth.aria": "LAF-Office 로그인",
     "auth.signOut": "로그아웃",
     "messages.loading": "메시지를 불러오는 중...",

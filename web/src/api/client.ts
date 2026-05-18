@@ -487,6 +487,13 @@ export interface AuthSessionResponse {
   team?: WorkspaceTeam;
 }
 
+export interface AuthSignupResponse {
+  authenticated?: boolean;
+  email_confirmation_required?: boolean;
+  user: AuthUser;
+  team: WorkspaceTeam;
+}
+
 export function getAuthSession() {
   return get<AuthSessionResponse>("/auth/session");
 }
@@ -625,7 +632,7 @@ export function signup(body: {
   team_name?: string;
   invite_token?: string;
 }) {
-  return post<{ user: AuthUser; team: WorkspaceTeam }>("/auth/signup", body);
+  return post<AuthSignupResponse>("/auth/signup", body);
 }
 
 export function login(body: { email: string; password: string }) {

@@ -343,7 +343,7 @@ test("hosted auth signup redacts upstream errors", async (t) => {
   });
   global.fetch = async (input) => {
     const url = new URL(String(input));
-    if (url.pathname === "/auth/v1/signup") {
+    if (url.pathname === "/auth/v1/admin/users") {
       return jsonResponse(
         {
           code: 400,
@@ -371,6 +371,120 @@ test("hosted auth signup redacts upstream errors", async (t) => {
 
   assert.equal(response.status, 400);
   assert.equal(response.body.error, "invalid request");
+});
+
+test("hosted auth signup creates confirmed user session and team membership", async (t) => {
+  const oldFetch = global.fetch;
+  const db = {
+    teams: [],
+    memberships: [],
+  };
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  let createdUser = null;
+  global.fetch = async (input, init = {}) => {
+    const url = new URL(String(input));
+    const body = init.body ? JSON.parse(init.body) : null;
+    if (url.pathname === "/auth/v1/admin/users") {
+      createdUser = {
+        id: "user-confirmed",
+        email: body.email,
+        email_confirmed_at: "2026-05-18T00:00:00Z",
+        created_at: "2026-05-18T00:00:00Z",
+        updated_at: "2026-05-18T00:00:00Z",
+        identities: [{ provider: "email", user_id: "user-confirmed" }],
+        user_metadata: body.user_metadata,
+      };
+      return jsonResponse(createdUser);
+    }
+    if (url.pathname === "/auth/v1/token") {
+      return jsonResponse({
+        access_token: "signup-access-token",
+        expires_in: 3600,
+        refresh_token: "signup-refresh-token",
+        token_type: "bearer",
+        user: createdUser,
+      });
+    }
+    const table = url.pathname.replace("/rest/v1/", "");
+    const method = init.method || "GET";
+    if (method === "GET") {
+      return jsonResponse(filterRows(db[table] || [], url.searchParams));
+    }
+    if (method === "POST") {
+      const row = {
+        id: `${table}-${db[table].length + 1}`,
+        ...body,
+      };
+      db[table].push(row);
+      return jsonResponse([row]);
+    }
+    return jsonResponse([]);
+  };
+
+  const response = await invoke(
+    ["auth", "signup"],
+    "POST",
+    {
+      email: "owner@example.com",
+      name: "Owner",
+      password: "fake-password-for-test",
+      team_action: "create",
+      team_name: "Owner Team",
+    },
+    { headers: { authorization: "" } },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.authenticated, true);
+  assert.equal(response.body.email_confirmation_required, false);
+  assert.equal(response.body.user.id, "user-confirmed");
+  assert.equal(db.teams.length, 1);
+  assert.equal(db.teams[0].created_by, "user-confirmed");
+  assert.equal(db.teams[0].slug, "owner-team");
+  assert.equal(db.memberships.length, 1);
+  assert.equal(db.memberships[0].user_id, "user-confirmed");
+  assert.equal(db.memberships[0].team_id, db.teams[0].id);
+  assert.equal(db.memberships[0].role, "owner");
+  assert.equal(db.memberships[0].status, "active");
+});
+
+test("hosted auth signup rejects duplicate admin user before tenant writes", async (t) => {
+  const oldFetch = global.fetch;
+  const db = {
+    teams: [],
+    memberships: [],
+  };
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = async (input, init = {}) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/auth/v1/admin/users") {
+      return jsonResponse({ msg: "User already registered" }, 422);
+    }
+    const table = url.pathname.replace("/rest/v1/", "");
+    return jsonResponse(filterRows(db[table] || [], url.searchParams));
+  };
+
+  const response = await invoke(
+    ["auth", "signup"],
+    "POST",
+    {
+      email: "owner@example.com",
+      name: "Owner",
+      password: "fake-password-for-test",
+      team_action: "create",
+      team_name: "Owner Team",
+    },
+    { headers: { authorization: "" } },
+  );
+
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, "account already exists");
+  assert.equal(db.teams.length, 0);
+  assert.equal(db.memberships.length, 0);
 });
 
 test("hosted auth rejects malformed JSON as a bad request", async () => {
