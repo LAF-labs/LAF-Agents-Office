@@ -45,6 +45,7 @@ import {
   type HostedRunner,
   type OfficeMember,
   type PermissionMember,
+  type RunnerDiagnostic,
   type RunnerPairingStartResponse,
   resetWorkspace,
   shredWorkspace,
@@ -2066,6 +2067,7 @@ function BridgeSection() {
   const devices = bridgeQuery.data?.devices ?? [];
   const bridge = preferredBridgeDevice(devices);
   const runners = runnerQuery.data?.runners ?? [];
+  const runnerDiagnostics = runnerQuery.data?.diagnostics ?? [];
   const runner = preferredRunner(runners);
   const connected = lafBridgeConnected(runner, bridge);
   const setupCommand =
@@ -2090,7 +2092,7 @@ function BridgeSection() {
 
       <Field
         label={t("settings.bridge.status")}
-        hint={lafBridgeStatusHint(t, runner, bridge)}
+        hint={lafBridgeStatusHint(t, runner, bridge, runnerDiagnostics)}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
@@ -2268,10 +2270,47 @@ function lafBridgeStatusHint(
   t: TranslationFn,
   runner?: HostedRunner,
   bridge?: BridgeDevice,
+  diagnostics: RunnerDiagnostic[] = [],
 ) {
+  const preflightHint = runnerPreflightStatusHint(t, runner, diagnostics);
+  if (preflightHint) return preflightHint;
   if (runner?.last_seen_at) return runnerStatusHint(runner);
   if (bridge) return bridgeStatusHint(bridge);
   return t("settings.bridge.optionalHint");
+}
+
+function runnerPreflightStatusHint(
+  t: TranslationFn,
+  runner: HostedRunner | undefined,
+  diagnostics: RunnerDiagnostic[],
+) {
+  const runnerID = runner?.id || "";
+  const diagnostic = diagnostics.find(
+    (candidate) =>
+      candidate.kind === "runner_preflight_failed" &&
+      (!runnerID || candidate.runner_id === runnerID) &&
+      candidate.severity === "critical",
+  );
+  if (!diagnostic) return "";
+  switch (diagnosticDataString(diagnostic, "check_id")) {
+    case "git":
+      return t("settings.runner.gitMissing");
+    case "github_auth":
+      return t("settings.runner.githubMissing");
+    case "provider_runtime":
+      return t("settings.bridge.providerMissing");
+    default:
+      return (
+        diagnostic.detail ||
+        diagnostic.title ||
+        t("settings.bridge.needsAttention")
+      );
+  }
+}
+
+function diagnosticDataString(diagnostic: RunnerDiagnostic, key: string) {
+  const value = diagnostic.data?.[key];
+  return typeof value === "string" ? value : "";
 }
 
 function bridgeStatusHint(bridge?: BridgeDevice) {

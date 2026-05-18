@@ -502,8 +502,9 @@ func TestRunnerStatusListsRunnersAndJobsWithoutTokenHash(t *testing.T) {
 		t.Fatalf("runner status = %d: %s", rec.Code, rec.Body.String())
 	}
 	var body struct {
-		Runners []hostedRunner `json:"runners"`
-		Jobs    []runnerJob    `json:"jobs"`
+		Runners     []hostedRunner     `json:"runners"`
+		Jobs        []runnerJob        `json:"jobs"`
+		Diagnostics []runnerDiagnostic `json:"diagnostics"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode status: %v", err)
@@ -513,6 +514,9 @@ func TestRunnerStatusListsRunnersAndJobsWithoutTokenHash(t *testing.T) {
 	}
 	if len(body.Jobs) != 1 || body.Jobs[0].ID != "job-1" {
 		t.Fatalf("jobs = %+v", body.Jobs)
+	}
+	if body.Diagnostics == nil {
+		t.Fatal("expected diagnostics array in runner status response")
 	}
 }
 
@@ -547,6 +551,74 @@ func TestRunnerCompleteRecordsReceiptOnTask(t *testing.T) {
 	}
 	if b.tasks[0].DeliveryURL == "" || b.tasks[0].DeliverySummary == "" || b.tasks[0].DeliveryChecksStatus != "passing" {
 		t.Fatalf("task receipt not updated: %+v", b.tasks[0])
+	}
+}
+
+func TestRunnerStatusReportsNoCapableRunnerDiagnostic(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	seedRunnerForTest(b, "team-a", runnerCapabilities{
+		ExecutionModes:   []string{executionModeOffice},
+		ProviderRuntimes: []string{"codex"},
+	})
+	now := time.Now().UTC().Format(time.RFC3339)
+	b.mu.Lock()
+	b.runnerJobs = []runnerJob{{
+		ID:            "job-local-worktree",
+		TeamID:        "team-a",
+		TaskID:        "task-1",
+		Status:        runnerJobStatusQueued,
+		ExecutionMode: executionModeLocalWorktree,
+		ModelMode:     "team_bridge",
+		ProviderKind:  "codex",
+		CreatedAt:     now,
+	}}
+	b.mu.Unlock()
+
+	rec := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerStatus)(rec, runnerJSONRequest(t, http.MethodGet, "/runner/status?task_id=task-1", b.Token(), nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("runner status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Diagnostics []runnerDiagnostic `json:"diagnostics"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if len(body.Diagnostics) == 0 || body.Diagnostics[0].Kind != "runner_missing_git" {
+		t.Fatalf("diagnostics = %+v, want runner_missing_git", body.Diagnostics)
+	}
+}
+
+func TestRunnerStatusReportsRunnerPreflightDiagnostic(t *testing.T) {
+	b := NewBrokerAt(filepath.Join(t.TempDir(), "broker-state.json"))
+	seedRunnerForTest(b, "team-a", runnerCapabilities{
+		ExecutionModes:   []string{executionModeOffice},
+		ProviderRuntimes: []string{"codex"},
+		PreflightChecks: []runnerPreflightCheck{{
+			ID:       "provider_runtime",
+			Status:   "fail",
+			Severity: "critical",
+			Summary:  "provider runtime not found",
+		}},
+	})
+
+	rec := httptest.NewRecorder()
+	b.requireAuth(b.handleRunnerStatus)(rec, runnerJSONRequest(t, http.MethodGet, "/runner/status", b.Token(), nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("runner status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Diagnostics []runnerDiagnostic `json:"diagnostics"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if len(body.Diagnostics) == 0 || body.Diagnostics[0].Kind != "runner_preflight_failed" {
+		t.Fatalf("diagnostics = %+v, want runner_preflight_failed", body.Diagnostics)
+	}
+	if body.Diagnostics[0].Data["check_id"] != "provider_runtime" {
+		t.Fatalf("diagnostic data = %+v", body.Diagnostics[0].Data)
 	}
 }
 
@@ -892,6 +964,32 @@ func seedRunnerForTest(b *Broker, teamID string, caps runnerCapabilities) string
 		LastSeenAt:   now,
 	})
 	return token
+}
+
+func TestRunnerCompletionPayloadIncludesVerificationAndFailureKind(t *testing.T) {
+	payload := runnerCompletionPayload(runnerExecutionResult{
+		Status:      runnerJobStatusFailed,
+		Message:     "codex login required",
+		FailureKind: "auth_expired",
+		Verification: runnerWorkspaceVerification{
+			Status:       "changed",
+			ChangedFiles: []string{"internal/team/runner_cli.go"},
+		},
+	})
+	if payload["failure_kind"] != "auth_expired" {
+		t.Fatalf("failure_kind = %v", payload["failure_kind"])
+	}
+	if got := runnerResultError(runnerExecutionResult{Status: runnerJobStatusFailed, Message: "codex login required", FailureKind: "auth_expired"}); got != "[auth_expired] codex login required" {
+		t.Fatalf("runnerResultError() = %q", got)
+	}
+	changed, ok := payload["changed_files"].([]string)
+	if !ok || len(changed) != 1 || changed[0] != "internal/team/runner_cli.go" {
+		t.Fatalf("changed_files = %#v", payload["changed_files"])
+	}
+	verification, ok := payload["verification"].(map[string]any)
+	if !ok || verification["status"] != "changed" {
+		t.Fatalf("verification = %#v", payload["verification"])
+	}
 }
 
 func runnerJSONRequest(t *testing.T, method, path, token string, body any) *http.Request {

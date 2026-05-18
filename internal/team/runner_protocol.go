@@ -35,6 +35,8 @@ const (
 
 	defaultRunnerLeaseDuration     = 5 * time.Minute
 	runnerCapabilityCommandTimeout = 2 * time.Second
+	runnerDiagnosticLimit          = 20
+	runnerLeaseExpiringDuration    = time.Minute
 )
 
 type hostedRunner struct {
@@ -52,17 +54,26 @@ type hostedRunner struct {
 }
 
 type runnerCapabilities struct {
-	ProviderRuntimes []string       `json:"provider_runtimes,omitempty"`
-	ExecutionModes   []string       `json:"execution_modes,omitempty"`
-	CLIDetails       map[string]any `json:"cli_details,omitempty"`
-	GitAvailable     bool           `json:"git_available"`
-	GitVersion       string         `json:"git_version,omitempty"`
-	GHAvailable      bool           `json:"gh_available"`
-	GHAuthenticated  bool           `json:"gh_authenticated"`
-	OS               string         `json:"os,omitempty"`
-	Arch             string         `json:"arch,omitempty"`
-	Hostname         string         `json:"hostname,omitempty"`
-	WorkspaceRoot    string         `json:"workspace_root,omitempty"`
+	ProviderRuntimes []string               `json:"provider_runtimes,omitempty"`
+	ExecutionModes   []string               `json:"execution_modes,omitempty"`
+	CLIDetails       map[string]any         `json:"cli_details,omitempty"`
+	PreflightChecks  []runnerPreflightCheck `json:"preflight_checks,omitempty"`
+	GitAvailable     bool                   `json:"git_available"`
+	GitVersion       string                 `json:"git_version,omitempty"`
+	GHAvailable      bool                   `json:"gh_available"`
+	GHAuthenticated  bool                   `json:"gh_authenticated"`
+	OS               string                 `json:"os,omitempty"`
+	Arch             string                 `json:"arch,omitempty"`
+	Hostname         string                 `json:"hostname,omitempty"`
+	WorkspaceRoot    string                 `json:"workspace_root,omitempty"`
+}
+
+type runnerPreflightCheck struct {
+	ID       string `json:"id"`
+	Status   string `json:"status"`
+	Severity string `json:"severity,omitempty"`
+	Summary  string `json:"summary,omitempty"`
+	Detail   string `json:"detail,omitempty"`
 }
 
 type runnerJob struct {
@@ -91,6 +102,18 @@ type runnerJob struct {
 	UpdatedAt            string            `json:"updated_at,omitempty"`
 	StartedAt            string            `json:"started_at,omitempty"`
 	CompletedAt          string            `json:"completed_at,omitempty"`
+}
+
+type runnerDiagnostic struct {
+	Kind      string         `json:"kind"`
+	Severity  string         `json:"severity"`
+	Title     string         `json:"title,omitempty"`
+	Detail    string         `json:"detail,omitempty"`
+	RunnerID  string         `json:"runner_id,omitempty"`
+	JobID     string         `json:"job_id,omitempty"`
+	TaskID    string         `json:"task_id,omitempty"`
+	ProjectID string         `json:"project_id,omitempty"`
+	Data      map[string]any `json:"data,omitempty"`
 }
 
 func (j *runnerJob) UnmarshalJSON(data []byte) error {
@@ -232,6 +255,7 @@ func normalizeRunnerCapabilities(c runnerCapabilities) runnerCapabilities {
 	c.Hostname = strings.TrimSpace(c.Hostname)
 	c.WorkspaceRoot = strings.TrimSpace(c.WorkspaceRoot)
 	c.GitVersion = strings.TrimSpace(c.GitVersion)
+	c.PreflightChecks = normalizeRunnerPreflightChecks(c.PreflightChecks)
 	return c
 }
 
@@ -253,11 +277,37 @@ func detectLocalRunnerCapabilities(workspaceRoot string) runnerCapabilities {
 			caps.GitVersion = strings.TrimSpace(string(out))
 		}
 	}
+	caps.PreflightChecks = append(caps.PreflightChecks, runnerToolPreflightCheck(
+		"git",
+		caps.GitAvailable,
+		"git available",
+		"git not found",
+		"Local worktree jobs need git on the runner machine.",
+		"warn",
+	))
 	if path, err := exec.LookPath("gh"); err == nil && strings.TrimSpace(path) != "" {
 		caps.GHAvailable = true
 		if err := runnerCommandRunWithTimeout(runnerCapabilityCommandTimeout, "gh", "auth", "status"); err == nil {
 			caps.GHAuthenticated = true
 		}
+	}
+	if caps.GHAvailable {
+		caps.PreflightChecks = append(caps.PreflightChecks, runnerToolPreflightCheck(
+			"github_auth",
+			caps.GHAuthenticated,
+			"github cli authenticated",
+			"github cli not authenticated",
+			"Repository delivery and PR checks may need `gh auth login` on the runner machine.",
+			"warn",
+		))
+	} else {
+		caps.PreflightChecks = append(caps.PreflightChecks, runnerPreflightCheck{
+			ID:       "github_auth",
+			Status:   "fail",
+			Severity: "warn",
+			Summary:  "github cli not found",
+			Detail:   "Repository delivery and PR checks may need the GitHub CLI on the runner machine.",
+		})
 	}
 	if commandExists("claude", "claude-code") {
 		caps.ProviderRuntimes = append(caps.ProviderRuntimes, "claude-code")
@@ -271,11 +321,103 @@ func detectLocalRunnerCapabilities(workspaceRoot string) runnerCapabilities {
 		caps.ProviderRuntimes = append(caps.ProviderRuntimes, "opencode")
 		caps.CLIDetails["opencode"] = runnerCLIDetail("opencode")
 	}
+	caps.PreflightChecks = append(caps.PreflightChecks, runnerToolPreflightCheck(
+		"provider_runtime",
+		len(caps.ProviderRuntimes) > 0,
+		"provider runtime available",
+		"provider runtime not found",
+		"Install Codex CLI, Claude Code CLI, or OpenCode where LAF Bridge can find it.",
+		"critical",
+	))
 	caps.ExecutionModes = []string{executionModeOffice}
 	if caps.GitAvailable {
 		caps.ExecutionModes = append(caps.ExecutionModes, executionModeLocalWorktree)
 	}
 	return normalizeRunnerCapabilities(caps)
+}
+
+func runnerToolPreflightCheck(id string, ok bool, passSummary, failSummary, failDetail, failSeverity string) runnerPreflightCheck {
+	if ok {
+		return runnerPreflightCheck{
+			ID:       id,
+			Status:   "pass",
+			Severity: "info",
+			Summary:  passSummary,
+		}
+	}
+	return runnerPreflightCheck{
+		ID:       id,
+		Status:   "fail",
+		Severity: failSeverity,
+		Summary:  failSummary,
+		Detail:   failDetail,
+	}
+}
+
+func normalizeRunnerPreflightChecks(checks []runnerPreflightCheck) []runnerPreflightCheck {
+	const maxRunnerPreflightChecks = 12
+	if len(checks) == 0 {
+		return nil
+	}
+	out := make([]runnerPreflightCheck, 0, len(checks))
+	seen := map[string]struct{}{}
+	for _, check := range checks {
+		id := strings.ToLower(strings.TrimSpace(check.ID))
+		id = strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+				return r
+			}
+			return -1
+		}, id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		status := normalizeRunnerPreflightStatus(check.Status)
+		severity := normalizeRunnerPreflightSeverity(check.Severity, status)
+		out = append(out, runnerPreflightCheck{
+			ID:       id,
+			Status:   status,
+			Severity: severity,
+			Summary:  truncateSummary(redactRunnerSensitiveText(check.Summary), 120),
+			Detail:   truncateSummary(redactRunnerSensitiveText(check.Detail), 240),
+		})
+		if len(out) >= maxRunnerPreflightChecks {
+			break
+		}
+	}
+	return out
+}
+
+func normalizeRunnerPreflightStatus(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "pass", "ok", "ready":
+		return "pass"
+	case "warn", "warning":
+		return "warn"
+	case "fail", "failed", "error":
+		return "fail"
+	default:
+		return "fail"
+	}
+}
+
+func normalizeRunnerPreflightSeverity(raw, status string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "critical":
+		return "critical"
+	case "warn", "warning", "error":
+		return "warn"
+	case "info":
+		return "info"
+	}
+	if status == "fail" || status == "warn" {
+		return "warn"
+	}
+	return "info"
 }
 
 func runnerCLIDetail(name string) map[string]string {
@@ -530,6 +672,223 @@ func runnerCanClaimJob(runner hostedRunner, job runnerJob) bool {
 		return false
 	}
 	return true
+}
+
+func runnerDiagnosticsForStatus(runners []hostedRunner, jobs []runnerJob, now time.Time) []runnerDiagnostic {
+	diagnostics := make([]runnerDiagnostic, 0)
+	appendDiagnostic := func(diagnostic runnerDiagnostic) {
+		if len(diagnostics) >= runnerDiagnosticLimit {
+			return
+		}
+		diagnostics = append(diagnostics, diagnostic)
+	}
+
+	connected := make([]hostedRunner, 0, len(runners))
+	for _, runner := range runners {
+		status := normalizeRunnerStatus(runner.Status)
+		if status == runnerStatusRevoked || strings.TrimSpace(runner.RevokedAt) != "" {
+			continue
+		}
+		if status == runnerStatusConnected && runnerLooksStale(runner.LastSeenAt, now) {
+			status = runnerStatusStale
+		}
+		if status == runnerStatusConnected {
+			connected = append(connected, runner)
+			for _, diagnostic := range runnerPreflightDiagnostics(runner) {
+				appendDiagnostic(diagnostic)
+			}
+			continue
+		}
+		if status == runnerStatusStale || status == runnerStatusDisconnected {
+			appendDiagnostic(runnerDiagnostic{
+				Kind:     "runner_unavailable",
+				Severity: "info",
+				Title:    "Runner unavailable",
+				Detail:   "A registered runner is stale or disconnected.",
+				RunnerID: runner.ID,
+				Data: map[string]any{
+					"status":       status,
+					"last_seen_at": runner.LastSeenAt,
+				},
+			})
+		}
+	}
+
+	for _, job := range jobs {
+		status := normalizeRunnerJobStatus(job.Status)
+		if status == runnerJobStatusQueued || status == runnerJobStatusExpired {
+			if normalizeRunnerJobModelMode(job.ModelMode) != "team_bridge" {
+				continue
+			}
+			if len(connected) == 0 {
+				appendDiagnostic(runnerDiagnostic{
+					Kind:      "no_connected_runner",
+					Severity:  "critical",
+					Title:     "No connected runner",
+					Detail:    "A queued team bridge job has no connected runner.",
+					JobID:     job.ID,
+					TaskID:    job.TaskID,
+					ProjectID: job.ProjectID,
+				})
+			} else if !anyRunnerCanClaimJob(connected, job) {
+				appendDiagnostic(runnerCapabilityDiagnostic(connected, job))
+			}
+			if job.Attempts >= 3 {
+				appendDiagnostic(runnerDiagnostic{
+					Kind:      "repeated_attempts",
+					Severity:  "warn",
+					Title:     "Runner job retried repeatedly",
+					Detail:    "A queued runner job has already been leased several times.",
+					JobID:     job.ID,
+					TaskID:    job.TaskID,
+					ProjectID: job.ProjectID,
+					Data:      map[string]any{"attempts": job.Attempts},
+				})
+			}
+			continue
+		}
+		if status == runnerJobStatusLeased || status == runnerJobStatusRunning {
+			if runnerLeaseExpiring(job.LeaseExpiresAt, now) {
+				appendDiagnostic(runnerDiagnostic{
+					Kind:      "lease_expiring",
+					Severity:  "warn",
+					Title:     "Runner lease expiring",
+					Detail:    "A running runner job lease is close to expiring.",
+					RunnerID:  job.RunnerID,
+					JobID:     job.ID,
+					TaskID:    job.TaskID,
+					ProjectID: job.ProjectID,
+					Data:      map[string]any{"lease_expires_at": job.LeaseExpiresAt},
+				})
+			}
+		}
+	}
+
+	return diagnostics
+}
+
+func runnerPreflightDiagnostics(runner hostedRunner) []runnerDiagnostic {
+	diagnostics := make([]runnerDiagnostic, 0)
+	for _, check := range runner.Capabilities.PreflightChecks {
+		status := normalizeRunnerPreflightStatus(check.Status)
+		if status == "pass" {
+			continue
+		}
+		diagnostics = append(diagnostics, runnerDiagnostic{
+			Kind:     "runner_preflight_failed",
+			Severity: normalizeRunnerPreflightSeverity(check.Severity, status),
+			Title:    firstNonEmptyString(check.Summary, "Runner preflight check failed"),
+			Detail:   check.Detail,
+			RunnerID: runner.ID,
+			Data: map[string]any{
+				"check_id": check.ID,
+				"status":   status,
+			},
+		})
+	}
+	return diagnostics
+}
+
+func anyRunnerCanClaimJob(runners []hostedRunner, job runnerJob) bool {
+	for _, runner := range runners {
+		if runnerCanClaimJob(runner, job) {
+			return true
+		}
+	}
+	return false
+}
+
+func runnerCapabilityDiagnostic(runners []hostedRunner, job runnerJob) runnerDiagnostic {
+	kind := "no_capable_runner"
+	title := "No capable runner"
+	detail := "Connected runners do not match the queued job requirements."
+	if isLocalWorktreeExecutionMode(job.ExecutionMode) && !anyRunnerHasGit(runners) {
+		kind = "runner_missing_git"
+		title = "Runner missing git"
+		detail = "The queued local-worktree job needs git on a connected runner."
+	} else if isLocalWorktreeExecutionMode(job.ExecutionMode) && strings.TrimSpace(job.RepoURL) != "" && !anyRunnerHasGitHubAuth(runners) {
+		kind = "runner_missing_github_auth"
+		title = "Runner missing GitHub auth"
+		detail = "The queued repository job needs an authenticated GitHub CLI on a connected runner."
+	} else if !anyRunnerSupportsExecutionMode(runners, job.ExecutionMode) {
+		kind = "runner_missing_execution_mode"
+		title = "Runner missing execution mode"
+		detail = "Connected runners do not advertise the job execution mode."
+	} else if !anyRunnerSupportsProvider(runners, job.ProviderKind) {
+		kind = "runner_missing_provider"
+		title = "Runner missing provider"
+		detail = "Connected runners do not advertise the required provider runtime."
+	}
+	return runnerDiagnostic{
+		Kind:      kind,
+		Severity:  "critical",
+		Title:     title,
+		Detail:    detail,
+		JobID:     job.ID,
+		TaskID:    job.TaskID,
+		ProjectID: job.ProjectID,
+		Data: map[string]any{
+			"execution_mode": job.ExecutionMode,
+			"provider_kind":  runnerOptionalProviderKind(job.ProviderKind),
+		},
+	}
+}
+
+func anyRunnerHasGit(runners []hostedRunner) bool {
+	for _, runner := range runners {
+		if runner.Capabilities.GitAvailable {
+			return true
+		}
+	}
+	return false
+}
+
+func anyRunnerHasGitHubAuth(runners []hostedRunner) bool {
+	for _, runner := range runners {
+		if runner.Capabilities.GHAuthenticated {
+			return true
+		}
+	}
+	return false
+}
+
+func anyRunnerSupportsExecutionMode(runners []hostedRunner, mode string) bool {
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return true
+	}
+	for _, runner := range runners {
+		if len(runner.Capabilities.ExecutionModes) == 0 || containsString(runner.Capabilities.ExecutionModes, mode) {
+			return true
+		}
+	}
+	return false
+}
+
+func anyRunnerSupportsProvider(runners []hostedRunner, provider string) bool {
+	provider = runnerOptionalProviderKind(provider)
+	if provider == "" {
+		return true
+	}
+	for _, runner := range runners {
+		if containsString(runner.Capabilities.ProviderRuntimes, provider) {
+			return true
+		}
+	}
+	return false
+}
+
+func runnerLeaseExpiring(leaseExpiresAt string, now time.Time) bool {
+	leaseExpiresAt = strings.TrimSpace(leaseExpiresAt)
+	if leaseExpiresAt == "" {
+		return false
+	}
+	expiresAt, err := time.Parse(time.RFC3339, leaseExpiresAt)
+	if err != nil {
+		return true
+	}
+	remaining := expiresAt.UTC().Sub(now.UTC())
+	return remaining > 0 && remaining <= runnerLeaseExpiringDuration
 }
 
 func (b *Broker) enqueueRunnerJobForTaskLocked(task teamTask, now time.Time) runnerJob {

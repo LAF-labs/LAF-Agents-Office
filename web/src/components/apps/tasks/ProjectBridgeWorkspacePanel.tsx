@@ -25,12 +25,26 @@ type RunnerSignal = {
   state: string;
 };
 
-function hasConnectedTeamRunner(
-  status: RunnerStatusResponse | undefined,
-): boolean {
-  return Boolean(
+function hasReadyTeamRunner(status: RunnerStatusResponse | undefined): boolean {
+  const hasConnectedRunner = Boolean(
     status?.runners?.some((runner) => runner.status === "connected"),
   );
+  const hasCriticalBlocker = Boolean(
+    status?.diagnostics?.some(
+      (diagnostic) =>
+        diagnostic.severity === "critical" &&
+        [
+          "no_capable_runner",
+          "no_connected_runner",
+          "runner_missing_execution_mode",
+          "runner_missing_git",
+          "runner_missing_github_auth",
+          "runner_missing_provider",
+          "runner_preflight_failed",
+        ].includes(diagnostic.kind),
+    ),
+  );
+  return hasConnectedRunner && !hasCriticalBlocker;
 }
 
 export function ProjectBridgeWorkspacePanel({
@@ -70,7 +84,7 @@ export function ProjectBridgeWorkspacePanel({
     bridgeQuery.data?.my_bridge.default_device_id ||
     onlineDevices[0]?.id ||
     "";
-  const runnerConnected = hasConnectedTeamRunner(runnerStatus);
+  const runnerConnected = hasReadyTeamRunner(runnerStatus);
   const workspaceStatusLabel =
     runnerSignal.state === "loading"
       ? t("tasks.runnerChecking")

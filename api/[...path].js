@@ -5,6 +5,9 @@ const TERMINAL_TASK_STATUSES = ["done", "canceled"];
 const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code", "opencode"];
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_EXECUTION_EVENT_PAYLOAD_BYTES = 64 * 1024;
+const RUNNER_DIAGNOSTIC_LIMIT = 20;
+const RUNNER_LEASE_EXPIRING_MS = 60 * 1000;
+const RUNNER_STALE_MS = 10 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMITS = {
   bridgeEvents: 240,
@@ -2694,9 +2697,12 @@ async function handleRunnerStatus(req, res) {
       jobs.map((job) => job.task_id),
     ),
   ]);
+  const publicJobs = jobs.map((job) => publicRunnerJob(job, projects, tasks));
+  const publicRunners = runners.map(publicRunner);
   writeJSON(res, 200, {
-    jobs: jobs.map((job) => publicRunnerJob(job, projects, tasks)),
-    runners: runners.map(publicRunner),
+    diagnostics: runnerStatusDiagnostics(publicRunners, publicJobs),
+    jobs: publicJobs,
+    runners: publicRunners,
   });
 }
 
@@ -3802,6 +3808,240 @@ function publicRunnerJob(row, projects = {}, tasks = {}) {
     required_provider: row.provider_kind || "",
     task_id: row.task_id ? tasks[row.task_id]?.local_id || row.task_id : "",
   };
+}
+
+function runnerStatusDiagnostics(runners, jobs, nowMs = Date.now()) {
+  const diagnostics = [];
+  const append = (diagnostic) => {
+    if (diagnostics.length < RUNNER_DIAGNOSTIC_LIMIT) diagnostics.push(diagnostic);
+  };
+  const connected = [];
+  for (const runner of runners || []) {
+    const status = runnerDiagnosticStatus(runner, nowMs);
+    if (status === "revoked") continue;
+    if (status === "connected") {
+      connected.push(runner);
+      for (const diagnostic of runnerPreflightDiagnostics(runner)) append(diagnostic);
+      continue;
+    }
+    if (status === "stale" || status === "disconnected") {
+      append({
+        kind: "runner_unavailable",
+        severity: "info",
+        title: "Runner unavailable",
+        detail: "A registered runner is stale or disconnected.",
+        runner_id: runner.id || "",
+        data: {
+          last_seen_at: runner.last_seen_at || "",
+          status,
+        },
+      });
+    }
+  }
+
+  for (const job of jobs || []) {
+    const status = normalizeJobStatus(job.status);
+    if (status === "queued" || status === "expired") {
+      if (normalizeRunnerJobModelMode(job.model_mode) !== "team_bridge") continue;
+      if (connected.length === 0) {
+        append({
+          kind: "no_connected_runner",
+          severity: "critical",
+          title: "No connected runner",
+          detail: "A queued team bridge job has no connected runner.",
+          job_id: job.job_id || job.id || "",
+          project_id: job.project_id || "",
+          task_id: job.task_id || "",
+        });
+      } else if (!connected.some((runner) => runnerCanClaimJobForDiagnostics(runner, job, nowMs))) {
+        append(runnerCapabilityDiagnostic(connected, job));
+      }
+      if (Number(job.attempts || 0) >= 3) {
+        append({
+          kind: "repeated_attempts",
+          severity: "warn",
+          title: "Runner job retried repeatedly",
+          detail: "A queued runner job has already been leased several times.",
+          job_id: job.job_id || job.id || "",
+          project_id: job.project_id || "",
+          task_id: job.task_id || "",
+          data: { attempts: Number(job.attempts || 0) },
+        });
+      }
+      continue;
+    }
+    if ((status === "leased" || status === "running") && runnerLeaseExpiring(job, nowMs)) {
+      append({
+        kind: "lease_expiring",
+        severity: "warn",
+        title: "Runner lease expiring",
+        detail: "A running runner job lease is close to expiring.",
+        runner_id: job.runner_id || "",
+        job_id: job.job_id || job.id || "",
+        project_id: job.project_id || "",
+        task_id: job.task_id || "",
+        data: { lease_expires_at: job.lease_expires_at || "" },
+      });
+    }
+  }
+  return diagnostics;
+}
+
+function runnerPreflightDiagnostics(runner) {
+  return normalizeRunnerPreflightChecks(runner?.capabilities?.preflight_checks).flatMap(
+    (check) => {
+      if (check.status === "pass") return [];
+      return [
+        {
+          kind: "runner_preflight_failed",
+          severity: check.severity,
+          title: check.summary || "Runner preflight check failed",
+          detail: check.detail || "",
+          runner_id: runner.id || "",
+          data: {
+            check_id: check.id,
+            status: check.status,
+          },
+        },
+      ];
+    },
+  );
+}
+
+function normalizeRunnerPreflightChecks(value) {
+  if (!Array.isArray(value)) return [];
+  const checks = [];
+  const seen = new Set();
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const id = String(raw.id || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const status = normalizeRunnerPreflightStatus(raw.status);
+    checks.push({
+      id,
+      status,
+      severity: normalizeRunnerPreflightSeverity(raw.severity, status),
+      summary: truncateText(redactSensitiveText(raw.summary || ""), 120),
+      detail: truncateText(redactSensitiveText(raw.detail || ""), 240),
+    });
+    if (checks.length >= 12) break;
+  }
+  return checks;
+}
+
+function normalizeRunnerPreflightStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  if (status === "pass" || status === "ok" || status === "ready") return "pass";
+  if (status === "warn" || status === "warning") return "warn";
+  if (status === "fail" || status === "failed" || status === "error") return "fail";
+  return "fail";
+}
+
+function normalizeRunnerPreflightSeverity(value, status) {
+  const severity = String(value || "").trim().toLowerCase();
+  if (severity === "critical") return "critical";
+  if (severity === "warn" || severity === "warning" || severity === "error") return "warn";
+  if (severity === "info") return "info";
+  return status === "pass" ? "info" : "warn";
+}
+
+function runnerDiagnosticStatus(runner, nowMs) {
+  const status = String(runner?.status || "connected").trim().toLowerCase();
+  if (status === "revoked" || runner?.revoked_at) return "revoked";
+  if (status === "connected" && runnerLastSeenStale(runner?.last_seen_at, nowMs)) {
+    return "stale";
+  }
+  if (["connected", "disconnected", "stale"].includes(status)) return status;
+  return "connected";
+}
+
+function runnerLastSeenStale(lastSeenAt, nowMs) {
+  const seenAt = Date.parse(lastSeenAt || "");
+  if (!Number.isFinite(seenAt)) return true;
+  return nowMs - seenAt > RUNNER_STALE_MS;
+}
+
+function normalizeRunnerJobModelMode(raw) {
+  const value = String(raw || "").trim();
+  if (value === "local_cli") return "team_bridge";
+  return normalizeModelMode(value);
+}
+
+function runnerCanClaimJobForDiagnostics(runner, job, nowMs) {
+  if (runnerDiagnosticStatus(runner, nowMs) !== "connected") return false;
+  if (runner.team_id && job.team_id && runner.team_id !== job.team_id) return false;
+  if (normalizeRunnerJobModelMode(job.model_mode) !== "team_bridge") return false;
+  if (!runnerSupportsExecutionMode(runner, job.execution_mode)) return false;
+  if (!runnerSupportsProvider(runner, job.provider_kind || job.required_provider)) return false;
+  return true;
+}
+
+function runnerCapabilityDiagnostic(runners, job) {
+  let kind = "no_capable_runner";
+  let title = "No capable runner";
+  let detail = "Connected runners do not match the queued job requirements.";
+  if (isLocalWorktreeMode(job.execution_mode) && !runners.some((runner) => runner.capabilities?.git_available)) {
+    kind = "runner_missing_git";
+    title = "Runner missing git";
+    detail = "The queued local-worktree job needs git on a connected runner.";
+  } else if (
+    isLocalWorktreeMode(job.execution_mode) &&
+    String(job.repo_url || "").trim() &&
+    !runners.some((runner) => runner.capabilities?.gh_authenticated)
+  ) {
+    kind = "runner_missing_github_auth";
+    title = "Runner missing GitHub auth";
+    detail = "The queued repository job needs an authenticated GitHub CLI on a connected runner.";
+  } else if (!runners.some((runner) => runnerSupportsExecutionMode(runner, job.execution_mode))) {
+    kind = "runner_missing_execution_mode";
+    title = "Runner missing execution mode";
+    detail = "Connected runners do not advertise the job execution mode.";
+  } else if (!runners.some((runner) => runnerSupportsProvider(runner, job.provider_kind || job.required_provider))) {
+    kind = "runner_missing_provider";
+    title = "Runner missing provider";
+    detail = "Connected runners do not advertise the required provider runtime.";
+  }
+  return {
+    kind,
+    severity: "critical",
+    title,
+    detail,
+    job_id: job.job_id || job.id || "",
+    project_id: job.project_id || "",
+    task_id: job.task_id || "",
+    data: {
+      execution_mode: job.execution_mode || "",
+      provider_kind: normalizeProviderKind(job.provider_kind || job.required_provider || ""),
+    },
+  };
+}
+
+function isLocalWorktreeMode(mode) {
+  return String(mode || "").trim() === "local_worktree";
+}
+
+function runnerSupportsExecutionMode(runner, mode) {
+  const required = String(mode || "").trim();
+  if (!required) return true;
+  const modes = normalizeStringList(runner?.capabilities?.execution_modes);
+  return modes.length === 0 || modes.includes(required);
+}
+
+function runnerSupportsProvider(runner, provider) {
+  const required = normalizeProviderKind(provider || "");
+  if (!required) return true;
+  return normalizeProviderList(runner?.capabilities?.provider_runtimes).includes(required);
+}
+
+function runnerLeaseExpiring(job, nowMs) {
+  const expiresAt = Date.parse(job?.lease_expires_at || "");
+  if (!Number.isFinite(expiresAt)) return true;
+  const remaining = expiresAt - nowMs;
+  return remaining > 0 && remaining <= RUNNER_LEASE_EXPIRING_MS;
 }
 
 function publicTeam(row) {

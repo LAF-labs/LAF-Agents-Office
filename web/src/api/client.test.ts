@@ -181,6 +181,7 @@ describe("runner api client", () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
+          diagnostics: [{ kind: "no_connected_runner", severity: "critical" }],
           jobs: [{ id: "runner-job-1", project_id: "customer-portal" }],
           runners: [{ id: "runner-local", status: "connected" }],
         }),
@@ -196,6 +197,7 @@ describe("runner api client", () => {
       expect.objectContaining({ credentials: "include" }),
     );
     expect(result.runners[0]?.status).toBe("connected");
+    expect(result.diagnostics?.[0]?.kind).toBe("no_connected_runner");
   });
 
   it("creates a runner pairing code with the browser API URL", async () => {

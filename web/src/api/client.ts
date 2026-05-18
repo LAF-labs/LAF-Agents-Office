@@ -1171,6 +1171,7 @@ export interface ProjectRepoReadiness {
 export interface RunnerCapabilities {
   provider_runtimes?: string[];
   cli_details?: Record<string, unknown>;
+  preflight_checks?: RunnerPreflightCheck[];
   gh_available?: boolean;
   gh_authenticated?: boolean;
   git_available?: boolean;
@@ -1179,6 +1180,14 @@ export interface RunnerCapabilities {
   hostname?: string;
   workspace_root?: string;
   execution_modes?: string[];
+}
+
+export interface RunnerPreflightCheck {
+  id: string;
+  status: "pass" | "warn" | "fail" | string;
+  severity?: "info" | "warn" | "critical" | string;
+  summary?: string;
+  detail?: string;
 }
 
 export interface HostedRunner {
@@ -1217,18 +1226,34 @@ export interface RunnerJob {
   model_mode?: ModelMode;
   intent_id?: string;
   confirmation_id?: string;
+  provider_kind?: string;
+  required_provider?: string;
   repo_url?: string;
   wiki_path?: string;
   lease_expires_at?: string;
+  attempts?: number;
   last_error?: string;
   created_at?: string;
   updated_at?: string;
   completed_at?: string;
 }
 
+export interface RunnerDiagnostic {
+  kind: string;
+  severity: "info" | "warn" | "critical" | string;
+  title?: string;
+  detail?: string;
+  runner_id?: string;
+  job_id?: string;
+  task_id?: string;
+  project_id?: string;
+  data?: Record<string, unknown>;
+}
+
 export interface RunnerStatusResponse {
   runners: HostedRunner[];
   jobs: RunnerJob[];
+  diagnostics?: RunnerDiagnostic[];
 }
 
 export interface RunnerPairingStartResponse {

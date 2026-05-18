@@ -48,9 +48,11 @@ func (b *Broker) handleRunnerStatus(w http.ResponseWriter, r *http.Request) {
 	})
 	b.mu.Unlock()
 
+	diagnostics := runnerDiagnosticsForStatus(runners, jobs, now)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"runners": runners,
-		"jobs":    jobs,
+		"runners":     runners,
+		"jobs":        jobs,
+		"diagnostics": diagnostics,
 	})
 }
 

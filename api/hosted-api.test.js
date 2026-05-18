@@ -441,6 +441,12 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   });
   global.fetch = hostedFetch(db);
 
+  const initialStatus = await invoke(["runner", "status"], "GET");
+  assert.equal(initialStatus.status, 200);
+  assert.equal(initialStatus.body.jobs[0].project_id, "project-a");
+  assert.equal(initialStatus.body.jobs[0].task_id, "task-a");
+  assert.equal(initialStatus.body.diagnostics[0].kind, "no_connected_runner");
+
   const registration = await invoke(["runner", "register"], "POST", {
     capabilities: {
       execution_modes: ["local_worktree"],
@@ -550,6 +556,10 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
       delivery_status: "open",
       delivery_summary: "PR opened and checks passed.",
       delivery_url: "https://github.com/acme/project-a/pull/7",
+      payload: {
+        changed_files: ["api/[...path].js"],
+        verification: { status: "changed", changed_files: ["api/[...path].js"] },
+      },
       status: "succeeded",
       worktree_branch: "laf/task-a",
       worktree_path: "/tmp/laf/task-a",
@@ -563,6 +573,10 @@ test("hosted runner can register, heartbeat, lease, report, and complete", async
   assert.equal(db.delivery_receipts[0].delivery_summary, "PR opened and checks passed.");
   assert.ok(db.runner_job_events.some((event) => event.kind === "leased"));
   assert.ok(db.runner_job_events.some((event) => event.kind === "succeeded"));
+  assert.deepEqual(
+    db.runner_job_events.find((event) => event.kind === "succeeded").payload.changed_files,
+    ["api/[...path].js"],
+  );
 });
 
 test("hosted team bridge registration requires admin role", async (t) => {
@@ -592,6 +606,49 @@ test("hosted team bridge registration requires admin role", async (t) => {
   assert.equal(registration.status, 403);
   assert.equal(registration.body.error, "team bridge registration requires admin");
   assert.equal(db.runners.length, 0);
+});
+
+test("hosted runner status surfaces runner preflight diagnostics", async (t) => {
+  const db = {
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    runner_jobs: [],
+    runners: [
+      {
+        capabilities: {
+          preflight_checks: [
+            {
+              id: "provider_runtime",
+              severity: "critical",
+              status: "fail",
+              summary: "provider runtime not found",
+            },
+          ],
+        },
+        id: "runner-1",
+        last_seen_at: new Date().toISOString(),
+        status: "connected",
+        team_id: "team-1",
+      },
+    ],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const response = await invoke(["runner", "status"], "GET");
+  assert.equal(response.status, 200);
+  assert.equal(response.body.diagnostics[0].kind, "runner_preflight_failed");
+  assert.equal(response.body.diagnostics[0].severity, "critical");
+  assert.equal(response.body.diagnostics[0].data.check_id, "provider_runtime");
 });
 
 test("hosted runner lease ignores non-team-bridge jobs", async (t) => {

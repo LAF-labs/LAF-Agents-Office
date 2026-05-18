@@ -232,18 +232,31 @@ function runnerSignalFromStatus(
 
   const jobs = status?.jobs ?? [];
   const runners = status?.runners ?? [];
+  const diagnostics = status?.diagnostics ?? [];
   const hasConnectedRunner = runners.some(
     (runner) => runner.status === "connected",
   );
   const hasStaleRunner = runners.some(
     (runner) => runner.status === "stale" || runner.status === "disconnected",
   );
+  const hasCriticalRunnerBlocker = diagnostics.some(
+    (diagnostic) =>
+      diagnostic.severity === "critical" &&
+      [
+        "no_capable_runner",
+        "no_connected_runner",
+        "runner_missing_execution_mode",
+        "runner_missing_git",
+        "runner_missing_github_auth",
+        "runner_missing_provider",
+      ].includes(diagnostic.kind),
+  );
 
   if (jobs.some((job) => job.status === "running" || job.status === "leased")) {
     return { labelKey: "tasks.runnerJobRunning", state: "running" };
   }
   if (jobs.some((job) => job.status === "queued" || job.status === "expired")) {
-    if (!hasConnectedRunner) {
+    if (!hasConnectedRunner || hasCriticalRunnerBlocker) {
       return { labelKey: "tasks.runnerNoCapable", state: "no_runner" };
     }
     return { labelKey: "tasks.runnerJobQueued", state: "queued" };

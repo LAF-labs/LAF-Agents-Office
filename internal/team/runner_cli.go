@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -34,6 +35,7 @@ type runnerCLIConfig struct {
 type runnerExecutionResult struct {
 	Status                 string
 	Message                string
+	FailureKind            string
 	DeliveryURL            string
 	DeliverySummary        string
 	DeliveryStatus         string
@@ -43,6 +45,13 @@ type runnerExecutionResult struct {
 	DeliveryCheckedAt      string
 	WorktreePath           string
 	WorktreeBranch         string
+	Verification           runnerWorkspaceVerification
+}
+
+type runnerWorkspaceVerification struct {
+	Status       string   `json:"status,omitempty"`
+	ChangedFiles []string `json:"changed_files,omitempty"`
+	VerifyError  string   `json:"verify_error,omitempty"`
 }
 
 var runnerCLIExecuteJob = defaultRunnerCLIExecuteJob
@@ -415,6 +424,16 @@ func runRunnerStatus(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintln(stdout)
 	fmt.Fprintf(stdout, "gh: %s, authenticated: %s\n", runnerCLIYesNo(caps.GHAvailable), runnerCLIYesNo(caps.GHAuthenticated))
+	for _, check := range caps.PreflightChecks {
+		if check.Status == "pass" {
+			continue
+		}
+		fmt.Fprintf(stdout, "preflight %s: %s", check.ID, check.Status)
+		if check.Summary != "" {
+			fmt.Fprintf(stdout, " - %s", check.Summary)
+		}
+		fmt.Fprintln(stdout)
+	}
 	return nil
 }
 
@@ -571,6 +590,7 @@ func runnerConnectOnce(ctx context.Context, cfg *runnerCLIConfig, session *runne
 		"status":                   result.Status,
 		"message":                  result.Message,
 		"error":                    runnerResultError(result),
+		"payload":                  runnerCompletionPayload(result),
 		"delivery_url":             result.DeliveryURL,
 		"delivery_summary":         result.DeliverySummary,
 		"delivery_status":          result.DeliveryStatus,
@@ -643,7 +663,7 @@ func startRunnerLeaseRenewal(ctx context.Context, apiURL, token, jobID string, l
 func defaultRunnerCLIExecuteJob(ctx context.Context, job runnerJob, stdout io.Writer) (runnerExecutionResult, error) {
 	workspace, branch, err := prepareRunnerJobWorkspace(job)
 	if err != nil {
-		return runnerExecutionResult{Status: runnerJobStatusFailed, Message: err.Error()}, err
+		return runnerExecutionResult{Status: runnerJobStatusFailed, Message: err.Error(), FailureKind: classifyRunnerExecutionFailure(err)}, err
 	}
 	if workspace != "" {
 		fmt.Fprintf(stdout, "Workspace: %s\n", workspace)
@@ -663,12 +683,28 @@ func defaultRunnerCLIExecuteJob(ctx context.Context, job runnerJob, stdout io.Wr
 	}()
 	select {
 	case <-ctx.Done():
-		return runnerExecutionResult{Status: runnerJobStatusCanceled, Message: ctx.Err().Error(), WorktreePath: workspace, WorktreeBranch: branch}, ctx.Err()
+		return runnerExecutionResult{
+			Status:         runnerJobStatusCanceled,
+			Message:        ctx.Err().Error(),
+			FailureKind:    classifyRunnerExecutionFailure(ctx.Err()),
+			WorktreePath:   workspace,
+			WorktreeBranch: branch,
+			Verification:   verifyRunnerWorkspace(workspace),
+		}, ctx.Err()
 	case result := <-outputCh:
+		verification := verifyRunnerWorkspace(workspace)
 		if result.err != nil {
-			return runnerExecutionResult{Status: runnerJobStatusFailed, Message: result.err.Error(), WorktreePath: workspace, WorktreeBranch: branch}, result.err
+			return runnerExecutionResult{
+				Status:         runnerJobStatusFailed,
+				Message:        result.err.Error(),
+				FailureKind:    classifyRunnerExecutionFailure(result.err),
+				WorktreePath:   workspace,
+				WorktreeBranch: branch,
+				Verification:   verification,
+			}, result.err
 		}
 		summary := truncateSummary(strings.TrimSpace(result.text), 1200)
+		summary = runnerSummaryWithVerification(summary, verification)
 		return runnerExecutionResult{
 			Status:          runnerJobStatusSucceeded,
 			Message:         summary,
@@ -676,6 +712,7 @@ func defaultRunnerCLIExecuteJob(ctx context.Context, job runnerJob, stdout io.Wr
 			DeliveryURL:     extractRunnerDeliveryURL(result.text),
 			WorktreePath:    workspace,
 			WorktreeBranch:  branch,
+			Verification:    verification,
 		}, nil
 	}
 }
@@ -725,9 +762,158 @@ func runnerJobPrompt(job runnerJob) string {
 
 func runnerResultError(result runnerExecutionResult) string {
 	if normalizeRunnerJobStatus(result.Status) == runnerJobStatusFailed {
-		return strings.TrimSpace(result.Message)
+		message := strings.TrimSpace(result.Message)
+		if kind := strings.TrimSpace(result.FailureKind); kind != "" {
+			if message == "" {
+				return "[" + kind + "]"
+			}
+			return "[" + kind + "] " + message
+		}
+		return message
 	}
 	return ""
+}
+
+func runnerCompletionPayload(result runnerExecutionResult) map[string]any {
+	payload := map[string]any{}
+	if kind := strings.TrimSpace(result.FailureKind); kind != "" {
+		payload["failure_kind"] = kind
+	}
+	verification := map[string]any{}
+	if status := strings.TrimSpace(result.Verification.Status); status != "" {
+		verification["status"] = status
+	}
+	if len(result.Verification.ChangedFiles) > 0 {
+		verification["changed_files"] = result.Verification.ChangedFiles
+		payload["changed_files"] = result.Verification.ChangedFiles
+	}
+	if verifyError := strings.TrimSpace(result.Verification.VerifyError); verifyError != "" {
+		verification["verify_error"] = verifyError
+	}
+	if len(verification) > 0 {
+		payload["verification"] = verification
+	}
+	if len(payload) == 0 {
+		return nil
+	}
+	return payload
+}
+
+func classifyRunnerExecutionFailure(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "execution_timeout"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "execution_canceled"
+	}
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "not authenticated"),
+		strings.Contains(message, "authentication required"),
+		strings.Contains(message, "unauthorized"),
+		strings.Contains(message, "invalid_grant"),
+		strings.Contains(message, "refresh token"),
+		strings.Contains(message, "token expired"),
+		strings.Contains(message, "oauth"),
+		strings.Contains(message, "codex login"),
+		strings.Contains(message, "claude login"),
+		strings.Contains(message, "gh auth login"):
+		return "auth_expired"
+	case strings.Contains(message, "executable file not found"),
+		strings.Contains(message, "not found in $path"),
+		strings.Contains(message, "not found in path"),
+		strings.Contains(message, "cli not found"),
+		strings.Contains(message, "provider not found"),
+		strings.Contains(message, "unsupported provider"):
+		return "provider_missing"
+	case strings.Contains(message, "git clone"),
+		strings.Contains(message, "git worktree"),
+		strings.Contains(message, "not a git repository"),
+		strings.Contains(message, "repository not found"),
+		strings.Contains(message, "could not read from remote repository"),
+		strings.Contains(message, "permission denied (publickey)"):
+		return "repo_not_ready"
+	default:
+		return "execution_failed"
+	}
+}
+
+func verifyRunnerWorkspace(workspace string) runnerWorkspaceVerification {
+	workspace = strings.TrimSpace(workspace)
+	if workspace == "" {
+		return runnerWorkspaceVerification{}
+	}
+	if _, err := os.Stat(filepath.Join(workspace, ".git")); err != nil {
+		return runnerWorkspaceVerification{}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "-C", workspace, "status", "--short", "--untracked-files=normal").CombinedOutput()
+	if err != nil {
+		message := strings.TrimSpace(string(out))
+		if message == "" {
+			message = err.Error()
+		} else {
+			message = message + ": " + err.Error()
+		}
+		return runnerWorkspaceVerification{
+			Status:      "failed",
+			VerifyError: truncateSummary(redactRunnerSensitiveText(message), 240),
+		}
+	}
+	changedFiles := parseRunnerGitStatusChangedFiles(string(out))
+	status := "clean"
+	if len(changedFiles) > 0 {
+		status = "changed"
+	}
+	return runnerWorkspaceVerification{Status: status, ChangedFiles: changedFiles}
+}
+
+func parseRunnerGitStatusChangedFiles(output string) []string {
+	const maxChangedFiles = 50
+	files := make([]string, 0)
+	seen := map[string]struct{}{}
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if len(line) < 4 {
+			continue
+		}
+		path := strings.TrimSpace(line[3:])
+		if arrow := strings.LastIndex(path, " -> "); arrow >= 0 {
+			path = strings.TrimSpace(path[arrow+4:])
+		}
+		path = strings.Trim(path, `"`)
+		path = truncateSummary(redactRunnerSensitiveText(path), 240)
+		if path == "" {
+			continue
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		files = append(files, path)
+		if len(files) >= maxChangedFiles {
+			break
+		}
+	}
+	return files
+}
+
+func runnerSummaryWithVerification(summary string, verification runnerWorkspaceVerification) string {
+	summary = strings.TrimSpace(summary)
+	if len(verification.ChangedFiles) == 0 {
+		return summary
+	}
+	files := strings.Join(verification.ChangedFiles, ", ")
+	files = truncateSummary(files, 220)
+	suffix := "Changed files: " + files
+	if summary == "" {
+		return truncateSummary(suffix, 1200)
+	}
+	return truncateSummary(summary+"\n\n"+suffix, 1200)
 }
 
 var runnerDeliveryURLPattern = regexp.MustCompile(`https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+`)
