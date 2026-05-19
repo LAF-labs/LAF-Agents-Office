@@ -2,6 +2,10 @@
 
 Status: Bridge-only hosted execution runbook
 
+For reviewer and deployment-owner context, start with
+[HOSTED-BRIDGE-HANDOFF.md](HOSTED-BRIDGE-HANDOFF.md), then use this runbook for
+the full command-level deployment procedure.
+
 ## Go-Live Checklist
 
 Run these gates in order before enabling hosted pairing for production users:
