@@ -42,6 +42,8 @@ const ignoredFiles = new Set([
   "scripts/hosted-bridge-release-gate.test.cjs",
   "scripts/hosted-bridge-smoke.cjs",
   "scripts/hosted-bridge-smoke.test.cjs",
+  // Deployment handoff docs may name retired surfaces while documenting removal.
+  "docs/specs/HOSTED-BRIDGE-HANDOFF.md",
   "web/src/components/apps/SettingsApp.test.tsx",
 ]);
 
