@@ -11,7 +11,7 @@ import (
 // Ensures ListBlueprints/LoadBlueprint transparently fall back to the
 // registered embed FS when repoRoot has no templates/ tree. This is the
 // behavior the wizard's /onboarding/blueprints handler depends on for
-// installs that run outside a repo checkout (`npx laf-office`, `curl | bash`).
+// developer bootstrap installs that run outside a repo checkout.
 func TestListAndLoadBlueprintsUseFallbackFS(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 

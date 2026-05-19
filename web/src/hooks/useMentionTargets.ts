@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
+  type AuthUser,
   getAuthUsers,
   getHumans,
   getInvites,
-  type AuthUser,
   type HumanIdentity,
   type HumanTeamMember,
 } from "../api/client";

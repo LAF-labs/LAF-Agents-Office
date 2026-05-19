@@ -42,7 +42,7 @@ type TeamPlaybookExecutionRecordArgs struct {
 	Slug    string `json:"slug" jsonschema:"Kebab-case playbook slug (matches team/playbooks/{slug}.md)."`
 	Outcome string `json:"outcome" jsonschema:"One of: success | partial | aborted"`
 	Summary string `json:"summary" jsonschema:"One paragraph describing what actually happened and what you changed. Required."`
-	Notes   string `json:"notes,omitempty" jsonschema:"Optional — anything the next runner should know that the playbook text doesn't already capture."`
+	Notes   string `json:"notes,omitempty" jsonschema:"Optional — anything the next agent should know that the playbook text doesn't already capture."`
 }
 
 // registerPlaybookTools attaches the three playbook tools to the MCP server.
@@ -63,7 +63,7 @@ func registerPlaybookTools(server *mcp.Server) {
 	), handlePlaybookExecutionRecord)
 	mcp.AddTool(server, officeWriteTool(
 		"playbook_synthesize_now",
-		"Force the broker to synthesize the latest execution outcomes back into a playbook's 'What we've learned' section RIGHT NOW, bypassing the threshold. Call this after you just logged a particularly useful outcome (or a hard-won failure) that the next runner should see immediately. Normally synthesis happens automatically after N executions; this tool short-circuits that for urgent lessons.",
+		"Force the broker to synthesize the latest execution outcomes back into a playbook's 'What we've learned' section RIGHT NOW, bypassing the threshold. Call this after you just logged a particularly useful outcome (or a hard-won failure) that the next agent should see immediately. Normally synthesis happens automatically after N executions; this tool short-circuits that for urgent lessons.",
 	), handlePlaybookSynthesizeNow)
 }
 

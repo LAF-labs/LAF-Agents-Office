@@ -84,12 +84,12 @@ func TestBrokerStopClosesPamActionSubscribers(t *testing.T) {
 	}
 }
 
-// fakePamRunner is a deterministic PamRunner used in tests. It records the
+// fakePamExecutor is a deterministic PamExecutor used in tests. It records the
 // prompts it was given so assertions can verify Pam received the article.
-// If entered is non-nil the runner signals it once per Run, right before
+// If entered is non-nil the executor signals it once per Run, right before
 // invoking the responder — callers use this to guarantee the first job is
 // inflight before enqueuing a coalesced follow-up.
-type fakePamRunner struct {
+type fakePamExecutor struct {
 	mu         sync.Mutex
 	calls      int
 	lastSystem string
@@ -98,7 +98,7 @@ type fakePamRunner struct {
 	entered    chan struct{}
 }
 
-func (f *fakePamRunner) Run(_ context.Context, system, user string) (string, error) {
+func (f *fakePamExecutor) Run(_ context.Context, system, user string) (string, error) {
 	f.mu.Lock()
 	f.calls++
 	f.lastSystem = system
@@ -121,7 +121,7 @@ func (f *fakePamRunner) Run(_ context.Context, system, user string) (string, err
 	return resp(system, user)
 }
 
-func (f *fakePamRunner) callCount() int {
+func (f *fakePamExecutor) callCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.calls
@@ -186,20 +186,20 @@ func (f *fakePamWiki) enqueueCalls() []fakePamEnqueueCall {
 
 // newPamFixtureWithFake wires PamDispatcher against an in-memory fakePamWiki
 // so tests can exercise the dispatch path without touching git or disk.
-func newPamFixtureWithFake(t *testing.T, runner PamRunner) (*PamDispatcher, *fakePamWiki, *pamPublisherStub, func()) {
+func newPamFixtureWithFake(t *testing.T, executor PamExecutor) (*PamDispatcher, *fakePamWiki, *pamPublisherStub, func()) {
 	t.Helper()
 	wiki := newFakePamWiki()
 	pub := &pamPublisherStub{}
 	disp := NewPamDispatcher(wiki, pub, PamDispatcherConfig{
-		Timeout: 2 * time.Second,
-		Runner:  runner,
+		Timeout:  2 * time.Second,
+		Executor: executor,
 	})
 	disp.Start(context.Background())
 	teardown := func() { disp.Stop() }
 	return disp, wiki, pub, teardown
 }
 
-func newPamFixture(t *testing.T, runner PamRunner) (*PamDispatcher, *WikiWorker, *pamPublisherStub, func()) {
+func newPamFixture(t *testing.T, executor PamExecutor) (*PamDispatcher, *WikiWorker, *pamPublisherStub, func()) {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "wiki")
 	backup := filepath.Join(t.TempDir(), "wiki.bak")
@@ -213,8 +213,8 @@ func newPamFixture(t *testing.T, runner PamRunner) (*PamDispatcher, *WikiWorker,
 
 	pub := &pamPublisherStub{}
 	disp := NewPamDispatcher(worker, pub, PamDispatcherConfig{
-		Timeout: 2 * time.Second,
-		Runner:  runner,
+		Timeout:  2 * time.Second,
+		Executor: executor,
 	})
 	disp.Start(context.Background())
 
@@ -284,13 +284,13 @@ func TestPamActions_MenuIsCopy(t *testing.T) {
 // ─── PamDispatcher happy path ──
 
 func TestPamDispatcher_EnrichArticleCommitsAsArchivist(t *testing.T) {
-	runner := &fakePamRunner{
+	executor := &fakePamExecutor{
 		responder: func(_, user string) (string, error) {
-			// Append a bogus line to prove the runner's output is what commits.
+			// Append a bogus line to prove the executor's output is what commits.
 			return user + "\n\nPam was here.", nil
 		},
 	}
-	disp, worker, pub, teardown := newPamFixture(t, runner)
+	disp, worker, pub, teardown := newPamFixture(t, executor)
 	defer teardown()
 
 	const path = "team/companies/acme.md"
@@ -306,11 +306,11 @@ func TestPamDispatcher_EnrichArticleCommitsAsArchivist(t *testing.T) {
 
 	waitPamCounts(t, pub, 1, 1, 0, 3*time.Second)
 
-	if runner.callCount() != 1 {
-		t.Fatalf("runner calls: want 1 got %d", runner.callCount())
+	if executor.callCount() != 1 {
+		t.Fatalf("executor calls: want 1 got %d", executor.callCount())
 	}
-	if !strings.Contains(runner.lastUser, "Old body.") {
-		t.Fatalf("runner never saw article body; got %q", runner.lastUser)
+	if !strings.Contains(executor.lastUser, "Old body.") {
+		t.Fatalf("executor never saw article body; got %q", executor.lastUser)
 	}
 
 	// The commit author must remain ArchivistAuthor — Pam is the archivist,
@@ -328,7 +328,7 @@ func TestPamDispatcher_EnrichArticleCommitsAsArchivist(t *testing.T) {
 // ─── PamDispatcher coalescing ──
 
 // TestPamDispatcher_CoalescesRepeatedEnqueuesPerArticle uses an `entered`
-// signal from the runner instead of a sleep to deterministically wait
+// signal from the executor instead of a sleep to deterministically wait
 // until the first job is inflight before enqueuing the follow-up.
 //
 // Post-Agent-1 contract: the second Enqueue for the same (action, path)
@@ -336,14 +336,14 @@ func TestPamDispatcher_EnrichArticleCommitsAsArchivist(t *testing.T) {
 func TestPamDispatcher_CoalescesRepeatedEnqueuesPerArticle(t *testing.T) {
 	release := make(chan struct{})
 	entered := make(chan struct{}, 1)
-	runner := &fakePamRunner{
+	executor := &fakePamExecutor{
 		entered: entered,
 		responder: func(_, user string) (string, error) {
 			<-release
 			return user + "\n\ndone", nil
 		},
 	}
-	disp, worker, pub, teardown := newPamFixture(t, runner)
+	disp, worker, pub, teardown := newPamFixture(t, executor)
 	defer teardown()
 
 	const path = "team/companies/acme.md"
@@ -356,12 +356,12 @@ func TestPamDispatcher_CoalescesRepeatedEnqueuesPerArticle(t *testing.T) {
 	if id1 == 0 {
 		t.Fatalf("expected non-zero id1")
 	}
-	// Wait for the first job to actually enter the runner — this is
+	// Wait for the first job to actually enter the executor — this is
 	// the moment it transitions from queued to inflight.
 	select {
 	case <-entered:
 	case <-time.After(2 * time.Second):
-		t.Fatalf("first job never entered runner")
+		t.Fatalf("first job never entered executor")
 	}
 	id2, err := disp.Enqueue(PamActionEnrichArticle, path, "human")
 	if err != nil {
@@ -372,18 +372,18 @@ func TestPamDispatcher_CoalescesRepeatedEnqueuesPerArticle(t *testing.T) {
 	}
 	close(release)
 
-	// Expect exactly 2 runner calls (original + 1 coalesced follow-up), and
+	// Expect exactly 2 executor calls (original + 1 coalesced follow-up), and
 	// two done events. A third enqueue during the window must not multiply.
 	waitPamCounts(t, pub, 2, 2, 0, 4*time.Second)
-	if runner.callCount() != 2 {
-		t.Fatalf("want 2 runner calls; got %d", runner.callCount())
+	if executor.callCount() != 2 {
+		t.Fatalf("want 2 executor calls; got %d", executor.callCount())
 	}
 }
 
 // ─── PamDispatcher error paths ──
 
 func TestPamDispatcher_UnknownActionRejected(t *testing.T) {
-	disp, _, _, teardown := newPamFixture(t, &fakePamRunner{})
+	disp, _, _, teardown := newPamFixture(t, &fakePamExecutor{})
 	defer teardown()
 	_, err := disp.Enqueue(PamActionID("bogus"), "team/x.md", "human")
 	if err == nil {
@@ -392,7 +392,7 @@ func TestPamDispatcher_UnknownActionRejected(t *testing.T) {
 }
 
 func TestPamDispatcher_MissingArticlePublishesFailed(t *testing.T) {
-	disp, _, pub, teardown := newPamFixture(t, &fakePamRunner{})
+	disp, _, pub, teardown := newPamFixture(t, &fakePamExecutor{})
 	defer teardown()
 	if _, err := disp.Enqueue(PamActionEnrichArticle, "team/nope/does-not-exist.md", "human"); err != nil {
 		t.Fatalf("enqueue: %v", err)
@@ -403,24 +403,24 @@ func TestPamDispatcher_MissingArticlePublishesFailed(t *testing.T) {
 // TestPamDispatcher_DispatchesViaPamWikiSeam exercises the full enrich path
 // against an in-memory fakePamWiki — proving the pamWiki interface is the
 // real seam and PamDispatcher does not reach past it into *Repo internals.
-// The body the runner returns must reach the wiki via Enqueue with the
+// The body the executor returns must reach the wiki via Enqueue with the
 // canonical archivist commit message and replace mode.
 func TestPamDispatcher_DispatchesViaPamWikiSeam(t *testing.T) {
 	const path = "team/companies/acme.md"
 	const seedBody = "# Acme\n\nBefore enrichment.\n"
 	const enrichedBody = "# Acme\n\nAfter enrichment.\n"
 
-	runner := &fakePamRunner{
+	executor := &fakePamExecutor{
 		responder: func(_, userPrompt string) (string, error) {
 			// Pam's user prompt embeds the article body verbatim; assert that
-			// what ReadArticle returned reached the runner unmangled.
+			// what ReadArticle returned reached the executor unmangled.
 			if !strings.Contains(userPrompt, seedBody) {
-				return "", errors.New("runner did not receive seed body in user prompt")
+				return "", errors.New("executor did not receive seed body in user prompt")
 			}
 			return enrichedBody, nil
 		},
 	}
-	disp, wiki, pub, teardown := newPamFixtureWithFake(t, runner)
+	disp, wiki, pub, teardown := newPamFixtureWithFake(t, executor)
 	defer teardown()
 
 	wiki.seed(path, []byte(seedBody))
@@ -444,23 +444,23 @@ func TestPamDispatcher_DispatchesViaPamWikiSeam(t *testing.T) {
 	if got.Mode != "replace" {
 		t.Fatalf("expected mode=replace, got %q", got.Mode)
 	}
-	// Pam trims trailing whitespace from the runner output before commit;
+	// Pam trims trailing whitespace from the executor output before commit;
 	// substring-match against the enriched body's trimmed shape.
 	if !strings.Contains(got.Content, "After enrichment.") {
 		t.Fatalf("expected enriched body in Enqueue Content, got %q", got.Content)
 	}
 }
 
-// TestPamDispatcher_RunnerErrorPublishesFailedNotDone covers the
-// runner-returns-error branch: we must publish action_failed and never
+// TestPamDispatcher_ExecutorErrorPublishesFailedNotDone covers the
+// executor-returns-error branch: we must publish action_failed and never
 // publish action_done for the same job.
-func TestPamDispatcher_RunnerErrorPublishesFailedNotDone(t *testing.T) {
-	runner := &fakePamRunner{
+func TestPamDispatcher_ExecutorErrorPublishesFailedNotDone(t *testing.T) {
+	executor := &fakePamExecutor{
 		responder: func(_, _ string) (string, error) {
-			return "", errPamRunnerTest
+			return "", errPamExecutorTest
 		},
 	}
-	disp, worker, pub, teardown := newPamFixture(t, runner)
+	disp, worker, pub, teardown := newPamFixture(t, executor)
 	defer teardown()
 
 	const path = "team/companies/acme.md"
@@ -480,22 +480,22 @@ func TestPamDispatcher_RunnerErrorPublishesFailedNotDone(t *testing.T) {
 	}
 }
 
-// errPamRunnerTest is a sentinel error used by the runner-error test.
-var errPamRunnerTest = testPamError("pam test: runner failure")
+// errPamExecutorTest is a sentinel error used by the executor-error test.
+var errPamExecutorTest = testPamError("pam test: executor failure")
 
 type testPamError string
 
 func (e testPamError) Error() string { return string(e) }
 
-// TestPamDispatcher_EmptyOutputFails asserts that a runner returning an
+// TestPamDispatcher_EmptyOutputFails asserts that an executor returning an
 // empty string publishes action_failed and does not commit anything.
 func TestPamDispatcher_EmptyOutputFails(t *testing.T) {
-	runner := &fakePamRunner{
+	executor := &fakePamExecutor{
 		responder: func(_, _ string) (string, error) {
 			return "", nil
 		},
 	}
-	disp, worker, pub, teardown := newPamFixture(t, runner)
+	disp, worker, pub, teardown := newPamFixture(t, executor)
 	defer teardown()
 
 	const path = "team/companies/acme.md"
@@ -517,17 +517,17 @@ func TestPamDispatcher_EmptyOutputFails(t *testing.T) {
 	}
 }
 
-// TestPamDispatcher_OverlargeOutputFails asserts that a runner returning
+// TestPamDispatcher_OverlargeOutputFails asserts that an executor returning
 // more than MaxPamOutputSize bytes publishes action_failed and does not
 // commit anything.
 func TestPamDispatcher_OverlargeOutputFails(t *testing.T) {
 	huge := strings.Repeat("x", MaxPamOutputSize+1)
-	runner := &fakePamRunner{
+	executor := &fakePamExecutor{
 		responder: func(_, _ string) (string, error) {
 			return huge, nil
 		},
 	}
-	disp, worker, pub, teardown := newPamFixture(t, runner)
+	disp, worker, pub, teardown := newPamFixture(t, executor)
 	defer teardown()
 
 	const path = "team/companies/acme.md"
@@ -573,15 +573,15 @@ func newPamHTTPFixture(t *testing.T) (*httptest.Server, *Broker, func()) {
 	b.wikiWorker = worker
 	b.mu.Unlock()
 
-	// Install a fake runner so the dispatcher does not fork a real CLI.
+	// Install a fake executor so the dispatcher does not fork a real CLI.
 	// We do this by priming the dispatcher ourselves and stashing it on
 	// the broker before the first request arrives.
-	fake := &fakePamRunner{
+	fake := &fakePamExecutor{
 		responder: func(_, user string) (string, error) { return user + "\n\npam!", nil },
 	}
 	disp := NewPamDispatcher(worker, b, PamDispatcherConfig{
-		Timeout: 2 * time.Second,
-		Runner:  fake,
+		Timeout:  2 * time.Second,
+		Executor: fake,
 	})
 	disp.Start(context.Background())
 	b.mu.Lock()
@@ -742,7 +742,7 @@ func TestHandlePamActions_WrongMethod(t *testing.T) {
 // only failure modes (malformed JSON, missing path, etc.). The seam refactor
 // (pamWiki narrowed to ReadArticle) was specifically motivated by callers
 // like this one — the e2e proof that the new ReadArticle method actually
-// flows the article body through the dispatcher to the runner is what was
+// flows the article body through the dispatcher to the executor is what was
 // missing, and it's the test I would have wanted while reviewing #298.
 func TestHandlePamAction_EnrichArticleHappyPath(t *testing.T) {
 	srv, b, teardown := newPamHTTPFixture(t)
@@ -776,7 +776,7 @@ func TestHandlePamAction_EnrichArticleHappyPath(t *testing.T) {
 		t.Fatalf("expected 200/202, got %d", res.StatusCode)
 	}
 
-	// Wait for the dispatcher to drain — the fixture's fakePamRunner is
+	// Wait for the dispatcher to drain — the fixture's fakePamExecutor is
 	// deterministic and the WikiWorker queue is in-process.
 	deadline := time.Now().Add(3 * time.Second)
 	var enriched []byte
@@ -791,11 +791,11 @@ func TestHandlePamAction_EnrichArticleHappyPath(t *testing.T) {
 	if enriched == nil {
 		t.Fatalf("timed out waiting for Pam to enrich %s through the HTTP path", path)
 	}
-	// fakePamRunner echoes the user prompt + "\n\npam!" — verify the runner
+	// fakePamExecutor echoes the user prompt + "\n\npam!" — verify the executor
 	// saw the seed body (proving ReadArticle reached it through the seam) and
 	// that its output landed back on disk via Enqueue.
 	if !bytes.Contains(enriched, []byte("pam!")) {
-		t.Fatalf("expected enriched article to include runner suffix, got %q", enriched)
+		t.Fatalf("expected enriched article to include executor suffix, got %q", enriched)
 	}
 	if !bytes.Contains(enriched, []byte("Before Pam.")) {
 		t.Fatalf("expected enriched article to retain seed body, got %q", enriched)

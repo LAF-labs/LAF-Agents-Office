@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
 )
 
 type Client struct {
@@ -44,8 +46,10 @@ type PairOptions struct {
 }
 
 type claimPairingResponse struct {
-	BridgeToken string `json:"bridge_token"`
-	Device      Device `json:"device"`
+	BridgeToken          string `json:"bridge_token"`
+	Device               Device `json:"device"`
+	PlanSigningKeyID     string `json:"plan_signing_key_id,omitempty"`
+	PlanSigningPublicKey string `json:"plan_signing_public_key"`
 }
 
 func Pair(ctx context.Context, opts PairOptions) (Config, error) {
@@ -61,7 +65,7 @@ func Pair(ctx context.Context, opts PairOptions) (Config, error) {
 		label = strings.TrimSpace(hostname)
 	}
 	if label == "" {
-		label = "Desktop Bridge"
+		label = "LAF Bridge"
 	}
 	publicKey := strings.TrimSpace(opts.PublicKey)
 	identityRef := ""
@@ -78,7 +82,7 @@ func Pair(ctx context.Context, opts PairOptions) (Config, error) {
 	var out claimPairingResponse
 	if err := client.post(ctx, "/bridge/pairing/claim", map[string]any{
 		"arch":           runtime.GOARCH,
-		"bridge_version": "dev",
+		"bridge_version": bridgeVersion(),
 		"capabilities":   caps,
 		"code":           opts.Code,
 		"device_kind":    "desktop",
@@ -87,6 +91,13 @@ func Pair(ctx context.Context, opts PairOptions) (Config, error) {
 		"public_key":     publicKey,
 	}, &out); err != nil {
 		return Config{}, err
+	}
+	planSigningPublicKey := strings.TrimSpace(out.PlanSigningPublicKey)
+	if planSigningPublicKey == "" {
+		return Config{}, fmt.Errorf("pairing response missing plan_signing_public_key")
+	}
+	if _, err := ParseEd25519PublicKey(planSigningPublicKey); err != nil {
+		return Config{}, fmt.Errorf("invalid plan_signing_public_key: %w", err)
 	}
 	tokenRef, err := StoreTokenFallback(opts.TokenPath, out.BridgeToken)
 	if err != nil {
@@ -106,6 +117,7 @@ func Pair(ctx context.Context, opts PairOptions) (Config, error) {
 		cfg.IdentityRef = identityRef
 	}
 	cfg.PublicKey = publicKey
+	cfg.PlanSigningPublicKey = planSigningPublicKey
 	if err := SaveConfig(opts.ConfigPath, cfg); err != nil {
 		return Config{}, err
 	}
@@ -118,6 +130,29 @@ func (c Client) PendingPlans(ctx context.Context, deviceID string) ([]ExecutionP
 	}
 	err := c.get(ctx, "/bridge/devices/"+url.PathEscape(deviceID)+"/pending-plans", &out)
 	return out.Plans, err
+}
+
+func (c Client) Heartbeat(ctx context.Context, cfg Config, caps Capabilities) (Device, error) {
+	var out struct {
+		Device Device `json:"device"`
+	}
+	err := c.post(ctx, "/bridge/devices/"+url.PathEscape(cfg.DeviceID)+"/heartbeat", map[string]any{
+		"arch":           runtime.GOARCH,
+		"bridge_version": bridgeVersion(),
+		"capabilities":   caps,
+		"device_label":   cfg.DeviceLabel,
+		"platform":       runtime.GOOS,
+		"status":         "online",
+	}, &out)
+	return out.Device, err
+}
+
+func bridgeVersion() string {
+	version := strings.TrimSpace(buildinfo.Current().Version)
+	if version == "" {
+		return "dev"
+	}
+	return version
 }
 
 func (c Client) AckPlan(ctx context.Context, planID string, leaseSeconds int) (ExecutionPlan, error) {
@@ -206,6 +241,7 @@ func (c Client) CompletePlanOutcome(
 		Receipt ExecutionReceipt `json:"receipt"`
 	}
 	err := c.post(ctx, "/execution/plans/"+url.PathEscape(planID)+"/complete", map[string]any{
+		"artifacts":     outcome.Artifacts,
 		"changed_files": outcome.ChangedFiles,
 		"status":        outcome.Status,
 		"summary":       outcome.Summary,

@@ -52,7 +52,7 @@ Run:
 
 Review:
 1. No polling drift in broker/launcher paths.
-2. Fresh-session and per-agent worktree rules remain intact.
+2. Fresh-session and LAF Bridge managed checkout isolation rules remain intact.
 3. Claude-powered and Codex-powered modes remain selectable.
 4. Notebook-to-Wiki promotion is manual.
 5. Security and destructive actions are approval-scoped.
@@ -82,7 +82,7 @@ func cmdFixBug(ctx *SlashContext, args string) error {
 Fix Bug workflow:
 
 1. Reproduce the bug or write the smallest failing test.
-2. Assign Architect only if broker, provider, worktree, MCP, or memory invariants are touched.
+2. Assign Architect only if broker, provider, Bridge checkout, MCP, or memory invariants are touched.
 3. Coder implements the smallest fix.
 4. Tester runs the focused regression and broader checks when risk warrants.
 5. Reviewer checks security, Office Rule, provider neutrality, and Wiki consistency.
@@ -95,7 +95,7 @@ func cmdDeploySimulation(ctx *SlashContext, args string) error {
 	ctx.AddMessage("system", strings.TrimSpace(`
 Deploy Simulation workflow:
 
-1. Start local runtime with explicit provider:
+1. Run the local rehearsal with an explicit provider:
    ./laf-office --provider claude-code
    ./laf-office --provider codex
 2. Use isolated ports for scripted smoke tests when needed.

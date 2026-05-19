@@ -219,7 +219,7 @@ interface SkillsCopy {
 const SKILLS_COPY = {
   en: {
     growthAria: "Growth Center",
-    growthKicker: "Local-first agent learning",
+    growthKicker: "Hosted agent learning",
     growthTitle: "Growth Center",
     growthDescription:
       "Notebook drafts become reviewed wiki memory, playbooks compile into skills, and execution logs feed the next version of the workspace.",
@@ -238,7 +238,7 @@ const SKILLS_COPY = {
     growthInboxEmpty: "No growth actions waiting.",
     tokenBudgetTitle: "Token/context budget",
     tokenBudgetDescription:
-      "Actual usage plus char-based diagnostics from the broker.",
+      "Actual usage plus char-based diagnostics from the workspace runtime.",
     sessionTokens: "Session tokens",
     totalCost: "Total cost",
     avgPromptChars: "Avg prompt chars",
@@ -390,7 +390,7 @@ const SKILLS_COPY = {
     growthInboxEmpty: "지금 처리할 성장 항목이 없습니다.",
     tokenBudgetTitle: "토큰/컨텍스트 사용량",
     tokenBudgetDescription:
-      "브로커가 실제 사용량과 프롬프트 크기 진단을 보여줍니다.",
+      "워크스페이스 런타임이 실제 사용량과 프롬프트 크기 진단을 보여줍니다.",
     sessionTokens: "세션 토큰",
     totalCost: "전체 비용",
     avgPromptChars: "평균 프롬프트 글자 수",
@@ -1126,7 +1126,7 @@ function SkillEditor({
                 disabled={isEditing || isSaving}
                 onChange={(event) => onChange("name", event.target.value)}
                 placeholder={copy.skillNamePlaceholder}
-                required
+                required={true}
               />
             </label>
             <label
@@ -1141,7 +1141,7 @@ function SkillEditor({
                 placeholder={copy.instructionsPlaceholder}
                 rows={14}
                 disabled={isSaving}
-                required
+                required={true}
               />
             </label>
           </section>

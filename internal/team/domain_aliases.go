@@ -22,9 +22,10 @@ const (
 	taskStatusCanceled   = string(office.TaskStatusCanceled)
 	taskStatusCancelled  = string(office.TaskStatusCancelled)
 
-	executionModeOffice        = string(office.ExecutionModeOffice)
-	executionModeLocalWorktree = string(office.ExecutionModeLocalWorktree)
-	executionModeLiveExternal  = string(office.ExecutionModeLiveExternal)
+	executionModeOffice          = string(office.ExecutionModeOffice)
+	executionModeLocalWorktree   = string(office.ExecutionModeLocalWorktree)
+	executionModeManagedCheckout = string(office.ExecutionModeManagedCheckout)
+	executionModeLiveExternal    = string(office.ExecutionModeLiveExternal)
 
 	reviewStateNotRequired    = string(office.ReviewStateNotRequired)
 	reviewStatePendingReview  = string(office.ReviewStatePendingReview)
@@ -45,4 +46,8 @@ func isOfficeExecutionMode(mode string) bool {
 
 func isLiveExternalExecutionMode(mode string) bool {
 	return office.IsLiveExternalExecutionMode(mode)
+}
+
+func publicExecutionMode(mode string) string {
+	return office.PublicExecutionMode(mode)
 }

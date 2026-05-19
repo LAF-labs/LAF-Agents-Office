@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -17,6 +18,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/bridge"
 	bridgemcp "github.com/LAF-labs/LAF-Agents-Office/internal/bridge/mcp"
 	bridgeproviders "github.com/LAF-labs/LAF-Agents-Office/internal/bridge/providers"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
 )
 
 const (
@@ -24,12 +26,15 @@ const (
 	mcpSecretEnv      = "LAF_BRIDGE_MCP_SECRET"
 	mcpContextPathEnv = "LAF_BRIDGE_MCP_CONTEXT_PATH"
 	mcpClaimsPathEnv  = "LAF_BRIDGE_MCP_CLAIMS_PATH"
+	providerEnv       = "LAF_BRIDGE_EXECUTION_PROVIDER"
 )
+
+var errHelpHandled = errors.New("help handled")
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := runWithContext(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	if err := runWithContextIO(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "laf-bridge:", err)
 		os.Exit(1)
 	}
@@ -40,25 +45,30 @@ func run(args []string, stdout, stderr io.Writer) error {
 }
 
 func runWithContext(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 {
-		usage(stderr)
-		return flag.ErrHelp
+	return runWithContextIO(ctx, args, strings.NewReader(""), stdout, stderr)
+}
+
+func runWithContextIO(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) == 0 || isHelpArg(args[0]) {
+		usage(stdout)
+		return nil
+	}
+	if isVersionArg(args[0]) {
+		fmt.Fprintf(stdout, "laf-bridge v%s\n", buildinfo.Current().Version)
+		return nil
 	}
 	switch args[0] {
+	case "help":
+		usage(stdout)
+		return nil
 	case "pair":
-		return runPair(ctx, args[1:], stdout)
+		return runPair(ctx, args[1:], stdin, stdout)
 	case "status":
 		return runStatus(stdout)
 	case "doctor":
 		return runDoctor(ctx, stdout)
 	case "providers":
 		return runProviders(ctx, stdout)
-	case "bindings":
-		return runBindings(stdout)
-	case "link-project":
-		return runLinkProject(args[1:], stdout)
-	case "unlink-project":
-		return runUnlinkProject(args[1:], stdout)
 	case "start":
 		return runStart(ctx, args[1:], stdout)
 	case "mcp-context":
@@ -69,21 +79,33 @@ func runWithContext(ctx context.Context, args []string, stdout, stderr io.Writer
 	}
 }
 
-func runPair(ctx context.Context, args []string, stdout io.Writer) error {
+func runPair(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
 	fs := flag.NewFlagSet("pair", flag.ContinueOnError)
-	apiURL := fs.String("api-url", "", "LAF hosted API URL, usually https://host/api")
-	code := fs.String("code", "", "pairing code from the web app")
+	apiURL := fs.String("api-url", "", "LAF hosted API URL for automation")
+	code := fs.String("code", "", "pairing or setup code for automation")
 	label := fs.String("device-label", "", "local device label")
 	publicKey := fs.String("public-key", "", "bridge public key")
 	identityPath := fs.String("identity-path", "", "bridge identity private key path")
-	if err := fs.Parse(args); err != nil {
+	start := fs.Bool("start", true, "start the local bridge loop after pairing")
+	once := fs.Bool("once", false, "when starting after pair, poll once and exit")
+	fs.Usage = func() {
+		pairUsage(stdout)
+	}
+	if err := parseFlags(fs, args, stdout); err != nil {
+		if errors.Is(err, errHelpHandled) {
+			return nil
+		}
 		return err
 	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	resolvedAPIURL, resolvedCode, err := resolvePairInputs(*apiURL, *code, stdin, stdout)
+	if err != nil {
+		return err
+	}
+	pairCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cfg, err := bridge.Pair(ctx, bridge.PairOptions{
-		APIURL:       *apiURL,
-		Code:         *code,
+	cfg, err := bridge.Pair(pairCtx, bridge.PairOptions{
+		APIURL:       resolvedAPIURL,
+		Code:         resolvedCode,
 		DeviceLabel:  *label,
 		IdentityPath: *identityPath,
 		PublicKey:    *publicKey,
@@ -92,7 +114,90 @@ func runPair(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(stdout, "paired device %s\n", cfg.DeviceID)
-	return nil
+	if !*start {
+		return nil
+	}
+	providerName := strings.TrimSpace(os.Getenv(providerEnv))
+	if providerName == "" {
+		providerName = "auto"
+	}
+	startArgs := []string{"--once=false", "--auto-approve=true", "--provider=" + providerName}
+	if *once {
+		startArgs = []string{"--once=true", "--auto-approve=true", "--provider=" + providerName}
+	}
+	return runStart(ctx, startArgs, stdout)
+}
+
+func resolvePairInputs(apiURL string, code string, stdin io.Reader, stdout io.Writer) (string, string, error) {
+	apiURL = firstNonEmpty(
+		apiURL,
+		os.Getenv("LAF_BRIDGE_API_URL"),
+		os.Getenv("LAF_HOSTED_API_URL"),
+		os.Getenv("LAF_OFFICE_HOSTED_API_URL"),
+	)
+	code = firstNonEmpty(code, os.Getenv("LAF_BRIDGE_SETUP_CODE"))
+
+	if decodedAPIURL, decodedCode, ok := decodeBridgeSetupCode(code); ok {
+		apiURL = decodedAPIURL
+		code = decodedCode
+	}
+
+	if strings.TrimSpace(code) == "" && stdin != nil {
+		fmt.Fprintln(stdout, "Paste the LAF Bridge setup code from Settings -> LAF Bridge, then press Enter:")
+		line, err := bufio.NewReader(stdin).ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return "", "", err
+		}
+		line = strings.TrimSpace(line)
+		if decodedAPIURL, decodedCode, ok := decodeBridgeSetupCode(line); ok {
+			apiURL = decodedAPIURL
+			code = decodedCode
+		} else {
+			code = line
+		}
+	}
+
+	apiURL = strings.TrimSpace(apiURL)
+	code = strings.TrimSpace(code)
+	if apiURL == "" {
+		return "", "", fmt.Errorf("api url is required; paste the setup code from Settings -> LAF Bridge or set LAF_BRIDGE_API_URL for automation")
+	}
+	if code == "" {
+		return "", "", fmt.Errorf("setup code is required; create one in Settings -> LAF Bridge")
+	}
+	return apiURL, code, nil
+}
+
+func decodeBridgeSetupCode(raw string) (string, string, bool) {
+	candidate := strings.Join(strings.Fields(raw), "")
+	if candidate == "" {
+		return "", "", false
+	}
+	decoders := []*base64.Encoding{
+		base64.RawURLEncoding,
+		base64.URLEncoding,
+		base64.RawStdEncoding,
+		base64.StdEncoding,
+	}
+	for _, decoder := range decoders {
+		decoded, err := decoder.DecodeString(candidate)
+		if err != nil {
+			continue
+		}
+		var payload struct {
+			APIURL string `json:"api_url"`
+			Code   string `json:"code"`
+		}
+		if err := json.Unmarshal(decoded, &payload); err != nil {
+			continue
+		}
+		apiURL := strings.TrimSpace(payload.APIURL)
+		code := strings.TrimSpace(payload.Code)
+		if apiURL != "" && code != "" {
+			return apiURL, code, true
+		}
+	}
+	return "", "", false
 }
 
 func runStatus(stdout io.Writer) error {
@@ -101,12 +206,11 @@ func runStatus(stdout io.Writer) error {
 		return err
 	}
 	status := map[string]any{
-		"api_url":       cfg.APIURL,
-		"configured":    cfg.DeviceID != "",
-		"device_id":     cfg.DeviceID,
-		"device_label":  cfg.DeviceLabel,
-		"binding_count": len(cfg.Bindings),
-		"team_id":       cfg.TeamID,
+		"api_url":      cfg.APIURL,
+		"configured":   cfg.DeviceID != "",
+		"device_id":    cfg.DeviceID,
+		"device_label": cfg.DeviceLabel,
+		"team_id":      cfg.TeamID,
 	}
 	return writeJSON(stdout, status)
 }
@@ -135,73 +239,12 @@ func runProviders(ctx context.Context, stdout io.Writer) error {
 	)
 }
 
-func runBindings(stdout io.Writer) error {
-	cfg, err := bridge.LoadConfig("")
-	if err != nil {
-		return err
-	}
-	return writeJSON(stdout, map[string]any{"bindings": cfg.Bindings})
-}
-
-func runLinkProject(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("link-project", flag.ContinueOnError)
-	bindingID := fs.String("binding-id", "", "hosted project_local_bindings id")
-	projectID := fs.String("project-id", "", "hosted project id")
-	localPath := fs.String("path", "", "trusted local project path")
-	displayName := fs.String("display-name", "", "local binding display name")
-	trusted := fs.Bool("trusted", true, "mark the local binding as trusted")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	cfg, err := bridge.LoadConfig("")
-	if err != nil {
-		return err
-	}
-	next, err := bridge.UpsertProjectBinding(cfg, bridge.ProjectBinding{
-		ID:          *bindingID,
-		ProjectID:   *projectID,
-		DeviceID:    cfg.DeviceID,
-		DisplayName: *displayName,
-		LocalPath:   *localPath,
-		Trusted:     *trusted,
-	})
-	if err != nil {
-		return err
-	}
-	if err := bridge.SaveConfig("", next); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "linked binding %s\n", *bindingID)
-	return nil
-}
-
-func runUnlinkProject(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("unlink-project", flag.ContinueOnError)
-	bindingID := fs.String("binding-id", "", "hosted project_local_bindings id")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	cfg, err := bridge.LoadConfig("")
-	if err != nil {
-		return err
-	}
-	next, removed := bridge.RemoveProjectBinding(cfg, *bindingID)
-	if !removed {
-		return fmt.Errorf("binding %q is not configured", *bindingID)
-	}
-	if err := bridge.SaveConfig("", next); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "unlinked binding %s\n", *bindingID)
-	return nil
-}
-
 func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	once := fs.Bool("once", true, "poll once and exit")
 	interval := fs.Duration("interval", 15*time.Second, "polling interval when --once=false")
 	relay := fs.Bool("relay", true, "subscribe to the configured Supabase Realtime relay when --once=false")
-	providerName := fs.String("provider", "codex", "execution provider: codex or fake")
+	providerName := fs.String("provider", "auto", "execution provider: auto, codex, claude, or fake")
 	model := fs.String("model", "", "provider model override")
 	planPublicKey := fs.String("plan-public-key", "", "base64 or PEM Ed25519 execution-plan signing public key")
 	autoApprove := fs.Bool("auto-approve", false, "approve plans that require local approval")
@@ -213,7 +256,10 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 	mcpContext := fs.Bool("mcp-context", true, "inject task-scoped MCP context into codex exec")
 	mcpContextPath := fs.String("mcp-context-path", "", "optional local MCP context JSON file")
 	mcpCommand := fs.String("mcp-command", "", "laf-bridge command path for Codex MCP config")
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args, stdout); err != nil {
+		if errors.Is(err, errHelpHandled) {
+			return nil
+		}
 		return err
 	}
 	cfg, err := bridge.LoadConfig("")
@@ -252,7 +298,10 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 			AllowNetwork:          *allowNetwork,
 		},
 	}
-	runner := bridge.PendingRunnerFunc(func(runCtx context.Context) ([]bridge.RunResult, error) {
+	pendingExecutor := bridge.PendingExecutorFunc(func(runCtx context.Context) ([]bridge.RunResult, error) {
+		if _, err := client.Heartbeat(runCtx, cfg, bridge.DetectCapabilities(runCtx, bridge.ProviderDetector{})); err != nil {
+			return nil, err
+		}
 		return bridge.RunPendingOnceWithOptions(runCtx, cfg, client, validator, bridge.RunPendingOptions{
 			Approver: approver,
 			Executor: executor,
@@ -271,7 +320,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 					DeviceID:     cfg.DeviceID,
 					PollInterval: pollInterval,
 					ReconnectMin: 5 * time.Second,
-					Runner:       runner,
+					Executor:     pendingExecutor,
 					Source:       source,
 				}).Run(ctx)
 				if errors.Is(err, context.Canceled) {
@@ -281,17 +330,13 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 			}
 		}
 		fmt.Fprintf(stdout, "laf-bridge polling device %s every %s\n", cfg.DeviceID, pollInterval.String())
-		err := (bridge.PollLoop{Interval: pollInterval, Runner: runner}).Run(ctx)
+		err := (bridge.PollLoop{Interval: pollInterval, Executor: pendingExecutor}).Run(ctx)
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		return err
 	}
-	results, err := bridge.RunPendingOnceWithOptions(ctx, cfg, client, validator, bridge.RunPendingOptions{
-		Approver: approver,
-		Executor: executor,
-		Guard:    guard,
-	})
+	results, err := pendingExecutor.RunPending(ctx)
 	if err != nil {
 		return err
 	}
@@ -304,7 +349,10 @@ func runMCPContext(ctx context.Context, args []string, stdout io.Writer) error {
 	secretFlag := fs.String("secret", "", "MCP token HMAC secret, raw or base64")
 	contextPathFlag := fs.String("context-path", "", "local MCP context JSON file")
 	printConfig := fs.Bool("print-config", false, "print configuration summary and exit")
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args, stdout); err != nil {
+		if errors.Is(err, errHelpHandled) {
+			return nil
+		}
 		return err
 	}
 	token := firstNonEmpty(*tokenFlag, os.Getenv(mcpTokenEnv))
@@ -390,7 +438,7 @@ type mcpCodexExecutor struct {
 	secret      []byte
 }
 
-func (e mcpCodexExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan, binding bridge.ProjectBinding) (bridge.ExecutionOutcome, error) {
+func (e mcpCodexExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan) (bridge.ExecutionOutcome, error) {
 	issuer := bridgemcp.NewTokenIssuer(e.secret)
 	_, claims, err := issuer.Issue(plan)
 	if err != nil {
@@ -424,7 +472,7 @@ func (e mcpCodexExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan
 		append([]string(nil), exec.ConfigOverrides...),
 		bridgemcp.CodexConfigOverrides(command, []string{"mcp-context"}, envVars)...,
 	)
-	return exec.Execute(ctx, plan, binding)
+	return exec.Execute(ctx, plan)
 }
 
 func randomMCPToken() (string, error) {
@@ -459,27 +507,74 @@ func writeMCPClaimsEnvelope(envelope mcpClaimsEnvelope) (string, error) {
 	return path, nil
 }
 
+type routingExecutor struct {
+	codex  bridge.PlanExecutor
+	claude bridge.PlanExecutor
+	fake   bridge.PlanExecutor
+}
+
+func (e routingExecutor) Execute(ctx context.Context, plan bridge.ExecutionPlan) (bridge.ExecutionOutcome, error) {
+	switch normalizeExecutionProvider(plan.Provider) {
+	case "claude-code":
+		return e.claude.Execute(ctx, plan)
+	case "codex", "auto", "":
+		return e.codex.Execute(ctx, plan)
+	case "fake":
+		return e.fake.Execute(ctx, plan)
+	default:
+		return bridge.ExecutionOutcome{}, fmt.Errorf("unsupported execution provider %q", plan.Provider)
+	}
+}
+
 func bridgeExecutor(providerName string, model string, opts mcpOptions) (bridge.PlanExecutor, error) {
-	switch providerName {
-	case "", "codex":
-		exec := bridgeproviders.CodexExec{Model: model}
-		if !opts.Enabled {
-			return exec, nil
-		}
-		secret, err := bridgemcp.GenerateSecret()
-		if err != nil {
-			return nil, err
-		}
-		return mcpCodexExecutor{
-			base:        exec,
-			command:     opts.Command,
-			contextPath: opts.ContextPath,
-			secret:      secret,
-		}, nil
+	codex, err := codexExecutor(model, opts)
+	if err != nil {
+		return nil, err
+	}
+	claude := bridgeproviders.ClaudeExec{Model: model}
+	switch normalizeExecutionProvider(providerName) {
+	case "", "auto":
+		return routingExecutor{codex: codex, claude: claude, fake: bridge.FakeExecutor{}}, nil
+	case "codex":
+		return codex, nil
+	case "claude-code":
+		return claude, nil
 	case "fake":
 		return bridge.FakeExecutor{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported provider %q", providerName)
+	}
+}
+
+func codexExecutor(model string, opts mcpOptions) (bridge.PlanExecutor, error) {
+	exec := bridgeproviders.CodexExec{Model: model}
+	if !opts.Enabled {
+		return exec, nil
+	}
+	secret, err := bridgemcp.GenerateSecret()
+	if err != nil {
+		return nil, err
+	}
+	return mcpCodexExecutor{
+		base:        exec,
+		command:     opts.Command,
+		contextPath: opts.ContextPath,
+		secret:      secret,
+	}, nil
+}
+
+func normalizeExecutionProvider(value string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.ReplaceAll(value, "_", "-"))) {
+	case "", "auto":
+		return "auto"
+	case "codex":
+		return "codex"
+	case "claude", "claude-code":
+		return "claude-code"
+	case "fake":
+		return "fake"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
 	}
 }
 
@@ -524,6 +619,38 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func parseFlags(fs *flag.FlagSet, args []string, stdout io.Writer) error {
+	fs.SetOutput(stdout)
+	if hasHelpArg(args) {
+		fs.Usage()
+		return errHelpHandled
+	}
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return errHelpHandled
+		}
+		return err
+	}
+	return nil
+}
+
+func hasHelpArg(args []string) bool {
+	for _, arg := range args {
+		if isHelpArg(arg) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHelpArg(arg string) bool {
+	return arg == "-h" || arg == "--help"
+}
+
+func isVersionArg(arg string) bool {
+	return arg == "version" || arg == "-version" || arg == "--version"
+}
+
 func writeJSON(w io.Writer, value any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -531,5 +658,15 @@ func writeJSON(w io.Writer, value any) error {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "usage: laf-bridge <pair|status|doctor|providers|bindings|link-project|unlink-project|start|mcp-context>")
+	fmt.Fprintln(w, "usage: laf-bridge pair")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Pair this computer with a hosted LAF Office workspace.")
+	fmt.Fprintln(w, "Create a setup code in Settings -> LAF Bridge, run this command, then paste the code when prompted.")
+}
+
+func pairUsage(w io.Writer) {
+	fmt.Fprintln(w, "usage: laf-bridge pair")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Create a setup code in Settings -> LAF Bridge.")
+	fmt.Fprintln(w, "Run this command, paste the setup code when prompted, and keep the terminal open.")
 }

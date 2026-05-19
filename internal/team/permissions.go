@@ -40,17 +40,11 @@ const (
 	permissionMemoryPromote           = "memory:promote"
 	permissionMemoryWriteCanonical    = "memory:write_canonical"
 	permissionWikiRead                = "wiki:read"
-	permissionRunnerRead              = "runner:read"
-	permissionRunnerManage            = "runner:manage"
 	permissionModelUseLAF             = "model:use_laf"
-	permissionModelUseLocalCLI        = "model:use_local_cli"
 	permissionBridgePairOwn           = "bridge:pair_own"
 	permissionBridgeReadOwn           = "bridge:read_own"
 	permissionBridgeExecuteOwn        = "bridge:execute_own"
 	permissionBridgeManageOwn         = "bridge:manage_own"
-	permissionBridgeReadTeam          = "bridge:read_team"
-	permissionBridgeExecuteTeam       = "bridge:execute_team"
-	permissionBridgeManageTeam        = "bridge:manage_team"
 	permissionExecutionPlanCreate     = "execution:plan_create"
 	permissionExecutionRead           = "execution:read"
 	permissionExecutionCancel         = "execution:cancel"
@@ -90,17 +84,11 @@ var workspacePermissions = []string{
 	permissionMemoryPromote,
 	permissionMemoryWriteCanonical,
 	permissionWikiRead,
-	permissionRunnerRead,
-	permissionRunnerManage,
 	permissionModelUseLAF,
-	permissionModelUseLocalCLI,
 	permissionBridgePairOwn,
 	permissionBridgeReadOwn,
 	permissionBridgeExecuteOwn,
 	permissionBridgeManageOwn,
-	permissionBridgeReadTeam,
-	permissionBridgeExecuteTeam,
-	permissionBridgeManageTeam,
 	permissionExecutionPlanCreate,
 	permissionExecutionRead,
 	permissionExecutionCancel,
@@ -112,19 +100,6 @@ var workspacePermissions = []string{
 }
 
 var workspaceRoles = []string{"owner", "admin", "manager", "member", "viewer"}
-var supportedLocalCLIRuntimes = []string{"codex", "claude-code", "opencode"}
-var detectLocalCLIRuntimes = func() []string {
-	var runtimes []string
-	if commandExists("codex") {
-		runtimes = append(runtimes, "codex")
-	}
-	if commandExists("claude", "claude-code") {
-		runtimes = append(runtimes, "claude-code")
-	}
-	runtimes = uniqueStrings(runtimes)
-	sort.Strings(runtimes)
-	return runtimes
-}
 
 type permissionOverride struct {
 	Allow []string `json:"allow,omitempty"`
@@ -208,13 +183,8 @@ func rolePresetPermissions(role string) []string {
 			permissionMemoryWriteDraft,
 			permissionMemoryPromote,
 			permissionWikiRead,
-			permissionRunnerRead,
 			permissionModelUseLAF,
-			permissionModelUseLocalCLI,
 			permissionBridgeExecuteOwn,
-			permissionBridgeReadTeam,
-			permissionBridgeExecuteTeam,
-			permissionBridgeManageTeam,
 			permissionExecutionPlanCreate,
 			permissionExecutionRead,
 			permissionExecutionCancel,
@@ -237,8 +207,6 @@ func rolePresetPermissions(role string) []string {
 			permissionMemoryRead,
 			permissionMemoryWriteDraft,
 			permissionWikiRead,
-			permissionRunnerRead,
-			permissionModelUseLocalCLI,
 			permissionBridgePairOwn,
 			permissionBridgeReadOwn,
 			permissionBridgeExecuteOwn,
@@ -255,7 +223,6 @@ func rolePresetPermissions(role string) []string {
 			permissionSkillRead,
 			permissionMemoryRead,
 			permissionWikiRead,
-			permissionRunnerRead,
 			permissionExecutionReceiptRead,
 		}
 	default:
@@ -317,8 +284,8 @@ func authUserIsWorkspaceAdmin(user *authUser) bool {
 func (b *Broker) requestUserHasPermissionLocked(r *http.Request, permission string) bool {
 	user, _, _, ok := b.currentAuthUserLocked(r)
 	if !ok {
-		// Preserve local-first broker compatibility for bearer-token MCP/CLI
-		// calls that predate browser sessions. Hosted API remains strict.
+		// Preserve local broker compatibility for bearer-token MCP/CLI calls
+		// that predate browser sessions. Hosted API remains strict.
 		return true
 	}
 	return authUserHasPermission(user, permission)
@@ -335,7 +302,7 @@ func (b *Broker) denyIfMissingPermissionLocked(w http.ResponseWriter, r *http.Re
 func (b *Broker) denyIfNonAdminLocked(w http.ResponseWriter, r *http.Request, message string) bool {
 	user, _, _, ok := b.currentAuthUserLocked(r)
 	if !ok {
-		// Preserve local-first broker compatibility for pre-auth local CLI flows.
+		// Preserve local broker compatibility for pre-auth local CLI flows.
 		return false
 	}
 	if authUserIsWorkspaceAdmin(user) {
@@ -343,90 +310,6 @@ func (b *Broker) denyIfNonAdminLocked(w http.ResponseWriter, r *http.Request, me
 	}
 	http.Error(w, message, http.StatusForbidden)
 	return true
-}
-
-func isSupportedLocalCLIRuntime(raw string) bool {
-	raw = strings.TrimSpace(strings.ToLower(raw))
-	for _, runtime := range supportedLocalCLIRuntimes {
-		if raw == runtime {
-			return true
-		}
-	}
-	return false
-}
-
-func runnerCLIDetailDetectedValue(raw any) bool {
-	switch value := raw.(type) {
-	case bool:
-		return value
-	case string:
-		switch strings.ToLower(strings.TrimSpace(value)) {
-		case "", "0", "false", "no", "off":
-			return false
-		default:
-			return true
-		}
-	default:
-		return raw != nil
-	}
-}
-
-func runnerCLIDetailDetected(detail any) bool {
-	if detail == nil {
-		return false
-	}
-	switch value := detail.(type) {
-	case map[string]any:
-		detected, ok := value["detected"]
-		if !ok {
-			return true
-		}
-		return runnerCLIDetailDetectedValue(detected)
-	case map[string]string:
-		detected, ok := value["detected"]
-		if !ok {
-			return true
-		}
-		return runnerCLIDetailDetectedValue(detected)
-	default:
-		return true
-	}
-}
-
-func runnerCapabilitiesHaveSupportedLocalCLI(c runnerCapabilities) bool {
-	c = normalizeRunnerCapabilities(c)
-	for _, runtime := range c.ProviderRuntimes {
-		if isSupportedLocalCLIRuntime(runtime) {
-			return true
-		}
-	}
-	for name, detail := range c.CLIDetails {
-		if isSupportedLocalCLIRuntime(name) && runnerCLIDetailDetected(detail) {
-			return true
-		}
-	}
-	return false
-}
-
-func (b *Broker) hasConnectedLocalRunnerLocked() bool {
-	for _, runner := range b.runners {
-		if normalizeRunnerStatus(runner.Status) == runnerStatusConnected && strings.TrimSpace(runner.RevokedAt) == "" {
-			return true
-		}
-	}
-	return false
-}
-
-func (b *Broker) hasSupportedLocalCLIRunnerLocked() bool {
-	for _, runner := range b.runners {
-		if normalizeRunnerStatus(runner.Status) != runnerStatusConnected || strings.TrimSpace(runner.RevokedAt) != "" {
-			continue
-		}
-		if runnerCapabilitiesHaveSupportedLocalCLI(runner.Capabilities) {
-			return true
-		}
-	}
-	return false
 }
 
 func managedModelPaidFromEnv() bool {
@@ -449,18 +332,7 @@ func (b *Broker) modelModeAvailableLocked(r *http.Request, mode string) (bool, s
 		}
 		return true, ""
 	case "my_bridge":
-		return false, "no paired desktop bridge detected"
-	case "team_bridge":
-		if !b.hasConnectedLocalRunnerLocked() {
-			return false, "no connected team bridge detected"
-		}
-		if !b.hasSupportedLocalCLIRunnerLocked() {
-			return false, "no supported local CLI detected"
-		}
-		if user != nil && !authUserHasPermission(user, permissionBridgeExecuteTeam) {
-			return false, "permission required: " + permissionBridgeExecuteTeam
-		}
-		return true, ""
+		return false, "no paired LAF Bridge detected"
 	default:
 		return true, ""
 	}
@@ -619,18 +491,6 @@ type modelAvailabilityMode struct {
 	Runtimes  []string `json:"runtimes,omitempty"`
 }
 
-func localCLIAvailabilityMode() modelAvailabilityMode {
-	runtimes := detectLocalCLIRuntimes()
-	if len(runtimes) == 0 {
-		return modelAvailabilityMode{Available: false, Reason: "local CLI not detected"}
-	}
-	return modelAvailabilityMode{
-		Available: true,
-		Reason:    "local CLI detected",
-		Runtimes:  runtimes,
-	}
-}
-
 func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -638,10 +498,7 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	}
 	b.mu.Lock()
 	user, _, _, _ := b.currentAuthUserLocked(r)
-	hasRunner := b.hasConnectedLocalRunnerLocked()
-	hasSupportedLocalCLI := b.hasSupportedLocalCLIRunnerLocked()
 	canUseLAF := user == nil || authUserHasPermission(user, permissionModelUseLAF)
-	canUseTeamBridge := user == nil || authUserHasPermission(user, permissionBridgeExecuteTeam)
 	b.mu.Unlock()
 
 	paid := managedModelPaidFromEnv()
@@ -652,16 +509,7 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	} else if !canUseLAF {
 		laf.Reason = "permission required: " + permissionModelUseLAF
 	}
-	myBridge := modelAvailabilityMode{Available: false, Reason: "no paired desktop bridge detected"}
-	teamBridge := modelAvailabilityMode{Available: hasSupportedLocalCLI && canUseTeamBridge}
-	if !hasRunner {
-		teamBridge.Reason = "no connected team bridge detected"
-	} else if !hasSupportedLocalCLI {
-		teamBridge.Reason = "no supported local CLI detected"
-	} else if !canUseTeamBridge {
-		teamBridge.Reason = "permission required: " + permissionBridgeExecuteTeam
-	}
-	localCLI := localCLIAvailabilityMode()
+	myBridge := modelAvailabilityMode{Available: false, Reason: "no paired LAF Bridge detected"}
 	record := modelAvailabilityMode{Available: true, Reason: "records chat without agent execution"}
 
 	defaultMode := "record_only"
@@ -669,8 +517,6 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 		defaultMode = "laf_model"
 	} else if myBridge.Available {
 		defaultMode = "my_bridge"
-	} else if teamBridge.Available {
-		defaultMode = "team_bridge"
 	}
 	allowed := []string{"record_only"}
 	if laf.Available {
@@ -679,16 +525,11 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	if myBridge.Available {
 		allowed = append(allowed, "my_bridge")
 	}
-	if teamBridge.Available {
-		allowed = append(allowed, "team_bridge")
-	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"default_mode":  defaultMode,
 		"allowed_modes": allowed,
 		"laf_model":     laf,
 		"my_bridge":     myBridge,
-		"team_bridge":   teamBridge,
-		"local_cli":     localCLI,
 		"record_only":   record,
 		"reason":        "DB billing is used by hosted API; local broker uses environment fallback.",
 	})

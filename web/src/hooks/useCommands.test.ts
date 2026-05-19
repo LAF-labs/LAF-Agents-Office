@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import type { SlashCommandDescriptor } from "../api/client";
-import { __test__, FALLBACK_SLASH_COMMANDS } from "./useCommands";
+import {
+  __test__,
+  FALLBACK_SLASH_COMMANDS,
+  HOSTED_FALLBACK_SLASH_COMMANDS,
+} from "./useCommands";
 
-const { toAutocomplete, COMMAND_ICONS, DEFAULT_ICON } = __test__;
+const {
+  toAutocomplete,
+  fallbackCommandsForRuntime,
+  COMMAND_ICONS,
+  DEFAULT_ICON,
+} = __test__;
 const sortText = (a: string, b: string) => a.localeCompare(b);
 
 describe("toAutocomplete", () => {
@@ -26,6 +35,29 @@ describe("toAutocomplete", () => {
     ];
 
     expect(toAutocomplete(broker).map((c) => c.name)).toEqual(["/tasks"]);
+  });
+
+  it("filters local workflow commands from non-localhost registries", () => {
+    const broker: SlashCommandDescriptor[] = [
+      { name: "ask", description: "Ask the team lead", webSupported: true },
+      {
+        name: "deploy-simulation",
+        description: "Deployment rehearsal workflow",
+        webSupported: true,
+      },
+      { name: "focus", description: "Focus mode", webSupported: true },
+      { name: "reset", description: "Reset workspace", webSupported: true },
+    ];
+
+    expect(toAutocomplete(broker, "en", false).map((c) => c.name)).toEqual([
+      "/ask",
+    ]);
+    expect(toAutocomplete(broker, "en", true).map((c) => c.name)).toEqual([
+      "/ask",
+      "/deploy-simulation",
+      "/focus",
+      "/reset",
+    ]);
   });
 
   it("maps known commands to their icon", () => {
@@ -182,5 +214,43 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
     // care of referential identity across renders; this pins the pure
     // helper's deterministic output contract.
     expect(a).toEqual(b);
+  });
+});
+
+describe("HOSTED_FALLBACK_SLASH_COMMANDS", () => {
+  it("keeps hosted autocomplete on the deployed web-safe command set", () => {
+    const names = HOSTED_FALLBACK_SLASH_COMMANDS.map((c) => c.name).sort(
+      sortText,
+    );
+    expect(names).toEqual(
+      [
+        "/1o1",
+        "/ask",
+        "/cancel",
+        "/clear",
+        "/growth",
+        "/help",
+        "/provider",
+        "/remember",
+        "/requests",
+        "/search",
+        "/skills",
+        "/task",
+        "/tasks",
+        "/threads",
+      ].sort(sortText),
+    );
+    expect(names).not.toContain("/deploy-simulation");
+    expect(names).not.toContain("/reset");
+    expect(names).not.toContain("/pause");
+  });
+
+  it("uses the full fallback only on localhost runtimes", () => {
+    expect(fallbackCommandsForRuntime("en", true).map((c) => c.name)).toContain(
+      "/deploy-simulation",
+    );
+    expect(
+      fallbackCommandsForRuntime("en", false).map((c) => c.name),
+    ).not.toContain("/deploy-simulation");
   });
 });

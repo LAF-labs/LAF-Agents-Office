@@ -76,8 +76,8 @@ updates:
       prefix: "chore(e2e)"
       include: "scope"
 
-  # npm wrapper that ships `npx laf-office` to the npm registry. Bumps here
-  # affect the public install surface — keep its own group so they get
+  # npm wrapper that ships the local developer bootstrap to the npm registry.
+  # Bumps here affect the public install surface — keep its own group so they get
   # individual review, not lumped with the dev-tooling root group.
   - package-ecosystem: "npm"
     directory: "/npm"
@@ -91,4 +91,19 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: "chore(npm)"
+      include: "scope"
+
+  # npm wrapper that ships `npx laf-bridge` for hosted Bridge pairing.
+  - package-ecosystem: "npm"
+    directory: "/npm-bridge"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    groups:
+      npm-bridge-dependencies:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(npm-bridge)"
       include: "scope"

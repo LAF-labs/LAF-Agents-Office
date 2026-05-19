@@ -44,7 +44,7 @@ var (
 
 // defaultHeadlessCodexRunTurn is the production implementation of
 // headlessCodexRunTurn. Routes by provider kind to the codex/opencode/claude
-// turn runner. Tests substitute via setHeadlessCodexRunTurnForTest.
+// turn executor. Tests substitute via setHeadlessCodexRunTurnForTest.
 func defaultHeadlessCodexRunTurn(l *Launcher, ctx context.Context, slug string, turn headlessCodexTurn) error {
 	if l != nil {
 		switch l.memberEffectiveProviderKind(slug) {
@@ -59,7 +59,7 @@ func defaultHeadlessCodexRunTurn(l *Launcher, ctx context.Context, slug string, 
 	return l.runHeadlessCodexTurnWithPolicy(ctx, slug, turn.Prompt, turn.FinalPostPolicy, turn.FinalPostTarget, channelArgsForHeadlessTurn(turn)...)
 }
 
-// headlessCodexRunTurn dispatches a queued turn to whichever runner the
+// headlessCodexRunTurn dispatches a queued turn to whichever executor the
 // member's effective provider kind picks. Reads the test override via
 // atomic.Pointer.Load so a worker goroutine that spawned before a test's
 // override-restore cleanup ran cannot race against the assignment.
@@ -187,7 +187,7 @@ var headlessCodexWorkspaceStatusSnapshot = func(path string) string {
 
 func (l *Launcher) launchHeadlessCodex() error {
 	killStaleBroker()
-	killStaleHeadlessTaskRunners()
+	killStaleHeadlessTaskProcesses()
 	_ = exec.Command("tmux", "-L", tmuxSocketName, "kill-session", "-t", l.sessionName).Run()
 
 	l.broker = NewBroker()

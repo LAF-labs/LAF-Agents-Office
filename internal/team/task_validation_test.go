@@ -24,6 +24,30 @@ func TestHandlePostTaskRejectsInvalidExecutionMode(t *testing.T) {
 	}
 }
 
+func TestHandlePostTaskAcceptsManagedCheckoutExecutionAlias(t *testing.T) {
+	b := newTestBroker(t)
+	resp := postTaskValidationJSON(t, b, b.requireAuth(b.handleTasks), "/tasks", map[string]any{
+		"action":         "create",
+		"channel":        "general",
+		"title":          "Implement lifecycle validation",
+		"created_by":     "human",
+		"execution_mode": "managed_checkout",
+	})
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected managed_checkout execution_mode alias to return 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+	var body struct {
+		Task teamTask `json:"task"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Task.ExecutionMode != executionModeLocalWorktree {
+		t.Fatalf("execution_mode = %q, want %q", body.Task.ExecutionMode, executionModeLocalWorktree)
+	}
+}
+
 func TestHandlePostTaskRejectsInvalidReviewState(t *testing.T) {
 	b := newTestBroker(t)
 	resp := postTaskValidationJSON(t, b, b.requireAuth(b.handleTasks), "/tasks", map[string]any{

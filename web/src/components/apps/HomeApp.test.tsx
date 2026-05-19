@@ -104,7 +104,6 @@ describe("HomeApp", () => {
       default_mode: "record_only",
       laf_model: { available: false, reason: "paid workspace required" },
       my_bridge: { available: false, reason: "bridge required" },
-      team_bridge: { available: false, reason: "runner required" },
       record_only: { available: true },
     });
     apiMocks.routeOrchestrationIntent.mockResolvedValue({
@@ -301,10 +300,8 @@ describe("HomeApp", () => {
       allowed_modes: ["my_bridge", "record_only"],
       default_mode: "my_bridge",
       laf_model: { available: false, reason: "paid workspace required" },
-      local_cli: { available: true, runtimes: ["codex"] },
-      my_bridge: { available: true },
+      my_bridge: { available: true, runtimes: ["codex"] },
       record_only: { available: true },
-      team_bridge: { available: false, reason: "runner required" },
     });
     renderHomeApp();
 

@@ -303,6 +303,8 @@ describe("Wizard keyboard advancement", () => {
     fireEvent.click(screen.getByRole("button", { name: /Skip for now/i }));
 
     await waitFor(() => screen.getByText(/You're set/i));
+    expect(screen.getByText("Browser session")).toBeInTheDocument();
+    expect(screen.queryByText("Session runtime")).toBeNull();
     expect(screen.getByText("GitHub repository")).toBeInTheDocument();
     expect(
       screen.getByText(/Optional\. Connect when you want agents/i),

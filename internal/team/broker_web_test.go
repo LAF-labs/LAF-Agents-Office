@@ -48,21 +48,19 @@ func TestWebUIProxyHandlerForwardsOnboardingRoutes(t *testing.T) {
 	}
 }
 
-func TestWebUIProxyHandlerPreservesRunnerTokenForRunnerRoutes(t *testing.T) {
+func TestWebUIProxyHandlerDoesNotForwardClientBearerToLocalAPIRoutes(t *testing.T) {
 	var gotAuth string
-	var gotRunnerToken string
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		gotRunnerToken = r.Header.Get("X-LAF-Runner-Token")
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"ok":true}`)
 	}))
 	defer upstream.Close()
 
 	b := newTestBroker(t)
-	req := httptest.NewRequest(http.MethodPost, "/api/runner/capabilities", strings.NewReader(`{}`))
-	req.Header.Set("Authorization", "Bearer runner-secret")
+	req := httptest.NewRequest(http.MethodPost, "/api/config", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer client-secret")
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -73,9 +71,6 @@ func TestWebUIProxyHandlerPreservesRunnerTokenForRunnerRoutes(t *testing.T) {
 	}
 	if gotAuth != "Bearer "+b.Token() {
 		t.Fatalf("expected broker auth header, got %q", gotAuth)
-	}
-	if gotRunnerToken != "runner-secret" {
-		t.Fatalf("expected runner token to be forwarded, got %q", gotRunnerToken)
 	}
 }
 
@@ -99,8 +94,7 @@ func TestWebUIProxyHandlerCanRouteHostedAPIWithoutBrokerAuth(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	b.webUIProxyHandlerWithOptions(upstream.URL+"/api", "/api", webUIProxyOptions{
-		attachBrokerAuth:   false,
-		preserveRunnerAuth: false,
+		attachBrokerAuth: false,
 	}).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -143,8 +137,7 @@ func TestWebUIHostedProxyKeepsLocalOnboardingAPI(t *testing.T) {
 	mux := http.NewServeMux()
 	registerWebUILocalAPIProxies(mux, b.webUIProxyHandler(localUpstream.URL, "/api"))
 	mux.Handle("/api/", b.webUIProxyHandlerWithOptions(hostedUpstream.URL+"/api", "/api", webUIProxyOptions{
-		attachBrokerAuth:   false,
-		preserveRunnerAuth: false,
+		attachBrokerAuth: false,
 	}))
 
 	onboardingReq := httptest.NewRequest(http.MethodGet, "/api/onboarding/prereqs", nil)

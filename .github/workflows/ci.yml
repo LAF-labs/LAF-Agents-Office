@@ -47,6 +47,31 @@ jobs:
           path: web/dist
           retention-days: 1
 
+  hosted-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: "20"
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # ratchet:actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Validate hosted Bridge API surface
+        run: |
+          npm run bridge-only:surface
+          node --test api/hosted-api.test.js
+          node --check scripts/hosted-bridge-smoke.cjs
+          node --check scripts/hosted-bridge-smoke.test.cjs
+          npm run laf-bridge:package:test
+          npm run hosted-bridge:schema
+          npm run hosted-bridge:ops:test
+          npm run hosted-bridge:smoke:test
+          npm run hosted-bridge:smoke:integration
+      - name: Validate npx Bridge package manifest
+        working-directory: npm-bridge
+        run: npm pack --dry-run
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -185,39 +210,31 @@ jobs:
           path: web/dist
       - run: |
           go build -o laf-office ./cmd/laf-office
-          go build -o laf-runner ./cmd/laf-runner
-          GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o laf-runner-installer.exe ./cmd/laf-runner-installer
+          go build -o laf-bridge ./cmd/laf-bridge
+          GOOS=windows GOARCH=amd64 go build -o laf-bridge.exe ./cmd/laf-bridge
       - name: Smoke test binary
         run: |
           ./laf-office --version
-          ./laf-office --help-all > /dev/null
-
-  windows-runner-package:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # ratchet:actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - name: Build Windows runner zip
-        shell: pwsh
-        run: |
-          $version = (Get-Content internal/buildinfo/VERSION -TotalCount 1).Trim()
-          .\packaging\windows\build-runner-dev-package.ps1 -OutDir dist\runner-ci -Version $version -Architecture x64
-          $zip = "dist\runner-ci\laf-runner-windows-x64-$version.zip"
-          if (!(Test-Path -LiteralPath $zip)) {
-            throw "missing Windows runner zip: $zip"
-          }
-          Expand-Archive -LiteralPath $zip -DestinationPath dist\runner-ci\expanded -Force
-          foreach ($path in @(
-            "dist\runner-ci\expanded\laf-runner-windows-x64-$version\laf-runner.exe",
-            "dist\runner-ci\expanded\laf-runner-windows-x64-$version\laf-runner-installer.exe",
-            "dist\runner-ci\expanded\laf-runner-windows-x64-$version\README-FIRST.txt"
-          )) {
-            if (!(Test-Path -LiteralPath $path)) {
-              throw "missing package member: $path"
-            }
-          }
+          ./laf-bridge --version
+          test -s laf-bridge.exe
+          ./laf-bridge --help > laf-bridge-help.txt
+          ./laf-bridge pair --help > laf-bridge-pair-help.txt
+          grep -q "usage: laf-bridge pair" laf-bridge-help.txt
+          grep -q "setup code" laf-bridge-pair-help.txt
+          if grep -E -i '(^|[[:space:]|])(status|doctor|providers|bindings|start|mcp-context|link-project|unlink-project)([[:space:]|]|$)' laf-bridge-help.txt; then
+            echo "::error::laf-bridge root help exposed internal commands instead of the single pair setup path"
+            exit 1
+          fi
+          if grep -E -- '-(api-url|code|start|once|public-key|identity-path)([[:space:]]|$)' laf-bridge-pair-help.txt; then
+            echo "::error::laf-bridge pair help exposed internal pairing flags"
+            exit 1
+          fi
+          ./laf-office --help-all > laf-office-help.txt
+          legacy_pattern='laf-'"runner|runner "'pair|runner "'start|runner "'status|runner "'pairing|/''runner'
+          if grep -E -i "$legacy_pattern" laf-office-help.txt; then
+            echo "::error::laf-office help exposed legacy local-execution product surface"
+            exit 1
+          fi
 
   vhs:
     runs-on: ubuntu-latest
@@ -294,7 +311,12 @@ jobs:
       - name: Run shellcheck
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck scripts/*.sh packaging/macos/*.sh testdata/vhs/*.sh
+          mapfile -t shell_files < <(git ls-files 'scripts/*.sh' 'testdata/vhs/*.sh')
+          if [ "${#shell_files[@]}" -eq 0 ]; then
+            echo "no shell scripts to check"
+            exit 0
+          fi
+          shellcheck "${shell_files[@]}"
 
   web-e2e:
     # Playwright smoke against the real web UI. Guards the class of regression
@@ -361,8 +383,8 @@ jobs:
         # Run from /tmp — NOT the checkout root. `resolveTemplatesRepoRoot`
         # walks up from cwd looking for templates/operations/, and would
         # find it in the checkout, masking the "no repo on disk" path that
-        # `npx laf-office` / `curl | bash` users actually take. Running from
-        # /tmp forces the blueprint loader to go through the embedded FS
+        # developer bootstrap executions actually take. Running from /tmp
+        # forces the blueprint loader to go through the embedded FS
         # wired in templates_embed.go, which is exactly the regression
         # path the wizard.spec.ts blueprint-picker test guards.
         run: |
@@ -465,6 +487,29 @@ jobs:
         with:
           version: latest
           args: release --snapshot --clean --skip=publish
+      - name: Assert snapshot archives contain Bridge binaries
+        run: |
+          set -euo pipefail
+          tarball="$(ls dist/laf-office_*_linux_amd64.tar.gz | head -1)"
+          if [ -z "$tarball" ]; then
+            echo "no linux snapshot tarball found in dist/" >&2
+            exit 1
+          fi
+          tar -tzf "$tarball" | grep -E '(^|/)laf-office$' > /dev/null
+          tar -tzf "$tarball" | grep -E '(^|/)laf-bridge$' > /dev/null
+          office_member="$(tar -tzf "$tarball" | grep -E '(^|/)laf-office$' | head -1)"
+          bridge_member="$(tar -tzf "$tarball" | grep -E '(^|/)laf-bridge$' | head -1)"
+          [ "$(tar -xOf "$tarball" "$office_member" | wc -c | tr -d ' ')" -gt 0 ]
+          [ "$(tar -xOf "$tarball" "$bridge_member" | wc -c | tr -d ' ')" -gt 0 ]
+
+          windows_tarball="$(ls dist/laf-office_*_windows_amd64.tar.gz | head -1)"
+          if [ -z "$windows_tarball" ]; then
+            echo "no windows snapshot tarball found in dist/" >&2
+            exit 1
+          fi
+          tar -tzf "$windows_tarball" | grep -E '(^|/)laf-bridge\.exe$' > /dev/null
+          windows_bridge_member="$(tar -tzf "$windows_tarball" | grep -E '(^|/)laf-bridge\.exe$' | head -1)"
+          [ "$(tar -xOf "$windows_tarball" "$windows_bridge_member" | wc -c | tr -d ' ')" -gt 0 ]
       - name: Smoke-test install.sh against snapshot (URL override)
         # Cheap sanity path: feed install.sh a file:// tarball directly so
         # download/extract/chmod/--version all run against the fresh snapshot.
@@ -482,9 +527,9 @@ jobs:
           LAF_OFFICE_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
           command -v laf-office
           laf-office --version
-          LAF_OFFICE_INSTALL_BINARY=laf-runner LAF_OFFICE_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
-          command -v laf-runner
-          laf-runner --version
+          LAF_OFFICE_INSTALL_BINARY=laf-bridge LAF_OFFICE_INSTALL_URL_OVERRIDE="file://$PWD/$tarball" bash scripts/install.sh
+          command -v laf-bridge
+          laf-bridge --version
       - name: Smoke-test install.sh against real resolver (mock GitHub)
         # Guards the v0.8.1 regression: the 404 shipped to users lived in the
         # redirect-parsing + archive-URL construction (install.sh:39-48). The
@@ -548,8 +593,13 @@ jobs:
           # Wipe the binary the prior step installed so we're actually
           # re-exercising install.sh end-to-end.
           rm -f "$HOME/.local/bin/laf-office"
+          rm -f "$HOME/.local/bin/laf-bridge"
           sudo rm -f /usr/local/bin/laf-office || true
+          sudo rm -f /usr/local/bin/laf-bridge || true
           export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
           LAF_OFFICE_INSTALL_REPO_BASE_URL="http://127.0.0.1:7457" bash scripts/install.sh
           command -v laf-office
           laf-office --version
+          LAF_OFFICE_INSTALL_BINARY=laf-bridge LAF_OFFICE_INSTALL_REPO_BASE_URL="http://127.0.0.1:7457" bash scripts/install.sh
+          command -v laf-bridge
+          laf-bridge --version

@@ -1,6 +1,6 @@
 package team
 
-// broker_lint.go wires the Lint runner into the broker HTTP layer.
+// broker_lint.go wires the Lint pass into the broker HTTP layer.
 //
 // Routes:
 //   POST /wiki/lint/run    — runs all 5 lint checks, returns LintReport JSON

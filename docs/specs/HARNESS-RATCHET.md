@@ -14,8 +14,8 @@ The harness includes:
 
 - `AGENTS.md`, `CLAUDE.md`, role files, and command files.
 - Agent memory packets, task receipts, Notebook and Wiki flows.
-- Tools, MCP scopes, provider selection, worktree isolation, and approval
-  gates.
+- Tools, MCP scopes, provider selection, LAF Bridge managed checkout isolation,
+  and approval gates.
 - `lefthook.yml`, CI, `scripts/laf-superworkflow-check.sh`, tests, and evals.
 - Reviewer and Tester roles used by project tasks.
 
@@ -72,6 +72,7 @@ promoting it into a shared rule:
 
 ## Current Baseline
 
-The current baseline already includes worktree isolation, fresh sessions,
-scoped MCP, markdown memory, reviewer/tester gates, prompt evals, and local
-hooks. New ratchets should strengthen those surfaces rather than bypass them.
+The current baseline already includes LAF Bridge managed checkout isolation,
+fresh sessions, scoped MCP, markdown memory, reviewer/tester gates, prompt
+evals, and local hooks. New ratchets should strengthen those surfaces rather
+than bypass them.

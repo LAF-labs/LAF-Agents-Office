@@ -142,8 +142,8 @@ func retrieveRelationshipSingle(ctx context.Context, store FactStore, text TextI
 	})
 
 	// Boost typed hits so they rank at least as high as the top BM25 hit.
-	// Runner evaluates recall by set-membership (not by rank), but the score
-	// boost keeps the contract honest for callers that do consume ranks.
+	// Recall evaluation uses set-membership (not rank), but the score boost
+	// keeps the contract honest for callers that do consume ranks.
 	typedHits := typedHitsWithBoost(typedFacts, bm25Hits)
 
 	return mergeHits(typedHits, bm25Hits, topK), nil

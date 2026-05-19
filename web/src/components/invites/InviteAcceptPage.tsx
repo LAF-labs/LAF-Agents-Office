@@ -50,7 +50,10 @@ export function InviteAcceptPage({ token }: InviteAcceptPageProps) {
         team_action: "join",
         invite_token: token,
       });
-      if (result.authenticated === false || result.email_confirmation_required) {
+      if (
+        result.authenticated === false ||
+        result.email_confirmation_required
+      ) {
         setMessage(t("auth.checkEmail"));
       }
       setStatus("done");

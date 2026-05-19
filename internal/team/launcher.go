@@ -960,10 +960,10 @@ func (l *Launcher) taskNotificationContent(action officeActionLog, task teamTask
 	}
 	execMode := ""
 	if strings.TrimSpace(task.ExecutionMode) != "" {
-		execMode = ", execution " + task.ExecutionMode
+		execMode = ", execution " + publicExecutionMode(task.ExecutionMode)
 	}
 	project := l.taskProjectNotificationFragment(task)
-	worktree := ""
+	checkout := ""
 	if strings.TrimSpace(task.WorktreeBranch) != "" || strings.TrimSpace(task.WorktreePath) != "" {
 		parts := make([]string, 0, 2)
 		if strings.TrimSpace(task.WorktreeBranch) != "" {
@@ -972,7 +972,7 @@ func (l *Launcher) taskNotificationContent(action officeActionLog, task teamTask
 		if strings.TrimSpace(task.WorktreePath) != "" {
 			parts = append(parts, "path "+task.WorktreePath)
 		}
-		worktree = ", worktree " + strings.Join(parts, " · ")
+		checkout = ", checkout " + strings.Join(parts, " · ")
 	}
 	guidance := ""
 	if path := strings.TrimSpace(task.WorktreePath); path != "" {
@@ -990,7 +990,7 @@ func (l *Launcher) taskNotificationContent(action officeActionLog, task teamTask
 	if taskLooksLikeLiveBusinessObjective(&task) {
 		hygiene = "\n" + taskHygieneCoachingBlock()
 	}
-	return fmt.Sprintf("[%s #%s on #%s]: %s%s (owner %s, status %s%s%s%s%s%s). Context is included — do NOT call team_poll or team_tasks. Respond with the concrete next step immediately. Stay in your lane. Once you have posted the needed update, STOP and wait for the next pushed notification.%s%s%s%s", verb, task.ID, channel, task.Title, details, owner, status, pipeline, review, execMode, project, worktree, guidance, framing, capability, hygiene)
+	return fmt.Sprintf("[%s #%s on #%s]: %s%s (owner %s, status %s%s%s%s%s%s). Context is included — do NOT call team_poll or team_tasks. Respond with the concrete next step immediately. Stay in your lane. Once you have posted the needed update, STOP and wait for the next pushed notification.%s%s%s%s", verb, task.ID, channel, task.Title, details, owner, status, pipeline, review, execMode, project, checkout, guidance, framing, capability, hygiene)
 }
 
 func (l *Launcher) taskProjectForPacket(task teamTask) (teamProject, bool) {
@@ -2413,7 +2413,7 @@ func (l *Launcher) Kill() error {
 		if err := killPersistedOfficeProcess(); err != nil {
 			return err
 		}
-		killStaleHeadlessTaskRunners()
+		killStaleHeadlessTaskProcesses()
 		_ = clearOfficePIDFile()
 		return nil
 	}
@@ -3037,7 +3037,7 @@ func (l *Launcher) buildMessageWorkPacket(msg channelMessage, slug string) strin
 			lines = append(lines, taskCtx)
 		}
 		// For the lead (CEO), explicitly list which specialist agents have already
-		// posted in this thread OR are currently queued/active in the headless runner.
+		// posted in this thread OR are currently queued/active in the headless executor.
 		// This prevents CEO from re-routing agents who are already working, including
 		// the race-condition case where a specialist was notified but hasn't posted yet.
 		// Rule: if a specialist is in this list, HOLD — do not tag them.
@@ -3153,7 +3153,7 @@ func (l *Launcher) buildTaskExecutionPacketWithTransport(slug string, action off
 		lines = append(lines, fmt.Sprintf("- Working branch: %s", branch))
 	}
 	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
-		lines = append(lines, "Execution rule: this is a local_worktree build task. Work inside the assigned working_directory and default to direct implementation. Do not spend this turn on another repo audit, architecture memo, or nested office launch unless the packet explicitly asks for that.")
+		lines = append(lines, "Execution rule: this is a managed_checkout build task. Work inside the assigned working_directory and default to direct implementation. Do not spend this turn on another repo audit, architecture memo, or nested office launch unless the packet explicitly asks for that.")
 		lines = append(lines, "First-turn rule: choose the smallest shippable implementation slice you can finish in this turn and edit files for that slice now. If the overall MVP is broad, narrow it yourself and ship the first runnable sub-piece instead of trying to map the whole system.")
 		lines = append(lines, "Time rule: cut scope to something you can plausibly ship in under five minutes of focused work. If the chosen slice still needs broad exploration, cut it down again before you continue.")
 		lines = append(lines, "Cut-line rule: if the task description lists multiple outputs or phases, pick exactly one contiguous slice for this turn, then post team_status naming that cut line before you read files. Example cut lines: `config -> idea queue`, `idea queue -> script drafts`, or `script drafts -> publish pack`.")
@@ -3163,7 +3163,7 @@ func (l *Launcher) buildTaskExecutionPacketWithTransport(slug string, action off
 		lines = append(lines, "Audit guardrail: do NOT start with `rg --files`, `find .`, repo-wide README sweeps, or broad file inventories. Read only the handful of files directly tied to this task, then begin editing once you have the first target file.")
 		lines = append(lines, "Boundary rule: stay inside the assigned working_directory. Do NOT run `find ..`, `rg ..`, search sibling task worktrees, or inspect parent temp directories like `/var/folders`, `TMPDIR`, or `TemporaryItems`. Those paths are sandbox noise, not repo context.")
 		lines = append(lines, "Dirty-tree rule: ignore unrelated modified or untracked files already present in the worktree unless they are directly required for your slice. They may be preexisting repo state, not part of your task.")
-		lines = append(lines, "Deliverable rule: a local_worktree feature task is not satisfied by another plan, architecture memo, or audit summary unless the packet explicitly says research-only. Land code, scripts, docs for the runnable slice, or a concrete task-state blocker.")
+		lines = append(lines, "Deliverable rule: a managed_checkout feature task is not satisfied by another plan, architecture memo, or audit summary unless the packet explicitly says research-only. Land code, scripts, docs for the runnable slice, or a concrete task-state blocker.")
 	}
 	if taskRequiresRealExternalExecution(&task) {
 		lines = append(lines, "External execution rule: this task names a connected external system and expects a real action there. Use the live integration/workflow path for the smallest allowed step now instead of producing another repo doc, proof marker, or internal package first.")
@@ -3209,7 +3209,7 @@ func (l *Launcher) recordWorkPacketBudget(packet string) {
 }
 
 func headlessSandboxNote() string {
-	return "Runtime: this office is already running. Never launch another `laf-office`, copied `laf-office` binary, `/reset`, browser instance, or local server/`--web-port` process from inside your turn. For `execution_mode=local_worktree`, make edits directly in the assigned working_directory instead of re-auditing or trying to boot a second office. Never search parent or sibling temp directories (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`) from a task worktree; stay inside the assigned working_directory. If shell commands fail with 'operation not permitted' or 'permission denied' (go build cache, localhost bind, sandboxed writes), stop retrying them and continue from code inspection or the existing running office.\n\n"
+	return "Runtime: this office is already running. Never launch another `laf-office`, copied `laf-office` binary, `/reset`, browser instance, or local server/`--web-port` process from inside your turn. For managed_checkout tasks, make edits directly in the assigned working_directory instead of re-auditing or trying to boot a second office. Never search parent or sibling temp directories (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`) from a task checkout; stay inside the assigned working_directory. If shell commands fail with 'operation not permitted' or 'permission denied' (go build cache, localhost bind, sandboxed writes), stop retrying them and continue from code inspection or the existing running office.\n\n"
 }
 
 func (l *Launcher) sendChannelUpdate(target notificationTarget, msg channelMessage) {
@@ -4311,7 +4311,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_delegate: Ask one or more agents for hidden internal help when you need parallel specialist work. This wakes them without showing the request in the human Home chat.\n")
 		sb.WriteString("- team_work_result: Reply to a hidden team_delegate request. Use this for internal findings; do not use team_broadcast for agent-to-agent work results.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context, task state, and active agents.\n")
-		sb.WriteString("- team_bridge: Carry context from one channel into another (lead only).\n")
+		sb.WriteString("- team_context_bridge: Carry context from one channel into another (lead only).\n")
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations only when the human references earlier discussion or exact wording. Prefer wiki/project memory for canonical facts.\n")
 		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates only after preferences, decisions, handoffs, or reusable workflow details; store only after merging, or ignore rejected candidates.\n")
@@ -4387,7 +4387,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("17b. When the human explicitly asks to add or test integrations, generated skills, reusable workflows, or generated agents, you MUST leave durable state for that work in the same turn. Create the integration/onboarding task lane(s), propose or update the relevant skill block(s), and create any needed specialist agent(s) instead of only describing them narratively. If real accounts, credentials, spend, publishing, or other external side effects would be required, proceed with stubs/placeholders until the exact human approval is truly needed.\n")
 		sb.WriteString("18. Sequence structural changes safely: create a new specialist with team_member first, wait for success, then add them to channels or tag them. When creating a new channel, only include members that already exist.\n")
 		sb.WriteString("19. For `team_channel` create/remove calls, set `channel` to the explicit target slug like `youtube-factory`; it is not inferred from the current room.\n")
-		sb.WriteString("20. Use team_bridge to carry context between channels when relevant\n")
+		sb.WriteString("20. Use team_context_bridge to carry context between channels when relevant\n")
 		sb.WriteString("21. If a task shows a worktree path, that path is the working_directory for local file and bash tools on that task\n")
 		sb.WriteString("22. After you have posted the needed update, decision, delegation, or human question for the current packet, stop. Do not linger in the same turn waiting for teammates to answer.\n\n")
 		sb.WriteString("== SKILL & AGENT AWARENESS ==\n")
@@ -4432,7 +4432,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_delegate: Ask one or more agents for hidden internal help when you need parallel specialist work. This wakes them without showing the request in the human Home chat.\n")
 		sb.WriteString("- team_work_result: Reply to a hidden team_delegate request. Use this for internal findings; do not use team_broadcast for agent-to-agent work results.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context and task state.\n")
-		sb.WriteString(fmt.Sprintf("- team_bridge: lead-only bridge for cross-channel context. Ask @%s to use it.\n", lead))
+		sb.WriteString(fmt.Sprintf("- team_context_bridge: lead-only bridge for cross-channel context. Ask @%s to use it.\n", lead))
 		sb.WriteString("- team_task: Claim, complete, block, resume, or release tasks in your domain.\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations only when the human or lead refers to earlier discussion or exact wording. Prefer wiki/project memory for canonical facts.\n")
 		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates only after preferences, decisions, handoffs, or reusable workflow details; store only after merging, or ignore rejected candidates.\n")
@@ -4480,8 +4480,8 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("6. When assigned a task, claim it with team_task first, use team_status to show what you're working on, then mark complete or review-ready and broadcast when done. Final sequence for owned tasks: team_task mutation first, then any completion broadcast or human_message, then stop. A task is NOT finished until team_task marks it complete or review-ready; posting a channel reply alone does not unblock downstream work, and a completion post while the task stays in_progress is a failure. If the lead delegates a substantial workstream and the packet shows no owned task yet, do one quick team_tasks check before creating a fallback task; if a matching task already exists, claim that instead of duplicating it. Only create a fallback task when the delegated work is substantial and no matching task exists after that single check. If the result is mainly for the human, also send it via human_message.\n")
 		sb.WriteString(fmt.Sprintf("7. You can see other channel names and descriptions, but cannot access their content unless you are a member. If context from another channel is needed, ask @%s to bridge it.\n", lead))
 		sb.WriteString("8. If a task or status line shows a worktree path, use that as working_directory for local file and bash tools.\n")
-		sb.WriteString("9. For local_worktree or feature tasks, default to direct implementation in the assigned worktree. Do not relaunch LAF-Office, copied binaries, or a fresh local server just to inspect the app; use the current repo and running office instead.\n")
-		sb.WriteString("10. For local_worktree feature tasks, do NOT start with `rg --files`, `find .`, or a repo-wide audit. Read only the few files directly tied to the requested slice, then start editing. If the task is broad or lists multiple outputs, narrow it yourself to one exact smallest runnable slice, post a `team_status` naming that cut line, and ship that slice now.\n")
+		sb.WriteString("9. For managed checkout or feature tasks, default to direct implementation in the assigned working directory. Do not relaunch LAF-Office, copied binaries, or a fresh local server just to inspect the app; use the current repo and running office instead.\n")
+		sb.WriteString("10. For managed checkout feature tasks, do NOT start with `rg --files`, `find .`, or a repo-wide audit. Read only the few files directly tied to the requested slice, then start editing. If the task is broad or lists multiple outputs, narrow it yourself to one exact smallest runnable slice, post a `team_status` naming that cut line, and ship that slice now.\n")
 		sb.WriteString("10b. Never search parent or sibling directories outside the assigned working_directory (`find ..`, `rg ..`, `/var/folders`, `TMPDIR`, `TemporaryItems`, or other task worktrees). If you need instructions, read `AGENTS.md` or `README.md` inside the assigned worktree only.\n")
 		sb.WriteString("11. Ignore unrelated modified or untracked files already present in the assigned worktree unless they are directly needed for your slice. They may be preexisting repo state; do not audit or re-explain them.\n")
 		sb.WriteString("11b. Managed external systems are not available in this build. If a task needs CRM, email, calendar, notifications, or hosted actions, ask the human for the needed source material and record durable context in the markdown wiki.\n")
@@ -4616,7 +4616,7 @@ func (l *Launcher) resolvePermissionFlags(slug string) string {
 }
 
 // codingAgentSlugs lists agents that default to a minimal coding-focused MCP set.
-// Task-level local_worktree isolation is driven by execution_mode, not this list.
+// Task-level managed checkout isolation is driven by execution_mode, not this list.
 var codingAgentSlugs = map[string]bool{
 	"builder":   true,
 	"eng":       true,

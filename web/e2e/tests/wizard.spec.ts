@@ -104,8 +104,8 @@ test.describe('laf-office onboarding wizard smoke', () => {
     page,
   }) => {
     // Regression guard for the bug where blueprint YAMLs were read from
-    // the filesystem only — `npx laf-office` / `curl | bash` users saw the
-    // hardcoded "From scratch" card as their only option.
+    // the filesystem only — developer bootstrap executions saw the hardcoded
+    // "From scratch" card as their only option.
     //
     // With embedded templates wired in (internal/operations fallback FS +
     // root templates_embed.go), the backend's GET /onboarding/blueprints

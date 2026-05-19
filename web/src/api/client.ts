@@ -3,10 +3,51 @@
  * Mirrors every method from the legacy IIFE in index.legacy.html.
  */
 
-const apiBase = "/api";
 let brokerDirect = "http://localhost:7890";
 let useProxy = true;
 let token: string | null = null;
+const PUBLIC_BRIDGE_PAIR_COMMAND = "npx laf-bridge pair";
+
+export function normalizeHostedAPIBase(value = ""): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "/api";
+  if (/^https?:\/\//i.test(raw)) {
+    return normalizeAbsoluteHostedAPIBase(raw);
+  }
+  if (looksLikeBareAPIHost(raw)) {
+    return normalizeAbsoluteHostedAPIBase(`https://${raw}`);
+  }
+  const withSlash = raw.startsWith("/") ? raw : `/${raw}`;
+  return withSlash.replace(/\/+$/, "") || "/api";
+}
+
+function normalizeAbsoluteHostedAPIBase(value: string): string {
+  const url = new URL(value);
+  url.hash = "";
+  url.search = "";
+  const pathname = url.pathname.replace(/\/+$/, "");
+  url.pathname = pathname && pathname !== "/" ? pathname : "/api";
+  return url.toString().replace(/\/+$/, "");
+}
+
+function looksLikeBareAPIHost(value: string): boolean {
+  const [hostPart = ""] = String(value || "").split(/[/?#]/);
+  return (
+    hostPart.includes(".") || hostPart.includes(":") || hostPart.startsWith("[")
+  );
+}
+
+export function hostedAPIBaseURL(): string {
+  return normalizeHostedAPIBase(import.meta.env.VITE_LAF_API_BASE_URL);
+}
+
+export function hostedAPIURLFromBrowser(): string {
+  const base = hostedAPIBaseURL();
+  if (/^https?:\/\//i.test(base)) return base;
+  const origin = globalThis.location?.origin || "";
+  if (!origin) return base;
+  return new URL(base, origin).toString().replace(/\/+$/, "");
+}
 
 // ── Init ──
 
@@ -76,7 +117,7 @@ export async function initApi(): Promise<void> {
 // ── Internal helpers ──
 
 function baseURL(): string {
-  return useProxy ? apiBase : brokerDirect;
+  return useProxy ? hostedAPIBaseURL() : brokerDirect;
 }
 
 function authHeaders(): Record<string, string> {
@@ -281,17 +322,11 @@ export type WorkspacePermission =
   | "memory:promote"
   | "memory:write_canonical"
   | "wiki:read"
-  | "runner:read"
-  | "runner:manage"
   | "model:use_laf"
-  | "model:use_local_cli"
   | "bridge:pair_own"
   | "bridge:read_own"
   | "bridge:execute_own"
   | "bridge:manage_own"
-  | "bridge:read_team"
-  | "bridge:execute_team"
-  | "bridge:manage_team"
   | "execution:plan_create"
   | "execution:read"
   | "execution:cancel"
@@ -322,19 +357,35 @@ export interface PermissionsResponse {
   members: PermissionMember[];
 }
 
-export type ModelMode =
-  | "laf_model"
-  | "my_bridge"
-  | "team_bridge"
-  | "record_only";
+export type ModelMode = "laf_model" | "my_bridge" | "record_only";
+
+const LEGACY_PERSONAL_BRIDGE_MODEL_MODES = new Set([
+  ["local", "cli"].join("_"),
+  ["team", "bridge"].join("_"),
+]);
+
+export function normalizeModelMode(value: unknown): ModelMode {
+  if (
+    typeof value === "string" &&
+    LEGACY_PERSONAL_BRIDGE_MODEL_MODES.has(value)
+  ) {
+    return "my_bridge";
+  }
+  if (
+    value === "laf_model" ||
+    value === "my_bridge" ||
+    value === "record_only"
+  ) {
+    return value;
+  }
+  return "record_only";
+}
 
 export interface ModelAvailability {
   default_mode: ModelMode;
   allowed_modes: ModelMode[];
   laf_model: { available: boolean; reason?: string };
-  my_bridge: { available: boolean; reason?: string };
-  team_bridge: { available: boolean; reason?: string };
-  local_cli?: { available: boolean; reason?: string; runtimes?: string[] };
+  my_bridge: { available: boolean; reason?: string; runtimes?: string[] };
   record_only: { available: boolean; reason?: string };
   reason?: string;
 }
@@ -344,7 +395,7 @@ export interface BridgeDevice {
   team_id: string;
   user_id: string;
   device_label: string;
-  device_kind: "desktop" | "team_bridge" | string;
+  device_kind: "desktop" | string;
   platform?: string;
   arch?: string;
   bridge_version?: string;
@@ -364,39 +415,20 @@ export interface BridgeAvailability {
   default_device_id?: string;
   device_count: number;
   online_device_count: number;
+  runtimes?: string[];
   reason?: string;
 }
 
 export interface BridgePairingStartResponse {
   api_url: string;
-  pairing: { code: string; expires_at: string; team_id: string };
-  commands: {
-    install?: string;
-    pair: string;
-    setup?: string;
-    start?: string;
+  pairing: {
+    expires_at: string;
+    setup_code: string;
+    team_id: string;
   };
-}
-
-export interface ProjectLocalBinding {
-  id: string;
-  team_id: string;
-  project_id: string;
-  user_id: string;
-  device_id: string;
-  display_name: string;
-  local_path_hash: string;
-  git_root_hash?: string | null;
-  git_remote_hash?: string | null;
-  trusted: boolean;
-  trusted_at?: string | null;
-  last_used_at?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ProjectLocalBindingCommandSet {
-  link?: string;
+  commands: {
+    pair: string;
+  };
 }
 
 export interface ExecutionPlan {
@@ -404,7 +436,6 @@ export interface ExecutionPlan {
   team_id: string;
   project_id?: string | null;
   task_id?: string | null;
-  binding_id?: string | null;
   actor_user_id: string;
   executor_user_id?: string | null;
   device_id?: string | null;
@@ -551,17 +582,38 @@ export function getModelAvailability() {
 }
 
 export function getBridgeAvailability() {
-  return get<{ my_bridge: BridgeAvailability; devices: BridgeDevice[] }>(
-    "/bridge/availability",
-  );
+  return get<{
+    my_bridge: BridgeAvailability;
+    devices: BridgeDevice[];
+  }>("/bridge/availability");
 }
 
 export function getBridgeDevices() {
   return get<{ devices: BridgeDevice[] }>("/bridge/devices");
 }
 
-export function startBridgePairing(body: { api_url?: string } = {}) {
-  return post<BridgePairingStartResponse>("/bridge/pairing/start", body);
+function normalizeBridgePairingStartResponse(
+  value: BridgePairingStartResponse,
+): BridgePairingStartResponse {
+  return {
+    api_url: String(value?.api_url || ""),
+    commands: {
+      pair: PUBLIC_BRIDGE_PAIR_COMMAND,
+    },
+    pairing: {
+      expires_at: String(value?.pairing?.expires_at || ""),
+      setup_code: String(value?.pairing?.setup_code || ""),
+      team_id: String(value?.pairing?.team_id || ""),
+    },
+  };
+}
+
+export async function startBridgePairing(body: { api_url?: string } = {}) {
+  const response = await post<BridgePairingStartResponse>(
+    "/bridge/pairing/start",
+    body,
+  );
+  return normalizeBridgePairingStartResponse(response);
 }
 
 export function revokeBridgeDevice(deviceID: string) {
@@ -571,44 +623,11 @@ export function revokeBridgeDevice(deviceID: string) {
   );
 }
 
-export function getProjectLocalBindings(projectID: string) {
-  return get<{ bindings: ProjectLocalBinding[] }>(
-    `/projects/${encodeURIComponent(projectID)}/local-bindings`,
-  );
-}
-
-export function createProjectLocalBinding(
-  projectID: string,
-  body: {
-    device_id: string;
-    local_path: string;
-    display_name?: string;
-    git_root?: string;
-    git_remote_url?: string;
-    trusted?: boolean;
-  },
-) {
-  return post<{
-    binding: ProjectLocalBinding;
-    commands?: ProjectLocalBindingCommandSet;
-  }>(`/projects/${encodeURIComponent(projectID)}/local-bindings`, body);
-}
-
-export function deleteProjectLocalBinding(
-  projectID: string,
-  bindingID: string,
-) {
-  return del<{ binding: ProjectLocalBinding; deleted: boolean }>(
-    `/projects/${encodeURIComponent(projectID)}/local-bindings/${encodeURIComponent(bindingID)}`,
-  );
-}
-
 export function createExecutionPlan(body: {
   task_id: string;
   message: string;
   mode: Exclude<ModelMode, "record_only">;
   provider?: "codex" | "claude_code" | "laf_model";
-  binding_id?: string;
   device_id?: string;
   required_permissions?: WorkspacePermission[];
   expires_in_seconds?: number;
@@ -1169,7 +1188,6 @@ export interface Task {
   review_state?: string;
   source_signal_id?: string;
   source_decision_id?: string;
-  worktree_path?: string;
   worktree_branch?: string;
   delivery_url?: string;
   delivery_summary?: string;
@@ -1219,111 +1237,31 @@ export interface ProjectRepoReadiness {
   checked_at?: string;
 }
 
-export interface RunnerCapabilities {
-  provider_runtimes?: string[];
-  cli_details?: Record<string, unknown>;
-  preflight_checks?: RunnerPreflightCheck[];
-  gh_available?: boolean;
-  gh_authenticated?: boolean;
-  git_available?: boolean;
-  os?: string;
-  arch?: string;
-  hostname?: string;
-  workspace_root?: string;
-  execution_modes?: string[];
-}
-
-export interface RunnerPreflightCheck {
-  id: string;
-  status: "pass" | "warn" | "fail" | string;
-  severity?: "info" | "warn" | "critical" | string;
-  summary?: string;
-  detail?: string;
-}
-
-export interface HostedRunner {
-  id: string;
-  team_id: string;
-  name?: string;
-  runner_type?: "local" | "managed" | string;
-  status: "connected" | "disconnected" | "stale" | "revoked" | string;
-  capabilities?: RunnerCapabilities;
-  last_seen_at?: string;
-  revoked_at?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface RunnerJob {
-  id: string;
-  team_id: string;
-  project_id?: string;
-  task_id?: string;
-  runner_id?: string;
-  agent_slug?: string;
-  execution_mode?: string;
-  status:
-    | "queued"
-    | "leased"
-    | "running"
-    | "succeeded"
-    | "failed"
-    | "canceled"
-    | "expired"
-    | string;
-  agent_memory_packet?: unknown;
-  requested_by?: string;
-  effective_permissions?: WorkspacePermission[];
-  model_mode?: ModelMode;
-  intent_id?: string;
-  confirmation_id?: string;
-  provider_kind?: string;
-  required_provider?: string;
-  repo_url?: string;
-  wiki_path?: string;
-  lease_expires_at?: string;
-  attempts?: number;
-  last_error?: string;
-  created_at?: string;
-  updated_at?: string;
-  completed_at?: string;
-}
-
-export interface RunnerDiagnostic {
-  kind: string;
-  severity: "info" | "warn" | "critical" | string;
-  title?: string;
-  detail?: string;
-  runner_id?: string;
-  job_id?: string;
-  task_id?: string;
-  project_id?: string;
-  data?: Record<string, unknown>;
-}
-
-export interface RunnerStatusResponse {
-  runners: HostedRunner[];
-  jobs: RunnerJob[];
-  diagnostics?: RunnerDiagnostic[];
-}
-
-export interface RunnerPairingStartResponse {
-  api_url: string;
-  pairing: {
-    code: string;
-    team_id: string;
-    expires_at: string;
-  };
-  commands: {
-    install?: string;
-    connect: string;
-    setup?: string;
-  };
-}
-
 export interface TaskMutationResponse {
   task: Task;
-  runner_job?: RunnerJob | null;
+}
+
+function normalizeTaskPayload<T extends Task>(task: T): T {
+  return {
+    ...task,
+    model_mode: normalizeModelMode(task.model_mode),
+  };
+}
+
+function normalizeTasksResponse<T extends { tasks: Task[] }>(response: T): T {
+  return {
+    ...response,
+    tasks: response.tasks.map(normalizeTaskPayload),
+  };
+}
+
+function normalizeTaskMutationResponse<T extends TaskMutationResponse>(
+  response: T,
+): T {
+  return {
+    ...response,
+    task: normalizeTaskPayload(response.task),
+  };
 }
 
 export function getProjects(opts?: { includeArchived?: boolean }) {
@@ -1338,28 +1276,6 @@ export function getProjectRepoReadiness(projectId: string) {
   return get<{ readiness: ProjectRepoReadiness }>("/projects/repo-readiness", {
     id: projectId,
     viewer_slug: "human",
-  });
-}
-
-export function getRunnerStatus(opts?: {
-  projectId?: string;
-  taskId?: string;
-}) {
-  const params: Record<string, string> = {};
-  if (opts?.projectId) params.project_id = opts.projectId;
-  if (opts?.taskId) params.task_id = opts.taskId;
-  return get<RunnerStatusResponse>("/runner/status", params);
-}
-
-export function createRunnerPairing(apiUrl?: string) {
-  return post<RunnerPairingStartResponse>("/runner/pairing/start", {
-    api_url: apiUrl,
-  });
-}
-
-export function revokeRunner(runnerId: string) {
-  return post<{ runner: HostedRunner }>("/runner/revoke", {
-    runner_id: runnerId,
   });
 }
 
@@ -1417,14 +1333,13 @@ export function createTask(body: {
   human_owner_user_id?: string;
   model_mode?: ModelMode;
   task_type?: string;
-  execution_mode?: string;
   created_by?: string;
 }) {
   return post<TaskMutationResponse>("/tasks", {
     action: "create",
     created_by: "human",
     ...body,
-  });
+  }).then(normalizeTaskMutationResponse);
 }
 
 export function updateTask(body: {
@@ -1445,7 +1360,7 @@ export function updateTask(body: {
     action: "update",
     created_by: "human",
     ...body,
-  });
+  }).then(normalizeTaskMutationResponse);
 }
 
 export function reassignTask(
@@ -1462,7 +1377,7 @@ export function reassignTask(
     channel: channel || "general",
     created_by: actor,
     model_mode: modelMode,
-  });
+  }).then(normalizeTaskMutationResponse);
 }
 
 export type TaskStatusAction =
@@ -1490,7 +1405,7 @@ export function updateTaskStatus(
     created_by: actor,
     model_mode: modelMode,
     ...delivery,
-  });
+  }).then(normalizeTaskMutationResponse);
 }
 
 export function getTasks(
@@ -1510,7 +1425,7 @@ export function getTasks(
   if (opts?.status) params.status = opts.status;
   if (opts?.mySlug) params.my_slug = opts.mySlug;
   if (opts?.projectId) params.project_id = opts.projectId;
-  return get<{ tasks: Task[] }>("/tasks", params);
+  return get<{ tasks: Task[] }>("/tasks", params).then(normalizeTasksResponse);
 }
 
 export function getOfficeTasks(opts?: {
@@ -1527,7 +1442,7 @@ export function getOfficeTasks(opts?: {
   if (opts?.status) params.status = opts.status;
   if (opts?.mySlug) params.my_slug = opts.mySlug;
   if (opts?.projectId) params.project_id = opts.projectId;
-  return get<{ tasks: Task[] }>("/tasks", params);
+  return get<{ tasks: Task[] }>("/tasks", params).then(normalizeTasksResponse);
 }
 
 // ── Signals / Decisions / Watchdogs / Actions ──
@@ -1763,8 +1678,6 @@ export interface ConfigSnapshot {
   one_key_set?: boolean;
   composio_key_set?: boolean;
   telegram_token_set?: boolean;
-  openclaw_token_set?: boolean;
-  openclaw_gateway_url?: string;
   config_path?: string;
 }
 
@@ -1797,8 +1710,6 @@ export type ConfigUpdate = Partial<{
   one_api_key: string;
   composio_api_key: string;
   telegram_bot_token: string;
-  openclaw_token: string;
-  openclaw_gateway_url: string;
 }>;
 
 export function getConfig() {
@@ -1836,7 +1747,7 @@ export function resetWorkspace(confirmPhrase: string) {
 }
 
 // shredWorkspace is the full wipe: broker runtime + team + company + office,
-// workflows, logs, sessions, provider state, and local markdown memory.
+// workflows, logs, sessions, provider state, and workspace wiki memory.
 // The broker resets in place after success so onboarding can reopen immediately.
 export function shredWorkspace(confirmPhrase: string) {
   return postWithTimeout<WorkspaceWipeResult>(

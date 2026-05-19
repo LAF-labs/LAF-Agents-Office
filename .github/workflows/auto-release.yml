@@ -29,7 +29,7 @@ jobs:
       - name: Refuse auto-release from a non-app tree
         run: |
           missing=0
-          for path in go.mod cmd/laf-office/main.go npm/package.json; do
+          for path in go.mod cmd/laf-office/main.go cmd/laf-bridge/main.go npm/package.json npm-bridge/package.json; do
             if [ ! -e "$path" ]; then
               echo "::error::missing ${path}; refusing to tag this tree"
               missing=1
@@ -40,7 +40,7 @@ jobs:
       - name: Get latest tag
         id: latest
         run: |
-          TAG=$(git tag --sort=-v:refname | grep '^v' | head -1)
+          TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
           echo "tag=${TAG:-v0.0.0}" >> "$GITHUB_OUTPUT"
 
       - name: Bump version
@@ -48,7 +48,13 @@ jobs:
         run: |
           CURRENT="${{ steps.latest.outputs.tag }}"
           CURRENT="${CURRENT#v}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          if [[ ! "$CURRENT" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::latest release tag must be npm-compatible SemVer: $CURRENT"
+            exit 1
+          fi
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
 
           # Check all commits since last tag for bump signals
           COMMITS=$(git log "${{ steps.latest.outputs.tag }}..HEAD" --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")

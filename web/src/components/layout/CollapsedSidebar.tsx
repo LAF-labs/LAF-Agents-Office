@@ -20,7 +20,11 @@ import {
   SidebarExpand,
 } from "iconoir-react";
 
-import { getAuthSession, getModelAvailability, getUsage } from "../../api/client";
+import {
+  getAuthSession,
+  getModelAvailability,
+  getUsage,
+} from "../../api/client";
 import { SIDEBAR_APPS } from "../../lib/constants";
 import { formatTokens } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
@@ -246,7 +250,11 @@ function ProfileRail({ onOpen }: { onOpen: () => void }) {
     staleTime: 30_000,
   });
   const user = data?.user;
-  const name = (user?.name || user?.email || t("settings.section.profile")).trim();
+  const name = (
+    user?.name ||
+    user?.email ||
+    t("settings.section.profile")
+  ).trim();
   const avatarID = normalizeProfileAvatarId(user?.avatar_id);
   return (
     <button

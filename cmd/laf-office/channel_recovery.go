@@ -455,7 +455,7 @@ func countRunningRuntimeTasks(tasks []team.RuntimeTask) int {
 func countIsolatedRuntimeTasks(tasks []team.RuntimeTask) int {
 	count := 0
 	for _, task := range tasks {
-		if strings.EqualFold(strings.TrimSpace(task.ExecutionMode), "local_worktree") ||
+		if isManagedCheckoutExecutionMode(task.ExecutionMode) ||
 			strings.TrimSpace(task.WorktreePath) != "" ||
 			strings.TrimSpace(task.WorktreeBranch) != "" {
 			count++

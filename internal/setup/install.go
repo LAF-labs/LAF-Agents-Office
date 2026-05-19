@@ -12,7 +12,7 @@ import (
 const defaultCLIPackage = product.NpmPackageName
 
 // InstallLatestCLI installs the latest published CLI from npm.
-// The package and installer binary can be overridden for tests via env vars.
+// The package and install command can be overridden for tests via env vars.
 func InstallLatestCLI() (string, error) {
 	bin := strings.TrimSpace(os.Getenv(product.Env("CLI_INSTALL_BIN")))
 	if bin == "" {

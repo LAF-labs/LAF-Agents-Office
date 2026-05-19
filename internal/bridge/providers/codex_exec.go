@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -47,13 +46,10 @@ func (c CodexExec) Detect(ctx context.Context) CodexDetection {
 	return CodexDetection{Detected: true, Path: path, Version: strings.TrimSpace(string(out))}
 }
 
-func (c CodexExec) Execute(ctx context.Context, plan bridge.ExecutionPlan, binding bridge.ProjectBinding) (bridge.ExecutionOutcome, error) {
-	workdir := strings.TrimSpace(binding.LocalPath)
-	if workdir == "" {
-		workdir = filepath.Join(bridge.DefaultExecutionWorkdir(), "home")
-		if err := os.MkdirAll(workdir, 0o700); err != nil {
-			return bridge.ExecutionOutcome{}, fmt.Errorf("prepare home execution workdir: %w", err)
-		}
+func (c CodexExec) Execute(ctx context.Context, plan bridge.ExecutionPlan) (bridge.ExecutionOutcome, error) {
+	workdir, err := bridge.WorkdirForPlan(ctx, plan)
+	if err != nil {
+		return bridge.ExecutionOutcome{}, err
 	}
 	sandbox, err := bridge.CodexSandboxForPlan(plan, c.DefaultSandbox)
 	if err != nil {
@@ -114,11 +110,13 @@ func (c CodexExec) RunWithSandbox(ctx context.Context, workdir string, prompt st
 	if err != nil {
 		return CodexExecResult{}, fmt.Errorf("capture changed files: %w", err)
 	}
+	summary := bridge.RedactText(strings.TrimSpace(streamResult.FinalMessage))
 	return CodexExecResult{
 		Status:       "completed",
-		Summary:      bridge.RedactText(strings.TrimSpace(streamResult.FinalMessage)),
+		Summary:      summary,
 		Events:       events,
 		ChangedFiles: changedFiles,
+		Artifacts:    bridge.ExtractExecutionArtifacts(summary, events),
 		Usage: map[string]int{
 			"input_tokens":          streamResult.Usage.InputTokens,
 			"output_tokens":         streamResult.Usage.OutputTokens,

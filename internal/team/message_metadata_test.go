@@ -44,16 +44,8 @@ func TestPostMessagePersistsTaskExecutionMetadata(t *testing.T) {
 	}
 }
 
-func TestModelAvailabilityRequiresSupportedTeamBridgeCLI(t *testing.T) {
+func TestModelAvailabilityOnlyExposesMyBridge(t *testing.T) {
 	b := newTestBroker(t)
-	b.mu.Lock()
-	b.runners = []hostedRunner{{
-		ID:           "runner-1",
-		Status:       runnerStatusConnected,
-		Capabilities: runnerCapabilities{},
-	}}
-	b.mu.Unlock()
-
 	req := httptest.NewRequest(http.MethodGet, "/model/availability", nil)
 	rec := httptest.NewRecorder()
 	b.handleModelAvailability(rec, req)
@@ -61,41 +53,24 @@ func TestModelAvailabilityRequiresSupportedTeamBridgeCLI(t *testing.T) {
 		resBody, _ := io.ReadAll(rec.Result().Body)
 		t.Fatalf("availability status=%d body=%s", rec.Code, string(resBody))
 	}
+	raw, err := io.ReadAll(rec.Result().Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(raw, []byte("team_bridge")) {
+		t.Fatalf("local model availability should not expose team_bridge: %s", raw)
+	}
 	var withoutCLI struct {
 		MyBridge struct {
 			Available bool   `json:"available"`
 			Reason    string `json:"reason"`
 		} `json:"my_bridge"`
-		TeamBridge struct {
-			Available bool   `json:"available"`
-			Reason    string `json:"reason"`
-		} `json:"team_bridge"`
 	}
-	if err := json.NewDecoder(rec.Result().Body).Decode(&withoutCLI); err != nil {
+	if err := json.Unmarshal(raw, &withoutCLI); err != nil {
 		t.Fatalf("decode availability: %v", err)
 	}
-	if withoutCLI.MyBridge.Available || withoutCLI.MyBridge.Reason != "no paired desktop bridge detected" {
+	if withoutCLI.MyBridge.Available || withoutCLI.MyBridge.Reason != "no paired LAF Bridge detected" {
 		t.Fatalf("my_bridge without pairing = %+v", withoutCLI.MyBridge)
-	}
-	if withoutCLI.TeamBridge.Available || withoutCLI.TeamBridge.Reason != "no supported local CLI detected" {
-		t.Fatalf("team_bridge without runtime = %+v", withoutCLI.TeamBridge)
-	}
-
-	b.mu.Lock()
-	b.runners[0].Capabilities.ProviderRuntimes = []string{"codex"}
-	b.mu.Unlock()
-	rec = httptest.NewRecorder()
-	b.handleModelAvailability(rec, req)
-	var withCLI struct {
-		TeamBridge struct {
-			Available bool `json:"available"`
-		} `json:"team_bridge"`
-	}
-	if err := json.NewDecoder(rec.Result().Body).Decode(&withCLI); err != nil {
-		t.Fatalf("decode availability with CLI: %v", err)
-	}
-	if !withCLI.TeamBridge.Available {
-		t.Fatalf("expected team_bridge to be available with codex runtime")
 	}
 }
 

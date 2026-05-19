@@ -869,7 +869,7 @@ func TestSummarizeTaskRuntimeIncludesIsolationCounts(t *testing.T) {
 	if !strings.Contains(summary, "Running tasks: 2 of 2") {
 		t.Fatalf("expected running count in %q", summary)
 	}
-	if !strings.Contains(summary, "Isolated worktrees: 1") {
+	if !strings.Contains(summary, "Managed checkouts: 1") {
 		t.Fatalf("expected isolation count in %q", summary)
 	}
 	if !strings.Contains(summary, "branch feat/task-1") {
@@ -937,7 +937,7 @@ func TestHandleTeamTaskStatusReportsWorktreeIsolation(t *testing.T) {
 	if !strings.Contains(text, "Running tasks: 1 of 1") {
 		t.Fatalf("expected runtime count in %q", text)
 	}
-	if !strings.Contains(text, "Isolated worktrees: 1") {
+	if !strings.Contains(text, "Managed checkouts: 1") {
 		t.Fatalf("expected isolation count in %q", text)
 	}
 	if !strings.Contains(text, "branch laf-office-") {
@@ -960,6 +960,9 @@ func TestHandleTeamTaskStatusReportsWorktreeIsolation(t *testing.T) {
 	tasksText := textFromResult(t, tasksResult)
 	if !strings.Contains(tasksText, "Current team tasks:") {
 		t.Fatalf("expected task listing header in %q", tasksText)
+	}
+	if !strings.Contains(tasksText, "managed_checkout") || strings.Contains(tasksText, "local_worktree") {
+		t.Fatalf("expected public managed_checkout execution label in task listing %q", tasksText)
 	}
 	if !strings.Contains(tasksText, "branch laf-office-") {
 		t.Fatalf("expected worktree branch in task listing %q", tasksText)
@@ -1670,7 +1673,7 @@ func TestHandleTeamPlanCreatesDependentBlockedTasks(t *testing.T) {
 			Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
 			Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
 			TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
+			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode; omit unless the task explicitly needs project coding checkout behavior"`
 			DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 		}{
 			{Title: "Research competitors", Assignee: "research"},
@@ -1724,7 +1727,7 @@ func TestHandleTeamPlanPreservesTaskMetadata(t *testing.T) {
 			Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
 			Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
 			TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
+			ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode; omit unless the task explicitly needs project coding checkout behavior"`
 			DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 		}{
 			{Title: "Build the studio control plane", Assignee: "eng", TaskType: "feature", ExecutionMode: "local_worktree"},

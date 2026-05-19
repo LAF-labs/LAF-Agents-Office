@@ -12,6 +12,18 @@ const CLI_UNAVAILABLE_TITLE =
   "CLI가 감지되지 않습니다. Codex/Claude Code CLI를 설치하거나 팀 플랜을 업그레이드해 LAF 모델을 활성화해주세요.";
 const CLI_ACTIVE_TITLE = "CLI를 사용합니다.";
 const LAF_ACTIVE_TITLE = "LAF 모델을 사용합니다.";
+const BRIDGE_REASON_TITLES: Record<string, string> = {
+  "no supported local CLI detected":
+    "LAF Bridge가 Codex/Claude Code CLI를 감지하지 못했습니다.",
+  "LAF Bridge has no supported local CLI detected":
+    "LAF Bridge가 Codex/Claude Code CLI를 감지하지 못했습니다.",
+  "no online LAF Bridge detected":
+    "LAF Bridge가 오프라인입니다. Bridge 터미널을 다시 연결해주세요.",
+  "no paired LAF Bridge detected":
+    "LAF Bridge가 연결되어 있지 않습니다. Settings의 LAF Bridge에서 연결해주세요.",
+  "permission required: bridge:execute_own":
+    "LAF Bridge 실행 권한이 없습니다. 워크스페이스 관리자에게 권한을 요청하세요.",
+};
 
 const CLI_RUNTIME_LABELS: Record<string, string> = {
   claude: "Claude Code",
@@ -32,21 +44,16 @@ function modeAvailable(
 
 function cliAvailable(availability: ModelAvailability | undefined): boolean {
   if (!availability) return false;
-  return Boolean(
-    availability.local_cli?.available ||
-      modeAvailable(availability, "my_bridge") ||
-      modeAvailable(availability, "team_bridge"),
-  );
+  return modeAvailable(availability, "my_bridge");
 }
 
 function cliMode(availability: ModelAvailability | undefined): ModelMode {
   if (modeAvailable(availability, "my_bridge")) return "my_bridge";
-  if (modeAvailable(availability, "team_bridge")) return "team_bridge";
   return "record_only";
 }
 
 function cliRuntimeLabel(availability: ModelAvailability | undefined): string {
-  const runtimes = availability?.local_cli?.runtimes ?? [];
+  const runtimes = availability?.my_bridge?.runtimes ?? [];
   if (runtimes.includes("codex")) return "Codex";
   if (runtimes.includes("claude-code") || runtimes.includes("claude")) {
     return "Claude Code";
@@ -61,6 +68,13 @@ function cliRuntimeLabel(availability: ModelAvailability | undefined): string {
 function cliActiveTitle(availability: ModelAvailability | undefined): string {
   const label = cliRuntimeLabel(availability);
   return label ? `${label} CLI를 사용합니다.` : CLI_ACTIVE_TITLE;
+}
+
+function cliUnavailableTitle(
+  availability: ModelAvailability | undefined,
+): string {
+  const reason = availability?.my_bridge?.reason?.trim() ?? "";
+  return BRIDGE_REASON_TITLES[reason] || CLI_UNAVAILABLE_TITLE;
 }
 
 function preferredMode(availability: ModelAvailability | undefined): ModelMode {
@@ -116,7 +130,7 @@ export function ModelModeToggle({
   const disabled = Boolean(availability) && !lafAvailable && !hasCLI;
   const title = availability
     ? disabled
-      ? CLI_UNAVAILABLE_TITLE
+      ? cliUnavailableTitle(availability)
       : selectedIsLAF
         ? LAF_ACTIVE_TITLE
         : cliActiveTitle(availability)

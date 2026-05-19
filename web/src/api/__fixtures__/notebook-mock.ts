@@ -93,7 +93,7 @@ const RETRO_MD = `# End-of-turn retro
 ## Keep
 
 - State the outcome before the implementation detail.
-- Link the worktree or artifact that changed.
+- Link the managed checkout or artifact that changed.
 
 ## Change
 

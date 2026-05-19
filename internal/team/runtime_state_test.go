@@ -173,7 +173,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 				Title:         "Polish launch checklist",
 				Summary:       "This task is retained as a live execution artifact with its current runtime context.",
 				State:         "review",
-				Progress:      "Stage: review · Review: pending review · Execution: local worktree",
+				Progress:      "Stage: review · Review: pending review · Execution: managed checkout",
 				PartialOutput: "Latest task output retained for review.",
 				Path:          "/tmp/laf-office-task-1/output.log",
 				Worktree:      "/tmp/laf-office-task-1",
@@ -225,6 +225,7 @@ func TestBuildRuntimeSnapshotFormatsRecoveryAndCapabilities(t *testing.T) {
 	for _, want := range []string{
 		"Runtime state for #general",
 		"Session mode: 1:1 with @pm",
+		"Managed checkouts: 1",
 		"Pending human requests: 1",
 		"Retained execution artifacts: 2",
 		"Approve launch timing from @ceo.",

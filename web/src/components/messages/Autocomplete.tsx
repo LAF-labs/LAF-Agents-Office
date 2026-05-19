@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import type { OfficeMember } from "../../api/client";
 import {
-  FALLBACK_SLASH_COMMANDS,
+  HOSTED_FALLBACK_SLASH_COMMANDS,
   type SlashCommand,
 } from "../../hooks/useCommands";
 import { useMentionTargets } from "../../hooks/useMentionTargets";
@@ -22,13 +22,6 @@ export interface AutocompleteItem {
 
 export type { SlashCommand };
 
-/**
- * Legacy export preserved for callers that import SLASH_COMMANDS directly
- * (tests, external tooling). The live autocomplete now reads from the
- * broker via useCommands; this is the offline fallback list.
- */
-export const SLASH_COMMANDS: SlashCommand[] = FALLBACK_SLASH_COMMANDS;
-
 const MAX_AUTOCOMPLETE_ITEMS = 8;
 
 interface AutocompleteProps {
@@ -45,7 +38,7 @@ interface AutocompleteProps {
   /**
    * Slash-command set to offer. Parent supplies this (usually from
    * useCommands) so the broker registry stays the single source of truth.
-   * Defaults to the offline fallback when omitted.
+   * Defaults to the hosted-safe fallback when omitted.
    */
   commands?: SlashCommand[];
 }
@@ -61,7 +54,7 @@ export function Autocomplete({
   selectedIdx,
   onItems,
   onPick,
-  commands = SLASH_COMMANDS,
+  commands = HOSTED_FALLBACK_SLASH_COMMANDS,
 }: AutocompleteProps) {
   const { agentMembers, people } = useMentionTargets();
   const listRef = useRef<HTMLDivElement>(null);

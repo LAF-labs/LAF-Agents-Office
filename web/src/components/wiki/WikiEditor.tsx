@@ -10,12 +10,12 @@ import ReactMarkdown from "react-markdown";
 
 import type { WikiCatalogEntry } from "../../api/wiki";
 import { type WriteHumanConflict, writeHumanArticle } from "../../api/wiki";
+import { useUiText } from "../../lib/uiText";
 import {
   buildMarkdownComponents,
   buildRehypePlugins,
   buildRemarkPlugins,
 } from "../../lib/wikiMarkdownConfig";
-import { useUiText } from "../../lib/uiText";
 
 interface WikiEditorProps {
   /** Target article path, e.g. `team/people/nazz.md`. */
@@ -341,9 +341,7 @@ export default function WikiEditor({
         onTogglePreview={() => setPreviewOn((v) => !v)}
         copy={copy}
       />
-      <p className="wk-editor-help">
-        {copy.editorHelp}
-      </p>
+      <p className="wk-editor-help">{copy.editorHelp}</p>
     </div>
   );
 }

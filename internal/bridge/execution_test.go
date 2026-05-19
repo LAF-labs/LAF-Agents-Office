@@ -78,9 +78,6 @@ func TestRunPendingOnceValidatesAndCompletesFakeExecution(t *testing.T) {
 		APIURL:   server.URL,
 		DeviceID: "device-1",
 		UserID:   "user-1",
-		Bindings: []ProjectBinding{
-			{ID: "binding-1", DeviceID: "device-1", Trusted: true},
-		},
 	}
 	results, err := RunPendingOnce(
 		context.Background(),
@@ -142,7 +139,7 @@ func TestRunPendingOnceDeniesPlanWhenLocalApprovalMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := signedPlan(priv, func(plan *ExecutionPlan) {
-		plan.Policy = json.RawMessage(`{"sandbox":"workspace-write"}`)
+		plan.Policy = json.RawMessage(`{"github_repo_url":"https://github.com/LAF-labs/demo","project_name":"Demo","project_slug":"demo","sandbox":"workspace-write"}`)
 	})
 	var startBody map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -167,9 +164,6 @@ func TestRunPendingOnceDeniesPlanWhenLocalApprovalMissing(t *testing.T) {
 		APIURL:   server.URL,
 		DeviceID: "device-1",
 		UserID:   "user-1",
-		Bindings: []ProjectBinding{
-			{ID: "binding-1", DeviceID: "device-1", LocalPath: "/work/project", Trusted: true},
-		},
 	}
 	results, err := RunPendingOnceWithOptions(
 		context.Background(),
@@ -229,9 +223,6 @@ func TestRunPendingOnceWithExecutorUploadsOutcomeFields(t *testing.T) {
 		APIURL:   server.URL,
 		DeviceID: "device-1",
 		UserID:   "user-1",
-		Bindings: []ProjectBinding{
-			{ID: "binding-1", DeviceID: "device-1", LocalPath: "/work/project", Trusted: true},
-		},
 	}
 	results, err := RunPendingOnceWithExecutor(
 		context.Background(),
@@ -252,6 +243,10 @@ func TestRunPendingOnceWithExecutorUploadsOutcomeFields(t *testing.T) {
 	changedFiles := completeBody["changed_files"].([]any)
 	if len(changedFiles) != 1 || changedFiles[0].(map[string]any)["path"] != "main.go" {
 		t.Fatalf("changed files not uploaded: %#v", completeBody)
+	}
+	artifacts := completeBody["artifacts"].([]any)
+	if len(artifacts) != 1 || artifacts[0].(map[string]any)["url"] != "https://github.com/LAF-labs/demo/pull/42" {
+		t.Fatalf("artifacts not uploaded: %#v", completeBody)
 	}
 	usage := completeBody["usage"].(map[string]any)
 	if usage["output_tokens"] != float64(7) {
@@ -282,7 +277,7 @@ func TestPlanRunGuardPreventsDuplicateTerminalRun(t *testing.T) {
 
 type staticExecutor struct{}
 
-func (staticExecutor) Execute(context.Context, ExecutionPlan, ProjectBinding) (ExecutionOutcome, error) {
+func (staticExecutor) Execute(context.Context, ExecutionPlan) (ExecutionOutcome, error) {
 	return ExecutionOutcome{
 		Status:  "completed",
 		Summary: "real provider summary",
@@ -290,6 +285,11 @@ func (staticExecutor) Execute(context.Context, ExecutionPlan, ProjectBinding) (E
 			{Type: "codex.text", Payload: map[string]any{"text": "hello"}},
 		},
 		ChangedFiles: []ChangedFile{{Path: "main.go", Status: "M"}},
-		Usage:        map[string]int{"output_tokens": 7},
+		Artifacts: []Artifact{{
+			Type:  "pull_request",
+			URL:   "https://github.com/LAF-labs/demo/pull/42",
+			Title: "GitHub pull request",
+		}},
+		Usage: map[string]int{"output_tokens": 7},
 	}, nil
 }

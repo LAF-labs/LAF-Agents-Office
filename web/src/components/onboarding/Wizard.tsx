@@ -38,12 +38,7 @@ interface TaskTemplate {
   prompt?: string;
 }
 
-type WizardStep =
-  | "welcome"
-  | "templates"
-  | "identity"
-  | "task"
-  | "ready";
+type WizardStep = "welcome" | "templates" | "identity" | "task" | "ready";
 
 // Step order: company info before blueprint. The blueprint picker is a
 // decision about how the project workspace starts; it makes more sense after the
@@ -257,7 +252,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       starting: "Starting...",
     },
     readiness: {
-      sessionLabel: "Session runtime",
+      sessionLabel: "Browser session",
       sessionReady: "Web session. No tmux required in the browser.",
       memoryLabel: "Project wiki",
       memoryMarkdown:
@@ -345,7 +340,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       starting: "시작 중...",
     },
     readiness: {
-      sessionLabel: "세션 런타임",
+      sessionLabel: "브라우저 세션",
       sessionReady: "웹 세션입니다. 브라우저에서는 tmux가 필요하지 않습니다.",
       memoryLabel: "프로젝트 위키",
       memoryMarkdown:
@@ -895,12 +890,7 @@ function handleWizardKey(e: KeyboardEvent, context: WizardKeyContext) {
   const canIdentityContinue =
     context.company.trim().length > 0 && context.description.trim().length > 0;
   const canAgentsContinue = hasCompleteAgentNames(context.agents);
-  advanceWizardFromKey(
-    e,
-    context,
-    canIdentityContinue,
-    canAgentsContinue,
-  );
+  advanceWizardFromKey(e, context, canIdentityContinue, canAgentsContinue);
 }
 
 function shouldHandleWizardEnter(e: KeyboardEvent): boolean {

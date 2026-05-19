@@ -1,8 +1,8 @@
 # LAF-Office
 
-### Project workspace for startup AI agents.
+### Hosted project workspace for startup AI agents.
 
-A local-first project workspace where startup teams plan work with agents, keep shared memory in markdown, and connect implementation tasks to coding runtimes.
+A hosted project workspace where startup teams plan work with agents, keep shared memory, and connect implementation tasks to local Codex or Claude CLI through LAF Bridge.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/assets/hero.png" alt="LAF-Office onboarding — Your AI team, visible and working." width="720" />
@@ -12,11 +12,26 @@ A local-first project workspace where startup teams plan work with agents, keep 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/gjSySC3PzV)
 [![License: MIT](https://img.shields.io/badge/License-MIT-A87B4F)](https://github.com/LAF-labs/LAF-Agents-Office/blob/main/LICENSE)
 
-One command. One shared project workspace. CEO, PM, engineers, AI engineer, and designer — all visible, claiming tasks, updating the wiki, and shipping work instead of disappearing behind an API.
+One shared web workspace. CEO, PM, engineers, AI engineer, and designer — all visible, claiming tasks, updating the wiki, and shipping work through LAF Bridge instead of disappearing behind an API.
 
 [▶ 30-second teaser and full walkthrough on GitHub](https://github.com/LAF-labs/LAF-Agents-Office#readme)
 
 ## Get Started
+
+Production users should start in the hosted web app, create a setup code in
+**Settings -> LAF Bridge**, and pair the only local execution component:
+
+```bash
+npx laf-bridge pair
+```
+
+Paste the setup code when Bridge prompts for it. Bridge then keeps an outbound
+connection to the hosted API and runs approved Codex or Claude CLI work locally.
+
+This `laf-office` npm package is a contributor bootstrap for running the
+development web workspace from the CLI, not the hosted production setup path.
+
+## Local Developer Bootstrap
 
 **Prerequisites:** one agent CLI — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by default, or [Codex CLI](https://github.com/openai/codex) when you pass `--provider codex`. [tmux](https://github.com/tmux/tmux/wiki/Installing) is only required for `--tui` mode.
 
@@ -24,7 +39,8 @@ One command. One shared project workspace. CEO, PM, engineers, AI engineer, and 
 npx laf-office
 ```
 
-That's it. The browser opens automatically and you're in the project workspace.
+The browser opens automatically and you're in the contributor development
+workspace.
 
 Prefer a global install?
 
@@ -34,13 +50,18 @@ npm install -g laf-office && laf-office
 
 Supported platforms: macOS and Linux on x64 or arm64. The native binary is lazy-downloaded from [GitHub releases](https://github.com/LAF-labs/LAF-Agents-Office/releases) on first run and cached under `node_modules/laf-office/bin/`.
 
-The npm package is a developer bootstrap for the local workspace. It is not the
-hosted execution boundary. Hosted deployments should use a native `laf-runner`
-installer on the user's machine or VM, then connect it to the hosted control
-plane from Settings -> Runner with the `laf-runner://` one-click handler.
-`laf-runner pair --connect` remains the terminal fallback.
-Without a connected runner, the hosted workspace still supports planning,
-project memory, task creation, and queues; only local CLI execution waits.
+The npm package is a contributor bootstrap for the development web workspace. Hosted
+deployments use LAF Bridge as the only local execution component: open
+Settings -> LAF Bridge in the hosted app, create a setup code, and run:
+
+```sh
+npx laf-bridge pair
+```
+
+Paste the setup code when LAF Bridge prompts for it.
+
+Without a connected bridge, the hosted workspace still supports planning,
+project memory, task creation, and queues; only Bridge execution waits.
 
 > **Stability:** pre-1.0. `main` moves daily. Pin to a release tag, not `main`.
 
@@ -58,7 +79,7 @@ project memory, task creation, and queues; only local CLI execution waits.
 
 ## Memory: Notebooks and the Wiki
 
-Every agent gets its own **notebook**. The team shares a local markdown **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole workspace benefits.
+Every agent gets its own **notebook**. The team shares a reviewable **wiki**. When a conclusion in an agent's notebook holds up, it gets promoted to the wiki so the whole workspace benefits.
 
 Internal naming for code spelunkers: notebook = `private` memory, wiki = `shared` memory.
 
@@ -66,7 +87,7 @@ Internal naming for code spelunkers: notebook = `private` memory, wiki = `shared
 
 ```bash
 laf-office init          # First-time setup
-laf-office shred         # Kill a running session
+laf-office shred         # Reset contributor workspace state
 laf-office --1o1         # 1:1 with the CEO
 laf-office --1o1 pm      # 1:1 with a specific agent
 ```
@@ -80,10 +101,9 @@ laf-office --1o1 pm      # 1:1 with a specific agent
 
 If it feels like a hidden agent loop, something is wrong. The work should be visible in projects, tasks, and the project wiki.
 
-## Bridges
+## Integrations
 
 - **Telegram:** `/connect` → pick Telegram → paste bot token from [@BotFather](https://t.me/BotFather).
-- **OpenClaw:** `/connect openclaw` → paste your gateway URL and `gateway.auth.token` from `~/.openclaw/openclaw.json`. Each OpenClaw session becomes a first-class workspace member you can `@mention`.
 
 ## External Actions
 
@@ -99,9 +119,9 @@ integrations are not available in this build yet.
 | Agent wakes | Push-driven (zero idle burn) |
 | Live visibility | Stdout streaming |
 | Mid-task steering | DM any agent, no restart |
-| Runtimes | Mix Claude Code, Codex, and OpenClaw in one workspace |
-| Memory | Per-agent notebook + shared markdown workspace wiki |
-| Price | Free and open source (MIT, self-hosted, your API keys) |
+| Local CLI execution | Run work through Claude Code or Codex via LAF Bridge |
+| Memory | Per-agent notebook + shared workspace wiki |
+| Price | Free and open source (MIT, hosted workspace plus local Bridge execution) |
 
 ## Benchmark
 
@@ -146,4 +166,4 @@ you at `npm install -g laf-office@latest` for a permanent upgrade.
 
 Set `LAF_OFFICE_SKIP_VERSION_CHECK=1` to disable the check entirely.
 
-MIT licensed. Free, open source, self-hosted, your API keys.
+MIT licensed. Free and open source.

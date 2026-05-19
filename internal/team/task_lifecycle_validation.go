@@ -12,6 +12,8 @@ func normalizeTaskExecutionModeInput(mode string) (string, error) {
 		return "", nil
 	case executionModeOffice, executionModeLocalWorktree, executionModeLiveExternal:
 		return mode, nil
+	case executionModeManagedCheckout:
+		return executionModeLocalWorktree, nil
 	default:
 		return "", fmt.Errorf("invalid execution_mode %q", mode)
 	}

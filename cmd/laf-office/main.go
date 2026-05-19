@@ -40,7 +40,7 @@ func printSubcommandHelp(sub string) {
 	case "init":
 		fmt.Fprintln(os.Stderr, "laf-office init — first-time setup")
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Sets your default provider, pack, and local markdown team wiki")
+		fmt.Fprintln(os.Stderr, "Sets your default provider, pack, and team wiki")
 		fmt.Fprintln(os.Stderr, "so future `laf-office` invocations just work.")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
@@ -52,10 +52,10 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Stops the running session, clears broker state, and deletes the team")
 		fmt.Fprintln(os.Stderr, "roster, company identity, project task receipts, saved workflows, logs,")
-		fmt.Fprintln(os.Stderr, "sessions, provider state, and local wiki memory.")
+		fmt.Fprintln(os.Stderr, "sessions, provider state, and workspace wiki memory.")
 		fmt.Fprintln(os.Stderr, "Next launch reopens onboarding.")
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Preserved: task worktrees, local device identity, config.json.")
+		fmt.Fprintln(os.Stderr, "Preserved: task checkouts, local device identity, config.json.")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
 		fmt.Fprintln(os.Stderr, "  laf-office shred           Prompts before wiping")
@@ -87,16 +87,6 @@ func printSubcommandHelp(sub string) {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Usage:")
 		fmt.Fprintln(os.Stderr, "  laf-office mcp-team")
-	case "runner":
-		fmt.Fprintln(os.Stderr, "laf-office runner — connect a local execution runner")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Usage:")
-		fmt.Fprintln(os.Stderr, "  laf-office runner login --api-url <url> --team-id <team> --api-token <token>")
-		fmt.Fprintln(os.Stderr, "  laf-office runner connect")
-		fmt.Fprintln(os.Stderr, "  laf-office runner status")
-		fmt.Fprintln(os.Stderr, "  laf-office runner disconnect")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Hosted installs should prefer the standalone `laf-runner` binary.")
 	default:
 		fmt.Fprintf(os.Stderr, "laf-office: unknown subcommand %q — run `laf-office --help` for the list.\n", sub)
 	}
@@ -136,7 +126,7 @@ func main() {
 	blueprintFlag := flag.String("blueprint", "", "Operation blueprint ID for this run (internal)")
 	packFlag := flag.String("pack", "", "Operation blueprint ID legacy alias (internal)")
 	fromScratchFlag := flag.Bool("from-scratch", false, "Start without a saved blueprint and synthesize the first operation from the directive (internal)")
-	providerFlag := flag.String("provider", "", "LLM provider override for this run (claude-code, codex, opencode)")
+	providerFlag := flag.String("provider", "", "LLM provider override for this run (claude-code, codex)")
 	oneOnOne := flag.Bool("1o1", false, "Launch a direct 1:1 session with a single agent (default ceo)")
 	channelView := flag.Bool("channel-view", false, "Run as channel view (internal)")
 	channelApp := flag.String("channel-app", "", "Start channel view on a specific app (internal)")
@@ -160,7 +150,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s shred        Burn the workspace down and reopen onboarding\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s import --from legacy  Import from a running external orchestrator (auto-detect)\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s log          Show what your agents actually did (task receipts)\n", appName)
-		fmt.Fprintf(os.Stderr, "  %s runner       Connect a local execution runner\n", appName)
 		fmt.Fprintf(os.Stderr, "  %s --cmd <cmd>  Run a command non-interactively\n", appName)
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		printVisibleFlags(os.Stderr)
@@ -188,10 +177,10 @@ func main() {
 	}
 	if provider := strings.TrimSpace(*providerFlag); provider != "" {
 		switch provider {
-		case "claude-code", "codex", "opencode":
+		case "claude-code", "codex":
 			_ = os.Setenv(product.Env("LLM_PROVIDER"), provider)
 		default:
-			fmt.Fprintf(os.Stderr, "error: unsupported provider %q (expected claude-code, codex, or opencode)\n", provider)
+			fmt.Fprintf(os.Stderr, "error: unsupported provider %q (expected claude-code or codex)\n", provider)
 			os.Exit(1)
 		}
 	}
@@ -279,12 +268,6 @@ func main() {
 			return
 		case "memory":
 			runMemory(args[1:])
-			return
-		case "runner":
-			if err := team.RunRunnerCommand(context.Background(), args[1:], os.Stdout, os.Stderr); err != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				os.Exit(1)
-			}
 			return
 		}
 	}
@@ -491,10 +474,10 @@ func isPiped() bool {
 const shredSummary = `This will:
   • Stop the running LAF-Office session
   • Delete your team, company identity, project task receipts, workflows
-  • Delete logs, sessions, provider state, and local wiki memory
+  • Delete logs, sessions, provider state, and workspace wiki memory
   • Wipe broker runtime state
   • Reopen onboarding on next launch
-Preserved: task worktrees, local device identity, config.json.`
+Preserved: task checkouts, local device identity, config.json.`
 
 // confirmDestructive gates a destructive subcommand behind a y/N prompt.
 // A "-y" / "--yes" in rest skips the prompt — useful for scripted teardown.

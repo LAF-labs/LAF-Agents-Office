@@ -54,7 +54,7 @@ func (l *Launcher) runHeadlessClaudeTurnWithPolicy(ctx context.Context, slug str
 	}
 	args = append(args, strings.Fields(l.resolvePermissionFlags(slug))...)
 
-	// Workspace isolation: coding agents get their own git worktree.
+	// Managed checkout isolation keeps coding agents out of the human checkout.
 	worktreeDir := ""
 	if codingAgentSlugs[slug] && l.broker != nil {
 		task := l.agentActiveTask(slug)

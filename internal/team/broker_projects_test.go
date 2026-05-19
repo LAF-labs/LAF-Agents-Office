@@ -194,12 +194,6 @@ func TestProjectCodeMigrationRenamesLegacyProjectTasks(t *testing.T) {
 			ReplyTo:       "task-2",
 			PublicReplyTo: "task-1",
 		}},
-		RunnerJobs: []runnerJob{{
-			ID:     "job-1",
-			TeamID: "team-a",
-			TaskID: "task-1",
-			Status: runnerJobStatusQueued,
-		}},
 		Actions: []officeActionLog{{
 			Kind:      "task_created",
 			RelatedID: "task-2",
@@ -241,9 +235,6 @@ func TestProjectCodeMigrationRenamesLegacyProjectTasks(t *testing.T) {
 	}
 	if loaded.messages[0].TaskID != "SAJU-1" || loaded.messages[0].ReplyTo != "SAJU-2" || loaded.messages[0].PublicReplyTo != "SAJU-1" {
 		t.Fatalf("migrated message refs = %+v", loaded.messages[0])
-	}
-	if loaded.runnerJobs[0].TaskID != "SAJU-1" {
-		t.Fatalf("migrated runner job = %+v", loaded.runnerJobs[0])
 	}
 	if loaded.actions[0].RelatedID != "SAJU-2" {
 		t.Fatalf("migrated action = %+v", loaded.actions[0])

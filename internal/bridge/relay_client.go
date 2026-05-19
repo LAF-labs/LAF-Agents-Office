@@ -15,13 +15,13 @@ type RelaySource interface {
 	Subscribe(ctx context.Context, deviceID string) (<-chan RelayHint, error)
 }
 
-type PendingRunner interface {
+type PendingExecutor interface {
 	RunPending(ctx context.Context) ([]RunResult, error)
 }
 
-type PendingRunnerFunc func(ctx context.Context) ([]RunResult, error)
+type PendingExecutorFunc func(ctx context.Context) ([]RunResult, error)
 
-func (f PendingRunnerFunc) RunPending(ctx context.Context) ([]RunResult, error) {
+func (f PendingExecutorFunc) RunPending(ctx context.Context) ([]RunResult, error) {
 	return f(ctx)
 }
 
@@ -29,20 +29,20 @@ type RelayLoop struct {
 	DeviceID     string
 	PollInterval time.Duration
 	ReconnectMin time.Duration
-	Runner       PendingRunner
+	Executor     PendingExecutor
 	Source       RelaySource
 }
 
 type PollLoop struct {
 	Interval time.Duration
-	Runner   PendingRunner
+	Executor PendingExecutor
 }
 
 func (l PollLoop) Run(ctx context.Context) error {
-	if l.Runner == nil {
+	if l.Executor == nil {
 		return nil
 	}
-	if _, err := l.Runner.RunPending(ctx); err != nil {
+	if _, err := l.Executor.RunPending(ctx); err != nil {
 		return err
 	}
 	interval := l.Interval
@@ -56,7 +56,7 @@ func (l PollLoop) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if _, err := l.Runner.RunPending(ctx); err != nil {
+			if _, err := l.Executor.RunPending(ctx); err != nil {
 				return err
 			}
 		}
@@ -64,11 +64,11 @@ func (l PollLoop) Run(ctx context.Context) error {
 }
 
 func (l RelayLoop) Run(ctx context.Context) error {
-	if l.Runner == nil {
+	if l.Executor == nil {
 		return nil
 	}
 	if l.Source == nil {
-		_, err := l.Runner.RunPending(ctx)
+		_, err := l.Executor.RunPending(ctx)
 		return err
 	}
 	delay := l.ReconnectMin
@@ -81,7 +81,7 @@ func (l RelayLoop) Run(ctx context.Context) error {
 		}
 		hints, err := l.subscribe(ctx)
 		if err == nil {
-			if _, err := l.Runner.RunPending(ctx); err != nil {
+			if _, err := l.Executor.RunPending(ctx); err != nil {
 				return err
 			}
 			var poll <-chan time.Time
@@ -104,14 +104,14 @@ func (l RelayLoop) Run(ctx context.Context) error {
 						}
 						goto reconnect
 					}
-					if _, err := l.Runner.RunPending(ctx); err != nil {
+					if _, err := l.Executor.RunPending(ctx); err != nil {
 						if ticker != nil {
 							ticker.Stop()
 						}
 						return err
 					}
 				case <-poll:
-					if _, err := l.Runner.RunPending(ctx); err != nil {
+					if _, err := l.Executor.RunPending(ctx); err != nil {
 						if ticker != nil {
 							ticker.Stop()
 						}
@@ -121,7 +121,7 @@ func (l RelayLoop) Run(ctx context.Context) error {
 			}
 		}
 		if err != nil {
-			if _, runErr := l.Runner.RunPending(ctx); runErr != nil {
+			if _, runErr := l.Executor.RunPending(ctx); runErr != nil {
 				return runErr
 			}
 		}

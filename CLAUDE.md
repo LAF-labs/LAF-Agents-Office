@@ -1,7 +1,8 @@
 # LAF-Office AI Runtime Operating Rules
 
-LAF-Office is a local-first, 24/7 meta AI agent company. It can run in
-Claude-powered mode or Codex-powered mode, selected by the user at runtime.
+LAF-Office is a hosted AI workspace backed by a single local LAF Bridge for
+CLI execution. It can run in Claude-powered mode or Codex-powered mode,
+selected by the user at runtime.
 This file is named `CLAUDE.md` for Claude Code compatibility, but its rules are
 binding for every development/runtime assistant that works on this repository.
 
@@ -37,12 +38,12 @@ Respect the current LAF-Office architecture before adding features:
   events. Do not add polling loops for agent turns.
 - Each agent turn uses a fresh headless session. Do not build long-lived hidden
   LLM conversations as the source of truth.
-- Each agent works in its own git worktree. Do not let agents mutate the human
-  checkout directly unless an explicit local command is doing a controlled repo
-  maintenance task.
+- Each agent works in its own LAF Bridge managed checkout. Do not let agents
+  mutate the human checkout directly unless an explicit local command is doing
+  a controlled repo maintenance task.
 - MCP tools are scoped per agent and per surface. Do not give every agent every
   tool by default.
-- The local markdown wiki is the canonical shared memory surface.
+- The active workspace wiki is the canonical shared memory surface.
 - Notebook entries are private draft memory. Wiki pages are shared company
   knowledge.
 - Mutating external actions require human approval unless the runtime is
@@ -74,8 +75,8 @@ The Claude/Codex development layer mirrors the four runtime responsibilities:
 
 - CEO: scope, prioritization, architecture, routing, and handoff decisions.
 - Frontend Engineer: TypeScript, React, UI state, accessibility, and visual QA.
-- Backend Engineer: Go, broker, worktree, MCP, wiki, provider, scripts, and
-  runtime operations.
+- Backend Engineer: Go, broker, managed checkout, MCP, wiki, provider, scripts,
+  and runtime operations.
 - Reviewer: code quality, security, Office Rule compliance, regression risk,
   tests, evals, smoke checks, and wiki consistency.
 
@@ -84,10 +85,11 @@ four roles, not separate runtime agents.
 
 ## Memory Policy
 
-LAF memory is local and reviewable:
+LAF memory is reviewable and tied to the active workspace:
 
 - Agent Notebook: private draft notes under the agent namespace.
-- Team Wiki: shared canonical markdown under `~/.laf-office/wiki/`.
+- Team Wiki: shared canonical workspace knowledge. The local developer runtime
+  mirrors it under `~/.laf-office/wiki/`.
 - Promotion: Notebook to Wiki is manual and intentional. Nothing is promoted
   automatically.
 - Every durable decision should have provenance: source task, agent, date, and
@@ -165,7 +167,7 @@ an observed failure signature or a concrete risk found during review. See
   web design system.
 - Do not introduce one-off global state, hidden background polling, or provider
   lock-in.
-- Do not bypass git worktree isolation for agent execution.
+- Do not bypass LAF Bridge managed checkout isolation for agent execution.
 - Do not write secrets, credentials, or provider tokens into markdown, tests, or
   fixture files.
 - Keep slash commands checked into the repo when they encode repeated work.

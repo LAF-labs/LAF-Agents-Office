@@ -423,7 +423,7 @@ func TestProviderSelectionSavesCodexAndRequestsRestart(t *testing.T) {
 	}
 
 	m := newChannelModel(false)
-	m.picker = tui.NewPicker("Switch LLM Provider", tui.ProviderOptions())
+	m.picker = tui.NewPicker("Switch default Bridge provider", tui.ProviderOptions())
 	m.picker.SetActive(true)
 	m.pickerMode = channelPickerProvider
 

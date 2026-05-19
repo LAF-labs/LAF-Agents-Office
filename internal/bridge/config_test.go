@@ -2,6 +2,9 @@ package bridge
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 )
 
@@ -39,6 +43,11 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	configPath := filepath.Join(tmp, "config.json")
 	identityPath := filepath.Join(tmp, "identity.pem")
 	tokenPath := filepath.Join(tmp, "token")
+	planPub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planSigningPublicKey := base64.StdEncoding.EncodeToString(planPub)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/bridge/pairing/claim" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
@@ -53,8 +62,16 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 		if body["public_key"] == "" || body["public_key"] == "laf-bridge-local-public-key-pending" {
 			t.Fatalf("pairing public key was not generated: %#v", body["public_key"])
 		}
+		if body["device_kind"] != "desktop" {
+			t.Fatalf("pairing device_kind: got %#v want desktop", body["device_kind"])
+		}
+		if body["bridge_version"] != buildinfo.Current().Version {
+			t.Fatalf("pairing bridge_version: got %#v want %#v", body["bridge_version"], buildinfo.Current().Version)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"bridge_token": "laf_bridge_pair_token",
+			"bridge_token":            "laf_bridge_pair_token",
+			"plan_signing_key_id":     "test-plan-key",
+			"plan_signing_public_key": planSigningPublicKey,
 			"device": map[string]any{
 				"id":           "device-1",
 				"team_id":      "team-1",
@@ -94,6 +111,9 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	if cfg.PublicKey == "" {
 		t.Fatal("public key was not persisted")
 	}
+	if cfg.PlanSigningPublicKey != planSigningPublicKey {
+		t.Fatalf("plan signing public key was not persisted: %#v", cfg)
+	}
 	identityInfo, err := os.Stat(identityPath)
 	if err != nil {
 		t.Fatal(err)
@@ -108,6 +128,9 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	if saved.DeviceID != "device-1" {
 		t.Fatalf("saved config missing device id: %#v", saved)
 	}
+	if saved.PlanSigningPublicKey != planSigningPublicKey {
+		t.Fatalf("saved config missing plan signing public key: %#v", saved)
+	}
 	token, err := ResolveToken(saved)
 	if err != nil {
 		t.Fatal(err)
@@ -117,39 +140,34 @@ func TestPairStoresTokenReferenceAndDeviceID(t *testing.T) {
 	}
 }
 
-func TestUpsertAndRemoveProjectBinding(t *testing.T) {
-	cfg := Config{DeviceID: "device-1"}
-	var err error
-	cfg, err = UpsertProjectBinding(cfg, ProjectBinding{
-		ID:        "binding-1",
-		LocalPath: "/work/project",
-		Trusted:   true,
-	})
-	if err != nil {
+func TestHeartbeatSendsBuildInfoVersion(t *testing.T) {
+	var got map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/bridge/devices/device-1/heartbeat" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"device": map[string]any{
+				"id":           "device-1",
+				"device_kind":  "desktop",
+				"device_label": "Test Bridge",
+				"status":       "online",
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := Client{APIURL: server.URL}
+	if _, err := client.Heartbeat(context.Background(), Config{
+		DeviceID:    "device-1",
+		DeviceLabel: "Test Bridge",
+	}, Capabilities{}); err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Bindings) != 1 {
-		t.Fatalf("binding count: got %d", len(cfg.Bindings))
-	}
-	if cfg.Bindings[0].DeviceID != "device-1" {
-		t.Fatalf("binding device default not applied: %#v", cfg.Bindings[0])
-	}
-	cfg, err = UpsertProjectBinding(cfg, ProjectBinding{
-		ID:        "binding-1",
-		LocalPath: "/work/project-renamed",
-		Trusted:   false,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cfg.Bindings) != 1 || cfg.Bindings[0].LocalPath != "/work/project-renamed" {
-		t.Fatalf("binding was not replaced: %#v", cfg.Bindings)
-	}
-	cfg, removed := RemoveProjectBinding(cfg, "binding-1")
-	if !removed {
-		t.Fatal("expected binding to be removed")
-	}
-	if len(cfg.Bindings) != 0 {
-		t.Fatalf("binding count after remove: %d", len(cfg.Bindings))
+	if got["bridge_version"] != buildinfo.Current().Version {
+		t.Fatalf("heartbeat bridge_version: got %#v want %#v", got["bridge_version"], buildinfo.Current().Version)
 	}
 }

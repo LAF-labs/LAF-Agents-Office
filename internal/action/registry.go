@@ -94,8 +94,8 @@ func (r *Registry) ProviderNamed(name string, cap Capability) (Provider, error) 
 }
 
 // preferredProvidersFor returns providers in the order they should be tried
-// for a capability. One CLI wins by default because it is local-first and
-// personal — no SaaS account required, auth handled by the local CLI.
+// for a capability. One CLI wins by default because auth is handled by the
+// user's local CLI and does not require a separate SaaS account.
 // Composio is the fallback for tools One does not cover, since Composio has
 // a broader third-party catalog but requires a paid API key and cloud auth.
 // The user can still pin a specific provider via `/config set action_provider`.

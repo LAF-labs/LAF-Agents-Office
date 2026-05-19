@@ -2,7 +2,12 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { NavArrowLeft, NavArrowRight, Xmark } from "iconoir-react";
 
-import { answerRequest, type InterviewOption, post } from "../../api/client";
+import {
+  answerRequest,
+  type InterviewOption,
+  isLocalhostRuntime,
+  post,
+} from "../../api/client";
 import { useRequests } from "../../hooks/useRequests";
 import { showNotice } from "../ui/Toast";
 
@@ -23,17 +28,34 @@ function sortInterviewOptions(
   });
 }
 
+function interviewSkipBehavior(localhostRuntime = isLocalhostRuntime()) {
+  return localhostRuntime
+    ? {
+        postPauseSignal: true,
+        notice: "Agents paused.",
+        ariaLabel: "Skip and pause agents",
+        title: "Skip - pause agents",
+      }
+    : {
+        postPauseSignal: false,
+        notice: "Request skipped.",
+        ariaLabel: "Skip request",
+        title: "Skip request",
+      };
+}
+
 /**
  * Inline interview bar shown above the Composer. Mirrors the TUI behavior:
  * - Shows the current pending request (1/N counter for the queue)
  * - Allows cycling through queued requests with prev/next
  * - Renders option buttons; if the picked option requires custom text,
  *   switches to a text input mode using the option's hint as placeholder
- * - Skip / close pauses agents (POST /signals kind=pause) and dismisses
+ * - Skip / close dismisses hosted requests and only pauses agents on localhost
  */
 export function InterviewBar() {
   const { pending } = useRequests();
   const queryClient = useQueryClient();
+  const skipBehavior = interviewSkipBehavior();
 
   const queue = useMemo(() => {
     // Sort by created_at ascending so the oldest blocking request is first.
@@ -100,19 +122,22 @@ export function InterviewBar() {
   };
 
   const handlePause = async () => {
-    // Skip = pause agents. Matches the TUI Esc behavior.
     setDismissedIds((prev) => {
       const next = new Set(prev);
       next.add(current.id);
       return next;
     });
     setTextMode(null);
+    if (!skipBehavior.postPauseSignal) {
+      showNotice(skipBehavior.notice, "info");
+      return;
+    }
     try {
       await post("/signals", {
         kind: "pause",
         summary: "Human skipped a blocking interview",
       });
-      showNotice("Agents paused. Use /resume when ready.", "info");
+      showNotice(skipBehavior.notice, "info");
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to pause agents";
@@ -163,8 +188,8 @@ export function InterviewBar() {
           type="button"
           className="interview-bar-close"
           onClick={handlePause}
-          aria-label="Skip and pause agents"
-          title="Skip - pause agents"
+          aria-label={skipBehavior.ariaLabel}
+          title={skipBehavior.title}
         >
           <Xmark width={20} height={20} />
         </button>
@@ -197,6 +222,10 @@ export function InterviewBar() {
     </section>
   );
 }
+
+export const __test__ = {
+  interviewSkipBehavior,
+};
 
 interface InterviewBarActionsProps {
   textMode: TextMode | null;

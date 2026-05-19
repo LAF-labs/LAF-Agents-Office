@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchCommands, type SlashCommandDescriptor } from "../api/client";
+import {
+  fetchCommands,
+  isLocalhostRuntime,
+  type SlashCommandDescriptor,
+} from "../api/client";
 import { useI18n } from "../lib/i18n";
 import type { Language } from "../stores/app";
 
@@ -53,7 +57,11 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/pause", desc: "Pause all agents", icon: "pause" },
   { name: "/resume", desc: "Resume all agents", icon: "resume" },
   { name: "/threads", desc: "See every active thread", icon: "threads" },
-  { name: "/provider", desc: "Switch runtime provider", icon: "provider" },
+  {
+    name: "/provider",
+    desc: "Switch default Bridge provider",
+    icon: "provider",
+  },
   {
     name: "/hire-agent",
     desc: "Workflow for hiring a Claude/Codex-backed LAF agent",
@@ -86,10 +94,36 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   },
   {
     name: "/deploy-simulation",
-    desc: "Local deployment/simulation workflow for Claude or Codex mode",
+    desc: "Deployment rehearsal workflow for Claude or Codex mode",
     icon: "deploy-simulation",
   },
 ];
+
+const HOSTED_FALLBACK_COMMAND_NAMES = new Set([
+  "/1o1",
+  "/ask",
+  "/cancel",
+  "/clear",
+  "/growth",
+  "/help",
+  "/provider",
+  "/remember",
+  "/requests",
+  "/search",
+  "/skills",
+  "/task",
+  "/tasks",
+  "/threads",
+]);
+
+export const HOSTED_FALLBACK_SLASH_COMMANDS: SlashCommand[] =
+  FALLBACK_SLASH_COMMANDS.filter((command) =>
+    HOSTED_FALLBACK_COMMAND_NAMES.has(command.name),
+  );
+
+const HOSTED_COMMAND_NAMES = new Set(
+  HOSTED_FALLBACK_SLASH_COMMANDS.map((command) => command.name),
+);
 
 /**
  * Icon map for commands returned by the broker. Keyed by bare command name
@@ -152,14 +186,14 @@ const COMMAND_DESCRIPTIONS_KO: Record<string, string> = {
   pause: "모든 에이전트 일시정지",
   resume: "모든 에이전트 재개",
   threads: "활성 스레드 보기",
-  provider: "런타임 제공자 전환",
+  provider: "기본 Bridge 제공자 전환",
   "hire-agent": "Claude/Codex 기반 에이전트 추가",
   "assign-task": "작업 보드 일을 에이전트에게 배정",
   "daily-standup": "데일리 스탠드업 실행",
   "review-office": "오피스 규칙, 보안, 메모리 일관성 점검",
   "promote-to-wiki": "노트북 초안을 위키로 승격 검토",
   "fix-bug": "리뷰와 메모리 기록을 포함한 버그 수정 흐름",
-  "deploy-simulation": "Claude 또는 Codex 모드 배포 시뮬레이션",
+  "deploy-simulation": "Claude 또는 Codex 모드 배포 리허설",
 };
 
 function commandDescription(
@@ -187,6 +221,16 @@ function localizeCommands(
   });
 }
 
+function fallbackCommandsForRuntime(
+  language: Language,
+  localhostRuntime = isLocalhostRuntime(),
+): SlashCommand[] {
+  return localizeCommands(
+    localhostRuntime ? FALLBACK_SLASH_COMMANDS : HOSTED_FALLBACK_SLASH_COMMANDS,
+    language,
+  );
+}
+
 /**
  * Convert the broker's payload into the shape the autocomplete renderer
  * expects. Filters to webSupported=true and only keeps commands the web
@@ -195,9 +239,13 @@ function localizeCommands(
 function toAutocomplete(
   commands: SlashCommandDescriptor[],
   language: Language = "en",
+  localhostRuntime = isLocalhostRuntime(),
 ): SlashCommand[] {
   return commands
-    .filter((c) => c.webSupported && !DEFERRED_WEB_COMMANDS.has(c.name))
+    .filter((c) => {
+      if (!c.webSupported || DEFERRED_WEB_COMMANDS.has(c.name)) return false;
+      return localhostRuntime || HOSTED_COMMAND_NAMES.has(`/${c.name}`);
+    })
     .map((c) => ({
       name: `/${c.name}`,
       desc: commandDescription(c.name, c.description, language),
@@ -216,6 +264,7 @@ function toAutocomplete(
  */
 export function useCommands(): SlashCommand[] {
   const { language } = useI18n();
+  const localhostRuntime = isLocalhostRuntime();
   const { data, isError } = useQuery({
     queryKey: ["commands"],
     queryFn: fetchCommands,
@@ -234,21 +283,22 @@ export function useCommands(): SlashCommand[] {
   // "Maximum update depth exceeded."
   return useMemo(() => {
     if (isError || !data) {
-      return localizeCommands(FALLBACK_SLASH_COMMANDS, language);
+      return fallbackCommandsForRuntime(language, localhostRuntime);
     }
-    const mapped = toAutocomplete(data, language);
+    const mapped = toAutocomplete(data, language, localhostRuntime);
     // Defensive: if the broker returns an empty webSupported set (e.g. an
-    // older broker without the flag), prefer the fallback rather than an
-    // empty autocomplete.
+    // older broker without the flag), prefer a runtime-scoped fallback
+    // rather than an empty autocomplete.
     return mapped.length > 0
       ? mapped
-      : localizeCommands(FALLBACK_SLASH_COMMANDS, language);
-  }, [data, isError, language]);
+      : fallbackCommandsForRuntime(language, localhostRuntime);
+  }, [data, isError, language, localhostRuntime]);
 }
 
 // Exported for tests.
 export const __test__ = {
   toAutocomplete,
+  fallbackCommandsForRuntime,
   COMMAND_ICONS,
   DEFAULT_ICON,
 };

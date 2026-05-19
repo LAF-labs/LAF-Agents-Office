@@ -62,7 +62,7 @@ var workspaceSearchSecretPatterns = []*regexp.Regexp{
 // handleWorkspaceSearch is intentionally narrow. It searches only the LAF
 // surfaces people actually need during work: canonical wiki articles, projects
 // and tasks, and messages inside task threads. It does not walk worktrees,
-// dependency folders, notebooks, runner logs, or arbitrary local files.
+// dependency folders, notebooks, process logs, or arbitrary local files.
 func (b *Broker) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

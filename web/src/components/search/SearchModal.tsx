@@ -7,9 +7,9 @@ import {
   type WorkspaceSearchHit,
 } from "../../api/workspaceSearch";
 import { useChannels } from "../../hooks/useChannels";
+import { type SlashCommand, useCommands } from "../../hooks/useCommands";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useAppStore } from "../../stores/app";
-import { SLASH_COMMANDS } from "../messages/Autocomplete";
 import { CommandGlyph } from "../ui/CommandGlyph";
 import { Kbd } from "../ui/Kbd";
 import { openProviderSwitcher } from "../ui/ProviderSwitcher";
@@ -111,6 +111,7 @@ async function loadSearchHits(query: string): Promise<SearchHitResults> {
 interface PaletteBuildDeps extends CommandDeps {
   query: string;
   channels: SearchChannel[];
+  commands: SlashCommand[];
   members: SearchMember[];
   workspaceHits: WorkspaceSearchHit[];
   setActiveAgentSlug: (slug: string | null) => void;
@@ -180,7 +181,7 @@ function buildAgentItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
 
 function buildCommandItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
   const items: PaletteItem[] = [];
-  for (const command of SLASH_COMMANDS) {
+  for (const command of deps.commands) {
     const hay = `${command.name} ${command.desc}`.toLowerCase();
     if (q && !hay.includes(searchTerm(q, "/"))) continue;
     items.push({
@@ -348,6 +349,7 @@ export function SearchModal() {
     (s) => s.setComposerSearchInitialQuery,
   );
   const { data: channels = [] } = useChannels();
+  const commands = useCommands();
   const { data: members = [] } = useOfficeMembers();
 
   const [query, setQuery] = useState("");
@@ -418,6 +420,7 @@ export function SearchModal() {
     return buildPaletteItems({
       query,
       channels,
+      commands,
       members,
       workspaceHits,
       setCurrentApp,
@@ -434,6 +437,7 @@ export function SearchModal() {
   }, [
     query,
     channels,
+    commands,
     members,
     workspaceHits,
     setCurrentApp,
@@ -757,3 +761,7 @@ function dispatchPaletteCommand(name: string, deps: CommandDeps) {
   }
   showNotice(`${name} requires arguments — type it in the composer.`, "info");
 }
+
+export const __test__ = {
+  buildCommandItems,
+};

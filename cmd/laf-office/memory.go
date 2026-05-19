@@ -22,6 +22,6 @@ func runMemory(args []string) {
 func printMemoryHelp() {
 	fmt.Fprintln(os.Stderr, "laf-office memory - team wiki only")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "LAF-Office now stores shared memory in the local markdown team wiki.")
+	fmt.Fprintln(os.Stderr, "LAF-Office now stores shared memory in the git-native team wiki.")
 	fmt.Fprintln(os.Stderr, "Legacy memory migration is not available in this build.")
 }

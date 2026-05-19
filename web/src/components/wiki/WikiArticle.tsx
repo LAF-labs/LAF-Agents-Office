@@ -15,12 +15,12 @@ import {
   type WikiHistoryCommit,
 } from "../../api/wiki";
 import { formatAgentName } from "../../lib/agentName";
+import { useUiText } from "../../lib/uiText";
 import {
   buildMarkdownComponents,
   buildRehypePlugins,
   buildRemarkPlugins,
 } from "../../lib/wikiMarkdownConfig";
-import { useUiText } from "../../lib/uiText";
 import ArticleStatusBanner from "./ArticleStatusBanner";
 import ArticleTitle from "./ArticleTitle";
 import Byline from "./Byline";

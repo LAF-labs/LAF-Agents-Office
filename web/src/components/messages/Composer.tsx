@@ -119,7 +119,7 @@ interface OutboundMessage {
   tagged: string[];
 }
 
-interface SlashCommand {
+interface ParsedSlashCommand {
   cmd: string;
   args: string;
 }
@@ -148,12 +148,22 @@ const APP_COMMANDS: Record<string, string> = {
   "/threads": "threads",
 };
 
-function parseSlashCommand(input: string): SlashCommand {
+function parseSlashCommand(input: string): ParsedSlashCommand {
   const parts = input.split(/\s+/);
   return {
     cmd: parts[0].toLowerCase(),
     args: parts.slice(1).join(" ").trim(),
   };
+}
+
+function slashCommandIsAvailable(
+  cmd: string,
+  availableCommands: { name: string }[],
+): boolean {
+  const normalized = cmd.toLowerCase();
+  return availableCommands.some(
+    (command) => command.name.toLowerCase() === normalized,
+  );
 }
 
 function handleAppCommand(cmd: string, store: AppStore): boolean {
@@ -321,7 +331,7 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
     confirm({
       title: "Reset the workspace?",
       message:
-        "Clears the live message view and drops in-memory state. Persisted tasks and requests stay on the broker.",
+        "Clears the live message view and drops in-memory state. Persisted tasks and requests stay in the workspace service.",
       confirmLabel: "Reset",
       danger: true,
       onConfirm: () =>
@@ -375,9 +385,20 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
  * Some commands (e.g. `/ask`) rewrite the input and invoke sendAsMessage so
  * the broker sees a normal user message with the right @mention routing.
  */
-function handleSlashCommand(input: string, handlers: SlashHandlers): boolean {
+function handleSlashCommand(
+  input: string,
+  handlers: SlashHandlers,
+  availableCommands: { name: string }[],
+): boolean {
   const { cmd, args } = parseSlashCommand(input);
   const store = useAppStore.getState();
+  if (!slashCommandIsAvailable(cmd, availableCommands)) {
+    if (APP_COMMANDS[cmd] || SLASH_COMMANDS[cmd]) {
+      showNotice(`${cmd} is not available in this workspace`, "info");
+      return true;
+    }
+    return false;
+  }
   if (handleAppCommand(cmd, store)) return true;
   return SLASH_COMMANDS[cmd]?.(args, store, handlers) ?? false;
 }
@@ -620,6 +641,7 @@ interface ComposerSendMutation {
 
 interface SendComposerDraftArgs {
   agentSlugs: string[];
+  availableCommands: { name: string }[];
   currentChannel: string;
   leadSlug: string | undefined;
   mentionSlugs: string[];
@@ -632,6 +654,7 @@ interface SendComposerDraftArgs {
 
 function sendComposerDraft({
   agentSlugs,
+  availableCommands,
   currentChannel,
   leadSlug,
   mentionSlugs,
@@ -653,7 +676,11 @@ function sendComposerDraft({
 
   if (
     trimmed.startsWith("/") &&
-    handleSlashCommand(trimmed, { leadSlug, sendAsMessage, refreshMessages })
+    handleSlashCommand(
+      trimmed,
+      { leadSlug, sendAsMessage, refreshMessages },
+      availableCommands,
+    )
   ) {
     pushHistory(currentChannel, trimmed);
     resetComposer();
@@ -754,6 +781,7 @@ export function Composer() {
   const handleSend = useCallback(() => {
     sendComposerDraft({
       agentSlugs,
+      availableCommands: commands,
       currentChannel,
       leadSlug,
       mentionSlugs,
@@ -770,6 +798,7 @@ export function Composer() {
     currentChannel,
     resetComposer,
     agentSlugs,
+    commands,
     mentionSlugs,
     refreshMessages,
   ]);
@@ -940,6 +969,8 @@ export const __test__ = {
   pushHistory,
   resolveLeadSlug,
   askPrefix,
+  sendComposerDraft,
+  slashCommandIsAvailable,
   isIMEComposing,
   COMPOSER_HISTORY_LIMIT,
 };

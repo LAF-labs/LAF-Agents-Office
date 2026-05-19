@@ -10,8 +10,8 @@ package team
 // provider.RunConfiguredOneShot, a fresh process per task. Context is
 // inherently clean per invocation, so no /clear is needed.
 //
-// Callers supply a PamRunner to NewPamDispatcher. The broker wires a
-// HeadlessPamRunner by default.
+// Callers supply a PamExecutor to NewPamDispatcher. The broker wires a
+// HeadlessPamExecutor by default.
 //
 // Pam is NOT a roster member (not in any PackDefinition.Agents[]). She sits
 // on top of the wiki UI and is triggered explicitly by the user.
@@ -99,16 +99,16 @@ type pamEventPublisher interface {
 	PublishPamActionFailed(evt PamActionFailedEvent)
 }
 
-// PamRunner runs a single Pam turn as a sub-process. Implementations decide
+// PamExecutor runs a single Pam turn as a sub-process. Implementations decide
 // how to execute that sub-process (e.g. headless one-shot via the configured
 // provider CLI).
-type PamRunner interface {
+type PamExecutor interface {
 	Run(ctx context.Context, systemPrompt, userPrompt string) (string, error)
 }
 
-// HeadlessPamRunner is the default: one fresh CLI process per Pam turn.
+// HeadlessPamExecutor is the default: one fresh CLI process per Pam turn.
 // Context is clean by construction, so no /clear is needed.
-type HeadlessPamRunner struct{}
+type HeadlessPamExecutor struct{}
 
 // Run shells out via provider.RunConfiguredOneShot. The cwd argument is
 // intentionally empty — Pam operates on the wiki via the broker API, not on
@@ -120,7 +120,7 @@ type HeadlessPamRunner struct{}
 // dispatcher can unblock on deadline, but the child process may outlive the
 // cancel until the provider call returns. A future provider-package change
 // should plumb context through so cancel actually kills the child.
-func (HeadlessPamRunner) Run(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+func (HeadlessPamExecutor) Run(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	type result struct {
 		out string
 		err error
@@ -141,8 +141,8 @@ func (HeadlessPamRunner) Run(ctx context.Context, systemPrompt, userPrompt strin
 
 // PamDispatcherConfig tunes the dispatcher. Zero values -> defaults.
 type PamDispatcherConfig struct {
-	Timeout time.Duration
-	Runner  PamRunner
+	Timeout  time.Duration
+	Executor PamExecutor
 }
 
 // pamWiki is the slice of WikiWorker that Pam actually depends on. Stays
@@ -185,8 +185,8 @@ func NewPamDispatcher(worker pamWiki, publisher pamEventPublisher, cfg PamDispat
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = DefaultPamTimeout
 	}
-	if cfg.Runner == nil {
-		cfg.Runner = HeadlessPamRunner{}
+	if cfg.Executor == nil {
+		cfg.Executor = HeadlessPamExecutor{}
 	}
 	return &PamDispatcher{
 		worker:    worker,
@@ -378,16 +378,16 @@ func (d *PamDispatcher) execute(ctx context.Context, job PamJob) error {
 	callCtx, cancel := context.WithTimeout(ctx, d.cfg.Timeout)
 	defer cancel()
 
-	output, runErr := d.cfg.Runner.Run(callCtx, action.SystemPrompt, action.renderUserPrompt(existing))
+	output, runErr := d.cfg.Executor.Run(callCtx, action.SystemPrompt, action.renderUserPrompt(existing))
 	if runErr != nil {
-		return fmt.Errorf("runner: %w", runErr)
+		return fmt.Errorf("executor: %w", runErr)
 	}
 	output = strings.TrimSpace(output)
 	if output == "" {
-		return fmt.Errorf("runner output is empty")
+		return fmt.Errorf("executor output is empty")
 	}
 	if len(output) > MaxPamOutputSize {
-		return fmt.Errorf("runner output exceeds %d bytes (got %d)", MaxPamOutputSize, len(output))
+		return fmt.Errorf("executor output exceeds %d bytes (got %d)", MaxPamOutputSize, len(output))
 	}
 
 	commitMsg := action.renderCommitMsg(job.ArticlePath)

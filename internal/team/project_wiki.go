@@ -403,7 +403,7 @@ func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, pr
 			Owner:          strings.TrimSpace(task.Owner),
 			Channel:        channel,
 			TaskType:       strings.TrimSpace(task.TaskType),
-			ExecutionMode:  strings.TrimSpace(task.ExecutionMode),
+			ExecutionMode:  publicExecutionMode(task.ExecutionMode),
 			WorktreePath:   strings.TrimSpace(task.WorktreePath),
 			WorktreeBranch: strings.TrimSpace(task.WorktreeBranch),
 		},
@@ -485,7 +485,7 @@ func buildAgentMemoryPacketForTask(task teamTask, memory projectMemoryPacket, pr
 	)
 	if isLocalWorktreeExecutionMode(task.ExecutionMode) {
 		packet.StartHere = append(packet.StartHere,
-			"For local_worktree work, begin inside the assigned working_directory and ship the smallest runnable slice.",
+			"For managed_checkout work, begin inside the assigned working_directory and ship the smallest runnable slice.",
 		)
 	}
 	if len(packet.Decisions) > 0 {
@@ -1237,7 +1237,7 @@ func renderProjectTaskWikiEvent(task teamTask, verb string) string {
 		parts = append(parts, fmt.Sprintf("owner `@%s`", owner))
 	}
 	if mode := strings.TrimSpace(task.ExecutionMode); mode != "" {
-		parts = append(parts, fmt.Sprintf("mode `%s`", mode))
+		parts = append(parts, fmt.Sprintf("mode `%s`", publicExecutionMode(mode)))
 	}
 	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
 		parts = append(parts, fmt.Sprintf("branch `%s`", branch))

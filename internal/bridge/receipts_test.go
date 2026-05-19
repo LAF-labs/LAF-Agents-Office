@@ -57,6 +57,29 @@ func TestCaptureChangedFilesIgnoresNonGitDirectory(t *testing.T) {
 	}
 }
 
+func TestExtractExecutionArtifactsFindsGitHubPullRequests(t *testing.T) {
+	artifacts := ExtractExecutionArtifacts(
+		"Opened https://github.com/LAF-labs/demo/pull/42",
+		[]ProviderEvent{
+			{
+				Type: "codex.text",
+				Payload: map[string]any{
+					"text": "duplicate https://github.com/LAF-labs/demo/pull/42 and https://github.com/LAF-labs/demo/pull/43",
+				},
+			},
+		},
+	)
+	if len(artifacts) != 2 {
+		t.Fatalf("artifacts: %#v", artifacts)
+	}
+	if artifacts[0].Type != "pull_request" || artifacts[0].URL != "https://github.com/LAF-labs/demo/pull/42" {
+		t.Fatalf("first artifact: %#v", artifacts[0])
+	}
+	if artifacts[1].URL != "https://github.com/LAF-labs/demo/pull/43" {
+		t.Fatalf("second artifact: %#v", artifacts[1])
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	all := append([]string{"-C", dir}, args...)

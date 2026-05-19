@@ -2,71 +2,71 @@
 
 How LAF-Office works under the hood, anchored to files you can open. One page. Read it, then the code makes sense.
 
-## The shape
+## The Shape
 
 ```
-          ┌──────────────┐         ┌──────────────┐
- human ──▶│   Web UI /   │────────▶│    Broker    │
-          │  TUI / 1:1   │         │  (pub/sub +  │
-          └──────────────┘◀────────│    queue)    │
-                                   └──────┬───────┘
-                                          │ push on message
-                                          ▼
-                        ┌─────────────────────────────────┐
-                        │  Per-agent headless runners     │
-                        │  (Claude Code / Codex, fresh    │
-                        │   session per turn, scoped MCP) │
-                        └─────────────────────────────────┘
-                                          │
-                                          ▼
-                            isolated git worktree per agent
+          +----------------------+        +----------------------+
+ human -> | Hosted Web Workspace | -----> | Hosted API + DB      |
+          | Vercel UI            |        | Vercel + Supabase    |
+          +----------------------+        +----------+-----------+
+                                                    ^
+                                                    |
+                                      heartbeat, poll, upload
+                                                    |
+                                         +----------+-----------+
+                                         | LAF Bridge           |
+                                         | npx laf-bridge pair  |
+                                         +----------+-----------+
+                                                    |
+                              +---------------------+------------------+
+                              | Codex CLI / Claude Code, git, files    |
+                              | on the user's computer                  |
+                              +-----------------------------------------+
 ```
 
-## Core components
+The hosted web app never executes a user's local CLI directly. It stores projects, pairing state, execution plans, logs, and receipts. LAF Bridge is the only local execution component: it pairs outbound to the hosted API, advertises available CLIs, receives signed work, runs it locally, and uploads results.
+
+## Core Components
 
 | File | Role |
 |---|---|
-| `cmd/laf-office/` | CLI entrypoint, slash commands, TUI, launcher |
-| `internal/team/broker.go` | Message bus. Every message is a push event — agents are spawned on wake, not polled |
-| `internal/team/launcher.go` | Decides which agents wake for a given message (focus/collab mode, tags) |
-| `internal/team/headless_claude.go` | Spawns `claude` as a one-shot per turn; no `--resume` accumulation |
-| `internal/team/headless_codex.go` | Same model for Codex |
-| `internal/team/worktree.go` | Per-agent isolated git worktree so agents can't corrupt each other |
-| `internal/team/resume.go` | On restart, replays unfinished tasks + unanswered messages to the right agents |
-| `internal/teammcp/` | The per-agent MCP tool surface. DM mode loads ~4 tools; office mode loads more |
-| `internal/agent/packs.go` | Legacy project-team compositions (`starter`, `founding-team`, `coding-team`) retained for compatibility while onboarding defaults to the project starter |
-| `web/index.html` | The office UI — channels, composer, live streams |
+| `cmd/laf-bridge/` | Local Bridge CLI entrypoint. `npx laf-bridge pair` is the user-facing setup path. |
+| `internal/bridge/` | Pairing, heartbeat, provider detection, plan polling, local CLI execution, and completion upload. |
+| `api/[...path].js` | Hosted API facade for auth-backed projects, Bridge pairing, device state, execution plans, events, and receipts. |
+| `supabase/migrations/` | Hosted schema. Bridge-only cleanup migration removes the previous split local-execution schema. |
+| `web/src/components/apps/SettingsApp.tsx` | Bridge connection UI, pairing command, CLI status, and hosted settings behavior. |
+| `web/src/components/apps/TasksApp.tsx` | Hosted task creation, Bridge availability guidance, execution state, logs, and receipts. |
+| `cmd/laf-office/` | Local desktop/developer entrypoint retained for local workspace workflows and compatibility. |
+| `internal/team/` | Local workspace runtime used by `laf-office`; hosted execution reaches local CLIs through Bridge instead. |
 
-## Three load-bearing choices
+## Three Load-Bearing Choices
 
-With the file that implements each:
+1. **Bridge is the only local execution component.** Users do not install or start a second local product. The setup surface is one command: `npx laf-bridge pair`.
 
-1. **Fresh session per turn** (`headless_claude.go`). Every agent turn is `claude -p "<prompt>"` from scratch. No `--resume`, no growing history. Combined with identical prompt prefixes, Anthropic's prompt cache gives ~97% read hit rates — the primary driver of the benchmark's token savings.
+2. **Hosted API is orchestration, not execution.** Vercel/Supabase owns auth, project records, pairing codes, signed execution plans, logs, and receipts. Local filesystem, git, Codex CLI, and Claude Code access stay on the user's machine.
 
-2. **Per-agent scoped MCP** (`internal/teammcp/`). An agent in DM mode sees only the handful of tools that mode needs. Smaller tool schema → smaller prompt → cheaper turn → better cache alignment. Each agent role gets exactly the tools it needs, nothing more.
+3. **Outbound local connection.** Bridge calls the hosted API for pairing, heartbeat, pending work, and completion upload. The hosted app does not require inbound access to the user's computer and does not depend on a localhost Go server in production.
 
-3. **Push-driven broker** (`broker.go`). Agents sleep until the broker pushes them a message. No heartbeat polling an empty inbox. Idle cost is zero.
+## Data Flow Of One Hosted Task
 
-## Data flow of one message
+1. User logs into the hosted web workspace and creates or opens a project.
+2. Settings shows `npx laf-bridge pair`; the user runs it on their computer.
+3. Bridge claims the pairing code, stores device credentials, detects Codex CLI and Claude Code, and starts heartbeat/polling.
+4. The web UI shows Bridge status and available local CLIs.
+5. User asks for an AI development task in the web UI.
+6. Hosted API creates a signed execution plan for the paired Bridge.
+7. Bridge polls, verifies the plan, runs the requested local CLI in the selected project workspace, captures logs and file/git summary, then uploads events and the final receipt.
+8. The web UI renders progress, result text, changed-files summary, and PR or receipt metadata.
 
-1. Human types in web UI → POSTs to broker.
-2. Broker decides who wakes (focus mode: CEO only unless tagged; collab mode: everyone).
-3. `launcher.go` builds the per-agent prompt + scoped MCP manifest.
-4. `headless_claude.go` shells out to `claude -p` in the agent's worktree.
-5. stdout streams back through the broker → web UI.
-6. Agent responses with `@other-agent` mentions re-enter step 2.
-7. Tool calls are gated: mutating tools require human approval via the Requests panel unless `--unsafe`.
+## What's Intentionally Not Here
 
-## What's intentionally not here
+- No separate local execution product, installer, or start command.
+- No web-hosted direct shell access to the user's filesystem or CLI tools.
+- No production flow that requires the local Go server to be running.
+- No unsupported hosted CLI runtime exposed in onboarding or settings.
 
-- No central LLM proxy, no "model router" layer. Each agent shells out directly.
-- No conversation-persistent sessions. Persistence is in the channel log, not the model.
-- No production SaaS backend yet. The current runtime is local-first; hosted
-  deployment will be designed around this project's workspace/auth needs before
-  Supabase/Vercel are wired in. The intended hosted split is documented in
-  [`docs/specs/HOSTED-PRODUCT-BOUNDARY.md`](docs/specs/HOSTED-PRODUCT-BOUNDARY.md).
+## Next Stops
 
-## Next stops
-
-- [`FORKING.md`](FORKING.md) — how to swap branding and add packs.
-- `scripts/benchmark.sh` — run the 9× benchmark yourself. Full methodology is inline in the script comments.
+- [`README.md`](README.md) - user-facing hosted Bridge setup.
+- [`docs/specs/HOSTED-BRIDGE-PROTOCOL.md`](docs/specs/HOSTED-BRIDGE-PROTOCOL.md) - hosted API and Bridge contract.
+- [`docs/specs/HOSTED-DEPLOYMENT-RUNBOOK.md`](docs/specs/HOSTED-DEPLOYMENT-RUNBOOK.md) - release, Vercel, Supabase, and smoke-test checklist.

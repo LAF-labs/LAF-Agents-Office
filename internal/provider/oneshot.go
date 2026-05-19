@@ -27,7 +27,7 @@ func RunOneShot(kind, systemPrompt, prompt, cwd string) (string, error) {
 		return e.OneShot(systemPrompt, prompt, cwd)
 	}
 	if strings.TrimSpace(kind) != "" && kind != config.ResolveLLMProvider("") {
-		return "", fmt.Errorf("provider %q does not support one-shot runner execution", kind)
+		return "", fmt.Errorf("provider %q does not support one-shot generation", kind)
 	}
 	return RunClaudeOneShot(systemPrompt, prompt, cwd)
 }

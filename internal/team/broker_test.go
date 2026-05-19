@@ -1274,7 +1274,6 @@ func TestLoadStateMigratesLegacyDefaultRosterToCoreRuntime(t *testing.T) {
 		Requests:          []humanInterview{{ID: "req-1", From: "pm", Question: "Approve?", CreatedAt: now}},
 		Actions:           []officeActionLog{{ID: "act-1", Kind: "note", Actor: "designer", Summary: "Legacy action", CreatedAt: now}},
 		Messages:          []channelMessage{{ID: "msg-1", From: "pm", Channel: "general", Content: "@designer check", Tagged: []string{"designer"}, Timestamp: now}},
-		RunnerJobs:        []runnerJob{{ID: "job-1", TeamID: "team-1", AgentSlug: "ai-engineer", Status: "queued", CreatedAt: now}},
 		WikiWriteRequests: []hostedWikiWriteRequest{{ID: "wiki-1", ArticlePath: "team/x.md", Status: "queued", RequestedBy: "pm", CreatedAt: now}},
 		Signals:           []officeSignalRecord{{ID: "sig-1", Source: "test", Content: "x", Owner: "pm", CreatedAt: now}},
 		Decisions:         []officeDecisionRecord{{ID: "dec-1", Kind: "test", Summary: "x", Owner: "designer", CreatedAt: now}},
@@ -1328,8 +1327,8 @@ func TestLoadStateMigratesLegacyDefaultRosterToCoreRuntime(t *testing.T) {
 	if b.messages[0].From != office.CEOAgentSlug || strings.Join(b.messages[0].Tagged, ",") != office.FrontendAgentSlug {
 		t.Fatalf("message actors not mapped: %+v", b.messages[0])
 	}
-	if b.runnerJobs[0].AgentSlug != office.BackendAgentSlug || b.wikiWriteRequests[0].RequestedBy != office.CEOAgentSlug {
-		t.Fatalf("runner/wiki actors not mapped: job=%+v wiki=%+v", b.runnerJobs[0], b.wikiWriteRequests[0])
+	if b.wikiWriteRequests[0].RequestedBy != office.CEOAgentSlug {
+		t.Fatalf("wiki actor not mapped: wiki=%+v", b.wikiWriteRequests[0])
 	}
 	if b.signals[0].Owner != office.CEOAgentSlug || b.decisions[0].Owner != office.FrontendAgentSlug || b.watchdogs[0].Owner != office.BackendAgentSlug {
 		t.Fatalf("signal/decision/watchdog owners not mapped: sig=%+v dec=%+v watch=%+v", b.signals[0], b.decisions[0], b.watchdogs[0])
@@ -4199,8 +4198,8 @@ func TestBrokerHandlePostTaskRejectsFalseReadOnlyBlockForWritableWorktree(t *tes
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("expected 409 rejecting bogus workspace block, got %d: %s", resp.StatusCode, raw)
 	}
-	if !strings.Contains(string(raw), "assigned local worktree is writable") {
-		t.Fatalf("expected writable-worktree guidance, got %s", raw)
+	if !strings.Contains(string(raw), "assigned managed checkout is writable") {
+		t.Fatalf("expected writable managed-checkout guidance, got %s", raw)
 	}
 
 	var updated teamTask
@@ -4435,8 +4434,8 @@ func TestBrokerBlockTaskRejectsFalseReadOnlyBlockForWritableWorktree(t *testing.
 	if changed {
 		t.Fatalf("expected no task state change on rejected block, got %+v", got)
 	}
-	if !strings.Contains(err.Error(), "assigned local worktree is writable") {
-		t.Fatalf("expected writable-worktree guidance, got %v", err)
+	if !strings.Contains(err.Error(), "assigned managed checkout is writable") {
+		t.Fatalf("expected writable managed-checkout guidance, got %v", err)
 	}
 
 	var updated teamTask

@@ -371,12 +371,6 @@ func (b *Broker) rewriteTaskReferencesLocked(idMap map[string]string) {
 		b.messages[i].ReplyTo = remap(b.messages[i].ReplyTo)
 		b.messages[i].PublicReplyTo = remap(b.messages[i].PublicReplyTo)
 	}
-	for i := range b.runnerJobs {
-		b.runnerJobs[i].TaskID = remap(b.runnerJobs[i].TaskID)
-	}
-	for i := range b.runnerJobEvents {
-		b.runnerJobEvents[i].TaskID = remap(b.runnerJobEvents[i].TaskID)
-	}
 	for i := range b.requests {
 		b.requests[i].ReplyTo = remap(b.requests[i].ReplyTo)
 	}

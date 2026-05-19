@@ -192,7 +192,7 @@ export default function App() {
 
   // Init API and determine onboarding state.
   // Source of truth: GET /onboarding/state.onboarded from the hosted workspace
-  // settings. Execution connectivity is handled separately by Bridge/Runner.
+  // settings. Execution connectivity is handled separately by LAF Bridge.
   useEffect(() => {
     let cancelled = false;
     initApi()

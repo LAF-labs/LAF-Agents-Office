@@ -3,12 +3,12 @@ import ReactMarkdown from "react-markdown";
 import type { PluggableList } from "unified";
 
 import { get } from "../../api/client";
+import { useUiText } from "../../lib/uiText";
 import {
   buildMarkdownComponents,
   buildRehypePlugins,
   buildRemarkPlugins,
 } from "../../lib/wikiMarkdownConfig";
-import { useUiText } from "../../lib/uiText";
 import Hatnote from "./Hatnote";
 
 // QueryAnswer mirrors the JSON shape returned by GET /wiki/lookup.

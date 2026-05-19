@@ -118,7 +118,7 @@ const UI_TEXT = {
         "Export PDF",
       ],
       footerEdited: (date: string, author: string) =>
-        `This article was last edited on ${date} by ${author}. Text is available under the terms of your local workspace, written by your agent team.`,
+        `This article was last edited on ${date} by ${author}. Text is available under the terms of your workspace, written by your agent team.`,
       footerAttribution: (path: string) =>
         `Changes to ${path} are attributed to the person or agent that saved them.`,
       live: "Live:",
@@ -437,7 +437,7 @@ const UI_TEXT = {
         "PDF 내보내기",
       ],
       footerEdited: (date: string, author: string) =>
-        `이 문서는 ${date}에 ${author}가 마지막으로 수정했습니다. 내용은 로컬 워크스페이스 조건에 따라 사용할 수 있으며, 에이전트 팀이 작성했습니다.`,
+        `이 문서는 ${date}에 ${author}가 마지막으로 수정했습니다. 내용은 워크스페이스 조건에 따라 사용할 수 있으며, 에이전트 팀이 작성했습니다.`,
       footerAttribution: (path: string) =>
         `${path}의 변경 사항은 저장한 사람 또는 에이전트에게 귀속됩니다.`,
       live: "실시간:",

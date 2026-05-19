@@ -19,16 +19,17 @@ type ExecutionOutcome struct {
 	Summary      string          `json:"summary"`
 	Events       []ProviderEvent `json:"events,omitempty"`
 	ChangedFiles []ChangedFile   `json:"changed_files,omitempty"`
+	Artifacts    []Artifact      `json:"artifacts,omitempty"`
 	Usage        map[string]int  `json:"usage,omitempty"`
 }
 
 type PlanExecutor interface {
-	Execute(ctx context.Context, plan ExecutionPlan, binding ProjectBinding) (ExecutionOutcome, error)
+	Execute(ctx context.Context, plan ExecutionPlan) (ExecutionOutcome, error)
 }
 
 type FakeExecutor struct{}
 
-func (FakeExecutor) Execute(context.Context, ExecutionPlan, ProjectBinding) (ExecutionOutcome, error) {
+func (FakeExecutor) Execute(context.Context, ExecutionPlan) (ExecutionOutcome, error) {
 	return ExecutionOutcome{
 		Status:  "completed",
 		Summary: fakeExecutionSummary,
@@ -159,7 +160,7 @@ func RunPendingOnceWithOptions(
 	}
 	approver := options.Approver
 	if approver == nil {
-		approver = PlanApproverFunc(func(context.Context, ExecutionPlan, ProjectBinding) (ApprovalDecision, error) {
+		approver = PlanApproverFunc(func(context.Context, ExecutionPlan) (ApprovalDecision, error) {
 			return ApprovalDecision{Status: LocalApprovalApproved}, nil
 		})
 	}
@@ -185,8 +186,7 @@ func RunPendingOnceWithOptions(
 			options.Guard.Finish(plan.ID, false)
 			return results, fmt.Errorf("ack plan %s: %w", plan.ID, err)
 		}
-		binding := cfg.BindingForPlan(plan)
-		approval, err := approver.Decide(ctx, plan, binding)
+		approval, err := approver.Decide(ctx, plan)
 		if err != nil {
 			options.Guard.Finish(plan.ID, false)
 			return results, fmt.Errorf("approve plan %s: %w", plan.ID, err)
@@ -218,7 +218,7 @@ func RunPendingOnceWithOptions(
 			options.Guard.Finish(plan.ID, false)
 			return results, fmt.Errorf("start plan %s: %w", plan.ID, err)
 		}
-		outcome, execErr := executor.Execute(ctx, plan, binding)
+		outcome, execErr := executor.Execute(ctx, plan)
 		if execErr != nil {
 			outcome = ExecutionOutcome{
 				Status:  "failed",

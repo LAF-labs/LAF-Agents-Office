@@ -1225,11 +1225,11 @@ func TestTaskNotificationContentIncludesWorktreeDetails(t *testing.T) {
 		WorktreeBranch: "laf-office-task-10",
 		WorktreePath:   "/tmp/laf-office-task-task-10",
 	})
-	if !strings.Contains(got, "execution local_worktree") {
+	if !strings.Contains(got, "execution managed_checkout") {
 		t.Fatalf("expected execution mode in content: %q", got)
 	}
 	if !strings.Contains(got, "branch laf-office-task-10") || !strings.Contains(got, "path /tmp/laf-office-task-task-10") {
-		t.Fatalf("expected worktree details in content: %q", got)
+		t.Fatalf("expected checkout details in content: %q", got)
 	}
 	if !strings.Contains(got, `working_directory="/tmp/laf-office-task-task-10"`) {
 		t.Fatalf("expected working_directory guidance in content: %q", got)
@@ -1604,7 +1604,7 @@ func TestBuildPromptIncludesTaskStatusAndWorktreeGuidance(t *testing.T) {
 	if !strings.Contains(specialist, "working_directory") {
 		t.Fatalf("expected working_directory guidance in specialist prompt: %q", specialist)
 	}
-	if !strings.Contains(specialist, "default to direct implementation in the assigned worktree") {
+	if !strings.Contains(specialist, "default to direct implementation in the assigned working directory") {
 		t.Fatalf("expected direct implementation guidance in specialist prompt: %q", specialist)
 	}
 	if !strings.Contains(specialist, "do NOT start with `rg --files`") {
@@ -2866,14 +2866,13 @@ func TestMessageWorkPacketInjectsRuntimeBoundaryCapsuleForHostedBridgeQuestions(
 		From:      "you",
 		Channel:   "general",
 		Content:   "LAF Bridge가 꺼져 있는데 Headless reply transport로 답했으면 웹호스팅에서도 로컬 CLI 실행이 되는 건가?",
-		ModelMode: "team_bridge",
+		ModelMode: "my_bridge",
 	}, "ceo")
 	for _, want := range []string{
 		runtimeBoundaryCapsuleHeading,
-		"does not prove hosted LAF Bridge or laf-runner is connected",
+		"does not prove hosted LAF Bridge is connected",
 		"Hosted web/API can queue and control work",
-		"team_bridge office tool carries context between channels",
-		"check model/availability and runner/status",
+		"check model/availability and Bridge availability",
 	} {
 		if !strings.Contains(packet, want) {
 			t.Fatalf("runtime boundary capsule missing %q in packet: %q", want, packet)
@@ -2894,7 +2893,7 @@ func TestMessageWorkPacketDoesNotInjectRuntimeBoundaryCapsuleForUnrelatedWork(t 
 	}
 }
 
-func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForRunnerMode(t *testing.T) {
+func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForBridgeMode(t *testing.T) {
 	l := &Launcher{}
 	packet := l.buildTaskExecutionPacket("eng", officeActionLog{
 		Kind:  "task_updated",
@@ -2902,16 +2901,16 @@ func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForRunnerMode(t *testin
 	}, teamTask{
 		ID:        "task-runtime-boundary",
 		Channel:   "general",
-		Title:     "Diagnose hosted team_bridge runner execution",
-		Details:   "Explain why record_only still works when no connected team runner exists.",
-		ModelMode: "team_bridge",
+		Title:     "Diagnose hosted LAF Bridge execution",
+		Details:   "Explain why record_only still works when no paired LAF Bridge exists.",
+		ModelMode: "my_bridge",
 		Owner:     "eng",
 		Status:    "in_progress",
-	}, "Compare execution_plans and runner_jobs before answering.")
+	}, "Compare execution_plans and Bridge availability before answering.")
 	for _, want := range []string{
 		runtimeBoundaryCapsuleHeading,
 		"record_only records chat/tasks without agent execution",
-		"team_bridge model mode queues runner_jobs",
+		"my_bridge uses a user's paired LAF Bridge",
 	} {
 		if !strings.Contains(packet, want) {
 			t.Fatalf("runtime boundary capsule missing %q in task packet: %q", want, packet)

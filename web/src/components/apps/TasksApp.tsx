@@ -27,16 +27,14 @@ import {
   getExecutionPlan,
   getExecutionPlanEvents,
   getOfficeTasks,
-  getProjectLocalBindings,
   getProjects,
-  getRunnerStatus,
   getThreadMessages,
   type Message,
   type ModelMode,
+  normalizeModelMode,
   type Project,
   postMessage,
   postMessageAs,
-  type RunnerStatusResponse,
   type Task,
   updateProject,
   updateTask,
@@ -79,10 +77,6 @@ import {
   TableRow,
 } from "../ui/table";
 import { Textarea } from "../ui/textarea";
-import {
-  bridgeDeviceForBinding,
-  defaultProjectBinding,
-} from "./tasks/bridgeUtils";
 import { ProjectBridgeWorkspacePanel } from "./tasks/ProjectBridgeWorkspacePanel";
 import { ProjectTaskKanban } from "./tasks/ProjectTaskKanban";
 import {
@@ -117,16 +111,16 @@ type ProjectTaskCounts = {
   waiting: number;
 };
 type ProjectSaveState = "idle" | "saving" | "saved" | "error";
-type RunnerSignalState =
+type BridgeSignalState =
   | "connected"
   | "loading"
-  | "no_runner"
+  | "no_bridge"
   | "queued"
   | "running"
   | "stale";
-type RunnerSignal = {
+type BridgeSignal = {
   labelKey: I18nKey;
-  state: RunnerSignalState;
+  state: BridgeSignalState;
 };
 type ProjectInfoDraft = {
   additionalInfo: string;
@@ -222,52 +216,21 @@ function projectLifecycleLabelKey(status: ProjectLifecycle): I18nKey {
   }
 }
 
-function runnerSignalFromStatus(
-  status: RunnerStatusResponse | undefined,
+function bridgeSignalFromAvailability(
+  availability: Awaited<ReturnType<typeof getBridgeAvailability>> | undefined,
   isLoading: boolean,
-): RunnerSignal {
-  if (isLoading && !status) {
-    return { labelKey: "tasks.runnerChecking", state: "loading" };
+): BridgeSignal {
+  if (isLoading && !availability) {
+    return { labelKey: "tasks.bridgeChecking", state: "loading" };
   }
-
-  const jobs = status?.jobs ?? [];
-  const runners = status?.runners ?? [];
-  const diagnostics = status?.diagnostics ?? [];
-  const hasConnectedRunner = runners.some(
-    (runner) => runner.status === "connected",
-  );
-  const hasStaleRunner = runners.some(
-    (runner) => runner.status === "stale" || runner.status === "disconnected",
-  );
-  const hasCriticalRunnerBlocker = diagnostics.some(
-    (diagnostic) =>
-      diagnostic.severity === "critical" &&
-      [
-        "no_capable_runner",
-        "no_connected_runner",
-        "runner_missing_execution_mode",
-        "runner_missing_git",
-        "runner_missing_github_auth",
-        "runner_missing_provider",
-      ].includes(diagnostic.kind),
-  );
-
-  if (jobs.some((job) => job.status === "running" || job.status === "leased")) {
-    return { labelKey: "tasks.runnerJobRunning", state: "running" };
+  const devices = availability?.devices ?? [];
+  if (devices.some((device) => device.status === "online")) {
+    return { labelKey: "tasks.bridgeConnected", state: "connected" };
   }
-  if (jobs.some((job) => job.status === "queued" || job.status === "expired")) {
-    if (!hasConnectedRunner || hasCriticalRunnerBlocker) {
-      return { labelKey: "tasks.runnerNoCapable", state: "no_runner" };
-    }
-    return { labelKey: "tasks.runnerJobQueued", state: "queued" };
+  if (devices.some((device) => device.status === "offline")) {
+    return { labelKey: "tasks.bridgeStale", state: "stale" };
   }
-  if (hasConnectedRunner) {
-    return { labelKey: "tasks.runnerConnected", state: "connected" };
-  }
-  if (hasStaleRunner) {
-    return { labelKey: "tasks.runnerStale", state: "stale" };
-  }
-  return { labelKey: "tasks.runnerNoCapable", state: "no_runner" };
+  return { labelKey: "tasks.bridgeNoCapable", state: "no_bridge" };
 }
 
 function projectLoadMessage(
@@ -373,16 +336,26 @@ function taskChannel(task: Task, project: Project): string {
 }
 
 function normalizeTaskModelMode(mode?: string | null): ModelMode {
-  if (mode === "local_cli") return "my_bridge";
-  if (
-    mode === "laf_model" ||
-    mode === "my_bridge" ||
-    mode === "team_bridge" ||
-    mode === "record_only"
-  ) {
-    return mode;
+  return normalizeModelMode(mode);
+}
+
+function isBridgeExecutionMode(mode: ModelMode): boolean {
+  return mode === "my_bridge";
+}
+
+function bridgeProviderFromRuntimes(
+  runtimes?: string[],
+): "codex" | "claude_code" {
+  const normalized = new Set(
+    (runtimes ?? []).map((runtime) =>
+      runtime.trim().toLowerCase().replace(/_/g, "-"),
+    ),
+  );
+  if (normalized.has("codex")) return "codex";
+  if (normalized.has("claude-code") || normalized.has("claude")) {
+    return "claude_code";
   }
-  return DEFAULT_MODEL_MODE;
+  return "codex";
 }
 
 function executionPlanIsTerminal(plan?: ExecutionPlan | null): boolean {
@@ -402,6 +375,42 @@ function eventPayloadPreview(event: ExecutionEvent): string {
   } catch {
     return "";
   }
+}
+
+function receiptArtifacts(receipt: ExecutionReceipt | null): Array<{
+  title: string;
+  type: string;
+  url: string;
+}> {
+  return (Array.isArray(receipt?.artifacts) ? receipt.artifacts : [])
+    .map((artifact) =>
+      artifact && typeof artifact === "object"
+        ? (artifact as Record<string, unknown>)
+        : {},
+    )
+    .map((artifact) => ({
+      title: String(
+        artifact.title || artifact.type || artifact.url || "",
+      ).trim(),
+      type: String(artifact.type || "").trim(),
+      url: String(artifact.url || artifact.href || "").trim(),
+    }))
+    .filter((artifact) => artifact.url);
+}
+
+function receiptChangedFiles(receipt: ExecutionReceipt | null): Array<{
+  path: string;
+  status: string;
+}> {
+  return (Array.isArray(receipt?.changed_files) ? receipt.changed_files : [])
+    .map((file) =>
+      file && typeof file === "object" ? (file as Record<string, unknown>) : {},
+    )
+    .map((file) => ({
+      path: String(file.path || "").trim(),
+      status: String(file.status || "").trim(),
+    }))
+    .filter((file) => file.path);
 }
 
 function assignmentAck(t: TranslationFn): string {
@@ -1582,15 +1591,15 @@ function ProjectDetailView({
   const counts = projectTaskCounts(tasks);
   const lifecycle = projectLifecycle(project, counts);
   const projectInfoEditor = useProjectInfoEditor(project, queryClient, t);
-  const runnerStatusQuery = useQuery({
-    queryKey: ["runner-status", project.id],
-    queryFn: () => getRunnerStatus({ projectId: project.id }),
+  const bridgeAvailabilityQuery = useQuery({
+    queryKey: ["bridge-availability", project.id],
+    queryFn: () => getBridgeAvailability(),
     refetchInterval: TASK_REFETCH_MS,
     staleTime: 5_000,
   });
-  const runnerSignal = runnerSignalFromStatus(
-    runnerStatusQuery.data,
-    runnerStatusQuery.isLoading,
+  const bridgeSignal = bridgeSignalFromAvailability(
+    bridgeAvailabilityQuery.data,
+    bridgeAvailabilityQuery.isLoading,
   );
   const openTaskDraft = () => {
     onCloseTask();
@@ -1607,8 +1616,7 @@ function ProjectDetailView({
         bridgeWorkspace={
           <ProjectBridgeWorkspacePanel
             project={project}
-            runnerSignal={runnerSignal}
-            runnerStatus={runnerStatusQuery.data}
+            bridgeSignal={bridgeSignal}
             t={t}
           />
         }
@@ -1623,7 +1631,7 @@ function ProjectDetailView({
           counts={counts}
           isStatsReady={isStatsReady}
           language={language}
-          runnerSignal={runnerSignal}
+          bridgeSignal={bridgeSignal}
           status={lifecycle}
           t={t}
           onCreateTask={openTaskDraft}
@@ -1660,6 +1668,22 @@ function ProjectDetailView({
   );
 }
 
+function projectInfoSaveLabel(
+  editor: ReturnType<typeof useProjectInfoEditor>,
+  t: TranslationFn,
+) {
+  switch (editor.saveState) {
+    case "saving":
+      return t("tasks.projectInfoSaving");
+    case "saved":
+      return t("tasks.projectInfoSaved");
+    case "error":
+      return editor.error || t("tasks.projectInfoSaveFailed");
+    default:
+      return t("tasks.projectInfoAutosave");
+  }
+}
+
 function ProjectDetailHeader({
   bridgeWorkspace,
   codeLocked,
@@ -1677,14 +1701,7 @@ function ProjectDetailHeader({
 }) {
   const projectCode = project.code || project.id;
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
-  const saveLabel =
-    editor.saveState === "saving"
-      ? t("tasks.projectInfoSaving")
-      : editor.saveState === "saved"
-        ? t("tasks.projectInfoSaved")
-        : editor.saveState === "error"
-          ? editor.error || t("tasks.projectInfoSaveFailed")
-          : t("tasks.projectInfoAutosave");
+  const saveLabel = projectInfoSaveLabel(editor, t);
   const showSaveState = isInfoExpanded || editor.saveState !== "idle";
 
   useEffect(() => {
@@ -1750,18 +1767,18 @@ function ProjectDetailHeader({
 }
 
 function ProjectTaskToolbar({
+  bridgeSignal,
   counts,
   isStatsReady,
   language,
-  runnerSignal,
   status,
   t,
   onCreateTask,
 }: {
+  bridgeSignal: BridgeSignal;
   counts: ProjectTaskCounts;
   isStatsReady: boolean;
   language: Language;
-  runnerSignal: RunnerSignal;
   status: ProjectLifecycle;
   t: TranslationFn;
   onCreateTask: () => void;
@@ -1781,11 +1798,11 @@ function ProjectTaskToolbar({
           <span
             className={cn(
               "project-inline-status",
-              "is-runner",
-              `is-runner-${runnerSignal.state}`,
+              "is-bridge",
+              `is-bridge-${bridgeSignal.state}`,
             )}
           >
-            {t(runnerSignal.labelKey)}
+            {t(bridgeSignal.labelKey)}
           </span>
         </div>
         <Button
@@ -2317,27 +2334,47 @@ function TaskDetailSection({
 
 function taskBridgeBlocker({
   bridgeReason,
-  deviceIsOnline,
-  hasBinding,
+  bridgeAvailable,
+  hasManagedCheckout,
+  hasTargetDevice,
   isLoading,
   modelMode,
-  myBridgeAvailable,
   t,
 }: {
+  bridgeAvailable: boolean;
   bridgeReason?: string;
-  deviceIsOnline: boolean;
-  hasBinding: boolean;
+  hasManagedCheckout: boolean;
+  hasTargetDevice: boolean;
   isLoading: boolean;
   modelMode: ModelMode;
-  myBridgeAvailable: boolean;
   t: TranslationFn;
 }): string {
-  if (modelMode !== "my_bridge") return "";
+  if (!isBridgeExecutionMode(modelMode)) return "";
   if (isLoading) return t("tasks.bridgeChecking");
-  if (!myBridgeAvailable) return bridgeReason || t("tasks.bridgeUnavailable");
-  if (!hasBinding) return t("tasks.bridgeNoBindingReason");
-  if (!deviceIsOnline) return t("tasks.bridgeBindingOfflineReason");
-  return "";
+  if (!bridgeAvailable) return taskBridgeUnavailableReason(bridgeReason, t);
+  if (hasManagedCheckout) {
+    return hasTargetDevice ? "" : t("tasks.bridgeUnavailable");
+  }
+  return t("tasks.bridgeNoBindingReason");
+}
+
+function taskBridgeUnavailableReason(
+  bridgeReason: string | undefined,
+  t: TranslationFn,
+): string {
+  switch (bridgeReason?.trim()) {
+    case "no paired LAF Bridge detected":
+      return t("tasks.bridgeNoPairedDevice");
+    case "no online LAF Bridge detected":
+      return t("tasks.bridgeNoOnlineDevice");
+    case "no supported local CLI detected":
+    case "LAF Bridge has no supported local CLI detected":
+      return t("tasks.bridgeNoLocalCLI");
+    case "permission required: bridge:execute_own":
+      return t("tasks.bridgePermissionRequired");
+    default:
+      return t("tasks.bridgeUnavailable");
+  }
 }
 
 function taskRouteHint({
@@ -2355,7 +2392,7 @@ function taskRouteHint({
   modelMode: ModelMode;
   t: TranslationFn;
 }): string {
-  if (modelMode === "my_bridge") {
+  if (isBridgeExecutionMode(modelMode)) {
     return bridgeBlocker || t("tasks.bridgeReadyToRun");
   }
   if (!instruction.trim() || commentTargets.length === 0) {
@@ -2381,7 +2418,7 @@ function taskComposerStatusText({
 }): string {
   if (sendError) return sendError;
   if (!sent) return routeHint;
-  return modelMode === "my_bridge"
+  return isBridgeExecutionMode(modelMode)
     ? t("tasks.bridgePlanCreated")
     : t("tasks.sent");
 }
@@ -2390,48 +2427,37 @@ type BridgeExecutionSubmitResult = { ok: true } | { error: string; ok: false };
 
 function useTaskBridgeExecutionState({
   modelMode,
-  projectID,
+  project,
   queryClient,
   taskID,
   threadKey,
   t,
 }: {
   modelMode: ModelMode;
-  projectID: string;
+  project: Project;
   queryClient: QueryClient;
   taskID: string;
   threadKey: string;
   t: TranslationFn;
 }) {
   const [createdPlan, setCreatedPlan] = useState<ExecutionPlan | null>(null);
+  const bridgeMode = isBridgeExecutionMode(modelMode);
   const bridgeAvailabilityQuery = useQuery({
     queryKey: ["bridge-availability"],
     queryFn: () => getBridgeAvailability(),
-    enabled: modelMode === "my_bridge",
+    enabled: bridgeMode,
     staleTime: 30_000,
   });
-  const bridgeBindingsQuery = useQuery({
-    queryKey: ["project-local-bindings", projectID],
-    queryFn: () => getProjectLocalBindings(projectID),
-    enabled: modelMode === "my_bridge",
-    staleTime: 15_000,
-  });
-  const bridgeDevices = bridgeAvailabilityQuery.data?.devices ?? [];
-  const bridgeBinding = defaultProjectBinding(
-    bridgeBindingsQuery.data?.bindings ?? [],
-    bridgeDevices,
-  );
-  const bridgeDevice = bridgeDeviceForBinding(bridgeBinding, bridgeDevices);
+  const hasManagedCheckout = Boolean(project.github_repo_url?.trim());
+  const availabilityForMode = bridgeAvailabilityQuery.data?.my_bridge;
+  const targetDeviceID = availabilityForMode?.default_device_id;
   const bridgeBlocker = taskBridgeBlocker({
-    bridgeReason: bridgeAvailabilityQuery.data?.my_bridge.reason,
-    deviceIsOnline: bridgeDevice?.status === "online",
-    hasBinding: Boolean(bridgeBinding),
-    isLoading:
-      bridgeAvailabilityQuery.isLoading || bridgeBindingsQuery.isLoading,
+    bridgeAvailable: Boolean(availabilityForMode?.available),
+    bridgeReason: availabilityForMode?.reason,
+    hasManagedCheckout,
+    hasTargetDevice: Boolean(targetDeviceID),
+    isLoading: bridgeAvailabilityQuery.isLoading,
     modelMode,
-    myBridgeAvailable: Boolean(
-      bridgeAvailabilityQuery.data?.my_bridge.available,
-    ),
     t,
   });
   const activePlanID = createdPlan?.id || "";
@@ -2480,19 +2506,18 @@ function useTaskBridgeExecutionState({
   async function submitExecutionPlan(
     text: string,
   ): Promise<BridgeExecutionSubmitResult> {
-    if (bridgeBlocker || !bridgeBinding) {
+    if (bridgeBlocker) {
       return {
-        error: bridgeBlocker || t("tasks.bridgeNoBindingReason"),
+        error: bridgeBlocker,
         ok: false,
       };
     }
     try {
       const result = await createExecutionPlan({
-        binding_id: bridgeBinding.id,
-        device_id: bridgeBinding.device_id,
+        device_id: targetDeviceID,
         message: text,
         mode: "my_bridge",
-        provider: "codex",
+        provider: bridgeProviderFromRuntimes(availabilityForMode?.runtimes),
         task_id: taskID,
       });
       setCreatedPlan(result.plan);
@@ -2557,7 +2582,7 @@ function useTaskSidePanelController({
   const previousThreadKeyRef = useRef(threadKey);
   const bridgeExecution = useTaskBridgeExecutionState({
     modelMode,
-    projectID: project.id,
+    project,
     queryClient,
     taskID: task.id,
     threadKey,
@@ -2660,7 +2685,7 @@ function useTaskSidePanelController({
     event.preventDefault();
     const text = instruction.trim();
     if (!text || isSending) return;
-    if (modelMode === "my_bridge") {
+    if (isBridgeExecutionMode(modelMode)) {
       if (bridgeExecution.bridgeBlocker) {
         setSendError(bridgeExecution.bridgeBlocker);
         return;
@@ -3049,12 +3074,12 @@ function TaskChatComposer({
             disabled={
               !instruction.trim() ||
               isSending ||
-              (modelMode === "my_bridge" && Boolean(bridgeBlocker))
+              (isBridgeExecutionMode(modelMode) && Boolean(bridgeBlocker))
             }
           >
             {isSending
               ? t("tasks.sending")
-              : modelMode === "my_bridge"
+              : isBridgeExecutionMode(modelMode)
                 ? t("tasks.createExecutionPlan")
                 : t("tasks.sendInstruction")}
           </Button>
@@ -3078,6 +3103,8 @@ function BridgeExecutionPanel({
   t: TranslationFn;
 }) {
   const status = plan?.status || (isLoading ? "loading" : "pending");
+  const artifacts = receiptArtifacts(receipt);
+  const changedFiles = receiptChangedFiles(receipt);
   return (
     <section
       className="task-bridge-execution mx-6 mb-4 grid gap-3 border-y bg-transparent py-3"
@@ -3118,6 +3145,35 @@ function BridgeExecutionPanel({
             {t("tasks.bridgeExecutionReceipt")}
           </div>
           <p>{receipt.summary || t("tasks.bridgeExecutionReceiptEmpty")}</p>
+          {artifacts.length > 0 ? (
+            <div className="task-bridge-receipt-group">
+              <span>{t("tasks.bridgeExecutionArtifacts")}</span>
+              <ul>
+                {artifacts.map((artifact) => (
+                  <li key={`${artifact.type}:${artifact.url}`}>
+                    <a href={artifact.url} rel="noreferrer" target="_blank">
+                      {artifact.title || artifact.url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {changedFiles.length > 0 ? (
+            <div className="task-bridge-receipt-group">
+              <span>{t("tasks.bridgeExecutionChangedFiles")}</span>
+              <ul>
+                {changedFiles.slice(0, 12).map((file) => (
+                  <li key={`${file.status}:${file.path}`}>
+                    <code>
+                      {file.status ? `${file.status} ` : ""}
+                      {file.path}
+                    </code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

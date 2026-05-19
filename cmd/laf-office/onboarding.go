@@ -687,7 +687,7 @@ func allRequiredPrereqsOk(prereqs []prereqResult) bool {
 func hasInstalledRuntimeCLI(prereqs []prereqResult) bool {
 	for _, p := range prereqs {
 		switch p.Name {
-		case "claude", "codex", "opencode", "cursor", "windsurf":
+		case "claude", "codex", "cursor", "windsurf":
 			if p.Found {
 				return true
 			}
@@ -740,7 +740,6 @@ func defaultPrereqs() []prereqResult {
 		{Name: "git", Required: true, Found: false, InstallURL: "https://git-scm.com"},
 		{Name: "claude", Required: false, Found: false, InstallURL: "https://claude.ai/code"},
 		{Name: "codex", Required: false, Found: false, InstallURL: "https://github.com/openai/codex"},
-		{Name: "opencode", Required: false, Found: false, InstallURL: "https://opencode.ai"},
 	}
 }
 

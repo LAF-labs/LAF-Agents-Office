@@ -58,7 +58,7 @@ or novelty animation in the core app.
 
 - Product: LAF-Office, a team workspace for AI agents and humans.
 - Primary surfaces: home chat, projects, task kanban, wiki memory, skills,
-  settings, bridge/runner status.
+  settings, Bridge status.
 - Users: founders, operators, product teams, and technical users who want AI
   agents to work inside a visible team workflow.
 - Design posture: Notion-like workspace minimalism, with LAF-Office-specific
@@ -87,7 +87,7 @@ or novelty animation in the core app.
 
 5. Real objects, not ornamental summaries.
    Show the actual project code, task key, status, assignee, source state,
-   session state, or runner state. Avoid decorative widgets that do not help a
+   session state, or Bridge state. Avoid decorative widgets that do not help a
    user act.
 
 6. Calm density.
@@ -138,9 +138,9 @@ database properties.
 | --- | --- | --- |
 | `--tint-peach` | `#ffe8d4` | Warning-lite cards, onboarding hints |
 | `--tint-rose` | `#fde0ec` | Sensitive or review-related context |
-| `--tint-mint` | `#d9f3e1` | Healthy runner, done, successful setup |
+| `--tint-mint` | `#d9f3e1` | Healthy Bridge, done, successful setup |
 | `--tint-lavender` | `#e6e0f5` | LAF model, automation, AI settings |
-| `--tint-sky` | `#dcecfa` | CLI/local execution, links to docs |
+| `--tint-sky` | `#dcecfa` | Bridge execution, links to docs |
 | `--tint-yellow` | `#fef7d6` | Important but non-blocking guidance |
 | `--tint-yellow-bold` | `#f9e79f` | Rare high-emphasis assistant banner |
 | `--tint-gray` | `#f0eeec` | Neutral empty state |
@@ -294,7 +294,7 @@ Use internal rows and dividers:
   - Review: lavender
   - Blocked: warning or danger depending severity
   - Done: success
-- Runner/bridge status should avoid scary wording unless the user must act.
+- LAF Bridge status should avoid scary wording unless the user must act.
 
 ### Menus, Popovers, And Tooltips
 
@@ -379,7 +379,7 @@ shows:
 - Short description
 - Task count
 - Health/status
-- Runner/bridge readiness if relevant
+- LAF Bridge readiness if relevant
 
 Project code is required, uppercase letters only. Task IDs use the project code
 as prefix, for example `SAJU-1`. Two projects may both have local task number 1
@@ -421,13 +421,13 @@ Collapsed by default. When expanded, show:
 - Additional info
 - Agent recipe upload/edit area
 
-LAF Bridge work location defaults to managed checkout. Personal local folder is
-advanced and should be hidden until the user chooses "use existing folder."
-Because local paths are per-person, the UI must say this setting applies only to
-the current user.
+LAF Bridge work location is managed checkout. The UI should explain the GitHub
+repo requirement when needed and should not ask the user to choose a local
+folder from the browser.
 
-Never show "online bridge unavailable" or old "my bridge" wording when the team
-runner is connected. Show the user's next useful action instead.
+Never show internal execution-mode names such as `my_bridge`, stale separated
+execution copy, or "online bridge unavailable" phrasing. Show the user's next
+useful action instead.
 
 ### Task Toolbar
 
@@ -435,7 +435,7 @@ Use a compact row above the board:
 
 - Status chip
 - Total task count
-- Runner signal
+- Bridge signal
 - New task button at the far right
 
 This toolbar may be a single bordered strip, but it must not compete with the
@@ -473,7 +473,7 @@ Each task card shows:
 - Short detail/summary, clamped to 2-3 lines
 - Assignee
 - Creator/source
-- Optional due or runner state if useful
+- Optional due or Bridge state if useful
 
 Use 12px card radius, white background, 1px border, small internal spacing.
 Selected card uses a primary left rail or border emphasis, not a thick glowing
@@ -548,9 +548,9 @@ Execution mode should be understandable without developer knowledge.
 
 Bridge setup should be an onboarding flow:
 
-1. Install command
-2. Generate setup/pairing code if required
-3. Connect
+1. Create setup code
+2. Copy `npx laf-bridge pair`
+3. Paste the setup code when LAF Bridge prompts
 4. Ready
 
 The user should understand why each step exists. Avoid exposing pairing codes
@@ -592,7 +592,7 @@ actions.
 - Giant empty states that push real work below the fold.
 - Technical failure text like "Blocked:" when the user asked for a normal reply.
 - Showing private home session IDs in public task or request surfaces.
-- Using old My Bridge/Team Bridge copy after runner unification.
+- Using old split execution copy after Bridge unification.
 - Hiding the actual task key or project code.
 - English-only labels on pages that otherwise support Korean.
 

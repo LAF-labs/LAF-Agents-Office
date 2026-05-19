@@ -415,9 +415,6 @@ type brokerState struct {
 	HumanMembers          []humanTeamMember            `json:"human_members,omitempty"`
 	Invites               []teamInvite                 `json:"invites,omitempty"`
 	Tasks                 []teamTask                   `json:"tasks,omitempty"`
-	Runners               []hostedRunner               `json:"runners,omitempty"`
-	RunnerJobs            []runnerJob                  `json:"runner_jobs,omitempty"`
-	RunnerJobEvents       []runnerJobEvent             `json:"runner_job_events,omitempty"`
 	OrchestrationIntents  []orchestrationIntent        `json:"orchestration_intents,omitempty"`
 	WikiWriteRequests     []hostedWikiWriteRequest     `json:"wiki_write_requests,omitempty"`
 	WikiArticleIndex      []hostedWikiArticleIndex     `json:"wiki_article_index,omitempty"`
@@ -484,10 +481,6 @@ type Broker struct {
 	humanMembers            []humanTeamMember
 	invites                 []teamInvite
 	tasks                   []teamTask
-	runners                 []hostedRunner
-	runnerPairingCodes      []runnerPairingCode
-	runnerJobs              []runnerJob
-	runnerJobEvents         []runnerJobEvent
 	orchestrationIntents    []orchestrationIntent
 	wikiWriteRequests       []hostedWikiWriteRequest
 	wikiArticleIndex        []hostedWikiArticleIndex
@@ -669,7 +662,7 @@ func rejectFalseLocalWorktreeBlock(task *teamTask, reason string) error {
 		return nil
 	}
 	if err := verifyTaskWorktreeWritable(worktreePath); err == nil {
-		return fmt.Errorf("assigned local worktree is writable at %s; do not request writable-workspace approval; continue implementation in that worktree", worktreePath)
+		return fmt.Errorf("assigned managed checkout is writable at %s; do not request writable-workspace approval; continue implementation in that checkout", worktreePath)
 	}
 	return nil
 }
@@ -877,7 +870,7 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 		}
 		return nil
 	}
-	// Automatically assign local_worktree mode when a coding agent claims a task.
+	// Automatically assign managed checkout mode when a coding agent claims a task.
 	if task.ExecutionMode == "" && codingAgentSlugs[strings.TrimSpace(task.Owner)] {
 		switch strings.TrimSpace(task.Status) {
 		case "", "open", taskStatusDone:
@@ -1015,7 +1008,7 @@ func (b *Broker) queueTaskBehindActiveOwnerLaneLocked(task *teamTask) {
 	}
 	task.Blocked = true
 	task.Status = "open"
-	queueNote := fmt.Sprintf("Queued behind %s so @%s only carries one active %s lane at a time.", active.ID, strings.TrimSpace(task.Owner), strings.TrimSpace(task.ExecutionMode))
+	queueNote := fmt.Sprintf("Queued behind %s so @%s only carries one active %s lane at a time.", active.ID, strings.TrimSpace(task.Owner), publicExecutionMode(task.ExecutionMode))
 	switch existing := strings.TrimSpace(task.Details); {
 	case existing == "":
 		task.Details = queueNote
@@ -1129,7 +1122,7 @@ func NewBroker() *Broker {
 // Panics on an empty statePath. With "" the broker would silently write
 // `.last-good` and `<empty>.tmp.<rand>` files into the process cwd, which
 // is the kind of foot-gun that only surfaces in production when a CI
-// runner happens to execute from a writable directory.
+// process happens to execute from a writable directory.
 func NewBrokerAt(statePath string) *Broker {
 	if strings.TrimSpace(statePath) == "" {
 		panic("team.NewBrokerAt: statePath must not be empty (use defaultBrokerStatePath() if no explicit path)")
@@ -1718,16 +1711,6 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/model/availability", b.requireAuth(b.handleModelAvailability))
 	mux.HandleFunc("/orchestration/intent", b.requireAuth(b.handleOrchestrationIntent))
 	mux.HandleFunc("/orchestration/confirm", b.requireAuth(b.handleOrchestrationConfirm))
-	mux.HandleFunc("/runner/status", b.requireAuth(b.handleRunnerStatus))
-	mux.HandleFunc("/runner/pairing/start", b.requireAuth(b.handleRunnerPairingStart))
-	mux.HandleFunc("/runner/pairing/claim", b.handleRunnerPairingClaim)
-	mux.HandleFunc("/runner/register", b.requireAuth(b.handleRunnerRegister))
-	mux.HandleFunc("/runner/revoke", b.requireAuth(b.handleRunnerRevoke))
-	mux.HandleFunc("/runner/heartbeat", b.handleRunnerHeartbeat)
-	mux.HandleFunc("/runner/capabilities", b.handleRunnerCapabilities)
-	mux.HandleFunc("/runner/jobs/lease", b.handleRunnerJobsLease)
-	mux.HandleFunc("/runner/jobs/", b.handleRunnerJobSubpath)
-	mux.HandleFunc("/runner/wiki/write-result", b.handleRunnerWikiWriteResult)
 	mux.HandleFunc("/session-mode", b.requireAuth(b.handleSessionMode))
 	mux.HandleFunc("/focus-mode", b.requireAuth(b.handleFocusMode))
 	mux.HandleFunc("/messages", b.requireAuth(b.handleMessages))
@@ -2648,8 +2631,7 @@ func (b *Broker) ServeWebUI(port int) {
 	if hostedAPIURL := webUIHostedAPIProxyURL(); hostedAPIURL != "" {
 		log.Printf("broker web UI proxy: routing /api to hosted API %s", hostedAPIURL)
 		apiProxy = b.webUIProxyHandlerWithOptions(hostedAPIURL, "/api", webUIProxyOptions{
-			attachBrokerAuth:   false,
-			preserveRunnerAuth: false,
+			attachBrokerAuth: false,
 		})
 	}
 	// Same-origin proxy to the broker for app API routes and onboarding wizard routes.
@@ -2722,8 +2704,7 @@ func cacheControlMiddleware(next http.Handler) http.Handler {
 }
 
 type webUIProxyOptions struct {
-	attachBrokerAuth   bool
-	preserveRunnerAuth bool
+	attachBrokerAuth bool
 }
 
 func webUIHostedAPIProxyURL() string {
@@ -2752,8 +2733,7 @@ func webUIHostedAPIProxyURL() string {
 
 func (b *Broker) webUIProxyHandler(brokerURL, stripPrefix string) http.Handler {
 	return b.webUIProxyHandlerWithOptions(brokerURL, stripPrefix, webUIProxyOptions{
-		attachBrokerAuth:   true,
-		preserveRunnerAuth: true,
+		attachBrokerAuth: true,
 	})
 }
 
@@ -2777,11 +2757,6 @@ func (b *Broker) webUIProxyHandlerWithOptions(brokerURL, stripPrefix string, opt
 			return
 		}
 		setProxyClientIPHeaders(proxyReq.Header, r.RemoteAddr)
-		if opts.preserveRunnerAuth && strings.HasPrefix(targetPath, "/runner/") {
-			if runnerToken := runnerTokenFromRequest(r); runnerToken != "" {
-				proxyReq.Header.Set("X-LAF-Runner-Token", runnerToken)
-			}
-		}
 		if opts.attachBrokerAuth {
 			proxyReq.Header.Set("Authorization", "Bearer "+b.token)
 		} else if auth := r.Header.Get("Authorization"); auth != "" {
@@ -3375,9 +3350,6 @@ func (b *Broker) resetWorkspaceStateLocked() {
 	b.humanMembers = nil
 	b.invites = nil
 	b.actions = nil
-	b.runners = nil
-	b.runnerJobs = nil
-	b.runnerJobEvents = nil
 	b.orchestrationIntents = nil
 	b.wikiWriteRequests = nil
 	b.wikiArticleIndex = nil
@@ -3440,9 +3412,6 @@ func brokerStateActivityScore(state brokerState) int {
 	score += len(state.HumanMembers) * 8
 	score += len(state.Invites) * 4
 	score += len(state.Tasks) * 20
-	score += len(state.Runners) * 3
-	score += len(state.RunnerJobs) * 12
-	score += len(state.RunnerJobEvents) * 2
 	score += len(state.OrchestrationIntents) * 2
 	score += len(state.WikiWriteRequests) * 4
 	score += len(state.WikiArticleIndex) * 2
@@ -3513,9 +3482,6 @@ func (b *Broker) loadState() error {
 	b.humanMembers = state.HumanMembers
 	b.invites = state.Invites
 	b.tasks = state.Tasks
-	b.runners = state.Runners
-	b.runnerJobs = state.RunnerJobs
-	b.runnerJobEvents = state.RunnerJobEvents
 	b.orchestrationIntents = state.OrchestrationIntents
 	b.wikiWriteRequests = state.WikiWriteRequests
 	b.wikiArticleIndex = state.WikiArticleIndex
@@ -3597,7 +3563,7 @@ func (b *Broker) saveLocked() error {
 	}
 	path := b.statePath
 	snapshotPath := b.stateSnapshotPath()
-	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.runners) == 0 && len(b.runnerJobs) == 0 && len(b.runnerJobEvents) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.sessionArchive) == 0 && len(b.homeSessionTombstones) == 0 && len(b.homeConversationRefs) == 0 && len(b.memoryCandidates) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
+	if len(b.messages) == 0 && len(b.projects) == 0 && len(b.workspaceTeams) == 0 && len(b.authUsers) == 0 && len(b.authSessions) == 0 && len(b.humanMembers) == 0 && len(b.invites) == 0 && len(b.tasks) == 0 && len(b.orchestrationIntents) == 0 && len(b.wikiWriteRequests) == 0 && len(b.wikiArticleIndex) == 0 && len(activeRequests(b.requests)) == 0 && len(b.actions) == 0 && len(b.signals) == 0 && len(b.decisions) == 0 && len(b.watchdogs) == 0 && len(b.policies) == 0 && len(b.scheduler) == 0 && len(b.skills) == 0 && len(b.sharedMemory) == 0 && len(b.coreMemoryCards) == 0 && len(b.sessionArchive) == 0 && len(b.homeSessionTombstones) == 0 && len(b.homeConversationRefs) == 0 && len(b.memoryCandidates) == 0 && len(b.gptOAuthClients) == 0 && len(b.gptOAuthTokens) == 0 && isDefaultChannelState(b.channels) && isDefaultOfficeMemberState(b.members) && b.counter == 0 && b.notificationSince == "" && b.insightsSince == "" && usageStateIsZero(b.usage) && b.sessionMode == SessionModeOffice && b.oneOnOneAgent == DefaultOneOnOneAgent {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -3649,9 +3615,6 @@ func (b *Broker) saveLocked() error {
 		HumanMembers:          b.humanMembers,
 		Invites:               b.invites,
 		Tasks:                 b.tasks,
-		Runners:               b.runners,
-		RunnerJobs:            b.runnerJobs,
-		RunnerJobEvents:       b.runnerJobEvents,
 		OrchestrationIntents:  b.orchestrationIntents,
 		WikiWriteRequests:     b.wikiWriteRequests,
 		WikiArticleIndex:      b.wikiArticleIndex,
@@ -4012,9 +3975,6 @@ func (b *Broker) migrateLegacyCoreRosterLocked() bool {
 		b.messages[i].From = mapLegacyTaskActorToCore(b.messages[i].From)
 		b.messages[i].Tagged = mapAgentSlugListToCore(b.messages[i].Tagged, false)
 	}
-	for i := range b.runnerJobs {
-		b.runnerJobs[i].AgentSlug = mapLegacyTaskActorToCore(b.runnerJobs[i].AgentSlug)
-	}
 	for i := range b.wikiWriteRequests {
 		b.wikiWriteRequests[i].RequestedBy = mapLegacyTaskActorToCore(b.wikiWriteRequests[i].RequestedBy)
 	}
@@ -4264,9 +4224,6 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		}
 		b.tasks[i].ModelMode = normalizeModelMode(b.tasks[i].ModelMode)
 	}
-	for i := range b.runnerJobs {
-		b.runnerJobs[i].ModelMode = normalizeRunnerJobModelMode(b.runnerJobs[i].ModelMode)
-	}
 	for i := range b.requests {
 		if strings.TrimSpace(b.requests[i].Channel) == "" {
 			b.requests[i].Channel = "general"
@@ -4363,7 +4320,6 @@ func (b *Broker) normalizeLoadedStateLocked() {
 		b.scheduleTaskLifecycleLocked(&b.tasks[i])
 		_ = b.syncTaskWorktreeLocked(&b.tasks[i])
 	}
-	b.normalizeRunnerStateLocked()
 	b.pendingInterview = firstBlockingRequest(b.requests)
 }
 
@@ -11303,11 +11259,6 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			if homeSessionThreadID != "" {
 				b.upsertHomeConversationRefLocked("task", existing.ID, homeSessionThreadID, firstNonEmptyString(existing.CreatedAt, now))
 			}
-			var responseRunnerJob *runnerJob
-			if job, _ := b.ensureRunnerJobForTaskLocked(*existing, nowTime); strings.TrimSpace(job.ID) != "" {
-				copy := job
-				responseRunnerJob = &copy
-			}
 			b.appendActionLocked("task_updated", "office", channel, strings.TrimSpace(body.CreatedBy), truncateSummary(existing.Title+" ["+existing.Status+"]", 140), existing.ID)
 			if err := b.saveLocked(); err != nil {
 				http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
@@ -11320,7 +11271,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
+			_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
 			return
 		}
 		taskID, err := b.nextTaskIDLocked(projectID)
@@ -11381,11 +11332,6 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			b.upsertHomeConversationRefLocked("task", task.ID, homeSessionThreadID, now)
 		}
 		b.tasks = append(b.tasks, task)
-		var responseRunnerJob *runnerJob
-		if job, _ := b.ensureRunnerJobForTaskLocked(task, nowTime); strings.TrimSpace(job.ID) != "" {
-			copy := job
-			responseRunnerJob = &copy
-		}
 		b.appendActionLocked("task_created", "office", channel, task.CreatedBy, truncateSummary(task.Title, 140), task.ID)
 		if err := b.saveLocked(); err != nil {
 			http.Error(w, "failed to persist broker state", http.StatusInternalServerError)
@@ -11398,7 +11344,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
 		return
 	}
 
@@ -11615,19 +11561,6 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to manage task worktree", http.StatusInternalServerError)
 			return
 		}
-		var responseRunnerJob *runnerJob
-		if isTerminalTeamTaskStatus(task.Status) {
-			closeStatus := runnerJobStatusSucceeded
-			closeMessage := "task reached terminal status"
-			if strings.EqualFold(strings.TrimSpace(task.Status), taskStatusCanceled) || strings.EqualFold(strings.TrimSpace(task.Status), taskStatusCancelled) {
-				closeStatus = runnerJobStatusCanceled
-				closeMessage = "task canceled"
-			}
-			b.closeRunnerJobsForTaskLocked(task.ID, strings.TrimSpace(body.CreatedBy), closeStatus, closeMessage, now)
-		} else if job, _ := b.ensureRunnerJobForTaskLocked(*task, nowTime); strings.TrimSpace(job.ID) != "" {
-			copy := job
-			responseRunnerJob = &copy
-		}
 		b.appendActionLocked("task_updated", "office", taskChannel, strings.TrimSpace(body.CreatedBy), truncateSummary(task.Title+" ["+task.Status+"]", 140), task.ID)
 		if action == "block" {
 			b.requestCapabilitySelfHealingLocked(task, strings.TrimSpace(body.CreatedBy), body.Details)
@@ -11649,7 +11582,7 @@ func (b *Broker) handlePostTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask, "runner_job": responseRunnerJob})
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": responseTask})
 		return
 	}
 

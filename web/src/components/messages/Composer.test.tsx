@@ -9,6 +9,8 @@ const {
   pushHistory,
   resolveLeadSlug,
   askPrefix,
+  sendComposerDraft,
+  slashCommandIsAvailable,
   isIMEComposing,
   COMPOSER_HISTORY_LIMIT,
 } = __test__;
@@ -96,6 +98,61 @@ describe("askPrefix", () => {
   it("defaults to @ceo", () => {
     expect(askPrefix(undefined)).toBe("@ceo ");
     expect(askPrefix("")).toBe("@ceo ");
+  });
+});
+
+describe("hosted slash command boundary", () => {
+  it("matches available slash commands case-insensitively", () => {
+    expect(
+      slashCommandIsAvailable("/ASK", [{ name: "/ask" }, { name: "/tasks" }]),
+    ).toBe(true);
+    expect(slashCommandIsAvailable("/focus", [{ name: "/ask" }])).toBe(false);
+  });
+
+  it("consumes unavailable known slash commands before local workflow handlers", () => {
+    const mutate = vi.fn();
+    const resetComposer = vi.fn();
+
+    sendComposerDraft({
+      agentSlugs: ["ceo"],
+      availableCommands: [{ name: "/ask" }, { name: "/tasks" }],
+      currentChannel: "general",
+      leadSlug: "ceo",
+      mentionSlugs: ["ceo"],
+      refreshMessages: vi.fn(),
+      resetComposer,
+      sendLockedRef: { current: false },
+      sendMutation: { isPending: false, mutate },
+      text: "/deploy-simulation --provider codex",
+    });
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(resetComposer).toHaveBeenCalledOnce();
+    expect(readHistory("general")).toEqual([
+      "/deploy-simulation --provider codex",
+    ]);
+  });
+
+  it("runs available slash commands through their web handler", () => {
+    const mutate = vi.fn();
+
+    sendComposerDraft({
+      agentSlugs: ["ceo"],
+      availableCommands: [{ name: "/ask" }],
+      currentChannel: "general",
+      leadSlug: "ceo",
+      mentionSlugs: ["ceo"],
+      refreshMessages: vi.fn(),
+      resetComposer: vi.fn(),
+      sendLockedRef: { current: false },
+      sendMutation: { isPending: false, mutate },
+      text: "/ask ship it",
+    });
+
+    expect(mutate).toHaveBeenCalledWith({
+      content: "@ceo ship it",
+      tagged: ["ceo"],
+    });
   });
 });
 

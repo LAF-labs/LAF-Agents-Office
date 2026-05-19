@@ -115,7 +115,7 @@ func (s RuntimeSnapshot) FormatText() string {
 	}
 	lines = append(lines,
 		fmt.Sprintf("- Running tasks: %d of %d", s.runningTaskCount(), len(s.Tasks)),
-		fmt.Sprintf("- Isolated worktrees: %d", s.isolatedTaskCount()),
+		fmt.Sprintf("- Managed checkouts: %d", s.isolatedTaskCount()),
 		fmt.Sprintf("- Pending human requests: %d", s.pendingRequestCount()),
 	)
 	if len(s.Artifacts) > 0 {

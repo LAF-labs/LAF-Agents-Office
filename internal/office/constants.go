@@ -26,9 +26,10 @@ const (
 	TaskStatusCanceled   TaskStatus = "canceled"
 	TaskStatusCancelled  TaskStatus = "cancelled"
 
-	ExecutionModeOffice        ExecutionMode = "office"
-	ExecutionModeLocalWorktree ExecutionMode = "local_worktree"
-	ExecutionModeLiveExternal  ExecutionMode = "live_external"
+	ExecutionModeOffice          ExecutionMode = "office"
+	ExecutionModeLocalWorktree   ExecutionMode = "local_worktree"
+	ExecutionModeManagedCheckout ExecutionMode = "managed_checkout"
+	ExecutionModeLiveExternal    ExecutionMode = "live_external"
 
 	ReviewStateNotRequired    ReviewState = "not_required"
 	ReviewStatePendingReview  ReviewState = "pending_review"
@@ -100,7 +101,12 @@ func IsTerminalTaskStatus(status string) bool {
 }
 
 func IsLocalWorktreeExecutionMode(mode string) bool {
-	return strings.EqualFold(strings.TrimSpace(mode), string(ExecutionModeLocalWorktree))
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case string(ExecutionModeLocalWorktree), string(ExecutionModeManagedCheckout):
+		return true
+	default:
+		return false
+	}
 }
 
 func IsLiveExternalExecutionMode(mode string) bool {
@@ -109,4 +115,14 @@ func IsLiveExternalExecutionMode(mode string) bool {
 
 func IsOfficeExecutionMode(mode string) bool {
 	return strings.EqualFold(strings.TrimSpace(mode), string(ExecutionModeOffice))
+}
+
+func PublicExecutionMode(mode string) string {
+	trimmed := strings.TrimSpace(mode)
+	switch strings.ToLower(trimmed) {
+	case string(ExecutionModeLocalWorktree), string(ExecutionModeManagedCheckout):
+		return string(ExecutionModeManagedCheckout)
+	default:
+		return trimmed
+	}
 }

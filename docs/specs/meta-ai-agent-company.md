@@ -3,7 +3,8 @@
 LAF-Office has two layers:
 
 1. Runtime company layer: LAF agents coordinate founder work through the broker,
-   task boards, scoped MCP tools, per-agent worktrees, Notebook, and Wiki.
+   task boards, scoped MCP tools, LAF Bridge managed checkouts, Notebook, and
+   Wiki.
 2. Development meta layer: Claude-powered or Codex-powered development
    subagents improve the LAF runtime itself.
 
@@ -18,13 +19,14 @@ Runtime agents are concrete company teammates:
 - Tester/QA agents verify.
 - Ops agents maintain runtime and deployment.
 
-They wake through the push-driven broker and work in isolated worktrees.
+They wake through the push-driven broker and route code work through paired LAF
+Bridge managed checkouts.
 
 ## Development Meta Layer
 
 Development subagents are provider-neutral operating roles:
 
-- Architect Agent designs changes to broker, provider, worktree, MCP, and wiki
+- Architect Agent designs changes to broker, provider, Bridge, MCP, and wiki
   architecture.
 - Coder Agent implements.
 - Reviewer Agent reviews security, Office Rule, provider choice, and memory.
@@ -41,7 +43,7 @@ flowchart LR
   Human["Human operator"] --> UI["Web UI / TUI / CLI"]
   UI --> Broker["Push-driven broker"]
   Broker --> RuntimeAgents["Runtime LAF agents"]
-  RuntimeAgents --> Worktrees["Per-agent git worktrees"]
+  RuntimeAgents --> Checkouts["LAF Bridge managed checkouts"]
   RuntimeAgents --> Notebook["Agent Notebook drafts"]
   Notebook --> Promotion["Manual promotion review"]
   Promotion --> Wiki["Shared git-backed Wiki"]
@@ -68,4 +70,3 @@ A meta-layer change is complete when it has:
 - Provider neutrality check.
 - Notebook capture recommendation.
 - Wiki promotion candidate only when reviewed.
-

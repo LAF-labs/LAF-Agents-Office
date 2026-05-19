@@ -40,7 +40,7 @@ func cmdHelp(ctx *SlashContext, args string) error {
 		"  /review-office         Review Office Rule, security, memory\n" +
 		"  /promote-to-wiki       Manual Notebook-to-Wiki promotion flow\n" +
 		"  /fix-bug               TDD bug-fix workflow\n" +
-		"  /deploy-simulation     Local simulation/deploy workflow\n\n" +
+		"  /deploy-simulation     Deployment rehearsal workflow\n\n" +
 		"  /help                  This help\n" +
 		"  /clear                 Clear messages\n" +
 		"  /quit                  Exit LAF-Office"
@@ -121,16 +121,15 @@ func cmdInit(ctx *SlashContext, args string) error {
 
 func cmdProvider(ctx *SlashContext, args string) error {
 	options := []PickerOption{
-		{Label: "Codex CLI", Value: "codex", Description: "Codex via codex CLI"},
-		{Label: "Claude Code", Value: "claude-code", Description: "Claude via claude-code CLI"},
-		{Label: "Opencode CLI", Value: "opencode", Description: "Opencode via opencode CLI (BYO provider)"},
+		{Label: "Codex CLI", Value: "codex", Description: "Codex CLI through LAF Bridge"},
+		{Label: "Claude Code", Value: "claude-code", Description: "Claude Code CLI through LAF Bridge"},
 	}
 	if ctx.ShowPicker != nil {
-		ctx.ShowPicker("Switch LLM Provider", options)
+		ctx.ShowPicker("Switch default Bridge provider", options)
 		return nil
 	}
 	var sb strings.Builder
-	sb.WriteString("LLM providers:\n")
+	sb.WriteString("Bridge providers:\n")
 	for _, opt := range options {
 		sb.WriteString(fmt.Sprintf("  • %s — %s\n", opt.Label, opt.Description))
 	}

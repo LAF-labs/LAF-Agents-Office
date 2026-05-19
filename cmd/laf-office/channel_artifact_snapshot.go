@@ -268,7 +268,7 @@ func buildTaskArtifactProgress(task channelTask) string {
 		parts = append(parts, "Review: "+strings.ReplaceAll(review, "_", " "))
 	}
 	if mode := strings.TrimSpace(task.ExecutionMode); mode != "" {
-		parts = append(parts, "Execution: "+strings.ReplaceAll(mode, "_", " "))
+		parts = append(parts, "Execution: "+strings.ReplaceAll(displayExecutionMode(mode), "_", " "))
 	}
 	if due := strings.TrimSpace(task.DueAt); due != "" {
 		parts = append(parts, "Due "+prettyRelativeTime(due))

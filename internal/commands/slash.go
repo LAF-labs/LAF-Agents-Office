@@ -6,8 +6,8 @@ package commands
 // WebSupported flags are set against the web composer's current handler set
 // (web/src/components/messages/Composer.tsx). Flip WebSupported on a command
 // the moment a web handler exists; leave it off until then. This is the
-// source of truth for what the web autocomplete shows — see
-// broker_commands.go / GET /commands.
+// source of truth for local broker autocomplete. Hosted deployments expose a
+// smaller Bridge-safe GET /commands registry from the hosted API.
 func RegisterAllCommands(r *Registry) {
 	// AI
 	r.Register(SlashCommand{Name: "ask", Description: "Ask the team lead", WebSupported: true, Execute: cmdAsk})
@@ -39,7 +39,7 @@ func RegisterAllCommands(r *Registry) {
 	r.Register(SlashCommand{Name: "config", Description: "Config commands (show/set/path)", Execute: cmdConfig})
 	r.Register(SlashCommand{Name: "detect", Description: "Detect installed AI platforms", Execute: cmdDetect})
 	r.Register(SlashCommand{Name: "init", Description: "Run setup", Execute: cmdInit})
-	r.Register(SlashCommand{Name: "provider", Description: "Switch runtime provider", WebSupported: true, Execute: cmdProvider})
+	r.Register(SlashCommand{Name: "provider", Description: "Switch default Bridge provider", WebSupported: true, Execute: cmdProvider})
 
 	// System
 	r.Register(SlashCommand{Name: "help", Description: "Show all commands + keys", WebSupported: true, Execute: cmdHelp})
@@ -52,7 +52,7 @@ func RegisterAllCommands(r *Registry) {
 	r.Register(SlashCommand{Name: "review-office", Description: "Run Reviewer checks for Office Rule, security, and memory consistency", WebSupported: true, Execute: cmdReviewOffice})
 	r.Register(SlashCommand{Name: "promote-to-wiki", Description: "Review Notebook drafts for manual Wiki promotion", WebSupported: true, Execute: cmdPromoteToWiki})
 	r.Register(SlashCommand{Name: "fix-bug", Description: "TDD bug-fix workflow with review and memory capture", WebSupported: true, Execute: cmdFixBug})
-	r.Register(SlashCommand{Name: "deploy-simulation", Description: "Local deployment/simulation workflow for Claude or Codex mode", WebSupported: true, Execute: cmdDeploySimulation})
+	r.Register(SlashCommand{Name: "deploy-simulation", Description: "Deployment rehearsal workflow for Claude or Codex mode", WebSupported: true, Execute: cmdDeploySimulation})
 
 	// Web-only surfaces. No TUI Execute handler yet; the web composer owns the
 	// behaviour (navigate to a view, post to /signals, etc). Listed here so

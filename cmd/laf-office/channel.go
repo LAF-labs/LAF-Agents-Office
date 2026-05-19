@@ -26,6 +26,7 @@ import (
 	"github.com/LAF-labs/LAF-Agents-Office/internal/brokeraddr"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/company"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
+	"github.com/LAF-labs/LAF-Agents-Office/internal/office"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/setup"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/team"
@@ -34,6 +35,14 @@ import (
 
 type channelMsg struct {
 	messages []brokerMessage
+}
+
+func displayExecutionMode(mode string) string {
+	return office.PublicExecutionMode(mode)
+}
+
+func isManagedCheckoutExecutionMode(mode string) bool {
+	return office.IsLocalWorktreeExecutionMode(mode)
 }
 
 type channelMembersMsg struct {
@@ -2252,7 +2261,7 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.initFlow, cmd = m.initFlow.Update(msg)
 		switch m.initFlow.Phase() {
 		case tui.InitProviderChoice:
-			m.picker = tui.NewPicker("Choose LLM Provider", tui.ProviderOptions())
+			m.picker = tui.NewPicker("Choose default Bridge provider", tui.ProviderOptions())
 			m.picker.SetActive(true)
 			m.pickerMode = channelPickerInitProvider
 		case tui.InitBlueprintChoice, tui.InitPackChoice:
@@ -3762,7 +3771,7 @@ func (m channelModel) buildTaskActionPickerOptions(task channelTask) []tui.Picke
 	}
 	if task.ReviewState == "ready_for_review" || task.Status == "review" {
 		options = append(options, tui.PickerOption{Label: "Approve task", Value: "approve:" + task.ID, Description: "Mark this review-ready task done"})
-	} else if task.ReviewState == "pending_review" || task.ExecutionMode == "local_worktree" {
+	} else if task.ReviewState == "pending_review" || isManagedCheckoutExecutionMode(task.ExecutionMode) {
 		options = append(options, tui.PickerOption{Label: "Ready for review", Value: "complete:" + task.ID, Description: "Move this task into review"})
 	} else {
 		options = append(options, tui.PickerOption{Label: "Complete task", Value: "complete:" + task.ID, Description: "Mark this task done"})
@@ -5037,10 +5046,10 @@ func (m channelModel) runCommand(trimmed, threadTarget string) (tea.Model, tea.C
 		return m, cmd
 	case trimmed == "/provider":
 		clearCurrent()
-		m.picker = tui.NewPicker("Switch LLM Provider", tui.ProviderOptions())
+		m.picker = tui.NewPicker("Switch default Bridge provider", tui.ProviderOptions())
 		m.picker.SetActive(true)
 		m.pickerMode = channelPickerProvider
-		m.notice = "Choose an LLM provider."
+		m.notice = "Choose a default Bridge provider."
 		return m, nil
 	case trimmed == "/cancel":
 		clearCurrent()
@@ -5564,9 +5573,6 @@ func applyTeamSetup() tea.Cmd {
 		if config.ResolveLLMProvider("") == "codex" || strings.TrimSpace(cfg.LLMProvider) == "codex" {
 			return channelInitDoneMsg{notice: notice + " Codex was saved as the LLM provider. Restart LAF-Office to launch the headless Codex office runtime."}
 		}
-		if config.ResolveLLMProvider("") == "opencode" || strings.TrimSpace(cfg.LLMProvider) == "opencode" {
-			return channelInitDoneMsg{notice: notice + " Opencode was saved as the LLM provider. Restart LAF-Office to launch the headless Opencode office runtime."}
-		}
 		l, err := team.NewLauncher("")
 		if err != nil {
 			return channelInitDoneMsg{err: err}
@@ -5604,16 +5610,6 @@ func applyProviderSelection(providerName string) tea.Cmd {
 				return channelInitDoneMsg{err: err}
 			}
 			return channelInitDoneMsg{notice: "Provider switched to codex. Claude teammate panes were stopped. Restart LAF-Office to launch the headless Codex office runtime."}
-		}
-		if providerName == "opencode" {
-			l, err := team.NewLauncher("")
-			if err != nil {
-				return channelInitDoneMsg{err: err}
-			}
-			if err := l.ReconfigureSession(); err != nil {
-				return channelInitDoneMsg{err: err}
-			}
-			return channelInitDoneMsg{notice: "Provider switched to opencode. Claude teammate panes were stopped. Restart LAF-Office to launch the headless Opencode office runtime."}
 		}
 		if currentProvider == "codex" || currentProvider == "opencode" {
 			return channelInitDoneMsg{notice: "Provider switched to " + providerName + ". Restart LAF-Office to reload the office runtime with the new configuration."}

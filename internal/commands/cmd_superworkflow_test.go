@@ -25,6 +25,9 @@ func TestSuperworkflowCommandsAreDispatchable(t *testing.T) {
 			if !strings.Contains(got.Output, want) {
 				t.Fatalf("Dispatch(%q) missing %q in:\n%s", input, want, got.Output)
 			}
+			if strings.Contains(got.Output, "Start local runtime") {
+				t.Fatalf("Dispatch(%q) still exposes legacy local runtime setup wording:\n%s", input, got.Output)
+			}
 		})
 	}
 }

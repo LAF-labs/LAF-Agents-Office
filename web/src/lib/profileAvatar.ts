@@ -15,8 +15,12 @@ export const PROFILE_AVATAR_IDS = [
 
 export type ProfileAvatarId = (typeof PROFILE_AVATAR_IDS)[number];
 
-export function normalizeProfileAvatarId(value?: string | null): ProfileAvatarId {
-  const candidate = String(value || "").trim().toLowerCase();
+export function normalizeProfileAvatarId(
+  value?: string | null,
+): ProfileAvatarId {
+  const candidate = String(value || "")
+    .trim()
+    .toLowerCase();
   return PROFILE_AVATAR_IDS.includes(candidate as ProfileAvatarId)
     ? (candidate as ProfileAvatarId)
     : DEFAULT_PROFILE_AVATAR_ID;

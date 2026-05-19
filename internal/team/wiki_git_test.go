@@ -512,7 +512,7 @@ func TestRepoInitIgnoresInheritedGitDir(t *testing.T) {
 			"-c", "init.defaultBranch=main",
 		}, args...)...)
 		cmd.Dir = outer
-		cmd.Env = gitexec.CleanEnv() // don't inherit the test runner's GIT_DIR
+		cmd.Env = gitexec.CleanEnv() // don't inherit the test process's GIT_DIR
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("outer git %v: %v: %s", args, err, out)
 		}
@@ -526,7 +526,7 @@ func TestRepoInitIgnoresInheritedGitDir(t *testing.T) {
 
 	outerGit := func(args ...string) ([]byte, error) {
 		cmd := exec.Command("git", append([]string{"-C", outer}, args...)...)
-		cmd.Env = gitexec.CleanEnv() // don't inherit outer test runner's GIT_DIR
+		cmd.Env = gitexec.CleanEnv() // don't inherit the outer test process's GIT_DIR
 		return cmd.Output()
 	}
 	// Snapshot *all* refs + working-tree status, not just HEAD. The class of

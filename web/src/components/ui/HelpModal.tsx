@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import { type SlashCommand, useCommands } from "../../hooks/useCommands";
 import { useAppStore } from "../../stores/app";
-import { SLASH_COMMANDS } from "../messages/Autocomplete";
 import { CommandGlyph } from "./CommandGlyph";
 import { Kbd, KbdSequence, MOD_KEY } from "./Kbd";
 
@@ -84,17 +84,18 @@ const NAV_KEYS: Keybinding[] = [
 ];
 
 interface HelpModalProps {
+  commands: SlashCommand[];
   open: boolean;
   onClose: () => void;
 }
 
 /**
  * Full-screen help surface opened by the `/help` slash command or the
- * global `?` shortcut. Renders the complete SLASH_COMMANDS list alongside
- * composer, wizard, palette, and feed keybindings so operators never
- * have to leave the app to find a shortcut.
+ * global `?` shortcut. Renders the visible command registry alongside
+ * composer, wizard, palette, and feed keybindings so operators never have
+ * to leave the app to find a shortcut.
  */
-export function HelpModal({ open, onClose }: HelpModalProps) {
+export function HelpModal({ commands, open, onClose }: HelpModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -195,7 +196,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           <section className="help-section">
             <h3 className="help-section-title">Slash commands</h3>
             <ul className="help-list">
-              {SLASH_COMMANDS.map((cmd) => (
+              {commands.map((cmd) => (
                 <li key={cmd.name} className="help-row">
                   <span className="help-cmd">
                     <span className="help-cmd-icon" aria-hidden={true}>
@@ -256,5 +257,8 @@ function KeybindingList({ items }: { items: Keybinding[] }) {
 export function HelpModalHost() {
   const open = useAppStore((s) => s.composerHelpOpen);
   const setOpen = useAppStore((s) => s.setComposerHelpOpen);
-  return <HelpModal open={open} onClose={() => setOpen(false)} />;
+  const commands = useCommands();
+  return (
+    <HelpModal commands={commands} open={open} onClose={() => setOpen(false)} />
+  );
 }

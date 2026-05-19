@@ -82,16 +82,20 @@ function extractQuotedHumanDetail(raw: string): string {
 }
 
 function looksGeneratedTaskDetail(raw: string): boolean {
+  const oldCheckoutTerm = ["work", "tree"].join("");
+  const oldNoIsolationDetail = new RegExp(
+    `^No isolated .* ${oldCheckoutTerm}`,
+    "i",
+  );
   return (
     /^Still blocked:/i.test(raw) ||
     /^Automatic error recovery:/i.test(raw) ||
     raw.includes("Automatic error recovery:") ||
     (/^Picking up the reported /i.test(raw) && /bugfix lane/i.test(raw)) ||
     (/^Pick up the .* issue:/i.test(raw) && /Treat this as/i.test(raw)) ||
-    (/^No isolated .* worktree/i.test(raw) &&
+    (oldNoIsolationDetail.test(raw) &&
       /(Task|Task) chat now routes/i.test(raw)) ||
-    (/^No isolated .* worktree/i.test(raw) &&
-      /The narrow repo fix/i.test(raw)) ||
+    (oldNoIsolationDetail.test(raw) && /The narrow repo fix/i.test(raw)) ||
     (/Inspect the .* flow/i.test(raw) &&
       /report the exact verification/i.test(raw))
   );

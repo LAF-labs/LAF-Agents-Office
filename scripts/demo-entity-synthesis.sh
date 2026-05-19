@@ -4,7 +4,7 @@
 # Shows the full pipeline in one terminal session:
 #   1. agent records 5 facts via entity_fact_record
 #   2. fact log hits threshold → EntitySynthesizer fires automatically
-#   3. broker shells out to your LLM CLI (claude / codex / openclaw)
+#   3. workspace runtime invokes your local agent CLI (Claude Code or Codex)
 #   4. result commits to wiki git repo under "archivist" identity
 #   5. git log shows every author in the chain
 #
@@ -14,7 +14,7 @@
 #   ENTITY_KIND=people ENTITY_SLUG=ada-lovelace ./scripts/demo-entity-synthesis.sh
 #   THRESHOLD=1 ./scripts/demo-entity-synthesis.sh            # fire on every fact
 #
-# Requirements: curl, python3, a running laf-office instance with --memory-backend markdown
+# Requirements: curl, python3, and a running contributor laf-office instance with the team wiki enabled
 
 set -euo pipefail
 
@@ -143,7 +143,7 @@ fi
 # ── 3. Poll until synthesis commits (pending_delta → 0) ───────────────────────
 step "Waiting for archivist to commit the synthesized brief"
 info "Polling /entity/briefs every 2 s (timeout ${SYNTH_TIMEOUT}s)"
-info "The broker shells out to your LLM CLI — this takes a few seconds"
+info "The workspace runtime invokes your local agent CLI — this takes a few seconds"
 
 deadline=$(( $(date +%s) + SYNTH_TIMEOUT ))
 synth_start=$(date +%s)
@@ -236,7 +236,7 @@ cat <<'EOF'
   2. Fact #5 crossed the synthesis threshold (LAF_OFFICE_ENTITY_BRIEF_THRESHOLD=5)
      → EntitySynthesizer.EnqueueSynthesis() fired automatically
 
-  3. The broker shelled out to your LLM CLI (claude / codex / openclaw)
+  3. The workspace runtime invoked your local agent CLI (Claude Code or Codex)
      with the existing brief + new facts as prompt input
 
   4. LLM output was committed under the "archivist" git identity

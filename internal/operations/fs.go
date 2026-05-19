@@ -9,14 +9,14 @@ import (
 // fallbackFS is consulted by the template loaders when a filesystem read
 // rooted at repoRoot fails (or when repoRoot is empty). Binaries built
 // with `//go:embed all:templates/…` wire this in via SetFallbackFS so
-// installs without a repo checkout (e.g. `npx laf-office`, `curl | bash`)
-// still see the shipped operations and employee blueprints.
+// developer bootstrap installs without a repo checkout still see the shipped
+// operations and employee blueprints.
 //
 // When both the filesystem and the fallback have the requested file, the
 // filesystem wins. This preserves the existing override pattern — a user
 // who adds their own `templates/operations/<id>/blueprint.yaml` to their
-// checkout still takes precedence over the embedded shipped blueprint
-// with the same id.
+// checkout still takes precedence over the embedded shipped blueprint with the
+// same id.
 var fallbackFS fs.FS
 
 // SetFallbackFS registers the embedded templates FS. Safe to call more

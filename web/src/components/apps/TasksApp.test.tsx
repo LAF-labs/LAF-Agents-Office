@@ -10,9 +10,7 @@ const apiMocks = vi.hoisted(() => ({
   createExecutionPlan: vi.fn(),
   createDM: vi.fn(),
   createProject: vi.fn(),
-  createProjectLocalBinding: vi.fn(),
   createTask: vi.fn(),
-  deleteProjectLocalBinding: vi.fn(),
   getActions: vi.fn(),
   getBridgeAvailability: vi.fn(),
   getExecutionPlan: vi.fn(),
@@ -20,11 +18,21 @@ const apiMocks = vi.hoisted(() => ({
   getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getOfficeTasks: vi.fn(),
-  getProjectLocalBindings: vi.fn(),
   getProjectRepoReadiness: vi.fn(),
   getProjects: vi.fn(),
-  getRunnerStatus: vi.fn(),
   getThreadMessages: vi.fn(),
+  normalizeModelMode: (mode?: string | null) => {
+    const value = String(mode || "").trim();
+    if (value === "local_cli" || value === "team_bridge") return "my_bridge";
+    if (
+      value === "laf_model" ||
+      value === "my_bridge" ||
+      value === "record_only"
+    ) {
+      return value;
+    }
+    return "record_only";
+  },
   post: vi.fn(),
   postMessage: vi.fn(),
   postMessageAs: vi.fn(),
@@ -54,6 +62,13 @@ function renderTasksApp() {
       <TasksApp />
     </QueryClientProvider>,
   );
+}
+
+function lastCreateExecutionPlanPayload() {
+  const {
+    mock: { calls },
+  } = apiMocks.createExecutionPlan;
+  return calls[calls.length - 1]?.[0];
 }
 
 function mockProjectDirectory() {
@@ -132,7 +147,6 @@ function mockProjectDirectory() {
       reason: "bridge required",
     },
   });
-  apiMocks.getProjectLocalBindings.mockResolvedValue({ bindings: [] });
   apiMocks.getExecutionPlan.mockResolvedValue({
     plan: { id: "plan-1", status: "pending" },
     receipt: null,
@@ -143,7 +157,6 @@ function mockProjectDirectory() {
     default_mode: "record_only",
     laf_model: { available: false, reason: "paid workspace required" },
     my_bridge: { available: false, reason: "bridge required" },
-    team_bridge: { available: false, reason: "runner required" },
     record_only: { available: true },
   });
   apiMocks.getOfficeMembers.mockResolvedValue({
@@ -154,7 +167,6 @@ function mockProjectDirectory() {
     ],
   });
   apiMocks.getProjectRepoReadiness.mockResolvedValue({ readiness: null });
-  apiMocks.getRunnerStatus.mockResolvedValue({ jobs: [], runners: [] });
   apiMocks.getThreadMessages.mockResolvedValue({
     messages: [
       {
@@ -294,16 +306,20 @@ describe("TasksApp project directory", () => {
 
   it("opens a project detail view with its task list", async () => {
     const user = userEvent.setup();
-    apiMocks.getRunnerStatus.mockResolvedValue({
-      jobs: [],
-      runners: [
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
         {
-          id: "runner-local",
-          name: "Local runner",
-          status: "connected",
-          team_id: "team-local",
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
         },
       ],
+      my_bridge: {
+        available: true,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+      },
     });
     renderTasksApp();
 
@@ -327,16 +343,17 @@ describe("TasksApp project directory", () => {
       within(taskList).getByText("Implement signup flow"),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show info" }));
-    expect(screen.getByText("Managed checkout")).toBeInTheDocument();
-    expect(screen.getByText("Team runner connected")).toBeInTheDocument();
+    expect(screen.getByText("GitHub repo required")).toBeInTheDocument();
+    expect(screen.getAllByText("LAF Bridge connected").length).toBeGreaterThan(
+      0,
+    );
     expect(
       screen.queryByText("LAF Bridge is unavailable"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("No local binding for this project yet."),
-    ).not.toBeInTheDocument();
 
-    expect(await screen.findByText("LAF Bridge connected")).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText("LAF Bridge connected")).length,
+    ).toBeGreaterThan(0);
     expect(
       within(taskList).getByText("Review signup flow"),
     ).toBeInTheDocument();
@@ -351,7 +368,25 @@ describe("TasksApp project directory", () => {
 describe("TasksApp project bridge workspace", () => {
   beforeEach(mockProjectDirectory);
 
-  it("shows the local bridge link command after trusting a project path", async () => {
+  it("keeps hosted runtime on managed checkout", async () => {
+    renderTasksApp();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show info" }),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Use existing folder" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/laf-bridge link-project/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the project workspace pair-only without folder commands", async () => {
     const user = userEvent.setup();
     apiMocks.getBridgeAvailability.mockResolvedValue({
       devices: [
@@ -370,20 +405,6 @@ describe("TasksApp project bridge workspace", () => {
         online_device_count: 1,
       },
     });
-    apiMocks.createProjectLocalBinding.mockResolvedValue({
-      binding: {
-        device_id: "device-1",
-        display_name: "Customer Portal",
-        id: "binding-1",
-        project_id: "customer-portal",
-        team_id: "team-local",
-        trusted: true,
-        user_id: "user-1",
-      },
-      commands: {
-        link: "laf-bridge link-project --binding-id binding-1 --project-id customer-portal --path '/Users/me/Customer Portal' --display-name 'Customer Portal'",
-      },
-    });
 
     renderTasksApp();
 
@@ -391,31 +412,13 @@ describe("TasksApp project bridge workspace", () => {
       await screen.findByRole("button", { name: /Customer Portal/ }),
     );
     await user.click(await screen.findByRole("button", { name: "Show info" }));
-    await user.click(
-      await screen.findByRole("button", { name: "Use existing folder" }),
-    );
-    await user.type(
-      await screen.findByLabelText("Local path"),
-      "/Users/me/Customer Portal",
-    );
-    await user.click(screen.getByRole("button", { name: "Trust path" }));
 
-    await waitFor(() => {
-      expect(apiMocks.createProjectLocalBinding).toHaveBeenCalledWith(
-        "customer-portal",
-        expect.objectContaining({
-          device_id: "device-1",
-          local_path: "/Users/me/Customer Portal",
-          trusted: true,
-        }),
-      );
-    });
     expect(
-      await screen.findByText("Run this once on the bridge machine"),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Use existing folder" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/laf-bridge link-project --binding-id binding-1/),
-    ).toBeInTheDocument();
+      screen.queryByText(/laf-bridge link-project/),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -547,17 +550,16 @@ describe("TasksApp project task chat", () => {
   });
 });
 
-describe("TasksApp task bridge execution", () => {
+describe("TasksApp task Bridge repo gate", () => {
   beforeEach(mockProjectDirectory);
 
-  it("disables LAF Bridge execution until the project has a trusted binding", async () => {
+  it("disables LAF Bridge execution until the project has a GitHub repo", async () => {
     const user = userEvent.setup();
     apiMocks.getModelAvailability.mockResolvedValue({
       allowed_modes: ["my_bridge", "record_only"],
       default_mode: "my_bridge",
       laf_model: { available: false, reason: "paid workspace required" },
       my_bridge: { available: true },
-      team_bridge: { available: false, reason: "runner required" },
       record_only: { available: true },
     });
     apiMocks.getBridgeAvailability.mockResolvedValue({
@@ -577,8 +579,6 @@ describe("TasksApp task bridge execution", () => {
         online_device_count: 1,
       },
     });
-    apiMocks.getProjectLocalBindings.mockResolvedValue({ bindings: [] });
-
     renderTasksApp();
 
     await user.click(
@@ -595,13 +595,101 @@ describe("TasksApp task bridge execution", () => {
 
     expect(
       await within(panel).findByText(
-        "Add a trusted local binding for this project",
+        "Connect a GitHub repo for Bridge managed checkout",
       ),
     ).toBeInTheDocument();
     expect(
       within(panel).getByRole("button", { name: "Create plan" }),
     ).toBeDisabled();
   });
+});
+
+describe("TasksApp task Bridge plan creation", () => {
+  beforeEach(mockProjectDirectory);
+
+  it("creates a LAF Bridge plan after pairing only when the project has a GitHub repo", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, "confirm", {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [
+        {
+          github_repo_url: "https://github.com/LAF-labs/demo",
+          id: "customer-portal",
+          lead_agent: "engineer",
+          name: "Customer Portal",
+        },
+      ],
+    });
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: true },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: true,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+        runtimes: ["codex"],
+      },
+    });
+    apiMocks.createExecutionPlan.mockResolvedValue({
+      plan: { id: "plan-managed-1", status: "pending" },
+      relay: { published: true },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.type(
+      within(panel).getByLabelText("Task chat"),
+      "Run after pairing only",
+    );
+    await user.click(
+      await within(panel).findByRole("button", { name: "Create plan" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.createExecutionPlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          device_id: "device-1",
+          message: "Run after pairing only",
+          mode: "my_bridge",
+          provider: "codex",
+          task_id: "task-build",
+        }),
+      );
+    });
+    expect(lastCreateExecutionPlanPayload()).not.toHaveProperty("binding_id");
+  });
+});
+
+describe("TasksApp task Bridge receipt rendering", () => {
+  beforeEach(mockProjectDirectory);
 
   it("creates a LAF Bridge execution plan and renders events with the receipt", async () => {
     const user = userEvent.setup();
@@ -614,7 +702,6 @@ describe("TasksApp task bridge execution", () => {
       default_mode: "my_bridge",
       laf_model: { available: false, reason: "paid workspace required" },
       my_bridge: { available: true },
-      team_bridge: { available: false, reason: "runner required" },
       record_only: { available: true },
     });
     apiMocks.getBridgeAvailability.mockResolvedValue({
@@ -634,16 +721,13 @@ describe("TasksApp task bridge execution", () => {
         online_device_count: 1,
       },
     });
-    apiMocks.getProjectLocalBindings.mockResolvedValue({
-      bindings: [
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [
         {
-          device_id: "device-1",
-          display_name: "Customer checkout",
-          id: "binding-1",
-          project_id: "customer-portal",
-          team_id: "team-local",
-          trusted: true,
-          user_id: "user-1",
+          github_repo_url: "https://github.com/LAF-labs/demo",
+          id: "customer-portal",
+          lead_agent: "engineer",
+          name: "Customer Portal",
         },
       ],
     });
@@ -654,6 +738,17 @@ describe("TasksApp task bridge execution", () => {
     apiMocks.getExecutionPlan.mockResolvedValue({
       plan: { id: "plan-1", status: "completed" },
       receipt: {
+        artifacts: [
+          {
+            title: "Pull request",
+            type: "pull_request",
+            url: "https://github.com/LAF-labs/demo/pull/42",
+          },
+        ],
+        changed_files: [
+          { path: "web/src/App.tsx", status: "modified" },
+          { path: "api/index.js", status: "added" },
+        ],
         id: "receipt-1",
         mode: "my_bridge",
         provider: "codex",
@@ -699,7 +794,6 @@ describe("TasksApp task bridge execution", () => {
     await waitFor(() => {
       expect(apiMocks.createExecutionPlan).toHaveBeenCalledWith(
         expect.objectContaining({
-          binding_id: "binding-1",
           device_id: "device-1",
           message: "Run the local implementation",
           mode: "my_bridge",
@@ -707,6 +801,7 @@ describe("TasksApp task bridge execution", () => {
         }),
       );
     });
+    expect(lastCreateExecutionPlanPayload()).not.toHaveProperty("binding_id");
     expect(apiMocks.postMessage).not.toHaveBeenCalledWith(
       "Run the local implementation",
       expect.anything(),
@@ -718,11 +813,318 @@ describe("TasksApp task bridge execution", () => {
     expect(
       await within(panel).findByText("Implemented locally."),
     ).toBeInTheDocument();
+    expect(await within(panel).findByText("Pull request")).toHaveAttribute(
+      "href",
+      "https://github.com/LAF-labs/demo/pull/42",
+    );
+    expect(
+      await within(panel).findByText("modified web/src/App.tsx"),
+    ).toBeInTheDocument();
+    expect(
+      await within(panel).findByText("added api/index.js"),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(
         executionEventMocks.subscribeExecutionPlanEvents,
       ).toHaveBeenCalledWith("plan-1", expect.any(Function));
     });
+  });
+});
+
+describe("TasksApp task Bridge availability blockers", () => {
+  beforeEach(mockProjectDirectory);
+
+  it("does not run through LAF Bridge when the current user has not paired one", async () => {
+    const user = userEvent.setup();
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["record_only"],
+      default_mode: "record_only",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: false, reason: "no paired LAF Bridge detected" },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "Coworker MacBook",
+          id: "other-device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-2",
+        },
+      ],
+      my_bridge: {
+        available: false,
+        device_count: 0,
+        online_device_count: 0,
+        reason: "no paired LAF Bridge detected",
+      },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.type(
+      within(panel).getByLabelText("Task chat"),
+      "Run this through the connected Bridge",
+    );
+    await user.click(
+      await within(panel).findByRole("button", { name: "Send" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.postMessage).toHaveBeenCalledWith(
+        "Run this through the connected Bridge",
+        "general",
+        "thread-build",
+        ["engineer"],
+        expect.objectContaining({
+          model_mode: "record_only",
+          scope: "task_execution",
+          task_id: "task-build",
+        }),
+      );
+    });
+    expect(apiMocks.createExecutionPlan).not.toHaveBeenCalled();
+  });
+
+  it("shows a friendly Bridge blocker when no supported local CLI is detected", async () => {
+    const user = userEvent.setup();
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [
+        {
+          github_repo_url: "https://github.com/LAF-labs/demo",
+          id: "customer-portal",
+          lead_agent: "engineer",
+          name: "Customer Portal",
+        },
+      ],
+    });
+    apiMocks.getOfficeTasks.mockResolvedValue({
+      tasks: [
+        {
+          channel: "general",
+          id: "task-build",
+          model_mode: "my_bridge",
+          owner: "engineer",
+          project_id: "customer-portal",
+          status: "in_progress",
+          thread_id: "thread-build",
+          title: "Implement signup flow",
+        },
+      ],
+    });
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: true },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: false,
+        device_count: 1,
+        online_device_count: 1,
+        reason: "no supported local CLI detected",
+      },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    expect(
+      await within(panel).findByText(
+        "LAF Bridge has not detected Codex or Claude Code CLI.",
+      ),
+    ).toBeInTheDocument();
+    await user.type(within(panel).getByLabelText("Task chat"), "Run locally");
+    expect(
+      await within(panel).findByRole("button", { name: "Create plan" }),
+    ).toBeDisabled();
+    expect(apiMocks.createExecutionPlan).not.toHaveBeenCalled();
+  });
+});
+
+describe("TasksApp task Bridge permission and default execution", () => {
+  beforeEach(mockProjectDirectory);
+
+  it("shows a friendly Bridge blocker when execution permission is missing", async () => {
+    const user = userEvent.setup();
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [
+        {
+          github_repo_url: "https://github.com/LAF-labs/demo",
+          id: "customer-portal",
+          lead_agent: "engineer",
+          name: "Customer Portal",
+        },
+      ],
+    });
+    apiMocks.getOfficeTasks.mockResolvedValue({
+      tasks: [
+        {
+          channel: "general",
+          id: "task-build",
+          model_mode: "my_bridge",
+          owner: "engineer",
+          project_id: "customer-portal",
+          status: "in_progress",
+          thread_id: "thread-build",
+          title: "Implement signup flow",
+        },
+      ],
+    });
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: true },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: false,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+        reason: "permission required: bridge:execute_own",
+      },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    expect(
+      await within(panel).findByText(
+        "Your account cannot run LAF Bridge execution plans.",
+      ),
+    ).toBeInTheDocument();
+    await user.type(within(panel).getByLabelText("Task chat"), "Run locally");
+    expect(
+      await within(panel).findByRole("button", { name: "Create plan" }),
+    ).toBeDisabled();
+    expect(apiMocks.createExecutionPlan).not.toHaveBeenCalled();
+  });
+
+  it("prefers LAF Bridge execution when one paired Bridge can run without a project binding", async () => {
+    const user = userEvent.setup();
+    apiMocks.getProjects.mockResolvedValue({
+      projects: [
+        {
+          github_repo_url: "https://github.com/LAF-labs/demo",
+          id: "customer-portal",
+          lead_agent: "engineer",
+          name: "Customer Portal",
+        },
+      ],
+    });
+    apiMocks.getModelAvailability.mockResolvedValue({
+      allowed_modes: ["my_bridge", "record_only"],
+      default_mode: "my_bridge",
+      laf_model: { available: false, reason: "paid workspace required" },
+      my_bridge: { available: true },
+      record_only: { available: true },
+    });
+    apiMocks.getBridgeAvailability.mockResolvedValue({
+      devices: [
+        {
+          device_label: "MacBook",
+          id: "device-1",
+          status: "online",
+          team_id: "team-local",
+          user_id: "user-1",
+        },
+      ],
+      my_bridge: {
+        available: true,
+        default_device_id: "device-1",
+        device_count: 1,
+        online_device_count: 1,
+        runtimes: ["codex"],
+      },
+    });
+    apiMocks.createExecutionPlan.mockResolvedValue({
+      plan: { id: "plan-pair-only", status: "pending" },
+      relay: { published: true },
+    });
+
+    renderTasksApp();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Customer Portal/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Implement signup flow/ }),
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Details",
+    });
+    await user.type(
+      within(panel).getByLabelText("Task chat"),
+      "Run after pairing only",
+    );
+    await user.click(
+      await within(panel).findByRole("button", { name: "Create plan" }),
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.createExecutionPlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          device_id: "device-1",
+          message: "Run after pairing only",
+          mode: "my_bridge",
+          task_id: "task-build",
+        }),
+      );
+    });
+    expect(lastCreateExecutionPlanPayload()).not.toHaveProperty("binding_id");
   });
 });
 

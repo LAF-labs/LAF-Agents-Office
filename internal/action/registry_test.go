@@ -82,7 +82,7 @@ func TestRegistryPrefersOneForActionsInAutoMode(t *testing.T) {
 		t.Fatalf("provider for action execute: %v", err)
 	}
 	if provider.Name() != "one" {
-		t.Fatalf("expected one (local-first), got %s", provider.Name())
+		t.Fatalf("expected one CLI provider, got %s", provider.Name())
 	}
 }
 
@@ -111,7 +111,7 @@ func TestRegistryPrefersOneForWorkflowsInAutoMode(t *testing.T) {
 		t.Fatalf("provider for workflow execute: %v", err)
 	}
 	if provider.Name() != "one" {
-		t.Fatalf("expected one (local-first), got %s", provider.Name())
+		t.Fatalf("expected one CLI provider, got %s", provider.Name())
 	}
 }
 

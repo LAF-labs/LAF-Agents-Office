@@ -22,7 +22,6 @@ func TestLocalPolicyReadOnlySameActorDoesNotRequireApproval(t *testing.T) {
 	decision, err := (LocalPolicyApprover{Config: Config{UserID: "user-1"}}).Decide(
 		t.Context(),
 		plan,
-		ProjectBinding{},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +47,6 @@ func TestLocalPolicyWorkspaceWriteDeniedWithoutApprovalChannel(t *testing.T) {
 	decision, err := (LocalPolicyApprover{Config: Config{UserID: "user-1"}}).Decide(
 		t.Context(),
 		plan,
-		ProjectBinding{},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +66,7 @@ func TestLocalPolicyAutoApproveRequiredWorkspaceWrite(t *testing.T) {
 		Options: LocalPolicyOptions{
 			AutoApproveRequired: true,
 		},
-	}).Decide(t.Context(), plan, ProjectBinding{})
+	}).Decide(t.Context(), plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +80,6 @@ func TestLocalPolicyNetworkDeniedUnlessAllowed(t *testing.T) {
 	decision, err := (LocalPolicyApprover{Config: Config{UserID: "user-1"}}).Decide(
 		t.Context(),
 		plan,
-		ProjectBinding{},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +94,7 @@ func TestLocalPolicyNetworkDeniedUnlessAllowed(t *testing.T) {
 			AllowNetwork:        true,
 			AutoApproveRequired: true,
 		},
-	}).Decide(t.Context(), plan, ProjectBinding{})
+	}).Decide(t.Context(), plan)
 	if err != nil {
 		t.Fatal(err)
 	}

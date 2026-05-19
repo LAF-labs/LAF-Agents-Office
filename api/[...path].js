@@ -1,13 +1,9 @@
 const crypto = require("node:crypto");
 
-const ACTIVE_JOB_STATUSES = ["queued", "leased", "running", "expired"];
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
 const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code"];
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_EXECUTION_EVENT_PAYLOAD_BYTES = 64 * 1024;
-const RUNNER_DIAGNOSTIC_LIMIT = 20;
-const RUNNER_LEASE_EXPIRING_MS = 60 * 1000;
-const RUNNER_STALE_MS = 10 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMITS = {
   authSignup: 12,
@@ -16,6 +12,25 @@ const RATE_LIMITS = {
   bridgePairingClaim: 30,
   bridgePairingStart: 12,
 };
+const HOSTED_WEB_COMMANDS = Object.freeze([
+  { name: "1o1", description: "Open a direct conversation with an agent", webSupported: true },
+  { name: "ask", description: "Ask the team lead", webSupported: true },
+  { name: "cancel", description: "Cancel a task assignment", webSupported: true },
+  { name: "clear", description: "Clear messages in this view", webSupported: true },
+  { name: "growth", description: "Open Growth Center", webSupported: true },
+  { name: "help", description: "Show commands and keys", webSupported: true },
+  { name: "provider", description: "Switch default Bridge provider", webSupported: true },
+  { name: "remember", description: "Store a fact in memory", webSupported: true },
+  { name: "requests", description: "Open requests", webSupported: true },
+  { name: "search", description: "Search messages and knowledge", webSupported: true },
+  { name: "skills", description: "Open skills", webSupported: true },
+  { name: "task", description: "Update a task", webSupported: true },
+  { name: "tasks", description: "Open task board", webSupported: true },
+  { name: "threads", description: "See every active thread", webSupported: true },
+]);
+const HOSTED_WEB_COMMAND_NAMES = new Set(
+  HOSTED_WEB_COMMANDS.map((command) => command.name),
+);
 const DEFAULT_PROFILE_AVATAR_ID = "human";
 const PROFILE_AVATAR_IDS = new Set([
   "human",
@@ -59,17 +74,11 @@ const WORKSPACE_PERMISSIONS = [
   "memory:promote",
   "memory:write_canonical",
   "wiki:read",
-  "runner:read",
-  "runner:manage",
   "model:use_laf",
-  "model:use_local_cli",
   "bridge:pair_own",
   "bridge:read_own",
   "bridge:execute_own",
   "bridge:manage_own",
-  "bridge:read_team",
-  "bridge:execute_team",
-  "bridge:manage_team",
   "execution:plan_create",
   "execution:read",
   "execution:cancel",
@@ -93,10 +102,47 @@ class HTTPError extends Error {
 
 const rateLimitBuckets = new Map();
 
-const ALLOWED_ORIGINS = String(process.env.LAF_OFFICE_ALLOWED_ORIGINS || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const ALLOWED_ORIGINS = normalizeAllowedOrigins(
+  process.env.LAF_OFFICE_ALLOWED_ORIGINS || "",
+);
+
+function normalizeAllowedOrigins(value) {
+  return [
+    ...new Set(
+      String(value || "")
+        .split(",")
+        .map(normalizeAllowedOrigin)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function normalizeAllowedOrigin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return "";
+  }
+  if (
+    !parsed.hostname ||
+    parsed.username ||
+    parsed.password ||
+    parsed.pathname !== "/" ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    return "";
+  }
+  const allowLocalhost = allowLocalHostedURLs();
+  if (!allowLocalhost && parsed.protocol !== "https:") return "";
+  if (!allowLocalhost && isPrivateHostedHostname(parsed.hostname)) return "";
+  const protocol = allowLocalhost ? parsed.protocol : "https:";
+  return `${protocol}//${parsed.host}`;
+}
 
 function applyBaselineSecurityHeaders(res) {
   // Conservative defaults. The web bundle is served same-origin via Vercel
@@ -173,7 +219,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "auth/logout" && req.method === "POST") {
-      clearAuthCookies(res);
+      clearAuthCookies(req, res);
       writeJSON(res, 200, { status: "ok" });
       return;
     }
@@ -242,7 +288,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "commands" && req.method === "GET") {
-      writeJSON(res, 200, []);
+      writeJSON(res, 200, HOSTED_WEB_COMMANDS);
       return;
     }
     if (path === "commands/run" && req.method === "POST") {
@@ -345,27 +391,6 @@ module.exports = async function handler(req, res) {
       await handleBridgePendingPlans(req, res, decodeURIComponent(bridgeDeviceActionMatch[1]));
       return;
     }
-    const localBindingMatch = path.match(
-      /^projects\/([^/]+)\/local-bindings(?:\/([^/]+))?$/,
-    );
-    if (localBindingMatch) {
-      const projectID = decodeURIComponent(localBindingMatch[1]);
-      const bindingID = localBindingMatch[2]
-        ? decodeURIComponent(localBindingMatch[2])
-        : "";
-      if (req.method === "GET" && !bindingID) {
-        await handleProjectLocalBindings(req, res, projectID);
-        return;
-      }
-      if (req.method === "POST" && !bindingID) {
-        await handleProjectLocalBindingCreate(req, res, projectID);
-        return;
-      }
-      if (req.method === "DELETE" && bindingID) {
-        await handleProjectLocalBindingDelete(req, res, projectID, bindingID);
-        return;
-      }
-    }
     if (path === "execution/plans" && req.method === "POST") {
       await handleExecutionPlanCreate(req, res);
       return;
@@ -418,58 +443,6 @@ module.exports = async function handler(req, res) {
       await handleSkillInvoke(req, res, decodeURIComponent(skillInvokeMatch[1]));
       return;
     }
-    if (path === "runner/status" && req.method === "GET") {
-      await handleRunnerStatus(req, res);
-      return;
-    }
-    if (path === "runner/pairing/start" && req.method === "POST") {
-      await handleRunnerPairingStart(req, res);
-      return;
-    }
-    if (path === "runner/pairing/claim" && req.method === "POST") {
-      await handleRunnerPairingClaim(req, res);
-      return;
-    }
-    if (path === "runner/register" && req.method === "POST") {
-      await handleRunnerRegister(req, res);
-      return;
-    }
-    if (path === "runner/revoke" && req.method === "POST") {
-      await handleRunnerRevoke(req, res);
-      return;
-    }
-    if (path === "runner/heartbeat" && req.method === "POST") {
-      await handleRunnerHeartbeat(req, res);
-      return;
-    }
-    if (path === "runner/capabilities" && req.method === "POST") {
-      await handleRunnerCapabilities(req, res);
-      return;
-    }
-    if (path === "runner/jobs/lease" && req.method === "POST") {
-      await handleRunnerJobLease(req, res);
-      return;
-    }
-    const jobEventMatch = path.match(/^runner\/jobs\/([^/]+)\/events$/);
-    if (jobEventMatch && req.method === "POST") {
-      await handleRunnerJobEvent(req, res, jobEventMatch[1]);
-      return;
-    }
-    const jobCompleteMatch = path.match(/^runner\/jobs\/([^/]+)\/complete$/);
-    if (jobCompleteMatch && req.method === "POST") {
-      await handleRunnerJobComplete(req, res, jobCompleteMatch[1]);
-      return;
-    }
-    const jobRenewMatch = path.match(/^runner\/jobs\/([^/]+)\/renew$/);
-    if (jobRenewMatch && req.method === "POST") {
-      await handleRunnerJobRenew(req, res, jobRenewMatch[1]);
-      return;
-    }
-    if (path === "runner/wiki/write-result" && req.method === "POST") {
-      await handleRunnerWikiWriteResult(req, res);
-      return;
-    }
-
     writeJSON(res, 404, { error: "hosted API route not found" });
   } catch (err) {
     const status = err instanceof HTTPError ? err.status : 500;
@@ -785,31 +758,49 @@ function authToken(req) {
   return bearer(req) || cookie(req, "laf_access");
 }
 
-function setAuthCookies(res, session) {
+function looksLikeBridgeToken(value) {
+  return /^laf_bridge_[a-f0-9]{20,}$/i.test(String(value || "").trim());
+}
+
+function trustedBrowserOrigin(req) {
+  const origin = String(req.headers.origin || "").trim();
+  return origin && ALLOWED_ORIGINS.includes(origin) ? origin : "";
+}
+
+function authCookieSameSite(req) {
+  return process.env.NODE_ENV === "production" && trustedBrowserOrigin(req)
+    ? "None"
+    : "Lax";
+}
+
+function setAuthCookies(req, res, session) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const sameSite = authCookieSameSite(req);
   const accessMaxAge = Number(session.expires_in || 3600);
   const cookies = [
-    `laf_access=${encodeURIComponent(session.access_token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${accessMaxAge}${secure}`,
+    `laf_access=${encodeURIComponent(session.access_token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${accessMaxAge}${secure}`,
   ];
   if (session.refresh_token) {
     cookies.push(
-      `laf_refresh=${encodeURIComponent(session.refresh_token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`,
+      `laf_refresh=${encodeURIComponent(session.refresh_token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=2592000${secure}`,
     );
   }
   res.setHeader("Set-Cookie", cookies);
 }
 
-function clearAuthCookies(res) {
+function clearAuthCookies(req, res) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const sameSite = authCookieSameSite(req);
   res.setHeader("Set-Cookie", [
-    `laf_access=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
-    `laf_refresh=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+    `laf_access=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0${secure}`,
+    `laf_refresh=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0${secure}`,
   ]);
 }
 
 async function requireUser(req) {
   const token = authToken(req);
   if (!token) throw new HTTPError(401, "authentication required");
+  if (looksLikeBridgeToken(token)) throw new HTTPError(401, "user authentication required");
   const user = await authFetch("user", {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -921,13 +912,8 @@ function rolePresetPermissions(role) {
         "memory:write_draft",
         "memory:promote",
         "wiki:read",
-        "runner:read",
         "model:use_laf",
-        "model:use_local_cli",
         "bridge:execute_own",
-        "bridge:read_team",
-        "bridge:execute_team",
-        "bridge:manage_team",
         "execution:plan_create",
         "execution:read",
         "execution:cancel",
@@ -950,8 +936,6 @@ function rolePresetPermissions(role) {
         "memory:read",
         "memory:write_draft",
         "wiki:read",
-        "runner:read",
-        "model:use_local_cli",
         "bridge:pair_own",
         "bridge:read_own",
         "bridge:execute_own",
@@ -963,7 +947,7 @@ function rolePresetPermissions(role) {
         "mcp:use_task_context",
       ].sort();
     case "viewer":
-      return ["workspace:read", "skill:read", "memory:read", "wiki:read", "runner:read", "execution:receipt_read"];
+      return ["workspace:read", "skill:read", "memory:read", "wiki:read", "execution:receipt_read"];
     default:
       return rolePresetPermissions("member");
   }
@@ -986,13 +970,14 @@ function hasPermission(membership, permission) {
 function normalizeModelMode(raw) {
   const value = String(raw || "").trim();
   if (value === "local_cli") return "my_bridge";
-  return ["laf_model", "my_bridge", "team_bridge", "record_only"].includes(value)
+  if (value === "team_bridge") return "my_bridge";
+  return ["laf_model", "my_bridge", "record_only"].includes(value)
     ? value
     : "record_only";
 }
 
 function isSupportedLocalCLIRuntime(raw) {
-  const value = String(raw || "").trim().toLowerCase();
+  const value = normalizeProviderKind(raw);
   return SUPPORTED_LOCAL_CLI_RUNTIMES.includes(value);
 }
 
@@ -1019,71 +1004,125 @@ function capabilitiesHaveSupportedLocalCLI(capabilities) {
   );
 }
 
-function runnerHasSupportedLocalCLI(runner, capabilitiesByRunnerID) {
-  if (!runner || runner.revoked_at) return false;
-  return (
-    capabilitiesHaveSupportedLocalCLI(runner.capabilities) ||
-    capabilitiesHaveSupportedLocalCLI(capabilitiesByRunnerID[runner.id])
-  );
+function bridgeDeviceHasSupportedLocalCLI(device) {
+  if (!device || device.revoked_at || device.status === "revoked") return false;
+  return capabilitiesHaveSupportedLocalCLI(device.capabilities);
 }
 
-async function runnerModelAvailability(teamID) {
-  const runners = await rest("runners", {
-    query: {
-      select: "id,status,revoked_at,capabilities",
-      status: "eq.connected",
-      team_id: `eq.${teamID}`,
-    },
-  }).catch(() => []);
-  const activeRunners = (runners || []).filter((runner) => !runner.revoked_at);
-  const runnerIDs = activeRunners.map((runner) => runner.id).filter(Boolean);
-  const capabilitiesRows = runnerIDs.length > 0
-    ? await rest("runner_capabilities", {
-        query: {
-          runner_id: `in.(${runnerIDs.join(",")})`,
-          select: "runner_id,provider_runtimes,cli_details",
-        },
-      }).catch(() => [])
+function bridgeDeviceProviderRuntimes(device) {
+  const caps = device?.capabilities && typeof device.capabilities === "object"
+    ? device.capabilities
+    : {};
+  const runtimes = Array.isArray(caps.provider_runtimes) ? caps.provider_runtimes : [];
+  const detailRuntimes = caps.cli_details && typeof caps.cli_details === "object"
+    ? Object.entries(caps.cli_details)
+        .filter(([, detail]) => cliDetailDetected(detail))
+        .map(([name]) => name)
     : [];
-  const capabilitiesByRunnerID = Object.fromEntries(
-    (capabilitiesRows || []).map((row) => [row.runner_id, row]),
-  );
-  return {
-    hasRunner: activeRunners.length > 0,
-    hasSupportedLocalCLI: activeRunners.some((runner) =>
-      runnerHasSupportedLocalCLI(runner, capabilitiesByRunnerID),
+  return [
+    ...new Set(
+      [...runtimes, ...detailRuntimes]
+        .map(normalizeProviderKind)
+        .filter(isSupportedLocalCLIRuntime),
     ),
-  };
+  ];
 }
 
-async function bridgeDevicesForMembership(membership, { includeTeam = false } = {}) {
+function executionProviderRuntime(provider) {
+  const value = String(provider || "").trim().toLowerCase().replace(/-/g, "_");
+  if (value === "claude_code" || value === "claude") return "claude-code";
+  if (value === "codex") return "codex";
+  return "";
+}
+
+function bridgeDeviceSupportsProvider(device, provider) {
+  const runtime = executionProviderRuntime(provider);
+  if (!runtime) return true;
+  return bridgeDeviceProviderRuntimes(device).includes(runtime);
+}
+
+function defaultExecutionProviderForBridgeDevice(device) {
+  const runtimes = bridgeDeviceProviderRuntimes(device);
+  if (runtimes.includes("codex")) return "codex";
+  if (runtimes.includes("claude-code")) return "claude_code";
+  return "";
+}
+
+function bridgeProviderLabel(provider) {
+  return executionProviderRuntime(provider) === "claude-code"
+    ? "Claude Code"
+    : "Codex";
+}
+
+function selectBridgeExecutionDevice(devices, provider = "") {
+  const usable = (devices || []).filter(
+    (device) => !device.revoked_at && device.status !== "revoked",
+  );
+  if (usable.length === 0) {
+    throw new HTTPError(400, "no paired LAF Bridge detected");
+  }
+  const online = usable.filter((device) => device.status === "online");
+  if (online.length === 0) {
+    throw new HTTPError(400, "no online LAF Bridge detected");
+  }
+  const capable = online.filter(bridgeDeviceHasSupportedLocalCLI);
+  if (capable.length === 0) {
+    throw new HTTPError(409, "LAF Bridge has no supported local CLI detected");
+  }
+  if (!provider) {
+    return (
+      capable.find((device) => bridgeDeviceSupportsProvider(device, "codex")) ||
+      capable[0]
+    );
+  }
+  const device = capable.find((candidate) =>
+    bridgeDeviceSupportsProvider(candidate, provider),
+  );
+  if (!device) {
+    throw new HTTPError(
+      409,
+      `LAF Bridge has not detected ${bridgeProviderLabel(provider)} CLI`,
+    );
+  }
+  return device;
+}
+
+async function bridgeDevicesForMembership(membership) {
   const query = {
     select: "*",
     status: "not.in.(revoked)",
     team_id: `eq.${membership.team_id}`,
+    user_id: `eq.${membership.user_id}`,
     order: "updated_at.desc",
   };
-  if (!includeTeam) query.user_id = `eq.${membership.user_id}`;
   return await rest("bridge_devices", { query }).catch(() => []);
 }
 
 function bridgeAvailabilityFromDevices(membership, devices) {
   const usable = (devices || []).filter((device) => !device.revoked_at && device.status !== "revoked");
   const online = usable.filter((device) => device.status === "online");
+  const capable = online.filter(bridgeDeviceHasSupportedLocalCLI);
+  const defaultDevice =
+    capable.find((device) => bridgeDeviceSupportsProvider(device, "codex")) ||
+    capable[0] ||
+    online[0];
   const canExecute = hasPermission(membership, "bridge:execute_own");
-  const available = canExecute && online.length > 0;
+  const available = canExecute && capable.length > 0;
   const reason = available
     ? ""
     : !canExecute
       ? "permission required: bridge:execute_own"
       : usable.length === 0
-        ? "no paired desktop bridge detected"
-        : "no online desktop bridge detected";
+        ? "no paired LAF Bridge detected"
+        : online.length === 0
+          ? "no online LAF Bridge detected"
+          : "no supported local CLI detected";
   return {
     available,
-    default_device_id: online[0]?.id || "",
+    default_device_id: defaultDevice?.id || "",
     device_count: usable.length,
     online_device_count: online.length,
+    runtimes: [...new Set(online.flatMap(bridgeDeviceProviderRuntimes))],
     reason,
   };
 }
@@ -1102,20 +1141,20 @@ async function modelAvailabilityForMembership(membership) {
     ? Boolean(billing.laf_model_enabled)
     : truthy(process.env.LAF_OFFICE_WORKSPACE_PAID) ||
       truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED);
-  const runnerState = await runnerModelAvailability(membership.team_id);
   const bridgeState = bridgeAvailabilityFromDevices(
     membership,
     await bridgeDevicesForMembership(membership),
   );
   const lafAllowed = paid && hasPermission(membership, "model:use_laf");
   const myBridgeAllowed = bridgeState.available;
-  const teamBridgeAllowed =
-    runnerState.hasSupportedLocalCLI && hasPermission(membership, "bridge:execute_team");
   const allowedModes = ["record_only"];
   if (lafAllowed) allowedModes.unshift("laf_model");
   if (myBridgeAllowed) allowedModes.push("my_bridge");
-  if (teamBridgeAllowed) allowedModes.push("team_bridge");
-  const defaultMode = lafAllowed ? "laf_model" : myBridgeAllowed ? "my_bridge" : "record_only";
+  const defaultMode = lafAllowed
+    ? "laf_model"
+    : myBridgeAllowed
+      ? "my_bridge"
+      : "record_only";
   return {
     default_mode: defaultMode,
     allowed_modes: allowedModes,
@@ -1130,23 +1169,7 @@ async function modelAvailabilityForMembership(membership) {
     my_bridge: {
       available: myBridgeAllowed,
       reason: bridgeState.reason,
-    },
-    team_bridge: {
-      available: teamBridgeAllowed,
-      reason: teamBridgeAllowed
-        ? ""
-        : !runnerState.hasRunner
-          ? "no connected team bridge detected"
-          : !runnerState.hasSupportedLocalCLI
-            ? "no supported local CLI detected"
-            : "permission required: bridge:execute_team",
-    },
-    local_cli: {
-      available: myBridgeAllowed || teamBridgeAllowed,
-      reason:
-        myBridgeAllowed || teamBridgeAllowed
-          ? "CLI execution available"
-          : "local CLI not detected",
+      runtimes: [...new Set(bridgeState.runtimes || [])],
     },
     record_only: {
       available: true,
@@ -1425,16 +1448,11 @@ function companyProfilePatch(body) {
 function workspacePreferencesPatch(body) {
   const out = {};
   for (const key of [
-    "action_provider",
     "blueprint",
-    "default_format",
-    "memory_backend",
-    "openclaw_gateway_url",
   ]) {
     if (body[key] !== undefined) out[key] = truncateText(body[key], 1000);
   }
   for (const key of [
-    "default_timeout",
     "insights_poll_minutes",
     "max_concurrent_agents",
     "task_follow_up_minutes",
@@ -1457,36 +1475,20 @@ function hostedConfigSnapshot({ settings, team, user }) {
   const company = objectValue(settings?.company_profile);
   const preferences = objectValue(settings?.preferences);
   return {
-    action_provider: preferences.action_provider || "",
-    anthropic_key_set: false,
-    api_key_set: false,
     blueprint: preferences.blueprint || "",
     company_description: company.description || "",
     company_goals: company.goals || "",
     company_name: company.name || team?.name || "",
     company_priority: company.priority || "",
     company_size: company.size || "",
-    composio_key_set: false,
-    config_path: "",
-    default_format: preferences.default_format || "text",
-    default_timeout: Number(preferences.default_timeout || 120000),
-    dev_url: "",
     email: user?.email || "",
-    gemini_key_set: false,
     insights_poll_minutes: Number(preferences.insights_poll_minutes || 60),
     llm_provider: normalizeHostedLLMProvider(settings?.llm_provider),
     max_concurrent_agents: Number(preferences.max_concurrent_agents || 3),
-    memory_backend: preferences.memory_backend || "markdown",
-    minimax_key_set: false,
-    one_key_set: false,
-    openai_key_set: false,
-    openclaw_gateway_url: preferences.openclaw_gateway_url || "",
-    openclaw_token_set: false,
     task_follow_up_minutes: Number(preferences.task_follow_up_minutes || 1440),
     task_recheck_minutes: Number(preferences.task_recheck_minutes || 1440),
     task_reminder_minutes: Number(preferences.task_reminder_minutes || 60),
     team_lead_slug: settings?.team_lead_slug || "ceo",
-    telegram_token_set: false,
     workspace_id: team?.id || "",
     workspace_slug: team?.slug || "",
   };
@@ -1862,6 +1864,22 @@ function publicChannelMessage(row = {}) {
   };
 }
 
+function hostedTaskExecutionMode(project) {
+  if (!project?.github_repo_url) return "office";
+  try {
+    return normalizeGitHubRepoURL(project.github_repo_url) ? "managed_checkout" : "office";
+  } catch {
+    return "office";
+  }
+}
+
+function publicTaskExecutionMode(value) {
+  const mode = String(value || "").trim();
+  if (mode === "local_worktree" || mode === "managed_checkout") return "managed_checkout";
+  if (mode === "office") return "office";
+  return "office";
+}
+
 function hostedMessageBelongsToThread(row, threadID) {
   return [
     row.thread_id,
@@ -1885,34 +1903,22 @@ function isMissingChannelMessagesError(err) {
 
 function shouldCreateHomeBridgePlan(message) {
   const mode = normalizeModelMode(message?.model_mode);
-  return message?.scope === "home_orchestration" && (mode === "my_bridge" || mode === "team_bridge");
+  return message?.scope === "home_orchestration" && mode === "my_bridge";
 }
 
 async function createHomeBridgeExecutionPlan(membership, message, body = {}) {
   const mode = normalizeModelMode(message.model_mode);
-  if (mode === "my_bridge") {
-    requirePermission(membership, "bridge:execute_own");
-  } else if (mode === "team_bridge") {
-    requirePermission(membership, "bridge:execute_team");
-  } else {
-    throw new HTTPError(400, "home bridge plan requires my_bridge or team_bridge mode");
-  }
+  if (mode !== "my_bridge") throw new HTTPError(400, "home bridge plan requires my_bridge mode");
+  requirePermission(membership, "bridge:execute_own");
   requirePermission(membership, "execution:plan_create");
   requirePermission(membership, "task:execute_agent");
-  const devices = await bridgeDevicesForMembership(membership, {
-    includeTeam: mode === "team_bridge",
-  });
-  const onlineDevices = (devices || []).filter(
-    (device) => !device.revoked_at && device.status === "online",
-  );
-  const device =
-    mode === "my_bridge"
-      ? onlineDevices.find((candidate) => candidate.user_id === membership.user_id)
-      : onlineDevices.find((candidate) => candidate.device_kind === "team_bridge") ||
-        onlineDevices[0];
-  if (!device) {
-    throw new HTTPError(409, "online LAF Bridge device is required");
-  }
+  const devices = await bridgeDevicesForMembership(membership);
+  const requestedProvider = String(body.provider || "").trim()
+    ? normalizeExecutionProvider(body.provider, mode)
+    : "";
+  const device = selectBridgeExecutionDevice(devices, requestedProvider);
+  const provider =
+    requestedProvider || defaultExecutionProviderForBridgeDevice(device);
 
   const requiredPermissions = [];
   const effective = effectivePermissions(membership);
@@ -1931,7 +1937,6 @@ async function createHomeBridgeExecutionPlan(membership, message, body = {}) {
   };
   const plan = {
     actor_user_id: membership.user_id,
-    binding_id: null,
     cancel_requested_at: null,
     completed_at: null,
     context_refs: [],
@@ -1946,7 +1951,7 @@ async function createHomeBridgeExecutionPlan(membership, message, body = {}) {
     policy,
     project_id: null,
     prompt: homeBridgePrompt(message, agentSlug),
-    provider: normalizeExecutionProvider(body.provider, mode),
+    provider,
     required_permissions: requiredPermissions,
     started_at: null,
     status: "pending",
@@ -1989,26 +1994,60 @@ function homeBridgePrompt(message, agentSlug) {
 }
 
 function homeBridgeFailureMessage(err) {
+  return `LAF Bridge 실행을 시작하지 못했습니다. ${homeBridgeFailureDetail(err)}`;
+}
+
+function homeBridgeFailureDetail(err) {
   const detail = err instanceof HTTPError ? err.message : err?.message || String(err || "");
-  return `LAF Bridge 실행을 시작하지 못했습니다. ${redactSensitiveText(detail || "브릿지 상태를 확인해 주세요.")}`;
+  switch (String(detail || "").trim()) {
+    case "no paired LAF Bridge detected":
+      return "Settings에서 LAF Bridge를 먼저 연결하세요.";
+    case "no online LAF Bridge detected":
+      return "LAF Bridge가 오프라인입니다. Bridge 터미널을 다시 연결해주세요.";
+    case "LAF Bridge has no supported local CLI detected":
+    case "no supported local CLI detected":
+      return "LAF Bridge가 Codex/Claude Code CLI를 감지하지 못했습니다.";
+    case "permission required: bridge:execute_own":
+      return "이 계정에는 LAF Bridge 실행 권한이 없습니다.";
+    case "permission required: execution:plan_create":
+      return "이 계정에는 실행 계획 생성 권한이 없습니다.";
+    case "permission required: task:execute_agent":
+      return "이 계정에는 에이전트 실행 권한이 없습니다.";
+    default:
+      return redactSensitiveText(detail || "Bridge 상태를 확인해 주세요.");
+  }
+}
+
+function executionPlanPolicy(rawPolicy, project) {
+  const policy = objectValue(rawPolicy);
+  if (!project) return policy;
+  const repoURL = normalizeGitHubRepoURL(project.github_repo_url || "");
+  return {
+    ...policy,
+    github_repo_url: repoURL || undefined,
+    project_id: project.id,
+    project_slug: project.local_id || project.id,
+    project_name: project.name || "",
+  };
 }
 
 async function handleHostedCommandRun(req, res) {
   await requireUser(req);
   const body = await readBody(req);
-  const channel = String(body.channel || "general").trim() || "general";
-  const content = String(body.input || "");
-  writeJSON(res, 200, {
-    message: {
-      channel,
-      content,
-      from: "system",
-      id: `msg-${shortID()}`,
-      kind: "system",
-      timestamp: nowISO(),
-    },
-    output: "",
-  });
+  const commandName = hostedSlashCommandName(body.input);
+  if (!commandName) {
+    throw new HTTPError(400, "slash command input is required");
+  }
+  if (HOSTED_WEB_COMMAND_NAMES.has(commandName)) {
+    throw new HTTPError(400, "slash command is handled directly in the web workspace");
+  }
+  throw new HTTPError(400, "slash command is not available in the hosted workspace");
+}
+
+function hostedSlashCommandName(input) {
+  const firstToken = String(input || "").trim().split(/\s+/)[0] || "";
+  if (!firstToken.startsWith("/")) return "";
+  return firstToken.slice(1).toLowerCase();
 }
 
 async function handleHostedMemory(req, res) {
@@ -2041,7 +2080,7 @@ async function handleHostedProjectRepoReadiness(req, res) {
       can_create_coding_tasks: Boolean(repoURL),
       default_branch: "",
       message: repoURL
-        ? "Repository URL is configured. Connect LAF Bridge before local execution."
+        ? "Repository URL is configured. Connect LAF Bridge for managed checkout."
         : "No GitHub repository is configured for this project yet.",
       project_id: project?.local_id || project?.id || projectID,
       repo_url: repoURL,
@@ -2266,7 +2305,7 @@ async function handleAuthMePassword(req, res) {
     headers: { Authorization: `Bearer ${accessToken}` },
     body: { password: newPassword },
   });
-  setAuthCookies(res, verifiedSession);
+  setAuthCookies(req, res, verifiedSession);
   await writeAuditEvent(membership, "profile.password_changed", "user", user.id);
   writeJSON(res, 200, { status: "ok" });
 }
@@ -2277,10 +2316,10 @@ async function handleAuthLogin(req, res) {
     method: "POST",
     body: { email: body.email, password: body.password },
   });
-  setAuthCookies(res, session);
   const membership = await activeMembership(session.user.id);
   if (!membership) throw new HTTPError(403, "active team membership required");
   const team = await getTeam(membership.team_id);
+  setAuthCookies(req, res, session);
   writeJSON(res, 200, {
     team: publicTeam(team),
     user: publicUser(session.user, membership),
@@ -2322,7 +2361,7 @@ async function handleAuthSignup(req, res) {
       },
     });
     const team = await getTeam(invite.team_id);
-    if (authenticated) setAuthCookies(res, session);
+    if (authenticated) setAuthCookies(req, res, session);
     writeJSON(res, 200, {
       authenticated,
       email_confirmation_required: emailConfirmationRequired,
@@ -2350,7 +2389,7 @@ async function handleAuthSignup(req, res) {
       user_id: user.id,
     },
   });
-  if (authenticated) setAuthCookies(res, session);
+  if (authenticated) setAuthCookies(req, res, session);
   writeJSON(res, 200, {
     authenticated,
     email_confirmation_required: emailConfirmationRequired,
@@ -2775,15 +2814,11 @@ async function handleTasks(req, res) {
   const project = updated.project_id
     ? await getProjectByID(membership.team_id, updated.project_id)
     : null;
-  let job = null;
   if (TERMINAL_TASK_STATUSES.includes(updated.status)) {
-    await closeJobsForTask(updated, updated.status === "canceled" ? "canceled" : "succeeded");
-  } else {
-    job = await ensureRunnerJobForTask(updated, project);
+    await closeExecutionPlansForTask(updated, updated.status === "canceled" ? "cancelled" : "completed");
   }
   const projects = await projectMap(membership.team_id);
   writeJSON(res, 200, {
-    runner_job: job ? publicRunnerJob(job, projects, { [updated.id]: updated }) : null,
     task: publicTask(updated, projects),
   });
 }
@@ -2797,8 +2832,7 @@ async function createTask(membership, body) {
   const assigneeType =
     body.assignee_type || (assigneeID ? (isHuman(assigneeID) ? "human" : "agent") : "none");
   const status = body.status || (owner && !isHuman(owner) ? "in_progress" : "open");
-  const executionMode =
-    body.execution_mode || (project?.github_repo_url ? "local_worktree" : "office");
+  const executionMode = hostedTaskExecutionMode(project);
   const modelMode = await resolveAllowedModelMode(membership, body.model_mode);
   const [task] = await rest("tasks", {
     method: "POST",
@@ -2827,10 +2861,8 @@ async function createTask(membership, body) {
     model_mode: task.model_mode,
     owner: task.owner,
   });
-  const job = await ensureRunnerJobForTask(task, project);
   const projects = await projectMap(membership.team_id);
   return {
-    runner_job: job ? publicRunnerJob(job, projects, { [task.id]: task }) : null,
     task: publicTask(task, projects),
   };
 }
@@ -2849,7 +2881,6 @@ function taskUpdatePayload(body) {
     "human_owner_user_id",
     "model_mode",
     "task_type",
-    "execution_mode",
   ]) {
     if (body[key] !== undefined) payload[key] = body[key];
   }
@@ -2901,18 +2932,17 @@ async function handleModelAvailability(req, res) {
 async function handleBridgeAvailability(req, res) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "bridge:read_own");
-  const devices = await bridgeDevicesForMembership(membership);
+  const ownDevices = await bridgeDevicesForMembership(membership);
   writeJSON(res, 200, {
-    my_bridge: bridgeAvailabilityFromDevices(membership, devices),
-    devices: devices.map(publicBridgeDevice),
+    my_bridge: bridgeAvailabilityFromDevices(membership, ownDevices),
+    devices: ownDevices.map(publicBridgeDevice),
   });
 }
 
 async function handleBridgeDevices(req, res) {
   const { membership } = await requireUser(req);
-  const includeTeam = hasPermission(membership, "bridge:read_team");
-  requirePermission(membership, includeTeam ? "bridge:read_team" : "bridge:read_own");
-  const devices = await bridgeDevicesForMembership(membership, { includeTeam });
+  requirePermission(membership, "bridge:read_own");
+  const devices = await bridgeDevicesForMembership(membership);
   writeJSON(res, 200, { devices: devices.map(publicBridgeDevice) });
 }
 
@@ -2925,6 +2955,7 @@ async function handleBridgePairingStart(req, res) {
     RATE_LIMITS.bridgePairingStart,
   );
   const body = await readBody(req);
+  const apiURL = pairingCommandAPIURL(req, body.api_url);
   const code = generatePairingCode();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const now = nowISO();
@@ -2939,7 +2970,6 @@ async function handleBridgePairingStart(req, res) {
       user_id: membership.user_id,
     },
   });
-  const apiURL = normalizeRunnerPairingAPIURL(body.api_url) || runnerPairingRequestAPIURL(req);
   writeJSON(res, 200, bridgePairingStartResponse(apiURL, code, membership.team_id, expiresAt));
 }
 
@@ -2952,10 +2982,11 @@ async function handleBridgePairingClaim(req, res) {
     `${clientRateLimitKey(req)}:${hashToken(code).slice(0, 12)}`,
     RATE_LIMITS.bridgePairingClaim,
   );
-  const publicKey = String(body.public_key || "").trim();
-  if (!publicKey) throw new HTTPError(400, "public_key is required");
+  const publicKey = normalizeBridgePublicKey(body.public_key);
   const deviceLabel = String(body.device_label || body.name || "").trim();
   if (!deviceLabel) throw new HTTPError(400, "device_label is required");
+  const planSigningKeyPair = signingKeyPair();
+  const planSigningPublicKey = executionPlanSigningPublicKeyPEM();
   const now = nowISO();
   const rows = await rest("bridge_pairing_codes", {
     query: {
@@ -2992,7 +3023,7 @@ async function handleBridgePairingClaim(req, res) {
         bridge_version: String(body.bridge_version || "").trim(),
         capabilities: sanitizeBridgeCapabilities(body.capabilities || {}),
         created_at: now,
-        device_kind: body.device_kind === "team_bridge" ? "team_bridge" : "desktop",
+        device_kind: "desktop",
         device_label: deviceLabel,
         last_seen_at: now,
         paired_at: now,
@@ -3018,7 +3049,12 @@ async function handleBridgePairingClaim(req, res) {
     query: { id: `eq.${pairing.id}` },
     body: { claimed_device_id: device.id },
   });
-  writeJSON(res, 200, { bridge_token: bridgeToken, device: publicBridgeDevice(device) });
+  writeJSON(res, 200, {
+    bridge_token: bridgeToken,
+    device: publicBridgeDevice(device),
+    plan_signing_key_id: planSigningKeyPair.key_id,
+    plan_signing_public_key: planSigningPublicKey,
+  });
 }
 
 async function handleBridgeDeviceHeartbeat(req, res, deviceID) {
@@ -3056,15 +3092,12 @@ async function handleBridgeDeviceRevoke(req, res, deviceID) {
       limit: "1",
       select: "*",
       team_id: `eq.${membership.team_id}`,
+      user_id: `eq.${membership.user_id}`,
     },
   });
   const device = rows?.[0];
   if (!device) throw new HTTPError(404, "bridge device not found");
-  if (device.user_id === membership.user_id) {
-    requirePermission(membership, "bridge:manage_own");
-  } else {
-    requirePermission(membership, "bridge:manage_team");
-  }
+  requirePermission(membership, "bridge:manage_own");
   const now = nowISO();
   await writeAuditEvent(
     membership,
@@ -3122,94 +3155,6 @@ async function handleBridgePendingPlans(req, res, deviceID) {
   writeJSON(res, 200, { plans });
 }
 
-async function handleProjectLocalBindings(req, res, projectExternalID) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "bridge:read_own");
-  const project = await findProject(membership.team_id, projectExternalID);
-  const rows = await rest("project_local_bindings", {
-    query: {
-      order: "last_used_at.desc",
-      project_id: `eq.${project.id}`,
-      select: "*",
-      team_id: `eq.${membership.team_id}`,
-      user_id: `eq.${membership.user_id}`,
-    },
-  }).catch(() => []);
-  writeJSON(res, 200, { bindings: (rows || []).map(publicProjectLocalBinding) });
-}
-
-async function handleProjectLocalBindingCreate(req, res, projectExternalID) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "bridge:manage_own");
-  const project = await findProject(membership.team_id, projectExternalID);
-  const body = await readBody(req);
-  const deviceID = String(body.device_id || "").trim();
-  if (!deviceID) throw new HTTPError(400, "device_id is required");
-  const localPath = String(body.local_path || "").trim();
-  if (!localPath) throw new HTTPError(400, "local_path is required");
-  const displayName = truncateText(String(body.display_name || "").trim() || basename(localPath), 128);
-  const devices = await rest("bridge_devices", {
-    query: {
-      id: `eq.${deviceID}`,
-      limit: "1",
-      select: "*",
-      status: "not.in.(revoked)",
-      team_id: `eq.${membership.team_id}`,
-      user_id: `eq.${membership.user_id}`,
-    },
-  });
-  const device = devices?.[0];
-  if (!device) throw new HTTPError(404, "bridge device not found");
-  const now = nowISO();
-  const [binding] = await rest("project_local_bindings", {
-    method: "POST",
-    query: { on_conflict: "team_id,project_id,user_id,device_id,local_path_hash" },
-    body: {
-      created_at: now,
-      device_id: device.id,
-      display_name: displayName,
-      git_remote_hash: hashOrNull(body.git_remote_url || body.git_remote_hash),
-      git_root_hash: hashOrNull(body.git_root || body.git_root_hash),
-      last_used_at: now,
-      local_path_hash: hashToken(localPath),
-      project_id: project.id,
-      team_id: membership.team_id,
-      trusted: body.trusted === true,
-      trusted_at: body.trusted === true ? now : null,
-      user_id: membership.user_id,
-    },
-  });
-  writeJSON(res, 200, {
-    binding: publicProjectLocalBinding(binding),
-    commands: {
-      link: bridgeLinkProjectCommand({
-        bindingID: binding.id,
-        displayName,
-        localPath,
-        projectID: project.id,
-      }),
-    },
-  });
-}
-
-async function handleProjectLocalBindingDelete(req, res, projectExternalID, bindingID) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "bridge:manage_own");
-  const project = await findProject(membership.team_id, projectExternalID);
-  const rows = await rest("project_local_bindings", {
-    method: "DELETE",
-    query: {
-      id: `eq.${bindingID}`,
-      project_id: `eq.${project.id}`,
-      team_id: `eq.${membership.team_id}`,
-      user_id: `eq.${membership.user_id}`,
-    },
-  });
-  const binding = rows?.[0];
-  if (!binding) throw new HTTPError(404, "local binding not found");
-  writeJSON(res, 200, { binding: publicProjectLocalBinding(binding), deleted: true });
-}
-
 async function handleExecutionPlanCreate(req, res) {
   const { membership } = await requireUser(req);
   requirePermission(membership, "execution:plan_create");
@@ -3218,21 +3163,28 @@ async function handleExecutionPlanCreate(req, res) {
   const mode = normalizeModelMode(body.mode);
   if (mode === "record_only") throw new HTTPError(400, "record_only mode cannot create execution plans");
   if (mode === "my_bridge") requirePermission(membership, "bridge:execute_own");
-  if (mode === "team_bridge") requirePermission(membership, "bridge:execute_team");
-  const provider = normalizeExecutionProvider(body.provider, mode);
+  let provider =
+    mode === "my_bridge" && !String(body.provider || "").trim()
+      ? ""
+      : normalizeExecutionProvider(body.provider, mode);
   const task = await findTask(membership.team_id, body.task_id || body.taskID || body.taskId);
   const project = task.project_id ? await getProjectByID(membership.team_id, task.project_id) : null;
   const prompt = String(body.message || body.prompt || "").trim();
   if (!prompt) throw new HTTPError(400, "message is required");
-  const bindingID = String(body.binding_id || "").trim();
+  if (String(body.binding_id || "").trim()) {
+    throw new HTTPError(400, "my_bridge uses managed checkout; local binding execution is not supported");
+  }
   const deviceID = String(body.device_id || "").trim();
-  const binding = await resolveExecutionBinding({
-    bindingID,
+  const target = await resolveExecutionTarget({
     deviceID,
     membership,
     mode,
+    provider,
     project,
   });
+  if (mode === "my_bridge" && !provider) {
+    provider = defaultExecutionProviderForBridgeDevice(target.device);
+  }
   const requiredPermissions = normalizeStringList(body.required_permissions || []);
   const effective = effectivePermissions(membership);
   for (const permission of requiredPermissions) {
@@ -3246,19 +3198,18 @@ async function handleExecutionPlanCreate(req, res) {
   const expiresAt = new Date(now + expiresInSeconds * 1000).toISOString();
   const plan = {
     actor_user_id: membership.user_id,
-    binding_id: binding?.id || null,
     cancel_requested_at: null,
     completed_at: null,
     context_refs: [],
     created_at: nowISO(),
-    device_id: deviceID || binding?.device_id || null,
+    device_id: target.device?.id || null,
     dispatched_at: null,
     effective_permissions: effective,
-    executor_user_id: membership.user_id,
+    executor_user_id: target.device?.user_id || membership.user_id,
     expires_at: expiresAt,
     id: planID,
     mode,
-    policy: body.policy && typeof body.policy === "object" ? body.policy : {},
+    policy: executionPlanPolicy(body.policy, project),
     project_id: project?.id || null,
     prompt,
     provider,
@@ -3729,487 +3680,6 @@ async function applyOrchestrationAction(membership, action) {
   throw new HTTPError(400, "unsupported orchestration action");
 }
 
-async function handleRunnerStatus(req, res) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "runner:read");
-  const jobQuery = {
-    team_id: `eq.${membership.team_id}`,
-    select: "*",
-    order: "updated_at.desc",
-  };
-  if (req.query.project_id) {
-    const project = await findProject(membership.team_id, req.query.project_id);
-    jobQuery.project_id = `eq.${project.id}`;
-  }
-  if (req.query.task_id) {
-    const task = await findTask(membership.team_id, req.query.task_id);
-    jobQuery.task_id = `eq.${task.id}`;
-  }
-  const [runners, jobs] = await Promise.all([
-    rest("runners", {
-      query: {
-        team_id: `eq.${membership.team_id}`,
-        select: "*",
-        order: "updated_at.desc",
-      },
-    }),
-    rest("runner_jobs", { query: jobQuery }),
-  ]);
-  const [projects, tasks] = await Promise.all([
-    projectMap(
-      membership.team_id,
-      jobs.map((job) => job.project_id),
-    ),
-    taskMap(
-      membership.team_id,
-      jobs.map((job) => job.task_id),
-    ),
-  ]);
-  const publicJobs = jobs.map((job) => publicRunnerJob(job, projects, tasks));
-  const publicRunners = runners.map(publicRunner);
-  writeJSON(res, 200, {
-    diagnostics: runnerStatusDiagnostics(publicRunners, publicJobs),
-    jobs: publicJobs,
-    runners: publicRunners,
-  });
-}
-
-async function handleRunnerPairingStart(req, res) {
-  const { membership, user } = await requireUser(req);
-  requirePermission(membership, "runner:manage");
-  requireAdminRole(membership, "team bridge registration requires admin");
-  const body = await readBody(req);
-  const code = generatePairingCode();
-  const now = nowISO();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  await rest("runner_pairing_codes", {
-    method: "POST",
-    body: {
-      code_hash: hashToken(normalizePairingCode(code)),
-      created_at: now,
-      created_by: user.id,
-      expires_at: expiresAt,
-      status: "pending",
-      team_id: membership.team_id,
-    },
-  });
-  const apiURL =
-    normalizeRunnerPairingAPIURL(body.api_url) || runnerPairingRequestAPIURL(req);
-  writeJSON(res, 200, runnerPairingStartResponse(apiURL, code, membership.team_id, expiresAt));
-}
-
-async function handleRunnerPairingClaim(req, res) {
-  const body = await readBody(req);
-  const code = normalizePairingCode(body.code || body.pairing_code || "");
-  if (!code) throw new HTTPError(400, "pairing code is required");
-  const now = nowISO();
-  const rows = await rest("runner_pairing_codes", {
-    query: {
-      code_hash: `eq.${hashToken(code)}`,
-      limit: "1",
-      select: "*",
-      status: "eq.pending",
-    },
-  });
-  const pairing = rows?.[0];
-  if (!pairing) {
-    throw new HTTPError(410, "pairing code expired or already used");
-  }
-  if (pairing.expires_at && new Date(pairing.expires_at).getTime() <= Date.now()) {
-    await rest("runner_pairing_codes", {
-      method: "PATCH",
-      query: { id: `eq.${pairing.id}`, status: "eq.pending" },
-      body: { status: "expired" },
-    });
-    throw new HTTPError(410, "pairing code expired or already used");
-  }
-  const claimed = await rest("runner_pairing_codes", {
-    method: "PATCH",
-    query: { id: `eq.${pairing.id}`, status: "eq.pending" },
-    body: {
-      claimed_at: now,
-      status: "claimed",
-    },
-  });
-  if (!claimed?.length) {
-    throw new HTTPError(409, "pairing code was already claimed");
-  }
-  const token = `laf_runner_${crypto.randomBytes(24).toString("hex")}`;
-  let runner;
-  try {
-    [runner] = await rest("runners", {
-      method: "POST",
-      body: {
-        capabilities: body.capabilities || {},
-        created_at: now,
-        last_seen_at: now,
-        name: body.name || "Local runner",
-        runner_type: body.runner_type || "local",
-        status: "connected",
-        team_id: pairing.team_id,
-        token_hash: hashToken(token),
-        updated_at: now,
-      },
-    });
-  } catch (err) {
-    await rest("runner_pairing_codes", {
-      method: "PATCH",
-      query: { id: `eq.${pairing.id}`, status: "eq.claimed" },
-      body: {
-        claimed_at: null,
-        status: "pending",
-      },
-    }).catch(() => {});
-    throw err;
-  }
-  await rest("runner_pairing_codes", {
-    method: "PATCH",
-    query: { id: `eq.${pairing.id}` },
-    body: { claimed_runner_id: runner.id },
-  });
-  writeJSON(res, 200, { runner: publicRunner(runner), runner_token: token });
-}
-
-async function handleRunnerRegister(req, res) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "runner:manage");
-  requireAdminRole(membership, "team bridge registration requires admin");
-  const body = await readBody(req);
-  const teamID = body.team_id || membership.team_id;
-  if (teamID !== membership.team_id) {
-    throw new HTTPError(403, "runner registration must use your active team");
-  }
-  const token = `laf_runner_${crypto.randomBytes(24).toString("hex")}`;
-  const now = nowISO();
-  const [runner] = await rest("runners", {
-    method: "POST",
-    body: {
-      capabilities: body.capabilities || {},
-      created_at: now,
-      last_seen_at: now,
-      name: body.name || "Local runner",
-      runner_type: body.runner_type || "local",
-      status: "connected",
-      team_id: teamID,
-      token_hash: hashToken(token),
-      updated_at: now,
-    },
-  });
-  writeJSON(res, 200, { runner: publicRunner(runner), runner_token: token });
-}
-
-async function handleRunnerRevoke(req, res) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "runner:manage");
-  const body = await readBody(req);
-  const runnerID = String(body.runner_id || body.id || "").trim();
-  if (!runnerID) throw new HTTPError(400, "runner_id is required");
-
-  const existing = await rest("runners", {
-    query: {
-      id: `eq.${runnerID}`,
-      limit: "1",
-      select: "*",
-      team_id: `eq.${membership.team_id}`,
-    },
-  });
-  if (!existing?.length) throw new HTTPError(404, "runner not found");
-
-  const now = nowISO();
-  const [runner] = await rest("runners", {
-    method: "PATCH",
-    query: {
-      id: `eq.${runnerID}`,
-      team_id: `eq.${membership.team_id}`,
-    },
-    body: {
-      revoked_at: now,
-      status: "revoked",
-      updated_at: now,
-    },
-  });
-  await rest("runner_jobs", {
-    method: "PATCH",
-    query: {
-      runner_id: `eq.${runnerID}`,
-      status: "in.(leased,running)",
-      team_id: `eq.${membership.team_id}`,
-    },
-    body: {
-      last_error: "runner revoked",
-      lease_expires_at: null,
-      runner_id: null,
-      status: "expired",
-      updated_at: now,
-    },
-  });
-  writeJSON(res, 200, { runner: publicRunner(runner) });
-}
-
-async function handleRunnerHeartbeat(req, res) {
-  const runner = await requireRunner(req);
-  const body = await readBody(req);
-  const [updated] = await rest("runners", {
-    method: "PATCH",
-    query: { id: `eq.${runner.id}` },
-    body: {
-      last_seen_at: nowISO(),
-      status: body.status === "disconnected" ? "disconnected" : "connected",
-      updated_at: nowISO(),
-    },
-  });
-  writeJSON(res, 200, { runner: publicRunner(updated) });
-}
-
-async function handleRunnerCapabilities(req, res) {
-  const runner = await requireRunner(req);
-  const body = await readBody(req);
-  const capabilities = body.capabilities || body || {};
-  const [updated] = await rest("runners", {
-    method: "PATCH",
-    query: { id: `eq.${runner.id}` },
-    body: {
-      capabilities,
-      last_seen_at: nowISO(),
-      status: "connected",
-      updated_at: nowISO(),
-    },
-  });
-  await rest("runner_capabilities", {
-    method: "POST",
-    query: { on_conflict: "runner_id" },
-    prefer: "resolution=merge-duplicates,return=representation",
-    body: {
-      arch: capabilities.arch || "",
-      cli_details: capabilities.cli_details || {},
-      execution_modes: capabilities.execution_modes || [],
-      gh_authenticated: Boolean(capabilities.gh_authenticated),
-      gh_available: Boolean(capabilities.gh_available),
-      git_available: Boolean(capabilities.git_available),
-      hostname: capabilities.hostname || "",
-      os: capabilities.os || "",
-      provider_runtimes: capabilities.provider_runtimes || [],
-      reported_at: nowISO(),
-      runner_id: runner.id,
-      team_id: runner.team_id,
-      workspace_root: capabilities.workspace_root || "",
-    },
-  });
-  writeJSON(res, 200, { runner: publicRunner(updated) });
-}
-
-async function handleRunnerJobLease(req, res) {
-  const runner = await requireRunner(req);
-  const body = await readBody(req);
-  const capabilities = runner.capabilities || {};
-  const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
-  const claimed = await rpc("claim_runner_job", {
-    p_execution_modes: normalizeStringList(
-      body.execution_modes || capabilities.execution_modes || [],
-    ),
-    p_lease_seconds: leaseSeconds,
-    p_provider_runtimes: normalizeProviderList(
-      body.provider_runtimes || capabilities.provider_runtimes || [],
-    ),
-    p_runner_id: runner.id,
-    p_team_id: runner.team_id,
-  });
-  const job = Array.isArray(claimed) ? claimed[0] : claimed;
-  if (!job) {
-    writeJSON(res, 200, { job: null });
-    return;
-  }
-  await appendJobEvent(job, runner.id, "leased", "info", "runner leased job");
-  const [projects, tasks] = await Promise.all([
-    projectMap(runner.team_id, [job.project_id]),
-    taskMap(runner.team_id, [job.task_id]),
-  ]);
-  writeJSON(res, 200, { job: publicRunnerJob(job, projects, tasks) });
-}
-
-async function handleRunnerJobEvent(req, res, jobID) {
-  const runner = await requireRunner(req);
-  const job = await findRunnerJob(runner.team_id, jobID);
-  ensureRunnerOwnsJob(runner, job);
-  const body = await readBody(req);
-  const now = nowISO();
-  const patch = { updated_at: now };
-  if (body.status === "running" || body.kind === "running") {
-    patch.runner_id = runner.id;
-    patch.started_at = job.started_at || now;
-    patch.status = "running";
-  }
-  const updated = requireRunnerJobMutation(
-    await rest("runner_jobs", {
-      method: "PATCH",
-      query: activeRunnerJobMutationQuery(job, runner, now),
-      body: patch,
-    }),
-  );
-  const event = await appendJobEvent(
-    updated,
-    runner.id,
-    body.kind || body.status || "event",
-    body.level || "info",
-    body.message || "",
-    body.payload || {},
-  );
-  writeJSON(res, 200, { event });
-}
-
-async function handleRunnerJobComplete(req, res, jobID) {
-  const runner = await requireRunner(req);
-  const job = await findRunnerJob(runner.team_id, jobID);
-  ensureRunnerOwnsJob(runner, job);
-  const body = await readBody(req);
-  const status = normalizeJobStatus(body.status);
-  if (!["succeeded", "failed", "canceled"].includes(status)) {
-    throw new HTTPError(400, "status must be succeeded, failed, or canceled");
-  }
-  const now = nowISO();
-  const updatedJob = requireRunnerJobMutation(
-    await rest("runner_jobs", {
-      method: "PATCH",
-      query: activeRunnerJobMutationQuery(job, runner, now),
-      body: {
-        completed_at: now,
-        last_error: redactSensitiveText(body.error || ""),
-        lease_expires_at: null,
-        runner_id: runner.id,
-        status,
-        updated_at: now,
-      },
-    }),
-  );
-  const event = await appendJobEvent(
-    updatedJob,
-    runner.id,
-    status,
-    status === "failed" ? "error" : status === "canceled" ? "warn" : "info",
-    body.message || body.error || "",
-    body.payload || {},
-  );
-  let task = null;
-  if (updatedJob.task_id) {
-    const taskPatch = {
-      delivery_checked_at: body.delivery_checked_at || nowISO(),
-      delivery_checks_status: body.delivery_checks_status || "",
-      delivery_draft: Boolean(body.delivery_draft),
-      delivery_merge_state: body.delivery_merge_state || "",
-      delivery_review_decision: body.delivery_review_decision || "",
-      delivery_status: body.delivery_status || "",
-      delivery_summary: redactSensitiveText(body.delivery_summary || body.message || ""),
-      delivery_url: body.delivery_url || "",
-      updated_at: nowISO(),
-      worktree_branch: body.worktree_branch || undefined,
-      worktree_path: body.worktree_path || undefined,
-    };
-    const [updatedTask] = await rest("tasks", {
-      method: "PATCH",
-      query: { id: `eq.${updatedJob.task_id}` },
-      body: compactObject(taskPatch),
-    });
-    task = updatedTask;
-    await rest("delivery_receipts", {
-      method: "POST",
-      body: {
-        delivery_checked_at: taskPatch.delivery_checked_at,
-        delivery_checks_status: taskPatch.delivery_checks_status,
-        delivery_draft: taskPatch.delivery_draft,
-        delivery_merge_state: taskPatch.delivery_merge_state,
-        delivery_review_decision: taskPatch.delivery_review_decision,
-        delivery_status: taskPatch.delivery_status,
-        delivery_summary: redactSensitiveText(taskPatch.delivery_summary),
-        delivery_url: taskPatch.delivery_url,
-        project_id: updatedJob.project_id,
-        task_id: updatedJob.task_id,
-        team_id: updatedJob.team_id,
-      },
-    });
-  }
-  const projects = await projectMap(runner.team_id, [
-    updatedJob.project_id,
-    task?.project_id,
-  ]);
-  const tasks = task ? { [task.id]: task } : await taskMap(runner.team_id, [updatedJob.task_id]);
-  writeJSON(res, 200, {
-    event,
-    job: publicRunnerJob(updatedJob, projects, tasks),
-    task: task ? publicTask(task, projects) : null,
-  });
-}
-
-async function handleRunnerJobRenew(req, res, jobID) {
-  const runner = await requireRunner(req);
-  const job = await findRunnerJob(runner.team_id, jobID);
-  ensureRunnerOwnsJob(runner, job);
-  const body = await readBody(req);
-  const leaseSeconds = clamp(Number(body.lease_seconds || 300), 30, 1800);
-  const now = nowISO();
-  const updated = requireRunnerJobMutation(
-    await rest("runner_jobs", {
-      method: "PATCH",
-      query: activeRunnerJobMutationQuery(job, runner, now),
-      body: {
-        lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
-        updated_at: now,
-      },
-    }),
-  );
-  const event = await appendJobEvent(
-    updated,
-    runner.id,
-    "renewed",
-    "info",
-    "runner renewed job lease",
-    { lease_seconds: leaseSeconds },
-  );
-  writeJSON(res, 200, { event, job: publicRunnerJob(updated) });
-}
-
-async function handleRunnerWikiWriteResult(req, res) {
-  const runner = await requireRunner(req);
-  const body = await readBody(req);
-  if (body.team_id && body.team_id !== runner.team_id) {
-    throw new HTTPError(403, "runner cannot write results for another team");
-  }
-  const project = body.project_id
-    ? await findProject(runner.team_id, body.project_id)
-    : null;
-  if (body.request_id) {
-    await rest("wiki_write_requests", {
-      method: "PATCH",
-      query: { id: `eq.${body.request_id}`, team_id: `eq.${runner.team_id}` },
-      body: {
-        commit_sha: body.commit_sha || "",
-        completed_at: nowISO(),
-        error: body.error || "",
-        runner_id: runner.id,
-        status: body.status || "succeeded",
-        updated_at: nowISO(),
-      },
-    });
-  }
-  const rows = await rest("wiki_article_index", {
-    method: "POST",
-    query: { on_conflict: "team_id,project_id,article_path" },
-    prefer: "resolution=merge-duplicates,return=representation",
-    body: {
-      article_path: body.article_path,
-      decisions: body.decisions || [],
-      excerpt: body.excerpt || "",
-      last_commit: body.commit_sha || "",
-      open_questions: body.open_questions || [],
-      project_id: project?.id || null,
-      risks: body.risks || [],
-      team_id: runner.team_id,
-      title: body.title || "",
-      updated_at: nowISO(),
-    },
-  });
-  writeJSON(res, 200, { article: rows?.[0] || null });
-}
-
 async function handleSkills(req, res) {
   const { membership } = await requireUser(req);
   if (req.method === "GET") {
@@ -4409,26 +3879,6 @@ function permissionRequirementList(raw) {
   ];
 }
 
-async function requireRunner(req) {
-  const token =
-    bearer(req) ||
-    req.headers["x-laf-runner-token"] ||
-    "";
-  if (!token) throw new HTTPError(401, "runner token required");
-  const rows = await rest("runners", {
-    query: {
-      select: "*",
-      token_hash: `eq.${hashToken(token)}`,
-      limit: "1",
-    },
-  });
-  const runner = rows?.[0];
-  if (!runner || runner.status === "revoked" || runner.revoked_at) {
-    throw new HTTPError(401, "runner unauthorized");
-  }
-  return runner;
-}
-
 async function requireBridgeDevice(req) {
   const token =
     bearer(req) ||
@@ -4587,12 +4037,24 @@ async function ensureExecutionDeliveryReceipt(plan, receipt) {
       delivery_review_decision: "",
       delivery_status: receipt.status || "",
       delivery_summary: redactSensitiveText(receipt.summary || ""),
-      delivery_url: "",
+      delivery_url: deliveryURLFromReceipt(receipt),
       project_id: plan.project_id || null,
       task_id: plan.task_id,
       team_id: plan.team_id,
     },
   });
+}
+
+function deliveryURLFromReceipt(receipt) {
+  for (const artifact of arrayOrEmpty(receipt?.artifacts)) {
+    const item = artifact && typeof artifact === "object" ? artifact : {};
+    const url = String(item.url || item.href || "").trim();
+    if (!url || !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/[0-9]+\/?$/.test(url)) {
+      continue;
+    }
+    return truncateText(redactSensitiveText(url.replace(/\/$/, "")), 500);
+  }
+  return "";
 }
 
 async function ensureExecutionTaskThreadReceiptEvent(plan, receipt) {
@@ -4693,150 +4155,26 @@ async function ensureExecutionHomeReplyMessage(plan, receipt) {
   });
 }
 
-async function findRunnerJob(teamID, jobID) {
-  const rows = await rest("runner_jobs", {
-    query: { id: `eq.${jobID}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
-  });
-  if (!rows?.length) throw new HTTPError(404, "runner job not found");
-  return rows[0];
-}
-
-async function ensureRunnerJobForTask(task, project) {
-  if (!taskNeedsRunnerJob(task)) return null;
-  const active = await rest("runner_jobs", {
+async function closeExecutionPlansForTask(task, status) {
+  const plans = await rest("execution_plans", {
     query: {
       select: "*",
-      status: `in.(${ACTIVE_JOB_STATUSES.join(",")})`,
-      task_id: `eq.${task.id}`,
-      team_id: `eq.${task.team_id}`,
-      limit: "1",
-    },
-  });
-  if (active?.length) return active[0];
-  const requestedBy =
-    task.human_owner_user_id || (isUUID(task.created_by) ? task.created_by : null);
-  const effective = requestedBy
-    ? await effectivePermissionsForUser(task.team_id, requestedBy)
-    : [];
-  const [job] = await rest("runner_jobs", {
-    method: "POST",
-    body: {
-      agent_memory_packet: await buildAgentMemoryPacket(task, project),
-      agent_slug: task.owner || "",
-      effective_permissions: effective,
-      execution_mode: task.execution_mode || "office",
-      model_mode: normalizeModelMode(task.model_mode),
-      project_id: project?.id || null,
-      provider_kind: normalizeProviderKind(task.provider_kind || task.required_provider || ""),
-      repo_url: normalizeGitHubRepoURL(project?.github_repo_url || ""),
-      requested_by: requestedBy,
-      status: "queued",
-      task_id: task.id,
-      team_id: task.team_id,
-      wiki_path: project ? `team/projects/${project.local_id || project.id}.md` : "",
-    },
-  });
-  await appendJobEvent(job, "", "queued", "info", "runner job queued for task execution");
-  return job;
-}
-
-async function effectivePermissionsForUser(teamID, userID) {
-  const rows = await rest("memberships", {
-    query: {
-      limit: "1",
-      select: "*",
-      status: "eq.active",
-      team_id: `eq.${teamID}`,
-      user_id: `eq.${userID}`,
-    },
-  });
-  return rows?.[0] ? effectivePermissions(rows[0]) : [];
-}
-
-async function closeJobsForTask(task, status) {
-  const jobs = await rest("runner_jobs", {
-    query: {
-      select: "*",
-      status: `in.(${ACTIVE_JOB_STATUSES.join(",")})`,
+      status: "in.(pending,acknowledged,running)",
       task_id: `eq.${task.id}`,
       team_id: `eq.${task.team_id}`,
     },
-  });
-  for (const job of jobs || []) {
-    const [closed] = await rest("runner_jobs", {
+  }).catch(() => []);
+  for (const plan of plans || []) {
+    await rest("execution_plans", {
       method: "PATCH",
-      query: { id: `eq.${job.id}` },
+      query: { id: `eq.${plan.id}` },
       body: {
         completed_at: nowISO(),
-        last_error: status === "succeeded" ? "" : `task closed as ${task.status}`,
-        lease_expires_at: null,
         status,
         updated_at: nowISO(),
       },
-    });
-    await appendJobEvent(closed, job.runner_id || "", status, "info", "task closed runner job");
+    }).catch(() => null);
   }
-}
-
-async function appendJobEvent(job, runnerID, kind, level, message, payload = {}) {
-  const [event] = await rest("runner_job_events", {
-    method: "POST",
-    body: {
-      job_id: job.id,
-      kind,
-      level,
-      message: redactSensitiveText(message),
-      payload: redactSensitiveValue(payload),
-      runner_id: runnerID || null,
-      task_id: job.task_id || null,
-      team_id: job.team_id,
-    },
-  });
-  return event;
-}
-
-function taskNeedsRunnerJob(task) {
-  return (
-    task.owner &&
-    !isHuman(task.owner) &&
-    !task.blocked &&
-    normalizeModelMode(task.model_mode) === "team_bridge" &&
-    ["in_progress", "review"].includes(task.status)
-  );
-}
-
-function ensureRunnerOwnsJob(runner, job) {
-  if (runner.team_id !== job.team_id) {
-    throw new HTTPError(403, "runner cannot access another team job");
-  }
-  if (!job.runner_id || job.runner_id !== runner.id) {
-    throw new HTTPError(409, "job is not leased by this runner");
-  }
-  if (!["leased", "running"].includes(job.status)) {
-    throw new HTTPError(409, "job is not active");
-  }
-  const expiresAt = Date.parse(job.lease_expires_at || "");
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    throw new HTTPError(409, "job lease expired");
-  }
-}
-
-function activeRunnerJobMutationQuery(job, runner, now = nowISO()) {
-  return {
-    id: `eq.${job.id}`,
-    lease_expires_at: `gt.${now}`,
-    runner_id: `eq.${runner.id}`,
-    status: "in.(leased,running)",
-    team_id: `eq.${runner.team_id}`,
-  };
-}
-
-function requireRunnerJobMutation(rows) {
-  const row = rows?.[0] || null;
-  if (!row) {
-    throw new HTTPError(409, "job lease expired or no longer owned by this runner");
-  }
-  return row;
 }
 
 async function projectMap(teamID, ids) {
@@ -4878,29 +4216,23 @@ function publicProject(row) {
 }
 
 function publicTask(row, projects = {}) {
-  return {
+  const task = {
     ...row,
+    execution_mode: publicTaskExecutionMode(row.execution_mode),
     id: row.local_id || row.id,
     project_id: row.project_id
       ? projects[row.project_id]?.local_id || row.project_id
       : "",
   };
-}
-
-function publicRunner(row) {
-  const runner = { ...row };
-  delete runner.token_hash;
-  return runner;
+  delete task.worktree_path;
+  return task;
 }
 
 function publicBridgeDevice(row) {
   const device = { ...row };
   delete device.token_hash;
+  device.capabilities = sanitizeBridgeCapabilities(device.capabilities || {});
   return device;
-}
-
-function publicProjectLocalBinding(row) {
-  return { ...row };
 }
 
 function publicExecutionPlan(row) {
@@ -4919,253 +4251,6 @@ function publicExecutionEvent(row) {
 
 function publicExecutionReceipt(row) {
   return { ...row };
-}
-
-function publicRunnerJob(row, projects = {}, tasks = {}) {
-  return {
-    ...row,
-    id: row.id,
-    job_id: row.id,
-    project_id: row.project_id
-      ? projects[row.project_id]?.local_id || row.project_id
-      : "",
-    required_provider: row.provider_kind || "",
-    task_id: row.task_id ? tasks[row.task_id]?.local_id || row.task_id : "",
-  };
-}
-
-function runnerStatusDiagnostics(runners, jobs, nowMs = Date.now()) {
-  const diagnostics = [];
-  const append = (diagnostic) => {
-    if (diagnostics.length < RUNNER_DIAGNOSTIC_LIMIT) diagnostics.push(diagnostic);
-  };
-  const connected = [];
-  for (const runner of runners || []) {
-    const status = runnerDiagnosticStatus(runner, nowMs);
-    if (status === "revoked") continue;
-    if (status === "connected") {
-      connected.push(runner);
-      for (const diagnostic of runnerPreflightDiagnostics(runner)) append(diagnostic);
-      continue;
-    }
-    if (status === "stale" || status === "disconnected") {
-      append({
-        kind: "runner_unavailable",
-        severity: "info",
-        title: "Runner unavailable",
-        detail: "A registered runner is stale or disconnected.",
-        runner_id: runner.id || "",
-        data: {
-          last_seen_at: runner.last_seen_at || "",
-          status,
-        },
-      });
-    }
-  }
-
-  for (const job of jobs || []) {
-    const status = normalizeJobStatus(job.status);
-    if (status === "queued" || status === "expired") {
-      if (normalizeRunnerJobModelMode(job.model_mode) !== "team_bridge") continue;
-      if (connected.length === 0) {
-        append({
-          kind: "no_connected_runner",
-          severity: "critical",
-          title: "No connected runner",
-          detail: "A queued team bridge job has no connected runner.",
-          job_id: job.job_id || job.id || "",
-          project_id: job.project_id || "",
-          task_id: job.task_id || "",
-        });
-      } else if (!connected.some((runner) => runnerCanClaimJobForDiagnostics(runner, job, nowMs))) {
-        append(runnerCapabilityDiagnostic(connected, job));
-      }
-      if (Number(job.attempts || 0) >= 3) {
-        append({
-          kind: "repeated_attempts",
-          severity: "warn",
-          title: "Runner job retried repeatedly",
-          detail: "A queued runner job has already been leased several times.",
-          job_id: job.job_id || job.id || "",
-          project_id: job.project_id || "",
-          task_id: job.task_id || "",
-          data: { attempts: Number(job.attempts || 0) },
-        });
-      }
-      continue;
-    }
-    if ((status === "leased" || status === "running") && runnerLeaseExpiring(job, nowMs)) {
-      append({
-        kind: "lease_expiring",
-        severity: "warn",
-        title: "Runner lease expiring",
-        detail: "A running runner job lease is close to expiring.",
-        runner_id: job.runner_id || "",
-        job_id: job.job_id || job.id || "",
-        project_id: job.project_id || "",
-        task_id: job.task_id || "",
-        data: { lease_expires_at: job.lease_expires_at || "" },
-      });
-    }
-  }
-  return diagnostics;
-}
-
-function runnerPreflightDiagnostics(runner) {
-  return normalizeRunnerPreflightChecks(runner?.capabilities?.preflight_checks).flatMap(
-    (check) => {
-      if (check.status === "pass") return [];
-      return [
-        {
-          kind: "runner_preflight_failed",
-          severity: check.severity,
-          title: check.summary || "Runner preflight check failed",
-          detail: check.detail || "",
-          runner_id: runner.id || "",
-          data: {
-            check_id: check.id,
-            status: check.status,
-          },
-        },
-      ];
-    },
-  );
-}
-
-function normalizeRunnerPreflightChecks(value) {
-  if (!Array.isArray(value)) return [];
-  const checks = [];
-  const seen = new Set();
-  for (const raw of value) {
-    if (!raw || typeof raw !== "object") continue;
-    const id = String(raw.id || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, "");
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const status = normalizeRunnerPreflightStatus(raw.status);
-    checks.push({
-      id,
-      status,
-      severity: normalizeRunnerPreflightSeverity(raw.severity, status),
-      summary: truncateText(redactSensitiveText(raw.summary || ""), 120),
-      detail: truncateText(redactSensitiveText(raw.detail || ""), 240),
-    });
-    if (checks.length >= 12) break;
-  }
-  return checks;
-}
-
-function normalizeRunnerPreflightStatus(value) {
-  const status = String(value || "").trim().toLowerCase();
-  if (status === "pass" || status === "ok" || status === "ready") return "pass";
-  if (status === "warn" || status === "warning") return "warn";
-  if (status === "fail" || status === "failed" || status === "error") return "fail";
-  return "fail";
-}
-
-function normalizeRunnerPreflightSeverity(value, status) {
-  const severity = String(value || "").trim().toLowerCase();
-  if (severity === "critical") return "critical";
-  if (severity === "warn" || severity === "warning" || severity === "error") return "warn";
-  if (severity === "info") return "info";
-  return status === "pass" ? "info" : "warn";
-}
-
-function runnerDiagnosticStatus(runner, nowMs) {
-  const status = String(runner?.status || "connected").trim().toLowerCase();
-  if (status === "revoked" || runner?.revoked_at) return "revoked";
-  if (status === "connected" && runnerLastSeenStale(runner?.last_seen_at, nowMs)) {
-    return "stale";
-  }
-  if (["connected", "disconnected", "stale"].includes(status)) return status;
-  return "connected";
-}
-
-function runnerLastSeenStale(lastSeenAt, nowMs) {
-  const seenAt = Date.parse(lastSeenAt || "");
-  if (!Number.isFinite(seenAt)) return true;
-  return nowMs - seenAt > RUNNER_STALE_MS;
-}
-
-function normalizeRunnerJobModelMode(raw) {
-  const value = String(raw || "").trim();
-  if (value === "local_cli") return "team_bridge";
-  return normalizeModelMode(value);
-}
-
-function runnerCanClaimJobForDiagnostics(runner, job, nowMs) {
-  if (runnerDiagnosticStatus(runner, nowMs) !== "connected") return false;
-  if (runner.team_id && job.team_id && runner.team_id !== job.team_id) return false;
-  if (normalizeRunnerJobModelMode(job.model_mode) !== "team_bridge") return false;
-  if (!runnerSupportsExecutionMode(runner, job.execution_mode)) return false;
-  if (!runnerSupportsProvider(runner, job.provider_kind || job.required_provider)) return false;
-  return true;
-}
-
-function runnerCapabilityDiagnostic(runners, job) {
-  let kind = "no_capable_runner";
-  let title = "No capable runner";
-  let detail = "Connected runners do not match the queued job requirements.";
-  if (isLocalWorktreeMode(job.execution_mode) && !runners.some((runner) => runner.capabilities?.git_available)) {
-    kind = "runner_missing_git";
-    title = "Runner missing git";
-    detail = "The queued local-worktree job needs git on a connected runner.";
-  } else if (
-    isLocalWorktreeMode(job.execution_mode) &&
-    String(job.repo_url || "").trim() &&
-    !runners.some((runner) => runner.capabilities?.gh_authenticated)
-  ) {
-    kind = "runner_missing_github_auth";
-    title = "Runner missing GitHub auth";
-    detail = "The queued repository job needs an authenticated GitHub CLI on a connected runner.";
-  } else if (!runners.some((runner) => runnerSupportsExecutionMode(runner, job.execution_mode))) {
-    kind = "runner_missing_execution_mode";
-    title = "Runner missing execution mode";
-    detail = "Connected runners do not advertise the job execution mode.";
-  } else if (!runners.some((runner) => runnerSupportsProvider(runner, job.provider_kind || job.required_provider))) {
-    kind = "runner_missing_provider";
-    title = "Runner missing provider";
-    detail = "Connected runners do not advertise the required provider runtime.";
-  }
-  return {
-    kind,
-    severity: "critical",
-    title,
-    detail,
-    job_id: job.job_id || job.id || "",
-    project_id: job.project_id || "",
-    task_id: job.task_id || "",
-    data: {
-      execution_mode: job.execution_mode || "",
-      provider_kind: normalizeProviderKind(job.provider_kind || job.required_provider || ""),
-    },
-  };
-}
-
-function isLocalWorktreeMode(mode) {
-  return String(mode || "").trim() === "local_worktree";
-}
-
-function runnerSupportsExecutionMode(runner, mode) {
-  const required = String(mode || "").trim();
-  if (!required) return true;
-  const modes = normalizeStringList(runner?.capabilities?.execution_modes);
-  return modes.length === 0 || modes.includes(required);
-}
-
-function runnerSupportsProvider(runner, provider) {
-  const required = normalizeProviderKind(provider || "");
-  if (!required) return true;
-  return normalizeProviderList(runner?.capabilities?.provider_runtimes).includes(required);
-}
-
-function runnerLeaseExpiring(job, nowMs) {
-  const expiresAt = Date.parse(job?.lease_expires_at || "");
-  if (!Number.isFinite(expiresAt)) return true;
-  const remaining = expiresAt - nowMs;
-  return remaining > 0 && remaining <= RUNNER_LEASE_EXPIRING_MS;
 }
 
 function publicTeam(row) {
@@ -5217,180 +4302,9 @@ function publicInvite(row, req) {
   return result;
 }
 
-async function buildAgentMemoryPacket(task, project) {
-  const wikiPath = project ? `team/projects/${project.local_id || project.id}.md` : "";
-  const unavailable = [];
-  // Fetch the three independent project context queries in parallel. Each
-  // one was previously awaited serially, costing 3× the round-trip latency
-  // on Vercel's 10s function budget. They are independent reads against
-  // separate tables with no ordering dependency.
-  const [wikiRows, receipts, recentTasks] = project
-    ? await Promise.all([
-        rest("wiki_article_index", {
-          query: {
-            order: "updated_at.desc",
-            project_id: `eq.${project.id}`,
-            select: "*",
-            team_id: `eq.${task.team_id}`,
-          },
-        }),
-        rest("delivery_receipts", {
-          query: {
-            order: "created_at.desc",
-            project_id: `eq.${project.id}`,
-            select: "*",
-            team_id: `eq.${task.team_id}`,
-            limit: "50",
-          },
-        }),
-        rest("tasks", {
-          query: {
-            order: "updated_at.desc",
-            project_id: `eq.${project.id}`,
-            select: "*",
-            status: "in.(done,canceled,review)",
-            team_id: `eq.${task.team_id}`,
-            limit: "20",
-          },
-        }),
-      ])
-    : [[], [], []];
-  if (!project) {
-    unavailable.push("No project is attached to this task.");
-  } else if (!wikiRows?.length) {
-    unavailable.push(`No hosted wiki index entries are available for ${wikiPath}.`);
-  }
-  const indexedRows = (wikiRows || []).slice(0, 5);
-  const packet = {
-    decisions: memoryItemsFromRows(indexedRows, "decisions"),
-    loaded_context: indexedRows.map((row) => ({
-      chars: String(row.excerpt || "").length,
-      kind: "project_wiki_index",
-      path: row.article_path || wikiPath,
-      status: row.excerpt ? "loaded" : "metadata_only",
-      truncated: String(row.excerpt || "").length > 1200,
-    })),
-    must_obey: [
-      "Treat this packet as the first memory read for the task; do not re-ask for context already loaded here.",
-      "Hosted control plane queues work only; LAF Bridge machines own filesystem, git, GitHub, and provider CLI execution.",
-    ],
-    must_read: project
-      ? [
-          {
-            kind: "project_wiki",
-            path: wikiPath,
-            reason: "canonical shared memory for this project",
-            status: indexedRows.length ? "loaded" : "unavailable",
-          },
-        ]
-      : [],
-    open_questions: memoryItemsFromRows(indexedRows, "open_questions"),
-    packet_id: `agent-memory-${shortID()}`,
-    project: project
-      ? {
-          github_repo: project.github_repo_url || "",
-          id: project.local_id || project.id,
-          name: project.name,
-          repo_url: project.github_repo_url || "",
-          wiki_path: wikiPath,
-        }
-      : null,
-    recent_work: recentWorkFromRows(receipts || [], recentTasks || [], task.id).slice(0, 5),
-    risks: memoryItemsFromRows(indexedRows, "risks"),
-    start_here: [
-      "Treat this packet as the canonical task context for this runner job.",
-      "Read loaded project memory before broad repository search or new architecture planning.",
-      "Use the runner protocol to report progress and completion.",
-    ],
-    task: {
-      channel: task.channel || "general",
-      details: task.details || task.human_details || "",
-      execution_mode: task.execution_mode || "",
-      id: task.local_id || task.id,
-      owner: task.owner || "",
-      project_id: project?.local_id || project?.id || task.project_id || "",
-      status: task.status,
-      task_type: task.task_type || "",
-      title: task.title,
-    },
-    unavailable,
-    version: "agent-memory/v1",
-    write_back: [
-      "Return compact progress events.",
-      "Write durable wiki conclusions through the runner wiki write flow.",
-      "Return delivery receipt metadata when code or PR work is produced.",
-    ],
-  };
-  if (packet.decisions.length) {
-    packet.start_here.push("Apply the decisions array before inventing new workflow policy.");
-  }
-  if (packet.risks.length || packet.open_questions.length) {
-    packet.start_here.push("Check risks and open_questions before marking work complete.");
-  }
-  if (packet.recent_work.length) {
-    packet.start_here.push("Use recent_work receipts to avoid duplicating delivered work.");
-  }
-  return packet;
-}
-
-function memoryItemsFromRows(rows, key) {
-  const items = [];
-  for (const row of rows || []) {
-    for (const text of normalizeStringList(row[key] || [])) {
-      items.push({
-        source: row.article_path || "",
-        text: truncateText(text, 280),
-      });
-      if (items.length >= 8) return items;
-    }
-  }
-  return items;
-}
-
-function recentWorkFromRows(receipts, tasks, currentTaskID) {
-  const seen = new Set();
-  const work = [];
-  for (const row of receipts) {
-    if (row.task_id && row.task_id === currentTaskID) continue;
-    const key = `receipt:${row.id || row.task_id || work.length}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    work.push({
-      delivery_summary: truncateText(redactSensitiveText(row.delivery_summary || ""), 320),
-      delivery_url: row.delivery_url || "",
-      status: row.delivery_status || "",
-      task_id: row.task_id || "",
-      updated_at: row.delivered_at || row.updated_at || row.created_at || "",
-    });
-  }
-  for (const row of tasks) {
-    if (row.id && row.id === currentTaskID) continue;
-    const key = `task:${row.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    work.push({
-      delivery_summary: truncateText(
-        redactSensitiveText(row.delivery_summary || row.details || ""),
-        320,
-      ),
-      delivery_url: row.delivery_url || "",
-      owner: row.owner || "",
-      status: row.status || "",
-      task_id: row.local_id || row.id || "",
-      title: row.title || "",
-      updated_at: row.updated_at || row.delivered_at || "",
-    });
-  }
-  return work;
-}
-
 function normalizeStringList(values) {
   if (!Array.isArray(values)) return [];
   return values.map((value) => String(value || "").trim()).filter(Boolean);
-}
-
-function normalizeProviderList(values) {
-  return normalizeStringList(values).map(normalizeProviderKind).filter(Boolean);
 }
 
 function sanitizeBridgeCapabilities(value) {
@@ -5411,7 +4325,10 @@ function sanitizeBridgeCapabilities(value) {
     if (raw[key] !== undefined) out[key] = raw[key];
   }
   if (Array.isArray(out.provider_runtimes)) {
-    out.provider_runtimes = normalizeStringList(out.provider_runtimes);
+    out.provider_runtimes = sanitizeProviderRuntimes(out.provider_runtimes);
+  }
+  if (out.cli_details && typeof out.cli_details === "object" && !Array.isArray(out.cli_details)) {
+    out.cli_details = sanitizeCLIDetails(out.cli_details);
   }
   return out;
 }
@@ -5419,24 +4336,67 @@ function sanitizeBridgeCapabilities(value) {
 function normalizeProviderKind(value) {
   const kind = String(value || "").trim().toLowerCase().replace(/_/g, "-");
   if (kind === "claude" || kind === "claude-code") return "claude-code";
-  if (
-    kind === "codex" ||
-    kind === "opencode" ||
-    kind === "openclaw" ||
-    kind === "laf-cloud"
-  ) {
-    return kind;
-  }
+  if (kind === "codex") return kind;
   return "";
 }
 
+function sanitizeProviderRuntimes(values) {
+  return [
+    ...new Set(normalizeStringList(values).map(normalizeProviderKind).filter(Boolean)),
+  ];
+}
+
+function sanitizeCLIDetails(value) {
+  const out = {};
+  for (const [rawKind, rawDetail] of Object.entries(value)) {
+    const kind = normalizeProviderKind(rawKind);
+    if (!kind || !rawDetail || typeof rawDetail !== "object" || Array.isArray(rawDetail)) {
+      continue;
+    }
+    out[kind] = { ...rawDetail };
+  }
+  return out;
+}
+
+function normalizeBridgePublicKey(value) {
+  const text = String(value || "").trim();
+  if (!text) throw new HTTPError(400, "public_key is required");
+  if (/BEGIN PUBLIC KEY/.test(text)) {
+    try {
+      const key = crypto.createPublicKey(text);
+      if (key.asymmetricKeyType !== "ed25519") {
+        throw new Error("public key is not Ed25519");
+      }
+      return key.export({ format: "pem", type: "spki" }).trim();
+    } catch {
+      throw new HTTPError(400, "public_key must be an Ed25519 public key");
+    }
+  }
+  const normalized = text.replace(/\s+/g, "");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(normalized) || normalized.length % 4 !== 0) {
+    throw new HTTPError(400, "public_key must be an Ed25519 public key");
+  }
+  const decoded = Buffer.from(normalized, "base64");
+  if (decoded.length !== 32 || decoded.toString("base64") !== normalized) {
+    throw new HTTPError(400, "public_key must be an Ed25519 public key");
+  }
+  return normalized;
+}
+
 function normalizeExecutionProvider(value, mode) {
-  const provider = String(value || "").trim().toLowerCase().replace(/-/g, "_");
-  if (provider === "codex" || provider === "claude_code" || provider === "laf_model") {
+  const raw = String(value || "").trim();
+  const provider = raw.toLowerCase().replace(/-/g, "_");
+  if (!provider) {
+    return mode === "laf_model" ? "laf_model" : "codex";
+  }
+  if (mode === "laf_model") {
+    if (provider === "laf_model") return "laf_model";
+    throw new HTTPError(400, "provider must be laf_model for laf_model mode");
+  }
+  if (provider === "codex" || provider === "claude_code") {
     return provider;
   }
-  if (mode === "laf_model") return "laf_model";
-  return "codex";
+  throw new HTTPError(400, "provider must be codex or claude_code for LAF Bridge execution");
 }
 
 function normalizeExecutionTerminalStatus(value) {
@@ -5449,57 +4409,77 @@ function normalizeExecutionTerminalStatus(value) {
   throw new HTTPError(400, "status must be completed, failed, or cancelled");
 }
 
-async function resolveExecutionBinding({ bindingID, deviceID, membership, mode, project }) {
-  if (mode !== "my_bridge") return null;
-  if (!bindingID) throw new HTTPError(400, "binding_id is required for my_bridge mode");
-  if (!deviceID) throw new HTTPError(400, "device_id is required for my_bridge mode");
-  const devices = await rest("bridge_devices", {
-    query: {
-      id: `eq.${deviceID}`,
-      limit: "1",
-      select: "*",
-      status: "eq.online",
-      team_id: `eq.${membership.team_id}`,
-      user_id: `eq.${membership.user_id}`,
-    },
-  });
-  const device = devices?.[0];
-  if (!device || device.revoked_at || device.status === "revoked") {
-    throw new HTTPError(400, "my_bridge requires an online non-revoked device");
+async function resolveExecutionTarget({ deviceID, membership, mode, project, provider }) {
+  if (mode !== "my_bridge") return { binding: null, device: null };
+  const deviceQuery = {
+    limit: "10",
+    select: "*",
+    status: "not.in.(revoked)",
+    team_id: `eq.${membership.team_id}`,
+    user_id: `eq.${membership.user_id}`,
+  };
+  if (deviceID) deviceQuery.id = `eq.${deviceID}`;
+  const devices = (await rest("bridge_devices", { query: deviceQuery })) || [];
+  const device = selectBridgeExecutionDevice(devices, provider);
+  if (!normalizeGitHubRepoURL(project?.github_repo_url || "")) {
+    throw new HTTPError(
+      400,
+      "my_bridge requires a GitHub repo for managed checkout",
+    );
   }
-  const rows = await rest("project_local_bindings", {
-    query: {
-      id: `eq.${bindingID}`,
-      limit: "1",
-      project_id: `eq.${project?.id || ""}`,
-      select: "*",
-      team_id: `eq.${membership.team_id}`,
-      trusted: "eq.true",
-      user_id: `eq.${membership.user_id}`,
-      device_id: `eq.${deviceID}`,
-    },
-  });
-  const binding = rows?.[0];
-  if (!binding) throw new HTTPError(400, "my_bridge requires a trusted binding for project/device");
-  return binding;
+  return { device };
 }
+
+let cachedSigningKeyPair = null;
+let cachedSigningKeyMaterial = "";
 
 function signingKeyPair() {
   const privateKeyPEM = String(process.env.LAF_EXECUTION_PLAN_SIGNING_PRIVATE_KEY || "").trim();
   const publicKeyPEM = String(process.env.LAF_EXECUTION_PLAN_SIGNING_PUBLIC_KEY || "").trim();
+  const rawKeyID = String(process.env.LAF_EXECUTION_PLAN_SIGNING_KEY_ID || "").trim();
+  const keyID = rawKeyID || "execution-plan-ed25519";
+  const material = [keyID, privateKeyPEM, publicKeyPEM].join("\n");
+  const production = process.env.NODE_ENV === "production";
+  if (!privateKeyPEM && !publicKeyPEM && production) {
+    throw new HTTPError(503, "execution plan signing keys are not configured");
+  }
+  if ((privateKeyPEM || publicKeyPEM) && production && !rawKeyID) {
+    throw new HTTPError(503, "execution plan signing key id is not configured");
+  }
+  if (cachedSigningKeyPair && cachedSigningKeyMaterial === material) {
+    return cachedSigningKeyPair;
+  }
+  if ((privateKeyPEM || publicKeyPEM) && !(privateKeyPEM && publicKeyPEM)) {
+    throw new HTTPError(500, "execution plan signing key pair is incomplete");
+  }
   if (privateKeyPEM && publicKeyPEM) {
-    return {
-      key_id: String(process.env.LAF_EXECUTION_PLAN_SIGNING_KEY_ID || "execution-plan-ed25519"),
-      privateKey: crypto.createPrivateKey(privateKeyPEM),
-      publicKey: crypto.createPublicKey(publicKeyPEM),
+    const privateKey = crypto.createPrivateKey(privateKeyPEM);
+    const publicKey = crypto.createPublicKey(publicKeyPEM);
+    const selfTest = Buffer.from("laf execution plan signing self-test");
+    const selfTestSignature = crypto.sign(null, selfTest, privateKey);
+    if (!crypto.verify(null, selfTest, publicKey, selfTestSignature)) {
+      throw new HTTPError(500, "execution plan signing key pair is invalid");
+    }
+    cachedSigningKeyPair = {
+      key_id: keyID,
+      privateKey,
+      publicKey,
     };
+    cachedSigningKeyMaterial = material;
+    return cachedSigningKeyPair;
   }
   const generated = crypto.generateKeyPairSync("ed25519");
-  return {
+  cachedSigningKeyPair = {
     key_id: "execution-plan-dev-ephemeral",
     privateKey: generated.privateKey,
     publicKey: generated.publicKey,
   };
+  cachedSigningKeyMaterial = material;
+  return cachedSigningKeyPair;
+}
+
+function executionPlanSigningPublicKeyPEM() {
+  return signingKeyPair().publicKey.export({ format: "pem", type: "spki" });
 }
 
 function signExecutionPlan(plan) {
@@ -5508,7 +4488,6 @@ function signExecutionPlan(plan) {
     "team_id",
     "project_id",
     "task_id",
-    "binding_id",
     "actor_user_id",
     "executor_user_id",
     "device_id",
@@ -5522,7 +4501,7 @@ function signExecutionPlan(plan) {
     "expires_at",
   ];
   const payload = {};
-  for (const field of fields) payload[field] = plan[field] ?? null;
+  for (const field of fields) payload[field] = canonicalPlanValue(plan[field] ?? null);
   const nonce = crypto.randomBytes(16).toString("hex");
   payload.nonce = nonce;
   const canonical = JSON.stringify(payload);
@@ -5536,6 +4515,21 @@ function signExecutionPlan(plan) {
     signature_alg: "ed25519",
     signature_key_id: keyPair.key_id,
   };
+}
+
+function canonicalPlanValue(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (Array.isArray(value)) return value.map((entry) => canonicalPlanValue(entry) ?? null);
+  if (typeof value === "object") {
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+      const entry = canonicalPlanValue(value[key]);
+      if (entry !== undefined) out[key] = entry;
+    }
+    return out;
+  }
+  return value;
 }
 
 function ensureExecutionPlanNotTerminal(plan) {
@@ -5569,9 +4563,9 @@ function normalizeGitHubRepoURL(value) {
 function redactSensitiveText(value) {
   return String(value || "")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
-    .replace(/laf_runner_[A-Fa-f0-9]{20,}/g, "laf_runner_[REDACTED]")
-    .replace(/lafr_[A-Za-z0-9_-]{20,}/g, "lafr_[REDACTED]")
     .replace(/laf_bridge_[A-Fa-f0-9]{20,}/g, "laf_bridge_[REDACTED]")
+    .replace(/laf_[a-z]+_[A-Fa-f0-9]{20,}/g, "laf_[REDACTED]")
+    .replace(/lafr_[A-Za-z0-9_-]{20,}/g, "lafr_[REDACTED]")
     .replace(/lafb_[A-Za-z0-9_-]{20,}/g, "lafb_[REDACTED]")
     .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "gh_[REDACTED]")
     .replace(/sk-(proj-)?[A-Za-z0-9_-]{20,}/g, "sk-[REDACTED]");
@@ -5602,20 +4596,6 @@ function isHuman(slug) {
   return slug === "human" || slug === "you";
 }
 
-function normalizeJobStatus(status) {
-  return [
-    "queued",
-    "leased",
-    "running",
-    "succeeded",
-    "failed",
-    "canceled",
-    "expired",
-  ].includes(status)
-    ? status
-    : "queued";
-}
-
 function hashToken(token) {
   return crypto.createHash("sha256").update(String(token).trim()).digest("hex");
 }
@@ -5632,98 +4612,82 @@ function normalizePairingCode(value) {
     .replace(/[^A-Z0-9]/g, "");
 }
 
-function normalizeRunnerPairingAPIURL(value) {
+function normalizePairingAPIURL(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
 
-function runnerPairingRequestAPIURL(req) {
+function pairingRequestAPIURL(req) {
   try {
-    return `${trustedPublicOrigin(req)}/api`;
-  } catch {
+    return trustedPublicAPIURL(req);
+  } catch (err) {
+    if (
+      err instanceof HTTPError &&
+      err.message !== "LAF_OFFICE_PUBLIC_HOST is not configured for production" &&
+      err.message !== "canonical hosted API URL is not configured"
+    ) {
+      throw err;
+    }
     return "";
   }
 }
 
-function runnerPairingStartResponse(apiURL, code, teamID, expiresAt) {
-  const normalizedAPIURL = normalizeRunnerPairingAPIURL(apiURL);
-  const installCommand =
-    "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh";
-  const connectCommand = `laf-runner pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)} --background`;
-  const setupCommand = `PATH="$HOME/.local/bin:$PATH"; if ! command -v laf-runner >/dev/null 2>&1; then ${installCommand} || exit 1; fi; LAF_RUNNER_BIN="$(command -v laf-runner || printf '%s/.local/bin/laf-runner' "$HOME")"; "$LAF_RUNNER_BIN" pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)} --background`;
-  return {
-    api_url: normalizedAPIURL,
-    pairing: {
-      code,
-      expires_at: expiresAt,
-      team_id: teamID,
-    },
-    commands: {
-      install: installCommand,
-      connect: connectCommand,
-      setup: setupCommand,
-    },
-  };
+function pairingCommandAPIURL(req, requestedAPIURL) {
+  const canonicalAPIURL = pairingRequestAPIURL(req);
+  if (process.env.NODE_ENV === "production") {
+    if (!canonicalAPIURL) {
+      throw new HTTPError(503, "canonical hosted API URL is not configured");
+    }
+    return canonicalAPIURL;
+  }
+  return normalizePairingAPIURL(requestedAPIURL) || canonicalAPIURL;
+}
+
+function trustedPublicAPIURL(req) {
+  const publicAPIBase = String(process.env.LAF_OFFICE_PUBLIC_API_BASE_URL || "").trim();
+  if (publicAPIBase) {
+    return normalizeConfiguredPublicAPIBase(
+      publicAPIBase,
+      req,
+      "LAF_OFFICE_PUBLIC_API_BASE_URL",
+    );
+  }
+  const browserAPIBase = String(process.env.VITE_LAF_API_BASE_URL || "").trim();
+  if (browserAPIBase) {
+    return normalizeConfiguredPublicAPIBase(
+      browserAPIBase,
+      req,
+      "VITE_LAF_API_BASE_URL",
+    );
+  }
+  const origin = trustedPublicOrigin(req);
+  if (!origin) throw new HTTPError(503, "canonical hosted API URL is not configured");
+  return `${origin}/api`;
 }
 
 function bridgePairingStartResponse(apiURL, code, teamID, expiresAt) {
-  const normalizedAPIURL = normalizeRunnerPairingAPIURL(apiURL);
-  const installCommand =
-    "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-bridge sh";
-  const pairCommand = `laf-bridge pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)}`;
-  const startCommand = "laf-bridge start --once=false";
-  const setupCommand = `PATH="$HOME/.local/bin:/usr/local/bin:$PATH"; if ! command -v laf-bridge >/dev/null 2>&1; then ${installCommand} || exit 1; fi; LAF_BRIDGE_BIN="$(command -v laf-bridge || printf '%s/.local/bin/laf-bridge' "$HOME")"; "$LAF_BRIDGE_BIN" pair --api-url ${shellQuote(normalizedAPIURL)} --code ${shellQuote(code)} && "$LAF_BRIDGE_BIN" start --once=false`;
+  const normalizedAPIURL = normalizePairingAPIURL(apiURL);
+  const setupCode = bridgeSetupCode(normalizedAPIURL, code);
+  const pairCommand = "npx laf-bridge pair";
   return {
     api_url: normalizedAPIURL,
     pairing: {
-      code,
       expires_at: expiresAt,
+      setup_code: setupCode,
       team_id: teamID,
     },
     commands: {
-      install: installCommand,
       pair: pairCommand,
-      setup: setupCommand,
-      start: startCommand,
     },
   };
 }
 
-function shellQuote(value) {
-  return `'${String(value || "").replaceAll("'", "'\"'\"'")}'`;
-}
-
-function hashOrNull(value) {
-  const text = String(value || "").trim();
-  if (!text) return null;
-  return hashToken(text);
-}
-
-function basename(localPath) {
-  const normalized = String(localPath || "").trim().replace(/[\\/]+$/, "");
-  if (!normalized) return "Local Binding";
-  const parts = normalized.split(/[\\/]/);
-  return parts[parts.length - 1] || "Local Binding";
-}
-
-function bridgeLinkProjectCommand({ bindingID, displayName, localPath, projectID }) {
-  return [
-    "laf-bridge",
-    "link-project",
-    "--binding-id",
-    shellArg(bindingID),
-    "--project-id",
-    shellArg(projectID),
-    "--path",
-    shellArg(localPath),
-    "--display-name",
-    shellArg(displayName),
-  ].join(" ");
-}
-
-function shellArg(value) {
-  const text = String(value || "");
-  if (/^[A-Za-z0-9_./:=@+-]+$/.test(text)) return text;
-  return `'${text.replace(/'/g, `'\\''`)}'`;
+function bridgeSetupCode(apiURL, code) {
+  const payload = JSON.stringify({ v: 1, api_url: apiURL, code });
+  return Buffer.from(payload, "utf8")
+    .toString("base64")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/g, "");
 }
 
 function slugify(value) {
@@ -5780,8 +4744,7 @@ function trustedPublicOrigin(req) {
     process.env.LAF_OFFICE_PUBLIC_HOST || process.env.VERCEL_URL || "",
   ).trim();
   if (configured) {
-    const stripped = configured.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-    return `https://${stripped}`;
+    return normalizeConfiguredPublicOrigin(configured);
   }
   if (process.env.NODE_ENV === "production") {
     throw new HTTPError(
@@ -5799,6 +4762,122 @@ function trustedPublicOrigin(req) {
   return `${proto}://${host}`;
 }
 
+function normalizeConfiguredPublicOrigin(value) {
+  const raw = String(value || "").trim();
+  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const allowLocalhost = allowLocalHostedURLs();
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must be a valid origin");
+  }
+  if (!parsed.hostname || parsed.username || parsed.password) {
+    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must be a valid origin");
+  }
+  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must be an origin without a path");
+  }
+  if (!allowLocalhost && parsed.protocol !== "https:") {
+    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must use https");
+  }
+  if (!allowLocalhost && isPrivateHostedHostname(parsed.hostname)) {
+    throw new HTTPError(
+      503,
+      "LAF_OFFICE_PUBLIC_HOST must not point at localhost or a private network address",
+    );
+  }
+  const protocol = allowLocalhost ? parsed.protocol : "https:";
+  return `${protocol}//${parsed.host}`;
+}
+
+function normalizeConfiguredPublicAPIBase(
+  value,
+  req,
+  label = "LAF_OFFICE_PUBLIC_API_BASE_URL",
+) {
+  const raw = String(value || "").trim();
+  if (raw.startsWith("//")) {
+    throw new HTTPError(503, `${label} must not be a protocol-relative URL`);
+  }
+  if (
+    raw.startsWith("/") ||
+    (label === "VITE_LAF_API_BASE_URL" && !looksLikeBareHostedAPIHost(raw))
+  ) {
+    if (/[?#]/.test(raw)) {
+      throw new HTTPError(503, `${label} must not include a query string or hash`);
+    }
+    const origin = trustedPublicOrigin(req);
+    const pathname = (raw.startsWith("/") ? raw : `/${raw}`).replace(/\/+$/, "") || "/api";
+    return `${origin}${pathname}`;
+  }
+  if (!/^https?:\/\//i.test(raw) && !looksLikeBareHostedAPIHost(raw)) {
+    throw new HTTPError(503, `${label} must be a valid URL`);
+  }
+  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new HTTPError(503, `${label} must be a valid URL`);
+  }
+  if (!parsed.hostname || parsed.username || parsed.password) {
+    throw new HTTPError(503, `${label} must be a valid URL`);
+  }
+  if (parsed.search || parsed.hash) {
+    throw new HTTPError(503, `${label} must not include a query string or hash`);
+  }
+  const allowLocalhost = allowLocalHostedURLs();
+  if (!allowLocalhost && parsed.protocol !== "https:") {
+    throw new HTTPError(503, `${label} must use https`);
+  }
+  if (!allowLocalhost && isPrivateHostedHostname(parsed.hostname)) {
+    throw new HTTPError(
+      503,
+      `${label} must not point at localhost or a private network address`,
+    );
+  }
+  const pathname = parsed.pathname.replace(/\/+$/, "");
+  parsed.pathname = pathname && pathname !== "/" ? pathname : "/api";
+  const protocol = allowLocalhost ? parsed.protocol : "https:";
+  return `${protocol}//${parsed.host}${parsed.pathname}`;
+}
+
+function allowLocalHostedURLs() {
+  return process.env.NODE_ENV !== "production";
+}
+
+function looksLikeBareHostedAPIHost(value) {
+  const hostPart = String(value || "").split(/[/?#]/)[0];
+  return hostPart.includes(".") || hostPart.includes(":") || hostPart.startsWith("[");
+}
+
+function isPrivateHostedHostname(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  if (
+    host === "localhost" ||
+    host === "0.0.0.0" ||
+    host === "127.0.0.1" ||
+    host === "::" ||
+    host === "::1"
+  ) {
+    return true;
+  }
+  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true;
+  if (/^169\.254\./.test(host)) return true;
+  const private172 = host.match(/^172\.(\d+)\./);
+  if (private172 && Number(private172[1]) >= 16 && Number(private172[1]) <= 31) return true;
+  const carrierGradeNAT = host.match(/^100\.(\d+)\./);
+  if (carrierGradeNAT && Number(carrierGradeNAT[1]) >= 64 && Number(carrierGradeNAT[1]) <= 127) return true;
+  return host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:");
+}
+
 function originFor(req) {
   return trustedPublicOrigin(req);
 }
+
+module.exports.__test = {
+  resetRateLimits() {
+    rateLimitBuckets.clear();
+  },
+};

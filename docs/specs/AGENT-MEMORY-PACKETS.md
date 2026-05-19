@@ -16,8 +16,8 @@ write useful state back.
 
 `agent-memory/v1` is intentionally small:
 
-- `task`: the task identity, status, owner, channel, execution mode, and
-  worktree fields.
+- `task`: the task identity, status, owner, channel, execution mode, branch, and
+  managed checkout fields.
 - `project`: project identity, canonical wiki path, repo boundary, lead, and
   description when the task belongs to a project.
 - `must_read`: canonical memory sources for the task.

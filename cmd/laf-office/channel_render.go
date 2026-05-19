@@ -394,7 +394,7 @@ func buildTaskLines(tasks []channelTask, contentWidth int) []renderedLine {
 			metaParts = append(metaParts, "review "+task.ReviewState)
 		}
 		if task.ExecutionMode != "" {
-			metaParts = append(metaParts, task.ExecutionMode)
+			metaParts = append(metaParts, displayExecutionMode(task.ExecutionMode))
 		}
 		meta := strings.Join(metaParts, " · ")
 		lines = append(lines, renderedLine{Text: ""})
@@ -424,7 +424,7 @@ func buildTaskLines(tasks []channelTask, contentWidth int) []renderedLine {
 		taskActionHint := "Click to claim, complete, block, or release."
 		if task.Status == "review" || task.ReviewState == "ready_for_review" {
 			taskActionHint = "Click to approve, block, or release."
-		} else if task.ReviewState == "pending_review" || task.ExecutionMode == "local_worktree" {
+		} else if task.ReviewState == "pending_review" || isManagedCheckoutExecutionMode(task.ExecutionMode) {
 			taskActionHint = "Click to claim, send to review, block, or release."
 		}
 		lines = append(lines, renderedLine{Text: "  " + muted.Render(taskActionHint), TaskID: task.ID})

@@ -23,7 +23,6 @@ type ExecutionPlan struct {
 	TeamID               string          `json:"team_id"`
 	ProjectID            *string         `json:"project_id"`
 	TaskID               *string         `json:"task_id"`
-	BindingID            *string         `json:"binding_id"`
 	ActorUserID          string          `json:"actor_user_id"`
 	ExecutorUserID       *string         `json:"executor_user_id"`
 	DeviceID             *string         `json:"device_id"`
@@ -84,15 +83,11 @@ func (v PlanValidator) Validate(plan ExecutionPlan) error {
 	if plan.ExecutorUserID != nil && v.Config.UserID != "" && *plan.ExecutorUserID != v.Config.UserID {
 		return errors.New("execution plan targets a different executor")
 	}
-	if plan.BindingID != nil && strings.TrimSpace(*plan.BindingID) != "" {
-		if !v.hasTrustedBinding(*plan.BindingID) {
-			return errors.New("execution plan references an unknown local binding")
-		}
+	if strings.TrimSpace(plan.Mode) != "my_bridge" {
+		return fmt.Errorf("unsupported execution plan mode: %s", plan.Mode)
 	}
-	if plan.Mode == "my_bridge" &&
-		planRequiresProjectBinding(plan) &&
-		(plan.BindingID == nil || strings.TrimSpace(*plan.BindingID) == "") {
-		return errors.New("execution plan references an unknown local binding")
+	if planRequiresManagedCheckoutRepo(plan) {
+		return errors.New("execution plan requires a signed GitHub repo for managed checkout")
 	}
 	if len(v.PublicKey) > 0 {
 		if err := VerifyPlanSignature(plan, v.PublicKey); err != nil {
@@ -102,19 +97,12 @@ func (v PlanValidator) Validate(plan ExecutionPlan) error {
 	return nil
 }
 
-func planRequiresProjectBinding(plan ExecutionPlan) bool {
-	return plan.ProjectID != nil || plan.TaskID != nil
-}
-
-func (v PlanValidator) hasTrustedBinding(id string) bool {
-	for _, binding := range v.Config.Bindings {
-		if binding.ID == id && binding.Trusted {
-			if binding.DeviceID == "" || binding.DeviceID == v.Config.DeviceID {
-				return true
-			}
-		}
+func planRequiresManagedCheckoutRepo(plan ExecutionPlan) bool {
+	if plan.ProjectID == nil && plan.TaskID == nil {
+		return false
 	}
-	return false
+	policy := planExecutionPolicy(plan)
+	return firstNonEmptyString(policy.GitHubRepoURL, policy.RepoURL) == ""
 }
 
 func VerifyPlanSignature(plan ExecutionPlan, publicKey ed25519.PublicKey) error {
@@ -147,7 +135,6 @@ func CanonicalPlanPayload(plan ExecutionPlan) []byte {
 		{"team_id", jsonScalar(plan.TeamID)},
 		{"project_id", jsonStringPtr(plan.ProjectID)},
 		{"task_id", jsonStringPtr(plan.TaskID)},
-		{"binding_id", jsonStringPtr(plan.BindingID)},
 		{"actor_user_id", jsonScalar(plan.ActorUserID)},
 		{"executor_user_id", jsonStringPtr(plan.ExecutorUserID)},
 		{"device_id", jsonStringPtr(plan.DeviceID)},
@@ -202,8 +189,7 @@ func ParseEd25519PublicKey(raw string) (ed25519.PublicKey, error) {
 }
 
 func jsonScalar(value string) []byte {
-	data, _ := json.Marshal(value)
-	return data
+	return jsonMarshalNoHTMLEscape(value)
 }
 
 func jsonStringPtr(value *string) []byte {
@@ -214,8 +200,25 @@ func jsonStringPtr(value *string) []byte {
 }
 
 func jsonRawOrNull(value json.RawMessage) []byte {
-	if len(bytes.TrimSpace(value)) == 0 {
+	trimmed := bytes.TrimSpace(value)
+	if len(trimmed) == 0 {
 		return []byte("null")
 	}
-	return bytes.TrimSpace(value)
+	var decoded any
+	dec := json.NewDecoder(bytes.NewReader(trimmed))
+	dec.UseNumber()
+	if err := dec.Decode(&decoded); err != nil {
+		return trimmed
+	}
+	return jsonMarshalNoHTMLEscape(decoded)
+}
+
+func jsonMarshalNoHTMLEscape(value any) []byte {
+	var out bytes.Buffer
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		return []byte("null")
+	}
+	return bytes.TrimRight(out.Bytes(), "\n")
 }

@@ -361,7 +361,7 @@ type TeamTaskArgs struct {
 	Owner           string   `json:"owner,omitempty" jsonschema:"Owner slug for claim or assign"`
 	ThreadID        string   `json:"thread_id,omitempty" jsonschema:"Related thread or message id"`
 	TaskType        string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-	ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
+	ExecutionMode   string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode; omit unless the task explicitly needs project coding checkout behavior"`
 	DeliveryURL     string   `json:"delivery_url,omitempty" jsonschema:"GitHub PR or other durable delivery URL for review/complete actions"`
 	DeliverySummary string   `json:"delivery_summary,omitempty" jsonschema:"Short summary of what the delivery URL contains"`
 	DependsOn       []string `json:"depends_on,omitempty" jsonschema:"Task IDs this task must wait for before starting (create action only)"`
@@ -396,7 +396,7 @@ type TeamChannelMemberArgs struct {
 	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
-type TeamBridgeArgs struct {
+type TeamContextBridgeArgs struct {
 	SourceChannel string   `json:"source_channel" jsonschema:"Channel slug the context is coming from"`
 	TargetChannel string   `json:"target_channel" jsonschema:"Channel slug the context should be carried into"`
 	Summary       string   `json:"summary" jsonschema:"Concise bridged context to carry across channels"`
@@ -433,7 +433,7 @@ type TeamPlanArgs struct {
 		Assignee      string   `json:"assignee" jsonschema:"Agent slug to own this task"`
 		Details       string   `json:"details,omitempty" jsonschema:"Optional task details"`
 		TaskType      string   `json:"task_type,omitempty" jsonschema:"Optional task type such as research, feature, launch, follow_up, bugfix, or incident"`
-		ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode such as office or local_worktree"`
+		ExecutionMode string   `json:"execution_mode,omitempty" jsonschema:"Optional execution mode; omit unless the task explicitly needs project coding checkout behavior"`
 		DependsOn     []string `json:"depends_on,omitempty" jsonschema:"Titles or IDs of tasks this depends on"`
 	} `json:"tasks" jsonschema:"List of tasks to create in dependency order"`
 	MySlug string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
@@ -848,7 +848,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 
 	mcp.AddTool(server, readOnlyTool(
 		"team_task_status",
-		"Summarize how many shared tasks are running and whether any are isolated in local worktrees.",
+		"Summarize how many shared tasks are running and whether any use LAF Bridge managed checkout isolation.",
 	), handleTeamTaskStatus)
 
 	mcp.AddTool(server, readOnlyTool(
@@ -921,9 +921,9 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 			"Create a batch of tasks in one shot with optional dependency ordering. Use this instead of multiple team_task calls when you know the full plan up front.",
 		), handleTeamPlan)
 		mcp.AddTool(server, officeWriteTool(
-			"team_bridge",
+			"team_context_bridge",
 			"Lead-only tool to bridge relevant context from one channel into another and leave a visible cross-channel trail.",
-		), handleTeamBridge)
+		), handleTeamContextBridge)
 		mcp.AddTool(server, officeWriteTool(
 			"team_channel",
 			"Create or remove an office channel. When creating a channel, include a clear description of what work belongs there and the initial roster that should be in it. Only do this when the human explicitly wants channel structure.",
@@ -1959,7 +1959,7 @@ func summarizeTaskRuntime(channel string, tasks []brokerTaskSummary) string {
 	lines := []string{
 		fmt.Sprintf("Team task status in #%s:", channel),
 		fmt.Sprintf("- Running tasks: %d of %d", running, len(tasks)),
-		fmt.Sprintf("- Isolated worktrees: %d", isolated),
+		fmt.Sprintf("- Managed checkouts: %d", isolated),
 		fmt.Sprintf("- In review flow: %d", reviewing),
 	}
 
@@ -1981,9 +1981,9 @@ func summarizeTaskRuntime(channel string, tasks []brokerTaskSummary) string {
 		isolatedTasks = append(isolatedTasks, line)
 	}
 	if len(isolatedTasks) > 0 {
-		lines = append(lines, "", "Isolated task worktrees:")
+		lines = append(lines, "", "Managed checkout tasks:")
 		lines = append(lines, isolatedTasks...)
-		lines = append(lines, "", "For isolated tasks, use the listed worktree path as working_directory for local file and bash tools.")
+		lines = append(lines, "", "For managed checkout tasks, use the listed path as working_directory for local file and bash tools.")
 	}
 
 	return strings.Join(lines, "\n")
@@ -2107,7 +2107,7 @@ func formatTaskRuntimeLine(task brokerTaskSummary) string {
 		line += " · review " + task.ReviewState
 	}
 	if task.ExecutionMode != "" {
-		line += " · " + task.ExecutionMode
+		line += " · " + office.PublicExecutionMode(task.ExecutionMode)
 	}
 	if branch := strings.TrimSpace(task.WorktreeBranch); branch != "" {
 		line += " · branch " + branch
@@ -3137,7 +3137,7 @@ func handleTeamChannelMember(ctx context.Context, _ *mcp.CallToolRequest, args T
 	return textResult(fmt.Sprintf("%s @%s in #%s", titleCaser.String(strings.TrimSpace(args.Action)), member, channel)), nil, nil
 }
 
-func handleTeamBridge(ctx context.Context, _ *mcp.CallToolRequest, args TeamBridgeArgs) (*mcp.CallToolResult, any, error) {
+func handleTeamContextBridge(ctx context.Context, _ *mcp.CallToolRequest, args TeamContextBridgeArgs) (*mcp.CallToolResult, any, error) {
 	slug, err := resolveSlug(args.MySlug)
 	if err != nil {
 		return toolError(err), nil, nil

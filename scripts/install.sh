@@ -5,10 +5,10 @@ REPO="LAF-labs/LAF-Agents-Office"
 ARCHIVE_PREFIX="laf-office"
 BINARY="${LAF_OFFICE_INSTALL_BINARY:-laf-office}"
 case "$BINARY" in
-  laf-office|laf-runner|laf-bridge) ;;
+  laf-office|laf-bridge) ;;
   *)
     printf "Error: unsupported install binary: %s\n" "$BINARY" >&2
-    printf "Supported values: laf-office, laf-runner, laf-bridge\n" >&2
+    printf "Supported values: laf-office, laf-bridge\n" >&2
     exit 1
     ;;
 esac
@@ -99,6 +99,11 @@ fi
 
 REQUESTED_PATH="$(find_extracted_binary "$BINARY")"
 if [ -n "$REQUESTED_PATH" ]; then
+  if [ ! -s "$REQUESTED_PATH" ]; then
+    printf "Error: release archive %s contained an empty %s.\n" "$ARCHIVE" "$BINARY" >&2
+    printf "Use a newer LAF Office release that includes a valid %s binary.\n" "$BINARY" >&2
+    exit 1
+  fi
   cp "$REQUESTED_PATH" "${INSTALL_DIR}/${BINARY}"
   chmod +x "${INSTALL_DIR}/${BINARY}"
   codesign_if_needed "${INSTALL_DIR}/${BINARY}"

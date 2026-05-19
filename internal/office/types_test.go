@@ -71,6 +71,12 @@ func TestTaskStatusHelpers(t *testing.T) {
 	if !IsLocalWorktreeExecutionMode("LOCAL_WORKTREE") {
 		t.Fatalf("local worktree check should be case-insensitive")
 	}
+	if !IsLocalWorktreeExecutionMode("managed_checkout") {
+		t.Fatalf("managed checkout should be accepted as the public local checkout mode")
+	}
+	if got := PublicExecutionMode("local_worktree"); got != "managed_checkout" {
+		t.Fatalf("PublicExecutionMode(local_worktree) = %q, want managed_checkout", got)
+	}
 }
 
 func TestCoreAgentIdentityDefaultsToProjectTeam(t *testing.T) {

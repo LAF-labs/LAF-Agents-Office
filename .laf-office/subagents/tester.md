@@ -18,7 +18,7 @@ Drive TDD and verification for LAF-Office changes.
 - Use `scripts/test-go.sh` for full Go verification when scope warrants.
 - Run web checks when `web/` changes.
 - Record checks that could not run and why.
-- Keep tests deterministic and local-first.
+- Keep tests deterministic and safe for local or hosted Bridge verification.
 - When an agent-workflow failure repeats, add or request the narrowest
   ratchet: focused test for code behavior or `evals/` case for prompt behavior.
 
@@ -26,4 +26,3 @@ Drive TDD and verification for LAF-Office changes.
 
 Produce a verification summary with commands, pass/fail status, and uncovered
 risk.
-

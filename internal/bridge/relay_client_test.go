@@ -19,7 +19,7 @@ func TestRelayLoopPullsOnConnectAndReconnect(t *testing.T) {
 	defer cancel()
 	var mu sync.Mutex
 	pulls := 0
-	runner := PendingRunnerFunc(func(context.Context) ([]RunResult, error) {
+	executor := PendingExecutorFunc(func(context.Context) ([]RunResult, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		pulls++
@@ -31,7 +31,7 @@ func TestRelayLoopPullsOnConnectAndReconnect(t *testing.T) {
 	err := RelayLoop{
 		DeviceID:     "device-1",
 		ReconnectMin: time.Millisecond,
-		Runner:       runner,
+		Executor:     executor,
 		Source:       source,
 	}.Run(ctx)
 	if err != context.Canceled {
@@ -50,7 +50,7 @@ func TestRelayLoopPullsOnHints(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pulls := 0
-	runner := PendingRunnerFunc(func(context.Context) ([]RunResult, error) {
+	executor := PendingExecutorFunc(func(context.Context) ([]RunResult, error) {
 		pulls++
 		if pulls == 1 {
 			ch <- RelayHint{Event: "execution.plan.created", PlanID: "plan-1"}
@@ -64,7 +64,7 @@ func TestRelayLoopPullsOnHints(t *testing.T) {
 	err := RelayLoop{
 		DeviceID:     "device-1",
 		ReconnectMin: time.Millisecond,
-		Runner:       runner,
+		Executor:     executor,
 		Source:       source,
 	}.Run(ctx)
 	if err != context.Canceled {
@@ -77,11 +77,11 @@ func TestRelayLoopPullsOnHints(t *testing.T) {
 
 func TestRelayLoopWithoutSourceRunsOnce(t *testing.T) {
 	pulls := 0
-	runner := PendingRunnerFunc(func(context.Context) ([]RunResult, error) {
+	executor := PendingExecutorFunc(func(context.Context) ([]RunResult, error) {
 		pulls++
 		return nil, nil
 	})
-	if err := (RelayLoop{Runner: runner}).Run(context.Background()); err != nil {
+	if err := (RelayLoop{Executor: executor}).Run(context.Background()); err != nil {
 		t.Fatalf("relay loop error: %v", err)
 	}
 	if pulls != 1 {
@@ -93,14 +93,14 @@ func TestPollLoopRunsImmediatelyThenOnInterval(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pulls := 0
-	runner := PendingRunnerFunc(func(context.Context) ([]RunResult, error) {
+	executor := PendingExecutorFunc(func(context.Context) ([]RunResult, error) {
 		pulls++
 		if pulls == 2 {
 			cancel()
 		}
 		return nil, nil
 	})
-	err := (PollLoop{Interval: time.Millisecond, Runner: runner}).Run(ctx)
+	err := (PollLoop{Interval: time.Millisecond, Executor: executor}).Run(ctx)
 	if err != context.Canceled {
 		t.Fatalf("poll loop error: %v", err)
 	}

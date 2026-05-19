@@ -1,5 +1,9 @@
 # Auth Sessions MVP
 
+This is a historical local dogfood spec for the pre-hosted auth/session layer.
+It is not the hosted production user path. Production users sign in to the
+hosted web app, then connect local CLI execution with `npx laf-bridge pair`.
+
 LAF-Office now has a local identity layer for dogfooding team workspaces before the
 full SaaS billing and tenant model.
 
@@ -14,7 +18,7 @@ full SaaS billing and tenant model.
   is valid.
 - `GET /auth/users` lists signed-in users for the current team.
 - `PATCH /auth/users` lets an owner/admin update a teammate role.
-- `GET /teams` lists local workspace teams for the auth screen.
+- `GET /teams` lists dogfood workspace teams for the auth screen.
 - Protected broker routes accept either the existing broker bearer token or the
   new login session cookie, so local CLI/API workflows keep working.
 - The web UI gates the office behind login/signup before showing onboarding or

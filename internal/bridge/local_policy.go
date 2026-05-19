@@ -19,13 +19,13 @@ type ApprovalDecision struct {
 }
 
 type PlanApprover interface {
-	Decide(ctx context.Context, plan ExecutionPlan, binding ProjectBinding) (ApprovalDecision, error)
+	Decide(ctx context.Context, plan ExecutionPlan) (ApprovalDecision, error)
 }
 
-type PlanApproverFunc func(ctx context.Context, plan ExecutionPlan, binding ProjectBinding) (ApprovalDecision, error)
+type PlanApproverFunc func(ctx context.Context, plan ExecutionPlan) (ApprovalDecision, error)
 
-func (f PlanApproverFunc) Decide(ctx context.Context, plan ExecutionPlan, binding ProjectBinding) (ApprovalDecision, error) {
-	return f(ctx, plan, binding)
+func (f PlanApproverFunc) Decide(ctx context.Context, plan ExecutionPlan) (ApprovalDecision, error) {
+	return f(ctx, plan)
 }
 
 type LocalPolicyOptions struct {
@@ -43,7 +43,7 @@ type LocalPolicyApprover struct {
 	Options LocalPolicyOptions
 }
 
-func (a LocalPolicyApprover) Decide(_ context.Context, plan ExecutionPlan, _ ProjectBinding) (ApprovalDecision, error) {
+func (a LocalPolicyApprover) Decide(_ context.Context, plan ExecutionPlan) (ApprovalDecision, error) {
 	review := ReviewLocalPolicy(plan, a.Config, a.Options)
 	if len(review.DenyReasons) > 0 {
 		return ApprovalDecision{

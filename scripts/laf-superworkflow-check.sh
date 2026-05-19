@@ -7,7 +7,7 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
 mode="${1:-all}"
-scope="${2:-worktree}"
+scope="${2:-workspace}"
 
 failures=0
 
@@ -141,7 +141,7 @@ case "$mode" in
 usage: laf-superworkflow-check.sh [reviewer|tester|all] [--staged]
 
 reviewer  Check architecture, security, command, and memory invariants.
-tester    Run focused staged checks or broader worktree checks.
+tester    Run focused staged checks or broader workspace checks.
 all       Run both gates.
 USAGE
     ;;

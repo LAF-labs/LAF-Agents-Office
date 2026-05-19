@@ -1,12 +1,12 @@
 // Command bench-slice-1 runs the Week 0 ship-gate benchmark for the wiki
 // intelligence port (Slice 1). See bench/slice-1/README.md for the gate
-// definition; see bench/slice-1/runner for the measurement logic.
+// definition; see bench/slice-1/harness for the measurement logic.
 //
 // Exit codes:
 //
 //	0 — pass rate ≥ 85% (ship gate GREEN)
 //	1 — pass rate < 85%  (ship gate RED)
-//	2 — runner error (I/O, index, etc.)
+//	2 — harness error (I/O, index, etc.)
 //
 // Usage:
 //
@@ -24,7 +24,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/LAF-labs/LAF-Agents-Office/bench/slice-1/runner"
+	"github.com/LAF-labs/LAF-Agents-Office/bench/slice-1/harness"
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 	)
 	flag.Parse()
 
-	cfg := runner.Defaults()
+	cfg := harness.Defaults()
 	cfg.TopK = *topk
 	cfg.Iterations = *iters
 	cfg.Gate = *gate
@@ -53,13 +53,13 @@ func main() {
 		cfg.QueriesPath = defaultPath("queries.jsonl")
 	}
 
-	agg, results, err := runner.Run(context.Background(), cfg)
+	agg, results, err := harness.Run(context.Background(), cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bench-slice-1: %v\n", err)
 		os.Exit(2)
 	}
 
-	report := runner.FormatReport(agg, results)
+	report := harness.FormatReport(agg, results)
 	if *outPath != "" {
 		if err := os.WriteFile(*outPath, []byte(report), 0o644); err != nil {
 			fmt.Fprintf(os.Stderr, "bench-slice-1: write %s: %v\n", *outPath, err)
@@ -71,7 +71,7 @@ func main() {
 
 	effectiveGate := agg.Gate
 	if effectiveGate <= 0 {
-		effectiveGate = runner.Defaults().Gate
+		effectiveGate = harness.Defaults().Gate
 	}
 	if agg.PassRate < effectiveGate {
 		fmt.Fprintf(os.Stderr, "\nSHIP GATE RED — pass rate %.2f%% < gate %.0f%%\n",

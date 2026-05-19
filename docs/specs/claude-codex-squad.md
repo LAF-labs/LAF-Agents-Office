@@ -3,7 +3,8 @@
 This spec defines the 24/7 development squad layer for LAF-Office.
 
 The squad layer supervises work. It does not replace the broker, fresh-session
-turns, agent worktrees, scoped MCP, or Notebook-to-Wiki promotion.
+turns, LAF Bridge managed checkout isolation, scoped MCP, or Notebook-to-Wiki
+promotion.
 
 ## Providers
 
@@ -52,4 +53,3 @@ zellij --layout ops/laf-squad.zellij.kdl
 - Do not use long-running panes as hidden source-of-truth memory.
 - Keep provider choice visible in session names.
 - Prefer LAF task board and broker mentions for runtime agent work.
-

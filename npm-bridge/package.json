@@ -1,0 +1,52 @@
+{
+  "name": "laf-bridge",
+  "version": "0.0.0",
+  "description": "LAF Bridge pairs a hosted LAF Office workspace with local Codex and Claude CLI execution.",
+  "bin": {
+    "laf-bridge": "bin/laf-bridge.js"
+  },
+  "files": [
+    "bin/laf-bridge.js",
+    "scripts/download-binary.js",
+    "scripts/prepublish-check.js",
+    "scripts/postinstall.js",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "prepublishOnly": "node scripts/prepublish-check.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LAF-labs/LAF-Agents-Office.git"
+  },
+  "homepage": "https://laf-office.team",
+  "bugs": {
+    "url": "https://github.com/LAF-labs/LAF-Agents-Office/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "laf-bridge",
+    "laf-office",
+    "codex",
+    "claude-code",
+    "cli",
+    "bridge",
+    "ai-agents"
+  ]
+}

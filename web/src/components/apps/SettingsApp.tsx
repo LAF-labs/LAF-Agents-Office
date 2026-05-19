@@ -27,6 +27,7 @@ import {
 import {
   type AgentModelDefaults,
   type AuthUser,
+  type BridgeAvailability,
   type BridgeDevice,
   type BridgePairingStartResponse,
   type ConfigSnapshot,
@@ -43,12 +44,10 @@ import {
   getInvites,
   getOfficeMembers,
   getPermissions,
-  getRunnerStatus,
-  type HostedRunner,
+  hostedAPIURLFromBrowser,
   isLocalhostRuntime,
   type OfficeMember,
   type PermissionMember,
-  type RunnerDiagnostic,
   resetWorkspace,
   shredWorkspace,
   startBridgePairing,
@@ -106,6 +105,8 @@ interface SectionGroup {
 
 type TranslationFn = ReturnType<typeof useI18n>["t"];
 
+const LOCAL_RUNTIME_SECTION_IDS = new Set<SectionId>(["danger", "keys"]);
+
 const SECTION_GROUPS: SectionGroup[] = [
   {
     labelKey: "settings.group.workspace",
@@ -142,13 +143,20 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
 ];
 
-function visibleSectionGroups(): SectionGroup[] {
-  if (isLocalhostRuntime()) return SECTION_GROUPS;
-  const hidden = new Set<SectionId>(["danger", "keys"]);
+function visibleSectionGroupsForRuntime(
+  showLocalRuntimeSettings: boolean,
+): SectionGroup[] {
+  if (showLocalRuntimeSettings) return SECTION_GROUPS;
   return SECTION_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !hidden.has(item.id)),
+    items: group.items.filter(
+      (item) => !LOCAL_RUNTIME_SECTION_IDS.has(item.id),
+    ),
   })).filter((group) => group.items.length > 0);
+}
+
+function visibleSectionGroups(): SectionGroup[] {
+  return visibleSectionGroupsForRuntime(isLocalhostRuntime());
 }
 
 function sectionIsVisible(section: string, groups: SectionGroup[]): boolean {
@@ -398,19 +406,19 @@ const styles = {
     padding: "12px 0",
     marginBottom: 20,
   } as const,
-  runnerSetupDesc: {
+  bridgeSetupDesc: {
     color: "var(--text-secondary)",
     fontSize: 13,
     lineHeight: 1.5,
     margin: "0 0 12px",
   } as const,
-  runnerStepRail: {
+  bridgeStepRail: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
     gap: 8,
     marginBottom: 16,
   } as const,
-  runnerStep: (done: boolean, active: boolean) => ({
+  bridgeStep: (done: boolean, active: boolean) => ({
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -424,7 +432,7 @@ const styles = {
     fontSize: 12,
     fontWeight: active ? 700 : 600,
   }),
-  runnerStepMark: (done: boolean, active: boolean) => ({
+  bridgeStepMark: (done: boolean, active: boolean) => ({
     width: 22,
     height: 22,
     flex: "0 0 22px",
@@ -475,7 +483,7 @@ const styles = {
   bridgeStepItem: {
     paddingLeft: 2,
   } as const,
-  runnerActionRow: {
+  bridgeActionRow: {
     display: "flex",
     gap: 8,
     flexWrap: "wrap",
@@ -770,15 +778,17 @@ function GeneralSection({ cfg, save }: SectionProps) {
 
   const onSave = async () => {
     const patch: ConfigUpdate = {
-      llm_provider: provider as ConfigUpdate["llm_provider"],
-      memory_backend: "markdown",
-      default_format: format,
       team_lead_slug: teamLead,
     };
-    if (showLocalRuntimeSettings) patch.dev_url = devUrl;
+    if (showLocalRuntimeSettings) {
+      patch.llm_provider = provider as ConfigUpdate["llm_provider"];
+      patch.memory_backend = "markdown";
+      patch.default_format = format;
+      patch.dev_url = devUrl;
+      if (timeout) patch.default_timeout = parseInt(timeout, 10);
+    }
     if (maxConcurrent)
       patch.max_concurrent_agents = parseInt(maxConcurrent, 10);
-    if (timeout) patch.default_timeout = parseInt(timeout, 10);
     await save(patch);
   };
 
@@ -824,17 +834,23 @@ function GeneralSection({ cfg, save }: SectionProps) {
         </select>
       </Field>
 
-      <div style={styles.groupTitle}>{t("settings.general.runtimeGroup")}</div>
-      <Field label={t("settings.general.provider")} hint="--provider">
-        <select
-          style={styles.input}
-          value={provider}
-          onChange={(e) => setProvider(e.target.value as typeof provider)}
-        >
-          <option value="claude-code">Claude Code</option>
-          <option value="codex">Codex</option>
-        </select>
-      </Field>
+      {showLocalRuntimeSettings ? (
+        <>
+          <div style={styles.groupTitle}>
+            {t("settings.general.runtimeGroup")}
+          </div>
+          <Field label={t("settings.general.provider")} hint="--provider">
+            <select
+              style={styles.input}
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as typeof provider)}
+            >
+              <option value="claude-code">Claude Code</option>
+              <option value="codex">Codex</option>
+            </select>
+          </Field>
+        </>
+      ) : null}
 
       <div style={{ ...styles.groupTitle, marginTop: 24 }}>
         {t("settings.general.agentsGroup")}
@@ -864,32 +880,36 @@ function GeneralSection({ cfg, save }: SectionProps) {
         />
       </Field>
 
-      <div style={{ ...styles.groupTitle, marginTop: 24 }}>
-        {t("settings.general.defaultsGroup")}
-      </div>
-      <Field label={t("settings.general.outputFormat")} hint="--format">
-        <select
-          style={styles.input}
-          value={format}
-          onChange={(e) => setFormat(e.target.value)}
-        >
-          <option value="text">Text</option>
-          <option value="json">JSON</option>
-        </select>
-      </Field>
-      <Field
-        label={t("settings.general.timeout")}
-        hint={t("settings.general.timeoutHint")}
-      >
-        <input
-          style={styles.input}
-          type="number"
-          min={1000}
-          placeholder="120000"
-          value={timeout}
-          onChange={(e) => setTimeout(e.target.value)}
-        />
-      </Field>
+      {showLocalRuntimeSettings ? (
+        <>
+          <div style={{ ...styles.groupTitle, marginTop: 24 }}>
+            {t("settings.general.defaultsGroup")}
+          </div>
+          <Field label={t("settings.general.outputFormat")} hint="--format">
+            <select
+              style={styles.input}
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+            >
+              <option value="text">Text</option>
+              <option value="json">JSON</option>
+            </select>
+          </Field>
+          <Field
+            label={t("settings.general.timeout")}
+            hint={t("settings.general.timeoutHint")}
+          >
+            <input
+              style={styles.input}
+              type="number"
+              min={1000}
+              placeholder="120000"
+              value={timeout}
+              onChange={(e) => setTimeout(e.target.value)}
+            />
+          </Field>
+        </>
+      ) : null}
 
       {showLocalRuntimeSettings ? (
         <>
@@ -1333,7 +1353,7 @@ function AgentMakerSection() {
       <p style={styles.sectionDesc}>{t("settings.agents.desc")}</p>
 
       <div style={styles.groupTitle}>{t("settings.agents.coreTeam")}</div>
-      <p style={styles.runnerSetupDesc}>{t("settings.agents.modelDesc")}</p>
+      <p style={styles.bridgeSetupDesc}>{t("settings.agents.modelDesc")}</p>
       <div style={{ ...styles.emptyState, paddingTop: 2 }}>
         {members.map((member, index) => (
           <div
@@ -2211,8 +2231,28 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 // ─── Danger Zone ────────────────────────────────────────────────────────
 
-const BRIDGE_INSTALL_COMMAND =
-  "curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-bridge sh";
+const BRIDGE_PAIR_COMMAND_PREFIX = "npx laf-bridge pair";
+const BRIDGE_RUNTIME_LABELS: Record<string, string> = {
+  claude: "Claude Code",
+  "claude-code": "Claude Code",
+  codex: "Codex",
+};
+const BRIDGE_RUNTIME_DISPLAY_ORDER = ["Codex", "Claude Code"];
+
+function visibleBridgePairCommand(
+  pairing: BridgePairingStartResponse | null,
+): string {
+  if (!pairing) return "";
+  return BRIDGE_PAIR_COMMAND_PREFIX;
+}
+
+async function writeClipboardText(value: string) {
+  const writeText = globalThis.navigator?.clipboard?.writeText;
+  if (typeof writeText !== "function") {
+    throw new Error("clipboard unavailable");
+  }
+  await writeText.call(globalThis.navigator.clipboard, value);
+}
 
 function BridgeSection() {
   const { t } = useI18n();
@@ -2224,22 +2264,17 @@ function BridgeSection() {
     queryFn: () => getBridgeAvailability(),
     refetchInterval: 5_000,
   });
-  const runnerQuery = useQuery({
-    queryKey: ["runner-status", "settings"],
-    queryFn: () => getRunnerStatus(),
-    refetchInterval: 5_000,
-  });
   const pairingMutation = useMutation({
-    mutationFn: () => startBridgePairing({ api_url: browserRunnerAPIURL() }),
+    mutationFn: () => startBridgePairing({ api_url: browserBridgeAPIURL() }),
     onSuccess: async (result) => {
       setPairing(result);
-      const command = result.commands.setup || result.commands.pair || "";
+      const command = visibleBridgePairCommand(result);
       if (!command) {
         showNotice(t("settings.bridge.codeReady"), "success");
         return;
       }
       try {
-        await navigator.clipboard.writeText(command);
+        await writeClipboardText(command);
         showNotice(t("settings.bridge.commandReadyCopied"), "success");
       } catch {
         showNotice(t("settings.bridge.codeReady"), "success");
@@ -2257,18 +2292,20 @@ function BridgeSection() {
 
   const devices = bridgeQuery.data?.devices ?? [];
   const bridge = preferredBridgeDevice(devices);
-  const runners = runnerQuery.data?.runners ?? [];
-  const runnerDiagnostics = runnerQuery.data?.diagnostics ?? [];
-  const runner = preferredRunner(runners);
-  const connected = lafBridgeConnected(runner, bridge);
-  const setupCommand = pairing?.commands.setup || pairing?.commands.pair || "";
+  const connected = lafBridgeConnected(bridge);
+  const setupCommand = visibleBridgePairCommand(pairing);
+  const setupCode = pairing?.pairing.setup_code || "";
+  const runtimeLabels = bridgeRuntimeLabels(
+    bridge,
+    bridgeQuery.data?.my_bridge,
+  );
 
   const copyCommand = async (
     command: string,
     successMessage = t("settings.bridge.commandCopied"),
   ) => {
     try {
-      await navigator.clipboard.writeText(command);
+      await writeClipboardText(command);
       showNotice(successMessage, "success");
     } catch {
       showNotice(t("settings.bridge.copyFailed"), "error");
@@ -2282,20 +2319,56 @@ function BridgeSection() {
 
       <Field
         label={t("settings.bridge.status")}
-        hint={lafBridgeStatusHint(t, runner, bridge, runnerDiagnostics)}
+        hint={lafBridgeStatusHint(t, bridge)}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={styles.statusDot(lafBridgeStatusColor(runner, bridge))}
-          />
+          <span style={styles.statusDot(lafBridgeStatusColor(bridge))} />
           <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {lafBridgeStatusLabel(t, runner, bridge)}
+            {lafBridgeStatusLabel(t, bridge)}
           </span>
         </div>
       </Field>
 
+      <Field label={t("settings.bridge.tools")}>
+        {runtimeLabels.length ? (
+          <div
+            style={{
+              alignItems: "center",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+              {t("settings.bridge.providerReady")}
+            </span>
+            {runtimeLabels.map((label) => (
+              <span
+                key={label}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 999,
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: "3px 8px",
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+            {bridge
+              ? t("settings.bridge.providerMissing")
+              : t("settings.bridge.toolsUnknown")}
+          </span>
+        )}
+      </Field>
+
       <div style={styles.groupTitle}>{t("settings.bridge.setupTitle")}</div>
-      <p style={styles.runnerSetupDesc}>{t("settings.bridge.setupDesc")}</p>
+      <p style={styles.bridgeSetupDesc}>{t("settings.bridge.setupDesc")}</p>
       <div style={styles.bridgeHelpBox}>
         <div style={styles.bridgeHelpTitle}>
           {t("settings.bridge.whyTitle")}
@@ -2324,7 +2397,7 @@ function BridgeSection() {
         </ol>
       ) : null}
       {!connected ? (
-        <div style={styles.runnerActionRow}>
+        <div style={styles.bridgeActionRow}>
           <button
             type="button"
             style={{
@@ -2347,7 +2420,7 @@ function BridgeSection() {
       {pairing && setupCommand && !connected ? (
         <Field
           label={t("settings.bridge.commandLabel")}
-          hint={`${t("settings.bridge.commandHint")} ${t("settings.bridge.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
+          hint={t("settings.bridge.commandHint")}
         >
           <div style={{ display: "grid", gap: 8 }}>
             <code style={styles.filePath}>{setupCommand}</code>
@@ -2360,6 +2433,28 @@ function BridgeSection() {
               <Terminal width={13} height={13} />
               <Copy width={13} height={13} />
               {t("settings.bridge.copyCommand")}
+            </button>
+          </div>
+        </Field>
+      ) : null}
+
+      {pairing && setupCode && !connected ? (
+        <Field
+          label={t("settings.bridge.codeLabel")}
+          hint={`${t("settings.bridge.codeHint")} ${t("settings.bridge.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
+        >
+          <div style={{ display: "grid", gap: 8 }}>
+            <code style={styles.filePath}>{setupCode}</code>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() =>
+                copyCommand(setupCode, t("settings.bridge.codeCopied"))
+              }
+              style={{ justifySelf: "start" }}
+            >
+              <Copy width={13} height={13} />
+              {t("settings.bridge.copyCode")}
             </button>
           </div>
         </Field>
@@ -2394,16 +2489,16 @@ function LafBridgeSetupProgress({
   const firstOpenIndex = steps.findIndex((step) => !step.done);
 
   return (
-    <div style={styles.runnerStepRail}>
+    <div style={styles.bridgeStepRail}>
       {steps.map((step, index) => {
         const active = index === firstOpenIndex || (connected && index === 2);
         return (
           <div
             key={step.label}
-            style={styles.runnerStep(step.done, active)}
+            style={styles.bridgeStep(step.done, active)}
             aria-current={active ? "step" : undefined}
           >
-            <span style={styles.runnerStepMark(step.done, active)}>
+            <span style={styles.bridgeStepMark(step.done, active)}>
               {step.done ? <Check width={13} height={13} /> : index + 1}
             </span>
             <span>{step.label}</span>
@@ -2411,15 +2506,6 @@ function LafBridgeSetupProgress({
         );
       })}
     </div>
-  );
-}
-
-function preferredRunner(runners: HostedRunner[]) {
-  const active = runners.filter((runner) => runner.status !== "revoked");
-  return (
-    active.find((runner) => runner.status === "connected") ||
-    active.find((runner) => runner.status === "stale") ||
-    active[0]
   );
 }
 
@@ -2432,75 +2518,29 @@ function preferredBridgeDevice(devices: BridgeDevice[]) {
   );
 }
 
-function lafBridgeConnected(runner?: HostedRunner, bridge?: BridgeDevice) {
-  return runner?.status === "connected" || bridge?.status === "online";
+function lafBridgeConnected(bridge?: BridgeDevice) {
+  return bridge?.status === "online";
 }
 
-function lafBridgeStatusLabel(
-  t: TranslationFn,
-  runner?: HostedRunner,
-  bridge?: BridgeDevice,
-) {
-  if (lafBridgeConnected(runner, bridge)) return t("settings.bridge.connected");
-  if (runner?.status === "stale" || bridge?.status === "offline") {
+function lafBridgeStatusLabel(t: TranslationFn, bridge?: BridgeDevice) {
+  if (lafBridgeConnected(bridge)) return t("settings.bridge.connected");
+  if (bridge?.status === "offline") {
     return t("settings.bridge.needsAttention");
   }
   return t("settings.bridge.noBridge");
 }
 
-function lafBridgeStatusColor(runner?: HostedRunner, bridge?: BridgeDevice) {
-  if (lafBridgeConnected(runner, bridge)) return "var(--green)";
-  if (runner?.status === "stale" || bridge?.status === "offline") {
+function lafBridgeStatusColor(bridge?: BridgeDevice) {
+  if (lafBridgeConnected(bridge)) return "var(--green)";
+  if (bridge?.status === "offline") {
     return "var(--yellow)";
   }
   return "var(--text-tertiary)";
 }
 
-function lafBridgeStatusHint(
-  t: TranslationFn,
-  runner?: HostedRunner,
-  bridge?: BridgeDevice,
-  diagnostics: RunnerDiagnostic[] = [],
-) {
-  const preflightHint = runnerPreflightStatusHint(t, runner, diagnostics);
-  if (preflightHint) return preflightHint;
-  if (runner?.last_seen_at) return runnerStatusHint(runner);
+function lafBridgeStatusHint(t: TranslationFn, bridge?: BridgeDevice) {
   if (bridge) return bridgeStatusHint(bridge);
   return t("settings.bridge.optionalHint");
-}
-
-function runnerPreflightStatusHint(
-  t: TranslationFn,
-  runner: HostedRunner | undefined,
-  diagnostics: RunnerDiagnostic[],
-) {
-  const runnerID = runner?.id || "";
-  const diagnostic = diagnostics.find(
-    (candidate) =>
-      candidate.kind === "runner_preflight_failed" &&
-      (!runnerID || candidate.runner_id === runnerID) &&
-      candidate.severity === "critical",
-  );
-  if (!diagnostic) return "";
-  switch (diagnosticDataString(diagnostic, "check_id")) {
-    case "git":
-      return t("settings.runner.gitMissing");
-    case "github_auth":
-      return t("settings.runner.githubMissing");
-    case "provider_runtime":
-      return t("settings.bridge.providerMissing");
-    default:
-      return (
-        diagnostic.detail ||
-        diagnostic.title ||
-        t("settings.bridge.needsAttention")
-      );
-  }
-}
-
-function diagnosticDataString(diagnostic: RunnerDiagnostic, key: string) {
-  const value = diagnostic.data?.[key];
-  return typeof value === "string" ? value : "";
 }
 
 function bridgeStatusHint(bridge?: BridgeDevice) {
@@ -2508,14 +2548,52 @@ function bridgeStatusHint(bridge?: BridgeDevice) {
   return `${bridge.device_label || bridge.id} · ${new Date(bridge.last_seen_at).toLocaleString()}`;
 }
 
-function runnerStatusHint(runner?: HostedRunner) {
-  if (!runner?.last_seen_at) return "";
-  return new Date(runner.last_seen_at).toLocaleString();
+function bridgeRuntimeLabels(
+  bridge?: BridgeDevice,
+  availability?: BridgeAvailability,
+) {
+  const labels = new Set<string>();
+  const addRuntime = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const label = BRIDGE_RUNTIME_LABELS[value.trim().toLowerCase()];
+    if (label) labels.add(label);
+  };
+
+  availability?.runtimes?.forEach(addRuntime);
+  const capabilities =
+    bridge?.capabilities &&
+    typeof bridge.capabilities === "object" &&
+    !Array.isArray(bridge.capabilities)
+      ? bridge.capabilities
+      : null;
+  const providerRuntimes = capabilities?.provider_runtimes;
+  if (Array.isArray(providerRuntimes)) {
+    providerRuntimes.forEach(addRuntime);
+  }
+  const cliDetails = capabilities?.cli_details;
+  if (
+    cliDetails &&
+    typeof cliDetails === "object" &&
+    !Array.isArray(cliDetails)
+  ) {
+    for (const [runtime, detail] of Object.entries(cliDetails)) {
+      if (
+        detail === true ||
+        (detail &&
+          typeof detail === "object" &&
+          !Array.isArray(detail) &&
+          (detail as { detected?: unknown }).detected === true)
+      ) {
+        addRuntime(runtime);
+      }
+    }
+  }
+
+  return BRIDGE_RUNTIME_DISPLAY_ORDER.filter((label) => labels.has(label));
 }
 
-function browserRunnerAPIURL() {
-  if (typeof window === "undefined") return "";
-  return `${window.location.origin}/api`;
+function browserBridgeAPIURL() {
+  return hostedAPIURLFromBrowser();
 }
 
 function formatPairingExpiry(value: string) {
@@ -2822,7 +2900,7 @@ function DangerZoneSection() {
       <div style={styles.sectionTitle}>{t("settings.danger.title")}</div>
       <div style={styles.sectionDesc}>{t("settings.danger.desc")}</div>
 
-      {/* RESET — narrow: broker runtime state only */}
+      {/* RESET: narrow local runtime state only. */}
       <div style={dangerStyles.card("warn")}>
         <div style={dangerStyles.cardTitle}>
           <Refresh width={16} height={16} />
@@ -2833,10 +2911,7 @@ function DangerZoneSection() {
         </div>
         <div style={dangerStyles.listLabel}>{t("settings.danger.clears")}</div>
         <ul style={dangerStyles.list}>
-          <li>
-            {t("settings.danger.resetClearBroker")} (
-            <code>~/.laf-office/team/broker-state.json</code>)
-          </li>
+          <li>{t("settings.danger.resetClearRuntime")}</li>
           <li>{t("settings.danger.resetClearSnapshot")}</li>
         </ul>
         <div style={dangerStyles.listLabel}>
@@ -2881,7 +2956,7 @@ function DangerZoneSection() {
             <code>~/.laf-office/</code>
           </li>
           <li>{t("settings.danger.shredDeleteLogs")}</li>
-          <li>{t("settings.danger.shredDeleteBroker")}</li>
+          <li>{t("settings.danger.shredDeleteRuntimeState")}</li>
         </ul>
         <div style={dangerStyles.listLabel}>
           {t("settings.danger.preserved")}
@@ -3063,9 +3138,13 @@ export function SettingsApp() {
 }
 
 export const __test__ = {
+  BRIDGE_PAIR_COMMAND_PREFIX,
   CODEX_MODEL_OPTIONS,
   DEFAULT_AGENT_MODEL_DEFAULTS,
-  BRIDGE_INSTALL_COMMAND,
   LAF_MODEL_OPTIONS,
+  bridgeRuntimeLabels,
   normalizeAgentModelDefaults,
+  visibleBridgePairCommand,
+  visibleSectionGroupsForRuntime,
+  writeClipboardText,
 };

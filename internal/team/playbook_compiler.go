@@ -180,7 +180,7 @@ func renderCompiledSkill(slug, sourcePath, source string) string {
 	b.WriteString("   - `slug`: `" + slug + "`\n")
 	b.WriteString("   - `outcome`: `success` | `partial` | `aborted`\n")
 	b.WriteString("   - `summary`: one paragraph describing what actually happened and what you changed.\n")
-	b.WriteString("   - `notes` (optional): anything the next runner should know that is not already captured by the playbook text.\n\n")
+	b.WriteString("   - `notes` (optional): anything the next agent should know that is not already captured by the playbook text.\n\n")
 	b.WriteString("## Guarantees\n\n")
 	b.WriteString("- The execution log at `" + ExecutionLogRelPath(slug) + "` is append-only — wrong outcomes are corrected by adding a new entry, never by editing or deleting an existing one.\n")
 	b.WriteString("- This skill recompiles automatically whenever the source playbook changes. Do not edit `SKILL.md` directly; edit `" + sourcePath + "` instead.\n\n")

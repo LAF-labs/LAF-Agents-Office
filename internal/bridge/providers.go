@@ -34,17 +34,26 @@ func DetectCapabilities(ctx context.Context, detector ProviderDetector) Capabili
 	}
 	details := map[string]CLIDetails{}
 	runtimes := []string{}
-	if path, err := detector.LookPath("codex"); err == nil && strings.TrimSpace(path) != "" {
+	for _, cli := range []struct {
+		binary  string
+		runtime string
+	}{
+		{binary: "codex", runtime: "codex"},
+		{binary: "claude", runtime: "claude-code"},
+	} {
+		path, err := detector.LookPath(cli.binary)
+		if err != nil || strings.TrimSpace(path) == "" {
+			details[cli.runtime] = CLIDetails{Detected: false, Error: cli.binary + " not found on PATH"}
+			continue
+		}
 		detail := CLIDetails{Detected: true, Path: path}
 		if version, err := detector.Version(ctx, path); err == nil {
 			detail.Version = strings.TrimSpace(version)
 		} else if err != nil {
 			detail.Error = err.Error()
 		}
-		details["codex"] = detail
-		runtimes = append(runtimes, "codex")
-	} else {
-		details["codex"] = CLIDetails{Detected: false, Error: "codex not found on PATH"}
+		details[cli.runtime] = detail
+		runtimes = append(runtimes, cli.runtime)
 	}
 	return Capabilities{ProviderRuntimes: runtimes, CLIDetails: details}
 }

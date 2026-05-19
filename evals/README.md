@@ -23,7 +23,7 @@ evals/
     003_out_of_scope_refusal.json
   harness/
     schema.json                    - JSON Schema for an eval case
-    README.md                      - runner contract and command
+    README.md                      - eval harness contract and command
 ```
 
 ## Eval case shape

@@ -90,15 +90,14 @@ func TestCodexExecExecuteHonorsReadOnlyPlanSandbox(t *testing.T) {
 		t.Skip("git not available")
 	}
 	recordFile := filepath.Join(t.TempDir(), "record.jsonl")
-	workdir := t.TempDir()
-	initGitRepo(t, workdir)
+	t.Setenv("LAF_OFFICE_RUNTIME_HOME", t.TempDir())
 	adapter := testCodexAdapter(t, recordFile, "success")
 
 	_, err := adapter.Execute(context.Background(), bridge.ExecutionPlan{
 		Provider: "codex",
-		Policy:   json.RawMessage(`{"sandbox":"read-only"}`),
+		Policy:   json.RawMessage(`{"source":"home_message","sandbox":"read-only"}`),
 		Prompt:   "Inspect only",
-	}, bridge.ProjectBinding{LocalPath: workdir})
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +124,7 @@ func TestCodexExecExecuteUsesDefaultWorkdirForHomePlan(t *testing.T) {
 		Provider: "codex",
 		Policy:   json.RawMessage(`{"source":"home_message","sandbox":"read-only"}`),
 		Prompt:   "Answer the home chat",
-	}, bridge.ProjectBinding{})
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

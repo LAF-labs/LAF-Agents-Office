@@ -177,9 +177,14 @@ function relativeMeta(value: string | null | undefined): string | null {
 function taskRequiresDeliveryReceipt(task: Task): boolean {
   return Boolean(
     task.project_id?.trim() &&
-      task.execution_mode?.trim() === "local_worktree" &&
+      taskUsesManagedCheckout(task) &&
       task.worktree_branch?.trim(),
   );
+}
+
+function taskUsesManagedCheckout(task: Task): boolean {
+  const mode = task.execution_mode?.trim();
+  return mode === "managed_checkout" || mode === "local_worktree";
 }
 
 function terminalTaskStatus(status: string | null | undefined): boolean {
@@ -454,7 +459,7 @@ function taskExecutionSteps(
   status: string,
   t: TaskTranslator,
 ): TaskExecutionStep[] {
-  const isCodingTask = task.execution_mode?.trim() === "local_worktree";
+  const isCodingTask = taskUsesManagedCheckout(task);
   const requiresReceipt = taskRequiresDeliveryReceipt(task);
   const hasStarted = taskStatusHasStarted(status);
   const isDone = taskStatusIsDone(status);
@@ -484,7 +489,7 @@ function taskExecutionSteps(
 }
 
 function taskTypeLabel(task: Task, t: TaskTranslator): string | null {
-  if (task.execution_mode?.trim() === "local_worktree") {
+  if (taskUsesManagedCheckout(task)) {
     return t("tasks.detail.codingTask");
   }
   if (task.project_id?.trim()) {

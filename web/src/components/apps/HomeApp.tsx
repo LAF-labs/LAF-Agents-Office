@@ -98,7 +98,7 @@ const homeSessionRuntimeStore = {
     return next;
   },
   remember(baseThreadId: string, threadId: string) {
-    if (!baseThreadId || !threadId) return;
+    if (!(baseThreadId && threadId)) return;
     this.activeByBase.set(baseThreadId, threadId);
   },
   reset() {

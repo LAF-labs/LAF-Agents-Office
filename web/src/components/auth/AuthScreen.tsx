@@ -50,7 +50,10 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         team_name: teamName.trim(),
         invite_token: inviteToken.trim(),
       });
-      if (result.authenticated === false || result.email_confirmation_required) {
+      if (
+        result.authenticated === false ||
+        result.email_confirmation_required
+      ) {
         setNotice(t("auth.checkEmail"));
         setMode("login");
         setPassword("");

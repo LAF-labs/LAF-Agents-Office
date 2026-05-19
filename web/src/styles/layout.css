@@ -2488,8 +2488,8 @@ html[data-theme="office"]
 .project-inline-status.is-active,
 .project-inline-status.is-running,
 .project-inline-status.is-in_progress,
-.project-inline-status.is-runner-connected,
-.project-inline-status.is-runner-running,
+.project-inline-status.is-bridge-connected,
+.project-inline-status.is-bridge-running,
 .task-inline-status.is-in_progress,
 .task-inline-status.is-review {
   color: var(--accent);
@@ -2498,24 +2498,24 @@ html[data-theme="office"]
 }
 .project-inline-status.is-ready,
 .project-inline-status.is-done,
-.project-inline-status.is-runner-ready,
+.project-inline-status.is-bridge-ready,
 .task-inline-status.is-done {
   color: var(--green);
   border-color: color-mix(in srgb, var(--green) 24%, var(--border));
   background: color-mix(in srgb, var(--green) 8%, var(--bg-card));
 }
 .project-inline-status.is-waiting,
-.project-inline-status.is-runner-waiting,
-.project-inline-status.is-runner-loading,
-.project-inline-status.is-runner-queued,
+.project-inline-status.is-bridge-waiting,
+.project-inline-status.is-bridge-loading,
+.project-inline-status.is-bridge-queued,
 .project-inline-status.is-not_started,
 .task-inline-status.is-pending,
 .task-inline-status.is-open {
   color: var(--text-secondary);
 }
 .project-inline-status.is-blocked,
-.project-inline-status.is-runner-no_runner,
-.project-inline-status.is-runner-stale,
+.project-inline-status.is-bridge-no_bridge,
+.project-inline-status.is-bridge-stale,
 .task-inline-status.is-blocked {
   color: var(--red);
   border-color: color-mix(in srgb, var(--red) 25%, var(--border));
@@ -3162,44 +3162,6 @@ html[data-theme="office"]
   border-radius: 9px;
   background: var(--surface-muted);
 }
-.project-bridge-binding-list {
-  display: grid;
-  gap: 0;
-  border-top: 1px solid var(--border-light);
-}
-.project-bridge-binding-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-light);
-}
-.project-bridge-binding-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-}
-.project-bridge-binding-meta,
-.project-bridge-empty,
-.project-bridge-error {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-.project-bridge-error {
-  color: var(--red);
-  grid-column: 1 / -1;
-}
-.project-bridge-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-items: end;
-}
-.project-bridge-form button[type="submit"] {
-  justify-self: start;
-}
 .project-bridge-command {
   display: grid;
   gap: 8px;
@@ -3427,6 +3389,33 @@ html[data-theme="office"]
   gap: 4px;
   padding-top: 4px;
 }
+.task-bridge-receipt-group {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+.task-bridge-receipt-group > span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.task-bridge-receipt-group ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.task-bridge-receipt-group li {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.task-bridge-receipt-group code {
+  color: inherit;
+  font-family: var(--font-mono);
+}
 
 @media (max-width: 640px) {
   .project-detail-heading {
@@ -3449,8 +3438,6 @@ html[data-theme="office"]
   .task-detail-execution-facts {
     grid-template-columns: 1fr;
   }
-  .project-bridge-form,
-  .project-bridge-binding-row,
   .task-bridge-event {
     grid-template-columns: 1fr;
   }
@@ -3729,7 +3716,9 @@ html[data-theme="office"]
     width: 14px;
     height: 14px;
   }
-  .sidebar:not(.sidebar-collapsed) .sidebar-usage-button > :not(.sidebar-usage-icon) {
+  .sidebar:not(.sidebar-collapsed)
+    .sidebar-usage-button
+    > :not(.sidebar-usage-icon) {
     display: none;
   }
   .sidebar:not(.sidebar-collapsed) .usage-panel {

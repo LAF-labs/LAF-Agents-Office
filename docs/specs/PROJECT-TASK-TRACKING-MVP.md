@@ -50,20 +50,20 @@ The UI treats a repo URL as a prerequisite, not a guarantee. Before creating a
 coding task, it checks that the repo URL is a GitHub repo, `gh` is installed,
 `gh auth status` succeeds, and `gh repo view <owner>/<repo>` can read the default
 branch. If any check fails, the project still accepts planning, documentation,
-and task-breakdown requests, but it does not create `local_worktree` coding
-tasks from the request box.
+and task-breakdown requests, but it does not create Bridge-managed coding tasks
+from the request box.
 
 Coding task delivery receipts live on the task as `delivery_url`,
 `delivery_summary`, `delivery_status`, `delivery_review_decision`,
 `delivery_checks_status`, `delivery_merge_state`, `delivery_draft`,
-`delivery_checked_at`, and `delivered_at`. A project-scoped `local_worktree`
-task with a connected repo can still accept a manually supplied receipt, but the
-URL must be a GitHub PR in the connected project repo and `gh pr view` must
-confirm it exists. The default path is automatic PR creation from the assigned
-branch. It cannot move to `done` until the PR receipt is present and verifiable;
-closed, draft, changes-requested, failing-check, and merge-conflict PRs must be
-fixed or replaced before completion. Delivery receipts and PR creation failures
-are also appended to the project wiki work log.
+`delivery_checked_at`, and `delivered_at`. A project-scoped Bridge-managed
+coding task with a connected repo can still accept a manually supplied receipt,
+but the URL must be a GitHub PR in the connected project repo and `gh pr view`
+must confirm it exists. The default path is automatic PR creation from the
+assigned branch. It cannot move to `done` until the PR receipt is present and
+verifiable; closed, draft, changes-requested, failing-check, and merge-conflict
+PRs must be fixed or replaced before completion. Delivery receipts and PR
+creation failures are also appended to the project wiki work log.
 
 Task cards expose whether a project task is planning or coding work, and review
 cards prioritize actionable PR state such as missing receipt, draft, requested

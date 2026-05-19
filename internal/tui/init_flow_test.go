@@ -107,14 +107,13 @@ func TestProviderOptionsIncludeCodex(t *testing.T) {
 	t.Fatal("expected codex provider option")
 }
 
-func TestProviderOptionsIncludeOpencode(t *testing.T) {
+func TestProviderOptionsExcludeOpencode(t *testing.T) {
 	options := ProviderOptions()
 	for _, opt := range options {
 		if opt.Value == "opencode" {
-			return
+			t.Fatalf("expected provider options to hide opencode, got %+v", options)
 		}
 	}
-	t.Fatal("expected opencode provider option")
 }
 
 func TestProviderOptionsExcludeUnsupportedProviders(t *testing.T) {
@@ -124,10 +123,9 @@ func TestProviderOptionsExcludeUnsupportedProviders(t *testing.T) {
 		values = append(values, opt.Value)
 	}
 	joined := strings.Join(values, ",")
-	// Unsupported providers must not appear. Framed as a negative invariant
-	// (rather than an exact allowlist) so adding new supported providers —
-	// opencode, openclaw, etc. — doesn't require editing this test.
-	for _, banned := range []string{"gemini", "GBrain-ask"} {
+	// Hosted Bridge setup publicly supports Claude Code and Codex. Other local
+	// provider experiments must stay out of the user-facing picker.
+	for _, banned := range []string{"gemini", "GBrain-ask", "opencode", "openclaw"} {
 		if strings.Contains(joined, banned) {
 			t.Fatalf("expected provider options to hide %q, got %q", banned, joined)
 		}

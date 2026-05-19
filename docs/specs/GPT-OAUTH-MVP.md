@@ -17,12 +17,18 @@ to LAF-Office and sends a bearer token when it calls LAF-Office action endpoints
 - `GET /gpt/actions/openapi.json` returns an OpenAPI schema importable by a
   Custom GPT Action.
 
-## Local dogfood setup
+## Contributor-only local dogfood setup
 
-Run LAF-Office normally:
+This section starts a local development workspace and tunnels it for internal
+GPT Actions testing. It is not the hosted production user path. Production
+execution still starts in the hosted web app and connects local CLI work through
+`npx laf-bridge pair`.
+
+From a source checkout, run the contributor local web server. Do not use this
+as hosted onboarding copy:
 
 ```bash
-npx laf-office
+go run ./cmd/laf-office --no-open
 ```
 
 Expose the broker port through a tunnel that forwards to `127.0.0.1:7890`.

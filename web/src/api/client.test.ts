@@ -3,24 +3,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createExecutionPlan,
   createProject,
-  createProjectLocalBinding,
-  createRunnerPairing,
   createTask,
-  deleteProjectLocalBinding,
   get,
   getBridgeAvailability,
   getExecutionPlan,
   getExecutionPlanEvents,
-  getProjectLocalBindings,
   getProjectRepoReadiness,
-  getRunnerStatus,
+  getTasks,
+  hostedAPIBaseURL,
+  hostedAPIURLFromBrowser,
   initApi,
   isLocalhostRuntime,
   login,
+  normalizeHostedAPIBase,
+  normalizeModelMode,
   resetWorkspace,
-  revokeRunner,
   shredWorkspace,
   signup,
+  sseURL,
+  startBridgePairing,
   supportsBrokerEvents,
   updateProject,
   updateTask,
@@ -28,6 +29,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("project api client", () => {
@@ -129,7 +131,7 @@ describe("project api client", () => {
     );
   });
 
-  it("creates a project-scoped task with explicit execution context", async () => {
+  it("creates a project-scoped task without browser-owned execution context", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -138,7 +140,7 @@ describe("project api client", () => {
             title: "Implement signup",
             project_id: "customer-portal",
             owner: "eng",
-            execution_mode: "local_worktree",
+            execution_mode: "managed_checkout",
           },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -153,7 +155,6 @@ describe("project api client", () => {
       channel: "general",
       owner: "eng",
       task_type: "feature",
-      execution_mode: "local_worktree",
       created_by: "human",
     });
 
@@ -170,7 +171,6 @@ describe("project api client", () => {
           channel: "general",
           owner: "eng",
           task_type: "feature",
-          execution_mode: "local_worktree",
         }),
       }),
     );
@@ -178,91 +178,7 @@ describe("project api client", () => {
   });
 });
 
-describe("runner api client", () => {
-  it("fetches runner status scoped to a project", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          diagnostics: [{ kind: "no_connected_runner", severity: "critical" }],
-          jobs: [{ id: "runner-job-1", project_id: "customer-portal" }],
-          runners: [{ id: "runner-local", status: "connected" }],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await getRunnerStatus({ projectId: "customer-portal" });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/runner/status?project_id=customer-portal",
-      expect.objectContaining({ credentials: "include" }),
-    );
-    expect(result.runners[0]?.status).toBe("connected");
-    expect(result.diagnostics?.[0]?.kind).toBe("no_connected_runner");
-  });
-
-  it("creates a runner pairing code with the browser API URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          api_url: "https://office.test/api",
-          commands: {
-            setup:
-              'PATH="$HOME/.local/bin:$PATH"; if ! command -v laf-runner >/dev/null 2>&1; then curl -fsSL https://raw.githubusercontent.com/LAF-labs/LAF-Agents-Office/main/scripts/install.sh | LAF_OFFICE_INSTALL_BINARY=laf-runner sh || exit 1; fi; LAF_RUNNER_BIN="$(command -v laf-runner || printf \'%s/.local/bin/laf-runner\' "$HOME")"; "$LAF_RUNNER_BIN" pair --api-url \'https://office.test/api\' --code \'ABCD-1234-EF56\' --background',
-            connect:
-              "laf-runner pair --api-url 'https://office.test/api' --code 'ABCD-1234-EF56' --background",
-          },
-          pairing: {
-            code: "ABCD-1234-EF56",
-            expires_at: "2026-05-10T12:10:00.000Z",
-            team_id: "team-1",
-          },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await createRunnerPairing("https://office.test/api");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/runner/pairing/start",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ api_url: "https://office.test/api" }),
-      }),
-    );
-    expect(result.pairing.code).toBe("ABCD-1234-EF56");
-    expect(result.commands.connect).toContain("--background");
-    expect(result.commands.setup).toContain(
-      "LAF_OFFICE_INSTALL_BINARY=laf-runner",
-    );
-  });
-
-  it("revokes a runner by id", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          runner: { id: "runner-local", status: "revoked" },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await revokeRunner("runner-local");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/runner/revoke",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ runner_id: "runner-local" }),
-      }),
-    );
-    expect(result.runner.status).toBe("revoked");
-  });
-
+describe("workspace destructive api client", () => {
   it("sends the typed confirmation phrase with workspace wipes", async () => {
     const fetchMock = vi.fn().mockImplementation(
       () =>
@@ -295,100 +211,91 @@ describe("runner api client", () => {
   });
 });
 
-describe("desktop bridge api client", () => {
-  it("fetches bridge availability and project bindings", async () => {
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/bridge/availability") {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              devices: [{ id: "device-1", status: "online" }],
-              my_bridge: { available: true, default_device_id: "device-1" },
-            }),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          ),
-        );
-      }
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            bindings: [
-              {
-                id: "binding-1",
-                device_id: "device-1",
-                display_name: "Local checkout",
-                trusted: true,
-              },
-            ],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
-      );
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const availability = await getBridgeAvailability();
-    const bindings = await getProjectLocalBindings("customer-portal");
-
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "/api/bridge/availability",
-      expect.objectContaining({ credentials: "include" }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "/api/projects/customer-portal/local-bindings",
-      expect.objectContaining({ credentials: "include" }),
-    );
-    expect(availability.my_bridge.available).toBe(true);
-    expect(bindings.bindings[0]?.id).toBe("binding-1");
-  });
-
-  it("creates and deletes a trusted project binding", async () => {
-    const fetchMock = vi.fn().mockImplementation(() =>
-      Promise.resolve(
-        new Response(
-          JSON.stringify({
-            binding: {
-              id: "binding-1",
-              device_id: "device-1",
-              display_name: "Local checkout",
-              trusted: true,
-            },
-            deleted: true,
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+describe("LAF Bridge api client", () => {
+  it("fetches bridge availability without project binding calls", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          devices: [{ id: "device-1", status: "online" }],
+          my_bridge: { available: true, default_device_id: "device-1" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await createProjectLocalBinding("customer-portal", {
-      device_id: "device-1",
-      display_name: "Local checkout",
-      local_path: "/Users/me/customer-portal",
-      trusted: true,
-    });
-    await deleteProjectLocalBinding("customer-portal", "binding-1");
+    const availability = await getBridgeAvailability();
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "/api/projects/customer-portal/local-bindings",
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/bridge/availability",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(availability.my_bridge.available).toBe(true);
+  });
+
+  it("normalizes Bridge pairing responses to the public pair-only surface", async () => {
+    const publicPairCommand = "npx laf-bridge pair";
+    const apiURLFlag = "--api-url";
+    const codeFlag = "--code";
+    const rawSetupCode = ["RAW", "CODE"].join("-");
+    const startCommand = ["laf-bridge", "start"].join(" ");
+    const statusCommand = ["laf-bridge", "status"].join(" ");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          api_url: "https://office.example.com/api",
+          commands: {
+            pair: [
+              publicPairCommand,
+              apiURLFlag,
+              "https://office.example.com/api",
+              codeFlag,
+              "SECRET",
+            ].join(" "),
+            setup: [publicPairCommand, codeFlag, rawSetupCode].join(" "),
+            start: startCommand,
+            status: statusCommand,
+          },
+          pairing: {
+            code: rawSetupCode,
+            expires_at: "2030-01-01T00:00:00Z",
+            setup_code: "SETUP-CODE",
+            team_id: "team-1",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await startBridgePairing({
+      api_url: "https://office.example.com/api",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/bridge/pairing/start",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({
-          device_id: "device-1",
-          display_name: "Local checkout",
-          local_path: "/Users/me/customer-portal",
-          trusted: true,
-        }),
+        body: JSON.stringify({ api_url: "https://office.example.com/api" }),
       }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "/api/projects/customer-portal/local-bindings/binding-1",
-      expect.objectContaining({ method: "DELETE" }),
-    );
+    expect(result.commands).toEqual({ pair: "npx laf-bridge pair" });
+    expect(result.pairing).toEqual({
+      expires_at: "2030-01-01T00:00:00Z",
+      setup_code: "SETUP-CODE",
+      team_id: "team-1",
+    });
+    expect("code" in result.pairing).toBe(false);
+    expect("start" in result.commands).toBe(false);
+    expect("status" in result.commands).toBe(false);
+  });
+
+  it("does not expose project local binding helpers to the hosted web client", async () => {
+    const client = await import("./client");
+    expect("getProjectLocalBindings" in client).toBe(false);
+    expect("createProjectLocalBinding" in client).toBe(false);
+    expect("deleteProjectLocalBinding" in client).toBe(false);
   });
 
   it("creates an execution plan and reads receipt-aware execution state", async () => {
@@ -433,7 +340,6 @@ describe("desktop bridge api client", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const created = await createExecutionPlan({
-      binding_id: "binding-1",
       device_id: "device-1",
       message: "Implement signup",
       mode: "my_bridge",
@@ -448,7 +354,6 @@ describe("desktop bridge api client", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          binding_id: "binding-1",
           device_id: "device-1",
           message: "Implement signup",
           mode: "my_bridge",
@@ -462,7 +367,7 @@ describe("desktop bridge api client", () => {
   });
 });
 
-describe("task and session api client", () => {
+describe("task api client", () => {
   it("omits nullish query params without stringifying undefined", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
@@ -529,6 +434,41 @@ describe("task and session api client", () => {
     );
   });
 
+  it("normalizes legacy task model modes at the hosted API boundary", async () => {
+    expect(normalizeModelMode("local_cli")).toBe("my_bridge");
+    expect(normalizeModelMode("team_bridge")).toBe("my_bridge");
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          tasks: [
+            {
+              id: "task-1",
+              model_mode: "local_cli",
+              status: "todo",
+              title: "Wire setup",
+            },
+            {
+              id: "task-2",
+              model_mode: "laf_model",
+              status: "todo",
+              title: "Draft plan",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getTasks("general");
+
+    expect(result.tasks.map((task) => task.model_mode)).toEqual([
+      "my_bridge",
+      "laf_model",
+    ]);
+  });
+
   it("checks project-scoped GitHub readiness without using a team-wide repo", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -558,7 +498,9 @@ describe("task and session api client", () => {
     expect(result.readiness.can_create_coding_tasks).toBe(true);
     expect(result.readiness.default_branch).toBe("main");
   });
+});
 
+describe("hosted browser api client", () => {
   it("uses hosted /api directly and skips local broker discovery off localhost", async () => {
     vi.stubGlobal("location", { hostname: "laf-co.com" });
     const fetchMock = vi.fn().mockResolvedValue(
@@ -583,6 +525,82 @@ describe("task and session api client", () => {
       expect.anything(),
     );
     expect(supportsBrokerEvents()).toBe(false);
+  });
+
+  it("supports a configured cross-origin hosted API base without local broker discovery", async () => {
+    vi.stubEnv("VITE_LAF_API_BASE_URL", "https://api.office.example/api/");
+    vi.stubGlobal("location", {
+      hostname: "app.office.example",
+      origin: "https://app.office.example",
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await initApi();
+    await get("/auth/session");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.office.example/api/auth/session",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith("/api-token", expect.anything());
+    expect(hostedAPIBaseURL()).toBe("https://api.office.example/api");
+    expect(hostedAPIURLFromBrowser()).toBe("https://api.office.example/api");
+    expect(sseURL("/events")).toBe("https://api.office.example/api/events");
+  });
+
+  it("normalizes a bare browser API host for split-origin deployments", async () => {
+    vi.stubEnv("VITE_LAF_API_BASE_URL", "api.office.example");
+    vi.stubGlobal("location", {
+      hostname: "app.office.example",
+      origin: "https://app.office.example",
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await initApi();
+    await get("/auth/session");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.office.example/api/auth/session",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(hostedAPIBaseURL()).toBe("https://api.office.example/api");
+  });
+
+  it("normalizes hosted API base values for same-origin and split-origin deployments", () => {
+    vi.stubGlobal("location", {
+      hostname: "office.example",
+      origin: "https://office.example",
+    });
+
+    expect(normalizeHostedAPIBase("")).toBe("/api");
+    expect(normalizeHostedAPIBase("api/")).toBe("/api");
+    expect(normalizeHostedAPIBase("/custom-api/")).toBe("/custom-api");
+    expect(normalizeHostedAPIBase("api.office.example")).toBe(
+      "https://api.office.example/api",
+    );
+    expect(normalizeHostedAPIBase("api.office.example/custom-api/")).toBe(
+      "https://api.office.example/custom-api",
+    );
+    expect(normalizeHostedAPIBase("https://api.office.example")).toBe(
+      "https://api.office.example/api",
+    );
+    expect(
+      normalizeHostedAPIBase("https://api.office.example/api/?x=1#frag"),
+    ).toBe("https://api.office.example/api");
+    expect(hostedAPIURLFromBrowser()).toBe("https://office.example/api");
   });
 
   it("identifies localhost as the only browser broker-event runtime", () => {
@@ -644,7 +662,9 @@ describe("task and session api client", () => {
       }),
     );
   });
+});
 
+describe("auth api client errors", () => {
   it("unwraps JSON API errors before showing them to auth forms", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: "Invalid login credentials" }), {

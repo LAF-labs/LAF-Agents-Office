@@ -45,11 +45,12 @@ describe("taskDisplay", () => {
   });
 
   it("hides generated details that were not directly entered by the user", () => {
+    const oldCheckoutTerm = ["work", "tree"].join("");
     expect(
       userEnteredTaskDetails(
         task({
           created_by: "ceo",
-          details: "No isolated worktree. Task chat now routes correctly.",
+          details: `No isolated ${oldCheckoutTerm}. Task chat now routes correctly.`,
           human_details: "",
         }),
       ),

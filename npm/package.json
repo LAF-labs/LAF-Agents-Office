@@ -1,7 +1,7 @@
 {
   "name": "laf-office",
   "version": "0.0.0",
-  "description": "Slack for AI employees with a shared brain. A collaborative office where AI employees run your work 24x7.",
+  "description": "Hosted AI development workspace bootstrap with local Codex and Claude execution through LAF Bridge.",
   "bin": {
     "laf-office": "bin/laf-office.js"
   },
@@ -14,6 +14,9 @@
   ],
   "scripts": {
     "postinstall": "node scripts/postinstall.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=18"
@@ -38,13 +41,15 @@
   "keywords": [
     "laf-office",
     "ai-agents",
-    "slack-for-ai",
+    "laf-bridge",
+    "hosted-workspace",
+    "ai-development",
     "multi-agent",
     "agent-office",
     "claude-code",
     "codex",
-    "openclaw",
     "cli",
+    "project-management",
     "office"
   ]
 }

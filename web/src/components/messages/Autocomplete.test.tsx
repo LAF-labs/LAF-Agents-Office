@@ -1,10 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  Autocomplete,
   applyAutocomplete,
   currentTrigger,
   mentionAutocompleteItems,
 } from "./Autocomplete";
+
+vi.mock("../../hooks/useMentionTargets", () => ({
+  useMentionTargets: () => ({ agentMembers: [], people: [] }),
+}));
 
 describe("currentTrigger", () => {
   describe("mention scoping — TUI parity with internal/tui/mention.go", () => {
@@ -55,6 +61,43 @@ describe("currentTrigger", () => {
     it("does not trigger once the slash token has a space", () => {
       expect(currentTrigger("/ask hi", 7)).toBeNull();
     });
+  });
+});
+
+describe("<Autocomplete>", () => {
+  it("uses the hosted-safe slash fallback when commands are omitted", () => {
+    render(
+      <Autocomplete
+        value="/de"
+        caret={3}
+        selectedIdx={0}
+        onItems={() => {}}
+        onPick={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText("/deploy-simulation")).not.toBeInTheDocument();
+  });
+
+  it("can show local workflow commands when the caller supplies them", () => {
+    render(
+      <Autocomplete
+        value="/de"
+        caret={3}
+        selectedIdx={0}
+        onItems={() => {}}
+        onPick={() => {}}
+        commands={[
+          {
+            name: "/deploy-simulation",
+            desc: "Deployment rehearsal workflow",
+            icon: "deploy-simulation",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("/deploy-simulation")).toBeInTheDocument();
   });
 });
 

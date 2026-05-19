@@ -7,6 +7,8 @@ import type { Task } from "../../api/client";
 import { useAppStore } from "../../stores/app";
 import { TaskDetailModal } from "./TaskDetailModal";
 
+type TaskPayloadForTest = Task & { worktree_path?: string };
+
 const apiMocks = vi.hoisted(() => ({
   getActions: vi.fn(),
   getOfficeMembers: vi.fn(),
@@ -25,7 +27,7 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-function renderTaskDetail(task: Task, onClose = () => {}) {
+function renderTaskDetail(task: TaskPayloadForTest, onClose = () => {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -86,7 +88,7 @@ describe("TaskDetailModal execution view", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "local_worktree",
+      execution_mode: "managed_checkout",
       worktree_branch: "laf-office-task-task-request",
       worktree_path: "/tmp/customer-portal-task-request",
     });
@@ -125,7 +127,7 @@ describe("TaskDetailModal execution view", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "local_worktree",
+      execution_mode: "managed_checkout",
       worktree_branch: "laf-office-task-task-request",
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "Implemented invite form validation.",
@@ -175,7 +177,7 @@ describe("TaskDetailModal execution view", () => {
         owner: "eng",
         project_id: "customer-portal",
         channel: "general",
-        execution_mode: "local_worktree",
+        execution_mode: "managed_checkout",
         worktree_branch: "laf-office-task-task-request",
       },
       onClose,
@@ -211,7 +213,7 @@ describe("TaskDetailModal execution view", () => {
         owner: "eng",
         project_id: "customer-portal",
         channel: "general",
-        execution_mode: "local_worktree",
+        execution_mode: "managed_checkout",
         worktree_branch: "laf-office-task-task-request",
       },
       onClose,
@@ -253,7 +255,7 @@ describe("TaskDetailModal execution view", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "local_worktree",
+      execution_mode: "managed_checkout",
       worktree_branch: "laf-office-task-task-request",
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "초대 폼 검증을 구현했습니다.",
@@ -299,7 +301,7 @@ describe("TaskDetailModal project copy", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "local_worktree",
+      execution_mode: "managed_checkout",
       worktree_branch: "laf-office-task-task-request",
       worktree_path: "/tmp/customer-portal-task-request",
     });
@@ -327,7 +329,7 @@ describe("TaskDetailModal project copy", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "local_worktree",
+      execution_mode: "managed_checkout",
     });
 
     expect(screen.queryByText("Channel")).not.toBeInTheDocument();

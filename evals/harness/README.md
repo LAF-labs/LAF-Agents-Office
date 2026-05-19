@@ -1,15 +1,15 @@
 # evals/harness/
 
-Runner contract and schema for the Slice 0.5 prompt eval harness.
+Execution contract and schema for the Slice 0.5 prompt eval harness.
 
 ## Schema
 
 `schema.json` defines the shape of a single eval case. Every file under
 `evals/{extract,synthesis,query,lint}/*.json` validates against it.
 
-## Runner
+## Harness
 
-The Go-side runner lives at `cmd/eval-prompts/main.go`.
+The Go-side harness lives at `cmd/eval-prompts/main.go`.
 Responsibilities:
 
 1. Walk `evals/*/` for `.json` files.
@@ -35,4 +35,4 @@ Pass gate for Slice 1: 100% of cases pass. Any regression is a ship-blocker.
 ## Adding cases
 
 Write a new `{suite}_{NNN}_{slug}.json` file, validate against `schema.json`,
-commit. No test-file bookkeeping needed; the runner walks the directory.
+commit. No test-file bookkeeping needed; the harness walks the directory.

@@ -143,22 +143,15 @@ func firstRegexGroup(match []string, fallback string) string {
 
 func normalizeModelMode(raw string) string {
 	value := strings.TrimSpace(raw)
-	if value == "local_cli" {
+	if value == "local_cli" || value == "team_bridge" {
 		return "my_bridge"
 	}
 	switch value {
-	case "laf_model", "my_bridge", "team_bridge", "record_only":
+	case "laf_model", "my_bridge", "record_only":
 		return value
 	default:
 		return "record_only"
 	}
-}
-
-func normalizeRunnerJobModelMode(raw string) string {
-	if strings.TrimSpace(raw) == "local_cli" {
-		return "team_bridge"
-	}
-	return normalizeModelMode(raw)
 }
 
 func (b *Broker) handleOrchestrationConfirm(w http.ResponseWriter, r *http.Request) {

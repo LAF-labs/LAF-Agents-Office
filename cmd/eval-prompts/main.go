@@ -1,4 +1,4 @@
-// cmd/eval-prompts — Slice 0.5 eval harness runner.
+// cmd/eval-prompts — Slice 0.5 eval harness executor.
 //
 // Usage:
 //
