@@ -483,7 +483,7 @@ jobs:
         with:
           name: web-dist
           path: web/dist
-      - uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # ratchet:goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # ratchet:goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --snapshot --clean --skip=publish
