@@ -1,0 +1,49 @@
+name: Deprecate npm versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: "Comma-separated versions to deprecate for laf-bridge and laf-office"
+        required: true
+        default: "0.10.34,0.10.36,0.10.37"
+      message:
+        description: "Deprecation message shown by npm"
+        required: true
+        default: "Broken release. Use latest."
+
+permissions:
+  contents: read
+
+jobs:
+  deprecate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: Deprecate selected package versions
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSIONS: ${{ inputs.versions }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is required to deprecate npm package versions"
+            exit 1
+          fi
+
+          IFS=',' read -r -a versions <<< "$VERSIONS"
+          packages=(laf-bridge laf-office)
+          for version in "${versions[@]}"; do
+            version="${version//[[:space:]]/}"
+            if [ -z "$version" ]; then
+              continue
+            fi
+            for package in "${packages[@]}"; do
+              echo "Deprecating ${package}@${version}"
+              npm deprecate "${package}@${version}" "$MESSAGE"
+            done
+          done

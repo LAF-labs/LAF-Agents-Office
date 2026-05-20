@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/LAF-labs/LAF-Agents-Office/internal/onboarding"
 )
 
 const authSessionCookieName = "laf_office_session"
@@ -530,7 +531,7 @@ func (b *Broker) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := "user-" + generateToken()
-	role := "member"
+	var role string
 	var team workspaceTeam
 	var invite *teamInvite
 	switch action {

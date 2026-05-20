@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
-	"github.com/jackc/pgx/v5"
 )
 
 // external orchestrator state types (input format — JSON file path)

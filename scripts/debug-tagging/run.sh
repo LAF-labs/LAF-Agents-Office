@@ -164,6 +164,7 @@ env \
 SERVER_PID=$!
 log "server: started pid=$SERVER_PID (log=$SERVER_LOG)"
 
+# shellcheck disable=SC2317
 cleanup() {
   if [ "$KEEP" != "1" ]; then
     log "cleanup: killing pid=$SERVER_PID"
@@ -376,6 +377,7 @@ echo "[1] broker message row: $STORED_TAGGED"
 echo
 echo "[2] log dir contents ($LOG_DIR):"
 if [ -d "$LOG_DIR" ]; then
+  # shellcheck disable=SC2012
   ls -la "$LOG_DIR" | sed 's/^/    /'
 else
   echo "    (log dir does not exist — NO turns were dispatched to anyone)"

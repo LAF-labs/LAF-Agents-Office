@@ -1,5 +1,5 @@
 > /tmp/laf-office-vhs --help
-LAF-Office v0.0.7.1 - local AI workspace for startup teams.
+LAF-Office v0.0.7.1 — local AI workspace for startup teams.
 
 Usage:
   laf-office              Launch multi-agent team (web UI on :7891)
@@ -15,8 +15,6 @@ Flags:
         Launch a direct 1:1 session with a single agent (default ceo)
   --api-key
         API key for authentication
-  --blueprint
-        Operation blueprint ID for this run
   --broker-port
         Port for the local broker (default 7890)
   --cmd
@@ -25,19 +23,22 @@ Flags:
         Start in collaborative mode (all agents see all messages)
   --format
         Output format (text, json) (default "text")
-  --from-scratch
-        Start without a saved blueprint and synthesize the first operation from the directive
   --no-open
         Don't open browser automatically on launch
   --opus-ceo
         Upgrade CEO agent from Sonnet to Opus
-  --pack
-        Operation blueprint ID (legacy pack alias supported)
   --provider
-        LLM provider override for this run (claude-code, codex, opencode)
+        LLM provider override for this run (claude-code, codex)
   --threads-collapsed
         Start with threads collapsed (default: expanded)
   --tui
         Launch with tmux TUI instead of the web UI
   --unsafe
         Bypass all agent permission checks (use for local dev only)
+  --version
+        Print version and exit
+  --web-port
+        Port for the web UI (default 7891)
+
+For all flags including internal ones: laf-office --help-all
+>

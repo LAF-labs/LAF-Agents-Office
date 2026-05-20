@@ -9264,9 +9264,7 @@ func (b *Broker) migrateHomeConversationRefsLocked(now string) bool {
 		if !isHomeThreadID(homeThreadID) {
 			continue
 		}
-		if b.upsertHomeConversationRefLocked("task", b.tasks[i].ID, homeThreadID, firstNonEmptyString(b.tasks[i].CreatedAt, now)) {
-			changed = true
-		}
+		b.upsertHomeConversationRefLocked("task", b.tasks[i].ID, homeThreadID, firstNonEmptyString(b.tasks[i].CreatedAt, now))
 		b.tasks[i].ThreadID = ""
 		changed = true
 	}
@@ -9279,9 +9277,7 @@ func (b *Broker) migrateHomeConversationRefsLocked(now string) bool {
 		if !isHomeThreadID(homeThreadID) {
 			continue
 		}
-		if b.upsertHomeConversationRefLocked("request", b.requests[i].ID, homeThreadID, firstNonEmptyString(b.requests[i].CreatedAt, now)) {
-			changed = true
-		}
+		b.upsertHomeConversationRefLocked("request", b.requests[i].ID, homeThreadID, firstNonEmptyString(b.requests[i].CreatedAt, now))
 		b.requests[i].ReplyTo = ""
 		changed = true
 	}

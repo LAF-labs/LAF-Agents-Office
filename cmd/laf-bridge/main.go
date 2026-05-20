@@ -54,7 +54,7 @@ func runWithContextIO(ctx context.Context, args []string, stdin io.Reader, stdou
 		return nil
 	}
 	if isVersionArg(args[0]) {
-		fmt.Fprintf(stdout, "laf-bridge v%s\n", buildinfo.Current().Version)
+		_, _ = fmt.Fprintf(stdout, "laf-bridge v%s\n", buildinfo.Current().Version)
 		return nil
 	}
 	switch args[0] {
@@ -113,7 +113,7 @@ func runPair(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "paired device %s\n", cfg.DeviceID)
+	writef(stdout, "paired device %s\n", cfg.DeviceID)
 	if !*start {
 		return nil
 	}
@@ -143,7 +143,7 @@ func resolvePairInputs(apiURL string, code string, stdin io.Reader, stdout io.Wr
 	}
 
 	if strings.TrimSpace(code) == "" && stdin != nil {
-		fmt.Fprintln(stdout, "Paste the LAF Bridge setup code from Settings -> LAF Bridge, then press Enter:")
+		writeln(stdout, "Paste the LAF Bridge setup code from Settings -> LAF Bridge, then press Enter:")
 		line, err := bufio.NewReader(stdin).ReadString('\n')
 		if err != nil && !errors.Is(err, io.EOF) {
 			return "", "", err
@@ -315,7 +315,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		if *relay {
 			if source := bridge.SupabaseRelaySourceFromEnv(); source != nil {
-				fmt.Fprintf(stdout, "laf-bridge relay device %s via Supabase Realtime; polling fallback every %s\n", cfg.DeviceID, pollInterval.String())
+				writef(stdout, "laf-bridge relay device %s via Supabase Realtime; polling fallback every %s\n", cfg.DeviceID, pollInterval.String())
 				err := (bridge.RelayLoop{
 					DeviceID:     cfg.DeviceID,
 					PollInterval: pollInterval,
@@ -329,7 +329,7 @@ func runStart(ctx context.Context, args []string, stdout io.Writer) error {
 				return err
 			}
 		}
-		fmt.Fprintf(stdout, "laf-bridge polling device %s every %s\n", cfg.DeviceID, pollInterval.String())
+		writef(stdout, "laf-bridge polling device %s every %s\n", cfg.DeviceID, pollInterval.String())
 		err := (bridge.PollLoop{Interval: pollInterval, Executor: pendingExecutor}).Run(ctx)
 		if errors.Is(err, context.Canceled) {
 			return nil
@@ -657,16 +657,24 @@ func writeJSON(w io.Writer, value any) error {
 	return enc.Encode(value)
 }
 
+func writef(w io.Writer, format string, args ...any) {
+	_, _ = fmt.Fprintf(w, format, args...)
+}
+
+func writeln(w io.Writer, args ...any) {
+	_, _ = fmt.Fprintln(w, args...)
+}
+
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "usage: laf-bridge pair")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Pair this computer with a hosted LAF Office workspace.")
-	fmt.Fprintln(w, "Create a setup code in Settings -> LAF Bridge, run this command, then paste the code when prompted.")
+	writeln(w, "usage: laf-bridge pair")
+	writeln(w)
+	writeln(w, "Pair this computer with a hosted LAF Office workspace.")
+	writeln(w, "Create a setup code in Settings -> LAF Bridge, run this command, then paste the code when prompted.")
 }
 
 func pairUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: laf-bridge pair")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Create a setup code in Settings -> LAF Bridge.")
-	fmt.Fprintln(w, "Run this command, paste the setup code when prompted, and keep the terminal open.")
+	writeln(w, "usage: laf-bridge pair")
+	writeln(w)
+	writeln(w, "Create a setup code in Settings -> LAF Bridge.")
+	writeln(w, "Run this command, paste the setup code when prompted, and keep the terminal open.")
 }

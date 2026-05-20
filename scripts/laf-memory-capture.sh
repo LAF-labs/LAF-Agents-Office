@@ -75,14 +75,13 @@ mkdir -p "$dir"
 
 {
   printf '\n## %s\n\n' "$title"
-  printf '- captured_at: `%s`\n' "$stamp"
-  printf '- agent: `%s`\n' "$agent"
-  printf '- source: `%s`\n' "${source_name:-manual}"
-  printf '- status: `draft`\n'
-  printf '- promotion: `manual-review-required`\n\n'
+  printf -- "- captured_at: \`%s\`\\n" "$stamp"
+  printf -- "- agent: \`%s\`\\n" "$agent"
+  printf -- "- source: \`%s\`\\n" "${source_name:-manual}"
+  printf -- "- status: \`draft\`\\n"
+  printf -- "- promotion: \`manual-review-required\`\\n\\n"
   printf '%s\n' "$body"
 } >> "$file"
 
 printf 'captured notebook draft: %s\n' "$file"
 printf 'next: review, then use notebook_promote for canonical Wiki promotion.\n'
-

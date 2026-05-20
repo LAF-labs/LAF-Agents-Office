@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/LAF-labs/LAF-Agents-Office/internal/config"
 	"github.com/LAF-labs/LAF-Agents-Office/internal/product"
-	"github.com/google/uuid"
 )
 
 // SessionStore manages JSONL-based session files for agents.

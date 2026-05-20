@@ -39,6 +39,23 @@ go build -o /tmp/laf-office-vhs ./cmd/laf-office
 # final rendered frame is byte-stable. Normalize by keeping only the
 # content between the last two separators — that's the visible render
 # we actually care about.
+trim_trailing_blank_lines() {
+  local f="$1"
+  awk '
+    { lines[NR] = $0 }
+    END {
+      last = NR
+      while (last > 0 && lines[last] == "") {
+        last--
+      }
+      for (i = 1; i <= last; i++) {
+        print lines[i]
+      }
+    }
+  ' "$f" > "${f}.norm"
+  mv "${f}.norm" "$f"
+}
+
 normalize() {
   local f="$1"
   if ! awk '
@@ -54,6 +71,7 @@ normalize() {
     return 1
   fi
   mv "${f}.norm" "$f"
+  trim_trailing_blank_lines "$f"
 }
 
 check_one() {
@@ -69,6 +87,7 @@ check_one() {
   local backup_txt
   backup_txt="$(mktemp)"
   cp "$golden_txt" "$backup_txt"
+  trim_trailing_blank_lines "$backup_txt"
 
   vhs "testdata/vhs/${name}.tape" >/dev/null
   if ! normalize "$golden_txt"; then

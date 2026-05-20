@@ -108,7 +108,7 @@ func (s SupabaseRelaySource) Subscribe(ctx context.Context, deviceID string) (<-
 	go func() {
 		defer close(done)
 		defer close(hints)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		for {
 			_, data, err := conn.ReadMessage()
 			if err != nil {
@@ -133,7 +133,7 @@ func (s SupabaseRelaySource) Subscribe(ctx context.Context, deviceID string) (<-
 	go func() {
 		ticker := time.NewTicker(heartbeatInterval)
 		defer ticker.Stop()
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		for {
 			select {
 			case <-ctx.Done():
