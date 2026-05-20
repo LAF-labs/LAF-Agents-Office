@@ -297,11 +297,17 @@ function executableForCommand(command, platform = process.platform) {
   return command;
 }
 
+function shellForCommand(command, platform = process.platform) {
+  return platform === "win32" && (command === "npm" || command === "npx");
+}
+
 function runCommand(command, args) {
   const result = spawnSync(executableForCommand(command), args, {
     encoding: "utf8",
+    shell: shellForCommand(command),
     stdio: ["ignore", "pipe", "pipe"],
     timeout: probeTimeoutMS,
+    windowsHide: true,
   });
   return {
     error: commandError(result),
@@ -437,5 +443,6 @@ module.exports = {
   printText,
   releaseGateRemediationHints,
   runReleaseGate,
+  shellForCommand,
   internalCommandProbes,
 };

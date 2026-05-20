@@ -13,6 +13,7 @@ const {
   printText,
   releaseGateRemediationHints,
   runReleaseGate,
+  shellForCommand,
 } = require(path.join(repoRoot, "scripts", "hosted-bridge-release-gate.cjs"));
 
 function fakeCommandProbe(fixtures) {
@@ -76,6 +77,10 @@ test("release gate resolves npm and npx command shims on Windows", () => {
   assert.equal(executableForCommand("npx", "win32"), "npx.cmd");
   assert.equal(executableForCommand("git", "win32"), "git");
   assert.equal(executableForCommand("npx", "linux"), "npx");
+  assert.equal(shellForCommand("npm", "win32"), true);
+  assert.equal(shellForCommand("npx", "win32"), true);
+  assert.equal(shellForCommand("git", "win32"), false);
+  assert.equal(shellForCommand("npx", "linux"), false);
 });
 
 test("release gate help does not print internal command or pair flag examples", () => {

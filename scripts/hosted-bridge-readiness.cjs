@@ -117,7 +117,9 @@ function runCommand(command, args, _check, options = {}) {
     cwd: options.cwd || repoRoot,
     encoding: "utf8",
     env: options.env || process.env,
+    shell: shellForCommand(command),
     stdio: options.stdio || "inherit",
+    windowsHide: true,
   });
 }
 
@@ -126,6 +128,10 @@ function executableForCommand(command, platform = process.platform) {
     return "npm.cmd";
   }
   return command;
+}
+
+function shellForCommand(command, platform = process.platform) {
+  return platform === "win32" && command === "npm";
 }
 
 function commandStatus(result = {}) {
@@ -257,4 +263,5 @@ module.exports = {
   readinessChecksForOptions,
   readinessRemediationHints,
   runReadiness,
+  shellForCommand,
 };

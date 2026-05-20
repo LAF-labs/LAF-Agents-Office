@@ -14,6 +14,7 @@ const {
   readinessChecksForOptions,
   readinessRemediationHints,
   runReadiness,
+  shellForCommand,
 } = require(path.join(repoRoot, "scripts", "hosted-bridge-readiness.cjs"));
 
 test("readiness runs schema, preflight, and release gate in order", () => {
@@ -111,6 +112,9 @@ test("readiness supports json output and platform npm shims", () => {
   });
   assert.equal(executableForCommand("npm", "win32"), "npm.cmd");
   assert.equal(executableForCommand("npm", "linux"), "npm");
+  assert.equal(shellForCommand("npm", "win32"), true);
+  assert.equal(shellForCommand("git", "win32"), false);
+  assert.equal(shellForCommand("npm", "linux"), false);
   assert.equal(readinessChecks.length, 3);
 });
 
