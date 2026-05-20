@@ -2,6 +2,7 @@
 "use strict";
 
 const path = require("node:path");
+const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
 
 const repoRoot = path.resolve(__dirname, "..");
@@ -113,25 +114,57 @@ function readinessChecksForOptions(options = {}) {
 }
 
 function runCommand(command, args, _check, options = {}) {
-  return spawnSync(executableForCommand(command), args, {
+  const invocation = commandInvocationFor(command, args, process.platform, options.env || process.env);
+  return spawnSync(invocation.command, invocation.args, {
     cwd: options.cwd || repoRoot,
     encoding: "utf8",
     env: options.env || process.env,
-    shell: shellForCommand(command),
+    shell: invocation.shell,
     stdio: options.stdio || "inherit",
     windowsHide: true,
   });
 }
 
-function executableForCommand(command, platform = process.platform) {
-  if (platform === "win32" && command === "npm") {
-    return "npm.cmd";
-  }
-  return command;
+function executableForCommand(command, platform = process.platform, env = process.env) {
+  return commandInvocationFor(command, [], platform, env).command;
 }
 
-function shellForCommand(command, platform = process.platform) {
-  return platform === "win32" && command === "npm";
+function shellForCommand(command, platform = process.platform, env = process.env) {
+  return commandInvocationFor(command, [], platform, env).shell;
+}
+
+function commandInvocationFor(command, args, platform = process.platform, env = process.env) {
+  if (platform === "win32" && command === "npm") {
+    const cliPath = windowsNpmCliPath(command, env);
+    if (cliPath) {
+      return {
+        args: [cliPath, ...args],
+        command: process.execPath,
+        shell: false,
+      };
+    }
+    return {
+      args,
+      command: "npm.cmd",
+      shell: true,
+    };
+  }
+  return {
+    args,
+    command,
+    shell: false,
+  };
+}
+
+function windowsNpmCliPath(command, env = process.env) {
+  const pathValue = String(env.PATH || env.Path || "");
+  const cliBasename = `${command}-cli.js`;
+  for (const directory of pathValue.split(";")) {
+    if (!directory) continue;
+    const cliPath = path.join(directory, "node_modules", "npm", "bin", cliBasename);
+    if (fs.existsSync(cliPath)) return cliPath;
+  }
+  return "";
 }
 
 function commandStatus(result = {}) {
@@ -254,6 +287,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  commandInvocationFor,
   commandError,
   commandStatus,
   executableForCommand,

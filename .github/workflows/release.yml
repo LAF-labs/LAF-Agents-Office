@@ -229,6 +229,7 @@ jobs:
 
   smoke-test-npx:
     needs: [release]
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -277,6 +278,7 @@ jobs:
           fi
 
       - name: Verify published LAF Bridge release gate
+        timeout-minutes: 10
         shell: bash
         run: |
           verify_bridge_package() {
@@ -292,10 +294,10 @@ jobs:
             node scripts/hosted-bridge-release-gate.cjs --package "$package" "$@"
           }
 
-          verify_bridge_package "laf-bridge@$VERSION"
           if [ "$NPM_TAG" = "latest" ]; then
             verify_bridge_package "laf-bridge@latest" --expect-version "$VERSION"
           else
+            verify_bridge_package "laf-bridge@$VERSION"
             latest_version="$(npm view laf-bridge@latest version 2>/dev/null || true)"
             if [ "$latest_version" = "$VERSION" ]; then
               echo "::error::pre-release ${VERSION} is published on laf-bridge@latest; expected npm dist-tag ${NPM_TAG}"

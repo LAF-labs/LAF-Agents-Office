@@ -1,12 +1,15 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const {
+  commandInvocationFor,
   executableForCommand,
   parseArgs,
   printText,
@@ -110,12 +113,28 @@ test("readiness supports json output and platform npm shims", () => {
     json: true,
     preflightArgs: [],
   });
-  assert.equal(executableForCommand("npm", "win32"), "npm.cmd");
+  assert.equal(executableForCommand("npm", "win32", { PATH: "" }), "npm.cmd");
   assert.equal(executableForCommand("npm", "linux"), "npm");
-  assert.equal(shellForCommand("npm", "win32"), true);
+  assert.equal(shellForCommand("npm", "win32", { PATH: "" }), true);
   assert.equal(shellForCommand("git", "win32"), false);
   assert.equal(shellForCommand("npm", "linux"), false);
   assert.equal(readinessChecks.length, 3);
+});
+
+test("readiness prefers the npm JS CLI on Windows when setup-node exposes it", (t) => {
+  const npmRoot = fs.mkdtempSync(path.join(os.tmpdir(), "laf-npm-cli-"));
+  t.after(() => fs.rmSync(npmRoot, { force: true, recursive: true }));
+  const npmBin = path.join(npmRoot, "node_modules", "npm", "bin");
+  fs.mkdirSync(npmBin, { recursive: true });
+  fs.writeFileSync(path.join(npmBin, "npm-cli.js"), "// npm fixture\n");
+  const invocation = commandInvocationFor("npm", ["run", "hosted-bridge:schema"], "win32", {
+    PATH: npmRoot,
+  });
+
+  assert.equal(invocation.command, process.execPath);
+  assert.equal(invocation.shell, false);
+  assert.deepEqual(invocation.args.slice(1), ["run", "hosted-bridge:schema"]);
+  assert.match(invocation.args[0], /npm-cli\.js$/);
 });
 
 test("readiness forwards dotenv and exact Bridge package options to focused gates", () => {

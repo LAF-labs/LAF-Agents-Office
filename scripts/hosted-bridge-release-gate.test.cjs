@@ -1,12 +1,15 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const {
+  commandInvocationFor,
   executableForCommand,
   internalCommandProbes,
   parseArgs,
@@ -73,14 +76,35 @@ test("release gate passes when public laf-bridge exposes only pair help", () => 
 });
 
 test("release gate resolves npm and npx command shims on Windows", () => {
-  assert.equal(executableForCommand("npm", "win32"), "npm.cmd");
-  assert.equal(executableForCommand("npx", "win32"), "npx.cmd");
+  assert.equal(executableForCommand("npm", "win32", { PATH: "" }), "npm.cmd");
+  assert.equal(executableForCommand("npx", "win32", { PATH: "" }), "npx.cmd");
   assert.equal(executableForCommand("git", "win32"), "git");
   assert.equal(executableForCommand("npx", "linux"), "npx");
-  assert.equal(shellForCommand("npm", "win32"), true);
-  assert.equal(shellForCommand("npx", "win32"), true);
+  assert.equal(shellForCommand("npm", "win32", { PATH: "" }), true);
+  assert.equal(shellForCommand("npx", "win32", { PATH: "" }), true);
   assert.equal(shellForCommand("git", "win32"), false);
   assert.equal(shellForCommand("npx", "linux"), false);
+});
+
+test("release gate prefers npm and npx JS CLIs on Windows when setup-node exposes them", (t) => {
+  const npmRoot = fs.mkdtempSync(path.join(os.tmpdir(), "laf-npm-cli-"));
+  t.after(() => fs.rmSync(npmRoot, { force: true, recursive: true }));
+  const npmBin = path.join(npmRoot, "node_modules", "npm", "bin");
+  fs.mkdirSync(npmBin, { recursive: true });
+  fs.writeFileSync(path.join(npmBin, "npm-cli.js"), "// npm fixture\n");
+  fs.writeFileSync(path.join(npmBin, "npx-cli.js"), "// npx fixture\n");
+  const fakeEnv = { PATH: npmRoot };
+  const npmInvocation = commandInvocationFor("npm", ["view", "laf-bridge", "version"], "win32", fakeEnv);
+  const npxInvocation = commandInvocationFor("npx", ["--yes", "laf-bridge@latest"], "win32", fakeEnv);
+
+  assert.equal(npmInvocation.command, process.execPath);
+  assert.equal(npmInvocation.shell, false);
+  assert.deepEqual(npmInvocation.args.slice(1), ["view", "laf-bridge", "version"]);
+  assert.match(npmInvocation.args[0], /npm-cli\.js$/);
+  assert.equal(npxInvocation.command, process.execPath);
+  assert.equal(npxInvocation.shell, false);
+  assert.deepEqual(npxInvocation.args.slice(1), ["--yes", "laf-bridge@latest"]);
+  assert.match(npxInvocation.args[0], /npx-cli\.js$/);
 });
 
 test("release gate help does not print internal command or pair flag examples", () => {
