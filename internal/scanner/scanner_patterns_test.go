@@ -79,6 +79,7 @@ func TestSecretPatternsPositiveAndNearMiss(t *testing.T) {
 			}
 			if found == nil {
 				t.Fatalf("pattern %q not in catalog", tc.pattern)
+				return
 			}
 			if !found.Pattern.MatchString(tc.hit) {
 				t.Errorf("expected hit for %q in %q", tc.pattern, tc.hit)

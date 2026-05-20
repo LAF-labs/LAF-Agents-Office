@@ -68,6 +68,7 @@ func TestTaskRouter_FindBestAgent(t *testing.T) {
 	best := r.FindBestAgent(task)
 	if best == nil {
 		t.Fatal("expected a best agent")
+		return
 	}
 	if best.AgentSlug != "alice" {
 		t.Errorf("expected alice, got %s", best.AgentSlug)

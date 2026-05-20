@@ -334,6 +334,7 @@ starter:
 	ceoMember := findMemberBySlug(resolved.Members, "ceo")
 	if ceoMember == nil {
 		t.Fatal("expected ceo member in resolved manifest")
+		return
 	}
 	if ceoMember.PermissionMode == "" {
 		t.Fatal("expected ceo to have a permission_mode")
@@ -342,6 +343,7 @@ starter:
 	backendMember := findMemberBySlug(resolved.Members, "be")
 	if backendMember == nil {
 		t.Fatal("expected backend member in resolved manifest")
+		return
 	}
 	if backendMember.PermissionMode == "" {
 		t.Fatal("expected backend to have a permission_mode")

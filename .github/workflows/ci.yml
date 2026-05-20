@@ -375,8 +375,9 @@ jobs:
       # onboardingComplete: fresh install → <Wizard>, seeded → <Shell>. One
       # laf-office instance can only be in one state, so we boot twice.
       #
-      # Phase 1: fresh install (wizard.spec.ts). No onboarded.json.
-      # Phase 2: seeded      (smoke.spec.ts, shell). Write onboarded.json first.
+      # Phase 1: fresh install (wizard.spec.ts).
+      # Phase 2: shell smoke (smoke.spec.ts). The spec creates an authenticated
+      # test account and completes onboarding through the real HTTP API.
       # `</dev/null` on both boots prevents isPiped() from yanking laf-office into
       # scanner mode.
       - name: Start laf-office (fresh install) for wizard tests
@@ -422,12 +423,8 @@ jobs:
             if ! (exec 3<>/dev/tcp/127.0.0.1/7891) 2>/dev/null; then break; fi
             sleep 1
           done
-      - name: Seed onboarding state + start laf-office for shell tests
+      - name: Start laf-office for shell tests
         run: |
-          mkdir -p "$HOME/.laf-office"
-          cat > "$HOME/.laf-office/onboarded.json" <<'JSON'
-          {"version":1,"completed_at":"2026-01-01T00:00:00Z","company_name":"e2e-ci"}
-          JSON
           ./laf-office --no-open --broker-port 7890 --web-port 7891 </dev/null > laf-office.log 2>&1 &
           echo $! > laf-office.pid
           for i in $(seq 1 30); do

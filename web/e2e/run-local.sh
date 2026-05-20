@@ -12,9 +12,8 @@
 #   - Builds web/dist (vite) and the laf-office binary if missing.
 #   - Pins LAF_OFFICE_RUNTIME_HOME to a per-run tempdir so onboarded.json /
 #     broker-state.json never clobber your real ~/.laf-office.
-#   - For the shell phase, seeds <RUNTIME_HOME>/.laf-office/onboarded.json
-#     before launching laf-office (the same JSON the CI workflow writes — see
-#     .github/workflows/ci.yml :: seed onboarding state).
+#   - For the shell phase, the smoke spec creates its own authenticated test
+#     user and completes onboarding through the real HTTP API.
 #   - Launches laf-office on $PORT and $((PORT - 1)) so it doesn't collide
 #     with a developer's normally-running 7891 laf-office.
 
@@ -133,10 +132,6 @@ run_wizard_phase() {
 }
 
 run_shell_phase() {
-  mkdir -p "${runtime_home}/.laf-office"
-  cat > "${runtime_home}/.laf-office/onboarded.json" <<EOF
-{"version":1,"completed_at":"2026-01-01T00:00:00Z","company_name":"e2e-local"}
-EOF
   start_laf_office "shell"
   echo "[run-local] running smoke.spec.ts"
   (cd web/e2e && LAF_OFFICE_E2E_BASE_URL="http://localhost:${web_port}" bunx playwright test tests/smoke.spec.ts)

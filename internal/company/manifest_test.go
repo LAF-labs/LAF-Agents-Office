@@ -171,9 +171,11 @@ func TestManifestSurfaceSpecRoundTrips(t *testing.T) {
 	}
 	if tgChannel == nil {
 		t.Fatal("expected tg-ops channel after reload")
+		return
 	}
 	if tgChannel.Surface == nil {
 		t.Fatal("expected surface spec to persist")
+		return
 	}
 	if tgChannel.Surface.Provider != "telegram" {
 		t.Fatalf("expected provider=telegram, got %q", tgChannel.Surface.Provider)
@@ -443,6 +445,7 @@ starter:
 	ceo := findMemberBySlug(resolved.Members, "ceo")
 	if ceo == nil {
 		t.Fatalf("expected ceo member in resolved manifest: %+v", resolved.Members)
+		return
 	}
 	if ceo.Role == "" {
 		t.Fatalf("expected ceo role, got %+v", ceo)

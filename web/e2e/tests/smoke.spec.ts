@@ -5,9 +5,8 @@ import { test, expect, type Page } from '@playwright/test';
 // as a React child") on first agent click. PR #101 fixed the specific bug;
 // this test makes sure the next one gets caught in CI instead of in Slack.
 //
-// Assumes laf-office was started with ~/.laf-office/onboarded.json pre-seeded so the
-// app lands in the Shell (where the React #31 crash lived) rather than the
-// onboarding Wizard. Wizard coverage lives in wizard.spec.ts.
+// Boots an authenticated, completed workspace in the real laf-office shell.
+// Wizard coverage lives in wizard.spec.ts.
 
 function collectReactErrors(page: Page): () => string[] {
   const errors: string[] = [];
@@ -37,17 +36,73 @@ async function waitForReactMount(page: Page): Promise<void> {
   );
 }
 
+async function signUpAndCompleteOnboarding(page: Page): Promise<void> {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const signup = await page.request.post('/api/auth/signup', {
+    data: {
+      email: `e2e-${suffix}@example.com`,
+      name: 'E2E Founder',
+      password: 'password123',
+      team_action: 'create',
+      team_name: `E2E Team ${suffix}`,
+    },
+  });
+  expect(signup.ok(), await signup.text()).toBeTruthy();
+
+  const complete = await page.request.post('/api/onboarding/complete', {
+    data: {
+      skip_task: true,
+      task: '',
+      blueprint: '',
+      agents: ['ceo', 'fe', 'be', 'reviewer'],
+    },
+  });
+  expect(complete.ok(), await complete.text()).toBeTruthy();
+}
+
+async function openAuthenticatedShell(page: Page): Promise<void> {
+  await signUpAndCompleteOnboarding(page);
+  await page.goto('/');
+  await waitForReactMount(page);
+
+  await expect(page.locator('.sidebar')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.home-composer textarea')).toBeVisible({ timeout: 10_000 });
+}
+
+async function openCommandPalette(page: Page): Promise<void> {
+  // Browser chrome can intercept Ctrl/Cmd+K before Playwright delivers it to
+  // the page. Dispatch the same app-level keydown so the shortcut handler is
+  // still covered without depending on host-browser accelerator behavior.
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+}
+
+async function openAgentFromPalette(page: Page, query = 'ceo'): Promise<void> {
+  await openCommandPalette(page);
+  const paletteInput = page.locator('.search-input');
+  await expect(paletteInput).toBeVisible({ timeout: 10_000 });
+  await paletteInput.fill(query);
+
+  const agentItem = page.locator('.cmd-palette-item').filter({
+    has: page.locator('.cmd-palette-item-meta', { hasText: '@ceo' }),
+  });
+  await expect(agentItem.first()).toBeVisible({ timeout: 10_000 });
+  await agentItem.first().click();
+}
+
 test.describe('laf-office web UI smoke (shell)', () => {
   test('initial page render does not trip the React error boundary', async ({ page }) => {
     const getErrors = collectReactErrors(page);
 
-    await page.goto('/');
-    await waitForReactMount(page);
-
-    // Sidebar appearing is our "React committed and effects ran" signal.
-    // networkidle does NOT work here — laf-office opens a long-lived SSE stream
-    // as soon as the shell mounts, so the page is never idle.
-    await expect(page.locator('button[data-agent-slug]').first()).toBeVisible({ timeout: 10_000 });
+    await openAuthenticatedShell(page);
 
     await expect(page.getByTestId('error-boundary')).toHaveCount(0);
 
@@ -58,32 +113,27 @@ test.describe('laf-office web UI smoke (shell)', () => {
     ).toHaveLength(0);
   });
 
-  test('sidebar renders the seeded agents (broker wired)', async ({ page }) => {
-    // Hard assertion: the broker seeds default agents on every boot
-    // (see internal/team — 4+ default roles). Zero agents is NEVER the
-    // happy path; treating it as "skip" lets real regressions through
-    // (seed broken, /api/members failing, useOfficeMembers broken, etc.).
-    await page.goto('/');
-    await waitForReactMount(page);
+  test('command palette renders the seeded agents (broker wired)', async ({ page }) => {
+    await openAuthenticatedShell(page);
 
-    const agentButtons = page.locator('button[data-agent-slug]');
-    await expect(agentButtons.first()).toBeVisible({ timeout: 10_000 });
-    expect(await agentButtons.count()).toBeGreaterThan(0);
+    await openCommandPalette(page);
+    const paletteInput = page.locator('.search-input');
+    await expect(paletteInput).toBeVisible({ timeout: 10_000 });
+    await paletteInput.fill('ceo');
+    await expect(page.locator('.cmd-palette-item-meta', { hasText: '@ceo' })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
-  test('clicking an agent does not crash the UI (React #31 guard)', async ({ page }) => {
+  test('opening an agent does not crash the UI (React #31 guard)', async ({ page }) => {
     // The React #31 crash surfaced on first "click CEO". Reproduce that
-    // path: click any agent in the sidebar and assert no crash.
+    // path through the current command palette agent entry and assert no crash.
     const getErrors = collectReactErrors(page);
 
-    await page.goto('/');
-    await waitForReactMount(page);
+    await openAuthenticatedShell(page);
+    await openAgentFromPalette(page);
 
-    const agentButtons = page.locator('button[data-agent-slug]');
-    await expect(agentButtons.first()).toBeVisible({ timeout: 10_000 });
-    await agentButtons.first().click();
-
-    // Deterministic post-click signal: clicking a sidebar agent sets
+    // Deterministic post-click signal: opening a palette agent sets
     // activeAgentSlug in the store, which mounts <AgentPanel> → `.agent-panel`
     // (see components/agents/AgentPanel.tsx). Waiting on the panel — instead
     // of networkidle, which never settles due to the live SSE stream — gives
