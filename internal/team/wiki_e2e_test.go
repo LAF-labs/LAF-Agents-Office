@@ -62,6 +62,7 @@ func newWikiTestServer(t *testing.T) (baseURL string, worker *WikiWorker, cleanu
 	cleanup = func() {
 		srv.Close()
 		worker.Stop()
+		<-worker.Done()
 	}
 	return srv.URL, worker, cleanup
 }
