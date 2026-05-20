@@ -4187,8 +4187,8 @@ assertContains(
 );
 assertContains(
   ".github/workflows/release.yml",
-  "windows-latest",
-  "Windows npx Bridge release smoke",
+  "os: [ubuntu-latest, macos-latest]",
+  "macOS/Linux npx Bridge release smoke",
   failures,
 );
 assertContains(

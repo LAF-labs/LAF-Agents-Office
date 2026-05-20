@@ -286,7 +286,9 @@ function escapeRegExp(value) {
 
 function toCheck(name, result) {
   return {
-    error: result.ok ? "" : result.stderr.trim() || result.error || `${name} failed`,
+    error: result.ok
+      ? ""
+      : result.stderr.trim() || result.stdout.trim() || result.error || `${name} failed`,
     name,
     ok: result.ok,
   };
