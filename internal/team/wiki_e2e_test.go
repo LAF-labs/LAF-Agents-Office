@@ -24,7 +24,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -35,8 +34,7 @@ import (
 func newWikiTestServer(t *testing.T) (baseURL string, worker *WikiWorker, cleanup func()) {
 	t.Helper()
 
-	root := t.TempDir()
-	backup := filepath.Join(t.TempDir(), "bak")
+	root, backup := leakedWikiRepoPaths(t)
 	repo := NewRepoAt(root, backup)
 	if err := repo.Init(context.Background()); err != nil {
 		t.Fatalf("Init: %v", err)

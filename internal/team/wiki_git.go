@@ -162,6 +162,9 @@ func (r *Repo) Init(ctx context.Context) error {
 
 	gitDir := filepath.Join(r.root, ".git")
 	if info, err := os.Stat(gitDir); err == nil && info.IsDir() {
+		if err := r.disableTestGitAutoMaintenanceLocked(ctx); err != nil {
+			return err
+		}
 		return r.ensureLayoutLocked()
 	}
 
@@ -179,6 +182,9 @@ func (r *Repo) Init(ctx context.Context) error {
 	if out, err := r.runGitLocked(ctx, "system", "init", "-q", "-b", "main"); err != nil {
 		return fmt.Errorf("wiki: git init: %w: %s", err, out)
 	}
+	if err := r.disableTestGitAutoMaintenanceLocked(ctx); err != nil {
+		return err
+	}
 	if err := r.ensureLayoutLocked(); err != nil {
 		return err
 	}
@@ -188,6 +194,21 @@ func (r *Repo) Init(ctx context.Context) error {
 	}
 	if out, err := r.runGitLocked(ctx, "system", "commit", "-q", "--allow-empty", "-m", "laf-office: init wiki"); err != nil {
 		return fmt.Errorf("wiki: initial commit: %w: %s", err, out)
+	}
+	return nil
+}
+
+func (r *Repo) disableTestGitAutoMaintenanceLocked(ctx context.Context) error {
+	if !strings.Contains(filepath.Base(os.Args[0]), ".test") {
+		return nil
+	}
+	for _, args := range [][]string{
+		{"config", "gc.auto", "0"},
+		{"config", "maintenance.auto", "false"},
+	} {
+		if out, err := r.runGitLocked(ctx, "system", args...); err != nil {
+			return fmt.Errorf("wiki: disable test git maintenance: %w: %s", err, out)
+		}
 	}
 	return nil
 }

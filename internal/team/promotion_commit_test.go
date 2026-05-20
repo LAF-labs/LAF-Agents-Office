@@ -13,8 +13,7 @@ import (
 // for promotion tests.
 func newPromotionRepo(t *testing.T) *Repo {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), "wiki")
-	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	root, backup := leakedWikiRepoPaths(t)
 	repo := NewRepoAt(root, backup)
 	if err := repo.Init(context.Background()); err != nil {
 		t.Fatalf("init: %v", err)

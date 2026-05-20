@@ -130,6 +130,20 @@ func leakedBrokerStatePath(t *testing.T) string {
 	return filepath.Join(dir, "broker-state.json")
 }
 
+// leakedWikiRepoPaths returns per-test wiki + backup paths outside
+// t.TempDir. Git can leave short-lived background maintenance/lock cleanup
+// behind after a test returns, which races Go's t.TempDir RemoveAll on Linux
+// CI and shows up as "unlinkat ... .git: directory not empty". These dirs are
+// intentionally leaked under /tmp for the same reason as leakedBrokerStatePath.
+func leakedWikiRepoPaths(t *testing.T) (root, backup string) {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "laf-office-test-wiki-*")
+	if err != nil {
+		t.Fatalf("mktemp wiki repo dir: %v", err)
+	}
+	return filepath.Join(dir, "wiki"), filepath.Join(dir, "wiki.bak")
+}
+
 // setHeadlessWakeLeadFn swaps headlessWakeLeadFn under its mutex and restores
 // the previous value on test cleanup. Use this instead of direct assignment to
 // avoid DATA RACEs with leaked runHeadlessCodexQueue goroutines from prior tests.

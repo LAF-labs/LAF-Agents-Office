@@ -170,7 +170,8 @@ jobs:
           bun install --frozen-lockfile
           bun run build
 
-      - run: go test ./...
+      - name: Run go test ./...
+        run: go test -p 1 ./...
 
       - uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # ratchet:goreleaser/goreleaser-action@v7
         with:

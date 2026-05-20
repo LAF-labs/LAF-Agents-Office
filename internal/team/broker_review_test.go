@@ -16,8 +16,7 @@ import (
 // newReviewTestServer wires a full httptest server + broker + review log.
 func newReviewTestServer(t *testing.T) (*httptest.Server, *Broker, func()) {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), "wiki")
-	backup := filepath.Join(t.TempDir(), "wiki.bak")
+	root, backup := leakedWikiRepoPaths(t)
 	repo := NewRepoAt(root, backup)
 	if err := repo.Init(context.Background()); err != nil {
 		t.Fatalf("init repo: %v", err)
@@ -42,6 +41,7 @@ func newReviewTestServer(t *testing.T) (*httptest.Server, *Broker, func()) {
 		srv.Close()
 		cancel()
 		worker.Stop()
+		<-worker.Done()
 	}
 }
 
