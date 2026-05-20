@@ -59,9 +59,9 @@ async function signUpIfNeeded(page: Page): Promise<void> {
   await createButton.click();
 }
 
-// The wizard flow is welcome → identity → templates. Fill the two required
+// The wizard flow is welcome → identity → agent naming. Fill the two required
 // identity fields so the primary CTA enables and we can advance.
-async function advanceToTemplatesStep(page: Page): Promise<void> {
+async function advanceToAgentNamingStep(page: Page): Promise<void> {
   await expect(page.locator('.wizard-step').first()).toBeVisible({ timeout: 10_000 });
   await page.locator('.wizard-step button.btn-primary').first().click();
   await page.locator('#wiz-company').fill('Smoke Test Co');
@@ -83,58 +83,38 @@ test.describe('laf-office onboarding wizard smoke', () => {
     await expectNoReactErrors(page, getErrors, 'rendering wizard');
   });
 
-  test('advancing from welcome → identity → templates step does not crash', async ({ page }) => {
+  test('advancing from welcome → identity → agent naming step does not crash', async ({ page }) => {
     // Verifies the wizard state machine actually transitions. Flow is:
-    // welcome → identity (company + description required) → templates.
-    // Assert via `.wizard-panel` on the templates step.
+    // welcome → identity (company + description required) → agent naming.
+    // Assert via `.agent-name-card`, the current unit of the starter roster.
     const getErrors = collectReactErrors(page);
 
     await page.goto('/');
     await waitForReactMount(page);
     await signUpIfNeeded(page);
 
-    await advanceToTemplatesStep(page);
+    await advanceToAgentNamingStep(page);
 
-    // Templates step renders `.wizard-panel` (welcome + identity have different markers).
-    await expect(page.locator('.wizard-panel').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.agent-name-card').first()).toBeVisible({ timeout: 10_000 });
     await expectNoReactErrors(page, getErrors, 'advancing wizard');
   });
 
-  test('blueprint picker shows shipped preset teams (not just "From scratch")', async ({
+  test('agent naming step shows the shipped starter roster', async ({
     page,
   }) => {
-    // Regression guard for the bug where blueprint YAMLs were read from
-    // the filesystem only — developer bootstrap executions saw the hardcoded
-    // "From scratch" card as their only option.
-    //
-    // With embedded templates wired in (internal/operations fallback FS +
-    // root templates_embed.go), the backend's GET /onboarding/blueprints
-    // MUST return ≥1 preset regardless of cwd. The wizard renders one
-    // `.template-card` per blueprint plus a hardcoded "From scratch"
-    // card — so we expect strictly more than 1 card and at least one
-    // card whose name differs from "From scratch".
     await page.goto('/');
     await waitForReactMount(page);
     await signUpIfNeeded(page);
 
-    await advanceToTemplatesStep(page);
+    await advanceToAgentNamingStep(page);
 
-    // Wait for at least one template grid (the blueprint picker now
-    // renders one grid per category group — Services, Media & Community,
-    // Products — so `.template-grid` is not unique). We rely on
-    // `.template-card` instead as the unit of a rendered blueprint.
-    const cards = page.locator('.template-card');
+    const cards = page.locator('.agent-name-card');
     await expect(cards.first()).toBeVisible({ timeout: 10_000 });
 
-    // The pre-embed bug rendered exactly zero preset cards — only the
-    // separate "Start from scratch" button (which is NOT a .template-card
-    // in the grouped layout). So requiring ≥1 card is the regression
-    // guard: if embedded templates fail to load, the grouped layout
-    // would still render the from-scratch button but produce zero cards.
     const count = await cards.count();
     expect(
       count,
-      'expected ≥1 preset blueprint card — embedded templates may have failed to load',
-    ).toBeGreaterThan(0);
+      'expected starter roster agent cards on the agent naming step',
+    ).toBeGreaterThanOrEqual(4);
   });
 });
