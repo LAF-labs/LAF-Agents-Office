@@ -65,6 +65,11 @@ jobs:
             echo "::error::release tag must be canonical npm-compatible SemVer without build metadata, got '${REF}'"
             exit 1
           fi
+          LATEST_RELEASE_TAG="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n1)"
+          if [ "$LATEST_RELEASE_TAG" != "$REF" ]; then
+            echo "::error::release tag ${REF} is older than latest SemVer tag ${LATEST_RELEASE_TAG}; GoReleaser will select ${LATEST_RELEASE_TAG}. Create the next SemVer tag instead."
+            exit 1
+          fi
           if [[ "$VERSION" == *-* ]]; then
             NPM_TAG=next
           else
@@ -132,6 +137,13 @@ jobs:
           (cd npm-bridge && npm publish --dry-run --access public --tag "$NPM_TAG")
           (cd npm && npm publish --dry-run --access public --tag "$NPM_TAG")
 
+      - name: Restore npm package manifests before native release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- npm/package.json npm-bridge/package.json
+          git diff --exit-code -- npm/package.json npm-bridge/package.json
+
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # ratchet:actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -166,6 +178,15 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set npm package versions for publish
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd npm-bridge && npm version "$VERSION" --no-git-tag-version --allow-same-version)
+          (cd npm && npm version "$VERSION" --no-git-tag-version --allow-same-version)
 
       # npm publish runs after goreleaser because the packages lazy-download
       # binaries from that GitHub Release. Publish laf-bridge first so the
