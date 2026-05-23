@@ -4,6 +4,7 @@
   "description": "Root-level dev tooling (secretlint, commitlint). The app itself is Go; web UI lives in ./web with its own package.json.",
   "scripts": {
     "bridge-only:surface": "node scripts/check-bridge-only-surface.cjs",
+    "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "hosted-api:dev": "node scripts/hosted-api-dev-server.cjs",
     "hosted-bridge:keys": "node scripts/generate-execution-plan-keys.cjs",
     "hosted-bridge:ops:test": "node --test scripts/generate-execution-plan-keys.test.cjs scripts/hosted-bridge-deploy-inputs.test.cjs scripts/hosted-bridge-readiness.test.cjs scripts/hosted-bridge-release-gate.test.cjs scripts/hosted-env-preflight.test.cjs",

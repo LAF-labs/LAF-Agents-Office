@@ -1678,6 +1678,50 @@ Commit:
 
 - `test: guard startup office pivot surface`
 
+### 22.3 First Paid Demo Script
+
+This is the demo path a founder should see before the backend is complete:
+
+1. Open LAF and see AI Startup Office / company workspace language before
+   authentication.
+2. Create or join a company workspace, not a project team.
+3. Complete onboarding around company, audience, offer, and first operating
+   loop.
+4. Land in Growth Center by default.
+5. Show Company Pulse:
+   - Stage.
+   - Primary goal.
+   - Next decision.
+6. Show Launch Office loops:
+   - Idea Validation.
+   - Landing Page.
+   - First 100 Customers.
+   - Weekly Review.
+7. Show Approval Desk and explain that public claims, outbound messages, spend,
+   and customer promises stop for founder approval.
+8. Show Receipts and Trace and explain sources, drafts, approval status, usage,
+   and memory changes.
+9. Show existing Skills/Wiki compounding panels as the reason LAF improves with
+   repeated use.
+10. End with the 7-day launch office promise and pricing package.
+
+### 22.4 Manual QA For Pivot Surface
+
+Before every release on this branch:
+
+1. Run `npm run startup-office:surface`.
+2. Run focused web tests for auth, onboarding, navigation, settings, and Growth
+   Center.
+3. Open the web app locally.
+4. Confirm unauthenticated entry says AI Startup Office and company workspace.
+5. Confirm default authenticated route resolves to Growth Center.
+6. Confirm primary sidebar does not show Projects or Tasks.
+7. Confirm hosted settings do not show LAF Bridge.
+8. Confirm Growth Center shows Company Pulse, Launch Office loops, Approval
+   Desk, and Receipts/Trace.
+9. Confirm no first-session copy asks for GitHub, repo, PR, local CLI, or Bridge.
+10. Confirm local API absence does not blank the UI.
+
 ## 23. Test Plan
 
 ### Unit Tests

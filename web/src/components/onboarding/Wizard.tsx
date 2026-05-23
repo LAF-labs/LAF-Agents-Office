@@ -253,7 +253,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     readiness: {
       sessionLabel: "Browser session",
-      sessionReady: "Cloud workspace session. No local runner required.",
+      sessionReady: "Cloud workspace session. Runs execute in LAF Cloud.",
       memoryLabel: "Company wiki",
       memoryMarkdown:
         "Company wiki stores goals, decisions, approvals, assets, and loop history.",
