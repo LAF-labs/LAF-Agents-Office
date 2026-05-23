@@ -152,12 +152,12 @@ describe("SettingsApp Bridge pair command", () => {
     ).toBe("npx laf-bridge pair");
   });
 
-  it("keeps local runtime reset and key settings out of hosted settings", () => {
+  it("keeps local runtime and bridge settings out of hosted settings", () => {
     const hostedSections = __test__
       .visibleSectionGroupsForRuntime(false)
       .flatMap((group) => group.items.map((item) => item.id));
 
-    expect(hostedSections).toContain("bridge");
+    expect(hostedSections).not.toContain("bridge");
     expect(hostedSections).not.toContain("danger");
     expect(hostedSections).not.toContain("keys");
   });
@@ -212,6 +212,10 @@ describe("SettingsApp Bridge pair command", () => {
 });
 
 describe("SettingsApp bridge status and pairing UI", () => {
+  beforeEach(() => {
+    apiMocks.isLocalhostRuntime.mockReturnValue(true);
+  });
+
   it("renders detected Codex and Claude CLI checks in the Bridge section", async () => {
     const user = userEvent.setup();
 

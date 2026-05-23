@@ -15,8 +15,8 @@ const baseState = {
 };
 
 describe("useHashRouter project routes", () => {
-  it("uses the home workspace as the default route", () => {
-    expect(__test__.parseHash("")).toEqual({ view: "app", app: "home" });
+  it("uses Growth Center as the default route", () => {
+    expect(__test__.parseHash("")).toEqual({ view: "app", app: "growth" });
     expect(__test__.parseHash("#/home")).toEqual({
       view: "app",
       app: "home",

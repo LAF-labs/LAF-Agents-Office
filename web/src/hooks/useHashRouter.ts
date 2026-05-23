@@ -24,8 +24,9 @@ type Route =
   | { view: "reviews" };
 
 const HOME_ROUTE = { view: "app", app: "home" } as const;
+const GROWTH_ROUTE = { view: "app", app: "growth" } as const;
 const PROJECTS_ROUTE = { view: "app", app: "tasks" } as const;
-const DEFAULT_ROUTE: Route = HOME_ROUTE;
+const DEFAULT_ROUTE: Route = GROWTH_ROUTE;
 
 function appRoute(app: string): Route {
   if (app === "projects") return { view: "app", app: "tasks" };

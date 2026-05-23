@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getOfficeTasks } from "../../api/client";
+import { fetchReviews } from "../../api/notebook";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useI18n } from "../../lib/i18n";
 
 const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined";
-const RUNTIME_TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
+const RUNTIME_APPROVAL_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
 
 /**
  * Thin strip under the channel header with operational runtime pills.
@@ -15,22 +15,21 @@ const RUNTIME_TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 15_000;
 export function RuntimeStrip() {
   const { data: members = [] } = useOfficeMembers();
   const { t: tr } = useI18n();
-  const { data: tasksData } = useQuery({
-    queryKey: ["office-tasks"],
-    queryFn: () => getOfficeTasks({ includeDone: false }),
-    refetchInterval: RUNTIME_TASK_REFETCH_MS,
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["reviews-runtime-strip"],
+    queryFn: fetchReviews,
+    refetchInterval: RUNTIME_APPROVAL_REFETCH_MS,
   });
   const active = members.filter((m) => {
     if (!m.slug || m.slug === "human" || m.slug === "you") return false;
     return (m.status || "").toLowerCase() === "active";
   }).length;
 
-  const blocked = (tasksData?.tasks ?? []).filter((t) => {
-    const s = (t.status || "").toLowerCase();
-    return s === "blocked" || t.blocked === true;
-  }).length;
+  const approvals = reviews.filter((review) =>
+    ["pending", "in-review", "changes-requested"].includes(review.state),
+  ).length;
 
-  if (active === 0 && blocked === 0) {
+  if (active === 0 && approvals === 0) {
     return (
       <div className="runtime-strip">
         <span className="runtime-pill runtime-pill-idle">
@@ -47,9 +46,9 @@ export function RuntimeStrip() {
           {active} {tr("runtime.active")}
         </span>
       )}
-      {blocked > 0 && (
+      {approvals > 0 && (
         <span className="runtime-pill runtime-pill-blocked">
-          {blocked} {tr("runtime.blocked")}
+          {approvals} {tr("runtime.needYou")}
         </span>
       )}
     </div>

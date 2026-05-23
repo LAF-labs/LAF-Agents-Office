@@ -105,7 +105,11 @@ interface SectionGroup {
 
 type TranslationFn = ReturnType<typeof useI18n>["t"];
 
-const LOCAL_RUNTIME_SECTION_IDS = new Set<SectionId>(["danger", "keys"]);
+const LOCAL_RUNTIME_SECTION_IDS = new Set<SectionId>([
+  "bridge",
+  "danger",
+  "keys",
+]);
 
 const SECTION_GROUPS: SectionGroup[] = [
   {

@@ -43,7 +43,8 @@ export function Shell({ children, onLogout, userEmail }: ShellProps) {
   const searchOpen = useAppStore((s) => s.searchOpen);
   const composerHelpOpen = useAppStore((s) => s.composerHelpOpen);
   const inDM = !currentApp && !!isDMChannel(currentChannel, channelMeta);
-  const inAppCanvas = currentApp === "home" || currentApp === "tasks";
+  const inAppCanvas =
+    currentApp === "home" || currentApp === "tasks" || currentApp === "growth";
 
   const shellClassName = [
     "office",

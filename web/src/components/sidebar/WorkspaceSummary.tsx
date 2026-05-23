@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getOfficeTasks, getUsage } from "../../api/client";
+import { getUsage } from "../../api/client";
+import { fetchReviews } from "../../api/notebook";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { useI18n } from "../../lib/i18n";
 
@@ -11,15 +12,15 @@ function formatTokens(n: number): string {
 }
 
 /**
- * Small status line at the bottom of the sidebar. Mirrors the legacy
- * `renderWorkspaceSummary` output: active agents, open tasks, total tokens.
+ * Small status line at the bottom of the sidebar. The primary product now
+ * orients around cloud runs and approvals instead of project tasks.
  */
 export function WorkspaceSummary() {
   const { data: members = [] } = useOfficeMembers();
   const { language, t: tr } = useI18n();
-  const { data: tasksData } = useQuery({
-    queryKey: ["office-tasks"],
-    queryFn: () => getOfficeTasks({ includeDone: false }),
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["reviews-sidebar-summary"],
+    queryFn: fetchReviews,
     refetchInterval: 30_000,
   });
   const { data: usage } = useQuery({
@@ -33,26 +34,25 @@ export function WorkspaceSummary() {
     return (m.status || "").toLowerCase() === "active";
   }).length;
 
-  const openTasks = (tasksData?.tasks ?? []).filter((t) => {
-    const s = (t.status || "").toLowerCase();
-    return s && s !== "done" && s !== "completed";
-  }).length;
+  const pendingApprovals = reviews.filter((review) =>
+    ["pending", "in-review", "changes-requested"].includes(review.state),
+  ).length;
 
   const parts: string[] =
     language === "ko"
-      ? [`활성 에이전트 ${activeAgents}명`, `열린 작업 ${openTasks}개`]
+      ? [`활성 에이전트 ${activeAgents}명`, `승인 대기 ${pendingApprovals}개`]
       : [
           `${activeAgents} agent${activeAgents === 1 ? "" : "s"} ${tr("sidebar.active")}`,
-          `${openTasks} task${openTasks === 1 ? "" : "s"} ${tr("sidebar.open")}`,
+          `${pendingApprovals} approval${pendingApprovals === 1 ? "" : "s"} ${tr("sidebar.open")}`,
         ];
   const total = usage?.total?.total_tokens ?? 0;
   if (total > 0) parts.push(`${formatTokens(total)} tokens`);
 
   const hint =
-    openTasks > 0
+    pendingApprovals > 0
       ? language === "ko"
-        ? `진행 중인 작업 ${openTasks}개`
-        : `${openTasks} task${openTasks === 1 ? "" : "s"} ${tr("sidebar.inProgress")}`
+        ? `검토가 필요한 승인 ${pendingApprovals}개`
+        : `${pendingApprovals} approval${pendingApprovals === 1 ? "" : "s"} ${tr("sidebar.inProgress")}`
       : tr("sidebar.commandsHint");
 
   return (

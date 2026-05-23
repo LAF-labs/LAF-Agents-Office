@@ -25,15 +25,16 @@ describe("Sidebar navigation hierarchy", () => {
     });
   });
 
-  it("keeps project navigation as the only primary navigation surface", () => {
+  it("uses Startup Office navigation as the primary surface", () => {
     const { container } = render(<Sidebar />);
 
-    expect(screen.getByText("프로젝트 작업")).toBeInTheDocument();
+    expect(screen.getByText("Startup Office")).toBeInTheDocument();
     expect(screen.queryByText("앱")).not.toBeInTheDocument();
     expect(screen.getByTestId("workspace-nav")).toBeInTheDocument();
     expect(screen.getByTestId("user-profile-footer")).toBeInTheDocument();
     expect(screen.queryByText("팀")).not.toBeInTheDocument();
     expect(screen.queryByText("채널")).not.toBeInTheDocument();
+    expect(container.textContent).not.toContain("프로젝트 작업");
     expect(container.textContent).not.toContain("새 에이전트");
     expect(container.textContent).not.toContain("새 채널");
   });

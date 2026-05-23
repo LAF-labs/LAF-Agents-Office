@@ -36,12 +36,12 @@ describe("UsagePanel", () => {
     renderUsagePanel();
 
     expect(screen.getByRole("button", { name: "사용량" })).toBeInTheDocument();
-    expect(screen.queryByText("개인 CLI")).not.toBeInTheDocument();
+    expect(screen.queryByText("워크스페이스 실행")).not.toBeInTheDocument();
     expect(apiMocks.getUsage).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "사용량" }));
 
-    expect(await screen.findByText("개인 CLI")).toBeInTheDocument();
+    expect(await screen.findByText("워크스페이스 실행")).toBeInTheDocument();
     await waitFor(() => expect(apiMocks.getUsage).toHaveBeenCalledTimes(1));
     expect(screen.getByText("1.2k tokens")).toBeInTheDocument();
     expect(screen.getByText("잠김")).toBeInTheDocument();

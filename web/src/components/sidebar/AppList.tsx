@@ -1,4 +1,4 @@
-import { type ComponentType, useState } from "react";
+import type { ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -6,15 +6,12 @@ import {
   CheckCircle,
   Flash,
   HomeSimple,
-  NavArrowDown,
-  NavArrowRight,
   Package,
   Page,
   Play,
   Settings,
 } from "iconoir-react";
 
-import { getProjects, type Project } from "../../api/client";
 import { fetchReviews } from "../../api/notebook";
 import { useOverflow } from "../../hooks/useOverflow";
 import { SIDEBAR_APPS } from "../../lib/constants";
@@ -57,10 +54,7 @@ interface SidebarAppGroupProps {
   app: SidebarApp;
   badge: number | null;
   currentApp: string | null;
-  projectFocusId: string | null;
-  projects: Project[];
   setCurrentApp: (app: string | null) => void;
-  setProjectFocusId: (projectId: string | null) => void;
   t: (key: I18nKey) => string;
 }
 
@@ -68,25 +62,15 @@ function SidebarAppGroup({
   app,
   badge,
   currentApp,
-  projectFocusId,
-  projects,
   setCurrentApp,
-  setProjectFocusId,
   t,
 }: SidebarAppGroupProps) {
-  const [projectsExpanded, setProjectsExpanded] = useState(true);
   const Icon = APP_ICONS[app.id];
   const isActive =
     app.id === "wiki"
       ? WIKI_SURFACE_APPS.has(currentApp ?? "")
       : currentApp === app.id;
   const appName = t(`app.${app.id}` as I18nKey);
-  const showProjects = app.id === "tasks" && isActive;
-  const showExpandable = showProjects;
-  const expanded = projectsExpanded;
-  const toggleLabel = expanded
-    ? t("tasks.sidebar.collapseProjects")
-    : t("tasks.sidebar.expandProjects");
 
   return (
     <div className="sidebar-app-group">
@@ -98,10 +82,6 @@ function SidebarAppGroup({
           aria-label={appName}
           title={appName}
           onClick={() => {
-            if (app.id === "tasks") {
-              setProjectFocusId(null);
-              setProjectsExpanded(true);
-            }
             setCurrentApp(app.id);
           }}
           onFocus={() => preloadWorkspaceSurface(app.id)}
@@ -125,93 +105,20 @@ function SidebarAppGroup({
             </span>
           ) : null}
         </Button>
-        {showExpandable ? (
-          <Button
-            type="button"
-            className="sidebar-project-toggle sidebar-subnav-toggle"
-            size="icon"
-            variant="ghost"
-            aria-expanded={expanded}
-            aria-label={toggleLabel}
-            title={toggleLabel}
-            onClick={() => {
-              if (showProjects) setProjectsExpanded((value) => !value);
-            }}
-          >
-            {expanded ? (
-              <NavArrowDown width={15} height={15} />
-            ) : (
-              <NavArrowRight width={15} height={15} />
-            )}
-          </Button>
-        ) : null}
       </div>
-      {showProjects && projectsExpanded ? (
-        <SidebarProjectsList
-          projectFocusId={projectFocusId}
-          projects={projects}
-          setCurrentApp={setCurrentApp}
-          setProjectFocusId={setProjectFocusId}
-          t={t}
-        />
-      ) : null}
     </div>
-  );
-}
-
-function SidebarProjectsList({
-  projectFocusId,
-  projects,
-  setCurrentApp,
-  setProjectFocusId,
-  t,
-}: {
-  projectFocusId: string | null;
-  projects: Project[];
-  setCurrentApp: (app: string | null) => void;
-  setProjectFocusId: (projectId: string | null) => void;
-  t: (key: I18nKey) => string;
-}) {
-  return (
-    <nav className="sidebar-projects-list" aria-label={t("tasks.projectList")}>
-      {projects.map((project) => (
-        <Button
-          type="button"
-          key={project.id}
-          className={`sidebar-project-link${
-            projectFocusId === project.id ? " active" : ""
-          }`}
-          variant="ghost"
-          aria-label={project.name || project.id}
-          title={project.name || project.id}
-          onClick={() => {
-            setProjectFocusId(project.id);
-            setCurrentApp("tasks");
-          }}
-        >
-          <span>{project.name || project.id}</span>
-        </Button>
-      ))}
-    </nav>
   );
 }
 
 export function AppList() {
   const currentApp = useAppStore((s) => s.currentApp);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
-  const projectFocusId = useAppStore((s) => s.projectFocusId);
-  const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
   const { t } = useI18n();
 
   const { data: reviewsData } = useQuery({
     queryKey: ["reviews-badge"],
     queryFn: fetchReviews,
     refetchInterval: REVIEW_BADGE_REFETCH_MS,
-  });
-  const { data: projectsData } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => getProjects(),
-    staleTime: 30_000,
   });
 
   const pendingReviewsCount = (reviewsData ?? []).filter(
@@ -232,10 +139,7 @@ export function AppList() {
             app={app}
             badge={badgeForApp(app.id, pendingReviewsCount)}
             currentApp={currentApp}
-            projectFocusId={projectFocusId}
-            projects={projectsData?.projects ?? []}
             setCurrentApp={setCurrentApp}
-            setProjectFocusId={setProjectFocusId}
             t={t}
           />
         ))}
