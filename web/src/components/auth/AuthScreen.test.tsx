@@ -29,7 +29,7 @@ describe("AuthScreen", () => {
       screen.getByRole("heading", { name: "Create your account" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Project setup" }),
+      screen.getByRole("heading", { name: "Company workspace" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -37,10 +37,10 @@ describe("AuthScreen", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/create a project team to continue/i),
+      screen.getByText(/create a company workspace to continue/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Create a project team/i }),
+      screen.getByRole("button", { name: /Create company workspace/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Join by invite/i }),
@@ -63,7 +63,7 @@ describe("AuthScreen", () => {
       screen.getByRole("heading", { name: "Welcome back" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Project setup" }),
+      screen.queryByRole("heading", { name: "Company workspace" }),
     ).not.toBeInTheDocument();
   });
 });

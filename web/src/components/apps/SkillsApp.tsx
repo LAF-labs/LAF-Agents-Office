@@ -95,6 +95,32 @@ interface SkillsCopy {
   growthDescription: string;
   growthLoopAria: string;
   growthSteps: string[];
+  launchPulseTitle: string;
+  launchPulseDescription: string;
+  launchPulseStageLabel: string;
+  launchPulseStageValue: string;
+  launchPulseGoalLabel: string;
+  launchPulseGoalValue: string;
+  launchPulseNextLabel: string;
+  launchPulseNextValue: string;
+  launchLoopsTitle: string;
+  launchLoopsDescription: string;
+  launchLoops: Array<{
+    name: string;
+    state: string;
+    detail: string;
+  }>;
+  launchApprovalsTitle: string;
+  launchApprovalsDescription: string;
+  launchApprovals: Array<{
+    label: string;
+    detail: string;
+  }>;
+  launchReceiptsTitle: string;
+  launchReceiptsDescription: string;
+  launchReceipts: string[];
+  launchNextActionTitle: string;
+  launchNextActionDescription: string;
   growthInboxTitle: string;
   growthInboxDescription: string;
   growthInboxEmpty: string;
@@ -219,19 +245,83 @@ interface SkillsCopy {
 const SKILLS_COPY = {
   en: {
     growthAria: "Growth Center",
-    growthKicker: "Hosted agent learning",
+    growthKicker: "Founder-controlled launch office",
     growthTitle: "Growth Center",
     growthDescription:
-      "Notebook drafts become reviewed wiki memory, playbooks compile into skills, and execution logs feed the next version of the workspace.",
+      "Run the first operating loops for a startup while every public, financial, or customer-facing action stays drafted, sourced, approved, and receipted.",
     growthLoopAria: "Workspace growth loop",
     growthSteps: [
-      "Notebook drafts",
-      "Review queue",
-      "Wiki playbooks",
-      "Compiled skills",
-      "Invocations",
-      "Learned updates",
+      "Signal",
+      "Draft",
+      "Approval",
+      "Asset",
+      "Receipt",
+      "Learning",
     ],
+    launchPulseTitle: "Company pulse",
+    launchPulseDescription:
+      "The workspace starts with a clear company state before agents run.",
+    launchPulseStageLabel: "Stage",
+    launchPulseStageValue: "Idea validation",
+    launchPulseGoalLabel: "Primary goal",
+    launchPulseGoalValue: "Find paid demand before building more.",
+    launchPulseNextLabel: "Next decision",
+    launchPulseNextValue: "Approve the first validation loop.",
+    launchLoopsTitle: "Launch Office loops",
+    launchLoopsDescription:
+      "The first paid demo is a controlled 7-day launch office, not an open-ended agent builder.",
+    launchLoops: [
+      {
+        name: "Idea Validation",
+        state: "Ready",
+        detail: "Clarify audience, pain, offer, and evidence gaps.",
+      },
+      {
+        name: "Landing Page",
+        state: "Draft first",
+        detail: "Create page copy and source-backed claims for approval.",
+      },
+      {
+        name: "First 100 Customers",
+        state: "Ready",
+        detail: "Build segments, outreach angles, and manual export assets.",
+      },
+      {
+        name: "Weekly Review",
+        state: "Scheduled",
+        detail: "Summarize signals, assets, metrics, and next loop.",
+      },
+    ],
+    launchApprovalsTitle: "Approval Desk",
+    launchApprovalsDescription:
+      "Autonomy stops before public claims, spend, outbound messages, and customer promises.",
+    launchApprovals: [
+      {
+        label: "Public publishing",
+        detail: "Landing pages and posts require founder approval.",
+      },
+      {
+        label: "Customer promises",
+        detail: "Sales/support language stays draft-only until reviewed.",
+      },
+      {
+        label: "Spend controls",
+        detail: "No ad spend or off-session usage in the MVP.",
+      },
+    ],
+    launchReceiptsTitle: "Receipts and trace",
+    launchReceiptsDescription:
+      "Every run should leave proof the founder can inspect or export.",
+    launchReceipts: [
+      "Sources used",
+      "Drafts created",
+      "Approval status",
+      "Estimated and actual usage",
+      "Wiki memory changes",
+    ],
+    launchNextActionTitle: "Recommended next action",
+    launchNextActionDescription:
+      "Run Founder Intake, then approve Idea Validation before creating public assets.",
     growthInboxTitle: "Growth inbox",
     growthInboxDescription:
       "Signals that need curation before the workspace can compound.",
@@ -371,19 +461,76 @@ const SKILLS_COPY = {
   },
   ko: {
     growthAria: "성장 센터",
-    growthKicker: "팀 지식이 쌓이는 흐름",
+    growthKicker: "창업자가 통제하는 런치 오피스",
     growthTitle: "성장 센터",
     growthDescription:
-      "노트북 초안은 검토된 위키 지식이 되고, 플레이북은 스킬로 정리되며, 실행 기록은 다음 개선에 쓰입니다.",
+      "스타트업의 첫 운영 루프를 실행하되, 공개/금전/고객-facing 행동은 모두 초안, 출처, 승인, 영수증을 거칩니다.",
     growthLoopAria: "워크스페이스 성장 흐름",
-    growthSteps: [
-      "노트북 초안",
-      "검토 대기열",
-      "위키 플레이북",
-      "컴파일된 스킬",
-      "실행 기록",
-      "학습된 업데이트",
+    growthSteps: ["신호", "초안", "승인", "자산", "영수증", "학습"],
+    launchPulseTitle: "회사 펄스",
+    launchPulseDescription:
+      "에이전트가 움직이기 전에 회사 상태와 다음 결정을 먼저 고정합니다.",
+    launchPulseStageLabel: "단계",
+    launchPulseStageValue: "아이디어 검증",
+    launchPulseGoalLabel: "핵심 목표",
+    launchPulseGoalValue: "더 만들기 전에 유료 수요를 확인합니다.",
+    launchPulseNextLabel: "다음 결정",
+    launchPulseNextValue: "첫 검증 루프 실행을 승인합니다.",
+    launchLoopsTitle: "런치 오피스 루프",
+    launchLoopsDescription:
+      "첫 유료 데모는 범용 에이전트 빌더가 아니라 통제되는 7일 런치 오피스입니다.",
+    launchLoops: [
+      {
+        name: "아이디어 검증",
+        state: "준비됨",
+        detail: "고객, 문제, 오퍼, 증거 부족분을 정리합니다.",
+      },
+      {
+        name: "랜딩 페이지",
+        state: "초안 우선",
+        detail: "승인 가능한 페이지 문구와 출처 기반 주장을 만듭니다.",
+      },
+      {
+        name: "첫 100명 고객",
+        state: "준비됨",
+        detail: "세그먼트, 아웃리치 각도, 수동 내보내기 자산을 만듭니다.",
+      },
+      {
+        name: "주간 리뷰",
+        state: "예약됨",
+        detail: "신호, 자산, 지표, 다음 루프를 요약합니다.",
+      },
     ],
+    launchApprovalsTitle: "승인 데스크",
+    launchApprovalsDescription:
+      "공개 주장, 비용 지출, 외부 메시지, 고객 약속 앞에서 자동 실행을 멈춥니다.",
+    launchApprovals: [
+      {
+        label: "공개 발행",
+        detail: "랜딩 페이지와 게시물은 창업자 승인 후 발행됩니다.",
+      },
+      {
+        label: "고객 약속",
+        detail: "세일즈/지원 문구는 검토 전까지 초안으로 남습니다.",
+      },
+      {
+        label: "비용 통제",
+        detail: "MVP에서는 광고비 지출이나 오프세션 사용량 과금이 없습니다.",
+      },
+    ],
+    launchReceiptsTitle: "영수증과 추적",
+    launchReceiptsDescription:
+      "모든 실행은 창업자가 확인하고 내보낼 수 있는 증거를 남겨야 합니다.",
+    launchReceipts: [
+      "사용한 출처",
+      "생성된 초안",
+      "승인 상태",
+      "예상/실제 사용량",
+      "위키 메모리 변경",
+    ],
+    launchNextActionTitle: "추천 다음 행동",
+    launchNextActionDescription:
+      "Founder Intake를 실행한 뒤, 공개 자산을 만들기 전에 아이디어 검증을 승인합니다.",
     growthInboxTitle: "처리할 성장 항목",
     growthInboxDescription:
       "팀 지식으로 쌓이기 전에 사람이 확인하거나 정리해야 하는 항목입니다.",
@@ -532,6 +679,7 @@ export function GrowthCenterApp() {
   return (
     <section className="skills-growth" aria-label={copy.growthAria}>
       <GrowthCenterHeader copy={copy} />
+      <LaunchOfficeSurface copy={copy} />
       <SkillsDashboard />
     </section>
   );
@@ -554,6 +702,91 @@ function GrowthCenterHeader({ copy }: { copy: SkillsCopy }) {
         <h2>{copy.growthTitle}</h2>
         <p>{copy.growthDescription}</p>
       </div>
+    </div>
+  );
+}
+
+function LaunchOfficeSurface({ copy }: { copy: SkillsCopy }) {
+  return (
+    <div className="startup-office-grid">
+      <section className="skills-panel startup-office-pulse">
+        <div className="skills-section-head">
+          <h3>{copy.launchPulseTitle}</h3>
+          <p>{copy.launchPulseDescription}</p>
+        </div>
+        <div className="startup-office-pulse-list">
+          <PulseDatum
+            label={copy.launchPulseStageLabel}
+            value={copy.launchPulseStageValue}
+          />
+          <PulseDatum
+            label={copy.launchPulseGoalLabel}
+            value={copy.launchPulseGoalValue}
+          />
+          <PulseDatum
+            label={copy.launchPulseNextLabel}
+            value={copy.launchPulseNextValue}
+          />
+        </div>
+      </section>
+
+      <section className="skills-panel startup-office-loops">
+        <div className="skills-section-head">
+          <h3>{copy.launchLoopsTitle}</h3>
+          <p>{copy.launchLoopsDescription}</p>
+        </div>
+        <div className="startup-loop-list">
+          {copy.launchLoops.map((loop) => (
+            <article className="startup-loop-card" key={loop.name}>
+              <div>
+                <strong>{loop.name}</strong>
+                <p>{loop.detail}</p>
+              </div>
+              <span>{loop.state}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="skills-panel startup-office-trust">
+        <div className="skills-section-head">
+          <h3>{copy.launchApprovalsTitle}</h3>
+          <p>{copy.launchApprovalsDescription}</p>
+        </div>
+        <div className="startup-approval-list">
+          {copy.launchApprovals.map((approval) => (
+            <div className="startup-approval-row" key={approval.label}>
+              <strong>{approval.label}</strong>
+              <span>{approval.detail}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="skills-panel startup-office-receipts">
+        <div className="skills-section-head">
+          <h3>{copy.launchReceiptsTitle}</h3>
+          <p>{copy.launchReceiptsDescription}</p>
+        </div>
+        <ul className="startup-receipt-list">
+          {copy.launchReceipts.map((receipt) => (
+            <li key={receipt}>{receipt}</li>
+          ))}
+        </ul>
+        <div className="startup-next-action">
+          <strong>{copy.launchNextActionTitle}</strong>
+          <span>{copy.launchNextActionDescription}</span>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PulseDatum({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="startup-pulse-datum">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }

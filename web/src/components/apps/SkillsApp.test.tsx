@@ -10,7 +10,7 @@ import type {
   PlaybookSynthesisStatus,
 } from "../../api/playbook";
 import { useAppStore } from "../../stores/app";
-import { __test__, SkillsApp } from "./SkillsApp";
+import { __test__, GrowthCenterApp, SkillsApp } from "./SkillsApp";
 
 const apiMocks = vi.hoisted(() => ({
   createSkill: vi.fn(),
@@ -20,8 +20,22 @@ const apiMocks = vi.hoisted(() => ({
   invokeSkill: vi.fn(),
   updateSkill: vi.fn(),
 }));
+const notebookMocks = vi.hoisted(() => ({
+  fetchCatalog: vi.fn(),
+  fetchReviews: vi.fn(),
+}));
+const playbookMocks = vi.hoisted(() => ({
+  fetchPlaybooks: vi.fn(),
+  fetchSynthesisStatus: vi.fn(),
+}));
+const wikiMocks = vi.hoisted(() => ({
+  fetchCatalog: vi.fn(),
+}));
 
 vi.mock("../../api/client", () => apiMocks);
+vi.mock("../../api/notebook", () => notebookMocks);
+vi.mock("../../api/playbook", () => playbookMocks);
+vi.mock("../../api/wiki", () => wikiMocks);
 vi.mock("../ui/Toast", () => ({ showNotice: vi.fn() }));
 
 function renderSkillsApp() {
@@ -35,6 +49,20 @@ function renderSkillsApp() {
   return render(
     <QueryClientProvider client={queryClient}>
       <SkillsApp />
+    </QueryClientProvider>,
+  );
+}
+
+function renderGrowthCenterApp() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <GrowthCenterApp />
     </QueryClientProvider>,
   );
 }
@@ -58,6 +86,17 @@ function mockSkillsList() {
       },
     ],
   });
+  apiMocks.getUsage.mockResolvedValue({});
+  notebookMocks.fetchCatalog.mockResolvedValue({
+    agents: [],
+    pending_promotion: 0,
+    total_agents: 0,
+    total_entries: 0,
+  });
+  notebookMocks.fetchReviews.mockResolvedValue([]);
+  playbookMocks.fetchPlaybooks.mockResolvedValue([]);
+  playbookMocks.fetchSynthesisStatus.mockResolvedValue(null);
+  wikiMocks.fetchCatalog.mockResolvedValue([]);
 }
 
 function playbook(
@@ -165,6 +204,36 @@ describe("SkillsApp management UI", () => {
         }),
       );
     });
+  });
+});
+
+describe("GrowthCenterApp startup office surface", () => {
+  beforeEach(mockSkillsList);
+
+  it("renders the sellable launch office panels without legacy local workflow language", async () => {
+    const { container } = renderGrowthCenterApp();
+
+    expect(
+      await screen.findByRole("heading", { name: "Company pulse" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Launch Office loops" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Approval Desk" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Receipts and trace" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Idea Validation")).toBeInTheDocument();
+    expect(screen.getByText("First 100 Customers")).toBeInTheDocument();
+    expect(
+      screen.getByText("No ad spend or off-session usage in the MVP."),
+    ).toBeInTheDocument();
+
+    expect(container.textContent).not.toContain("LAF Bridge");
+    expect(container.textContent).not.toContain("Projects");
+    expect(container.textContent).not.toContain("Tasks");
   });
 });
 

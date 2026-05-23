@@ -47,9 +47,9 @@ function pressEnterOn(
 
 async function advanceToTaskStep() {
   pressEnterOn(window);
-  await waitFor(() => screen.getByLabelText(/Company or project name/i));
+  await waitFor(() => screen.getByLabelText(/Company or workspace name/i));
 
-  fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+  fireEvent.change(screen.getByLabelText(/Company or workspace name/i), {
     target: { value: "Acme" },
   });
   fireEvent.change(screen.getByLabelText(/One-liner description/i), {
@@ -57,10 +57,10 @@ async function advanceToTaskStep() {
   });
 
   pressEnterOn(window);
-  await waitFor(() => screen.getByText(/Name your agents\./i));
+  await waitFor(() => screen.getByText(/Name your operators\./i));
   pressEnterOn(window);
   await waitFor(() =>
-    screen.getByText(/What should the project team do first\?/i),
+    screen.getByText(/Which operating loop should run first\?/i),
   );
 }
 
@@ -98,28 +98,28 @@ describe("Wizard keyboard advancement", () => {
     render(<Wizard onComplete={vi.fn()} />);
 
     expect(
-      screen.getByText(
-        "프로젝트 하나를 만들고, 맥락을 남기고, 에이전트와 배포까지 이어갑니다.",
-      ),
+      screen.getByText("창업자가 통제하는 AI Startup Office를 만듭니다."),
     ).toBeInTheDocument();
 
     pressEnterOn(window);
 
     await waitFor(() => {
       expect(
-        screen.getByLabelText(/회사 또는 프로젝트 이름/i),
+        screen.getByLabelText(/회사 또는 워크스페이스 이름/i),
       ).toBeInTheDocument();
     });
     expect(
-      screen.getByPlaceholderText("LAF-Office 또는 실제 프로젝트 이름"),
+      screen.getByPlaceholderText("LAF-Office 또는 실제 회사 이름"),
     ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(
-        "이 프로젝트가 맡을 제품, 개발 작업, 자동화 흐름은 무엇인가요?",
+        "이 오피스가 맡을 고객, 문제, 오퍼, 운영 목표는 무엇인가요?",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("첫 GitHub 연결 개발 작업 만들기"),
+      screen.getByPlaceholderText(
+        "유료 수요를 검증하고 첫 출시 자산 초안 만들기",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Acme Operations/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/첫 실제 고객 루프/i)).not.toBeInTheDocument();
@@ -258,8 +258,8 @@ describe("Wizard keyboard advancement", () => {
 
     render(<Wizard onComplete={vi.fn()} />);
     pressEnterOn(window);
-    await waitFor(() => screen.getByLabelText(/Company or project name/i));
-    fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+    await waitFor(() => screen.getByLabelText(/Company or workspace name/i));
+    fireEvent.change(screen.getByLabelText(/Company or workspace name/i), {
       target: { value: "LAF" },
     });
     fireEvent.change(screen.getByLabelText(/One-liner description/i), {
@@ -268,7 +268,7 @@ describe("Wizard keyboard advancement", () => {
 
     pressEnterOn(window);
 
-    await waitFor(() => screen.getByText(/Name your agents\./i));
+    await waitFor(() => screen.getByText(/Name your operators\./i));
     expect(screen.getByDisplayValue("CEO")).toBeInTheDocument();
     expect(screen.getByDisplayValue("FE")).toBeInTheDocument();
     expect(screen.getByDisplayValue("BD")).toBeInTheDocument();
@@ -281,7 +281,7 @@ describe("Wizard keyboard advancement", () => {
     expect(screen.queryByText("Media & Community")).not.toBeInTheDocument();
   });
 
-  it("shows GitHub repository connection as a post-onboarding setup item", async () => {
+  it("shows publishing controls as a post-onboarding setup item", async () => {
     getMock.mockImplementation(async (path: string) => {
       if (path === "/onboarding/prereqs") {
         return {
@@ -305,23 +305,23 @@ describe("Wizard keyboard advancement", () => {
     await waitFor(() => screen.getByText(/You're set/i));
     expect(screen.getByText("Browser session")).toBeInTheDocument();
     expect(screen.queryByText("Session runtime")).toBeNull();
-    expect(screen.getByText("GitHub repository")).toBeInTheDocument();
+    expect(screen.getByText("Publishing controls")).toBeInTheDocument();
     expect(
-      screen.getByText(/Optional\. Connect when you want agents/i),
+      screen.getByText(/Public pages, outbound messages, spend/i),
     ).toBeInTheDocument();
   });
 
   it("Enter on the welcome step advances to the Identity step", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     // Welcome CTA is visible
-    expect(screen.getByText(/Open project setup/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open company setup/i)).toBeInTheDocument();
 
     pressEnterOn(window);
 
     // Identity step renders its company input
     await waitFor(() => {
       expect(
-        screen.getByLabelText(/Company or project name/i),
+        screen.getByLabelText(/Company or workspace name/i),
       ).toBeInTheDocument();
     });
   });
@@ -329,23 +329,23 @@ describe("Wizard keyboard advancement", () => {
   it("Enter on the identity step is blocked when company + description are empty", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     pressEnterOn(window); // welcome → identity
-    await waitFor(() => screen.getByLabelText(/Company or project name/i));
+    await waitFor(() => screen.getByLabelText(/Company or workspace name/i));
 
     // Press Enter with empty fields — must NOT advance.
     pressEnterOn(window);
 
     // Still on identity — company input still visible
     expect(
-      screen.getByLabelText(/Company or project name/i),
+      screen.getByLabelText(/Company or workspace name/i),
     ).toBeInTheDocument();
   });
 
   it("Enter advances identity once company + description are filled", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     pressEnterOn(window); // → identity
-    await waitFor(() => screen.getByLabelText(/Company or project name/i));
+    await waitFor(() => screen.getByLabelText(/Company or workspace name/i));
 
-    fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+    fireEvent.change(screen.getByLabelText(/Company or workspace name/i), {
       target: { value: "Acme" },
     });
     fireEvent.change(screen.getByLabelText(/One-liner description/i), {
@@ -356,17 +356,17 @@ describe("Wizard keyboard advancement", () => {
 
     // Should move to agent naming step.
     await waitFor(() => {
-      expect(screen.getByText(/Name your agents\./i)).toBeInTheDocument();
+      expect(screen.getByText(/Name your operators\./i)).toBeInTheDocument();
     });
   });
 
   it("does not advance when Enter is pressed on a focused <button> (Back/Skip stay intact)", async () => {
     render(<Wizard onComplete={vi.fn()} />);
     pressEnterOn(window); // welcome → identity
-    await waitFor(() => screen.getByLabelText(/Company or project name/i));
+    await waitFor(() => screen.getByLabelText(/Company or workspace name/i));
 
     // Fill fields
-    fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+    fireEvent.change(screen.getByLabelText(/Company or workspace name/i), {
       target: { value: "Acme" },
     });
     fireEvent.change(screen.getByLabelText(/One-liner description/i), {
@@ -382,7 +382,7 @@ describe("Wizard keyboard advancement", () => {
     // (The button's own onClick would fire on real click, not on synthetic
     // Enter dispatched to window with a BUTTON target.)
     expect(
-      screen.getByLabelText(/Company or project name/i),
+      screen.getByLabelText(/Company or workspace name/i),
     ).toBeInTheDocument();
   });
 
@@ -393,9 +393,9 @@ describe("Wizard keyboard advancement", () => {
     // steps in, then verify post is never called twice for the same press.
     render(<Wizard onComplete={vi.fn()} />);
     pressEnterOn(window); // → identity
-    await waitFor(() => screen.getByLabelText(/Company or project name/i));
+    await waitFor(() => screen.getByLabelText(/Company or workspace name/i));
 
-    fireEvent.change(screen.getByLabelText(/Company or project name/i), {
+    fireEvent.change(screen.getByLabelText(/Company or workspace name/i), {
       target: { value: "Acme" },
     });
     fireEvent.change(screen.getByLabelText(/One-liner description/i), {
@@ -410,7 +410,7 @@ describe("Wizard keyboard advancement", () => {
     // At most one advance should have happened: we should now be on the
     // agent naming step, not double-jumped past it.
     await waitFor(() => {
-      expect(screen.getByText(/Name your agents\./i)).toBeInTheDocument();
+      expect(screen.getByText(/Name your operators\./i)).toBeInTheDocument();
     });
   });
 });
@@ -438,20 +438,20 @@ describe("Wizard product copy", () => {
     render(<Wizard onComplete={vi.fn()} />);
 
     pressEnterOn(window);
-    await waitFor(() => screen.getByLabelText(/회사 또는 프로젝트 이름/i));
-    fireEvent.change(screen.getByLabelText(/회사 또는 프로젝트 이름/i), {
+    await waitFor(() => screen.getByLabelText(/회사 또는 워크스페이스 이름/i));
+    fireEvent.change(screen.getByLabelText(/회사 또는 워크스페이스 이름/i), {
       target: { value: "LAF" },
     });
     fireEvent.change(screen.getByLabelText(/한 줄 설명/i), {
-      target: { value: "창업팀의 제품 개발을 돕는 프로젝트" },
+      target: { value: "창업팀의 고객 검증과 운영을 돕는 회사" },
     });
     pressEnterOn(window);
-    await waitFor(() => screen.getByText(/에이전트의 이름을 지어주세요/i));
+    await waitFor(() => screen.getByText(/오퍼레이터의 이름을 지어주세요/i));
     pressEnterOn(window);
 
     await waitFor(() =>
       screen.getByPlaceholderText(
-        "예: 프로젝트 저장소를 연결하고 첫 개발 작업을 만들기",
+        "예: 아이디어 검증을 실행하고 첫 100명 고객 계획 초안 만들기",
       ),
     );
     expect(screen.queryByText(/에이전트를 어떻게 실행할까요/i)).toBeNull();
