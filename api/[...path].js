@@ -15,22 +15,59 @@ const RATE_LIMITS = {
 const HOSTED_WEB_COMMANDS = Object.freeze([
   { name: "1o1", description: "Open a direct conversation with an agent", webSupported: true },
   { name: "ask", description: "Ask the team lead", webSupported: true },
+  { name: "approvals", description: "Review founder approval queue", webSupported: true },
   { name: "cancel", description: "Cancel a task assignment", webSupported: true },
   { name: "clear", description: "Clear messages in this view", webSupported: true },
   { name: "growth", description: "Open Growth Center", webSupported: true },
   { name: "help", description: "Show commands and keys", webSupported: true },
-  { name: "provider", description: "Switch default Bridge provider", webSupported: true },
+  { name: "loops", description: "Open operating loops", webSupported: true },
   { name: "remember", description: "Store a fact in memory", webSupported: true },
+  { name: "receipts", description: "Open run receipts", webSupported: true },
   { name: "requests", description: "Open requests", webSupported: true },
   { name: "search", description: "Search messages and knowledge", webSupported: true },
   { name: "skills", description: "Open skills", webSupported: true },
-  { name: "task", description: "Update a task", webSupported: true },
-  { name: "tasks", description: "Open task board", webSupported: true },
   { name: "threads", description: "See every active thread", webSupported: true },
 ]);
 const HOSTED_WEB_COMMAND_NAMES = new Set(
   HOSTED_WEB_COMMANDS.map((command) => command.name),
 );
+const STARTUP_OFFICE_LOOP_DEFINITIONS = Object.freeze([
+  {
+    cadence: "manual",
+    department: "Strategy",
+    name: "Idea Validation",
+    objective: "Turn a rough startup idea into falsifiable market assumptions, ICP, and next evidence.",
+    slug: "idea-validation",
+  },
+  {
+    cadence: "manual",
+    department: "Growth",
+    name: "Offer Package",
+    objective: "Draft the customer promise, pricing hypothesis, objections, and sales page outline.",
+    slug: "offer-package",
+  },
+  {
+    cadence: "manual",
+    department: "Marketing",
+    name: "Launch Campaign",
+    objective: "Prepare launch copy, channels, experiments, and approval gates for a public campaign.",
+    slug: "launch-campaign",
+  },
+  {
+    cadence: "manual",
+    department: "Sales",
+    name: "Customer Discovery",
+    objective: "Generate interview targets, questions, follow-up assets, and learning receipts.",
+    slug: "customer-discovery",
+  },
+  {
+    cadence: "weekly",
+    department: "Operations",
+    name: "Weekly Operator Review",
+    objective: "Summarize company pulse, risks, decisions, approvals, and next operating priorities.",
+    slug: "weekly-operator-review",
+  },
+]);
 const DEFAULT_PROFILE_AVATAR_ID = "human";
 const PROFILE_AVATAR_IDS = new Set([
   "human",
@@ -241,6 +278,49 @@ module.exports = async function handler(req, res) {
     }
     if (path === "onboarding/blueprints" && req.method === "GET") {
       writeJSON(res, 200, { templates: [] });
+      return;
+    }
+    if (path === "company/profile") {
+      await handleCompanyProfile(req, res);
+      return;
+    }
+    if (path === "startup-office/growth-summary" && req.method === "GET") {
+      await handleStartupOfficeGrowthSummary(req, res);
+      return;
+    }
+    if (path === "startup-office/loops" || path === "loops") {
+      await handleStartupOfficeLoops(req, res);
+      return;
+    }
+    const startupOfficeLoopRunMatch = path.match(
+      /^(?:startup-office\/)?loops\/([^/]+)\/run$/,
+    );
+    if (startupOfficeLoopRunMatch && req.method === "POST") {
+      await handleStartupOfficeLoopRun(
+        req,
+        res,
+        decodeURIComponent(startupOfficeLoopRunMatch[1]),
+      );
+      return;
+    }
+    if (path === "startup-office/approvals" || path === "approvals") {
+      await handleStartupOfficeApprovals(req, res);
+      return;
+    }
+    const startupOfficeApprovalActionMatch = path.match(
+      /^(?:startup-office\/)?approvals\/([^/]+)\/(approve|reject)$/,
+    );
+    if (startupOfficeApprovalActionMatch && req.method === "POST") {
+      await handleStartupOfficeApprovalAction(
+        req,
+        res,
+        decodeURIComponent(startupOfficeApprovalActionMatch[1]),
+        startupOfficeApprovalActionMatch[2],
+      );
+      return;
+    }
+    if (path === "startup-office/receipts" || path === "receipts") {
+      await handleStartupOfficeReceipts(req, res);
       return;
     }
     if (path === "humans" && req.method === "GET") {
@@ -1332,7 +1412,8 @@ async function handleHostedOnboardingState(req, res) {
   const settings = await workspaceSettings(membership.team_id);
   const fallbackOnboarded = settings
     ? false
-    : await workspaceHasAnyProject(membership.team_id);
+    : (await workspaceHasStartupOfficeState(membership.team_id))
+      || (await workspaceHasAnyProject(membership.team_id));
   writeJSON(res, 200, {
     onboarded: Boolean(settings?.onboarding_completed_at) || fallbackOnboarded,
     onboarding_completed_at: settings?.onboarding_completed_at || null,
@@ -1349,18 +1430,18 @@ async function handleHostedOnboardingComplete(req, res) {
 
   const settings = await upsertWorkspaceSettings(membership.team_id, patch);
   const seeded = existing?.onboarding_completed_at
-    ? { project: null, task: null }
-    : await seedOnboardingWorkspace(membership, team, body);
+    ? { loops: [], receipt: null }
+    : await seedStartupOfficeWorkspace(membership, team, body);
   await writeAuditEvent(membership, "onboarding.completed", "team", membership.team_id, {
-    project_id: seeded.project?.id || "",
-    task_id: seeded.task?.id || "",
+    loop_count: seeded.loops?.length || 0,
+    receipt_id: seeded.receipt?.id || "",
   });
   writeJSON(res, 200, {
     config: hostedConfigSnapshot({ settings, team, user }),
+    loops: seeded.loops || [],
     onboarded: true,
-    project: seeded.project ? publicProject(seeded.project) : null,
+    receipt: seeded.receipt || null,
     status: "ok",
-    task: seeded.task ? publicTask(seeded.task, { [seeded.project.id]: seeded.project }) : null,
   });
 }
 
@@ -1494,52 +1575,492 @@ function hostedConfigSnapshot({ settings, team, user }) {
   };
 }
 
-async function seedOnboardingWorkspace(membership, team, body) {
-  const title = truncateText(body.task || body.first_task || "", 200);
-  if (!title || body.skip_task === true) return { project: null, task: null };
+async function handleCompanyProfile(req, res) {
+  const { membership, team, user } = await requireUser(req);
+  if (req.method === "GET") {
+    requirePermission(membership, "workspace:read");
+    writeJSON(res, 200, {
+      profile: await companyProfileSnapshot(membership.team_id, team, user),
+    });
+    return;
+  }
+  if (req.method !== "PATCH") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "workspace:manage");
+  const body = await readBody(req);
+  const existing = await workspaceSettings(membership.team_id);
+  const profilePatch = startupOfficeCompanyProfilePatch(body);
+  const settings = await upsertWorkspaceSettings(membership.team_id, {
+    ...workspaceSettingsPatch(existing, { company_profile: profilePatch }),
+    company_profile: {
+      ...objectValue(existing?.company_profile),
+      ...profilePatch,
+    },
+  });
+  const [row] = await safeStartupOfficeRest("company_profiles", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    query: { on_conflict: "team_id" },
+    body: {
+      ...companyProfileRowPayload(profilePatch),
+      team_id: membership.team_id,
+      updated_at: nowISO(),
+    },
+  });
+  await writeAuditEvent(membership, "company_profile.updated", "company", membership.team_id, {
+    fields: Object.keys(profilePatch).sort(),
+  });
+  writeJSON(res, 200, {
+    profile: publicCompanyProfile({
+      row,
+      settings,
+      team,
+      user,
+    }),
+    status: "ok",
+  });
+}
 
-  let project = await firstTeamProject(membership.team_id);
-  if (!project) {
-    const name = truncateText(body.company || body.company_name || team?.name || "First project", 120);
-    const [created] = await rest("projects", {
-      method: "POST",
+async function handleStartupOfficeGrowthSummary(req, res) {
+  const { membership, team, user } = await requireUser(req);
+  requirePermission(membership, "workspace:read");
+  const [loops, runs, approvals, receipts, profile] = await Promise.all([
+    startupOfficeLoops(membership.team_id),
+    startupOfficeRuns(membership.team_id, { limit: 10 }),
+    startupOfficeApprovals(membership.team_id, { status: "pending", limit: 10 }),
+    startupOfficeReceipts(membership.team_id, { limit: 10 }),
+    companyProfileSnapshot(membership.team_id, team, user),
+  ]);
+  writeJSON(res, 200, {
+    company_profile: profile,
+    loops,
+    pulse: {
+      active_loops: loops.filter((loop) => loop.status === "active").length,
+      pending_approvals: approvals.length,
+      recent_receipts: receipts.length,
+      recent_runs: runs.length,
+    },
+    recent_receipts: receipts,
+    recent_runs: runs,
+    pending_approvals: approvals,
+  });
+}
+
+async function handleStartupOfficeLoops(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method === "GET") {
+    requirePermission(membership, "workspace:read");
+    writeJSON(res, 200, { loops: await startupOfficeLoops(membership.team_id) });
+    return;
+  }
+  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "workspace:manage");
+  const body = await readBody(req);
+  const name = truncateText(body.name || "", 160);
+  if (!name) throw new HTTPError(400, "name is required");
+  const slug = await uniqueStartupOfficeLoopSlug(membership.team_id, body.slug || name);
+  const [loop] = await safeStartupOfficeRest("startup_office_loops", {
+    method: "POST",
+    body: {
+      cadence: normalizeStartupOfficeCadence(body.cadence),
+      created_by: membership.user_id,
+      department: truncateText(body.department || "Operations", 80),
+      name,
+      objective: truncateText(body.objective || "", 2000),
+      policy: objectValue(body.policy),
+      slug,
+      status: normalizeStartupOfficeLoopStatus(body.status),
+      team_id: membership.team_id,
+    },
+  });
+  await writeAuditEvent(membership, "startup_office.loop_created", "loop", loop?.id || slug, {
+    slug,
+  });
+  writeJSON(res, 200, { loop: publicStartupOfficeLoop(loop || { ...body, slug }) });
+}
+
+async function handleStartupOfficeLoopRun(req, res, loopID) {
+  const { membership, team, user } = await requireUser(req);
+  requirePermission(membership, "memory:write_draft");
+  const body = await readBody(req);
+  const loop = await ensureStartupOfficeLoop(membership, loopID);
+  const profile = await companyProfileSnapshot(membership.team_id, team, user);
+  const objective = truncateText(
+    body.objective || loop.objective || profile.priority || "Run this operating loop.",
+    2000,
+  );
+  const now = nowISO();
+  const [run] = await safeStartupOfficeRest("startup_office_runs", {
+    method: "POST",
+    body: {
+      created_at: now,
+      created_by: membership.user_id,
+      inputs: objectValue(body.inputs),
+      loop_id: loop.id || null,
+      metadata: {
+        company_name: profile.name || "",
+        loop_slug: loop.slug,
+      },
+      objective,
+      started_at: now,
+      status: "waiting_approval",
+      summary: "",
+      team_id: membership.team_id,
+      title: truncateText(body.title || loop.name, 180),
+      updated_at: now,
+    },
+  });
+  const runID = run?.id || `run-${shortID()}`;
+  const artifactContent = startupOfficeRunDraft({ loop, objective, profile });
+  const [artifact] = await safeStartupOfficeRest("startup_office_artifacts", {
+    method: "POST",
+    body: {
+      content: artifactContent,
+      created_by: membership.user_id,
+      kind: "plan",
+      metadata: { loop_slug: loop.slug },
+      run_id: runID,
+      team_id: membership.team_id,
+      title: truncateText(`${loop.name} draft`, 180),
+    },
+  });
+  const [approval] = await safeStartupOfficeRest("startup_office_approvals", {
+    method: "POST",
+    body: {
+      action: "approve_loop_draft",
+      artifact_id: artifact?.id || null,
+      details: truncateText(artifactContent, 4000),
+      metadata: { loop_slug: loop.slug },
+      requested_by: membership.user_id,
+      risk_level: "medium",
+      run_id: runID,
+      status: "pending",
+      team_id: membership.team_id,
+      title: truncateText(`Approve ${loop.name} draft`, 180),
+    },
+  });
+  const receipt = await createStartupOfficeReceipt(membership, {
+    actor_slug: "ceo",
+    approval_id: approval?.id || null,
+    event_type: "run.created",
+    run_id: runID,
+    summary: `${loop.name} run drafted and queued for founder approval.`,
+    trace: {
+      approval_id: approval?.id || null,
+      artifact_id: artifact?.id || null,
+      loop_slug: loop.slug,
+    },
+  });
+  await writeAuditEvent(membership, "startup_office.run_created", "run", runID, {
+    loop_slug: loop.slug,
+  });
+  writeJSON(res, 200, {
+    approval: publicStartupOfficeApproval(approval),
+    artifact: publicStartupOfficeArtifact(artifact),
+    receipt,
+    run: publicStartupOfficeRun(run || {
+      id: runID,
+      loop_id: loop.id || null,
+      objective,
+      status: "waiting_approval",
+      title: loop.name,
+    }),
+  });
+}
+
+async function handleStartupOfficeApprovals(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method !== "GET") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "workspace:read");
+  writeJSON(res, 200, {
+    approvals: await startupOfficeApprovals(membership.team_id, {
+      status: req.query?.status,
+      limit: Number(req.query?.limit) || 100,
+    }),
+  });
+}
+
+async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "memory:promote");
+  const body = await readBody(req);
+  const approval = await findStartupOfficeApproval(membership.team_id, approvalID);
+  if (!approval) throw new HTTPError(404, "approval not found");
+  if (approval.status !== "pending") throw new HTTPError(409, "approval is already decided");
+  const approved = action === "approve";
+  const now = nowISO();
+  const [updatedApproval] = await safeStartupOfficeRest("startup_office_approvals", {
+    method: "PATCH",
+    query: {
+      id: `eq.${approval.id}`,
+      team_id: `eq.${membership.team_id}`,
+    },
+    body: {
+      decided_at: now,
+      decided_by: membership.user_id,
+      decision_note: truncateText(body.note || body.reason || "", 2000),
+      status: approved ? "approved" : "rejected",
+      updated_at: now,
+    },
+  });
+  let updatedRun = null;
+  if (approval.run_id) {
+    const [run] = await safeStartupOfficeRest("startup_office_runs", {
+      method: "PATCH",
+      query: {
+        id: `eq.${approval.run_id}`,
+        team_id: `eq.${membership.team_id}`,
+      },
       body: {
-        additional_info: truncateText(body.priority || body.company_priority || "", 1000),
-        channel: "general",
-        created_by: membership.user_id,
-        description: truncateText(body.description || body.company_description || "", 2000),
-        local_id: await uniqueProjectLocalID(membership.team_id, name),
-        name,
-        status: "active",
-        team_id: membership.team_id,
+        completed_at: now,
+        status: approved ? "completed" : "canceled",
+        summary: approved
+          ? "Founder approved the drafted loop output."
+          : "Founder rejected the drafted loop output.",
+        updated_at: now,
       },
     });
-    project = created;
-    await writeAuditEvent(membership, "project.created", "project", project.id, {
-      source: "onboarding",
-    });
+    updatedRun = run;
   }
-
-  const { task } = await createTask(membership, {
-    action: "create",
-    channel: project.channel || "general",
-    details: truncateText(body.description || "", 2000),
-    execution_mode: "office",
-    model_mode: "record_only",
-    project_id: project.local_id || project.id,
-    title,
+  const receipt = await createStartupOfficeReceipt(membership, {
+    actor_slug: "founder",
+    approval_id: approval.id,
+    event_type: approved ? "approval.approved" : "approval.rejected",
+    run_id: approval.run_id || null,
+    summary: approved
+      ? "Founder approved the pending Startup Office action."
+      : "Founder rejected the pending Startup Office action.",
+    trace: {
+      approval_id: approval.id,
+      decision_note: truncateText(body.note || body.reason || "", 500),
+    },
   });
+  await writeAuditEvent(membership, approved ? "startup_office.approved" : "startup_office.rejected", "approval", approval.id);
+  writeJSON(res, 200, {
+    approval: publicStartupOfficeApproval(updatedApproval || approval),
+    receipt,
+    run: publicStartupOfficeRun(updatedRun),
+    status: "ok",
+  });
+}
+
+async function handleStartupOfficeReceipts(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method !== "GET") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "workspace:read");
+  writeJSON(res, 200, {
+    receipts: await startupOfficeReceipts(membership.team_id, {
+      limit: Number(req.query?.limit) || 100,
+    }),
+  });
+}
+
+async function seedStartupOfficeWorkspace(membership, team, body) {
+  const loops = [];
+  for (const definition of STARTUP_OFFICE_LOOP_DEFINITIONS) {
+    const [loop] = await safeStartupOfficeRest("startup_office_loops", {
+      method: "POST",
+      prefer: "resolution=merge-duplicates,return=representation",
+      query: { on_conflict: "team_id,slug" },
+      body: {
+        cadence: definition.cadence,
+        created_by: membership.user_id,
+        department: definition.department,
+        name: definition.name,
+        objective: definition.objective,
+        policy: { founder_approval_required: true, source: "onboarding_seed" },
+        slug: definition.slug,
+        status: "active",
+        team_id: membership.team_id,
+        updated_at: nowISO(),
+      },
+    });
+    loops.push(publicStartupOfficeLoop(loop || { ...definition, id: definition.slug, status: "active" }));
+  }
+  const receipt = await createStartupOfficeReceipt(membership, {
+    actor_slug: "system",
+    event_type: "workspace.onboarded",
+    run_id: null,
+    summary: `${team?.name || "Workspace"} Startup Office was initialized with founder-controlled operating loops.`,
+    trace: {
+      company: truncateText(body.company || body.company_name || team?.name || "", 160),
+      loops: loops.map((loop) => loop.slug),
+    },
+  });
+  return { loops, receipt };
+}
+
+async function companyProfileSnapshot(teamID, team, user) {
+  const [settings, rows] = await Promise.all([
+    workspaceSettings(teamID),
+    safeStartupOfficeRest("company_profiles", {
+      query: {
+        limit: "1",
+        select: "*",
+        team_id: `eq.${teamID}`,
+      },
+    }),
+  ]);
+  return publicCompanyProfile({
+    row: rows?.[0] || null,
+    settings,
+    team,
+    user,
+  });
+}
+
+function publicCompanyProfile({ row, settings, team, user }) {
+  const settingsProfile = objectValue(settings?.company_profile);
+  const rowMetadata = objectValue(row?.metadata);
   return {
-    project,
-    task: await findTask(membership.team_id, task.id),
+    description: row?.description || settingsProfile.description || "",
+    email: user?.email || "",
+    goals: row?.goals || settingsProfile.goals || "",
+    icp: row?.icp || settingsProfile.icp || "",
+    metadata: {
+      ...objectValue(settingsProfile.metadata),
+      ...rowMetadata,
+    },
+    name: row?.name || settingsProfile.name || team?.name || "",
+    offer: row?.offer || settingsProfile.offer || "",
+    positioning: row?.positioning || settingsProfile.positioning || "",
+    priority: row?.priority || settingsProfile.priority || "",
+    size: row?.size || settingsProfile.size || "",
+    stage: row?.stage || settingsProfile.stage || "",
+    team_id: team?.id || row?.team_id || settings?.team_id || "",
+    updated_at: row?.updated_at || settings?.updated_at || null,
+    workspace_slug: team?.slug || "",
   };
 }
 
-async function firstTeamProject(teamID) {
-  const rows = await rest("projects", {
+function startupOfficeCompanyProfilePatch(body) {
+  const profile = companyProfilePatch(body);
+  const nested = objectValue(body.company_profile);
+  for (const key of ["icp", "offer", "positioning", "stage"]) {
+    const value = body[key] ?? nested[key];
+    if (value !== undefined) profile[key] = truncateText(value, key === "stage" ? 120 : 4000);
+  }
+  if (body.metadata !== undefined || nested.metadata !== undefined) {
+    profile.metadata = objectValue(body.metadata ?? nested.metadata);
+  }
+  return profile;
+}
+
+function companyProfileRowPayload(profile) {
+  const out = {};
+  for (const key of [
+    "description",
+    "goals",
+    "icp",
+    "metadata",
+    "name",
+    "offer",
+    "positioning",
+    "priority",
+    "size",
+    "stage",
+  ]) {
+    if (profile[key] !== undefined) out[key] = profile[key];
+  }
+  return out;
+}
+
+async function startupOfficeLoops(teamID) {
+  const rows = await safeStartupOfficeRest("startup_office_loops", {
     query: {
-      limit: "1",
       order: "created_at.asc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  const bySlug = new Map((rows || []).map((row) => [row.slug, publicStartupOfficeLoop(row)]));
+  for (const definition of STARTUP_OFFICE_LOOP_DEFINITIONS) {
+    if (!bySlug.has(definition.slug)) {
+      bySlug.set(definition.slug, publicStartupOfficeLoop({
+        ...definition,
+        id: definition.slug,
+        policy: { founder_approval_required: true, source: "system_default" },
+        status: "active",
+      }));
+    }
+  }
+  return [...bySlug.values()];
+}
+
+async function startupOfficeRuns(teamID, options = {}) {
+  const query = {
+    order: "created_at.desc",
+    select: "*",
+    team_id: `eq.${teamID}`,
+  };
+  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
+  const rows = await safeStartupOfficeRest("startup_office_runs", { query });
+  return rows.map(publicStartupOfficeRun).filter(Boolean);
+}
+
+async function startupOfficeApprovals(teamID, options = {}) {
+  const query = {
+    order: "requested_at.desc",
+    select: "*",
+    team_id: `eq.${teamID}`,
+  };
+  if (options.status) query.status = `eq.${normalizeStartupOfficeApprovalStatus(options.status)}`;
+  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
+  const rows = await safeStartupOfficeRest("startup_office_approvals", { query });
+  return rows.map(publicStartupOfficeApproval).filter(Boolean);
+}
+
+async function startupOfficeReceipts(teamID, options = {}) {
+  const query = {
+    order: "created_at.desc",
+    select: "*",
+    team_id: `eq.${teamID}`,
+  };
+  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
+  const rows = await safeStartupOfficeRest("startup_office_receipts", { query });
+  return rows.map(publicStartupOfficeReceipt).filter(Boolean);
+}
+
+async function ensureStartupOfficeLoop(membership, loopID) {
+  const loops = await safeStartupOfficeRest("startup_office_loops", {
+    query: {
+      select: "*",
+      team_id: `eq.${membership.team_id}`,
+    },
+  });
+  const normalized = String(loopID || "").trim();
+  const existing = loops.find((loop) => loop.id === normalized || loop.slug === normalized);
+  if (existing) return publicStartupOfficeLoop(existing);
+  const definition = STARTUP_OFFICE_LOOP_DEFINITIONS.find((loop) => loop.slug === normalized);
+  if (!definition) throw new HTTPError(404, "loop not found");
+  const [created] = await safeStartupOfficeRest("startup_office_loops", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    query: { on_conflict: "team_id,slug" },
+    body: {
+      cadence: definition.cadence,
+      created_by: membership.user_id,
+      department: definition.department,
+      name: definition.name,
+      objective: definition.objective,
+      policy: { founder_approval_required: true, source: "system_default" },
+      slug: definition.slug,
+      status: "active",
+      team_id: membership.team_id,
+      updated_at: nowISO(),
+    },
+  });
+  return publicStartupOfficeLoop(created || {
+    ...definition,
+    id: definition.slug,
+    status: "active",
+  });
+}
+
+async function findStartupOfficeApproval(teamID, approvalID) {
+  const rows = await safeStartupOfficeRest("startup_office_approvals", {
+    query: {
+      id: `eq.${approvalID}`,
+      limit: "1",
       select: "*",
       team_id: `eq.${teamID}`,
     },
@@ -1547,8 +2068,203 @@ async function firstTeamProject(teamID) {
   return rows?.[0] || null;
 }
 
+async function createStartupOfficeReceipt(membership, body) {
+  const [receipt] = await safeStartupOfficeRest("startup_office_receipts", {
+    method: "POST",
+    body: {
+      actor_slug: truncateText(body.actor_slug || "agent", 80),
+      approval_id: body.approval_id || null,
+      created_by: membership.user_id,
+      event_type: truncateText(body.event_type || "event", 80),
+      run_id: body.run_id || null,
+      summary: truncateText(body.summary || "", 2000),
+      team_id: membership.team_id,
+      trace: objectValue(body.trace),
+    },
+  });
+  return publicStartupOfficeReceipt(receipt || {
+    id: `receipt-${shortID()}`,
+    ...body,
+    created_at: nowISO(),
+    created_by: membership.user_id,
+    team_id: membership.team_id,
+  });
+}
+
+async function safeStartupOfficeRest(table, options = {}) {
+  try {
+    return (await rest(table, options)) || [];
+  } catch (err) {
+    if (isMissingStartupOfficeTableError(err, table)) return [];
+    throw err;
+  }
+}
+
+function isMissingStartupOfficeTableError(err, table) {
+  if (!(err instanceof HTTPError)) return false;
+  if (err.status !== 404) return false;
+  const message = String(err.message || "");
+  return message.includes(table) || message.includes(`public.${table}`);
+}
+
+function publicStartupOfficeLoop(row) {
+  if (!row) return null;
+  return {
+    cadence: row.cadence || "manual",
+    department: row.department || "Operations",
+    id: row.id || row.slug || "",
+    name: row.name || row.slug || "Operating loop",
+    objective: row.objective || "",
+    policy: objectValue(row.policy),
+    slug: row.slug || row.id || "",
+    status: normalizeStartupOfficeLoopStatus(row.status),
+  };
+}
+
+function publicStartupOfficeRun(row) {
+  if (!row) return null;
+  return {
+    completed_at: row.completed_at || null,
+    created_at: row.created_at || null,
+    id: row.id || "",
+    inputs: objectValue(row.inputs),
+    loop_id: row.loop_id || null,
+    metadata: objectValue(row.metadata),
+    objective: row.objective || "",
+    started_at: row.started_at || null,
+    status: normalizeStartupOfficeRunStatus(row.status),
+    summary: row.summary || "",
+    title: row.title || "",
+    updated_at: row.updated_at || null,
+  };
+}
+
+function publicStartupOfficeArtifact(row) {
+  if (!row) return null;
+  return {
+    content: row.content || "",
+    created_at: row.created_at || null,
+    id: row.id || "",
+    kind: normalizeStartupOfficeArtifactKind(row.kind),
+    metadata: objectValue(row.metadata),
+    run_id: row.run_id || null,
+    title: row.title || "",
+  };
+}
+
+function publicStartupOfficeApproval(row) {
+  if (!row) return null;
+  return {
+    action: row.action || "",
+    artifact_id: row.artifact_id || null,
+    decided_at: row.decided_at || null,
+    decided_by: row.decided_by || null,
+    decision_note: row.decision_note || "",
+    details: row.details || "",
+    id: row.id || "",
+    metadata: objectValue(row.metadata),
+    requested_at: row.requested_at || row.created_at || null,
+    requested_by: row.requested_by || null,
+    risk_level: normalizeStartupOfficeRiskLevel(row.risk_level),
+    run_id: row.run_id || null,
+    status: normalizeStartupOfficeApprovalStatus(row.status),
+    title: row.title || "",
+  };
+}
+
+function publicStartupOfficeReceipt(row) {
+  if (!row) return null;
+  return {
+    actor_slug: row.actor_slug || "",
+    approval_id: row.approval_id || null,
+    created_at: row.created_at || null,
+    event_type: row.event_type || "",
+    id: row.id || "",
+    run_id: row.run_id || null,
+    summary: row.summary || "",
+    trace: objectValue(row.trace),
+  };
+}
+
+function normalizeStartupOfficeCadence(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["manual", "daily", "weekly", "monthly"].includes(raw) ? raw : "manual";
+}
+
+function normalizeStartupOfficeLoopStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["active", "paused", "archived"].includes(raw) ? raw : "active";
+}
+
+function normalizeStartupOfficeRunStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["queued", "running", "waiting_approval", "completed", "failed", "canceled"].includes(raw)
+    ? raw
+    : "queued";
+}
+
+function normalizeStartupOfficeArtifactKind(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["plan", "draft", "asset", "wiki_update", "report", "message"].includes(raw)
+    ? raw
+    : "draft";
+}
+
+function normalizeStartupOfficeApprovalStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["pending", "approved", "rejected", "revision_requested"].includes(raw)
+    ? raw
+    : "pending";
+}
+
+function normalizeStartupOfficeRiskLevel(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["low", "medium", "high"].includes(raw) ? raw : "medium";
+}
+
+async function uniqueStartupOfficeLoopSlug(teamID, seed) {
+  const base = slugify(seed) || `loop-${shortID()}`;
+  const existing = await safeStartupOfficeRest("startup_office_loops", {
+    query: {
+      limit: "1",
+      select: "id",
+      slug: `eq.${base}`,
+      team_id: `eq.${teamID}`,
+    },
+  });
+  return existing?.length ? `${base}-${shortID()}` : base;
+}
+
+function startupOfficeRunDraft({ loop, objective, profile }) {
+  return [
+    `Loop: ${loop.name}`,
+    `Company: ${profile.name || "Unnamed company"}`,
+    `Objective: ${objective}`,
+    "",
+    "Draft output:",
+    `- Primary customer: ${profile.icp || "Needs founder confirmation."}`,
+    `- Offer hypothesis: ${profile.offer || "Needs founder confirmation."}`,
+    `- Operating next step: Review this draft, approve it, or reject with revision notes.`,
+    "",
+    "Founder control:",
+    "- No public, customer-facing, financial, or irreversible action has been taken.",
+    "- This run is waiting for explicit approval before promotion.",
+  ].join("\n");
+}
+
 async function workspaceHasAnyProject(teamID) {
   const rows = await rest("projects", {
+    query: {
+      limit: "1",
+      select: "id",
+      team_id: `eq.${teamID}`,
+    },
+  }).catch(() => []);
+  return Boolean(rows?.length);
+}
+
+async function workspaceHasStartupOfficeState(teamID) {
+  const rows = await safeStartupOfficeRest("startup_office_loops", {
     query: {
       limit: "1",
       select: "id",

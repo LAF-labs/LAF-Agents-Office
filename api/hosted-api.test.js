@@ -211,6 +211,50 @@ test("workspace settings migration defines hosted onboarding/config state", () =
   assert.match(sql, /managers can update workspace settings/);
 });
 
+test("startup office domain migration defines company cloud operations schema", () => {
+  const sql = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260524000000_startup_office_domain.sql"),
+    "utf8",
+  );
+  const tables = [
+    "company_profiles",
+    "startup_office_loops",
+    "startup_office_runs",
+    "startup_office_artifacts",
+    "startup_office_approvals",
+    "startup_office_receipts",
+    "startup_office_assets",
+    "startup_office_customers",
+    "startup_office_metrics",
+    "startup_office_signals",
+  ];
+  for (const table of tables) {
+    assert.match(sql, new RegExp(`create table if not exists public\\.${table}\\b`));
+    assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`));
+  }
+  for (const index of [
+    "idx_startup_office_loops_team_status",
+    "idx_startup_office_runs_team_status",
+    "idx_startup_office_approvals_team_status",
+    "idx_startup_office_receipts_team_created",
+    "idx_startup_office_assets_team_kind",
+    "idx_startup_office_customers_team_status",
+    "idx_startup_office_metrics_team_key",
+    "idx_startup_office_signals_team_status",
+  ]) {
+    assert.match(sql, new RegExp(`create index if not exists ${index}\\b`));
+  }
+  assert.match(sql, /unique\(team_id, slug\)/);
+  assert.match(sql, /check \(status in \('queued', 'running', 'waiting_approval', 'completed', 'failed', 'canceled'\)\)/);
+  assert.match(sql, /check \(status in \('pending', 'approved', 'rejected', 'revision_requested'\)\)/);
+  assert.match(sql, /members can read startup office runs/);
+  assert.match(sql, /managers can decide startup office approvals/);
+  assert.match(sql, /members can read startup office receipts/);
+  assert.doesNotMatch(sql, /\bprojects\b/);
+  assert.doesNotMatch(sql, /\btasks\b/);
+  assert.doesNotMatch(sql, /\bbridge\b/i);
+});
+
 test("channel messages migration defines hosted chat persistence", () => {
   const sql = fs.readFileSync(
     path.join(__dirname, "..", "supabase", "migrations", "20260519010000_channel_messages.sql"),
@@ -249,6 +293,8 @@ test("hosted config and onboarding routes persist team workspace settings", asyn
       },
     ],
     projects: [],
+    startup_office_loops: [],
+    startup_office_receipts: [],
     tasks: [],
     teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
     workspace_settings: [],
@@ -340,15 +386,117 @@ test("hosted config and onboarding routes persist team workspace settings", asyn
   assert.equal(completed.status, 200, JSON.stringify(completed.body));
   assert.equal(completed.body.onboarded, true);
   assert.ok(db.workspace_settings[0].onboarding_completed_at);
-  assert.equal(db.projects.length, 1);
-  assert.equal(db.projects[0].name, "LAF Labs");
-  assert.equal(db.tasks.length, 1);
-  assert.equal(db.tasks[0].title, "Invite the first teammate");
-  assert.equal(db.tasks[0].model_mode, "record_only");
+  assert.equal(db.projects.length, 0);
+  assert.equal(db.tasks.length, 0);
+  assert.equal(db.startup_office_loops.length, 5);
+  assert.deepEqual(
+    db.startup_office_loops.map((loop) => loop.slug).sort(),
+    [
+      "customer-discovery",
+      "idea-validation",
+      "launch-campaign",
+      "offer-package",
+      "weekly-operator-review",
+    ],
+  );
+  assert.equal(db.startup_office_receipts.length, 1);
+  assert.equal(db.startup_office_receipts[0].event_type, "workspace.onboarded");
+  assert.equal(completed.body.project, undefined);
+  assert.equal(completed.body.task, undefined);
 
   const finalState = await invoke(["onboarding", "state"], "GET");
   assert.equal(finalState.status, 200);
   assert.equal(finalState.body.onboarded, true);
+});
+
+test("startup office API persists profile, loops, approvals, runs, and receipts", async (t) => {
+  const db = {
+    audit_events: [],
+    company_profiles: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    startup_office_approvals: [],
+    startup_office_artifacts: [],
+    startup_office_loops: [],
+    startup_office_receipts: [],
+    startup_office_runs: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_settings: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const initialProfile = await invoke(["company", "profile"], "GET");
+  assert.equal(initialProfile.status, 200, JSON.stringify(initialProfile.body));
+  assert.equal(initialProfile.body.profile.name, "Team One");
+
+  const savedProfile = await invoke(["company", "profile"], "PATCH", {
+    company_profile: {
+      icp: "Solo founders selling B2B software",
+      offer: "AI Startup Office in a box",
+      positioning: "Founder-controlled AI operators",
+      stage: "closed_beta",
+    },
+    company_name: "LAF Labs",
+    priority: "Validate paid beta demand",
+  });
+  assert.equal(savedProfile.status, 200, JSON.stringify(savedProfile.body));
+  assert.equal(savedProfile.body.profile.name, "LAF Labs");
+  assert.equal(savedProfile.body.profile.icp, "Solo founders selling B2B software");
+  assert.equal(db.company_profiles.length, 1);
+  assert.equal(db.company_profiles[0].offer, "AI Startup Office in a box");
+  assert.equal(db.workspace_settings[0].company_profile.name, "LAF Labs");
+
+  const loops = await invoke(["startup-office", "loops"], "GET");
+  assert.equal(loops.status, 200, JSON.stringify(loops.body));
+  assert.equal(loops.body.loops.length, 5);
+  assert.ok(loops.body.loops.some((loop) => loop.slug === "idea-validation"));
+
+  const run = await invoke(["startup-office", "loops", "idea-validation", "run"], "POST", {
+    objective: "Find the first beta buyer segment",
+    inputs: { market: "AI operations" },
+  });
+  assert.equal(run.status, 200, JSON.stringify(run.body));
+  assert.equal(run.body.run.status, "waiting_approval");
+  assert.equal(run.body.approval.status, "pending");
+  assert.equal(run.body.receipt.event_type, "run.created");
+  assert.equal(db.startup_office_loops.length, 1);
+  assert.equal(db.startup_office_runs.length, 1);
+  assert.equal(db.startup_office_artifacts.length, 1);
+  assert.equal(db.startup_office_approvals.length, 1);
+  assert.equal(db.startup_office_receipts.length, 1);
+  assert.equal(db.startup_office_artifacts[0].content.includes("Founder control"), true);
+
+  const approvals = await invoke(["startup-office", "approvals"], "GET");
+  assert.equal(approvals.status, 200, JSON.stringify(approvals.body));
+  assert.equal(approvals.body.approvals.length, 1);
+  assert.equal(approvals.body.approvals[0].title, "Approve Idea Validation draft");
+
+  const approvalID = run.body.approval.id;
+  const approved = await invoke(["startup-office", "approvals", approvalID, "approve"], "POST", {
+    note: "Ship this beta positioning.",
+  });
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  assert.equal(approved.body.approval.status, "approved");
+  assert.equal(approved.body.run.status, "completed");
+  assert.equal(db.startup_office_receipts.length, 2);
+  assert.equal(db.startup_office_receipts[1].event_type, "approval.approved");
+
+  const summary = await invoke(["startup-office", "growth-summary"], "GET");
+  assert.equal(summary.status, 200, JSON.stringify(summary.body));
+  assert.equal(summary.body.company_profile.name, "LAF Labs");
+  assert.equal(summary.body.pulse.recent_runs, 1);
+  assert.equal(summary.body.pulse.pending_approvals, 0);
+  assert.equal(summary.body.pulse.recent_receipts, 2);
 });
 
 test("hosted workspace compatibility routes avoid broker-only 404s", async (t) => {
@@ -445,18 +593,21 @@ test("hosted commands expose hosted-safe slash command registry", async (t) => {
 
   const names = response.body.map((command) => command.name).sort();
   assert.ok(names.includes("ask"));
-  assert.ok(names.includes("tasks"));
-  assert.ok(names.includes("provider"));
-  const providerCommand = response.body.find((command) => command.name === "provider");
-  assert.equal(providerCommand?.description, "Switch default Bridge provider");
+  assert.ok(names.includes("growth"));
+  assert.ok(names.includes("loops"));
+  assert.ok(names.includes("approvals"));
+  assert.ok(names.includes("receipts"));
   for (const hidden of [
     "deploy-simulation",
     "fix-bug",
     "focus",
     "collab",
     "pause",
+    "provider",
     "resume",
     "reset",
+    "task",
+    "tasks",
   ]) {
     assert.ok(!names.includes(hidden), `${hidden} must stay out of hosted autocomplete`);
   }
@@ -506,7 +657,7 @@ test("hosted slash command endpoint refuses unsupported workflows instead of fak
 
   const browserHandled = await invoke(["commands", "run"], "POST", {
     channel: "general",
-    input: "/tasks",
+    input: "/growth",
   });
   assert.equal(browserHandled.status, 400);
   assert.equal(
@@ -527,6 +678,8 @@ test("hosted onboarding falls back safely before workspace settings migration is
       },
     ],
     projects: [],
+    startup_office_loops: [],
+    startup_office_receipts: [],
     tasks: [],
     teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
   };
@@ -555,8 +708,11 @@ test("hosted onboarding falls back safely before workspace settings migration is
     task: "Create first hosted task",
   });
   assert.equal(completed.status, 200, JSON.stringify(completed.body));
-  assert.equal(db.projects.length, 1);
-  assert.equal(db.tasks.length, 1);
+  assert.equal(db.projects.length, 0);
+  assert.equal(db.tasks.length, 0);
+  assert.equal(completed.body.onboarded, true);
+  assert.equal(completed.body.project, undefined);
+  assert.equal(completed.body.task, undefined);
 
   const finalState = await invoke(["onboarding", "state"], "GET");
   assert.equal(finalState.status, 200);
