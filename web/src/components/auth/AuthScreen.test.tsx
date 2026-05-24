@@ -37,7 +37,7 @@ describe("AuthScreen", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/create a company workspace to continue/i),
+      screen.getByText(/validate and launch a paid beta/i),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Create company workspace/i }),

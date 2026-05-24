@@ -754,7 +754,8 @@ const messages = {
     "requests.cancelText": "Cancel",
     "auth.kicker": "AI Startup Office",
     "auth.title": "LAF-Office",
-    "auth.desc": "Sign in or create a company workspace to continue.",
+    "auth.desc":
+      "Sign in or create a company workspace to validate and launch a paid beta.",
     "auth.existingTeams": "Existing teams",
     "auth.mode": "Auth mode",
     "auth.signup": "Sign up",
@@ -1580,7 +1581,8 @@ const messages = {
     "requests.cancelText": "취소",
     "auth.kicker": "AI Startup Office",
     "auth.title": "LAF-Office",
-    "auth.desc": "로그인하거나 회사 워크스페이스를 만들어 이어서 운영합니다.",
+    "auth.desc":
+      "로그인하거나 회사 워크스페이스를 만들어 유료 베타를 검증하고 출시합니다.",
     "auth.existingTeams": "기존 팀",
     "auth.mode": "인증 방식",
     "auth.signup": "회원가입",

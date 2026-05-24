@@ -499,6 +499,110 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(summary.body.pulse.recent_receipts, 2);
 });
 
+test("startup office demo seed creates a paid beta validation workspace", async (t) => {
+  const db = {
+    audit_events: [],
+    company_profiles: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    startup_office_approvals: [],
+    startup_office_artifacts: [],
+    startup_office_loops: [],
+    startup_office_receipts: [],
+    startup_office_runs: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_settings: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const seeded = await invoke(["startup-office", "demo-seed"], "POST", {
+    company_name: "Demo Beta Co",
+  });
+  assert.equal(seeded.status, 200, JSON.stringify(seeded.body));
+  assert.equal(seeded.body.profile.name, "Demo Beta Co");
+  assert.equal(seeded.body.profile.stage, "paid_beta_validation");
+  assert.equal(seeded.body.loops.length, 3);
+  assert.deepEqual(
+    seeded.body.loops.map((loop) => loop.slug).sort(),
+    ["customer-discovery", "idea-validation", "offer-package"],
+  );
+  assert.equal(seeded.body.approval.title, "Approve Idea Validation draft");
+  assert.equal(seeded.body.approval.status, "pending");
+  assert.equal(db.startup_office_approvals.length, 1);
+  assert.equal(db.startup_office_artifacts.length, 2);
+  assert.equal(db.startup_office_receipts.length, 3);
+  assert.ok(
+    db.startup_office_artifacts.some(
+      (artifact) =>
+        artifact.title === "Offer Package artifact" &&
+        artifact.content.includes("Validate and launch a paid beta"),
+    ),
+  );
+  assert.ok(
+    db.startup_office_receipts.some(
+      (receipt) => receipt.event_type === "demo.customer_discovery_ready",
+    ),
+  );
+
+  const secondSeed = await invoke(["startup-office", "demo-seed"], "POST", {
+    company_name: "Demo Beta Co",
+  });
+  assert.equal(secondSeed.status, 200, JSON.stringify(secondSeed.body));
+  assert.equal(db.startup_office_approvals.length, 1);
+  assert.equal(db.startup_office_artifacts.length, 2);
+  assert.equal(db.startup_office_receipts.length, 3);
+
+  const summary = await invoke(["startup-office", "growth-summary"], "GET");
+  assert.equal(summary.status, 200, JSON.stringify(summary.body));
+  assert.equal(summary.body.company_profile.name, "Demo Beta Co");
+  assert.equal(summary.body.pulse.pending_approvals, 1);
+  assert.equal(summary.body.recent_receipts.length, 3);
+});
+
+test("startup office demo seed requires an admin role", async (t) => {
+  const db = {
+    audit_events: [],
+    company_profiles: [],
+    memberships: [
+      {
+        role: "member",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    startup_office_approvals: [],
+    startup_office_artifacts: [],
+    startup_office_loops: [],
+    startup_office_receipts: [],
+    startup_office_runs: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_settings: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const denied = await invoke(["startup-office", "demo-seed"], "POST", {
+    company_name: "Demo Beta Co",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal(denied.body.error, "owner or admin role required for demo seed");
+  assert.equal(db.company_profiles.length, 0);
+});
+
 test("hosted workspace compatibility routes avoid broker-only 404s", async (t) => {
   const db = {
     channel_messages: [],

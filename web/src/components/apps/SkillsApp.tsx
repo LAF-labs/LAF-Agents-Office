@@ -50,6 +50,7 @@ import { fetchCatalog as fetchWikiCatalog } from "../../api/wiki";
 import { formatTokens, formatUSD } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import { type Language, useAppStore } from "../../stores/app";
+import { STARTUP_OFFICE_WEDGE_COPY } from "../startup-office/startupOfficeCopy";
 import { showNotice } from "../ui/Toast";
 
 const SYNTHESIS_STATUS_LIMIT = 20;
@@ -285,10 +286,9 @@ interface SkillsCopy {
 const SKILLS_COPY = {
   en: {
     growthAria: "Startup Office",
-    growthKicker: "Founder-controlled launch office",
-    growthTitle: "Startup Office",
-    growthDescription:
-      "Run the company office from one controlled surface: operating loops, approval gates, receipts, skills, wiki memory, and growth assets.",
+    growthKicker: STARTUP_OFFICE_WEDGE_COPY.en.kicker,
+    growthTitle: STARTUP_OFFICE_WEDGE_COPY.en.title,
+    growthDescription: STARTUP_OFFICE_WEDGE_COPY.en.description,
     growthLoopAria: "Workspace growth loop",
     growthSteps: [
       "Signal",
@@ -316,8 +316,7 @@ const SKILLS_COPY = {
     launchPendingApprovalsLabel: "Pending approvals",
     launchReceiptsCountLabel: "Receipts",
     launchLoopsTitle: "Launch Office loops",
-    launchLoopsDescription:
-      "The first paid demo is a controlled 7-day launch office, not an open-ended agent builder.",
+    launchLoopsDescription: STARTUP_OFFICE_WEDGE_COPY.en.loopsDescription,
     launchLoops: [
       {
         name: "Idea Validation",
@@ -395,8 +394,7 @@ const SKILLS_COPY = {
     launchNoRecentReceipts:
       "No run receipts yet. The first loop will write the initial trace.",
     launchNextActionTitle: "Recommended next action",
-    launchNextActionDescription:
-      "Run Founder Intake, then approve Idea Validation before creating public assets.",
+    launchNextActionDescription: STARTUP_OFFICE_WEDGE_COPY.en.nextAction,
     launchRunQueued: "Loop drafted and queued for founder approval.",
     launchApprovalApproved: "Approval recorded and receipt written.",
     launchApprovalRejected: "Rejection recorded and receipt written.",
@@ -540,10 +538,9 @@ const SKILLS_COPY = {
   },
   ko: {
     growthAria: "스타트업 오피스",
-    growthKicker: "창업자가 통제하는 런치 오피스",
-    growthTitle: "스타트업 오피스",
-    growthDescription:
-      "운영 루프, 승인 게이트, 영수증, 스킬, 위키 메모리, 성장 자산을 한 화면에서 통제합니다.",
+    growthKicker: STARTUP_OFFICE_WEDGE_COPY.ko.kicker,
+    growthTitle: STARTUP_OFFICE_WEDGE_COPY.ko.title,
+    growthDescription: STARTUP_OFFICE_WEDGE_COPY.ko.description,
     growthLoopAria: "워크스페이스 성장 흐름",
     growthSteps: ["신호", "초안", "승인", "자산", "영수증", "학습"],
     launchPulseTitle: "회사 펄스",
@@ -564,8 +561,7 @@ const SKILLS_COPY = {
     launchPendingApprovalsLabel: "대기 승인",
     launchReceiptsCountLabel: "영수증",
     launchLoopsTitle: "런치 오피스 루프",
-    launchLoopsDescription:
-      "첫 유료 데모는 범용 에이전트 빌더가 아니라 통제되는 7일 런치 오피스입니다.",
+    launchLoopsDescription: STARTUP_OFFICE_WEDGE_COPY.ko.loopsDescription,
     launchLoops: [
       {
         name: "아이디어 검증",
@@ -643,8 +639,7 @@ const SKILLS_COPY = {
     launchNoRecentReceipts:
       "아직 실행 영수증이 없습니다. 첫 루프가 초기 추적 기록을 남깁니다.",
     launchNextActionTitle: "추천 다음 행동",
-    launchNextActionDescription:
-      "Founder Intake를 실행한 뒤, 공개 자산을 만들기 전에 아이디어 검증을 승인합니다.",
+    launchNextActionDescription: STARTUP_OFFICE_WEDGE_COPY.ko.nextAction,
     launchRunQueued: "루프 초안이 생성되어 창업자 승인 대기열에 들어갔습니다.",
     launchApprovalApproved: "승인이 기록되고 영수증이 작성되었습니다.",
     launchApprovalRejected: "거절이 기록되고 영수증이 작성되었습니다.",

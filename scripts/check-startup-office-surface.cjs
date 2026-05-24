@@ -70,6 +70,10 @@ assertIncludes(
 
 assertNotIncludes("web/src/lib/constants.ts", 'id: "tasks"');
 assertNotIncludes("web/src/lib/constants.ts", 'name: "Projects"');
+assertIncludes(
+  "web/src/components/startup-office/startupOfficeCopy.ts",
+  "paid beta",
+);
 
 assertNotMatchesInSegment(
   "web/src/lib/i18n.ts",
@@ -81,7 +85,12 @@ assertNotMatchesInSegment(
     { label: "auth/invite copy mentions personal CLI", pattern: /personal cli/i },
     { label: "auth/invite copy mentions GitHub", pattern: /github/i },
     { label: "auth/invite copy mentions LAF Bridge", pattern: /laf bridge/i },
+    { label: "auth/invite copy is connector-first", pattern: /connector/i },
     { label: "auth/invite copy mentions 프로젝트", pattern: /프로젝트/ },
+    {
+      label: "auth/invite copy overpromises full autonomy",
+      pattern: /fully autonomous|runs your company while you sleep/i,
+    },
   ],
 );
 
@@ -92,6 +101,10 @@ assertNotMatchesInSegment(
   [
     { label: "Korean auth/invite copy mentions 프로젝트", pattern: /프로젝트/ },
     { label: "Korean auth/invite copy mentions Bridge", pattern: /Bridge/ },
+    {
+      label: "Korean auth/invite copy overpromises full autonomy",
+      pattern: /완전\s*자율|자는 동안.*회사/i,
+    },
   ],
 );
 
@@ -104,7 +117,30 @@ assertQuotedStringsNotMatch(
     { label: "onboarding visible copy mentions GitHub", pattern: /github/i },
     { label: "onboarding visible copy mentions Bridge", pattern: /bridge/i },
     { label: "onboarding visible copy mentions local runner", pattern: /local runner/i },
+    { label: "onboarding visible copy is connector-first", pattern: /connector/i },
+    { label: "onboarding visible copy mentions integrations", pattern: /integration/i },
     { label: "onboarding visible copy mentions 프로젝트", pattern: /프로젝트/ },
+    {
+      label: "onboarding visible copy overpromises full autonomy",
+      pattern: /fully autonomous|runs your company while you sleep/i,
+    },
+  ],
+);
+
+assertQuotedStringsNotMatch(
+  "web/src/components/startup-office/startupOfficeCopy.ts",
+  "export const STARTUP_OFFICE_WEDGE_COPY",
+  "export type StartupOfficeCopyLanguage",
+  [
+    { label: "Startup Office wedge copy mentions LAF Bridge", pattern: /laf bridge/i },
+    { label: "Startup Office wedge copy mentions project/task model", pattern: /project\/task/i },
+    { label: "Startup Office wedge copy mentions GitHub", pattern: /github/i },
+    { label: "Startup Office wedge copy is connector-first", pattern: /connector/i },
+    { label: "Startup Office wedge copy mentions integrations", pattern: /integration/i },
+    {
+      label: "Startup Office wedge copy overpromises full autonomy",
+      pattern: /fully autonomous|runs your company while you sleep/i,
+    },
   ],
 );
 

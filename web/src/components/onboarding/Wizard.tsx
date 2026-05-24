@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { get, post } from "../../api/client";
 import type { Language } from "../../stores/app";
 import { useAppStore } from "../../stores/app";
+import { STARTUP_OFFICE_WEDGE_COPY } from "../startup-office/startupOfficeCopy";
 import { Kbd, MOD_KEY } from "../ui/Kbd";
 import "../../styles/onboarding.css";
 
@@ -191,8 +192,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     welcome: {
       eyebrow: "Ready to set up",
       headline: "Create your AI Startup Office and keep control.",
-      subhead:
-        "Start with one company workspace for validation, marketing, sales, operations, approvals, and company memory.",
+      subhead: STARTUP_OFFICE_WEDGE_COPY.en.onboardingSubhead,
       cta: "Open company setup",
     },
     templates: {
@@ -210,8 +210,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         ceo: "Orchestrates priorities, business decisions, and weekly reviews.",
         fe: "Drafts landing pages, customer-facing assets, and content.",
         be: "Maintains operating loops, records, metrics, and assets.",
-        reviewer:
-          "Checks claims, approvals, risks, and founder-control gates.",
+        reviewer: "Checks claims, approvals, risks, and founder-control gates.",
       },
       categories: {
         project: {
@@ -229,7 +228,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       descriptionPlaceholder:
         "What customer, problem, offer, or operating goal should this office own?",
       priorityLabel: "Top priority right now",
-      priorityPlaceholder: "Validate paid demand and draft the first launch assets",
+      priorityPlaceholder:
+        "Validate paid demand and draft the first launch assets",
       next: "Name operators",
     },
     task: {
@@ -280,8 +280,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     welcome: {
       eyebrow: "설정 준비 완료",
       headline: "창업자가 통제하는 AI Startup Office를 만듭니다.",
-      subhead:
-        "검증, 마케팅, 세일즈, 운영, 승인, 회사 메모리를 담는 하나의 회사 워크스페이스로 시작합니다.",
+      subhead: STARTUP_OFFICE_WEDGE_COPY.ko.onboardingSubhead,
       cta: "회사 설정 열기",
     },
     templates: {
@@ -324,7 +323,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       title: "어떤 운영 루프를 먼저 실행할까요?",
       subhead:
         "첫 루프를 직접 입력하거나 시작 방식이 제안한 순서에서 고르세요.",
-      placeholder: "예: 아이디어 검증을 실행하고 첫 100명 고객 계획 초안 만들기",
+      placeholder:
+        "예: 아이디어 검증을 실행하고 첫 100명 고객 계획 초안 만들기",
       newLineHint: "줄바꿈",
       reviewSetupHint: "설정 검토",
       suggestions: "추천 런치 순서",
@@ -340,7 +340,8 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     },
     readiness: {
       sessionLabel: "브라우저 세션",
-      sessionReady: "클라우드 워크스페이스 세션입니다. 로컬 실행기가 필요하지 않습니다.",
+      sessionReady:
+        "클라우드 워크스페이스 세션입니다. 로컬 실행기가 필요하지 않습니다.",
       memoryLabel: "회사 위키",
       memoryMarkdown:
         "회사 목표, 결정, 승인, 자산, 루프 기록을 위키에 저장합니다.",
