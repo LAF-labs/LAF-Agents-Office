@@ -602,6 +602,7 @@ test("hosted commands expose hosted-safe slash command registry", async (t) => {
     "fix-bug",
     "focus",
     "collab",
+    "cancel",
     "pause",
     "provider",
     "resume",

@@ -40,7 +40,9 @@ describe("AppList Startup Office navigation", () => {
   it("shows cloud operating surfaces without project/task navigation", () => {
     renderAppList();
 
-    expect(screen.getByRole("button", { name: "Growth Center" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Startup Office" }),
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Command" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Assets" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Receipts" })).toBeVisible();

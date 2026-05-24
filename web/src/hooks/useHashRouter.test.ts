@@ -14,8 +14,8 @@ const baseState = {
   wikiPath: null,
 };
 
-describe("useHashRouter project routes", () => {
-  it("uses Growth Center as the default route", () => {
+describe("useHashRouter workspace routes", () => {
+  it("uses Startup Office as the default route", () => {
     expect(__test__.parseHash("")).toEqual({ view: "app", app: "growth" });
     expect(__test__.parseHash("#/home")).toEqual({
       view: "app",

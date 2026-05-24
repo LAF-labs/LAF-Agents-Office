@@ -41,15 +41,15 @@ Status values: `Complete`, `In progress`, `Not started`, `Blocked`.
 | G026 | Complete | Add receipts API. | `GET /startup-office/receipts` returns run receipts. | `api/[...path].js`, `api/hosted-api.test.js` |
 | G027 | Complete | Add Growth Center summary API. | `GET /startup-office/growth-summary` returns profile, loops, runs, approvals, receipts, and pulse counts. | `api/[...path].js`, `api/hosted-api.test.js` |
 | G028 | Complete | Stop onboarding from seeding projects and tasks. | Hosted onboarding seeds Startup Office loops and receipt instead of project/task records. | `api/[...path].js`, `api/hosted-api.test.js` |
-| G029 | Complete | Remove task and provider slash commands from hosted autocomplete. | Hosted command registry exposes growth, loops, approvals, receipts and hides task/provider commands. | `api/[...path].js`, `api/hosted-api.test.js` |
+| G029 | Complete | Remove task and provider slash commands from hosted autocomplete. | Hosted command registry exposes growth, loops, approvals, receipts and hides task/provider commands. | `api/[...path].js`, `api/hosted-api.test.js`, `web/src/hooks/useCommands.ts` |
 | G030 | Complete | Add backend regression coverage for Startup Office core flow. | Node test covers profile patch, loop run, approval, receipt, and growth summary. | `api/hosted-api.test.js` |
 | G031 | Complete | Keep legacy hosted API tests passing after backend pivot. | Full `node --test api/hosted-api.test.js` passes. | local verification |
 | G032 | Complete | Define exactly 100 closed-beta readiness goals. | This document has unique sequential goals from G001 to G100. | `docs/specs/CLOSED-BETA-100-GOALS.md` |
 | G033 | Complete | Add a machine check for the 100-goal roadmap. | Script validates count, IDs, statuses, and non-empty evidence for completed goals. | `scripts/check-closed-beta-goals.cjs` |
-| G034 | Not started | Implement frontend data fetching for Growth Center summary. | Growth Center reads live `/startup-office/growth-summary` data instead of static launch copy. | pending |
+| G034 | Complete | Implement frontend data fetching for Growth Center summary. | Startup Office reads live `/startup-office/growth-summary` data with static fallback. | `web/src/components/apps/SkillsApp.tsx`, `web/src/api/client.ts`, `web/src/components/apps/SkillsApp.test.tsx` |
 | G035 | Not started | Implement frontend company profile editor. | Founder can edit ICP, offer, positioning, stage, and priority from hosted UI. | pending |
-| G036 | Not started | Implement frontend loop run button. | Founder can start a beta loop from Growth Center and see the created run. | pending |
-| G037 | Not started | Implement frontend approval queue. | Founder can approve or reject pending actions from a dedicated approval UI. | pending |
+| G036 | Complete | Implement frontend loop run button. | Founder can start a beta loop from Startup Office and refresh the run/approval/receipt state. | `web/src/components/apps/SkillsApp.tsx`, `web/src/components/apps/SkillsApp.test.tsx` |
+| G037 | Complete | Implement frontend approval queue. | Founder can approve or reject pending actions from the Startup Office Approval Desk. | `web/src/components/apps/SkillsApp.tsx`, `web/src/components/apps/SkillsApp.test.tsx` |
 | G038 | Not started | Implement frontend receipt timeline. | Receipts app reads Startup Office receipts instead of legacy agent logs only. | pending |
 | G039 | Not started | Implement run detail view. | Founder can inspect objective, inputs, draft artifact, approval, and receipt trace for a run. | pending |
 | G040 | Not started | Implement artifact viewer. | Drafts, reports, messages, and wiki updates render with copy and export actions. | pending |

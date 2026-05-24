@@ -34,6 +34,11 @@ export interface SlashCommand {
  */
 export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/ask", desc: "Ask the team lead", icon: "ask" },
+  {
+    name: "/approvals",
+    desc: "Review founder approval queue",
+    icon: "approvals",
+  },
   { name: "/lookup", desc: "Cited answer from the team wiki", icon: "lookup" },
   {
     name: "/lint",
@@ -46,7 +51,9 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/clear", desc: "Clear messages", icon: "clear" },
   { name: "/reset", desc: "Reset the workspace", icon: "reset" },
   { name: "/tasks", desc: "Open task board", icon: "tasks" },
-  { name: "/growth", desc: "Open Growth Center", icon: "growth" },
+  { name: "/growth", desc: "Open Startup Office", icon: "growth" },
+  { name: "/loops", desc: "Open operating loops", icon: "loops" },
+  { name: "/receipts", desc: "Open run receipts", icon: "receipts" },
   { name: "/requests", desc: "Open requests", icon: "requests" },
   { name: "/1o1", desc: "1:1 with agent", icon: "1o1" },
   { name: "/task", desc: "Task actions", icon: "task" },
@@ -102,17 +109,16 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
 const HOSTED_FALLBACK_COMMAND_NAMES = new Set([
   "/1o1",
   "/ask",
-  "/cancel",
+  "/approvals",
   "/clear",
   "/growth",
   "/help",
-  "/provider",
+  "/loops",
   "/remember",
+  "/receipts",
   "/requests",
   "/search",
   "/skills",
-  "/task",
-  "/tasks",
   "/threads",
 ]);
 
@@ -133,6 +139,7 @@ const HOSTED_COMMAND_NAMES = new Set(
  */
 const COMMAND_ICONS: Record<string, string> = {
   ask: "ask",
+  approvals: "approvals",
   lookup: "lookup",
   lint: "lint",
   search: "search",
@@ -142,6 +149,8 @@ const COMMAND_ICONS: Record<string, string> = {
   reset: "reset",
   tasks: "tasks",
   growth: "growth",
+  loops: "loops",
+  receipts: "receipts",
   requests: "requests",
   "1o1": "1o1",
   task: "task",
@@ -167,6 +176,7 @@ const DEFERRED_WEB_COMMANDS = new Set(["calendar", "policies", "recover"]);
 
 const COMMAND_DESCRIPTIONS_KO: Record<string, string> = {
   ask: "팀 리드에게 묻기",
+  approvals: "창업자 승인 대기열 검토",
   lookup: "팀 위키에서 근거 있는 답변 찾기",
   lint: "위키의 모순, 오래된 사실, 끊긴 참조 점검",
   search: "메시지와 지식 검색",
@@ -175,7 +185,9 @@ const COMMAND_DESCRIPTIONS_KO: Record<string, string> = {
   clear: "메시지 비우기",
   reset: "워크스페이스 초기화",
   tasks: "작업 보드 열기",
-  growth: "성장 센터 열기",
+  growth: "스타트업 오피스 열기",
+  loops: "운영 루프 열기",
+  receipts: "실행 영수증 열기",
   requests: "요청함 열기",
   "1o1": "에이전트와 1:1 대화",
   task: "작업 상태 변경",

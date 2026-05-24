@@ -1312,15 +1312,21 @@ html[data-theme="office"]
   grid-row: span 2;
 }
 .startup-office-pulse-list,
+.startup-office-status-strip,
 .startup-approval-list,
 .startup-receipt-list {
   display: grid;
   gap: 10px;
   padding: 14px 16px 16px;
 }
+.startup-office-status-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding-bottom: 0;
+}
 .startup-pulse-datum,
 .startup-approval-row,
 .startup-loop-card,
+.startup-approval-empty,
 .startup-next-action {
   min-width: 0;
   border: 1px solid var(--border-light);
@@ -1333,8 +1339,10 @@ html[data-theme="office"]
   padding: 12px;
 }
 .startup-pulse-datum span,
-.startup-loop-card span,
+.startup-loop-meta span,
 .startup-approval-row span,
+.startup-approval-empty,
+.startup-receipt-list span,
 .startup-next-action span {
   color: var(--text-tertiary);
   font-size: 12px;
@@ -1358,8 +1366,20 @@ html[data-theme="office"]
   gap: 12px;
   padding: 13px;
 }
+.startup-loop-meta,
+.startup-loop-controls,
+.startup-approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+.startup-loop-meta {
+  margin-bottom: 7px;
+}
 .startup-loop-card strong,
 .startup-approval-row strong,
+.startup-receipt-list strong,
 .startup-next-action strong {
   display: block;
   color: var(--text-primary);
@@ -1372,7 +1392,7 @@ html[data-theme="office"]
   font-size: 12px;
   line-height: 1.45;
 }
-.startup-loop-card span {
+.startup-loop-controls > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1385,9 +1405,50 @@ html[data-theme="office"]
   padding: 3px 8px;
   white-space: nowrap;
 }
+.startup-office-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--text-primary);
+  color: var(--bg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 760;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+.startup-office-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 84%, var(--accent));
+}
+.startup-office-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.startup-office-action.is-secondary {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
 .startup-approval-row {
   display: grid;
   gap: 5px;
+  padding: 12px;
+}
+.startup-approval-heading {
+  display: grid;
+  gap: 4px;
+}
+.startup-approval-row p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.startup-approval-empty {
   padding: 12px;
 }
 .startup-receipt-list {
@@ -1414,6 +1475,10 @@ html[data-theme="office"]
   border: 2px solid var(--accent);
   border-radius: 50%;
   background: var(--bg-card);
+}
+.startup-receipt-list li {
+  display: grid;
+  gap: 3px;
 }
 .startup-next-action {
   display: grid;
@@ -1997,7 +2062,8 @@ html[data-theme="office"]
   .skills-loop,
   .skills-metric-strip,
   .skills-dashboard-grid,
-  .startup-office-grid {
+  .startup-office-grid,
+  .startup-office-status-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .skills-metric:nth-child(2n) {
@@ -2023,6 +2089,7 @@ html[data-theme="office"]
   .skills-editor-grid,
   .skills-budget-grid,
   .startup-office-grid,
+  .startup-office-status-strip,
   .startup-loop-list {
     grid-template-columns: 1fr;
   }

@@ -141,7 +141,10 @@ type SlashCommandHandler = (
 ) => boolean;
 
 const APP_COMMANDS: Record<string, string> = {
+  "/approvals": "growth",
   "/growth": "growth",
+  "/loops": "growth",
+  "/receipts": "receipts",
   "/requests": "requests",
   "/skills": "skills",
   "/tasks": "tasks",

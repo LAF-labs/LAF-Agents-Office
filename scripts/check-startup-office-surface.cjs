@@ -113,10 +113,10 @@ assertNotMatchesInSegment(
   "const SKILLS_COPY",
   "function useSkillsCopy",
   [
-    { label: "Growth Center copy mentions LAF Bridge", pattern: /laf bridge/i },
-    { label: "Growth Center copy mentions Projects", pattern: /projects/i },
-    { label: "Growth Center copy mentions Tasks", pattern: /tasks/i },
-    { label: "Growth Center copy mentions GitHub", pattern: /github/i },
+    { label: "Startup Office copy mentions LAF Bridge", pattern: /laf bridge/i },
+    { label: "Startup Office copy mentions Projects", pattern: /projects/i },
+    { label: "Startup Office copy mentions Tasks", pattern: /tasks/i },
+    { label: "Startup Office copy mentions GitHub", pattern: /github/i },
   ],
 );
 

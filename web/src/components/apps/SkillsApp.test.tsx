@@ -13,11 +13,15 @@ import { useAppStore } from "../../stores/app";
 import { __test__, GrowthCenterApp, SkillsApp } from "./SkillsApp";
 
 const apiMocks = vi.hoisted(() => ({
+  approveStartupOfficeApproval: vi.fn(),
   createSkill: vi.fn(),
   deleteSkill: vi.fn(),
   getSkills: vi.fn(),
+  getStartupOfficeGrowthSummary: vi.fn(),
   getUsage: vi.fn(),
   invokeSkill: vi.fn(),
+  rejectStartupOfficeApproval: vi.fn(),
+  runStartupOfficeLoop: vi.fn(),
   updateSkill: vi.fn(),
 }));
 const notebookMocks = vi.hoisted(() => ({
@@ -56,6 +60,7 @@ function renderSkillsApp() {
 function renderGrowthCenterApp() {
   const queryClient = new QueryClient({
     defaultOptions: {
+      mutations: { retry: false },
       queries: { retry: false },
     },
   });
@@ -86,6 +91,80 @@ function mockSkillsList() {
       },
     ],
   });
+  apiMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
+    company_profile: {
+      icp: "Solo founders selling B2B software",
+      name: "LAF Labs",
+      offer: "AI Startup Office in a box",
+      positioning: "Founder-controlled AI operators",
+      priority: "Validate paid beta demand",
+      stage: "closed_beta",
+    },
+    loops: [
+      {
+        cadence: "manual",
+        department: "Strategy",
+        id: "idea-validation",
+        name: "Idea Validation",
+        objective: "Find the first paid beta buyer segment.",
+        policy: { founder_approval_required: true },
+        slug: "idea-validation",
+        status: "active",
+      },
+      {
+        cadence: "weekly",
+        department: "Operations",
+        id: "weekly-operator-review",
+        name: "Weekly Operator Review",
+        objective: "Summarize signals, decisions, receipts, and next loops.",
+        policy: { founder_approval_required: true },
+        slug: "weekly-operator-review",
+        status: "active",
+      },
+    ],
+    pending_approvals: [
+      {
+        action: "approve_loop_draft",
+        details: "Founder control gate before publishing public claims.",
+        id: "approval-1",
+        metadata: { loop_slug: "idea-validation" },
+        requested_at: "2026-05-24T00:00:00Z",
+        risk_level: "medium",
+        run_id: "run-1",
+        status: "pending",
+        title: "Approve Idea Validation draft",
+      },
+    ],
+    pulse: {
+      active_loops: 2,
+      pending_approvals: 1,
+      recent_receipts: 1,
+      recent_runs: 1,
+    },
+    recent_receipts: [
+      {
+        actor_slug: "ceo",
+        created_at: "2026-05-24T00:00:00Z",
+        event_type: "run.created",
+        id: "receipt-1",
+        run_id: "run-1",
+        summary: "Idea Validation run drafted and queued for founder approval.",
+        trace: { loop_slug: "idea-validation" },
+      },
+    ],
+    recent_runs: [
+      {
+        created_at: "2026-05-24T00:00:00Z",
+        id: "run-1",
+        objective: "Find the first paid beta buyer segment.",
+        status: "waiting_approval",
+        title: "Idea Validation",
+      },
+    ],
+  });
+  apiMocks.runStartupOfficeLoop.mockResolvedValue({});
+  apiMocks.approveStartupOfficeApproval.mockResolvedValue({});
+  apiMocks.rejectStartupOfficeApproval.mockResolvedValue({});
   apiMocks.getUsage.mockResolvedValue({});
   notebookMocks.fetchCatalog.mockResolvedValue({
     agents: [],
@@ -214,6 +293,9 @@ describe("GrowthCenterApp startup office surface", () => {
     const { container } = renderGrowthCenterApp();
 
     expect(
+      await screen.findByRole("heading", { name: "Startup Office" }),
+    ).toBeInTheDocument();
+    expect(
       await screen.findByRole("heading", { name: "Company pulse" }),
     ).toBeInTheDocument();
     expect(
@@ -225,15 +307,52 @@ describe("GrowthCenterApp startup office surface", () => {
     expect(
       screen.getByRole("heading", { name: "Receipts and trace" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("LAF Labs")).toBeInTheDocument();
+    expect(screen.getByText("Validate paid beta demand")).toBeInTheDocument();
     expect(screen.getByText("Idea Validation")).toBeInTheDocument();
-    expect(screen.getByText("First 100 Customers")).toBeInTheDocument();
+    expect(screen.getByText("Weekly Operator Review")).toBeInTheDocument();
     expect(
-      screen.getByText("No ad spend or off-session usage in the MVP."),
+      screen.getAllByText("Approve Idea Validation draft").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        "Idea Validation run drafted and queued for founder approval.",
+      ),
     ).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("LAF Bridge");
     expect(container.textContent).not.toContain("Projects");
     expect(container.textContent).not.toContain("Tasks");
+  });
+
+  it("runs loops and decisions through the Startup Office API", async () => {
+    const user = userEvent.setup();
+    renderGrowthCenterApp();
+
+    await screen.findByText("LAF Labs");
+    await user.click(
+      screen.getByRole("button", { name: "Run Idea Validation loop" }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.runStartupOfficeLoop).toHaveBeenCalledWith(
+        "idea-validation",
+        { objective: "Find the first paid beta buyer segment." },
+      ),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Approve Idea Validation draft",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.approveStartupOfficeApproval).toHaveBeenCalledWith(
+        "approval-1",
+        { note: "Approved from Startup Office." },
+      ),
+    );
   });
 });
 

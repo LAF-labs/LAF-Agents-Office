@@ -128,6 +128,7 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
   it("covers every command the composer handler currently implements", () => {
     const expected = [
       "/ask",
+      "/approvals",
       "/lookup",
       "/lint",
       "/search",
@@ -137,6 +138,8 @@ describe("FALLBACK_SLASH_COMMANDS", () => {
       "/reset",
       "/tasks",
       "/growth",
+      "/loops",
+      "/receipts",
       "/requests",
       "/1o1",
       "/task",
@@ -226,17 +229,16 @@ describe("HOSTED_FALLBACK_SLASH_COMMANDS", () => {
       [
         "/1o1",
         "/ask",
-        "/cancel",
+        "/approvals",
         "/clear",
         "/growth",
         "/help",
-        "/provider",
+        "/loops",
         "/remember",
+        "/receipts",
         "/requests",
         "/search",
         "/skills",
-        "/task",
-        "/tasks",
         "/threads",
       ].sort(sortText),
     );
