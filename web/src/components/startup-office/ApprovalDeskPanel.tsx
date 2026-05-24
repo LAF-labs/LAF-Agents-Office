@@ -15,7 +15,9 @@ interface ApprovalDeskPanelProps {
   isBusy: boolean;
   onApprove: (approval: StartupOfficeApproval) => void;
   onReject: (approval: StartupOfficeApproval) => void;
+  onRevise: (approval: StartupOfficeApproval) => void;
   rejectingID?: string | null;
+  revisingID?: string | null;
 }
 
 export function ApprovalDeskPanel({
@@ -25,7 +27,9 @@ export function ApprovalDeskPanel({
   isBusy,
   onApprove,
   onReject,
+  onRevise,
   rejectingID,
+  revisingID,
 }: ApprovalDeskPanelProps) {
   return (
     <section className="skills-panel startup-office-trust">
@@ -38,6 +42,7 @@ export function ApprovalDeskPanel({
           approvals.map((approval) => {
             const isApproving = approvingID === approval.id;
             const isRejecting = rejectingID === approval.id;
+            const isRevising = revisingID === approval.id;
             return (
               <div className="startup-approval-row" key={approval.id}>
                 <div className="startup-approval-heading">
@@ -77,6 +82,19 @@ export function ApprovalDeskPanel({
                   >
                     <XmarkCircle aria-hidden={true} height={13} width={13} />
                     {isRejecting ? copy.rejecting : copy.reject}
+                  </button>
+                  <button
+                    type="button"
+                    className="startup-office-action is-secondary"
+                    aria-label={approvalActionLabel(
+                      copy.revise,
+                      approval.title,
+                    )}
+                    disabled={isBusy}
+                    onClick={() => onRevise(approval)}
+                  >
+                    <XmarkCircle aria-hidden={true} height={13} width={13} />
+                    {isRevising ? copy.revising : copy.revise}
                   </button>
                 </div>
               </div>

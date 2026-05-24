@@ -14,6 +14,7 @@ questions.
 | Phase 4: Cloud AI Loop Execution | 91 | 90 | 75 | Idea Validation and sibling loops now run through a cloud AI worker boundary with model provider config, structured templates, quality checks, async job state, receipts, run detail, failure state, retry/cancel, and cost metadata. |
 | Phase 5: Company Memory And Retrieval | 93 | 90 | 80 | Approved outputs now promote into canonical company memory pages with provenance, sources, assumptions, memory diffs, UI preview, and retrieval into future AI runs. |
 | Phase 6: Business Operations Objects | 93 | 90 | 84 | Assets, customers, metrics, and signals are now first-party Startup Office objects with CRUD, artifact actions, export, summary counts, and UI visibility. |
+| Phase 7: Trust And Approval Policy | 94 | 90 | 88 | Founder control now has an approval policy API, citation requirement defaults, visible support access policy, revision request flow, audit events, and UI revision controls. |
 
 ## Phase 1 Evidence
 
@@ -91,3 +92,13 @@ questions.
 - Startup Office summary includes recent object counts, and the UI shows an Operating Objects panel.
 - Hosted API tests cover CRUD, archive, artifact-to-object actions, and export.
 - Startup Office UI tests verify object counts are visible in the main cloud office surface.
+
+## Phase 7 Evidence
+
+- `GET/PATCH /startup-office/policy` exposes founder approval policy defaults and workspace-level overrides.
+- Default policy requires founder approval for public claims, outbound messages, pricing changes, customer promises, spend, and legal-sensitive language.
+- Public-claim citation requirements are enabled by default, and support access is visible, logged, and time-bound in policy state.
+- Approval actions now support `revise`, storing a `revision_requested` approval state, queued run state, revision note metadata, receipt, and audit event.
+- Startup Office UI now offers Approve, Reject, and Revise controls on pending approvals.
+- Hosted API tests cover policy read/update and revision request behavior.
+- Startup Office UI tests cover the revision request call path.

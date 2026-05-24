@@ -159,6 +159,17 @@ export interface StartupOfficeGrowthSummary {
   recent_runs: StartupOfficeRun[];
 }
 
+export interface StartupOfficeApprovalPolicy {
+  founder_approval_required: Record<string, boolean>;
+  require_citations_for_public_claims: boolean;
+  revision_enabled: boolean;
+  support_access: {
+    logged: boolean;
+    time_bound_hours: number;
+    visible_to_owner: boolean;
+  };
+}
+
 export interface StartupOfficeCompanyProfileUpdate {
   icp?: string;
   name?: string;
@@ -244,6 +255,34 @@ export function rejectStartupOfficeApproval(
   }>(
     `/startup-office/approvals/${encodeURIComponent(approvalID)}/reject`,
     body ?? {},
+  );
+}
+
+export function reviseStartupOfficeApproval(
+  approvalID: string,
+  body?: { revision_note?: string },
+) {
+  return post<{
+    approval?: StartupOfficeApproval | null;
+    receipt?: StartupOfficeReceipt | null;
+    run?: StartupOfficeRun | null;
+    status?: string;
+  }>(
+    `/startup-office/approvals/${encodeURIComponent(approvalID)}/revise`,
+    body ?? {},
+  );
+}
+
+export function getStartupOfficeApprovalPolicy() {
+  return get<{ policy: StartupOfficeApprovalPolicy }>("/startup-office/policy");
+}
+
+export function updateStartupOfficeApprovalPolicy(
+  policy: Partial<StartupOfficeApprovalPolicy>,
+) {
+  return patchJSON<{ policy: StartupOfficeApprovalPolicy }>(
+    "/startup-office/policy",
+    { policy },
   );
 }
 

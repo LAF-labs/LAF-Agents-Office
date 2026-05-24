@@ -10,6 +10,7 @@ const startupOfficeMocks = vi.hoisted(() => ({
   approveStartupOfficeApproval: vi.fn(),
   getStartupOfficeGrowthSummary: vi.fn(),
   rejectStartupOfficeApproval: vi.fn(),
+  reviseStartupOfficeApproval: vi.fn(),
   runStartupOfficeLoop: vi.fn(),
   updateStartupOfficeCompanyProfile: vi.fn(),
 }));
@@ -179,6 +180,7 @@ function mockStartupOfficeSummary() {
   });
   startupOfficeMocks.approveStartupOfficeApproval.mockResolvedValue({});
   startupOfficeMocks.rejectStartupOfficeApproval.mockResolvedValue({});
+  startupOfficeMocks.reviseStartupOfficeApproval.mockResolvedValue({});
   startupOfficeMocks.updateStartupOfficeCompanyProfile.mockResolvedValue({
     profile: { name: "Updated Labs" },
   });
@@ -287,6 +289,18 @@ describe("StartupOfficeApp", () => {
         startupOfficeMocks.approveStartupOfficeApproval,
       ).toHaveBeenCalledWith("approval-1", {
         note: "Approved from Startup Office.",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Revise Idea Validation draft",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        startupOfficeMocks.reviseStartupOfficeApproval,
+      ).toHaveBeenCalledWith("approval-1", {
+        revision_note: "Revision requested from Startup Office.",
       }),
     );
 

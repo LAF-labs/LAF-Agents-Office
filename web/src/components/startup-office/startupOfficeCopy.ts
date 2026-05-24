@@ -117,8 +117,10 @@ export const STARTUP_OFFICE_APP_COPY = {
     },
     approve: "Approve",
     reject: "Reject",
+    revise: "Revise",
     approving: "Approving",
     rejecting: "Rejecting",
+    revising: "Revising",
     receiptsTitle: "Receipts and trace",
     receiptsDescription:
       "Every run should leave proof the founder can inspect or export.",
@@ -175,6 +177,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     runQueued: "AI loop finished and is waiting for founder approval.",
     approvalApproved: "Approval recorded and receipt written.",
     approvalRejected: "Rejection recorded and receipt written.",
+    approvalRevisionRequested: "Revision request recorded and receipt written.",
     actionFailed: (message: string) =>
       `Startup Office action failed: ${message}`,
   },
@@ -261,8 +264,10 @@ export const STARTUP_OFFICE_APP_COPY = {
     },
     approve: "승인",
     reject: "거절",
+    revise: "수정 요청",
     approving: "승인 중",
     rejecting: "거절 중",
+    revising: "요청 중",
     receiptsTitle: "영수증과 추적",
     receiptsDescription:
       "모든 실행은 창업자가 확인하고 내보낼 수 있는 증거를 남겨야 합니다.",
@@ -319,6 +324,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     runQueued: "AI 루프가 완료되어 창업자 승인을 기다리고 있습니다.",
     approvalApproved: "승인이 기록되고 영수증이 작성되었습니다.",
     approvalRejected: "거절이 기록되고 영수증이 작성되었습니다.",
+    approvalRevisionRequested: "수정 요청이 기록되고 영수증이 작성되었습니다.",
     actionFailed: (message: string) =>
       `스타트업 오피스 실행에 실패했습니다: ${message}`,
   },

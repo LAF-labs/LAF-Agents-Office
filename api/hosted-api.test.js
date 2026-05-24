@@ -632,6 +632,55 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(summary.body.memory_pages.length, 7);
   assert.equal(summary.body.recent_artifacts.length, 2);
   assert.equal(summary.body.recent_artifacts[0].title, "Idea Validation AI draft");
+
+  const revision = await invoke(
+    ["startup-office", "approvals", secondRun.body.approval.id, "revise"],
+    "POST",
+    { revision_note: "Tighten sources before approval." },
+  );
+  assert.equal(revision.status, 200, JSON.stringify(revision.body));
+  assert.equal(revision.body.approval.status, "revision_requested");
+  assert.equal(revision.body.run.status, "queued");
+  assert.equal(db.startup_office_receipts.at(-1).event_type, "approval.revision_requested");
+});
+
+test("startup office approval policy is visible and updateable by workspace managers", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_settings: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const initial = await invoke(["startup-office", "policy"], "GET");
+  assert.equal(initial.status, 200, JSON.stringify(initial.body));
+  assert.equal(initial.body.policy.founder_approval_required.public_claims, true);
+  assert.equal(initial.body.policy.require_citations_for_public_claims, true);
+
+  const updated = await invoke(["startup-office", "policy"], "PATCH", {
+    policy: {
+      founder_approval_required: { spend: false },
+      require_citations_for_public_claims: false,
+      support_access: { time_bound_hours: 12 },
+    },
+  });
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  assert.equal(updated.body.policy.founder_approval_required.spend, false);
+  assert.equal(updated.body.policy.founder_approval_required.public_claims, true);
+  assert.equal(updated.body.policy.support_access.time_bound_hours, 12);
+  assert.equal(db.workspace_settings[0].preferences.startup_office_approval_policy.require_citations_for_public_claims, false);
 });
 
 test("startup office run lifecycle supports deferred queue, cancel, and retry", async (t) => {

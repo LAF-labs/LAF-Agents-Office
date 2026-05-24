@@ -84,6 +84,23 @@ const PROFILE_AVATAR_IDS = new Set([
   "qa",
   "content",
 ]);
+const DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY = Object.freeze({
+  founder_approval_required: {
+    customer_promises: true,
+    legal_sensitive_language: true,
+    outbound_messages: true,
+    pricing_changes: true,
+    public_claims: true,
+    spend: true,
+  },
+  require_citations_for_public_claims: true,
+  revision_enabled: true,
+  support_access: {
+    logged: true,
+    time_bound_hours: 24,
+    visible_to_owner: true,
+  },
+});
 const WORKSPACE_ROLES = ["owner", "admin", "manager", "member", "viewer"];
 const WORKSPACE_PERMISSIONS = [
   "workspace:read",
@@ -295,6 +312,10 @@ module.exports = async function handler(req, res) {
       await handleStartupOfficeGrowthSummary(req, res);
       return;
     }
+    if (path === "startup-office/policy") {
+      await handleStartupOfficePolicy(req, res);
+      return;
+    }
     if (path === "startup-office/loops" || path === "loops") {
       await handleStartupOfficeLoops(req, res);
       return;
@@ -327,7 +348,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     const startupOfficeApprovalActionMatch = path.match(
-      /^(?:startup-office\/)?approvals\/([^/]+)\/(approve|reject)$/,
+      /^(?:startup-office\/)?approvals\/([^/]+)\/(approve|reject|revise)$/,
     );
     if (startupOfficeApprovalActionMatch && req.method === "POST") {
       await handleStartupOfficeApprovalAction(
@@ -1568,6 +1589,36 @@ function workspaceSettingsPatch(existing, body) {
   return patch;
 }
 
+function startupOfficeApprovalPolicy(settings) {
+  const preferences = objectValue(settings?.preferences);
+  const raw = objectValue(preferences.startup_office_approval_policy);
+  const approvalRequired = objectValue(raw.founder_approval_required);
+  const supportAccess = objectValue(raw.support_access);
+  return {
+    founder_approval_required: {
+      ...DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.founder_approval_required,
+      ...approvalRequired,
+    },
+    require_citations_for_public_claims:
+      raw.require_citations_for_public_claims === undefined
+        ? DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.require_citations_for_public_claims
+        : Boolean(raw.require_citations_for_public_claims),
+    revision_enabled:
+      raw.revision_enabled === undefined
+        ? DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.revision_enabled
+        : Boolean(raw.revision_enabled),
+    support_access: {
+      ...DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.support_access,
+      ...supportAccess,
+      time_bound_hours: clamp(
+        Number(supportAccess.time_bound_hours || DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.support_access.time_bound_hours),
+        1,
+        168,
+      ),
+    },
+  };
+}
+
 function companyProfilePatch(body) {
   const profile = objectValue(body.company_profile);
   const out = { ...profile };
@@ -1791,6 +1842,41 @@ async function handleStartupOfficeLoops(req, res) {
     slug,
   });
   writeJSON(res, 200, { loop: publicStartupOfficeLoop(loop || { ...body, slug }) });
+}
+
+async function handleStartupOfficePolicy(req, res) {
+  const { membership } = await requireUser(req);
+  const settings = await workspaceSettings(membership.team_id);
+  if (req.method === "GET") {
+    requirePermission(membership, "workspace:read");
+    writeJSON(res, 200, {
+      policy: startupOfficeApprovalPolicy(settings),
+    });
+    return;
+  }
+  if (req.method !== "PATCH") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "workspace:manage");
+  const body = await readBody(req);
+  const currentPreferences = objectValue(settings?.preferences);
+  const policy = startupOfficeApprovalPolicy({
+    preferences: {
+      ...currentPreferences,
+      startup_office_approval_policy: body.policy || body,
+    },
+  });
+  const updated = await upsertWorkspaceSettings(membership.team_id, {
+    preferences: {
+      ...currentPreferences,
+      startup_office_approval_policy: policy,
+    },
+  });
+  await writeAuditEvent(membership, "startup_office.policy_updated", "team", membership.team_id, {
+    require_citations_for_public_claims: policy.require_citations_for_public_claims,
+  });
+  writeJSON(res, 200, {
+    policy: startupOfficeApprovalPolicy(updated),
+    status: "ok",
+  });
 }
 
 async function handleStartupOfficeLoopRun(req, res, loopID) {
@@ -2044,6 +2130,7 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
   if (!approval) throw new HTTPError(404, "approval not found");
   if (approval.status !== "pending") throw new HTTPError(409, "approval is already decided");
   const approved = action === "approve";
+  const revisionRequested = action === "revise";
   const now = nowISO();
   const [updatedApproval] = await safeStartupOfficeRest("startup_office_approvals", {
     method: "PATCH",
@@ -2054,14 +2141,19 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
     body: {
       decided_at: now,
       decided_by: membership.user_id,
-      decision_note: truncateText(body.note || body.reason || "", 2000),
-      status: approved ? "approved" : "rejected",
+      decision_note: truncateText(body.note || body.reason || body.revision_note || "", 2000),
+      status: approved ? "approved" : revisionRequested ? "revision_requested" : "rejected",
       updated_at: now,
     },
   });
   let updatedRun = null;
   let memoryPromotion = null;
   if (approval.run_id) {
+    const existingRun = await startupOfficeRepository().findRun(
+      membership.team_id,
+      approval.run_id,
+    );
+    const existingRunMetadata = objectValue(existingRun?.metadata);
     const [run] = await safeStartupOfficeRest("startup_office_runs", {
       method: "PATCH",
       query: {
@@ -2069,11 +2161,21 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
         team_id: `eq.${membership.team_id}`,
       },
       body: {
-        completed_at: now,
-        status: approved ? "completed" : "canceled",
+        completed_at: revisionRequested ? null : now,
+        metadata: revisionRequested
+          ? {
+              ...existingRunMetadata,
+              revision_note: truncateText(body.note || body.reason || body.revision_note || "", 2000),
+              revision_requested_at: now,
+              revision_requested_by: membership.user_id,
+            }
+          : existingRunMetadata,
+        status: approved ? "completed" : revisionRequested ? "queued" : "canceled",
         summary: approved
           ? "Founder approved the drafted loop output."
-          : "Founder rejected the drafted loop output.",
+          : revisionRequested
+            ? "Founder requested a revision before approval."
+            : "Founder rejected the drafted loop output.",
         updated_at: now,
       },
     });
@@ -2101,18 +2203,33 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
   const receipt = await createStartupOfficeReceipt(membership, {
     actor_slug: "founder",
     approval_id: approval.id,
-    event_type: approved ? "approval.approved" : "approval.rejected",
+    event_type: approved
+      ? "approval.approved"
+      : revisionRequested
+        ? "approval.revision_requested"
+        : "approval.rejected",
     run_id: approval.run_id || null,
     summary: approved
       ? "Founder approved the pending Startup Office action."
-      : "Founder rejected the pending Startup Office action.",
+      : revisionRequested
+        ? "Founder requested a revised Startup Office artifact."
+        : "Founder rejected the pending Startup Office action.",
     trace: {
       approval_id: approval.id,
-      decision_note: truncateText(body.note || body.reason || "", 500),
+      decision_note: truncateText(body.note || body.reason || body.revision_note || "", 500),
       memory_pages: memoryPromotion?.pages?.map((page) => page.slug) || [],
     },
   });
-  await writeAuditEvent(membership, approved ? "startup_office.approved" : "startup_office.rejected", "approval", approval.id);
+  await writeAuditEvent(
+    membership,
+    approved
+      ? "startup_office.approved"
+      : revisionRequested
+        ? "startup_office.revision_requested"
+        : "startup_office.rejected",
+    "approval",
+    approval.id,
+  );
   writeJSON(res, 200, {
     approval: publicStartupOfficeApproval(updatedApproval || approval),
     memory_diff: memoryPromotion?.diff || null,

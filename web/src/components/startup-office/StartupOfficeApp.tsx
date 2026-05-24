@@ -5,6 +5,7 @@ import {
   approveStartupOfficeApproval,
   getStartupOfficeGrowthSummary,
   rejectStartupOfficeApproval,
+  reviseStartupOfficeApproval,
   runStartupOfficeLoop,
   type StartupOfficeApproval,
   type StartupOfficeArtifact,
@@ -99,6 +100,20 @@ export function StartupOfficeApp() {
         reason: "Rejected from Startup Office.",
       }),
     onSuccess: () => {
+      showNotice(copy.approvalRevisionRequested, "success");
+      void refreshSummary();
+    },
+    onError: (error: Error) => {
+      showNotice(copy.actionFailed(error.message), "error");
+    },
+  });
+
+  const reviseMutation = useMutation({
+    mutationFn: (approval: StartupOfficeApproval) =>
+      reviseStartupOfficeApproval(approval.id, {
+        revision_note: "Revision requested from Startup Office.",
+      }),
+    onSuccess: () => {
       showNotice(copy.approvalRejected, "success");
       void refreshSummary();
     },
@@ -154,10 +169,16 @@ export function StartupOfficeApp() {
           approvals={summary.pending_approvals}
           approvingID={approveMutation.variables?.id ?? null}
           copy={copy}
-          isBusy={approveMutation.isPending || rejectMutation.isPending}
+          isBusy={
+            approveMutation.isPending ||
+            rejectMutation.isPending ||
+            reviseMutation.isPending
+          }
           onApprove={(approval) => approveMutation.mutate(approval)}
           onReject={(approval) => rejectMutation.mutate(approval)}
+          onRevise={(approval) => reviseMutation.mutate(approval)}
           rejectingID={rejectMutation.variables?.id ?? null}
+          revisingID={reviseMutation.variables?.id ?? null}
         />
         <CompanyProfilePanel
           copy={copy}
