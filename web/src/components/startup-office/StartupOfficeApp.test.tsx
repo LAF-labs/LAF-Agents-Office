@@ -42,6 +42,26 @@ function mockStartupOfficeSummary() {
     wikiPath: null,
   });
   startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
+    beta_ops: {
+      billing: {
+        billing_state: "active",
+        monthly_model_spend_cents: 20000,
+        monthly_run_limit: 50,
+        plan: "founder_beta",
+      },
+      limits: {
+        monthly_model_spend_cents: 20000,
+        monthly_run_limit: 50,
+        storage_mb_limit: 1024,
+      },
+      usage: {
+        model_spend_cents: 0,
+        model_spend_percent: 0,
+        run_percent: 4,
+        runs: 2,
+        total_tokens: 3800,
+      },
+    },
     company_profile: {
       icp: "Solo founders selling B2B software",
       name: "LAF Labs",
@@ -216,6 +236,9 @@ describe("StartupOfficeApp", () => {
     expect(
       screen.getByRole("heading", { name: "Operating objects" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Beta operations" }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("LAF Labs")).toBeInTheDocument();
     expect(
       screen.getAllByText("Validate paid beta demand").length,
@@ -230,6 +253,7 @@ describe("StartupOfficeApp", () => {
       screen.getByText("Memory update: Validation Log, Decisions"),
     ).toBeInTheDocument();
     expect(screen.getByText("Assets")).toBeInTheDocument();
+    expect(screen.getByText("2 / 50")).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("LAF Bridge");
     expect(container.textContent).not.toContain("Projects");

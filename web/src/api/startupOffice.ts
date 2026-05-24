@@ -143,6 +143,7 @@ export interface StartupOfficeSignal {
 }
 
 export interface StartupOfficeGrowthSummary {
+  beta_ops?: StartupOfficeBetaOps;
   company_profile: StartupOfficeCompanyProfile;
   loops: StartupOfficeLoop[];
   memory_pages?: StartupOfficeMemoryPage[];
@@ -157,6 +158,27 @@ export interface StartupOfficeGrowthSummary {
   recent_artifacts?: StartupOfficeArtifact[];
   recent_receipts: StartupOfficeReceipt[];
   recent_runs: StartupOfficeRun[];
+}
+
+export interface StartupOfficeBetaOps {
+  billing: {
+    billing_state: string;
+    monthly_model_spend_cents: number;
+    monthly_run_limit: number;
+    plan: string;
+  };
+  limits: {
+    monthly_model_spend_cents: number;
+    monthly_run_limit: number;
+    storage_mb_limit: number;
+  };
+  usage: {
+    model_spend_cents: number;
+    model_spend_percent: number;
+    run_percent: number;
+    runs: number;
+    total_tokens: number;
+  };
 }
 
 export interface StartupOfficeApprovalPolicy {

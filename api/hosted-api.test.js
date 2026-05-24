@@ -340,6 +340,25 @@ test("startup office memory migration defines canonical company memory pages", (
   assert.match(sql, /members can read startup office memory pages/);
 });
 
+test("startup office beta ops migration defines billing limits, usage, and notifications", () => {
+  const sql = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "supabase",
+      "migrations",
+      "20260524030000_startup_office_beta_ops.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /add column if not exists billing_state text not null default 'trial'/);
+  assert.match(sql, /monthly_run_limit integer not null default 50/);
+  assert.match(sql, /monthly_model_spend_cents integer not null default 20000/);
+  assert.match(sql, /create table if not exists public\.startup_office_usage_events\b/);
+  assert.match(sql, /create table if not exists public\.startup_office_notifications\b/);
+  assert.match(sql, /members can read startup office usage events/);
+});
+
 test("channel messages migration defines hosted chat persistence", () => {
   const sql = fs.readFileSync(
     path.join(__dirname, "..", "supabase", "migrations", "20260519010000_channel_messages.sql"),
@@ -513,6 +532,8 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
     startup_office_receipts: [],
     startup_office_runs: [],
     startup_office_worker_jobs: [],
+    startup_office_notifications: [],
+    startup_office_usage_events: [],
     teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
     wiki_article_index: [],
     workspace_settings: [],
@@ -565,6 +586,9 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(db.startup_office_approvals.length, 1);
   assert.equal(db.startup_office_worker_jobs.length, 1);
   assert.equal(db.startup_office_worker_jobs[0].status, "completed");
+  assert.equal(db.startup_office_usage_events.length, 1);
+  assert.equal(db.startup_office_usage_events[0].total_tokens, 1900);
+  assert.equal(db.startup_office_notifications[0].event_type, "approval_waiting");
   assert.equal(db.startup_office_receipts.length, 3);
   assert.deepEqual(
     db.startup_office_receipts.map((receipt) => receipt.event_type),
@@ -630,6 +654,8 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(summary.body.pulse.pending_approvals, 1);
   assert.equal(summary.body.pulse.recent_receipts, 7);
   assert.equal(summary.body.memory_pages.length, 7);
+  assert.equal(summary.body.beta_ops.usage.runs, 2);
+  assert.equal(summary.body.beta_ops.usage.total_tokens, 3800);
   assert.equal(summary.body.recent_artifacts.length, 2);
   assert.equal(summary.body.recent_artifacts[0].title, "Idea Validation AI draft");
 
@@ -681,6 +707,90 @@ test("startup office approval policy is visible and updateable by workspace mana
   assert.equal(updated.body.policy.founder_approval_required.public_claims, true);
   assert.equal(updated.body.policy.support_access.time_bound_hours, 12);
   assert.equal(db.workspace_settings[0].preferences.startup_office_approval_policy.require_citations_for_public_claims, false);
+});
+
+test("startup office billing limits block runs and admin dashboard shows beta ops", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    startup_office_notifications: [
+      {
+        event_type: "run_failed",
+        id: "notification-1",
+        payload: {},
+        status: "pending",
+        team_id: "team-1",
+      },
+    ],
+    startup_office_usage_events: [
+      {
+        cost_cents: 0,
+        event_type: "model_run",
+        id: "usage-1",
+        team_id: "team-1",
+        total_tokens: 100,
+      },
+    ],
+    startup_office_worker_jobs: [
+      {
+        id: "job-1",
+        status: "running",
+        team_id: "team-1",
+      },
+    ],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    workspace_billing: [
+      {
+        billing_state: "active",
+        laf_model_enabled: true,
+        monthly_model_spend_cents: 1000,
+        monthly_run_limit: 1,
+        plan: "founder_beta",
+        storage_mb_limit: 1024,
+        support_notes: "Watch first customer closely",
+        team_id: "team-1",
+      },
+    ],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const billing = await invoke(["startup-office", "billing"], "GET");
+  assert.equal(billing.status, 200, JSON.stringify(billing.body));
+  assert.equal(billing.body.usage.runs, 1);
+  assert.equal(billing.body.usage.run_percent, 100);
+
+  const blocked = await invoke(["startup-office", "loops", "idea-validation", "run"], "POST", {
+    objective: "Should be blocked by run limit",
+  });
+  assert.equal(blocked.status, 402, JSON.stringify(blocked.body));
+  assert.equal(blocked.body.error, "monthly Startup Office run limit reached");
+
+  const updated = await invoke(["startup-office", "billing"], "PATCH", {
+    billing_state: "comped",
+    monthly_run_limit: 10,
+    support_notes: "Founder beta comped for onboarding.",
+  });
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  assert.equal(updated.body.billing.billing_state, "comped");
+  assert.equal(updated.body.billing.monthly_run_limit, 10);
+
+  const dashboard = await invoke(["startup-office", "admin", "beta-dashboard"], "GET");
+  assert.equal(dashboard.status, 200, JSON.stringify(dashboard.body));
+  assert.equal(dashboard.body.dashboard.team.slug, "team-one");
+  assert.equal(dashboard.body.dashboard.stuck_jobs.length, 1);
+  assert.equal(dashboard.body.dashboard.notifications.length, 1);
+  assert.equal(dashboard.body.dashboard.support_notes, "Founder beta comped for onboarding.");
 });
 
 test("startup office run lifecycle supports deferred queue, cancel, and retry", async (t) => {

@@ -1,0 +1,36 @@
+import type { StartupOfficeBetaOps } from "../../api/startupOffice";
+import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
+
+interface BetaOpsPanelProps {
+  betaOps?: StartupOfficeBetaOps;
+  copy: StartupOfficeAppCopy;
+}
+
+export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
+  const billing = betaOps?.billing;
+  const usage = betaOps?.usage;
+  return (
+    <section className="skills-panel startup-office-beta-ops">
+      <div className="skills-section-head">
+        <h3>{copy.betaOpsTitle}</h3>
+        <p>{copy.betaOpsDescription}</p>
+      </div>
+      <dl className="startup-memory-list">
+        <div>
+          <dt>{copy.betaOpsLabels.state}</dt>
+          <dd>{billing?.billing_state || "trial"}</dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.runs}</dt>
+          <dd>
+            {usage?.runs ?? 0} / {billing?.monthly_run_limit ?? 50}
+          </dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.tokens}</dt>
+          <dd>{(usage?.total_tokens ?? 0).toLocaleString()} tokens</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}

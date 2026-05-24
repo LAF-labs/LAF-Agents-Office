@@ -15,6 +15,7 @@ questions.
 | Phase 5: Company Memory And Retrieval | 93 | 90 | 80 | Approved outputs now promote into canonical company memory pages with provenance, sources, assumptions, memory diffs, UI preview, and retrieval into future AI runs. |
 | Phase 6: Business Operations Objects | 93 | 90 | 84 | Assets, customers, metrics, and signals are now first-party Startup Office objects with CRUD, artifact actions, export, summary counts, and UI visibility. |
 | Phase 7: Trust And Approval Policy | 94 | 90 | 88 | Founder control now has an approval policy API, citation requirement defaults, visible support access policy, revision request flow, audit events, and UI revision controls. |
+| Phase 8: Billing, Limits, Admin, And Notifications | 94 | 90 | 91 | Closed-beta operations now have billing state, run/spend limits, usage metering, notification records, an admin beta dashboard, and visible beta usage in the Startup Office UI. |
 
 ## Phase 1 Evidence
 
@@ -31,7 +32,7 @@ questions.
 
 ## Remaining Before 90+
 
-- Add billing, usage limits, admin operations, and release gate.
+- Add release gate and end-to-end quality harness.
 
 ## Phase 2 Evidence
 
@@ -102,3 +103,15 @@ questions.
 - Startup Office UI now offers Approve, Reject, and Revise controls on pending approvals.
 - Hosted API tests cover policy read/update and revision request behavior.
 - Startup Office UI tests cover the revision request call path.
+
+## Phase 8 Evidence
+
+- `workspace_billing` now has beta billing state, run limits, model spend limits, storage limits, and support notes.
+- `startup_office_usage_events` records model run usage, tokens, provider/model, and cost fields.
+- `startup_office_notifications` records approval-waiting and run-failed notification events through a provider-fake path.
+- Startup Office runs are blocked when billing is `past_due`, `paused`, `canceled`, or when monthly run/model-spend limits are exceeded.
+- `GET/PATCH /startup-office/billing` supports manual operator-controlled billing for the first beta.
+- `GET /startup-office/admin/beta-dashboard` gives owners/admins billing state, usage, stuck jobs, pending approvals, notifications, failures, and support notes.
+- Startup Office summary and UI show beta operations state and usage.
+- Hosted API tests cover migration, usage metering, billing limit enforcement, billing updates, and admin dashboard output.
+- Startup Office UI tests verify beta operations state is visible on the main surface.

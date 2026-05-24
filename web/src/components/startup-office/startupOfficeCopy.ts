@@ -155,6 +155,14 @@ export const STARTUP_OFFICE_APP_COPY = {
       metrics: "Metrics",
       signals: "Signals",
     },
+    betaOpsTitle: "Beta operations",
+    betaOpsDescription:
+      "Billing state, run limits, and usage stay visible for closed beta operations.",
+    betaOpsLabels: {
+      runs: "Runs",
+      state: "State",
+      tokens: "Tokens",
+    },
     profileTitle: "Company profile",
     profileDescription:
       "Edit the operating facts every loop should obey: ICP, offer, positioning, stage, and priority.",
@@ -301,6 +309,14 @@ export const STARTUP_OFFICE_APP_COPY = {
       customers: "고객",
       metrics: "지표",
       signals: "신호",
+    },
+    betaOpsTitle: "베타 운영",
+    betaOpsDescription:
+      "클로즈드 베타 운영을 위해 결제 상태, 실행 제한, 사용량을 표시합니다.",
+    betaOpsLabels: {
+      runs: "실행",
+      state: "상태",
+      tokens: "토큰",
     },
     profileTitle: "회사 프로필",
     profileDescription:

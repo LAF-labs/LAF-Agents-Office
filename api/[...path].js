@@ -316,6 +316,14 @@ module.exports = async function handler(req, res) {
       await handleStartupOfficePolicy(req, res);
       return;
     }
+    if (path === "startup-office/billing") {
+      await handleStartupOfficeBilling(req, res);
+      return;
+    }
+    if (path === "startup-office/admin/beta-dashboard" && req.method === "GET") {
+      await handleStartupOfficeBetaDashboard(req, res);
+      return;
+    }
     if (path === "startup-office/loops" || path === "loops") {
       await handleStartupOfficeLoops(req, res);
       return;
@@ -1779,6 +1787,7 @@ async function handleStartupOfficeGrowthSummary(req, res) {
     receipts,
     memoryPages,
     objectSummary,
+    betaOps,
     profile,
   ] = await Promise.all([
     startupOfficeLoops(membership.team_id),
@@ -1791,10 +1800,12 @@ async function handleStartupOfficeGrowthSummary(req, res) {
       limit: 10,
     }),
     startupOfficeObjectSummary(membership.team_id),
+    startupOfficeBetaOpsSnapshot(membership.team_id),
     companyProfileSnapshot(membership.team_id, team, user),
   ]);
   writeJSON(res, 200, {
     company_profile: profile,
+    beta_ops: betaOps,
     loops,
     pulse: {
       active_loops: loops.filter((loop) => loop.status === "active").length,
@@ -1879,9 +1890,70 @@ async function handleStartupOfficePolicy(req, res) {
   });
 }
 
+async function handleStartupOfficeBilling(req, res) {
+  const { membership } = await requireUser(req);
+  if (req.method === "GET") {
+    requirePermission(membership, "workspace:read");
+    writeJSON(res, 200, await startupOfficeBetaOpsSnapshot(membership.team_id));
+    return;
+  }
+  if (req.method !== "PATCH") throw new HTTPError(405, "method not allowed");
+  requireAdminRole(membership, "owner or admin role required for billing changes");
+  const body = await readBody(req);
+  const billing = await upsertStartupOfficeBilling(membership.team_id, {
+    billing_state: startupOfficeBillingStateValue(body.billing_state || body.state),
+    laf_model_enabled: body.laf_model_enabled === undefined ? true : Boolean(body.laf_model_enabled),
+    monthly_model_spend_cents: clamp(Number(body.monthly_model_spend_cents || 20000), 0, 10000000),
+    monthly_run_limit: clamp(Number(body.monthly_run_limit || 50), 0, 100000),
+    plan: truncateText(body.plan || "founder_beta", 80),
+    storage_mb_limit: clamp(Number(body.storage_mb_limit || 1024), 0, 1000000),
+    support_notes: truncateText(body.support_notes || "", 4000),
+  });
+  await writeAuditEvent(membership, "startup_office.billing_updated", "team", membership.team_id, {
+    billing_state: billing.billing_state,
+    monthly_run_limit: billing.monthly_run_limit,
+  });
+  writeJSON(res, 200, await startupOfficeBetaOpsSnapshot(membership.team_id));
+}
+
+async function handleStartupOfficeBetaDashboard(req, res) {
+  const { membership, team } = await requireUser(req);
+  requireAdminRole(membership, "owner or admin role required for beta dashboard");
+  const [betaOps, runs, approvals, notifications] = await Promise.all([
+    startupOfficeBetaOpsSnapshot(membership.team_id),
+    startupOfficeRuns(membership.team_id, { limit: 20 }),
+    startupOfficeApprovals(membership.team_id, { status: "pending", limit: 20 }),
+    safeStartupOfficeRest("startup_office_notifications", {
+      query: {
+        limit: "20",
+        order: "created_at.desc",
+        select: "*",
+        team_id: `eq.${membership.team_id}`,
+      },
+    }),
+  ]);
+  writeJSON(res, 200, {
+    dashboard: {
+      billing: betaOps.billing,
+      notifications,
+      pending_approvals: approvals,
+      run_failures: runs.filter((run) => run.status === "failed"),
+      stuck_jobs: await startupOfficeStuckJobs(membership.team_id),
+      support_notes: betaOps.billing.support_notes || "",
+      team: {
+        id: team.id,
+        name: team.name,
+        slug: team.slug,
+      },
+      usage: betaOps.usage,
+    },
+  });
+}
+
 async function handleStartupOfficeLoopRun(req, res, loopID) {
   const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "memory:write_draft");
+  await enforceStartupOfficeRunLimit(membership.team_id);
   const body = await readBody(req);
   const loop = await ensureStartupOfficeLoop(membership, loopID);
   const profile = await companyProfileSnapshot(membership.team_id, team, user);
@@ -1959,6 +2031,7 @@ async function handleStartupOfficeLoopRun(req, res, loopID) {
     truncateText,
     workerJob,
   });
+  await recordStartupOfficeRunOutcome(membership, result);
   writeJSON(res, 200, {
     approval: publicStartupOfficeApproval(result.approval),
     artifact: publicStartupOfficeArtifact(result.artifact),
@@ -2042,6 +2115,7 @@ async function handleStartupOfficeRun(req, res, runID, action) {
 
   if (action === "retry" && req.method === "POST") {
     requirePermission(membership, "memory:write_draft");
+    await enforceStartupOfficeRunLimit(membership.team_id);
     if (!["failed", "canceled"].includes(run.status)) {
       throw new HTTPError(409, `run is ${run.status}; only failed or canceled runs can be retried`);
     }
@@ -2095,6 +2169,7 @@ async function handleStartupOfficeRun(req, res, runID, action) {
       truncateText,
       workerJob,
     });
+    await recordStartupOfficeRunOutcome(membership, result);
     writeJSON(res, 200, {
       approval: publicStartupOfficeApproval(result.approval),
       artifact: publicStartupOfficeArtifact(result.artifact),
@@ -2561,6 +2636,157 @@ function numericOrNull(value) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+async function startupOfficeBetaOpsSnapshot(teamID) {
+  const [billing, usage] = await Promise.all([
+    startupOfficeBilling(teamID),
+    startupOfficeUsage(teamID),
+  ]);
+  return {
+    billing,
+    limits: {
+      monthly_model_spend_cents: billing.monthly_model_spend_cents,
+      monthly_run_limit: billing.monthly_run_limit,
+      storage_mb_limit: billing.storage_mb_limit,
+    },
+    usage: {
+      ...usage,
+      model_spend_percent: percent(usage.model_spend_cents, billing.monthly_model_spend_cents),
+      run_percent: percent(usage.runs, billing.monthly_run_limit),
+    },
+  };
+}
+
+async function startupOfficeBilling(teamID) {
+  const rows = await safeStartupOfficeRest("workspace_billing", {
+    query: {
+      limit: "1",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  const billing = rows?.[0] || {};
+  return {
+    billing_state: startupOfficeBillingStateValue(billing.billing_state || "trial"),
+    laf_model_enabled: billing.laf_model_enabled !== false,
+    monthly_model_spend_cents: Number(billing.monthly_model_spend_cents || 20000),
+    monthly_run_limit: Number(billing.monthly_run_limit || 50),
+    plan: billing.plan || "trial",
+    storage_mb_limit: Number(billing.storage_mb_limit || 1024),
+    support_notes: billing.support_notes || "",
+    team_id: teamID,
+    updated_at: billing.updated_at || null,
+  };
+}
+
+async function upsertStartupOfficeBilling(teamID, patch) {
+  const [billing] = await safeStartupOfficeRest("workspace_billing", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    query: { on_conflict: "team_id" },
+    body: {
+      ...patch,
+      team_id: teamID,
+      updated_at: nowISO(),
+    },
+  });
+  return {
+    ...(billing || patch),
+    team_id: teamID,
+  };
+}
+
+async function startupOfficeUsage(teamID) {
+  const events = await safeStartupOfficeRest("startup_office_usage_events", {
+    query: {
+      limit: "1000",
+      order: "created_at.desc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  return events.reduce(
+    (out, event) => {
+      out.model_spend_cents += Number(event.cost_cents || 0);
+      out.runs += event.event_type === "model_run" ? 1 : 0;
+      out.total_tokens += Number(event.total_tokens || 0);
+      return out;
+    },
+    { model_spend_cents: 0, runs: 0, total_tokens: 0 },
+  );
+}
+
+async function enforceStartupOfficeRunLimit(teamID) {
+  const { billing, usage } = await startupOfficeBetaOpsSnapshot(teamID);
+  if (["past_due", "paused", "canceled"].includes(billing.billing_state)) {
+    throw new HTTPError(402, `billing state blocks AI runs: ${billing.billing_state}`);
+  }
+  if (usage.runs >= billing.monthly_run_limit) {
+    throw new HTTPError(402, "monthly Startup Office run limit reached");
+  }
+  if (usage.model_spend_cents >= billing.monthly_model_spend_cents) {
+    throw new HTTPError(402, "monthly Startup Office model spend limit reached");
+  }
+}
+
+async function recordStartupOfficeRunOutcome(membership, result) {
+  const cost = objectValue(result?.run?.metadata?.cost);
+  await safeStartupOfficeRest("startup_office_usage_events", {
+    method: "POST",
+    body: {
+      cost_cents: Number(cost.estimated_cents || 0),
+      created_by: membership.user_id,
+      event_type: "model_run",
+      input_tokens: Number(cost.input_tokens || 0),
+      metadata: {
+        status: result?.status || "",
+      },
+      model: cost.model || result?.run?.metadata?.model || "",
+      output_tokens: Number(cost.output_tokens || 0),
+      provider: cost.provider || result?.run?.metadata?.provider || "",
+      run_id: result?.run?.id || null,
+      team_id: membership.team_id,
+      total_tokens: Number(cost.total_tokens || 0),
+    },
+  });
+  await safeStartupOfficeRest("startup_office_notifications", {
+    method: "POST",
+    body: {
+      event_type: result?.status === "failed" ? "run_failed" : "approval_waiting",
+      payload: {
+        run_id: result?.run?.id || null,
+        status: result?.status || "",
+      },
+      recipient_user_id: membership.user_id,
+      status: "pending",
+      team_id: membership.team_id,
+    },
+  });
+}
+
+async function startupOfficeStuckJobs(teamID) {
+  return safeStartupOfficeRest("startup_office_worker_jobs", {
+    query: {
+      limit: "20",
+      select: "*",
+      status: "in.(queued,running)",
+      team_id: `eq.${teamID}`,
+    },
+  });
+}
+
+function startupOfficeBillingStateValue(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["trial", "active", "past_due", "paused", "comped", "canceled"].includes(raw)
+    ? raw
+    : "trial";
+}
+
+function percent(value, limit) {
+  const denominator = Number(limit || 0);
+  if (!denominator) return 0;
+  return Math.round((Number(value || 0) / denominator) * 100);
 }
 
 async function handleStartupOfficeDemoSeed(req, res) {
