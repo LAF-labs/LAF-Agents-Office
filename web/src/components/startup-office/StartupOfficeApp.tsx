@@ -65,7 +65,10 @@ export function StartupOfficeApp() {
         objective: loop.objective,
       }),
     onSuccess: (result) => {
-      showNotice(copy.runQueued, "success");
+      showNotice(
+        result.error ? copy.actionFailed(result.error) : copy.runQueued,
+        result.error ? "error" : "success",
+      );
       if (result.run) setSelectedRun(result.run);
       if (result.artifact) setSelectedArtifact(result.artifact);
       void refreshSummary();

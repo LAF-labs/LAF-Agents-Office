@@ -9,6 +9,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
 process.env.SUPABASE_ANON_KEY = "anon";
 process.env.LAF_OFFICE_ALLOWED_ORIGINS =
   "app.laf.test,https://preview.laf.test/";
+process.env.LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER = "fake";
 
 const handler = require("./[...path].js");
 
@@ -270,17 +271,49 @@ test("startup office backend domain modules expose stable boundaries", () => {
   const {
     createStartupOfficeServices,
   } = require("./lib/startup-office/services");
+  const {
+    createStartupOfficeModelClient,
+  } = require("../workers/startup-office/modelClient");
+  const {
+    runStartupOfficeLoop,
+  } = require("../workers/startup-office/loopRunner");
+  const {
+    STARTUP_OFFICE_LOOP_TEMPLATES,
+  } = require("../workers/startup-office/loopTemplates");
 
   assert.equal(typeof createStartupOfficeRepository, "function");
   assert.equal(typeof createStartupOfficeServices, "function");
+  assert.equal(typeof createStartupOfficeModelClient, "function");
+  assert.equal(typeof runStartupOfficeLoop, "function");
   assert.equal(typeof publicCompanyProfile, "function");
   assert.equal(typeof publicStartupOfficeRun, "function");
   assert.equal(typeof publicStartupOfficeArtifact, "function");
+  assert.equal(typeof STARTUP_OFFICE_LOOP_TEMPLATES["idea-validation"], "object");
   assert.ok(
     STARTUP_OFFICE_LOOP_DEFINITIONS.some(
       (loop) => loop.slug === "idea-validation",
     ),
   );
+});
+
+test("startup office worker jobs migration defines async AI run state", () => {
+  const sql = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "supabase",
+      "migrations",
+      "20260524010000_startup_office_worker_jobs.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /create table if not exists public\.startup_office_worker_jobs\b/);
+  assert.match(sql, /check \(status in \('queued', 'running', 'completed', 'failed', 'canceled'\)\)/);
+  assert.match(sql, /attempts integer not null default 0/);
+  assert.match(sql, /max_attempts integer not null default 2/);
+  assert.match(sql, /create index if not exists idx_startup_office_worker_jobs_team_status\b/);
+  assert.match(sql, /alter table public\.startup_office_worker_jobs enable row level security/);
+  assert.match(sql, /members can read startup office worker jobs/);
 });
 
 test("channel messages migration defines hosted chat persistence", () => {
@@ -454,7 +487,9 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
     startup_office_loops: [],
     startup_office_receipts: [],
     startup_office_runs: [],
+    startup_office_worker_jobs: [],
     teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    wiki_article_index: [],
     workspace_settings: [],
   };
   const oldFetch = global.fetch;
@@ -496,18 +531,34 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(run.status, 200, JSON.stringify(run.body));
   assert.equal(run.body.run.status, "waiting_approval");
   assert.equal(run.body.approval.status, "pending");
-  assert.equal(run.body.receipt.event_type, "run.created");
+  assert.equal(run.body.receipt.event_type, "run.ai_draft_ready");
+  assert.equal(run.body.run.metadata.provider, "fake");
+  assert.equal(run.body.run.metadata.cost.total_tokens, 1900);
   assert.equal(db.startup_office_loops.length, 1);
   assert.equal(db.startup_office_runs.length, 1);
   assert.equal(db.startup_office_artifacts.length, 1);
   assert.equal(db.startup_office_approvals.length, 1);
-  assert.equal(db.startup_office_receipts.length, 1);
-  assert.equal(db.startup_office_artifacts[0].content.includes("Founder control"), true);
+  assert.equal(db.startup_office_worker_jobs.length, 1);
+  assert.equal(db.startup_office_worker_jobs[0].status, "completed");
+  assert.equal(db.startup_office_receipts.length, 3);
+  assert.deepEqual(
+    db.startup_office_receipts.map((receipt) => receipt.event_type),
+    ["run.queued", "run.started", "run.ai_draft_ready"],
+  );
+  assert.equal(db.startup_office_artifacts[0].content.includes("Founder Control"), true);
+  assert.equal(db.startup_office_artifacts[0].metadata.cost.total_tokens, 1900);
 
   const approvals = await invoke(["startup-office", "approvals"], "GET");
   assert.equal(approvals.status, 200, JSON.stringify(approvals.body));
   assert.equal(approvals.body.approvals.length, 1);
-  assert.equal(approvals.body.approvals[0].title, "Approve Idea Validation draft");
+  assert.equal(approvals.body.approvals[0].title, "Approve Idea Validation AI draft");
+
+  const runDetail = await invoke(["startup-office", "runs", run.body.run.id], "GET");
+  assert.equal(runDetail.status, 200, JSON.stringify(runDetail.body));
+  assert.equal(runDetail.body.run.status, "waiting_approval");
+  assert.equal(runDetail.body.artifacts.length, 1);
+  assert.equal(runDetail.body.approvals.length, 1);
+  assert.equal(runDetail.body.receipts.length, 3);
 
   const approvalID = run.body.approval.id;
   const approved = await invoke(["startup-office", "approvals", approvalID, "approve"], "POST", {
@@ -516,17 +567,70 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(approved.status, 200, JSON.stringify(approved.body));
   assert.equal(approved.body.approval.status, "approved");
   assert.equal(approved.body.run.status, "completed");
-  assert.equal(db.startup_office_receipts.length, 2);
-  assert.equal(db.startup_office_receipts[1].event_type, "approval.approved");
+  assert.equal(db.startup_office_receipts.length, 4);
+  assert.equal(db.startup_office_receipts[3].event_type, "approval.approved");
 
   const summary = await invoke(["startup-office", "growth-summary"], "GET");
   assert.equal(summary.status, 200, JSON.stringify(summary.body));
   assert.equal(summary.body.company_profile.name, "LAF Labs");
   assert.equal(summary.body.pulse.recent_runs, 1);
   assert.equal(summary.body.pulse.pending_approvals, 0);
-  assert.equal(summary.body.pulse.recent_receipts, 2);
+  assert.equal(summary.body.pulse.recent_receipts, 4);
   assert.equal(summary.body.recent_artifacts.length, 1);
-  assert.equal(summary.body.recent_artifacts[0].title, "Idea Validation draft");
+  assert.equal(summary.body.recent_artifacts[0].title, "Idea Validation AI draft");
+});
+
+test("startup office run lifecycle supports deferred queue, cancel, and retry", async (t) => {
+  const db = {
+    audit_events: [],
+    company_profiles: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    startup_office_approvals: [],
+    startup_office_artifacts: [],
+    startup_office_loops: [],
+    startup_office_receipts: [],
+    startup_office_runs: [],
+    startup_office_worker_jobs: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+    wiki_article_index: [],
+    workspace_settings: [],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const queued = await invoke(["startup-office", "loops", "idea-validation", "run"], "POST", {
+    defer: true,
+    objective: "Queue but do not process yet",
+  });
+  assert.equal(queued.status, 202, JSON.stringify(queued.body));
+  assert.equal(queued.body.status, "queued");
+  assert.equal(queued.body.run.status, "queued");
+  assert.equal(db.startup_office_artifacts.length, 0);
+  assert.equal(db.startup_office_worker_jobs[0].status, "queued");
+
+  const canceled = await invoke(["startup-office", "runs", queued.body.run.id, "cancel"], "POST");
+  assert.equal(canceled.status, 200, JSON.stringify(canceled.body));
+  assert.equal(canceled.body.run.status, "canceled");
+  assert.equal(db.startup_office_receipts.at(-1).event_type, "run.canceled");
+
+  const retried = await invoke(["startup-office", "runs", queued.body.run.id, "retry"], "POST", {
+    objective: "Retry with the fake AI worker",
+  });
+  assert.equal(retried.status, 200, JSON.stringify(retried.body));
+  assert.equal(retried.body.run.status, "waiting_approval");
+  assert.equal(retried.body.approval.status, "pending");
+  assert.equal(db.startup_office_artifacts.length, 1);
+  assert.equal(db.startup_office_worker_jobs.at(-1).status, "completed");
 });
 
 test("startup office demo seed creates a paid beta validation workspace", async (t) => {

@@ -27,6 +27,12 @@ const {
 const {
   createStartupOfficeServices,
 } = require("./lib/startup-office/services");
+const {
+  createStartupOfficeModelClient,
+} = require("../workers/startup-office/modelClient");
+const {
+  runStartupOfficeLoop,
+} = require("../workers/startup-office/loopRunner");
 
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
 const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code"];
@@ -294,6 +300,18 @@ module.exports = async function handler(req, res) {
         req,
         res,
         decodeURIComponent(startupOfficeLoopRunMatch[1]),
+      );
+      return;
+    }
+    const startupOfficeRunMatch = path.match(
+      /^(?:startup-office\/)?runs\/([^/]+)(?:\/(retry|cancel))?$/,
+    );
+    if (startupOfficeRunMatch) {
+      await handleStartupOfficeRun(
+        req,
+        res,
+        decodeURIComponent(startupOfficeRunMatch[1]),
+        startupOfficeRunMatch[2] || "",
       );
       return;
     }
@@ -1597,6 +1615,17 @@ function startupOfficeServices() {
   return startupOfficeServicesInstance;
 }
 
+let startupOfficeModelClientInstance = null;
+function startupOfficeModelClient() {
+  if (!startupOfficeModelClientInstance) {
+    startupOfficeModelClientInstance = createStartupOfficeModelClient({
+      env: process.env,
+      fetchImpl: fetch,
+    });
+  }
+  return startupOfficeModelClientInstance;
+}
+
 async function handleCompanyProfile(req, res) {
   const { membership, team, user } = await requireUser(req);
   if (req.method === "GET") {
@@ -1713,82 +1742,224 @@ async function handleStartupOfficeLoopRun(req, res, loopID) {
     2000,
   );
   const now = nowISO();
-  const [run] = await safeStartupOfficeRest("startup_office_runs", {
-    method: "POST",
-    body: {
-      created_at: now,
-      created_by: membership.user_id,
-      inputs: objectValue(body.inputs),
-      loop_id: loop.id || null,
-      metadata: {
-        company_name: profile.name || "",
-        loop_slug: loop.slug,
-      },
-      objective,
-      started_at: now,
-      status: "waiting_approval",
-      summary: "",
-      team_id: membership.team_id,
-      title: truncateText(body.title || loop.name, 180),
-      updated_at: now,
+  const repository = startupOfficeRepository();
+  const run = await repository.createRun(membership, {
+    inputs: objectValue(body.inputs),
+    loop_id: loop.id || null,
+    metadata: {
+      company_name: profile.name || "",
+      loop_slug: loop.slug,
+      provider: startupOfficeModelClient().provider,
     },
+    objective,
+    status: "queued",
+    title: truncateText(body.title || loop.name, 180),
+    updated_at: now,
   });
   const runID = run?.id || `run-${shortID()}`;
-  const artifactContent = startupOfficeRunDraft({ loop, objective, profile });
-  const [artifact] = await safeStartupOfficeRest("startup_office_artifacts", {
-    method: "POST",
-    body: {
-      content: artifactContent,
-      created_by: membership.user_id,
-      kind: "plan",
-      metadata: { loop_slug: loop.slug },
-      run_id: runID,
-      team_id: membership.team_id,
-      title: truncateText(`${loop.name} draft`, 180),
+  const workerJob = await repository.createWorkerJob(membership, {
+    loop_slug: loop.slug,
+    metadata: {
+      objective,
+      provider: startupOfficeModelClient().provider,
     },
-  });
-  const [approval] = await safeStartupOfficeRest("startup_office_approvals", {
-    method: "POST",
-    body: {
-      action: "approve_loop_draft",
-      artifact_id: artifact?.id || null,
-      details: truncateText(artifactContent, 4000),
-      metadata: { loop_slug: loop.slug },
-      requested_by: membership.user_id,
-      risk_level: "medium",
-      run_id: runID,
-      status: "pending",
-      team_id: membership.team_id,
-      title: truncateText(`Approve ${loop.name} draft`, 180),
-    },
+    run_id: runID,
+    status: "queued",
   });
   const receipt = await createStartupOfficeReceipt(membership, {
-    actor_slug: "ceo",
-    approval_id: approval?.id || null,
-    event_type: "run.created",
+    actor_slug: "agent",
+    event_type: "run.queued",
     run_id: runID,
-    summary: `${loop.name} run drafted and queued for founder approval.`,
+    summary: `${loop.name} run queued for AI execution.`,
     trace: {
-      approval_id: approval?.id || null,
-      artifact_id: artifact?.id || null,
       loop_slug: loop.slug,
+      worker_job_id: workerJob?.id || null,
     },
   });
   await writeAuditEvent(membership, "startup_office.run_created", "run", runID, {
     loop_slug: loop.slug,
+    worker_job_id: workerJob?.id || "",
+  });
+  const queuedRun = run || {
+    id: runID,
+    inputs: objectValue(body.inputs),
+    loop_id: loop.id || null,
+    metadata: { loop_slug: loop.slug },
+    objective,
+    status: "queued",
+    title: loop.name,
+  };
+  if (body.defer === true) {
+    writeJSON(res, 202, {
+      receipt,
+      run: publicStartupOfficeRun(queuedRun),
+      status: "queued",
+      worker_job: workerJob,
+    });
+    return;
+  }
+  const result = await runStartupOfficeLoop({
+    inputs: objectValue(body.inputs),
+    loop,
+    membership,
+    modelClient: startupOfficeModelClient(),
+    nowISO,
+    objective,
+    profile,
+    repository,
+    run: queuedRun,
+    truncateText,
+    workerJob,
   });
   writeJSON(res, 200, {
-    approval: publicStartupOfficeApproval(approval),
-    artifact: publicStartupOfficeArtifact(artifact),
-    receipt,
-    run: publicStartupOfficeRun(run || {
-      id: runID,
-      loop_id: loop.id || null,
-      objective,
-      status: "waiting_approval",
-      title: loop.name,
-    }),
+    approval: publicStartupOfficeApproval(result.approval),
+    artifact: publicStartupOfficeArtifact(result.artifact),
+    error: result.error,
+    receipt: result.receipt || receipt,
+    run: publicStartupOfficeRun(result.run),
+    status: result.status,
+    worker_job: workerJob,
   });
+}
+
+async function handleStartupOfficeRun(req, res, runID, action) {
+  const { membership, team, user } = await requireUser(req);
+  const repository = startupOfficeRepository();
+  const run = await repository.findRun(membership.team_id, runID);
+  if (!run) throw new HTTPError(404, "run not found");
+
+  if (!action && req.method === "GET") {
+    requirePermission(membership, "workspace:read");
+    const [artifacts, approvals, receipts] = await Promise.all([
+      startupOfficeArtifacts(membership.team_id, { run_id: run.id, limit: 50 }),
+      startupOfficeApprovals(membership.team_id, { run_id: run.id, limit: 50 }),
+      startupOfficeReceipts(membership.team_id, { run_id: run.id, limit: 50 }),
+    ]);
+    writeJSON(res, 200, {
+      approvals,
+      artifacts,
+      receipts,
+      run: publicStartupOfficeRun(run),
+    });
+    return;
+  }
+
+  if (action === "cancel" && req.method === "POST") {
+    requirePermission(membership, "memory:write_draft");
+    if (["completed", "canceled"].includes(run.status)) {
+      throw new HTTPError(409, `run is already ${run.status}`);
+    }
+    const now = nowISO();
+    const [pendingApproval] = await safeStartupOfficeRest("startup_office_approvals", {
+      method: "PATCH",
+      query: {
+        run_id: `eq.${run.id}`,
+        status: "eq.pending",
+        team_id: `eq.${membership.team_id}`,
+      },
+      body: {
+        decided_at: now,
+        decided_by: membership.user_id,
+        decision_note: "Run canceled before founder approval.",
+        status: "rejected",
+        updated_at: now,
+      },
+    });
+    const updatedRun = await repository.updateRun(membership.team_id, run.id, {
+      completed_at: now,
+      metadata: {
+        ...objectValue(run.metadata),
+        canceled_by: membership.user_id,
+      },
+      status: "canceled",
+      summary: "Founder canceled the Startup Office run.",
+      updated_at: now,
+    });
+    const receipt = await createStartupOfficeReceipt(membership, {
+      actor_slug: "founder",
+      approval_id: pendingApproval?.id || null,
+      event_type: "run.canceled",
+      run_id: run.id,
+      summary: "Founder canceled the Startup Office run.",
+      trace: { run_id: run.id },
+    });
+    await writeAuditEvent(membership, "startup_office.run_canceled", "run", run.id);
+    writeJSON(res, 200, {
+      receipt,
+      run: publicStartupOfficeRun(updatedRun || run),
+      status: "canceled",
+    });
+    return;
+  }
+
+  if (action === "retry" && req.method === "POST") {
+    requirePermission(membership, "memory:write_draft");
+    if (!["failed", "canceled"].includes(run.status)) {
+      throw new HTTPError(409, `run is ${run.status}; only failed or canceled runs can be retried`);
+    }
+    const body = await readBody(req);
+    const loop = await ensureStartupOfficeLoop(membership, run.loop_id || run.metadata?.loop_slug);
+    const profile = await companyProfileSnapshot(membership.team_id, team, user);
+    const objective = truncateText(
+      body.objective || run.objective || loop.objective || "Retry this operating loop.",
+      2000,
+    );
+    const now = nowISO();
+    const retryRun = await repository.updateRun(membership.team_id, run.id, {
+      completed_at: null,
+      inputs: objectValue(body.inputs || run.inputs),
+      metadata: {
+        ...objectValue(run.metadata),
+        retry_requested_at: now,
+        retry_requested_by: membership.user_id,
+      },
+      objective,
+      status: "queued",
+      updated_at: now,
+    });
+    const workerJob = await repository.createWorkerJob(membership, {
+      loop_slug: loop.slug,
+      metadata: {
+        objective,
+        provider: startupOfficeModelClient().provider,
+        retry: true,
+      },
+      run_id: run.id,
+      status: "queued",
+    });
+    await createStartupOfficeReceipt(membership, {
+      actor_slug: "founder",
+      event_type: "run.retry_queued",
+      run_id: run.id,
+      summary: `${loop.name} retry queued for AI execution.`,
+      trace: { worker_job_id: workerJob?.id || null },
+    });
+    const result = await runStartupOfficeLoop({
+      inputs: objectValue(body.inputs || run.inputs),
+      loop,
+      membership,
+      modelClient: startupOfficeModelClient(),
+      nowISO,
+      objective,
+      profile,
+      repository,
+      run: retryRun || run,
+      truncateText,
+      workerJob,
+    });
+    writeJSON(res, 200, {
+      approval: publicStartupOfficeApproval(result.approval),
+      artifact: publicStartupOfficeArtifact(result.artifact),
+      error: result.error,
+      receipt: result.receipt,
+      run: publicStartupOfficeRun(result.run),
+      status: result.status,
+      worker_job: workerJob,
+    });
+    return;
+  }
+
+  throw new HTTPError(405, "method not allowed");
 }
 
 async function handleStartupOfficeApprovals(req, res) {
@@ -2222,14 +2393,6 @@ function isMissingStartupOfficeTableError(err, table) {
 
 async function uniqueStartupOfficeLoopSlug(teamID, seed) {
   return startupOfficeRepository().uniqueLoopSlug(teamID, seed);
-}
-
-function startupOfficeRunDraft({ loop, objective, profile }) {
-  return startupOfficeServices().startupOfficeRunDraft({
-    loop,
-    objective,
-    profile,
-  });
 }
 
 async function workspaceHasAnyProject(teamID) {

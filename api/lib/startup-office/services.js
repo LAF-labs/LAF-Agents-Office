@@ -33,27 +33,9 @@ function createStartupOfficeServices({ companyProfilePatch, objectValue, truncat
     return out;
   }
 
-  function startupOfficeRunDraft({ loop, objective, profile }) {
-    return [
-      `Loop: ${loop.name}`,
-      `Company: ${profile.name || "Unnamed company"}`,
-      `Objective: ${objective}`,
-      "",
-      "Draft output:",
-      `- Primary customer: ${profile.icp || "Needs founder confirmation."}`,
-      `- Offer hypothesis: ${profile.offer || "Needs founder confirmation."}`,
-      "- Operating next step: Review this draft, approve it, or reject with revision notes.",
-      "",
-      "Founder control:",
-      "- No public, customer-facing, financial, or irreversible action has been taken.",
-      "- This run is waiting for explicit approval before promotion.",
-    ].join("\n");
-  }
-
   return {
     companyProfileRowPayload,
     startupOfficeCompanyProfilePatch,
-    startupOfficeRunDraft,
   };
 }
 

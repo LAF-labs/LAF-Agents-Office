@@ -72,6 +72,9 @@ function createStartupOfficeRepository({
       select: "*",
       team_id: `eq.${teamID}`,
     };
+    if (options.run_id) query.id = `eq.${options.run_id}`;
+    if (options.loop_id) query.loop_id = `eq.${options.loop_id}`;
+    if (options.status) query.status = `eq.${options.status}`;
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_runs", { query });
     return rows.map(publicStartupOfficeRun).filter(Boolean);
@@ -83,6 +86,7 @@ function createStartupOfficeRepository({
       select: "*",
       team_id: `eq.${teamID}`,
     };
+    if (options.run_id) query.run_id = `eq.${options.run_id}`;
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_artifacts", { query });
     return rows.map(publicStartupOfficeArtifact).filter(Boolean);
@@ -97,6 +101,7 @@ function createStartupOfficeRepository({
     if (options.status) {
       query.status = `eq.${normalizeStartupOfficeApprovalStatus(options.status)}`;
     }
+    if (options.run_id) query.run_id = `eq.${options.run_id}`;
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_approvals", { query });
     return rows.map(publicStartupOfficeApproval).filter(Boolean);
@@ -108,6 +113,7 @@ function createStartupOfficeRepository({
       select: "*",
       team_id: `eq.${teamID}`,
     };
+    if (options.run_id) query.run_id = `eq.${options.run_id}`;
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_receipts", { query });
     return rows.map(publicStartupOfficeReceipt).filter(Boolean);
@@ -170,6 +176,100 @@ function createStartupOfficeRepository({
     return rows?.[0] || null;
   }
 
+  async function findRun(teamID, runID) {
+    const rows = await safeRest("startup_office_runs", {
+      query: {
+        id: `eq.${runID}`,
+        limit: "1",
+        select: "*",
+        team_id: `eq.${teamID}`,
+      },
+    });
+    return rows?.[0] || null;
+  }
+
+  async function createRun(membership, body) {
+    const [run] = await safeRest("startup_office_runs", {
+      method: "POST",
+      body: {
+        created_at: body.created_at || nowISO(),
+        created_by: membership.user_id,
+        inputs: objectValue(body.inputs),
+        loop_id: body.loop_id || null,
+        metadata: objectValue(body.metadata),
+        objective: truncateText(body.objective || "", 2000),
+        started_at: body.started_at || null,
+        status: body.status || "queued",
+        summary: truncateText(body.summary || "", 2000),
+        team_id: membership.team_id,
+        title: truncateText(body.title || "", 180),
+        updated_at: body.updated_at || nowISO(),
+      },
+    });
+    return run || null;
+  }
+
+  async function updateRun(teamID, runID, patch) {
+    const [run] = await safeRest("startup_office_runs", {
+      method: "PATCH",
+      query: {
+        id: `eq.${runID}`,
+        team_id: `eq.${teamID}`,
+      },
+      body: patch,
+    });
+    return run || null;
+  }
+
+  async function createArtifact(membership, body) {
+    const [artifact] = await safeRest("startup_office_artifacts", {
+      method: "POST",
+      body: {
+        content: truncateText(body.content || "", 20000),
+        created_by: membership.user_id,
+        kind: body.kind || "draft",
+        metadata: objectValue(body.metadata),
+        run_id: body.run_id || null,
+        team_id: membership.team_id,
+        title: truncateText(body.title || "", 180),
+      },
+    });
+    return publicStartupOfficeArtifact(
+      artifact || {
+        id: `artifact-${shortID()}`,
+        ...body,
+        created_at: nowISO(),
+        team_id: membership.team_id,
+      },
+    );
+  }
+
+  async function createApproval(membership, body) {
+    const [approval] = await safeRest("startup_office_approvals", {
+      method: "POST",
+      body: {
+        action: truncateText(body.action || "", 120),
+        artifact_id: body.artifact_id || null,
+        details: truncateText(body.details || "", 4000),
+        metadata: objectValue(body.metadata),
+        requested_by: body.requested_by || membership.user_id,
+        risk_level: body.risk_level || "medium",
+        run_id: body.run_id || null,
+        status: body.status || "pending",
+        team_id: membership.team_id,
+        title: truncateText(body.title || "", 180),
+      },
+    });
+    return publicStartupOfficeApproval(
+      approval || {
+        id: `approval-${shortID()}`,
+        ...body,
+        requested_at: nowISO(),
+        team_id: membership.team_id,
+      },
+    );
+  }
+
   async function createReceipt(membership, body) {
     const [receipt] = await safeRest("startup_office_receipts", {
       method: "POST",
@@ -208,6 +308,37 @@ function createStartupOfficeRepository({
     return existing?.length ? `${base}-${shortID()}` : base;
   }
 
+  async function createWorkerJob(membership, body) {
+    const [job] = await safeRest("startup_office_worker_jobs", {
+      method: "POST",
+      body: {
+        attempts: Number(body.attempts || 0),
+        created_by: membership.user_id,
+        loop_slug: truncateText(body.loop_slug || "", 120),
+        max_attempts: Number(body.max_attempts || 2),
+        metadata: objectValue(body.metadata),
+        run_id: body.run_id || null,
+        status: body.status || "queued",
+        team_id: membership.team_id,
+        updated_at: body.updated_at || nowISO(),
+      },
+    });
+    return job || null;
+  }
+
+  async function updateWorkerJob(teamID, jobID, patch) {
+    if (!jobID) return null;
+    const [job] = await safeRest("startup_office_worker_jobs", {
+      method: "PATCH",
+      query: {
+        id: `eq.${jobID}`,
+        team_id: `eq.${teamID}`,
+      },
+      body: patch,
+    });
+    return job || null;
+  }
+
   function applyLimit(query, limit) {
     if (limit) query.limit = String(clamp(Number(limit) || 20, 1, 200));
   }
@@ -215,14 +346,21 @@ function createStartupOfficeRepository({
   return {
     approvals,
     artifacts,
+    createApproval,
+    createArtifact,
     createReceipt,
+    createRun,
+    createWorkerJob,
     ensureLoop,
     findApproval,
+    findRun,
     isMissingTableError,
     loops,
     receipts,
     runs,
     safeRest,
+    updateRun,
+    updateWorkerJob,
     uniqueLoopSlug,
   };
 }

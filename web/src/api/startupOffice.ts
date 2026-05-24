@@ -111,14 +111,45 @@ export function getStartupOfficeGrowthSummary() {
 
 export function runStartupOfficeLoop(
   loopID: string,
-  body?: { objective?: string; inputs?: Record<string, unknown> },
+  body?: { defer?: boolean; objective?: string; inputs?: Record<string, unknown> },
 ) {
   return post<{
     approval?: StartupOfficeApproval | null;
     artifact?: StartupOfficeArtifact | null;
+    error?: string;
     receipt?: StartupOfficeReceipt | null;
     run?: StartupOfficeRun | null;
+    status?: string;
+    worker_job?: Record<string, unknown> | null;
   }>(`/startup-office/loops/${encodeURIComponent(loopID)}/run`, body ?? {});
+}
+
+export function getStartupOfficeRun(runID: string) {
+  return get<{
+    approvals: StartupOfficeApproval[];
+    artifacts: StartupOfficeArtifact[];
+    receipts: StartupOfficeReceipt[];
+    run: StartupOfficeRun;
+  }>(`/startup-office/runs/${encodeURIComponent(runID)}`);
+}
+
+export function retryStartupOfficeRun(runID: string, body?: { objective?: string }) {
+  return post<{
+    approval?: StartupOfficeApproval | null;
+    artifact?: StartupOfficeArtifact | null;
+    error?: string;
+    receipt?: StartupOfficeReceipt | null;
+    run?: StartupOfficeRun | null;
+    status?: string;
+  }>(`/startup-office/runs/${encodeURIComponent(runID)}/retry`, body ?? {});
+}
+
+export function cancelStartupOfficeRun(runID: string) {
+  return post<{
+    receipt?: StartupOfficeReceipt | null;
+    run?: StartupOfficeRun | null;
+    status?: string;
+  }>(`/startup-office/runs/${encodeURIComponent(runID)}/cancel`, {});
 }
 
 export function approveStartupOfficeApproval(

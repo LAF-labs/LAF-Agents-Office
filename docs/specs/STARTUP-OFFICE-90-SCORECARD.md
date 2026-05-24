@@ -11,6 +11,7 @@ questions.
 | Phase 1: First Wedge And Offer Lock | 85 | 76 | 48 | The product now has explicit paid-beta validation copy, a guarded Startup Office wedge copy module, and an admin/dev demo seed endpoint. |
 | Phase 2: Startup Office Frontend Extraction | 88 | 84 | 55 | Startup Office now has a dedicated cloud product surface with live summary API, operating loops, approvals, receipts, artifacts, company memory preview, drawers, and isolated tests. |
 | Phase 3: Backend Domain Extraction | 89 | 88 | 60 | Startup Office server behavior is separated into loop definitions, serializers, repository access, and service helpers, which gives the AI worker and memory phases a clean integration boundary. |
+| Phase 4: Cloud AI Loop Execution | 91 | 90 | 75 | Idea Validation and sibling loops now run through a cloud AI worker boundary with model provider config, structured templates, quality checks, async job state, receipts, run detail, failure state, retry/cancel, and cost metadata. |
 
 ## Phase 1 Evidence
 
@@ -27,7 +28,6 @@ questions.
 
 ## Remaining Before 90+
 
-- Add real cloud AI loop execution.
 - Add company memory materialization and retrieval.
 - Add billing, usage limits, admin operations, and release gate.
 
@@ -53,3 +53,18 @@ questions.
 - Company profile patching and the temporary record-only run draft now live in `api/lib/startup-office/services.js`.
 - `api/[...path].js` delegates Startup Office domain behavior through those modules instead of carrying all product logic inline.
 - Hosted API tests now pin the module boundaries and still cover profile persistence, loop execution, approvals, receipts, demo seed, and summary artifacts.
+
+## Phase 4 Evidence
+
+- `workers/startup-office/modelClient.js` adds an OpenAI Responses API provider, fake provider for deterministic tests, text/structured generation, optional embeddings, and per-run usage/cost metadata.
+- `workers/startup-office/loopRunner.js` moves loop execution through queued, running, waiting approval, failed, canceled, and retryable states.
+- Five loop templates now exist for Idea Validation, Offer Package, Customer Discovery, Launch Campaign, and Weekly Operator Review.
+- Quality checks require summary, next action, risk level, source/assumption discipline, and no implied external action execution.
+- `startup_office_worker_jobs` migration adds durable async job state with attempts, errors, timestamps, indexes, and RLS.
+- `POST /startup-office/loops/:id/run` now creates an AI artifact and approval instead of a hard-coded record-only draft.
+- `GET /startup-office/runs/:id`, `POST /startup-office/runs/:id/retry`, and `POST /startup-office/runs/:id/cancel` are implemented.
+- Startup Office UI now surfaces model/provider and token usage in run detail and treats AI worker failures as visible errors.
+- Phase 4 test coverage:
+  - Worker unit tests cover successful artifact/approval/receipt creation and failed model calls with receipted failure states.
+  - Hosted API tests cover fake AI execution, worker job completion, cost metadata, run detail, deferred queue, cancel, and retry.
+  - Startup Office UI tests cover run detail model and token usage.

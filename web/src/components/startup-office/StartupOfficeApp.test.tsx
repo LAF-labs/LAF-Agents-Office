@@ -116,6 +116,11 @@ function mockStartupOfficeSummary() {
       {
         created_at: "2026-05-24T00:00:00Z",
         id: "run-1",
+        metadata: {
+          cost: { total_tokens: 1900 },
+          model: "fake-model",
+          provider: "fake",
+        },
         objective: "Find the first paid beta buyer segment.",
         status: "waiting_approval",
         summary: "Drafted buyer segment and founder approval request.",
@@ -128,6 +133,11 @@ function mockStartupOfficeSummary() {
     run: {
       created_at: "2026-05-24T00:00:00Z",
       id: "run-2",
+      metadata: {
+        cost: { total_tokens: 1900 },
+        model: "fake-model",
+        provider: "fake",
+      },
       objective: "Find the first paid beta buyer segment.",
       status: "waiting_approval",
       title: "Idea Validation",
@@ -198,6 +208,8 @@ describe("StartupOfficeApp", () => {
     expect(
       await screen.findByRole("dialog", { name: "Idea Validation" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("fake / fake-model")).toBeInTheDocument();
+    expect(screen.getByText("1,900 tokens")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close panel" }));
 
     await user.click(screen.getByRole("button", { name: "View artifact" }));

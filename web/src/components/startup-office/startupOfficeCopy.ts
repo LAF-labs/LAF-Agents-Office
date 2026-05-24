@@ -163,7 +163,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     },
     nextActionTitle: "Recommended next action",
     nextActionDescription: STARTUP_OFFICE_WEDGE_COPY.en.nextAction,
-    runQueued: "Loop drafted and queued for founder approval.",
+    runQueued: "AI loop finished and is waiting for founder approval.",
     approvalApproved: "Approval recorded and receipt written.",
     approvalRejected: "Rejection recorded and receipt written.",
     actionFailed: (message: string) =>
@@ -298,7 +298,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     },
     nextActionTitle: "추천 다음 행동",
     nextActionDescription: STARTUP_OFFICE_WEDGE_COPY.ko.nextAction,
-    runQueued: "루프 초안이 생성되어 창업자 승인 대기열에 들어갔습니다.",
+    runQueued: "AI 루프가 완료되어 창업자 승인을 기다리고 있습니다.",
     approvalApproved: "승인이 기록되고 영수증이 작성되었습니다.",
     approvalRejected: "거절이 기록되고 영수증이 작성되었습니다.",
     actionFailed: (message: string) =>

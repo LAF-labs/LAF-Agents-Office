@@ -63,8 +63,35 @@ export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
             <dt>Summary</dt>
             <dd>{run.summary || "-"}</dd>
           </div>
+          <div>
+            <dt>Model</dt>
+            <dd>{modelLabel(run.metadata)}</dd>
+          </div>
+          <div>
+            <dt>Usage</dt>
+            <dd>{usageLabel(run.metadata)}</dd>
+          </div>
         </dl>
       </section>
     </div>
   );
+}
+
+function modelLabel(metadata: StartupOfficeRun["metadata"]) {
+  const provider = stringValue(metadata?.provider);
+  const model = stringValue(metadata?.model);
+  if (!provider && !model) return "-";
+  return [provider, model].filter(Boolean).join(" / ");
+}
+
+function usageLabel(metadata: StartupOfficeRun["metadata"]) {
+  const cost = metadata?.cost;
+  if (!cost || typeof cost !== "object" || Array.isArray(cost)) return "-";
+  const tokens = Number((cost as { total_tokens?: unknown }).total_tokens || 0);
+  if (!Number.isFinite(tokens) || tokens <= 0) return "-";
+  return `${tokens.toLocaleString()} tokens`;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
