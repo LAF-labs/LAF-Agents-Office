@@ -8,29 +8,16 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { CheckCircle, Flash, Play, XmarkCircle } from "iconoir-react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Flash } from "iconoir-react";
 
 import {
-  approveStartupOfficeApproval,
   createSkill,
   deleteSkill,
   getSkills,
-  getStartupOfficeGrowthSummary,
   getUsage,
   invokeSkill,
-  rejectStartupOfficeApproval,
-  runStartupOfficeLoop,
   type Skill,
-  type StartupOfficeApproval,
-  type StartupOfficeGrowthSummary,
-  type StartupOfficeLoop,
-  type StartupOfficeReceipt,
   type UsageData,
   updateSkill,
 } from "../../api/client";
@@ -50,7 +37,6 @@ import { fetchCatalog as fetchWikiCatalog } from "../../api/wiki";
 import { formatTokens, formatUSD } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import { type Language, useAppStore } from "../../stores/app";
-import { STARTUP_OFFICE_WEDGE_COPY } from "../startup-office/startupOfficeCopy";
 import { showNotice } from "../ui/Toast";
 
 const SYNTHESIS_STATUS_LIMIT = 20;
@@ -59,9 +45,6 @@ const PENDING_REVIEW_STATES = new Set([
   "in-review",
   "changes-requested",
 ]);
-const STARTUP_OFFICE_SUMMARY_QUERY_KEY = [
-  "startup-office-growth-summary",
-] as const;
 
 type GrowthInboxItem = {
   id: string;
@@ -112,56 +95,6 @@ interface SkillsCopy {
   growthDescription: string;
   growthLoopAria: string;
   growthSteps: string[];
-  launchPulseTitle: string;
-  launchPulseDescription: string;
-  launchPulseCompanyLabel: string;
-  launchPulseCompanyValue: string;
-  launchPulseStageLabel: string;
-  launchPulseStageValue: string;
-  launchPulseGoalLabel: string;
-  launchPulseGoalValue: string;
-  launchPulseNextLabel: string;
-  launchPulseNextValue: string;
-  launchOfficeStatusLabel: string;
-  launchOfficeOnline: string;
-  launchOfficeFallback: string;
-  launchRecentRunsLabel: string;
-  launchPendingApprovalsLabel: string;
-  launchReceiptsCountLabel: string;
-  launchLoopsTitle: string;
-  launchLoopsDescription: string;
-  launchLoops: Array<{
-    name: string;
-    state: string;
-    detail: string;
-  }>;
-  launchLoopStatus: Record<string, string>;
-  launchLoopCadence: Record<string, string>;
-  launchRunLoop: string;
-  launchRunningLoop: string;
-  launchApprovalsTitle: string;
-  launchApprovalsDescription: string;
-  launchApprovals: Array<{
-    label: string;
-    detail: string;
-  }>;
-  launchNoPendingApprovals: string;
-  launchApprovalRiskLabel: string;
-  launchApprovalRisk: Record<string, string>;
-  launchApprove: string;
-  launchReject: string;
-  launchApproving: string;
-  launchRejecting: string;
-  launchReceiptsTitle: string;
-  launchReceiptsDescription: string;
-  launchReceipts: string[];
-  launchNoRecentReceipts: string;
-  launchNextActionTitle: string;
-  launchNextActionDescription: string;
-  launchRunQueued: string;
-  launchApprovalApproved: string;
-  launchApprovalRejected: string;
-  launchActionFailed: (message: string) => string;
   growthInboxTitle: string;
   growthInboxDescription: string;
   growthInboxEmpty: string;
@@ -286,9 +219,10 @@ interface SkillsCopy {
 const SKILLS_COPY = {
   en: {
     growthAria: "Startup Office",
-    growthKicker: STARTUP_OFFICE_WEDGE_COPY.en.kicker,
-    growthTitle: STARTUP_OFFICE_WEDGE_COPY.en.title,
-    growthDescription: STARTUP_OFFICE_WEDGE_COPY.en.description,
+    growthKicker: "Team knowledge growth",
+    growthTitle: "Growth Center",
+    growthDescription:
+      "Track skill usage, playbook maturity, and knowledge updates.",
     growthLoopAria: "Workspace growth loop",
     growthSteps: [
       "Signal",
@@ -298,107 +232,6 @@ const SKILLS_COPY = {
       "Receipt",
       "Learning",
     ],
-    launchPulseTitle: "Company pulse",
-    launchPulseDescription:
-      "The workspace starts with a clear company state before agents run.",
-    launchPulseCompanyLabel: "Company",
-    launchPulseCompanyValue: "New company",
-    launchPulseStageLabel: "Stage",
-    launchPulseStageValue: "Idea validation",
-    launchPulseGoalLabel: "Primary goal",
-    launchPulseGoalValue: "Find paid demand before building more.",
-    launchPulseNextLabel: "Next decision",
-    launchPulseNextValue: "Approve the first validation loop.",
-    launchOfficeStatusLabel: "Office status",
-    launchOfficeOnline: "Cloud office online",
-    launchOfficeFallback: "Draft mode",
-    launchRecentRunsLabel: "Recent runs",
-    launchPendingApprovalsLabel: "Pending approvals",
-    launchReceiptsCountLabel: "Receipts",
-    launchLoopsTitle: "Launch Office loops",
-    launchLoopsDescription: STARTUP_OFFICE_WEDGE_COPY.en.loopsDescription,
-    launchLoops: [
-      {
-        name: "Idea Validation",
-        state: "Ready",
-        detail: "Clarify audience, pain, offer, and evidence gaps.",
-      },
-      {
-        name: "Landing Page",
-        state: "Draft first",
-        detail: "Create page copy and source-backed claims for approval.",
-      },
-      {
-        name: "First 100 Customers",
-        state: "Ready",
-        detail: "Build segments, outreach angles, and manual export assets.",
-      },
-      {
-        name: "Weekly Review",
-        state: "Scheduled",
-        detail: "Summarize signals, assets, metrics, and next loop.",
-      },
-    ],
-    launchLoopStatus: {
-      active: "Active",
-      paused: "Paused",
-      archived: "Archived",
-    },
-    launchLoopCadence: {
-      manual: "Manual",
-      daily: "Daily",
-      weekly: "Weekly",
-    },
-    launchRunLoop: "Run loop",
-    launchRunningLoop: "Running",
-    launchApprovalsTitle: "Approval Desk",
-    launchApprovalsDescription:
-      "Autonomy stops before public claims, spend, outbound messages, and customer promises.",
-    launchApprovals: [
-      {
-        label: "Public publishing",
-        detail: "Landing pages and posts require founder approval.",
-      },
-      {
-        label: "Customer promises",
-        detail: "Sales/support language stays draft-only until reviewed.",
-      },
-      {
-        label: "Spend controls",
-        detail: "No ad spend or off-session usage in the MVP.",
-      },
-    ],
-    launchNoPendingApprovals:
-      "No decisions waiting. Run a loop to create the next founder approval.",
-    launchApprovalRiskLabel: "Risk",
-    launchApprovalRisk: {
-      low: "Low",
-      medium: "Medium",
-      high: "High",
-      critical: "Critical",
-    },
-    launchApprove: "Approve",
-    launchReject: "Reject",
-    launchApproving: "Approving",
-    launchRejecting: "Rejecting",
-    launchReceiptsTitle: "Receipts and trace",
-    launchReceiptsDescription:
-      "Every run should leave proof the founder can inspect or export.",
-    launchReceipts: [
-      "Sources used",
-      "Drafts created",
-      "Approval status",
-      "Estimated and actual usage",
-      "Wiki memory changes",
-    ],
-    launchNoRecentReceipts:
-      "No run receipts yet. The first loop will write the initial trace.",
-    launchNextActionTitle: "Recommended next action",
-    launchNextActionDescription: STARTUP_OFFICE_WEDGE_COPY.en.nextAction,
-    launchRunQueued: "Loop drafted and queued for founder approval.",
-    launchApprovalApproved: "Approval recorded and receipt written.",
-    launchApprovalRejected: "Rejection recorded and receipt written.",
-    launchActionFailed: (message) => `Startup Office action failed: ${message}`,
     growthInboxTitle: "Growth inbox",
     growthInboxDescription:
       "Signals that need curation before the workspace can compound.",
@@ -537,114 +370,13 @@ const SKILLS_COPY = {
     },
   },
   ko: {
-    growthAria: "스타트업 오피스",
-    growthKicker: STARTUP_OFFICE_WEDGE_COPY.ko.kicker,
-    growthTitle: STARTUP_OFFICE_WEDGE_COPY.ko.title,
-    growthDescription: STARTUP_OFFICE_WEDGE_COPY.ko.description,
+    growthAria: "성장 센터",
+    growthKicker: "팀 지식 성장",
+    growthTitle: "성장 센터",
+    growthDescription:
+      "스킬 사용량, 플레이북 성숙도, 지식 반영 상태를 추적합니다.",
     growthLoopAria: "워크스페이스 성장 흐름",
     growthSteps: ["신호", "초안", "승인", "자산", "영수증", "학습"],
-    launchPulseTitle: "회사 펄스",
-    launchPulseDescription:
-      "에이전트가 움직이기 전에 회사 상태와 다음 결정을 먼저 고정합니다.",
-    launchPulseCompanyLabel: "회사",
-    launchPulseCompanyValue: "새 회사",
-    launchPulseStageLabel: "단계",
-    launchPulseStageValue: "아이디어 검증",
-    launchPulseGoalLabel: "핵심 목표",
-    launchPulseGoalValue: "더 만들기 전에 유료 수요를 확인합니다.",
-    launchPulseNextLabel: "다음 결정",
-    launchPulseNextValue: "첫 검증 루프 실행을 승인합니다.",
-    launchOfficeStatusLabel: "오피스 상태",
-    launchOfficeOnline: "클라우드 오피스 온라인",
-    launchOfficeFallback: "초안 모드",
-    launchRecentRunsLabel: "최근 실행",
-    launchPendingApprovalsLabel: "대기 승인",
-    launchReceiptsCountLabel: "영수증",
-    launchLoopsTitle: "런치 오피스 루프",
-    launchLoopsDescription: STARTUP_OFFICE_WEDGE_COPY.ko.loopsDescription,
-    launchLoops: [
-      {
-        name: "아이디어 검증",
-        state: "준비됨",
-        detail: "고객, 문제, 오퍼, 증거 부족분을 정리합니다.",
-      },
-      {
-        name: "랜딩 페이지",
-        state: "초안 우선",
-        detail: "승인 가능한 페이지 문구와 출처 기반 주장을 만듭니다.",
-      },
-      {
-        name: "첫 100명 고객",
-        state: "준비됨",
-        detail: "세그먼트, 아웃리치 각도, 수동 내보내기 자산을 만듭니다.",
-      },
-      {
-        name: "주간 리뷰",
-        state: "예약됨",
-        detail: "신호, 자산, 지표, 다음 루프를 요약합니다.",
-      },
-    ],
-    launchLoopStatus: {
-      active: "활성",
-      paused: "일시정지",
-      archived: "보관됨",
-    },
-    launchLoopCadence: {
-      manual: "수동",
-      daily: "매일",
-      weekly: "매주",
-    },
-    launchRunLoop: "루프 실행",
-    launchRunningLoop: "실행 중",
-    launchApprovalsTitle: "승인 데스크",
-    launchApprovalsDescription:
-      "공개 주장, 비용 지출, 외부 메시지, 고객 약속 앞에서 자동 실행을 멈춥니다.",
-    launchApprovals: [
-      {
-        label: "공개 발행",
-        detail: "랜딩 페이지와 게시물은 창업자 승인 후 발행됩니다.",
-      },
-      {
-        label: "고객 약속",
-        detail: "세일즈/지원 문구는 검토 전까지 초안으로 남습니다.",
-      },
-      {
-        label: "비용 통제",
-        detail: "MVP에서는 광고비 지출이나 오프세션 사용량 과금이 없습니다.",
-      },
-    ],
-    launchNoPendingApprovals:
-      "대기 중인 결정이 없습니다. 루프를 실행하면 다음 창업자 승인이 생성됩니다.",
-    launchApprovalRiskLabel: "위험도",
-    launchApprovalRisk: {
-      low: "낮음",
-      medium: "중간",
-      high: "높음",
-      critical: "매우 높음",
-    },
-    launchApprove: "승인",
-    launchReject: "거절",
-    launchApproving: "승인 중",
-    launchRejecting: "거절 중",
-    launchReceiptsTitle: "영수증과 추적",
-    launchReceiptsDescription:
-      "모든 실행은 창업자가 확인하고 내보낼 수 있는 증거를 남겨야 합니다.",
-    launchReceipts: [
-      "사용한 출처",
-      "생성된 초안",
-      "승인 상태",
-      "예상/실제 사용량",
-      "위키 메모리 변경",
-    ],
-    launchNoRecentReceipts:
-      "아직 실행 영수증이 없습니다. 첫 루프가 초기 추적 기록을 남깁니다.",
-    launchNextActionTitle: "추천 다음 행동",
-    launchNextActionDescription: STARTUP_OFFICE_WEDGE_COPY.ko.nextAction,
-    launchRunQueued: "루프 초안이 생성되어 창업자 승인 대기열에 들어갔습니다.",
-    launchApprovalApproved: "승인이 기록되고 영수증이 작성되었습니다.",
-    launchApprovalRejected: "거절이 기록되고 영수증이 작성되었습니다.",
-    launchActionFailed: (message) =>
-      `스타트업 오피스 실행에 실패했습니다: ${message}`,
     growthInboxTitle: "처리할 성장 항목",
     growthInboxDescription:
       "팀 지식으로 쌓이기 전에 사람이 확인하거나 정리해야 하는 항목입니다.",
@@ -788,32 +520,6 @@ function useSkillsCopy(): SkillsCopy {
   return SKILLS_COPY[language] ?? SKILLS_COPY.en;
 }
 
-export function GrowthCenterApp() {
-  const copy = useSkillsCopy();
-  const fallbackSummary = useMemo(
-    () => fallbackStartupOfficeSummary(copy),
-    [copy],
-  );
-  const summaryQuery = useQuery({
-    queryKey: STARTUP_OFFICE_SUMMARY_QUERY_KEY,
-    queryFn: getStartupOfficeGrowthSummary,
-    refetchInterval: 30_000,
-  });
-  const summary = summaryQuery.data ?? fallbackSummary;
-
-  return (
-    <section className="skills-growth" aria-label={copy.growthAria}>
-      <GrowthCenterHeader copy={copy} />
-      <LaunchOfficeSurface
-        copy={copy}
-        isFallback={!summaryQuery.data || summaryQuery.isError}
-        summary={summary}
-      />
-      <SkillsDashboard />
-    </section>
-  );
-}
-
 export function SkillsApp() {
   const copy = useSkillsCopy();
   return (
@@ -821,358 +527,6 @@ export function SkillsApp() {
       <SkillManager />
     </section>
   );
-}
-
-function GrowthCenterHeader({ copy }: { copy: SkillsCopy }) {
-  return (
-    <div className="skills-hero">
-      <div>
-        <p className="skills-kicker">{copy.growthKicker}</p>
-        <h2>{copy.growthTitle}</h2>
-        <p>{copy.growthDescription}</p>
-      </div>
-    </div>
-  );
-}
-
-function LaunchOfficeSurface({
-  copy,
-  isFallback,
-  summary,
-}: {
-  copy: SkillsCopy;
-  isFallback: boolean;
-  summary: StartupOfficeGrowthSummary;
-}) {
-  const queryClient = useQueryClient();
-  const firstApproval = summary.pending_approvals[0] ?? null;
-  const nextDecision = firstApproval?.title || copy.launchPulseNextValue;
-  const profile = summary.company_profile;
-  const loops = summary.loops.length
-    ? summary.loops
-    : fallbackStartupOfficeSummary(copy).loops;
-
-  const runLoopMutation = useMutation({
-    mutationFn: (loop: StartupOfficeLoop) =>
-      runStartupOfficeLoop(loop.slug || loop.id, {
-        objective: loop.objective,
-      }),
-    onSuccess: () => {
-      showNotice(copy.launchRunQueued, "success");
-      queryClient.invalidateQueries({
-        queryKey: STARTUP_OFFICE_SUMMARY_QUERY_KEY,
-      });
-    },
-    onError: (error: Error) => {
-      showNotice(copy.launchActionFailed(error.message), "error");
-    },
-  });
-  const approveMutation = useMutation({
-    mutationFn: (approval: StartupOfficeApproval) =>
-      approveStartupOfficeApproval(approval.id, {
-        note: "Approved from Startup Office.",
-      }),
-    onSuccess: () => {
-      showNotice(copy.launchApprovalApproved, "success");
-      queryClient.invalidateQueries({
-        queryKey: STARTUP_OFFICE_SUMMARY_QUERY_KEY,
-      });
-    },
-    onError: (error: Error) => {
-      showNotice(copy.launchActionFailed(error.message), "error");
-    },
-  });
-  const rejectMutation = useMutation({
-    mutationFn: (approval: StartupOfficeApproval) =>
-      rejectStartupOfficeApproval(approval.id, {
-        reason: "Rejected from Startup Office.",
-      }),
-    onSuccess: () => {
-      showNotice(copy.launchApprovalRejected, "success");
-      queryClient.invalidateQueries({
-        queryKey: STARTUP_OFFICE_SUMMARY_QUERY_KEY,
-      });
-    },
-    onError: (error: Error) => {
-      showNotice(copy.launchActionFailed(error.message), "error");
-    },
-  });
-
-  return (
-    <div className="startup-office-grid">
-      <section className="skills-panel startup-office-pulse">
-        <div className="skills-section-head">
-          <h3>{copy.launchPulseTitle}</h3>
-          <p>{copy.launchPulseDescription}</p>
-        </div>
-        <div className="startup-office-status-strip">
-          <PulseDatum
-            label={copy.launchOfficeStatusLabel}
-            value={
-              isFallback ? copy.launchOfficeFallback : copy.launchOfficeOnline
-            }
-          />
-          <PulseDatum
-            label={copy.launchRecentRunsLabel}
-            value={String(summary.pulse.recent_runs)}
-          />
-          <PulseDatum
-            label={copy.launchPendingApprovalsLabel}
-            value={String(summary.pulse.pending_approvals)}
-          />
-          <PulseDatum
-            label={copy.launchReceiptsCountLabel}
-            value={String(summary.pulse.recent_receipts)}
-          />
-        </div>
-        <div className="startup-office-pulse-list">
-          <PulseDatum
-            label={copy.launchPulseCompanyLabel}
-            value={profile.name || copy.launchPulseCompanyValue}
-          />
-          <PulseDatum
-            label={copy.launchPulseStageLabel}
-            value={profile.stage || copy.launchPulseStageValue}
-          />
-          <PulseDatum
-            label={copy.launchPulseGoalLabel}
-            value={
-              profile.priority || profile.goals || copy.launchPulseGoalValue
-            }
-          />
-          <PulseDatum label={copy.launchPulseNextLabel} value={nextDecision} />
-        </div>
-      </section>
-
-      <section className="skills-panel startup-office-loops">
-        <div className="skills-section-head">
-          <h3>{copy.launchLoopsTitle}</h3>
-          <p>{copy.launchLoopsDescription}</p>
-        </div>
-        <div className="startup-loop-list">
-          {loops.map((loop) => {
-            const isRunning =
-              runLoopMutation.isPending &&
-              runLoopMutation.variables?.slug === loop.slug;
-            return (
-              <article className="startup-loop-card" key={loop.slug || loop.id}>
-                <div>
-                  <div className="startup-loop-meta">
-                    <span>{loop.department}</span>
-                    <span>
-                      {labelFromRecord(copy.launchLoopCadence, loop.cadence)}
-                    </span>
-                  </div>
-                  <strong>{loop.name}</strong>
-                  <p>{loop.objective}</p>
-                </div>
-                <div className="startup-loop-controls">
-                  <span>
-                    {labelFromRecord(copy.launchLoopStatus, loop.status)}
-                  </span>
-                  <button
-                    type="button"
-                    className="startup-office-action"
-                    aria-label={`Run ${loop.name} loop`}
-                    disabled={runLoopMutation.isPending}
-                    onClick={() => runLoopMutation.mutate(loop)}
-                  >
-                    <Play aria-hidden={true} height={13} width={13} />
-                    {isRunning ? copy.launchRunningLoop : copy.launchRunLoop}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="skills-panel startup-office-trust">
-        <div className="skills-section-head">
-          <h3>{copy.launchApprovalsTitle}</h3>
-          <p>{copy.launchApprovalsDescription}</p>
-        </div>
-        <div className="startup-approval-list">
-          {summary.pending_approvals.length ? (
-            summary.pending_approvals.map((approval) => {
-              const isApproving =
-                approveMutation.isPending &&
-                approveMutation.variables?.id === approval.id;
-              const isRejecting =
-                rejectMutation.isPending &&
-                rejectMutation.variables?.id === approval.id;
-              return (
-                <div className="startup-approval-row" key={approval.id}>
-                  <div className="startup-approval-heading">
-                    <strong>{approval.title}</strong>
-                    <span>
-                      {copy.launchApprovalRiskLabel}:{" "}
-                      {labelFromRecord(
-                        copy.launchApprovalRisk,
-                        approval.risk_level,
-                      )}
-                    </span>
-                  </div>
-                  {approval.details ? (
-                    <p>{compactText(approval.details, 220)}</p>
-                  ) : null}
-                  <div className="startup-approval-actions">
-                    <button
-                      type="button"
-                      className="startup-office-action"
-                      aria-label={approvalActionLabel(
-                        copy.launchApprove,
-                        approval.title,
-                      )}
-                      disabled={
-                        approveMutation.isPending || rejectMutation.isPending
-                      }
-                      onClick={() => approveMutation.mutate(approval)}
-                    >
-                      <CheckCircle aria-hidden={true} height={13} width={13} />
-                      {isApproving ? copy.launchApproving : copy.launchApprove}
-                    </button>
-                    <button
-                      type="button"
-                      className="startup-office-action is-secondary"
-                      aria-label={approvalActionLabel(
-                        copy.launchReject,
-                        approval.title,
-                      )}
-                      disabled={
-                        approveMutation.isPending || rejectMutation.isPending
-                      }
-                      onClick={() => rejectMutation.mutate(approval)}
-                    >
-                      <XmarkCircle aria-hidden={true} height={13} width={13} />
-                      {isRejecting ? copy.launchRejecting : copy.launchReject}
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <>
-              {copy.launchApprovals.map((approval) => (
-                <div className="startup-approval-row" key={approval.label}>
-                  <strong>{approval.label}</strong>
-                  <span>{approval.detail}</span>
-                </div>
-              ))}
-              <div className="startup-approval-empty">
-                {copy.launchNoPendingApprovals}
-              </div>
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="skills-panel startup-office-receipts">
-        <div className="skills-section-head">
-          <h3>{copy.launchReceiptsTitle}</h3>
-          <p>{copy.launchReceiptsDescription}</p>
-        </div>
-        <ul className="startup-receipt-list">
-          {summary.recent_receipts.length
-            ? summary.recent_receipts.map((receipt) => (
-                <StartupOfficeReceiptItem key={receipt.id} receipt={receipt} />
-              ))
-            : copy.launchReceipts.map((receipt) => (
-                <li key={receipt}>
-                  <strong>{receipt}</strong>
-                  <span>{copy.launchNoRecentReceipts}</span>
-                </li>
-              ))}
-        </ul>
-        <div className="startup-next-action">
-          <strong>{copy.launchNextActionTitle}</strong>
-          <span>
-            {firstApproval?.title || copy.launchNextActionDescription}
-          </span>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function PulseDatum({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="startup-pulse-datum">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function StartupOfficeReceiptItem({
-  receipt,
-}: {
-  receipt: StartupOfficeReceipt;
-}) {
-  return (
-    <li>
-      <strong>{receipt.event_type}</strong>
-      <span>{receipt.summary}</span>
-    </li>
-  );
-}
-
-function fallbackStartupOfficeSummary(
-  copy: SkillsCopy,
-): StartupOfficeGrowthSummary {
-  const loops = copy.launchLoops.map((loop, index) => ({
-    cadence: index === copy.launchLoops.length - 1 ? "weekly" : "manual",
-    department: "Startup Office",
-    id: fallbackLoopSlug(loop.name, index),
-    name: loop.name,
-    objective: loop.detail,
-    policy: { founder_approval_required: true },
-    slug: fallbackLoopSlug(loop.name, index),
-    status: "active",
-  }));
-  return {
-    company_profile: {
-      name: copy.launchPulseCompanyValue,
-      priority: copy.launchPulseGoalValue,
-      stage: copy.launchPulseStageValue,
-    },
-    loops,
-    pending_approvals: [],
-    pulse: {
-      active_loops: loops.length,
-      pending_approvals: 0,
-      recent_receipts: 0,
-      recent_runs: 0,
-    },
-    recent_receipts: [],
-    recent_runs: [],
-  };
-}
-
-function fallbackLoopSlug(name: string, index: number): string {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return slug || `loop-${index + 1}`;
-}
-
-function labelFromRecord(
-  record: Record<string, string>,
-  value?: string,
-): string {
-  const key = (value || "").trim();
-  if (!key) return "-";
-  return record[key] ?? key.replace(/_/g, " ");
-}
-
-function compactText(value: string, maxLength: number): string {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}...`;
-}
-
-function approvalActionLabel(action: string, title: string): string {
-  return `${action} ${title.replace(/^approve\s+/i, "")}`.trim();
 }
 
 function SkillsDashboard() {

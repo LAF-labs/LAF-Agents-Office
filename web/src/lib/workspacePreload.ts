@@ -35,9 +35,11 @@ export function loadSkillsApp() {
 }
 
 export function loadGrowthCenterApp() {
-  return import("../components/apps/SkillsApp").then((module) => ({
-    default: module.GrowthCenterApp,
-  }));
+  return import("../components/startup-office/StartupOfficeApp").then(
+    (module) => ({
+      default: module.StartupOfficeApp,
+    }),
+  );
 }
 
 export function loadTasksApp() {

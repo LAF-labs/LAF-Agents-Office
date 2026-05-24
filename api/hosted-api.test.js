@@ -497,6 +497,8 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(summary.body.pulse.recent_runs, 1);
   assert.equal(summary.body.pulse.pending_approvals, 0);
   assert.equal(summary.body.pulse.recent_receipts, 2);
+  assert.equal(summary.body.recent_artifacts.length, 1);
+  assert.equal(summary.body.recent_artifacts[0].title, "Idea Validation draft");
 });
 
 test("startup office demo seed creates a paid beta validation workspace", async (t) => {
@@ -566,6 +568,7 @@ test("startup office demo seed creates a paid beta validation workspace", async 
   assert.equal(summary.status, 200, JSON.stringify(summary.body));
   assert.equal(summary.body.company_profile.name, "Demo Beta Co");
   assert.equal(summary.body.pulse.pending_approvals, 1);
+  assert.equal(summary.body.recent_artifacts.length, 2);
   assert.equal(summary.body.recent_receipts.length, 3);
 });
 

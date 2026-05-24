@@ -9,6 +9,7 @@ questions.
 | --- | ---: | ---: | ---: | --- |
 | Baseline after plan freeze | 82 | 74 | 45 | Direction is clear, but the product still needed a concrete paid-beta wedge and demoable seed state. |
 | Phase 1: First Wedge And Offer Lock | 85 | 76 | 48 | The product now has explicit paid-beta validation copy, a guarded Startup Office wedge copy module, and an admin/dev demo seed endpoint. |
+| Phase 2: Startup Office Frontend Extraction | 88 | 84 | 55 | Startup Office now has a dedicated cloud product surface with live summary API, operating loops, approvals, receipts, artifacts, company memory preview, drawers, and isolated tests. |
 
 ## Phase 1 Evidence
 
@@ -25,9 +26,21 @@ questions.
 
 ## Remaining Before 90+
 
-- Extract Startup Office UI from the generic Skills app.
-- Extract Startup Office API client from the generic web API client.
 - Extract backend Startup Office domain logic from the monolithic API route.
 - Add real cloud AI loop execution.
 - Add company memory materialization and retrieval.
 - Add billing, usage limits, admin operations, and release gate.
+
+## Phase 2 Evidence
+
+- `SkillsApp.tsx` is back to skill management only; it no longer imports Startup Office API calls or renders the operating console.
+- Startup Office API calls live in `web/src/api/startupOffice.ts`.
+- The growth route lazy-loads `web/src/components/startup-office/StartupOfficeApp.tsx`.
+- Dedicated panels now cover Company Pulse, Operating Loops, Approval Desk, Receipts, Artifacts, and Company Memory preview.
+- Founder actions remain explicit: run loop, approve/reject, inspect run detail, inspect artifact, and edit company profile.
+- `/startup-office/growth-summary` now returns recent artifacts so the product surface can show real generated outputs.
+- Phase 2 test coverage:
+  - `StartupOfficeApp.test.tsx` verifies the dedicated surface, loop execution, approval, run/artifact drawers, and profile editing.
+  - `SkillsApp.test.tsx` verifies skill management without importing Startup Office surface code.
+  - Hosted API tests verify `recent_artifacts` in summary responses.
+- Browser smoke covered desktop and mobile widths through the Vite app with mocked hosted API responses. The panel rendered without blank states or overlapping primary content; mocked dev-only EventSource/API-token console errors were expected from the isolated browser harness.

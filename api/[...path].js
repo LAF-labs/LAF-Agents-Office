@@ -1635,9 +1635,10 @@ async function handleCompanyProfile(req, res) {
 async function handleStartupOfficeGrowthSummary(req, res) {
   const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "workspace:read");
-  const [loops, runs, approvals, receipts, profile] = await Promise.all([
+  const [loops, runs, artifacts, approvals, receipts, profile] = await Promise.all([
     startupOfficeLoops(membership.team_id),
     startupOfficeRuns(membership.team_id, { limit: 10 }),
+    startupOfficeArtifacts(membership.team_id, { limit: 10 }),
     startupOfficeApprovals(membership.team_id, { status: "pending", limit: 10 }),
     startupOfficeReceipts(membership.team_id, { limit: 10 }),
     companyProfileSnapshot(membership.team_id, team, user),
@@ -1651,6 +1652,7 @@ async function handleStartupOfficeGrowthSummary(req, res) {
       recent_receipts: receipts.length,
       recent_runs: runs.length,
     },
+    recent_artifacts: artifacts,
     recent_receipts: receipts,
     recent_runs: runs,
     pending_approvals: approvals,
@@ -2247,6 +2249,17 @@ async function startupOfficeRuns(teamID, options = {}) {
   if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
   const rows = await safeStartupOfficeRest("startup_office_runs", { query });
   return rows.map(publicStartupOfficeRun).filter(Boolean);
+}
+
+async function startupOfficeArtifacts(teamID, options = {}) {
+  const query = {
+    order: "created_at.desc",
+    select: "*",
+    team_id: `eq.${teamID}`,
+  };
+  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
+  const rows = await safeStartupOfficeRest("startup_office_artifacts", { query });
+  return rows.map(publicStartupOfficeArtifact).filter(Boolean);
 }
 
 async function startupOfficeApprovals(teamID, options = {}) {
