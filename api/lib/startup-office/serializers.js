@@ -106,6 +106,23 @@ function publicStartupOfficeReceipt(row) {
   };
 }
 
+function publicStartupOfficeMemoryPage(row) {
+  if (!row) return null;
+  return {
+    assumptions: arrayValue(row.assumptions),
+    body: row.body || "",
+    id: row.id || "",
+    last_verified_at: row.last_verified_at || null,
+    provenance: objectValue(row.provenance),
+    slug: row.slug || "",
+    sources: arrayValue(row.sources),
+    status: row.status || "approved",
+    summary: row.summary || "",
+    title: row.title || row.slug || "Memory page",
+    updated_at: row.updated_at || null,
+  };
+}
+
 function normalizeStartupOfficeCadence(value) {
   const raw = String(value || "").trim().toLowerCase();
   return ["manual", "daily", "weekly", "monthly"].includes(raw)
@@ -153,6 +170,10 @@ function normalizeStartupOfficeRiskLevel(value) {
   return ["low", "medium", "high"].includes(raw) ? raw : "medium";
 }
 
+function arrayValue(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 module.exports = {
   normalizeStartupOfficeApprovalStatus,
   normalizeStartupOfficeCadence,
@@ -162,6 +183,7 @@ module.exports = {
   publicStartupOfficeApproval,
   publicStartupOfficeArtifact,
   publicStartupOfficeLoop,
+  publicStartupOfficeMemoryPage,
   publicStartupOfficeReceipt,
   publicStartupOfficeRun,
 };

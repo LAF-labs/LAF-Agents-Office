@@ -50,6 +50,7 @@ export function ApprovalDeskPanel({
                 {approval.details ? (
                   <p>{compactText(approval.details, 220)}</p>
                 ) : null}
+                <MemoryDiffSummary approval={approval} />
                 <div className="startup-approval-actions">
                   <button
                     type="button"
@@ -96,5 +97,26 @@ export function ApprovalDeskPanel({
         )}
       </div>
     </section>
+  );
+}
+
+function MemoryDiffSummary({ approval }: { approval: StartupOfficeApproval }) {
+  const diff = approval.metadata?.memory_diff;
+  if (!diff || typeof diff !== "object" || Array.isArray(diff)) return null;
+  const changedPages = (diff as { changed_pages?: unknown }).changed_pages;
+  if (!Array.isArray(changedPages) || changedPages.length === 0) return null;
+  const labels = changedPages
+    .map((item) =>
+      item && typeof item === "object"
+        ? String((item as { title?: unknown }).title || "")
+        : "",
+    )
+    .filter(Boolean)
+    .slice(0, 4);
+  if (!labels.length) return null;
+  return (
+    <p className="startup-memory-diff">
+      Memory update: {labels.join(", ")}
+    </p>
   );
 }

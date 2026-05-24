@@ -7,6 +7,7 @@ const {
   publicStartupOfficeApproval,
   publicStartupOfficeArtifact,
   publicStartupOfficeLoop,
+  publicStartupOfficeMemoryPage,
   publicStartupOfficeReceipt,
   publicStartupOfficeRun,
 } = require("./serializers");
@@ -176,6 +177,18 @@ function createStartupOfficeRepository({
     return rows?.[0] || null;
   }
 
+  async function findArtifact(teamID, artifactID) {
+    const rows = await safeRest("startup_office_artifacts", {
+      query: {
+        id: `eq.${artifactID}`,
+        limit: "1",
+        select: "*",
+        team_id: `eq.${teamID}`,
+      },
+    });
+    return rows?.[0] || null;
+  }
+
   async function findRun(teamID, runID) {
     const rows = await safeRest("startup_office_runs", {
       query: {
@@ -295,6 +308,48 @@ function createStartupOfficeRepository({
     );
   }
 
+  async function memoryPages(teamID, options = {}) {
+    const query = {
+      order: "updated_at.desc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    };
+    if (options.status) query.status = `eq.${options.status}`;
+    if (options.slug) query.slug = `eq.${options.slug}`;
+    applyLimit(query, options.limit);
+    const rows = await safeRest("startup_office_memory_pages", { query });
+    return rows.map(publicStartupOfficeMemoryPage).filter(Boolean);
+  }
+
+  async function upsertMemoryPage(membership, body) {
+    const [page] = await safeRest("startup_office_memory_pages", {
+      method: "POST",
+      prefer: "resolution=merge-duplicates,return=representation",
+      query: { on_conflict: "team_id,slug" },
+      body: {
+        assumptions: Array.isArray(body.assumptions) ? body.assumptions : [],
+        body: truncateText(body.body || "", 30000),
+        created_by: membership.user_id,
+        last_verified_at: body.last_verified_at || null,
+        provenance: objectValue(body.provenance),
+        slug: truncateText(body.slug || "", 120),
+        sources: Array.isArray(body.sources) ? body.sources : [],
+        status: body.status || "approved",
+        summary: truncateText(body.summary || "", 2000),
+        team_id: membership.team_id,
+        title: truncateText(body.title || "", 180),
+        updated_at: body.updated_at || nowISO(),
+      },
+    });
+    return publicStartupOfficeMemoryPage(
+      page || {
+        id: `memory-${shortID()}`,
+        ...body,
+        updated_at: nowISO(),
+      },
+    );
+  }
+
   async function uniqueLoopSlug(teamID, seed) {
     const base = slugify(seed) || `loop-${shortID()}`;
     const existing = await safeRest("startup_office_loops", {
@@ -353,14 +408,17 @@ function createStartupOfficeRepository({
     createWorkerJob,
     ensureLoop,
     findApproval,
+    findArtifact,
     findRun,
     isMissingTableError,
     loops,
+    memoryPages,
     receipts,
     runs,
     safeRest,
     updateRun,
     updateWorkerJob,
+    upsertMemoryPage,
     uniqueLoopSlug,
   };
 }

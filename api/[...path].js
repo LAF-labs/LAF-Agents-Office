@@ -33,6 +33,9 @@ const {
 const {
   runStartupOfficeLoop,
 } = require("../workers/startup-office/loopRunner");
+const {
+  applyStartupOfficeMemoryPromotion,
+} = require("../workers/startup-office/wikiWriter");
 
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
 const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code"];
@@ -1674,12 +1677,16 @@ async function handleCompanyProfile(req, res) {
 async function handleStartupOfficeGrowthSummary(req, res) {
   const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "workspace:read");
-  const [loops, runs, artifacts, approvals, receipts, profile] = await Promise.all([
+  const [loops, runs, artifacts, approvals, receipts, memoryPages, profile] = await Promise.all([
     startupOfficeLoops(membership.team_id),
     startupOfficeRuns(membership.team_id, { limit: 10 }),
     startupOfficeArtifacts(membership.team_id, { limit: 10 }),
     startupOfficeApprovals(membership.team_id, { status: "pending", limit: 10 }),
     startupOfficeReceipts(membership.team_id, { limit: 10 }),
+    startupOfficeRepository().memoryPages(membership.team_id, {
+      status: "approved",
+      limit: 10,
+    }),
     companyProfileSnapshot(membership.team_id, team, user),
   ]);
   writeJSON(res, 200, {
@@ -1691,6 +1698,7 @@ async function handleStartupOfficeGrowthSummary(req, res) {
       recent_receipts: receipts.length,
       recent_runs: runs.length,
     },
+    memory_pages: memoryPages,
     recent_artifacts: artifacts,
     recent_receipts: receipts,
     recent_runs: runs,
@@ -1975,7 +1983,7 @@ async function handleStartupOfficeApprovals(req, res) {
 }
 
 async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
-  const { membership } = await requireUser(req);
+  const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "memory:promote");
   const body = await readBody(req);
   const approval = await findStartupOfficeApproval(membership.team_id, approvalID);
@@ -1998,6 +2006,7 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
     },
   });
   let updatedRun = null;
+  let memoryPromotion = null;
   if (approval.run_id) {
     const [run] = await safeStartupOfficeRest("startup_office_runs", {
       method: "PATCH",
@@ -2016,6 +2025,25 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
     });
     updatedRun = run;
   }
+  if (approved && approval.artifact_id) {
+    const repository = startupOfficeRepository();
+    const [artifact, profile] = await Promise.all([
+      repository.findArtifact(membership.team_id, approval.artifact_id),
+      companyProfileSnapshot(membership.team_id, team, user),
+    ]);
+    if (artifact) {
+      memoryPromotion = await applyStartupOfficeMemoryPromotion({
+        approval,
+        artifact,
+        membership,
+        profile,
+        repository,
+        run: updatedRun || (approval.run_id
+          ? await repository.findRun(membership.team_id, approval.run_id)
+          : null),
+      });
+    }
+  }
   const receipt = await createStartupOfficeReceipt(membership, {
     actor_slug: "founder",
     approval_id: approval.id,
@@ -2027,11 +2055,14 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
     trace: {
       approval_id: approval.id,
       decision_note: truncateText(body.note || body.reason || "", 500),
+      memory_pages: memoryPromotion?.pages?.map((page) => page.slug) || [],
     },
   });
   await writeAuditEvent(membership, approved ? "startup_office.approved" : "startup_office.rejected", "approval", approval.id);
   writeJSON(res, 200, {
     approval: publicStartupOfficeApproval(updatedApproval || approval),
+    memory_diff: memoryPromotion?.diff || null,
+    memory_pages: memoryPromotion?.pages || [],
     receipt,
     run: publicStartupOfficeRun(updatedRun),
     status: "ok",

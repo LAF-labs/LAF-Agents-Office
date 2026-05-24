@@ -102,6 +102,7 @@ function fakeRepository(state) {
       state.receipts.push(receipt);
       return receipt;
     },
+    memoryPages: async () => [],
     receipts: async () => [],
     runs: async () => [],
     safeRest: async () => [],

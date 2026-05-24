@@ -280,10 +280,14 @@ test("startup office backend domain modules expose stable boundaries", () => {
   const {
     STARTUP_OFFICE_LOOP_TEMPLATES,
   } = require("../workers/startup-office/loopTemplates");
+  const {
+    applyStartupOfficeMemoryPromotion,
+  } = require("../workers/startup-office/wikiWriter");
 
   assert.equal(typeof createStartupOfficeRepository, "function");
   assert.equal(typeof createStartupOfficeServices, "function");
   assert.equal(typeof createStartupOfficeModelClient, "function");
+  assert.equal(typeof applyStartupOfficeMemoryPromotion, "function");
   assert.equal(typeof runStartupOfficeLoop, "function");
   assert.equal(typeof publicCompanyProfile, "function");
   assert.equal(typeof publicStartupOfficeRun, "function");
@@ -314,6 +318,26 @@ test("startup office worker jobs migration defines async AI run state", () => {
   assert.match(sql, /create index if not exists idx_startup_office_worker_jobs_team_status\b/);
   assert.match(sql, /alter table public\.startup_office_worker_jobs enable row level security/);
   assert.match(sql, /members can read startup office worker jobs/);
+});
+
+test("startup office memory migration defines canonical company memory pages", () => {
+  const sql = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "supabase",
+      "migrations",
+      "20260524020000_startup_office_memory.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /create table if not exists public\.startup_office_memory_pages\b/);
+  assert.match(sql, /unique\(team_id, slug\)/);
+  assert.match(sql, /check \(status in \('draft', 'approved', 'archived'\)\)/);
+  assert.match(sql, /provenance jsonb not null default '\{\}'::jsonb/);
+  assert.match(sql, /sources jsonb not null default '\[\]'::jsonb/);
+  assert.match(sql, /assumptions jsonb not null default '\[\]'::jsonb/);
+  assert.match(sql, /members can read startup office memory pages/);
 });
 
 test("channel messages migration defines hosted chat persistence", () => {
@@ -485,6 +509,7 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
     startup_office_approvals: [],
     startup_office_artifacts: [],
     startup_office_loops: [],
+    startup_office_memory_pages: [],
     startup_office_receipts: [],
     startup_office_runs: [],
     startup_office_worker_jobs: [],
@@ -547,6 +572,8 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   );
   assert.equal(db.startup_office_artifacts[0].content.includes("Founder Control"), true);
   assert.equal(db.startup_office_artifacts[0].metadata.cost.total_tokens, 1900);
+  assert.equal(db.startup_office_artifacts[0].metadata.context.memory_page_count, 0);
+  assert.ok(run.body.approval.metadata.memory_diff.changed_pages.length >= 1);
 
   const approvals = await invoke(["startup-office", "approvals"], "GET");
   assert.equal(approvals.status, 200, JSON.stringify(approvals.body));
@@ -567,16 +594,43 @@ test("startup office API persists profile, loops, approvals, runs, and receipts"
   assert.equal(approved.status, 200, JSON.stringify(approved.body));
   assert.equal(approved.body.approval.status, "approved");
   assert.equal(approved.body.run.status, "completed");
+  assert.equal(approved.body.memory_pages.length, 7);
+  assert.ok(
+    db.startup_office_memory_pages.some(
+      (page) =>
+        page.slug === "validation-log" &&
+        page.provenance.artifact_id === run.body.artifact.id,
+    ),
+  );
   assert.equal(db.startup_office_receipts.length, 4);
   assert.equal(db.startup_office_receipts[3].event_type, "approval.approved");
+  assert.deepEqual(
+    db.startup_office_receipts[3].trace.memory_pages.sort(),
+    [
+      "company-profile",
+      "customer-discovery-log",
+      "decisions",
+      "icp",
+      "offer",
+      "risks",
+      "validation-log",
+    ],
+  );
+
+  const secondRun = await invoke(["startup-office", "loops", "idea-validation", "run"], "POST", {
+    objective: "Use approved memory on the next run",
+  });
+  assert.equal(secondRun.status, 200, JSON.stringify(secondRun.body));
+  assert.equal(secondRun.body.artifact.metadata.context.memory_page_count, 7);
 
   const summary = await invoke(["startup-office", "growth-summary"], "GET");
   assert.equal(summary.status, 200, JSON.stringify(summary.body));
   assert.equal(summary.body.company_profile.name, "LAF Labs");
-  assert.equal(summary.body.pulse.recent_runs, 1);
-  assert.equal(summary.body.pulse.pending_approvals, 0);
-  assert.equal(summary.body.pulse.recent_receipts, 4);
-  assert.equal(summary.body.recent_artifacts.length, 1);
+  assert.equal(summary.body.pulse.recent_runs, 2);
+  assert.equal(summary.body.pulse.pending_approvals, 1);
+  assert.equal(summary.body.pulse.recent_receipts, 7);
+  assert.equal(summary.body.memory_pages.length, 7);
+  assert.equal(summary.body.recent_artifacts.length, 2);
   assert.equal(summary.body.recent_artifacts[0].title, "Idea Validation AI draft");
 });
 
@@ -595,6 +649,7 @@ test("startup office run lifecycle supports deferred queue, cancel, and retry", 
     startup_office_approvals: [],
     startup_office_artifacts: [],
     startup_office_loops: [],
+    startup_office_memory_pages: [],
     startup_office_receipts: [],
     startup_office_runs: [],
     startup_office_worker_jobs: [],

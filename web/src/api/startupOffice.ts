@@ -81,9 +81,24 @@ export interface StartupOfficeArtifact {
   title: string;
 }
 
+export interface StartupOfficeMemoryPage {
+  assumptions?: unknown[];
+  body?: string;
+  id: string;
+  last_verified_at?: string | null;
+  provenance?: Record<string, unknown>;
+  slug: string;
+  sources?: unknown[];
+  status: string;
+  summary?: string;
+  title: string;
+  updated_at?: string | null;
+}
+
 export interface StartupOfficeGrowthSummary {
   company_profile: StartupOfficeCompanyProfile;
   loops: StartupOfficeLoop[];
+  memory_pages?: StartupOfficeMemoryPage[];
   pending_approvals: StartupOfficeApproval[];
   pulse: {
     active_loops: number;
@@ -158,6 +173,8 @@ export function approveStartupOfficeApproval(
 ) {
   return post<{
     approval?: StartupOfficeApproval | null;
+    memory_diff?: Record<string, unknown> | null;
+    memory_pages?: StartupOfficeMemoryPage[];
     receipt?: StartupOfficeReceipt | null;
     run?: StartupOfficeRun | null;
     status?: string;

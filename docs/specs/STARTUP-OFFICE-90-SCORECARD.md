@@ -12,6 +12,7 @@ questions.
 | Phase 2: Startup Office Frontend Extraction | 88 | 84 | 55 | Startup Office now has a dedicated cloud product surface with live summary API, operating loops, approvals, receipts, artifacts, company memory preview, drawers, and isolated tests. |
 | Phase 3: Backend Domain Extraction | 89 | 88 | 60 | Startup Office server behavior is separated into loop definitions, serializers, repository access, and service helpers, which gives the AI worker and memory phases a clean integration boundary. |
 | Phase 4: Cloud AI Loop Execution | 91 | 90 | 75 | Idea Validation and sibling loops now run through a cloud AI worker boundary with model provider config, structured templates, quality checks, async job state, receipts, run detail, failure state, retry/cancel, and cost metadata. |
+| Phase 5: Company Memory And Retrieval | 93 | 90 | 80 | Approved outputs now promote into canonical company memory pages with provenance, sources, assumptions, memory diffs, UI preview, and retrieval into future AI runs. |
 
 ## Phase 1 Evidence
 
@@ -28,7 +29,6 @@ questions.
 
 ## Remaining Before 90+
 
-- Add company memory materialization and retrieval.
 - Add billing, usage limits, admin operations, and release gate.
 
 ## Phase 2 Evidence
@@ -67,4 +67,17 @@ questions.
 - Phase 4 test coverage:
   - Worker unit tests cover successful artifact/approval/receipt creation and failed model calls with receipted failure states.
   - Hosted API tests cover fake AI execution, worker job completion, cost metadata, run detail, deferred queue, cancel, and retry.
-  - Startup Office UI tests cover run detail model and token usage.
+- Startup Office UI tests cover run detail model and token usage.
+
+## Phase 5 Evidence
+
+- `startup_office_memory_pages` migration adds canonical approved/draft/archived memory with provenance, sources, assumptions, last verification time, indexes, and RLS.
+- Approval now promotes approved artifacts into seven canonical pages: Company Profile, ICP, Offer, Validation Log, Customer Discovery Log, Decisions, and Risks.
+- Memory promotion stores artifact/run/approval provenance and writes the changed memory page list into the approval receipt trace.
+- Pending approvals carry a `memory_diff`, so the founder can see which memory pages will change before approval.
+- Future AI runs retrieve approved memory pages through `contextBuilder`; API tests assert the second run sees the seven approved memory pages.
+- Startup Office summary now returns memory pages; the UI previews approved memory, shows memory diffs in approvals, and adds a "Why this output" panel with memory/source/assumption counts.
+- Phase 5 test coverage:
+  - Migration tests verify the memory schema and RLS.
+  - Hosted API tests verify memory writes on approval, provenance, memory receipt trace, summary memory pages, and retrieval into the next run.
+  - Startup Office UI tests verify memory preview, memory diff, and why-this-output metadata.

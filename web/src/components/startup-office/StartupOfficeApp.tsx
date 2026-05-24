@@ -161,6 +161,7 @@ export function StartupOfficeApp() {
         <CompanyProfilePanel
           copy={copy}
           isOpen={profileOpen}
+          memoryPages={summary.memory_pages ?? []}
           onClose={() => setProfileOpen(false)}
           onEdit={() => setProfileOpen(true)}
           onSave={(profile) => profileMutation.mutate(profile)}

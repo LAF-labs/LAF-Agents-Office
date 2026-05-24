@@ -1,7 +1,10 @@
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { CheckCircle, EditPencil, Xmark } from "iconoir-react";
 
-import type { StartupOfficeCompanyProfile } from "../../api/startupOffice";
+import type {
+  StartupOfficeCompanyProfile,
+  StartupOfficeMemoryPage,
+} from "../../api/startupOffice";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 import {
   type StartupOfficeProfileForm,
@@ -11,6 +14,7 @@ import {
 interface CompanyProfilePanelProps {
   copy: StartupOfficeAppCopy;
   isOpen: boolean;
+  memoryPages?: StartupOfficeMemoryPage[];
   onClose: () => void;
   onEdit: () => void;
   onSave: (profile: StartupOfficeProfileForm) => void;
@@ -21,6 +25,7 @@ interface CompanyProfilePanelProps {
 export function CompanyProfilePanel({
   copy,
   isOpen,
+  memoryPages = [],
   onClose,
   onEdit,
   onSave,
@@ -54,6 +59,9 @@ export function CompanyProfilePanel({
       profile.priority || profile.goals || copy.goalFallback,
     ],
   ];
+  const canonicalMemoryRows = memoryPages.length
+    ? memoryPages.slice(0, 5).map((page) => [page.title, page.summary || "-"])
+    : memoryRows;
 
   const updateField =
     (field: keyof StartupOfficeProfileForm) =>
@@ -84,7 +92,7 @@ export function CompanyProfilePanel({
           </button>
         </div>
         <dl className="startup-memory-list">
-          {memoryRows.map(([label, value]) => (
+          {canonicalMemoryRows.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
               <dd>{value}</dd>

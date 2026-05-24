@@ -76,7 +76,15 @@ function mockStartupOfficeSummary() {
         action: "approve_loop_draft",
         details: "Founder control gate before publishing public claims.",
         id: "approval-1",
-        metadata: { loop_slug: "idea-validation" },
+        metadata: {
+          loop_slug: "idea-validation",
+          memory_diff: {
+            changed_pages: [
+              { slug: "validation-log", title: "Validation Log" },
+              { slug: "decisions", title: "Decisions" },
+            ],
+          },
+        },
         requested_at: "2026-05-24T00:00:00Z",
         risk_level: "medium",
         run_id: "run-1",
@@ -90,13 +98,31 @@ function mockStartupOfficeSummary() {
       recent_receipts: 1,
       recent_runs: 1,
     },
+    memory_pages: [
+      {
+        id: "memory-1",
+        slug: "validation-log",
+        status: "approved",
+        summary: "First paid-beta validation draft approved.",
+        title: "Validation Log",
+        updated_at: "2026-05-24T00:00:00Z",
+      },
+    ],
     recent_artifacts: [
       {
         content: "Validate and launch a paid beta with founder control.",
         created_at: "2026-05-24T00:00:00Z",
         id: "artifact-1",
         kind: "offer_package",
-        metadata: { loop_slug: "offer-package" },
+        metadata: {
+          context: { memory_page_count: 1 },
+          loop_slug: "offer-package",
+          quality: { risk_level: "medium" },
+          structured_output: {
+            assumptions: [{ claim: "Founders want control" }],
+            sources: [],
+          },
+        },
         run_id: "run-1",
         title: "Offer Package artifact",
       },
@@ -184,6 +210,12 @@ describe("StartupOfficeApp", () => {
     expect(screen.getAllByText("Idea Validation").length).toBeGreaterThan(0);
     expect(screen.getByText("Weekly Operator Review")).toBeInTheDocument();
     expect(screen.getByText("Offer Package artifact")).toBeInTheDocument();
+    expect(
+      screen.getByText("First paid-beta validation draft approved."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Memory update: Validation Log, Decisions"),
+    ).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("LAF Bridge");
     expect(container.textContent).not.toContain("Projects");
@@ -221,6 +253,10 @@ describe("StartupOfficeApp", () => {
         "Validate and launch a paid beta with founder control.",
       ).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByText("Why this output")).toBeInTheDocument();
+    expect(
+      screen.getByText("1 memory pages, 0 sources, 1 assumptions"),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close panel" }));
 
     await user.click(screen.getByRole("button", { name: "View run" }));

@@ -53,7 +53,40 @@ export function ArtifactViewer({
           </button>
         </div>
         <pre className="startup-artifact-content">{artifact.content}</pre>
+        <WhyThisOutput artifact={artifact} />
       </section>
     </div>
   );
+}
+
+function WhyThisOutput({ artifact }: { artifact: StartupOfficeArtifact }) {
+  const quality = recordValue(artifact.metadata?.quality);
+  const context = recordValue(artifact.metadata?.context);
+  const output = recordValue(artifact.metadata?.structured_output);
+  const assumptions = Array.isArray(output.assumptions)
+    ? output.assumptions.length
+    : 0;
+  const sources = Array.isArray(output.sources) ? output.sources.length : 0;
+  if (!Object.keys(quality).length && !Object.keys(context).length) return null;
+  return (
+    <dl className="startup-detail-list startup-why-output">
+      <div>
+        <dt>Why this output</dt>
+        <dd>
+          {Number(context.memory_page_count || 0)} memory pages, {sources} sources,{" "}
+          {assumptions} assumptions
+        </dd>
+      </div>
+      <div>
+        <dt>Quality</dt>
+        <dd>{String(quality.risk_level || "medium")} risk</dd>
+      </div>
+    </dl>
+  );
+}
+
+function recordValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }

@@ -2,7 +2,11 @@ const { buildStartupOfficeContext } = require("./contextBuilder");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
 const { writeStartupOfficeRunReceipt } = require("./receiptWriter");
-const { startupOfficeWikiPromotionDraft } = require("./wikiWriter");
+const {
+  buildStartupOfficeMemoryDiff,
+  startupOfficeMemoryPromotionPreview,
+  startupOfficeWikiPromotionDraft,
+} = require("./wikiWriter");
 
 async function runStartupOfficeLoop({
   inputs = {},
@@ -92,6 +96,10 @@ async function runStartupOfficeLoop({
       kind: template.artifactKind,
       metadata: {
         cost: modelResult.cost,
+        context: {
+          memory_page_count: context.wiki_memory.length,
+          receipt_count: context.recent_receipts.length,
+        },
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
@@ -106,6 +114,25 @@ async function runStartupOfficeLoop({
       run_id: run.id,
       title: truncateText(template.artifactTitle, 180),
     });
+    const currentMemoryPages = await repository.memoryPages(membership.team_id, {
+      status: "approved",
+      limit: 50,
+    });
+    const nextMemoryPages = startupOfficeMemoryPromotionPreview({
+      approval: null,
+      artifact,
+      currentPages: currentMemoryPages,
+      profile,
+      run: {
+        ...runningRun,
+        id: run.id,
+        summary: template.summary(modelResult.data),
+      },
+    });
+    const memoryDiff = buildStartupOfficeMemoryDiff({
+      currentPages: currentMemoryPages,
+      nextPages: nextMemoryPages,
+    });
     const approval = await repository.createApproval(membership, {
       action: "approve_loop_draft",
       artifact_id: artifact?.id || null,
@@ -113,6 +140,7 @@ async function runStartupOfficeLoop({
       metadata: {
         cost: modelResult.cost,
         loop_slug: loop.slug,
+        memory_diff: memoryDiff,
         model: modelClient.model,
         provider: modelClient.provider,
         quality,
