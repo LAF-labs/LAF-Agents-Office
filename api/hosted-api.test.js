@@ -688,6 +688,112 @@ test("startup office run lifecycle supports deferred queue, cancel, and retry", 
   assert.equal(db.startup_office_worker_jobs.at(-1).status, "completed");
 });
 
+test("startup office operating objects support CRUD, artifact actions, and export", async (t) => {
+  const db = {
+    audit_events: [],
+    memberships: [
+      {
+        role: "owner",
+        status: "active",
+        team_id: "team-1",
+        user_id: "user-1",
+      },
+    ],
+    startup_office_approvals: [],
+    startup_office_artifacts: [
+      {
+        content: "Interview founders who are already paying for operations help.",
+        id: "artifact-1",
+        kind: "plan",
+        metadata: {},
+        run_id: "run-1",
+        team_id: "team-1",
+        title: "Discovery artifact",
+      },
+    ],
+    startup_office_assets: [],
+    startup_office_customers: [],
+    startup_office_memory_pages: [],
+    startup_office_metrics: [],
+    startup_office_receipts: [],
+    startup_office_runs: [],
+    startup_office_signals: [],
+    teams: [{ id: "team-1", name: "Team One", slug: "team-one" }],
+  };
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+  });
+  global.fetch = hostedFetch(db);
+
+  const asset = await invoke(["startup-office", "assets"], "POST", {
+    body: "Beta offer draft",
+    kind: "document",
+    name: "Offer draft",
+  });
+  assert.equal(asset.status, 200, JSON.stringify(asset.body));
+  assert.equal(asset.body.asset.name, "Offer draft");
+
+  const customer = await invoke(["startup-office", "customers"], "POST", {
+    name: "Acme Founder",
+    notes: "Asked for validation help",
+    status: "interviewing",
+  });
+  assert.equal(customer.status, 200, JSON.stringify(customer.body));
+  assert.equal(customer.body.customer.status, "interviewing");
+
+  const metric = await invoke(["startup-office", "metrics"], "POST", {
+    metric_key: "interviews_booked",
+    metric_value: 3,
+    unit: "count",
+  });
+  assert.equal(metric.status, 200, JSON.stringify(metric.body));
+  assert.equal(metric.body.metric.metric_value, 3);
+
+  const signal = await invoke(["startup-office", "signals"], "POST", {
+    body: "Founder wants receipt-backed AI outputs.",
+    source: "manual",
+    title: "Receipt trust signal",
+  });
+  assert.equal(signal.status, 200, JSON.stringify(signal.body));
+  assert.equal(signal.body.signal.status, "new");
+
+  const archivedSignal = await invoke(
+    ["startup-office", "signals", signal.body.signal.id],
+    "PATCH",
+    { archive: true },
+  );
+  assert.equal(archivedSignal.status, 200, JSON.stringify(archivedSignal.body));
+  assert.equal(archivedSignal.body.signal.status, "archived");
+
+  const artifactAsset = await invoke(
+    ["startup-office", "artifacts", "artifact-1", "save-as-asset"],
+    "POST",
+    { name: "Saved discovery artifact" },
+  );
+  assert.equal(artifactAsset.status, 200, JSON.stringify(artifactAsset.body));
+  assert.equal(artifactAsset.body.asset.metadata.artifact_id, "artifact-1");
+
+  const artifactSignal = await invoke(
+    ["startup-office", "artifacts", "artifact-1", "record-signal"],
+    "POST",
+    { title: "Artifact insight" },
+  );
+  assert.equal(artifactSignal.status, 200, JSON.stringify(artifactSignal.body));
+  assert.equal(artifactSignal.body.signal.metadata.artifact_id, "artifact-1");
+
+  const listed = await invoke(["startup-office", "assets"], "GET");
+  assert.equal(listed.status, 200, JSON.stringify(listed.body));
+  assert.equal(listed.body.assets.length, 2);
+
+  const exported = await invoke(["startup-office", "export"], "GET");
+  assert.equal(exported.status, 200, JSON.stringify(exported.body));
+  assert.equal(exported.body.export.assets.length, 2);
+  assert.equal(exported.body.export.customers.length, 1);
+  assert.equal(exported.body.export.metrics.length, 1);
+  assert.equal(exported.body.export.signals.length, 2);
+});
+
 test("startup office demo seed creates a paid beta validation workspace", async (t) => {
   const db = {
     audit_events: [],

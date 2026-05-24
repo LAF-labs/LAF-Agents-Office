@@ -13,6 +13,7 @@ questions.
 | Phase 3: Backend Domain Extraction | 89 | 88 | 60 | Startup Office server behavior is separated into loop definitions, serializers, repository access, and service helpers, which gives the AI worker and memory phases a clean integration boundary. |
 | Phase 4: Cloud AI Loop Execution | 91 | 90 | 75 | Idea Validation and sibling loops now run through a cloud AI worker boundary with model provider config, structured templates, quality checks, async job state, receipts, run detail, failure state, retry/cancel, and cost metadata. |
 | Phase 5: Company Memory And Retrieval | 93 | 90 | 80 | Approved outputs now promote into canonical company memory pages with provenance, sources, assumptions, memory diffs, UI preview, and retrieval into future AI runs. |
+| Phase 6: Business Operations Objects | 93 | 90 | 84 | Assets, customers, metrics, and signals are now first-party Startup Office objects with CRUD, artifact actions, export, summary counts, and UI visibility. |
 
 ## Phase 1 Evidence
 
@@ -80,4 +81,13 @@ questions.
 - Phase 5 test coverage:
   - Migration tests verify the memory schema and RLS.
   - Hosted API tests verify memory writes on approval, provenance, memory receipt trace, summary memory pages, and retrieval into the next run.
-  - Startup Office UI tests verify memory preview, memory diff, and why-this-output metadata.
+- Startup Office UI tests verify memory preview, memory diff, and why-this-output metadata.
+
+## Phase 6 Evidence
+
+- `GET/POST/PATCH /startup-office/assets`, `/customers`, `/metrics`, and `/signals` are implemented as tenant-scoped first-party operating objects.
+- Artifact actions now save an artifact as an asset or record an artifact-derived signal without using external connectors.
+- `GET /startup-office/export` returns assets, customers, metrics, signals, runs, approvals, receipts, and memory pages as one export bundle.
+- Startup Office summary includes recent object counts, and the UI shows an Operating Objects panel.
+- Hosted API tests cover CRUD, archive, artifact-to-object actions, and export.
+- Startup Office UI tests verify object counts are visible in the main cloud office surface.

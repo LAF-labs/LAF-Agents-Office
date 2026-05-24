@@ -108,6 +108,14 @@ function mockStartupOfficeSummary() {
         updated_at: "2026-05-24T00:00:00Z",
       },
     ],
+    operating_objects: {
+      counts: {
+        assets: 2,
+        customers: 1,
+        metrics: 1,
+        signals: 3,
+      },
+    },
     recent_artifacts: [
       {
         content: "Validate and launch a paid beta with founder control.",
@@ -203,6 +211,9 @@ describe("StartupOfficeApp", () => {
     expect(
       screen.getByRole("heading", { name: "Company memory" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Operating objects" }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("LAF Labs")).toBeInTheDocument();
     expect(
       screen.getAllByText("Validate paid beta demand").length,
@@ -216,6 +227,7 @@ describe("StartupOfficeApp", () => {
     expect(
       screen.getByText("Memory update: Validation Log, Decisions"),
     ).toBeInTheDocument();
+    expect(screen.getByText("Assets")).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("LAF Bridge");
     expect(container.textContent).not.toContain("Projects");

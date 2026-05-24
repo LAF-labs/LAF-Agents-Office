@@ -20,9 +20,13 @@ const {
   publicCompanyProfile,
   publicStartupOfficeApproval,
   publicStartupOfficeArtifact,
+  publicStartupOfficeAsset,
+  publicStartupOfficeCustomer,
   publicStartupOfficeLoop,
+  publicStartupOfficeMetric,
   publicStartupOfficeReceipt,
   publicStartupOfficeRun,
+  publicStartupOfficeSignal,
 } = require("./lib/startup-office/serializers");
 const {
   createStartupOfficeServices,
@@ -336,6 +340,45 @@ module.exports = async function handler(req, res) {
     }
     if (path === "startup-office/receipts" || path === "receipts") {
       await handleStartupOfficeReceipts(req, res);
+      return;
+    }
+    const startupOfficeObjectCollectionMatch = path.match(
+      /^startup-office\/(assets|customers|metrics|signals)$/,
+    );
+    if (startupOfficeObjectCollectionMatch) {
+      await handleStartupOfficeObjectCollection(
+        req,
+        res,
+        startupOfficeObjectCollectionMatch[1],
+      );
+      return;
+    }
+    const startupOfficeObjectItemMatch = path.match(
+      /^startup-office\/(assets|customers|metrics|signals)\/([^/]+)$/,
+    );
+    if (startupOfficeObjectItemMatch) {
+      await handleStartupOfficeObjectItem(
+        req,
+        res,
+        startupOfficeObjectItemMatch[1],
+        decodeURIComponent(startupOfficeObjectItemMatch[2]),
+      );
+      return;
+    }
+    const startupOfficeArtifactActionMatch = path.match(
+      /^startup-office\/artifacts\/([^/]+)\/(save-as-asset|record-signal)$/,
+    );
+    if (startupOfficeArtifactActionMatch && req.method === "POST") {
+      await handleStartupOfficeArtifactObjectAction(
+        req,
+        res,
+        decodeURIComponent(startupOfficeArtifactActionMatch[1]),
+        startupOfficeArtifactActionMatch[2],
+      );
+      return;
+    }
+    if (path === "startup-office/export" && req.method === "GET") {
+      await handleStartupOfficeExport(req, res);
       return;
     }
     if (path === "humans" && req.method === "GET") {
@@ -1677,7 +1720,16 @@ async function handleCompanyProfile(req, res) {
 async function handleStartupOfficeGrowthSummary(req, res) {
   const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "workspace:read");
-  const [loops, runs, artifacts, approvals, receipts, memoryPages, profile] = await Promise.all([
+  const [
+    loops,
+    runs,
+    artifacts,
+    approvals,
+    receipts,
+    memoryPages,
+    objectSummary,
+    profile,
+  ] = await Promise.all([
     startupOfficeLoops(membership.team_id),
     startupOfficeRuns(membership.team_id, { limit: 10 }),
     startupOfficeArtifacts(membership.team_id, { limit: 10 }),
@@ -1687,6 +1739,7 @@ async function handleStartupOfficeGrowthSummary(req, res) {
       status: "approved",
       limit: 10,
     }),
+    startupOfficeObjectSummary(membership.team_id),
     companyProfileSnapshot(membership.team_id, team, user),
   ]);
   writeJSON(res, 200, {
@@ -1699,6 +1752,7 @@ async function handleStartupOfficeGrowthSummary(req, res) {
       recent_runs: runs.length,
     },
     memory_pages: memoryPages,
+    operating_objects: objectSummary,
     recent_artifacts: artifacts,
     recent_receipts: receipts,
     recent_runs: runs,
@@ -2078,6 +2132,318 @@ async function handleStartupOfficeReceipts(req, res) {
       limit: Number(req.query?.limit) || 100,
     }),
   });
+}
+
+async function handleStartupOfficeObjectCollection(req, res, kind) {
+  const { membership } = await requireUser(req);
+  const definition = startupOfficeObjectDefinition(kind);
+  if (req.method === "GET") {
+    requirePermission(membership, "workspace:read");
+    const rows = await startupOfficeObjectRows(membership.team_id, kind, {
+      limit: Number(req.query?.limit) || 100,
+      status: req.query?.status,
+    });
+    writeJSON(res, 200, { [definition.responseKey]: rows });
+    return;
+  }
+  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "memory:write_draft");
+  const body = await readBody(req);
+  const [row] = await safeStartupOfficeRest(definition.table, {
+    method: "POST",
+    body: startupOfficeObjectPayload(kind, membership, body),
+  });
+  const item = definition.public(row);
+  await writeAuditEvent(membership, `startup_office.${kind}.created`, kind, item?.id || "");
+  writeJSON(res, 200, { [definition.singularKey]: item });
+}
+
+async function handleStartupOfficeObjectItem(req, res, kind, objectID) {
+  const { membership } = await requireUser(req);
+  if (req.method !== "PATCH") throw new HTTPError(405, "method not allowed");
+  requirePermission(membership, "memory:write_draft");
+  const definition = startupOfficeObjectDefinition(kind);
+  const body = await readBody(req);
+  const [row] = await safeStartupOfficeRest(definition.table, {
+    method: "PATCH",
+    query: {
+      id: `eq.${objectID}`,
+      team_id: `eq.${membership.team_id}`,
+    },
+    body: startupOfficeObjectPatch(kind, body),
+  });
+  const item = definition.public(row);
+  await writeAuditEvent(membership, `startup_office.${kind}.updated`, kind, objectID);
+  writeJSON(res, 200, { [definition.singularKey]: item });
+}
+
+async function handleStartupOfficeArtifactObjectAction(req, res, artifactID, action) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "memory:write_draft");
+  const artifact = await startupOfficeRepository().findArtifact(membership.team_id, artifactID);
+  if (!artifact) throw new HTTPError(404, "artifact not found");
+  const body = await readBody(req);
+  if (action === "save-as-asset") {
+    const [asset] = await safeStartupOfficeRest("startup_office_assets", {
+      method: "POST",
+      body: {
+        body: truncateText(artifact.content || "", 30000),
+        created_by: membership.user_id,
+        kind: truncateText(body.kind || artifact.kind || "document", 80),
+        metadata: {
+          artifact_id: artifact.id,
+          source: "artifact",
+        },
+        name: truncateText(body.name || artifact.title || "Startup Office asset", 180),
+        run_id: artifact.run_id || null,
+        team_id: membership.team_id,
+        updated_at: nowISO(),
+      },
+    });
+    await writeAuditEvent(membership, "startup_office.asset.created_from_artifact", "artifact", artifact.id);
+    writeJSON(res, 200, { asset: publicStartupOfficeAsset(asset) });
+    return;
+  }
+  if (action === "record-signal") {
+    const [signal] = await safeStartupOfficeRest("startup_office_signals", {
+      method: "POST",
+      body: {
+        body: truncateText(body.body || artifact.content || "", 6000),
+        created_by: membership.user_id,
+        metadata: {
+          artifact_id: artifact.id,
+          run_id: artifact.run_id || null,
+          source: "artifact",
+        },
+        source: truncateText(body.source || "artifact", 120),
+        status: "new",
+        team_id: membership.team_id,
+        title: truncateText(body.title || artifact.title || "Artifact signal", 180),
+        updated_at: nowISO(),
+      },
+    });
+    await writeAuditEvent(membership, "startup_office.signal.created_from_artifact", "artifact", artifact.id);
+    writeJSON(res, 200, { signal: publicStartupOfficeSignal(signal) });
+    return;
+  }
+  throw new HTTPError(400, "unsupported artifact action");
+}
+
+async function handleStartupOfficeExport(req, res) {
+  const { membership } = await requireUser(req);
+  requirePermission(membership, "workspace:read");
+  const [
+    assets,
+    customers,
+    metrics,
+    signals,
+    runs,
+    approvals,
+    receipts,
+    memoryPages,
+  ] = await Promise.all([
+    startupOfficeObjectRows(membership.team_id, "assets", { limit: 1000 }),
+    startupOfficeObjectRows(membership.team_id, "customers", { limit: 1000 }),
+    startupOfficeObjectRows(membership.team_id, "metrics", { limit: 1000 }),
+    startupOfficeObjectRows(membership.team_id, "signals", { limit: 1000 }),
+    startupOfficeRuns(membership.team_id, { limit: 1000 }),
+    startupOfficeApprovals(membership.team_id, { limit: 1000 }),
+    startupOfficeReceipts(membership.team_id, { limit: 1000 }),
+    startupOfficeRepository().memoryPages(membership.team_id, { limit: 1000 }),
+  ]);
+  writeJSON(res, 200, {
+    export: {
+      approvals,
+      assets,
+      customers,
+      generated_at: nowISO(),
+      memory_pages: memoryPages,
+      metrics,
+      receipts,
+      runs,
+      signals,
+    },
+  });
+}
+
+async function startupOfficeObjectSummary(teamID) {
+  const [assets, customers, metrics, signals] = await Promise.all([
+    startupOfficeObjectRows(teamID, "assets", { limit: 5 }),
+    startupOfficeObjectRows(teamID, "customers", { limit: 5 }),
+    startupOfficeObjectRows(teamID, "metrics", { limit: 5 }),
+    startupOfficeObjectRows(teamID, "signals", { limit: 5 }),
+  ]);
+  return {
+    assets,
+    counts: {
+      assets: assets.length,
+      customers: customers.length,
+      metrics: metrics.length,
+      signals: signals.length,
+    },
+    customers,
+    metrics,
+    signals,
+  };
+}
+
+async function startupOfficeObjectRows(teamID, kind, options = {}) {
+  const definition = startupOfficeObjectDefinition(kind);
+  const query = {
+    order: "created_at.desc",
+    select: "*",
+    team_id: `eq.${teamID}`,
+  };
+  if (options.status) query.status = `eq.${options.status}`;
+  if (options.limit) query.limit = String(clamp(Number(options.limit) || 100, 1, 1000));
+  const rows = await safeStartupOfficeRest(definition.table, { query });
+  return rows.map(definition.public).filter(Boolean);
+}
+
+function startupOfficeObjectDefinition(kind) {
+  const definitions = {
+    assets: {
+      public: publicStartupOfficeAsset,
+      responseKey: "assets",
+      singularKey: "asset",
+      table: "startup_office_assets",
+    },
+    customers: {
+      public: publicStartupOfficeCustomer,
+      responseKey: "customers",
+      singularKey: "customer",
+      table: "startup_office_customers",
+    },
+    metrics: {
+      public: publicStartupOfficeMetric,
+      responseKey: "metrics",
+      singularKey: "metric",
+      table: "startup_office_metrics",
+    },
+    signals: {
+      public: publicStartupOfficeSignal,
+      responseKey: "signals",
+      singularKey: "signal",
+      table: "startup_office_signals",
+    },
+  };
+  const definition = definitions[kind];
+  if (!definition) throw new HTTPError(404, "startup office object not found");
+  return definition;
+}
+
+function startupOfficeObjectPayload(kind, membership, body) {
+  const now = nowISO();
+  if (kind === "assets") {
+    return {
+      body: truncateText(body.body || "", 30000),
+      created_by: membership.user_id,
+      kind: truncateText(body.kind || "document", 80),
+      metadata: objectValue(body.metadata),
+      name: truncateText(body.name || "Untitled asset", 180),
+      run_id: body.run_id || null,
+      team_id: membership.team_id,
+      updated_at: now,
+    };
+  }
+  if (kind === "customers") {
+    return {
+      created_by: membership.user_id,
+      name: truncateText(body.name || "Untitled customer", 180),
+      notes: truncateText(body.notes || "", 6000),
+      profile: objectValue(body.profile),
+      status: startupOfficeCustomerStatus(body.status),
+      team_id: membership.team_id,
+      updated_at: now,
+    };
+  }
+  if (kind === "metrics") {
+    return {
+      created_by: membership.user_id,
+      metadata: objectValue(body.metadata),
+      metric_key: truncateText(body.metric_key || body.key || "metric", 120),
+      metric_value: numericOrNull(body.metric_value ?? body.value),
+      period_end: body.period_end || null,
+      period_start: body.period_start || null,
+      team_id: membership.team_id,
+      unit: truncateText(body.unit || "", 40),
+    };
+  }
+  if (kind === "signals") {
+    return {
+      body: truncateText(body.body || "", 6000),
+      created_by: membership.user_id,
+      metadata: objectValue(body.metadata),
+      source: truncateText(body.source || "manual", 120),
+      status: startupOfficeSignalStatus(body.status),
+      team_id: membership.team_id,
+      title: truncateText(body.title || "Untitled signal", 180),
+      updated_at: now,
+    };
+  }
+  throw new HTTPError(400, "unsupported startup office object");
+}
+
+function startupOfficeObjectPatch(kind, body) {
+  const patch = { updated_at: nowISO() };
+  if (kind === "assets") {
+    for (const key of ["name", "kind", "body"]) {
+      if (body[key] !== undefined) patch[key] = truncateText(body[key], key === "body" ? 30000 : 180);
+    }
+    if (body.metadata !== undefined) patch.metadata = objectValue(body.metadata);
+    return patch;
+  }
+  if (kind === "customers") {
+    if (body.name !== undefined) patch.name = truncateText(body.name, 180);
+    if (body.notes !== undefined) patch.notes = truncateText(body.notes, 6000);
+    if (body.profile !== undefined) patch.profile = objectValue(body.profile);
+    if (body.status !== undefined || body.archive) {
+      patch.status = body.archive ? "archived" : startupOfficeCustomerStatus(body.status);
+    }
+    return patch;
+  }
+  if (kind === "metrics") {
+    if (body.metric_key !== undefined || body.key !== undefined) {
+      patch.metric_key = truncateText(body.metric_key || body.key, 120);
+    }
+    if (body.metric_value !== undefined || body.value !== undefined) {
+      patch.metric_value = numericOrNull(body.metric_value ?? body.value);
+    }
+    for (const key of ["unit", "period_start", "period_end"]) {
+      if (body[key] !== undefined) patch[key] = body[key];
+    }
+    if (body.metadata !== undefined) patch.metadata = objectValue(body.metadata);
+    return patch;
+  }
+  if (kind === "signals") {
+    if (body.title !== undefined) patch.title = truncateText(body.title, 180);
+    if (body.body !== undefined) patch.body = truncateText(body.body, 6000);
+    if (body.source !== undefined) patch.source = truncateText(body.source, 120);
+    if (body.metadata !== undefined) patch.metadata = objectValue(body.metadata);
+    if (body.status !== undefined || body.archive) {
+      patch.status = body.archive ? "archived" : startupOfficeSignalStatus(body.status);
+    }
+    return patch;
+  }
+  throw new HTTPError(400, "unsupported startup office object");
+}
+
+function startupOfficeCustomerStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["lead", "interviewing", "qualified", "customer", "lost", "archived"].includes(raw)
+    ? raw
+    : "lead";
+}
+
+function startupOfficeSignalStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["new", "triaged", "used", "archived"].includes(raw) ? raw : "new";
+}
+
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 async function handleStartupOfficeDemoSeed(req, res) {

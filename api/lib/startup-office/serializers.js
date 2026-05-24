@@ -123,6 +123,61 @@ function publicStartupOfficeMemoryPage(row) {
   };
 }
 
+function publicStartupOfficeAsset(row) {
+  if (!row) return null;
+  return {
+    body: row.body || "",
+    created_at: row.created_at || null,
+    id: row.id || "",
+    kind: row.kind || "document",
+    metadata: objectValue(row.metadata),
+    name: row.name || "",
+    run_id: row.run_id || null,
+    updated_at: row.updated_at || null,
+  };
+}
+
+function publicStartupOfficeCustomer(row) {
+  if (!row) return null;
+  return {
+    created_at: row.created_at || null,
+    id: row.id || "",
+    name: row.name || "",
+    notes: row.notes || "",
+    profile: objectValue(row.profile),
+    status: row.status || "lead",
+    updated_at: row.updated_at || null,
+  };
+}
+
+function publicStartupOfficeMetric(row) {
+  if (!row) return null;
+  return {
+    created_at: row.created_at || null,
+    id: row.id || "",
+    metadata: objectValue(row.metadata),
+    metric_key: row.metric_key || "",
+    metric_value: row.metric_value === undefined ? null : row.metric_value,
+    period_end: row.period_end || null,
+    period_start: row.period_start || null,
+    unit: row.unit || "",
+  };
+}
+
+function publicStartupOfficeSignal(row) {
+  if (!row) return null;
+  return {
+    body: row.body || "",
+    created_at: row.created_at || null,
+    id: row.id || "",
+    metadata: objectValue(row.metadata),
+    source: row.source || "",
+    status: row.status || "new",
+    title: row.title || "",
+    updated_at: row.updated_at || null,
+  };
+}
+
 function normalizeStartupOfficeCadence(value) {
   const raw = String(value || "").trim().toLowerCase();
   return ["manual", "daily", "weekly", "monthly"].includes(raw)
@@ -182,8 +237,12 @@ module.exports = {
   publicCompanyProfile,
   publicStartupOfficeApproval,
   publicStartupOfficeArtifact,
+  publicStartupOfficeAsset,
+  publicStartupOfficeCustomer,
   publicStartupOfficeLoop,
   publicStartupOfficeMemoryPage,
+  publicStartupOfficeMetric,
   publicStartupOfficeReceipt,
   publicStartupOfficeRun,
+  publicStartupOfficeSignal,
 };

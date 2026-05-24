@@ -95,10 +95,58 @@ export interface StartupOfficeMemoryPage {
   updated_at?: string | null;
 }
 
+export interface StartupOfficeOperatingObjects {
+  assets?: StartupOfficeArtifactObject[];
+  counts?: {
+    assets?: number;
+    customers?: number;
+    metrics?: number;
+    signals?: number;
+  };
+  customers?: StartupOfficeCustomer[];
+  metrics?: StartupOfficeMetric[];
+  signals?: StartupOfficeSignal[];
+}
+
+export interface StartupOfficeArtifactObject {
+  body?: string;
+  id: string;
+  kind?: string;
+  metadata?: Record<string, unknown>;
+  name: string;
+  run_id?: string | null;
+  updated_at?: string | null;
+}
+
+export interface StartupOfficeCustomer {
+  id: string;
+  name: string;
+  notes?: string;
+  profile?: Record<string, unknown>;
+  status: string;
+  updated_at?: string | null;
+}
+
+export interface StartupOfficeMetric {
+  id: string;
+  metric_key: string;
+  metric_value?: number | null;
+  unit?: string;
+}
+
+export interface StartupOfficeSignal {
+  body?: string;
+  id: string;
+  source?: string;
+  status: string;
+  title: string;
+}
+
 export interface StartupOfficeGrowthSummary {
   company_profile: StartupOfficeCompanyProfile;
   loops: StartupOfficeLoop[];
   memory_pages?: StartupOfficeMemoryPage[];
+  operating_objects?: StartupOfficeOperatingObjects;
   pending_approvals: StartupOfficeApproval[];
   pulse: {
     active_loops: number;

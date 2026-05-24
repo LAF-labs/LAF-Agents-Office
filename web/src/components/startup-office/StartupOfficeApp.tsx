@@ -19,6 +19,7 @@ import { ArtifactsPanel } from "./ArtifactsPanel";
 import { ArtifactViewer } from "./ArtifactViewer";
 import { CompanyProfilePanel } from "./CompanyProfilePanel";
 import { CompanyPulsePanel } from "./CompanyPulsePanel";
+import { OperatingObjectsPanel } from "./OperatingObjectsPanel";
 import { OperatingLoopsPanel } from "./OperatingLoopsPanel";
 import { ReceiptsTimelinePanel } from "./ReceiptsTimelinePanel";
 import { RunDetailDrawer } from "./RunDetailDrawer";
@@ -167,6 +168,10 @@ export function StartupOfficeApp() {
           onSave={(profile) => profileMutation.mutate(profile)}
           profile={summary.company_profile}
           saving={profileMutation.isPending}
+        />
+        <OperatingObjectsPanel
+          copy={copy}
+          objects={summary.operating_objects}
         />
         <ReceiptsTimelinePanel
           copy={copy}
