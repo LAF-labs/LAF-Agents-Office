@@ -16,6 +16,7 @@ questions.
 | Phase 6: Business Operations Objects | 93 | 90 | 84 | Assets, customers, metrics, and signals are now first-party Startup Office objects with CRUD, artifact actions, export, summary counts, and UI visibility. |
 | Phase 7: Trust And Approval Policy | 94 | 90 | 88 | Founder control now has an approval policy API, citation requirement defaults, visible support access policy, revision request flow, audit events, and UI revision controls. |
 | Phase 8: Billing, Limits, Admin, And Notifications | 94 | 90 | 91 | Closed-beta operations now have billing state, run/spend limits, usage metering, notification records, an admin beta dashboard, and visible beta usage in the Startup Office UI. |
+| Phase 9: Release Gate And Output Evaluation | 95 | 92 | 93 | One command now verifies the Startup Office beta surface, worker tests, fake output rubric, hosted API tests, UI tests, and production web build. |
 
 ## Phase 1 Evidence
 
@@ -32,7 +33,7 @@ questions.
 
 ## Remaining Before 90+
 
-- Add release gate and end-to-end quality harness.
+- Run the release gate before every beta handoff and perform the first paid-customer manual browser pass.
 
 ## Phase 2 Evidence
 
@@ -115,3 +116,16 @@ questions.
 - Startup Office summary and UI show beta operations state and usage.
 - Hosted API tests cover migration, usage metering, billing limit enforcement, billing updates, and admin dashboard output.
 - Startup Office UI tests verify beta operations state is visible on the main surface.
+
+## Phase 9 Evidence
+
+- `npm run beta:release-gate` runs:
+  - `git diff --check`
+  - Startup Office surface guard
+  - worker loop runner tests
+  - fake output evaluation test
+  - hosted API tests
+  - Startup Office UI tests
+  - production web build
+- `workers/startup-office/outputEval.test.js` verifies the fake Idea Validation output clears the quality rubric with assumptions, next actions, and cost metadata.
+- The gate is intentionally live-API-free; it uses fake model/provider paths so it can run before every beta release.
