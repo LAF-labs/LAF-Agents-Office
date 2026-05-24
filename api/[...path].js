@@ -6,8 +6,27 @@ const {
   demoSeedUUID,
 } = require("./lib/startup-office/demoSeed");
 const {
+  STARTUP_OFFICE_LOOP_DEFINITIONS,
+} = require("./lib/startup-office/loopDefinitions");
+const {
+  createStartupOfficeRepository,
+} = require("./lib/startup-office/repositories");
+const {
   STARTUP_OFFICE_ROUTE_PATHS,
 } = require("./lib/startup-office/routes");
+const {
+  normalizeStartupOfficeCadence,
+  normalizeStartupOfficeLoopStatus,
+  publicCompanyProfile,
+  publicStartupOfficeApproval,
+  publicStartupOfficeArtifact,
+  publicStartupOfficeLoop,
+  publicStartupOfficeReceipt,
+  publicStartupOfficeRun,
+} = require("./lib/startup-office/serializers");
+const {
+  createStartupOfficeServices,
+} = require("./lib/startup-office/services");
 
 const TERMINAL_TASK_STATUSES = ["done", "canceled"];
 const SUPPORTED_LOCAL_CLI_RUNTIMES = ["codex", "claude-code"];
@@ -39,43 +58,6 @@ const HOSTED_WEB_COMMANDS = Object.freeze([
 const HOSTED_WEB_COMMAND_NAMES = new Set(
   HOSTED_WEB_COMMANDS.map((command) => command.name),
 );
-const STARTUP_OFFICE_LOOP_DEFINITIONS = Object.freeze([
-  {
-    cadence: "manual",
-    department: "Strategy",
-    name: "Idea Validation",
-    objective: "Turn a rough startup idea into falsifiable market assumptions, ICP, and next evidence.",
-    slug: "idea-validation",
-  },
-  {
-    cadence: "manual",
-    department: "Growth",
-    name: "Offer Package",
-    objective: "Draft the customer promise, pricing hypothesis, objections, and sales page outline.",
-    slug: "offer-package",
-  },
-  {
-    cadence: "manual",
-    department: "Marketing",
-    name: "Launch Campaign",
-    objective: "Prepare launch copy, channels, experiments, and approval gates for a public campaign.",
-    slug: "launch-campaign",
-  },
-  {
-    cadence: "manual",
-    department: "Sales",
-    name: "Customer Discovery",
-    objective: "Generate interview targets, questions, follow-up assets, and learning receipts.",
-    slug: "customer-discovery",
-  },
-  {
-    cadence: "weekly",
-    department: "Operations",
-    name: "Weekly Operator Review",
-    objective: "Summarize company pulse, risks, decisions, approvals, and next operating priorities.",
-    slug: "weekly-operator-review",
-  },
-]);
 const DEFAULT_PROFILE_AVATAR_ID = "human";
 const PROFILE_AVATAR_IDS = new Set([
   "human",
@@ -1587,6 +1569,34 @@ function hostedConfigSnapshot({ settings, team, user }) {
   };
 }
 
+let startupOfficeRepositoryInstance = null;
+function startupOfficeRepository() {
+  if (!startupOfficeRepositoryInstance) {
+    startupOfficeRepositoryInstance = createStartupOfficeRepository({
+      HTTPError,
+      clamp,
+      nowISO,
+      rest,
+      shortID,
+      slugify,
+      truncateText,
+    });
+  }
+  return startupOfficeRepositoryInstance;
+}
+
+let startupOfficeServicesInstance = null;
+function startupOfficeServices() {
+  if (!startupOfficeServicesInstance) {
+    startupOfficeServicesInstance = createStartupOfficeServices({
+      companyProfilePatch,
+      objectValue,
+      truncateText,
+    });
+  }
+  return startupOfficeServicesInstance;
+}
+
 async function handleCompanyProfile(req, res) {
   const { membership, team, user } = await requireUser(req);
   if (req.method === "GET") {
@@ -2162,359 +2172,64 @@ async function companyProfileSnapshot(teamID, team, user) {
   });
 }
 
-function publicCompanyProfile({ row, settings, team, user }) {
-  const settingsProfile = objectValue(settings?.company_profile);
-  const rowMetadata = objectValue(row?.metadata);
-  return {
-    description: row?.description || settingsProfile.description || "",
-    email: user?.email || "",
-    goals: row?.goals || settingsProfile.goals || "",
-    icp: row?.icp || settingsProfile.icp || "",
-    metadata: {
-      ...objectValue(settingsProfile.metadata),
-      ...rowMetadata,
-    },
-    name: row?.name || settingsProfile.name || team?.name || "",
-    offer: row?.offer || settingsProfile.offer || "",
-    positioning: row?.positioning || settingsProfile.positioning || "",
-    priority: row?.priority || settingsProfile.priority || "",
-    size: row?.size || settingsProfile.size || "",
-    stage: row?.stage || settingsProfile.stage || "",
-    team_id: team?.id || row?.team_id || settings?.team_id || "",
-    updated_at: row?.updated_at || settings?.updated_at || null,
-    workspace_slug: team?.slug || "",
-  };
-}
-
 function startupOfficeCompanyProfilePatch(body) {
-  const profile = companyProfilePatch(body);
-  const nested = objectValue(body.company_profile);
-  for (const key of ["icp", "offer", "positioning", "stage"]) {
-    const value = body[key] ?? nested[key];
-    if (value !== undefined) profile[key] = truncateText(value, key === "stage" ? 120 : 4000);
-  }
-  if (body.metadata !== undefined || nested.metadata !== undefined) {
-    profile.metadata = objectValue(body.metadata ?? nested.metadata);
-  }
-  return profile;
+  return startupOfficeServices().startupOfficeCompanyProfilePatch(body);
 }
 
 function companyProfileRowPayload(profile) {
-  const out = {};
-  for (const key of [
-    "description",
-    "goals",
-    "icp",
-    "metadata",
-    "name",
-    "offer",
-    "positioning",
-    "priority",
-    "size",
-    "stage",
-  ]) {
-    if (profile[key] !== undefined) out[key] = profile[key];
-  }
-  return out;
+  return startupOfficeServices().companyProfileRowPayload(profile);
 }
 
 async function startupOfficeLoops(teamID) {
-  const rows = await safeStartupOfficeRest("startup_office_loops", {
-    query: {
-      order: "created_at.asc",
-      select: "*",
-      team_id: `eq.${teamID}`,
-    },
-  });
-  const bySlug = new Map((rows || []).map((row) => [row.slug, publicStartupOfficeLoop(row)]));
-  for (const definition of STARTUP_OFFICE_LOOP_DEFINITIONS) {
-    if (!bySlug.has(definition.slug)) {
-      bySlug.set(definition.slug, publicStartupOfficeLoop({
-        ...definition,
-        id: definition.slug,
-        policy: { founder_approval_required: true, source: "system_default" },
-        status: "active",
-      }));
-    }
-  }
-  return [...bySlug.values()];
+  return startupOfficeRepository().loops(teamID);
 }
 
 async function startupOfficeRuns(teamID, options = {}) {
-  const query = {
-    order: "created_at.desc",
-    select: "*",
-    team_id: `eq.${teamID}`,
-  };
-  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
-  const rows = await safeStartupOfficeRest("startup_office_runs", { query });
-  return rows.map(publicStartupOfficeRun).filter(Boolean);
+  return startupOfficeRepository().runs(teamID, options);
 }
 
 async function startupOfficeArtifacts(teamID, options = {}) {
-  const query = {
-    order: "created_at.desc",
-    select: "*",
-    team_id: `eq.${teamID}`,
-  };
-  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
-  const rows = await safeStartupOfficeRest("startup_office_artifacts", { query });
-  return rows.map(publicStartupOfficeArtifact).filter(Boolean);
+  return startupOfficeRepository().artifacts(teamID, options);
 }
 
 async function startupOfficeApprovals(teamID, options = {}) {
-  const query = {
-    order: "requested_at.desc",
-    select: "*",
-    team_id: `eq.${teamID}`,
-  };
-  if (options.status) query.status = `eq.${normalizeStartupOfficeApprovalStatus(options.status)}`;
-  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
-  const rows = await safeStartupOfficeRest("startup_office_approvals", { query });
-  return rows.map(publicStartupOfficeApproval).filter(Boolean);
+  return startupOfficeRepository().approvals(teamID, options);
 }
 
 async function startupOfficeReceipts(teamID, options = {}) {
-  const query = {
-    order: "created_at.desc",
-    select: "*",
-    team_id: `eq.${teamID}`,
-  };
-  if (options.limit) query.limit = String(clamp(Number(options.limit) || 20, 1, 200));
-  const rows = await safeStartupOfficeRest("startup_office_receipts", { query });
-  return rows.map(publicStartupOfficeReceipt).filter(Boolean);
+  return startupOfficeRepository().receipts(teamID, options);
 }
 
 async function ensureStartupOfficeLoop(membership, loopID) {
-  const loops = await safeStartupOfficeRest("startup_office_loops", {
-    query: {
-      select: "*",
-      team_id: `eq.${membership.team_id}`,
-    },
-  });
-  const normalized = String(loopID || "").trim();
-  const existing = loops.find((loop) => loop.id === normalized || loop.slug === normalized);
-  if (existing) return publicStartupOfficeLoop(existing);
-  const definition = STARTUP_OFFICE_LOOP_DEFINITIONS.find((loop) => loop.slug === normalized);
-  if (!definition) throw new HTTPError(404, "loop not found");
-  const [created] = await safeStartupOfficeRest("startup_office_loops", {
-    method: "POST",
-    prefer: "resolution=merge-duplicates,return=representation",
-    query: { on_conflict: "team_id,slug" },
-    body: {
-      cadence: definition.cadence,
-      created_by: membership.user_id,
-      department: definition.department,
-      name: definition.name,
-      objective: definition.objective,
-      policy: { founder_approval_required: true, source: "system_default" },
-      slug: definition.slug,
-      status: "active",
-      team_id: membership.team_id,
-      updated_at: nowISO(),
-    },
-  });
-  return publicStartupOfficeLoop(created || {
-    ...definition,
-    id: definition.slug,
-    status: "active",
-  });
+  return startupOfficeRepository().ensureLoop(membership, loopID);
 }
 
 async function findStartupOfficeApproval(teamID, approvalID) {
-  const rows = await safeStartupOfficeRest("startup_office_approvals", {
-    query: {
-      id: `eq.${approvalID}`,
-      limit: "1",
-      select: "*",
-      team_id: `eq.${teamID}`,
-    },
-  });
-  return rows?.[0] || null;
+  return startupOfficeRepository().findApproval(teamID, approvalID);
 }
 
 async function createStartupOfficeReceipt(membership, body) {
-  const [receipt] = await safeStartupOfficeRest("startup_office_receipts", {
-    method: "POST",
-    body: {
-      actor_slug: truncateText(body.actor_slug || "agent", 80),
-      approval_id: body.approval_id || null,
-      created_by: membership.user_id,
-      event_type: truncateText(body.event_type || "event", 80),
-      run_id: body.run_id || null,
-      summary: truncateText(body.summary || "", 2000),
-      team_id: membership.team_id,
-      trace: objectValue(body.trace),
-    },
-  });
-  return publicStartupOfficeReceipt(receipt || {
-    id: `receipt-${shortID()}`,
-    ...body,
-    created_at: nowISO(),
-    created_by: membership.user_id,
-    team_id: membership.team_id,
-  });
+  return startupOfficeRepository().createReceipt(membership, body);
 }
 
 async function safeStartupOfficeRest(table, options = {}) {
-  try {
-    return (await rest(table, options)) || [];
-  } catch (err) {
-    if (isMissingStartupOfficeTableError(err, table)) return [];
-    throw err;
-  }
+  return startupOfficeRepository().safeRest(table, options);
 }
 
 function isMissingStartupOfficeTableError(err, table) {
-  if (!(err instanceof HTTPError)) return false;
-  if (err.status !== 404) return false;
-  const message = String(err.message || "");
-  return message.includes(table) || message.includes(`public.${table}`);
-}
-
-function publicStartupOfficeLoop(row) {
-  if (!row) return null;
-  return {
-    cadence: row.cadence || "manual",
-    department: row.department || "Operations",
-    id: row.id || row.slug || "",
-    name: row.name || row.slug || "Operating loop",
-    objective: row.objective || "",
-    policy: objectValue(row.policy),
-    slug: row.slug || row.id || "",
-    status: normalizeStartupOfficeLoopStatus(row.status),
-  };
-}
-
-function publicStartupOfficeRun(row) {
-  if (!row) return null;
-  return {
-    completed_at: row.completed_at || null,
-    created_at: row.created_at || null,
-    id: row.id || "",
-    inputs: objectValue(row.inputs),
-    loop_id: row.loop_id || null,
-    metadata: objectValue(row.metadata),
-    objective: row.objective || "",
-    started_at: row.started_at || null,
-    status: normalizeStartupOfficeRunStatus(row.status),
-    summary: row.summary || "",
-    title: row.title || "",
-    updated_at: row.updated_at || null,
-  };
-}
-
-function publicStartupOfficeArtifact(row) {
-  if (!row) return null;
-  return {
-    content: row.content || "",
-    created_at: row.created_at || null,
-    id: row.id || "",
-    kind: normalizeStartupOfficeArtifactKind(row.kind),
-    metadata: objectValue(row.metadata),
-    run_id: row.run_id || null,
-    title: row.title || "",
-  };
-}
-
-function publicStartupOfficeApproval(row) {
-  if (!row) return null;
-  return {
-    action: row.action || "",
-    artifact_id: row.artifact_id || null,
-    decided_at: row.decided_at || null,
-    decided_by: row.decided_by || null,
-    decision_note: row.decision_note || "",
-    details: row.details || "",
-    id: row.id || "",
-    metadata: objectValue(row.metadata),
-    requested_at: row.requested_at || row.created_at || null,
-    requested_by: row.requested_by || null,
-    risk_level: normalizeStartupOfficeRiskLevel(row.risk_level),
-    run_id: row.run_id || null,
-    status: normalizeStartupOfficeApprovalStatus(row.status),
-    title: row.title || "",
-  };
-}
-
-function publicStartupOfficeReceipt(row) {
-  if (!row) return null;
-  return {
-    actor_slug: row.actor_slug || "",
-    approval_id: row.approval_id || null,
-    created_at: row.created_at || null,
-    event_type: row.event_type || "",
-    id: row.id || "",
-    run_id: row.run_id || null,
-    summary: row.summary || "",
-    trace: objectValue(row.trace),
-  };
-}
-
-function normalizeStartupOfficeCadence(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["manual", "daily", "weekly", "monthly"].includes(raw) ? raw : "manual";
-}
-
-function normalizeStartupOfficeLoopStatus(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["active", "paused", "archived"].includes(raw) ? raw : "active";
-}
-
-function normalizeStartupOfficeRunStatus(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["queued", "running", "waiting_approval", "completed", "failed", "canceled"].includes(raw)
-    ? raw
-    : "queued";
-}
-
-function normalizeStartupOfficeArtifactKind(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["plan", "draft", "asset", "wiki_update", "report", "message"].includes(raw)
-    ? raw
-    : "draft";
-}
-
-function normalizeStartupOfficeApprovalStatus(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["pending", "approved", "rejected", "revision_requested"].includes(raw)
-    ? raw
-    : "pending";
-}
-
-function normalizeStartupOfficeRiskLevel(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["low", "medium", "high"].includes(raw) ? raw : "medium";
+  return startupOfficeRepository().isMissingTableError(err, table);
 }
 
 async function uniqueStartupOfficeLoopSlug(teamID, seed) {
-  const base = slugify(seed) || `loop-${shortID()}`;
-  const existing = await safeStartupOfficeRest("startup_office_loops", {
-    query: {
-      limit: "1",
-      select: "id",
-      slug: `eq.${base}`,
-      team_id: `eq.${teamID}`,
-    },
-  });
-  return existing?.length ? `${base}-${shortID()}` : base;
+  return startupOfficeRepository().uniqueLoopSlug(teamID, seed);
 }
 
 function startupOfficeRunDraft({ loop, objective, profile }) {
-  return [
-    `Loop: ${loop.name}`,
-    `Company: ${profile.name || "Unnamed company"}`,
-    `Objective: ${objective}`,
-    "",
-    "Draft output:",
-    `- Primary customer: ${profile.icp || "Needs founder confirmation."}`,
-    `- Offer hypothesis: ${profile.offer || "Needs founder confirmation."}`,
-    `- Operating next step: Review this draft, approve it, or reject with revision notes.`,
-    "",
-    "Founder control:",
-    "- No public, customer-facing, financial, or irreversible action has been taken.",
-    "- This run is waiting for explicit approval before promotion.",
-  ].join("\n");
+  return startupOfficeServices().startupOfficeRunDraft({
+    loop,
+    objective,
+    profile,
+  });
 }
 
 async function workspaceHasAnyProject(teamID) {

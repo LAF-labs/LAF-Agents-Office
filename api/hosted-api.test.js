@@ -255,6 +255,34 @@ test("startup office domain migration defines company cloud operations schema", 
   assert.doesNotMatch(sql, /\bbridge\b/i);
 });
 
+test("startup office backend domain modules expose stable boundaries", () => {
+  const {
+    STARTUP_OFFICE_LOOP_DEFINITIONS,
+  } = require("./lib/startup-office/loopDefinitions");
+  const {
+    createStartupOfficeRepository,
+  } = require("./lib/startup-office/repositories");
+  const {
+    publicCompanyProfile,
+    publicStartupOfficeArtifact,
+    publicStartupOfficeRun,
+  } = require("./lib/startup-office/serializers");
+  const {
+    createStartupOfficeServices,
+  } = require("./lib/startup-office/services");
+
+  assert.equal(typeof createStartupOfficeRepository, "function");
+  assert.equal(typeof createStartupOfficeServices, "function");
+  assert.equal(typeof publicCompanyProfile, "function");
+  assert.equal(typeof publicStartupOfficeRun, "function");
+  assert.equal(typeof publicStartupOfficeArtifact, "function");
+  assert.ok(
+    STARTUP_OFFICE_LOOP_DEFINITIONS.some(
+      (loop) => loop.slug === "idea-validation",
+    ),
+  );
+});
+
 test("channel messages migration defines hosted chat persistence", () => {
   const sql = fs.readFileSync(
     path.join(__dirname, "..", "supabase", "migrations", "20260519010000_channel_messages.sql"),

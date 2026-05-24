@@ -1,0 +1,167 @@
+function objectValue(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value;
+}
+
+function publicCompanyProfile({ row, settings, team, user }) {
+  const settingsProfile = objectValue(settings?.company_profile);
+  const rowMetadata = objectValue(row?.metadata);
+  return {
+    description: row?.description || settingsProfile.description || "",
+    email: user?.email || "",
+    goals: row?.goals || settingsProfile.goals || "",
+    icp: row?.icp || settingsProfile.icp || "",
+    metadata: {
+      ...objectValue(settingsProfile.metadata),
+      ...rowMetadata,
+    },
+    name: row?.name || settingsProfile.name || team?.name || "",
+    offer: row?.offer || settingsProfile.offer || "",
+    positioning: row?.positioning || settingsProfile.positioning || "",
+    priority: row?.priority || settingsProfile.priority || "",
+    size: row?.size || settingsProfile.size || "",
+    stage: row?.stage || settingsProfile.stage || "",
+    team_id: team?.id || row?.team_id || settings?.team_id || "",
+    updated_at: row?.updated_at || settings?.updated_at || null,
+    workspace_slug: team?.slug || "",
+  };
+}
+
+function publicStartupOfficeLoop(row) {
+  if (!row) return null;
+  return {
+    cadence: row.cadence || "manual",
+    department: row.department || "Operations",
+    id: row.id || row.slug || "",
+    name: row.name || row.slug || "Operating loop",
+    objective: row.objective || "",
+    policy: objectValue(row.policy),
+    slug: row.slug || row.id || "",
+    status: normalizeStartupOfficeLoopStatus(row.status),
+  };
+}
+
+function publicStartupOfficeRun(row) {
+  if (!row) return null;
+  return {
+    completed_at: row.completed_at || null,
+    created_at: row.created_at || null,
+    id: row.id || "",
+    inputs: objectValue(row.inputs),
+    loop_id: row.loop_id || null,
+    metadata: objectValue(row.metadata),
+    objective: row.objective || "",
+    started_at: row.started_at || null,
+    status: normalizeStartupOfficeRunStatus(row.status),
+    summary: row.summary || "",
+    title: row.title || "",
+    updated_at: row.updated_at || null,
+  };
+}
+
+function publicStartupOfficeArtifact(row) {
+  if (!row) return null;
+  return {
+    content: row.content || "",
+    created_at: row.created_at || null,
+    id: row.id || "",
+    kind: normalizeStartupOfficeArtifactKind(row.kind),
+    metadata: objectValue(row.metadata),
+    run_id: row.run_id || null,
+    title: row.title || "",
+  };
+}
+
+function publicStartupOfficeApproval(row) {
+  if (!row) return null;
+  return {
+    action: row.action || "",
+    artifact_id: row.artifact_id || null,
+    decided_at: row.decided_at || null,
+    decided_by: row.decided_by || null,
+    decision_note: row.decision_note || "",
+    details: row.details || "",
+    id: row.id || "",
+    metadata: objectValue(row.metadata),
+    requested_at: row.requested_at || row.created_at || null,
+    requested_by: row.requested_by || null,
+    risk_level: normalizeStartupOfficeRiskLevel(row.risk_level),
+    run_id: row.run_id || null,
+    status: normalizeStartupOfficeApprovalStatus(row.status),
+    title: row.title || "",
+  };
+}
+
+function publicStartupOfficeReceipt(row) {
+  if (!row) return null;
+  return {
+    actor_slug: row.actor_slug || "",
+    approval_id: row.approval_id || null,
+    created_at: row.created_at || null,
+    event_type: row.event_type || "",
+    id: row.id || "",
+    run_id: row.run_id || null,
+    summary: row.summary || "",
+    trace: objectValue(row.trace),
+  };
+}
+
+function normalizeStartupOfficeCadence(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["manual", "daily", "weekly", "monthly"].includes(raw)
+    ? raw
+    : "manual";
+}
+
+function normalizeStartupOfficeLoopStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["active", "paused", "archived"].includes(raw) ? raw : "active";
+}
+
+function normalizeStartupOfficeRunStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return [
+    "queued",
+    "running",
+    "waiting_approval",
+    "completed",
+    "failed",
+    "canceled",
+  ].includes(raw)
+    ? raw
+    : "queued";
+}
+
+function normalizeStartupOfficeArtifactKind(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["plan", "draft", "asset", "wiki_update", "report", "message"].includes(
+    raw,
+  )
+    ? raw
+    : "draft";
+}
+
+function normalizeStartupOfficeApprovalStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["pending", "approved", "rejected", "revision_requested"].includes(raw)
+    ? raw
+    : "pending";
+}
+
+function normalizeStartupOfficeRiskLevel(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["low", "medium", "high"].includes(raw) ? raw : "medium";
+}
+
+module.exports = {
+  normalizeStartupOfficeApprovalStatus,
+  normalizeStartupOfficeCadence,
+  normalizeStartupOfficeLoopStatus,
+  objectValue,
+  publicCompanyProfile,
+  publicStartupOfficeApproval,
+  publicStartupOfficeArtifact,
+  publicStartupOfficeLoop,
+  publicStartupOfficeReceipt,
+  publicStartupOfficeRun,
+};
