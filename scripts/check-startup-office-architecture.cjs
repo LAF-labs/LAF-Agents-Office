@@ -32,11 +32,12 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 3150);
+assertMaxLines("api/[...path].js", 3050);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
+assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
@@ -108,6 +109,12 @@ for (const [pattern, label] of [
   [/function hashToken\b/, "hosted invite token hash helper"],
   [/invite\.created/, "hosted invite audit action"],
   [/active session is for a different team/, "hosted invite accept team guard"],
+  [/async function createConfirmedSignupSession\b/, "hosted signup confirmed session helper"],
+  [/function isDuplicateSignupError\b/, "hosted signup duplicate error helper"],
+  [/async function uniqueTeamSlug\b/, "hosted signup team slug helper"],
+  [/account already exists/, "hosted signup duplicate response"],
+  [/signup session was not issued/, "hosted signup provider session guard"],
+  [/body\.team_action === "join"/, "hosted signup invite join branch"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

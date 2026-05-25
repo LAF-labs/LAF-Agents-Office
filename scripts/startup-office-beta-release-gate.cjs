@@ -13,6 +13,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/inviteHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/memberHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/permissions.test.js"]],
+  ["node", ["--test", "api/lib/hosted/signupHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/dispatcher.test.js"]],
   ["node", ["--test", "api/lib/startup-office/demoSeedHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/profileHandlers.test.js"]],

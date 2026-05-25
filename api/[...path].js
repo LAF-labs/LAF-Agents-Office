@@ -9,6 +9,9 @@ const {
   createHostedMemberHandlers,
 } = require("./lib/hosted/memberHandlers");
 const {
+  createHostedSignupHandlers,
+} = require("./lib/hosted/signupHandlers");
+const {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
   createHostedPermissionGuards,
@@ -172,6 +175,26 @@ const HOSTED_INVITE_HANDLERS = createHostedInviteHandlers({
   requireUser,
   rest,
   writeAuditEvent,
+  writeJSON,
+});
+
+const HOSTED_SIGNUP_HANDLERS = createHostedSignupHandlers({
+  authAdminFetch,
+  authFetch,
+  createHTTPError: startupOfficeHTTPError,
+  defaultProfileAvatarID: DEFAULT_PROFILE_AVATAR_ID,
+  enforceSignupRateLimit: (req) =>
+    enforceRateLimit("auth_signup", clientRateLimitKey(req), RATE_LIMITS.authSignup),
+  getTeam,
+  inviteByToken: HOSTED_INVITE_HANDLERS.inviteByToken,
+  nowISO,
+  publicTeam,
+  publicUser,
+  readBody,
+  rest,
+  setAuthCookies,
+  shortID,
+  slugify,
   writeJSON,
 });
 
@@ -1923,120 +1946,7 @@ async function handleAuthLogin(req, res) {
 }
 
 async function handleAuthSignup(req, res) {
-  enforceRateLimit("auth_signup", clientRateLimitKey(req), RATE_LIMITS.authSignup);
-  const body = await readBody(req);
-  const session = await createConfirmedSignupSession(body);
-  const authenticated = Boolean(session?.access_token);
-  const user = session.user;
-  if (!user?.id) throw new HTTPError(400, "signup did not return a user");
-  const emailConfirmationRequired = !authenticated;
-
-  if (body.team_action === "join") {
-    const invite = await HOSTED_INVITE_HANDLERS.inviteByToken(body.invite_token);
-    if (!invite || invite.status !== "pending") {
-      throw new HTTPError(404, "invite not found");
-    }
-    const [membership] = await rest("memberships", {
-      method: "POST",
-      query: { on_conflict: "team_id,user_id" },
-      prefer: "resolution=merge-duplicates,return=representation",
-      body: {
-        role: invite.role || "member",
-        status: "active",
-        team_id: invite.team_id,
-        user_id: user.id,
-      },
-    });
-    await rest("team_invites", {
-      method: "PATCH",
-      query: { id: `eq.${invite.id}` },
-      body: {
-        accepted_at: nowISO(),
-        accepted_by: user.id,
-        status: "accepted",
-      },
-    });
-    const team = await getTeam(invite.team_id);
-    if (authenticated) setAuthCookies(req, res, session);
-    writeJSON(res, 200, {
-      authenticated,
-      email_confirmation_required: emailConfirmationRequired,
-      team: publicTeam(team),
-      user: publicUser(user, membership),
-    });
-    return;
-  }
-
-  const teamName = body.team_name || `${body.name || "My"} Team`;
-  const [team] = await rest("teams", {
-    method: "POST",
-    body: {
-      created_by: user.id,
-      name: teamName,
-      slug: await uniqueTeamSlug(teamName),
-    },
-  });
-  const [membership] = await rest("memberships", {
-    method: "POST",
-    body: {
-      role: "owner",
-      status: "active",
-      team_id: team.id,
-      user_id: user.id,
-    },
-  });
-  if (authenticated) setAuthCookies(req, res, session);
-  writeJSON(res, 200, {
-    authenticated,
-    email_confirmation_required: emailConfirmationRequired,
-    team: publicTeam(team),
-    user: publicUser(user, membership),
-  });
-}
-
-async function createConfirmedSignupSession(body) {
-  const email = String(body.email || "").trim();
-  const password = String(body.password || "");
-  const name = String(body.name || "").trim();
-  try {
-    await authAdminFetch("admin/users", {
-      method: "POST",
-      body: {
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          avatar_id: DEFAULT_PROFILE_AVATAR_ID,
-          name,
-        },
-      },
-    });
-  } catch (err) {
-    if (isDuplicateSignupError(err)) {
-      throw new HTTPError(409, "account already exists");
-    }
-    throw err;
-  }
-
-  const session = await authFetch("token?grant_type=password", {
-    method: "POST",
-    body: { email, password },
-  });
-  if (!session?.access_token || !session?.user?.id) {
-    throw new HTTPError(502, "signup session was not issued");
-  }
-  return session;
-}
-
-function isDuplicateSignupError(err) {
-  if (!(err instanceof HTTPError)) return false;
-  if (![400, 409, 422].includes(err.status)) return false;
-  const message = String(err.message || "").toLowerCase();
-  return (
-    message.includes("already") ||
-    message.includes("registered") ||
-    message.includes("exists")
-  );
+  return HOSTED_SIGNUP_HANDLERS.signup(req, res);
 }
 
 async function handlePermissions(req, res) {
@@ -2053,15 +1963,6 @@ async function handleInviteLookup(req, res) {
 
 async function handleInviteAccept(req, res) {
   return HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
-}
-
-async function uniqueTeamSlug(name) {
-  const base = slugify(name) || "team";
-  const candidate = base;
-  const existing = await rest("teams", {
-    query: { slug: `eq.${candidate}`, select: "id", limit: "1" },
-  });
-  return existing?.length ? `${base}-${shortID()}` : candidate;
 }
 
 async function handleProjects(req, res) {
