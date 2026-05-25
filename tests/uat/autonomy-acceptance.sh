@@ -181,19 +181,19 @@ curl -s -X POST http://127.0.0.1:7890/tasks \
   -d "{\"action\":\"create\",\"channel\":\"general\",\"title\":\"Tighten v1 scope\",\"details\":\"Own the initial scope cut and keep it focused.\",\"owner\":\"pm\",\"created_by\":\"ceo\",\"thread_id\":\"msg-1\",\"task_type\":\"feature\",\"source_signal_id\":\"$SIGNAL_ID\",\"source_decision_id\":\"$DECISION_ID\"}" > "$ARTIFACTS/task-create.json"
 sleep 2
 
-echo "--- Create bridge target and bridge context ---"
+echo "--- Create transfer target and channel context ---"
 curl -s -X POST http://127.0.0.1:7890/channels \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $BROKER_TOKEN" \
   -d '{"action":"create","slug":"launch","name":"Launch","description":"Launch planning, messaging, and rollout work.","members":["pm","cmo"],"created_by":"ceo"}' > "$ARTIFACTS/create-launch.json"
-curl -s -X POST http://127.0.0.1:7890/bridges \
+curl -s -X POST http://127.0.0.1:7890/context-transfers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $BROKER_TOKEN" \
-  -d '{"actor":"ceo","source_channel":"general","target_channel":"launch","summary":"Use the sharper product narrative from #general before drafting launch messaging.","tagged":["cmo"]}' > "$ARTIFACTS/bridge.json"
+  -d '{"actor":"ceo","source_channel":"general","target_channel":"launch","summary":"Use the sharper product narrative from #general before drafting launch messaging.","tagged":["cmo"]}' > "$ARTIFACTS/context-transfer.json"
 
 echo "--- Live office surface checks ---"
 curl -s -H "Authorization: Bearer $BROKER_TOKEN" "http://127.0.0.1:7890/messages?limit=100&channel=launch" > "$ARTIFACTS/launch-messages.json"
-grep -Fq "Bridge from #general" "$ARTIFACTS/launch-messages.json"
+grep -Fq "Context from #general" "$ARTIFACTS/launch-messages.json"
 
 start_channel_view messages
 assert_contains "# general" "messages-general"
@@ -206,7 +206,7 @@ assert_contains "stage" "tasks-view"
 start_channel_view insights
 assert_contains "Human directive" "insights-general"
 assert_contains "Decisions" "insights-general"
-assert_contains "bridge_channel" "insights-general"
+assert_contains "context_transfer" "insights-general"
 
 start_channel_view calendar
 assert_contains "task_created" "calendar-view"

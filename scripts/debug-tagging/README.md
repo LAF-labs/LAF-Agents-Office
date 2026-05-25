@@ -118,7 +118,7 @@ curl -s -H "Authorization: Bearer $(cat /tmp/laf-office-broker-token)" \
 
 Differences to look for:
 1. Is the failing specialist in `#general.members`? If not → same bug as above.
-2. Does the specialist have `provider: { kind: "openclaw" }`? That routes
+2. Does the specialist have a supported `provider.kind` override? That routes
    through a different dispatch path not covered by PR #218's tests.
 3. Is the specialist slug mismatched (e.g., UI shows `@PM` but the roster
    slug is `pm-eng` or `product-manager`)?

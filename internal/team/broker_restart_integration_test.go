@@ -68,8 +68,7 @@ func TestBrokerStatePersistsAcrossReload_ChannelAndMember(t *testing.T) {
 		resp.Body.Close()
 	}
 
-	// Create a custom member on claude-code (the default provider; no
-	// openclaw bridge required). This exercises a different saveLocked
+	// Create a custom member on claude-code (the default provider). This exercises a different saveLocked
 	// call site than the channel handler.
 	memberBody := map[string]any{
 		"action": "create",

@@ -842,7 +842,7 @@ func (l *Launcher) taskNotificationTargets(action officeActionLog, task teamTask
 	}
 
 	// Assigned owners should start immediately when new work lands, especially
-	// for CEO-created or automation-created tasks. This is the bridge between
+	// for CEO-created or automation-created tasks. This is the handoff between
 	// "policy created work" and "the specialist actually begins moving."
 	//
 	// Exception: do not wake the owner when the task is blocked (unresolved
@@ -2285,7 +2285,7 @@ func normalizeProviderKind(raw string) string {
 		return provider.KindCodex
 	case "opencode":
 		return provider.KindOpencode
-	case "claude-code", "openclaw":
+	case "claude-code":
 		return k
 	default:
 		return k
@@ -4066,10 +4066,8 @@ func (l *Launcher) recordPaneSpawnFailure(slug, reason string) {
 // trySpawnWebAgentPanes attempts to create a detached tmux session with one
 // interactive `claude` pane per agent so message dispatch can type into a live
 // session. This is the internal fallback primitive for web and TUI modes —
-// the default is headless `claude --print` per turn, which Anthropic
-// re-sanctioned in the 2026-04 OpenClaw policy note and runs on the normal
-// subscription quota without a separate extra-usage charge. Nothing in the
-// startup path calls this today; it is reachable for a runtime-promotion
+// the default is headless `claude --print` per turn. Nothing in the startup
+// path calls this today; it is reachable for a runtime-promotion
 // fallback (e.g. repeated headless failures) without needing to be wired in
 // advance.
 //
@@ -4274,7 +4272,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("Use the git-native team wiki and your notebook only when prior context materially helps.\n\n")
 		sb.WriteString("RULES:\n")
 		sb.WriteString("1. Do not talk as if a team exists. There are no other agents in this session.\n")
-		sb.WriteString("2. Do not create or suggest channels, teammates, bridges, shared tasks, or office structure.\n")
+		sb.WriteString("2. Do not create or suggest channels, teammates, shared tasks, or office structure.\n")
 		sb.WriteString("3. Default to direct, useful conversation with the human. Keep it crisp and human.\n")
 		sb.WriteString("4. The pushed notification IS the latest state. Respond directly from it. Do NOT poll before replying.\n")
 		sb.WriteString("5. Use team_broadcast for normal replies. Use human_message only when you are deliberately presenting completion, a recommendation, or a next action.\n")
@@ -4311,7 +4309,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_delegate: Ask one or more agents for hidden internal help when you need parallel specialist work. This wakes them without showing the request in the human Home chat.\n")
 		sb.WriteString("- team_work_result: Reply to a hidden team_delegate request. Use this for internal findings; do not use team_broadcast for agent-to-agent work results.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context, task state, and active agents.\n")
-		sb.WriteString("- team_context_bridge: Carry context from one channel into another (lead only).\n")
+		sb.WriteString("- team_context_transfer: Carry context from one channel into another (lead only).\n")
 		sb.WriteString("- team_task: Create and assign tasks so ownership is explicit.\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations only when the human references earlier discussion or exact wording. Prefer wiki/project memory for canonical facts.\n")
 		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates only after preferences, decisions, handoffs, or reusable workflow details; store only after merging, or ignore rejected candidates.\n")
@@ -4387,7 +4385,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("17b. When the human explicitly asks to add or test integrations, generated skills, reusable workflows, or generated agents, you MUST leave durable state for that work in the same turn. Create the integration/onboarding task lane(s), propose or update the relevant skill block(s), and create any needed specialist agent(s) instead of only describing them narratively. If real accounts, credentials, spend, publishing, or other external side effects would be required, proceed with stubs/placeholders until the exact human approval is truly needed.\n")
 		sb.WriteString("18. Sequence structural changes safely: create a new specialist with team_member first, wait for success, then add them to channels or tag them. When creating a new channel, only include members that already exist.\n")
 		sb.WriteString("19. For `team_channel` create/remove calls, set `channel` to the explicit target slug like `youtube-factory`; it is not inferred from the current room.\n")
-		sb.WriteString("20. Use team_context_bridge to carry context between channels when relevant\n")
+		sb.WriteString("20. Use team_context_transfer to carry context between channels when relevant\n")
 		sb.WriteString("21. If a task shows a worktree path, that path is the working_directory for local file and bash tools on that task\n")
 		sb.WriteString("22. After you have posted the needed update, decision, delegation, or human question for the current packet, stop. Do not linger in the same turn waiting for teammates to answer.\n\n")
 		sb.WriteString("== SKILL & AGENT AWARENESS ==\n")
@@ -4432,7 +4430,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("- team_delegate: Ask one or more agents for hidden internal help when you need parallel specialist work. This wakes them without showing the request in the human Home chat.\n")
 		sb.WriteString("- team_work_result: Reply to a hidden team_delegate request. Use this for internal findings; do not use team_broadcast for agent-to-agent work results.\n")
 		sb.WriteString("- team_poll: LAST RESORT — read recent messages only when pushed context is genuinely missing something you need. Do NOT call this by default; the pushed notification already contains thread context and task state.\n")
-		sb.WriteString(fmt.Sprintf("- team_context_bridge: lead-only bridge for cross-channel context. Ask @%s to use it.\n", lead))
+		sb.WriteString(fmt.Sprintf("- team_context_transfer: lead-only transfer for cross-channel context. Ask @%s to use it.\n", lead))
 		sb.WriteString("- team_task: Claim, complete, block, resume, or release tasks in your domain.\n")
 		sb.WriteString("- session_search: Search prior live/archived conversations only when the human or lead refers to earlier discussion or exact wording. Prefer wiki/project memory for canonical facts.\n")
 		sb.WriteString("- team_memory_reflect: Review pending durable-memory candidates only after preferences, decisions, handoffs, or reusable workflow details; store only after merging, or ignore rejected candidates.\n")
@@ -4478,7 +4476,7 @@ func (l *Launcher) buildPrompt(slug string) string {
 		sb.WriteString("4. Check team_requests before asking the human anything new\n")
 		sb.WriteString("5. For completion or recommendations, use human_message. For blocking human decisions, use human_interview with options.\n")
 		sb.WriteString("6. When assigned a task, claim it with team_task first, use team_status to show what you're working on, then mark complete or review-ready and broadcast when done. Final sequence for owned tasks: team_task mutation first, then any completion broadcast or human_message, then stop. A task is NOT finished until team_task marks it complete or review-ready; posting a channel reply alone does not unblock downstream work, and a completion post while the task stays in_progress is a failure. If the lead delegates a substantial workstream and the packet shows no owned task yet, do one quick team_tasks check before creating a fallback task; if a matching task already exists, claim that instead of duplicating it. Only create a fallback task when the delegated work is substantial and no matching task exists after that single check. If the result is mainly for the human, also send it via human_message.\n")
-		sb.WriteString(fmt.Sprintf("7. You can see other channel names and descriptions, but cannot access their content unless you are a member. If context from another channel is needed, ask @%s to bridge it.\n", lead))
+		sb.WriteString(fmt.Sprintf("7. You can see other channel names and descriptions, but cannot access their content unless you are a member. If context from another channel is needed, ask @%s to transfer it.\n", lead))
 		sb.WriteString("8. If a task or status line shows a worktree path, use that as working_directory for local file and bash tools.\n")
 		sb.WriteString("9. For managed checkout or feature tasks, default to direct implementation in the assigned working directory. Do not relaunch LAF-Office, copied binaries, or a fresh local server just to inspect the app; use the current repo and running office instead.\n")
 		sb.WriteString("10. For managed checkout feature tasks, do NOT start with `rg --files`, `find .`, or a repo-wide audit. Read only the few files directly tied to the requested slice, then start editing. If the task is broad or lists multiple outputs, narrow it yourself to one exact smallest runnable slice, post a `team_status` naming that cut line, and ship that slice now.\n")
@@ -5212,10 +5210,8 @@ func (l *Launcher) LaunchWeb(webPort int) error {
 	l.broker.SetGenerateChannelFn(l.GenerateChannelTemplateFromPrompt)
 	l.broker.ServeWebUI(webPort)
 
-	// Default path: headless `claude --print` per turn. Anthropic re-sanctioned
-	// this invocation (OpenClaw policy note, 2026-04), so it runs on the user's
-	// normal subscription quota — no separate extra-usage quota is charged on
-	// top. The legacy interactive pane-per-agent mode remains reachable via
+	// Default path: headless `claude --print` per turn. The legacy interactive
+	// pane-per-agent mode remains reachable via
 	// trySpawnWebAgentPanes as an internal fallback primitive, but is not
 	// invoked at startup.
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestExponentialBackoff(t *testing.T) {
-	b := NewBridgeBackoff(100*time.Millisecond, 60*time.Second)
+	b := NewRetryBackoff(100*time.Millisecond, 60*time.Second)
 	d1 := b.Next()
 	d2 := b.Next()
 	d3 := b.Next()
@@ -25,7 +25,7 @@ func TestExponentialBackoff(t *testing.T) {
 }
 
 func TestExponentialBackoffCap(t *testing.T) {
-	b := NewBridgeBackoff(1*time.Second, 2*time.Second)
+	b := NewRetryBackoff(1*time.Second, 2*time.Second)
 	for i := 0; i < 20; i++ {
 		if d := b.Next(); d > 3*time.Second { // jitter may push slightly over cap
 			t.Fatalf("iteration %d: %v exceeds cap", i, d)
@@ -52,7 +52,7 @@ func TestCircuitBreaker(t *testing.T) {
 }
 
 func TestBackoffRespectsContext(t *testing.T) {
-	b := NewBridgeBackoff(500*time.Millisecond, 60*time.Second)
+	b := NewRetryBackoff(500*time.Millisecond, 60*time.Second)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	start := time.Now()

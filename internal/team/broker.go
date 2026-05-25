@@ -539,13 +539,12 @@ type Broker struct {
 	// produce a truncated/overlaid file.
 	configMu           sync.Mutex
 	server             *http.Server
-	token              string          // shared secret for authenticating requests
-	addr               string          // actual listen address (useful when port=0)
-	webUIOrigins       []string        // allowed CORS origins for web UI (set by ServeWebUI)
-	runtimeProvider    string          // "codex" or "claude" — set by launcher
-	packSlug           string          // active legacy agent pack slug ("founding-team", "coding-team", ...) — set by launcher
-	blankSlateLaunch   bool            // start without a saved blueprint and synthesize the first operation
-	openclawBridge     *OpenclawBridge // nil until the bridge attaches itself; used by handleOfficeMembers for live add/remove
+	token              string   // shared secret for authenticating requests
+	addr               string   // actual listen address (useful when port=0)
+	webUIOrigins       []string // allowed CORS origins for web UI (set by ServeWebUI)
+	runtimeProvider    string   // "codex" or "claude" — set by launcher
+	packSlug           string   // active legacy agent pack slug ("founding-team", "coding-team", ...) — set by launcher
+	blankSlateLaunch   bool     // start without a saved blueprint and synthesize the first operation
 	generateMemberFn   func(prompt string) (generatedMemberTemplate, error)
 	generateChannelFn  func(prompt string) (generatedChannelTemplate, error)
 	policies           []officePolicy // active office operating rules
@@ -1803,7 +1802,7 @@ func (b *Broker) StartOnPort(port int) error {
 	mux.HandleFunc("/commands", b.requireAuth(b.handleCommands))
 	mux.HandleFunc("/commands/run", b.requireAuth(b.handleCommandRun))
 	mux.HandleFunc("/telegram/groups", b.requireAuth(b.handleTelegramGroups))
-	mux.HandleFunc("/bridges", b.requireAuth(b.handleBridge))
+	mux.HandleFunc("/context-transfers", b.requireAuth(b.handleContextTransfer))
 	mux.HandleFunc("/queue", b.requireAuth(b.handleQueue))
 	mux.HandleFunc("/company", b.requireAuth(b.handleCompany))
 	mux.HandleFunc("/config", b.requireAuth(b.handleConfig))
@@ -1861,9 +1860,6 @@ func (b *Broker) StartOnPort(port int) error {
 		ctx, _ := b.newBrokerLifetimeContext()
 		b.startHomeSessionRetentionCron(ctx)
 	})
-	if err := b.ensureOpenclawBridgeRunning(); err != nil {
-		log.Printf("openclaw bridge bootstrap skipped: %v", err)
-	}
 	return nil
 }
 
@@ -1881,12 +1877,7 @@ func (b *Broker) Stop() {
 	synth := b.entitySynthesizer
 	pbSynth := b.playbookSynthesizer
 	pamDisp := b.pamDispatcher
-	openclawBridge := b.openclawBridge
-	b.openclawBridge = nil
 	b.mu.Unlock()
-	if openclawBridge != nil {
-		openclawBridge.Stop()
-	}
 	if synth != nil {
 		synth.Stop()
 	}
@@ -2890,7 +2881,7 @@ func (b *Broker) DisabledMembers(channel string) []string {
 // senderMayAutoPromoteLocked reports whether a `from` value is allowed to have
 // its @slug body text auto-promoted into the tagged array. Allowlist shape:
 // humans (empty / "you" / "human") and any registered agent slug are allowed;
-// synthetic senders ("system", automation, bridges) are not. A
+// synthetic senders ("system", automation, relays) are not. A
 // denylist would silently let every future synthetic identity leak through.
 // Sender is normalized first so case drift ("FE", "Human") matches the
 // allowlist the same way channel access does.
@@ -2986,48 +2977,6 @@ func (b *Broker) ExternalQueue(provider string) []channelMessage {
 	return out
 }
 
-// EnsureBridgedMember registers a bridged external agent as an office member
-// so it appears in the sidebar and can be @mentioned. Idempotent — calling with
-// an existing slug is a no-op. CreatedBy tags the source (e.g. "openclaw") so
-// the UI can distinguish bridged agents from built-ins or user-generated ones.
-func (b *Broker) EnsureBridgedMember(slug, name, createdBy string) error {
-	slug = normalizeChannelSlug(slug)
-	if slug == "" {
-		return fmt.Errorf("slug required")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.findMemberLocked(slug) != nil {
-		return nil
-	}
-	member := officeMember{
-		Slug:      slug,
-		Name:      strings.TrimSpace(name),
-		Role:      "Bridged agent",
-		CreatedBy: strings.TrimSpace(createdBy),
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-	}
-	if member.Name == "" {
-		member.Name = slug
-	}
-	applyOfficeMemberDefaults(&member)
-	b.members = append(b.members, member)
-	// Make sure the bridged agent shows up in #general so @mentions work.
-	for i := range b.channels {
-		if b.channels[i].Slug == "general" {
-			if !containsString(b.channels[i].Members, slug) {
-				b.channels[i].Members = append(b.channels[i].Members, slug)
-			}
-			break
-		}
-	}
-	if err := b.saveLocked(); err != nil {
-		return err
-	}
-	b.publishOfficeChangeLocked(officeChangeEvent{Kind: "member_created", Slug: slug})
-	return nil
-}
-
 // EnsureDirectChannel opens (or returns) the 1:1 DM channel between the
 // default human member and agentSlug. Returns the canonical channel slug
 // (pair-sorted via channel.DirectSlug). Safe to call repeatedly; the DM row
@@ -3068,9 +3017,8 @@ func (b *Broker) EnsureDirectChannel(agentSlug string) (string, error) {
 
 // DMPartner returns the non-human member slug of a 1:1 DM channel. Returns
 // "" if the channel is not a DM, does not exist, or is a group DM. Used by
-// surface bridges (OpenClaw, Slack, etc.) to resolve "who is the human
-// talking to" when routing DM posts to the right agent without requiring an
-// @mention.
+// external surfaces to resolve "who is the human talking to" when routing DM
+// posts to the right agent without requiring an @mention.
 func (b *Broker) DMPartner(channelSlug string) string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -4439,49 +4387,6 @@ func (b *Broker) rebuildMemberIndexLocked() {
 	}
 }
 
-// AttachOpenclawBridge wires the OpenClaw bridge into the broker so
-// handleOfficeMembers can drive live subscribe/unsubscribe/sessions.create/
-// sessions.end calls as members are hired and fired. Called by the launcher
-// after StartOpenclawBridgeFromConfig succeeds. Safe to call with nil to
-// detach (tests).
-func (b *Broker) AttachOpenclawBridge(bridge *OpenclawBridge) {
-	b.mu.Lock()
-	b.openclawBridge = bridge
-	b.mu.Unlock()
-}
-
-func (b *Broker) ensureOpenclawBridgeRunning() error {
-	b.mu.Lock()
-	if b.openclawBridge != nil {
-		b.mu.Unlock()
-		return nil
-	}
-	b.mu.Unlock()
-
-	ctx, cancel := b.newBrokerLifetimeContext()
-	bridge, err := StartOpenclawBridgeFromConfig(ctx, b)
-	if err != nil {
-		cancel()
-		return err
-	}
-	if bridge == nil {
-		cancel()
-		return nil
-	}
-
-	b.mu.Lock()
-	if b.openclawBridge != nil {
-		b.mu.Unlock()
-		bridge.Stop()
-		cancel()
-		return nil
-	}
-	b.openclawBridge = bridge
-	b.mu.Unlock()
-	StartOpenclawRouter(ctx, b, bridge)
-	return nil
-}
-
 func (b *Broker) newBrokerLifetimeContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if b.stopCh == nil {
@@ -4497,18 +4402,9 @@ func (b *Broker) newBrokerLifetimeContext() (context.Context, context.CancelFunc
 	return ctx, cancel
 }
 
-// openclawBridgeLocked returns the attached bridge pointer. Callers must
-// hold b.mu. Kept as a small helper so the field is never read without the
-// lock (and so we have one place to note the invariant).
-func (b *Broker) openclawBridgeLocked() *OpenclawBridge {
-	return b.openclawBridge
-}
-
 // SetMemberProvider attaches or replaces the ProviderBinding on the given
-// office member and persists broker state. Used by the OpenClaw bootstrap
-// migration (moving legacy config.OpenclawBridges onto members) and by the
-// handleOfficeMembers update path. Returns an error if the member doesn't
-// exist; callers should ensure the member exists first.
+// office member and persists broker state. Returns an error if the member
+// doesn't exist; callers should ensure the member exists first.
 func (b *Broker) SetMemberProvider(slug string, binding provider.ProviderBinding) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -6789,7 +6685,7 @@ func (b *Broker) handleScheduler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
+func (b *Broker) handleContextTransfer(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -6810,7 +6706,7 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 
 	actor := mapLegacyTaskActorToCore(body.Actor)
 	if actor != office.DefaultLeadAgentSlug {
-		http.Error(w, "only the lead can bridge channel context", http.StatusForbidden)
+		http.Error(w, "only the lead can transfer channel context", http.StatusForbidden)
 		return
 	}
 	source := normalizeChannelSlug(body.SourceChannel)
@@ -6835,18 +6731,18 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	records, err := b.RecordSignals([]officeSignal{{
-		ID:         fmt.Sprintf("bridge:%s:%s:%s", source, target, truncateSummary(strings.ToLower(summary), 48)),
-		Source:     "channel_bridge",
-		Kind:       "bridge",
-		Title:      "Cross-channel bridge",
-		Content:    fmt.Sprintf("@%s bridged context from #%s to #%s: %s", actor, source, target, summary),
+		ID:         fmt.Sprintf("context-transfer:%s:%s:%s", source, target, truncateSummary(strings.ToLower(summary), 48)),
+		Source:     "channel_context_transfer",
+		Kind:       "context_transfer",
+		Title:      "Cross-channel context transfer",
+		Content:    fmt.Sprintf("@%s transferred context from #%s to #%s: %s", actor, source, target, summary),
 		Channel:    target,
 		Owner:      actor,
 		Confidence: "explicit",
 		Urgency:    "normal",
 	}})
 	if err != nil {
-		http.Error(w, "failed to record bridge signal", http.StatusInternalServerError)
+		http.Error(w, "failed to record context-transfer signal", http.StatusInternalServerError)
 		return
 	}
 	signalIDs := make([]string, 0, len(records))
@@ -6854,9 +6750,9 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 		signalIDs = append(signalIDs, record.ID)
 	}
 	decision, err := b.RecordDecision(
-		"bridge_channel",
+		"context_transfer",
 		target,
-		fmt.Sprintf("@%s bridged context from #%s to #%s.", actor, source, target),
+		fmt.Sprintf("@%s transferred context from #%s to #%s.", actor, source, target),
 		"Relevant context existed in another channel, so the lead carried it into this channel explicitly.",
 		actor,
 		signalIDs,
@@ -6864,27 +6760,27 @@ func (b *Broker) handleBridge(w http.ResponseWriter, r *http.Request) {
 		false,
 	)
 	if err != nil {
-		http.Error(w, "failed to record bridge decision", http.StatusInternalServerError)
+		http.Error(w, "failed to record context-transfer decision", http.StatusInternalServerError)
 		return
 	}
-	content := summary + fmt.Sprintf("\n\n@%s bridged this context from #%s to help #%s.", actor, source, target)
+	content := summary + fmt.Sprintf("\n\n@%s transferred this context from #%s to help #%s.", actor, source, target)
 	msg, _, err := b.PostAutomationMessage(
 		"laf-office",
 		target,
-		"Bridge from #"+source,
+		"Context from #"+source,
 		content,
 		decision.ID,
-		"lead_bridge",
-		"Lead bridge",
+		"lead_context_transfer",
+		"Lead context transfer",
 		uniqueSlugs(body.Tagged),
 		strings.TrimSpace(body.ReplyTo),
 	)
 	if err != nil {
-		http.Error(w, "failed to persist bridge message", http.StatusInternalServerError)
+		http.Error(w, "failed to persist context-transfer message", http.StatusInternalServerError)
 		return
 	}
-	if err := b.RecordAction("bridge_channel", "lead_bridge", target, actor, truncateSummary(summary, 140), msg.ID, signalIDs, decision.ID); err != nil {
-		http.Error(w, "failed to persist bridge action", http.StatusInternalServerError)
+	if err := b.RecordAction("context_transfer", "lead_context_transfer", target, actor, truncateSummary(summary, 140), msg.ID, signalIDs, decision.ID); err != nil {
+		http.Error(w, "failed to persist context-transfer action", http.StatusInternalServerError)
 		return
 	}
 
@@ -6997,16 +6893,14 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"task_reminder_minutes":  config.ResolveTaskReminderInterval(),
 			"task_recheck_minutes":   config.ResolveTaskRecheckInterval(),
 			// Integrations — secret fields as booleans
-			"api_key_set":          config.ResolveAPIKey("") != "",
-			"openai_key_set":       config.ResolveOpenAIAPIKey() != "",
-			"anthropic_key_set":    config.ResolveAnthropicAPIKey() != "",
-			"gemini_key_set":       config.ResolveGeminiAPIKey() != "",
-			"minimax_key_set":      config.ResolveMinimaxAPIKey() != "",
-			"one_key_set":          config.ResolveOneSecret() != "",
-			"composio_key_set":     config.ResolveComposioAPIKey() != "",
-			"telegram_token_set":   config.ResolveTelegramBotToken() != "",
-			"openclaw_token_set":   config.ResolveOpenclawToken() != "",
-			"openclaw_gateway_url": config.ResolveOpenclawGatewayURL(),
+			"api_key_set":        config.ResolveAPIKey("") != "",
+			"openai_key_set":     config.ResolveOpenAIAPIKey() != "",
+			"anthropic_key_set":  config.ResolveAnthropicAPIKey() != "",
+			"gemini_key_set":     config.ResolveGeminiAPIKey() != "",
+			"minimax_key_set":    config.ResolveMinimaxAPIKey() != "",
+			"one_key_set":        config.ResolveOneSecret() != "",
+			"composio_key_set":   config.ResolveComposioAPIKey() != "",
+			"telegram_token_set": config.ResolveTelegramBotToken() != "",
 			// Config file path (informational)
 			"config_path": config.ConfigPath(),
 		})
@@ -7045,8 +6939,6 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 			OneAPIKey       *string `json:"one_api_key,omitempty"`
 			ComposioAPIKey  *string `json:"composio_api_key,omitempty"`
 			TelegramToken   *string `json:"telegram_bot_token,omitempty"`
-			OpenclawToken   *string `json:"openclaw_token,omitempty"`
-			OpenclawGateway *string `json:"openclaw_gateway_url,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -7243,14 +7135,6 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 			cfg.TelegramBotToken = strings.TrimSpace(*body.TelegramToken)
 			changed = true
 		}
-		if body.OpenclawToken != nil {
-			cfg.OpenclawToken = strings.TrimSpace(*body.OpenclawToken)
-			changed = true
-		}
-		if body.OpenclawGateway != nil {
-			cfg.OpenclawGatewayURL = strings.TrimSpace(*body.OpenclawGateway)
-			changed = true
-		}
 
 		if !changed {
 			http.Error(w, "no fields to update", http.StatusBadRequest)
@@ -7260,11 +7144,6 @@ func (b *Broker) handleConfig(w http.ResponseWriter, r *http.Request) {
 		if err := config.Save(cfg); err != nil {
 			http.Error(w, "save failed", http.StatusInternalServerError)
 			return
-		}
-		if body.OpenclawToken != nil || body.OpenclawGateway != nil {
-			if err := b.ensureOpenclawBridgeRunning(); err != nil {
-				log.Printf("openclaw bridge bootstrap after config update skipped: %v", err)
-			}
 		}
 		// Keep /health in sync for this process so the wizard choice is
 		// reflected immediately without requiring a broker restart.
@@ -7410,39 +7289,6 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 			}
 			applyOfficeMemberDefaults(&member)
 
-			// For openclaw agents, reach the gateway BEFORE we persist: if the
-			// caller didn't supply a session key, auto-create one; either way,
-			// attach the bridge subscription. If the gateway is unreachable we
-			// fail the whole create so we don't persist a half-configured
-			// member that can't actually talk.
-			if member.Provider.Kind == provider.KindOpenclaw {
-				if member.Provider.Openclaw == nil {
-					member.Provider.Openclaw = &provider.OpenclawProviderBinding{}
-				}
-				bridge := b.openclawBridgeLocked()
-				if bridge == nil {
-					http.Error(w, "openclaw bridge not active; cannot create openclaw member", http.StatusServiceUnavailable)
-					return
-				}
-				if member.Provider.Openclaw.SessionKey == "" {
-					agentID := member.Provider.Openclaw.AgentID
-					if agentID == "" {
-						agentID = "main"
-					}
-					label := fmt.Sprintf("laf-office-%s-%d", slug, time.Now().UnixNano())
-					key, err := bridge.CreateSession(r.Context(), agentID, label)
-					if err != nil {
-						http.Error(w, fmt.Sprintf("openclaw sessions.create: %v", err), http.StatusBadGateway)
-						return
-					}
-					member.Provider.Openclaw.SessionKey = key
-				}
-				if err := bridge.AttachSlug(r.Context(), slug, member.Provider.Openclaw.SessionKey); err != nil {
-					http.Error(w, fmt.Sprintf("openclaw subscribe: %v", err), http.StatusBadGateway)
-					return
-				}
-			}
-
 			b.members = append(b.members, member)
 			b.memberIndex[member.Slug] = len(b.members) - 1
 			// Add the new hire to every non-DM channel's Members list so they
@@ -7537,59 +7383,7 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
-				oldBinding := member.Provider
-				newBinding := *body.Provider
-
-				// Provider switch: reconcile the bridge state best-effort. We
-				// don't block the update on gateway failures — the persisted
-				// binding is the new truth, and a leaked old session is
-				// recoverable via `openclaw sessions list` out-of-band.
-				bridge := b.openclawBridgeLocked()
-
-				fromOpenclaw := oldBinding.Kind == provider.KindOpenclaw
-				toOpenclaw := newBinding.Kind == provider.KindOpenclaw
-
-				if toOpenclaw {
-					if bridge == nil {
-						http.Error(w, "openclaw bridge not active; cannot switch agent to openclaw", http.StatusServiceUnavailable)
-						return
-					}
-					if newBinding.Openclaw == nil {
-						newBinding.Openclaw = &provider.OpenclawProviderBinding{}
-					}
-					if newBinding.Openclaw.SessionKey == "" {
-						agentID := newBinding.Openclaw.AgentID
-						if agentID == "" {
-							agentID = "main"
-						}
-						label := fmt.Sprintf("laf-office-%s-%d", member.Slug, time.Now().UnixNano())
-						key, err := bridge.CreateSession(r.Context(), agentID, label)
-						if err != nil {
-							http.Error(w, fmt.Sprintf("openclaw sessions.create: %v", err), http.StatusBadGateway)
-							return
-						}
-						newBinding.Openclaw.SessionKey = key
-					}
-				}
-
-				if fromOpenclaw && bridge != nil {
-					// Detach old session from subscriptions. Best-effort; log via
-					// the bridge's own system-message channel on failure. The
-					// daemon-side session lingers (no sessions.end method); user
-					// can prune via the OpenClaw CLI if they care.
-					if err := bridge.DetachSlug(r.Context(), member.Slug); err != nil {
-						go bridge.postSystemMessage(fmt.Sprintf("agent %q provider-switch: detach warning: %v", member.Slug, err))
-					}
-				}
-
-				if toOpenclaw {
-					if err := bridge.AttachSlug(r.Context(), member.Slug, newBinding.Openclaw.SessionKey); err != nil {
-						http.Error(w, fmt.Sprintf("openclaw subscribe: %v", err), http.StatusBadGateway)
-						return
-					}
-				}
-
-				member.Provider = newBinding
+				member.Provider = *body.Provider
 			}
 			if body.ModelDefaults != nil {
 				member.ModelDefaults = *body.ModelDefaults
@@ -7614,19 +7408,6 @@ func (b *Broker) handleOfficeMembers(w http.ResponseWriter, r *http.Request) {
 			if normalizeChannelSlug(body.Confirm) != slug {
 				http.Error(w, "confirmation must match member slug", http.StatusBadRequest)
 				return
-			}
-			// If the member was bridged to OpenClaw, unsubscribe from the
-			// gateway. Best-effort: member removal must succeed even when
-			// the gateway is unreachable. We do NOT call sessions.end because
-			// the current daemon doesn't expose that method — the session
-			// lingers daemon-side and the user can clean it up via the
-			// OpenClaw CLI if they want to reclaim the slot.
-			if member.Provider.Kind == provider.KindOpenclaw {
-				if bridge := b.openclawBridgeLocked(); bridge != nil {
-					if err := bridge.DetachSlug(r.Context(), member.Slug); err != nil {
-						go bridge.postSystemMessage(fmt.Sprintf("agent %q removed: detach warning: %v", member.Slug, err))
-					}
-				}
 			}
 			filteredMembers := b.members[:0]
 			for _, existing := range b.members {

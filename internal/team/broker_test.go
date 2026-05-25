@@ -5145,7 +5145,7 @@ func TestBrokerCompleteAlreadyDoneTaskStaysApproved(t *testing.T) {
 	}
 }
 
-func TestBrokerBridgeEndpointRecordsVisibleBridge(t *testing.T) {
+func TestBrokerContextTransferEndpointRecordsVisibleTransfer(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
 	b.members = append(b.members,
@@ -5176,41 +5176,41 @@ func TestBrokerBridgeEndpointRecordsVisibleBridge(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	bridgeBody, _ := json.Marshal(map[string]any{
+	transferBody, _ := json.Marshal(map[string]any{
 		"actor":          "ceo",
 		"source_channel": "general",
 		"target_channel": "launch",
 		"summary":        "Use the stronger product narrative from #general in this launch channel before drafting the landing page.",
 		"tagged":         []string{"cmo"},
 	})
-	req, _ = http.NewRequest(http.MethodPost, base+"/bridges", bytes.NewReader(bridgeBody))
+	req, _ = http.NewRequest(http.MethodPost, base+"/context-transfers", bytes.NewReader(transferBody))
 	req.Header.Set("Authorization", "Bearer "+b.Token())
 	req.Header.Set("Content-Type", "application/json")
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
-		t.Fatalf("bridge request: %v", err)
+		t.Fatalf("context transfer request: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected bridge success, got %d: %s", resp.StatusCode, string(body))
+		t.Fatalf("expected context transfer success, got %d: %s", resp.StatusCode, string(body))
 	}
 
 	messages := b.ChannelMessages("launch")
 	if len(messages) != 1 {
-		t.Fatalf("expected one bridge message in launch, got %d", len(messages))
+		t.Fatalf("expected one context transfer message in launch, got %d", len(messages))
 	}
-	if messages[0].Source != "lead_bridge" || !strings.Contains(messages[0].Content, "#general") {
-		t.Fatalf("unexpected bridge message: %+v", messages[0])
+	if messages[0].Source != "lead_context_transfer" || !strings.Contains(messages[0].Content, "#general") {
+		t.Fatalf("unexpected context transfer message: %+v", messages[0])
 	}
 	if got := len(b.Signals()); got != 1 {
-		t.Fatalf("expected 1 bridge signal, got %d", got)
+		t.Fatalf("expected 1 context transfer signal, got %d", got)
 	}
-	if got := len(b.Decisions()); got != 1 || b.Decisions()[0].Kind != "bridge_channel" {
-		t.Fatalf("unexpected bridge decisions: %+v", b.Decisions())
+	if got := len(b.Decisions()); got != 1 || b.Decisions()[0].Kind != "context_transfer" {
+		t.Fatalf("unexpected context transfer decisions: %+v", b.Decisions())
 	}
-	if got := len(b.Actions()); got == 0 || b.Actions()[len(b.Actions())-1].Kind != "bridge_channel" {
-		t.Fatalf("expected bridge action, got %+v", b.Actions())
+	if got := len(b.Actions()); got == 0 || b.Actions()[len(b.Actions())-1].Kind != "context_transfer" {
+		t.Fatalf("expected context transfer action, got %+v", b.Actions())
 	}
 }
 

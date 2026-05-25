@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 
@@ -44,6 +45,39 @@ function assertNotMatchesInSegment(relativePath, startNeedle, endNeedle, checks)
   }
 }
 
+function assertPathMissing(relativePath) {
+  if (fs.existsSync(path.join(root, relativePath))) {
+    fail(`${relativePath} must not exist in the pure-cloud product`);
+  }
+}
+
+function trackedFiles() {
+  const out = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" });
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((relative) => path.join(root, relative));
+}
+
+function assertRepoTextAbsent(label, parts) {
+  const needle = parts.join("");
+  for (const absolute of trackedFiles()) {
+    const relative = path.relative(root, absolute);
+    if (relative === "scripts/check-startup-office-surface.cjs") {
+      continue;
+    }
+    let body = "";
+    try {
+      body = fs.readFileSync(absolute, "utf8");
+    } catch {
+      continue;
+    }
+    if (body.toLowerCase().includes(needle)) {
+      fail(`${label} appears in ${relative}`);
+    }
+  }
+}
+
 function assertQuotedStringsNotMatch(relativePath, startNeedle, endNeedle, checks) {
   const body = read(relativePath);
   const start = body.indexOf(startNeedle);
@@ -74,6 +108,10 @@ assertIncludes(
   "web/src/components/startup-office/startupOfficeCopy.ts",
   "paid beta",
 );
+
+assertPathMissing(path.join("internal", "open" + "claw"));
+assertPathMissing(path.join("cmd", "laf-office-oc-probe"));
+assertRepoTextAbsent("retired external runtime connector", ["open", "claw"]);
 
 assertNotMatchesInSegment(
   "web/src/lib/i18n.ts",

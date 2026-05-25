@@ -412,24 +412,6 @@ type telegramConnectDoneMsg struct {
 	err         error
 }
 
-// openclawSessionOption is the minimal session data we retain for the picker.
-type openclawSessionOption struct {
-	SessionKey string
-	Label      string
-	Preview    string
-}
-
-type openclawSessionsMsg struct {
-	sessions []openclawSessionOption
-	err      error
-}
-
-type openclawConnectDoneMsg struct {
-	slug  string
-	label string
-	err   error
-}
-
 type channelTaskMutationDoneMsg struct {
 	notice string
 	err    error
@@ -525,34 +507,31 @@ func buildOneOnOneSlashCommands() []tui.SlashCommand {
 type channelPickerMode string
 
 const (
-	channelPickerNone            channelPickerMode = ""
-	channelPickerInitProvider    channelPickerMode = "init_provider"
-	channelPickerInitBlueprint   channelPickerMode = "init_blueprint"
-	channelPickerInitPack        channelPickerMode = "init_pack" // legacy alias
-	channelPickerProvider        channelPickerMode = "provider"
-	channelPickerIntegrations    channelPickerMode = "integrations"
-	channelPickerRequests        channelPickerMode = "requests"
-	channelPickerTasks           channelPickerMode = "tasks"
-	channelPickerTaskAction      channelPickerMode = "task_action"
-	channelPickerRequestAction   channelPickerMode = "request_action"
-	channelPickerThreads         channelPickerMode = "threads"
-	channelPickerThreadAction    channelPickerMode = "thread_action"
-	channelPickerChannels        channelPickerMode = "channels"
-	channelPickerSwitcher        channelPickerMode = "switcher"
-	channelPickerInsert          channelPickerMode = "insert"
-	channelPickerSearch          channelPickerMode = "search"
-	channelPickerRewind          channelPickerMode = "rewind"
-	channelPickerAgents          channelPickerMode = "agents"
-	channelPickerCalendarAgent   channelPickerMode = "calendar_agent"
-	channelPickerOneOnOneMode    channelPickerMode = "one_on_one_mode"
-	channelPickerOneOnOneAgent   channelPickerMode = "one_on_one_agent"
-	channelPickerTelegramGroup   channelPickerMode = "telegram_group"
-	channelPickerConnect         channelPickerMode = "connect"
-	channelPickerTelegramToken   channelPickerMode = "telegram_token"
-	channelPickerTelegramChatID  channelPickerMode = "telegram_chat_id"
-	channelPickerOpenclawURL     channelPickerMode = "openclaw-url"
-	channelPickerOpenclawToken   channelPickerMode = "openclaw-token"
-	channelPickerOpenclawSession channelPickerMode = "openclaw-session"
+	channelPickerNone           channelPickerMode = ""
+	channelPickerInitProvider   channelPickerMode = "init_provider"
+	channelPickerInitBlueprint  channelPickerMode = "init_blueprint"
+	channelPickerInitPack       channelPickerMode = "init_pack" // legacy alias
+	channelPickerProvider       channelPickerMode = "provider"
+	channelPickerIntegrations   channelPickerMode = "integrations"
+	channelPickerRequests       channelPickerMode = "requests"
+	channelPickerTasks          channelPickerMode = "tasks"
+	channelPickerTaskAction     channelPickerMode = "task_action"
+	channelPickerRequestAction  channelPickerMode = "request_action"
+	channelPickerThreads        channelPickerMode = "threads"
+	channelPickerThreadAction   channelPickerMode = "thread_action"
+	channelPickerChannels       channelPickerMode = "channels"
+	channelPickerSwitcher       channelPickerMode = "switcher"
+	channelPickerInsert         channelPickerMode = "insert"
+	channelPickerSearch         channelPickerMode = "search"
+	channelPickerRewind         channelPickerMode = "rewind"
+	channelPickerAgents         channelPickerMode = "agents"
+	channelPickerCalendarAgent  channelPickerMode = "calendar_agent"
+	channelPickerOneOnOneMode   channelPickerMode = "one_on_one_mode"
+	channelPickerOneOnOneAgent  channelPickerMode = "one_on_one_agent"
+	channelPickerTelegramGroup  channelPickerMode = "telegram_group"
+	channelPickerConnect        channelPickerMode = "connect"
+	channelPickerTelegramToken  channelPickerMode = "telegram_token"
+	channelPickerTelegramChatID channelPickerMode = "telegram_chat_id"
 )
 
 type officeApp string
@@ -672,11 +651,6 @@ type channelModel struct {
 	// Deferred external integration flow state.
 	telegramGroups []team.TelegramGroup
 	telegramToken  string
-
-	// Deferred gateway integration flow state.
-	openclawURL      string
-	openclawToken    string
-	openclawSessions []openclawSessionOption
 
 	// lastAgentContent tracks the latest streaming text per agent for sidebar display.
 	lastAgentContent map[string]string
@@ -1610,58 +1584,13 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pickerMode = channelPickerTelegramGroup
 		return m, nil
 
-	case openclawSessionsMsg:
-		m.posting = false
-		if msg.err != nil {
-			options := []tui.PickerOption{
-				{Label: "Retry with different gateway URL", Value: "retry-url", Description: "Go back and change the URL/token"},
-			}
-			m.picker = tui.NewPicker(fmt.Sprintf("Gateway dial failed: %s", msg.err.Error()), options)
-			m.picker.SetActive(true)
-			m.pickerMode = channelPickerOpenclawSession
-			m.notice = "Gateway connect failed: " + msg.err.Error()
-			return m, nil
-		}
-		m.openclawSessions = msg.sessions
-		if len(msg.sessions) == 0 {
-			m.notice = "Gateway returned no sessions."
-			return m, nil
-		}
-		options := make([]tui.PickerOption, 0, len(msg.sessions))
-		for _, s := range msg.sessions {
-			label := s.Label
-			if label == "" {
-				label = s.SessionKey
-			}
-			desc := s.Preview
-			options = append(options, tui.PickerOption{
-				Label:       label,
-				Value:       s.SessionKey,
-				Description: desc,
-			})
-		}
-		m.picker = tui.NewPicker("Pick a gateway session to bridge:", options)
-		m.picker.SetActive(true)
-		m.pickerMode = channelPickerOpenclawSession
-		m.notice = fmt.Sprintf("Found %d gateway session(s). Pick one to bridge.", len(msg.sessions))
-		return m, nil
-
-	case openclawConnectDoneMsg:
-		m.posting = false
-		if msg.err != nil {
-			m.notice = "Gateway connect failed: " + msg.err.Error()
-			return m, nil
-		}
-		m.notice = fmt.Sprintf("@%s is now in the office", msg.slug)
-		return m, nil
-
 	case telegramConnectDoneMsg:
 		m.posting = false
 		if msg.err != nil {
 			m.notice = "Integration connect failed: " + msg.err.Error()
 			return m, nil
 		}
-		m.notice = fmt.Sprintf("Connected \"%s\" as #%s. Restart LAF-Office to activate the bridge.", msg.groupTitle, msg.channelSlug)
+		m.notice = fmt.Sprintf("Connected \"%s\" as #%s. Restart LAF-Office to activate channel sync.", msg.groupTitle, msg.channelSlug)
 		m.activeChannel = msg.channelSlug
 		m.activeApp = officeAppMessages
 		m.messages = nil
@@ -2095,54 +2024,6 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.posting = true
 			m.notice = fmt.Sprintf("Connecting \"%s\"...", selected.Title)
 			return m, connectTelegramGroup(m.telegramToken, *selected)
-		case channelPickerOpenclawURL:
-			m.picker.SetActive(false)
-			m.pickerMode = channelPickerNone
-			url := strings.TrimSpace(msg.Value)
-			if url == "" {
-				url = "ws://127.0.0.1:18789"
-			}
-			m.openclawURL = url
-			m.promptOpenclawToken()
-			return m, nil
-		case channelPickerOpenclawToken:
-			m.picker.SetActive(false)
-			m.pickerMode = channelPickerNone
-			token := strings.TrimSpace(msg.Value)
-			if token == "" {
-				m.notice = "Gateway connection canceled."
-				return m, nil
-			}
-			m.openclawToken = token
-			m.posting = true
-			m.notice = "Dialing gateway..."
-			return m, fetchOpenclawSessions(m.openclawURL, m.openclawToken)
-		case channelPickerOpenclawSession:
-			m.picker.SetActive(false)
-			m.pickerMode = channelPickerNone
-			key := strings.TrimSpace(msg.Value)
-			if key == "" {
-				m.notice = "Gateway connection canceled."
-				return m, nil
-			}
-			if key == "retry-url" {
-				m.promptOpenclawURL()
-				return m, nil
-			}
-			var selected *openclawSessionOption
-			for i := range m.openclawSessions {
-				if m.openclawSessions[i].SessionKey == key {
-					selected = &m.openclawSessions[i]
-					break
-				}
-			}
-			if selected == nil {
-				m.notice = "Unknown gateway session selection."
-				return m, nil
-			}
-			m.posting = true
-			m.notice = fmt.Sprintf("Bridging \"%s\"...", selected.Label)
-			return m, connectOpenclawSession(m.openclawURL, m.openclawToken, *selected)
 		case channelPickerTasks:
 			m.picker.SetActive(false)
 			m.pickerMode = channelPickerNone
@@ -2261,7 +2142,7 @@ func (m channelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.initFlow, cmd = m.initFlow.Update(msg)
 		switch m.initFlow.Phase() {
 		case tui.InitProviderChoice:
-			m.picker = tui.NewPicker("Choose default Bridge provider", tui.ProviderOptions())
+			m.picker = tui.NewPicker("Choose default runtime provider", tui.ProviderOptions())
 			m.picker.SetActive(true)
 			m.pickerMode = channelPickerInitProvider
 		case tui.InitBlueprintChoice, tui.InitPackChoice:
@@ -4803,10 +4684,6 @@ func (m channelModel) runCommand(trimmed, threadTarget string) (tea.Model, tea.C
 		clearCurrent()
 		m.notice = "External integrations are deferred in this build."
 		return m, nil
-	case trimmed == "/connect openclaw":
-		clearCurrent()
-		m.notice = "External integrations are deferred in this build."
-		return m, nil
 	case trimmed == "/switch" || trimmed == "/s":
 		clearCurrent()
 		options := m.buildSwitchChannelPickerOptions()
@@ -5046,10 +4923,10 @@ func (m channelModel) runCommand(trimmed, threadTarget string) (tea.Model, tea.C
 		return m, cmd
 	case trimmed == "/provider":
 		clearCurrent()
-		m.picker = tui.NewPicker("Switch default Bridge provider", tui.ProviderOptions())
+		m.picker = tui.NewPicker("Switch default runtime provider", tui.ProviderOptions())
 		m.picker.SetActive(true)
 		m.pickerMode = channelPickerProvider
-		m.notice = "Choose a default Bridge provider."
+		m.notice = "Choose a default runtime provider."
 		return m, nil
 	case trimmed == "/cancel":
 		clearCurrent()

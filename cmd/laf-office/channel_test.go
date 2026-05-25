@@ -423,7 +423,7 @@ func TestProviderSelectionSavesCodexAndRequestsRestart(t *testing.T) {
 	}
 
 	m := newChannelModel(false)
-	m.picker = tui.NewPicker("Switch default Bridge provider", tui.ProviderOptions())
+	m.picker = tui.NewPicker("Switch default runtime provider", tui.ProviderOptions())
 	m.picker.SetActive(true)
 	m.pickerMode = channelPickerProvider
 
@@ -704,18 +704,18 @@ func TestDisplaySignalKindUsesHumanDirectiveLabel(t *testing.T) {
 	}
 }
 
-func TestRecentExternalActionsIncludesBridgeChannel(t *testing.T) {
+func TestRecentExternalActionsIncludesContextTransfer(t *testing.T) {
 	actions := []channelAction{
 		{ID: "action-1", Kind: "note_internal"},
-		{ID: "action-2", Kind: "bridge_channel"},
+		{ID: "action-2", Kind: "context_transfer"},
 		{ID: "action-3", Kind: "external_webhook"},
 	}
 	got := recentExternalActions(actions, 10)
 	if len(got) != 2 {
-		t.Fatalf("expected bridge and external actions, got %d", len(got))
+		t.Fatalf("expected context transfer and external actions, got %d", len(got))
 	}
-	if got[0].Kind != "external_webhook" || got[1].Kind != "bridge_channel" {
-		t.Fatalf("expected reverse chronological bridge/external actions, got %#v", got)
+	if got[0].Kind != "external_webhook" || got[1].Kind != "context_transfer" {
+		t.Fatalf("expected reverse chronological context-transfer/external actions, got %#v", got)
 	}
 }
 
@@ -729,24 +729,24 @@ func TestDisplayDecisionSummaryUsesHumanDirectiveLabel(t *testing.T) {
 	}
 }
 
-func TestCalendarRecentActionsIncludeBridgeChannel(t *testing.T) {
+func TestCalendarRecentActionsIncludeContextTransfer(t *testing.T) {
 	lines := buildCalendarLines([]channelAction{
 		{ID: "action-1", Kind: "human_directive", Channel: "general", Summary: "Human directed the office:", Actor: "you"},
-		{ID: "action-2", Kind: "bridge_channel", Channel: "launch", Summary: "Use the sharper product narrative.", Actor: "ceo"},
+		{ID: "action-2", Kind: "context_transfer", Channel: "launch", Summary: "Use the sharper product narrative.", Actor: "ceo"},
 		{ID: "action-3", Kind: "task_created", Channel: "general", Summary: "Tighten v1 scope", Actor: "ceo"},
 	}, nil, nil, nil, "general", nil, calendarRangeWeek, "", 90)
 	view := stripANSI(joinRenderedLines(lines))
-	if !strings.Contains(view, "bridge_channel") {
-		t.Fatalf("expected calendar recent actions to include bridge_channel, got %q", view)
+	if !strings.Contains(view, "context_transfer") {
+		t.Fatalf("expected calendar recent actions to include context_transfer, got %q", view)
 	}
 	if !strings.Contains(view, "task_created") {
 		t.Fatalf("expected calendar recent actions to include task_created, got %q", view)
 	}
 }
 
-func TestCalendarRecentActionsPinsBridgeWhenCapWouldDropIt(t *testing.T) {
+func TestCalendarRecentActionsPinsContextTransferWhenCapWouldDropIt(t *testing.T) {
 	lines := buildCalendarLines([]channelAction{
-		{ID: "action-1", Kind: "bridge_channel", Channel: "launch", Summary: "Use the sharper product narrative.", Actor: "ceo"},
+		{ID: "action-1", Kind: "context_transfer", Channel: "launch", Summary: "Use the sharper product narrative.", Actor: "ceo"},
 		{ID: "action-2", Kind: "human_directive", Channel: "general", Summary: "Human directed the office.", Actor: "you"},
 		{ID: "action-3", Kind: "request_answered", Channel: "general", Summary: "Approved the launch direction.", Actor: "you"},
 		{ID: "action-4", Kind: "task_created", Channel: "general", Summary: "Tighten v1 scope", Actor: "ceo"},
@@ -754,8 +754,8 @@ func TestCalendarRecentActionsPinsBridgeWhenCapWouldDropIt(t *testing.T) {
 	}, nil, nil, nil, "general", nil, calendarRangeWeek, "", 90)
 
 	view := stripANSI(joinRenderedLines(lines))
-	if !strings.Contains(view, "bridge_channel") {
-		t.Fatalf("expected bridge_channel to stay pinned in recent actions, got %q", view)
+	if !strings.Contains(view, "context_transfer") {
+		t.Fatalf("expected context_transfer to stay pinned in recent actions, got %q", view)
 	}
 }
 
@@ -2791,20 +2791,6 @@ func TestBlockingRequestCannotBeSnoozedByCommand(t *testing.T) {
 	}
 	if !strings.Contains(got.notice, "cannot be snoozed") {
 		t.Fatalf("expected cannot-be-snoozed notice, got %q", got.notice)
-	}
-}
-
-func TestConnectOpenclawIsDeferred(t *testing.T) {
-	m := newChannelModel(false)
-
-	next, _ := m.runCommand("/connect openclaw", "")
-	got := next.(channelModel)
-
-	if got.picker.IsActive() {
-		t.Fatal("expected deferred integration not to open a picker")
-	}
-	if !strings.Contains(got.notice, "deferred") {
-		t.Fatalf("expected deferred integration notice, got %q", got.notice)
 	}
 }
 

@@ -41,15 +41,11 @@ func TestHandleOfficeMembers_CreateWithProvider(t *testing.T) {
 
 	body := map[string]any{
 		"action": "create",
-		"slug":   "pm-openclaw",
-		"name":   "PM OpenClaw",
+		"slug":   "pm-codex",
+		"name":   "PM Codex",
 		"provider": map[string]any{
-			"kind":  provider.KindOpenclaw,
-			"model": "openai-codex/gpt-5.4",
-			"openclaw": map[string]any{
-				"session_key": "agent:test:pm",
-				"agent_id":    "main",
-			},
+			"kind":  provider.KindCodex,
+			"model": "gpt-5.4",
 		},
 	}
 	resp := doBrokerPost(t, ts, token, "/office-members", body)
@@ -59,16 +55,13 @@ func TestHandleOfficeMembers_CreateWithProvider(t *testing.T) {
 
 	// Verify persisted shape via findMemberLocked round-trip
 	b.mu.Lock()
-	m := b.findMemberLocked("pm-openclaw")
+	m := b.findMemberLocked("pm-codex")
 	b.mu.Unlock()
 	if m == nil {
 		t.Fatal("member not found after create")
 	}
-	if m.Provider.Kind != provider.KindOpenclaw {
-		t.Fatalf("provider kind=%q, want %q", m.Provider.Kind, provider.KindOpenclaw)
-	}
-	if m.Provider.Openclaw == nil || m.Provider.Openclaw.SessionKey != "agent:test:pm" {
-		t.Fatalf("openclaw binding lost: %+v", m.Provider.Openclaw)
+	if m.Provider.Kind != provider.KindCodex || m.Provider.Model != "gpt-5.4" {
+		t.Fatalf("provider not persisted: %+v", m.Provider)
 	}
 }
 
@@ -137,16 +130,13 @@ func TestHandleOfficeMembers_UpdateSwitchesProvider(t *testing.T) {
 		t.Fatalf("create status=%d", r.StatusCode)
 	}
 
-	// Update to openclaw
+	// Update to opencode
 	update := map[string]any{
 		"action": "update",
 		"slug":   "switcher",
 		"provider": map[string]any{
-			"kind":  provider.KindOpenclaw,
-			"model": "openai-codex/gpt-5.4",
-			"openclaw": map[string]any{
-				"session_key": "agent:test:switcher",
-			},
+			"kind":  provider.KindOpencode,
+			"model": "opencode/model",
 		},
 	}
 	if r := doBrokerPost(t, ts, token, "/office-members", update); r.StatusCode != http.StatusOK {
@@ -156,11 +146,11 @@ func TestHandleOfficeMembers_UpdateSwitchesProvider(t *testing.T) {
 	b.mu.Lock()
 	m := b.findMemberLocked("switcher")
 	b.mu.Unlock()
-	if m.Provider.Kind != provider.KindOpenclaw {
+	if m.Provider.Kind != provider.KindOpencode {
 		t.Fatalf("provider not switched: %q", m.Provider.Kind)
 	}
-	if m.Provider.Openclaw == nil || m.Provider.Openclaw.SessionKey != "agent:test:switcher" {
-		t.Fatalf("new openclaw binding missing: %+v", m.Provider.Openclaw)
+	if m.Provider.Model != "opencode/model" {
+		t.Fatalf("new provider model missing: %+v", m.Provider)
 	}
 }
 
@@ -192,9 +182,8 @@ func TestProviderFieldSurvivesBrokerReload(t *testing.T) {
 		Slug: "persist-test",
 		Name: "Persist Test",
 		Provider: provider.ProviderBinding{
-			Kind:     provider.KindOpenclaw,
-			Model:    "openai-codex/gpt-5.4",
-			Openclaw: &provider.OpenclawProviderBinding{SessionKey: "agent:test:persist"},
+			Kind:  provider.KindCodex,
+			Model: "gpt-5.4",
 		},
 	})
 	b.memberIndex[b.members[len(b.members)-1].Slug] = len(b.members) - 1
@@ -211,11 +200,11 @@ func TestProviderFieldSurvivesBrokerReload(t *testing.T) {
 	if got == nil {
 		t.Fatal("member did not survive reload")
 	}
-	if got.Provider.Kind != provider.KindOpenclaw {
+	if got.Provider.Kind != provider.KindCodex {
 		t.Fatalf("kind not persisted: %q", got.Provider.Kind)
 	}
-	if got.Provider.Openclaw == nil || got.Provider.Openclaw.SessionKey != "agent:test:persist" {
-		t.Fatalf("openclaw block not persisted: %+v", got.Provider.Openclaw)
+	if got.Provider.Model != "gpt-5.4" {
+		t.Fatalf("provider model not persisted: %+v", got.Provider)
 	}
 }
 
@@ -256,11 +245,6 @@ func TestRebuildMemberIndex_AfterRemove(t *testing.T) {
 func newBrokerHTTPTest(t *testing.T) (*Broker, *httptest.Server, string) {
 	t.Helper()
 	b := newTestBroker(t)
-	// Attach a fake bridge so handleOfficeMembers can exercise openclaw
-	// create/update/remove paths without dialing a real gateway.
-	fake := newFakeOC()
-	bridge := NewOpenclawBridge(b, fake, nil)
-	b.AttachOpenclawBridge(bridge)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/office-members", b.requireAuth(b.handleOfficeMembers))

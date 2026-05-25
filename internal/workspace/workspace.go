@@ -9,7 +9,7 @@
 //     provider state, calendar, and local markdown memory. The next load shows
 //     the onboarding wizard.
 //
-// Preserved in both cases: office.pid, task-worktrees/, openclaw/, config.json.
+// Preserved in both cases: office.pid, task-worktrees/, config.json.
 // In-flight work remains on disk so branches and local changes inside task
 // worktrees survive, and credentials/preferences stay available for the next
 // launch.

@@ -1,6 +1,6 @@
 package team
 
-// promotion_commit.go owns the atomic promote-commit that bridges a
+// promotion_commit.go owns the atomic promote-commit that promotes a
 // notebook entry to the canonical team wiki.
 //
 // Flow (copy-not-move — the source notebook entry is preserved with a

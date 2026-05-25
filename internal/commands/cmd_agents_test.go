@@ -27,31 +27,10 @@ func captureMessages() (*SlashContext, *[]string) {
 	return ctx, &out
 }
 
-func TestBuildProviderPayload_Openclaw(t *testing.T) {
-	got := buildProviderPayload(provider.KindOpenclaw, map[string]string{
-		"model":       "openai-codex/gpt-5.4",
-		"session-key": "agent:test:x",
-		"agent-id":    "main",
-	})
-	if got["kind"] != provider.KindOpenclaw {
-		t.Fatalf("kind=%v", got["kind"])
-	}
-	if got["model"] != "openai-codex/gpt-5.4" {
-		t.Fatalf("model=%v", got["model"])
-	}
-	oc, ok := got["openclaw"].(map[string]any)
-	if !ok {
-		t.Fatalf("openclaw block missing: %+v", got)
-	}
-	if oc["session_key"] != "agent:test:x" || oc["agent_id"] != "main" {
-		t.Fatalf("openclaw block wrong: %+v", oc)
-	}
-}
-
-func TestBuildProviderPayload_ClaudeNoOpenclawBlock(t *testing.T) {
+func TestBuildProviderPayload_Claude(t *testing.T) {
 	got := buildProviderPayload(provider.KindClaudeCode, map[string]string{"model": "sonnet"})
-	if _, has := got["openclaw"]; has {
-		t.Fatalf("claude payload should not include openclaw block")
+	if got["kind"] != provider.KindClaudeCode || got["model"] != "sonnet" {
+		t.Fatalf("provider payload wrong: %+v", got)
 	}
 }
 
@@ -149,19 +128,15 @@ func TestCmdAgentEdit_ProviderSwitch(t *testing.T) {
 	t.Setenv("LAF_OFFICE_BROKER_TOKEN", "test-token")
 
 	ctx, out := captureMessages()
-	if err := cmdAgentEdit(ctx, "pm-bot --provider openclaw --session-key agent:test:pm"); err != nil {
+	if err := cmdAgentEdit(ctx, "pm-bot --provider opencode --model opencode/model"); err != nil {
 		t.Fatalf("cmdAgentEdit: %v", err)
 	}
 	if gotBody["action"] != "update" {
 		t.Fatalf("expected update action, got %v", gotBody["action"])
 	}
 	prov := gotBody["provider"].(map[string]any)
-	if prov["kind"] != "openclaw" {
+	if prov["kind"] != "opencode" || prov["model"] != "opencode/model" {
 		t.Fatalf("edit did not set provider kind: %+v", prov)
-	}
-	oc := prov["openclaw"].(map[string]any)
-	if oc["session_key"] != "agent:test:pm" {
-		t.Fatalf("session_key not threaded: %+v", oc)
 	}
 	if !strings.Contains(strings.Join(*out, "|"), "Updated @pm-bot") {
 		t.Fatalf("expected update confirmation, got %q", *out)

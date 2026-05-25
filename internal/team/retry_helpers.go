@@ -7,21 +7,20 @@ import (
 	"time"
 )
 
-// BridgeBackoff produces exponential-with-jitter delays for reconnect loops.
-// Suitable for any bridge (Telegram, OpenClaw, future).
-type BridgeBackoff struct {
+// RetryBackoff produces exponential-with-jitter delays for reconnect loops.
+type RetryBackoff struct {
 	base, cap time.Duration
 	attempt   int
 	mu        sync.Mutex
 	rng       *rand.Rand
 }
 
-func NewBridgeBackoff(base, cap time.Duration) *BridgeBackoff {
-	return &BridgeBackoff{base: base, cap: cap, rng: rand.New(rand.NewSource(time.Now().UnixNano()))}
+func NewRetryBackoff(base, cap time.Duration) *RetryBackoff {
+	return &RetryBackoff{base: base, cap: cap, rng: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
 // Next returns the next delay; safe for concurrent callers.
-func (b *BridgeBackoff) Next() time.Duration {
+func (b *RetryBackoff) Next() time.Duration {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	d := b.base << b.attempt
@@ -39,14 +38,14 @@ func (b *BridgeBackoff) Next() time.Duration {
 }
 
 // Reset zeroes the attempt counter.
-func (b *BridgeBackoff) Reset() {
+func (b *RetryBackoff) Reset() {
 	b.mu.Lock()
 	b.attempt = 0
 	b.mu.Unlock()
 }
 
 // Wait sleeps for the next delay, respecting ctx cancellation.
-func (b *BridgeBackoff) Wait(ctx context.Context) error {
+func (b *RetryBackoff) Wait(ctx context.Context) error {
 	d := b.Next()
 	t := time.NewTimer(d)
 	defer t.Stop()

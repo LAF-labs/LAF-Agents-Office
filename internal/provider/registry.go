@@ -18,7 +18,7 @@ type Capabilities struct {
 	// PaneEligible reports whether the launcher should spawn an interactive
 	// tmux pane for an agent bound to this provider. True for runtimes with
 	// an interactive TUI (Claude Code). False for headless-only runtimes
-	// (Codex, OpenAI-compatible HTTP, OpenClaw bridge, etc.).
+	// (Codex, OpenAI-compatible HTTP, cloud workers, etc.).
 	PaneEligible bool
 
 	// SupportsOneShot reports whether the provider implements OneShot. False

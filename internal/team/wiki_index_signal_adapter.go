@@ -1,6 +1,6 @@
 package team
 
-// wiki_index_signal_adapter.go bridges WikiIndex to the SignalIndex
+// wiki_index_signal_adapter.go adapts WikiIndex to the SignalIndex
 // interface that EntityResolver (entity_resolver.go) depends on.
 //
 // The resolver is a pure function over a small read surface — looking up an

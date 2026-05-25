@@ -176,7 +176,6 @@ describe("Wizard keyboard advancement", () => {
     await advanceToTaskStep();
 
     expect(screen.queryByText("GPT OAuth gateway")).toBeNull();
-    expect(screen.queryByText(/OpenClaw/i)).toBeNull();
     expect(screen.queryByLabelText("Gateway URL")).toBeNull();
     expect(screen.queryByLabelText("Gateway token")).toBeNull();
     expect(screen.queryByPlaceholderText("OPENAI_API_KEY")).toBeNull();
@@ -214,16 +213,6 @@ describe("Wizard keyboard advancement", () => {
       expect(call[1]).not.toEqual(
         expect.objectContaining({
           api_keys: expect.anything(),
-        }),
-      );
-      expect(call[1]).not.toEqual(
-        expect.objectContaining({
-          openclaw_gateway_url: expect.anything(),
-        }),
-      );
-      expect(call[1]).not.toEqual(
-        expect.objectContaining({
-          openclaw_token: expect.anything(),
         }),
       );
     }

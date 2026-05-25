@@ -396,13 +396,13 @@ type TeamChannelMemberArgs struct {
 	MySlug     string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
-type TeamContextBridgeArgs struct {
+type TeamContextTransferArgs struct {
 	SourceChannel string   `json:"source_channel" jsonschema:"Channel slug the context is coming from"`
 	TargetChannel string   `json:"target_channel" jsonschema:"Channel slug the context should be carried into"`
-	Summary       string   `json:"summary" jsonschema:"Concise bridged context to carry across channels"`
-	Tagged        []string `json:"tagged,omitempty" jsonschema:"Optional agents to wake in the target channel after the bridge lands"`
-	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Agent slug performing the bridge. Defaults to LAF_OFFICE_AGENT_SLUG."`
-	ReplyToID     string   `json:"reply_to_id,omitempty" jsonschema:"Optional target-channel message ID this bridge belongs to"`
+	Summary       string   `json:"summary" jsonschema:"Concise context to transfer across channels"`
+	Tagged        []string `json:"tagged,omitempty" jsonschema:"Optional agents to wake in the target channel after the transfer lands"`
+	MySlug        string   `json:"my_slug,omitempty" jsonschema:"Agent slug performing the transfer. Defaults to LAF_OFFICE_AGENT_SLUG."`
+	ReplyToID     string   `json:"reply_to_id,omitempty" jsonschema:"Optional target-channel message ID this transfer belongs to"`
 }
 
 type TeamOfficeMembersArgs struct{}
@@ -416,14 +416,10 @@ type TeamMemberArgs struct {
 	Personality    string   `json:"personality,omitempty" jsonschema:"Optional short personality description"`
 	PermissionMode string   `json:"permission_mode,omitempty" jsonschema:"Optional Claude permission mode"`
 	// Per-agent provider selection. Empty Provider means the agent inherits the
-	// install-wide default runtime. Set Provider to pick a specific runtime and
-	// (optionally) model for this agent: one team can mix Claude, Codex, and
-	// OpenClaw agents, each on its own provider.
-	Provider           string `json:"provider,omitempty" jsonschema:"LLM runtime for this agent. One of: claude-code, codex, opencode, openclaw. Empty = install default."`
-	Model              string `json:"model,omitempty" jsonschema:"Model name passed to the runtime (e.g. claude-sonnet-4.6, gpt-5.4, openai-codex/gpt-5.4). Free-form; runtime validates."`
-	OpenclawSessionKey string `json:"openclaw_session_key,omitempty" jsonschema:"Optional: attach to an existing OpenClaw session key (e.g. after LAF-Office reinstall). Leave empty to auto-create a new session."`
-	OpenclawAgentID    string `json:"openclaw_agent_id,omitempty" jsonschema:"Optional: OpenClaw agent config name (defaults to 'main')."`
-	MySlug             string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
+	// install-wide default runtime.
+	Provider string `json:"provider,omitempty" jsonschema:"LLM runtime for this agent. One of: claude-code, codex, opencode. Empty = install default."`
+	Model    string `json:"model,omitempty" jsonschema:"Model name passed to the runtime (e.g. claude-sonnet-4.6, gpt-5.4, openai-codex/gpt-5.4). Free-form; runtime validates."`
+	MySlug   string `json:"my_slug,omitempty" jsonschema:"Your agent slug. Defaults to LAF_OFFICE_AGENT_SLUG."`
 }
 
 type TeamPlanArgs struct {
@@ -921,9 +917,9 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 			"Create a batch of tasks in one shot with optional dependency ordering. Use this instead of multiple team_task calls when you know the full plan up front.",
 		), handleTeamPlan)
 		mcp.AddTool(server, officeWriteTool(
-			"team_context_bridge",
-			"Lead-only tool to bridge relevant context from one channel into another and leave a visible cross-channel trail.",
-		), handleTeamContextBridge)
+			"team_context_transfer",
+			"Lead-only tool to transfer relevant context from one channel into another and leave a visible cross-channel trail.",
+		), handleTeamContextTransfer)
 		mcp.AddTool(server, officeWriteTool(
 			"team_channel",
 			"Create or remove an office channel. When creating a channel, include a clear description of what work belongs there and the initial roster that should be in it. Only do this when the human explicitly wants channel structure.",
@@ -3033,7 +3029,7 @@ func handleTeamChannels(ctx context.Context, _ *mcp.CallToolRequest, _ TeamChann
 		}
 		lines = append(lines, line)
 	}
-	return textResult("Office channels:\n" + strings.Join(lines, "\n") + "\n\nYou can inspect channel names and descriptions even if you are not a member. The lead can bridge cross-channel context when needed."), nil, nil
+	return textResult("Office channels:\n" + strings.Join(lines, "\n") + "\n\nYou can inspect channel names and descriptions even if you are not a member. The lead can transfer cross-channel context when needed."), nil, nil
 }
 
 func handleTeamDMOpen(ctx context.Context, _ *mcp.CallToolRequest, args TeamDMOpenArgs) (*mcp.CallToolResult, any, error) {
@@ -3137,13 +3133,13 @@ func handleTeamChannelMember(ctx context.Context, _ *mcp.CallToolRequest, args T
 	return textResult(fmt.Sprintf("%s @%s in #%s", titleCaser.String(strings.TrimSpace(args.Action)), member, channel)), nil, nil
 }
 
-func handleTeamContextBridge(ctx context.Context, _ *mcp.CallToolRequest, args TeamContextBridgeArgs) (*mcp.CallToolResult, any, error) {
+func handleTeamContextTransfer(ctx context.Context, _ *mcp.CallToolRequest, args TeamContextTransferArgs) (*mcp.CallToolResult, any, error) {
 	slug, err := resolveSlug(args.MySlug)
 	if err != nil {
 		return toolError(err), nil, nil
 	}
 	if !isLeadSlug(slug) {
-		return toolError(fmt.Errorf("only the lead can bridge channel context; ask @%s to do it", office.DefaultLeadAgentSlug)), nil, nil
+		return toolError(fmt.Errorf("only the lead can transfer channel context; ask @%s to do it", office.DefaultLeadAgentSlug)), nil, nil
 	}
 	source := resolveChannel(args.SourceChannel)
 	target := resolveChannel(args.TargetChannel)
@@ -3155,7 +3151,7 @@ func handleTeamContextBridge(ctx context.Context, _ *mcp.CallToolRequest, args T
 		DecisionID string   `json:"decision_id"`
 		SignalIDs  []string `json:"signal_ids"`
 	}
-	if err := brokerPostJSON(ctx, "/bridges", map[string]any{
+	if err := brokerPostJSON(ctx, "/context-transfers", map[string]any{
 		"actor":          slug,
 		"source_channel": source,
 		"target_channel": target,
@@ -3165,7 +3161,7 @@ func handleTeamContextBridge(ctx context.Context, _ *mcp.CallToolRequest, args T
 	}, &result); err != nil {
 		return toolError(err), nil, nil
 	}
-	text := fmt.Sprintf("Lead bridged context from #%s to #%s", source, target)
+	text := fmt.Sprintf("Lead transferred context from #%s to #%s", source, target)
 	if result.ID != "" {
 		text += " (" + result.ID + ")"
 	}
@@ -3195,18 +3191,7 @@ func handleTeamMember(ctx context.Context, _ *mcp.CallToolRequest, args TeamMemb
 			"created_by":      strings.TrimSpace(resolveSlugOptional(args.MySlug)),
 		}
 		if pkind := strings.TrimSpace(args.Provider); pkind != "" || strings.TrimSpace(args.Model) != "" {
-			p := map[string]any{"kind": pkind, "model": strings.TrimSpace(args.Model)}
-			if pkind == "openclaw" {
-				oc := map[string]any{}
-				if v := strings.TrimSpace(args.OpenclawSessionKey); v != "" {
-					oc["session_key"] = v
-				}
-				if v := strings.TrimSpace(args.OpenclawAgentID); v != "" {
-					oc["agent_id"] = v
-				}
-				p["openclaw"] = oc
-			}
-			body["provider"] = p
+			body["provider"] = map[string]any{"kind": pkind, "model": strings.TrimSpace(args.Model)}
 		}
 		if err := brokerPostJSON(ctx, "/office-members", body, nil); err != nil {
 			return toolError(err), nil, nil

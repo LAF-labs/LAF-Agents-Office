@@ -7,7 +7,7 @@ package team
 //   - Synthesis is NOT an agent turn. It runs inside the broker as a
 //     dedicated goroutine consuming a buffered SynthesisJob channel.
 //   - The worker shells out to the user's configured CLI (claude-code,
-//     codex, openclaw, ...) through provider.RunConfiguredOneShot so we
+//     codex, opencode, ...) through provider.RunConfiguredOneShot so we
 //     never carry an LLM SDK in the broker binary.
 //   - Output is committed via the WikiWorker queue under the synthetic
 //     "archivist" git identity — preserving the single-writer invariant

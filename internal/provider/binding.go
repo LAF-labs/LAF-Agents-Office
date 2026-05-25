@@ -9,20 +9,15 @@ const (
 	KindClaudeCode = "claude-code"
 	KindCodex      = "codex"
 	KindOpencode   = "opencode"
-	KindOpenclaw   = "openclaw"
 )
 
 // ProviderBinding is the per-agent runtime selection persisted on an office
 // member and on company.MemberSpec. It captures which LLM runtime executes the
 // agent's turns (Kind) and which model the runtime should use (Model, free
 // form — validated by the runtime itself, not here).
-//
-// Openclaw is a pointer so agents on other runtimes don't emit an empty object
-// into their JSON; it's populated only when Kind == KindOpenclaw.
 type ProviderBinding struct {
-	Kind     string                   `json:"kind,omitempty"`
-	Model    string                   `json:"model,omitempty"`
-	Openclaw *OpenclawProviderBinding `json:"openclaw,omitempty"`
+	Kind  string `json:"kind,omitempty"`
+	Model string `json:"model,omitempty"`
 }
 
 // AgentModelDefaults stores the team-wide default model choice for an agent
@@ -35,23 +30,15 @@ type AgentModelDefaults struct {
 	LAF    string `json:"laf,omitempty"`
 }
 
-// OpenclawProviderBinding holds OpenClaw-specific parameters. SessionKey is
-// the gateway's identifier for the agent's persistent conversation. AgentID
-// is the OpenClaw agent config name (defaults to "main" at creation time).
-type OpenclawProviderBinding struct {
-	SessionKey string `json:"session_key,omitempty"`
-	AgentID    string `json:"agent_id,omitempty"`
-}
-
 // ValidateKind reports whether s is an acceptable ProviderBinding.Kind value.
 // The empty string is valid and means "use install-wide default."
 func ValidateKind(s string) error {
 	switch s {
-	case "", KindClaudeCode, KindCodex, KindOpencode, KindOpenclaw:
+	case "", KindClaudeCode, KindCodex, KindOpencode:
 		return nil
 	default:
-		return fmt.Errorf("unknown provider kind %q (valid: %s, %s, %s, %s, or empty)",
-			s, KindClaudeCode, KindCodex, KindOpencode, KindOpenclaw)
+		return fmt.Errorf("unknown provider kind %q (valid: %s, %s, %s, or empty)",
+			s, KindClaudeCode, KindCodex, KindOpencode)
 	}
 }
 

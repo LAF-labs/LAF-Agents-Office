@@ -17,7 +17,6 @@ func TestNormalizeProviderKind(t *testing.T) {
 		{" codex ", provider.KindCodex},     // trim
 		{"CODEX", provider.KindCodex},       // uppercase
 		{"claude-code", provider.KindClaudeCode},
-		{"openclaw", provider.KindOpenclaw},
 		{"gemini", "gemini"}, // unknown passes through so dispatch can error
 	}
 	for _, tt := range tests {
@@ -110,17 +109,17 @@ func TestBrokerMemberProviderKind_Lookup(t *testing.T) {
 	b := newTestBroker(t)
 	b.mu.Lock()
 	b.members = append(b.members, officeMember{
-		Slug:     "eng-openclaw",
-		Name:     "Eng Openclaw",
-		Provider: provider.ProviderBinding{Kind: provider.KindOpenclaw, Model: "openai-codex/gpt-5.4"},
+		Slug:     "eng-codex",
+		Name:     "Eng Codex",
+		Provider: provider.ProviderBinding{Kind: provider.KindCodex, Model: "gpt-5.4"},
 	})
 	b.memberIndex = nil
 	b.mu.Unlock()
 
-	if got := b.MemberProviderKind("eng-openclaw"); got != provider.KindOpenclaw {
-		t.Fatalf("MemberProviderKind = %q, want %q", got, provider.KindOpenclaw)
+	if got := b.MemberProviderKind("eng-codex"); got != provider.KindCodex {
+		t.Fatalf("MemberProviderKind = %q, want %q", got, provider.KindCodex)
 	}
-	if binding := b.MemberProviderBinding("eng-openclaw"); binding.Model != "openai-codex/gpt-5.4" {
+	if binding := b.MemberProviderBinding("eng-codex"); binding.Model != "gpt-5.4" {
 		t.Fatalf("MemberProviderBinding lost model: %+v", binding)
 	}
 	// Unknown slug returns zero value, not error.

@@ -365,3 +365,7 @@ and missing typed contracts.
   `20260525000000_remove_local_execution.sql`. A linked DB query confirms the
   obsolete device, queue, execution-plan, checkout-binding, and claim-function
   objects are absent.
+- The retired external runtime connector has been removed from Go internals,
+  CLI probes, provider bindings, config, onboarding tests, and hosted surface
+  guards. `npm run startup-office:surface` now fails if that connector term or
+  its old packages return to tracked source.

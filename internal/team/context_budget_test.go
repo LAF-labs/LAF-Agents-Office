@@ -63,16 +63,16 @@ func TestProjectMemorySignalScoringKeepsTaskRelevantItems(t *testing.T) {
 
 - Use the generic launch checklist for marketing copy.
 - Keep dashboard cards compact.
-- Prefer Bridge lease renewal checks before creating new execution jobs.
+- Prefer cloud receipt renewal checks before creating new execution jobs.
 - Store screenshots in receipts.
 - Use dark mode tokens for admin chrome.
 - Keep hosted auth membership checks strict.
-- Bridge completion owns delivery receipt updates.
+- Cloud completion owns delivery receipt updates.
 - Archive stale brainstorm notes monthly.
 `
 	task := teamTask{
-		Title:         "Fix Bridge lease renewal and delivery receipt flow",
-		Details:       "The task is blocked until Bridge execution jobs renew safely.",
+		Title:         "Fix cloud receipt renewal and delivery receipt flow",
+		Details:       "The task is blocked until cloud execution jobs renew safely.",
 		TaskType:      "feature",
 		ExecutionMode: executionModeLocalWorktree,
 	}
@@ -92,7 +92,7 @@ func TestProjectMemorySignalScoringKeepsTaskRelevantItems(t *testing.T) {
 		signals.Decisions[4].Text,
 		signals.Decisions[5].Text,
 	}, "\n")
-	for _, want := range []string{"generic launch checklist", "Bridge lease renewal", "Bridge completion owns delivery receipt"} {
+	for _, want := range []string{"generic launch checklist", "cloud receipt renewal", "Cloud completion owns delivery receipt"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("scored decisions dropped %q:\n%s", want, joined)
 		}
@@ -100,7 +100,7 @@ func TestProjectMemorySignalScoringKeepsTaskRelevantItems(t *testing.T) {
 }
 
 func TestRecentProjectWorkScoringKeepsHighSignalWork(t *testing.T) {
-	current := teamTask{ID: "task-current", Title: "Ship Bridge delivery flow", Owner: "builder", TaskType: "feature"}
+	current := teamTask{ID: "task-current", Title: "Ship cloud delivery flow", Owner: "builder", TaskType: "feature"}
 	tasks := []teamTask{
 		{
 			ID:        "task-low-signal",
@@ -120,16 +120,16 @@ func TestRecentProjectWorkScoringKeepsHighSignalWork(t *testing.T) {
 		{
 			ID:        "task-blocked",
 			ProjectID: "p",
-			Title:     "Bridge lease repair",
+			Title:     "Cloud lease repair",
 			Status:    taskStatusBlocked,
-			Details:   "Blocked on Bridge token refresh.",
+			Details:   "Blocked on cloud token refresh.",
 			Blocked:   true,
 			UpdatedAt: "2026-05-01T09:00:00Z",
 		},
 		{
 			ID:          "task-review",
 			ProjectID:   "p",
-			Title:       "Bridge UI review",
+			Title:       "Cloud UI review",
 			Status:      taskStatusReview,
 			DeliveryURL: "https://github.com/laf-labs/laf/pull/7",
 			UpdatedAt:   "2026-05-01T08:00:00Z",
@@ -139,7 +139,7 @@ func TestRecentProjectWorkScoringKeepsHighSignalWork(t *testing.T) {
 			ProjectID:       "p",
 			Title:           "Delivery receipt storage",
 			Status:          taskStatusDone,
-			DeliverySummary: "Receipt updates now include Bridge delivery state.",
+			DeliverySummary: "Receipt updates now include cloud delivery state.",
 			UpdatedAt:       "2026-05-01T07:00:00Z",
 		},
 	}

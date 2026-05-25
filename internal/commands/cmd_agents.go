@@ -83,7 +83,7 @@ func cmdAgentList(ctx *SlashContext) error {
 func cmdAgentCreate(ctx *SlashContext, args string) error {
 	pos, flags := parseFlags(args)
 	if len(pos) < 1 {
-		ctx.AddMessage("system", "usage: /agent create <slug> --name <name> --provider <claude-code|codex|openclaw> [--model <m>] [--role <r>] [--personality <p>] [--session-key <k>] [--agent-id <id>]")
+		ctx.AddMessage("system", "usage: /agent create <slug> --name <name> --provider <claude-code|codex|opencode> [--model <m>] [--role <r>] [--personality <p>]")
 		return nil
 	}
 	slug := pos[0]
@@ -173,21 +173,8 @@ func cmdAgentRemove(ctx *SlashContext, args string) error {
 }
 
 // buildProviderPayload assembles the provider block for a /office-members POST.
-// For openclaw, it optionally threads through an explicit session_key + agent_id;
-// leaving both empty triggers broker-side auto-create on sessions.create.
 func buildProviderPayload(kind string, flags map[string]string) map[string]any {
-	p := map[string]any{"kind": kind, "model": strings.TrimSpace(flags["model"])}
-	if kind == provider.KindOpenclaw {
-		oc := map[string]any{}
-		if v := strings.TrimSpace(flags["session-key"]); v != "" {
-			oc["session_key"] = v
-		}
-		if v := strings.TrimSpace(flags["agent-id"]); v != "" {
-			oc["agent_id"] = v
-		}
-		p["openclaw"] = oc
-	}
-	return p
+	return map[string]any{"kind": kind, "model": strings.TrimSpace(flags["model"])}
 }
 
 func describeProviderKind(kind string) string {

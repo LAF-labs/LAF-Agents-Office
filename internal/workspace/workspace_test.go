@@ -26,7 +26,6 @@ func seedWorkspace(t *testing.T, dir string) map[string]string {
 		"worktree":            filepath.Join(base, "task-worktrees", "wt-1", "file"),
 		"codex":               filepath.Join(base, "codex-headless", "cache"),
 		"providers":           filepath.Join(base, "providers", "claude-sessions.json"),
-		"openclaw":            filepath.Join(base, "openclaw", "identity.json"),
 		"config":              filepath.Join(base, "config.json"),
 		"calendar":            filepath.Join(base, "calendar.json"),
 		"wiki":                filepath.Join(base, "wiki", "team", "playbooks", "starter.md"),
@@ -85,7 +84,7 @@ func TestClearRuntimeRemovesBrokerStateOnly(t *testing.T) {
 	for _, label := range []string{
 		"onboarded", "company", "officeTasks", "workflow",
 		"logs", "session", "worktree", "codex", "providers",
-		"officePID", "openclaw", "config", "calendar",
+		"officePID", "config", "calendar",
 	} {
 		assertStays(t, label, paths[label])
 	}
@@ -185,7 +184,7 @@ func TestShredRemovesWorkspaceHistoryButPreservesUserWorkAndConfig(t *testing.T)
 
 	// Preserved: in-flight work and user credentials/preferences.
 	for _, label := range []string{
-		"officePID", "worktree", "openclaw", "config",
+		"officePID", "worktree", "config",
 	} {
 		assertStays(t, label, paths[label])
 	}

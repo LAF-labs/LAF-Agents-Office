@@ -69,10 +69,6 @@ type Config struct {
 	CompanyGoals        string `json:"company_goals,omitempty"`
 	CompanySize         string `json:"company_size,omitempty"`
 	CompanyPriority     string `json:"company_priority,omitempty"`
-
-	OpenclawBridges    []OpenclawBridgeBinding `json:"openclaw_bridges,omitempty"`
-	OpenclawGatewayURL string                  `json:"openclaw_gateway_url,omitempty"`
-	OpenclawToken      string                  `json:"openclaw_token,omitempty"`
 }
 
 const (
@@ -80,13 +76,6 @@ const (
 	MemoryBackendGBrain   = "gbrain"
 	MemoryBackendMarkdown = "markdown"
 )
-
-// OpenclawBridgeBinding binds a LAF-Office agent session to an OpenClaw bridge slug.
-type OpenclawBridgeBinding struct {
-	SessionKey  string `json:"session_key"`
-	Slug        string `json:"slug"`
-	DisplayName string `json:"display_name,omitempty"`
-}
 
 // ActiveBlueprint returns the preferred operation blueprint/template id.
 // Blueprint is the primary field; Pack remains as a compatibility alias.
@@ -655,40 +644,4 @@ func resolveTaskInterval(envKey string, fromConfig func(Config) int, defaultMinu
 		minutes = 2
 	}
 	return minutes
-}
-
-// ResolveOpenclawToken returns the OpenClaw gateway auth token from env > config.
-func ResolveOpenclawToken() string {
-	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_TOKEN"))); v != "" {
-		return v
-	}
-	cfg, _ := Load()
-	return strings.TrimSpace(cfg.OpenclawToken)
-}
-
-// ResolveOpenclawGatewayURL returns the OpenClaw gateway URL from env > config > default loopback.
-func ResolveOpenclawGatewayURL() string {
-	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_GATEWAY_URL"))); v != "" {
-		return v
-	}
-	cfg, _ := Load()
-	if v := strings.TrimSpace(cfg.OpenclawGatewayURL); v != "" {
-		return v
-	}
-	return "ws://127.0.0.1:18789"
-}
-
-// ResolveOpenclawIdentityPath returns where the Ed25519 device identity is
-// persisted. OpenClaw's gateway requires device-pair auth — token alone grants
-// zero scopes — so this keypair is effectively credentials: write only to a
-// user-scoped 0600 file under the LAF-Office home.
-func ResolveOpenclawIdentityPath() string {
-	if v := strings.TrimSpace(os.Getenv(product.Env("OPENCLAW_IDENTITY_PATH"))); v != "" {
-		return v
-	}
-	home := RuntimeHomeDir()
-	if home == "" {
-		return product.RuntimePath("", "openclaw", "identity.json")
-	}
-	return product.RuntimePath(home, "openclaw", "identity.json")
 }

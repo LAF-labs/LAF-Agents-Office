@@ -17,7 +17,6 @@ func TestValidateKind(t *testing.T) {
 		{"claude_code", "claude-code", false},
 		{"codex", "codex", false},
 		{"opencode", "opencode", false},
-		{"openclaw", "openclaw", false},
 		{"unknown", "gemini", true},
 		{"typo", "claud-code", true},
 		{"uppercase_rejected", "Codex", true},
@@ -49,7 +48,7 @@ func TestBindingJSONRoundTrip_Empty(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if got.Kind != "" || got.Model != "" || got.Openclaw != nil {
+	if got.Kind != "" || got.Model != "" {
 		t.Fatalf("empty round-trip lost zero value: %+v", got)
 	}
 }
@@ -61,38 +60,12 @@ func TestBindingJSONRoundTrip_Claude(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if strings.Contains(string(data), "openclaw") {
-		t.Fatalf("claude binding should not emit openclaw field, got %s", data)
-	}
 	var got ProviderBinding
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if got != in {
 		t.Fatalf("round-trip mismatch: got=%+v want=%+v", got, in)
-	}
-}
-
-func TestBindingJSONRoundTrip_Openclaw(t *testing.T) {
-	t.Parallel()
-	in := ProviderBinding{
-		Kind:     "openclaw",
-		Model:    "openai-codex/gpt-5.4",
-		Openclaw: &OpenclawProviderBinding{SessionKey: "agent:foo:demo", AgentID: "main"},
-	}
-	data, err := json.Marshal(in)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	var got ProviderBinding
-	if err := json.Unmarshal(data, &got); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if got.Kind != in.Kind || got.Model != in.Model {
-		t.Fatalf("round-trip lost core fields: got=%+v want=%+v", got, in)
-	}
-	if got.Openclaw == nil || *got.Openclaw != *in.Openclaw {
-		t.Fatalf("round-trip lost openclaw block: got=%+v want=%+v", got.Openclaw, in.Openclaw)
 	}
 }
 

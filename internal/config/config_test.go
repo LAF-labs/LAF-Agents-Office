@@ -611,37 +611,3 @@ func TestAPIBase(t *testing.T) {
 		}
 	})
 }
-
-func TestOpenclawConfigRoundTrip(t *testing.T) {
-	withTempConfig(t, func(_ string) {
-		want := Config{
-			OpenclawGatewayURL: "ws://127.0.0.1:18789",
-			OpenclawToken:      "secret-token",
-			OpenclawBridges: []OpenclawBridgeBinding{
-				{SessionKey: "agent:main:main", Slug: "openclaw-ops", DisplayName: "Ops Agent"},
-			},
-		}
-		if err := Save(want); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
-		got, err := Load()
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if got.OpenclawGatewayURL != want.OpenclawGatewayURL ||
-			got.OpenclawToken != want.OpenclawToken ||
-			len(got.OpenclawBridges) != 1 ||
-			got.OpenclawBridges[0].Slug != "openclaw-ops" {
-			t.Fatalf("round-trip mismatch: got %+v want %+v", got, want)
-		}
-	})
-}
-
-func TestResolveOpenclawTokenEnvWins(t *testing.T) {
-	withTempConfig(t, func(_ string) {
-		t.Setenv("LAF_OFFICE_OPENCLAW_TOKEN", "env-token")
-		if got := ResolveOpenclawToken(); got != "env-token" {
-			t.Fatalf("expected env-token, got %q", got)
-		}
-	})
-}

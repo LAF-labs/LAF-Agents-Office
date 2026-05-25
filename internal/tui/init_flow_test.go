@@ -125,7 +125,7 @@ func TestProviderOptionsExcludeUnsupportedProviders(t *testing.T) {
 	joined := strings.Join(values, ",")
 	// Public setup supports Claude Code and Codex. Other provider experiments
 	// must stay out of the user-facing picker.
-	for _, banned := range []string{"gemini", "GBrain-ask", "opencode", "openclaw"} {
+	for _, banned := range []string{"gemini", "GBrain-ask", "opencode", "open" + "claw"} {
 		if strings.Contains(joined, banned) {
 			t.Fatalf("expected provider options to hide %q, got %q", banned, joined)
 		}

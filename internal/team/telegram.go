@@ -50,7 +50,7 @@ type telegramAPIResponse struct {
 	Desc   string          `json:"description,omitempty"`
 }
 
-// TelegramTransport bridges Telegram chats with the office broker.
+// TelegramTransport connects Telegram chats with the office broker.
 // Each mapped Telegram chat corresponds to an office channel with a
 // "telegram" surface. Inbound Telegram messages are posted to the broker;
 // outbound broker messages on surface channels are sent to Telegram.
@@ -94,7 +94,7 @@ func NewTelegramTransport(broker *Broker, botToken string) *TelegramTransport {
 	}
 }
 
-// Start begins the bidirectional bridge: polling Telegram for inbound messages
+// Start begins the bidirectional sync: polling Telegram for inbound messages
 // and draining the broker's external queue for outbound delivery.
 // It blocks until ctx is cancelled.
 func (t *TelegramTransport) Start(ctx context.Context) error {

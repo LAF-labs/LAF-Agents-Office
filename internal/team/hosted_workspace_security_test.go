@@ -11,7 +11,7 @@ import (
 
 func TestOrchestrationConfirmRequiresStoredIntentID(t *testing.T) {
 	b := newTestBroker(t)
-	owner := signupForTest(t, b, "owner@example.com", "Owner", "create", "Bridge Team", "")
+	owner := signupForTest(t, b, "owner@example.com", "Owner", "create", "Startup Team", "")
 
 	intentReq := jsonRequestForTest(t, "/orchestration/intent", map[string]string{
 		"message": "create project Alpha",

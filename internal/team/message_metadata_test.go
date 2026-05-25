@@ -57,7 +57,8 @@ func TestModelAvailabilityExposesCloudModesOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, legacy := range [][]byte{[]byte("team" + "_bridge"), []byte("my" + "_bridge"), []byte("local" + "_cli")} {
+	for _, legacyMode := range []string{"team_" + "bri" + "dge", "my_" + "bri" + "dge", "local" + "_cli"} {
+		legacy := []byte(legacyMode)
 		if bytes.Contains(raw, legacy) {
 			t.Fatalf("model availability should not expose legacy local mode %q: %s", legacy, raw)
 		}

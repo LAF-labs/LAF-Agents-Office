@@ -203,7 +203,7 @@ func TestAutoPromote_HumanTypedLeadSuppressesOtherMentions(t *testing.T) {
 	}
 }
 
-// Synthetic senders (`system`, automation, bridges, future automation kinds) MUST
+// Synthetic senders (`system`, automation, relays, future automation kinds) MUST
 // NOT auto-promote. A denylist approach would leak every new synthetic
 // identity — the allowlist in senderMayAutoPromoteLocked stops that.
 // handlePostMessage rejects `system` at the channel-access gate before the
@@ -217,7 +217,7 @@ func TestAutoPromote_SystemAndSyntheticSendersSkipped(t *testing.T) {
 	}{
 		{"system", "system"},
 		{"automation", "automation"},
-		{"bridge-slack", "bridge-slack"},
+		{"relay-slack", "relay-slack"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

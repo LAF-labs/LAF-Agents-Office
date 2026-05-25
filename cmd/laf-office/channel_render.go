@@ -556,31 +556,31 @@ func buildCalendarLines(actions []channelAction, jobs []channelSchedulerJob, tas
 		recentActionCap = 4
 	}
 	recentActions := make([]channelAction, 0, recentActionCap)
-	var pinnedBridge *channelAction
+	var pinnedTransfer *channelAction
 	for i := len(actions) - 1; i >= 0; i-- {
 		action := actions[i]
 		channel := normalizeSidebarSlug(action.Channel)
-		if strings.TrimSpace(action.Kind) != "bridge_channel" && channel != "" && channel != normalizeSidebarSlug(activeChannel) {
+		if strings.TrimSpace(action.Kind) != "context_transfer" && channel != "" && channel != normalizeSidebarSlug(activeChannel) {
 			continue
 		}
-		if strings.TrimSpace(action.Kind) == "bridge_channel" && pinnedBridge == nil {
+		if strings.TrimSpace(action.Kind) == "context_transfer" && pinnedTransfer == nil {
 			actionCopy := action
-			pinnedBridge = &actionCopy
+			pinnedTransfer = &actionCopy
 		}
 		if len(recentActions) < recentActionCap {
 			recentActions = append(recentActions, action)
 		}
 	}
-	if pinnedBridge != nil {
-		hasBridge := false
+	if pinnedTransfer != nil {
+		hasTransfer := false
 		for _, action := range recentActions {
-			if strings.TrimSpace(action.Kind) == "bridge_channel" {
-				hasBridge = true
+			if strings.TrimSpace(action.Kind) == "context_transfer" {
+				hasTransfer = true
 				break
 			}
 		}
-		if !hasBridge {
-			recentActions = append([]channelAction{*pinnedBridge}, recentActions...)
+		if !hasTransfer {
+			recentActions = append([]channelAction{*pinnedTransfer}, recentActions...)
 			if recentActionCap > 0 && len(recentActions) > recentActionCap {
 				recentActions = recentActions[:recentActionCap]
 			}
@@ -1353,7 +1353,7 @@ func recentExternalActions(actions []channelAction, limit int) []channelAction {
 	var filtered []channelAction
 	for _, action := range actions {
 		kind := strings.TrimSpace(action.Kind)
-		if !strings.HasPrefix(kind, "external_") && kind != "bridge_channel" {
+		if !strings.HasPrefix(kind, "external_") && kind != "context_transfer" {
 			continue
 		}
 		filtered = append(filtered, action)
