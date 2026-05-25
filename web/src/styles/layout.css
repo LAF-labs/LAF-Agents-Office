@@ -1594,6 +1594,13 @@ html[data-theme="office"]
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
+.startup-artifact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 0;
+}
 .startup-profile-form,
 .startup-detail-list {
   display: grid;

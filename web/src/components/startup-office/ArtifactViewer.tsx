@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { Xmark } from "iconoir-react";
+import { Copy, Download, Xmark } from "iconoir-react";
 
 import type { StartupOfficeArtifact } from "../../api/startupOffice";
+import { showNotice } from "../ui/Toast";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 import { dateLabel } from "./startupOfficeViewModel";
 
@@ -27,6 +28,16 @@ export function ArtifactViewer({
 
   if (!artifact) return null;
 
+  const handleCopy = () => {
+    copyArtifactContent(artifact)
+      .then(() => showNotice(copy.artifactCopied, "success"))
+      .catch((error: Error) => showNotice(copy.actionFailed(error.message), "error"));
+  };
+  const handleExport = () => {
+    exportArtifactMarkdown(artifact);
+    showNotice(copy.artifactExported, "success");
+  };
+
   return (
     <div className="startup-office-drawer-backdrop">
       <section
@@ -50,6 +61,24 @@ export function ArtifactViewer({
             onClick={onClose}
           >
             <Xmark aria-hidden={true} height={16} width={16} />
+          </button>
+        </div>
+        <div className="startup-artifact-actions">
+          <button
+            type="button"
+            className="startup-office-action is-secondary"
+            onClick={handleCopy}
+          >
+            <Copy aria-hidden={true} height={13} width={13} />
+            {copy.copyArtifact}
+          </button>
+          <button
+            type="button"
+            className="startup-office-action is-secondary"
+            onClick={handleExport}
+          >
+            <Download aria-hidden={true} height={13} width={13} />
+            {copy.exportArtifact}
           </button>
         </div>
         <pre className="startup-artifact-content">{artifact.content}</pre>
@@ -89,4 +118,47 @@ function recordValue(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+async function copyArtifactContent(artifact: StartupOfficeArtifact) {
+  const clipboard = globalThis.navigator?.clipboard;
+  if (!clipboard?.writeText) {
+    throw new Error("Clipboard is unavailable");
+  }
+  await clipboard.writeText(artifact.content || "");
+}
+
+function exportArtifactMarkdown(artifact: StartupOfficeArtifact) {
+  const anchor = document.createElement("a");
+  anchor.download = `${safeFilename(artifact.title || artifact.id || "artifact")}.md`;
+  anchor.href = `data:text/markdown;charset=utf-8,${encodeURIComponent(
+    artifactMarkdown(artifact),
+  )}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+function artifactMarkdown(artifact: StartupOfficeArtifact) {
+  const parts = [
+    `# ${artifact.title || "Artifact"}`,
+    "",
+    `- Kind: ${artifact.kind || "-"}`,
+    `- Run: ${artifact.run_id || "-"}`,
+    `- Created: ${artifact.created_at || "-"}`,
+    "",
+    artifact.content || "",
+  ];
+  return parts.join("\n");
+}
+
+function safeFilename(value: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80) || "artifact"
+  );
 }

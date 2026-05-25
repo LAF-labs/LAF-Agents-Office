@@ -41,7 +41,7 @@ function mockStartupOfficeSummary() {
     language: "en",
     wikiPath: null,
   });
-  startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
+    startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
     beta_ops: {
       billing: {
         billing_state: "active",
@@ -182,6 +182,12 @@ function mockStartupOfficeSummary() {
         title: "Idea Validation",
       },
     ],
+    });
+  Object.defineProperty(globalThis.navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: vi.fn().mockResolvedValue(undefined),
+    },
   });
   startupOfficeMocks.runStartupOfficeLoop.mockResolvedValue({
     artifact: null,
@@ -311,6 +317,9 @@ describe("StartupOfficeApp", () => {
 
   it("runs loops, approves decisions, opens run/artifact detail, and edits profile", async () => {
     const user = userEvent.setup();
+    const clipboardWrite = vi
+      .spyOn(globalThis.navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
     renderStartupOfficeApp();
 
     await screen.findByText("LAF Labs");
@@ -344,6 +353,19 @@ describe("StartupOfficeApp", () => {
     expect(
       screen.getByText("1 memory pages, 0 sources, 1 assumptions"),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Copy artifact" }));
+    await waitFor(() =>
+      expect(clipboardWrite).toHaveBeenCalledWith(
+        "Validate and launch a paid beta with founder control.",
+      ),
+    );
+    const downloadClick = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    await user.click(screen.getByRole("button", { name: "Export .md" }));
+    expect(downloadClick).toHaveBeenCalled();
+    downloadClick.mockRestore();
+    clipboardWrite.mockRestore();
     await user.click(screen.getByRole("button", { name: "Close panel" }));
 
     await user.click(screen.getByRole("button", { name: "View run" }));

@@ -142,6 +142,10 @@ export const STARTUP_OFFICE_APP_COPY = {
     viewRun: "View run",
     runDetailTitle: "Run detail",
     artifactViewerTitle: "Artifact",
+    copyArtifact: "Copy artifact",
+    exportArtifact: "Export .md",
+    artifactCopied: "Artifact copied.",
+    artifactExported: "Artifact export started.",
     closePanel: "Close panel",
     companyMemoryTitle: "Company memory",
     companyMemoryDescription:
@@ -297,6 +301,10 @@ export const STARTUP_OFFICE_APP_COPY = {
     viewRun: "실행 보기",
     runDetailTitle: "실행 상세",
     artifactViewerTitle: "산출물",
+    copyArtifact: "산출물 복사",
+    exportArtifact: "MD 내보내기",
+    artifactCopied: "산출물을 복사했습니다.",
+    artifactExported: "산출물 내보내기를 시작했습니다.",
     closePanel: "패널 닫기",
     companyMemoryTitle: "회사 메모리",
     companyMemoryDescription:
