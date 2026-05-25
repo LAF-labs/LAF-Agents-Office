@@ -80,6 +80,13 @@ const LAUNCH_CAMPAIGN_SCHEMA = Object.freeze({
 });
 
 const launchCampaignTemplate = Object.freeze({
+  approvalGates: Object.freeze([
+    "publish",
+    "external_send",
+    "payment",
+    "public_claim",
+    "customer_promise",
+  ]),
   artifactKind: "draft",
   artifactTitle: "Launch Campaign AI draft",
   instructions:

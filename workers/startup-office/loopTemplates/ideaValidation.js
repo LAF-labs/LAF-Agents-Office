@@ -67,6 +67,7 @@ const IDEA_VALIDATION_SCHEMA = Object.freeze({
 });
 
 const ideaValidationTemplate = Object.freeze({
+  approvalGates: Object.freeze(["public_claim", "customer_promise"]),
   artifactKind: "plan",
   artifactTitle: "Idea Validation AI draft",
   instructions:

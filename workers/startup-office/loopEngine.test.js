@@ -26,11 +26,30 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.run.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(result.artifact.metadata.skill_invocations[0].reason, "Validate market evidence.");
   assert.equal(result.approval.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(result.approval.risk_level, "high");
+  assert.deepEqual(
+    gateTypes(result.approval.metadata.approval_gates),
+    ["customer_promise", "public_claim"],
+  );
+  assert.equal(result.approval.metadata.approval_required, true);
+  assert.equal(result.artifact.metadata.approval_risk_level, "high");
+  assert.deepEqual(
+    gateTypes(result.run.metadata.approval_gates),
+    ["customer_promise", "public_claim"],
+  );
   assert.equal(result.artifact.title, "Idea Validation AI draft");
   assert.equal(result.artifact.idempotency_key, "run-1:job-1:artifact");
   assert.equal(result.approval.status, "pending");
   assert.equal(result.approval.idempotency_key, "run-1:job-1:approval");
   assert.equal(state.receipts.at(-1).event_type, "run.ai_draft_ready");
+  assert.deepEqual(
+    gateTypes(state.receipts.at(-1).trace.approval_gates),
+    ["customer_promise", "public_claim"],
+  );
+  assert.deepEqual(
+    gateTypes(state.jobPatches.at(-1).metadata.approval_gates),
+    ["customer_promise", "public_claim"],
+  );
   assert.equal(state.receipts.at(0).trace.skill_invocations[0].skill_name, "market-research");
   assert.equal(state.receipts.at(-1).trace.skill_invocations[0].input_snapshot.objective, "Validate the first buyer segment");
   assert.deepEqual(
@@ -41,6 +60,33 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
     state.jobPatches.map((patch) => patch.status),
     ["running", "completed"],
   );
+});
+
+test("startup office loop engine records external-impact approval gates", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    inputs: { campaign: "launch the paid beta" },
+    loop: launchCampaignLoop(),
+    membership: membership(),
+    modelClient: launchCampaignModelClient(),
+    nowISO: fixedNow,
+    objective: "Prepare a public launch campaign",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  const types = gateTypes(result.approval.metadata.approval_gates);
+  assert.equal(result.status, "waiting_approval");
+  assert.equal(result.approval.risk_level, "high");
+  assert.equal(types.includes("publish"), true);
+  assert.equal(types.includes("external_send"), true);
+  assert.equal(types.includes("payment"), true);
+  assert.equal(result.run.metadata.approval_required, true);
+  assert.equal(result.run.metadata.approval_risk_level, "high");
+  assert.equal(state.receipts.at(-1).trace.approval_risk_level, "high");
 });
 
 test("startup office loop engine records failed model calls as receipted run failures", async () => {
@@ -304,6 +350,74 @@ function citingModelClient() {
   };
 }
 
+function launchCampaignModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async () => ({
+      cost: {
+        currency: "USD",
+        estimated_usd: null,
+        input_tokens: 10,
+        model: "fake-model",
+        output_tokens: 20,
+        pricing_source: "usage_tokens_only",
+        provider: "fake",
+        total_tokens: 30,
+      },
+      data: {
+        approval_gates: [
+          "Founder approval before publishing the landing page.",
+          "Founder approval before sending outreach email.",
+          "Founder approval before paid spend.",
+        ],
+        assumptions: [
+          {
+            claim: "Founder-control messaging will earn replies.",
+            confidence: "medium",
+            evidence_needed: "Organic campaign replies.",
+          },
+        ],
+        campaign_goal: "Book five qualified paid-beta calls.",
+        channel_plan: [
+          {
+            angle: "Control and transparency over black-box autonomy.",
+            audience: "Solo B2B founders",
+            channel: "LinkedIn post",
+            effort: "Low",
+            success_metric: "Three qualified replies.",
+          },
+        ],
+        copy_variants: [
+          {
+            body: "A controlled AI Startup Office drafts launch assets with approvals.",
+            channel: "LinkedIn",
+            cta: "Reply beta.",
+            headline: "Launch with AI operators under founder control.",
+          },
+        ],
+        experiments: [
+          {
+            hypothesis: "Founder-control messaging beats autonomy messaging.",
+            metric: "Qualified reply rate",
+            stop_condition: "Fewer than two replies after the first test.",
+          },
+        ],
+        metrics_to_track: ["qualified_replies", "booked_calls"],
+        next_actions: [
+          "Approve the public post before publishing.",
+          "Approve the outreach email before sending.",
+          "Approve paid spend before buying ads.",
+        ],
+        risk_level: "medium",
+        risks: ["Copy can overclaim unless reviewed."],
+        sources: [],
+        summary: "A public launch draft is ready for approval.",
+      },
+    }),
+  };
+}
+
 function failingModelClient() {
   return {
     model: "fake-model",
@@ -326,6 +440,14 @@ function ideaValidationLoop() {
     id: "loop-1",
     name: "Idea Validation",
     slug: "idea-validation",
+  };
+}
+
+function launchCampaignLoop() {
+  return {
+    id: "loop-2",
+    name: "Launch Campaign",
+    slug: "launch-campaign",
   };
 }
 
@@ -356,4 +478,8 @@ function fixedNow() {
 
 function truncateText(value, max) {
   return String(value || "").slice(0, max);
+}
+
+function gateTypes(gates = []) {
+  return gates.map((gate) => gate.type).sort();
 }

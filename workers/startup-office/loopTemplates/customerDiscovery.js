@@ -89,6 +89,7 @@ const CUSTOMER_DISCOVERY_SCHEMA = Object.freeze({
 });
 
 const customerDiscoveryTemplate = Object.freeze({
+  approvalGates: Object.freeze(["external_send", "customer_promise", "public_claim"]),
   artifactKind: "message",
   artifactTitle: "Customer Discovery AI draft",
   instructions:

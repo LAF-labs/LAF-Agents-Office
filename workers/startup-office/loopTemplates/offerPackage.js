@@ -84,6 +84,13 @@ const OFFER_PACKAGE_SCHEMA = Object.freeze({
 });
 
 const offerPackageTemplate = Object.freeze({
+  approvalGates: Object.freeze([
+    "customer_promise",
+    "payment",
+    "pricing_change",
+    "public_claim",
+    "publish",
+  ]),
   artifactKind: "draft",
   artifactTitle: "Offer Package AI draft",
   instructions:

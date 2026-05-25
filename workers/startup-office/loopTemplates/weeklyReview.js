@@ -85,6 +85,7 @@ const WEEKLY_REVIEW_SCHEMA = Object.freeze({
 });
 
 const weeklyReviewTemplate = Object.freeze({
+  approvalGates: Object.freeze(["payment", "legal_sensitive", "public_claim"]),
   artifactKind: "report",
   artifactTitle: "Weekly Operator Review AI draft",
   instructions:

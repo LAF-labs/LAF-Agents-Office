@@ -1,4 +1,5 @@
 const { buildStartupOfficeContext } = require("./contextBuilder");
+const { approvalGatesFor, approvalRiskLevel } = require("./approvalGates");
 const { buildCitationSources, mergeCitationSources } = require("./citationSources");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
@@ -118,6 +119,15 @@ async function runStartupOfficeLoop({
     if (!quality.passed) {
       throw new Error(`AI output failed quality checks: ${quality.issues.join("; ")}`);
     }
+    const approvalGates = approvalGatesFor({
+      output: modelResult.data,
+      template,
+    });
+    const approvalRisk = approvalRiskLevel(quality.risk_level, approvalGates);
+    const qualityMetadata = {
+      ...quality,
+      approval_risk_level: approvalRisk,
+    };
 
     const sideEffectKey = `${run.id}:${workerJob?.id || "direct"}`;
     const artifactContent = template.toArtifact(modelResult.data, context);
@@ -133,10 +143,13 @@ async function runStartupOfficeLoop({
           receipt_count: context.recent_receipts.length,
         },
         browser_research: browserResearch,
+        approval_gates: approvalGates,
+        approval_required: true,
+        approval_risk_level: approvalRisk,
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
-        quality,
+        quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
         structured_output: modelResult.data,
         wiki_promotion: startupOfficeWikiPromotionDraft({
@@ -173,17 +186,20 @@ async function runStartupOfficeLoop({
       details: truncateText(artifactContent, 4000),
       idempotency_key: `${sideEffectKey}:approval`,
       metadata: {
+        approval_gates: approvalGates,
+        approval_required: true,
+        approval_risk_level: approvalRisk,
         cost: modelResult.cost,
         browser_research: browserResearch,
         loop_slug: loop.slug,
         memory_diff: memoryDiff,
         model: modelClient.model,
         provider: modelClient.provider,
-        quality,
+        quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
       },
       requested_by: membership.user_id,
-      risk_level: quality.risk_level,
+      risk_level: approvalRisk,
       run_id: run.id,
       status: "pending",
       title: truncateText(`Approve ${loop.name} AI draft`, 180),
@@ -194,6 +210,9 @@ async function runStartupOfficeLoop({
       metadata: mergeMetadata(run.metadata, {
         attempt,
         cost: modelResult.cost,
+        approval_gates: approvalGates,
+        approval_required: true,
+        approval_risk_level: approvalRisk,
         browser_research: {
           provider: browserResearch.provider,
           source_count: browserResearch.sources.length,
@@ -201,7 +220,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
-        quality,
+        quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
         worker_job_id: workerJob?.id || null,
       }),
@@ -216,6 +235,9 @@ async function runStartupOfficeLoop({
         metadata: {
           artifact_id: artifact?.id || null,
           approval_id: approval?.id || null,
+          approval_gates: approvalGates,
+          approval_required: true,
+          approval_risk_level: approvalRisk,
           browser_research: {
             provider: browserResearch.provider,
             source_count: browserResearch.sources.length,
@@ -236,13 +258,16 @@ async function runStartupOfficeLoop({
       summary: `${loop.name} AI draft is ready for founder approval.`,
       trace: {
         artifact_id: artifact?.id || null,
+        approval_gates: approvalGates,
+        approval_required: true,
+        approval_risk_level: approvalRisk,
         browser_research: {
           provider: browserResearch.provider,
           source_count: browserResearch.sources.length,
         },
         cost: modelResult.cost,
         loop_slug: loop.slug,
-        quality,
+        quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
       },
     });
