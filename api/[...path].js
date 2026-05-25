@@ -14,6 +14,7 @@ const {
 const {
   createHostedSignupHandlers,
 } = require("./lib/hosted/signupHandlers");
+const { createServiceRoleAccessGuards } = require("./lib/hosted/serviceRoleAccess");
 const {
   createHostedActionRateLimiter,
 } = require("./lib/hosted/rateLimits");
@@ -121,6 +122,7 @@ const HOSTED_PERMISSION_GUARDS = createHostedPermissionGuards({
 });
 const requireAdminRole = HOSTED_PERMISSION_GUARDS.requireAdminRole;
 const requirePermission = HOSTED_PERMISSION_GUARDS.requirePermission;
+const SERVICE_ROLE_ACCESS_GUARDS = createServiceRoleAccessGuards({ createHTTPError: startupOfficeHTTPError });
 const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
@@ -811,8 +813,9 @@ function anonHeaders(extra = {}) {
 }
 
 async function rest(table, options = {}) {
+  const tableName = SERVICE_ROLE_ACCESS_GUARDS.assertAllowedRestTable(table);
   const method = options.method || "GET";
-  const url = new URL(supabaseURL(`/rest/v1/${table}`));
+  const url = new URL(supabaseURL(`/rest/v1/${tableName}`));
   for (const [key, value] of Object.entries(options.query || {})) {
     if (value !== undefined && value !== null && value !== "") {
       url.searchParams.set(key, String(value));
@@ -842,7 +845,8 @@ async function rest(table, options = {}) {
 }
 
 async function rpc(name, body = {}) {
-  const response = await fetch(supabaseURL(`/rest/v1/rpc/${name}`), {
+  const rpcName = SERVICE_ROLE_ACCESS_GUARDS.assertAllowedRPC(name);
+  const response = await fetch(supabaseURL(`/rest/v1/rpc/${rpcName}`), {
     method: "POST",
     headers: serviceHeaders(),
     body: JSON.stringify(body),

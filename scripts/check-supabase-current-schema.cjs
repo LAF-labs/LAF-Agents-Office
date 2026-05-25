@@ -6,6 +6,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const schemaPath = path.join(root, "supabase", "schema", "current.json");
 const migrationsDir = path.join(root, "supabase", "migrations");
+const serviceRoleAccessPath = path.join(root, "api", "lib", "hosted", "serviceRoleAccess.js");
 
 function fail(message) {
   console.error(`supabase current schema check failed: ${message}`);
@@ -117,8 +118,12 @@ function parseMigrationState() {
 }
 
 const manifest = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+const serviceRoleAccessSource = fs.readFileSync(serviceRoleAccessPath, "utf8");
 if (manifest.version !== "startup-office-schema.v1") {
   fail(`unexpected manifest version ${manifest.version || "<missing>"}`);
+}
+if (!serviceRoleAccessSource.includes("supabase/schema/current.json")) {
+  fail("service-role access guards must use the canonical current schema manifest");
 }
 
 const state = parseMigrationState();

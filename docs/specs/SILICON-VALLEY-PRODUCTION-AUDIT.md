@@ -69,7 +69,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I039 | Data model | Billing, usage, and workspace limits are not normalized into a durable entitlement model. | workspace_billing |
 | SV-I040 | Data model | Schema comments and database-level constraints do not fully encode product invariants. | migrations |
 | SV-I041 | Security | Tenant isolation depends heavily on correct route membership checks plus RLS not yet live-tested. | auth routes, migrations |
-| SV-I042 | Security | Service-role usage is broad and needs stricter internal boundaries. | hosted API env requirements |
+| SV-I042 | Security | Service-role REST/RPC access is now manifest-allowlisted, but domain repositories still need narrower ownership boundaries. | hosted API env requirements |
 | SV-I043 | Security | Support access policy is visible but not yet a complete impersonation and break-glass system. | policy API |
 | SV-I044 | Security | Rate limits cover signup and the first expensive hosted actions with a Supabase-backed production path, but full write-surface coverage is still incomplete. | rate limit helpers |
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
@@ -451,3 +451,6 @@ and missing typed contracts.
   `hosted_rate_limits` table and `claim_hosted_rate_limit` RPC provide an
   atomic shared bucket for deployed API instances, while tests keep the local
   in-memory fallback covered.
+- R3 now adds a service-role access allowlist. `rest(table)` and `rpc(name)`
+  reject tables and functions that are not registered in
+  `supabase/schema/current.json`, and the release gate checks the guard module.

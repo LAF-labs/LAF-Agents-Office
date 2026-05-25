@@ -38,6 +38,8 @@ assertMaxLines("api/lib/hosted/conversationHandlers.js", 290);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
+assertMaxLines("api/lib/hosted/rateLimits.js", 90);
+assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
