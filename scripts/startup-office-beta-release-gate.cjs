@@ -16,6 +16,7 @@ const checks = [
   ["npm", ["run", "startup-office:surface"]],
   ["npm", ["run", "startup-office:worker-deploy"]],
   ["npm", ["run", "startup-office:loop-worker:test"]],
+  ["npm", ["run", "startup-office:model-client:test"]],
   ["npm", ["run", "startup-office:ops-monitor:test"]],
   ["npm", ["run", "hosted-env:preflight:test"]],
   ["node", ["--test", "api/lib/hosted/agentLogHandlers.test.js"]],
