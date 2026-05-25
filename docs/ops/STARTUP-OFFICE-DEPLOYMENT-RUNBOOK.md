@@ -52,8 +52,11 @@ GitHub Actions variables:
 - `LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX`, default `0`
 - `LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS`, default `0`
 - `LAF_MONITOR_MAX_FAILED_OUTBOX`, default `25`
+- `LAF_MONITOR_MAX_MODEL_SPEND_CENTS`, default `1000000`
 - `LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX`, default `0`
 - `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`, default `0`
+- `LAF_MONITOR_MAX_USAGE_EVENT_COST_CENTS`, default `5000`
+- `LAF_MONITOR_MAX_WORKSPACE_MODEL_SPEND_RATIO_BPS`, default `9000`
 - `LAF_MONITOR_OUTBOX_STALE_MS`, default `600000`
 - `LAF_MONITOR_WORKER_JOB_STUCK_MS`, default `1800000`
 
@@ -99,18 +102,27 @@ the office is no longer draining work:
 
 - Workflow: `.github/workflows/startup-office-ops-monitor.yml`
 - Command: `npm run startup-office:ops-monitor`
-- Data sources: `startup_office_outbox_events` and
-  `startup_office_worker_jobs`
+- Data sources: `startup_office_outbox_events`,
+  `startup_office_worker_jobs`, `startup_office_runs`,
+  `startup_office_approvals`, `startup_office_usage_events`, and
+  `workspace_billing`
 - Hard failures by default: any `dead_letter` outbox row, any `dead_letter`
   worker job, any stale processing outbox row, and any stuck queued/running
-  worker job. The monitor also exposes run latency, failed run count, pending
-  approval wait time, worker duration, token use, and model cost aggregates.
+  worker job. The monitor also fails on single-run model cost spikes,
+  workspace-level model spend warnings for the current UTC billing month, and a
+  global model-spend threshold. It exposes run latency, failed run count,
+  pending approval wait time, worker duration, token use, and model cost
+  aggregates.
 - Tunable thresholds: `LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX`,
   `LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS`, `LAF_MONITOR_MAX_FAILED_OUTBOX`,
-  `LAF_MONITOR_MAX_FAILED_RUNS`, `LAF_MONITOR_MAX_STALE_PENDING_APPROVALS`,
+  `LAF_MONITOR_MAX_FAILED_RUNS`, `LAF_MONITOR_MAX_MODEL_SPEND_CENTS`,
+  `LAF_MONITOR_MAX_STALE_PENDING_APPROVALS`,
   `LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX`,
-  `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`, `LAF_MONITOR_APPROVAL_STALE_MS`,
-  `LAF_MONITOR_OUTBOX_STALE_MS`, and `LAF_MONITOR_WORKER_JOB_STUCK_MS`
+  `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`,
+  `LAF_MONITOR_MAX_USAGE_EVENT_COST_CENTS`,
+  `LAF_MONITOR_MAX_WORKSPACE_MODEL_SPEND_RATIO_BPS`,
+  `LAF_MONITOR_APPROVAL_STALE_MS`, `LAF_MONITOR_OUTBOX_STALE_MS`, and
+  `LAF_MONITOR_WORKER_JOB_STUCK_MS`
 
 The monitor prints only aggregate counts, latency/wait/cost metrics, and
 threshold failures. It does not print payloads, last-error bodies, user data, or

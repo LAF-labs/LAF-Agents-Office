@@ -6,10 +6,13 @@ function thresholdsFromEnv(env = process.env) {
     maxDeadLetterOutbox: intEnv(env, "LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX", 0, 0, 10000),
     maxFailedRuns: intEnv(env, "LAF_MONITOR_MAX_FAILED_RUNS", 25, 0, 10000),
     maxFailedOutbox: intEnv(env, "LAF_MONITOR_MAX_FAILED_OUTBOX", 25, 0, 10000),
+    maxModelSpendCents: intEnv(env, "LAF_MONITOR_MAX_MODEL_SPEND_CENTS", 1000000, 0, 100000000),
     maxDeadLetterWorkerJobs: intEnv(env, "LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS", 0, 0, 10000),
     maxStalePendingApprovals: intEnv(env, "LAF_MONITOR_MAX_STALE_PENDING_APPROVALS", 25, 0, 10000),
     maxStaleProcessingOutbox: intEnv(env, "LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX", 0, 0, 10000),
     maxStuckWorkerJobs: intEnv(env, "LAF_MONITOR_MAX_STUCK_WORKER_JOBS", 0, 0, 10000),
+    maxUsageEventCostCents: intEnv(env, "LAF_MONITOR_MAX_USAGE_EVENT_COST_CENTS", 5000, 0, 10000000),
+    maxWorkspaceModelSpendRatioBps: intEnv(env, "LAF_MONITOR_MAX_WORKSPACE_MODEL_SPEND_RATIO_BPS", 9000, 1, 10000),
     approvalStaleMs: intEnv(env, "LAF_MONITOR_APPROVAL_STALE_MS", 86400000, 1000, 604800000),
     outboxStaleMs: intEnv(env, "LAF_MONITOR_OUTBOX_STALE_MS", 600000, 1000, 86400000),
     workerJobStuckMs: intEnv(env, "LAF_MONITOR_WORKER_JOB_STUCK_MS", 1800000, 1000, 86400000),
@@ -23,6 +26,9 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
   const runs = Array.isArray(snapshot.runs) ? snapshot.runs : [];
   const approvals = Array.isArray(snapshot.approvals) ? snapshot.approvals : [];
   const usageEvents = Array.isArray(snapshot.usage_events) ? snapshot.usage_events : [];
+  const workspaceBilling = Array.isArray(snapshot.workspace_billing)
+    ? snapshot.workspace_billing
+    : [];
   const deadLetterOutbox = outboxEvents.filter((row) => row.status === "dead_letter");
   const failedOutbox = outboxEvents.filter((row) => row.status === "failed");
   const deadLetterWorkerJobs = workerJobs.filter((row) => row.status === "dead_letter");
@@ -44,6 +50,21 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
   const modelCostCents = usageEvents.reduce((sum, row) => sum + numberValue(row.cost_cents), 0);
   const toolCalls = usageEvents.reduce((sum, row) => sum + numberValue(row.tool_calls), 0);
   const totalTokens = usageEvents.reduce((sum, row) => sum + numberValue(row.total_tokens), 0);
+  const highCostUsageEvents = usageEvents.filter(
+    (row) => numberValue(row.cost_cents) > thresholds.maxUsageEventCostCents,
+  );
+  const usageCostByTeam = usageEvents.reduce((map, row) => {
+    const teamID = String(row.team_id || "").trim();
+    if (teamID) map.set(teamID, (map.get(teamID) || 0) + numberValue(row.cost_cents));
+    return map;
+  }, new Map());
+  const modelSpendWarningWorkspaces = workspaceBilling.filter((row) => {
+    const teamID = String(row.team_id || "").trim();
+    const limit = numberValue(row.monthly_model_spend_cents);
+    if (!teamID || limit <= 0) return false;
+    const spend = usageCostByTeam.get(teamID) || 0;
+    return spend * 10000 >= limit * thresholds.maxWorkspaceModelSpendRatioBps;
+  });
   const staleProcessingOutbox = outboxEvents.filter(
     (row) =>
       row.status === "processing" &&
@@ -66,6 +87,15 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
   }
   if (failedRuns.length > thresholds.maxFailedRuns) {
     issues.push(`failed runs ${failedRuns.length} > ${thresholds.maxFailedRuns}`);
+  }
+  if (modelCostCents > thresholds.maxModelSpendCents) {
+    issues.push(`model spend cents ${modelCostCents} > ${thresholds.maxModelSpendCents}`);
+  }
+  if (highCostUsageEvents.length > 0) {
+    issues.push(`high-cost usage events ${highCostUsageEvents.length} > 0`);
+  }
+  if (modelSpendWarningWorkspaces.length > 0) {
+    issues.push(`workspace model spend warnings ${modelSpendWarningWorkspaces.length} > 0`);
   }
   if (deadLetterWorkerJobs.length > thresholds.maxDeadLetterWorkerJobs) {
     issues.push(
@@ -92,6 +122,8 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
       dead_letter_worker_jobs: deadLetterWorkerJobs.length,
       failed_runs: failedRuns.length,
       failed_outbox: failedOutbox.length,
+      high_cost_usage_events: highCostUsageEvents.length,
+      model_spend_warning_workspaces: modelSpendWarningWorkspaces.length,
       pending_approvals: pendingApprovals.length,
       stale_pending_approvals: stalePendingApprovals.length,
       stale_processing_outbox: staleProcessingOutbox.length,
@@ -154,6 +186,12 @@ function percentile(values, quantile) {
   return sorted[Math.max(0, Math.min(sorted.length - 1, index))];
 }
 
+function monthlyUsageWindowStartedAt(value) {
+  const date = new Date(value);
+  const safeDate = Number.isFinite(date.getTime()) ? date : new Date();
+  return new Date(Date.UTC(safeDate.getUTCFullYear(), safeDate.getUTCMonth(), 1)).toISOString();
+}
+
 function intEnv(env, name, defaultValue, min, max) {
   const raw = String(env[name] || "").trim();
   if (!raw) return defaultValue;
@@ -205,7 +243,8 @@ function queryPath(table, query) {
 }
 
 async function readStartupOfficeOpsSnapshot(now = new Date().toISOString()) {
-  const [outboxEvents, workerJobs, runs, approvals, usageEvents] = await Promise.all([
+  const usageWindowStartedAt = monthlyUsageWindowStartedAt(now);
+  const [outboxEvents, workerJobs, runs, approvals, usageEvents, workspaceBilling] = await Promise.all([
     supabaseFetch(
       queryPath("startup_office_outbox_events", {
         limit: "1000",
@@ -240,9 +279,17 @@ async function readStartupOfficeOpsSnapshot(now = new Date().toISOString()) {
     ),
     supabaseFetch(
       queryPath("startup_office_usage_events", {
+        created_at: `gte.${usageWindowStartedAt}`,
         limit: "1000",
         order: "created_at.desc",
-        select: "id,run_id,provider,model,total_tokens,tool_calls,cost_cents,worker_duration_ms,created_at",
+        select: "id,team_id,run_id,provider,model,total_tokens,tool_calls,cost_cents,worker_duration_ms,created_at",
+      }),
+    ),
+    supabaseFetch(
+      queryPath("workspace_billing", {
+        limit: "1000",
+        order: "updated_at.desc",
+        select: "team_id,monthly_model_spend_cents,updated_at",
       }),
     ),
   ]);
@@ -252,6 +299,8 @@ async function readStartupOfficeOpsSnapshot(now = new Date().toISOString()) {
     outbox_events: outboxEvents,
     runs,
     usage_events: usageEvents,
+    usage_window_started_at: usageWindowStartedAt,
+    workspace_billing: workspaceBilling,
     worker_jobs: workerJobs,
   };
 }
@@ -275,6 +324,8 @@ function printMonitorResult(result) {
     `[startup-office-ops-monitor] dead-letter worker jobs: ${counts.dead_letter_worker_jobs || 0}`,
     `[startup-office-ops-monitor] failed outbox: ${counts.failed_outbox || 0}`,
     `[startup-office-ops-monitor] failed runs: ${counts.failed_runs || 0}`,
+    `[startup-office-ops-monitor] high-cost usage events: ${counts.high_cost_usage_events || 0}`,
+    `[startup-office-ops-monitor] workspace model spend warnings: ${counts.model_spend_warning_workspaces || 0}`,
     `[startup-office-ops-monitor] pending approvals: ${counts.pending_approvals || 0}`,
     `[startup-office-ops-monitor] stale pending approvals: ${counts.stale_pending_approvals || 0}`,
     `[startup-office-ops-monitor] stale processing outbox: ${counts.stale_processing_outbox || 0}`,
@@ -308,6 +359,7 @@ if (require.main === module) {
 
 module.exports = {
   evaluateStartupOfficeOpsSnapshot,
+  monthlyUsageWindowStartedAt,
   printMonitorResult,
   queryPath,
   thresholdsFromEnv,

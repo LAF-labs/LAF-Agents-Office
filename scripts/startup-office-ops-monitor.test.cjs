@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const {
   evaluateStartupOfficeOpsSnapshot,
+  monthlyUsageWindowStartedAt,
   printMonitorResult,
   queryPath,
   thresholdsFromEnv,
@@ -28,9 +29,12 @@ test("ops monitor passes when counts are within thresholds", () => {
       maxDeadLetterWorkerJobs: 0,
       maxFailedRuns: 25,
       maxFailedOutbox: 5,
+      maxModelSpendCents: 1000000,
       maxStalePendingApprovals: 25,
       maxStaleProcessingOutbox: 0,
       maxStuckWorkerJobs: 5,
+      maxUsageEventCostCents: 5000,
+      maxWorkspaceModelSpendRatioBps: 9000,
       approvalStaleMs: 86400000,
       outboxStaleMs: 600000,
       workerJobStuckMs: 1800000,
@@ -75,6 +79,8 @@ test("ops monitor fails on dead letters, stale processing rows, and stuck jobs",
     dead_letter_worker_jobs: 1,
     failed_runs: 0,
     failed_outbox: 0,
+    high_cost_usage_events: 0,
+    model_spend_warning_workspaces: 0,
     pending_approvals: 0,
     stale_pending_approvals: 0,
     stale_processing_outbox: 1,
@@ -176,15 +182,61 @@ test("ops monitor exposes run latency, approval wait, failure, and model cost me
   assert(result.issues.some((issue) => issue.includes("stale pending approvals 1 > 0")));
 });
 
+test("ops monitor fails on model spend anomalies without leaking workspace details", () => {
+  const result = evaluateStartupOfficeOpsSnapshot(
+    {
+      now,
+      outbox_events: [],
+      usage_events: [
+        { cost_cents: 55, team_id: "workspace-alpha", total_tokens: 100 },
+        { cost_cents: 60, team_id: "workspace-alpha", total_tokens: 100 },
+        { cost_cents: 3, team_id: "workspace-beta", total_tokens: 10 },
+      ],
+      workspace_billing: [
+        { monthly_model_spend_cents: 100, team_id: "workspace-alpha" },
+        { monthly_model_spend_cents: 100, team_id: "workspace-beta" },
+      ],
+      worker_jobs: [],
+    },
+    {
+      maxDeadLetterOutbox: 0,
+      maxDeadLetterWorkerJobs: 0,
+      maxFailedRuns: 25,
+      maxFailedOutbox: 25,
+      maxModelSpendCents: 100,
+      maxStalePendingApprovals: 25,
+      maxStaleProcessingOutbox: 0,
+      maxStuckWorkerJobs: 0,
+      maxUsageEventCostCents: 50,
+      maxWorkspaceModelSpendRatioBps: 9000,
+      approvalStaleMs: 86400000,
+      outboxStaleMs: 600000,
+      workerJobStuckMs: 1800000,
+    },
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.counts.high_cost_usage_events, 2);
+  assert.equal(result.counts.model_spend_warning_workspaces, 1);
+  assert.equal(result.metrics.model_cost_cents, 118);
+  assert(result.issues.some((issue) => issue.includes("model spend cents 118 > 100")));
+  assert(result.issues.some((issue) => issue.includes("high-cost usage events 2 > 0")));
+  assert(result.issues.some((issue) => issue.includes("workspace model spend warnings 1 > 0")));
+  assert.doesNotMatch(result.issues.join("\n"), /workspace-alpha|workspace-beta/);
+});
+
 test("ops monitor threshold env parsing is strict", () => {
   const thresholds = thresholdsFromEnv({
     LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX: "1",
     LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS: "5",
     LAF_MONITOR_MAX_FAILED_RUNS: "6",
     LAF_MONITOR_MAX_FAILED_OUTBOX: "2",
+    LAF_MONITOR_MAX_MODEL_SPEND_CENTS: "900",
     LAF_MONITOR_MAX_STALE_PENDING_APPROVALS: "7",
     LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX: "3",
     LAF_MONITOR_MAX_STUCK_WORKER_JOBS: "4",
+    LAF_MONITOR_MAX_USAGE_EVENT_COST_CENTS: "99",
+    LAF_MONITOR_MAX_WORKSPACE_MODEL_SPEND_RATIO_BPS: "8500",
     LAF_MONITOR_APPROVAL_STALE_MS: "7000",
     LAF_MONITOR_OUTBOX_STALE_MS: "5000",
     LAF_MONITOR_WORKER_JOB_STUCK_MS: "6000",
@@ -195,9 +247,12 @@ test("ops monitor threshold env parsing is strict", () => {
     maxDeadLetterWorkerJobs: 5,
     maxFailedRuns: 6,
     maxFailedOutbox: 2,
+    maxModelSpendCents: 900,
     maxStalePendingApprovals: 7,
     maxStaleProcessingOutbox: 3,
     maxStuckWorkerJobs: 4,
+    maxUsageEventCostCents: 99,
+    maxWorkspaceModelSpendRatioBps: 8500,
     approvalStaleMs: 7000,
     outboxStaleMs: 5000,
     workerJobStuckMs: 6000,
@@ -219,6 +274,10 @@ test("ops monitor query paths are PostgREST safe", () => {
     path,
     "/rest/v1/startup_office_outbox_events?limit=1000&select=id%2Cstatus&status=in.%28failed%2Cdead_letter%2Cprocessing%29",
   );
+});
+
+test("ops monitor aligns cost windows to the UTC billing month", () => {
+  assert.equal(monthlyUsageWindowStartedAt("2026-05-25T12:00:00.000Z"), "2026-05-01T00:00:00.000Z");
 });
 
 test("ops monitor text output redacts row details", () => {

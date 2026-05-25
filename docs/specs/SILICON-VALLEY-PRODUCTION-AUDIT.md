@@ -141,7 +141,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I101 | Observability | Runs, approvals, notifications, and model calls lack production traces. | no telemetry integration |
 | SV-I102 | Observability | Logs are not structured around workspace, run, and actor IDs everywhere. | server and worker logs |
 | SV-I103 | Observability | There is no dashboard for latency, queue age, failure rate, or cost anomalies. | admin beta dashboard |
-| SV-I104 | Observability | Scheduled GitHub Actions monitoring now fails on dead-letter outbox rows, dead-letter worker jobs, stale processing outbox rows, and stuck worker jobs; external paging and tuned severity routing remain. | beta ops |
+| SV-I104 | Observability | Scheduled GitHub Actions monitoring now fails on dead-letter rows, stuck jobs, stale approvals, and model-spend anomalies; external paging and auth-spike routing remain. | beta ops |
 | SV-I105 | Observability | Audit logs are product data but not operational telemetry. | audit events |
 | SV-I106 | Observability | Error budgets and SLOs are undefined. | docs |
 | SV-I107 | Observability | There is no synthetic production smoke monitor. | release gate only local |
@@ -326,12 +326,12 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G081 | Add structured telemetry. | Every run has trace IDs across API, worker, DB, and UI. | log tests |
 | SV-G082 | Add operational dashboards. | Latency, failures, queue age, approvals, and cost are visible. | admin UI |
 | SV-G083 | Define SLOs. | Availability, run latency, notification latency, and data integrity SLOs exist. | ops docs |
-| SV-G084 | Add alerts. | Stuck jobs and failed notifications trip a scheduled monitor; high cost and auth spikes still need alert wiring. | monitor config |
+| SV-G084 | Add alerts. | Stuck jobs, failed notifications, stale approvals, and model-spend anomalies trip a scheduled monitor; auth spikes still need alert wiring. | monitor config |
 | SV-G085 | Add browser error collection. | Client exceptions include workspace-safe context. | telemetry test |
 | SV-G086 | Add synthetic monitor. | Production smoke exercises login, profile, run, approval, receipt. | monitor |
 | SV-G087 | Add incident runbook. | Data leak, tenant bug, worker outage, and billing abuse drills exist. | docs |
 | SV-G088 | Add deployment runbook. | DNS, env, migrations, worker, rollback, and smoke are documented. | docs gate |
-| SV-G089 | Add cost anomaly alerts. | Workspace spend spikes trigger throttles and alerts. | billing tests |
+| SV-G089 | Add cost anomaly alerts. | Global model spend, single-event cost spikes, and current-month workspace spend ratios trip scheduled monitor failures. | ops monitor tests |
 | SV-G090 | Add support timeline. | Operators see user action to model output sequence. | admin UI |
 | SV-G091 | Integrate payment. | Stripe or signed manual billing agreement gates paid beta. | billing tests |
 | SV-G092 | Enforce entitlements. | Seats, runs, storage, support, and model spend apply everywhere. | integration tests |
@@ -556,9 +556,11 @@ the final release commit or when a shared invariant changes.
   runs every fifteen minutes, preflights production env, then fails on
   dead-letter outbox rows, dead-letter worker jobs, stale processing outbox
   rows, stuck worker jobs, failed run thresholds, and stale approval thresholds.
-  The same monitor now prints aggregate run latency, approval wait, model token
-  and cost, and worker duration metrics without exposing row payloads, provider
-  responses, or user data.
+  The same monitor now fails on global model-spend thresholds, single-event cost
+  spikes, and current-month workspace spend-ratio warnings, then prints
+  aggregate run latency, approval wait, model token and cost, and worker
+  duration metrics without exposing row payloads, provider responses, workspace
+  IDs, or user data.
   `npm run startup-office:ops-monitor:test` is part of the release gate, and
   the deployment runbook documents monitor thresholds and incident handling.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
