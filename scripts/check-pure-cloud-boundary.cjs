@@ -94,6 +94,7 @@ for (const file of existingTracked) {
 
 const scanRoots = [
   "api/",
+  "scripts/",
   "web/src/",
   "workers/",
   "website/",
@@ -109,11 +110,14 @@ const scanRoots = [
 const allowedFiles = new Set([
   "api/hosted-api.test.js",
   "scripts/check-pure-cloud-boundary.cjs",
+  "scripts/check-supabase-current-schema.cjs",
   "scripts/check-startup-office-surface.cjs",
 ]);
 
 const forbiddenText = [
   [new RegExp(`laf[-\\s]?${deviceRuntime}`, "i"), "retired connector setup"],
+  [new RegExp(`\\b${deviceRuntime}\\b`, "i"), "retired device connector copy"],
+  [new RegExp(`\\b${queueRuntime}\\b`, "i"), "retired queue copy"],
   [
     new RegExp(`${queueRuntime}_(?:${pairToken}|job|jobs|capabilities|devices?)`, "i"),
     "retired queue persistence",

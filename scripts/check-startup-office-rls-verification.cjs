@@ -44,7 +44,7 @@ for (const [relativePath, snippet, label] of [
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
     "postgrest",
-    "PostgREST live runner",
+    "PostgREST live verifier",
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",

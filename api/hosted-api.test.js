@@ -189,17 +189,17 @@ test("pure cloud migration drops obsolete execution schema", () => {
       "utf8",
     ),
   );
-  assert.equal(schema.latestMigration, "20260525230000");
-  assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525230000");
+  assert.equal(schema.latestMigration, "20260525235900");
+  assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525235900");
 
   const latestBoundarySql = fs.readFileSync(
     path.join(
       migrationDir,
-      "20260525230000_assert_pure_cloud_boundary_schema.sql",
+      "20260525235900_assert_pure_cloud_boundary_schema.sql",
     ),
     "utf8",
   );
-  assert.match(latestBoundarySql, /retired_pairing/);
+  assert.match(latestBoundarySql, /retired_pair_token/);
   assert.match(latestBoundarySql, /remaining_columns/);
   assert.match(latestBoundarySql, /remaining_constraints/);
   assert.match(latestBoundarySql, /remaining_functions/);
