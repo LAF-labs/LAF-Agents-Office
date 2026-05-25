@@ -545,7 +545,10 @@ and missing typed contracts.
 - R7/R8 now adds scheduled queue monitoring. `.github/workflows/startup-office-ops-monitor.yml`
   runs every fifteen minutes, preflights production env, then fails on
   dead-letter outbox rows, dead-letter worker jobs, stale processing outbox
-  rows, and stuck worker jobs.
+  rows, stuck worker jobs, failed run thresholds, and stale approval thresholds.
+  The same monitor now prints aggregate run latency, approval wait, model token
+  and cost, and worker duration metrics without exposing row payloads, provider
+  responses, or user data.
   `npm run startup-office:ops-monitor:test` is part of the release gate, and
   the deployment runbook documents monitor thresholds and incident handling.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`

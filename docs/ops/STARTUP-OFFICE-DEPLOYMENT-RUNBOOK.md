@@ -103,17 +103,20 @@ the office is no longer draining work:
   `startup_office_worker_jobs`
 - Hard failures by default: any `dead_letter` outbox row, any `dead_letter`
   worker job, any stale processing outbox row, and any stuck queued/running
-  worker job
+  worker job. The monitor also exposes run latency, failed run count, pending
+  approval wait time, worker duration, token use, and model cost aggregates.
 - Tunable thresholds: `LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX`,
   `LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS`, `LAF_MONITOR_MAX_FAILED_OUTBOX`,
+  `LAF_MONITOR_MAX_FAILED_RUNS`, `LAF_MONITOR_MAX_STALE_PENDING_APPROVALS`,
   `LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX`,
-  `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`, `LAF_MONITOR_OUTBOX_STALE_MS`, and
-  `LAF_MONITOR_WORKER_JOB_STUCK_MS`
+  `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`, `LAF_MONITOR_APPROVAL_STALE_MS`,
+  `LAF_MONITOR_OUTBOX_STALE_MS`, and `LAF_MONITOR_WORKER_JOB_STUCK_MS`
 
-The monitor prints only aggregate counts and threshold failures. It does not
-print payloads, last-error bodies, user data, or provider secrets. A failed
-scheduled run should be treated as a closed-beta incident until the stuck rows
-are drained, replayed, or intentionally dead-lettered.
+The monitor prints only aggregate counts, latency/wait/cost metrics, and
+threshold failures. It does not print payloads, last-error bodies, user data, or
+provider secrets. A failed scheduled run should be treated as a closed-beta
+incident until the stuck rows are drained, replayed, or intentionally
+dead-lettered.
 
 ## Smoke Test
 
