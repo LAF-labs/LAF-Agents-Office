@@ -1,4 +1,5 @@
 const { buildStartupOfficeContext } = require("./contextBuilder");
+const { buildCitationSources } = require("./citationSources");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
 const { writeStartupOfficeRunReceipt } = require("./receiptWriter");
@@ -73,6 +74,13 @@ async function runStartupOfficeLoop({
       repository,
       run: runningRun || run,
     });
+    context.citation_sources = buildCitationSources({
+      assets: context.relevant_assets,
+      customers: context.relevant_customers,
+      inputs,
+      signals: context.relevant_signals,
+      wikiMemory: context.wiki_memory,
+    });
     modelResult = await modelClient.generateStructured({
       input: template.userPrompt({ context, inputs, objective }),
       instructions: template.instructions,
@@ -89,6 +97,7 @@ async function runStartupOfficeLoop({
       schemaName: template.schemaName,
     });
     const quality = evaluateStartupOfficeOutput({
+      context,
       output: modelResult.data,
       template,
     });

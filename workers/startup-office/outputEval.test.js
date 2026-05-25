@@ -57,6 +57,60 @@ test("quality rubric rejects missing loop-specific fields", () => {
   assert.match(quality.issues.join("\n"), /objections is required/);
 });
 
+test("quality rubric requires attached citations for externally informed output", async () => {
+  const template = STARTUP_OFFICE_LOOP_TEMPLATES["idea-validation"];
+  const modelClient = createStartupOfficeModelClient({ provider: "fake" });
+  const result = await modelClient.generateStructured({
+    input: template.userPrompt({
+      context: loopContext(template),
+      inputs: { market: "AI operations" },
+      objective: "Create sourced validation work.",
+    }),
+    instructions: template.instructions,
+    metadata: {
+      loop_name: template.artifactTitle,
+      loop_slug: template.slug,
+    },
+    schema: template.schema,
+    schemaDescription: template.schemaDescription,
+    schemaName: template.schemaName,
+  });
+  const externallyInformedContext = {
+    citation_sources: [
+      { label: "Market report", type: "signal", url: "https://example.com/market-report" },
+    ],
+  };
+
+  const missing = evaluateStartupOfficeOutput({
+    context: externallyInformedContext,
+    output: result.data,
+    template,
+  });
+  assert.equal(missing.passed, false);
+  assert.match(missing.issues.join("\n"), /externally informed outputs require source citations/);
+
+  const mismatched = evaluateStartupOfficeOutput({
+    context: externallyInformedContext,
+    output: {
+      ...result.data,
+      sources: [{ label: "Other report", url: "https://example.com/other" }],
+    },
+    template,
+  });
+  assert.equal(mismatched.passed, false);
+  assert.match(mismatched.issues.join("\n"), /output sources must cite attached source metadata/);
+
+  const cited = evaluateStartupOfficeOutput({
+    context: externallyInformedContext,
+    output: {
+      ...result.data,
+      sources: [{ label: "Market report", url: "https://example.com/market-report" }],
+    },
+    template,
+  });
+  assert.equal(cited.passed, true, cited.issues.join("\n"));
+});
+
 function loopContext(template) {
   return {
     loop: { name: template.artifactTitle, slug: template.slug },

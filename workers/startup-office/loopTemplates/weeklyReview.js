@@ -171,6 +171,7 @@ const weeklyReviewTemplate = Object.freeze({
       "Operating context:",
       JSON.stringify(
         {
+          citation_sources: context.citation_sources || [],
           metrics: context.metrics || [],
           previous_runs: context.previous_runs || [],
           receipts: context.recent_receipts || [],
@@ -181,7 +182,7 @@ const weeklyReviewTemplate = Object.freeze({
         2,
       ),
       "",
-      "Return only JSON matching the schema. Base the review on supplied context and mark gaps as assumptions.",
+      "Return only JSON matching the schema. If citation_sources is non-empty, cite those URLs in sources for any externally informed claim. Base the review on supplied context and mark gaps as assumptions.",
     ].join("\n");
   },
 });

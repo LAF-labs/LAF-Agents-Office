@@ -1,4 +1,4 @@
-function evaluateStartupOfficeOutput({ output, template = null }) {
+function evaluateStartupOfficeOutput({ context = null, output, template = null }) {
   const issues = [];
   if (!nonEmpty(output?.summary)) issues.push("summary is required");
   if (!Array.isArray(output?.next_actions) || output.next_actions.length === 0) {
@@ -17,6 +17,22 @@ function evaluateStartupOfficeOutput({ output, template = null }) {
     if (!nonEmpty(source?.label) || !nonEmpty(source?.url)) {
       issues.push("sources need label and url");
       break;
+    }
+  }
+  const citationSources = Array.isArray(context?.citation_sources)
+    ? context.citation_sources
+    : [];
+  if (citationSources.length) {
+    if (!sources.length) {
+      issues.push("externally informed outputs require source citations");
+    } else {
+      const allowedURLs = new Set(citationSources.map((source) => normalizeURL(source.url)));
+      for (const source of sources) {
+        if (!allowedURLs.has(normalizeURL(source?.url))) {
+          issues.push("output sources must cite attached source metadata");
+          break;
+        }
+      }
     }
   }
   for (const assumption of assumptions) {
@@ -58,6 +74,10 @@ function normalizeRiskLevel(value) {
 
 function nonEmpty(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizeURL(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
 }
 
 function isObject(value) {

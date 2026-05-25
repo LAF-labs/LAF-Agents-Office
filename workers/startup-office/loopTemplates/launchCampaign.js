@@ -166,6 +166,7 @@ const launchCampaignTemplate = Object.freeze({
       JSON.stringify(
         {
           assets: context.relevant_assets || [],
+          citation_sources: context.citation_sources || [],
           metrics: context.metrics || [],
           previous_runs: context.previous_runs || [],
           receipts: context.recent_receipts || [],
@@ -176,7 +177,7 @@ const launchCampaignTemplate = Object.freeze({
         2,
       ),
       "",
-      "Return only JSON matching the schema. Draft campaign work for approval only.",
+      "Return only JSON matching the schema. If citation_sources is non-empty, cite those URLs in sources for any externally informed claim. Draft campaign work for approval only.",
     ].join("\n");
   },
 });

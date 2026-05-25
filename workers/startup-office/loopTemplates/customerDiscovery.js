@@ -172,6 +172,7 @@ const customerDiscoveryTemplate = Object.freeze({
       JSON.stringify(
         {
           customers: context.relevant_customers || [],
+          citation_sources: context.citation_sources || [],
           previous_runs: context.previous_runs || [],
           receipts: context.recent_receipts || [],
           signals: context.relevant_signals || [],
@@ -181,7 +182,7 @@ const customerDiscoveryTemplate = Object.freeze({
         2,
       ),
       "",
-      "Return only JSON matching the schema. Draft messages for founder approval only.",
+      "Return only JSON matching the schema. If citation_sources is non-empty, cite those URLs in sources for any externally informed claim. Draft messages for founder approval only.",
     ].join("\n");
   },
 });

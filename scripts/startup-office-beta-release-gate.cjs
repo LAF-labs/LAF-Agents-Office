@@ -50,6 +50,7 @@ const checks = [
   ["node", ["--test", "api/lib/startup-office/workflowHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/operationsHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/objectHandlers.test.js"]],
+  ["node", ["--test", "workers/startup-office/citationSources.test.js"]],
   ["node", ["--test", "workers/startup-office/loopEngine.test.js"]],
   ["node", ["--test", "workers/startup-office/outboxWorker.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],

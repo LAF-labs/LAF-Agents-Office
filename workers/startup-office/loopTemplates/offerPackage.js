@@ -164,7 +164,7 @@ const offerPackageTemplate = Object.freeze({
       "Relevant company memory, assets, signals, receipts, and previous runs:",
       JSON.stringify(contextPacket(context), null, 2),
       "",
-      "Return only JSON matching the schema. Mark unsourced customer or pricing claims as assumptions.",
+      "Return only JSON matching the schema. If citation_sources is non-empty, cite those URLs in sources for any externally informed customer or pricing claim. Mark remaining unsourced claims as assumptions.",
     ].join("\n");
   },
 });
@@ -172,6 +172,7 @@ const offerPackageTemplate = Object.freeze({
 function contextPacket(context) {
   return {
     assets: context.relevant_assets || [],
+    citation_sources: context.citation_sources || [],
     previous_runs: context.previous_runs || [],
     receipts: context.recent_receipts || [],
     signals: context.relevant_signals || [],

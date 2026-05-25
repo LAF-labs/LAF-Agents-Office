@@ -144,6 +144,7 @@ const ideaValidationTemplate = Object.freeze({
       JSON.stringify(
         {
           assets: context.relevant_assets || [],
+          citation_sources: context.citation_sources || [],
           signals: context.relevant_signals || [],
           wiki_memory: context.wiki_memory || [],
         },
@@ -151,7 +152,7 @@ const ideaValidationTemplate = Object.freeze({
         2,
       ),
       "",
-      "Return only JSON matching the schema. Mark unsourced claims as assumptions.",
+      "Return only JSON matching the schema. If citation_sources is non-empty, cite those URLs in sources for any externally informed claim. Mark remaining unsourced claims as assumptions.",
     ].join("\n");
   },
 });

@@ -1,3 +1,5 @@
+const { buildCitationSources } = require("./citationSources");
+
 async function buildStartupOfficeContext({
   loop,
   membership,
@@ -47,7 +49,7 @@ async function buildStartupOfficeContext({
     repository.memoryPages(teamID, { status: "approved", limit: 8 }),
   ]);
 
-  return {
+  const context = {
     loop,
     previous_runs: previousRuns
       .filter((item) => item.id !== run?.id)
@@ -73,6 +75,13 @@ async function buildStartupOfficeContext({
       pick(item, ["id", "slug", "title", "summary", "body", "sources", "assumptions", "updated_at"]),
     ),
   };
+  context.citation_sources = buildCitationSources({
+    assets: context.relevant_assets,
+    customers: context.relevant_customers,
+    signals: context.relevant_signals,
+    wikiMemory: context.wiki_memory,
+  });
+  return context;
 }
 
 function pick(object, keys) {

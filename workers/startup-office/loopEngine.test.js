@@ -69,6 +69,33 @@ test("startup office loop engine records failed model calls as receipted run fai
   assert.equal(state.jobPatches.at(-1).status, "failed");
 });
 
+test("startup office loop engine blocks externally informed drafts without citations", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    inputs: {
+      sources: [{ label: "Market report", url: "https://example.com/market-report" }],
+    },
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: successfulModelClient(),
+    nowISO: fixedNow,
+    objective: "Validate the first buyer segment from an attached report",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    skillInvocations: skillInvocations(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "failed");
+  assert.match(result.error, /externally informed outputs require source citations/);
+  assert.equal(result.run.status, "failed");
+  assert.equal(state.artifacts.length, 0);
+  assert.equal(state.approvals.length, 0);
+  assert.equal(state.receipts.at(-1).event_type, "run.failed");
+});
+
 function fakeRepositoryState() {
   return {
     approvals: [],
