@@ -7,7 +7,7 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Evidence Baseline
 
-- `api/[...path].js` is still a large hosted API facade after the cloud pivot.
+- `api/[...path].js` is still a 3,827-line hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
@@ -52,7 +52,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I025 | API | Pagination is inconsistent across business objects and messages. | `limit` handling |
 | SV-I026 | API | Filtering and sorting contracts are not documented or centrally tested. | repository query helpers |
 | SV-I027 | API | Large export endpoints risk becoming unbounded operational hazards. | `/startup-office/export` |
-| SV-I028 | API | Demo seed and production behavior share too much runtime path. | `handleStartupOfficeDemoSeed` |
+| SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
 | SV-I029 | API | Hosted command registries still coexist with legacy command concepts. | command routes and hooks |
 | SV-I030 | API | Route-level authorization is implemented manually rather than declaratively. | `requirePermission` calls |
 | SV-I031 | Data model | Migrations are append-only history, but the desired cloud schema is not captured as a canonical current-state schema. | `supabase/migrations` |
@@ -382,6 +382,10 @@ and missing typed contracts.
   scripts, or old TUI/E2E harnesses; `npm run startup-office:legacy-runtime`
   blocks those paths and local-runtime terms from returning to hosted product
   code.
+- R2 now extracts Startup Office company profile and demo seed behavior from
+  the hosted API facade. The facade is down to 3,827 lines, and the beta release
+  gate includes dedicated handler tests for profile reads/writes, onboarding
+  loop seeding, demo records, and production demo-seed blocking.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   `20260525010000_purge_legacy_runtime_columns.sql`. A linked DB query confirms the

@@ -32,9 +32,11 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 4140);
+assertMaxLines("api/[...path].js", 3860);
+assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
+assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
 assertMaxLines("api/lib/startup-office/workflowHandlers.js", 520);
 assertMaxLines("api/lib/startup-office/routes.js", 180);
@@ -58,6 +60,15 @@ for (const [pattern, label] of [
   [/async function handleStartupOfficeApprovalAction\b/, "approval action handler"],
   [/async function enforceStartupOfficeRunLimit\b/, "run limit helper"],
   [/async function recordStartupOfficeRunOutcome\b/, "run outcome helper"],
+  [/async function seedStartupOfficeDemoWorkspace\b/, "demo seed workspace helper"],
+  [/async function upsertStartupOfficeDemoRun\b/, "demo seed run helper"],
+  [/async function upsertStartupOfficeDemoArtifact\b/, "demo seed artifact helper"],
+  [/async function upsertStartupOfficeDemoReceipt\b/, "demo seed receipt helper"],
+  [/function startupOfficeCompanyProfilePatch\b/, "company profile patch helper"],
+  [/function companyProfileRowPayload\b/, "company profile row helper"],
+  [/const DEMO_COMPANY_PROFILE\b/, "demo seed constants"],
+  [/const DEMO_ARTIFACTS\b/, "demo seed constants"],
+  [/demoSeedUUID\b/, "demo seed UUID helper"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }
