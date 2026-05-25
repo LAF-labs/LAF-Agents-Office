@@ -40,6 +40,10 @@ startup, what fundamental problems would we refuse to carry forward?
   `startup-office:static-analysis` syntax-checks hosted API, Startup Office API,
   worker, and script JavaScript, and verifies CI runs the web lint warning
   budget, typecheck, and build after web dependency install.
+- Startup Office product surfaces now have a tracked manifest at
+  `shared/startup-office-surfaces.json`; `startup-office:surface` verifies
+  sidebar apps, workspace panels, preload surfaces, hidden utilities, and
+  retired project/task apps against that manifest.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes production audit, closed-beta goal locking, audit coverage, secret
   scan, and dependency audit, but it does not prove live model, live Supabase,
@@ -243,7 +247,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I187 | Developer experience | Code ownership boundaries are now explicit for Startup Office API, worker, web, schema, migration, operations-doc, and release-script paths, with a release-gate check preventing drift. | `startup-office:code-ownership`, `.github/CODEOWNERS` |
 | SV-I188 | Developer experience | Package naming and repo naming still reflect historical LAF Agents Office identity. | repo paths |
 | SV-I189 | Developer experience | Static analysis now syntax-checks hosted API, Startup Office API, worker, and release scripts while CI pins web lint warning budget, typecheck, and build; stricter warning cleanup and deeper typed API generation remain future hardening. | `startup-office:static-analysis`, `startup-office:web-lint-budget`, CI |
-| SV-I190 | Developer experience | New contributors cannot easily tell which surfaces are product vs legacy. | file tree |
+| SV-I190 | Developer experience | New contributors can now inspect a tracked Startup Office surface manifest that separates primary product apps, hidden utilities, preload surfaces, and retired project/task apps, with release-gate drift checks. | `startup-office:surface`, `shared/startup-office-surfaces.json` |
 | SV-I191 | Customer success | No real founder success checklist is implemented in-product. | beta goals |
 | SV-I192 | Customer success | Support playbooks now appear in the admin beta dashboard for failed runs, confused approvals, notification recovery, billing blocks, and customer-success review. | support playbooks |
 | SV-I193 | Customer success | First paid beta workspace is not proven. | goal context |
@@ -459,6 +463,10 @@ the final release commit or when a shared invariant changes.
   `npm run startup-office:web-lint-budget` runs Biome against the web app,
   requires zero lint errors, and prevents the current warning/info count from
   increasing while the remaining warnings are paid down.
+- R2/R7 now adds a product surface manifest:
+  `npm run startup-office:surface` checks `shared/startup-office-surfaces.json`
+  against the sidebar, workspace panel registry, preload registry, hidden
+  utilities, and retired project/task-era surfaces.
 - R4 now includes a versioned tool permission manifest:
   `npm run startup-office:tool-policy` checks that every loop declares allowed
   tools, blocked external-execution tools, and never-auto-execute policy for

@@ -1,0 +1,48 @@
+{
+  "version": "startup-office-surfaces.v1",
+  "defaultApp": "growth",
+  "primarySidebarApps": [
+    "growth",
+    "home",
+    "skills",
+    "wiki",
+    "activity",
+    "receipts",
+    "settings"
+  ],
+  "workspacePanelApps": [
+    "growth",
+    "home",
+    "requests",
+    "skills",
+    "activity",
+    "receipts",
+    "settings",
+    "threads"
+  ],
+  "preloadSurfaces": [
+    "activity",
+    "growth",
+    "home",
+    "notebooks",
+    "receipts",
+    "requests",
+    "reviews",
+    "settings",
+    "skills",
+    "threads",
+    "wiki",
+    "wiki-lookup"
+  ],
+  "hiddenUtilityApps": [
+    "notebooks",
+    "requests",
+    "reviews",
+    "threads",
+    "wiki-lookup"
+  ],
+  "retiredApps": [
+    "projects",
+    "tasks"
+  ]
+}

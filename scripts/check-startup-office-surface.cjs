@@ -8,6 +8,8 @@ const root = path.resolve(__dirname, "..");
 const deviceRuntime = ["bri", "dge"].join("");
 const queueRuntime = ["run", "ner"].join("");
 const retiredConnectorPattern = new RegExp(`laf\\s+${deviceRuntime}`, "i");
+const surfaceManifestPath = "shared/startup-office-surfaces.json";
+const surfaceManifest = JSON.parse(read(surfaceManifestPath));
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -54,6 +56,72 @@ function assertPathMissing(relativePath) {
   }
 }
 
+function assertList(name) {
+  const list = surfaceManifest[name];
+  if (!Array.isArray(list) || list.length === 0) {
+    fail(`${surfaceManifestPath} must define non-empty ${name}`);
+    return [];
+  }
+  const duplicates = list.filter((item, index) => list.indexOf(item) !== index);
+  if (duplicates.length > 0) {
+    fail(`${surfaceManifestPath} ${name} contains duplicates: ${[...new Set(duplicates)].join(", ")}`);
+  }
+  return list;
+}
+
+function sorted(values) {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function assertSameList(actual, expected, label, { ordered = false } = {}) {
+  const left = ordered ? actual : sorted(actual);
+  const right = ordered ? expected : sorted(expected);
+  if (JSON.stringify(left) !== JSON.stringify(right)) {
+    const missing = right.filter((item) => !left.includes(item));
+    const extra = left.filter((item) => !right.includes(item));
+    fail(
+      `${label} mismatch` +
+        (missing.length ? `; missing: ${missing.join(", ")}` : "") +
+        (extra.length ? `; extra: ${extra.join(", ")}` : ""),
+    );
+  }
+}
+
+function assertNoOverlap(left, right, label) {
+  const overlap = left.filter((item) => right.includes(item));
+  if (overlap.length > 0) fail(`${label} overlap: ${overlap.join(", ")}`);
+}
+
+function extractBetween(relativePath, startNeedle, endNeedle) {
+  const body = read(relativePath);
+  const start = body.indexOf(startNeedle);
+  const end = endNeedle ? body.indexOf(endNeedle, start) : body.length;
+  if (start === -1 || end === -1 || end <= start) {
+    fail(`${relativePath} segment ${startNeedle} -> ${endNeedle} not found`);
+    return "";
+  }
+  return body.slice(start, end);
+}
+
+function extractSidebarApps() {
+  const segment = extractBetween("web/src/lib/constants.ts", "export const SIDEBAR_APPS", "] as const");
+  return Array.from(segment.matchAll(/id:\s*"([^"]+)"/g)).map((match) => match[1]);
+}
+
+function extractWorkspacePanelApps() {
+  const segment = extractBetween(
+    "web/src/components/workspace/WorkspaceApp.tsx",
+    "const panels: Record<string, PanelComponent> = {",
+    "    };",
+  );
+  return Array.from(segment.matchAll(/^\s*([a-z-]+):\s*/gm)).map((match) => match[1]);
+}
+
+function extractPreloadSurfaces() {
+  const segment = extractBetween("web/src/lib/workspacePreload.ts", "switch (surface)", "\n  }\n}");
+  return Array.from(segment.matchAll(/case "([^"]+)":/g)).map((match) => match[1]);
+}
+
 function trackedFiles() {
   const out = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" });
   return out
@@ -98,6 +166,32 @@ function assertQuotedStringsNotMatch(relativePath, startNeedle, endNeedle, check
       fail(`${relativePath} ${check.label}`);
     }
   }
+}
+
+if (surfaceManifest.version !== "startup-office-surfaces.v1") {
+  fail(`${surfaceManifestPath} has unexpected version ${surfaceManifest.version || "<missing>"}`);
+}
+const primarySidebarApps = assertList("primarySidebarApps");
+const workspacePanelApps = assertList("workspacePanelApps");
+const preloadSurfaces = assertList("preloadSurfaces");
+const hiddenUtilityApps = assertList("hiddenUtilityApps");
+const retiredApps = assertList("retiredApps");
+if (surfaceManifest.defaultApp !== "growth") {
+  fail(`${surfaceManifestPath} defaultApp must be growth`);
+}
+if (!primarySidebarApps.includes(surfaceManifest.defaultApp)) {
+  fail(`${surfaceManifestPath} defaultApp must be visible in primarySidebarApps`);
+}
+assertNoOverlap(primarySidebarApps, hiddenUtilityApps, "primary and hidden surfaces");
+assertNoOverlap([...primarySidebarApps, ...workspacePanelApps, ...preloadSurfaces], retiredApps, "active and retired surfaces");
+assertSameList(extractSidebarApps(), primarySidebarApps, "primary sidebar apps", { ordered: true });
+assertSameList(extractWorkspacePanelApps(), workspacePanelApps, "workspace panel apps");
+assertSameList(extractPreloadSurfaces(), preloadSurfaces, "preload surfaces");
+for (const app of primarySidebarApps.filter((id) => id !== "wiki")) {
+  if (!workspacePanelApps.includes(app)) fail(`primary app ${app} must have a workspace panel`);
+}
+for (const app of workspacePanelApps) {
+  if (!preloadSurfaces.includes(app)) fail(`workspace panel ${app} must have a preload surface`);
 }
 
 assertIncludes(
