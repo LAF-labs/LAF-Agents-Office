@@ -218,7 +218,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
 | SV-I178 | Reliability | Health checks now cover hosted dependencies: Supabase REST/Auth reachability, Startup Office run/worker/outbox tables, model config, and outbox email config report through a degraded-safe endpoint. | `startup-office:health-dependencies` |
 | SV-I179 | Reliability | Backup and restore are not verified. | no runbook evidence |
-| SV-I180 | Reliability | There is no chaos or failure-injection suite for the core loop. | tests |
+| SV-I180 | Reliability | Deterministic core-loop failure injection now covers model outage, artifact write failure, and approval write failure so the loop fails closed with run/worker failure state and receipts instead of silently marking success. | `startup-office:loop-chaos` |
 | SV-I181 | Developer experience | The repository contains two eras of product architecture, increasing onboarding cost. | internal/team and Startup Office |
 | SV-I182 | Developer experience | Tests and docs sometimes contradict current completed state. | 100 goals vs scorecard |
 | SV-I183 | Developer experience | API fixtures, fake providers, and demo seeds are not clearly separated by environment. | tests and demo seed |
@@ -630,6 +630,11 @@ the final release commit or when a shared invariant changes.
   redacted degraded components when dependencies fail; `npm run
   startup-office:health-dependencies` pins the route, handler tests, hosted API
   integration, docs, and release gate.
+- R7/R8 now adds deterministic core-loop failure injection. `npm run
+  startup-office:loop-chaos` injects model outage, artifact write failure, and
+  approval write failure into the AI loop and asserts the system fails closed:
+  no unapproved success state is emitted, run/worker status becomes failed, and
+  the failure receipt remains the final customer-visible trace.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
   preflights the same Supabase, public host, billing, AI worker, and outbox env

@@ -51,6 +51,7 @@ const checks = [
   ["npm", ["run", "startup-office:synthetic-monitor-check"]],
   ["npm", ["run", "startup-office:worker-deploy"]],
   ["npm", ["run", "startup-office:loop-worker:test"]],
+  ["npm", ["run", "startup-office:loop-chaos"]],
   ["npm", ["run", "startup-office:live-model-smoke-check"]],
   ["npm", ["run", "startup-office:live-model-smoke:test"]],
   ["npm", ["run", "startup-office:memory-conflicts"]],
