@@ -36,6 +36,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "approvalAction",
     "receipts",
     "objectCollection",
+    "customerCsv",
     "assetUploadIntent",
     "memoryImport",
     "objectItem",
@@ -77,6 +78,10 @@ test("Startup Office route matcher decodes path params and aliases", () => {
   assert.deepEqual(
     matchStartupOfficeRoute("startup-office/assets/asset%2F1", "PATCH")?.args,
     ["assets", "asset/1"],
+  );
+  assert.equal(
+    matchStartupOfficeRoute("startup-office/customers/csv", "GET")?.id,
+    "customerCsv",
   );
   assert.equal(
     matchStartupOfficeRoute("startup-office/assets/upload-intent", "POST")?.id,

@@ -45,6 +45,7 @@ const PATTERN_SAMPLES = Object.freeze({
     "startup-office/metrics",
     "startup-office/signals",
   ],
+  customerCsv: ["startup-office/customers/csv"],
   objectItem: [
     "startup-office/assets/asset-1",
     "startup-office/customers/customer-1",

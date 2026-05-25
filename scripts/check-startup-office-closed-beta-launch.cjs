@@ -142,7 +142,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:citation-enforcement", "startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:live-model-smoke-check", "startup-office:memory-conflicts", "startup-office:memory-freshness", "startup-office:memory-import", "startup-office:model-failover", "startup-office:pagination", "startup-office:production-handoff", "startup-office:provenance-replay", "startup-office:prompt-versions", "startup-office:receipt-integrity", "startup-office:retrieval-quality", "startup-office:tool-policy"],
+    ["startup-office:citation-enforcement", "startup-office:closed-beta-launch", "startup-office:customer-csv", "startup-office:first-beta-smoke", "startup-office:live-model-smoke-check", "startup-office:memory-conflicts", "startup-office:memory-freshness", "startup-office:memory-import", "startup-office:model-failover", "startup-office:pagination", "startup-office:production-handoff", "startup-office:provenance-replay", "startup-office:prompt-versions", "startup-office:receipt-integrity", "startup-office:retrieval-quality", "startup-office:tool-policy"],
     "release gate launch checks",
   ],
 ]) {

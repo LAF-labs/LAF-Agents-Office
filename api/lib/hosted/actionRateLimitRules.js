@@ -13,6 +13,7 @@ const HOSTED_ACTION_RATE_LIMITS = Object.freeze([
   { limit: 20, method: "POST", pattern: /^(?:startup-office\/)?loops$/, scope: "startup_office_loop_config_write" },
   { limit: 30, method: "POST", pattern: /^startup-office\/assets\/upload-intent$/, scope: "startup_office_asset_upload_intent" },
   { limit: 6, method: "POST", pattern: /^startup-office\/memory\/import$/, scope: "startup_office_memory_import" },
+  { limit: 10, method: "POST", pattern: /^startup-office\/customers\/csv$/, scope: "startup_office_customer_csv_import" },
   { limit: 60, method: "POST", pattern: /^startup-office\/(?:assets|customers|metrics|signals)$/, scope: "startup_office_object_write" },
   { limit: 60, method: "PATCH", pattern: /^startup-office\/(?:assets|customers|metrics|signals)\/[^/]+$/, scope: "startup_office_object_write" },
   { limit: 60, method: "DELETE", pattern: /^startup-office\/(?:assets|customers|metrics|signals)\/[^/]+$/, scope: "startup_office_object_write" },

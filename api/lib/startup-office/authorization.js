@@ -53,6 +53,10 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
     ["POST", STARTUP_OFFICE_ACCESS.manageWorkspace],
   ]),
+  customerCsv: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["POST", STARTUP_OFFICE_ACCESS.draftMemory],
+  ]),
   memoryImport: routeAccess([["POST", STARTUP_OFFICE_ACCESS.approveMemory]]),
   objectCollection: routeAccess([
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],

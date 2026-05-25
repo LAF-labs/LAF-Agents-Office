@@ -206,7 +206,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I165 | Portability | Export bundles are schema-versioned and memory import records source schema version; per-table restore schema adapters remain future work. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-I166 | Portability | Workspace deletion and data download are not one coherent account flow. | settings |
 | SV-I167 | Portability | Asset upload and material library are incomplete. | beta goals |
-| SV-I168 | Portability | Customer CRM data lacks common CSV/API interoperability. | customers |
+| SV-I168 | Portability | Customer CRM data now has a customer CSV export/import API with storage-limit, rate-limit, and audit coverage; deeper CRM mapping remains future work. | `startup-office:customer-csv` |
 | SV-I169 | Portability | Wiki/company memory is not packaged for founder handoff. | memory pages |
 | SV-I170 | Portability | There is no escrow or backup story for paid customers. | ops |
 | SV-I171 | Reliability | Worker jobs now claim with leases and idempotent side effects, but exactly-once semantics still need concurrency and crash-recovery proof. | worker jobs |
@@ -717,6 +717,11 @@ the final release commit or when a shared invariant changes.
   pagination/cursor serialization, `api/lib/hosted/auditHandlers.test.js` covers
   the `audit:read` permission and ISO cursor handling, and the architecture gate
   prevents the handler from drifting back into `api/[...path].js`.
+- R5/R8 now adds customer CSV interoperability. Founders can export customers
+  as `name,status,loop_id,notes,profile_json` CSV and import CSV rows back into
+  Startup Office customers through `POST /startup-office/customers/csv`; the
+  import path enforces workspace storage limits, rate limits, and audit events
+  under `startup-office:customer-csv`.
 - R8 now adds Startup Office list pagination. Receipts and operating object
   lists accept ISO cursors, fetch one extra row, return `has_more` and
   `next_cursor`, reject malformed cursors, and keep existing arrays stable for

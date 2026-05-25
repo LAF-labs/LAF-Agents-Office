@@ -119,6 +119,9 @@ const {
   createStartupOfficeAssetUploadHandlers,
 } = require("./lib/startup-office/assetUploadHandlers");
 const {
+  createStartupOfficeCustomerCsvHandlers,
+} = require("./lib/startup-office/customerCsvHandlers");
+const {
   createStartupOfficeImportHandlers,
 } = require("./lib/startup-office/importHandlers");
 const {
@@ -451,6 +454,22 @@ const STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS = createStartupOfficeAssetUploadHandl
   writeJSON,
 });
 
+const STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS = createStartupOfficeCustomerCsvHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  publicStartupOfficeCustomer,
+  readBody,
+  requirePermission,
+  requireUser,
+  safeStartupOfficeRest,
+  startupOfficeBetaOpsSnapshot,
+  startupOfficeObjectPayload,
+  startupOfficeObjectRows,
+  truncateText,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_IMPORT_HANDLERS = createStartupOfficeImportHandlers({
   createHTTPError: startupOfficeHTTPError,
   nowISO,
@@ -583,6 +602,7 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   betaDashboard: STARTUP_OFFICE_OPERATIONS_HANDLERS.betaDashboard,
   billing: STARTUP_OFFICE_OPERATIONS_HANDLERS.billing,
   companyProfile: handleCompanyProfile,
+  customerCsv: STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS.customerCsv,
   deletionPurge: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionPurge,
   deletionRequest: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionRequest,
   demoSeed: handleStartupOfficeDemoSeed,

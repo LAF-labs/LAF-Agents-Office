@@ -465,6 +465,19 @@ export interface StartupOfficeMemoryImportResponse {
   status: string;
 }
 
+export interface StartupOfficeCustomerCsvResponse {
+  content_type: "text/csv";
+  count: number;
+  csv: string;
+  filename: string;
+}
+
+export interface StartupOfficeCustomerCsvImportResponse {
+  customers: StartupOfficeCustomer[];
+  imported_count: number;
+  status: string;
+}
+
 export function getStartupOfficeGrowthSummary() {
   return get<StartupOfficeGrowthSummary>("/startup-office/growth-summary");
 }
@@ -483,6 +496,20 @@ export function importStartupOfficeMemory(body: {
 }) {
   return post<StartupOfficeMemoryImportResponse>(
     "/startup-office/memory/import",
+    body,
+  );
+}
+
+export function getStartupOfficeCustomerCsv() {
+  return get<StartupOfficeCustomerCsvResponse>("/startup-office/customers/csv");
+}
+
+export function importStartupOfficeCustomerCsv(body: {
+  csv?: string;
+  customers?: StartupOfficeCustomer[];
+}) {
+  return post<StartupOfficeCustomerCsvImportResponse>(
+    "/startup-office/customers/csv",
     body,
   );
 }

@@ -60,6 +60,8 @@ assertMaxLines("api/lib/startup-office/authorization.js", 120);
 assertMaxLines("api/lib/startup-office/betaTerms.js", 120);
 assertMaxLines("api/lib/startup-office/commercialBilling.js", 240);
 assertMaxLines("api/lib/startup-office/commercialBillingDocuments.js", 180);
+assertMaxLines("api/lib/startup-office/customerCsv.js", 100);
+assertMaxLines("api/lib/startup-office/customerCsvHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/exportHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/importHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);

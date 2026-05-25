@@ -152,6 +152,10 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     ]),
   },
   { id: "objectCollection", methods: Object.freeze(["GET", "POST"]), pattern: "^startup-office/(assets|customers|metrics|signals)$", params: Object.freeze(["kind"]) },
+  { id: "customerCsv", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/customers/csv"]), client: Object.freeze([
+    clientContract("getStartupOfficeCustomerCsv", "GET", "StartupOfficeCustomerCsvResponse", ["/startup-office/customers/csv"]),
+    clientContract("importStartupOfficeCustomerCsv", "POST", "StartupOfficeCustomerCsvImportResponse", ["/startup-office/customers/csv"]),
+  ]) },
   { id: "assetUploadIntent", methods: Object.freeze(["POST"]), paths: Object.freeze(["startup-office/assets/upload-intent"]) },
   { id: "memoryImport", methods: Object.freeze(["POST"]), paths: Object.freeze(["startup-office/memory/import"]), client: Object.freeze([
     clientContract("importStartupOfficeMemory", "POST", "StartupOfficeMemoryImportResponse", ["/startup-office/memory/import"]),
@@ -171,7 +175,4 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
   { id: "export", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/export"]) },
 ]);
 
-module.exports = {
-  STARTUP_OFFICE_ROUTE_CONTRACTS,
-  STARTUP_OFFICE_ROUTE_PATHS,
-};
+module.exports = { STARTUP_OFFICE_ROUTE_CONTRACTS, STARTUP_OFFICE_ROUTE_PATHS };
