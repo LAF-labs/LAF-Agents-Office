@@ -12,6 +12,7 @@
     "startup-office:approval-races": "node scripts/check-startup-office-approval-races.cjs",
     "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
+    "startup-office:backup-restore-drill": "node scripts/check-startup-office-backup-restore-drill.cjs",
     "startup-office:beta-terms": "node scripts/check-startup-office-beta-terms.cjs",
     "startup-office:commercial-billing": "node scripts/check-startup-office-commercial-billing.cjs",
     "startup-office:cancellation": "node scripts/check-startup-office-cancellation-contract.cjs",

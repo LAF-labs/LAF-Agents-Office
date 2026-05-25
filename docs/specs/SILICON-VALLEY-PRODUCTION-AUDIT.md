@@ -14,6 +14,9 @@ startup, what fundamental problems would we refuse to carry forward?
   RLS verification seeds every Startup Office team-scoped table plus workspace
   billing/settings/audit fixtures across Alpha/Beta tenants; external backup,
   restore, and production deployment drills still require deploy-time evidence.
+- Backup and restore verification is now repository-controlled through
+  `startup-office:backup-restore-drill`, which pins export coverage, documented
+  restore omissions, memory import rehearsal, and PITR runbook evidence.
 - The canonical current Supabase schema now lives in
   `supabase/schema/current.json` and is checked against migrations by
   `npm run startup-office:schema`.
@@ -217,7 +220,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I176 | Reliability | Model timeout policy is now durable on runs and worker jobs, enforced around structured model calls, receipted on timeout failures, and covered by a release-gate check; live provider abort signals remain future hardening. | `startup-office:model-timeouts` |
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
 | SV-I178 | Reliability | Health checks now cover hosted dependencies: Supabase REST/Auth reachability, Startup Office run/worker/outbox tables, model config, and outbox email config report through a degraded-safe endpoint. | `startup-office:health-dependencies` |
-| SV-I179 | Reliability | Backup and restore are not verified. | no runbook evidence |
+| SV-I179 | Reliability | Backup and restore verification is now repository-controlled for export coverage, documented restore omissions, memory import rehearsal, and point-in-time recovery runbook evidence; live Supabase restore proof remains deploy-time evidence. | `startup-office:backup-restore-drill` |
 | SV-I180 | Reliability | Deterministic core-loop failure injection now covers model outage, artifact write failure, and approval write failure so the loop fails closed with run/worker failure state and receipts instead of silently marking success. | `startup-office:loop-chaos` |
 | SV-I181 | Developer experience | The repository contains two eras of product architecture, increasing onboarding cost. | internal/team and Startup Office |
 | SV-I182 | Developer experience | Tests and docs sometimes contradict current completed state. | 100 goals vs scorecard |
