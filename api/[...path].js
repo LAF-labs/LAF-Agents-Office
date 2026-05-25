@@ -83,6 +83,9 @@ const {
   createHostedSkillHandlers,
 } = require("./lib/hosted/skillHandlers");
 const {
+  publicTeam,
+} = require("./lib/hosted/teamPresentation");
+const {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
   createHostedPermissionGuards,
@@ -2003,18 +2006,6 @@ async function handleInviteLookup(req, res) {
 
 async function handleInviteAccept(req, res) {
   return HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
-}
-
-function publicTeam(row) {
-  if (!row) return undefined;
-  return {
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    created_by: row.created_by,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
 }
 
 function truncateText(value, max) {
