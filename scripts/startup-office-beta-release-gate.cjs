@@ -10,6 +10,7 @@ const checks = [
   ["npm", ["run", "startup-office:audit-coverage"]],
   ["npm", ["run", "startup-office:authorization"]],
   ["npm", ["run", "startup-office:idempotency"]],
+  ["npm", ["run", "startup-office:migration-recovery"]],
   ["npm", ["run", "startup-office:payload-limits"]],
   ["npm", ["run", "startup-office:pure-cloud-boundary"]],
   ["npm", ["run", "startup-office:role-authorization"]],

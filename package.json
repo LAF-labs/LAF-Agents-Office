@@ -11,6 +11,7 @@
     "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
+    "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
     "startup-office:role-authorization": "node scripts/check-startup-office-role-authorization.cjs",

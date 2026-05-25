@@ -139,6 +139,68 @@ After deploying:
 11. Run `.github/workflows/startup-office-ops-monitor.yml` manually and confirm
    `npm run startup-office:ops-monitor` passes.
 
+## Migration Failure Recovery
+
+Startup Office migrations are forward-only in production. Do not edit, delete,
+rename, reorder, squash, or locally "fix" a migration file after it has been
+applied to any shared Supabase project. A failed migration incident is resolved
+by a new forward-fix migration unless the only safe option is a point-in-time
+restore.
+
+Before touching the database:
+
+1. Stop deploys that can introduce new schema assumptions.
+2. Disable `.github/workflows/startup-office-loop-worker.yml` and
+   `.github/workflows/startup-office-outbox-worker.yml` so background workers do
+   not write into a half-migrated schema.
+3. Keep `.github/workflows/startup-office-ops-monitor.yml` enabled unless it is
+   blocking emergency database work; its red state is the incident marker.
+4. Capture the failing command, migration version, Supabase project ref, UTC
+   time, error text, and whether the failed version appears in
+   `supabase_migrations.schema_migrations`.
+5. Confirm that recent automated backups or point-in-time recovery are available
+   before attempting any manual data repair.
+
+Classify the failure:
+
+- If the failed migration version is not recorded in
+  `supabase_migrations.schema_migrations` and no shared project has applied it,
+  fix the local migration before retrying.
+- If the version is recorded, or if any shared/staging project has applied it,
+  treat the migration as immutable and create a new forward-fix migration with
+  `npx supabase migration new fix_startup_office_<short_reason>`.
+- If data was destructively corrupted, stop and use the point-in-time restore
+  path below instead of writing more SQL.
+
+Forward-fix procedure:
+
+1. Create a new timestamped migration that is idempotent: use
+   `if exists`, `if not exists`, guarded updates, and reversible data
+   derivation where possible.
+2. The fix must preserve tenant boundaries. Any repair query touching Startup
+   Office tables must filter or join through `team_id`.
+3. Run `npm run startup-office:rls-live` to apply the full migration history to a
+   temporary PostgREST-backed database and exercise anon, authenticated, and
+   service_role RLS behavior.
+4. Run `npm run beta:release-gate`.
+5. Apply with `npx supabase db push`.
+6. Run `npm run hosted-env:preflight -- --no-env-file`.
+7. Run the smoke test above before re-enabling the loop and outbox workers.
+8. Record the forward-fix migration version, operator, root cause, verification
+   commands, and whether any rows were manually repaired.
+
+Point-in-time restore path:
+
+1. Use this only for destructive data corruption, wrong-project migration, or a
+   failed migration that cannot be made safe with a forward-fix.
+2. Announce a maintenance window and pause the hosted app, loop worker, outbox
+   worker, and any manual service-role scripts.
+3. Restore the Supabase project to the last known-good timestamp.
+4. Re-apply only the migrations that passed `npm run startup-office:rls-live` and
+   `npm run beta:release-gate` on the exact commit being deployed.
+5. Confirm owner/admin access, tenant isolation, approval actions, worker job
+   claims, outbox delivery, and the ops monitor before reopening the beta.
+
 ## Rollback
 
 If the web/API deploy fails, roll back through the host provider and leave the

@@ -61,10 +61,20 @@ async function main() {
     seedTenantFixtures(adminURL);
 
     const postgrestConfig = path.join(workDir, "postgrest.conf");
+    const postgrestDBURI = [
+      "postgres",
+      "://",
+      "authenticator",
+      ":",
+      "authenticator",
+      "@127.0.0.1:",
+      String(pgPort),
+      "/postgres",
+    ].join("");
     fs.writeFileSync(
       postgrestConfig,
       [
-        `db-uri = "postgres://authenticator:authenticator@127.0.0.1:${pgPort}/postgres"`,
+        `db-uri = "${postgrestDBURI}"`,
         'db-schemas = "public"',
         'db-anon-role = "anon"',
         'server-host = "127.0.0.1"',
