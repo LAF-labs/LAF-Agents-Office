@@ -31,6 +31,10 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
     ["PATCH", STARTUP_OFFICE_ACCESS.adminBilling],
   ]),
+  terms: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["POST", STARTUP_OFFICE_ACCESS.manageWorkspace],
+  ]),
   companyProfile: routeAccess([
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
     ["PATCH", STARTUP_OFFICE_ACCESS.manageWorkspace],

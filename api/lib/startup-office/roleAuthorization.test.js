@@ -34,6 +34,7 @@ const READ_KEYS = Object.freeze([
   "policy.GET",
   "receipts.GET",
   "run.GET",
+  "terms.GET",
 ]);
 
 const DRAFT_KEYS = Object.freeze([
@@ -66,6 +67,7 @@ const ADMIN_KEYS = Object.freeze([
   "supportAccess.POST",
   "supportAccessAction.POST",
   "supportTimeline.GET",
+  "terms.POST",
   "workerJobAction.POST",
 ]);
 

@@ -307,6 +307,16 @@ const messages = {
     "auth.title": "LAF-Office",
     "auth.desc":
       "Sign in or create a company workspace to validate and launch a paid beta.",
+    "auth.proofAria": "Startup Office sales proof",
+    "auth.proofUseCases": "Founder use cases",
+    "auth.proofUseCasesBody":
+      "Idea validation, offer packaging, customer discovery, and weekly operator review.",
+    "auth.proofOutcomes": "Beta outcomes",
+    "auth.proofOutcomesBody":
+      "A paid beta validation package with artifacts, approvals, receipts, and company memory.",
+    "auth.proofControls": "Trust controls",
+    "auth.proofControlsBody":
+      "Founder approvals, versioned beta terms, audit receipts, and visible support access.",
     "auth.existingTeams": "Existing teams",
     "auth.mode": "Auth mode",
     "auth.signup": "Sign up",
@@ -682,6 +692,16 @@ const messages = {
     "auth.title": "LAF-Office",
     "auth.desc":
       "로그인하거나 회사 워크스페이스를 만들어 유료 베타를 검증하고 출시합니다.",
+    "auth.proofAria": "스타트업 오피스 판매 증거",
+    "auth.proofUseCases": "창업자 사용 사례",
+    "auth.proofUseCasesBody":
+      "아이디어 검증, 오퍼 패키징, 고객 인터뷰, 주간 운영 리뷰.",
+    "auth.proofOutcomes": "베타 결과물",
+    "auth.proofOutcomesBody":
+      "산출물, 승인, 영수증, 회사 메모리가 남는 유료 베타 검증 패키지.",
+    "auth.proofControls": "신뢰 통제",
+    "auth.proofControlsBody":
+      "창업자 승인, 버전 관리 약관, 감사 영수증, 가시적인 지원 접근 기록.",
     "auth.existingTeams": "기존 팀",
     "auth.mode": "인증 방식",
     "auth.signup": "회원가입",

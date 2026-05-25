@@ -2,15 +2,23 @@ import type { StartupOfficeBetaOps } from "../../api/startupOffice";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 
 interface BetaOpsPanelProps {
+  acceptingTerms?: boolean;
   betaOps?: StartupOfficeBetaOps;
   copy: StartupOfficeAppCopy;
+  onAcceptTerms?: () => void;
 }
 
-export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
+export function BetaOpsPanel({
+  acceptingTerms,
+  betaOps,
+  copy,
+  onAcceptTerms,
+}: BetaOpsPanelProps) {
   const billing = betaOps?.billing;
   const usage = betaOps?.usage;
   const commercial = betaOps?.commercial;
   const documents = betaOps?.billing_documents ?? [];
+  const termsAccepted = betaOps?.terms?.accepted === true;
   return (
     <section className="skills-panel startup-office-beta-ops">
       <div className="skills-section-head">
@@ -33,6 +41,22 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
         <div>
           <dt>{copy.betaOpsLabels.agreement}</dt>
           <dd>{commercial?.agreement_status || "missing"}</dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.terms}</dt>
+          <dd>
+            {termsStatusText(betaOps, copy)}
+            {!termsAccepted && onAcceptTerms ? (
+              <button
+                className="startup-office-action is-secondary startup-office-terms-action"
+                disabled={Boolean(acceptingTerms)}
+                onClick={onAcceptTerms}
+                type="button"
+              >
+                {acceptingTerms ? copy.acceptingTerms : copy.acceptTerms}
+              </button>
+            ) : null}
+          </dd>
         </div>
         <div>
           <dt>{copy.betaOpsLabels.provider}</dt>
@@ -105,6 +129,23 @@ function billingStateLabel(betaOps?: StartupOfficeBetaOps) {
     betaOps?.billing?.billing_state ||
     "trial"
   );
+}
+
+function termsStatusText(
+  betaOps: StartupOfficeBetaOps | undefined,
+  copy: StartupOfficeAppCopy,
+) {
+  const terms = betaOps?.terms;
+  if (terms?.accepted) {
+    const acceptedAt = terms.latest_acceptance?.accepted_at;
+    return acceptedAt
+      ? `${copy.termsAcceptedStatus} - ${acceptedAt}`
+      : copy.termsAcceptedStatus;
+  }
+  if (betaOps?.commercial?.terms_status === "accepted") {
+    return copy.termsAcceptedStatus;
+  }
+  return copy.termsMissing;
 }
 
 function billingDocumentText(

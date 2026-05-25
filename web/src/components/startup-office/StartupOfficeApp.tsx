@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  acceptStartupOfficeTerms,
   approveStartupOfficeApproval,
   getStartupOfficeGrowthSummary,
   rejectStartupOfficeApproval,
@@ -137,6 +138,17 @@ export function StartupOfficeApp() {
     },
   });
 
+  const termsMutation = useMutation({
+    mutationFn: () => acceptStartupOfficeTerms(),
+    onSuccess: () => {
+      showNotice(copy.termsAccepted, "success");
+      void refreshSummary();
+    },
+    onError: (error: Error) => {
+      showNotice(copy.actionFailed(error.message), "error");
+    },
+  });
+
   const runningLoopSlug =
     runLoopMutation.variables?.slug || runLoopMutation.variables?.id || null;
 
@@ -196,7 +208,12 @@ export function StartupOfficeApp() {
           copy={copy}
           objects={summary.operating_objects}
         />
-        <BetaOpsPanel betaOps={summary.beta_ops} copy={copy} />
+        <BetaOpsPanel
+          acceptingTerms={termsMutation.isPending}
+          betaOps={summary.beta_ops}
+          copy={copy}
+          onAcceptTerms={() => termsMutation.mutate()}
+        />
         <ActivityNotificationsPanel
           copy={copy}
           notifications={summary.activity_notifications}

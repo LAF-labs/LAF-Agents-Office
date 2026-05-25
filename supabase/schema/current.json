@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526050000",
+  "latestMigration": "20260526060000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -157,6 +157,13 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["id", "team_id", "support_user_id", "event_type", "reason", "metadata", "created_by", "expires_at", "created_at"]
+    },
+    {
+      "name": "startup_office_terms_acceptances",
+      "domain": "legal",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "accepted_by", "terms_version", "privacy_version", "dpa_version", "ai_use_version", "retention_version", "deletion_version", "acceptance_note", "metadata", "accepted_at", "created_at", "updated_at"]
     },
     {
       "name": "startup_office_deletion_requests",

@@ -339,8 +339,8 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G094 | Add plan-change workflow. | Trial, paid, paused, and canceled plan transitions create commercial billing document evidence. | tests |
 | SV-G095 | Add activation analytics. | Product records durable first loop, first approval, second loop, and first export milestones and exposes progress in beta ops. | analytics tests |
 | SV-G096 | Add support playbooks. | Failed runs, confused approvals, notification delivery, billing blocks, and clean customer-success review have operator scripts in beta dashboard and launch docs. | API/docs tests |
-| SV-G097 | Add beta terms. | Privacy, DPA, AI use, retention, and deletion terms are ready. | legal docs |
-| SV-G098 | Add sales page proof. | Website shows founder use cases, outcomes, and trust controls. | website QA |
+| SV-G097 | Add beta terms. | Privacy, DPA, AI use, retention, and deletion terms are versioned, accepted in-product, audited, and required before paid beta readiness. | legal/API/UI tests |
+| SV-G098 | Add sales page proof. | Signup entry screen shows founder use cases, beta outcomes, and trust controls with regression coverage. | website QA |
 | SV-G099 | Run production rehearsal. | A staging workspace completes full flow with live dependencies. | checklist |
 | SV-G100 | Ship paid closed beta. | Only deploy-time secrets and real customer onboarding remain. | completion audit |
 
@@ -364,6 +364,15 @@ locked by `npm run closed-beta:goals`. G099 and G100 remain blocked only by
 external proof: a production-domain deployment with live Supabase, workers,
 monitoring, and smoke evidence, then one real founder payment or signed beta
 agreement with a first approved loop and receipt.
+
+SV-G097 is now product-enforced rather than doc-only: the beta terms package in
+`docs/legal/STARTUP-OFFICE-BETA-TERMS.md` is versioned in
+`api/lib/startup-office/betaTerms.js`, accepted through `/startup-office/terms`,
+recorded in `startup_office_terms_acceptances`, shown in beta ops, audited as
+`startup_office.terms_accepted`, and included in the paid beta commercial gate.
+SV-G098 is covered on the unauthenticated signup entry screen: founder use
+cases, beta outcomes, and trust controls are visible before account creation and
+locked by `npm run startup-office:sales-proof` plus the auth UI regression test.
 
 The broader production audit is still not claimable as fully complete until
 that external handoff evidence is attached. Engineering should use targeted

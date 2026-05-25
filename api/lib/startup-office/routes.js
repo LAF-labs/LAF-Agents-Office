@@ -51,6 +51,19 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     ]),
   },
   { id: "billing", methods: Object.freeze(["GET", "PATCH"]), paths: Object.freeze(["startup-office/billing"]) },
+  {
+    id: "terms",
+    methods: Object.freeze(["GET", "POST"]),
+    paths: Object.freeze(["startup-office/terms"]),
+    client: Object.freeze([
+      clientContract("getStartupOfficeTerms", "GET", "StartupOfficeTermsResponse", [
+        "/startup-office/terms",
+      ]),
+      clientContract("acceptStartupOfficeTerms", "POST", "StartupOfficeTermsAcceptResponse", [
+        "/startup-office/terms",
+      ]),
+    ]),
+  },
   { id: "supportAccess", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/support-access"]) },
   {
     id: "supportAccessAction",

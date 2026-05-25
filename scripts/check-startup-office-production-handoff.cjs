@@ -32,11 +32,13 @@ if (
 
 for (const snippet of [
   "Repository-Controlled Readiness",
+  "20260526060000",
   "G099 Production Deployment Evidence",
   "G100 First Customer Evidence",
   "Deploy commit SHA",
   "Production app URL",
   "Supabase project ref and latest applied migration",
+  "Current beta terms acceptance ID and terms version",
   "Loop worker workflow run ID",
   "Ops monitor workflow run ID",
   "Synthetic monitor workflow run ID",

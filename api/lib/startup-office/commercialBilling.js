@@ -9,7 +9,7 @@ const {
   startupOfficeBillingDocumentPayload,
 } = require("./commercialBillingDocuments");
 
-function startupOfficeCommercialSnapshot({ billing = {}, documents = [] }) {
+function startupOfficeCommercialSnapshot({ billing = {}, documents = [], termsAccepted = true }) {
   const docs = documents.map(publicStartupOfficeBillingDocument);
   const agreement = docs.find((doc) => doc.document_type === "agreement" && doc.status === "signed");
   const paidDocument = docs.find((doc) => ["invoice", "receipt"].includes(doc.document_type) && doc.status === "paid");
@@ -20,17 +20,27 @@ function startupOfficeCommercialSnapshot({ billing = {}, documents = [] }) {
       paidDocument?.reference_url,
   );
   const blockReason = startupOfficeBillingBlockReason(billing);
-  const paid = billing.payment_status === "paid" && hasPaymentEvidence && !blockReason;
+  const termsReady = termsAccepted !== false;
+  const paid = billing.payment_status === "paid" && hasPaymentEvidence && termsReady && !blockReason;
   return {
     agreement_status: agreement ? "signed" : billing.beta_agreement_url ? "linked" : "missing",
     can_start_paid_beta: paid,
     next_step: paid
       ? "Paid beta is commercially cleared."
-      : blockReason
+      : !termsReady
+        ? "Accept the current beta terms before starting paid beta."
+        : blockReason
         ? `Resolve billing block: ${blockReason}.`
         : "Attach a signed agreement, paid invoice, or payment reference.",
     paid_evidence_status: hasPaymentEvidence ? "present" : "missing",
-    status: paid ? "paid_beta_ready" : blockReason ? "blocked" : billing.payment_status || "trial",
+    status: paid
+      ? "paid_beta_ready"
+      : blockReason
+        ? "blocked"
+        : !termsReady
+          ? "terms_missing"
+          : billing.payment_status || "trial",
+    terms_status: termsReady ? "accepted" : "missing",
   };
 }
 

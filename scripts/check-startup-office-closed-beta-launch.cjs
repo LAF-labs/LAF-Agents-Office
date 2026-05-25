@@ -30,8 +30,8 @@ if (pkg.scripts?.["startup-office:first-beta-smoke"] !== "node scripts/startup-o
 }
 
 const schema = JSON.parse(read("supabase/schema/current.json"));
-if (schema.latestMigration !== "20260526030000") {
-  fail("schema latestMigration must point at the launch readiness migration");
+if (String(schema.latestMigration || "") < "20260526030000") {
+  fail("schema latestMigration must include the launch readiness migration");
 }
 
 for (const [tableName, columns] of [

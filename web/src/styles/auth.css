@@ -82,6 +82,36 @@
   line-height: 1.6;
 }
 
+.auth-proof-grid {
+  display: grid;
+  width: min(520px, 100%);
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.auth-proof-grid div {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 72%, var(--bg));
+  padding: 12px;
+}
+
+.auth-proof-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.auth-proof-grid strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .auth-panel {
   display: flex;
   flex-direction: column;
@@ -1030,6 +1060,29 @@ html[data-theme^="office"] .auth-copy p {
   max-width: 100%;
   font-size: 13px;
   line-height: 1.46;
+}
+
+html[data-theme^="office"] .auth-proof-grid {
+  grid-column: 1 / -1;
+  width: 100%;
+  gap: 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+html[data-theme^="office"] .auth-proof-grid div {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 0;
+}
+
+html[data-theme^="office"] .auth-proof-grid div + div {
+  border-top: 1px solid var(--border-light);
+}
+
+html[data-theme^="office"] .auth-proof-grid strong {
+  font-size: 12px;
 }
 
 html[data-theme^="office"] .auth-panel {

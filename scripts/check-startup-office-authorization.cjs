@@ -28,6 +28,10 @@ const expectedAccess = {
     GET: { permission: "workspace:read", type: "permission" },
     PATCH: { type: "admin" },
   },
+  terms: {
+    GET: { permission: "workspace:read", type: "permission" },
+    POST: { permission: "workspace:manage", type: "permission" },
+  },
   companyProfile: {
     GET: { permission: "workspace:read", type: "permission" },
     PATCH: { permission: "workspace:manage", type: "permission" },

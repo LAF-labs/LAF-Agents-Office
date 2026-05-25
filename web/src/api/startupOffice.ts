@@ -205,6 +205,7 @@ export interface StartupOfficeBetaOps {
     next_step: string;
     paid_evidence_status: string;
     status: string;
+    terms_status?: string;
   };
   entitlements?: {
     ai_runs: boolean;
@@ -221,6 +222,7 @@ export interface StartupOfficeBetaOps {
     seat_limit: number;
     storage_mb_limit: number;
   };
+  terms?: StartupOfficeTermsSnapshot;
   usage: {
     model_spend_cents: number;
     model_spend_percent: number;
@@ -234,6 +236,39 @@ export interface StartupOfficeBetaOps {
     tool_calls: number;
     total_tokens: number;
   };
+}
+
+export interface StartupOfficeTermsPackage {
+  ai_use_version: string;
+  deletion_version: string;
+  docs_path: string;
+  dpa_version: string;
+  privacy_version: string;
+  retention_version: string;
+  terms_version: string;
+  version_keys?: string[];
+}
+
+export interface StartupOfficeTermsAcceptance {
+  acceptance_note?: string;
+  accepted_at?: string | null;
+  accepted_by?: string | null;
+  ai_use_version: string;
+  deletion_version: string;
+  dpa_version: string;
+  id: string;
+  metadata?: Record<string, unknown>;
+  privacy_version: string;
+  retention_version: string;
+  terms_version: string;
+  updated_at?: string | null;
+}
+
+export interface StartupOfficeTermsSnapshot {
+  accepted: boolean;
+  current: StartupOfficeTermsPackage;
+  latest_acceptance?: StartupOfficeTermsAcceptance | null;
+  missing_versions: string[];
 }
 
 export interface StartupOfficeActivationEvent {
@@ -384,6 +419,17 @@ export interface StartupOfficeCompanyProfileResponse {
   profile: StartupOfficeCompanyProfile;
 }
 
+export interface StartupOfficeTermsResponse {
+  beta_ops: StartupOfficeBetaOps;
+  terms: StartupOfficeTermsPackage;
+}
+
+export interface StartupOfficeTermsAcceptResponse {
+  acceptance: StartupOfficeTermsAcceptance;
+  beta_ops: StartupOfficeBetaOps;
+  status: string;
+}
+
 export interface StartupOfficeReceiptsResponse {
   receipts: StartupOfficeReceipt[];
 }
@@ -487,6 +533,17 @@ export function reviseStartupOfficeApproval(
 
 export function getStartupOfficeApprovalPolicy() {
   return get<StartupOfficePolicyResponse>("/startup-office/policy");
+}
+
+export function getStartupOfficeTerms() {
+  return get<StartupOfficeTermsResponse>("/startup-office/terms");
+}
+
+export function acceptStartupOfficeTerms(body?: { acceptance_note?: string }) {
+  return post<StartupOfficeTermsAcceptResponse>(
+    "/startup-office/terms",
+    body ?? {},
+  );
 }
 
 export function updateStartupOfficeApprovalPolicy(

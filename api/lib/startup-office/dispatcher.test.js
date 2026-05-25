@@ -21,6 +21,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "growthSummary",
     "policy",
     "billing",
+    "terms",
     "supportAccess",
     "supportAccessAction",
     "deletionRequest",

@@ -87,6 +87,10 @@ const {
   startupOfficeActivationSnapshot,
 } = require("./lib/startup-office/activationAnalytics");
 const {
+  publicStartupOfficeTermsAcceptance,
+  startupOfficeTermsSnapshot,
+} = require("./lib/startup-office/betaTerms");
+const {
   createStartupOfficeProfileHandlers,
 } = require("./lib/startup-office/profileHandlers");
 const {
@@ -99,6 +103,9 @@ const {
 const {
   createStartupOfficeOperationsHandlers,
 } = require("./lib/startup-office/operationsHandlers");
+const {
+  createStartupOfficeTermsHandlers,
+} = require("./lib/startup-office/termsHandlers");
 const {
   createStartupOfficeObjectHandlers,
 } = require("./lib/startup-office/objectHandlers");
@@ -386,6 +393,20 @@ const STARTUP_OFFICE_OPERATIONS_HANDLERS = createStartupOfficeOperationsHandlers
   writeJSON,
 });
 
+const STARTUP_OFFICE_TERMS_HANDLERS = createStartupOfficeTermsHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  objectValue,
+  readBody,
+  requirePermission,
+  requireUser,
+  startupOfficeBetaOpsSnapshot,
+  truncateText,
+  upsertStartupOfficeTermsAcceptance,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_OBJECT_HANDLERS = createStartupOfficeObjectHandlers({
   createHTTPError: startupOfficeHTTPError,
   nowISO,
@@ -552,6 +573,7 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   supportAccess: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
   supportAccessAction: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
   supportTimeline: STARTUP_OFFICE_OPERATIONS_HANDLERS.supportTimeline,
+  terms: STARTUP_OFFICE_TERMS_HANDLERS.terms,
   workerJobAction: STARTUP_OFFICE_OPERATIONS_HANDLERS.workerJobAction,
 });
 
@@ -1615,15 +1637,18 @@ function numericOrNull(value) {
 }
 
 async function startupOfficeBetaOpsSnapshot(teamID) {
-  const [billing, usage, billingDocuments, activationEvents] = await Promise.all([
+  const [billing, usage, billingDocuments, activationEvents, termsAcceptances] = await Promise.all([
     startupOfficeBilling(teamID),
     startupOfficeUsage(teamID),
     startupOfficeBillingDocuments(teamID),
     activationEventsForTeam(teamID, safeStartupOfficeRest),
+    startupOfficeTermsAcceptances(teamID),
   ]);
+  const terms = startupOfficeTermsSnapshot(termsAcceptances);
   const commercial = startupOfficeCommercialSnapshot({
     billing,
     documents: billingDocuments,
+    termsAccepted: terms.accepted,
   });
   const entitlements = startupOfficeEntitlementSnapshot({
     billing,
@@ -1643,6 +1668,7 @@ async function startupOfficeBetaOpsSnapshot(teamID) {
       seat_limit: billing.seat_limit,
       storage_mb_limit: billing.storage_mb_limit,
     },
+    terms,
     usage: {
       ...usage,
       model_spend_percent: percent(usage.model_spend_cents, billing.monthly_model_spend_cents),
@@ -1663,6 +1689,18 @@ async function startupOfficeBillingDocuments(teamID, options = {}) {
     },
   });
   return rows.map(publicStartupOfficeBillingDocument);
+}
+
+async function startupOfficeTermsAcceptances(teamID, options = {}) {
+  const rows = await safeStartupOfficeRest("startup_office_terms_acceptances", {
+    query: {
+      limit: String(clamp(Number(options.limit) || 10, 1, 100)),
+      order: "accepted_at.desc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  return rows.map(publicStartupOfficeTermsAcceptance).filter(Boolean);
 }
 
 async function startupOfficeBilling(teamID) {
@@ -1721,6 +1759,20 @@ async function upsertStartupOfficeBillingDocument(membership, patch) {
     },
   });
   return publicStartupOfficeBillingDocument(document || patch);
+}
+
+async function upsertStartupOfficeTermsAcceptance(membership, patch) {
+  const [acceptance] = await safeStartupOfficeRest("startup_office_terms_acceptances", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    query: { on_conflict: "team_id,terms_version" },
+    body: {
+      ...patch,
+      team_id: membership.team_id,
+      updated_at: nowISO(),
+    },
+  });
+  return publicStartupOfficeTermsAcceptance(acceptance || { id: shortID(), ...patch });
 }
 
 async function startupOfficeUsage(teamID) {
@@ -1783,6 +1835,7 @@ const STARTUP_OFFICE_STORAGE_SOURCES = Object.freeze([
   ["startup_office_receipts", "summary,trace"],
   ["startup_office_runs", "title,objective,inputs,metadata,summary"],
   ["startup_office_signals", "source,title,body,metadata"],
+  ["startup_office_terms_acceptances", "terms_version,privacy_version,dpa_version,ai_use_version,retention_version,deletion_version,metadata"],
 ]);
 
 async function startupOfficeStorageUsage(teamID) {

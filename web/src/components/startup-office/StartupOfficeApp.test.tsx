@@ -7,6 +7,7 @@ import { useAppStore } from "../../stores/app";
 import { StartupOfficeApp } from "./StartupOfficeApp";
 
 const startupOfficeMocks = vi.hoisted(() => ({
+  acceptStartupOfficeTerms: vi.fn(),
   approveStartupOfficeApproval: vi.fn(),
   getStartupOfficeGrowthSummary: vi.fn(),
   getStartupOfficeRun: vi.fn(),
@@ -41,7 +42,7 @@ function mockStartupOfficeSummary() {
     language: "en",
     wikiPath: null,
   });
-  startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
+  const summary = {
     beta_ops: {
       activation: {
         activated: false,
@@ -108,6 +109,7 @@ function mockStartupOfficeSummary() {
         next_step: "Paid beta is commercially cleared.",
         paid_evidence_status: "present",
         status: "paid_beta_ready",
+        terms_status: "accepted",
       },
       entitlements: {
         ai_runs: true,
@@ -123,6 +125,30 @@ function mockStartupOfficeSummary() {
         monthly_run_limit: 50,
         seat_limit: 5,
         storage_mb_limit: 1024,
+      },
+      terms: {
+        accepted: true,
+        current: {
+          ai_use_version: "startup-office-ai-use-2026-05-26",
+          deletion_version: "startup-office-deletion-2026-05-26",
+          docs_path: "docs/legal/STARTUP-OFFICE-BETA-TERMS.md",
+          dpa_version: "startup-office-dpa-2026-05-26",
+          privacy_version: "startup-office-privacy-2026-05-26",
+          retention_version: "startup-office-retention-2026-05-26",
+          terms_version: "startup-office-beta-terms-2026-05-26",
+        },
+        latest_acceptance: {
+          accepted_at: "2026-05-26T00:00:00Z",
+          accepted_by: "user-1",
+          ai_use_version: "startup-office-ai-use-2026-05-26",
+          deletion_version: "startup-office-deletion-2026-05-26",
+          dpa_version: "startup-office-dpa-2026-05-26",
+          id: "terms-acceptance-1",
+          privacy_version: "startup-office-privacy-2026-05-26",
+          retention_version: "startup-office-retention-2026-05-26",
+          terms_version: "startup-office-beta-terms-2026-05-26",
+        },
+        missing_versions: [],
       },
       usage: {
         model_spend_cents: 0,
@@ -276,7 +302,8 @@ function mockStartupOfficeSummary() {
         title: "Idea Validation",
       },
     ],
-  });
+  };
+  startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue(summary);
   Object.defineProperty(globalThis.navigator, "clipboard", {
     configurable: true,
     value: {
@@ -351,13 +378,19 @@ function mockStartupOfficeSummary() {
   startupOfficeMocks.approveStartupOfficeApproval.mockResolvedValue({});
   startupOfficeMocks.rejectStartupOfficeApproval.mockResolvedValue({});
   startupOfficeMocks.reviseStartupOfficeApproval.mockResolvedValue({});
+  startupOfficeMocks.acceptStartupOfficeTerms.mockResolvedValue({
+    status: "ok",
+  });
   startupOfficeMocks.updateStartupOfficeCompanyProfile.mockResolvedValue({
     profile: { name: "Updated Labs" },
   });
+  return summary;
 }
 
 describe("StartupOfficeApp", () => {
-  beforeEach(mockStartupOfficeSummary);
+  beforeEach(() => {
+    mockStartupOfficeSummary();
+  });
 
   it("renders the dedicated Startup Office surface without legacy local workflow language", async () => {
     const { container } = renderStartupOfficeApp();
@@ -427,6 +460,10 @@ describe("StartupOfficeApp", () => {
     expect(within(betaOpsPanel).getByText("founder_beta")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Agreement")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("signed")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Beta terms")).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText(/Accepted - 2026-05-26/),
+    ).toBeInTheDocument();
     expect(
       within(betaOpsPanel).getByText("Paid beta is commercially cleared."),
     ).toBeInTheDocument();
@@ -447,6 +484,40 @@ describe("StartupOfficeApp", () => {
 
     expect(container.textContent).not.toContain("Projects");
     expect(container.textContent).not.toContain("Tasks");
+  });
+
+  it("accepts current beta terms from beta operations", async () => {
+    const user = userEvent.setup();
+    const summary = mockStartupOfficeSummary() as any;
+    summary.beta_ops.commercial = {
+      ...summary.beta_ops.commercial,
+      can_start_paid_beta: false,
+      next_step: "Accept the current beta terms before starting paid beta.",
+      status: "paid",
+      terms_status: "missing",
+    };
+    summary.beta_ops.terms = {
+      ...summary.beta_ops.terms,
+      accepted: false,
+      latest_acceptance: null,
+      missing_versions: ["terms_version"],
+    };
+    startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue(summary);
+
+    renderStartupOfficeApp();
+
+    await screen.findByText("LAF Labs");
+    const betaOpsPanel = screen
+      .getByRole("heading", { name: "Beta operations" })
+      .closest("section") as HTMLElement;
+    expect(within(betaOpsPanel).getByText("Not accepted")).toBeInTheDocument();
+    await user.click(
+      within(betaOpsPanel).getByRole("button", { name: "Accept beta terms" }),
+    );
+
+    await waitFor(() =>
+      expect(startupOfficeMocks.acceptStartupOfficeTerms).toHaveBeenCalledWith(),
+    );
   });
 
   it("runs loops, approves decisions, opens run/artifact detail, and edits profile", async () => {

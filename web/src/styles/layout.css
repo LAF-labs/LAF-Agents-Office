@@ -1455,6 +1455,9 @@ html[data-theme="office"]
 .startup-memory-list dd {
   margin: 0;
 }
+.startup-office-terms-action {
+  margin-top: 8px;
+}
 .startup-loop-controls > span {
   display: inline-flex;
   align-items: center;

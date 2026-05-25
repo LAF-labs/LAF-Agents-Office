@@ -41,6 +41,24 @@ test("commercial snapshot requires signed manual or payment evidence before paid
   });
   assert.equal(ready.can_start_paid_beta, true);
   assert.equal(ready.status, "paid_beta_ready");
+
+  const needsTerms = startupOfficeCommercialSnapshot({
+    billing: { billing_state: "active", payment_status: "paid" },
+    documents: [
+      {
+        document_type: "agreement",
+        reference_url: "https://example.com/signed.pdf",
+        status: "signed",
+      },
+    ],
+    termsAccepted: false,
+  });
+  assert.equal(needsTerms.can_start_paid_beta, false);
+  assert.equal(needsTerms.terms_status, "missing");
+  assert.equal(
+    needsTerms.next_step,
+    "Accept the current beta terms before starting paid beta.",
+  );
 });
 
 test("paid beta validation rejects paid status without evidence", () => {

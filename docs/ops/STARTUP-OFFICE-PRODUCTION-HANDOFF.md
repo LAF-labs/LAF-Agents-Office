@@ -13,7 +13,7 @@ these commands pass on the deploy commit:
 - `npm run startup-office:rls-live`
 - `npm run hosted-env:preflight -- --no-env-file` against production variables
 - `npx supabase migration list` shows local and remote at the same latest
-  migration
+  migration, currently at least `20260526060000`
 
 The repository now contains:
 
@@ -23,6 +23,8 @@ The repository now contains:
 - Company profile, operating loops, runs, artifacts, approvals, receipts,
   assets, customers, metrics, signals, memory pages, usage events,
   notifications, support access events, and deletion requests.
+- Versioned beta terms, privacy, DPA, AI use, retention, and deletion
+  acceptance records in `startup_office_terms_acceptances`.
 - Cloud loop worker, outbox worker, ops monitor, model provider abstraction,
   quality rubric, browser research, citation enforcement, idempotency, rate
   limits, payload limits, cost metering, plan limits, and secure asset upload
@@ -48,6 +50,7 @@ fields in the operator system of record:
 - Ops monitor workflow run ID.
 - Synthetic monitor workflow run ID.
 - Production smoke workspace ID.
+- Current beta terms acceptance ID and terms version.
 - First production smoke run ID.
 - First production approval ID.
 - First production receipt ID.
@@ -64,6 +67,7 @@ fields in the operator system of record:
 - Customer company name.
 - Founder contact owner.
 - Signed beta agreement URL or payment/invoice reference.
+- Current beta terms acceptance ID and terms version.
 - Workspace ID.
 - Billing provider.
 - Payment status, one of `trial`, `paid`, `paused`, or `blocked`.
@@ -86,10 +90,11 @@ G100 remains blocked by external customer proof.
 5. Configure production secrets and variables.
 6. Run production preflight.
 7. Enable and dispatch loop worker, outbox worker, and ops monitor workflows.
-8. Create a staging workspace and complete the production smoke flow.
+8. Create a staging workspace, accept the current beta terms, and complete the
+   production smoke flow.
 9. Record G099 evidence.
 10. Invite the first beta founder, record agreement or payment evidence, run the
-    first loop, and record G100 evidence.
+    first loop, confirm current beta terms acceptance, and record G100 evidence.
 
 After step 10, the only remaining work should be ongoing customer operations,
 not source-code readiness.

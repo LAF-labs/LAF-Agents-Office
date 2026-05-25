@@ -164,20 +164,22 @@ or customer data.
 After deploying:
 
 1. Create or use a staging workspace.
-2. Run a Startup Office loop that reaches approval or failure.
-3. Confirm `startup_office_worker_jobs` receives a queued row.
-4. Run `.github/workflows/startup-office-loop-worker.yml` manually or wait for
+2. Accept the current beta terms and confirm
+   `startup_office_terms_acceptances` records the version bundle.
+3. Run a Startup Office loop that reaches approval or failure.
+4. Confirm `startup_office_worker_jobs` receives a queued row.
+5. Run `.github/workflows/startup-office-loop-worker.yml` manually or wait for
    the next schedule.
-5. Confirm the worker job is `completed` or `dead_letter`, and the run is no
+6. Confirm the worker job is `completed` or `dead_letter`, and the run is no
    longer stuck in `queued`.
-6. Confirm `startup_office_notifications` receives a pending row when approval
+7. Confirm `startup_office_notifications` receives a pending row when approval
    or failure notification is expected.
-7. Run the outbox workflow manually or wait for the next schedule.
-8. Confirm the notification row is marked `sent`.
-9. Confirm the matching `startup_office_outbox_events` row is `delivered`.
-10. If `LAF_OUTBOX_EMAIL_PROVIDER=resend`, confirm the Resend dashboard shows the
+8. Run the outbox workflow manually or wait for the next schedule.
+9. Confirm the notification row is marked `sent`.
+10. Confirm the matching `startup_office_outbox_events` row is `delivered`.
+11. If `LAF_OUTBOX_EMAIL_PROVIDER=resend`, confirm the Resend dashboard shows the
    message and the notification payload stores `email_delivery`.
-11. Run `.github/workflows/startup-office-ops-monitor.yml` manually and confirm
+12. Run `.github/workflows/startup-office-ops-monitor.yml` manually and confirm
    `npm run startup-office:ops-monitor` passes.
 
 ## Migration Failure Recovery

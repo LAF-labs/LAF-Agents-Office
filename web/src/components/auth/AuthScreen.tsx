@@ -104,6 +104,20 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           <div className="auth-kicker">{t("auth.kicker")}</div>
           <h1>{t("auth.title")}</h1>
           <p>{t("auth.desc")}</p>
+          <div className="auth-proof-grid" aria-label={t("auth.proofAria")}>
+            <div>
+              <span>{t("auth.proofUseCases")}</span>
+              <strong>{t("auth.proofUseCasesBody")}</strong>
+            </div>
+            <div>
+              <span>{t("auth.proofOutcomes")}</span>
+              <strong>{t("auth.proofOutcomesBody")}</strong>
+            </div>
+            <div>
+              <span>{t("auth.proofControls")}</span>
+              <strong>{t("auth.proofControlsBody")}</strong>
+            </div>
+          </div>
         </div>
 
         <form className="auth-panel" onSubmit={handleSubmit}>
