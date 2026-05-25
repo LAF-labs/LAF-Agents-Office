@@ -94,6 +94,11 @@ for (const [relativePath, snippets, label] of [
     "quality evaluation harness",
   ],
   [
+    "workers/startup-office/modelClient.js",
+    ["openAIProviderConfigs", "openai_fallback", "LAF_OFFICE_OPENAI_FALLBACK_API_KEY"],
+    "model provider failover",
+  ],
+  [
     "workers/startup-office/outboxWorker.test.js",
     ["configured email notifications", "notification.approval_waiting"],
     "approval notification email",
@@ -127,7 +132,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:production-handoff", "startup-office:prompt-versions", "startup-office:tool-policy"],
+    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:model-failover", "startup-office:production-handoff", "startup-office:prompt-versions", "startup-office:tool-policy"],
     "release gate launch checks",
   ],
 ]) {

@@ -41,6 +41,7 @@ const checks = [
   ["npm", ["run", "startup-office:synthetic-monitor-check"]],
   ["npm", ["run", "startup-office:worker-deploy"]],
   ["npm", ["run", "startup-office:loop-worker:test"]],
+  ["npm", ["run", "startup-office:model-failover"]],
   ["npm", ["run", "startup-office:model-client:test"]],
   ["npm", ["run", "startup-office:ops-monitor:test"]],
   ["npm", ["run", "startup-office:synthetic-monitor:test"]],

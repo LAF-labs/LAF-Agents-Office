@@ -89,7 +89,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I048 | Security | Workspace permissions now use one shared catalog with API/web drift checks; route-level authorization still needs a full declarative matrix. | `startup-office:permissions` |
 | SV-I049 | Security | External action approval policy is not enforced by a centralized policy engine. | policy route and loop templates |
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
-| SV-I051 | AI worker | The model client is OpenAI-first and does not yet support robust provider failover. | `modelClient.js` |
+| SV-I051 | AI worker | The model client now supports an OpenAI-compatible fallback route for transient primary model failures; true multi-SDK provider diversity remains future hardening. | `startup-office:model-failover`, worker tests |
 | SV-I052 | AI worker | Fake-provider tests prove shape, not real model quality. | worker tests |
 | SV-I053 | AI worker | Prompt templates now have a version manifest, instruction/schema hashes, review scope, and receipt/run metadata traces. | `startup-office:prompt-versions`, worker tests |
 | SV-I054 | AI worker | Output quality checks now cover structure, sources, assumptions, external-action claims, overclaiming, and regulated-advice review language; real model evals remain a post-beta hardening need. | `qualityChecks.js` |
@@ -284,7 +284,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G038 | Unify permission definitions. | API and web permission lists cannot drift from the shared catalog. | `startup-office:permissions` |
 | SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require disclaimer and approval. | output eval |
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
-| SV-G041 | Add provider abstraction. | At least two model providers or one provider plus fallback are supported. | worker tests |
+| SV-G041 | Add provider abstraction. | The worker supports primary OpenAI plus an OpenAI-compatible fallback endpoint/key/model with redacted attempt metadata. | `startup-office:model-failover`, worker tests |
 | SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, hashed, and tied to model calls, runs, artifacts, approvals, worker jobs, and receipts. | `startup-office:prompt-versions`, worker tests |
 | SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, unsafe external-action claims, overclaiming, and regulated-advice review. | eval suite |
 | SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | manual gated script |
@@ -395,6 +395,12 @@ engine injects that snapshot into prompt context and records it on model
 metadata, runs, artifacts, approvals, worker jobs, and receipts.
 `npm run startup-office:prompt-versions` keeps new loops from shipping without
 the same traceability.
+SV-G041 is now covered by model failover rather than a single hard dependency:
+`workers/startup-office/modelClient.js` can retry transient primary OpenAI
+Responses API failures against an OpenAI-compatible fallback base URL, API key,
+and model while recording redacted provider attempts. Deployment preflight
+validates the fallback env shape without printing secrets, and
+`npm run startup-office:model-failover` locks the contract.
 SV-G023 is now broader than representative spot checks: `npm run
 startup-office:rls-live` applies every Supabase migration to a temporary
 PostgreSQL cluster, starts PostgREST, seeds Alpha/Beta rows across every
@@ -432,6 +438,10 @@ the final release commit or when a shared invariant changes.
   `npm run startup-office:prompt-versions` checks that every loop has a stable
   prompt version, instruction hash, schema hash, review scope, prompt-context
   exposure, and receipt/run trace coverage.
+- R4 now adds AI model failover:
+  `npm run startup-office:model-failover` checks that transient primary model
+  failures can fall through to an OpenAI-compatible fallback route and that
+  deployment preflight exposes fallback readiness without leaking credentials.
 - R2 has started with a dedicated Startup Office route contract and dispatcher:
   `api/lib/startup-office/routes.js` now owns the contract list, and
   `api/lib/startup-office/dispatcher.test.js` pins route IDs, aliases, params,

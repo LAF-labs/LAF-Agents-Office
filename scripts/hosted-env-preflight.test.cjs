@@ -154,6 +154,23 @@ test("preflight validates Startup Office AI worker env when provider is configur
   assert.match(printText(result), /Startup Office AI provider: openai/);
 });
 
+test("preflight validates Startup Office AI fallback env without printing secrets", () => {
+  const result = runPreflight(
+    validEnv({
+      LAF_OFFICE_OPENAI_FALLBACK_API_KEY: "fallback-key",
+      LAF_OFFICE_OPENAI_FALLBACK_BASE_URL: "https://fallback-models.example.test/v1",
+      LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL: "gpt-fallback",
+    }),
+  );
+
+  assert.equal(result.ok, true, result.errors.join("\n"));
+  assert.equal(result.normalized.startup_office_ai_fallback_enabled, true);
+  assert.equal(result.normalized.startup_office_fallback_model, "gpt-fallback");
+  const rendered = printText(result);
+  assert.match(rendered, /Startup Office AI fallback: enabled/);
+  assert.doesNotMatch(rendered, /fallback-key/);
+});
+
 test("preflight rejects broken Startup Office AI worker env", () => {
   const missingKey = runPreflight(
     validEnv({

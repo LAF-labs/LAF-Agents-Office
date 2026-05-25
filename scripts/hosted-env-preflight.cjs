@@ -168,7 +168,10 @@ function validateStartupOfficeAIEnv(env, { allowTestProvider = false, errors, no
     env.LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER || env.STARTUP_OFFICE_AI_PROVIDER || "",
   ).trim().toLowerCase();
   const hasOpenAIKey = Boolean(env.LAF_OFFICE_OPENAI_API_KEY || env.OPENAI_API_KEY);
-  const provider = explicitProvider || (hasOpenAIKey ? "openai" : "");
+  const hasFallbackOpenAIKey = Boolean(
+    env.LAF_OFFICE_OPENAI_FALLBACK_API_KEY || env.OPENAI_FALLBACK_API_KEY,
+  );
+  const provider = explicitProvider || (hasOpenAIKey || hasFallbackOpenAIKey ? "openai" : "");
   if (!provider) {
     if (!allowTestProvider) {
       errors.push("missing LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for Startup Office AI worker");
@@ -184,8 +187,28 @@ function validateStartupOfficeAIEnv(env, { allowTestProvider = false, errors, no
   normalized.startup_office_model = String(
     env.LAF_OFFICE_STARTUP_OFFICE_MODEL || env.STARTUP_OFFICE_MODEL || "gpt-5-mini",
   ).trim();
-  if (provider === "openai" && !hasOpenAIKey) {
+  normalized.startup_office_ai_fallback_enabled = Boolean(
+    hasFallbackOpenAIKey ||
+      env.LAF_OFFICE_OPENAI_FALLBACK_BASE_URL ||
+      env.OPENAI_FALLBACK_BASE_URL ||
+      env.LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL ||
+      env.STARTUP_OFFICE_FALLBACK_MODEL,
+  );
+  normalized.startup_office_fallback_model = String(
+    env.LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL ||
+      env.STARTUP_OFFICE_FALLBACK_MODEL ||
+      "",
+  ).trim();
+  if (provider === "openai" && !hasOpenAIKey && !hasFallbackOpenAIKey) {
     errors.push("missing LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for Startup Office AI worker");
+  }
+  if (
+    provider === "openai" &&
+    normalized.startup_office_ai_fallback_enabled &&
+    !hasOpenAIKey &&
+    !hasFallbackOpenAIKey
+  ) {
+    errors.push("OpenAI fallback is configured but no primary or fallback API key is available");
   }
   if ((provider === "fake" || provider === "disabled") && !allowTestProvider) {
     errors.push(
@@ -572,6 +595,9 @@ function printText(result) {
     lines.push(
       `[hosted-env-preflight] Startup Office AI provider: ${result.normalized.startup_office_ai_provider}`,
     );
+  }
+  if (result.normalized.startup_office_ai_fallback_enabled) {
+    lines.push("[hosted-env-preflight] Startup Office AI fallback: enabled");
   }
   if (result.normalized.allowed_origins.length) {
     lines.push(

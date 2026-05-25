@@ -13,7 +13,7 @@ function createStartupOfficeModelClient(options = {}) {
     options.provider ||
       env.LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER ||
       env.STARTUP_OFFICE_AI_PROVIDER ||
-      (env.OPENAI_API_KEY || env.LAF_OFFICE_OPENAI_API_KEY ? "openai" : "disabled"),
+      (hasAnyOpenAIKey(env) ? "openai" : "disabled"),
   );
   const model =
     options.model ||
@@ -65,16 +65,16 @@ function createStartupOfficeModelClient(options = {}) {
   async function embed(input) {
     if (provider === "fake") return { embedding: [], provider, model: "fake" };
     if (provider !== "openai") return null;
-    const apiKey = env.LAF_OFFICE_OPENAI_API_KEY || env.OPENAI_API_KEY;
+    const [config] = openAIProviderConfigs(env, model);
     const embeddingModel =
       env.LAF_OFFICE_STARTUP_OFFICE_EMBEDDING_MODEL || "text-embedding-3-small";
-    if (!apiKey || !input?.text) return null;
+    if (!config?.apiKey || !input?.text) return null;
     const response = await fetchImpl(
-      `${openAIBaseURL(env).replace(/\/+$/, "")}/embeddings`,
+      `${config.baseURL.replace(/\/+$/, "")}/embeddings`,
       {
         body: JSON.stringify({ input: input.text, model: embeddingModel }),
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
         },
         method: "POST",
@@ -83,7 +83,7 @@ function createStartupOfficeModelClient(options = {}) {
     const payload = await readJSONResponse(response);
     if (!response.ok) {
       throw new StartupOfficeModelError("embedding request failed", {
-        provider,
+        provider: config.provider,
         status: response.status,
         upstream_error: payload?.error?.message || payload?.message || "",
       });
@@ -91,7 +91,7 @@ function createStartupOfficeModelClient(options = {}) {
     return {
       embedding: payload?.data?.[0]?.embedding || [],
       model: payload?.model || embeddingModel,
-      provider,
+      provider: config.provider,
       usage: payload?.usage || {},
     };
   }
@@ -106,8 +106,8 @@ function createStartupOfficeModelClient(options = {}) {
 }
 
 async function openAIResponsesRequest({ env, fetchImpl, input, model, structured }) {
-  const apiKey = env.LAF_OFFICE_OPENAI_API_KEY || env.OPENAI_API_KEY;
-  if (!apiKey) {
+  const providerConfigs = openAIProviderConfigs(env, model);
+  if (!providerConfigs.length) {
     throw new StartupOfficeModelError("OPENAI_API_KEY is required", {
       provider: "openai",
     });
@@ -117,11 +117,37 @@ async function openAIResponsesRequest({ env, fetchImpl, input, model, structured
       provider: "openai",
     });
   }
+  const errors = [];
+  for (const config of providerConfigs) {
+    try {
+      return await singleOpenAIResponsesRequest({
+        config,
+        env,
+        fetchImpl,
+        input,
+        structured,
+        providerAttempts: providerConfigs.map(providerAttemptMetadata),
+      });
+    } catch (err) {
+      errors.push(err);
+      if (!isRetryableModelError(err) || config === providerConfigs.at(-1)) throw err;
+    }
+  }
+  throw errors.at(-1);
+}
+
+async function singleOpenAIResponsesRequest({
+  config,
+  fetchImpl,
+  input,
+  structured,
+  providerAttempts,
+}) {
   const body = {
     input: input?.input || input?.prompt || "",
     instructions: input?.instructions || "",
     metadata: input?.metadata || {},
-    model,
+    model: config.model,
   };
   if (structured) {
     body.text = {
@@ -134,40 +160,55 @@ async function openAIResponsesRequest({ env, fetchImpl, input, model, structured
       },
     };
   }
-  const response = await fetchImpl(
-    `${openAIBaseURL(env).replace(/\/+$/, "")}/responses`,
-    {
-      body: JSON.stringify(body),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+  let response;
+  try {
+    response = await fetchImpl(
+      `${config.baseURL.replace(/\/+$/, "")}/responses`,
+      {
+        body: JSON.stringify(body),
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
       },
-      method: "POST",
-    },
-  );
+    );
+  } catch (err) {
+    throw new StartupOfficeModelError("model request failed", {
+      provider: config.provider,
+      retryable: true,
+      upstream_error: err?.message || "fetch failed",
+    });
+  }
   const payload = await readJSONResponse(response);
   if (!response.ok) {
     throw new StartupOfficeModelError("model request failed", {
-      provider: "openai",
+      provider: config.provider,
+      retryable: retryableHTTPStatus(response.status),
       status: response.status,
       upstream_error: payload?.error?.message || payload?.message || "",
     });
   }
   const text = extractResponseText(payload);
   const usage = normalizeUsage(payload?.usage);
+  const metadata = {
+    provider_attempts: providerAttempts,
+    response_id: payload?.id || null,
+    selected_provider: config.provider,
+  };
   if (!structured) {
     return {
-      cost: costMetadata({ model: payload?.model || model, provider: "openai", usage }),
-      metadata: { response_id: payload?.id || null },
-      provider: "openai",
+      cost: costMetadata({ model: payload?.model || config.model, provider: config.provider, usage }),
+      metadata,
+      provider: config.provider,
       text,
     };
   }
   return {
-    cost: costMetadata({ model: payload?.model || model, provider: "openai", usage }),
+    cost: costMetadata({ model: payload?.model || config.model, provider: config.provider, usage }),
     data: parseStructuredText(text),
-    metadata: { response_id: payload?.id || null },
-    provider: "openai",
+    metadata,
+    provider: config.provider,
     text,
   };
 }
@@ -530,8 +571,88 @@ function fakeUsage() {
   return { input_tokens: 1200, output_tokens: 700, total_tokens: 1900 };
 }
 
+function openAIProviderConfigs(env, model) {
+  const primary = {
+    apiKey: env.LAF_OFFICE_OPENAI_API_KEY || env.OPENAI_API_KEY || "",
+    baseURL: openAIBaseURL(env),
+    model,
+    provider: "openai",
+  };
+  const fallback = {
+    apiKey:
+      env.LAF_OFFICE_OPENAI_FALLBACK_API_KEY ||
+      env.OPENAI_FALLBACK_API_KEY ||
+      primary.apiKey,
+    baseURL:
+      env.LAF_OFFICE_OPENAI_FALLBACK_BASE_URL ||
+      env.OPENAI_FALLBACK_BASE_URL ||
+      primary.baseURL,
+    model:
+      env.LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL ||
+      env.STARTUP_OFFICE_FALLBACK_MODEL ||
+      primary.model,
+    provider: "openai_fallback",
+  };
+  const configs = [];
+  if (primary.apiKey) configs.push(primary);
+  const fallbackRequested = Boolean(
+    env.LAF_OFFICE_OPENAI_FALLBACK_API_KEY ||
+      env.OPENAI_FALLBACK_API_KEY ||
+      env.LAF_OFFICE_OPENAI_FALLBACK_BASE_URL ||
+      env.OPENAI_FALLBACK_BASE_URL ||
+      env.LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL ||
+      env.STARTUP_OFFICE_FALLBACK_MODEL,
+  );
+  if (
+    fallbackRequested &&
+    fallback.apiKey &&
+    (fallback.apiKey !== primary.apiKey ||
+      fallback.baseURL !== primary.baseURL ||
+      fallback.model !== primary.model)
+  ) {
+    configs.push(fallback);
+  }
+  return configs;
+}
+
+function providerAttemptMetadata(config) {
+  return {
+    base_url_host: safeHost(config.baseURL),
+    model: config.model,
+    provider: config.provider,
+  };
+}
+
+function safeHost(value) {
+  try {
+    return new URL(value).host;
+  } catch {
+    return "";
+  }
+}
+
+function hasAnyOpenAIKey(env) {
+  return Boolean(
+    env.LAF_OFFICE_OPENAI_API_KEY ||
+      env.OPENAI_API_KEY ||
+      env.LAF_OFFICE_OPENAI_FALLBACK_API_KEY ||
+      env.OPENAI_FALLBACK_API_KEY,
+  );
+}
+
 function openAIBaseURL(env) {
   return env.LAF_OFFICE_OPENAI_BASE_URL || "https://api.openai.com/v1";
+}
+
+function isRetryableModelError(err) {
+  if (!(err instanceof StartupOfficeModelError)) return false;
+  if (err.details?.retryable === true) return true;
+  return retryableHTTPStatus(err.details?.status);
+}
+
+function retryableHTTPStatus(status) {
+  const value = Number(status);
+  return value === 408 || value === 409 || value === 425 || value === 429 || value >= 500;
 }
 
 async function readJSONResponse(response) {
@@ -576,4 +697,5 @@ module.exports = {
   costMetadata,
   createStartupOfficeModelClient,
   normalizeUsage,
+  openAIProviderConfigs,
 };

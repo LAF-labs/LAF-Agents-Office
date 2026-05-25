@@ -52,6 +52,12 @@ GitHub Actions variables:
 - `LAF_LOOP_WORKER_LOCK_MS`, default `1800000`
 - `LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER`, default `openai`
 - `LAF_OFFICE_STARTUP_OFFICE_MODEL`, default `gpt-5-mini`
+- `LAF_OFFICE_OPENAI_FALLBACK_API_KEY` when using a backup
+  OpenAI-compatible model route
+- `LAF_OFFICE_OPENAI_FALLBACK_BASE_URL` when the backup route is a gateway or
+  different provider endpoint
+- `LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL` when the backup route should use a
+  different model
 - `LAF_OFFICE_STARTUP_OFFICE_EMBEDDING_MODEL` when overriding embeddings
 - `LAF_OFFICE_OPENAI_BASE_URL` only for an OpenAI-compatible gateway
 - `LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX`, default `0`
