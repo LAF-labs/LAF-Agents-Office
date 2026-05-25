@@ -2771,7 +2771,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
 /* ────────────────────────────────────────────────────────────
  * v1.3 compounding-intelligence synthesis footer — status badge
  * + Re-synthesize button. Lives inside PlaybookExecutionLog.
- * Motion stays on transform/opacity (see ~/.claude/rules/web/performance.md).
+ * Motion stays on transform/opacity for predictable compositor behavior.
  * ──────────────────────────────────────────────────────────── */
 
 .wk-playbook-synthesis {
@@ -2831,7 +2831,7 @@ html[data-theme^="office"] .wk-editor-banner--error {
 /* ────────────────────────────────────────────────────────────
  * v1.3 Image embeds — agents embed via standard markdown
  * `![alt](https://...)`; renderer routes through ImageEmbed.
- * Motion stays on transform/opacity (see ~/.claude/rules/web/performance.md).
+ * Motion stays on transform/opacity for predictable compositor behavior.
  * ──────────────────────────────────────────────────────────── */
 
 .image-embed {

@@ -7,8 +7,8 @@ LAF Agents Office is now a hosted Startup Office SaaS. The development surface i
 - `workers/startup-office/` for cloud operating-loop execution.
 - `supabase/migrations/` for workspace data.
 
-Local commands are for contributors only; customers do not run a device service,
-pair a runtime, or install a CLI.
+Local commands are for contributors only; customers do not run background
+execution services or install a CLI.
 
 ## Setup
 

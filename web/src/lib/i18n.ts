@@ -43,11 +43,11 @@ const messages = {
     "settings.general.languageGroup": "Interface",
     "settings.general.languageLabel": "Language",
     "settings.general.languageHint": "Applies immediately to this browser",
-    "settings.general.restartTitle": "Restart required for runtime changes.",
+    "settings.general.restartTitle": "Restart required for operating changes.",
     "settings.general.restartBody":
       "New values save immediately, but agents already running keep their launch-time settings. Run",
     "settings.general.restartTail": "then relaunch to apply.",
-    "settings.general.runtimeGroup": "Runtime",
+    "settings.general.runtimeGroup": "Operations",
     "settings.general.provider": "LLM Provider",
     "settings.general.memory": "Memory Backend",
     "settings.general.memoryNone": "None",
@@ -58,7 +58,7 @@ const messages = {
     "settings.agents.title": "Agents",
     "settings.agents.desc":
       "LAF runs with CEO, Frontend Engineer, Backend Engineer, and Reviewer by default. Agent Maker is only used here to draft optional domain specialists.",
-    "settings.agents.coreTeam": "Core runtime",
+    "settings.agents.coreTeam": "Core operators",
     "settings.agents.maker": "Agent Maker",
     "settings.agents.prompt": "Specialist brief",
     "settings.agents.promptHint":
@@ -94,8 +94,8 @@ const messages = {
     "settings.agents.generateFailed": "Failed to generate agent",
     "settings.agents.modelDefaults": "Model defaults",
     "settings.agents.modelDesc":
-      "These defaults apply to the whole team. Each agent keeps a Claude, Codex, and LAF choice so switching execution modes does not require reconfiguring the roster.",
-    "settings.agents.modelHint": "Used when this agent runs on that surface",
+      "These defaults apply to the whole team. Each agent keeps a hosted model choice for office work.",
+    "settings.agents.modelHint": "Used when this agent works in the cloud office",
     "settings.agents.saveModels": "Save",
     "settings.agents.modelsSaved": "Model defaults saved.",
     "settings.agents.modelsFailed": "Failed to save model defaults",
@@ -228,7 +228,7 @@ const messages = {
       "Logs, sessions, provider state, and wiki memory",
     "settings.danger.shredDeleteRuntimeState":
       "Workspace state (same as Reset)",
-    "settings.danger.shredPreserveWorktrees":
+    "settings.danger.shredPreserveExports":
       "Cloud office exports and attached records stay available unless deleted separately",
     "settings.danger.shredPreserveConfig": "Your global config and API keys",
     "settings.danger.shredPreserveDevice": "Account identity",
@@ -366,7 +366,7 @@ const messages = {
     "status.openShortcuts": "Open keyboard shortcuts",
     "status.agent": "agent",
     "status.agents": "agents",
-    "status.runtime": "Runtime",
+    "status.runtime": "Office status",
     "status.aiProvider": "AI provider",
     "invite.kicker": "LAF-Office invite",
     "invite.title": "Join the company workspace",
@@ -417,11 +417,11 @@ const messages = {
     "settings.general.languageGroup": "인터페이스",
     "settings.general.languageLabel": "언어",
     "settings.general.languageHint": "이 브라우저에 즉시 적용됩니다",
-    "settings.general.restartTitle": "런타임 변경은 재시작이 필요합니다.",
+    "settings.general.restartTitle": "운영 설정 변경은 재시작이 필요합니다.",
     "settings.general.restartBody":
       "새 값은 즉시 저장되지만, 이미 실행 중인 에이전트는 시작 시점 설정을 계속 사용합니다.",
     "settings.general.restartTail": "실행 후 다시 시작하면 적용됩니다.",
-    "settings.general.runtimeGroup": "런타임",
+    "settings.general.runtimeGroup": "운영",
     "settings.general.provider": "LLM 공급자",
     "settings.general.memory": "메모리 백엔드",
     "settings.general.memoryNone": "없음",
@@ -432,7 +432,7 @@ const messages = {
     "settings.agents.title": "에이전트",
     "settings.agents.desc":
       "LAF는 기본적으로 CEO, Frontend Engineer, Backend Engineer, Reviewer 네 에이전트로 운영됩니다. Agent Maker는 여기에서 선택적 전문 에이전트 초안을 만들 때만 사용됩니다.",
-    "settings.agents.coreTeam": "기본 런타임",
+    "settings.agents.coreTeam": "기본 운영자",
     "settings.agents.maker": "Agent Maker",
     "settings.agents.prompt": "전문가 설명",
     "settings.agents.promptHint":
@@ -467,9 +467,9 @@ const messages = {
     "settings.agents.generateFailed": "에이전트를 생성하지 못했습니다",
     "settings.agents.modelDefaults": "모델 기본값",
     "settings.agents.modelDesc":
-      "이 기본값은 팀 전체에 적용됩니다. 실행 방식을 바꿔도 다시 설정하지 않도록 각 에이전트는 Claude, Codex, LAF 값을 모두 가집니다.",
+      "이 기본값은 팀 전체에 적용됩니다. 각 에이전트는 클라우드 오피스 업무에 사용할 호스티드 모델 값을 가집니다.",
     "settings.agents.modelHint":
-      "이 에이전트가 해당 방식으로 실행될 때 사용됩니다",
+      "이 에이전트가 클라우드 오피스에서 일할 때 사용됩니다",
     "settings.agents.saveModels": "저장",
     "settings.agents.modelsSaved": "모델 기본값을 저장했습니다.",
     "settings.agents.modelsFailed": "모델 기본값을 저장하지 못했습니다",
@@ -601,7 +601,7 @@ const messages = {
       "로그, 세션, 공급자 상태, 위키 메모리",
     "settings.danger.shredDeleteRuntimeState":
       "워크스페이스 상태 (재설정과 동일)",
-    "settings.danger.shredPreserveWorktrees":
+    "settings.danger.shredPreserveExports":
       "클라우드 오피스 내보내기와 첨부 기록은 별도로 삭제하지 않는 한 유지됨",
     "settings.danger.shredPreserveConfig": "전역 설정과 API 키",
     "settings.danger.shredPreserveDevice": "계정 식별 정보",
@@ -742,7 +742,7 @@ const messages = {
     "status.openShortcuts": "키보드 단축키 열기",
     "status.agent": "에이전트",
     "status.agents": "에이전트",
-    "status.runtime": "런타임",
+    "status.runtime": "오피스 상태",
     "status.aiProvider": "AI 제공자",
     "invite.kicker": "LAF-Office 초대",
     "invite.title": "회사 워크스페이스 합류",

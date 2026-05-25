@@ -17,7 +17,7 @@ The wiki is NOT a chat log, NOT a raw artifact dump, NOT a vector database. It i
 **Guiding principles:**
 
 1. **Markdown is the source of truth.** Every fact, brief, insight, playbook, and lint finding lives in a markdown file, version-controlled by git. Everything else — SQLite indexes, bleve search, vector stores — is a derived cache, rebuildable from markdown on demand.
-2. **Substrate guarantee.** `rm -rf .laf-office/index/` → restart broker → the wiki still works. `git clone` of the wiki repo on a fresh machine → functional wiki without any LAF-Office process running. Manual markdown edits in vim → picked up by the next index reconcile pass.
+2. **Substrate guarantee.** Clearing derived wiki indexes and rebuilding from canonical markdown produces the same logical knowledge base. `git clone` of the wiki repo on a fresh machine → functional wiki without any LAF-Office process running. Manual markdown edits in vim → picked up by the next index reconcile pass.
 3. **Single writer, many readers.** All writes go through the broker's `WikiWorker` queue. Agents, HTTP handlers, and CLI commands all enqueue write requests; the worker serializes commits. This preserves git-log attribution, prevents conflicting writes, and gives us the single-writer invariant that makes fact IDs deterministic.
 4. **Per-human git identity.** Every commit is authored by a named identity — either a human (e.g. `nazz`) or the synthetic `archivist` (used for automated extraction, synthesis, and lint). Agent-originated commits are attributed to the human who owns that agent. `git log` on any file shows exactly who did what.
 5. **Compounding over curation.** Agents contribute facts by default, not by request. The auto-loop closes without human ritual: agent talks → artifact committed → entities extracted → facts recorded → brief synthesized → next agent queries → reinforces or contradicts. Human intervention is rare and always additive.
@@ -309,7 +309,7 @@ fact_id = sha256(artifact_sha + "/" + sentence_offset + "/" + norm(subject) + "/
 
 ### 7.4 Rebuild contract
 
-`rm -rf .laf-office/index/` → restart broker → boot reconcile runs → SQLite + bleve re-indexed from markdown. The result must be **logically identical**, not byte-identical. Logical identity means: `SELECT * FROM facts ORDER BY id` produces the same canonical hash pre- and post-rebuild.
+Clearing derived wiki indexes and rebuilding from markdown must produce a **logically identical** result, not a byte-identical one. Logical identity means: `SELECT * FROM facts ORDER BY id` produces the same canonical hash pre- and post-rebuild.
 
 **Every code path that introduces a new fact must append it to `wiki/facts/{kind}/{slug}.jsonl` via `WikiWorker.EnqueueFactLogAppend` under the `archivist` identity.** The extraction loop, human `save_as_insight`, and any future synthesis-time fact mint all honor this contract — markdown is the source of truth, and a fact that lives only in the derived cache violates the rebuild guarantee.
 

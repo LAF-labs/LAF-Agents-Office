@@ -238,7 +238,7 @@ const SKILLS_COPY = {
     growthInboxEmpty: "No growth actions waiting.",
     tokenBudgetTitle: "Token/context budget",
     tokenBudgetDescription:
-      "Actual usage plus char-based diagnostics from the workspace runtime.",
+      "Actual usage plus char-based diagnostics from workspace operations.",
     sessionTokens: "Session tokens",
     totalCost: "Total cost",
     avgPromptChars: "Avg prompt chars",

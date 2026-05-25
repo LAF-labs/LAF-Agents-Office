@@ -182,6 +182,32 @@ test("pure cloud migration drops obsolete execution schema", () => {
   assert.match(localIdentitySql, /drop column if exists %I cascade/);
   assert.match(localIdentitySql, /obsolete local identity columns/);
   assert.match(localIdentitySql, /raise exception/);
+
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "schema", "current.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(schema.latestMigration, "20260525230000");
+  assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525230000");
+
+  const latestBoundarySql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525230000_assert_pure_cloud_boundary_schema.sql",
+    ),
+    "utf8",
+  );
+  assert.match(latestBoundarySql, /retired_pairing/);
+  assert.match(latestBoundarySql, /remaining_columns/);
+  assert.match(latestBoundarySql, /remaining_constraints/);
+  assert.match(latestBoundarySql, /remaining_functions/);
+  assert.match(latestBoundarySql, /remaining_policies/);
+  assert.match(latestBoundarySql, /remaining_tables/);
+  assert.match(latestBoundarySql, /remaining_triggers/);
+  assert.match(latestBoundarySql, /remaining_types/);
+  assert.match(latestBoundarySql, /raise exception/);
 });
 
 test("project and task storage is removed from the current Supabase schema", () => {

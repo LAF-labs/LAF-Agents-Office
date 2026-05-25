@@ -12,7 +12,6 @@
 !/docs/specs/claude-codex-squad.md
 !/docs/REVOPS_TEST_PLAN.md
 /termwright-artifacts/
-.worktrees/
 .vexp/
 .DS_Store
 .env
@@ -32,8 +31,6 @@
 
 # Local caches
 .cache/
-.laf-office/bin/
-.laf-office/cache/
 .playwright-mcp/
 .playwright-cli/
 supabase/.temp/

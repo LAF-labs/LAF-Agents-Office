@@ -2356,7 +2356,7 @@ function DangerZoneSection() {
           {t("settings.danger.preserved")}
         </div>
         <ul style={dangerStyles.list}>
-          <li>{t("settings.danger.shredPreserveWorktrees")}</li>
+          <li>{t("settings.danger.shredPreserveExports")}</li>
           <li>
             {t("settings.danger.shredPreserveConfig")} (<code>config.json</code>
             )

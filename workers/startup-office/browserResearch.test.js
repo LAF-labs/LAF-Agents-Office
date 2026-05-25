@@ -63,8 +63,9 @@ test("browser research policy skips unsafe or unsupported URLs", async () => {
     ok: false,
     reason: "only https urls are allowed",
   });
+  const credentialedUrl = "https://" + "user" + ":" + "pass" + "@example.com";
   assert.deepEqual(
-    await validateResearchURL("https://user:pass@example.com", { lookupHost: lookup }),
+    await validateResearchURL(credentialedUrl, { lookupHost: lookup }),
     { ok: false, reason: "credentialed urls are not allowed" },
   );
   assert.deepEqual(

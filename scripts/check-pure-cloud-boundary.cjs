@@ -48,6 +48,8 @@ for (const file of forbiddenPaths) {
 }
 
 const forbiddenPrefixes = [
+  ".claude/",
+  ".laf-office/",
   "bench/",
   "claude-code-plugin/",
   "cmd/",

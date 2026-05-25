@@ -17,7 +17,7 @@ Customer workflows execute through hosted services only. Contributor tooling rem
 
 | Path | Responsibility |
 | --- | --- |
-| `api/[...path].js` | Hosted API facade for auth, workspaces, company profile, wiki, skills, messages, projects, tasks, and Startup Office loops. |
+| `api/[...path].js` | Hosted API facade for auth, workspaces, company profile, wiki, skills, messages, and Startup Office loops. |
 | `web/src/components/startup-office/` | Main Startup Office experience for founders and operators. |
 | `web/src/components/apps/SettingsApp.tsx` | Notion-style workspace, profile, team, permissions, company, API-key, and danger-zone settings. |
 | `workers/startup-office/loopEngine.js` | Cloud operating-loop worker logic and tests. |
@@ -28,4 +28,4 @@ Customer workflows execute through hosted services only. Contributor tooling rem
 1. Hosted workspace state is the source of truth.
 2. Users control the company workspace, team membership, permissions, memory, and approvals.
 3. AI work is observable through messages, runs, artifacts, decisions, and wiki updates.
-4. Device-side execution surfaces are outside the product boundary.
+4. Customer-managed execution surfaces are outside the product boundary.
