@@ -265,6 +265,10 @@ function createStartupOfficeWorkflowHandlers(deps) {
         summary: `${loop.name} retry queued for AI execution.`,
         trace: { worker_job_id: workerJob?.id || null },
       });
+      await writeAuditEvent(membership, "startup_office.run_retry_queued", "run", run.id, {
+        previous_status: run.status,
+        worker_job_id: workerJob?.id || "",
+      });
       const result = await runStartupOfficeLoop({
         inputs,
         loop,

@@ -300,6 +300,8 @@ test("run handler retries failed runs through the worker path", async () => {
 
   assert.equal(deps.calls.createdWorkerJob.metadata.retry, true);
   assert.equal(deps.calls.receipts[0].event_type, "run.retry_queued");
+  assert.equal(deps.calls.audits[0][1], "startup_office.run_retry_queued");
+  assert.equal(deps.calls.audits[0][4].worker_job_id, "job-1");
   assert.equal(deps.calls.writes[0].body.status, "approval_waiting");
 });
 

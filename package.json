@@ -8,6 +8,7 @@
     "production:audit": "node scripts/check-sv-production-audit.cjs",
     "startup-office:api-contracts": "node scripts/check-startup-office-api-contracts.cjs",
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
+    "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
     "startup-office:legacy-runtime": "node scripts/check-no-legacy-runtime.cjs",
     "startup-office:permissions": "node scripts/check-workspace-permission-catalog.cjs",

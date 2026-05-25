@@ -22,9 +22,12 @@ startup, what fundamental problems would we refuse to carry forward?
 - Startup Office routes now have a declarative authorization registry at
   `api/lib/startup-office/authorization.js`; the release gate verifies each
   route method maps to a known permission or admin-only policy.
+- Startup Office mutating routes now have a declared audit coverage map at
+  `scripts/check-startup-office-audit-coverage.cjs`; the release gate fails if a
+  new `POST`, `PATCH`, or `DELETE` route is added without an audit event.
 - The current release gate is deterministic, fake-provider friendly, and now
-  includes secret scan plus dependency audit, but it does not prove live model,
-  live Supabase, email, billing, DNS, or browser E2E.
+  includes audit coverage, secret scan, and dependency audit, but it does not
+  prove live model, live Supabase, email, billing, DNS, or browser E2E.
 - Legacy Go, CLI, npm-wrapper, native-release, and device-runtime scripts have
   been removed from the tracked hosted SaaS tree and are now guarded by the
   release gate.
@@ -69,7 +72,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I032 | Data model | Obsolete no-op migrations preserve continuity but add cognitive load to fresh installs. | obsolete local migration files |
 | SV-I033 | Data model | There is no automated Supabase reset test proving all migrations apply cleanly. | no DB reset gate |
 | SV-I034 | Data model | RLS policies are written but not exercised against a real Supabase test database. | migration tests are static |
-| SV-I035 | Data model | Audit events are generic and not yet guaranteed for every write. | audit helper and beta goals |
+| SV-I035 | Data model | Startup Office route writes are now machine-checked for audit events, but live audit replay, export, and operator review are not proven. | `startup-office:audit-coverage` |
 | SV-I036 | Data model | Business object schemas lack rich lifecycle history. | assets/customers/metrics/signals tables |
 | SV-I037 | Data model | Company memory pages do not yet have conflict resolution as a domain primitive. | memory pages |
 | SV-I038 | Data model | Operating object item DELETE is implemented and audited, but workspace-wide deletion, retention, and purge semantics are not uniform. | object routes and deletion plan |
@@ -264,7 +267,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G022 | Prove migrations on Supabase. | `supabase db reset` and policy tests pass locally. | CLI output |
 | SV-G023 | Exercise RLS for all Startup Office tables. | Cross-tenant reads/writes fail with user tokens. | integration tests |
 | SV-G024 | Add database comments and constraints. | Core invariants are encoded at the DB layer. | migration review |
-| SV-G025 | Make audit complete. | Every Startup Office write emits a structured audit event. | audit coverage test |
+| SV-G025 | Make audit complete. | Every Startup Office write emits a structured audit event. | `startup-office:audit-coverage` |
 | SV-G026 | Define deletion and retention. | Workspace deletion purges or schedules every table. | deletion test |
 | SV-G027 | Version exports. | Export bundles include schema version and restore notes. | export test |
 | SV-G028 | Add backup and restore drill. | Restore proves company data, memory, and receipts survive. | runbook evidence |
@@ -564,3 +567,8 @@ and missing typed contracts.
   both execute within the caller workspace, require draft-memory permission,
   and emit structured audit events; the release gate covers the delete path in
   `api/lib/startup-office/objectHandlers.test.js`.
+- R3/R8 now turns core Startup Office write auditing into an executable
+  invariant. Run retries emit `startup_office.run_retry_queued`, artifact-to-asset
+  and artifact-to-signal paths assert their audit events in tests, and
+  `npm run startup-office:audit-coverage` maps every mutating Startup Office
+  route to expected audit actions inside the beta release gate.

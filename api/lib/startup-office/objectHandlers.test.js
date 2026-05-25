@@ -176,6 +176,7 @@ test("artifact object action can save an artifact as a first-party asset", async
     source: "artifact",
   });
   assert.equal(deps.calls.rest[0].options.body.updated_at, "2026-05-25T00:00:00.000Z");
+  assert.equal(deps.calls.audits[0][1], "startup_office.asset.created_from_artifact");
   assert.equal(deps.calls.writes[0].body.asset.public, "asset");
 });
 
@@ -191,6 +192,7 @@ test("artifact object action can record an artifact-derived signal", async () =>
   assert.equal(deps.calls.rest[0].table, "startup_office_signals");
   assert.equal(deps.calls.rest[0].options.body.source, "interview");
   assert.equal(deps.calls.rest[0].options.body.metadata.run_id, "run-1");
+  assert.equal(deps.calls.audits[0][1], "startup_office.signal.created_from_artifact");
   assert.equal(deps.calls.writes[0].body.signal.public, "signal");
 });
 
