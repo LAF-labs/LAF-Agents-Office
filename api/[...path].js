@@ -30,6 +30,9 @@ const {
   createHostedInviteHandlers,
 } = require("./lib/hosted/inviteHandlers");
 const {
+  createHostedIngressRateLimits,
+} = require("./lib/hosted/ingressRateLimits");
+const {
   createResendEmailProvider,
 } = require("../workers/startup-office/outboxWorker");
 const {
@@ -231,7 +234,6 @@ const {
 } = require("./lib/startup-office/receiptMemory");
 
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMITS = {
   authSignup: 12,
 };
@@ -282,15 +284,27 @@ const {
   requestPath,
   writeJSON,
 } = HOSTED_REQUEST_IO;
+const HOSTED_INGRESS_RATE_LIMITS = createHostedIngressRateLimits({
+  createHTTPError: startupOfficeHTTPError,
+  env: process.env,
+  rpc,
+});
+const {
+  claimHostedRateLimit,
+  clientRateLimitKey,
+  enforceRateLimit,
+  persistentRateLimitsEnabled,
+  resetRateLimits,
+} = HOSTED_INGRESS_RATE_LIMITS;
 const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
-  createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
+  createRateLimitError: () => startupOfficeHTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
   keyForRequest: clientRateLimitKey,
 });
 const enforceStartupOfficeRateLimit = createStartupOfficeRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
-  createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
+  createRateLimitError: () => startupOfficeHTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
 });
 const HOSTED_HEALTH_HANDLERS = createHostedHealthHandlers({
@@ -756,8 +770,6 @@ function startupOfficeHTTPError(status, message, opts = {}) {
   return new HTTPError(status, message, opts);
 }
 
-const rateLimitBuckets = new Map();
-
 module.exports = async function handler(req, res) {
   HOSTED_SECURITY_HEADERS.applyBaselineSecurityHeaders(res);
   HOSTED_SECURITY_HEADERS.applyCORSHeaders(req, res);
@@ -1006,48 +1018,6 @@ module.exports = async function handler(req, res) {
 
 function requestIDFor(req) {
   return String(req.headers?.["x-request-id"] || req.headers?.["x-vercel-id"] || "").trim();
-}
-
-function clientRateLimitKey(req) {
-  return String(
-    req.headers?.["x-forwarded-for"] ||
-      req.headers?.["x-real-ip"] ||
-      req.socket?.remoteAddress ||
-      req.connection?.remoteAddress ||
-      "unknown",
-  )
-    .split(",")[0]
-    .trim();
-}
-
-function enforceRateLimit(scope, key, limit, windowMs = RATE_LIMIT_WINDOW_MS) {
-  const bucketKey = `${scope}:${key || "anonymous"}`;
-  const now = Date.now();
-  const bucket = rateLimitBuckets.get(bucketKey);
-  if (!bucket || bucket.resetAt <= now) {
-    rateLimitBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
-    return;
-  }
-  bucket.count += 1;
-  if (bucket.count > limit) {
-    throw new HTTPError(429, "rate limit exceeded");
-  }
-}
-
-function persistentRateLimitsEnabled() {
-  return (
-    process.env.NODE_ENV === "production" ||
-    process.env.LAF_OFFICE_PERSISTENT_RATE_LIMITS === "1"
-  );
-}
-
-async function claimHostedRateLimit({ key, limit, scope, windowMs }) {
-  return rpc("claim_hosted_rate_limit", {
-    p_bucket_key: key || "anonymous",
-    p_limit: limit,
-    p_scope: scope,
-    p_window_ms: windowMs,
-  });
 }
 
 async function sendInviteEmail(email) {
@@ -1782,6 +1752,6 @@ async function handleInviteAccept(req, res) {
 
 module.exports.__test = {
   resetRateLimits() {
-    rateLimitBuckets.clear();
+    resetRateLimits();
   },
 };

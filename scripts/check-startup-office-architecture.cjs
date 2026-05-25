@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1800);
+assertMaxLines("api/[...path].js", 1770);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -43,6 +43,7 @@ assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
 assertMaxLines("api/lib/hosted/conversationHandlers.js", 360);
 assertMaxLines("api/lib/hosted/errorEnvelope.js", 80);
 assertMaxLines("api/lib/hosted/healthHandlers.js", 140);
+assertMaxLines("api/lib/hosted/ingressRateLimits.js", 85);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/invitePresentation.js", 100);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
@@ -259,6 +260,11 @@ for (const [pattern, label] of [
   [/function authCookieSameSite\b/, "hosted auth cookie SameSite policy"],
   [/function setAuthCookies\b/, "hosted auth cookie writer"],
   [/function clearAuthCookies\b/, "hosted auth cookie clearer"],
+  [/function clientRateLimitKey\b/, "hosted client rate-limit key helper"],
+  [/function enforceRateLimit\b/, "hosted in-memory rate-limit helper"],
+  [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],
+  [/async function claimHostedRateLimit\b/, "hosted persistent rate-limit claim helper"],
+  [/const rateLimitBuckets\b/, "hosted in-memory rate-limit state"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

@@ -84,6 +84,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/commandHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/conversationHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/healthHandlers.test.js"]],
+  ["node", ["--test", "api/lib/hosted/ingressRateLimits.test.js"]],
   ["node", ["--test", "api/lib/hosted/inviteHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/memberHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/memoryHandlers.test.js"]],
