@@ -90,6 +90,18 @@ test("pure cloud migration drops obsolete local execution schema", () => {
   assert.match(finalSql, /drop column if exists worktree_branch/);
   assert.match(finalSql, /drop table if exists public\.bridge_devices cascade/);
   assert.match(finalSql, /drop table if exists public\.runner_jobs cascade/);
+
+  const schemaAssertionSql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525020000_assert_pure_cloud_runtime_schema.sql",
+    ),
+    "utf8",
+  );
+  assert.match(schemaAssertionSql, /remaining_columns/);
+  assert.match(schemaAssertionSql, /remaining_functions/);
+  assert.match(schemaAssertionSql, /remaining_tables/);
+  assert.match(schemaAssertionSql, /raise exception/);
 });
 
 test("Startup Office release gate points at loop engine tests", () => {
@@ -101,6 +113,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /startup-office:api-contracts/);
   assert.match(script, /startup-office:legacy-runtime/);
   assert.match(script, /api\/lib\/hosted\/authHandlers\.test\.js/);
+  assert.match(script, /api\/lib\/hosted\/conversationHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/inviteHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/memberHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/permissions\.test\.js/);

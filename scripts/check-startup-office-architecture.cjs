@@ -32,8 +32,9 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 3050);
+assertMaxLines("api/[...path].js", 2850);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
+assertMaxLines("api/lib/hosted/conversationHandlers.js", 290);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
@@ -115,6 +116,18 @@ for (const [pattern, label] of [
   [/account already exists/, "hosted signup duplicate response"],
   [/signup session was not issued/, "hosted signup provider session guard"],
   [/body\.team_action === "join"/, "hosted signup invite join branch"],
+  [/function hostedChannel\b/, "hosted conversation channel serializer"],
+  [/function normalizeStringList\b/, "hosted conversation string-list normalizer"],
+  [/async function listHostedChannelMessages\b/, "hosted conversation message list helper"],
+  [/async function listHostedHomeSessions\b/, "hosted conversation home-session helper"],
+  [/async function createHostedChannelMessage\b/, "hosted conversation message creation helper"],
+  [/function publicChannelMessage\b/, "hosted conversation message serializer"],
+  [/function hostedMessageBelongsToThread\b/, "hosted conversation thread filter"],
+  [/function sessionTitleFromContent\b/, "hosted conversation session title helper"],
+  [/function isMissingChannelMessagesError\b/, "hosted conversation missing-table helper"],
+  [/channel_messages/, "hosted conversation persistence table"],
+  [/content is required/, "hosted conversation content validation"],
+  [/thread_id is required/, "hosted conversation home-session validation"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

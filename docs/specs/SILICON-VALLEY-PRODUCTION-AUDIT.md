@@ -7,11 +7,11 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Evidence Baseline
 
-- `api/[...path].js` is still a 3,021-line hosted API facade after the cloud pivot.
+- `api/[...path].js` is still a 2,811-line hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
-  Supabase project has applied through `20260525010000`; RLS exercise, backup,
+  Supabase project has applied through `20260525020000`; RLS exercise, backup,
   restore, and rollback drills are still not proven.
 - The current release gate is deterministic and fake-provider friendly, but it
   does not prove live model, live Supabase, email, billing, DNS, or browser E2E.
@@ -36,7 +36,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I009 | Positioning | The public site describes the vision but does not yet prove a buyer-ready package. | website/index.html |
 | SV-I010 | Positioning | The business model is represented as beta ops state, not a live pricing and entitlement system. | billing migration and API |
 | SV-I011 | Architecture | The hosted API facade remains too large to reason about as a production service boundary. | `api/[...path].js` |
-| SV-I012 | Architecture | Product domains are partially extracted, but messages and older project/task-era workspace behavior still mix in one server file. | `api/[...path].js`, `api/lib/startup-office`, `api/lib/hosted` |
+| SV-I012 | Architecture | Product domains are partially extracted, but older project/task-era workspace behavior still mixes into the hosted server file. | `api/[...path].js`, `api/lib/startup-office`, `api/lib/hosted` |
 | SV-I013 | Architecture | Large legacy-adjacent web app modules still coexist with the focused hosted Startup Office. | `web/src/components/apps` |
 | SV-I014 | Architecture | There is no explicit service ownership map for auth, office objects, memory, workers, billing, and notifications. | architecture docs |
 | SV-I015 | Architecture | The cloud worker is a library-style worker, not a deployed independently operable service. | `workers/startup-office` |
@@ -417,11 +417,17 @@ and missing typed contracts.
   down to 3,021 lines, and the release gate now tests new owner workspace
   creation, invite join acceptance, duplicate-account conflicts, provider
   session failures, and slug collision handling.
+- R2 now extracts hosted channel, DM, message, and home-session behavior into
+  `api/lib/hosted/conversationHandlers.js`. The facade is down to 2,811 lines,
+  and the release gate now tests hosted channel shapes, DM channels, message
+  filtering, normalized message writes, home-session summaries, deletion, and
+  typed validation errors.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
-  `20260525010000_purge_legacy_runtime_columns.sql`. A linked DB query confirms the
-  obsolete device, queue, execution-plan, checkout-binding, and claim-function
-  objects are absent.
+  `20260525020000_assert_pure_cloud_runtime_schema.sql`. A linked DB query confirms
+  the obsolete device, queue, execution-plan, checkout-binding, and claim-function
+  objects are absent; the newest migration now fails if any of those objects or
+  columns survive.
 - The retired external runtime connector has been removed from the hosted
   product surface. `npm run startup-office:surface` and
   `npm run startup-office:legacy-runtime` now fail if those old product terms or
