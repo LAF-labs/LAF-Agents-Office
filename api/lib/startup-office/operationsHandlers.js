@@ -1,3 +1,7 @@
+const {
+  createStartupOfficeWorkerJobRecoveryHandlers,
+} = require("./workerJobRecoveryHandlers");
+
 function createStartupOfficeOperationsHandlers(deps) {
   const {
     clamp,
@@ -21,6 +25,7 @@ function createStartupOfficeOperationsHandlers(deps) {
     writeAuditEvent,
     writeJSON,
   } = deps;
+  const recoveryHandlers = createStartupOfficeWorkerJobRecoveryHandlers(deps);
 
   async function handleStartupOfficePolicy(req, res) {
     const { membership } = await requireUser(req);
@@ -131,6 +136,7 @@ function createStartupOfficeOperationsHandlers(deps) {
     betaDashboard: handleStartupOfficeBetaDashboard,
     billing: handleStartupOfficeBilling,
     policy: handleStartupOfficePolicy,
+    workerJobAction: recoveryHandlers.workerJobAction,
   };
 }
 

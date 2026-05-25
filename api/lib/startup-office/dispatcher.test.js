@@ -18,6 +18,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "policy",
     "billing",
     "betaDashboard",
+    "workerJobAction",
     "loops",
     "loopRun",
     "run",
@@ -46,6 +47,13 @@ test("Startup Office route matcher decodes path params and aliases", () => {
   assert.deepEqual(
     matchStartupOfficeRoute("startup-office/runs/run-1/retry", "POST")?.args,
     ["run-1", "retry"],
+  );
+  assert.deepEqual(
+    matchStartupOfficeRoute(
+      "startup-office/admin/worker-jobs/job%2F1/retry",
+      "POST",
+    )?.args,
+    ["job/1", "retry"],
   );
   assert.deepEqual(
     matchStartupOfficeRoute(

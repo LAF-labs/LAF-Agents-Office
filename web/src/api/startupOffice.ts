@@ -181,6 +181,22 @@ export interface StartupOfficeBetaOps {
   };
 }
 
+export interface StartupOfficeWorkerJob {
+  attempts?: number;
+  available_at?: string | null;
+  completed_at?: string | null;
+  created_at?: string | null;
+  id: string;
+  last_error?: string;
+  locked_at?: string | null;
+  loop_slug?: string;
+  max_attempts?: number;
+  metadata?: Record<string, unknown>;
+  run_id?: string | null;
+  status: string;
+  updated_at?: string | null;
+}
+
 export interface StartupOfficeApprovalPolicy {
   founder_approval_required: Record<string, boolean>;
   require_citations_for_public_claims: boolean;
@@ -234,6 +250,11 @@ export interface StartupOfficeRunCancelResponse {
   status?: string;
 }
 
+export interface StartupOfficeWorkerJobActionResponse {
+  status: string;
+  worker_job: StartupOfficeWorkerJob;
+}
+
 export interface StartupOfficeApprovalActionResponse {
   approval?: StartupOfficeApproval | null;
   memory_diff?: Record<string, unknown> | null;
@@ -282,6 +303,20 @@ export function cancelStartupOfficeRun(runID: string) {
   return post<StartupOfficeRunCancelResponse>(
     `/startup-office/runs/${encodeURIComponent(runID)}/cancel`,
     {},
+  );
+}
+
+export function retryStartupOfficeWorkerJob(jobID: string, body?: { note?: string }) {
+  return post<StartupOfficeWorkerJobActionResponse>(
+    `/startup-office/admin/worker-jobs/${encodeURIComponent(jobID)}/retry`,
+    body ?? {},
+  );
+}
+
+export function cancelStartupOfficeWorkerJob(jobID: string, body?: { note?: string }) {
+  return post<StartupOfficeWorkerJobActionResponse>(
+    `/startup-office/admin/worker-jobs/${encodeURIComponent(jobID)}/cancel`,
+    body ?? {},
   );
 }
 

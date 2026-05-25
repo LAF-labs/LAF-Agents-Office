@@ -149,9 +149,13 @@ If the AI loop worker fails repeatedly:
    status.
 4. Confirm the model provider env, Supabase service role, and the
    `claim_startup_office_worker_job` RPC are healthy.
-5. Re-run `npm run beta:release-gate`, `npm run hosted-env:preflight`, and
+5. From an owner/admin session, retry a recovered job with
+   `POST /api/startup-office/admin/worker-jobs/{job_id}/retry` or cancel a
+   duplicate/unsafe job with
+   `POST /api/startup-office/admin/worker-jobs/{job_id}/cancel`.
+6. Re-run `npm run beta:release-gate`, `npm run hosted-env:preflight`, and
    `npm run startup-office:loop-worker`.
-6. Re-enable the loop worker workflow and dispatch one manual run.
+7. Re-enable the loop worker workflow and dispatch one manual run.
 
 If the outbox worker fails repeatedly:
 

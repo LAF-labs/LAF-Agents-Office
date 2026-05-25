@@ -200,7 +200,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I170 | Portability | There is no escrow or backup story for paid customers. | ops |
 | SV-I171 | Reliability | Worker jobs now claim with leases and idempotent side effects, but exactly-once semantics still need concurrency and crash-recovery proof. | worker jobs |
 | SV-I172 | Reliability | Startup Office loop side effects are idempotency-keyed across direct and scheduled worker paths, but the remaining write surface still needs the same contract. | retry route |
-| SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer, but founder-facing recovery and replay controls are not complete. | worker jobs |
+| SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer and have admin retry/cancel APIs, but founder-facing recovery UI is not complete. | worker jobs |
 | SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
 | SV-I176 | Reliability | Long-running model calls do not have durable timeout policy in schema. | worker |
@@ -521,6 +521,12 @@ and missing typed contracts.
   exhausted jobs. `.github/workflows/startup-office-loop-worker.yml` runs the
   worker on schedule, and the release gate covers `loopWorker` tests plus the
   deploy/runbook checker.
+- R7/R8 now adds worker job recovery APIs. Owner/admin operators can call
+  `POST /api/startup-office/admin/worker-jobs/{job_id}/retry` to requeue
+  failed, canceled, or dead-letter jobs after fixing provider/config issues, or
+  `POST /api/startup-office/admin/worker-jobs/{job_id}/cancel` to close unsafe
+  queued/running jobs. Both paths update associated unfinished runs and emit
+  audit events.
 - R7/R8 now adds scheduled queue monitoring. `.github/workflows/startup-office-ops-monitor.yml`
   runs every fifteen minutes, preflights production env, then fails on
   dead-letter outbox rows, dead-letter worker jobs, stale processing outbox

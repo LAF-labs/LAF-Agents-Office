@@ -30,6 +30,9 @@ function baseDeps(overrides = {}) {
       err.status = status;
       return err;
     },
+    nowISO() {
+      return "2026-05-25T12:00:00.000Z";
+    },
     objectValue(value) {
       return value && typeof value === "object" && !Array.isArray(value) ? value : {};
     },
@@ -194,6 +197,91 @@ test("beta dashboard composes billing, failures, approvals, notifications, outbo
   assert.equal(deps.calls.rest[0].options.query.team_id, "eq.team-1");
   assert.equal(deps.calls.rest[1].table, "startup_office_outbox_events");
   assert.equal(deps.calls.rest[1].options.query.status, "in.(queued,failed,dead_letter)");
+});
+
+test("worker job retry requeues a dead-letter job and its run", async () => {
+  const job = {
+    attempts: 2,
+    id: "job-1",
+    metadata: { worker_id: "old-worker" },
+    run_id: "run-1",
+    status: "dead_letter",
+  };
+  const deps = baseDeps({
+    async readBody() {
+      return { note: "provider fixed" };
+    },
+    async safeStartupOfficeRest(table, options) {
+      deps.calls.rest.push({ options, table });
+      if (table === "startup_office_worker_jobs" && !options.method) return [job];
+      return [{ id: table === "startup_office_runs" ? "run-1" : "job-1", ...options.body }];
+    },
+  });
+  const handlers = createStartupOfficeOperationsHandlers(deps);
+
+  await handlers.workerJobAction({ method: "POST" }, {}, "job-1", "retry");
+
+  assert.equal(deps.calls.adminChecks[0].message, "owner or admin role required for worker job recovery");
+  assert.equal(deps.calls.rest[0].table, "startup_office_worker_jobs");
+  assert.equal(deps.calls.rest[1].table, "startup_office_worker_jobs");
+  assert.equal(deps.calls.rest[1].options.method, "PATCH");
+  assert.equal(deps.calls.rest[1].options.body.status, "queued");
+  assert.equal(deps.calls.rest[1].options.body.attempts, 0);
+  assert.equal(deps.calls.rest[1].options.body.metadata.previous_status, "dead_letter");
+  assert.equal(deps.calls.rest[1].options.body.metadata.recovery_note, "provider fixed");
+  assert.equal(deps.calls.rest[2].table, "startup_office_runs");
+  assert.equal(deps.calls.rest[2].options.query.status, "in.(failed,canceled,queued)");
+  assert.equal(deps.calls.rest[2].options.body.status, "queued");
+  assert.equal(deps.calls.audits[0][1], "startup_office.worker_job_retried");
+  assert.equal(deps.calls.writes[0].status, 200);
+  assert.equal(deps.calls.writes[0].body.status, "queued");
+});
+
+test("worker job cancel closes the job and cancels an unfinished run", async () => {
+  const job = {
+    attempts: 1,
+    id: "job-2",
+    metadata: {},
+    run_id: "run-2",
+    status: "running",
+  };
+  const deps = baseDeps({
+    async readBody() {
+      return { reason: "duplicate claim" };
+    },
+    async safeStartupOfficeRest(table, options) {
+      deps.calls.rest.push({ options, table });
+      if (table === "startup_office_worker_jobs" && !options.method) return [job];
+      return [{ id: table === "startup_office_runs" ? "run-2" : "job-2", ...options.body }];
+    },
+  });
+  const handlers = createStartupOfficeOperationsHandlers(deps);
+
+  await handlers.workerJobAction({ method: "POST" }, {}, "job-2", "cancel");
+
+  assert.equal(deps.calls.rest[1].options.body.status, "canceled");
+  assert.equal(deps.calls.rest[1].options.body.locked_at, null);
+  assert.equal(deps.calls.rest[1].options.body.metadata.cancellation_note, "duplicate claim");
+  assert.equal(deps.calls.rest[2].table, "startup_office_runs");
+  assert.equal(deps.calls.rest[2].options.query.status, "in.(queued,running,failed)");
+  assert.equal(deps.calls.rest[2].options.body.status, "canceled");
+  assert.equal(deps.calls.audits[0][1], "startup_office.worker_job_canceled");
+  assert.equal(deps.calls.writes[0].body.status, "canceled");
+});
+
+test("worker job recovery rejects unsafe state transitions", async () => {
+  const deps = baseDeps({
+    async safeStartupOfficeRest(table, options) {
+      deps.calls.rest.push({ options, table });
+      return [{ id: "job-3", status: "queued" }];
+    },
+  });
+  const handlers = createStartupOfficeOperationsHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.workerJobAction({ method: "POST" }, {}, "job-3", "retry"),
+    (err) => err.status === 409 && /only failed/.test(err.message),
+  );
 });
 
 test("operations handlers preserve typed 405 errors", async () => {

@@ -231,6 +231,7 @@ const HOSTED_CONVERSATION_HANDLERS = createHostedConversationHandlers({
 const STARTUP_OFFICE_OPERATIONS_HANDLERS = createStartupOfficeOperationsHandlers({
   clamp,
   createHTTPError: startupOfficeHTTPError,
+  nowISO,
   objectValue,
   readBody,
   requireAdminRole,
@@ -341,6 +342,7 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   policy: STARTUP_OFFICE_OPERATIONS_HANDLERS.policy,
   receipts: STARTUP_OFFICE_QUERY_HANDLERS.receipts,
   run: STARTUP_OFFICE_WORKFLOW_HANDLERS.run,
+  workerJobAction: STARTUP_OFFICE_OPERATIONS_HANDLERS.workerJobAction,
 });
 
 class HTTPError extends Error {

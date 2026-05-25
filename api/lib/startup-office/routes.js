@@ -61,6 +61,20 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     paths: Object.freeze(["startup-office/admin/beta-dashboard"]),
   },
   {
+    id: "workerJobAction",
+    methods: Object.freeze(["POST"]),
+    pattern: "^startup-office/admin/worker-jobs/([^/]+)/(retry|cancel)$",
+    params: Object.freeze(["jobID", "action"]),
+    client: Object.freeze([
+      clientContract("retryStartupOfficeWorkerJob", "POST", "StartupOfficeWorkerJobActionResponse", [
+        "/startup-office/admin/worker-jobs/${encodeURIComponent(jobID)}/retry",
+      ]),
+      clientContract("cancelStartupOfficeWorkerJob", "POST", "StartupOfficeWorkerJobActionResponse", [
+        "/startup-office/admin/worker-jobs/${encodeURIComponent(jobID)}/cancel",
+      ]),
+    ]),
+  },
+  {
     id: "loops",
     methods: Object.freeze(["GET", "POST"]),
     paths: Object.freeze(["startup-office/loops", "loops"]),
