@@ -4,6 +4,7 @@ const test = require("node:test");
 const {
   createStartupOfficeOperationsHandlers,
 } = require("./operationsHandlers");
+const { startupOfficeApprovalPolicy } = require("./approvalPolicy");
 
 const membership = Object.freeze({
   team_id: "team-1",
@@ -133,6 +134,44 @@ test("policy handler reads and updates approval policy through injected services
     true,
   );
   assert.equal(deps.calls.audits[0][1], "startup_office.policy_updated");
+});
+
+test("policy handler merges action modes without dropping existing approvals", async () => {
+  const deps = baseDeps({
+    startupOfficeApprovalPolicy,
+    async workspaceSettings() {
+      return {
+        preferences: {
+          startup_office_approval_policy: {
+            action_modes: {
+              external_send: "draft_only",
+              payment: "approval_required",
+            },
+          },
+        },
+      };
+    },
+    async readBody() {
+      return {
+        policy: {
+          action_modes: {
+            publish: "draft_only",
+          },
+        },
+      };
+    },
+  });
+  const handlers = createStartupOfficeOperationsHandlers(deps);
+
+  await handlers.policy({ method: "PATCH" }, {});
+
+  const policy = deps.calls.settingsPatches[0].preferences.startup_office_approval_policy;
+  assert.equal(policy.action_modes.external_send, "draft_only");
+  assert.equal(policy.action_modes.payment, "approval_required");
+  assert.equal(policy.action_modes.publish, "draft_only");
+  assert.equal(policy.founder_approval_required.external_send, false);
+  assert.equal(policy.founder_approval_required.payment, true);
+  assert.equal(deps.calls.audits[0][4].action_modes.publish, "draft_only");
 });
 
 test("billing handler clamps beta limits and records an audit event", async () => {

@@ -404,6 +404,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   runStartupOfficeLoop,
   safeStartupOfficeRest,
   shortID,
+  startupOfficeApprovalPolicy,
   startupOfficeApprovals,
   startupOfficeArtifacts,
   startupOfficeBetaOpsSnapshot,
@@ -413,6 +414,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   startupOfficeReceipts,
   startupOfficeRepository,
   truncateText,
+  workspaceSettings,
   writeAuditEvent,
   writeJSON,
 });

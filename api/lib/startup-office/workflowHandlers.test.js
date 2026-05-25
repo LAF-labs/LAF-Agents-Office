@@ -276,12 +276,29 @@ test("loopRun executes immediately and records usage plus notification events", 
     async readBody() {
       return { inputs: { market: "founders" } };
     },
+    startupOfficeApprovalPolicy(settings) {
+      return settings.preferences.startup_office_approval_policy;
+    },
+    async workspaceSettings() {
+      return {
+        preferences: {
+          startup_office_approval_policy: {
+            action_modes: {
+              external_send: "draft_only",
+            },
+          },
+        },
+      };
+    },
   });
   const handlers = createStartupOfficeWorkflowHandlers(deps);
 
   await handlers.loopRun({ method: "POST" }, {}, "idea-validation");
 
   assert.equal(deps.calls.loopRunArgs.modelClient.provider, "fake");
+  assert.equal(deps.calls.loopRunArgs.approvalPolicy.action_modes.external_send, "draft_only");
+  assert.equal(deps.calls.createdRun.metadata.approval_policy.action_modes.external_send, "draft_only");
+  assert.equal(deps.calls.createdWorkerJob.metadata.approval_policy.action_modes.external_send, "draft_only");
   assert.equal(deps.calls.loopRunArgs.skillInvocations[0].skill_name, "market-research");
   assert.equal(deps.calls.writes[0].status, 200);
   assert.equal(deps.calls.writes[0].body.status, "approval_waiting");

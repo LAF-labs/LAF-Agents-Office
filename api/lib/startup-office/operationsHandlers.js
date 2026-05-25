@@ -1,6 +1,9 @@
 const {
   createStartupOfficeWorkerJobRecoveryHandlers,
 } = require("./workerJobRecoveryHandlers");
+const {
+  mergeStartupOfficeApprovalPolicyPatch,
+} = require("./approvalPolicy");
 
 function createStartupOfficeOperationsHandlers(deps) {
   const {
@@ -41,10 +44,15 @@ function createStartupOfficeOperationsHandlers(deps) {
     requirePermission(membership, "workspace:manage");
     const body = await readBody(req);
     const currentPreferences = objectValue(settings?.preferences);
+    const incomingPolicy = body.policy || body;
+    const policyPatch = mergeStartupOfficeApprovalPolicyPatch(
+      currentPreferences.startup_office_approval_policy,
+      incomingPolicy,
+    );
     const policy = startupOfficeApprovalPolicy({
       preferences: {
         ...currentPreferences,
-        startup_office_approval_policy: body.policy || body,
+        startup_office_approval_policy: policyPatch,
       },
     });
     const updated = await upsertWorkspaceSettings(membership.team_id, {
@@ -54,6 +62,7 @@ function createStartupOfficeOperationsHandlers(deps) {
       },
     });
     await writeAuditEvent(membership, "startup_office.policy_updated", "team", membership.team_id, {
+      action_modes: policy.action_modes,
       require_citations_for_public_claims: policy.require_citations_for_public_claims,
     });
     writeJSON(res, 200, {

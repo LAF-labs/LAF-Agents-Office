@@ -214,6 +214,13 @@ export interface StartupOfficeWorkerJob {
 }
 
 export interface StartupOfficeApprovalPolicy {
+  action_modes: Record<string, "approval_required" | "draft_only" | string>;
+  actions?: Array<{
+    label: string;
+    mode: "approval_required" | "draft_only" | string;
+    type: string;
+  }>;
+  auto_draft_only: Record<string, boolean>;
   founder_approval_required: Record<string, boolean>;
   require_citations_for_public_claims: boolean;
   revision_enabled: boolean;

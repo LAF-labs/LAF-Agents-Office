@@ -1,24 +1,7 @@
-const DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY = Object.freeze({
-  founder_approval_required: {
-    customer_promises: true,
-    legal_sensitive_language: true,
-    outbound_messages: true,
-    pricing_changes: true,
-    public_claims: true,
-    spend: true,
-  },
-  require_citations_for_public_claims: true,
-  revision_enabled: true,
-  support_access: {
-    logged: true,
-    time_bound_hours: 24,
-    visible_to_owner: true,
-  },
-});
+const { startupOfficeApprovalPolicy } = require("./approvalPolicy");
 
 function createStartupOfficeWorkspaceConfigHandlers(deps) {
   const {
-    clamp,
     createHTTPError,
     nowISO,
     objectValue,
@@ -158,36 +141,6 @@ function createStartupOfficeWorkspaceConfigHandlers(deps) {
       patch.team_lead_slug = "ceo";
     }
     return patch;
-  }
-
-  function startupOfficeApprovalPolicy(settings) {
-    const preferences = objectValue(settings?.preferences);
-    const raw = objectValue(preferences.startup_office_approval_policy);
-    const approvalRequired = objectValue(raw.founder_approval_required);
-    const supportAccess = objectValue(raw.support_access);
-    return {
-      founder_approval_required: {
-        ...DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.founder_approval_required,
-        ...approvalRequired,
-      },
-      require_citations_for_public_claims:
-        raw.require_citations_for_public_claims === undefined
-          ? DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.require_citations_for_public_claims
-          : Boolean(raw.require_citations_for_public_claims),
-      revision_enabled:
-        raw.revision_enabled === undefined
-          ? DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.revision_enabled
-          : Boolean(raw.revision_enabled),
-      support_access: {
-        ...DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.support_access,
-        ...supportAccess,
-        time_bound_hours: clamp(
-          Number(supportAccess.time_bound_hours || DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY.support_access.time_bound_hours),
-          1,
-          168,
-        ),
-      },
-    };
   }
 
   function companyProfilePatch(body) {

@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const { createServiceRoleAccessGuards } = require("../api/lib/hosted/serviceRoleAccess");
+const { startupOfficeApprovalPolicy } = require("../api/lib/startup-office/approvalPolicy");
 const { createStartupOfficeRepository } = require("../api/lib/startup-office/repositories");
 const { publicCompanyProfile } = require("../api/lib/startup-office/serializers");
 const { createBrowserResearchClient } = require("../workers/startup-office/browserResearch");
@@ -122,15 +123,16 @@ async function loadWorkerJobContext(job) {
   const run = await repo.findRun(job.team_id, job.run_id);
   if (!run) throw new Error(`worker job run not found: ${job.run_id || "missing"}`);
   const membership = await membershipForJob(job);
-  const [team, user] = await Promise.all([
+  const [team, user, settings] = await Promise.all([
     getTeam(job.team_id),
     getAuthUser(membership.user_id),
+    workspaceSettings(job.team_id),
   ]);
   const loop = await repo.ensureLoop(
     membership,
     run.loop_id || job.loop_slug || objectValue(run.metadata).loop_slug,
   );
-  const profile = await companyProfileSnapshot(job.team_id, team, user);
+  const profile = await companyProfileSnapshot(job.team_id, team, user, settings);
   const jobMetadata = objectValue(job.metadata);
   return {
     inputs: objectValue(run.inputs),
@@ -151,6 +153,7 @@ async function loadWorkerJobContext(job) {
       run.objective || jobMetadata.objective || loop.objective || "Run this operating loop.",
       2000,
     ),
+    approvalPolicy: startupOfficeApprovalPolicy(settings),
     profile,
     repository: repo,
     run,
@@ -159,6 +162,17 @@ async function loadWorkerJobContext(job) {
       : [],
     truncateText,
   };
+}
+
+async function workspaceSettings(teamID) {
+  const rows = await rest("workspace_settings", {
+    query: {
+      limit: "1",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  return rows?.[0] || null;
 }
 
 async function membershipForJob(job) {
@@ -211,15 +225,8 @@ async function getAuthUser(userID) {
   }
 }
 
-async function companyProfileSnapshot(teamID, team, user) {
-  const [settingsRows, profileRows] = await Promise.all([
-    rest("workspace_settings", {
-      query: {
-        limit: "1",
-        select: "*",
-        team_id: `eq.${teamID}`,
-      },
-    }),
+async function companyProfileSnapshot(teamID, team, user, settings) {
+  const [profileRows] = await Promise.all([
     rest("company_profiles", {
       query: {
         limit: "1",
@@ -230,7 +237,7 @@ async function companyProfileSnapshot(teamID, team, user) {
   ]);
   return publicCompanyProfile({
     row: profileRows?.[0] || null,
-    settings: settingsRows?.[0] || null,
+    settings: settings || null,
     team,
     user,
   });

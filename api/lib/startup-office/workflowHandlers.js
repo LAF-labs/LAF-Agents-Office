@@ -27,6 +27,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     runStartupOfficeLoop,
     safeStartupOfficeRest,
     shortID,
+    startupOfficeApprovalPolicy,
     startupOfficeApprovals,
     startupOfficeArtifacts,
     startupOfficeBetaOpsSnapshot,
@@ -36,6 +37,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     startupOfficeReceipts,
     startupOfficeRepository,
     truncateText,
+    workspaceSettings,
     writeAuditEvent,
     writeJSON,
   } = deps;
@@ -70,12 +72,14 @@ function createStartupOfficeWorkflowHandlers(deps) {
     const objective = truncateText(body.objective || loop.objective || profile.priority || "Run this operating loop.", 2000);
     const now = nowISO();
     const modelClient = startupOfficeModelClient();
+    const approvalPolicy = await approvalPolicyForMembership(membership.team_id);
     const skillInvocations = startupOfficeLoopSkillInvocations({ inputs: body.inputs, loop, objective, profile, truncateText });
     const run = await repository.createRun(membership, {
       idempotency_key: idempotencyKey,
       inputs: body.inputs,
       loop_id: loop.id || null,
       metadata: {
+        approval_policy: approvalPolicy,
         company_name: profile.name || "",
         loop_slug: loop.slug,
         provider: modelClient.provider,
@@ -90,6 +94,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     const workerJob = await repository.createWorkerJob(membership, {
       loop_slug: loop.slug,
       metadata: {
+        approval_policy: approvalPolicy,
         objective,
         provider: modelClient.provider,
         skill_invocations: skillInvocations,
@@ -131,18 +136,8 @@ function createStartupOfficeWorkflowHandlers(deps) {
       return;
     }
     const result = await runStartupOfficeLoop({
-      inputs: body.inputs,
-      loop,
-      membership,
-      modelClient,
-      nowISO,
-      objective,
-      profile,
-      repository,
-      run: queuedRun,
-      skillInvocations,
-      truncateText,
-      workerJob,
+      approvalPolicy, inputs: body.inputs, loop, membership, modelClient, nowISO, objective,
+      profile, repository, run: queuedRun, skillInvocations, truncateText, workerJob,
     });
     await recordStartupOfficeRunOutcome({ membership, objectValue, result, safeStartupOfficeRest });
     writeJSON(res, 200, {
@@ -238,12 +233,15 @@ function createStartupOfficeWorkflowHandlers(deps) {
       const objective = truncateText(body.objective || run.objective || loop.objective || "Retry this operating loop.", 2000);
       const inputs = body.inputsProvided ? body.inputs : objectValue(run.inputs);
       const now = nowISO();
+      const modelClient = startupOfficeModelClient();
+      const approvalPolicy = await approvalPolicyForMembership(membership.team_id);
       const skillInvocations = startupOfficeLoopSkillInvocations({ inputs, loop, objective, profile, truncateText });
       const retryRun = await repository.updateRun(membership.team_id, run.id, {
         completed_at: null,
         inputs,
         metadata: {
           ...objectValue(run.metadata),
+          approval_policy: approvalPolicy,
           retry_requested_at: now,
           retry_requested_by: membership.user_id,
           skill_invocations: skillInvocations,
@@ -252,11 +250,11 @@ function createStartupOfficeWorkflowHandlers(deps) {
         status: "queued",
         updated_at: now,
       });
-      const modelClient = startupOfficeModelClient();
       const workerJob = await repository.createWorkerJob(membership, {
         loop_slug: loop.slug,
         metadata: {
           objective,
+          approval_policy: approvalPolicy,
           provider: modelClient.provider,
           retry: true,
           skill_invocations: skillInvocations,
@@ -276,18 +274,8 @@ function createStartupOfficeWorkflowHandlers(deps) {
         worker_job_id: workerJob?.id || "",
       });
       const result = await runStartupOfficeLoop({
-        inputs,
-        loop,
-        membership,
-        modelClient,
-        nowISO,
-        objective,
-        profile,
-        repository,
-        run: retryRun || run,
-        skillInvocations,
-        truncateText,
-        workerJob,
+        approvalPolicy, inputs, loop, membership, modelClient, nowISO, objective,
+        profile, repository, run: retryRun || run, skillInvocations, truncateText, workerJob,
       });
       await recordStartupOfficeRunOutcome({ membership, objectValue, result, safeStartupOfficeRest });
       writeJSON(res, 200, {
@@ -500,6 +488,12 @@ function createStartupOfficeWorkflowHandlers(deps) {
     if (usage.model_spend_cents >= billing.monthly_model_spend_cents) {
       throw createHTTPError(402, "monthly Startup Office model spend limit reached");
     }
+  }
+
+  async function approvalPolicyForMembership(teamID) {
+    if (typeof startupOfficeApprovalPolicy !== "function") return null;
+    const settings = typeof workspaceSettings === "function" ? await workspaceSettings(teamID) : null;
+    return startupOfficeApprovalPolicy(settings);
   }
 
   return {

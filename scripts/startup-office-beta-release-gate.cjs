@@ -38,6 +38,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/signupHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/usageHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/authorization.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/approvalPolicy.test.js"]],
   ["node", ["--test", "api/lib/startup-office/dispatcher.test.js"]],
   ["node", ["--test", "api/lib/startup-office/demoSeedHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/profileHandlers.test.js"]],

@@ -89,6 +89,44 @@ test("startup office loop engine records external-impact approval gates", async 
   assert.equal(state.receipts.at(-1).trace.approval_risk_level, "high");
 });
 
+test("startup office loop engine completes draft-only policy runs without approvals", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    approvalPolicy: {
+      action_modes: {
+        customer_promise: "draft_only",
+        external_send: "draft_only",
+        legal_sensitive: "draft_only",
+        payment: "draft_only",
+        pricing_change: "draft_only",
+        public_claim: "draft_only",
+        publish: "draft_only",
+      },
+    },
+    inputs: { campaign: "launch the paid beta" },
+    loop: launchCampaignLoop(),
+    membership: membership(),
+    modelClient: launchCampaignModelClient(),
+    nowISO: fixedNow,
+    objective: "Prepare a public launch campaign",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "completed");
+  assert.equal(result.run.status, "completed");
+  assert.equal(result.approval, null);
+  assert.equal(state.approvals.length, 0);
+  assert.equal(result.run.metadata.approval_required, false);
+  assert.equal(result.run.metadata.approval_mode, "draft_only");
+  assert.equal(result.artifact.metadata.approval_gates.every((gate) => gate.required === false), true);
+  assert.equal(state.receipts.at(-1).trace.approval_required, false);
+  assert.equal(state.jobPatches.at(-1).metadata.approval_required, false);
+});
+
 test("startup office loop engine records failed model calls as receipted run failures", async () => {
   const state = fakeRepositoryState();
   const result = await runStartupOfficeLoop({

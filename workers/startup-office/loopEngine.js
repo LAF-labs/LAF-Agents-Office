@@ -1,5 +1,8 @@
 const { buildStartupOfficeContext } = require("./contextBuilder");
 const { approvalGatesFor, approvalRiskLevel } = require("./approvalGates");
+const {
+  startupOfficeApprovalDecision,
+} = require("../../api/lib/startup-office/approvalPolicy");
 const { buildCitationSources, mergeCitationSources } = require("./citationSources");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
@@ -24,6 +27,7 @@ async function runStartupOfficeLoop({
   skillInvocations = [],
   truncateText,
   workerJob = null,
+  approvalPolicy = null,
 }) {
   const template = startupOfficeLoopTemplate(loop.slug);
   const startedAt = nowISO();
@@ -123,6 +127,9 @@ async function runStartupOfficeLoop({
       output: modelResult.data,
       template,
     });
+    const approvalDecision = startupOfficeApprovalDecision(approvalPolicy, approvalGates);
+    const effectiveApprovalGates = approvalDecision.approval_gates;
+    const approvalRequired = approvalDecision.approval_required;
     const approvalRisk = approvalRiskLevel(quality.risk_level, approvalGates);
     const qualityMetadata = {
       ...quality,
@@ -143,8 +150,10 @@ async function runStartupOfficeLoop({
           receipt_count: context.recent_receipts.length,
         },
         browser_research: browserResearch,
-        approval_gates: approvalGates,
-        approval_required: true,
+        approval_gates: effectiveApprovalGates,
+        approval_mode: approvalDecision.approval_mode,
+        approval_policy: approvalDecision.approval_policy,
+        approval_required: approvalRequired,
         approval_risk_level: approvalRisk,
         loop_slug: loop.slug,
         model: modelClient.model,
@@ -161,57 +170,65 @@ async function runStartupOfficeLoop({
       run_id: run.id,
       title: truncateText(template.artifactTitle, 180),
     });
-    const currentMemoryPages = await repository.memoryPages(membership.team_id, {
-      status: "approved",
-      limit: 50,
-    });
-    const nextMemoryPages = startupOfficeMemoryPromotionPreview({
-      approval: null,
-      artifact,
-      currentPages: currentMemoryPages,
-      profile,
-      run: {
-        ...runningRun,
-        id: run.id,
-        summary: template.summary(modelResult.data),
-      },
-    });
-    const memoryDiff = buildStartupOfficeMemoryDiff({
-      currentPages: currentMemoryPages,
-      nextPages: nextMemoryPages,
-    });
-    const approval = await repository.createApproval(membership, {
-      action: "approve_loop_draft",
-      artifact_id: artifact?.id || null,
-      details: truncateText(artifactContent, 4000),
-      idempotency_key: `${sideEffectKey}:approval`,
-      metadata: {
-        approval_gates: approvalGates,
-        approval_required: true,
-        approval_risk_level: approvalRisk,
-        cost: modelResult.cost,
-        browser_research: browserResearch,
-        loop_slug: loop.slug,
-        memory_diff: memoryDiff,
-        model: modelClient.model,
-        provider: modelClient.provider,
-        quality: qualityMetadata,
-        skill_invocations: recordedSkillInvocations,
-      },
-      requested_by: membership.user_id,
-      risk_level: approvalRisk,
-      run_id: run.id,
-      status: "pending",
-      title: truncateText(`Approve ${loop.name} AI draft`, 180),
-    });
+    let approval = null;
+    let memoryDiff = null;
+    if (approvalRequired) {
+      const currentMemoryPages = await repository.memoryPages(membership.team_id, {
+        status: "approved",
+        limit: 50,
+      });
+      const nextMemoryPages = startupOfficeMemoryPromotionPreview({
+        approval: null,
+        artifact,
+        currentPages: currentMemoryPages,
+        profile,
+        run: {
+          ...runningRun,
+          id: run.id,
+          summary: template.summary(modelResult.data),
+        },
+      });
+      memoryDiff = buildStartupOfficeMemoryDiff({
+        currentPages: currentMemoryPages,
+        nextPages: nextMemoryPages,
+      });
+      approval = await repository.createApproval(membership, {
+        action: "approve_loop_draft",
+        artifact_id: artifact?.id || null,
+        details: truncateText(artifactContent, 4000),
+        idempotency_key: `${sideEffectKey}:approval`,
+        metadata: {
+          approval_gates: effectiveApprovalGates,
+          approval_mode: approvalDecision.approval_mode,
+          approval_policy: approvalDecision.approval_policy,
+          approval_required: approvalRequired,
+          approval_risk_level: approvalRisk,
+          cost: modelResult.cost,
+          browser_research: browserResearch,
+          loop_slug: loop.slug,
+          memory_diff: memoryDiff,
+          model: modelClient.model,
+          provider: modelClient.provider,
+          quality: qualityMetadata,
+          skill_invocations: recordedSkillInvocations,
+        },
+        requested_by: membership.user_id,
+        risk_level: approvalRisk,
+        run_id: run.id,
+        status: "pending",
+        title: truncateText(`Approve ${loop.name} AI draft`, 180),
+      });
+    }
     const completedAt = nowISO();
     const updatedRun = await repository.updateRun(membership.team_id, run.id, {
-      completed_at: null,
+      completed_at: approvalRequired ? null : completedAt,
       metadata: mergeMetadata(run.metadata, {
         attempt,
         cost: modelResult.cost,
-        approval_gates: approvalGates,
-        approval_required: true,
+        approval_gates: effectiveApprovalGates,
+        approval_mode: approvalDecision.approval_mode,
+        approval_policy: approvalDecision.approval_policy,
+        approval_required: approvalRequired,
         approval_risk_level: approvalRisk,
         browser_research: {
           provider: browserResearch.provider,
@@ -224,7 +241,7 @@ async function runStartupOfficeLoop({
         skill_invocations: recordedSkillInvocations,
         worker_job_id: workerJob?.id || null,
       }),
-      status: "waiting_approval",
+      status: approvalRequired ? "waiting_approval" : "completed",
       summary: truncateText(template.summary(modelResult.data), 2000),
       updated_at: completedAt,
     });
@@ -235,8 +252,10 @@ async function runStartupOfficeLoop({
         metadata: {
           artifact_id: artifact?.id || null,
           approval_id: approval?.id || null,
-          approval_gates: approvalGates,
-          approval_required: true,
+          approval_gates: effectiveApprovalGates,
+          approval_mode: approvalDecision.approval_mode,
+          approval_policy: approvalDecision.approval_policy,
+          approval_required: approvalRequired,
           approval_risk_level: approvalRisk,
           browser_research: {
             provider: browserResearch.provider,
@@ -255,11 +274,15 @@ async function runStartupOfficeLoop({
       approval_id: approval?.id || null,
       event_type: "run.ai_draft_ready",
       run_id: run.id,
-      summary: `${loop.name} AI draft is ready for founder approval.`,
+      summary: approvalRequired
+        ? `${loop.name} AI draft is ready for founder approval.`
+        : `${loop.name} AI draft is complete under the workspace draft-only policy.`,
       trace: {
         artifact_id: artifact?.id || null,
-        approval_gates: approvalGates,
-        approval_required: true,
+        approval_gates: effectiveApprovalGates,
+        approval_mode: approvalDecision.approval_mode,
+        approval_policy: approvalDecision.approval_policy,
+        approval_required: approvalRequired,
         approval_risk_level: approvalRisk,
         browser_research: {
           provider: browserResearch.provider,
@@ -276,7 +299,7 @@ async function runStartupOfficeLoop({
       artifact,
       receipt,
       run: updatedRun || run,
-      status: "waiting_approval",
+      status: approvalRequired ? "waiting_approval" : "completed",
     };
   } catch (err) {
     const failedAt = nowISO();
