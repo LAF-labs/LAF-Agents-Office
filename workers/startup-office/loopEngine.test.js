@@ -96,6 +96,60 @@ test("startup office loop engine blocks externally informed drafts without citat
   assert.equal(state.receipts.at(-1).event_type, "run.failed");
 });
 
+test("startup office loop engine gathers browser research and records cited sources", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    browserResearchClient: {
+      provider: "fetch",
+      research: async ({ inputs }) => {
+        assert.deepEqual(inputs.research_urls, ["https://example.com/report"]);
+        return {
+          enabled: true,
+          findings: [
+            {
+              excerpt: "Founders want controlled AI startup offices.",
+              fetched_at: fixedNow(),
+              title: "Market Report",
+              url: "https://example.com/report",
+            },
+          ],
+          provider: "fetch",
+          skipped: [],
+          sources: [
+            {
+              fetched_at: fixedNow(),
+              label: "Market Report",
+              type: "browser_research",
+              url: "https://example.com/report",
+            },
+          ],
+        };
+      },
+    },
+    inputs: {
+      research_urls: ["https://example.com/report"],
+    },
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: citingModelClient(),
+    nowISO: fixedNow,
+    objective: "Validate the first buyer segment with web evidence",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    skillInvocations: skillInvocations(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "waiting_approval");
+  assert.equal(result.artifact.metadata.browser_research.sources[0].url, "https://example.com/report");
+  assert.equal(result.artifact.metadata.context.browser_research_source_count, 1);
+  assert.equal(result.run.metadata.browser_research.source_count, 1);
+  assert.match(result.artifact.content, /Market Report: https:\/\/example.com\/report/);
+  assert.equal(state.receipts.at(-1).trace.browser_research.source_count, 1);
+});
+
 function fakeRepositoryState() {
   return {
     approvals: [],
@@ -200,6 +254,53 @@ function successfulModelClient() {
         summary: "A paid-beta validation wedge is plausible.",
       },
     }),
+  };
+}
+
+function citingModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async ({ input }) => {
+      assert.match(input, /browser_research/);
+      assert.match(input, /citation_sources/);
+      const output = {
+        assumptions: [
+          {
+            claim: "Founders want controlled AI startup offices.",
+            confidence: "medium",
+            evidence_needed: "Repeat the finding across three more calls.",
+          },
+        ],
+        customer_segment: "Solo B2B founders",
+        icp_hypothesis: "Solo B2B founders validating paid demand before hiring operators.",
+        next_evidence: [
+          {
+            experiment: "Follow-up interviews",
+            owner_action: "Ask for paid beta deposits.",
+            success_signal: "Two deposits.",
+          },
+        ],
+        next_actions: ["Ask five founders for a paid beta commitment."],
+        risk_level: "medium",
+        risks: ["One report is not enough evidence."],
+        sources: [{ label: "Market Report", url: "https://example.com/report" }],
+        summary: "Web evidence supports testing a founder-controlled paid beta.",
+      };
+      return {
+        cost: {
+          currency: "USD",
+          estimated_usd: null,
+          input_tokens: 10,
+          model: "fake-model",
+          output_tokens: 20,
+          pricing_source: "usage_tokens_only",
+          provider: "fake",
+          total_tokens: 30,
+        },
+        data: output,
+      };
+    },
   };
 }
 

@@ -171,6 +171,7 @@ const weeklyReviewTemplate = Object.freeze({
       "Operating context:",
       JSON.stringify(
         {
+          browser_research: context.browser_research || [],
           citation_sources: context.citation_sources || [],
           metrics: context.metrics || [],
           previous_runs: context.previous_runs || [],

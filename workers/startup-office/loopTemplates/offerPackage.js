@@ -172,6 +172,7 @@ const offerPackageTemplate = Object.freeze({
 function contextPacket(context) {
   return {
     assets: context.relevant_assets || [],
+    browser_research: context.browser_research || [],
     citation_sources: context.citation_sources || [],
     previous_runs: context.previous_runs || [],
     receipts: context.recent_receipts || [],

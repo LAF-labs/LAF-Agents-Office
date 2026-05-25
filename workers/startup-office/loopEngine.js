@@ -1,5 +1,5 @@
 const { buildStartupOfficeContext } = require("./contextBuilder");
-const { buildCitationSources } = require("./citationSources");
+const { buildCitationSources, mergeCitationSources } = require("./citationSources");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
 const { writeStartupOfficeRunReceipt } = require("./receiptWriter");
@@ -19,6 +19,7 @@ async function runStartupOfficeLoop({
   profile,
   repository,
   run,
+  browserResearchClient = null,
   skillInvocations = [],
   truncateText,
   workerJob = null,
@@ -81,6 +82,19 @@ async function runStartupOfficeLoop({
       signals: context.relevant_signals,
       wikiMemory: context.wiki_memory,
     });
+    const browserResearch = await gatherBrowserResearch({
+      browserResearchClient,
+      context,
+      inputs,
+      loop,
+    });
+    if (browserResearch.sources.length) {
+      context.citation_sources = mergeCitationSources(
+        context.citation_sources,
+        browserResearch.sources,
+      );
+    }
+    context.browser_research = browserResearch.findings;
     modelResult = await modelClient.generateStructured({
       input: template.userPrompt({ context, inputs, objective }),
       instructions: template.instructions,
@@ -114,9 +128,11 @@ async function runStartupOfficeLoop({
       metadata: {
         cost: modelResult.cost,
         context: {
+          browser_research_source_count: browserResearch.sources.length,
           memory_page_count: context.wiki_memory.length,
           receipt_count: context.recent_receipts.length,
         },
+        browser_research: browserResearch,
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
@@ -158,6 +174,7 @@ async function runStartupOfficeLoop({
       idempotency_key: `${sideEffectKey}:approval`,
       metadata: {
         cost: modelResult.cost,
+        browser_research: browserResearch,
         loop_slug: loop.slug,
         memory_diff: memoryDiff,
         model: modelClient.model,
@@ -177,6 +194,10 @@ async function runStartupOfficeLoop({
       metadata: mergeMetadata(run.metadata, {
         attempt,
         cost: modelResult.cost,
+        browser_research: {
+          provider: browserResearch.provider,
+          source_count: browserResearch.sources.length,
+        },
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
@@ -195,6 +216,10 @@ async function runStartupOfficeLoop({
         metadata: {
           artifact_id: artifact?.id || null,
           approval_id: approval?.id || null,
+          browser_research: {
+            provider: browserResearch.provider,
+            source_count: browserResearch.sources.length,
+          },
           cost: modelResult.cost,
           run_id: run.id,
           skill_invocations: recordedSkillInvocations,
@@ -211,6 +236,10 @@ async function runStartupOfficeLoop({
       summary: `${loop.name} AI draft is ready for founder approval.`,
       trace: {
         artifact_id: artifact?.id || null,
+        browser_research: {
+          provider: browserResearch.provider,
+          source_count: browserResearch.sources.length,
+        },
         cost: modelResult.cost,
         loop_slug: loop.slug,
         quality,
@@ -301,6 +330,32 @@ function normalizedSkillInvocations(skillInvocations, run) {
   if (Array.isArray(skillInvocations) && skillInvocations.length) return skillInvocations;
   const metadataInvocations = run?.metadata?.skill_invocations;
   return Array.isArray(metadataInvocations) ? metadataInvocations : [];
+}
+
+async function gatherBrowserResearch({ browserResearchClient, context, inputs, loop }) {
+  if (!browserResearchClient?.research) {
+    return {
+      enabled: false,
+      findings: [],
+      loop_slug: loop?.slug || "",
+      provider: "disabled",
+      skipped: [],
+      sources: [],
+    };
+  }
+  const result = await browserResearchClient.research({
+    context,
+    inputs,
+    loop,
+  });
+  return {
+    enabled: Boolean(result?.enabled),
+    findings: Array.isArray(result?.findings) ? result.findings : [],
+    loop_slug: result?.loop_slug || loop?.slug || "",
+    provider: result?.provider || browserResearchClient.provider || "unknown",
+    skipped: Array.isArray(result?.skipped) ? result.skipped : [],
+    sources: Array.isArray(result?.sources) ? result.sources : [],
+  };
 }
 
 module.exports = {

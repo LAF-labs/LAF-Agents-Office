@@ -144,6 +144,7 @@ const ideaValidationTemplate = Object.freeze({
       JSON.stringify(
         {
           assets: context.relevant_assets || [],
+          browser_research: context.browser_research || [],
           citation_sources: context.citation_sources || [],
           signals: context.relevant_signals || [],
           wiki_memory: context.wiki_memory || [],

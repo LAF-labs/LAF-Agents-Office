@@ -172,6 +172,7 @@ const customerDiscoveryTemplate = Object.freeze({
       JSON.stringify(
         {
           customers: context.relevant_customers || [],
+          browser_research: context.browser_research || [],
           citation_sources: context.citation_sources || [],
           previous_runs: context.previous_runs || [],
           receipts: context.recent_receipts || [],

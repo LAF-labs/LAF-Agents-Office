@@ -57,6 +57,10 @@ function buildCitationSources({
   return dedupeSources(sources).slice(0, 25);
 }
 
+function mergeCitationSources(...groups) {
+  return dedupeSources(groups.flatMap((group) => array(group))).slice(0, 25);
+}
+
 function pushSource(out, value, options = {}) {
   const normalized = normalizeCitationSource(value, options);
   if (normalized) out.push(normalized);
@@ -109,5 +113,6 @@ function array(value) {
 
 module.exports = {
   buildCitationSources,
+  mergeCitationSources,
   normalizeCitationSource,
 };

@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const { createServiceRoleAccessGuards } = require("../api/lib/hosted/serviceRoleAccess");
 const { createStartupOfficeRepository } = require("../api/lib/startup-office/repositories");
 const { publicCompanyProfile } = require("../api/lib/startup-office/serializers");
+const { createBrowserResearchClient } = require("../workers/startup-office/browserResearch");
 const { createStartupOfficeModelClient } = require("../workers/startup-office/modelClient");
 const { runStartupOfficeLoop } = require("../workers/startup-office/loopEngine");
 const { createStartupOfficeLoopWorker } = require("../workers/startup-office/loopWorker");
@@ -135,6 +136,12 @@ async function loadWorkerJobContext(job) {
     inputs: objectValue(run.inputs),
     loop,
     membership,
+    browserResearchClient: createBrowserResearchClient({
+      env: process.env,
+      fetchImpl: fetch,
+      nowISO,
+      truncateText,
+    }),
     modelClient: createStartupOfficeModelClient({
       env: process.env,
       fetchImpl: fetch,
