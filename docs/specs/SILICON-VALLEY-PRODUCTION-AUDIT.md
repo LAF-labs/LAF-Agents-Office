@@ -72,7 +72,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I035 | Data model | Audit events are generic and not yet guaranteed for every write. | audit helper and beta goals |
 | SV-I036 | Data model | Business object schemas lack rich lifecycle history. | assets/customers/metrics/signals tables |
 | SV-I037 | Data model | Company memory pages do not yet have conflict resolution as a domain primitive. | memory pages |
-| SV-I038 | Data model | Soft deletion, retention, and purge semantics are not uniform. | archive fields and delete routes |
+| SV-I038 | Data model | Operating object item DELETE is implemented and audited, but workspace-wide deletion, retention, and purge semantics are not uniform. | object routes and deletion plan |
 | SV-I039 | Data model | Billing, usage, and workspace limits are not normalized into a durable entitlement model. | workspace_billing |
 | SV-I040 | Data model | Schema comments and database-level constraints do not fully encode product invariants. | migrations |
 | SV-I041 | Security | Tenant isolation depends heavily on correct route membership checks plus RLS not yet live-tested. | auth routes, migrations |
@@ -559,3 +559,8 @@ and missing typed contracts.
   `requireUser` caches the request auth context to avoid duplicate auth lookups,
   and `npm run startup-office:authorization` fails if any route method is
   missing, uses an unknown permission, or mutates state with read-only access.
+- R3/R8 now closes the Startup Office operating-object DELETE contract gap.
+  `PATCH` and `DELETE /api/startup-office/{assets,customers,metrics,signals}/{id}`
+  both execute within the caller workspace, require draft-memory permission,
+  and emit structured audit events; the release gate covers the delete path in
+  `api/lib/startup-office/objectHandlers.test.js`.

@@ -44,9 +44,26 @@ function createStartupOfficeObjectHandlers(deps) {
 
   async function handleStartupOfficeObjectItem(req, res, kind, objectID) {
     const { membership } = await requireUser(req);
-    if (req.method !== "PATCH") throw createHTTPError(405, "method not allowed");
+    if (req.method !== "PATCH" && req.method !== "DELETE") {
+      throw createHTTPError(405, "method not allowed");
+    }
     requirePermission(membership, "memory:write_draft");
     const definition = startupOfficeObjectDefinition(kind);
+    if (req.method === "DELETE") {
+      const [row] = await safeStartupOfficeRest(definition.table, {
+        method: "DELETE",
+        query: {
+          id: `eq.${objectID}`,
+          team_id: `eq.${membership.team_id}`,
+        },
+      });
+      await writeAuditEvent(membership, `startup_office.${kind}.deleted`, kind, objectID);
+      writeJSON(res, 200, {
+        [definition.singularKey]: row ? definition.public(row) : null,
+        ok: true,
+      });
+      return;
+    }
     const body = await readBody(req);
     const [row] = await safeStartupOfficeRest(definition.table, {
       method: "PATCH",

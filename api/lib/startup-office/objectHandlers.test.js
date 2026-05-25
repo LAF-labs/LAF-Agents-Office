@@ -144,6 +144,23 @@ test("object item handler patches by id within the caller workspace", async () =
   assert.equal(deps.calls.audits[0][1], "startup_office.customers.updated");
 });
 
+test("object item handler deletes by id within the caller workspace", async () => {
+  const deps = baseDeps();
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectItem({ method: "DELETE" }, {}, "assets", "asset-1");
+  assert.equal(deps.calls.permissions[0].permission, "memory:write_draft");
+  assert.equal(deps.calls.rest[0].table, "startup_office_assets");
+  assert.equal(deps.calls.rest[0].options.method, "DELETE");
+  assert.deepEqual(deps.calls.rest[0].options.query, {
+    id: "eq.asset-1",
+    team_id: "eq.team-1",
+  });
+  assert.equal(deps.calls.audits[0][1], "startup_office.assets.deleted");
+  assert.equal(deps.calls.writes[0].body.ok, true);
+  assert.equal(deps.calls.writes[0].body.asset.kind, "assets");
+});
+
 test("artifact object action can save an artifact as a first-party asset", async () => {
   const deps = baseDeps({
     async readBody() {
@@ -181,7 +198,7 @@ test("object handlers preserve typed errors for unsupported methods and actions"
   const handlers = createStartupOfficeObjectHandlers(baseDeps());
 
   await assert.rejects(
-    () => handlers.objectItem({ method: "DELETE" }, {}, "assets", "asset-1"),
+    () => handlers.objectItem({ method: "POST" }, {}, "assets", "asset-1"),
     (err) => err.status === 405 && err.message === "method not allowed",
   );
   await assert.rejects(
