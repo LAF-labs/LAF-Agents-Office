@@ -10,6 +10,7 @@
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
     "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
+    "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
     "startup-office:permissions": "node scripts/check-workspace-permission-catalog.cjs",
     "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
