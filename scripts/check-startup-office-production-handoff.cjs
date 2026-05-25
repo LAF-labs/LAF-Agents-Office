@@ -39,6 +39,7 @@ for (const snippet of [
   "Supabase project ref and latest applied migration",
   "Loop worker workflow run ID",
   "Ops monitor workflow run ID",
+  "Synthetic monitor workflow run ID",
   "Signed beta agreement URL or payment/invoice reference",
   "First customer run ID",
   "First receipt ID",

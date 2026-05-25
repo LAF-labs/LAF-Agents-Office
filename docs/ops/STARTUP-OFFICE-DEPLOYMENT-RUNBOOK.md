@@ -20,7 +20,10 @@ and the scheduled ops monitor that catches silent queue failure.
 9. Enable `.github/workflows/startup-office-ops-monitor.yml`.
 10. Run the ops monitor once with `npm run startup-office:ops-monitor` or the
    workflow dispatch button.
-11. Complete the smoke test below.
+11. Enable `.github/workflows/startup-office-synthetic-monitor.yml`.
+12. Run the synthetic monitor once with
+   `npm run startup-office:synthetic-monitor` or the workflow dispatch button.
+13. Complete the smoke test below.
 
 ## Required Secrets And Variables
 
@@ -32,6 +35,8 @@ GitHub Actions secrets:
 - `RESEND_API_KEY` when `LAF_OUTBOX_EMAIL_PROVIDER=resend`
 - `LAF_OFFICE_OPENAI_API_KEY` or `OPENAI_API_KEY` when
   `LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER=openai`
+- `LAF_SYNTHETIC_EMAIL` for a dedicated closed-beta smoke workspace user
+- `LAF_SYNTHETIC_PASSWORD` for that dedicated synthetic user
 
 GitHub Actions variables:
 
@@ -59,6 +64,10 @@ GitHub Actions variables:
 - `LAF_MONITOR_MAX_WORKSPACE_MODEL_SPEND_RATIO_BPS`, default `9000`
 - `LAF_MONITOR_OUTBOX_STALE_MS`, default `600000`
 - `LAF_MONITOR_WORKER_JOB_STUCK_MS`, default `1800000`
+- `LAF_SYNTHETIC_API_BASE_URL`, defaults to `LAF_OFFICE_PUBLIC_HOST`
+- `LAF_SYNTHETIC_APPROVAL_ACTION`, default `approve`
+- `LAF_SYNTHETIC_LOOP_ID`, default `idea-validation`
+- `LAF_SYNTHETIC_TIMEOUT_MS`, default `60000`
 
 Do not put secret values in this repository. The preflight prints normalized
 origins and provider choices, not secret contents.
@@ -129,6 +138,26 @@ threshold failures. It does not print payloads, last-error bodies, user data, or
 provider secrets. A failed scheduled run should be treated as a closed-beta
 incident until the stuck rows are drained, replayed, or intentionally
 dead-lettered.
+
+## Synthetic Monitor
+
+The deployed synthetic monitor proves that the production app can serve a real
+founder path, not just static health checks:
+
+- Workflow: `.github/workflows/startup-office-synthetic-monitor.yml`
+- Command: `npm run startup-office:synthetic-monitor`
+- Frequency: hourly by default
+- Required account: a dedicated smoke workspace user, never a real customer
+  workspace
+- Flow: health check, login, authenticated session, Growth Center/profile read,
+  live loop run, approval lookup, optional approval decision, receipt lookup,
+  and logout
+
+Keep `LAF_SYNTHETIC_APPROVAL_ACTION=approve` only for the dedicated synthetic
+workspace. The script fails if the loop remains queued, because that means the
+live model/worker path was not exercised. The script prints step names, run ID,
+receipt ID, and status only; it does not print credentials, prompts, artifacts,
+or customer data.
 
 ## Smoke Test
 

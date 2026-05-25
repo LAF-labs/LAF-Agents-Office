@@ -144,7 +144,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I104 | Observability | Scheduled GitHub Actions monitoring now fails on dead-letter rows, stuck jobs, stale approvals, and model-spend anomalies; external paging and auth-spike routing remain. | beta ops |
 | SV-I105 | Observability | Audit logs are product data but not operational telemetry. | audit events |
 | SV-I106 | Observability | Error budgets and SLOs are undefined. | docs |
-| SV-I107 | Observability | There is no synthetic production smoke monitor. | release gate only local |
+| SV-I107 | Observability | A deployed synthetic monitor now exercises login, profile, live loop run, approval, receipt, and logout; external credentials and run evidence are still deploy-time proof. | synthetic monitor |
 | SV-I108 | Observability | Browser-side errors now report workspace-scoped, redacted client telemetry, but external paging and session replay are not included. | frontend |
 | SV-I109 | Observability | Support tooling lacks a timeline view from user action to model output. | admin dashboard |
 | SV-I110 | Observability | Cost telemetry is not reconciled with billing state. | usage events |
@@ -328,7 +328,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G083 | Define SLOs. | Availability, run latency, notification latency, and data integrity SLOs exist. | ops docs |
 | SV-G084 | Add alerts. | Stuck jobs, failed notifications, stale approvals, and model-spend anomalies trip a scheduled monitor; auth spikes still need alert wiring. | monitor config |
 | SV-G085 | Add browser error collection. | Client exceptions include workspace-safe context. | telemetry test |
-| SV-G086 | Add synthetic monitor. | Production smoke exercises login, profile, run, approval, receipt. | monitor |
+| SV-G086 | Add synthetic monitor. | Production smoke exercises login, profile, live run, approval, receipt, and logout. | synthetic monitor |
 | SV-G087 | Add incident runbook. | Data leak, tenant bug, worker outage, and billing abuse drills exist. | docs |
 | SV-G088 | Add deployment runbook. | DNS, env, migrations, worker, rollback, and smoke are documented. | docs gate |
 | SV-G089 | Add cost anomaly alerts. | Global model spend, single-event cost spikes, and current-month workspace spend ratios trip scheduled monitor failures. | ops monitor tests |
@@ -568,6 +568,12 @@ the final release commit or when a shared invariant changes.
   `POST /api/client-errors`, with client and server redaction for emails, URLs,
   query/hash tokens, unsafe route segments, and raw stack traces. The release
   gate includes both the hosted handler test and the browser telemetry test.
+- R7 now adds a deployed synthetic monitor. The scheduled workflow runs
+  `npm run startup-office:synthetic-monitor` with external synthetic account
+  secrets and proves health, login, authenticated session, Growth Center/profile
+  read, live loop execution, approval, receipt, and logout against the
+  production API. The release gate checks the monitor contract and unit tests
+  without requiring external credentials.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
   runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
   high or critical dependency advisories, hosted-runtime boundary checks,

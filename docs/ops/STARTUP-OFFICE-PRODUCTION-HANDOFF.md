@@ -46,6 +46,7 @@ fields in the operator system of record:
 - Loop worker workflow run ID.
 - Outbox worker workflow run ID.
 - Ops monitor workflow run ID.
+- Synthetic monitor workflow run ID.
 - Production smoke workspace ID.
 - First production smoke run ID.
 - First production approval ID.

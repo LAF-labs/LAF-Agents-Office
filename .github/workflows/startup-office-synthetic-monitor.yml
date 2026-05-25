@@ -1,0 +1,34 @@
+name: Startup Office Synthetic Monitor
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: startup-office-synthetic-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Run deployed Startup Office synthetic flow
+        env:
+          LAF_SYNTHETIC_API_BASE_URL: ${{ vars.LAF_SYNTHETIC_API_BASE_URL || vars.LAF_OFFICE_PUBLIC_HOST }}
+          LAF_SYNTHETIC_APPROVAL_ACTION: ${{ vars.LAF_SYNTHETIC_APPROVAL_ACTION || 'approve' }}
+          LAF_SYNTHETIC_EMAIL: ${{ secrets.LAF_SYNTHETIC_EMAIL }}
+          LAF_SYNTHETIC_LOOP_ID: ${{ vars.LAF_SYNTHETIC_LOOP_ID || 'idea-validation' }}
+          LAF_SYNTHETIC_PASSWORD: ${{ secrets.LAF_SYNTHETIC_PASSWORD }}
+          LAF_SYNTHETIC_TIMEOUT_MS: ${{ vars.LAF_SYNTHETIC_TIMEOUT_MS || '60000' }}
+        run: npm run startup-office:synthetic-monitor
