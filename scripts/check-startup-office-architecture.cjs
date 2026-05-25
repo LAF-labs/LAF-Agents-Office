@@ -46,6 +46,7 @@ assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
 assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
+assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
@@ -165,6 +166,8 @@ for (const [pattern, label] of [
   [/async function handleHostedRequests\b/, "hosted request handler"],
   [/requests: \[\]/, "hosted requests empty stub"],
   [/path === "requests\/answer"[\s\S]{0,160}\{ ok: true \}/, "hosted request answer no-op response"],
+  [/async function handleHostedScheduler\b/, "hosted scheduler handler"],
+  [/jobs: \[\]/, "hosted scheduler empty stub"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

@@ -44,6 +44,9 @@ const {
   createHostedRequestHandlers,
 } = require("./lib/hosted/requestHandlers");
 const {
+  createHostedSchedulerHandlers,
+} = require("./lib/hosted/schedulerHandlers");
+const {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
   createHostedPermissionGuards,
@@ -411,6 +414,14 @@ const HOSTED_REQUEST_HANDLERS = createHostedRequestHandlers({
   writeJSON,
 });
 
+const HOSTED_SCHEDULER_HANDLERS = createHostedSchedulerHandlers({
+  nowISO,
+  requirePermission,
+  requireUser,
+  safeStartupOfficeRest,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   approvalAction: STARTUP_OFFICE_WORKFLOW_HANDLERS.approvalAction,
   approvals: STARTUP_OFFICE_QUERY_HANDLERS.approvals,
@@ -664,7 +675,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "scheduler" && req.method === "GET") {
-      writeJSON(res, 200, { jobs: [] });
+      await HOSTED_SCHEDULER_HANDLERS.scheduler(req, res);
       return;
     }
     if (path === "usage" && req.method === "GET") {
