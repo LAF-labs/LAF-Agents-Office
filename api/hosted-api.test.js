@@ -537,6 +537,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /api\/lib\/startup-office\/demoSeedHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/profileHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/roleAuthorization\.test\.js/);
+  assert.match(script, /api\/lib\/startup-office\/runtimeFactories\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/services\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/tenantIsolation\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/validation\.test\.js/);

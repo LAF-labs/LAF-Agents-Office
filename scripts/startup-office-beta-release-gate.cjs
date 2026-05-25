@@ -134,6 +134,7 @@ const checks = [
   ["node", ["--test", "api/lib/startup-office/receiptIntegrity.test.js"]],
   ["node", ["--test", "api/lib/startup-office/receiptMemory.test.js"]],
   ["node", ["--test", "api/lib/startup-office/repositories.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/runtimeFactories.test.js"]],
   ["node", ["--test", "api/lib/startup-office/runOutcomeRecorder.test.js"]],
   ["node", ["--test", "api/lib/startup-office/roleAuthorization.test.js"]],
   ["node", ["--test", "api/lib/startup-office/services.test.js"]],

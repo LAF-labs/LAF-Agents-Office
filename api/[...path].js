@@ -160,6 +160,9 @@ const {
   createStartupOfficeRepository,
 } = require("./lib/startup-office/repositories");
 const {
+  createStartupOfficeRuntimeFactories,
+} = require("./lib/startup-office/runtimeFactories");
+const {
   applyStartupOfficeCursor,
 } = require("./lib/startup-office/pagination");
 const {
@@ -340,6 +343,33 @@ const enforceStartupOfficeRateLimit = createStartupOfficeRateLimiter({
   createRateLimitError: () => startupOfficeHTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
 });
+const STARTUP_OFFICE_RUNTIME = createStartupOfficeRuntimeFactories({
+  createModelClient: createStartupOfficeModelClient,
+  createRepository: createStartupOfficeRepository,
+  createServices: createStartupOfficeServices,
+  modelClientDeps: () => ({
+    env: process.env,
+    fetchImpl: fetch,
+  }),
+  repositoryDeps: () => ({
+    HTTPError,
+    clamp,
+    nowISO,
+    rest,
+    shortID,
+    slugify,
+    truncateText,
+  }),
+  servicesDeps: () => ({
+    objectValue,
+    truncateText,
+  }),
+});
+const {
+  startupOfficeModelClient,
+  startupOfficeRepository,
+  startupOfficeServices,
+} = STARTUP_OFFICE_RUNTIME;
 const HOSTED_HEALTH_HANDLERS = createHostedHealthHandlers({
   authFetch,
   env: process.env,
@@ -1091,44 +1121,6 @@ function hostedConfigSnapshot({ settings, team, user }) {
     team,
     user,
   });
-}
-
-let startupOfficeRepositoryInstance = null;
-function startupOfficeRepository() {
-  if (!startupOfficeRepositoryInstance) {
-    startupOfficeRepositoryInstance = createStartupOfficeRepository({
-      HTTPError,
-      clamp,
-      nowISO,
-      rest,
-      shortID,
-      slugify,
-      truncateText,
-    });
-  }
-  return startupOfficeRepositoryInstance;
-}
-
-let startupOfficeServicesInstance = null;
-function startupOfficeServices() {
-  if (!startupOfficeServicesInstance) {
-    startupOfficeServicesInstance = createStartupOfficeServices({
-      objectValue,
-      truncateText,
-    });
-  }
-  return startupOfficeServicesInstance;
-}
-
-let startupOfficeModelClientInstance = null;
-function startupOfficeModelClient() {
-  if (!startupOfficeModelClientInstance) {
-    startupOfficeModelClientInstance = createStartupOfficeModelClient({
-      env: process.env,
-      fetchImpl: fetch,
-    });
-  }
-  return startupOfficeModelClientInstance;
 }
 
 const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({

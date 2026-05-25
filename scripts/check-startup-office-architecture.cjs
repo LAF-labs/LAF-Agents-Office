@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1710);
+assertMaxLines("api/[...path].js", 1700);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -90,6 +90,7 @@ assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/payloadLimits.js", 80);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
 assertMaxLines("api/lib/startup-office/rateLimits.js", 90);
+assertMaxLines("api/lib/startup-office/runtimeFactories.js", 50);
 assertMaxLines("api/lib/startup-office/services.js", 90);
 assertMaxLines("api/lib/startup-office/supportPlaybooks.js", 100);
 assertMaxLines("api/lib/startup-office/supportTimeline.js", 160);
@@ -275,6 +276,12 @@ for (const [pattern, label] of [
   [/async function writeTeamAuditEvent\b/, "hosted team audit event writer"],
   [/async function sendInviteEmail\b/, "hosted invite email sender"],
   [/function inviteEmailProviderFromEnv\b/, "hosted invite email provider resolver"],
+  [/let startupOfficeRepositoryInstance\b/, "startup office repository singleton state"],
+  [/let startupOfficeServicesInstance\b/, "startup office services singleton state"],
+  [/let startupOfficeModelClientInstance\b/, "startup office model-client singleton state"],
+  [/function startupOfficeRepository\b/, "startup office repository factory"],
+  [/function startupOfficeServices\b/, "startup office services factory"],
+  [/function startupOfficeModelClient\b/, "startup office model-client factory"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
