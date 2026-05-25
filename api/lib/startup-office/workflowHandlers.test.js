@@ -18,6 +18,7 @@ function baseDeps(overrides = {}) {
     receiptMemory: [],
     receipts: [],
     rest: [],
+    skillInvocationArgs: [],
     writes: [],
   };
   const repository = {
@@ -188,6 +189,17 @@ function baseDeps(overrides = {}) {
     startupOfficeModelClient() {
       return { provider: "fake" };
     },
+    startupOfficeLoopSkillInvocations(args) {
+      calls.skillInvocationArgs.push(args);
+      return [{
+        input_keys: Object.keys(args.inputs || {}).sort(),
+        input_snapshot: { objective: args.objective },
+        reason: "Ground the loop in a reusable playbook.",
+        selected_by: "startup_office_loop_manifest",
+        sequence: 1,
+        skill_name: "market-research",
+      }];
+    },
     startupOfficeReceiptMemoryPageSlugs: ["loop-receipts", "learning-updates"],
     async startupOfficeReceipts(_teamID, options) {
       return [{ id: "receipt-1", options }];
@@ -221,8 +233,11 @@ test("loopRun can queue a deferred run without executing the worker", async () =
 
   assert.equal(deps.calls.permission, "memory:write_draft");
   assert.equal(deps.calls.createdRun.metadata.provider, "fake");
+  assert.equal(deps.calls.createdRun.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].reason, "Ground the loop in a reusable playbook.");
   assert.equal(deps.calls.createdWorkerJob.run_id, "run-1");
   assert.equal(deps.calls.receipts[0].event_type, "run.queued");
+  assert.equal(deps.calls.receipts[0].trace.skill_invocations[0].input_keys[0], "market");
   assert.equal(deps.calls.audits[0][1], "startup_office.run_created");
   assert.equal(deps.calls.writes[0].status, 202);
   assert.equal(deps.calls.writes[0].body.status, "queued");
@@ -267,6 +282,7 @@ test("loopRun executes immediately and records usage plus notification events", 
   await handlers.loopRun({ method: "POST" }, {}, "idea-validation");
 
   assert.equal(deps.calls.loopRunArgs.modelClient.provider, "fake");
+  assert.equal(deps.calls.loopRunArgs.skillInvocations[0].skill_name, "market-research");
   assert.equal(deps.calls.writes[0].status, 200);
   assert.equal(deps.calls.writes[0].body.status, "approval_waiting");
   assert.deepEqual(
@@ -307,6 +323,9 @@ test("run handler retries failed runs through the worker path", async () => {
   await handlers.run({ method: "POST" }, {}, "run-1", "retry");
 
   assert.equal(deps.calls.createdWorkerJob.metadata.retry, true);
+  assert.equal(deps.calls.updatedRun.patch.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(deps.calls.receipts[0].trace.skill_invocations[0].skill_name, "market-research");
   assert.equal(deps.calls.receipts[0].event_type, "run.retry_queued");
   assert.equal(deps.calls.audits[0][1], "startup_office.run_retry_queued");
   assert.equal(deps.calls.audits[0][4].worker_job_id, "job-1");

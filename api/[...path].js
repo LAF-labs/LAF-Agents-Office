@@ -104,6 +104,9 @@ const {
   createStartupOfficeServices,
 } = require("./lib/startup-office/services");
 const {
+  startupOfficeLoopSkillInvocations,
+} = require("./lib/startup-office/skillInvocations");
+const {
   createStartupOfficeModelClient,
 } = require("../workers/startup-office/modelClient");
 const {
@@ -406,6 +409,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   startupOfficeBetaOpsSnapshot,
   startupOfficeModelClient,
   startupOfficeReceiptMemoryPageSlugs: STARTUP_OFFICE_RECEIPT_MEMORY_PAGE_SLUGS,
+  startupOfficeLoopSkillInvocations,
   startupOfficeReceipts,
   startupOfficeRepository,
   truncateText,

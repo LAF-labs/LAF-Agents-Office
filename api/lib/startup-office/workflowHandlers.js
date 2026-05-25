@@ -25,6 +25,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     startupOfficeApprovals,
     startupOfficeArtifacts,
     startupOfficeBetaOpsSnapshot,
+    startupOfficeLoopSkillInvocations,
     startupOfficeModelClient,
     startupOfficeReceiptMemoryPageSlugs = [],
     startupOfficeReceipts,
@@ -33,11 +34,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     writeAuditEvent,
     writeJSON,
   } = deps;
-  const validation = createStartupOfficeValidation({
-    createHTTPError,
-    objectValue,
-    truncateText,
-  });
+  const validation = createStartupOfficeValidation({ createHTTPError, objectValue, truncateText });
 
   async function handleStartupOfficeLoopRun(req, res, loopID) {
     const { membership, team, user } = await requireUser(req);
@@ -65,12 +62,10 @@ function createStartupOfficeWorkflowHandlers(deps) {
     await enforceStartupOfficeRunLimit(membership.team_id);
     const loop = await ensureStartupOfficeLoop(membership, loopID);
     const profile = await companyProfileSnapshot(membership.team_id, team, user);
-    const objective = truncateText(
-      body.objective || loop.objective || profile.priority || "Run this operating loop.",
-      2000,
-    );
+    const objective = truncateText(body.objective || loop.objective || profile.priority || "Run this operating loop.", 2000);
     const now = nowISO();
     const modelClient = startupOfficeModelClient();
+    const skillInvocations = startupOfficeLoopSkillInvocations({ inputs: body.inputs, loop, objective, profile, truncateText });
     const run = await repository.createRun(membership, {
       idempotency_key: idempotencyKey,
       inputs: body.inputs,
@@ -79,6 +74,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         company_name: profile.name || "",
         loop_slug: loop.slug,
         provider: modelClient.provider,
+        skill_invocations: skillInvocations,
       },
       objective,
       status: "queued",
@@ -91,6 +87,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       metadata: {
         objective,
         provider: modelClient.provider,
+        skill_invocations: skillInvocations,
       },
       run_id: runID,
       status: "queued",
@@ -102,6 +99,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       summary: `${loop.name} run queued for AI execution.`,
       trace: {
         loop_slug: loop.slug,
+        skill_invocations: skillInvocations,
         worker_job_id: workerJob?.id || null,
       },
     });
@@ -137,6 +135,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       profile,
       repository,
       run: queuedRun,
+      skillInvocations,
       truncateText,
       workerJob,
     });
@@ -231,12 +230,10 @@ function createStartupOfficeWorkflowHandlers(deps) {
       const body = validation.loopRunBody(await readBody(req));
       const loop = await ensureStartupOfficeLoop(membership, run.loop_id || run.metadata?.loop_slug);
       const profile = await companyProfileSnapshot(membership.team_id, team, user);
-      const objective = truncateText(
-        body.objective || run.objective || loop.objective || "Retry this operating loop.",
-        2000,
-      );
+      const objective = truncateText(body.objective || run.objective || loop.objective || "Retry this operating loop.", 2000);
       const inputs = body.inputsProvided ? body.inputs : objectValue(run.inputs);
       const now = nowISO();
+      const skillInvocations = startupOfficeLoopSkillInvocations({ inputs, loop, objective, profile, truncateText });
       const retryRun = await repository.updateRun(membership.team_id, run.id, {
         completed_at: null,
         inputs,
@@ -244,6 +241,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
           ...objectValue(run.metadata),
           retry_requested_at: now,
           retry_requested_by: membership.user_id,
+          skill_invocations: skillInvocations,
         },
         objective,
         status: "queued",
@@ -256,6 +254,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
           objective,
           provider: modelClient.provider,
           retry: true,
+          skill_invocations: skillInvocations,
         },
         run_id: run.id,
         status: "queued",
@@ -265,7 +264,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         event_type: "run.retry_queued",
         run_id: run.id,
         summary: `${loop.name} retry queued for AI execution.`,
-        trace: { worker_job_id: workerJob?.id || null },
+        trace: { skill_invocations: skillInvocations, worker_job_id: workerJob?.id || null },
       });
       await writeAuditEvent(membership, "startup_office.run_retry_queued", "run", run.id, {
         previous_status: run.status,
@@ -281,6 +280,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         profile,
         repository,
         run: retryRun || run,
+        skillInvocations,
         truncateText,
         workerJob,
       });

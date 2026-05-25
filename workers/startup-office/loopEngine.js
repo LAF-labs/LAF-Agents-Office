@@ -18,6 +18,7 @@ async function runStartupOfficeLoop({
   profile,
   repository,
   run,
+  skillInvocations = [],
   truncateText,
   workerJob = null,
 }) {
@@ -25,6 +26,7 @@ async function runStartupOfficeLoop({
   const startedAt = nowISO();
   const claimedAttempt = Number(workerJob?.attempts || 0);
   const attempt = claimedAttempt > 0 ? claimedAttempt : Number(run?.metadata?.attempt || 0) + 1;
+  const recordedSkillInvocations = normalizedSkillInvocations(skillInvocations, run);
   let modelResult = null;
 
   try {
@@ -42,6 +44,7 @@ async function runStartupOfficeLoop({
         attempt,
         loop_slug: loop.slug,
         provider: modelClient.provider,
+        skill_invocations: recordedSkillInvocations,
         worker_job_id: workerJob?.id || null,
       }),
       started_at: run.started_at || startedAt,
@@ -58,6 +61,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
+        skill_invocations: recordedSkillInvocations,
         worker_job_id: workerJob?.id || null,
       },
     });
@@ -76,6 +80,7 @@ async function runStartupOfficeLoop({
         loop_name: loop.name,
         loop_slug: loop.slug,
         run_id: run.id,
+        skill_names: recordedSkillInvocations.map((item) => item.skill_name),
         team_id: membership.team_id,
       },
       purpose: "startup_office_loop",
@@ -107,6 +112,7 @@ async function runStartupOfficeLoop({
         model: modelClient.model,
         provider: modelClient.provider,
         quality,
+        skill_invocations: recordedSkillInvocations,
         structured_output: modelResult.data,
         wiki_promotion: startupOfficeWikiPromotionDraft({
           artifact: null,
@@ -148,6 +154,7 @@ async function runStartupOfficeLoop({
         model: modelClient.model,
         provider: modelClient.provider,
         quality,
+        skill_invocations: recordedSkillInvocations,
       },
       requested_by: membership.user_id,
       risk_level: quality.risk_level,
@@ -165,6 +172,7 @@ async function runStartupOfficeLoop({
         model: modelClient.model,
         provider: modelClient.provider,
         quality,
+        skill_invocations: recordedSkillInvocations,
         worker_job_id: workerJob?.id || null,
       }),
       status: "waiting_approval",
@@ -180,6 +188,7 @@ async function runStartupOfficeLoop({
           approval_id: approval?.id || null,
           cost: modelResult.cost,
           run_id: run.id,
+          skill_invocations: recordedSkillInvocations,
         },
         status: "completed",
         updated_at: completedAt,
@@ -196,6 +205,7 @@ async function runStartupOfficeLoop({
         cost: modelResult.cost,
         loop_slug: loop.slug,
         quality,
+        skill_invocations: recordedSkillInvocations,
       },
     });
     return {
@@ -227,6 +237,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
+        skill_invocations: recordedSkillInvocations,
         worker_job_id: workerJob?.id || null,
       }),
       status: "failed",
@@ -254,6 +265,7 @@ async function runStartupOfficeLoop({
         cost,
         loop_slug: loop.slug,
         provider: modelClient.provider,
+        skill_invocations: recordedSkillInvocations,
       },
     });
     return {
@@ -274,6 +286,12 @@ function mergeMetadata(current, patch) {
 
 function isObject(value) {
   return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizedSkillInvocations(skillInvocations, run) {
+  if (Array.isArray(skillInvocations) && skillInvocations.length) return skillInvocations;
+  const metadataInvocations = run?.metadata?.skill_invocations;
+  return Array.isArray(metadataInvocations) ? metadataInvocations : [];
 }
 
 module.exports = {

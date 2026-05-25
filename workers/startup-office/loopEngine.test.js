@@ -15,6 +15,7 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
     profile: { name: "LAF Labs" },
     repository: fakeRepository(state),
     run: queuedRun(),
+    skillInvocations: skillInvocations(),
     truncateText,
     workerJob: { id: "job-1" },
   });
@@ -22,11 +23,16 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.status, "waiting_approval");
   assert.equal(result.run.status, "waiting_approval");
   assert.equal(result.run.metadata.cost.total_tokens, 30);
+  assert.equal(result.run.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(result.artifact.metadata.skill_invocations[0].reason, "Validate market evidence.");
+  assert.equal(result.approval.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(result.artifact.title, "Idea Validation AI draft");
   assert.equal(result.artifact.idempotency_key, "run-1:job-1:artifact");
   assert.equal(result.approval.status, "pending");
   assert.equal(result.approval.idempotency_key, "run-1:job-1:approval");
   assert.equal(state.receipts.at(-1).event_type, "run.ai_draft_ready");
+  assert.equal(state.receipts.at(0).trace.skill_invocations[0].skill_name, "market-research");
+  assert.equal(state.receipts.at(-1).trace.skill_invocations[0].input_snapshot.objective, "Validate the first buyer segment");
   assert.deepEqual(
     state.runPatches.map((patch) => patch.status),
     ["running", "waiting_approval"],
@@ -49,6 +55,7 @@ test("startup office loop engine records failed model calls as receipted run fai
     profile: { name: "LAF Labs" },
     repository: fakeRepository(state),
     run: queuedRun(),
+    skillInvocations: skillInvocations(),
     truncateText,
     workerJob: { id: "job-1" },
   });
@@ -56,7 +63,9 @@ test("startup office loop engine records failed model calls as receipted run fai
   assert.equal(result.status, "failed");
   assert.equal(result.run.status, "failed");
   assert.equal(result.run.metadata.cost.pricing_source, "not_billed");
+  assert.equal(result.run.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(state.receipts.at(-1).event_type, "run.failed");
+  assert.equal(state.receipts.at(-1).trace.skill_invocations[0].skill_name, "market-research");
   assert.equal(state.jobPatches.at(-1).status, "failed");
 });
 
@@ -191,6 +200,17 @@ function queuedRun() {
     status: "queued",
     title: "Idea Validation",
   };
+}
+
+function skillInvocations() {
+  return [{
+    input_keys: ["market"],
+    input_snapshot: { objective: "Validate the first buyer segment" },
+    reason: "Validate market evidence.",
+    selected_by: "startup_office_loop_manifest",
+    sequence: 1,
+    skill_name: "market-research",
+  }];
 }
 
 function fixedNow() {

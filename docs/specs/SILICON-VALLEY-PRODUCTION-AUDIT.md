@@ -683,6 +683,10 @@ and missing typed contracts.
   Completed approvals append structured entries to `loop-receipts` and
   learning summaries to `learning-updates`, with receipt/run/approval
   provenance and release-gate coverage.
+- R4/R5 now records loop skill invocation manifests. Each run carries selected
+  skill names, sequence, reasons, input keys, and input snapshots in run/job
+  metadata plus run receipts, artifacts, and approvals so receipts can replay
+  which business playbooks were used and why.
 - R3/R8 now applies Supabase migration
   `20260525210000_assert_pure_cloud_boundary_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,
