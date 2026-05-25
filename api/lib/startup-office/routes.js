@@ -133,6 +133,11 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     id: "receipts",
     methods: Object.freeze(["GET"]),
     paths: Object.freeze(["startup-office/receipts", "receipts"]),
+    client: Object.freeze([
+      clientContract("getStartupOfficeReceipts", "GET", "StartupOfficeReceiptsResponse", [
+        "/startup-office/receipts",
+      ]),
+    ]),
   },
   {
     id: "objectCollection",

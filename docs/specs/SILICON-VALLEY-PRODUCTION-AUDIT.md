@@ -614,9 +614,10 @@ and missing typed contracts.
   percent, run count, plan, and billing state now come from the Startup Office
   billing/usage snapshot and are covered by the beta release gate.
 - R5/R8 now replaces the hosted `/agent-logs` empty stub with
-  `api/lib/hosted/agentLogHandlers.js`. The legacy receipt table UI now reads
-  Startup Office receipts, maps run IDs into the existing detail route, and
-  carries receipt trace cost/tokens into the existing log contract.
+  `api/lib/hosted/agentLogHandlers.js` for compatibility, while the primary
+  Receipts app reads `/startup-office/receipts` directly, opens run detail
+  receipts through `/startup-office/runs/:id`, and displays trace cost/tokens
+  without depending on the legacy agent-log contract.
 - R5/R8 now replaces the hosted `/requests` empty stub and `/requests/answer`
   no-op with `api/lib/hosted/requestHandlers.js`. The Requests app and global
   request overlay now read Startup Office approvals and delegate answers to the

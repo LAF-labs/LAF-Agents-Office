@@ -62,6 +62,17 @@ const checks = [
       "src/components/startup-office/StartupOfficeApp.test.tsx",
     ],
   ],
+  [
+    "npm",
+    [
+      "--prefix",
+      "web",
+      "run",
+      "test",
+      "--",
+      "src/components/apps/ReceiptsApp.test.tsx",
+    ],
+  ],
   ["npm", ["--prefix", "web", "run", "build"]],
 ];
 

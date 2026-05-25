@@ -272,8 +272,18 @@ export interface StartupOfficeCompanyProfileResponse {
   profile: StartupOfficeCompanyProfile;
 }
 
+export interface StartupOfficeReceiptsResponse {
+  receipts: StartupOfficeReceipt[];
+}
+
 export function getStartupOfficeGrowthSummary() {
   return get<StartupOfficeGrowthSummary>("/startup-office/growth-summary");
+}
+
+export function getStartupOfficeReceipts(opts?: { limit?: number }) {
+  return get<StartupOfficeReceiptsResponse>("/startup-office/receipts", {
+    limit: opts?.limit,
+  });
 }
 
 export function runStartupOfficeLoop(

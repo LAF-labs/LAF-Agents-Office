@@ -1,34 +1,38 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { type AgentLog, getAgentLogs } from "../../api/client";
+import {
+  getStartupOfficeReceipts,
+  getStartupOfficeRun,
+  type StartupOfficeReceipt,
+} from "../../api/startupOffice";
 import { formatRelativeTime, formatTokens, formatUSD } from "../../lib/format";
 import { useUiText } from "../../lib/uiText";
 
 export function ReceiptsApp() {
-  const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [selectedRunID, setSelectedRunID] = useState<string | null>(null);
 
-  if (selectedTask) {
+  if (selectedRunID) {
     return (
       <ReceiptDetail
-        taskId={selectedTask}
-        onBack={() => setSelectedTask(null)}
+        runID={selectedRunID}
+        onBack={() => setSelectedRunID(null)}
       />
     );
   }
 
-  return <ReceiptList onSelectTask={setSelectedTask} />;
+  return <ReceiptList onSelectRun={setSelectedRunID} />;
 }
 
 function ReceiptList({
-  onSelectTask,
+  onSelectRun,
 }: {
-  onSelectTask: (taskId: string) => void;
+  onSelectRun: (runID: string) => void;
 }) {
   const { receipts: copy } = useUiText();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["agent-logs"],
-    queryFn: () => getAgentLogs({ limit: 100 }),
+    queryKey: ["startup-office-receipts"],
+    queryFn: () => getStartupOfficeReceipts({ limit: 100 }),
     refetchInterval: 10_000,
   });
 
@@ -48,8 +52,8 @@ function ReceiptList({
       {!(isLoading || error) ? (
         <LogTable
           copy={copy}
-          logs={data?.logs ?? []}
-          onSelectTask={onSelectTask}
+          onSelectRun={onSelectRun}
+          receipts={data?.receipts ?? []}
         />
       ) : null}
     </>
@@ -58,14 +62,14 @@ function ReceiptList({
 
 function LogTable({
   copy,
-  logs,
-  onSelectTask,
+  onSelectRun,
+  receipts,
 }: {
   copy: ReturnType<typeof useUiText>["receipts"];
-  logs: AgentLog[];
-  onSelectTask: (taskId: string) => void;
+  onSelectRun: (runID: string) => void;
+  receipts: StartupOfficeReceipt[];
 }) {
-  if (logs.length === 0) {
+  if (receipts.length === 0) {
     return <div className="app-empty-state">{copy.empty}</div>;
   }
 
@@ -82,17 +86,17 @@ function LogTable({
           </tr>
         </thead>
         <tbody>
-          {logs.map((log) => {
-            const totalTokens = log.usage?.total_tokens ?? 0;
-            const cost = log.usage?.cost_usd ?? 0;
+          {receipts.map((receipt) => {
+            const cost = receiptCost(receipt);
+            const totalTokens = cost.totalTokens;
             return (
               <tr
-                key={log.id}
-                data-clickable={log.task ? "true" : undefined}
-                onClick={() => log.task && onSelectTask(log.task)}
+                key={receipt.id}
+                data-clickable={receipt.run_id ? "true" : undefined}
+                onClick={() => receipt.run_id && onSelectRun(receipt.run_id)}
               >
                 <td data-label={copy.agent} style={{ fontWeight: 600 }}>
-                  {log.agent || "\u2014"}
+                  {receipt.actor_slug || "\u2014"}
                 </td>
                 <td
                   data-label={copy.action}
@@ -100,7 +104,7 @@ function LogTable({
                     color: "var(--text-secondary)",
                   }}
                 >
-                  {log.action || log.content?.slice(0, 60) || "\u2014"}
+                  {receipt.event_type || receipt.summary?.slice(0, 60) || "\u2014"}
                 </td>
                 <td
                   data-label={copy.time}
@@ -108,7 +112,9 @@ function LogTable({
                     color: "var(--text-secondary)",
                   }}
                 >
-                  {log.timestamp ? formatRelativeTime(log.timestamp) : "\u2014"}
+                  {receipt.created_at
+                    ? formatRelativeTime(receipt.created_at)
+                    : "\u2014"}
                 </td>
                 <td
                   data-label={copy.tokens}
@@ -128,7 +134,7 @@ function LogTable({
                     fontSize: 12,
                   }}
                 >
-                  {cost > 0 ? formatUSD(cost) : "\u2014"}
+                  {cost.usd > 0 ? formatUSD(cost.usd) : "\u2014"}
                 </td>
               </tr>
             );
@@ -140,19 +146,19 @@ function LogTable({
 }
 
 function ReceiptDetail({
-  taskId,
+  runID,
   onBack,
 }: {
-  taskId: string;
+  runID: string;
   onBack: () => void;
 }) {
   const { receipts: copy } = useUiText();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["agent-logs", taskId],
-    queryFn: () => getAgentLogs({ task: taskId }),
+    queryKey: ["startup-office-run", runID],
+    queryFn: () => getStartupOfficeRun(runID),
   });
 
-  const logs = data?.logs ?? [];
+  const receipts = data?.receipts ?? [];
 
   return (
     <>
@@ -165,7 +171,7 @@ function ReceiptDetail({
       </button>
 
       <div className="app-section-heading">
-        <h3 style={{ fontFamily: "var(--font-mono)" }}>{taskId}</h3>
+        <h3 style={{ fontFamily: "var(--font-mono)" }}>{runID}</h3>
         <p>{copy.traceDesc}</p>
       </div>
 
@@ -175,31 +181,31 @@ function ReceiptDetail({
 
       {error ? <div className="app-empty-state">{copy.traceError}</div> : null}
 
-      {!(isLoading || error) && logs.length === 0 ? (
+      {!(isLoading || error) && receipts.length === 0 ? (
         <div className="app-empty-state">{copy.traceEmpty}</div>
       ) : null}
 
-      {!(isLoading || error) && logs.length > 0 ? (
+      {!(isLoading || error) && receipts.length > 0 ? (
         <div className="app-table-shell app-trace-list">
-          {logs.map((entry, i) => (
+          {receipts.map((entry, i) => (
             <div key={entry.id} className="app-trace-entry">
               <div className="app-trace-entry-head">
                 <span className="app-trace-index">
                   #{i + 1}{" "}
-                  {entry.timestamp
-                    ? new Date(entry.timestamp).toLocaleTimeString()
+                  {entry.created_at
+                    ? new Date(entry.created_at).toLocaleTimeString()
                     : "\u2014"}
                 </span>
                 <span className="app-trace-action">
-                  {entry.action || copy.unknown}
+                  {entry.event_type || copy.unknown}
                 </span>
-                {entry.agent ? (
-                  <span className="app-trace-agent">@{entry.agent}</span>
+                {entry.actor_slug ? (
+                  <span className="app-trace-agent">@{entry.actor_slug}</span>
                 ) : null}
               </div>
-              {entry.content ? (
+              {entry.summary ? (
                 <div className="app-trace-content">
-                  {entry.content.slice(0, 200)}
+                  {entry.summary.slice(0, 200)}
                 </div>
               ) : null}
             </div>
@@ -208,4 +214,27 @@ function ReceiptDetail({
       ) : null}
     </>
   );
+}
+
+function receiptCost(receipt: StartupOfficeReceipt): {
+  totalTokens: number;
+  usd: number;
+} {
+  const trace = objectValue(receipt.trace);
+  const cost = objectValue(trace.cost);
+  return {
+    totalTokens: numberValue(cost.total_tokens),
+    usd: numberValue(cost.estimated_usd),
+  };
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function numberValue(value: unknown): number {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
 }
