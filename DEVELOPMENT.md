@@ -1,125 +1,58 @@
 # Development
 
-## Office Build
+LAF Agents Office is now a hosted Startup Office SaaS. The development surface is:
+
+- `web/` for the React app.
+- `api/` for the Vercel-compatible hosted API facade.
+- `workers/startup-office/` for cloud operating-loop execution.
+- `supabase/migrations/` for workspace data.
+
+Local commands are for contributors only; customers do not run a device service,
+pair a runtime, or install a CLI.
+
+## Setup
 
 ```bash
-go build -o laf-office ./cmd/laf-office
+npm install
+cd web && bun install
 ```
 
-For normal app usage you do not need Bun. The local office/team MCP tools now run from the main Go binary through the hidden `laf-office mcp-team` subcommand.
-
-## First-time setup
-
-Run the bootstrap script once after cloning:
+If you use git hooks:
 
 ```bash
-./scripts/bootstrap.sh
+bunx lefthook install
 ```
 
-It installs Bun deps at the repo root (secretlint, commitlint) and in `web/` (frontend deps), registers the git hooks via `lefthook install`, and prints install hints for `vhs` and `golangci-lint` if either is missing. Re-run it any time you switch branches that changed `package.json` / `web/package.json`.
-
-## Git hooks
-
-Hooks run via [lefthook](https://github.com/evilmartians/lefthook) (`lefthook.yml`). Prerequisites: `./scripts/bootstrap.sh` has been run so `bun`, `lefthook`, `golangci-lint`, and optionally `vhs` are on PATH.
-
-**commit-msg**
-
-| Hook | What it does |
-|------|--------------|
-| `commitlint` | Enforces Conventional Commits via `@commitlint/config-conventional` |
-
-**pre-commit** (parallel, only runs against staged files)
-
-| Hook | What it does |
-|------|--------------|
-| `gofmt` | Rejects unformatted `.go` files (run `gofmt -w <file>` to fix) |
-| `go-vet` | Runs `go vet ./...` |
-| `golangci-lint` | Runs `golangci-lint run ./...` |
-| `biome` | Formats + lint-fixes staged `web/**/*.{js,ts,jsx,tsx,json,css}`, re-stages fixes |
-| `secretlint` | Scans staged files for leaked secrets (API keys, tokens, PEM blocks) |
-| `no-secrets` | Greps the staged diff for assignments like `api_token`/`password`/`api_key`/`secret` set to a string literal (see `lefthook.yml` for the exact regex) |
-| `check-merge-conflicts` | Fails if staged `.go/.yml/.yaml/.md/.toml/.json` files contain conflict markers |
-| `no-large-files` | Fails if any staged file exceeds 5 MB |
-
-**pre-push** (serial — wiki worker queue saturates under parallel load)
-
-| Hook | What it does |
-|------|--------------|
-| `smoke` | `go build ./... && go vet ./...` — compile + vet sanity (~10s) |
-| `build` | `go build -o /dev/null ./cmd/laf-office` — verify the main binary still links |
-| `vhs` | Runs `testdata/vhs/check.sh` if `vhs` is on PATH (skipped with a warning otherwise) |
-
-The full Go test suite runs in CI (`go-test-matrix` job) instead of pre-push — fan-out per package with `-race` on everything except `internal/team` and `internal/teammcp`. Those two packages have known goroutine-leak patterns where a worker spawned by one test outlives that test and races against the next test's setup; the race detector is correct to flag them, but the result is non-deterministic local failures on Mac. The fix lives upstream in those packages' lifecycles (tracked at `internal/team/headless_codex.go` :: `enqueueHeadlessCodexTurnRecord`, where `runHeadlessCodexQueue` is spawned without a per-test cleanup channel). Until that lands, the carve-out keeps CI honest.
-
-### Running tests locally
-
-To match CI's gate locally — per-package fan-out with the same `-race` carve-out — use:
+## Main Checks
 
 ```bash
-bash scripts/test-go.sh                  # whole repo (~3-5 min)
-bash scripts/test-go.sh ./internal/team  # one package
-COUNT=3 bash scripts/test-go.sh ./...    # flake-hunt
+npm run beta:release-gate
+npm run hosted-env:preflight:test
+npm --prefix web run typecheck
+npm --prefix web run build
 ```
 
-Plain `go test -race ./...` will reproduce the `internal/team` flakes documented above. If you need to verify a change touches the team package, the script is the sanctioned entry point — it's the same shape CI runs.
+## Local Web App
 
-**Do NOT push with `--no-verify`.** If a hook fails, fix the underlying failure — skipping it lands the problem in CI for everyone else to hit. If a hook is genuinely wrong for your change, open a PR to the hook config rather than bypassing it.
-
-## Latest Published CLI
-
-The old standalone CLI is no longer vendored in this repo.
-
-If you need the latest published CLI separately:
+Run the hosted API facade and Vite app separately:
 
 ```bash
-bash scripts/install-latest-laf-office-cli.sh
-```
-
-The same install step is also wired into setup:
-
-```bash
-./laf-office init
-```
-
-## Environments
-
-The LAF-Office runtime reads `LAF_OFFICE_BASE_URL` from the environment. If unset, hosted API features remain disabled.
-
-| Environment | `LAF_OFFICE_BASE_URL` |
-|-------------|----------------|
-| Production  | _(unset — default)_ |
-| Staging     | `https://app.staging.laf-office.ai` |
-| Local       | `http://localhost:30000` |
-
-### Switching environments
-
-```bash
-# Staging
-export LAF_OFFICE_BASE_URL="https://app.staging.laf-office.ai"
-
-# Local
-export LAF_OFFICE_BASE_URL="http://localhost:30000"
-
-# Back to production
-unset LAF_OFFICE_BASE_URL
-```
-
-or set it directly in `.zshrc` or `.bashrc`.
-
-### Local web UI with Supabase auth
-
-To test the localhost web UI against the Supabase-backed hosted API instead of
-the local broker auth store:
-
-```bash
-# terminal 1: serves /api from api/[...path].js using .env.local
 npm run hosted-api:dev
-
-# terminal 2: serves the normal local UI, but proxies /api to terminal 1
-LAF_OFFICE_BASE_URL="http://127.0.0.1:30000" \
-  go run ./cmd/laf-office --no-open --provider codex --web-port 7891
+cd web && bun run dev
 ```
 
-With `LAF_OFFICE_BASE_URL` set, only the browser `/api/*` proxy is redirected to
-the hosted API. Local onboarding and local agent execution still run through the
-local broker.
+Copy `.env.example` to `.env.local` for local cloud rehearsals. Production and
+preview deploys should provide equivalent values through the deployment
+platform.
+
+## Supabase
+
+Migrations are append-only forward migrations in `supabase/migrations/`.
+
+```bash
+supabase migration list
+supabase db push
+```
+
+Use `supabase db push --dry-run` before applying migrations when reviewing
+schema-only changes.

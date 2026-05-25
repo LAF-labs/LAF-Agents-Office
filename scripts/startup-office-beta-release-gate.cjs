@@ -7,6 +7,7 @@ const checks = [
   ["npm", ["run", "production:audit"]],
   ["npm", ["run", "startup-office:api-contracts"]],
   ["npm", ["run", "startup-office:architecture"]],
+  ["npm", ["run", "startup-office:legacy-runtime"]],
   ["npm", ["run", "startup-office:surface"]],
   ["node", ["--test", "api/lib/startup-office/dispatcher.test.js"]],
   ["node", ["--test", "api/lib/startup-office/queryHandlers.test.js"]],

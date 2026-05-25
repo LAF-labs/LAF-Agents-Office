@@ -1,13 +1,14 @@
 {
   "name": "laf-office-dev-tooling",
   "private": true,
-  "description": "Root-level dev tooling (secretlint, commitlint). The app itself is Go; web UI lives in ./web with its own package.json.",
+  "description": "Root-level dev tooling for the hosted Startup Office SaaS; web UI lives in ./web with its own package.json.",
   "scripts": {
     "beta:release-gate": "node scripts/startup-office-beta-release-gate.cjs",
     "closed-beta:goals": "node scripts/check-closed-beta-goals.cjs",
     "production:audit": "node scripts/check-sv-production-audit.cjs",
     "startup-office:api-contracts": "node scripts/check-startup-office-api-contracts.cjs",
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
+    "startup-office:legacy-runtime": "node scripts/check-no-legacy-runtime.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "hosted-api:dev": "node scripts/hosted-api-dev-server.cjs",
     "hosted-env:preflight": "node scripts/hosted-env-preflight.cjs",

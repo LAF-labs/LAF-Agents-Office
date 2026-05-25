@@ -135,7 +135,6 @@ describe("project api client", () => {
             title: "Implement signup",
             project_id: "customer-portal",
             owner: "eng",
-            execution_mode: "office",
           },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },

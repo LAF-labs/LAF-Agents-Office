@@ -16,11 +16,6 @@ pre-commit:
         - "web/bun.lock"
 
     biome:
-      # biome runs against staged web/** files only — it's scoped to web/
-      # because that's where biome.json lives. `root: web` chdirs lefthook
-      # into web/ so {staged_files} arrives as paths relative to web/;
-      # stage_fixed=true re-stages formatter + safe-autofix changes so the
-      # commit includes them.
       root: web
       glob: "**/*.{js,ts,jsx,tsx,json,css}"
       run: bunx --bun biome check --write --max-diagnostics=500 {staged_files}
@@ -33,62 +28,18 @@ pre-commit:
         - "**/*.gen.ts"
         - "**/*.gen.tsx"
 
-    gofmt:
-      glob: "*.go"
-      run: sh scripts/check-staged-go.sh gofmt
-
-    go-vet:
-      glob: "*.go"
-      run: go vet ./...
-
-    golangci-lint:
-      glob: "*.go"
-      run: sh scripts/check-staged-go.sh golangci-lint
-
     no-secrets:
       run: sh scripts/check-staged-safety.sh no-secrets
 
     check-merge-conflicts:
-      glob: "*.{go,yml,yaml,md,toml,json}"
+      glob: "*.{js,ts,jsx,tsx,css,yml,yaml,md,toml,json,sql,cjs,mjs}"
       run: sh scripts/check-staged-safety.sh merge-conflicts
 
     no-large-files:
       run: sh scripts/check-staged-safety.sh no-large-files
 
-    laf-superworkflow-reviewer:
-      run: ./scripts/laf-superworkflow-check.sh reviewer --staged
-
-    laf-superworkflow-tester:
-      run: ./scripts/laf-superworkflow-check.sh tester --staged
-
 pre-push:
-  # Serial, not parallel: running `go build ./...`, `go vet ./...`, and
-  # `vhs` concurrently contends for disk/CPU on workstations, and
-  # internal/team's wiki worker queue saturates under that load
-  # ("playbook: compile write timed out after 10s", "wiki: queue saturated,
-  # retry on next turn"). Same tests pass reliably when run sequentially.
-  # Until the wiki worker is bounded-queue-tolerant, keep pre-push serial.
   parallel: false
   commands:
-    smoke:
-      # internal/team's former test-isolation bugs (shared ~/.laf-office/wiki,
-      # worktrees registered against the invoking repo, cross-test state
-      # leakage via broker-state.json) are now guarded at the package
-      # level: worktree_guard_test.go flips allowRealTaskWorktree and
-      # unscopedWikiRootAllowed off for tests, installs safe stub
-      # prepare/cleanup worktree funcs, and skips the NewBroker auto-load
-      # so every test starts from a clean slate. Persistence tests opt
-      # back in via reloadedBroker(t). Full-suite testing now lives in
-      # CI (go-test-matrix job) so pre-push stays a ~10s smoke.
-      run: go build ./... && go vet ./...
-    build:
-      run: go build -o /dev/null ./cmd/laf-office
-    laf-superworkflow:
-      run: ./scripts/laf-superworkflow-check.sh all
-    vhs:
-      run: |
-        if ! command -v vhs >/dev/null 2>&1; then
-          printf '%s\n' 'vhs not installed - skipping visual regression check (install: brew install vhs)'
-          exit 0
-        fi
-        testdata/vhs/check.sh
+    hosted-release-gate:
+      run: npm run beta:release-gate

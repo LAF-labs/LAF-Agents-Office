@@ -906,11 +906,9 @@ export interface Task {
   task_type?: string;
   pipeline_id?: string;
   pipeline_stage?: string;
-  execution_mode?: string;
   review_state?: string;
   source_signal_id?: string;
   source_decision_id?: string;
-  worktree_branch?: string;
   delivery_url?: string;
   delivery_summary?: string;
   delivery_status?: string;

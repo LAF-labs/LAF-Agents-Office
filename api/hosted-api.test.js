@@ -76,8 +76,20 @@ test("pure cloud migration drops obsolete local execution schema", () => {
   assert.match(sql, /p\.proname = 'claim_runner_job'/);
   assert.match(sql, /drop column if exists worktree_branch/);
   assert.match(sql, /check \(model_mode in \('laf_model', 'record_only'\)\)/);
-  assert.match(sql, /set execution_mode = 'office'/);
   assert.match(sql, /to_regclass\('public\.tasks'\) is not null/);
+
+  const finalSql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525010000_purge_legacy_runtime_columns.sql",
+    ),
+    "utf8",
+  );
+  assert.match(finalSql, /drop column if exists execution_mode/);
+  assert.match(finalSql, /drop column if exists worktree_path/);
+  assert.match(finalSql, /drop column if exists worktree_branch/);
+  assert.match(finalSql, /drop table if exists public\.bridge_devices cascade/);
+  assert.match(finalSql, /drop table if exists public\.runner_jobs cascade/);
 });
 
 test("Startup Office release gate points at loop engine tests", () => {
@@ -87,6 +99,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   );
   assert.match(script, /startup-office:architecture/);
   assert.match(script, /startup-office:api-contracts/);
+  assert.match(script, /startup-office:legacy-runtime/);
   assert.match(script, /api\/lib\/startup-office\/queryHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/workflowHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/operationsHandlers\.test\.js/);

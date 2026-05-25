@@ -7,16 +7,17 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Evidence Baseline
 
-- `api/[...path].js` is still a 4,773-line hosted API facade after the cloud pivot.
+- `api/[...path].js` is still a large hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
-  Supabase project has applied through `20260525000000`; RLS exercise, backup,
+  Supabase project has applied through `20260525010000`; RLS exercise, backup,
   restore, and rollback drills are still not proven.
 - The current release gate is deterministic and fake-provider friendly, but it
   does not prove live model, live Supabase, email, billing, DNS, or browser E2E.
-- Go internals still contain a large local/headless/worktree-era runtime used by
-  the legacy desktop product; the hosted product must not depend on it.
+- Legacy Go, CLI, npm-wrapper, native-release, and local-runtime scripts have
+  been removed from the tracked hosted SaaS tree and are now guarded by the
+  release gate.
 - The product strategy is now clearer, but business proof still depends on a
   real founder using and paying for the product.
 
@@ -24,7 +25,7 @@ startup, what fundamental problems would we refuse to carry forward?
 
 | ID | Area | Fundamental problem | Current evidence |
 | --- | --- | --- | --- |
-| SV-I001 | Positioning | The product still carries historical developer-workspace weight while the intended buyer is a non-developer founder. | README, docs, Go runtime, web apps |
+| SV-I001 | Positioning | The product still carries historical developer-workspace weight while the intended buyer is a non-developer founder. | docs and large web app modules |
 | SV-I002 | Positioning | The wedge is not yet reduced to one painfully specific paid founder outcome. | strategy docs and Growth Center copy |
 | SV-I003 | Positioning | The product promise spans strategy, operations, marketing, memory, approvals, and agents before one loop proves repeatable value. | Startup Office loops and docs |
 | SV-I004 | Positioning | The Polsia comparison is not converted into concrete win/loss product requirements. | product docs |
@@ -36,7 +37,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I010 | Positioning | The business model is represented as beta ops state, not a live pricing and entitlement system. | billing migration and API |
 | SV-I011 | Architecture | The hosted API facade remains too large to reason about as a production service boundary. | `api/[...path].js` |
 | SV-I012 | Architecture | Product domains are partially extracted, but routing, auth, billing, and Startup Office behavior still mix in one server file. | `api/[...path].js`, `api/lib/startup-office` |
-| SV-I013 | Architecture | Legacy desktop/team runtime and hosted cloud product share too much repository and conceptual surface. | `internal/team`, `web/src/components/apps` |
+| SV-I013 | Architecture | Large legacy-adjacent web app modules still coexist with the focused hosted Startup Office. | `web/src/components/apps` |
 | SV-I014 | Architecture | There is no explicit service ownership map for auth, office objects, memory, workers, billing, and notifications. | architecture docs |
 | SV-I015 | Architecture | The cloud worker is a library-style worker, not a deployed independently operable service. | `workers/startup-office` |
 | SV-I016 | Architecture | Data access uses ad hoc REST helper patterns instead of a typed repository contract across all domains. | API helpers |
@@ -71,7 +72,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I045 | Security | Request body size limits are not enforced as a cross-cutting API policy. | route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
 | SV-I047 | Security | Secrets scanning is present but not tied into the Startup Office release gate. | CI scripts |
-| SV-I048 | Security | Permission names are maintained in multiple layers and can drift. | Go, JS, web types |
+| SV-I048 | Security | Permission names are maintained in multiple layers and can drift. | API and web types |
 | SV-I049 | Security | External action approval policy is not enforced by a centralized policy engine. | policy route and loop templates |
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
 | SV-I051 | AI worker | The model client is OpenAI-first and does not yet support robust provider failover. | `modelClient.js` |
@@ -85,7 +86,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I059 | AI worker | There is no red-team harness for hallucination, unsafe advice, and overclaiming. | output eval test |
 | SV-I060 | AI worker | AI execution has no per-workspace tool permission manifest. | loops and skills |
 | SV-I061 | Memory | Company memory is promising but not yet the source of truth for all company operations. | memory pages and wiki |
-| SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | internal/team and Startup Office |
+| SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | hosted wiki and Startup Office |
 | SV-I063 | Memory | Retrieval quality is not measured against business-loop outcomes. | wiki tests vs loop tests |
 | SV-I064 | Memory | Memory promotion lacks human-readable diff quality gates beyond basic preview. | approval metadata |
 | SV-I065 | Memory | Provenance exists but does not yet support full audit replay. | receipts and memory pages |
@@ -158,11 +159,11 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
 | SV-I133 | Release | Environment preflight validates config presence but not external reachability. | hosted-env preflight |
 | SV-I134 | Release | Worker deployment is not independently packaged. | workers directory |
-| SV-I135 | Release | CI still builds broad legacy Go surfaces that are not part of hosted SaaS. | Go packages |
+| SV-I135 | Release | CI is now hosted-only but still lacks a production deploy smoke with live environment reachability. | `.github/workflows/ci.yml` |
 | SV-I136 | Release | There is no staged rollout or feature flag plan for risky cloud loops. | docs |
 | SV-I137 | Release | Database migration failure recovery is not rehearsed. | migrations |
 | SV-I138 | Release | Secrets and config rotation are not a release checklist item. | env docs |
-| SV-I139 | Release | Versioning is package-oriented, not SaaS release-oriented. | GoReleaser and npm |
+| SV-I139 | Release | Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence. | release docs |
 | SV-I140 | Release | Post-release monitoring and rollback criteria are undefined. | docs |
 | SV-I141 | Compliance | Privacy policy, DPA, and terms are not implemented as launch artifacts. | docs |
 | SV-I142 | Compliance | AI output disclaimers are not consistently surfaced at decision points. | UI |
@@ -209,7 +210,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I183 | Developer experience | API fixtures, fake providers, and demo seeds are not clearly separated by environment. | tests and demo seed |
 | SV-I184 | Developer experience | Generated assets and manual code are mixed without a full generation check. | avatar scripts |
 | SV-I185 | Developer experience | There is no single command proving all cloud SaaS invariants. | release gate gaps |
-| SV-I186 | Developer experience | Local development still centers on the old CLI experience. | npm package and Go command |
+| SV-I186 | Developer experience | Local development is hosted-first but not yet one-command reproducible for web, API, worker, and Supabase. | `DEVELOPMENT.md` |
 | SV-I187 | Developer experience | Code ownership boundaries are not explicit. | docs |
 | SV-I188 | Developer experience | Package naming and repo naming still reflect historical LAF Agents Office identity. | repo paths |
 | SV-I189 | Developer experience | Static analysis/lint coverage is weaker than tests. | scripts |
@@ -266,7 +267,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G035 | Add file upload controls. | Type, size, scan, and retention policies protect assets. | upload tests |
 | SV-G036 | Implement support access consent. | Owner-visible, expiring support sessions gate staff access. | policy tests |
 | SV-G037 | Add security release gate. | Secret scan, dependency audit, and boundary checks run together. | CI |
-| SV-G038 | Unify permission definitions. | Go, JS, DB, and web permission lists cannot drift. | generated artifact |
+| SV-G038 | Unify permission definitions. | API, DB, and web permission lists cannot drift. | generated artifact |
 | SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require disclaimer and approval. | output eval |
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
 | SV-G041 | Add provider abstraction. | At least two model providers or one provider plus fallback are supported. | worker tests |
@@ -376,12 +377,17 @@ and missing typed contracts.
 - R2 now has a Startup Office API contract gate. Server route contracts declare
   the web client function, method, response type, and path snippets; the release
   gate verifies `web/src/api/startupOffice.ts` cannot drift silently.
+- R2 now has a legacy-runtime removal gate. The repo no longer tracks the Go
+  desktop runtime, npm CLI wrapper, native release artifacts, local execution
+  scripts, or old TUI/E2E harnesses; `npm run startup-office:legacy-runtime`
+  blocks those paths and local-runtime terms from returning to hosted product
+  code.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
-  `20260525000000_remove_local_execution.sql`. A linked DB query confirms the
+  `20260525010000_purge_legacy_runtime_columns.sql`. A linked DB query confirms the
   obsolete device, queue, execution-plan, checkout-binding, and claim-function
   objects are absent.
-- The retired external runtime connector has been removed from Go internals,
-  CLI probes, provider bindings, config, onboarding tests, and hosted surface
-  guards. `npm run startup-office:surface` now fails if that connector term or
-  its old packages return to tracked source.
+- The retired external runtime connector has been removed from the hosted
+  product surface. `npm run startup-office:surface` and
+  `npm run startup-office:legacy-runtime` now fail if those old product terms or
+  paths return to tracked source.

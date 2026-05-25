@@ -1,10 +1,6 @@
-# Go binary
+# Local generated artifacts
 /laf-office
-/nex
-/bridge
-/laf-office-oc-probe
 
-# Local artifacts
 /docs/*
 !/docs/specs/
 !/docs/specs/**
@@ -36,8 +32,6 @@
 
 # Local caches
 .cache/
-.gocache/
-.gomodcache/
 .laf-office/bin/
 .laf-office/cache/
 .playwright-mcp/
@@ -55,20 +49,9 @@ video/public/audio/bg-music-c.mp3
 video/public/audio/bg-music-d.mp3
 video/public/audio/test-*.mp3
 
-# VHS visual regression artifacts — only .txt goldens are diffed;
-# .gif output and .actual drift files regenerate on every run of
-# testdata/vhs/check.sh and are not tracked in git.
-testdata/vhs/*.gif
-testdata/vhs/*.actual
-
 # Web test coverage output
 web/coverage/
 
 # Dev build artifacts
 /dist/
-laf-office-dev
-
-
-# Local dev binary built by scripts/debug-tagging/run.sh
-/.laf-office-debug-tagging
 .vercel

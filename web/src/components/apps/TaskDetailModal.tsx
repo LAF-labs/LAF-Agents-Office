@@ -175,16 +175,7 @@ function relativeMeta(value: string | null | undefined): string | null {
 }
 
 function taskRequiresDeliveryReceipt(task: Task): boolean {
-  return Boolean(
-    task.project_id?.trim() &&
-      taskUsesManagedCheckout(task) &&
-      task.worktree_branch?.trim(),
-  );
-}
-
-function taskUsesManagedCheckout(task: Task): boolean {
-  const mode = task.execution_mode?.trim();
-  return mode === "managed_checkout" || mode === "local_worktree";
+  return Boolean(task.project_id?.trim());
 }
 
 function terminalTaskStatus(status: string | null | undefined): boolean {
@@ -387,22 +378,6 @@ function baseTaskExecutionSteps(
   ];
 }
 
-function branchExecutionStep(
-  task: Task,
-  hasStarted: boolean,
-  t: TaskTranslator,
-): TaskExecutionStep {
-  const branch = task.worktree_branch?.trim();
-  return {
-    id: "branch",
-    label: branch
-      ? t("tasks.detail.step.branchReady")
-      : t("tasks.detail.step.branchNeeded"),
-    detail: optionalMeta(branch),
-    state: branch ? "done" : hasStarted ? "current" : "pending",
-  };
-}
-
 function deliveryExecutionStep(
   task: Task,
   hasStarted: boolean,
@@ -459,20 +434,17 @@ function taskExecutionSteps(
   status: string,
   t: TaskTranslator,
 ): TaskExecutionStep[] {
-  const isCodingTask = taskUsesManagedCheckout(task);
   const requiresReceipt = taskRequiresDeliveryReceipt(task);
   const hasStarted = taskStatusHasStarted(status);
   const isDone = taskStatusIsDone(status);
   const isReview = taskStatusIsReview(status);
   const steps = baseTaskExecutionSteps(task, t);
 
-  if (isCodingTask) {
-    steps.push(branchExecutionStep(task, hasStarted, t));
+  if (task.project_id?.trim()) {
+    steps.push(projectMemoryExecutionStep(isDone, hasStarted, t));
     if (requiresReceipt) {
       steps.push(deliveryExecutionStep(task, hasStarted, isReview, t));
     }
-  } else if (task.project_id?.trim()) {
-    steps.push(projectMemoryExecutionStep(isDone, hasStarted, t));
   }
 
   if (status === "blocked") {
@@ -489,9 +461,6 @@ function taskExecutionSteps(
 }
 
 function taskTypeLabel(task: Task, t: TaskTranslator): string | null {
-  if (taskUsesManagedCheckout(task)) {
-    return t("tasks.detail.codingTask");
-  }
   if (task.project_id?.trim()) {
     return t("tasks.detail.planningTask");
   }
@@ -840,7 +809,6 @@ function TaskExecutionSection({
   const facts = [
     [t("tasks.detail.assignedTo"), ownerMeta(task.owner)],
     [t("tasks.detail.taskType"), taskTypeLabel(task, t)],
-    [t("tasks.detail.branch"), optionalMeta(task.worktree_branch)],
   ].filter(([, value]) => value);
   const steps = taskExecutionSteps(task, status, t);
 

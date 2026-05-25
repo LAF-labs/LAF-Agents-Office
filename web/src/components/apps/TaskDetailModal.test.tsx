@@ -7,8 +7,6 @@ import type { Task } from "../../api/client";
 import { useAppStore } from "../../stores/app";
 import { TaskDetailModal } from "./TaskDetailModal";
 
-type TaskPayloadForTest = Task & { worktree_path?: string };
-
 const apiMocks = vi.hoisted(() => ({
   getActions: vi.fn(),
   getOfficeMembers: vi.fn(),
@@ -27,7 +25,7 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-function renderTaskDetail(task: TaskPayloadForTest, onClose = () => {}) {
+function renderTaskDetail(task: Task, onClose = () => {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -88,20 +86,11 @@ describe("TaskDetailModal execution view", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "managed_checkout",
-      worktree_branch: "laf-office-task-task-request",
-      worktree_path: "/tmp/customer-portal-task-request",
     });
 
     expect(screen.getByText("Ready for review")).toBeInTheDocument();
-    expect(
-      screen.getAllByText("laf-office-task-task-request").length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.queryByText("/tmp/customer-portal-task-request"),
-    ).not.toBeInTheDocument();
     expect(screen.getByText("Owner assigned")).toBeInTheDocument();
-    expect(screen.getByText("Branch ready")).toBeInTheDocument();
+    expect(screen.getByText("Project memory update")).toBeInTheDocument();
     expect(screen.getByText("Delivery receipt needed")).toBeInTheDocument();
     expect(screen.getByText("Waiting for human review.")).toBeInTheDocument();
 
@@ -127,8 +116,6 @@ describe("TaskDetailModal execution view", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "managed_checkout",
-      worktree_branch: "laf-office-task-task-request",
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "Implemented invite form validation.",
       delivery_status: "open",
@@ -177,8 +164,6 @@ describe("TaskDetailModal execution view", () => {
         owner: "eng",
         project_id: "customer-portal",
         channel: "general",
-        execution_mode: "managed_checkout",
-        worktree_branch: "laf-office-task-task-request",
       },
       onClose,
     );
@@ -213,8 +198,6 @@ describe("TaskDetailModal execution view", () => {
         owner: "eng",
         project_id: "customer-portal",
         channel: "general",
-        execution_mode: "managed_checkout",
-        worktree_branch: "laf-office-task-task-request",
       },
       onClose,
     );
@@ -255,8 +238,6 @@ describe("TaskDetailModal execution view", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "managed_checkout",
-      worktree_branch: "laf-office-task-task-request",
       delivery_url: "https://github.com/LAF-labs/customer-portal/pull/42",
       delivery_summary: "초대 폼 검증을 구현했습니다.",
       delivery_status: "merged",
@@ -301,9 +282,6 @@ describe("TaskDetailModal project copy", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "managed_checkout",
-      worktree_branch: "laf-office-task-task-request",
-      worktree_path: "/tmp/customer-portal-task-request",
     });
 
     expect(screen.getByText("작업 상태")).toBeInTheDocument();
@@ -316,7 +294,6 @@ describe("TaskDetailModal project copy", () => {
     expect(screen.queryByText("Execution")).not.toBeInTheDocument();
     expect(screen.queryByText("Ownership")).not.toBeInTheDocument();
     expect(screen.queryByText(/CEO is cc'd/)).not.toBeInTheDocument();
-    expect(screen.queryByText("/tmp/customer-portal-task-request")).toBeNull();
   });
 
   it("does not surface channel metadata for project-scoped tasks", () => {
@@ -329,7 +306,6 @@ describe("TaskDetailModal project copy", () => {
       owner: "eng",
       project_id: "customer-portal",
       channel: "general",
-      execution_mode: "managed_checkout",
     });
 
     expect(screen.queryByText("Channel")).not.toBeInTheDocument();

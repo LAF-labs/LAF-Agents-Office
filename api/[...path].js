@@ -2392,12 +2392,6 @@ function publicChannelMessage(row = {}) {
   };
 }
 
-function publicTaskExecutionMode(value) {
-  const mode = String(value || "").trim();
-  if (mode === "office") return "office";
-  return "office";
-}
-
 function hostedMessageBelongsToThread(row, threadID) {
   return [
     row.thread_id,
@@ -3227,7 +3221,6 @@ async function createTask(membership, body) {
       channel: body.channel || project?.channel || "general",
       created_by: membership.user_id,
       details: body.details || "",
-      execution_mode: "office",
       human_details: body.human_details || body.details || "",
       human_owner_user_id: body.human_owner_user_id || membership.user_id,
       local_id: body.id || `task-${shortID()}`,
@@ -3793,13 +3786,11 @@ function publicProject(row) {
 function publicTask(row, projects = {}) {
   const task = {
     ...row,
-    execution_mode: publicTaskExecutionMode(row.execution_mode),
     id: row.local_id || row.id,
     project_id: row.project_id
       ? projects[row.project_id]?.local_id || row.project_id
       : "",
   };
-  delete task.worktree_path;
   return task;
 }
 
