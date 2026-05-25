@@ -85,6 +85,9 @@ test("Startup Office release gate points at loop engine tests", () => {
     path.join(__dirname, "..", "scripts", "startup-office-beta-release-gate.cjs"),
     "utf8",
   );
+  assert.match(script, /startup-office:architecture/);
+  assert.match(script, /api\/lib\/startup-office\/operationsHandlers\.test\.js/);
+  assert.match(script, /api\/lib\/startup-office\/objectHandlers\.test\.js/);
   assert.match(script, /workers\/startup-office\/loopEngine\.test\.js/);
   assert.doesNotMatch(script, new RegExp("loop" + "Runner"));
 });

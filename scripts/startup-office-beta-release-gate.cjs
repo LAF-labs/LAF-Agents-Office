@@ -5,8 +5,11 @@ const { spawnSync } = require("node:child_process");
 const checks = [
   ["git", ["diff", "--check"]],
   ["npm", ["run", "production:audit"]],
+  ["npm", ["run", "startup-office:architecture"]],
   ["npm", ["run", "startup-office:surface"]],
   ["node", ["--test", "api/lib/startup-office/dispatcher.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/operationsHandlers.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/objectHandlers.test.js"]],
   ["node", ["--test", "workers/startup-office/loopEngine.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],
   ["node", ["--test", "api/hosted-api.test.js"]],

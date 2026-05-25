@@ -360,6 +360,11 @@ and missing typed contracts.
   `api/lib/startup-office/dispatcher.test.js` pins route IDs, aliases, params,
   and dispatch behavior. The handler bodies still need to move out of the
   hosted facade.
+- R2 now extracts Startup Office operations and business-object handlers into
+  dedicated modules with injected dependencies and unit tests. The hosted API
+  facade is reduced from 4,773 to 4,635 lines, and
+  `npm run startup-office:architecture` prevents those extracted handlers from
+  moving back into `api/[...path].js`.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   `20260525000000_remove_local_execution.sql`. A linked DB query confirms the
