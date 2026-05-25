@@ -617,6 +617,11 @@ and missing typed contracts.
   `api/lib/hosted/schedulerHandlers.js`. The activity surface now reads
   `startup_office_worker_jobs`, maps due/running jobs into the existing
   SchedulerJob contract, and keeps due-only filtering deterministic in tests.
+- R5/R8 now replaces the hosted `/actions`, `/signals`, `/decisions`, and
+  `/watchdogs` empty stubs with `api/lib/hosted/activityHandlers.js`. The
+  legacy activity dashboard surface now reads Startup Office receipts, signals,
+  approval decisions, failed runs, and failed worker jobs instead of returning
+  placeholder arrays.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

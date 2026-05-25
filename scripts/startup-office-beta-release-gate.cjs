@@ -19,6 +19,7 @@ const checks = [
   ["npm", ["run", "startup-office:ops-monitor:test"]],
   ["npm", ["run", "hosted-env:preflight:test"]],
   ["node", ["--test", "api/lib/hosted/agentLogHandlers.test.js"]],
+  ["node", ["--test", "api/lib/hosted/activityHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/auditHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/authHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/commandHandlers.test.js"]],

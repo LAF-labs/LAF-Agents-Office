@@ -33,6 +33,7 @@ function assertNotContains(relativePath, pattern, label) {
 }
 
 assertMaxLines("api/[...path].js", 2850);
+assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
@@ -168,6 +169,8 @@ for (const [pattern, label] of [
   [/path === "requests\/answer"[\s\S]{0,160}\{ ok: true \}/, "hosted request answer no-op response"],
   [/async function handleHostedScheduler\b/, "hosted scheduler handler"],
   [/jobs: \[\]/, "hosted scheduler empty stub"],
+  [/\["actions", "signals", "decisions", "watchdogs"\]/, "hosted activity multiplexer stub"],
+  [/\{\s*\[path\]: \[\]\s*\}/, "hosted activity empty stub"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

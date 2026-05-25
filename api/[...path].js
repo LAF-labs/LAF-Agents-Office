@@ -6,6 +6,9 @@ const {
   createHostedAgentLogHandlers,
 } = require("./lib/hosted/agentLogHandlers");
 const {
+  createHostedActivityHandlers,
+} = require("./lib/hosted/activityHandlers");
+const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
@@ -414,6 +417,18 @@ const HOSTED_REQUEST_HANDLERS = createHostedRequestHandlers({
   writeJSON,
 });
 
+const HOSTED_ACTIVITY_HANDLERS = createHostedActivityHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  readBody,
+  requirePermission,
+  requireUser,
+  safeStartupOfficeRest,
+  truncateText,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const HOSTED_SCHEDULER_HANDLERS = createHostedSchedulerHandlers({
   nowISO,
   requirePermission,
@@ -670,8 +685,20 @@ module.exports = async function handler(req, res) {
       await HOSTED_REQUEST_HANDLERS.requestAnswer(req, res);
       return;
     }
-    if (["actions", "signals", "decisions", "watchdogs"].includes(path) && req.method === "GET") {
-      writeJSON(res, 200, { [path]: [] });
+    if (path === "actions" && req.method === "GET") {
+      await HOSTED_ACTIVITY_HANDLERS.actions(req, res);
+      return;
+    }
+    if (path === "signals") {
+      await HOSTED_ACTIVITY_HANDLERS.signals(req, res);
+      return;
+    }
+    if (path === "decisions" && req.method === "GET") {
+      await HOSTED_ACTIVITY_HANDLERS.decisions(req, res);
+      return;
+    }
+    if (path === "watchdogs" && req.method === "GET") {
+      await HOSTED_ACTIVITY_HANDLERS.watchdogs(req, res);
       return;
     }
     if (path === "scheduler" && req.method === "GET") {
