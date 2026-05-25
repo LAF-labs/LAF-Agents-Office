@@ -257,4 +257,28 @@ describe("auth api client errors", () => {
       }),
     ).rejects.toThrow("Unable to validate email address: invalid format");
   });
+
+  it("unwraps typed hosted API error envelopes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "rate_limit_exceeded",
+            message: "rate limit exceeded",
+            retryable: true,
+            status: 429,
+          },
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      login({ email: "nobody@example.com", password: "wrongpassword" }),
+    ).rejects.toThrow("rate limit exceeded");
+  });
 });

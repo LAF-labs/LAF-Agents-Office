@@ -20,6 +20,7 @@ const checks = [
   ["npm", ["run", "startup-office:model-costs"]],
   ["npm", ["run", "startup-office:customer-csv"]],
   ["npm", ["run", "startup-office:deletion-coverage"]],
+  ["npm", ["run", "startup-office:error-envelope"]],
   ["npm", ["run", "startup-office:export-coverage"]],
   ["npm", ["run", "startup-office:first-beta-smoke"]],
   ["npm", ["run", "startup-office:idempotency"]],

@@ -62,7 +62,12 @@ test("retired project and task routes are removed from the hosted API surface", 
   ]) {
     const response = await invoke(routePath, method, {});
     assert.equal(response.status, 404, `${method} ${routePath}`);
-    assert.equal(response.body.error, "hosted API route not found");
+    assert.deepEqual(response.body.error, {
+      code: "hosted_api_route_not_found",
+      message: "hosted API route not found",
+      retryable: false,
+      status: 404,
+    });
   }
 });
 
@@ -76,7 +81,9 @@ test("hosted API rejects oversized request bodies before mutation handlers", asy
   ]) {
     const response = await invoke("auth/signup", "POST", body, { headers });
     assert.equal(response.status, 413, label);
-    assert.match(response.body.error, /request body exceeds 524288 bytes/);
+    assert.equal(response.body.error.code, "request_body_exceeds_524288_bytes");
+    assert.match(response.body.error.message, /request body exceeds 524288 bytes/);
+    assert.equal(response.body.error.status, 413);
   }
 });
 
@@ -100,7 +107,12 @@ test("hosted API rate limits expensive actions at ingress", async () => {
       headers: { authorization: "", "x-forwarded-for": "203.0.113.10" },
     });
     assert.equal(limited.status, 429, routePath);
-    assert.equal(limited.body.error, "rate limit exceeded");
+    assert.deepEqual(limited.body.error, {
+      code: "rate_limit_exceeded",
+      message: "rate limit exceeded",
+      retryable: true,
+      status: 429,
+    });
   }
 });
 

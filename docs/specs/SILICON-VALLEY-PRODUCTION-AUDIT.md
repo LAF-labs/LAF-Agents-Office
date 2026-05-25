@@ -61,7 +61,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I020 | Architecture | Multi-tenant business objects do not have a shared domain invariant layer. | assets, customers, metrics, signals |
 | SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
-| SV-I023 | API | Error responses are not consistently typed for clients and operators. | `HTTPError`, client unwraps |
+| SV-I023 | API | Hosted API errors now return a typed envelope with code, message, retryable, status, and optional request ID, while the web client unwraps legacy and typed shapes. | `startup-office:error-envelope` |
 | SV-I024 | API | Core run creation, run retry/cancel, approval decisions, and worker artifact/approval paths now carry idempotency keys, but lower-risk object CRUD still needs the same contract. | run lifecycle routes |
 | SV-I025 | API | Pagination is inconsistent across business objects and messages. | `limit` handling |
 | SV-I026 | API | Operating-object filtering and sorting now use a central contract with whitelisted fields and release-gate coverage; wider generated API schemas remain future hardening. | `startup-office:object-query-contracts` |
@@ -718,6 +718,11 @@ the final release commit or when a shared invariant changes.
   pagination/cursor serialization, `api/lib/hosted/auditHandlers.test.js` covers
   the `audit:read` permission and ISO cursor handling, and the architecture gate
   prevents the handler from drifting back into `api/[...path].js`.
+- R2/R8 now adds a hosted API error envelope. Non-2xx responses return
+  `{ error: { code, message, retryable, status, request_id? } }`, unsafe
+  upstream details still collapse to generic messages, the web client unwraps
+  both typed and legacy shapes, and `npm run startup-office:error-envelope`
+  pins the contract.
 - R5/R8 now adds customer CSV interoperability. Founders can export customers
   as `name,status,loop_id,notes,profile_json` CSV and import CSV rows back into
   Startup Office customers through `POST /startup-office/customers/csv`; the

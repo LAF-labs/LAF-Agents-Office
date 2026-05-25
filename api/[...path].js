@@ -21,6 +21,10 @@ const {
   createHostedConversationHandlers,
 } = require("./lib/hosted/conversationHandlers");
 const {
+  defaultHostedAPIErrorMessage,
+  hostedAPIErrorPayload,
+} = require("./lib/hosted/errorEnvelope");
+const {
   createHostedInviteHandlers,
 } = require("./lib/hosted/inviteHandlers");
 const {
@@ -931,7 +935,11 @@ module.exports = async function handler(req, res) {
       await handleSkillInvoke(req, res, decodeURIComponent(skillInvokeMatch[1]));
       return;
     }
-    writeJSON(res, 404, { error: "hosted API route not found" });
+    writeJSON(res, 404, hostedAPIErrorPayload({
+      message: "hosted API route not found",
+      requestID: requestIDFor(req),
+      status: 404,
+    }));
   } catch (err) {
     const status = err instanceof HTTPError ? err.status : 500;
     let message;
@@ -939,7 +947,7 @@ module.exports = async function handler(req, res) {
       // Only forward HTTPError.message when explicitly marked safe. Upstream
       // (Supabase/auth) detail is wrapped with safe=false so we expose a
       // generic message and log the real one server-side.
-      message = err.safe === false ? defaultMessageForStatus(status) : err.message;
+      message = err.safe === false ? defaultHostedAPIErrorMessage(status) : err.message;
     } else {
       message = "hosted API internal error";
     }
@@ -950,20 +958,16 @@ module.exports = async function handler(req, res) {
         // best-effort logging
       }
     }
-    writeJSON(res, status, { error: message });
+    writeJSON(res, status, hostedAPIErrorPayload({
+      message,
+      requestID: requestIDFor(req),
+      status,
+    }));
   }
 };
 
-function defaultMessageForStatus(status) {
-  if (status === 400) return "invalid request";
-  if (status === 401) return "authentication required";
-  if (status === 403) return "forbidden";
-  if (status === 404) return "not found";
-  if (status === 409) return "conflict";
-  if (status === 410) return "gone";
-  if (status === 429) return "rate limited";
-  if (status >= 500) return "upstream error";
-  return "request failed";
+function requestIDFor(req) {
+  return String(req.headers?.["x-request-id"] || req.headers?.["x-vercel-id"] || "").trim();
 }
 
 function assertSupabaseEnv() {

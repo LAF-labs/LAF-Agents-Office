@@ -6,6 +6,7 @@ import type {
   WorkspacePermission,
   WorkspaceRole,
 } from "./workspacePermissions";
+
 export type {
   WorkspacePermission,
   WorkspaceRole,
@@ -110,6 +111,11 @@ function responseErrorMessage(
       parsed.error_description,
     ]) {
       if (typeof value === "string" && value.trim()) return value.trim();
+      if (value && typeof value === "object") {
+        const { message } = value as { message?: unknown };
+        if (typeof message === "string" && message.trim())
+          return message.trim();
+      }
     }
   } catch {
     // Plain text errors are already display-ready.
