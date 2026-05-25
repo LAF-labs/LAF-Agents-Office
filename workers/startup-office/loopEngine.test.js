@@ -282,6 +282,32 @@ test("startup office loop engine blocks externally informed drafts without citat
   assert.equal(state.receipts.at(-1).event_type, "run.failed");
 });
 
+test("startup office loop engine rejects citations outside attached source metadata", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    inputs: {
+      sources: [{ label: "Market report", url: "https://example.com/market-report" }],
+    },
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: mismatchedCitationModelClient(),
+    nowISO: fixedNow,
+    objective: "Validate the first buyer segment from an attached report",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    skillInvocations: skillInvocations(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "failed");
+  assert.match(result.error, /output sources must cite attached source metadata/);
+  assert.equal(state.artifacts.length, 0);
+  assert.equal(state.approvals.length, 0);
+  assert.equal(state.receipts.at(-1).event_type, "run.failed");
+});
+
 test("startup office loop engine gathers browser research and records cited sources", async () => {
   const state = fakeRepositoryState();
   const result = await runStartupOfficeLoop({
@@ -569,6 +595,17 @@ function citingModelClient() {
         data: output,
       };
     },
+  };
+}
+
+function mismatchedCitationModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async () =>
+      successfulModelOutput({
+        sources: [{ label: "Unattached report", url: "https://example.com/other-report" }],
+      }),
   };
 }
 

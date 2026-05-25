@@ -93,7 +93,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I052 | AI worker | A manual gated live model smoke now verifies one real structured model path with usage tokens and quality checks; broad live evals remain future hardening. | `startup-office:live-model-smoke`, `startup-office:live-model-smoke-check` |
 | SV-I053 | AI worker | Prompt templates now have a version manifest, instruction/schema hashes, review scope, and receipt/run metadata traces. | `startup-office:prompt-versions`, worker tests |
 | SV-I054 | AI worker | Output quality checks now cover structure, sources, assumptions, external-action claims, overclaiming, and regulated-advice review language; real model evals remain a post-beta hardening need. | `qualityChecks.js` |
-| SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
+| SV-I055 | AI worker | Source citation enforcement is connected to retrieval and live research: retrieved sources, founder inputs, and browser research merge into attached citation metadata, and runs fail if output citations are missing or unattached. | `startup-office:citation-enforcement`, worker tests |
 | SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
 | SV-I057 | AI worker | Model costs now reconcile provider usage fields against an operator pricing catalog and carry pricing provenance; invoice-level finance reconciliation remains future ops hardening. | `startup-office:model-costs`, usage tests |
 | SV-I058 | AI worker | Long-running work now has a distributed cancellation contract across API cancel, worker-job state, and loop side-effect guards; live provider abort signals remain future hardening. | `startup-office:cancellation`, worker tests |
@@ -288,7 +288,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, hashed, and tied to model calls, runs, artifacts, approvals, worker jobs, and receipts. | `startup-office:prompt-versions`, worker tests |
 | SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, unsafe external-action claims, overclaiming, and regulated-advice review. | eval suite |
 | SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | `startup-office:live-model-smoke`, manual gated script |
-| SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | worker tests |
+| SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | `startup-office:citation-enforcement`, worker tests |
 | SV-G046 | Add retrieval over memory and assets. | Loop outputs cite company memory and uploaded materials. | integration tests |
 | SV-G047 | Implement tool permission manifests. | Each loop declares allowed tools, disallowed external-execution tools, and external action policy; worker prompts, metadata, approvals, jobs, and receipts record the policy snapshot. | `startup-office:tool-policy`, worker tests |
 | SV-G048 | Add model cost reconciliation. | Estimated costs are compared with provider usage fields and operator pricing catalog provenance. | `startup-office:model-costs`, usage tests |
