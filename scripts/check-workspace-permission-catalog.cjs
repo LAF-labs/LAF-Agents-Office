@@ -22,6 +22,7 @@ function unique(values, label) {
 }
 
 function formatArray(values, indent = "") {
+  if (values.length <= 4) return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
   return `[\n${values.map((value) => `${indent}  ${JSON.stringify(value)},`).join("\n")}\n${indent}]`;
 }
 

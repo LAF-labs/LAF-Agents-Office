@@ -70,5 +70,4 @@ describe("useHashRouter workspace routes", () => {
       }),
     ).toBe("#/skills");
   });
-
 });

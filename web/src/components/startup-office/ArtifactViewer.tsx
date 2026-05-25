@@ -31,7 +31,9 @@ export function ArtifactViewer({
   const handleCopy = () => {
     copyArtifactContent(artifact)
       .then(() => showNotice(copy.artifactCopied, "success"))
-      .catch((error: Error) => showNotice(copy.actionFailed(error.message), "error"));
+      .catch((error: Error) =>
+        showNotice(copy.actionFailed(error.message), "error"),
+      );
   };
   const handleExport = () => {
     exportArtifactMarkdown(artifact);
@@ -96,14 +98,15 @@ function WhyThisOutput({ artifact }: { artifact: StartupOfficeArtifact }) {
     ? output.assumptions.length
     : 0;
   const sources = Array.isArray(output.sources) ? output.sources.length : 0;
-  if (!Object.keys(quality).length && !Object.keys(context).length) return null;
+  if (!(Object.keys(quality).length || Object.keys(context).length))
+    return null;
   return (
     <dl className="startup-detail-list startup-why-output">
       <div>
         <dt>Why this output</dt>
         <dd>
-          {Number(context.memory_page_count || 0)} memory pages, {sources} sources,{" "}
-          {assumptions} assumptions
+          {Number(context.memory_page_count || 0)} memory pages, {sources}{" "}
+          sources, {assumptions} assumptions
         </dd>
       </div>
       <div>

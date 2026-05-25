@@ -28,7 +28,11 @@ const PROVIDERS: ProviderOption[] = [
     name: "Claude Code",
     desc: "Claude model routing for cloud office work",
   },
-  { id: "codex", name: "Codex", desc: "Codex model routing for cloud office work" },
+  {
+    id: "codex",
+    name: "Codex",
+    desc: "Codex model routing for cloud office work",
+  },
 ];
 
 export function ProviderSwitcherHost() {

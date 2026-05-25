@@ -54,7 +54,9 @@ export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
           <div>
             <p className="skills-kicker">{copy.runDetailTitle}</p>
             <h2 id="startup-office-run-title">{detailRun.title}</h2>
-            <p>{detailRun.objective || detailRun.summary || detailRun.status}</p>
+            <p>
+              {detailRun.objective || detailRun.summary || detailRun.status}
+            </p>
           </div>
           <button
             type="button"
@@ -129,7 +131,7 @@ export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
 function modelLabel(metadata: StartupOfficeRun["metadata"]) {
   const provider = stringValue(metadata?.provider);
   const model = stringValue(metadata?.model);
-  if (!provider && !model) return "-";
+  if (!(provider || model)) return "-";
   return [provider, model].filter(Boolean).join(" / ");
 }
 

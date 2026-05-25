@@ -14,9 +14,18 @@ export function OperatingObjectsPanel({
   const metricSummary = objects?.metrics_summary ?? [];
   const rows = [
     [copy.objectLabels.assets, counts.assets ?? objects?.assets?.length ?? 0],
-    [copy.objectLabels.customers, counts.customers ?? objects?.customers?.length ?? 0],
-    [copy.objectLabels.signals, counts.signals ?? objects?.signals?.length ?? 0],
-    [copy.objectLabels.metrics, counts.metrics ?? objects?.metrics?.length ?? 0],
+    [
+      copy.objectLabels.customers,
+      counts.customers ?? objects?.customers?.length ?? 0,
+    ],
+    [
+      copy.objectLabels.signals,
+      counts.signals ?? objects?.signals?.length ?? 0,
+    ],
+    [
+      copy.objectLabels.metrics,
+      counts.metrics ?? objects?.metrics?.length ?? 0,
+    ],
   ];
   return (
     <section className="skills-panel startup-office-objects">
@@ -56,7 +65,8 @@ function metricValueLabel(metric: {
       ? "-"
       : formatMetricNumber(metric.latest_value);
   const unit = metric.unit ? ` ${metric.unit}` : "";
-  if (metric.change === null || metric.change === undefined) return `${latest}${unit}`;
+  if (metric.change === null || metric.change === undefined)
+    return `${latest}${unit}`;
   const change =
     metric.change > 0
       ? `+${formatMetricNumber(metric.change)}`

@@ -757,8 +757,8 @@ function HomeComposer({
       trigger?.type === "mention"
         ? mentionOptions(trigger.query, agentMembers)
         : trigger?.type === "skill"
-            ? skillOptions(trigger.query, skills)
-            : [],
+          ? skillOptions(trigger.query, skills)
+          : [],
     [trigger, agentMembers, skills],
   );
   const showAutocomplete =

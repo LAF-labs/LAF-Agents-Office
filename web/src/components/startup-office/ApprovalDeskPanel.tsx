@@ -133,8 +133,6 @@ function MemoryDiffSummary({ approval }: { approval: StartupOfficeApproval }) {
     .slice(0, 4);
   if (!labels.length) return null;
   return (
-    <p className="startup-memory-diff">
-      Memory update: {labels.join(", ")}
-    </p>
+    <p className="startup-memory-diff">Memory update: {labels.join(", ")}</p>
   );
 }

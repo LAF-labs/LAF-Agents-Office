@@ -2,10 +2,7 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { NavArrowLeft, NavArrowRight, Xmark } from "iconoir-react";
 
-import {
-  answerRequest,
-  type InterviewOption,
-} from "../../api/client";
+import { answerRequest, type InterviewOption } from "../../api/client";
 import { useRequests } from "../../hooks/useRequests";
 import { showNotice } from "../ui/Toast";
 

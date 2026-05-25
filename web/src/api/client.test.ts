@@ -90,7 +90,6 @@ describe("generic api client", () => {
       }),
     );
   });
-
 });
 
 describe("hosted browser api client", () => {
@@ -197,9 +196,9 @@ describe("hosted browser api client", () => {
   });
 
   it("keeps same-origin cloud API mode when auth fails", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response("invalid credentials", { status: 401 }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("invalid credentials", { status: 401 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await initApi();

@@ -26,21 +26,27 @@ export function installClientErrorReporter(win: BrowserLike = window): void {
   if (installed) return;
   installed = true;
   win.addEventListener("error", (event) => {
-    void reportClientError({
-      column: event.colno,
-      error: event.error,
-      filename: event.filename,
-      line: event.lineno,
-      message: event.message,
-      source: "window.error",
-    }, win);
+    void reportClientError(
+      {
+        column: event.colno,
+        error: event.error,
+        filename: event.filename,
+        line: event.lineno,
+        message: event.message,
+        source: "window.error",
+      },
+      win,
+    );
   });
   win.addEventListener("unhandledrejection", (event) => {
-    void reportClientError({
-      error: event.reason,
-      message: errorMessage(event.reason),
-      source: "unhandledrejection",
-    }, win);
+    void reportClientError(
+      {
+        error: event.reason,
+        message: errorMessage(event.reason),
+        source: "unhandledrejection",
+      },
+      win,
+    );
   });
 }
 
@@ -59,7 +65,10 @@ export function clientErrorPayload(
   input: ClientErrorReportInput,
   win: BrowserLike = window,
 ) {
-  const message = cleanClientText(input.message || errorMessage(input.error), 300);
+  const message = cleanClientText(
+    input.message || errorMessage(input.error),
+    300,
+  );
   const name = cleanClientText(errorName(input.error), 80);
   const route = currentClientTelemetryRoute(win);
   const filename = safeFilename(input.filename);
@@ -68,15 +77,17 @@ export function clientErrorPayload(
   return {
     column,
     filename,
-    fingerprint: fingerprint([
-      input.source || "manual",
-      name,
-      message,
-      route,
-      filename,
-      line,
-      column,
-    ].join("|")),
+    fingerprint: fingerprint(
+      [
+        input.source || "manual",
+        name,
+        message,
+        route,
+        filename,
+        line,
+        column,
+      ].join("|"),
+    ),
     line,
     message,
     name,
@@ -90,10 +101,16 @@ export function clientErrorPayload(
   };
 }
 
-export function currentClientTelemetryRoute(win: Pick<Window, "location"> = window): string {
+export function currentClientTelemetryRoute(
+  win: Pick<Window, "location"> = window,
+): string {
   const pathname = win.location?.pathname || "/";
-  const hash = String(win.location?.hash || "").replace(/^#\/?/, "").split(/[/?#]/)[0];
-  const safeHash = /^[a-z0-9_-]{1,40}$/i.test(hash) ? `#${hash.toLowerCase()}` : "";
+  const hash = String(win.location?.hash || "")
+    .replace(/^#\/?/, "")
+    .split(/[/?#]/)[0];
+  const safeHash = /^[a-z0-9_-]{1,40}$/i.test(hash)
+    ? `#${hash.toLowerCase()}`
+    : "";
   return `${pathname.split(/[?#]/)[0] || "/"}${safeHash}`;
 }
 
@@ -123,7 +140,10 @@ function safeFilename(value: unknown): string {
   if (!raw) return "";
   try {
     const url = new URL(raw, window.location.origin);
-    return cleanClientText(url.pathname.split("/").filter(Boolean).pop() || "", 120);
+    return cleanClientText(
+      url.pathname.split("/").filter(Boolean).pop() || "",
+      120,
+    );
   } catch {
     return cleanClientText(raw.split(/[\\/]/).pop() || "", 120);
   }

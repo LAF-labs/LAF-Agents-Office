@@ -36,5 +36,6 @@ jobs:
         working-directory: web
         run: |
           bun install --frozen-lockfile
+          bun run lint
           bun run typecheck
           bun run build

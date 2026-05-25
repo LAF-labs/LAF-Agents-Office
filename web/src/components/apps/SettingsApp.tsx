@@ -2342,12 +2342,8 @@ function DangerZoneSection() {
         </div>
         <div style={dangerStyles.listLabel}>{t("settings.danger.deletes")}</div>
         <ul style={dangerStyles.list}>
-          <li>
-            {t("settings.danger.shredDeleteOnboarding")}
-          </li>
-          <li>
-            {t("settings.danger.shredDeleteCompany")}
-          </li>
+          <li>{t("settings.danger.shredDeleteOnboarding")}</li>
+          <li>{t("settings.danger.shredDeleteCompany")}</li>
           <li>{t("settings.danger.shredDeleteRuntime")}</li>
           <li>{t("settings.danger.shredDeleteLogs")}</li>
           <li>{t("settings.danger.shredDeleteRuntimeState")}</li>

@@ -92,7 +92,9 @@ describe("ReceiptsApp", () => {
     renderReceiptsApp();
 
     expect(
-      await screen.findByText("A Startup Office ledger of runs, approvals, memory changes, and cost traces."),
+      await screen.findByText(
+        "A Startup Office ledger of runs, approvals, memory changes, and cost traces.",
+      ),
     ).toBeInTheDocument();
     expect(startupOfficeMocks.getStartupOfficeReceipts).toHaveBeenCalledWith({
       limit: 100,

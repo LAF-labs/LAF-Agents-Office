@@ -16,15 +16,15 @@ import {
 } from "../../api/startupOffice";
 import { useI18n } from "../../lib/i18n";
 import { showNotice } from "../ui/Toast";
+import { ActivityNotificationsPanel } from "./ActivityNotificationsPanel";
 import { ApprovalDeskPanel } from "./ApprovalDeskPanel";
 import { ArtifactsPanel } from "./ArtifactsPanel";
 import { ArtifactViewer } from "./ArtifactViewer";
-import { ActivityNotificationsPanel } from "./ActivityNotificationsPanel";
 import { BetaOpsPanel } from "./BetaOpsPanel";
 import { CompanyProfilePanel } from "./CompanyProfilePanel";
 import { CompanyPulsePanel } from "./CompanyPulsePanel";
-import { OperatingObjectsPanel } from "./OperatingObjectsPanel";
 import { OperatingLoopsPanel } from "./OperatingLoopsPanel";
+import { OperatingObjectsPanel } from "./OperatingObjectsPanel";
 import { ReceiptsTimelinePanel } from "./ReceiptsTimelinePanel";
 import { RunDetailDrawer } from "./RunDetailDrawer";
 import {

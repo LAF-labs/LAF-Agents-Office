@@ -525,7 +525,9 @@ describe("StartupOfficeApp", () => {
     );
 
     await waitFor(() =>
-      expect(startupOfficeMocks.acceptStartupOfficeTerms).toHaveBeenCalledWith(),
+      expect(
+        startupOfficeMocks.acceptStartupOfficeTerms,
+      ).toHaveBeenCalledWith(),
     );
   });
 

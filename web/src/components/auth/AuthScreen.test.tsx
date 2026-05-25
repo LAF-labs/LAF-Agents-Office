@@ -39,11 +39,17 @@ describe("AuthScreen", () => {
     expect(
       screen.getByText(/validate and launch a paid beta/i),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Startup Office sales proof")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Startup Office sales proof"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Founder use cases")).toBeInTheDocument();
-    expect(screen.getByText(/Idea validation, offer packaging/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Idea validation, offer packaging/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Beta outcomes")).toBeInTheDocument();
-    expect(screen.getByText(/artifacts, approvals, receipts/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/artifacts, approvals, receipts/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Trust controls")).toBeInTheDocument();
     expect(screen.getByText(/versioned beta terms/i)).toBeInTheDocument();
     expect(

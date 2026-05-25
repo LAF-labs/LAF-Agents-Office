@@ -104,7 +104,9 @@ function LogTable({
                     color: "var(--text-secondary)",
                   }}
                 >
-                  {receipt.event_type || receipt.summary?.slice(0, 60) || "\u2014"}
+                  {receipt.event_type ||
+                    receipt.summary?.slice(0, 60) ||
+                    "\u2014"}
                 </td>
                 <td
                   data-label={copy.time}

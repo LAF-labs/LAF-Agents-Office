@@ -95,7 +95,8 @@ const messages = {
     "settings.agents.modelDefaults": "Model defaults",
     "settings.agents.modelDesc":
       "These defaults apply to the whole team. Each agent keeps a hosted model choice for office work.",
-    "settings.agents.modelHint": "Used when this agent works in the cloud office",
+    "settings.agents.modelHint":
+      "Used when this agent works in the cloud office",
     "settings.agents.saveModels": "Save",
     "settings.agents.modelsSaved": "Model defaults saved.",
     "settings.agents.modelsFailed": "Failed to save model defaults",
@@ -607,8 +608,7 @@ const messages = {
     "settings.danger.shredDeleteCompany": "회사 정보",
     "settings.danger.shredDeleteRuntime":
       "워크스페이스 데이터, 운영 기록, 워크플로",
-    "settings.danger.shredDeleteLogs":
-      "로그, 세션, 공급자 상태, 위키 메모리",
+    "settings.danger.shredDeleteLogs": "로그, 세션, 공급자 상태, 위키 메모리",
     "settings.danger.shredDeleteRuntimeState":
       "워크스페이스 상태 (재설정과 동일)",
     "settings.danger.shredPreserveExports":

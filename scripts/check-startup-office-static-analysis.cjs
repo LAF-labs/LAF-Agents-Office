@@ -60,7 +60,7 @@ for (const scriptName of ["lint", "typecheck", "build"]) {
 
 assertContains(
   ".github/workflows/ci.yml",
-  ["bun run typecheck", "bun run build"],
+  ["bun run lint", "bun run typecheck", "bun run build"],
   "web CI static analysis",
 );
 assertContains(

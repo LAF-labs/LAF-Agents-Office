@@ -482,7 +482,10 @@ export function getStartupOfficeGrowthSummary() {
   return get<StartupOfficeGrowthSummary>("/startup-office/growth-summary");
 }
 
-export function getStartupOfficeReceipts(opts?: { cursor?: string; limit?: number }) {
+export function getStartupOfficeReceipts(opts?: {
+  cursor?: string;
+  limit?: number;
+}) {
   return get<StartupOfficeReceiptsResponse>("/startup-office/receipts", {
     cursor: opts?.cursor,
     limit: opts?.limit,

@@ -188,9 +188,7 @@ function candidatePaths(pathOrSlug: string): string[] {
 
 function isExplicitCompanyArticlePath(pathOrSlug: string): boolean {
   const trimmed = pathOrSlug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
-  return (
-    trimmed.startsWith("company/") || trimmed.startsWith("team/company/")
-  );
+  return trimmed.startsWith("company/") || trimmed.startsWith("team/company/");
 }
 
 export async function fetchArticle(path: string): Promise<WikiArticle> {

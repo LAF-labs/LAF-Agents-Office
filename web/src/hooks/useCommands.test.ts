@@ -82,7 +82,11 @@ describe("toAutocomplete", () => {
   it("localizes known registry commands for Korean UI", () => {
     const registry: SlashCommandDescriptor[] = [
       { name: "ask", description: "Ask the team lead", webSupported: true },
-      { name: "growth", description: "Open Startup Office", webSupported: true },
+      {
+        name: "growth",
+        description: "Open Startup Office",
+        webSupported: true,
+      },
     ];
     const mapped = toAutocomplete(registry, "ko");
     expect(mapped[0].desc).toBe("팀 리드에게 묻기");

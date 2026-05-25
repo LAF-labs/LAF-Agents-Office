@@ -57,7 +57,10 @@ export function CompanyProfilePanel({
   }> = [
     { label: copy.profileFields.icp, value: profile.icp || "-" },
     { label: copy.profileFields.offer, value: profile.offer || "-" },
-    { label: copy.profileFields.positioning, value: profile.positioning || "-" },
+    {
+      label: copy.profileFields.positioning,
+      value: profile.positioning || "-",
+    },
     {
       label: copy.profileFields.priority,
       value: profile.priority || profile.goals || copy.goalFallback,

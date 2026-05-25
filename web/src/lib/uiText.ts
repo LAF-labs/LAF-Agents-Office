@@ -13,7 +13,8 @@ const UI_TEXT = {
       desc: "A Startup Office ledger of runs, approvals, memory changes, and cost traces.",
       loading: "Loading…",
       loadError: "Could not load receipts.",
-      empty: "No receipts yet. Run a Startup Office loop to create the first trace.",
+      empty:
+        "No receipts yet. Run a Startup Office loop to create the first trace.",
       agent: "Actor",
       action: "Action",
       time: "Time",
@@ -338,7 +339,8 @@ const UI_TEXT = {
       desc: "스타트업 오피스의 실행, 승인, 메모리 변경, 비용 흔적을 기록합니다.",
       loading: "불러오는 중...",
       loadError: "영수증을 불러오지 못했습니다.",
-      empty: "아직 영수증이 없습니다. 스타트업 오피스 루프를 실행하면 첫 기록이 만들어집니다.",
+      empty:
+        "아직 영수증이 없습니다. 스타트업 오피스 루프를 실행하면 첫 기록이 만들어집니다.",
       agent: "수행자",
       action: "작업",
       time: "시간",
@@ -375,8 +377,7 @@ const UI_TEXT = {
       companyPages: "회사 페이지",
       companyPagesDesc:
         "목표, 제약, 최근 운영 결정을 확인할 때 회사 페이지부터 보세요.",
-      companyPagesEmpty:
-        "회사 메모리를 만들면 이곳에 페이지가 표시됩니다.",
+      companyPagesEmpty: "회사 메모리를 만들면 이곳에 페이지가 표시됩니다.",
       recentUpdates: "최근 업데이트",
       recentUpdatesDesc: "새 작업을 시작하기 전에 무엇이 바뀌었는지 봅니다.",
       noMemoryPages: "아직 메모리 페이지가 없습니다.",
@@ -398,8 +399,7 @@ const UI_TEXT = {
         "이 문서는 팀 활동을 바탕으로 자동 생성되었습니다. 전체 기록은 커밋 히스토리에서 확인할 수 있습니다.",
       articleHistoryPreparing:
         "이 페이지의 메모리 히스토리를 준비하는 중입니다.",
-      articleStrapline:
-        "결정, 제약, 승인 메모를 모아 둔 회사 메모리입니다.",
+      articleStrapline: "결정, 제약, 승인 메모를 모아 둔 회사 메모리입니다.",
       breadcrumbRoot: "회사 메모리",
       liveEditing: (name: string) => `${name}가 지금 이 문서를 수정 중입니다.`,
       lastEditedBy: "마지막 수정",

@@ -200,9 +200,7 @@ export function useCommands(): SlashCommand[] {
     // Defensive: if the registry returns an empty webSupported set, prefer the
     // cloud-safe fallback
     // rather than an empty autocomplete.
-    return mapped.length > 0
-      ? mapped
-      : fallbackCommands(language);
+    return mapped.length > 0 ? mapped : fallbackCommands(language);
   }, [data, isError, language]);
 }
 

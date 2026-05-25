@@ -86,12 +86,7 @@ export const WORKSPACE_ROLE_PRESETS = {
     "wiki:read",
     "mcp:use_task_context",
   ],
-  viewer: [
-    "workspace:read",
-    "skill:read",
-    "memory:read",
-    "wiki:read",
-  ],
+  viewer: ["workspace:read", "skill:read", "memory:read", "wiki:read"],
 } as const;
 
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];

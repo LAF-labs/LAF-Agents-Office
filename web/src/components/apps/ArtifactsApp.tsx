@@ -368,7 +368,7 @@ export function ArtifactsApp() {
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <ActivityHero />
-        <StatsGrid
+      <StatsGrid
         activeRuns={activeRuns.length}
         stalledRuns={stalledRuns.length + pendingApprovals.length}
         watchdogs={allWatchdogs.length}
@@ -598,9 +598,7 @@ function ActiveLanesSection({
               body={run.summary || run.objective || ""}
               meta={[
                 run.loop_id ? `Loop ${run.loop_id}` : "",
-                run.updated_at
-                  ? new Date(run.updated_at).toLocaleString()
-                  : "",
+                run.updated_at ? new Date(run.updated_at).toLocaleString() : "",
               ].filter(Boolean)}
               kindLabel={normalizeStatus(run.status).replace(/_/g, " ")}
             />
