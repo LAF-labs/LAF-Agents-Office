@@ -1,0 +1,94 @@
+# Startup Office Production Handoff
+
+This handoff separates repository-controlled readiness from proof that must come
+from production infrastructure or a real customer. Do not commit secret values,
+customer private data, payment instruments, or provider tokens to this file.
+
+## Repository-Controlled Readiness
+
+The current codebase is ready for a closed beta production rehearsal when all of
+these commands pass on the deploy commit:
+
+- `npm run beta:release-gate`
+- `npm run startup-office:rls-live`
+- `npm run hosted-env:preflight -- --no-env-file` against production variables
+- `npx supabase migration list` shows local and remote at the same latest
+  migration
+
+The repository now contains:
+
+- Pure-cloud Startup Office schema and RLS.
+- Hosted auth, one-company workspace model, team invites, role permissions, and
+  admin-only beta operations.
+- Company profile, operating loops, runs, artifacts, approvals, receipts,
+  assets, customers, metrics, signals, memory pages, usage events,
+  notifications, support access events, and deletion requests.
+- Cloud loop worker, outbox worker, ops monitor, model provider abstraction,
+  quality rubric, browser research, citation enforcement, idempotency, rate
+  limits, payload limits, cost metering, plan limits, and secure asset upload
+  intent.
+- Founder-facing Growth Center UI for company pulse, profile editing, operating
+  loops, approval desk, artifacts, receipts, beta operations, and workspace
+  activity.
+
+## G099 Production Deployment Evidence
+
+Mark G099 complete only after storing an external deployment record with these
+fields in the operator system of record:
+
+- Deploy commit SHA.
+- Production app URL.
+- Production API base URL.
+- DNS provider and record type, without credentials.
+- Supabase project ref and latest applied migration.
+- Redacted `npm run hosted-env:preflight -- --no-env-file` result.
+- Release gate result for the deploy commit.
+- Loop worker workflow run ID.
+- Outbox worker workflow run ID.
+- Ops monitor workflow run ID.
+- Production smoke workspace ID.
+- First production smoke run ID.
+- First production approval ID.
+- First production receipt ID.
+- Screenshot or browser-test artifact proving profile, loop, approval, receipt,
+  notification, export, and logout work on the production domain.
+
+If any field is missing, G099 remains blocked by external deployment proof.
+
+## G100 First Customer Evidence
+
+Mark G100 complete only after storing an external customer record with these
+fields in the operator system of record:
+
+- Customer company name.
+- Founder contact owner.
+- Signed beta agreement URL or payment/invoice reference.
+- Workspace ID.
+- Billing provider.
+- Payment status, one of `trial`, `paid`, `paused`, or `blocked`.
+- First loop slug.
+- First customer run ID.
+- First approval ID.
+- First receipt ID.
+- Founder decision: approved, revised, or rejected.
+- Success note describing what business outcome the founder received.
+
+If payment, signed agreement, or first approved/revised run evidence is missing,
+G100 remains blocked by external customer proof.
+
+## Final Cutover Order
+
+1. Confirm the deploy commit is pushed and protected.
+2. Run the release gate and RLS live verification.
+3. Apply Supabase migrations to production.
+4. Deploy web/API.
+5. Configure production secrets and variables.
+6. Run production preflight.
+7. Enable and dispatch loop worker, outbox worker, and ops monitor workflows.
+8. Create a staging workspace and complete the production smoke flow.
+9. Record G099 evidence.
+10. Invite the first beta founder, record agreement or payment evidence, run the
+    first loop, and record G100 evidence.
+
+After step 10, the only remaining work should be ongoing customer operations,
+not source-code readiness.

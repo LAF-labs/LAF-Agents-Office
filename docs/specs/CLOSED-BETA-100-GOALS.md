@@ -116,7 +116,9 @@ Status values: `Complete`, `In progress`, `Not started`, `Blocked`.
 
 ## Current Readiness
 
-Backend foundation is started but the product is not yet launch-ready. The
-repository now has the cloud-domain schema and hosted API primitives required
-for a controlled beta flow, but the frontend still needs to consume the new
-endpoints and a real cloud worker must execute loops beyond record-only drafts.
+Repository-controlled closed beta readiness is complete through G098. The
+remaining blocked items are external proof tasks: G099 requires a production
+domain deployment record with working Supabase, workers, monitor, and smoke
+evidence; G100 requires a real founder payment or signed beta agreement plus a
+first loop, approval, and receipt record. The exact evidence contract lives in
+`docs/ops/STARTUP-OFFICE-PRODUCTION-HANDOFF.md`.

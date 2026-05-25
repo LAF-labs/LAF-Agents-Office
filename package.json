@@ -17,6 +17,7 @@
     "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",
     "startup-office:plan-limits": "node scripts/check-startup-office-plan-limits.cjs",
+    "startup-office:production-handoff": "node scripts/check-startup-office-production-handoff.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
     "startup-office:role-authorization": "node scripts/check-startup-office-role-authorization.cjs",
     "startup-office:rls-live": "node scripts/verify-startup-office-rls-postgrest.cjs",

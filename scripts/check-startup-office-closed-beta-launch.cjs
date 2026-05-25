@@ -111,8 +111,13 @@ for (const [relativePath, snippets, label] of [
     "closed beta launch kit",
   ],
   [
+    "docs/ops/STARTUP-OFFICE-PRODUCTION-HANDOFF.md",
+    ["G099 Production Deployment Evidence", "G100 First Customer Evidence"],
+    "production handoff",
+  ],
+  [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke"],
+    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:production-handoff"],
     "release gate launch checks",
   ],
 ]) {
