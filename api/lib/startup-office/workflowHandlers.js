@@ -40,8 +40,27 @@ function createStartupOfficeWorkflowHandlers(deps) {
   async function handleStartupOfficeLoopRun(req, res, loopID) {
     const { membership, team, user } = await requireUser(req);
     requirePermission(membership, "memory:write_draft");
+    const rawBody = await readBody(req);
+    const body = validation.loopRunBody(rawBody);
+    const idempotencyKey = validation.idempotencyKey(req, rawBody);
+    const repository = startupOfficeRepository();
+    if (idempotencyKey) {
+      const existingRun = await repository.findRunByIdempotencyKey(
+        membership.team_id,
+        idempotencyKey,
+      );
+      if (existingRun) {
+        writeJSON(res, ["queued", "running"].includes(existingRun.status) ? 202 : 200, {
+          idempotent: true,
+          receipt: null,
+          run: publicStartupOfficeRun(existingRun),
+          status: existingRun.status,
+          worker_job: null,
+        });
+        return;
+      }
+    }
     await enforceStartupOfficeRunLimit(membership.team_id);
-    const body = validation.loopRunBody(await readBody(req));
     const loop = await ensureStartupOfficeLoop(membership, loopID);
     const profile = await companyProfileSnapshot(membership.team_id, team, user);
     const objective = truncateText(
@@ -49,9 +68,9 @@ function createStartupOfficeWorkflowHandlers(deps) {
       2000,
     );
     const now = nowISO();
-    const repository = startupOfficeRepository();
     const modelClient = startupOfficeModelClient();
     const run = await repository.createRun(membership, {
+      idempotency_key: idempotencyKey,
       inputs: body.inputs,
       loop_id: loop.id || null,
       metadata: {
@@ -278,10 +297,18 @@ function createStartupOfficeWorkflowHandlers(deps) {
   async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
     const { membership, team, user } = await requireUser(req);
     requirePermission(membership, "memory:promote");
-    const body = await readBody(req);
+    const rawBody = await readBody(req);
+    const body = validation.approvalActionBody(rawBody);
+    const idempotencyKey = validation.idempotencyKey(req, rawBody);
     const approval = await findStartupOfficeApproval(membership.team_id, approvalID);
     if (!approval) throw createHTTPError(404, "approval not found");
-    if (approval.status !== "pending") throw createHTTPError(409, "approval is already decided");
+    if (approval.status !== "pending") {
+      if (idempotencyKey && approval.idempotency_key === idempotencyKey) {
+        writeIdempotentApprovalResponse(res, approval);
+        return;
+      }
+      throw createHTTPError(409, "approval is already decided");
+    }
     const approved = action === "approve";
     const revisionRequested = action === "revise";
     const now = nowISO();
@@ -289,16 +316,30 @@ function createStartupOfficeWorkflowHandlers(deps) {
       method: "PATCH",
       query: {
         id: `eq.${approval.id}`,
+        status: "eq.pending",
         team_id: `eq.${membership.team_id}`,
       },
       body: {
         decided_at: now,
         decided_by: membership.user_id,
-        decision_note: truncateText(body.note || body.reason || body.revision_note || "", 2000),
+        decision_note: body.decisionNote,
+        idempotency_key: idempotencyKey,
+        metadata: {
+          ...objectValue(approval.metadata),
+          decision_idempotency_key: idempotencyKey || "",
+        },
         status: approved ? "approved" : revisionRequested ? "revision_requested" : "rejected",
         updated_at: now,
       },
     });
+    if (!updatedApproval && idempotencyKey) {
+      const currentApproval = await findStartupOfficeApproval(membership.team_id, approvalID);
+      if (currentApproval?.idempotency_key === idempotencyKey) {
+        writeIdempotentApprovalResponse(res, currentApproval);
+        return;
+      }
+    }
+    if (!updatedApproval) throw createHTTPError(409, "approval is already decided");
     let updatedRun = null;
     let memoryPromotion = null;
     if (approval.run_id) {
@@ -318,7 +359,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
           metadata: revisionRequested
             ? {
                 ...existingRunMetadata,
-                revision_note: truncateText(body.note || body.reason || body.revision_note || "", 2000),
+                revision_note: body.decisionNote,
                 revision_requested_at: now,
                 revision_requested_by: membership.user_id,
               }
@@ -369,7 +410,8 @@ function createStartupOfficeWorkflowHandlers(deps) {
           : "Founder rejected the pending Startup Office action.",
       trace: {
         approval_id: approval.id,
-        decision_note: truncateText(body.note || body.reason || body.revision_note || "", 500),
+        decision_note: body.traceNote,
+        idempotency_key: idempotencyKey || "",
         memory_pages: memoryPromotion?.pages?.map((page) => page.slug) || [],
       },
     });
@@ -389,6 +431,18 @@ function createStartupOfficeWorkflowHandlers(deps) {
       memory_pages: memoryPromotion?.pages || [],
       receipt,
       run: publicStartupOfficeRun(updatedRun),
+      status: "ok",
+    });
+  }
+
+  function writeIdempotentApprovalResponse(res, approval) {
+    writeJSON(res, 200, {
+      approval: publicStartupOfficeApproval(approval),
+      idempotent: true,
+      memory_diff: null,
+      memory_pages: [],
+      receipt: null,
+      run: null,
       status: "ok",
     });
   }

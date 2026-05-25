@@ -58,3 +58,28 @@ test("loop validators reject malformed mutation payloads with typed errors", () 
     (err) => err.status === 400 && err.message === "inputs must be an object",
   );
 });
+
+test("idempotency validator accepts one matching request key", () => {
+  assert.equal(
+    validation.idempotencyKey(
+      { headers: { "idempotency-key": "run_123:retry-1" } },
+      { idempotency_key: "run_123:retry-1" },
+    ),
+    "run_123:retry-1",
+  );
+  assert.equal(validation.idempotencyKey({}, { idempotencyKey: "body-key.1" }), "body-key.1");
+});
+
+test("idempotency validator rejects unsafe or conflicting keys", () => {
+  assert.throws(
+    () => validation.idempotencyKey({ headers: { "idempotency-key": "a b" } }, {}),
+    (err) => err.status === 400 && err.message === "idempotency key must be 1-120 URL-safe characters",
+  );
+  assert.throws(
+    () => validation.idempotencyKey(
+      { headers: { "idempotency-key": "header-key" } },
+      { idempotency_key: "body-key" },
+    ),
+    (err) => err.status === 400 && err.message === "idempotency key mismatch",
+  );
+});

@@ -170,6 +170,24 @@ for (const [table, columns] of Object.entries(retired.columns || {})) {
 const migrationText = state.files
   .map((file) => fs.readFileSync(path.join(migrationsDir, file), "utf8"))
   .join("\n");
+
+for (const rule of manifest.idempotencyKeys || []) {
+  const actualColumns = state.tables.get(rule.table) || new Set();
+  if (!actualColumns.has(rule.column)) {
+    fail(`${rule.table} is missing idempotency column ${rule.column}`);
+  }
+  if (!migrationText.includes(`create unique index if not exists ${rule.index}`)) {
+    fail(`${rule.table} is missing idempotency unique index ${rule.index}`);
+  }
+  const indexPattern = new RegExp(
+    `on\\s+public\\.${rule.table}\\s*\\(team_id,\\s*${rule.column}\\)[\\s\\S]+?where\\s+${rule.column}\\s+<>\\s+''`,
+    "i",
+  );
+  if (!indexPattern.test(migrationText)) {
+    fail(`${rule.index} must be scoped to team_id and non-empty idempotency keys`);
+  }
+}
+
 for (const fn of retired.functions || []) {
   const createPattern = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\b`, "i");
   if (createPattern.test(migrationText)) fail(`retired runtime function is created: ${fn}`);

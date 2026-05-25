@@ -90,9 +90,11 @@ async function runStartupOfficeLoop({
       throw new Error(`AI output failed quality checks: ${quality.issues.join("; ")}`);
     }
 
+    const sideEffectKey = `${run.id}:${workerJob?.id || "direct"}`;
     const artifactContent = template.toArtifact(modelResult.data, context);
     const artifact = await repository.createArtifact(membership, {
       content: truncateText(artifactContent, 20000),
+      idempotency_key: `${sideEffectKey}:artifact`,
       kind: template.artifactKind,
       metadata: {
         cost: modelResult.cost,
@@ -137,6 +139,7 @@ async function runStartupOfficeLoop({
       action: "approve_loop_draft",
       artifact_id: artifact?.id || null,
       details: truncateText(artifactContent, 4000),
+      idempotency_key: `${sideEffectKey}:approval`,
       metadata: {
         cost: modelResult.cost,
         loop_slug: loop.slug,

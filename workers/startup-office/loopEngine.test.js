@@ -23,7 +23,9 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.run.status, "waiting_approval");
   assert.equal(result.run.metadata.cost.total_tokens, 30);
   assert.equal(result.artifact.title, "Idea Validation AI draft");
+  assert.equal(result.artifact.idempotency_key, "run-1:job-1:artifact");
   assert.equal(result.approval.status, "pending");
+  assert.equal(result.approval.idempotency_key, "run-1:job-1:approval");
   assert.equal(state.receipts.at(-1).event_type, "run.ai_draft_ready");
   assert.deepEqual(
     state.runPatches.map((patch) => patch.status),

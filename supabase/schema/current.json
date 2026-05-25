@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525040000",
+  "latestMigration": "20260525050000",
   "pureCloudRuntimeGuardMigration": "20260525040000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -72,14 +72,14 @@
       "domain": "workflow",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "artifact_id", "title", "details", "action", "risk_level", "status", "requested_by", "decided_by", "decision_note", "metadata", "requested_at", "decided_at", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "run_id", "artifact_id", "title", "details", "action", "risk_level", "status", "requested_by", "decided_by", "decision_note", "metadata", "requested_at", "decided_at", "created_at", "updated_at", "idempotency_key"]
     },
     {
       "name": "startup_office_artifacts",
       "domain": "workflow",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "kind", "title", "content", "metadata", "created_by", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "run_id", "kind", "title", "content", "metadata", "created_by", "created_at", "updated_at", "idempotency_key"]
     },
     {
       "name": "startup_office_assets",
@@ -135,7 +135,7 @@
       "domain": "workflow",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "loop_id", "title", "objective", "status", "inputs", "metadata", "summary", "created_by", "started_at", "completed_at", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "loop_id", "title", "objective", "status", "inputs", "metadata", "summary", "created_by", "started_at", "completed_at", "created_at", "updated_at", "idempotency_key"]
     },
     {
       "name": "startup_office_signals",
@@ -206,6 +206,23 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["team_id", "onboarding_completed_at", "llm_provider", "team_lead_slug", "company_profile", "preferences", "updated_at"]
+    }
+  ],
+  "idempotencyKeys": [
+    {
+      "table": "startup_office_runs",
+      "column": "idempotency_key",
+      "index": "idx_startup_office_runs_idempotency_key"
+    },
+    {
+      "table": "startup_office_artifacts",
+      "column": "idempotency_key",
+      "index": "idx_startup_office_artifacts_idempotency_key"
+    },
+    {
+      "table": "startup_office_approvals",
+      "column": "idempotency_key",
+      "index": "idx_startup_office_approvals_idempotency_key"
     }
   ],
   "retiredRuntime": {

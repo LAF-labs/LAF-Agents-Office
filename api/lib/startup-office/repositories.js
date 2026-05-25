@@ -201,24 +201,47 @@ function createStartupOfficeRepository({
     return rows?.[0] || null;
   }
 
-  async function createRun(membership, body) {
-    const [run] = await safeRest("startup_office_runs", {
-      method: "POST",
-      body: {
-        created_at: body.created_at || nowISO(),
-        created_by: membership.user_id,
-        inputs: objectValue(body.inputs),
-        loop_id: body.loop_id || null,
-        metadata: objectValue(body.metadata),
-        objective: truncateText(body.objective || "", 2000),
-        started_at: body.started_at || null,
-        status: body.status || "queued",
-        summary: truncateText(body.summary || "", 2000),
-        team_id: membership.team_id,
-        title: truncateText(body.title || "", 180),
-        updated_at: body.updated_at || nowISO(),
+  async function findRunByIdempotencyKey(teamID, idempotencyKey) {
+    if (!idempotencyKey) return null;
+    const rows = await safeRest("startup_office_runs", {
+      query: {
+        idempotency_key: `eq.${idempotencyKey}`,
+        limit: "1",
+        select: "*",
+        team_id: `eq.${teamID}`,
       },
     });
+    return rows?.[0] || null;
+  }
+
+  async function createRun(membership, body) {
+    const payload = {
+      created_at: body.created_at || nowISO(),
+      created_by: membership.user_id,
+      idempotency_key: truncateText(body.idempotency_key || "", 120),
+      inputs: objectValue(body.inputs),
+      loop_id: body.loop_id || null,
+      metadata: objectValue(body.metadata),
+      objective: truncateText(body.objective || "", 2000),
+      started_at: body.started_at || null,
+      status: body.status || "queued",
+      summary: truncateText(body.summary || "", 2000),
+      team_id: membership.team_id,
+      title: truncateText(body.title || "", 180),
+      updated_at: body.updated_at || nowISO(),
+    };
+    let rows = [];
+    try {
+      rows = await safeRest("startup_office_runs", {
+        method: "POST",
+        body: payload,
+      });
+    } catch (err) {
+      if (!payload.idempotency_key || err.status !== 409) throw err;
+      const existing = await findRunByIdempotencyKey(membership.team_id, payload.idempotency_key);
+      return existing || null;
+    }
+    const [run] = rows;
     return run || null;
   }
 
@@ -235,18 +258,25 @@ function createStartupOfficeRepository({
   }
 
   async function createArtifact(membership, body) {
-    const [artifact] = await safeRest("startup_office_artifacts", {
+    const payload = {
+      content: truncateText(body.content || "", 20000),
+      created_by: membership.user_id,
+      idempotency_key: truncateText(body.idempotency_key || "", 120),
+      kind: body.kind || "draft",
+      metadata: objectValue(body.metadata),
+      run_id: body.run_id || null,
+      team_id: membership.team_id,
+      title: truncateText(body.title || "", 180),
+    };
+    const options = {
       method: "POST",
-      body: {
-        content: truncateText(body.content || "", 20000),
-        created_by: membership.user_id,
-        kind: body.kind || "draft",
-        metadata: objectValue(body.metadata),
-        run_id: body.run_id || null,
-        team_id: membership.team_id,
-        title: truncateText(body.title || "", 180),
-      },
-    });
+      body: payload,
+    };
+    if (payload.idempotency_key) {
+      options.prefer = "resolution=merge-duplicates,return=representation";
+      options.query = { on_conflict: "team_id,idempotency_key" };
+    }
+    const [artifact] = await safeRest("startup_office_artifacts", options);
     return publicStartupOfficeArtifact(
       artifact || {
         id: `artifact-${shortID()}`,
@@ -258,21 +288,28 @@ function createStartupOfficeRepository({
   }
 
   async function createApproval(membership, body) {
-    const [approval] = await safeRest("startup_office_approvals", {
+    const payload = {
+      action: truncateText(body.action || "", 120),
+      artifact_id: body.artifact_id || null,
+      details: truncateText(body.details || "", 4000),
+      idempotency_key: truncateText(body.idempotency_key || "", 120),
+      metadata: objectValue(body.metadata),
+      requested_by: body.requested_by || membership.user_id,
+      risk_level: body.risk_level || "medium",
+      run_id: body.run_id || null,
+      status: body.status || "pending",
+      team_id: membership.team_id,
+      title: truncateText(body.title || "", 180),
+    };
+    const options = {
       method: "POST",
-      body: {
-        action: truncateText(body.action || "", 120),
-        artifact_id: body.artifact_id || null,
-        details: truncateText(body.details || "", 4000),
-        metadata: objectValue(body.metadata),
-        requested_by: body.requested_by || membership.user_id,
-        risk_level: body.risk_level || "medium",
-        run_id: body.run_id || null,
-        status: body.status || "pending",
-        team_id: membership.team_id,
-        title: truncateText(body.title || "", 180),
-      },
-    });
+      body: payload,
+    };
+    if (payload.idempotency_key) {
+      options.prefer = "resolution=merge-duplicates,return=representation";
+      options.query = { on_conflict: "team_id,idempotency_key" };
+    }
+    const [approval] = await safeRest("startup_office_approvals", options);
     return publicStartupOfficeApproval(
       approval || {
         id: `approval-${shortID()}`,
@@ -410,6 +447,7 @@ function createStartupOfficeRepository({
     findApproval,
     findArtifact,
     findRun,
+    findRunByIdempotencyKey,
     isMissingTableError,
     loops,
     memoryPages,

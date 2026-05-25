@@ -44,6 +44,10 @@ function baseDeps(overrides = {}) {
         status: "queued",
       };
     },
+    async findRunByIdempotencyKey(_teamID, key) {
+      calls.findRunByIdempotencyKey = key;
+      return overrides.idempotentRun || null;
+    },
     async updateRun(_teamID, runID, patch) {
       calls.updatedRun = { patch, runID };
       return { id: runID, ...patch };
@@ -80,9 +84,13 @@ function baseDeps(overrides = {}) {
       };
     },
     async findStartupOfficeApproval(_teamID, approvalID) {
+      if (overrides.approvalRecord) {
+        return { id: approvalID, ...overrides.approvalRecord };
+      }
       return {
         artifact_id: "artifact-1",
         id: approvalID,
+        metadata: {},
         run_id: "run-1",
         status: "pending",
       };
@@ -213,6 +221,33 @@ test("loopRun can queue a deferred run without executing the worker", async () =
   assert.equal(deps.calls.loopRunArgs, undefined);
 });
 
+test("loopRun replays an existing idempotent run without duplicate side effects", async () => {
+  const deps = baseDeps({
+    idempotentRun: {
+      id: "run-existing",
+      idempotency_key: "run-key-1",
+      metadata: {},
+      status: "queued",
+      title: "Existing run",
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await handlers.loopRun(
+    { headers: { "idempotency-key": "run-key-1" }, method: "POST" },
+    {},
+    "idea-validation",
+  );
+
+  assert.equal(deps.calls.findRunByIdempotencyKey, "run-key-1");
+  assert.equal(deps.calls.createdRun, undefined);
+  assert.equal(deps.calls.createdWorkerJob, undefined);
+  assert.equal(deps.calls.receipts.length, 0);
+  assert.equal(deps.calls.writes[0].status, 202);
+  assert.equal(deps.calls.writes[0].body.idempotent, true);
+  assert.equal(deps.calls.writes[0].body.run.id, "run-existing");
+});
+
 test("loopRun executes immediately and records usage plus notification events", async () => {
   const deps = baseDeps({
     async readBody() {
@@ -280,12 +315,38 @@ test("approval action approves, promotes memory, records receipt, and audits", a
 
   assert.equal(deps.calls.rest[0].table, "startup_office_approvals");
   assert.equal(deps.calls.rest[0].options.body.status, "approved");
+  assert.equal(deps.calls.rest[0].options.query.status, "eq.pending");
   assert.equal(deps.calls.rest[1].table, "startup_office_runs");
   assert.equal(deps.calls.rest[1].options.body.status, "completed");
   assert.equal(deps.calls.promotions[0].approval.id, "approval-1");
   assert.equal(deps.calls.receipts[0].event_type, "approval.approved");
   assert.equal(deps.calls.audits[0][1], "startup_office.approved");
   assert.deepEqual(deps.calls.writes[0].body.memory_pages, [{ slug: "positioning" }]);
+});
+
+test("approval action replays a matching idempotent decision", async () => {
+  const deps = baseDeps({
+    approvalRecord: {
+      artifact_id: "artifact-1",
+      idempotency_key: "decision-key-1",
+      metadata: {},
+      run_id: "run-1",
+      status: "approved",
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await handlers.approvalAction(
+    { headers: { "idempotency-key": "decision-key-1" }, method: "POST" },
+    {},
+    "approval-1",
+    "approve",
+  );
+
+  assert.equal(deps.calls.rest.length, 0);
+  assert.equal(deps.calls.receipts.length, 0);
+  assert.equal(deps.calls.writes[0].body.idempotent, true);
+  assert.equal(deps.calls.writes[0].body.approval.status, "approved");
 });
 
 test("workflow handlers preserve run-limit and missing approval errors", async () => {
