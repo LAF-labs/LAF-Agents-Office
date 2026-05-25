@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525060000",
+  "latestMigration": "20260525090000",
   "pureCloudRuntimeGuardMigration": "20260525040000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -124,6 +124,13 @@
       "columns": ["id", "team_id", "recipient_user_id", "event_type", "status", "payload", "created_at", "sent_at"]
     },
     {
+      "name": "startup_office_outbox_events",
+      "domain": "outbox",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "source_table", "source_id", "event_type", "status", "payload", "attempts", "max_attempts", "available_at", "locked_at", "processed_at", "last_error", "created_by", "created_at", "updated_at"]
+    },
+    {
       "name": "startup_office_receipts",
       "domain": "receipts",
       "tenantColumn": "team_id",
@@ -231,6 +238,26 @@
       "trigger": "trg_startup_office_receipts_append_only",
       "function": "prevent_startup_office_receipt_mutation",
       "deleteBypassSetting": "app.allow_receipt_delete"
+    }
+  ],
+  "outboxSources": [
+    {
+      "table": "startup_office_notifications",
+      "trigger": "trg_startup_office_notifications_outbox",
+      "function": "enqueue_startup_office_outbox_event",
+      "eventPrefix": "notification."
+    },
+    {
+      "table": "startup_office_receipts",
+      "trigger": "trg_startup_office_receipts_outbox",
+      "function": "enqueue_startup_office_outbox_event",
+      "eventPrefix": "receipt."
+    },
+    {
+      "table": "startup_office_usage_events",
+      "trigger": "trg_startup_office_usage_events_outbox",
+      "function": "enqueue_startup_office_outbox_event",
+      "eventPrefix": "usage."
     }
   ],
   "retiredRuntime": {

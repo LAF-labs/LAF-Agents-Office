@@ -211,6 +211,52 @@ for (const rule of manifest.appendOnlyTables || []) {
   }
 }
 
+for (const rule of manifest.outboxSources || []) {
+  if (!state.tables.has("startup_office_outbox_events")) {
+    fail("startup office outbox table is not active");
+  }
+  if (!state.tables.has(rule.table)) {
+    fail(`outbox source table is not active: ${rule.table}`);
+  }
+  const functionPattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${rule.function}\\b`,
+    "i",
+  );
+  if (!functionPattern.test(migrationText)) {
+    fail(`${rule.table} outbox function is missing: ${rule.function}`);
+  }
+  const secureFunctionPattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${rule.function}\\b[\\s\\S]+?security\\s+definer[\\s\\S]+?set\\s+search_path\\s+=\\s+public`,
+    "i",
+  );
+  if (!secureFunctionPattern.test(migrationText)) {
+    fail(`${rule.table} outbox function must be SECURITY DEFINER with a pinned search_path`);
+  }
+  const branchPattern = new RegExp(`tg_table_name\\s+=\\s+'${rule.table}'`, "i");
+  if (!branchPattern.test(migrationText)) {
+    fail(`${rule.table} outbox branch is missing`);
+  }
+  if (
+    rule.table === "startup_office_notifications" &&
+    !migrationText.includes("outbox_created_by := null;")
+  ) {
+    fail("notification outbox rows must not mislabel the recipient as created_by");
+  }
+  if (!migrationText.includes(`'${rule.eventPrefix}' || new.event_type`)) {
+    fail(`${rule.table} outbox event prefix is missing: ${rule.eventPrefix}`);
+  }
+  const triggerPattern = new RegExp(
+    `create\\s+trigger\\s+${rule.trigger}[\\s\\S]+?after\\s+insert\\s+on\\s+public\\.${rule.table}[\\s\\S]+?execute\\s+function\\s+public\\.${rule.function}\\(\\)`,
+    "i",
+  );
+  if (!triggerPattern.test(migrationText)) {
+    fail(`${rule.table} outbox trigger is missing: ${rule.trigger}`);
+  }
+  if (!migrationText.includes("insert into public.startup_office_outbox_events")) {
+    fail("outbox enqueue function does not insert into startup_office_outbox_events");
+  }
+}
+
 for (const fn of retired.functions || []) {
   const createPattern = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\b`, "i");
   if (createPattern.test(migrationText)) fail(`retired runtime function is created: ${fn}`);

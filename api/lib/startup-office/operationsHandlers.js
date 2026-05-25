@@ -86,7 +86,7 @@ function createStartupOfficeOperationsHandlers(deps) {
   async function handleStartupOfficeBetaDashboard(req, res) {
     const { membership, team } = await requireUser(req);
     requireAdminRole(membership, "owner or admin role required for beta dashboard");
-    const [betaOps, runs, approvals, notifications] = await Promise.all([
+    const [betaOps, runs, approvals, notifications, outboxEvents] = await Promise.all([
       startupOfficeBetaOpsSnapshot(membership.team_id),
       startupOfficeRuns(membership.team_id, { limit: 20 }),
       startupOfficeApprovals(membership.team_id, { status: "pending", limit: 20 }),
@@ -98,11 +98,21 @@ function createStartupOfficeOperationsHandlers(deps) {
           team_id: `eq.${membership.team_id}`,
         },
       }),
+      safeStartupOfficeRest("startup_office_outbox_events", {
+        query: {
+          limit: "20",
+          order: "created_at.desc",
+          select: "*",
+          status: "in.(queued,failed,dead_letter)",
+          team_id: `eq.${membership.team_id}`,
+        },
+      }),
     ]);
     writeJSON(res, 200, {
       dashboard: {
         billing: betaOps.billing,
         notifications,
+        outbox_events: outboxEvents,
         pending_approvals: approvals,
         run_failures: runs.filter((run) => run.status === "failed"),
         stuck_jobs: await startupOfficeStuckJobs(membership.team_id),

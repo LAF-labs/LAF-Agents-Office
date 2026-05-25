@@ -156,10 +156,13 @@ test("billing handler clamps beta limits and records an audit event", async () =
   assert.equal(deps.calls.audits[0][1], "startup_office.billing_updated");
 });
 
-test("beta dashboard composes billing, failures, approvals, notifications, and stuck jobs", async () => {
+test("beta dashboard composes billing, failures, approvals, notifications, outbox, and stuck jobs", async () => {
   const deps = baseDeps({
     async safeStartupOfficeRest(table, options) {
       deps.calls.rest.push({ options, table });
+      if (table === "startup_office_outbox_events") {
+        return [{ event_type: "notification.approval_waiting", id: "outbox-1" }];
+      }
       return [{ id: "notification-1" }];
     },
     async startupOfficeApprovals() {
@@ -181,11 +184,16 @@ test("beta dashboard composes billing, failures, approvals, notifications, and s
   const dashboard = deps.calls.writes[0].body.dashboard;
   assert.deepEqual(dashboard.pending_approvals, [{ id: "approval-1" }]);
   assert.deepEqual(dashboard.notifications, [{ id: "notification-1" }]);
+  assert.deepEqual(dashboard.outbox_events, [
+    { event_type: "notification.approval_waiting", id: "outbox-1" },
+  ]);
   assert.deepEqual(dashboard.run_failures, [{ id: "run-1", status: "failed" }]);
   assert.deepEqual(dashboard.stuck_jobs, [{ id: "job-1" }]);
   assert.equal(dashboard.team.slug, "acme");
   assert.equal(deps.calls.rest[0].table, "startup_office_notifications");
   assert.equal(deps.calls.rest[0].options.query.team_id, "eq.team-1");
+  assert.equal(deps.calls.rest[1].table, "startup_office_outbox_events");
+  assert.equal(deps.calls.rest[1].options.query.status, "in.(queued,failed,dead_letter)");
 });
 
 test("operations handlers preserve typed 405 errors", async () => {

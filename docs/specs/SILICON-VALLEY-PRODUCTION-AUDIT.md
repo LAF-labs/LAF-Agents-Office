@@ -45,7 +45,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I015 | Architecture | The cloud worker is a library-style worker, not a deployed independently operable service. | `workers/startup-office` |
 | SV-I016 | Architecture | Data access uses ad hoc REST helper patterns instead of a typed repository contract across all domains. | API helpers |
 | SV-I017 | Architecture | Startup Office modules are new but not yet enforced as the only path for company operations. | legacy apps still present |
-| SV-I018 | Architecture | There is no event bus or outbox pattern for reliable side effects. | notification and receipt writes |
+| SV-I018 | Architecture | The first DB outbox exists for notifications, receipts, and usage, but no production delivery worker drains it yet. | notification and receipt writes |
 | SV-I019 | Architecture | The system lacks a clear synchronous vs asynchronous boundary contract. | loop run and worker job APIs |
 | SV-I020 | Architecture | Multi-tenant business objects do not have a shared domain invariant layer. | assets, customers, metrics, signals |
 | SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
@@ -201,7 +201,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I171 | Reliability | Worker job state exists but does not prove exactly-once or at-least-once semantics. | worker jobs |
 | SV-I172 | Reliability | Startup Office loop side effects are now idempotency-keyed, but retries outside the loop worker still need the same protection. | retry route |
 | SV-I173 | Reliability | Dead-letter handling is not implemented for failed cloud loops. | worker jobs |
-| SV-I174 | Reliability | Notifications can be recorded without delivery guarantees. | notifications |
+| SV-I174 | Reliability | Notifications now enqueue durable outbox rows, but delivery retries and provider reconciliation are incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
 | SV-I176 | Reliability | Long-running model calls do not have durable timeout policy in schema. | worker |
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
@@ -477,3 +477,14 @@ and missing typed contracts.
   trigger that blocks receipt updates and requires
   `app.allow_receipt_delete=on` before receipt deletion; the schema gate verifies
   the append-only function, trigger, and bypass setting.
+- R3/R7 now starts a durable outbox. Supabase migration
+  `20260525070000_startup_office_outbox_events.sql` creates
+  `startup_office_outbox_events` and DB triggers that enqueue outbox rows on
+  notification, receipt, and usage-event inserts. Migration
+  `20260525080000_secure_startup_office_outbox_function.sql` pins the trigger
+  function as `SECURITY DEFINER` with `search_path=public`, and
+  `20260525090000_correct_startup_office_outbox_notification_actor.sql` avoids
+  mislabeling notification recipients as the outbox actor. The schema gate
+  verifies the table, secure function, source branches, event prefixes, actor
+  semantics, and triggers. The beta dashboard now exposes
+  queued/failed/dead-letter outbox rows for operators.
