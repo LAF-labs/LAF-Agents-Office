@@ -521,10 +521,12 @@ and missing typed contracts.
   suite.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
-  preflights production env, then drains a bounded outbox batch with
+  preflights the same Supabase, public host, billing, AI worker, and outbox env
+  contract as production, then drains a bounded outbox batch with
   `npm run startup-office:outbox-worker`. `docs/ops/STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md`
-  documents deploy order, secrets, migrations, worker smoke, and rollback, and
-  `npm run startup-office:worker-deploy` gates the workflow and runbook.
+  documents deploy order, secrets, migrations, worker smoke, health monitoring,
+  and rollback, and `npm run startup-office:worker-deploy` gates the workflow
+  and runbook.
 - R7/R8 now packages the AI loop worker for independent operation. Supabase
   migration `20260525110000_claim_startup_office_worker_jobs.sql` adds
   `available_at`, `dead_letter`, and the service-role
