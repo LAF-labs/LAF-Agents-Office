@@ -89,6 +89,228 @@ const RLS_TEAM_TABLE_FIXTURES = Object.freeze([
   { alphaKey: IDS.alphaUsageEvent, betaKey: IDS.betaUsageEvent, keyColumn: "id", table: "startup_office_usage_events" },
   { alphaKey: IDS.alphaWorkerJob, betaKey: IDS.betaWorkerJob, keyColumn: "id", table: "startup_office_worker_jobs" },
 ]);
+const RLS_CROSS_TENANT_INSERT_FIXTURES = Object.freeze([
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      name: "Cross tenant loop",
+      slug: `cross-loop-${crypto.randomUUID()}`,
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_loops",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      objective: "Cross tenant run",
+      team_id: IDS.betaTeam,
+      title: "Cross tenant run",
+    }),
+    table: "startup_office_runs",
+  },
+  {
+    body: () => ({
+      content: "Cross tenant artifact",
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      run_id: IDS.betaRun,
+      team_id: IDS.betaTeam,
+      title: "Cross tenant artifact",
+    }),
+    table: "startup_office_artifacts",
+  },
+  {
+    body: () => ({
+      action: "approve_cross_tenant",
+      artifact_id: IDS.betaArtifact,
+      id: crypto.randomUUID(),
+      requested_by: IDS.alphaUser,
+      run_id: IDS.betaRun,
+      team_id: IDS.betaTeam,
+      title: "Cross tenant approval",
+    }),
+    table: "startup_office_approvals",
+  },
+  {
+    body: () => ({
+      approval_id: IDS.betaApproval,
+      created_by: IDS.alphaUser,
+      event_type: "cross_tenant_receipt",
+      id: crypto.randomUUID(),
+      run_id: IDS.betaRun,
+      summary: "Cross tenant receipt",
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_receipts",
+  },
+  {
+    body: () => ({
+      body: "Cross tenant asset",
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      kind: "document",
+      name: "Cross tenant asset",
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_assets",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      name: "Cross tenant customer",
+      status: "lead",
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_customers",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      metric_key: `cross_metric_${crypto.randomUUID()}`,
+      metric_value: 1,
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_metrics",
+  },
+  {
+    body: () => ({
+      body: "Cross tenant signal",
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      loop_id: IDS.betaLoop,
+      run_id: IDS.betaRun,
+      signal_type: "market",
+      source: "cross_tenant_source",
+      team_id: IDS.betaTeam,
+      title: "Cross tenant signal",
+    }),
+    table: "startup_office_signals",
+  },
+  {
+    body: () => ({
+      body: "Cross tenant memory",
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      slug: `cross-memory-${crypto.randomUUID()}`,
+      team_id: IDS.betaTeam,
+      title: "Cross tenant memory",
+    }),
+    table: "startup_office_memory_pages",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      loop_slug: "beta-loop",
+      run_id: IDS.betaRun,
+      status: "queued",
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_worker_jobs",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      event_type: "granted",
+      id: crypto.randomUUID(),
+      reason: "Cross tenant support access",
+      support_user_id: IDS.alphaUser,
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_support_access_events",
+  },
+  {
+    body: () => ({
+      id: crypto.randomUUID(),
+      reason: "Cross tenant deletion request",
+      requested_by: IDS.alphaUser,
+      status: "queued",
+      team_id: IDS.betaTeam,
+    }),
+    table: "startup_office_deletion_requests",
+  },
+]);
+const RLS_CROSS_TENANT_UPDATE_FIXTURES = Object.freeze([
+  { body: { name: "Mutated by alpha" }, key: IDS.betaTeam, keyColumn: "team_id", select: "team_id,name", table: "company_profiles" },
+  { body: { team_lead_slug: "mutated-by-alpha" }, key: IDS.betaTeam, keyColumn: "team_id", select: "team_id,team_lead_slug", table: "workspace_settings" },
+  { body: { name: "Mutated by alpha" }, key: IDS.betaLoop, keyColumn: "id", select: "id,team_id,name", table: "startup_office_loops" },
+  { body: { title: "Mutated by alpha" }, key: IDS.betaRun, keyColumn: "id", select: "id,team_id,title", table: "startup_office_runs" },
+  { body: { status: "approved" }, key: IDS.betaApproval, keyColumn: "id", select: "id,team_id,status", table: "startup_office_approvals" },
+  { body: { name: "Mutated by alpha" }, key: IDS.betaAsset, keyColumn: "id", select: "id,team_id,name", table: "startup_office_assets" },
+  { body: { name: "Mutated by alpha" }, key: IDS.betaCustomer, keyColumn: "id", select: "id,team_id,name", table: "startup_office_customers" },
+  { body: { title: "Mutated by alpha" }, key: IDS.betaSignal, keyColumn: "id", select: "id,team_id,title", table: "startup_office_signals" },
+  { body: { title: "Mutated by alpha" }, key: IDS.betaMemoryPage, keyColumn: "id", select: "id,team_id,title", table: "startup_office_memory_pages" },
+  { body: { status: "failed" }, key: IDS.betaWorkerJob, keyColumn: "id", select: "id,team_id,status", table: "startup_office_worker_jobs" },
+]);
+const RLS_DIRECT_WRITE_BLOCK_FIXTURES = Object.freeze([
+  {
+    body: () => ({
+      action: "client.audit",
+      actor_user_id: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      target_id: IDS.alphaTeam,
+      target_type: "rls_fixture",
+      team_id: IDS.alphaTeam,
+    }),
+    table: "audit_events",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      provider: "fake",
+      model: "client-model",
+      run_id: IDS.alphaRun,
+      team_id: IDS.alphaTeam,
+    }),
+    table: "startup_office_usage_events",
+  },
+  {
+    body: () => ({
+      event_type: "client.notification",
+      id: crypto.randomUUID(),
+      recipient_user_id: IDS.alphaUser,
+      team_id: IDS.alphaTeam,
+    }),
+    table: "startup_office_notifications",
+  },
+  {
+    body: () => ({
+      event_type: "client.outbox",
+      id: crypto.randomUUID(),
+      source_id: IDS.alphaReceipt,
+      source_table: "startup_office_receipts",
+      team_id: IDS.alphaTeam,
+    }),
+    table: "startup_office_outbox_events",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      document_type: "agreement",
+      id: crypto.randomUUID(),
+      provider: "manual",
+      status: "signed",
+      team_id: IDS.alphaTeam,
+    }),
+    table: "startup_office_billing_documents",
+  },
+  {
+    body: () => ({
+      created_by: IDS.alphaUser,
+      id: crypto.randomUUID(),
+      milestone: "second_loop_run",
+      source_id: IDS.alphaRun,
+      source_table: "startup_office_runs",
+      team_id: IDS.alphaTeam,
+    }),
+    table: "startup_office_activation_events",
+  },
+]);
 
 main().catch((err) => {
   console.error(`startup-office RLS live verification failed: ${err.message}`);
@@ -465,6 +687,9 @@ async function verifyRLS(baseURL) {
     betaToken,
     serviceToken,
   });
+  await verifyCrossTenantInsertIsolation(baseURL, { alphaToken });
+  await verifyCrossTenantUpdateIsolation(baseURL, { alphaToken });
+  await verifyDirectWritePolicyBlocks(baseURL, { alphaToken });
 
   const anonAssets = await rest(baseURL, "/startup_office_assets?select=id,name,team_id");
   assertRows(anonAssets, []);
@@ -533,32 +758,6 @@ async function verifyRLS(baseURL) {
   assertRows(inserted.body, [{ name: "Alpha user asset", team_id: IDS.alphaTeam }], {
     ignoreID: true,
   });
-
-  const crossTeamInsert = await rest(baseURL, "/startup_office_assets", {
-    body: {
-      body: "Cross tenant asset",
-      kind: "document",
-      name: "Cross tenant asset",
-      team_id: IDS.betaTeam,
-    },
-    method: "POST",
-    token: alphaToken,
-  });
-  if (crossTeamInsert.ok) {
-    throw new Error("alpha user inserted a beta-team asset through RLS");
-  }
-
-  const betaPatch = await rest(
-    baseURL,
-    `/startup_office_assets?id=eq.${IDS.betaAsset}&select=id,name,team_id`,
-    {
-      body: { name: "Mutated by alpha" },
-      method: "PATCH",
-      token: alphaToken,
-    },
-  );
-  if (!betaPatch.ok) throw new Error(`cross-team update should be filtered, not fail: ${betaPatch.text}`);
-  assertRows(betaPatch.body, []);
 
   const serviceAssets = await rest(baseURL, "/startup_office_assets?select=id,name,team_id", {
     token: serviceToken,
@@ -631,6 +830,50 @@ async function verifyTeamTableReadIsolation(baseURL, tokens) {
       label: "service beta",
       rows: serviceRows,
     });
+  }
+}
+
+async function verifyCrossTenantInsertIsolation(baseURL, tokens) {
+  for (const fixture of RLS_CROSS_TENANT_INSERT_FIXTURES) {
+    const attempted = await rest(baseURL, `/${fixture.table}`, {
+      body: fixture.body(),
+      method: "POST",
+      token: tokens.alphaToken,
+    });
+    if (attempted.ok) {
+      throw new Error(`alpha user inserted a beta-team row into ${fixture.table} through RLS`);
+    }
+  }
+}
+
+async function verifyCrossTenantUpdateIsolation(baseURL, tokens) {
+  for (const fixture of RLS_CROSS_TENANT_UPDATE_FIXTURES) {
+    const patched = await rest(
+      baseURL,
+      `/${fixture.table}?${fixture.keyColumn}=eq.${fixture.key}&select=${fixture.select}`,
+      {
+        body: fixture.body,
+        method: "PATCH",
+        token: tokens.alphaToken,
+      },
+    );
+    if (!patched.ok) {
+      throw new Error(`cross-team update on ${fixture.table} should be filtered, not fail: ${patched.text}`);
+    }
+    assertRows(patched.body, []);
+  }
+}
+
+async function verifyDirectWritePolicyBlocks(baseURL, tokens) {
+  for (const fixture of RLS_DIRECT_WRITE_BLOCK_FIXTURES) {
+    const attempted = await rest(baseURL, `/${fixture.table}`, {
+      body: fixture.body(),
+      method: "POST",
+      token: tokens.alphaToken,
+    });
+    if (attempted.ok) {
+      throw new Error(`authenticated user wrote directly to service-owned table ${fixture.table} despite RLS`);
+    }
   }
 }
 

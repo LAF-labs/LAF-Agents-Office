@@ -80,8 +80,28 @@ for (const [relativePath, snippet, label] of [
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
-    "crossTeamInsert",
-    "cross-tenant write rejection",
+    "verifyCrossTenantInsertIsolation",
+    "cross-tenant insert rejection matrix",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "verifyCrossTenantUpdateIsolation",
+    "cross-tenant update rejection matrix",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "verifyDirectWritePolicyBlocks",
+    "service-owned direct write rejection matrix",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "alpha user inserted a beta-team row into",
+    "cross-tenant insert assertion",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "authenticated user wrote directly to service-owned table",
+    "service-owned direct write assertion",
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",

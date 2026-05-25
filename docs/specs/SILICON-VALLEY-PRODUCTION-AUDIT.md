@@ -379,10 +379,12 @@ startup-office:rls-live` applies every Supabase migration to a temporary
 PostgreSQL cluster, starts PostgREST, seeds Alpha/Beta rows across every
 `startup_office_*` table plus `company_profiles`, `workspace_billing`,
 `workspace_settings`, and `audit_events`, and proves anon isolation,
-authenticated same-tenant reads, cross-tenant read exclusion, and service-role
-bypass. `npm run startup-office:rls-verification` now derives the required
-fixture table names from `supabase/schema/current.json` so new Startup Office
-tables cannot silently fall out of live RLS coverage.
+authenticated same-tenant reads, cross-tenant read exclusion, cross-tenant
+insert/update rejection across writable Startup Office tables, service-owned
+direct-write rejection, and service-role bypass. `npm run
+startup-office:rls-verification` now derives the required fixture table names
+from `supabase/schema/current.json` so new Startup Office tables cannot silently
+fall out of live RLS coverage.
 
 The broader production audit is still not claimable as fully complete until
 that external handoff evidence is attached. Engineering should use targeted
@@ -757,3 +759,8 @@ the final release commit or when a shared invariant changes.
   seeds Alpha/Beta fixtures for every Startup Office team table and the
   workspace billing/settings/audit tables that gate the product, then verifies
   anon, authenticated, cross-tenant, and service-role paths through PostgREST.
+- R3 now extends that live verifier from read isolation to write isolation.
+  Alpha tokens attempt beta-team inserts and beta-team updates across writable
+  Startup Office tables, while direct client writes to service-owned audit,
+  usage, notification, outbox, billing-document, and activation tables must be
+  rejected by RLS.
