@@ -1639,6 +1639,8 @@ html[data-theme="office"]
   color: var(--text-primary);
   font-size: 13px;
   line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .startup-artifact-content {
   margin: 18px 20px;

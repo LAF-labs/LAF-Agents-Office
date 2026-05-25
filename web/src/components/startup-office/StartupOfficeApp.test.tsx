@@ -9,6 +9,7 @@ import { StartupOfficeApp } from "./StartupOfficeApp";
 const startupOfficeMocks = vi.hoisted(() => ({
   approveStartupOfficeApproval: vi.fn(),
   getStartupOfficeGrowthSummary: vi.fn(),
+  getStartupOfficeRun: vi.fn(),
   rejectStartupOfficeApproval: vi.fn(),
   reviseStartupOfficeApproval: vi.fn(),
   runStartupOfficeLoop: vi.fn(),
@@ -197,6 +198,56 @@ function mockStartupOfficeSummary() {
       title: "Idea Validation",
     },
   });
+  startupOfficeMocks.getStartupOfficeRun.mockImplementation((runID: string) =>
+    Promise.resolve({
+      approvals: [
+        {
+          action: "approve_loop_draft",
+          details: "Founder control gate before publishing public claims.",
+          id: "approval-1",
+          risk_level: "medium",
+          run_id: runID,
+          status: "pending",
+          title: "Approve Idea Validation draft",
+        },
+      ],
+      artifacts: [
+        {
+          content: "Validate and launch a paid beta with founder control.",
+          id: "artifact-1",
+          kind: "offer_package",
+          run_id: runID,
+          title: "Offer Package artifact",
+        },
+      ],
+      receipts: [
+        {
+          actor_slug: "ceo",
+          event_type: "run.created",
+          id: "receipt-1",
+          run_id: runID,
+          summary:
+            "Idea Validation run drafted and queued for founder approval.",
+        },
+      ],
+      run: {
+        created_at: "2026-05-24T00:00:00Z",
+        id: runID,
+        inputs: {
+          segment: "solo founders",
+        },
+        metadata: {
+          cost: { total_tokens: 1900 },
+          model: "fake-model",
+          provider: "fake",
+        },
+        objective: "Find the first paid beta buyer segment.",
+        status: "waiting_approval",
+        summary: "Drafted buyer segment and founder approval request.",
+        title: "Idea Validation",
+      },
+    }),
+  );
   startupOfficeMocks.approveStartupOfficeApproval.mockResolvedValue({});
   startupOfficeMocks.rejectStartupOfficeApproval.mockResolvedValue({});
   startupOfficeMocks.reviseStartupOfficeApproval.mockResolvedValue({});
@@ -296,8 +347,38 @@ describe("StartupOfficeApp", () => {
     await user.click(screen.getByRole("button", { name: "Close panel" }));
 
     await user.click(screen.getByRole("button", { name: "View run" }));
+    const runDialog = await screen.findByRole("dialog", {
+      name: "Idea Validation",
+    });
+    await waitFor(() =>
+      expect(startupOfficeMocks.getStartupOfficeRun).toHaveBeenCalledWith(
+        "run-1",
+      ),
+    );
+    expect(within(runDialog).getByText("Objective")).toBeInTheDocument();
     expect(
-      await screen.findByRole("dialog", { name: "Idea Validation" }),
+      within(runDialog).getAllByText("Find the first paid beta buyer segment.")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(within(runDialog).getByText("Inputs")).toBeInTheDocument();
+    expect(within(runDialog).getByText(/solo founders/)).toBeInTheDocument();
+    expect(within(runDialog).getByText("Draft artifact")).toBeInTheDocument();
+    expect(
+      within(runDialog).getByText(
+        /Offer Package artifact \(offer_package\).*founder control/s,
+      ),
+    ).toBeInTheDocument();
+    expect(within(runDialog).getByText("Approval")).toBeInTheDocument();
+    expect(
+      within(runDialog).getByText(
+        /Founder control gate before publishing public claims/,
+      ),
+    ).toBeInTheDocument();
+    expect(within(runDialog).getByText("Receipt trace")).toBeInTheDocument();
+    expect(
+      within(runDialog).getByText(
+        /Idea Validation run drafted and queued for founder approval/,
+      ),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close panel" }));
 

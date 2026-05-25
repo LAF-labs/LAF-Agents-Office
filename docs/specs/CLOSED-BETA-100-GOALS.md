@@ -51,7 +51,7 @@ Status values: `Complete`, `In progress`, `Not started`, `Blocked`.
 | G036 | Complete | Implement frontend loop run button. | Founder can start a beta loop from Startup Office and refresh the run/approval/receipt state. | `web/src/components/apps/SkillsApp.tsx`, `web/src/components/apps/SkillsApp.test.tsx` |
 | G037 | Complete | Implement frontend approval queue. | Founder can approve or reject pending actions from the Startup Office Approval Desk. | `web/src/components/apps/SkillsApp.tsx`, `web/src/components/apps/SkillsApp.test.tsx` |
 | G038 | Complete | Implement frontend receipt timeline. | Receipts app reads Startup Office receipts instead of legacy agent logs only. | `web/src/components/apps/ReceiptsApp.tsx`, `web/src/components/apps/ReceiptsApp.test.tsx`, `web/src/api/startupOffice.ts`, `scripts/startup-office-beta-release-gate.cjs` |
-| G039 | Not started | Implement run detail view. | Founder can inspect objective, inputs, draft artifact, approval, and receipt trace for a run. | pending |
+| G039 | Complete | Implement run detail view. | Founder can inspect objective, inputs, draft artifact, approval, and receipt trace for a run. | `web/src/components/startup-office/RunDetailDrawer.tsx`, `web/src/components/startup-office/StartupOfficeApp.test.tsx`, `web/src/styles/layout.css` |
 | G040 | Not started | Implement artifact viewer. | Drafts, reports, messages, and wiki updates render with copy and export actions. | pending |
 | G041 | Not started | Implement asset library backend endpoints. | Assets can be created, listed, updated, archived, and linked to runs. | pending |
 | G042 | Not started | Implement customer CRM backend endpoints. | Leads and customers can be created, updated, filtered, and linked to discovery loops. | pending |

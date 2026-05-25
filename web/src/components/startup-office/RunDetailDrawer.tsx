@@ -1,7 +1,14 @@
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Xmark } from "iconoir-react";
 
-import type { StartupOfficeRun } from "../../api/startupOffice";
+import {
+  getStartupOfficeRun,
+  type StartupOfficeApproval,
+  type StartupOfficeArtifact,
+  type StartupOfficeReceipt,
+  type StartupOfficeRun,
+} from "../../api/startupOffice";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 import { dateLabel } from "./startupOfficeViewModel";
 
@@ -12,6 +19,12 @@ interface RunDetailDrawerProps {
 }
 
 export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
+  const detailQuery = useQuery({
+    enabled: !!run?.id,
+    queryFn: () => getStartupOfficeRun(run?.id || ""),
+    queryKey: ["startup-office-run-detail", run?.id],
+  });
+
   useEffect(() => {
     if (!run) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -22,6 +35,12 @@ export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
   }, [onClose, run]);
 
   if (!run) return null;
+
+  const detailRun = detailQuery.data?.run ?? run;
+  const artifacts = detailQuery.data?.artifacts ?? [];
+  const approvals = detailQuery.data?.approvals ?? [];
+  const receipts = detailQuery.data?.receipts ?? [];
+  const draftArtifact = artifacts[0] ?? null;
 
   return (
     <div className="startup-office-drawer-backdrop">
@@ -34,8 +53,8 @@ export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
         <div className="startup-office-drawer-header">
           <div>
             <p className="skills-kicker">{copy.runDetailTitle}</p>
-            <h2 id="startup-office-run-title">{run.title}</h2>
-            <p>{run.objective || run.summary || run.status}</p>
+            <h2 id="startup-office-run-title">{detailRun.title}</h2>
+            <p>{detailRun.objective || detailRun.summary || detailRun.status}</p>
           </div>
           <button
             type="button"
@@ -48,28 +67,58 @@ export function RunDetailDrawer({ copy, onClose, run }: RunDetailDrawerProps) {
         </div>
         <dl className="startup-detail-list">
           <div>
+            <dt>Objective</dt>
+            <dd>{detailRun.objective || "-"}</dd>
+          </div>
+          <div>
             <dt>Status</dt>
-            <dd>{run.status}</dd>
+            <dd>{detailRun.status}</dd>
           </div>
           <div>
             <dt>Created</dt>
-            <dd>{dateLabel(run.created_at)}</dd>
+            <dd>{dateLabel(detailRun.created_at)}</dd>
           </div>
           <div>
             <dt>Updated</dt>
-            <dd>{dateLabel(run.updated_at)}</dd>
+            <dd>{dateLabel(detailRun.updated_at)}</dd>
           </div>
           <div>
             <dt>Summary</dt>
-            <dd>{run.summary || "-"}</dd>
+            <dd>{detailRun.summary || "-"}</dd>
+          </div>
+          <div>
+            <dt>Inputs</dt>
+            <dd>{jsonPreview(detailRun.inputs)}</dd>
+          </div>
+          <div>
+            <dt>Draft artifact</dt>
+            <dd>{artifactSummary(draftArtifact)}</dd>
+          </div>
+          <div>
+            <dt>Approval</dt>
+            <dd>{approvalSummary(approvals)}</dd>
+          </div>
+          <div>
+            <dt>Receipt trace</dt>
+            <dd>{receiptSummary(receipts)}</dd>
           </div>
           <div>
             <dt>Model</dt>
-            <dd>{modelLabel(run.metadata)}</dd>
+            <dd>{modelLabel(detailRun.metadata)}</dd>
           </div>
           <div>
             <dt>Usage</dt>
-            <dd>{usageLabel(run.metadata)}</dd>
+            <dd>{usageLabel(detailRun.metadata)}</dd>
+          </div>
+          <div>
+            <dt>Detail status</dt>
+            <dd>
+              {detailQuery.isError
+                ? "Could not load linked records."
+                : detailQuery.isLoading
+                  ? "Loading linked records..."
+                  : "Linked records loaded."}
+            </dd>
           </div>
         </dl>
       </section>
@@ -94,4 +143,42 @@ function usageLabel(metadata: StartupOfficeRun["metadata"]) {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function jsonPreview(value: unknown) {
+  const record =
+    value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  if (!record) return "-";
+  return JSON.stringify(record, null, 2);
+}
+
+function artifactSummary(artifact: StartupOfficeArtifact | null) {
+  if (!artifact) return "-";
+  const content = artifact.content ? `: ${artifact.content.slice(0, 160)}` : "";
+  return `${artifact.title} (${artifact.kind})${content}`;
+}
+
+function approvalSummary(approvals: StartupOfficeApproval[]) {
+  if (!approvals.length) return "-";
+  return approvals
+    .map((approval) =>
+      [
+        approval.title,
+        approval.status,
+        approval.risk_level ? `${approval.risk_level} risk` : "",
+        approval.details,
+      ]
+        .filter(Boolean)
+        .join(" - "),
+    )
+    .join("\n");
+}
+
+function receiptSummary(receipts: StartupOfficeReceipt[]) {
+  if (!receipts.length) return "-";
+  return receipts
+    .map((receipt) =>
+      [receipt.event_type, receipt.summary].filter(Boolean).join(" - "),
+    )
+    .join("\n");
 }
