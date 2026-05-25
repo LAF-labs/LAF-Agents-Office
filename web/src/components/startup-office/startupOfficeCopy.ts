@@ -150,6 +150,12 @@ export const STARTUP_OFFICE_APP_COPY = {
     companyMemoryTitle: "Company memory",
     companyMemoryDescription:
       "The office uses this profile as the first memory layer for every loop.",
+    memoryFreshnessLabels: {
+      fresh: "Verified",
+      needs_review: "Needs review",
+      review_soon: "Review soon",
+      stale: "Stale",
+    },
     objectsTitle: "Operating objects",
     objectsDescription:
       "Assets, customers, signals, and metrics stay inside the company workspace.",
@@ -348,6 +354,12 @@ export const STARTUP_OFFICE_APP_COPY = {
     companyMemoryTitle: "회사 메모리",
     companyMemoryDescription:
       "오피스는 이 프로필을 모든 루프의 첫 메모리 레이어로 사용합니다.",
+    memoryFreshnessLabels: {
+      fresh: "검증됨",
+      needs_review: "검토 필요",
+      review_soon: "곧 검토",
+      stale: "오래됨",
+    },
     objectsTitle: "운영 객체",
     objectsDescription:
       "자산, 고객, 신호, 지표를 회사 워크스페이스 안에 보관합니다.",

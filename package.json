@@ -52,6 +52,7 @@
     "startup-office:live-model-smoke-check": "node scripts/check-startup-office-live-model-smoke.cjs",
     "startup-office:live-model-smoke:test": "node --test scripts/startup-office-live-model-smoke.test.cjs",
     "startup-office:memory-conflicts": "node scripts/check-startup-office-memory-conflicts.cjs",
+    "startup-office:memory-freshness": "node scripts/check-startup-office-memory-freshness.cjs",
     "startup-office:model-failover": "node scripts/check-startup-office-model-failover.cjs",
     "startup-office:model-client:test": "node --test workers/startup-office/modelClient.test.js",
     "startup-office:ops-monitor": "node scripts/startup-office-ops-monitor.cjs",

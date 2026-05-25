@@ -50,17 +50,25 @@ export function CompanyProfilePanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const memoryRows = [
-    [copy.profileFields.icp, profile.icp || "-"],
-    [copy.profileFields.offer, profile.offer || "-"],
-    [copy.profileFields.positioning, profile.positioning || "-"],
-    [
-      copy.profileFields.priority,
-      profile.priority || profile.goals || copy.goalFallback,
-    ],
+  const memoryRows: Array<{
+    freshness?: StartupOfficeMemoryPage["freshness"];
+    label: string;
+    value: string;
+  }> = [
+    { label: copy.profileFields.icp, value: profile.icp || "-" },
+    { label: copy.profileFields.offer, value: profile.offer || "-" },
+    { label: copy.profileFields.positioning, value: profile.positioning || "-" },
+    {
+      label: copy.profileFields.priority,
+      value: profile.priority || profile.goals || copy.goalFallback,
+    },
   ];
   const canonicalMemoryRows = memoryPages.length
-    ? memoryPages.slice(0, 5).map((page) => [page.title, page.summary || "-"])
+    ? memoryPages.slice(0, 5).map((page) => ({
+        freshness: page.freshness,
+        label: page.title,
+        value: page.summary || "-",
+      }))
     : memoryRows;
 
   const updateField =
@@ -92,10 +100,19 @@ export function CompanyProfilePanel({
           </button>
         </div>
         <dl className="startup-memory-list">
-          {canonicalMemoryRows.map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
+          {canonicalMemoryRows.map((row) => (
+            <div key={row.label}>
+              <dt>
+                <span>{row.label}</span>
+                {row.freshness ? (
+                  <span
+                    className={`startup-memory-freshness is-${row.freshness.status}`}
+                  >
+                    {copy.memoryFreshnessLabels[row.freshness.status]}
+                  </span>
+                ) : null}
+              </dt>
+              <dd>{row.value}</dd>
             </div>
           ))}
         </dl>

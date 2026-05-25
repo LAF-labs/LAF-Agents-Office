@@ -231,6 +231,14 @@ function mockStartupOfficeSummary() {
     },
     memory_pages: [
       {
+        freshness: {
+          days_since_verification: null,
+          reason: "never_verified",
+          review_due_at: null,
+          review_interval_days: 60,
+          risk_level: "medium",
+          status: "needs_review",
+        },
         id: "memory-1",
         slug: "validation-log",
         status: "approved",
@@ -432,6 +440,7 @@ describe("StartupOfficeApp", () => {
     expect(
       screen.getByText("First paid-beta validation draft approved."),
     ).toBeInTheDocument();
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
     expect(
       screen.getByText("Memory update: Validation Log, Decisions"),
     ).toBeInTheDocument();

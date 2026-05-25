@@ -84,6 +84,14 @@ export interface StartupOfficeArtifact {
 export interface StartupOfficeMemoryPage {
   assumptions?: unknown[];
   body?: string;
+  freshness?: {
+    days_since_verification: number | null;
+    reason: string;
+    review_due_at: string | null;
+    review_interval_days: number;
+    risk_level: "low" | "medium" | "high";
+    status: "fresh" | "review_soon" | "stale" | "needs_review";
+  };
   id: string;
   last_verified_at?: string | null;
   provenance?: Record<string, unknown>;

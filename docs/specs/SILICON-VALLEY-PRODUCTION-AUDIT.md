@@ -107,7 +107,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I066 | Memory | Contradiction handling is stronger in the wiki layer than in Startup Office memory. | wiki lint vs memory pages |
 | SV-I067 | Memory | Uploaded materials and assets are not part of retrieval. | asset upload pending |
 | SV-I068 | Memory | Company profile edits do not yet materialize into canonical memory with approvals. | profile API |
-| SV-I069 | Memory | Memory freshness and re-verification are not operationalized. | last verification fields |
+| SV-I069 | Memory | Memory freshness is operationalized in API serialization and the Company Memory UI with risk-based review intervals, stale status, and never-verified review flags. | `startup-office:memory-freshness`, API/UI tests |
 | SV-I070 | Memory | Founder-facing memory explanations are not consistently present across screens. | Startup Office UI |
 | SV-I071 | Workflow | Operating loops are not yet mapped to a complete founder workday. | loop definitions |
 | SV-I072 | Workflow | Approval states exist but do not include every external-impact action type. | approvals table |
@@ -296,7 +296,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G050 | Add dead-letter processing. | Failed worker jobs land in a visible recovery queue and scheduled monitor. | worker tests |
 | SV-G051 | Unify wiki and company memory. | Founder-facing memory has one canonical source of truth. | architecture and tests |
 | SV-G052 | Add memory conflict resolution. | Contradictions require explicit resolution before promotion. | `startup-office:memory-conflicts`, memory tests |
-| SV-G053 | Add memory freshness policy. | Stale claims surface for review by date and risk. | UI and API tests |
+| SV-G053 | Add memory freshness policy. | Stale claims surface for review by date and risk. | `startup-office:memory-freshness`, UI and API tests |
 | SV-G054 | Make profile edits memory-backed. | Profile changes create approved memory updates. | API tests |
 | SV-G055 | Add provenance replay. | Receipts can reconstruct inputs, prompt version, output, approval, and memory diffs. | `startup-office:provenance-replay`, receipt test |
 | SV-G056 | Add asset-grounded retrieval. | Uploaded business materials become retrievable loop context. | retrieval tests |

@@ -1,3 +1,5 @@
+const { startupOfficeMemoryFreshness } = require("./memoryFreshness");
+
 function objectValue(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value;
@@ -111,6 +113,7 @@ function publicStartupOfficeMemoryPage(row) {
   return {
     assumptions: arrayValue(row.assumptions),
     body: row.body || "",
+    freshness: startupOfficeMemoryFreshness(row),
     id: row.id || "",
     last_verified_at: row.last_verified_at || null,
     provenance: objectValue(row.provenance),

@@ -1384,6 +1384,30 @@ html[data-theme="office"]
   font-size: 12px;
   line-height: 1.45;
 }
+.startup-memory-list dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.startup-memory-freshness {
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+}
+.startup-memory-freshness.is-needs_review,
+.startup-memory-freshness.is-stale {
+  border-color: color-mix(in srgb, var(--red) 42%, var(--border-light));
+  color: var(--red);
+}
+.startup-memory-freshness.is-review_soon {
+  border-color: color-mix(in srgb, var(--yellow-dark) 45%, var(--border-light));
+  color: var(--yellow-dark);
+}
 .startup-pulse-datum strong {
   color: var(--text-primary);
   font-size: 14px;
