@@ -32,8 +32,9 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 3580);
+assertMaxLines("api/[...path].js", 3450);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
+assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
@@ -82,6 +83,17 @@ for (const [pattern, label] of [
   [/profile\.updated/, "auth profile update audit action"],
   [/profile\.password_changed/, "auth password update audit action"],
   [/current password is incorrect/, "auth password verification detail"],
+  [/const WORKSPACE_ROLES\b/, "workspace role constants"],
+  [/const WORKSPACE_PERMISSIONS\b/, "workspace permission constants"],
+  [/function normalizeRole\b/, "workspace role normalizer"],
+  [/function normalizePermission\b/, "workspace permission normalizer"],
+  [/function normalizePermissionList\b/, "workspace permission list normalizer"],
+  [/function normalizePermissionOverride\b/, "workspace permission override normalizer"],
+  [/function rolePresetPermissions\b/, "workspace role permission preset helper"],
+  [/function effectivePermissions\b/, "workspace effective permission helper"],
+  [/function hasPermission\b/, "workspace permission checker"],
+  [/function requirePermission\b/, "workspace permission guard"],
+  [/function requireAdminRole\b/, "workspace admin guard"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }
