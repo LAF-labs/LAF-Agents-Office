@@ -97,7 +97,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
 | SV-I057 | AI worker | Model costs now reconcile provider usage fields against an operator pricing catalog and carry pricing provenance; invoice-level finance reconciliation remains future ops hardening. | `startup-office:model-costs`, usage tests |
 | SV-I058 | AI worker | Long-running work now has a distributed cancellation contract across API cancel, worker-job state, and loop side-effect guards; live provider abort signals remain future hardening. | `startup-office:cancellation`, worker tests |
-| SV-I059 | AI worker | There is no red-team harness for hallucination, unsafe advice, and overclaiming. | output eval test |
+| SV-I059 | AI worker | Deterministic red-team cases now exercise unsupported external claims, hallucinated sources, external-action claims, overclaiming, and regulated advice; real adversarial model evals remain future hardening. | `startup-office:red-team` |
 | SV-I060 | AI worker | Loop tool permission manifests now exist, but live connector-level enforcement must stay tied to this contract as new tools are added. | `workers/startup-office/toolPolicy.js`, `startup-office:tool-policy` |
 | SV-I061 | Memory | Company memory is promising but not yet the source of truth for all company operations. | memory pages and wiki |
 | SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | hosted wiki and Startup Office |
@@ -728,6 +728,10 @@ the final release commit or when a shared invariant changes.
   `next_cursor`, reject malformed cursors, and keep existing arrays stable for
   older clients; `npm run startup-office:pagination` covers the helper,
   handlers, web contract, and release gate.
+- R4/R8 now adds a deterministic red-team harness. `npm run startup-office:red-team`
+  checks unsupported external claims, hallucinated citations, external-action
+  claims, guaranteed outcomes, and regulated advice before loop outputs can
+  regress silently.
 - R2/R8 now extracts hosted model-access policy into
   `api/lib/hosted/modelAccess.js`. Managed-model availability, billing fallback,
   `model:use_laf` enforcement, the `model/availability` route, and model-mode

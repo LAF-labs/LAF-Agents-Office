@@ -54,13 +54,13 @@ function evaluateStartupOfficeOutput({ context = null, output, template = null }
       issues.push(`${field} is required`);
     }
   }
-  for (const action of output?.next_actions || []) {
-    if (looksExternalExecution(action)) {
-      issues.push("next actions must not imply an external action was executed");
-      break;
-    }
-  }
   const claimText = outputClaimText(output);
+  if (looksExternalExecution(claimText)) {
+    issues.push("outputs must not imply an external action was executed");
+  }
+  if (unsupportedExternalClaim(claimText, sources)) {
+    issues.push("external factual claims need attached source citations");
+  }
   if (guaranteesOutcome(claimText)) {
     issues.push("outputs must not guarantee business, legal, financial, or medical outcomes");
   }
@@ -93,14 +93,13 @@ function isObject(value) {
 
 function looksExternalExecution(value) {
   const raw = String(value || "").toLowerCase();
-  return [
-    "already sent",
-    "sent to",
-    "charged",
-    "published",
-    "launched ads",
-    "transferred",
-  ].some((phrase) => raw.includes(phrase));
+  return /\b(already sent|sent to|charged|published|launched ads|transferred|went live|is live)\b/.test(raw);
+}
+
+function unsupportedExternalClaim(value, sources) {
+  if (Array.isArray(sources) && sources.length > 0) return false;
+  const raw = String(value || "").toLowerCase();
+  return /\b(according to|research shows|market data shows|verified from|web search confirms|gartner|forrester|mckinsey|crunchbase)\b/.test(raw);
 }
 
 function guaranteesOutcome(value) {

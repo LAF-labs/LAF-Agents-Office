@@ -32,6 +32,7 @@ const checks = [
   ["npm", ["run", "startup-office:prompt-versions"]],
   ["npm", ["run", "startup-office:pure-cloud-boundary"]],
   ["npm", ["run", "startup-office:rate-limits"]],
+  ["npm", ["run", "startup-office:red-team"]],
   ["npm", ["run", "startup-office:receipt-integrity"]],
   ["npm", ["run", "startup-office:retrieval-quality"]],
   ["npm", ["run", "startup-office:role-authorization"]],
