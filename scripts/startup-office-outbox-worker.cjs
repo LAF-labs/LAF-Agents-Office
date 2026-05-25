@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const {
+  createResendEmailProvider,
   createStartupOfficeOutboxDeliveryProvider,
   createStartupOfficeOutboxWorker,
 } = require("../workers/startup-office/outboxWorker");
@@ -66,10 +67,43 @@ async function updateNotification(id, patch) {
   });
 }
 
+async function lookupRecipient(userID) {
+  if (!userID) throw new Error("notification recipient_user_id is missing");
+  const user = await supabaseFetch(`/auth/v1/admin/users/${encodeURIComponent(userID)}`);
+  return {
+    email: user?.email || "",
+    id: user?.id || userID,
+    name: user?.user_metadata?.name || user?.email || "",
+    user_metadata: user?.user_metadata || {},
+  };
+}
+
+function emailProviderFromEnv() {
+  const provider = String(process.env.LAF_OUTBOX_EMAIL_PROVIDER || "in_app").trim().toLowerCase();
+  if (!provider || provider === "in_app" || provider === "none") return null;
+  if (provider === "resend") {
+    return createResendEmailProvider({
+      apiKey: requiredEnv("RESEND_API_KEY"),
+      from: requiredEnv("LAF_EMAIL_FROM"),
+      replyTo: process.env.LAF_EMAIL_REPLY_TO || "",
+    });
+  }
+  throw new Error(`unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
+}
+
+function publicAppURL() {
+  const raw = String(process.env.LAF_OFFICE_PUBLIC_HOST || process.env.VERCEL_URL || "").trim();
+  if (!raw) return "";
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
 async function main() {
   const worker = createStartupOfficeOutboxWorker({
     claimOutboxEvent,
     deliverOutboxEvent: createStartupOfficeOutboxDeliveryProvider({
+      appURL: publicAppURL(),
+      emailProvider: emailProviderFromEnv(),
+      lookupRecipient,
       updateNotification,
     }),
     updateOutboxEvent,

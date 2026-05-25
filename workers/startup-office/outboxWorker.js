@@ -77,6 +77,9 @@ function createStartupOfficeOutboxWorker({
 }
 
 function createStartupOfficeOutboxDeliveryProvider({
+  appURL = "",
+  emailProvider = null,
+  lookupRecipient = null,
   nowISO = () => new Date().toISOString(),
   updateNotification,
 } = {}) {
@@ -86,11 +89,40 @@ function createStartupOfficeOutboxDeliveryProvider({
         throw new Error("notification delivery provider is not configured");
       }
       const deliveredAt = nowISO();
-      await updateNotification(event.source_id, {
+      let emailDelivery = null;
+      if (emailProvider) {
+        if (typeof lookupRecipient !== "function") {
+          throw new Error("notification recipient lookup is not configured");
+        }
+        const recipientID = objectValue(event.payload).recipient_user_id;
+        const recipient = await lookupRecipient(recipientID);
+        const email = notificationEmail(event, recipient, { appURL });
+        emailDelivery = await emailProvider.sendEmail(email);
+      }
+      const notificationPayload = objectValue(objectValue(event.payload).payload);
+      const patch = {
         sent_at: deliveredAt,
         status: "sent",
+      };
+      if (emailDelivery) {
+        patch.payload = {
+          ...notificationPayload,
+          email_delivery: {
+            delivered_at: deliveredAt,
+            message_id: emailDelivery.message_id || "",
+            provider: emailDelivery.provider || "email",
+          },
+        };
+      }
+      await updateNotification(event.source_id, {
+        ...patch,
       });
-      return { channel: "in_app_notification", delivered_at: deliveredAt };
+      return {
+        channel: emailDelivery ? "email" : "in_app_notification",
+        delivered_at: deliveredAt,
+        message_id: emailDelivery?.message_id || "",
+        provider: emailDelivery?.provider || "in_app",
+      };
     }
 
     if (
@@ -104,6 +136,110 @@ function createStartupOfficeOutboxDeliveryProvider({
   };
 }
 
+function createResendEmailProvider({
+  apiKey,
+  fetchImpl = fetch,
+  from,
+  replyTo = "",
+} = {}) {
+  if (!apiKey) throw new Error("RESEND_API_KEY is required");
+  if (!from) throw new Error("LAF_EMAIL_FROM is required");
+  if (typeof fetchImpl !== "function") throw new Error("fetch implementation is required");
+
+  return {
+    async sendEmail(email) {
+      const response = await fetchImpl("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          html: email.html,
+          reply_to: replyTo || undefined,
+          subject: email.subject,
+          text: email.text,
+          to: email.to,
+        }),
+      });
+      const text = await response.text();
+      let payload = {};
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch {
+        payload = {};
+      }
+      if (!response.ok) {
+        throw new Error(
+          payload?.message || payload?.error || text || response.statusText || "email provider failed",
+        );
+      }
+      return {
+        message_id: payload.id || "",
+        provider: "resend",
+      };
+    },
+  };
+}
+
+function notificationEmail(event, recipient, { appURL = "" } = {}) {
+  const email = String(recipient?.email || "").trim();
+  if (!email) throw new Error("notification recipient email is missing");
+  const eventType = String(event.event_type || "").replace(/^notification\./, "");
+  const payload = objectValue(objectValue(event.payload).payload);
+  const runID = payload.run_id || "";
+  const title = notificationTitle(eventType);
+  const action = notificationAction(eventType);
+  const url = String(appURL || "").replace(/\/+$/, "");
+  const link = url ? `${url}/startup-office${runID ? `/runs/${encodeURIComponent(runID)}` : ""}` : "";
+  const name = recipient?.name || recipient?.user_metadata?.name || email;
+  const lines = [
+    `Hi ${name},`,
+    "",
+    action,
+    runID ? `Run ID: ${runID}` : "",
+    link ? `Open Startup Office: ${link}` : "",
+    "",
+    "LAF Startup Office",
+  ].filter(Boolean);
+  return {
+    html: lines.map((line) => `<p>${escapeHTML(line)}</p>`).join(""),
+    subject: title,
+    text: lines.join("\n"),
+    to: email,
+  };
+}
+
+function notificationTitle(eventType) {
+  if (eventType === "approval_waiting") return "Startup Office approval is waiting";
+  if (eventType === "run_failed") return "Startup Office run failed";
+  return "Startup Office notification";
+}
+
+function notificationAction(eventType) {
+  if (eventType === "approval_waiting") {
+    return "A Startup Office draft is ready for founder review.";
+  }
+  if (eventType === "run_failed") {
+    return "A Startup Office run failed and needs operator attention.";
+  }
+  return "There is a new Startup Office notification.";
+}
+
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function defaultRetryDelayMs(attempts) {
   const exponent = Math.max(0, Math.min(Number(attempts || 1) - 1, 5));
   return 30000 * 2 ** exponent;
@@ -114,7 +250,9 @@ function defaultTruncateText(value, max) {
 }
 
 module.exports = {
+  createResendEmailProvider,
   createStartupOfficeOutboxDeliveryProvider,
   createStartupOfficeOutboxWorker,
   defaultRetryDelayMs,
+  notificationEmail,
 };

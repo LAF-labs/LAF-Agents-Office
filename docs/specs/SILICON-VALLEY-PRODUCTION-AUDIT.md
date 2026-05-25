@@ -45,7 +45,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I015 | Architecture | The cloud worker is a library-style worker, not a deployed independently operable service. | `workers/startup-office` |
 | SV-I016 | Architecture | Data access uses ad hoc REST helper patterns instead of a typed repository contract across all domains. | API helpers |
 | SV-I017 | Architecture | Startup Office modules are new but not yet enforced as the only path for company operations. | legacy apps still present |
-| SV-I018 | Architecture | The outbox now has atomic claim and a delivery worker, but still needs a production email/provider adapter. | notification and receipt writes |
+| SV-I018 | Architecture | The outbox now has atomic claim, delivery worker, and Resend adapter, but live provider smoke and reconciliation remain. | notification and receipt writes |
 | SV-I019 | Architecture | The system lacks a clear synchronous vs asynchronous boundary contract. | loop run and worker job APIs |
 | SV-I020 | Architecture | Multi-tenant business objects do not have a shared domain invariant layer. | assets, customers, metrics, signals |
 | SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
@@ -103,7 +103,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I073 | Workflow | Receipts exist but do not yet serve as a complete customer-trust ledger. | receipts timeline |
 | SV-I074 | Workflow | Revision flow exists but lacks worker re-entry and quality comparison. | approval revise route |
 | SV-I075 | Workflow | Loop dependencies and scheduling are not mature enough for a real operating cadence. | loop definitions |
-| SV-I076 | Workflow | Notifications are recorded but not delivered through production channels. | notifications table |
+| SV-I076 | Workflow | Notifications can be delivered through in-app or Resend email paths, but live provider smoke is still manual. | notifications table |
 | SV-I077 | Workflow | Founder delegation to human teammates is not as mature as AI loop execution. | team invites and channels |
 | SV-I078 | Workflow | Skill invocation is not strongly tied to loop execution and receipts. | skills and loops |
 | SV-I079 | Workflow | There is no policy-driven “draft only” mode per workspace. | policy API |
@@ -201,7 +201,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I171 | Reliability | Worker job state exists but does not prove exactly-once or at-least-once semantics. | worker jobs |
 | SV-I172 | Reliability | Startup Office loop side effects are now idempotency-keyed, but retries outside the loop worker still need the same protection. | retry route |
 | SV-I173 | Reliability | Dead-letter handling is not implemented for failed cloud loops. | worker jobs |
-| SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling, but provider reconciliation is incomplete. | notifications |
+| SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
 | SV-I176 | Reliability | Long-running model calls do not have durable timeout policy in schema. | worker |
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
@@ -495,3 +495,9 @@ and missing typed contracts.
   claimed rows, marks in-app notifications sent, retries with backoff, and
   dead-letters exhausted events; the beta release gate now runs its worker
   tests.
+- R7 now adds a deploy-time email provider path. The outbox worker can use
+  `LAF_OUTBOX_EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `LAF_EMAIL_FROM`, and
+  `LAF_EMAIL_REPLY_TO` to send approval/failure emails through Resend, resolving
+  recipient emails through Supabase Auth Admin. Tests cover email rendering,
+  HTML escaping, Resend request shape, provider errors, and notification
+  delivery metadata.
