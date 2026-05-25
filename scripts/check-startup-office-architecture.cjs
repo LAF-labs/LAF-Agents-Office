@@ -35,6 +35,7 @@ function assertNotContains(relativePath, pattern, label) {
 assertMaxLines("api/[...path].js", 2850);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
+assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
 assertMaxLines("api/lib/hosted/conversationHandlers.js", 290);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
@@ -127,6 +128,10 @@ for (const [pattern, label] of [
   [/account already exists/, "hosted signup duplicate response"],
   [/signup session was not issued/, "hosted signup provider session guard"],
   [/body\.team_action === "join"/, "hosted signup invite join branch"],
+  [/HOSTED_WEB_COMMANDS/, "hosted web command registry"],
+  [/HOSTED_WEB_COMMAND_NAMES/, "hosted web command lookup"],
+  [/async function handleHostedCommandRun\b/, "hosted command run handler"],
+  [/function hostedSlashCommandName\b/, "hosted command parser"],
   [/function hostedChannel\b/, "hosted conversation channel serializer"],
   [/function normalizeStringList\b/, "hosted conversation string-list normalizer"],
   [/async function listHostedChannelMessages\b/, "hosted conversation message list helper"],

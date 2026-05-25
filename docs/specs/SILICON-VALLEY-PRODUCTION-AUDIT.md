@@ -586,3 +586,8 @@ and missing typed contracts.
   `model:use_laf` enforcement, the `model/availability` route, and model-mode
   normalization are covered by dedicated tests and prevented from moving back
   into the hosted API facade by the architecture gate.
+- R2/R6 now extracts the hosted slash-command registry and command-run guard into
+  `api/lib/hosted/commandHandlers.js`. The web command surface is tested outside
+  the API facade, and the architecture gate prevents command registry constants,
+  parser logic, or command execution stubs from drifting back into
+  `api/[...path].js`.

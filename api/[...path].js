@@ -6,6 +6,9 @@ const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
+  createHostedCommandHandlers,
+} = require("./lib/hosted/commandHandlers");
+const {
   createHostedConversationHandlers,
 } = require("./lib/hosted/conversationHandlers");
 const {
@@ -94,24 +97,6 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMITS = {
   authSignup: 12,
 };
-const HOSTED_WEB_COMMANDS = Object.freeze([
-  { name: "1o1", description: "Open a direct conversation with an agent", webSupported: true },
-  { name: "ask", description: "Ask the team lead", webSupported: true },
-  { name: "approvals", description: "Review founder approval queue", webSupported: true },
-  { name: "clear", description: "Clear messages in this view", webSupported: true },
-  { name: "growth", description: "Open Startup Office", webSupported: true },
-  { name: "help", description: "Show commands and keys", webSupported: true },
-  { name: "loops", description: "Open operating loops", webSupported: true },
-  { name: "remember", description: "Store a fact in memory", webSupported: true },
-  { name: "receipts", description: "Open run receipts", webSupported: true },
-  { name: "requests", description: "Open requests", webSupported: true },
-  { name: "search", description: "Search messages and knowledge", webSupported: true },
-  { name: "skills", description: "Open skills", webSupported: true },
-  { name: "threads", description: "See every active thread", webSupported: true },
-]);
-const HOSTED_WEB_COMMAND_NAMES = new Set(
-  HOSTED_WEB_COMMANDS.map((command) => command.name),
-);
 const DEFAULT_PROFILE_AVATAR_ID = "human";
 const PROFILE_AVATAR_IDS = new Set([
   "human",
@@ -188,6 +173,13 @@ const HOSTED_AUTH_HANDLERS = createHostedAuthHandlers({
   requireUser,
   setAuthCookies,
   writeAuditEvent,
+  writeJSON,
+});
+
+const HOSTED_COMMAND_HANDLERS = createHostedCommandHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  readBody,
+  requireUser,
   writeJSON,
 });
 
@@ -588,11 +580,11 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "commands" && req.method === "GET") {
-      writeJSON(res, 200, HOSTED_WEB_COMMANDS);
+      HOSTED_COMMAND_HANDLERS.commands(req, res);
       return;
     }
     if (path === "commands/run" && req.method === "POST") {
-      await handleHostedCommandRun(req, res);
+      await HOSTED_COMMAND_HANDLERS.commandRun(req, res);
       return;
     }
     if (path === "requests" && req.method === "GET") {
@@ -1611,25 +1603,6 @@ async function handleHostedMessages(req, res) {
 
 async function handleHostedHomeSessions(req, res) {
   return HOSTED_CONVERSATION_HANDLERS.homeSessions(req, res);
-}
-
-async function handleHostedCommandRun(req, res) {
-  await requireUser(req);
-  const body = await readBody(req);
-  const commandName = hostedSlashCommandName(body.input);
-  if (!commandName) {
-    throw new HTTPError(400, "slash command input is required");
-  }
-  if (HOSTED_WEB_COMMAND_NAMES.has(commandName)) {
-    throw new HTTPError(400, "slash command is handled directly in the web workspace");
-  }
-  throw new HTTPError(400, "slash command is not available in the hosted workspace");
-}
-
-function hostedSlashCommandName(input) {
-  const firstToken = String(input || "").trim().split(/\s+/)[0] || "";
-  if (!firstToken.startsWith("/")) return "";
-  return firstToken.slice(1).toLowerCase();
 }
 
 async function handleHostedMemory(req, res) {
