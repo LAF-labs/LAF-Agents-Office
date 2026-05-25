@@ -42,11 +42,10 @@ test("permission overrides are normalized, deduped, sorted, and allow-listed", (
 
 test("role presets preserve existing workspace permission semantics", () => {
   assert.deepEqual(rolePresetPermissions("viewer"), [
-    "workspace:read",
-    "skill:read",
     "memory:read",
+    "skill:read",
     "wiki:read",
-    "execution:receipt_read",
+    "workspace:read",
   ]);
   assert.equal(rolePresetPermissions("owner").length, WORKSPACE_PERMISSIONS.length);
   assert.ok(rolePresetPermissions("manager").includes("member:invite"));

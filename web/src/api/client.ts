@@ -2,6 +2,15 @@
  * Typed hosted LAF Office API client.
  */
 
+import type {
+  WorkspacePermission,
+  WorkspaceRole,
+} from "./workspacePermissions";
+export type {
+  WorkspacePermission,
+  WorkspaceRole,
+} from "./workspacePermissions";
+
 export function normalizeHostedAPIBase(value = ""): string {
   const raw = String(value || "").trim();
   if (!raw) return "/api";
@@ -225,42 +234,6 @@ export interface WorkspaceTeam {
   created_at?: string;
   updated_at?: string;
 }
-
-export type WorkspaceRole = "owner" | "admin" | "manager" | "member" | "viewer";
-
-export type WorkspacePermission =
-  | "workspace:read"
-  | "workspace:manage"
-  | "member:invite"
-  | "member:manage_roles"
-  | "member:manage_permissions"
-  | "project:create"
-  | "project:update"
-  | "project:archive"
-  | "task:create"
-  | "task:update"
-  | "task:assign"
-  | "task:change_status"
-  | "task:execute_agent"
-  | "agent:create"
-  | "agent:update"
-  | "agent:assign"
-  | "skill:read"
-  | "skill:propose"
-  | "skill:create_active"
-  | "skill:approve"
-  | "skill:update"
-  | "skill:archive"
-  | "skill:invoke"
-  | "memory:read"
-  | "memory:write_draft"
-  | "memory:promote"
-  | "memory:write_canonical"
-  | "wiki:read"
-  | "model:use_laf"
-  | "mcp:use_task_context"
-  | "mcp:use_workspace_context"
-  | "audit:read";
 
 export interface PermissionOverride {
   allow?: WorkspacePermission[];

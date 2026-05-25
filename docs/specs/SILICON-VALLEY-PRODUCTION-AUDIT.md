@@ -16,6 +16,9 @@ startup, what fundamental problems would we refuse to carry forward?
 - The canonical current Supabase schema now lives in
   `supabase/schema/current.json` and is checked against migrations by
   `npm run startup-office:schema`.
+- Workspace roles, permissions, and role presets now have a shared catalog at
+  `shared/workspace-permissions.json`; the release gate checks API and web
+  generated artifacts for drift.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes secret scan plus dependency audit, but it does not prove live model,
   live Supabase, email, billing, DNS, or browser E2E.
@@ -76,7 +79,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
 | SV-I047 | Security | Secret scan and high-severity dependency audit are tied into the Startup Office release gate, but SAST/DAST and a launch security packet remain incomplete. | `startup-office:security` |
-| SV-I048 | Security | Permission names are maintained in multiple layers and can drift. | API and web types |
+| SV-I048 | Security | Workspace permissions now use one shared catalog with API/web drift checks; route-level authorization still needs a full declarative matrix. | `startup-office:permissions` |
 | SV-I049 | Security | External action approval policy is not enforced by a centralized policy engine. | policy route and loop templates |
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
 | SV-I051 | AI worker | The model client is OpenAI-first and does not yet support robust provider failover. | `modelClient.js` |
@@ -271,7 +274,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G035 | Add file upload controls. | Type, size, scan, and retention policies protect assets. | upload tests |
 | SV-G036 | Implement support access consent. | Owner-visible, expiring support sessions gate staff access. | policy tests |
 | SV-G037 | Add security release gate. | Secret scan, high-severity dependency audit, and boundary checks run together. | `startup-office:security` |
-| SV-G038 | Unify permission definitions. | API, DB, and web permission lists cannot drift. | generated artifact |
+| SV-G038 | Unify permission definitions. | API and web permission lists cannot drift from the shared catalog. | `startup-office:permissions` |
 | SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require disclaimer and approval. | output eval |
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
 | SV-G041 | Add provider abstraction. | At least two model providers or one provider plus fallback are supported. | worker tests |
@@ -540,3 +543,9 @@ and missing typed contracts.
   Supabase schema checks, and service-role allowlist tests; the beta release
   gate now includes this command. Root `fast-uri` and web `ws` are pinned to
   patched versions through package overrides.
+- R3/R8 now unifies workspace permission definitions. The shared catalog
+  `shared/workspace-permissions.json` drives the hosted API permission module
+  and the generated web type artifact `web/src/api/workspacePermissions.ts`;
+  `npm run startup-office:permissions` verifies role presets, unknown
+  permissions, API constants, web artifact drift, and release-gate wiring. The
+  old phantom viewer receipt permission was removed from effective permissions.

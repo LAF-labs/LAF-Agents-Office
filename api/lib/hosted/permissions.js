@@ -1,38 +1,15 @@
-const WORKSPACE_ROLES = Object.freeze(["owner", "admin", "manager", "member", "viewer"]);
-const WORKSPACE_PERMISSIONS = Object.freeze([
-  "workspace:read",
-  "workspace:manage",
-  "member:invite",
-  "member:manage_roles",
-  "member:manage_permissions",
-  "project:create",
-  "project:update",
-  "project:archive",
-  "task:create",
-  "task:update",
-  "task:assign",
-  "task:change_status",
-  "task:execute_agent",
-  "agent:create",
-  "agent:update",
-  "agent:assign",
-  "skill:read",
-  "skill:propose",
-  "skill:create_active",
-  "skill:approve",
-  "skill:update",
-  "skill:archive",
-  "skill:invoke",
-  "memory:read",
-  "memory:write_draft",
-  "memory:promote",
-  "memory:write_canonical",
-  "wiki:read",
-  "model:use_laf",
-  "mcp:use_task_context",
-  "mcp:use_workspace_context",
-  "audit:read",
-]);
+const permissionCatalog = require("../../../shared/workspace-permissions.json");
+
+const WORKSPACE_ROLES = Object.freeze([...permissionCatalog.roles]);
+const WORKSPACE_PERMISSIONS = Object.freeze([...permissionCatalog.permissions]);
+const ROLE_PERMISSION_PRESETS = Object.freeze(
+  Object.fromEntries(
+    Object.entries(permissionCatalog.rolePresets).map(([role, preset]) => [
+      role,
+      preset === "all" ? "all" : Object.freeze([...preset]),
+    ]),
+  ),
+);
 
 function normalizeRole(role) {
   const value = String(role || "").trim().toLowerCase();
@@ -57,58 +34,8 @@ function normalizePermissionOverride(raw) {
 }
 
 function rolePresetPermissions(role) {
-  switch (normalizeRole(role)) {
-    case "owner":
-    case "admin":
-      return [...WORKSPACE_PERMISSIONS].sort();
-    case "manager":
-      return [
-        "workspace:read",
-        "member:invite",
-        "project:create",
-        "project:update",
-        "project:archive",
-        "task:create",
-        "task:update",
-        "task:assign",
-        "task:change_status",
-        "task:execute_agent",
-        "agent:assign",
-        "skill:read",
-        "skill:propose",
-        "skill:approve",
-        "skill:update",
-        "skill:invoke",
-        "memory:read",
-        "memory:write_draft",
-        "memory:promote",
-        "wiki:read",
-        "model:use_laf",
-        "mcp:use_task_context",
-        "mcp:use_workspace_context",
-      ].sort();
-    case "member":
-      return [
-        "workspace:read",
-        "project:create",
-        "project:update",
-        "task:create",
-        "task:update",
-        "task:change_status",
-        "task:execute_agent",
-        "skill:read",
-        "skill:propose",
-        "skill:invoke",
-        "memory:read",
-        "memory:write_draft",
-        "wiki:read",
-        "mcp:use_task_context",
-      ].sort();
-    case "viewer":
-      return ["workspace:read", "skill:read", "memory:read", "wiki:read", "execution:receipt_read"];
-    default:
-      return rolePresetPermissions("member");
-  }
+  const preset = ROLE_PERMISSION_PRESETS[normalizeRole(role)] || ROLE_PERMISSION_PRESETS.member;
+  return preset === "all" ? [...WORKSPACE_PERMISSIONS].sort() : [...preset].sort();
 }
 
 function effectivePermissions(membership) {
@@ -148,6 +75,7 @@ function createHostedPermissionGuards({ createHTTPError }) {
 module.exports = {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
+  ROLE_PERMISSION_PRESETS,
   createHostedPermissionGuards,
   effectivePermissions,
   hasPermission,
