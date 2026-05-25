@@ -51,6 +51,16 @@ async function runStartupOfficeLoop({
   let modelResult = null;
 
   try {
+    const canceledBeforeStart = await finishCanceledRun({
+      membership,
+      nowISO,
+      repository,
+      run,
+      stage: "before_start",
+      workerJob,
+    });
+    if (canceledBeforeStart) return canceledBeforeStart;
+
     if (workerJob?.id) {
       await repository.updateWorkerJob(membership.team_id, workerJob.id, {
         attempts: attempt,
@@ -124,6 +134,16 @@ async function runStartupOfficeLoop({
       );
     }
     context.browser_research = browserResearch.findings;
+    const canceledBeforeModel = await finishCanceledRun({
+      membership,
+      nowISO,
+      repository,
+      run,
+      stage: "before_model",
+      workerJob,
+    });
+    if (canceledBeforeModel) return canceledBeforeModel;
+
     modelResult = await modelClient.generateStructured({
       input: template.userPrompt({ context, inputs, objective }),
       instructions: template.instructions,
@@ -141,6 +161,16 @@ async function runStartupOfficeLoop({
       schemaDescription: template.schemaDescription,
       schemaName: template.schemaName,
     });
+    const canceledAfterModel = await finishCanceledRun({
+      membership,
+      nowISO,
+      repository,
+      run,
+      stage: "after_model",
+      workerJob,
+    });
+    if (canceledAfterModel) return canceledAfterModel;
+
     const quality = evaluateStartupOfficeOutput({
       context,
       output: modelResult.data,
@@ -381,6 +411,16 @@ async function runStartupOfficeLoop({
       status: approvalRequired ? "waiting_approval" : "completed",
     };
   } catch (err) {
+    const canceledDuringFailure = await finishCanceledRun({
+      membership,
+      nowISO,
+      repository,
+      run,
+      stage: "failure",
+      workerJob,
+    });
+    if (canceledDuringFailure) return canceledDuringFailure;
+
     const failedAt = nowISO();
     const message = truncateText(err.message || "Startup Office AI run failed", 2000);
     const cost = modelResult?.cost || {
@@ -475,6 +515,51 @@ function normalizedSkillInvocations(skillInvocations, run) {
 async function auditStartupOfficeWrite(repository, membership, event) {
   if (typeof repository.createAuditEvent !== "function") return null;
   return repository.createAuditEvent(membership, event);
+}
+
+async function finishCanceledRun({
+  membership,
+  nowISO,
+  repository,
+  run,
+  stage,
+  workerJob,
+}) {
+  const latestRun = await canceledRun(repository, membership.team_id, run);
+  if (!latestRun) return null;
+  const canceledAt = nowISO();
+  if (workerJob?.id && typeof repository.updateWorkerJob === "function") {
+    await repository.updateWorkerJob(membership.team_id, workerJob.id, {
+      completed_at: latestRun.completed_at || canceledAt,
+      last_error: "",
+      locked_at: null,
+      metadata: mergeMetadata(workerJob.metadata, {
+        cancellation_stage: stage,
+        canceled_run_status: latestRun.status,
+        run_id: run.id,
+      }),
+      status: "canceled",
+      updated_at: canceledAt,
+    });
+  }
+  return {
+    approval: null,
+    artifact: null,
+    receipt: null,
+    run: latestRun,
+    status: "canceled",
+  };
+}
+
+async function canceledRun(repository, teamID, run) {
+  if (run?.status === "canceled") return run;
+  if (typeof repository.findRun !== "function" || !run?.id) return null;
+  try {
+    const latestRun = await repository.findRun(teamID, run.id);
+    return latestRun?.status === "canceled" ? latestRun : null;
+  } catch {
+    return null;
+  }
 }
 
 async function gatherBrowserResearch({ browserResearchClient, context, inputs, loop, toolPolicy }) {

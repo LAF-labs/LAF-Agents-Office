@@ -222,15 +222,22 @@ function createStartupOfficeWorkflowHandlers(deps) {
         summary: "Founder canceled the Startup Office run.",
         updated_at: now,
       });
+      const canceledWorkerJobs = await cancelOpenWorkerJobs(membership, run.id, now);
       const receipt = await createStartupOfficeReceipt(membership, {
         actor_slug: "founder",
         approval_id: pendingApproval?.id || null,
         event_type: "run.canceled",
         run_id: run.id,
         summary: "Founder canceled the Startup Office run.",
-        trace: { run_id: run.id },
+        trace: {
+          canceled_worker_job_count: canceledWorkerJobs.length,
+          canceled_worker_job_ids: canceledWorkerJobs.map((job) => job.id).filter(Boolean).slice(0, 10),
+          run_id: run.id,
+        },
       });
-      await writeAuditEvent(membership, "startup_office.run_canceled", "run", run.id);
+      await writeAuditEvent(membership, "startup_office.run_canceled", "run", run.id, {
+        canceled_worker_job_count: canceledWorkerJobs.length,
+      });
       writeJSON(res, 200, {
         receipt,
         run: publicStartupOfficeRun(updatedRun || run),
@@ -318,6 +325,25 @@ function createStartupOfficeWorkflowHandlers(deps) {
     }
 
     throw createHTTPError(405, "method not allowed");
+  }
+
+  async function cancelOpenWorkerJobs(membership, runID, now) {
+    const rows = await safeStartupOfficeRest("startup_office_worker_jobs", {
+      method: "PATCH",
+      query: {
+        run_id: `eq.${runID}`,
+        status: "in.(queued,running,failed)",
+        team_id: `eq.${membership.team_id}`,
+      },
+      body: {
+        completed_at: now,
+        last_error: "Run canceled by founder.",
+        locked_at: null,
+        status: "canceled",
+        updated_at: now,
+      },
+    });
+    return Array.isArray(rows) ? rows : [];
   }
 
   async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {

@@ -348,8 +348,13 @@ test("run handler returns run detail and can cancel an unfinished run", async ()
 
   await handlers.run({ method: "POST" }, {}, "run-1", "cancel");
   assert.equal(deps.calls.updatedRun.patch.status, "canceled");
+  assert.equal(deps.calls.rest[1].table, "startup_office_worker_jobs");
+  assert.equal(deps.calls.rest[1].options.query.status, "in.(queued,running,failed)");
+  assert.equal(deps.calls.rest[1].options.body.status, "canceled");
   assert.equal(deps.calls.receipts[0].event_type, "run.canceled");
+  assert.equal(deps.calls.receipts[0].trace.canceled_worker_job_count, 1);
   assert.equal(deps.calls.audits[0][1], "startup_office.run_canceled");
+  assert.equal(deps.calls.audits[0][4].canceled_worker_job_count, 1);
   assert.equal(deps.calls.writes[1].body.status, "canceled");
 });
 

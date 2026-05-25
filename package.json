@@ -13,6 +13,7 @@
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
     "startup-office:beta-terms": "node scripts/check-startup-office-beta-terms.cjs",
     "startup-office:commercial-billing": "node scripts/check-startup-office-commercial-billing.cjs",
+    "startup-office:cancellation": "node scripts/check-startup-office-cancellation-contract.cjs",
     "startup-office:client-telemetry": "node scripts/check-startup-office-client-telemetry.cjs",
     "startup-office:cost-metering": "node scripts/check-startup-office-cost-metering.cjs",
     "startup-office:closed-beta-launch": "node scripts/check-startup-office-closed-beta-launch.cjs",

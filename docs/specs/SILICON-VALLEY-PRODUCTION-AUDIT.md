@@ -96,7 +96,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
 | SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
 | SV-I057 | AI worker | Model cost calculation is heuristic and not reconciled against provider billing. | cost metadata |
-| SV-I058 | AI worker | Long-running work has no distributed cancellation contract. | cancel route and worker state |
+| SV-I058 | AI worker | Long-running work now has a distributed cancellation contract across API cancel, worker-job state, and loop side-effect guards; live provider abort signals remain future hardening. | `startup-office:cancellation`, worker tests |
 | SV-I059 | AI worker | There is no red-team harness for hallucination, unsafe advice, and overclaiming. | output eval test |
 | SV-I060 | AI worker | Loop tool permission manifests now exist, but live connector-level enforcement must stay tied to this contract as new tools are added. | `workers/startup-office/toolPolicy.js`, `startup-office:tool-policy` |
 | SV-I061 | Memory | Company memory is promising but not yet the source of truth for all company operations. | memory pages and wiki |
@@ -381,6 +381,13 @@ into prompts and records it on runs, artifacts, approvals, worker jobs, and
 receipts. `npm run startup-office:tool-policy` and
 `workers/startup-office/toolPolicy.test.js` prevent new loops from shipping
 without the same founder-control contract.
+SV-I058 is now materially reduced by a distributed cancellation guard: canceling
+a run updates open queued/running/failed worker jobs, records the canceled job
+count on the founder receipt and audit event, and the loop engine re-checks run
+state before start, before model generation, after model generation, and on
+failure so canceled work cannot write artifacts, approvals, or failed-run
+receipts after the founder has stopped it. `npm run startup-office:cancellation`
+locks this contract.
 SV-G023 is now broader than representative spot checks: `npm run
 startup-office:rls-live` applies every Supabase migration to a temporary
 PostgreSQL cluster, starts PostgREST, seeds Alpha/Beta rows across every
@@ -410,6 +417,10 @@ the final release commit or when a shared invariant changes.
   `npm run startup-office:tool-policy` checks that every loop declares allowed
   tools, blocked external-execution tools, and never-auto-execute policy for
   publish, send, spend, legal-sensitive, pricing, and customer-promise actions.
+- R4/R7 now adds distributed cancellation for AI loop runs:
+  `npm run startup-office:cancellation` checks that API cancel propagates to
+  open worker jobs and that the loop engine re-checks cancellation before
+  side-effect writes after long model generation.
 - R2 has started with a dedicated Startup Office route contract and dispatcher:
   `api/lib/startup-office/routes.js` now owns the contract list, and
   `api/lib/startup-office/dispatcher.test.js` pins route IDs, aliases, params,

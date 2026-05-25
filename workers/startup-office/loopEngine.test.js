@@ -176,6 +176,48 @@ test("startup office loop engine records failed model calls as receipted run fai
   assert.equal(state.audits.at(-1).action, "startup_office.receipt.created");
 });
 
+test("startup office loop engine stops before side effects when a run is canceled during generation", async () => {
+  const state = fakeRepositoryState();
+  const statuses = ["queued", "running", "canceled"];
+  const repository = {
+    ...fakeRepository(state),
+    findRun: async (_teamID, runID) => ({
+      ...queuedRun(),
+      completed_at: statuses[0] === "canceled" ? fixedNow() : null,
+      id: runID,
+      status: statuses.shift() || "canceled",
+    }),
+  };
+
+  const result = await runStartupOfficeLoop({
+    inputs: { market: "AI operations" },
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: successfulModelClient(),
+    nowISO: fixedNow,
+    objective: "Validate the first buyer segment",
+    profile: { name: "LAF Labs" },
+    repository,
+    run: queuedRun(),
+    skillInvocations: skillInvocations(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "canceled");
+  assert.equal(result.artifact, null);
+  assert.equal(result.approval, null);
+  assert.equal(state.artifacts.length, 0);
+  assert.equal(state.approvals.length, 0);
+  assert.equal(state.receipts.at(-1).event_type, "run.started");
+  assert.deepEqual(
+    state.jobPatches.map((patch) => patch.status),
+    ["running", "canceled"],
+  );
+  assert.equal(state.jobPatches.at(-1).metadata.cancellation_stage, "after_model");
+  assert.equal(state.runPatches.at(-1).status, "running");
+});
+
 test("startup office loop engine rejects oversized model artifacts before database writes", async () => {
   const state = fakeRepositoryState();
   const result = await runStartupOfficeLoop({
