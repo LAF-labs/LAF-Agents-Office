@@ -12,6 +12,7 @@ const membership = Object.freeze({
 
 function baseDeps(overrides = {}) {
   const calls = {
+    activations: [],
     audits: [],
     permissions: [],
     rest: [],
@@ -50,6 +51,9 @@ function baseDeps(overrides = {}) {
     },
     publicStartupOfficeLoop(row) {
       return { ...row, public: "loop" };
+    },
+    async recordStartupOfficeExportActivation(args) {
+      calls.activations.push({ milestone: "first_export", ...args });
     },
     async readBody() {
       return {};
@@ -205,6 +209,8 @@ test("export handler includes schema version and restore notes", async () => {
   assert.equal(bundle.schema_version, "startup-office-export.v1");
   assert.equal(bundle.company_profile.name, "Acme");
   assert.equal(bundle.beta_ops.billing.plan, "founder_beta");
+  assert.equal(deps.calls.activations[0].milestone, "first_export");
+  assert.equal(deps.calls.activations[0].membership.team_id, "team-1");
   assert.match(bundle.restore_notes, /approval decisions/);
   assert.equal(bundle.generated_at, "2026-05-25T00:00:00.000Z");
   assert.equal(bundle.assets[0].kind, "assets");

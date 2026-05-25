@@ -170,6 +170,7 @@ function createStartupOfficeQueryHandlers(deps) {
       startupOfficeBetaOpsSnapshot(membership.team_id),
       companyProfileSnapshot(membership.team_id, team, user),
     ]);
+    await deps.recordStartupOfficeExportActivation?.({ membership });
     writeJSON(res, 200, {
       export: {
         approvals,

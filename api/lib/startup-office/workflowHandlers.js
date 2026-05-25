@@ -122,6 +122,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       loop_slug: loop.slug,
       worker_job_id: workerJob?.id || "",
     });
+    await deps.recordStartupOfficeRunActivation?.({ membership, runID });
     const queuedRun = run || {
       id: runID,
       inputs: body.inputs,
@@ -461,6 +462,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       "approval",
       approval.id,
     );
+    await deps.recordStartupOfficeApprovalActivation?.({ approval: updatedApproval || approval, membership });
     writeJSON(res, 200, {
       approval: publicStartupOfficeApproval(updatedApproval || approval),
       memory_diff: memoryPromotion?.diff || null,
@@ -493,7 +495,6 @@ function createStartupOfficeWorkflowHandlers(deps) {
       teamID,
     });
   }
-
   async function approvalPolicyForMembership(teamID) {
     if (typeof startupOfficeApprovalPolicy !== "function") return null;
     const settings = typeof workspaceSettings === "function" ? await workspaceSettings(teamID) : null;

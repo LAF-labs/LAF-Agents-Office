@@ -183,6 +183,8 @@ export interface StartupOfficeGrowthSummary {
 }
 
 export interface StartupOfficeBetaOps {
+  activation?: StartupOfficeActivationSnapshot;
+  activation_events?: StartupOfficeActivationEvent[];
   billing: {
     beta_agreement_url?: string;
     billing_provider: string;
@@ -232,6 +234,30 @@ export interface StartupOfficeBetaOps {
     tool_calls: number;
     total_tokens: number;
   };
+}
+
+export interface StartupOfficeActivationEvent {
+  created_by?: string | null;
+  first_seen_at?: string | null;
+  id: string;
+  metadata?: Record<string, unknown>;
+  milestone: string;
+  source_id?: string;
+  source_table?: string;
+  updated_at?: string | null;
+}
+
+export interface StartupOfficeActivationSnapshot {
+  activated: boolean;
+  completed_count: number;
+  milestones: Array<{
+    completed: boolean;
+    event?: StartupOfficeActivationEvent | null;
+    label: string;
+    milestone: string;
+  }>;
+  next_milestone: string;
+  required_count: number;
 }
 
 export interface StartupOfficeBillingDocument {

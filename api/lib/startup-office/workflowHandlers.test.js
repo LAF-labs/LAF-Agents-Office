@@ -12,6 +12,7 @@ const membership = Object.freeze({
 
 function baseDeps(overrides = {}) {
   const calls = {
+    activations: [],
     audits: [],
     loops: [],
     promotions: [],
@@ -121,6 +122,12 @@ function baseDeps(overrides = {}) {
     },
     publicStartupOfficeRun(row) {
       return row ? { ...row, public: "run" } : null;
+    },
+    async recordStartupOfficeApprovalActivation(args) {
+      calls.activations.push({ milestone: "first_approval_decision", ...args });
+    },
+    async recordStartupOfficeRunActivation(args) {
+      calls.activations.push({ milestone: "run_progress", ...args });
     },
     async readBody() {
       return {};
@@ -253,6 +260,8 @@ test("loopRun can queue a deferred run without executing the worker", async () =
   assert.equal(deps.calls.receipts[0].event_type, "run.queued");
   assert.equal(deps.calls.receipts[0].trace.skill_invocations[0].input_keys[0], "market");
   assert.equal(deps.calls.audits[0][1], "startup_office.run_created");
+  assert.equal(deps.calls.activations[0].milestone, "run_progress");
+  assert.equal(deps.calls.activations[0].runID, "run-1");
   assert.equal(deps.calls.writes[0].status, 202);
   assert.equal(deps.calls.writes[0].body.status, "queued");
   assert.equal(deps.calls.loopRunArgs, undefined);
@@ -396,6 +405,8 @@ test("approval action approves, promotes memory, records receipt, and audits", a
   assert.equal(deps.calls.receiptMemory[0].receipt.id, "receipt-1");
   assert.equal(deps.calls.receiptMemory[0].run.status, "completed");
   assert.equal(deps.calls.audits[0][1], "startup_office.approved");
+  assert.equal(deps.calls.activations[0].milestone, "first_approval_decision");
+  assert.equal(deps.calls.activations[0].approval.id, "approval-1");
   assert.deepEqual(deps.calls.writes[0].body.memory_pages, [
     { slug: "positioning" },
     { slug: "loop-receipts" },

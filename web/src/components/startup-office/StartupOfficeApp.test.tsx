@@ -43,6 +43,34 @@ function mockStartupOfficeSummary() {
   });
   startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
     beta_ops: {
+      activation: {
+        activated: false,
+        completed_count: 3,
+        milestones: [
+          {
+            completed: true,
+            label: "First loop run",
+            milestone: "first_loop_run",
+          },
+          {
+            completed: true,
+            label: "First approval decision",
+            milestone: "first_approval_decision",
+          },
+          {
+            completed: true,
+            label: "Second loop run",
+            milestone: "second_loop_run",
+          },
+          {
+            completed: false,
+            label: "First export",
+            milestone: "first_export",
+          },
+        ],
+        next_milestone: "first_export",
+        required_count: 4,
+      },
       billing: {
         beta_agreement_url: "https://example.com/signed-beta-agreement.pdf",
         billing_provider: "manual",
@@ -391,6 +419,10 @@ describe("StartupOfficeApp", () => {
     expect(within(betaOpsPanel).getByText("5")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Provider")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("manual")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Activation")).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText("3 / 4 - next: first export"),
+    ).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Plan")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("founder_beta")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Agreement")).toBeInTheDocument();

@@ -5,6 +5,7 @@ const { spawnSync } = require("node:child_process");
 const checks = [
   ["git", ["diff", "--check"]],
   ["npm", ["run", "production:audit"]],
+  ["npm", ["run", "startup-office:activation-analytics"]],
   ["npm", ["run", "startup-office:api-contracts"]],
   ["npm", ["run", "startup-office:architecture"]],
   ["npm", ["run", "startup-office:audit-coverage"]],
@@ -54,6 +55,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/serviceRoleAccess.test.js"]],
   ["node", ["--test", "api/lib/hosted/signupHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/usageHandlers.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/activationAnalytics.test.js"]],
   ["node", ["--test", "api/lib/startup-office/authorization.test.js"]],
   ["node", ["--test", "api/lib/startup-office/assetUploadHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/approvalPolicy.test.js"]],

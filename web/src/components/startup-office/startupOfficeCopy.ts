@@ -163,6 +163,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsDescription:
       "Billing state, run limits, and usage stay visible for closed beta operations.",
     betaOpsLabels: {
+      activation: "Activation",
       agreement: "Agreement",
       documents: "Billing docs",
       nextStep: "Next step",
@@ -175,6 +176,17 @@ export const STARTUP_OFFICE_APP_COPY = {
       toolCalls: "Tool calls",
       tokens: "Tokens",
     },
+    betaOpsActivated: "activated",
+    betaOpsActivationFallback: "Waiting for activation signals",
+    betaOpsNextMilestone: (milestone: string) =>
+      `next: ${
+        ({
+          first_approval_decision: "first approval",
+          first_export: "first export",
+          first_loop_run: "first loop",
+          second_loop_run: "second loop",
+        })[milestone] || "activation"
+      }`,
     betaOpsNoDocuments:
       "Attach a signed agreement, paid invoice, or payment reference.",
     betaOpsDocumentLabel: (type: string) =>
@@ -343,6 +355,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsDescription:
       "클로즈드 베타 운영을 위해 결제 상태, 실행 제한, 사용량을 표시합니다.",
     betaOpsLabels: {
+      activation: "활성화",
       agreement: "계약",
       documents: "청구 문서",
       nextStep: "다음 조치",
@@ -355,6 +368,17 @@ export const STARTUP_OFFICE_APP_COPY = {
       toolCalls: "툴 호출",
       tokens: "토큰",
     },
+    betaOpsActivated: "활성화 완료",
+    betaOpsActivationFallback: "활성화 신호를 기다리는 중",
+    betaOpsNextMilestone: (milestone: string) =>
+      `다음: ${
+        ({
+          first_approval_decision: "첫 승인",
+          first_export: "첫 내보내기",
+          first_loop_run: "첫 루프",
+          second_loop_run: "두 번째 루프",
+        })[milestone] || "활성화"
+      }`,
     betaOpsNoDocuments:
       "서명된 계약, 결제 완료 인보이스, 또는 결제 참조를 연결하세요.",
     betaOpsDocumentLabel: (type: string) =>

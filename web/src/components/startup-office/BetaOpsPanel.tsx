@@ -23,6 +23,10 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
           <dd>{billingStateLabel(betaOps)}</dd>
         </div>
         <div>
+          <dt>{copy.betaOpsLabels.activation}</dt>
+          <dd>{activationProgressText(betaOps, copy)}</dd>
+        </div>
+        <div>
           <dt>{copy.betaOpsLabels.plan}</dt>
           <dd>{billing?.plan || "trial"}</dd>
         </div>
@@ -81,6 +85,17 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
       </dl>
     </section>
   );
+}
+
+function activationProgressText(
+  betaOps: StartupOfficeBetaOps | undefined,
+  copy: StartupOfficeAppCopy,
+) {
+  const activation = betaOps?.activation;
+  if (!activation) return copy.betaOpsActivationFallback;
+  const progress = `${activation.completed_count} / ${activation.required_count}`;
+  if (activation.activated) return `${progress} - ${copy.betaOpsActivated}`;
+  return `${progress} - ${copy.betaOpsNextMilestone(activation.next_milestone)}`;
 }
 
 function billingStateLabel(betaOps?: StartupOfficeBetaOps) {

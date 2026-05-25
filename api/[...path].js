@@ -80,6 +80,13 @@ const {
   startupOfficeEntitlementSnapshot,
 } = require("./lib/startup-office/commercialBilling");
 const {
+  activationEventsForTeam,
+  recordStartupOfficeApprovalActivation,
+  recordStartupOfficeExportActivation,
+  recordStartupOfficeRunActivation,
+  startupOfficeActivationSnapshot,
+} = require("./lib/startup-office/activationAnalytics");
+const {
   createStartupOfficeProfileHandlers,
 } = require("./lib/startup-office/profileHandlers");
 const {
@@ -421,6 +428,8 @@ const STARTUP_OFFICE_QUERY_HANDLERS = createStartupOfficeQueryHandlers({
   nowISO,
   objectValue,
   publicStartupOfficeLoop,
+  recordStartupOfficeExportActivation: (args) =>
+    recordStartupOfficeExportActivation({ ...args, nowISO, safeStartupOfficeRest }),
   readBody,
   requirePermission,
   requireUser,
@@ -464,6 +473,10 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   publicStartupOfficeApproval,
   publicStartupOfficeArtifact,
   publicStartupOfficeRun,
+  recordStartupOfficeApprovalActivation: (args) =>
+    recordStartupOfficeApprovalActivation({ ...args, safeStartupOfficeRest }),
+  recordStartupOfficeRunActivation: (args) =>
+    recordStartupOfficeRunActivation({ ...args, safeStartupOfficeRest }),
   readBody,
   requirePermission,
   requireUser,
@@ -1602,10 +1615,11 @@ function numericOrNull(value) {
 }
 
 async function startupOfficeBetaOpsSnapshot(teamID) {
-  const [billing, usage, billingDocuments] = await Promise.all([
+  const [billing, usage, billingDocuments, activationEvents] = await Promise.all([
     startupOfficeBilling(teamID),
     startupOfficeUsage(teamID),
     startupOfficeBillingDocuments(teamID),
+    activationEventsForTeam(teamID, safeStartupOfficeRest),
   ]);
   const commercial = startupOfficeCommercialSnapshot({
     billing,
@@ -1617,6 +1631,8 @@ async function startupOfficeBetaOpsSnapshot(teamID) {
     usage,
   });
   return {
+    activation: startupOfficeActivationSnapshot(activationEvents),
+    activation_events: activationEvents,
     billing,
     billing_documents: billingDocuments,
     commercial,
@@ -1755,6 +1771,7 @@ async function startupOfficeUsage(teamID) {
 }
 
 const STARTUP_OFFICE_STORAGE_SOURCES = Object.freeze([
+  ["startup_office_activation_events", "milestone,source_table,source_id,metadata"],
   ["company_profiles", "description,goals,priority,icp,offer,positioning,metadata"],
   ["startup_office_artifacts", "title,content,metadata"],
   ["startup_office_assets", "name,body,metadata"],

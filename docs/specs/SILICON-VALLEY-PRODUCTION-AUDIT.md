@@ -155,7 +155,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I115 | Billing | Usage metering covers model runs but not all valuable actions. | usage events |
 | SV-I116 | Billing | Customers can see billing agreements, invoices, receipts, and plan changes in beta ops; live Stripe invoice sync remains external. | commercial billing document |
 | SV-I117 | Billing | Operator support notes are not a CRM. | billing state |
-| SV-I118 | Billing | Trial conversion paths are not instrumented. | onboarding and beta ops |
+| SV-I118 | Billing | Trial conversion now records activation milestones for first loop, first approval, second loop, and first export; paid conversion proof still requires customer/payment evidence. | activation analytics |
 | SV-I119 | Billing | Cost overrun protection is too coarse for real provider spikes. | monthly model spend limit |
 | SV-I120 | Billing | Pricing packaging is not represented in product code or site. | website and docs |
 | SV-I121 | Testing | The test suite is broad but not organized around buyer-critical journeys. | many unit tests |
@@ -233,7 +233,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I193 | Customer success | First paid beta workspace is not proven. | goal context |
 | SV-I194 | Customer success | Sales site lacks concrete before/after founder examples. | website |
 | SV-I195 | Customer success | Onboarding email and approval notification loops are missing. | notifications |
-| SV-I196 | Customer success | The product does not yet measure activation, retention, or outcome completion. | analytics absent |
+| SV-I196 | Customer success | The product now measures activation milestones in beta ops; retention and long-term outcome completion remain external/next-stage analytics. | activation analytics |
 | SV-I197 | Customer success | Demo seed is useful but may not reflect a founder's own business fast enough. | demo seed |
 | SV-I198 | Customer success | There is no internal support console for customer workspace rescue. | admin dashboard limited |
 | SV-I199 | Customer success | Pricing and acceptance criteria are not wired into the sales flow. | docs |
@@ -337,7 +337,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G092 | Enforce entitlements. | Central entitlements block AI runs on billing state, monthly runs, and model spend while exposing seat, storage, support, and managed-model availability. | billing/workflow tests |
 | SV-G093 | Add invoices and receipts. | Customers can see billing agreements, invoices, payment receipts, and commercial status in beta ops. | UI/API tests |
 | SV-G094 | Add plan-change workflow. | Trial, paid, paused, and canceled plan transitions create commercial billing document evidence. | tests |
-| SV-G095 | Add activation analytics. | Product tracks first loop, first approval, second loop, export. | analytics tests |
+| SV-G095 | Add activation analytics. | Product records durable first loop, first approval, second loop, and first export milestones and exposes progress in beta ops. | analytics tests |
 | SV-G096 | Add support playbooks. | Failed runs and confused approvals have operator scripts. | docs |
 | SV-G097 | Add beta terms. | Privacy, DPA, AI use, retention, and deletion terms are ready. | legal docs |
 | SV-G098 | Add sales page proof. | Website shows founder use cases, outcomes, and trust controls. | website QA |
@@ -584,6 +584,10 @@ the final release commit or when a shared invariant changes.
   updates reject paid beta state without signed agreement, paid invoice, or
   payment reference evidence, and the beta ops UI exposes commercial status,
   entitlements, next action, and recent billing documents to the customer.
+- R8 now adds activation analytics. `startup_office_activation_events` records
+  first loop, first approval decision, second loop, and first export milestones
+  idempotently from workflow/export paths, and the beta ops UI shows activation
+  progress plus the next milestone for customer success review.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
   runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
   high or critical dependency advisories, hosted-runtime boundary checks,

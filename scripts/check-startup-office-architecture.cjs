@@ -52,6 +52,7 @@ assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
+assertMaxLines("api/lib/startup-office/activationAnalytics.js", 180);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/authorization.js", 120);
 assertMaxLines("api/lib/startup-office/commercialBilling.js", 240);

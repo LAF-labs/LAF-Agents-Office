@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526040000",
+  "latestMigration": "20260526050000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -59,6 +59,13 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["id", "team_id", "run_id", "artifact_id", "title", "details", "action", "risk_level", "status", "requested_by", "decided_by", "decision_note", "metadata", "requested_at", "decided_at", "created_at", "updated_at", "idempotency_key"]
+    },
+    {
+      "name": "startup_office_activation_events",
+      "domain": "analytics",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "milestone", "source_table", "source_id", "metadata", "created_by", "first_seen_at", "updated_at"]
     },
     {
       "name": "startup_office_artifacts",
