@@ -32,13 +32,13 @@ describe("wiki api client", () => {
 
   it("fetchArticle falls back to a mock for legacy preview paths on network error", async () => {
     vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
-    const result = await api.fetchArticle("agent-workspace");
+    const result = await api.fetchArticle("preview-only");
     expect(result.content).toContain("Article not found in mock fixtures.");
   });
 
-  it("fetchArticle does not mock explicit project memory paths", async () => {
+  it("fetchArticle does not mock explicit company memory paths", async () => {
     vi.spyOn(client, "get").mockRejectedValue(new Error("not found"));
-    await expect(api.fetchArticle("projects/customer-portal")).rejects.toThrow(
+    await expect(api.fetchArticle("company/customer-portal")).rejects.toThrow(
       "not found",
     );
   });
@@ -120,9 +120,9 @@ describe("wiki api client", () => {
     expect(result.commits.length).toBeGreaterThan(0);
   });
 
-  it("fetchHistory does not mock explicit project memory paths", async () => {
+  it("fetchHistory does not mock explicit company memory paths", async () => {
     vi.spyOn(client, "get").mockRejectedValue(new Error("history down"));
-    await expect(api.fetchHistory("projects/customer-portal")).rejects.toThrow(
+    await expect(api.fetchHistory("company/customer-portal")).rejects.toThrow(
       "history down",
     );
   });
@@ -148,9 +148,9 @@ describe("wiki api client", () => {
     expect(result.commits).toEqual(commits);
   });
 
-  it("mockArticle generates the project memory fixture for the canonical path", () => {
-    const result = api.mockArticle("agent-workspace");
-    expect(result.title).toBe("Agent Workspace");
+  it("mockArticle generates the company memory fixture for the canonical path", () => {
+    const result = api.mockArticle("operating-memory");
+    expect(result.title).toBe("Company Operating Memory");
     expect(result.contributors.length).toBeGreaterThan(0);
   });
 

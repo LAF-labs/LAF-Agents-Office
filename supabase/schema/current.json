@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525150000",
+  "latestMigration": "20260525160000",
   "pureCloudRuntimeGuardMigration": "20260525130000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -16,7 +16,7 @@
       "domain": "conversation",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "channel", "sender_slug", "kind", "content", "tagged", "audience", "reply_to", "public_reply_to", "home_session_thread_id", "thread_id", "project_id", "task_id", "scope", "visibility", "run_id", "model_mode", "metadata", "reactions", "deleted_at", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "channel", "sender_slug", "kind", "content", "tagged", "audience", "reply_to", "public_reply_to", "home_session_thread_id", "thread_id", "scope", "visibility", "run_id", "model_mode", "metadata", "reactions", "deleted_at", "created_at", "updated_at"]
     },
     {
       "name": "company_profiles",
@@ -24,13 +24,6 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["team_id", "name", "description", "goals", "size", "priority", "stage", "icp", "offer", "positioning", "metadata", "created_at", "updated_at"]
-    },
-    {
-      "name": "delivery_receipts",
-      "domain": "legacy_workspace",
-      "tenantColumn": "team_id",
-      "rls": true,
-      "columns": ["id", "team_id", "project_id", "task_id", "delivery_url", "delivery_summary", "delivery_status", "delivery_review_decision", "delivery_checks_status", "delivery_merge_state", "delivery_draft", "delivery_checked_at", "delivered_at", "created_at", "updated_at"]
     },
     {
       "name": "hosted_rate_limits",
@@ -52,13 +45,6 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["id", "team_id", "requested_by", "type", "risk", "summary", "proposed_actions", "required_permissions", "status", "created_at", "confirmed_at", "confirmation_id"]
-    },
-    {
-      "name": "projects",
-      "domain": "legacy_workspace",
-      "tenantColumn": "team_id",
-      "rls": true,
-      "columns": ["id", "team_id", "local_id", "name", "description", "additional_info", "channel", "lead_agent", "github_repo_url", "recipe_filename", "recipe_markdown", "recipe_updated_at", "status", "created_by", "created_at", "updated_at"]
     },
     {
       "name": "skills",
@@ -166,13 +152,6 @@
       "columns": ["id", "team_id", "run_id", "loop_slug", "status", "attempts", "max_attempts", "last_error", "metadata", "created_by", "locked_at", "started_at", "completed_at", "available_at", "created_at", "updated_at"]
     },
     {
-      "name": "tasks",
-      "domain": "legacy_workspace",
-      "tenantColumn": "team_id",
-      "rls": true,
-      "columns": ["id", "team_id", "project_id", "local_id", "channel", "title", "details", "human_details", "owner", "status", "created_by", "thread_id", "task_type", "pipeline_id", "pipeline_stage", "review_state", "source_signal_id", "source_decision_id", "delivery_url", "delivery_summary", "delivery_status", "delivery_review_decision", "delivery_checks_status", "delivery_merge_state", "delivery_draft", "delivery_checked_at", "delivered_at", "depends_on", "blocked", "acked_at", "due_at", "follow_up_at", "reminder_at", "recheck_at", "created_at", "updated_at", "assignee_type", "assignee_id", "human_owner_user_id", "model_mode"]
-    },
-    {
       "name": "team_invites",
       "domain": "identity",
       "tenantColumn": "team_id",
@@ -191,14 +170,14 @@
       "domain": "knowledge",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "project_id", "article_path", "title", "last_commit", "excerpt", "decisions", "risks", "open_questions", "updated_at"]
+      "columns": ["id", "team_id", "article_path", "title", "last_commit", "excerpt", "decisions", "risks", "open_questions", "updated_at"]
     },
     {
       "name": "wiki_write_requests",
       "domain": "knowledge",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "project_id", "article_path", "status", "requested_by", "commit_sha", "error", "created_at", "updated_at", "completed_at"]
+      "columns": ["id", "team_id", "article_path", "status", "requested_by", "commit_sha", "error", "created_at", "updated_at", "completed_at"]
     },
     {
       "name": "workspace_billing",

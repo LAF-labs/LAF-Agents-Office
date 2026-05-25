@@ -1,18 +1,16 @@
 import { get } from "./client";
 
-export type WorkspaceSearchScope = "wiki" | "project" | "chat";
+export type WorkspaceSearchScope = "wiki" | "chat";
 
 export interface WorkspaceSearchHit {
   id: string;
   scope: WorkspaceSearchScope | string;
-  source: "wiki" | "project" | "task" | "chat" | string;
+  source: "wiki" | "chat" | string;
   title: string;
   path: string;
   line?: number;
   snippet: string;
   updated_at?: string;
-  project_id?: string;
-  task_id?: string;
   agent_slug?: string;
   channel?: string;
   meta?: Record<string, string>;

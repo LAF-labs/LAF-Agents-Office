@@ -58,11 +58,10 @@ export function useBrokerEvents(enabled: boolean) {
       subscribeBrokerEvent("action", () => {
         scheduleInvalidate(["actions"]);
         scheduleInvalidate(["activity-actions"]);
-        scheduleInvalidate(["activity-tasks"]);
-        scheduleInvalidate(["office-tasks"]);
+        scheduleInvalidate(["activity-startup-office-summary"]);
+        scheduleInvalidate(["startup-office-summary"]);
         scheduleInvalidate(["requests"]);
         scheduleInvalidate(["requests-badge"]);
-        scheduleInvalidate(["task-actions"]);
       }),
       subscribeBrokerEvent("review:state_change", () => {
         scheduleInvalidate(["reviews-badge"]);

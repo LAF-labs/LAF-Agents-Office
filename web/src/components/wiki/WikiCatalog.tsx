@@ -32,8 +32,8 @@ export default function WikiCatalog({
     () => resolveGroupOrder(catalog.map((c) => c.group)),
     [catalog],
   );
-  const projectPages = useMemo(
-    () => catalog.filter(isProjectMemoryPage).sort(sortRecentFirst).slice(0, 5),
+  const companyPages = useMemo(
+    () => catalog.filter(isCompanyMemoryPage).sort(sortRecentFirst).slice(0, 5),
     [catalog],
   );
   const recentPages = useMemo(
@@ -89,12 +89,12 @@ export default function WikiCatalog({
       <section className="wk-memory-overview" aria-label={copy.overviewAria}>
         <section className="wk-memory-panel wk-memory-panel-primary">
           <div>
-            <h2>{copy.projectPages}</h2>
-            <p>{copy.projectPagesDesc}</p>
+            <h2>{copy.companyPages}</h2>
+            <p>{copy.companyPagesDesc}</p>
           </div>
-          {projectPages.length > 0 ? (
+          {companyPages.length > 0 ? (
             <ul>
-              {projectPages.map((item) => (
+              {companyPages.map((item) => (
                 <li key={item.path}>
                   <button type="button" onClick={() => onNavigate(item.path)}>
                     {item.title}
@@ -106,7 +106,7 @@ export default function WikiCatalog({
               ))}
             </ul>
           ) : (
-            <p className="wk-memory-empty">{copy.projectPagesEmpty}</p>
+            <p className="wk-memory-empty">{copy.companyPagesEmpty}</p>
           )}
         </section>
         <section className="wk-memory-panel">
@@ -191,11 +191,11 @@ function groupByGroup(
   return out;
 }
 
-function isProjectMemoryPage(entry: WikiCatalogEntry): boolean {
+function isCompanyMemoryPage(entry: WikiCatalogEntry): boolean {
   return (
-    entry.path.startsWith("projects/") ||
-    entry.path.startsWith("team/projects/") ||
-    entry.group.toLowerCase() === "projects"
+    entry.path.startsWith("company/") ||
+    entry.path.startsWith("team/company/") ||
+    entry.group.toLowerCase() === "company"
   );
 }
 

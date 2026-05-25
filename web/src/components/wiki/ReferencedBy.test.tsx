@@ -5,7 +5,7 @@ import ReferencedBy from "./ReferencedBy";
 
 const BACKLINKS = [
   { path: "playbooks/churn", title: "Churn prevention", author_slug: "cmo" },
-  { path: "projects/q1", title: "Q1 retrospective", author_slug: "pm" },
+  { path: "company/q1", title: "Q1 retrospective", author_slug: "pm" },
 ];
 
 describe("<ReferencedBy>", () => {
@@ -20,6 +20,6 @@ describe("<ReferencedBy>", () => {
     const onNavigate = vi.fn();
     render(<ReferencedBy backlinks={BACKLINKS} onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText("Q1 retrospective"));
-    expect(onNavigate).toHaveBeenCalledWith("projects/q1");
+    expect(onNavigate).toHaveBeenCalledWith("company/q1");
   });
 });

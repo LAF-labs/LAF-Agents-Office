@@ -11,7 +11,7 @@ vi.mock("../../hooks/useChannels", () => ({
 describe("ChannelHeader", () => {
   beforeEach(() => {
     useAppStore.setState({
-      currentApp: "tasks",
+      currentApp: "growth",
       currentChannel: "general",
       language: "ko",
     });
@@ -20,7 +20,7 @@ describe("ChannelHeader", () => {
   it("uses localized app names in the app header", () => {
     render(<ChannelHeader />);
 
-    expect(screen.getByText("프로젝트")).toBeInTheDocument();
+    expect(screen.getByText("스타트업 오피스")).toBeInTheDocument();
     expect(screen.queryByText("Tasks")).not.toBeInTheDocument();
   });
 

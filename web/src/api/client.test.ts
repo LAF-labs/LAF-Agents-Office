@@ -1,174 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createProject,
-  createTask,
   get,
-  getProjectRepoReadiness,
-  getTasks,
   hostedAPIBaseURL,
   hostedAPIURLFromBrowser,
   initApi,
   login,
   normalizeHostedAPIBase,
-  normalizeModelMode,
   resetWorkspace,
   shredWorkspace,
   signup,
   sseURL,
   supportsBrokerEvents,
-  updateProject,
-  updateTask,
 } from "./client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
-});
-
-describe("project api client", () => {
-  it("sends an optional GitHub repo URL when creating a project", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          project: {
-            id: "customer-portal",
-            code: "CUST",
-            name: "Customer Portal",
-            lead_agent: "founding-engineer",
-            github_repo_url: "https://github.com/laf-labs/customer-portal",
-          },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await createProject({
-      name: "Customer Portal",
-      code: "CUST",
-      lead_agent: "founding-engineer",
-      github_repo_url: "https://github.com/laf-labs/customer-portal",
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/projects",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          action: "create",
-          created_by: "human",
-          name: "Customer Portal",
-          code: "CUST",
-          lead_agent: "founding-engineer",
-          github_repo_url: "https://github.com/laf-labs/customer-portal",
-        }),
-      }),
-    );
-    expect(result.project.lead_agent).toBe("founding-engineer");
-    expect(result.project.github_repo_url).toBe(
-      "https://github.com/laf-labs/customer-portal",
-    );
-  });
-
-  it("updates a project GitHub repo URL without making it a team-wide setting", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          project: {
-            id: "customer-portal",
-            code: "CUST",
-            name: "Customer Portal",
-            lead_agent: "pm",
-            github_repo_url: "https://github.com/laf-labs/customer-portal",
-          },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await updateProject({
-      id: "customer-portal",
-      code: "CUST",
-      name: "Customer Portal",
-      description: "Investor-ready customer portal.",
-      additional_info: "Use this for board-demo context.",
-      lead_agent: "pm",
-      github_repo_url: "https://github.com/laf-labs/customer-portal",
-      recipe_filename: "customer-portal-recipe.md",
-      recipe_markdown: "## Rules\n\n- Keep demos crisp.\n",
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/projects",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          action: "update",
-          created_by: "human",
-          id: "customer-portal",
-          code: "CUST",
-          name: "Customer Portal",
-          description: "Investor-ready customer portal.",
-          additional_info: "Use this for board-demo context.",
-          lead_agent: "pm",
-          github_repo_url: "https://github.com/laf-labs/customer-portal",
-          recipe_filename: "customer-portal-recipe.md",
-          recipe_markdown: "## Rules\n\n- Keep demos crisp.\n",
-        }),
-      }),
-    );
-    expect(result.project.lead_agent).toBe("pm");
-    expect(result.project.github_repo_url).toBe(
-      "https://github.com/laf-labs/customer-portal",
-    );
-  });
-
-  it("creates a project-scoped task without browser-owned execution context", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          task: {
-            id: "task-1",
-            title: "Implement signup",
-            project_id: "customer-portal",
-            owner: "eng",
-          },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await createTask({
-      title: "Implement signup",
-      details: "Build the code path and tests.",
-      project_id: "customer-portal",
-      channel: "general",
-      owner: "eng",
-      task_type: "feature",
-      created_by: "human",
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/tasks",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          action: "create",
-          created_by: "human",
-          title: "Implement signup",
-          details: "Build the code path and tests.",
-          project_id: "customer-portal",
-          channel: "general",
-          owner: "eng",
-          task_type: "feature",
-        }),
-      }),
-    );
-    expect(result.task.project_id).toBe("customer-portal");
-  });
 });
 
 describe("workspace destructive api client", () => {
@@ -210,10 +58,14 @@ describe("cloud-only api client surface", () => {
     expect("getProjectLocalBindings" in client).toBe(false);
     expect("createProjectLocalBinding" in client).toBe(false);
     expect("deleteProjectLocalBinding" in client).toBe(false);
+    expect("getProjects" in client).toBe(false);
+    expect("createProject" in client).toBe(false);
+    expect("getOfficeTasks" in client).toBe(false);
+    expect("createTask" in client).toBe(false);
   });
 });
 
-describe("task api client", () => {
+describe("generic api client", () => {
   it("omits nullish query params without stringifying undefined", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
@@ -227,7 +79,7 @@ describe("task api client", () => {
       q: "customer portal",
       include_done: false,
       limit: 0,
-      project_id: undefined,
+      omitted: undefined,
       channel: null,
     });
 
@@ -239,110 +91,6 @@ describe("task api client", () => {
     );
   });
 
-  it("updates a project task without changing its workflow state", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          task: {
-            id: "task-1",
-            title: "Updated signup",
-            details: "Tighter detail.",
-            human_details: "Tighter detail.",
-          },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await updateTask({
-      id: "task-1",
-      channel: "general",
-      title: "Updated signup",
-      details: "Tighter detail.",
-      human_details: "Tighter detail.",
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/tasks",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          action: "update",
-          created_by: "human",
-          id: "task-1",
-          channel: "general",
-          title: "Updated signup",
-          details: "Tighter detail.",
-          human_details: "Tighter detail.",
-        }),
-      }),
-    );
-  });
-
-  it("normalizes unknown task model modes to record-only at the client boundary", async () => {
-    expect(normalizeModelMode("legacy_cli")).toBe("record_only");
-
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          tasks: [
-            {
-              id: "task-1",
-              model_mode: "legacy_cli",
-              status: "todo",
-              title: "Wire setup",
-            },
-            {
-              id: "task-2",
-              model_mode: "laf_model",
-              status: "todo",
-              title: "Draft plan",
-            },
-          ],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await getTasks("general");
-
-    expect(result.tasks.map((task) => task.model_mode)).toEqual([
-      "record_only",
-      "laf_model",
-    ]);
-  });
-
-  it("checks project-scoped GitHub readiness without using a team-wide repo", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          readiness: {
-            project_id: "customer-portal",
-            repo_url: "https://github.com/laf-labs/customer-portal",
-            status: "ready",
-            message: "GitHub CLI can access this repository.",
-            can_create_coding_tasks: true,
-            default_branch: "main",
-          },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await getProjectRepoReadiness("customer-portal");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/projects/repo-readiness?id=customer-portal&viewer_slug=human",
-      expect.objectContaining({
-        credentials: "include",
-      }),
-    );
-    expect(result.readiness.can_create_coding_tasks).toBe(true);
-    expect(result.readiness.default_branch).toBe("main");
-  });
 });
 
 describe("hosted browser api client", () => {

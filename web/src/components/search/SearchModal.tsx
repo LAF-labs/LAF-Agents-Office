@@ -18,11 +18,11 @@ import { showNotice } from "../ui/Toast";
 interface PaletteItem {
   id: string;
   group:
-    | "Project activity"
-    | "Project agents"
+    | "Workspace activity"
+    | "Office agents"
     | "Actions"
     | "Wiki"
-    | "Projects"
+    | "Workspace"
     | "Chat";
   icon: string;
   label: string;
@@ -115,8 +115,6 @@ interface PaletteBuildDeps extends CommandDeps {
   members: SearchMember[];
   workspaceHits: WorkspaceSearchHit[];
   setActiveAgentSlug: (slug: string | null) => void;
-  setProjectFocusId: (projectId: string | null) => void;
-  setTaskFocusId: (taskId: string | null) => void;
   setWikiPath: (path: string | null) => void;
   close: () => void;
 }
@@ -139,7 +137,7 @@ function buildChannelItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     if (q && !hay.includes(searchTerm(q, "#"))) continue;
     items.push({
       id: `ch:${channel.slug}`,
-      group: "Project activity",
+      group: "Workspace activity",
       icon: "channel",
       label: channel.name || channel.slug,
       desc: channel.description || undefined,
@@ -165,7 +163,7 @@ function buildAgentItems(deps: PaletteBuildDeps, q: string): PaletteItem[] {
     if (q && !hay.includes(searchTerm(q, "@"))) continue;
     items.push({
       id: `ag:${slug}`,
-      group: "Project agents",
+      group: "Office agents",
       icon: "agent",
       label: member.name || slug,
       desc: member.role || undefined,
@@ -225,17 +223,11 @@ function buildWorkspaceItems(deps: PaletteBuildDeps): PaletteItem[] {
           deps.setCurrentApp(null);
           deps.setCurrentChannel(hit.channel);
           deps.setLastMessageId(null);
-        } else if (hit.source === "project" || hit.source === "task") {
-          deps.setProjectFocusId(hit.project_id || null);
-          deps.setTaskFocusId(
-            hit.source === "task" ? hit.task_id || null : null,
-          );
-          deps.setCurrentApp("tasks");
         } else if (hit.channel) {
           deps.setCurrentApp(null);
           deps.setCurrentChannel(hit.channel);
         } else {
-          deps.setCurrentApp("tasks");
+          deps.setCurrentApp("growth");
         }
         deps.close();
       },
@@ -255,17 +247,13 @@ function workspaceLabel(hit: WorkspaceSearchHit, path: string): string {
 function workspaceGroup(hit: WorkspaceSearchHit): PaletteItem["group"] {
   if (hit.source === "wiki") return "Wiki";
   if (hit.source === "chat") return "Chat";
-  return "Projects";
+  return "Workspace";
 }
 
 function workspaceIcon(hit: WorkspaceSearchHit): string {
   switch (hit.source) {
     case "wiki":
       return "wiki";
-    case "project":
-      return "page";
-    case "task":
-      return "task";
     case "chat":
       return "message";
     default:
@@ -276,7 +264,6 @@ function workspaceIcon(hit: WorkspaceSearchHit): string {
 function workspaceMeta(hit: WorkspaceSearchHit): string {
   const parts = [sourceLabel(hit.source)];
   if (hit.line) parts.push(`L${hit.line}`);
-  if (hit.task_id) parts.push(`#${hit.task_id}`);
   if (hit.channel) parts.push(`#${hit.channel}`);
   return parts.filter(Boolean).join(" - ");
 }
@@ -285,10 +272,6 @@ function sourceLabel(source: string): string {
   switch (source) {
     case "wiki":
       return "wiki";
-    case "project":
-      return "project";
-    case "task":
-      return "task";
     case "chat":
       return "chat";
     default:
@@ -337,8 +320,6 @@ export function SearchModal() {
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const setActiveAgentSlug = useAppStore((s) => s.setActiveAgentSlug);
-  const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
-  const setTaskFocusId = useAppStore((s) => s.setTaskFocusId);
   const enterDM = useAppStore((s) => s.enterDM);
   const setLastMessageId = useAppStore((s) => s.setLastMessageId);
   const setWikiPath = useAppStore((s) => s.setWikiPath);
@@ -426,8 +407,6 @@ export function SearchModal() {
       setCurrentApp,
       setCurrentChannel,
       setActiveAgentSlug,
-      setProjectFocusId,
-      setTaskFocusId,
       setLastMessageId,
       setSearchOpen,
       setWikiPath,
@@ -443,8 +422,6 @@ export function SearchModal() {
     setCurrentApp,
     setCurrentChannel,
     setActiveAgentSlug,
-    setProjectFocusId,
-    setTaskFocusId,
     setLastMessageId,
     setSearchOpen,
     setWikiPath,
@@ -518,7 +495,7 @@ export function SearchModal() {
             ref={inputRef}
             className="search-input"
             type="text"
-            placeholder="Search channels, agents, wiki, projects, and task chats..."
+            placeholder="Search channels, agents, wiki, and office activity..."
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
           />
@@ -667,7 +644,7 @@ function renderPaletteLabel(item: PaletteItem, query: string): ReactNode {
 }
 
 function shouldHighlightLabel(group: PaletteItem["group"]): boolean {
-  return group === "Wiki" || group === "Projects" || group === "Chat";
+  return group === "Wiki" || group === "Workspace" || group === "Chat";
 }
 
 function PaletteDescription({
@@ -679,7 +656,7 @@ function PaletteDescription({
 }) {
   if (!item.desc) return null;
   const desc =
-    item.group === "Wiki" || item.group === "Projects" || item.group === "Chat"
+    item.group === "Wiki" || item.group === "Workspace" || item.group === "Chat"
       ? highlightMatch(item.desc, query)
       : item.desc;
   return <span className="cmd-palette-item-desc">{desc}</span>;
@@ -697,7 +674,6 @@ const PALETTE_APP_COMMANDS: Record<string, string> = {
   "/growth": "growth",
   "/requests": "requests",
   "/skills": "skills",
-  "/tasks": "tasks",
   "/threads": "threads",
 };
 

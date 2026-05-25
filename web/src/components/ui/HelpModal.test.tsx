@@ -5,8 +5,8 @@ import { HelpModal } from "./HelpModal";
 
 const COMMANDS = [
   { name: "/ask", desc: "Ask the team lead", icon: "ask" },
+  { name: "/growth", desc: "Open Startup Office", icon: "growth" },
   { name: "/help", desc: "Show all commands + keys", icon: "help" },
-  { name: "/tasks", desc: "Open task board", icon: "tasks" },
 ];
 
 // rAF is used to defer the close-button focus until after React commits.
@@ -47,6 +47,7 @@ describe("<HelpModal>", () => {
   it("renders the visible command registry instead of the full local fallback", () => {
     render(<HelpModal commands={COMMANDS} open={true} onClose={vi.fn()} />);
     expect(screen.getByText("/ask")).toBeInTheDocument();
+    expect(screen.getByText("/growth")).toBeInTheDocument();
     expect(screen.getByText("/help")).toBeInTheDocument();
     expect(screen.queryByText("/deploy-simulation")).not.toBeInTheDocument();
     expect(screen.queryByText("/focus")).not.toBeInTheDocument();

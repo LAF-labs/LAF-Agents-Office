@@ -109,10 +109,6 @@ export interface AppStore {
   setCurrentChannel: (ch: string) => void;
   currentApp: string | null; // null = messages view
   setCurrentApp: (app: string | null) => void;
-  projectFocusId: string | null;
-  setProjectFocusId: (projectId: string | null) => void;
-  taskFocusId: string | null;
-  setTaskFocusId: (taskId: string | null) => void;
   settingsSection: string | null;
   setSettingsSection: (section: string | null) => void;
   skillsSection: SkillsSection;
@@ -197,8 +193,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   currentChannel: "general",
   setCurrentChannel: (ch) => set({ currentChannel: ch, currentApp: null }),
   currentApp: null,
-  projectFocusId: null,
-  taskFocusId: null,
   setCurrentApp: (app) => {
     if (!app) {
       set({ currentApp: null });
@@ -213,13 +207,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     set({ currentApp: app });
   },
-  setProjectFocusId: (projectId) =>
-    set((state) => ({
-      projectFocusId: projectId,
-      taskFocusId:
-        state.projectFocusId === projectId ? state.taskFocusId : null,
-    })),
-  setTaskFocusId: (taskId) => set({ taskFocusId: taskId }),
   settingsSection: null,
   setSettingsSection: (section) => set({ settingsSection: section }),
   skillsSection: "dashboard",
@@ -310,8 +297,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({
       currentChannel: "general",
       currentApp: null,
-      projectFocusId: null,
-      taskFocusId: null,
       settingsSection: null,
       skillsSection: "dashboard",
       channelMeta: {},

@@ -58,7 +58,6 @@ function mockSkillsList() {
   useAppStore.setState({
     currentApp: "skills",
     language: "en",
-    projectFocusId: null,
     wikiPath: null,
   });
   apiMocks.getSkills.mockResolvedValue({

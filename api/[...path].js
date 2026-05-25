@@ -170,7 +170,6 @@ const HOSTED_MODEL_ACCESS = createHostedModelAccess({
   rest,
   writeJSON,
 });
-const resolveAllowedModelMode = HOSTED_MODEL_ACCESS.resolveAllowedModelMode;
 
 const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
   createStartupOfficeWorkspaceConfigHandlers({
@@ -718,10 +717,6 @@ module.exports = async function handler(req, res) {
       await HOSTED_MEMORY_HANDLERS.memory(req, res);
       return;
     }
-    if (path === "projects/repo-readiness" && req.method === "GET") {
-      await handleHostedProjectRepoReadiness(req, res);
-      return;
-    }
     if (path === "invites/lookup" && req.method === "GET") {
       await handleInviteLookup(req, res);
       return;
@@ -752,14 +747,6 @@ module.exports = async function handler(req, res) {
     }
     if (path === "orchestration/confirm" && req.method === "POST") {
       await handleOrchestrationConfirm(req, res);
-      return;
-    }
-    if (path === "projects") {
-      await handleProjects(req, res);
-      return;
-    }
-    if (path === "tasks") {
-      await handleTasks(req, res);
       return;
     }
     if (path === "skills") {
@@ -1653,32 +1640,6 @@ async function handleHostedHomeSessions(req, res) {
   return HOSTED_CONVERSATION_HANDLERS.homeSessions(req, res);
 }
 
-async function handleHostedProjectRepoReadiness(req, res) {
-  const { membership } = await requireUser(req);
-  const projectID = String(req.query?.id || req.query?.project_id || "").trim();
-  const project = projectID
-    ? await findProject(membership.team_id, projectID).catch(() => null)
-    : null;
-  let repoURL = "";
-  try {
-    repoURL = normalizeGitHubRepoURL(project?.github_repo_url || "");
-  } catch {
-    repoURL = "";
-  }
-  writeJSON(res, 200, {
-    readiness: {
-      can_create_coding_tasks: Boolean(repoURL),
-      default_branch: "",
-      message: repoURL
-        ? "Repository URL is configured for cloud workspace reference."
-        : "No GitHub repository is configured for this project yet.",
-      project_id: project?.local_id || project?.id || projectID,
-      repo_url: repoURL,
-      status: repoURL ? "ready" : "missing_repo",
-    },
-  });
-}
-
 async function handleAuthUsers(req, res) {
   return HOSTED_MEMBER_HANDLERS.authUsers(req, res);
 }
@@ -1715,292 +1676,12 @@ async function handleInviteAccept(req, res) {
   return HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
 }
 
-async function handleProjects(req, res) {
-  const { membership } = await requireUser(req);
-  if (req.method === "GET") {
-    const rows = await rest("projects", {
-      query: {
-        team_id: `eq.${membership.team_id}`,
-        select: "*",
-        order: "updated_at.desc",
-      },
-    });
-    writeJSON(res, 200, { projects: rows.map(publicProject) });
-    return;
-  }
-  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
-  const body = await readBody(req);
-  if (body.action === "update") {
-    requirePermission(membership, "project:update");
-    const project = await findProject(membership.team_id, body.id);
-    const [updated] = await rest("projects", {
-      method: "PATCH",
-      query: { id: `eq.${project.id}` },
-      body: projectPayload(body),
-    });
-    await writeAuditEvent(membership, "project.updated", "project", updated.id, {
-      status: updated.status,
-    });
-    writeJSON(res, 200, { project: publicProject(updated) });
-    return;
-  }
-  if (body.action !== "create") throw new HTTPError(400, "unsupported action");
-  requirePermission(membership, "project:create");
-
-  const localID = await uniqueProjectLocalID(
-    membership.team_id,
-    body.id || body.name,
-  );
-  const [project] = await rest("projects", {
-    method: "POST",
-    body: {
-      ...projectPayload(body),
-      local_id: localID,
-      name: String(body.name || localID),
-      team_id: membership.team_id,
-      status: body.status || "active",
-      created_by: membership.user_id,
-    },
-  });
-  await writeAuditEvent(membership, "project.created", "project", project.id, {
-    name: project.name,
-  });
-  writeJSON(res, 200, { project: publicProject(project) });
-}
-
-function projectPayload(body) {
-  const payload = {};
-  for (const key of [
-    "name",
-    "description",
-    "additional_info",
-    "channel",
-    "lead_agent",
-    "github_repo_url",
-    "recipe_filename",
-    "recipe_markdown",
-    "status",
-  ]) {
-    if (body[key] !== undefined) {
-      payload[key] =
-        key === "github_repo_url" ? normalizeGitHubRepoURL(body[key]) : body[key];
-    }
-  }
-  if (body.recipe_markdown !== undefined) payload.recipe_updated_at = nowISO();
-  return payload;
-}
-
-async function uniqueProjectLocalID(teamID, seed) {
-  const base = slugify(seed) || `project-${shortID()}`;
-  const existing = await rest("projects", {
-    query: {
-      team_id: `eq.${teamID}`,
-      local_id: `eq.${base}`,
-      select: "id",
-      limit: "1",
-    },
-  });
-  return existing?.length ? `${base}-${shortID()}` : base;
-}
-
-async function handleTasks(req, res) {
-  const { membership } = await requireUser(req);
-  if (req.method === "GET") {
-    const project = req.query.project_id
-      ? await findProject(membership.team_id, req.query.project_id)
-      : null;
-    const query = {
-      team_id: `eq.${membership.team_id}`,
-      select: "*",
-      order: "updated_at.desc",
-    };
-    if (project) query.project_id = `eq.${project.id}`;
-    if (req.query.status) {
-      query.status = `eq.${req.query.status}`;
-    } else if (!truthy(req.query.include_done)) {
-      query.status = "not.in.(done,canceled)";
-    }
-    const rows = await rest("tasks", { query });
-    const projects = await projectMap(membership.team_id);
-    writeJSON(res, 200, {
-      tasks: rows.map((task) => publicTask(task, projects)),
-    });
-    return;
-  }
-  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
-
-  const body = await readBody(req);
-  const action = body.action || "create";
-  if (action === "create") {
-    requirePermission(membership, "task:create");
-    if (body.owner && !isHuman(body.owner)) requirePermission(membership, "task:execute_agent");
-    const result = await createTask(membership, body);
-    writeJSON(res, 200, result);
-    return;
-  }
-  const task = await findTask(membership.team_id, body.id);
-  let updated;
-  if (action === "update") {
-    requirePermission(membership, "task:update");
-    if (body.model_mode !== undefined) {
-      body.model_mode = await resolveAllowedModelMode(membership, body.model_mode);
-    }
-    if (body.project_id) {
-      const nextProject = await findProject(membership.team_id, body.project_id);
-      body.project_id = nextProject.id;
-    }
-    [updated] = await rest("tasks", {
-      method: "PATCH",
-      query: { id: `eq.${task.id}` },
-      body: taskUpdatePayload(body),
-    });
-  } else if (action === "reassign") {
-    requirePermission(membership, "task:assign");
-    if (body.owner && !isHuman(body.owner)) requirePermission(membership, "task:execute_agent");
-    const modelMode =
-      body.model_mode === undefined
-        ? normalizeModelMode(task.model_mode)
-        : await resolveAllowedModelMode(membership, body.model_mode);
-    [updated] = await rest("tasks", {
-      method: "PATCH",
-      query: { id: `eq.${task.id}` },
-      body: {
-        assignee_id: body.owner || null,
-        assignee_type: body.owner ? (isHuman(body.owner) ? "human" : "agent") : "none",
-        model_mode: modelMode,
-        owner: body.owner || "",
-        status: body.owner && !isHuman(body.owner) ? "in_progress" : "open",
-        updated_at: nowISO(),
-      },
-    });
-  } else {
-    requirePermission(membership, "task:change_status");
-    if (body.model_mode !== undefined) {
-      body.model_mode = await resolveAllowedModelMode(membership, body.model_mode);
-    }
-    [updated] = await rest("tasks", {
-      method: "PATCH",
-      query: { id: `eq.${task.id}` },
-      body: taskStatusPayload(action, body),
-    });
-  }
-  const project = updated.project_id
-    ? await getProjectByID(membership.team_id, updated.project_id)
-    : null;
-  const projects = await projectMap(membership.team_id);
-  writeJSON(res, 200, {
-    task: publicTask(updated, projects),
-  });
-}
-
-async function createTask(membership, body) {
-  const project = body.project_id
-    ? await findProject(membership.team_id, body.project_id)
-    : null;
-  const owner = String(body.owner || "").trim();
-  const assigneeID = String(body.assignee_id || owner || "").trim();
-  const assigneeType =
-    body.assignee_type || (assigneeID ? (isHuman(assigneeID) ? "human" : "agent") : "none");
-  const status = body.status || (owner && !isHuman(owner) ? "in_progress" : "open");
-  const modelMode = await resolveAllowedModelMode(membership, body.model_mode);
-  const [task] = await rest("tasks", {
-    method: "POST",
-    body: {
-      blocked: false,
-      assignee_id: assigneeID || null,
-      assignee_type: assigneeType,
-      channel: body.channel || project?.channel || "general",
-      created_by: membership.user_id,
-      details: body.details || "",
-      human_details: body.human_details || body.details || "",
-      human_owner_user_id: body.human_owner_user_id || membership.user_id,
-      local_id: body.id || `task-${shortID()}`,
-      model_mode: modelMode,
-      owner,
-      project_id: project?.id || null,
-      status,
-      task_type: body.task_type || "",
-      team_id: membership.team_id,
-      thread_id: body.thread_id || "",
-      title: body.title || "Untitled task",
-    },
-  });
-  await writeAuditEvent(membership, "task.created", "task", task.id, {
-    model_mode: task.model_mode,
-    owner: task.owner,
-  });
-  const projects = await projectMap(membership.team_id);
-  return {
-    task: publicTask(task, projects),
-  };
-}
-
-function taskUpdatePayload(body) {
-  const payload = { updated_at: nowISO() };
-  for (const key of [
-    "title",
-    "details",
-    "human_details",
-    "project_id",
-    "channel",
-    "owner",
-    "assignee_type",
-    "assignee_id",
-    "human_owner_user_id",
-    "model_mode",
-    "task_type",
-  ]) {
-    if (body[key] !== undefined) payload[key] = body[key];
-  }
-  if (body.clear_details) {
-    payload.details = "";
-    payload.human_details = "";
-  }
-  if (payload.owner !== undefined && payload.assignee_id === undefined) {
-    payload.assignee_id = payload.owner || null;
-    payload.assignee_type = payload.owner ? (isHuman(payload.owner) ? "human" : "agent") : "none";
-  }
-  if (payload.model_mode !== undefined) payload.model_mode = normalizeModelMode(payload.model_mode);
-  return payload;
-}
-
-function taskStatusPayload(action, body) {
-  const payload = { updated_at: nowISO() };
-  if (action === "release") {
-    payload.owner = "";
-    payload.assignee_id = null;
-    payload.assignee_type = "none";
-    payload.status = "open";
-    payload.blocked = false;
-  } else if (action === "review") {
-    payload.status = "review";
-  } else if (action === "block") {
-    payload.status = "blocked";
-    payload.blocked = true;
-  } else if (action === "complete") {
-    payload.status = "done";
-    payload.blocked = false;
-    payload.delivered_at = nowISO();
-  } else if (action === "cancel") {
-    payload.status = "canceled";
-  } else {
-    throw new HTTPError(400, "unsupported task action");
-  }
-  for (const key of ["delivery_url", "delivery_summary"]) {
-    if (body[key] !== undefined) payload[key] = body[key];
-  }
-  return payload;
-}
-
 async function handleOrchestrationIntent(req, res) {
   const { membership } = await requireUser(req);
   const body = await readBody(req);
   const message = String(body.message || "").trim();
   if (!message) throw new HTTPError(400, "message is required");
-  const intent = buildOrchestrationIntent(message, {
-    model_mode: body.model_mode,
-    project_id: body.project_id,
-  });
+  const intent = buildOrchestrationIntent(message);
   for (const permission of intent.required_permissions) {
     requirePermission(membership, permission);
   }
@@ -2033,54 +1714,9 @@ async function persistOrchestrationIntent(membership, intent) {
   return row || null;
 }
 
-function buildOrchestrationIntent(message, context = {}) {
+function buildOrchestrationIntent(message) {
   const id = crypto.randomUUID ? crypto.randomUUID() : shortID();
   const now = nowISO();
-  const lower = message.toLowerCase();
-  const projectMatch = message.match(/(?:create|new|make|add)\s+(?:a\s+)?project\s+["']?([^"'\n]+)["']?/i);
-  const taskMatch = message.match(/(?:create|new|make|add)\s+(?:a\s+)?(?:task|work item)\s+["']?([^"'\n]+)["']?/i);
-  if (projectMatch || (message.includes("프로젝트") && (message.includes("만들") || message.includes("생성")))) {
-    const name = (projectMatch?.[1] || message.replace(/프로젝트|만들어|만들|생성/g, "")).trim() || "New Project";
-    return {
-      id,
-      type: "project.create",
-      risk: "medium",
-      summary: `Create project: ${name}`,
-      proposed_actions: [{
-        method: "POST",
-        path: "/projects",
-        body: { action: "create", name },
-      }],
-      required_permissions: ["project:create"],
-      status: "pending",
-      requires_confirmation: true,
-      created_at: now,
-    };
-  }
-  if (taskMatch || ((lower.includes("task") || message.includes("태스크") || message.includes("작업")) && (lower.includes("create") || lower.includes("add") || message.includes("만들") || message.includes("생성")))) {
-    const title = (taskMatch?.[1] || message).trim();
-    const actionBody = {
-      action: "create",
-      title,
-      model_mode: normalizeModelMode(context.model_mode),
-    };
-    if (context.project_id) actionBody.project_id = context.project_id;
-    return {
-      id,
-      type: "task.create",
-      risk: "medium",
-      summary: `Create task: ${title}`,
-      proposed_actions: [{
-        method: "POST",
-        path: "/tasks",
-        body: actionBody,
-      }],
-      required_permissions: ["task:create"],
-      status: "pending",
-      requires_confirmation: true,
-      created_at: now,
-    };
-  }
   return {
     id,
     type: "chat",
@@ -2121,13 +1757,8 @@ async function handleOrchestrationConfirm(req, res) {
   for (const permission of intent.required_permissions || []) {
     requirePermission(membership, permission);
   }
-  // Apply mutating actions sequentially when they could race on a unique
-  // identifier (e.g. project local_id is minted via a read-then-write inside
-  // applyOrchestrationAction → uniqueProjectLocalID). Read-only actions and
-  // those targeting distinct entity types can safely run in parallel, but
-  // since the current orchestrator emits at most a handful of actions per
-  // intent the simplicity of a sequential loop is worth the trivial latency
-  // cost — and avoids silent duplicate-row creation under contention.
+  // Apply confirmed mutations sequentially. The orchestrator emits only a
+  // handful of actions, and serial application keeps audit order exact.
   const applied = [];
   for (const action of intent.proposed_actions) {
     applied.push(await applyOrchestrationAction(membership, action));
@@ -2158,30 +1789,9 @@ async function handleOrchestrationConfirm(req, res) {
 }
 
 async function applyOrchestrationAction(membership, action) {
-  const path = String(action?.path || "");
   const method = String(action?.method || "").toUpperCase();
-  const body = action?.body || {};
+  void membership;
   if (method !== "POST") throw new HTTPError(400, "unsupported orchestration action");
-  if (path === "/projects" && body.action === "create") {
-    requirePermission(membership, "project:create");
-    const localID = await uniqueProjectLocalID(membership.team_id, body.id || body.name);
-    const [project] = await rest("projects", {
-      method: "POST",
-      body: {
-        ...projectPayload(body),
-        created_by: membership.user_id,
-        local_id: localID,
-        name: String(body.name || localID),
-        status: body.status || "active",
-        team_id: membership.team_id,
-      },
-    });
-    return { path, project: publicProject(project) };
-  }
-  if (path === "/tasks" && body.action === "create") {
-    requirePermission(membership, "task:create");
-    return { path, ...(await createTask(membership, body)) };
-  }
   throw new HTTPError(400, "unsupported orchestration action");
 }
 
@@ -2384,102 +1994,6 @@ function permissionRequirementList(raw) {
   ];
 }
 
-async function findProject(teamID, externalID) {
-  const raw = String(externalID || "").trim();
-  if (!raw) throw new HTTPError(400, "project id is required");
-  let rows = await rest("projects", {
-    query: {
-      local_id: `eq.${raw}`,
-      select: "*",
-      team_id: `eq.${teamID}`,
-      limit: "1",
-    },
-  });
-  if (!rows?.length && isUUID(raw)) {
-    rows = await rest("projects", {
-      query: { id: `eq.${raw}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
-    });
-  }
-  if (!rows?.length) throw new HTTPError(404, "project not found");
-  return rows[0];
-}
-
-async function getProjectByID(teamID, id) {
-  const rows = await rest("projects", {
-    query: { id: `eq.${id}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
-  });
-  return rows?.[0] || null;
-}
-
-async function findTask(teamID, externalID) {
-  const raw = String(externalID || "").trim();
-  if (!raw) throw new HTTPError(400, "task id is required");
-  let rows = await rest("tasks", {
-    query: {
-      local_id: `eq.${raw}`,
-      select: "*",
-      team_id: `eq.${teamID}`,
-      limit: "1",
-    },
-  });
-  if (!rows?.length && isUUID(raw)) {
-    rows = await rest("tasks", {
-      query: { id: `eq.${raw}`, select: "*", team_id: `eq.${teamID}`, limit: "1" },
-    });
-  }
-  if (!rows?.length) throw new HTTPError(404, "task not found");
-  return rows[0];
-}
-
-async function projectMap(teamID, ids) {
-  const hasIDFilter = ids !== undefined;
-  const query = { team_id: `eq.${teamID}`, select: "id,local_id,name" };
-  const selected = uniqueNonEmpty(ids);
-  if (hasIDFilter && selected.length === 0) return {};
-  if (selected.length > 0) query.id = `in.(${selected.join(",")})`;
-  const rows = await rest("projects", {
-    query,
-  });
-  return Object.fromEntries((rows || []).map((row) => [row.id, row]));
-}
-
-async function taskMap(teamID, ids) {
-  const hasIDFilter = ids !== undefined;
-  const query = { team_id: `eq.${teamID}`, select: "id,local_id,title" };
-  const selected = uniqueNonEmpty(ids);
-  if (hasIDFilter && selected.length === 0) return {};
-  if (selected.length > 0) query.id = `in.(${selected.join(",")})`;
-  const rows = await rest("tasks", {
-    query,
-  });
-  return Object.fromEntries((rows || []).map((row) => [row.id, row]));
-}
-
-function uniqueNonEmpty(values) {
-  const list = Array.isArray(values) ? values : [values];
-  return [
-    ...new Set(list.map((value) => String(value || "").trim()).filter(Boolean)),
-  ];
-}
-
-function publicProject(row) {
-  return {
-    ...row,
-    id: row.local_id || row.id,
-  };
-}
-
-function publicTask(row, projects = {}) {
-  const task = {
-    ...row,
-    id: row.local_id || row.id,
-    project_id: row.project_id
-      ? projects[row.project_id]?.local_id || row.project_id
-      : "",
-  };
-  return task;
-}
-
 function publicTeam(row) {
   if (!row) return undefined;
   return {
@@ -2490,25 +2004,6 @@ function publicTeam(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-}
-
-function normalizeGitHubRepoURL(value) {
-  const repoURL = String(value || "").trim();
-  if (!repoURL) return "";
-  if (
-    /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(
-      repoURL,
-    )
-  ) {
-    return repoURL.replace(/\/$/, "");
-  }
-  if (/^git@github\.com:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/.test(repoURL)) {
-    return repoURL;
-  }
-  throw new HTTPError(
-    400,
-    "github_repo_url must be a GitHub HTTPS URL or git@github.com SSH URL",
-  );
 }
 
 function redactSensitiveText(value) {

@@ -11,7 +11,6 @@ const APP_TITLE_KEYS: Record<string, I18nKey> = {
   home: "app.home",
   growth: "app.growth",
   wiki: "app.wiki",
-  tasks: "app.tasks",
   requests: "app.requests",
   threads: "app.threads",
   skills: "app.skills",

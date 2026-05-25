@@ -4,13 +4,15 @@ import {
   getActions,
   getDecisions,
   getOfficeMembers,
-  getOfficeTasks,
   getScheduler,
   getUsage,
   getWatchdogs,
   type OfficeMember,
-  type Task,
 } from "../../api/client";
+import {
+  getStartupOfficeGrowthSummary,
+  type StartupOfficeRun,
+} from "../../api/startupOffice";
 import { formatTokens } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import { type Insight, InsightsList } from "../activity/InsightsList";
@@ -26,14 +28,15 @@ const ACTIVITY_COPY = {
     loading: "Loading workspace activity...",
     title: "Office activity",
     desc: "Which lanes are moving, which agents are active, what decisions just got made, and where work is blocked.",
-    blockedTask: "Blocked task",
+    pendingApproval: "Pending approval",
+    stalledRun: "Stalled run",
     watchdogAlert: "Watchdog alert",
     decision: "Decision",
     action: "Action",
     activeLanes: "Active lanes",
-    activeLanesCopy: "Live tasks currently moving.",
+    activeLanesCopy: "Live runs currently moving.",
     blockedLanes: "Blocked lanes",
-    blockedLanesCopy: "Tasks needing operator attention.",
+    blockedLanesCopy: "Runs needing operator attention.",
     watchdogAlerts: "Watchdog alerts",
     watchdogAlertsCopy: "Watchdogs firing right now.",
     agentsInMotion: "Agents in motion",
@@ -50,9 +53,9 @@ const ACTIVITY_COPY = {
     recentActivity: "Recent activity",
     events: (count: number) => `${count} events`,
     noTimeline: "No decisions or actions logged yet.",
-    openOrMoving: (count: number) => `${count} open or moving`,
+    openOrMoving: (count: number) => `${count} queued or moving`,
     noActiveLanes: "No active lanes right now.",
-    untitledTask: "Untitled task",
+    untitledRun: "Untitled run",
     agentPulse: "Agent pulse",
     activeNow: (count: number) => `${count} active right now`,
     noAgents: "No agents are visibly moving right now.",
@@ -74,14 +77,15 @@ const ACTIVITY_COPY = {
     loading: "워크스페이스 활동을 불러오는 중...",
     title: "오피스 활동",
     desc: "어떤 작업이 움직이고 있는지, 어떤 에이전트가 활동 중인지, 방금 어떤 결정이 내려졌고 어디에서 막혔는지 보여줍니다.",
-    blockedTask: "막힌 작업",
+    pendingApproval: "승인 대기",
+    stalledRun: "멈춘 실행",
     watchdogAlert: "워치독 알림",
     decision: "결정",
     action: "작업",
     activeLanes: "활성 작업",
-    activeLanesCopy: "현재 진행 중인 작업입니다.",
+    activeLanesCopy: "현재 움직이는 실행입니다.",
     blockedLanes: "막힌 작업",
-    blockedLanesCopy: "운영자 확인이 필요한 작업입니다.",
+    blockedLanesCopy: "운영자 확인이 필요한 실행입니다.",
     watchdogAlerts: "워치독 알림",
     watchdogAlertsCopy: "지금 감지된 워치독 알림입니다.",
     agentsInMotion: "활동 중인 에이전트",
@@ -98,9 +102,9 @@ const ACTIVITY_COPY = {
     recentActivity: "최근 활동",
     events: (count: number) => `이벤트 ${count}개`,
     noTimeline: "아직 결정이나 작업 기록이 없습니다.",
-    openOrMoving: (count: number) => `열림 또는 진행 중 ${count}개`,
+    openOrMoving: (count: number) => `대기 또는 진행 중 ${count}개`,
     noActiveLanes: "지금 진행 중인 작업이 없습니다.",
-    untitledTask: "제목 없는 작업",
+    untitledRun: "제목 없는 실행",
     agentPulse: "에이전트 활동",
     activeNow: (count: number) => `현재 활성 ${count}명`,
     noAgents: "현재 눈에 띄게 움직이는 에이전트가 없습니다.",
@@ -195,9 +199,9 @@ function classifyMemberActivity(member: OfficeMember): {
 
 export function ArtifactsApp() {
   const copy = useActivityCopy();
-  const tasks = useQuery({
-    queryKey: ["activity-tasks"],
-    queryFn: () => getOfficeTasks({ includeDone: true }),
+  const startupOffice = useQuery({
+    queryKey: ["activity-startup-office-summary"],
+    queryFn: getStartupOfficeGrowthSummary,
     refetchInterval: ACTIVITY_LIVE_REFETCH_MS,
   });
 
@@ -238,7 +242,7 @@ export function ArtifactsApp() {
   });
 
   const isLoading =
-    tasks.isLoading ||
+    startupOffice.isLoading ||
     actions.isLoading ||
     decisions.isLoading ||
     watchdogs.isLoading ||
@@ -250,7 +254,8 @@ export function ArtifactsApp() {
     return <div className="app-loading-state">{copy.loading}</div>;
   }
 
-  const allTasks = tasks.data?.tasks ?? [];
+  const allRuns = startupOffice.data?.recent_runs ?? [];
+  const pendingApprovals = startupOffice.data?.pending_approvals ?? [];
   const allActions = (
     (actions.data as { actions?: ActionRecord[] })?.actions ?? []
   ).slice();
@@ -264,12 +269,12 @@ export function ArtifactsApp() {
   const usageData = usage.data;
   const allMembers = members.data?.members ?? [];
 
-  const activeTasks = allTasks.filter((t) => {
-    const s = normalizeStatus(t.status);
-    return s === "in_progress" || s === "review" || s === "open";
+  const activeRuns = allRuns.filter((run) => {
+    const s = normalizeStatus(run.status);
+    return s === "running" || s === "queued" || s === "pending";
   });
-  const blockedTasks = allTasks.filter(
-    (t) => normalizeStatus(t.status) === "blocked",
+  const stalledRuns = allRuns.filter((run) =>
+    ["failed", "dead_letter", "canceled"].includes(normalizeStatus(run.status)),
   );
   const liveAgents = allMembers.filter(
     (m) =>
@@ -286,17 +291,27 @@ export function ArtifactsApp() {
   );
 
   const insights: Insight[] = [
-    ...blockedTasks.map<Insight>((t) => ({
+    ...stalledRuns.map<Insight>((run) => ({
       priority: "high",
-      category: "task",
-      title: t.title || t.id || copy.blockedTask,
-      body: t.description,
-      target:
-        [t.channel ? `#${t.channel}` : "", t.owner ? `@${t.owner}` : ""]
-          .filter(Boolean)
-          .join(" · ") || undefined,
-      time: t.updated_at
-        ? new Date(t.updated_at).toLocaleTimeString([], {
+      category: "run",
+      title: run.title || run.id || copy.stalledRun,
+      body: run.summary || run.objective,
+      target: run.loop_id ? `Loop ${run.loop_id}` : undefined,
+      time: run.updated_at
+        ? new Date(run.updated_at).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : undefined,
+    })),
+    ...pendingApprovals.map<Insight>((approval) => ({
+      priority: approval.risk_level === "high" ? "high" : "medium",
+      category: approval.action || "approval",
+      title: approval.title || copy.pendingApproval,
+      body: approval.details,
+      target: approval.run_id ? `Run ${approval.run_id}` : undefined,
+      time: approval.requested_at
+        ? new Date(approval.requested_at).toLocaleTimeString([], {
             hour: "numeric",
             minute: "2-digit",
           })
@@ -353,9 +368,9 @@ export function ArtifactsApp() {
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <ActivityHero />
-      <StatsGrid
-        activeTasks={activeTasks.length}
-        blockedTasks={blockedTasks.length}
+        <StatsGrid
+        activeRuns={activeRuns.length}
+        stalledRuns={stalledRuns.length + pendingApprovals.length}
         watchdogs={allWatchdogs.length}
         liveAgents={liveAgents.length}
         actions={allActions.length}
@@ -368,7 +383,7 @@ export function ArtifactsApp() {
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
       >
         <LeftActivityColumn
-          activeTasks={activeTasks}
+          activeRuns={activeRuns}
           liveAgents={liveAgents}
           actions={allActions}
           copy={copy}
@@ -426,8 +441,8 @@ function ActivityHero() {
 }
 
 function StatsGrid({
-  activeTasks,
-  blockedTasks,
+  activeRuns,
+  stalledRuns,
   watchdogs,
   liveAgents,
   actions,
@@ -435,8 +450,8 @@ function StatsGrid({
   sessionTokens,
   copy,
 }: {
-  activeTasks: number;
-  blockedTasks: number;
+  activeRuns: number;
+  stalledRuns: number;
   watchdogs: number;
   liveAgents: number;
   actions: number;
@@ -455,12 +470,12 @@ function StatsGrid({
     >
       <StatCard
         kicker={copy.activeLanes}
-        value={String(activeTasks)}
+        value={String(activeRuns)}
         copy={copy.activeLanesCopy}
       />
       <StatCard
         kicker={copy.blockedLanes}
-        value={String(blockedTasks)}
+        value={String(stalledRuns)}
         copy={copy.blockedLanesCopy}
         anchorId="needs-attention"
       />
@@ -495,12 +510,12 @@ function StatsGrid({
 }
 
 function LeftActivityColumn({
-  activeTasks,
+  activeRuns,
   liveAgents,
   actions,
   copy,
 }: {
-  activeTasks: Task[];
+  activeRuns: StartupOfficeRun[];
   liveAgents: OfficeMember[];
   actions: ActionRecord[];
   copy: ReturnType<typeof useActivityCopy>;
@@ -510,7 +525,7 @@ function LeftActivityColumn({
       className="activity-column activity-column-left"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <ActiveLanesSection activeTasks={activeTasks} copy={copy} />
+      <ActiveLanesSection activeRuns={activeRuns} copy={copy} />
       <AgentPulseSection liveAgents={liveAgents} copy={copy} />
       <RecentActionsSection actions={actions} copy={copy} />
     </div>
@@ -560,32 +575,34 @@ function RightActivityColumn({
 }
 
 function ActiveLanesSection({
-  activeTasks,
+  activeRuns,
   copy,
 }: {
-  activeTasks: Task[];
+  activeRuns: StartupOfficeRun[];
   copy: ReturnType<typeof useActivityCopy>;
 }) {
   return (
     <ActivitySection
       title={copy.activeLanes}
-      meta={copy.openOrMoving(activeTasks.length)}
+      meta={copy.openOrMoving(activeRuns.length)}
     >
-      {activeTasks.length === 0 ? (
+      {activeRuns.length === 0 ? (
         <EmptyState>{copy.noActiveLanes}</EmptyState>
       ) : (
-        activeTasks
+        activeRuns
           .slice(0, 10)
-          .map((task) => (
+          .map((run) => (
             <ActivityItem
-              key={task.id}
-              title={task.title || task.id || copy.untitledTask}
-              body={task.description ?? ""}
+              key={run.id}
+              title={run.title || run.id || copy.untitledRun}
+              body={run.summary || run.objective || ""}
               meta={[
-                task.channel ? `#${task.channel}` : "",
-                task.owner ? `@${task.owner}` : "",
+                run.loop_id ? `Loop ${run.loop_id}` : "",
+                run.updated_at
+                  ? new Date(run.updated_at).toLocaleString()
+                  : "",
               ].filter(Boolean)}
-              kindLabel={normalizeStatus(task.status).replace(/_/g, " ")}
+              kindLabel={normalizeStatus(run.status).replace(/_/g, " ")}
             />
           ))
       )}

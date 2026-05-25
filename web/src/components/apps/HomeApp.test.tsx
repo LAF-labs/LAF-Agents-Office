@@ -18,7 +18,6 @@ const apiMocks = vi.hoisted(() => ({
   getConfig: vi.fn(),
   getHomeSessions: vi.fn(),
   getOfficeMembers: vi.fn(),
-  getProjects: vi.fn(),
   getSkills: vi.fn(),
   getThreadMessages: vi.fn(),
   postMessage: vi.fn(),
@@ -120,22 +119,6 @@ describe("HomeApp", () => {
         { name: "Human", role: "User", slug: "human" },
       ],
     });
-    apiMocks.getProjects.mockResolvedValue({
-      projects: [
-        {
-          created_at: "2026-05-01T00:00:00Z",
-          id: "sajuhook",
-          name: "sajuhook",
-          updated_at: "2026-05-04T00:00:00Z",
-        },
-        {
-          created_at: "2026-05-02T00:00:00Z",
-          id: "aurora-revenue-os",
-          name: "Aurora Revenue OS",
-          updated_at: "2026-05-09T00:00:00Z",
-        },
-      ],
-    });
     apiMocks.getSkills.mockResolvedValue({
       skills: [
         {
@@ -212,35 +195,6 @@ describe("HomeApp", () => {
         "general",
         expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["engineer"],
-        expect.objectContaining({
-          model_mode: "laf_model",
-          scope: "home_orchestration",
-        }),
-      );
-    });
-  });
-
-  it("shows project autocomplete for # and sends the selected project hashtag", async () => {
-    const user = userEvent.setup();
-    renderHomeApp();
-
-    await user.type(
-      await screen.findByPlaceholderText("무엇이든 물어보세요"),
-      "#aur",
-    );
-    await user.click(await screen.findByText("#aurora-revenue-os"));
-    await user.type(
-      screen.getByPlaceholderText("무엇이든 물어보세요"),
-      "정리해줘",
-    );
-    await user.click(screen.getByRole("button", { name: "보내기" }));
-
-    await waitFor(() => {
-      expect(apiMocks.postMessage).toHaveBeenCalledWith(
-        "#aurora-revenue-os 정리해줘",
-        "general",
-        expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
-        ["ceo"],
         expect.objectContaining({
           model_mode: "laf_model",
           scope: "home_orchestration",

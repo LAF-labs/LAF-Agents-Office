@@ -32,8 +32,6 @@ describe("AppList Startup Office navigation", () => {
     useAppStore.setState({
       currentApp: "growth",
       language: "en",
-      projectFocusId: null,
-      taskFocusId: null,
     });
   });
 

@@ -23,11 +23,16 @@ const retiredRuntimeGuard = {
     `${retiredQueueName}_jobs`,
     `${retiredQueueName}_capabilities`,
     `${retiredQueueName}s`,
+    "delivery_receipts",
+    "projects",
+    "tasks",
   ],
   functions: [`claim_${retiredQueueName}_job`],
   columns: {
+    channel_messages: ["project_id", "task_id"],
     tasks: ["execution_mode", "worktree_path", "worktree_branch"],
-    wiki_write_requests: [`${retiredQueueName}_id`],
+    wiki_article_index: ["project_id"],
+    wiki_write_requests: ["project_id", `${retiredQueueName}_id`],
   },
 };
 

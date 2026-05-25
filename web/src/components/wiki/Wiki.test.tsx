@@ -31,14 +31,14 @@ describe("<Wiki>", () => {
       expect(screen.getByTestId("wk-catalog")).toBeInTheDocument(),
     );
     expect(
-      screen.getByRole("heading", { name: "Project memory" }),
+      screen.getByRole("heading", { name: "Company memory" }),
     ).toBeInTheDocument();
   });
 
   it("shows an article when a path is provided", async () => {
     vi.spyOn(api, "fetchCatalog").mockResolvedValue([]);
     vi.spyOn(api, "fetchArticle").mockResolvedValue({
-      path: "projects/customer-x",
+      path: "company/customer-x",
       title: "Customer X",
       content: "Body text.",
       last_edited_by: "ceo",
@@ -49,7 +49,7 @@ describe("<Wiki>", () => {
       word_count: 10,
       categories: [],
     });
-    render(<Wiki articlePath="projects/customer-x" onNavigate={() => {}} />);
+    render(<Wiki articlePath="company/customer-x" onNavigate={() => {}} />);
     await waitFor(() =>
       expect(
         screen.getByRole("heading", { name: "Customer X" }),

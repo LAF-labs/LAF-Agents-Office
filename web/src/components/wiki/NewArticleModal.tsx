@@ -138,7 +138,7 @@ export default function NewArticleModal({
           id="wk-new-title"
           className="wk-editor-commit"
           type="text"
-          placeholder="Project launch plan"
+          placeholder="Company launch plan"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />

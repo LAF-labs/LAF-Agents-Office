@@ -52,6 +52,20 @@ test("retired execution routes are no longer part of the hosted API surface", as
   }
 });
 
+test("retired project and task routes are removed from the hosted API surface", async () => {
+  for (const [routePath, method] of [
+    ["projects", "GET"],
+    ["projects", "POST"],
+    ["projects/repo-readiness", "GET"],
+    ["tasks", "GET"],
+    ["tasks", "POST"],
+  ]) {
+    const response = await invoke(routePath, method, {});
+    assert.equal(response.status, 404, `${method} ${routePath}`);
+    assert.equal(response.body.error, "hosted API route not found");
+  }
+});
+
 test("hosted API rejects oversized request bodies before mutation handlers", async () => {
   const oversizedText = "x".repeat(512 * 1024 + 1);
 
@@ -155,6 +169,38 @@ test("pure cloud migration drops obsolete execution schema", () => {
   assert.match(schemaAssertionSql, /drop trigger if exists/);
   assert.match(schemaAssertionSql, /retired execution residue/);
   assert.match(schemaAssertionSql, /raise exception/);
+});
+
+test("project and task storage is removed from the current Supabase schema", () => {
+  const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
+  const sql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525160000_retire_project_task_workspace.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /drop table if exists public\.delivery_receipts cascade/);
+  assert.match(sql, /drop table if exists public\.tasks cascade/);
+  assert.match(sql, /drop table if exists public\.projects cascade/);
+  assert.match(sql, /drop column if exists project_id/);
+  assert.match(sql, /drop column if exists task_id/);
+
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "schema", "current.json"),
+      "utf8",
+    ),
+  );
+  const activeTables = new Set(schema.activeTables.map((table) => table.name));
+  assert.equal(activeTables.has("projects"), false);
+  assert.equal(activeTables.has("tasks"), false);
+  assert.equal(activeTables.has("delivery_receipts"), false);
+  const messages = schema.activeTables.find(
+    (table) => table.name === "channel_messages",
+  );
+  assert.equal(messages.columns.includes("project_id"), false);
+  assert.equal(messages.columns.includes("task_id"), false);
 });
 
 test("Startup Office release gate points at loop engine tests", () => {

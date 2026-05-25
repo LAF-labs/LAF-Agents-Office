@@ -14,7 +14,7 @@ const PREFERRED_ORDER = [
   "people",
   "companies",
   "customers",
-  "projects",
+  "company",
   "playbooks",
   "decisions",
   "inbox",

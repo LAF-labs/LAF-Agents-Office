@@ -173,6 +173,19 @@ for (const [pattern, label] of [
   [/jobs: \[\]/, "hosted scheduler empty stub"],
   [/\["actions", "signals", "decisions", "watchdogs"\]/, "hosted activity multiplexer stub"],
   [/\{\s*\[path\]: \[\]\s*\}/, "hosted activity empty stub"],
+  [/path === "projects"[\s\S]{0,100}handleProjects/, "hosted projects route"],
+  [/path === "tasks"[\s\S]{0,100}handleTasks/, "hosted tasks route"],
+  [/path === "projects\/repo-readiness"[\s\S]{0,100}handleHostedProjectRepoReadiness/, "hosted project readiness route"],
+  [/async function handleProjects\b/, "hosted projects handler"],
+  [/async function handleTasks\b/, "hosted tasks handler"],
+  [/async function handleHostedProjectRepoReadiness\b/, "hosted project readiness handler"],
+  [/async function createTask\b/, "hosted task creation helper"],
+  [/async function findProject\b/, "hosted project lookup helper"],
+  [/async function findTask\b/, "hosted task lookup helper"],
+  [/function publicProject\b/, "hosted project serializer"],
+  [/function publicTask\b/, "hosted task serializer"],
+  [/path: "\/projects"/, "orchestration project action"],
+  [/path: "\/tasks"/, "orchestration task action"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

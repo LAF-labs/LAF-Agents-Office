@@ -38,7 +38,6 @@ function mockStartupOfficeSummary() {
   useAppStore.setState({
     currentApp: "growth",
     language: "en",
-    projectFocusId: null,
     wikiPath: null,
   });
   startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({

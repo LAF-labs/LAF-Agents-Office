@@ -104,15 +104,25 @@ assertIncludes(
   "web/src/hooks/useHashRouter.ts",
   "const DEFAULT_ROUTE: Route = GROWTH_ROUTE;",
 );
-assertIncludes(
+assertNotIncludes(
   "web/src/hooks/useHashRouter.ts",
   'if (app === "projects" || app === "tasks") return GROWTH_ROUTE;',
 );
+assertNotIncludes("web/src/hooks/useHashRouter.ts", 'case "projects"');
+assertNotIncludes("web/src/hooks/useHashRouter.ts", 'case "tasks"');
 assertNotIncludes("web/src/hooks/useHashRouter.ts", "const PROJECTS_ROUTE");
 assertNotIncludes("web/src/components/workspace/WorkspaceApp.tsx", "loadTasksApp");
 assertNotIncludes("web/src/components/workspace/WorkspaceApp.tsx", "tasks: TasksApp");
 assertNotIncludes("web/src/lib/workspacePreload.ts", "loadTasksApp");
 assertNotIncludes("web/src/lib/workspacePreload.ts", 'case "tasks"');
+assertNotIncludes("web/src/components/messages/Composer.tsx", '"/tasks": "tasks"');
+assertNotIncludes("web/src/components/messages/Composer.tsx", 'post("/tasks"');
+assertNotIncludes("web/src/components/search/SearchModal.tsx", '"/tasks": "tasks"');
+assertNotIncludes("web/src/components/search/SearchModal.tsx", 'setCurrentApp("tasks")');
+assertNotIncludes("web/src/components/apps/HomeApp.tsx", "getProjects");
+assertNotIncludes("web/src/components/apps/HomeApp.tsx", 'type HomeAutocompleteType = "mention" | "project" | "skill"');
+assertNotIncludes("web/src/api/client.ts", '"/projects"');
+assertNotIncludes("web/src/api/client.ts", '"/tasks"');
 
 assertNotIncludes("web/src/lib/constants.ts", 'id: "tasks"');
 assertNotIncludes("web/src/lib/constants.ts", 'name: "Projects"');
@@ -123,6 +133,9 @@ assertIncludes(
 
 assertPathMissing(path.join("internal", "open" + "claw"));
 assertPathMissing(path.join("cmd", "laf-office-oc-probe"));
+assertPathMissing(path.join("web", "src", "components", "apps", "TasksApp.tsx"));
+assertPathMissing(path.join("web", "src", "components", "apps", "TaskDetailModal.tsx"));
+assertPathMissing(path.join("web", "src", "components", "apps", "tasks"));
 assertRepoTextAbsent("retired external runtime connector", ["open", "claw"]);
 
 assertNotMatchesInSegment(

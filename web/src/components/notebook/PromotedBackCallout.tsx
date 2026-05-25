@@ -37,7 +37,7 @@ export default function PromotedBackCallout({
           }
         }}
       >
-        Project memory · {link.promoted_to_path}
+        Company memory · {link.promoted_to_path}
       </a>{" "}
       by {formatAgentName(link.promoted_by_slug)}.
     </aside>

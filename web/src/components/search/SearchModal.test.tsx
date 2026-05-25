@@ -16,8 +16,6 @@ function deps(commands: SlashCommand[]) {
     setSearchOpen: vi.fn(),
     enterDM: vi.fn(),
     setActiveAgentSlug: vi.fn(),
-    setProjectFocusId: vi.fn(),
-    setTaskFocusId: vi.fn(),
     setWikiPath: vi.fn(),
     close: vi.fn(),
   };
@@ -33,13 +31,13 @@ describe("SearchModal command palette", () => {
           desc: "Switch default AI provider",
           icon: "provider",
         },
-        { name: "/tasks", desc: "Open task board", icon: "tasks" },
+        { name: "/growth", desc: "Open Startup Office", icon: "growth" },
       ]),
       "",
     );
 
     const labels = items.map((item) => item.label);
-    expect(labels).toEqual(["/ask", "/provider", "/tasks"]);
+    expect(labels).toEqual(["/ask", "/provider", "/growth"]);
     expect(labels).not.toContain("/deploy-simulation");
     expect(labels).not.toContain("/focus");
     expect(labels).not.toContain("/reset");

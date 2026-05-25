@@ -38,19 +38,19 @@ const UI_TEXT = {
       tabAria: "Wiki surfaces",
       tabs: { wiki: "Wiki", notebooks: "Notebooks", reviews: "Reviews" },
       pendingBadge: (count: number) => `${count} pending`,
-      catalogTitle: "Project memory",
+      catalogTitle: "Company memory",
       statsArticles: (count: number) => `${count} articles`,
       statsAgentUpdates: (count: number) => `${count} agent updates`,
       catalogDesc:
-        "Project goals, decisions, task history, and delivery notes that agents read before work.",
+        "Company goals, decisions, approval history, and operating notes that agents read before work.",
       newMemoryPage: "+ New memory page",
       history: "History",
-      overviewAria: "Project memory overview",
-      projectPages: "Project pages",
-      projectPagesDesc:
-        "Start from the project page when you need goals, constraints, and the latest task decisions.",
-      projectPagesEmpty:
-        "Create a project first; its memory page will appear here.",
+      overviewAria: "Company memory overview",
+      companyPages: "Company pages",
+      companyPagesDesc:
+        "Start from the company page when you need goals, constraints, and the latest operating decisions.",
+      companyPagesEmpty:
+        "Create company memory first; its pages will appear here.",
       recentUpdates: "Recent updates",
       recentUpdatesDesc:
         "Use this to scan what changed before starting new work.",
@@ -74,8 +74,8 @@ const UI_TEXT = {
       articleHistoryPreparing:
         "Memory history for this page is being prepared.",
       articleStrapline:
-        "Project memory for decisions, constraints, and delivery notes.",
-      breadcrumbRoot: "Project memory",
+        "Company memory for decisions, constraints, and approval notes.",
+      breadcrumbRoot: "Company memory",
       liveEditing: (name: string) =>
         `${name} is editing this article right now.`,
       lastEditedBy: "Last edited by",
@@ -129,7 +129,7 @@ const UI_TEXT = {
       fullDate: (date: string, time: string) => `${date} at ${time} UTC`,
       auditTitle: "Memory history",
       auditDesc:
-        "Every project memory update, newest first. Use this to check what changed, who changed it, and which pages were touched.",
+        "Every company memory update, newest first. Use this to check what changed, who changed it, and which pages were touched.",
       auditStatsLoading: "Loading…",
       auditStatsError: "Error",
       auditStatsLabel: (entries: number, authors: number, paths: number) =>
@@ -152,7 +152,7 @@ const UI_TEXT = {
       noLimit: "No limit",
       exportCsv: "Export CSV",
       loadingHistory: "Loading memory history…",
-      noEdits: "No edits yet. Project memory updates will appear here.",
+      noEdits: "No edits yet. Company memory updates will appear here.",
       noFilterMatches: "No entries match your filters.",
       when: "When",
       message: "Message",
@@ -360,19 +360,19 @@ const UI_TEXT = {
       tabAria: "위키 화면",
       tabs: { wiki: "위키", notebooks: "노트북", reviews: "검토" },
       pendingBadge: (count: number) => `대기 ${count}개`,
-      catalogTitle: "프로젝트 메모리",
+      catalogTitle: "회사 메모리",
       statsArticles: (count: number) => `문서 ${count}개`,
       statsAgentUpdates: (count: number) => `에이전트 업데이트 ${count}개`,
       catalogDesc:
-        "프로젝트 목표, 결정, 작업 이력, 전달 메모처럼 에이전트가 작업 전에 읽는 지식입니다.",
+        "회사 목표, 결정, 승인 이력, 운영 메모처럼 에이전트가 작업 전에 읽는 지식입니다.",
       newMemoryPage: "+ 새 메모리 페이지",
       history: "히스토리",
-      overviewAria: "프로젝트 메모리 개요",
-      projectPages: "프로젝트 페이지",
-      projectPagesDesc:
-        "목표, 제약, 최근 작업 결정을 확인할 때 프로젝트 페이지부터 보세요.",
-      projectPagesEmpty:
-        "프로젝트를 먼저 만들면 이곳에 메모리 페이지가 표시됩니다.",
+      overviewAria: "회사 메모리 개요",
+      companyPages: "회사 페이지",
+      companyPagesDesc:
+        "목표, 제약, 최근 운영 결정을 확인할 때 회사 페이지부터 보세요.",
+      companyPagesEmpty:
+        "회사 메모리를 만들면 이곳에 페이지가 표시됩니다.",
       recentUpdates: "최근 업데이트",
       recentUpdatesDesc: "새 작업을 시작하기 전에 무엇이 바뀌었는지 봅니다.",
       noMemoryPages: "아직 메모리 페이지가 없습니다.",
@@ -395,8 +395,8 @@ const UI_TEXT = {
       articleHistoryPreparing:
         "이 페이지의 메모리 히스토리를 준비하는 중입니다.",
       articleStrapline:
-        "결정, 제약, 전달 메모를 모아 둔 프로젝트 메모리입니다.",
-      breadcrumbRoot: "프로젝트 메모리",
+        "결정, 제약, 승인 메모를 모아 둔 회사 메모리입니다.",
+      breadcrumbRoot: "회사 메모리",
       liveEditing: (name: string) => `${name}가 지금 이 문서를 수정 중입니다.`,
       lastEditedBy: "마지막 수정",
       human: "사용자",
@@ -448,7 +448,7 @@ const UI_TEXT = {
       fullDate: (date: string, time: string) => `${date} ${time} UTC`,
       auditTitle: "메모리 히스토리",
       auditDesc:
-        "프로젝트 메모리 업데이트를 최신순으로 보여줍니다. 무엇이 바뀌었고, 누가 바꿨고, 어떤 페이지가 영향을 받았는지 확인할 수 있습니다.",
+        "회사 메모리 업데이트를 최신순으로 보여줍니다. 무엇이 바뀌었고, 누가 바꿨고, 어떤 페이지가 영향을 받았는지 확인할 수 있습니다.",
       auditStatsLoading: "불러오는 중...",
       auditStatsError: "오류",
       auditStatsLabel: (entries: number, authors: number, paths: number) =>
@@ -472,7 +472,7 @@ const UI_TEXT = {
       exportCsv: "CSV 내보내기",
       loadingHistory: "메모리 히스토리를 불러오는 중...",
       noEdits:
-        "아직 수정 기록이 없습니다. 프로젝트 메모리가 업데이트되면 여기에 표시됩니다.",
+        "아직 수정 기록이 없습니다. 회사 메모리가 업데이트되면 여기에 표시됩니다.",
       noFilterMatches: "필터와 일치하는 기록이 없습니다.",
       when: "시간",
       message: "메시지",

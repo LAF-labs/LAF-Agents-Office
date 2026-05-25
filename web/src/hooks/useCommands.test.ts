@@ -23,7 +23,7 @@ describe("toAutocomplete", () => {
       { name: "calendar", description: "Calendar", webSupported: true },
       { name: "policies", description: "Policies", webSupported: true },
       { name: "recover", description: "Recover", webSupported: true },
-      { name: "tasks", description: "Tasks", webSupported: true },
+      { name: "object", description: "Objects", webSupported: false },
     ];
 
     expect(toAutocomplete(registry).map((c) => c.name)).toEqual([]);

@@ -14,8 +14,6 @@ type Route =
   | {
       view: "app";
       app: string;
-      projectId?: string | null;
-      taskId?: string | null;
       skillsSection?: SkillsSection;
     }
   | { view: "wiki"; articlePath: string | null }
@@ -28,7 +26,6 @@ const GROWTH_ROUTE = { view: "app", app: "growth" } as const;
 const DEFAULT_ROUTE: Route = GROWTH_ROUTE;
 
 function appRoute(app: string): Route {
-  if (app === "projects" || app === "tasks") return GROWTH_ROUTE;
   return { view: "app", app };
 }
 
@@ -49,8 +46,6 @@ function parseHash(hash: string): Route {
       return parts[1] ? appRoute(decodeURIComponent(parts[1])) : DEFAULT_ROUTE;
     case "home":
       return HOME_ROUTE;
-    case "projects":
-      return GROWTH_ROUTE;
     case "skills":
       return { view: "app", app: "skills" };
     case "growth":
@@ -94,8 +89,6 @@ function stateToHash(state: {
   wikiLookupQuery: string | null;
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
-  projectFocusId: string | null;
-  taskFocusId: string | null;
   skillsSection: SkillsSection;
 }): string {
   const appHash = appStateToHash(state);
@@ -113,8 +106,6 @@ function appStateToHash(state: {
   wikiLookupQuery: string | null;
   notebookAgentSlug: string | null;
   notebookEntrySlug: string | null;
-  projectFocusId: string | null;
-  taskFocusId: string | null;
   skillsSection: SkillsSection;
 }): string | null {
   switch (state.currentApp) {
@@ -132,8 +123,6 @@ function appStateToHash(state: {
       return "#/reviews";
     case "home":
       return "#/home";
-    case "tasks":
-      return "#/growth";
     case "growth":
       return "#/growth";
     case "skills":
@@ -163,8 +152,6 @@ interface HashRouteActions {
   setCurrentApp: (app: string | null) => void;
   setCurrentChannel: (channel: string) => void;
   setLastMessageId: (id: string | null) => void;
-  setProjectFocusId: (projectId: string | null) => void;
-  setTaskFocusId: (taskId: string | null) => void;
   setSkillsSection: (section: SkillsSection) => void;
   setWikiPath: (path: string | null) => void;
   setWikiLookupQuery: (query: string) => void;
@@ -180,12 +167,6 @@ function applyRoute(route: Route, actions: HashRouteActions) {
       actions.enterDM(route.agent, directChannelSlug(route.agent));
       break;
     case "app":
-      actions.setProjectFocusId(
-        route.app === "tasks" ? (route.projectId ?? null) : null,
-      );
-      actions.setTaskFocusId(
-        route.app === "tasks" ? (route.taskId ?? null) : null,
-      );
       actions.setCurrentApp(route.app);
       break;
     case "wiki-lookup":
@@ -229,10 +210,6 @@ export function useHashRouter() {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const channelMeta = useAppStore((s) => s.channelMeta);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
-  const projectFocusId = useAppStore((s) => s.projectFocusId);
-  const setProjectFocusId = useAppStore((s) => s.setProjectFocusId);
-  const taskFocusId = useAppStore((s) => s.taskFocusId);
-  const setTaskFocusId = useAppStore((s) => s.setTaskFocusId);
   const skillsSection = useAppStore((s) => s.skillsSection);
   const setSkillsSection = useAppStore((s) => s.setSkillsSection);
   const setCurrentChannel = useAppStore((s) => s.setCurrentChannel);
@@ -264,8 +241,6 @@ export function useHashRouter() {
         setCurrentApp,
         setCurrentChannel,
         setLastMessageId,
-        setProjectFocusId,
-        setTaskFocusId,
         setSkillsSection,
         setWikiPath,
         setWikiLookupQuery,
@@ -285,8 +260,6 @@ export function useHashRouter() {
     setCurrentApp,
     setCurrentChannel,
     setLastMessageId,
-    setProjectFocusId,
-    setTaskFocusId,
     setSkillsSection,
     setWikiPath,
     setWikiLookupQuery,
@@ -307,8 +280,6 @@ export function useHashRouter() {
       wikiLookupQuery,
       notebookAgentSlug,
       notebookEntrySlug,
-      projectFocusId,
-      taskFocusId,
       skillsSection,
     });
     if (next !== window.location.hash) {
@@ -323,8 +294,6 @@ export function useHashRouter() {
     wikiLookupQuery,
     notebookAgentSlug,
     notebookEntrySlug,
-    projectFocusId,
-    taskFocusId,
     skillsSection,
   ]);
 }

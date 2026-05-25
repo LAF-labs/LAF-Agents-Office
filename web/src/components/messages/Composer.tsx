@@ -147,7 +147,6 @@ const APP_COMMANDS: Record<string, string> = {
   "/receipts": "receipts",
   "/requests": "requests",
   "/skills": "skills",
-  "/tasks": "tasks",
   "/threads": "threads",
 };
 
@@ -218,48 +217,6 @@ function handleRememberCommand(args: string): boolean {
       ),
     )
     .catch((e: Error) => showNotice(`Remember failed: ${e.message}`, "error"));
-  return true;
-}
-
-function handleTaskCommand(args: string, store: AppStore): boolean {
-  const taskParts = args.split(/\s+/);
-  const action = (taskParts[0] || "").toLowerCase();
-  const taskId = taskParts[1] || "";
-  const extra = taskParts.slice(2).join(" ");
-  if (!(action && taskId)) {
-    showNotice(
-      "Usage: /task <claim|release|complete|block|approve> <task-id>",
-      "info",
-    );
-    return true;
-  }
-  const body: Record<string, string> = {
-    action,
-    id: taskId,
-    channel: store.currentChannel,
-  };
-  if (action === "claim") body.owner = "human";
-  if (extra) body.details = extra;
-  post("/tasks", body)
-    .then(() => showNotice(`Task ${taskId} → ${action}`, "success"))
-    .catch((e: Error) =>
-      showNotice(`Task action failed: ${e.message}`, "error"),
-    );
-  return true;
-}
-
-function handleCancelCommand(args: string, store: AppStore): boolean {
-  if (!args) {
-    showNotice("Usage: /cancel <task-id>", "info");
-    return true;
-  }
-  post("/tasks", {
-    action: "release",
-    id: args.trim(),
-    channel: store.currentChannel,
-  })
-    .then(() => showNotice(`Task ${args.trim()} cancelled`, "success"))
-    .catch(() => showNotice("Cancel failed", "error"));
   return true;
 }
 
@@ -334,7 +291,7 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
     confirm({
       title: "Reset the workspace?",
       message:
-        "Clears the live message view and drops in-memory state. Persisted tasks and requests stay in the workspace service.",
+        "Clears the live message view and drops in-memory state. Startup Office workflows and requests stay in the workspace service.",
       confirmLabel: "Reset",
       danger: true,
       onConfirm: () =>
@@ -364,12 +321,8 @@ const SLASH_COMMANDS: Record<string, SlashCommandHandler> = {
       .catch(() => showNotice(`Agent not found: ${args.trim()}`, "error"));
     return true;
   },
-  "/task": (args, store) => handleTaskCommand(args, store),
-  "/cancel": (args, store) => handleCancelCommand(args, store),
   "/hire-agent": (args, store, handlers) =>
     handleWorkflowCommand("/hire-agent", args, store, handlers),
-  "/assign-task": (args, store, handlers) =>
-    handleWorkflowCommand("/assign-task", args, store, handlers),
   "/daily-standup": (args, store, handlers) =>
     handleWorkflowCommand("/daily-standup", args, store, handlers),
   "/review-office": (args, store, handlers) =>

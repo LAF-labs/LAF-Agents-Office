@@ -1,7 +1,7 @@
 /**
  * Wiki API client — thin wrapper over the shared fetch helper in `client.ts`.
- * Uses the live broker by default. Legacy demo fixtures remain for non-project
- * preview paths, but canonical project memory paths never fall back to mock
+ * Uses the live broker by default. Demo fixtures remain for preview paths, but
+ * canonical company memory paths never fall back to mock
  * content because agents and humans rely on them as durable state.
  */
 
@@ -179,23 +179,23 @@ function candidatePaths(pathOrSlug: string): string[] {
   return [
     `team/people/${slug}`,
     `team/companies/${slug}`,
+    `team/company/${slug}`,
     `team/playbooks/${slug}`,
     `team/decisions/${slug}`,
-    `team/projects/${slug}`,
     `team/${slug}`,
   ];
 }
 
-function isExplicitProjectArticlePath(pathOrSlug: string): boolean {
+function isExplicitCompanyArticlePath(pathOrSlug: string): boolean {
   const trimmed = pathOrSlug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
   return (
-    trimmed.startsWith("projects/") || trimmed.startsWith("team/projects/")
+    trimmed.startsWith("company/") || trimmed.startsWith("team/company/")
   );
 }
 
 export async function fetchArticle(path: string): Promise<WikiArticle> {
   const tried: string[] = [];
-  const explicitProjectArticle = isExplicitProjectArticlePath(path);
+  const explicitCompanyArticle = isExplicitCompanyArticlePath(path);
   let lastError: unknown = null;
   for (const candidate of candidatePaths(path)) {
     tried.push(candidate);
@@ -205,12 +205,12 @@ export async function fetchArticle(path: string): Promise<WikiArticle> {
       );
     } catch (err) {
       lastError = err;
-      if (explicitProjectArticle) throw err;
+      if (explicitCompanyArticle) throw err;
       // Try next candidate. Real 404s and bare-slug misses look identical
       // from the client — fall through and mock at the end.
     }
   }
-  if (explicitProjectArticle && lastError) throw lastError;
+  if (explicitCompanyArticle && lastError) throw lastError;
   return mockArticle(tried[tried.length - 1] ?? path);
 }
 
@@ -399,7 +399,7 @@ export async function fetchHistory(
       `/wiki/history/${encodeURI(path)}`,
     );
   } catch (err) {
-    if (isExplicitProjectArticlePath(path)) throw err;
+    if (isExplicitCompanyArticlePath(path)) throw err;
     return {
       commits: mockArticle(path).contributors.map((slug, i) => ({
         sha: `mock${i}`,
@@ -468,22 +468,22 @@ export function subscribeEditLog(
 
 export const MOCK_CATALOG: WikiCatalogEntry[] = [
   {
-    path: "projects/agent-workspace",
-    title: "Agent Workspace",
+    path: "company/operating-memory",
+    title: "Company Operating Memory",
     author_slug: "architect",
     last_edited_ts: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    group: "projects",
+    group: "company",
   },
   {
-    path: "decisions/project-memory-contract",
-    title: "Project memory contract",
+    path: "decisions/company-memory-contract",
+    title: "Company memory contract",
     author_slug: "architect",
     last_edited_ts: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     group: "decisions",
   },
   {
-    path: "playbooks/repo-connected-task",
-    title: "Repo-connected task",
+    path: "playbooks/office-run-review",
+    title: "Office run review",
     author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
     group: "playbooks",
@@ -496,15 +496,15 @@ export const MOCK_CATALOG: WikiCatalogEntry[] = [
     group: "facts",
   },
   {
-    path: "projects/agent-workspace-log",
-    title: "Agent workspace log",
+    path: "company/operating-log",
+    title: "Operating log",
     author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 6 * 86400 * 1000).toISOString(),
-    group: "projects",
+    group: "company",
   },
   {
-    path: "playbooks/task-review",
-    title: "Task review",
+    path: "playbooks/human-approval-review",
+    title: "Human approval review",
     author_slug: "reviewer",
     last_edited_ts: new Date(Date.now() - 2 * 86400 * 1000).toISOString(),
     group: "playbooks",
@@ -517,8 +517,8 @@ export const MOCK_CATALOG: WikiCatalogEntry[] = [
     group: "decisions",
   },
   {
-    path: "inbox/raw-agent-task-review",
-    title: "raw — Agent task review",
+    path: "inbox/raw-agent-approval-review",
+    title: "raw - Agent approval review",
     author_slug: "builder",
     last_edited_ts: new Date(Date.now() - 14 * 86400 * 1000).toISOString(),
     group: "inbox",
@@ -527,28 +527,28 @@ export const MOCK_CATALOG: WikiCatalogEntry[] = [
 
 export function mockArticle(path: string): WikiArticle {
   if (
-    path === "projects/agent-workspace" ||
+    path === "company/operating-memory" ||
     path === "" ||
-    path === "agent-workspace" ||
-    path === "team/projects/agent-workspace.md"
+    path === "operating-memory" ||
+    path === "team/company/operating-memory.md"
   ) {
     return {
-      path: "projects/agent-workspace",
-      title: "Agent Workspace",
-      content: MOCK_PROJECT_MEMORY_MD,
+      path: "company/operating-memory",
+      title: "Company Operating Memory",
+      content: MOCK_COMPANY_MEMORY_MD,
       last_edited_by: "architect",
       last_edited_ts: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
       revisions: 12,
       contributors: ["architect", "builder", "reviewer"],
       backlinks: [
         {
-          path: "decisions/project-memory-contract",
-          title: "Project memory contract",
+          path: "decisions/company-memory-contract",
+          title: "Company memory contract",
           author_slug: "architect",
         },
         {
-          path: "playbooks/repo-connected-task",
-          title: "Repo-connected task",
+          path: "playbooks/office-run-review",
+          title: "Office run review",
           author_slug: "builder",
         },
         {
@@ -559,9 +559,9 @@ export function mockArticle(path: string): WikiArticle {
       ],
       word_count: 746,
       categories: [
-        "Project memory",
+        "Company memory",
         "Agent workflow",
-        "GitHub optional",
+        "Human approval",
         "Cloud office",
       ],
     };
@@ -582,51 +582,51 @@ export function mockArticle(path: string): WikiArticle {
   };
 }
 
-const MOCK_PROJECT_MEMORY_MD = `**Agent Workspace** is the project memory surface agents read before planning or changing work. It keeps the current objective, repo notes, delivery rules, and decisions in markdown so humans can review the same context.
+const MOCK_COMPANY_MEMORY_MD = `**Company Operating Memory** is the office memory surface agents read before planning or changing work. It keeps the company objective, operating rules, approval policy, and decisions in markdown so humans can review the same context.
 
 ## Current objective
 
-- Make project work the default surface after login.
+- Make Startup Office the default surface after login.
 - Keep durable context in the cloud team wiki.
-- Let GitHub stay optional until a project is ready for implementation.
-- Require delivery receipts before repo-connected coding tasks are marked done.
+- Keep execution inside the cloud office and avoid repo-first workflows.
+- Require approval evidence before high-impact office actions are completed.
 
 ## Agent rules
 
-- Read this project memory before work starts.
-- Use [[decisions/project-memory-contract|Project memory contract]] as the source of truth for task packets.
+- Read this company memory before office work starts.
+- Use [[decisions/company-memory-contract|Company memory contract]] as the source of truth for agent packets.
 - If the excerpt is missing needed detail, call \`team_wiki_read\` for the full article.
-- After work, append meaningful decisions, changed files, and delivery evidence.
+- After work, append meaningful decisions, artifacts, approvals, and evidence.
 
-## Repo connection
+## Office execution
 
-GitHub connection is optional. Before a repo is connected, agents can plan, document, split tasks, and update the wiki. After a repo is connected, implementation tasks need a branch or PR receipt before completion.
+Agents operate against the company workspace, skills, wiki, growth center, and approval inbox. External integrations are added only when they strengthen the controlled cloud office model.
 
 ## Open decisions
 
-- Should the project board make wiki freshness visible on every task?
-- Should delivery receipts require approval evidence before hosted PR automation exists?
-- Which project-level facts should be promoted into structured fields?
+- Which company facts should be promoted into structured fields?
+- Which office actions require founder approval before execution?
+- Which operating metrics should the growth center surface every day?
 
 ## Next steps
 
-Architect should keep the next implementation task specific enough that Builder can run it without re-discovering product intent.
+Architect should keep the next office run specific enough that Builder can execute it without re-discovering company intent.
 `;
 
 export const MOCK_EDIT_LOG: WikiEditLogEntry[] = [
   {
     who: "Architect",
     action: "edited",
-    article_path: "projects/agent-workspace",
-    article_title: "Agent Workspace",
+    article_path: "company/operating-memory",
+    article_title: "Company Operating Memory",
     timestamp: new Date().toISOString(),
     commit_sha: "9a0f113",
   },
   {
     who: "Architect",
     action: "updated",
-    article_path: "decisions/project-memory-contract",
-    article_title: "Project memory contract",
+    article_path: "decisions/company-memory-contract",
+    article_title: "Company memory contract",
     timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     commit_sha: "b1d5e22",
   },

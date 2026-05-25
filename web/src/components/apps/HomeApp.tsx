@@ -19,7 +19,6 @@ import {
   getAuthSession,
   getConfig,
   getHomeSessions,
-  getProjects,
   getSkills,
   getThreadMessages,
   type HomeChatSession,
@@ -27,7 +26,6 @@ import {
   type ModelMode,
   type OfficeMember,
   type OrchestrationIntent,
-  type Project,
   postMessage,
   routeOrchestrationIntent,
   type Skill,
@@ -50,7 +48,7 @@ const HOME_MESSAGE_REFETCH_MS =
 const HOME_STREAM_INITIAL_CHARS = 10;
 const HOME_STREAM_INTERVAL_MS = 18;
 
-type HomeAutocompleteType = "mention" | "project" | "skill";
+type HomeAutocompleteType = "mention" | "skill";
 
 interface HomeAutocompleteTrigger {
   type: HomeAutocompleteType;
@@ -217,7 +215,6 @@ function currentAutocompleteTrigger(
   const before = value.slice(0, caret);
   const triggers: Array<{ idx: number; type: HomeAutocompleteType }> = [
     { idx: before.lastIndexOf("@"), type: "mention" },
-    { idx: before.lastIndexOf("#"), type: "project" },
     { idx: before.lastIndexOf("/"), type: "skill" },
   ];
   const [trigger] = triggers.sort((a, b) => b.idx - a.idx);
@@ -252,43 +249,6 @@ function mentionOptions(
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
   return [...base, ...agents].slice(0, 8);
-}
-
-function projectTime(project: Project): number {
-  const parsed = Date.parse(project.updated_at || project.created_at || "");
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function sortProjectsByRecent(projects: Project[]): Project[] {
-  return [...projects].sort((a, b) => {
-    const byTime = projectTime(b) - projectTime(a);
-    if (byTime !== 0) return byTime;
-    return (a.name || a.id).localeCompare(b.name || b.id);
-  });
-}
-
-function projectHashtag(project: Project): string {
-  return `#${stableHomePart(project.id || project.name)}`;
-}
-
-function projectOptions(
-  query: string,
-  projects: Project[],
-): HomeAutocompleteItem[] {
-  const q = query.toLowerCase();
-  return sortProjectsByRecent(projects)
-    .filter((project) => {
-      if (!q) return true;
-      return [project.id, project.name, project.description]
-        .filter((value): value is string => Boolean(value))
-        .some((value) => value.toLowerCase().includes(q));
-    })
-    .map((project) => ({
-      insert: projectHashtag(project),
-      label: projectHashtag(project),
-      desc: project.name || project.id,
-    }))
-    .slice(0, 8);
 }
 
 function skillSummary(skill: Skill): string {
@@ -756,14 +716,12 @@ function HomeThinkingBubble({ agent }: { agent: string }) {
 function HomeComposer({
   agentMembers,
   leadSlug,
-  projects,
   skills,
   threadId,
   onAwaitingReply,
 }: {
   agentMembers: OfficeMember[];
   leadSlug: string;
-  projects: Project[];
   skills: Skill[];
   threadId: string;
   onAwaitingReply: (since: number | null) => void;
@@ -798,12 +756,10 @@ function HomeComposer({
     () =>
       trigger?.type === "mention"
         ? mentionOptions(trigger.query, agentMembers)
-        : trigger?.type === "project"
-          ? projectOptions(trigger.query, projects)
-          : trigger?.type === "skill"
+        : trigger?.type === "skill"
             ? skillOptions(trigger.query, skills)
             : [],
-    [trigger, agentMembers, projects, skills],
+    [trigger, agentMembers, skills],
   );
   const showAutocomplete =
     autocompleteItems.length > 0 || trigger?.type === "skill";
@@ -893,8 +849,9 @@ function HomeComposer({
     mutationFn: (intent: OrchestrationIntent) =>
       confirmOrchestrationIntent(intent),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      queryClient.invalidateQueries({ queryKey: ["office-tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["startup-office-summary"],
+      });
       queryClient.invalidateQueries({
         queryKey: ["home-messages", HOME_CHANNEL, threadId],
       });
@@ -1289,11 +1246,6 @@ export function HomeApp() {
     queryFn: getConfig,
     staleTime: 60_000,
   });
-  const { data: projectsData } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => getProjects(),
-    staleTime: 30_000,
-  });
   const { data: skillsData } = useQuery({
     queryKey: ["skills"],
     queryFn: () => getSkills(),
@@ -1457,7 +1409,6 @@ export function HomeApp() {
       <HomeComposer
         agentMembers={agentMembers}
         leadSlug={leadSlug}
-        projects={projectsData?.projects ?? []}
         skills={skillsData?.skills ?? []}
         threadId={homeThreadId ?? ""}
         onAwaitingReply={setAwaitingReplySince}
@@ -1471,8 +1422,6 @@ export const __test__ = {
   createHomeChatBaseThreadId,
   createHomeSessionThreadId,
   homeSessionRuntimeStore,
-  projectOptions,
   resetHomeSessionMemory,
-  sortProjectsByRecent,
   visibleTargets,
 };

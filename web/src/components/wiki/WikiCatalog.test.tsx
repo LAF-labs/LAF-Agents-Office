@@ -33,10 +33,10 @@ describe("<WikiCatalog>", () => {
   it("renders thematic groups with article counts", () => {
     render(<WikiCatalog catalog={CATALOG} onNavigate={() => {}} />);
     expect(
-      screen.getByRole("heading", { name: "Project memory" }),
+      screen.getByRole("heading", { name: "Company memory" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/project goals, decisions, task history/i),
+      screen.getByText(/company goals, decisions, approval history/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/git clone/)).not.toBeInTheDocument();
     expect(screen.getByText("people")).toBeInTheDocument();

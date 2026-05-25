@@ -16,7 +16,7 @@ describe("<PromotedBackCallout>", () => {
     render(<PromotedBackCallout link={LINK} />);
     expect(screen.getByText("onboarding gotchas")).toBeInTheDocument();
     expect(
-      screen.getByText(/Project memory · playbooks\/customer-onboarding/),
+      screen.getByText(/Company memory · playbooks\/customer-onboarding/),
     ).toBeInTheDocument();
     expect(screen.getByText(/by CEO/)).toBeInTheDocument();
   });
@@ -26,7 +26,7 @@ describe("<PromotedBackCallout>", () => {
     render(<PromotedBackCallout link={LINK} onNavigate={onNavigate} />);
     await userEvent
       .setup()
-      .click(screen.getByText(/Project memory · playbooks/));
+      .click(screen.getByText(/Company memory · playbooks/));
     expect(onNavigate).toHaveBeenCalledWith("playbooks/customer-onboarding");
   });
 

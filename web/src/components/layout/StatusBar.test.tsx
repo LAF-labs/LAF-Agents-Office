@@ -29,7 +29,7 @@ describe("StatusBar", () => {
     useAppStore.setState({
       brokerConnected: false,
       channelMeta: {},
-      currentApp: "tasks",
+      currentApp: "growth",
       currentChannel: "general",
       language: "ko",
     });
@@ -38,7 +38,7 @@ describe("StatusBar", () => {
   it("shows the localized app name instead of the internal route id", () => {
     renderStatusBar();
 
-    expect(screen.getByText("프로젝트")).toBeInTheDocument();
+    expect(screen.getByText("스타트업 오피스")).toBeInTheDocument();
     expect(screen.queryByText("tasks")).not.toBeInTheDocument();
   });
 

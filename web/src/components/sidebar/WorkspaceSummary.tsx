@@ -13,7 +13,7 @@ function formatTokens(n: number): string {
 
 /**
  * Small status line at the bottom of the sidebar. The primary product now
- * orients around cloud runs and approvals instead of project tasks.
+ * orients around cloud runs and approvals.
  */
 export function WorkspaceSummary() {
   const { data: members = [] } = useOfficeMembers();

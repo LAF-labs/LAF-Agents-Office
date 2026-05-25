@@ -7,9 +7,7 @@ const baseState = {
   currentChannel: "general",
   notebookAgentSlug: null,
   notebookEntrySlug: null,
-  projectFocusId: null,
   skillsSection: "dashboard" as const,
-  taskFocusId: null,
   wikiLookupQuery: null,
   wikiPath: null,
 };
@@ -20,37 +18,6 @@ describe("useHashRouter workspace routes", () => {
     expect(__test__.parseHash("#/home")).toEqual({
       view: "app",
       app: "home",
-    });
-  });
-
-  it("redirects retired project-first route aliases to Startup Office", () => {
-    expect(__test__.parseHash("#/projects")).toEqual({
-      view: "app",
-      app: "growth",
-    });
-    expect(__test__.parseHash("#/projects/customer-portal")).toEqual({
-      view: "app",
-      app: "growth",
-    });
-    expect(
-      __test__.parseHash("#/projects/customer-portal/tickets/task-36"),
-    ).toEqual({
-      view: "app",
-      app: "growth",
-    });
-    expect(
-      __test__.parseHash("#/projects/customer-portal/tasks/task-36"),
-    ).toEqual({
-      view: "app",
-      app: "growth",
-    });
-    expect(__test__.parseHash("#/apps/projects")).toEqual({
-      view: "app",
-      app: "growth",
-    });
-    expect(__test__.parseHash("#/apps/tasks")).toEqual({
-      view: "app",
-      app: "growth",
     });
   });
 
@@ -71,15 +38,6 @@ describe("useHashRouter workspace routes", () => {
       view: "app",
       app: "skills",
     });
-  });
-
-  it("canonicalizes retired tasks app state to Startup Office", () => {
-    expect(
-      __test__.stateToHash({
-        ...baseState,
-        currentApp: "tasks",
-      }),
-    ).toBe("#/growth");
   });
 
   it("canonicalizes the home app to the home route", () => {
@@ -113,24 +71,4 @@ describe("useHashRouter workspace routes", () => {
     ).toBe("#/skills");
   });
 
-  it("does not preserve retired project focus in URLs", () => {
-    expect(
-      __test__.stateToHash({
-        ...baseState,
-        currentApp: "tasks",
-        projectFocusId: "customer-portal",
-      }),
-    ).toBe("#/growth");
-  });
-
-  it("does not preserve retired task focus in URLs", () => {
-    expect(
-      __test__.stateToHash({
-        ...baseState,
-        currentApp: "tasks",
-        projectFocusId: "customer-portal",
-        taskFocusId: "task-36",
-      }),
-    ).toBe("#/growth");
-  });
 });

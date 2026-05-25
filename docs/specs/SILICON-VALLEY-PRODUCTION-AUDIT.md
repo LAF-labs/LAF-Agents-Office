@@ -630,10 +630,19 @@ and missing typed contracts.
   row-locking internal RPC so concurrent reactions do not overwrite each other.
   The release gate now blocks this route from drifting back to `{ ok: true }`.
 - R2/R8 now removes the remaining user-facing Tasks/Projects app entrypoint
-  from the workspace shell. `#/projects`, `#/apps/projects`, and `#/apps/tasks`
-  route to Startup Office, `TasksApp` is no longer lazy-loaded or preloaded, and
-  the surface gate blocks the legacy project/task app from returning to primary
+  from the workspace shell. Retired project/task hash routes are no longer
+  special-cased, `TasksApp` is no longer lazy-loaded or preloaded, and the
+  surface gate blocks the legacy project/task app from returning to primary
   navigation.
+- R2/R5/R8 now fully removes the legacy project/task workspace model instead
+  of leaving compatibility handlers behind. The hosted `/projects`, `/tasks`,
+  and `/projects/repo-readiness` routes now fall through as missing routes,
+  `TasksApp`, `TaskDetailModal`, project/task client helpers, Home project
+  hashtags, and task command entrypoints are gone, and migration
+  `20260525160000_retire_project_task_workspace.sql` removes `projects`,
+  `tasks`, `delivery_receipts`, plus project/task foreign-key columns from
+  `channel_messages`, `wiki_article_index`, and `wiki_write_requests`. The
+  linked Supabase project has that migration applied.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

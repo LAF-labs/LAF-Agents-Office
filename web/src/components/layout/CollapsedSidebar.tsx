@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   BookStack,
-  CheckCircle,
   Flash,
   HomeSimple,
   Package,
@@ -38,7 +37,6 @@ const APP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   growth: Activity,
   studio: Play,
   wiki: BookStack,
-  tasks: CheckCircle,
   skills: Flash,
   activity: Package,
   receipts: Page,

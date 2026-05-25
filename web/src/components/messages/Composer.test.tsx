@@ -104,7 +104,7 @@ describe("askPrefix", () => {
 describe("hosted slash command boundary", () => {
   it("matches available slash commands case-insensitively", () => {
     expect(
-      slashCommandIsAvailable("/ASK", [{ name: "/ask" }, { name: "/tasks" }]),
+      slashCommandIsAvailable("/ASK", [{ name: "/ask" }, { name: "/growth" }]),
     ).toBe(true);
     expect(slashCommandIsAvailable("/focus", [{ name: "/ask" }])).toBe(false);
   });
@@ -115,7 +115,7 @@ describe("hosted slash command boundary", () => {
 
     sendComposerDraft({
       agentSlugs: ["ceo"],
-      availableCommands: [{ name: "/ask" }, { name: "/tasks" }],
+      availableCommands: [{ name: "/ask" }, { name: "/growth" }],
       currentChannel: "general",
       leadSlug: "ceo",
       mentionSlugs: ["ceo"],

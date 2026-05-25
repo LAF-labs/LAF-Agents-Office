@@ -62,8 +62,7 @@ function createStartupOfficeWorkspaceConfigHandlers(deps) {
     const settings = await workspaceSettings(membership.team_id);
     const fallbackOnboarded = settings
       ? false
-      : (await workspaceHasStartupOfficeState(membership.team_id))
-        || (await workspaceHasAnyProject(membership.team_id));
+      : await workspaceHasStartupOfficeState(membership.team_id);
     writeJSON(res, 200, {
       onboarded: Boolean(settings?.onboarding_completed_at) || fallbackOnboarded,
       onboarding_completed_at: settings?.onboarding_completed_at || null,
@@ -252,17 +251,6 @@ function createStartupOfficeWorkspaceConfigHandlers(deps) {
       workspace_id: team?.id || "",
       workspace_slug: team?.slug || "",
     };
-  }
-
-  async function workspaceHasAnyProject(teamID) {
-    const rows = await rest("projects", {
-      query: {
-        limit: "1",
-        select: "id",
-        team_id: `eq.${teamID}`,
-      },
-    }).catch(() => []);
-    return Boolean(rows?.length);
   }
 
   async function workspaceHasStartupOfficeState(teamID) {
