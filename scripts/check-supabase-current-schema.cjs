@@ -188,6 +188,29 @@ for (const rule of manifest.idempotencyKeys || []) {
   }
 }
 
+for (const rule of manifest.appendOnlyTables || []) {
+  if (!state.tables.has(rule.table)) {
+    fail(`append-only table is not active: ${rule.table}`);
+  }
+  const functionPattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${rule.function}\\b`,
+    "i",
+  );
+  if (!functionPattern.test(migrationText)) {
+    fail(`${rule.table} append-only function is missing: ${rule.function}`);
+  }
+  const triggerPattern = new RegExp(
+    `create\\s+trigger\\s+${rule.trigger}[\\s\\S]+?before\\s+update\\s+or\\s+delete\\s+on\\s+public\\.${rule.table}[\\s\\S]+?execute\\s+function\\s+public\\.${rule.function}\\(\\)`,
+    "i",
+  );
+  if (!triggerPattern.test(migrationText)) {
+    fail(`${rule.table} append-only trigger is missing: ${rule.trigger}`);
+  }
+  if (!migrationText.includes(`current_setting('${rule.deleteBypassSetting}', true)`)) {
+    fail(`${rule.table} append-only delete bypass setting is missing`);
+  }
+}
+
 for (const fn of retired.functions || []) {
   const createPattern = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\b`, "i");
   if (createPattern.test(migrationText)) fail(`retired runtime function is created: ${fn}`);

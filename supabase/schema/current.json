@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525050000",
+  "latestMigration": "20260525060000",
   "pureCloudRuntimeGuardMigration": "20260525040000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -223,6 +223,14 @@
       "table": "startup_office_approvals",
       "column": "idempotency_key",
       "index": "idx_startup_office_approvals_idempotency_key"
+    }
+  ],
+  "appendOnlyTables": [
+    {
+      "table": "startup_office_receipts",
+      "trigger": "trg_startup_office_receipts_append_only",
+      "function": "prevent_startup_office_receipt_mutation",
+      "deleteBypassSetting": "app.allow_receipt_delete"
     }
   ],
   "retiredRuntime": {
