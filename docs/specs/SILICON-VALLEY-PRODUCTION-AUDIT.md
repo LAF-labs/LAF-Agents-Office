@@ -63,7 +63,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
 | SV-I023 | API | Hosted API errors now return a typed envelope with code, message, retryable, status, and optional request ID, while the web client unwraps legacy and typed shapes. | `startup-office:error-envelope` |
 | SV-I024 | API | Core run creation, run retry/cancel, approval decisions, and worker artifact/approval paths now carry idempotency keys, but lower-risk object CRUD still needs the same contract. | run lifecycle routes |
-| SV-I025 | API | Pagination is inconsistent across business objects and messages. | `limit` handling |
+| SV-I025 | API | Approvals, receipts, and operating object lists now expose cursor pagination; older hosted message/search surfaces still need the same contract. | `startup-office:pagination` |
 | SV-I026 | API | Operating-object filtering and sorting now use a central contract with whitelisted fields and release-gate coverage; wider generated API schemas remain future hardening. | `startup-office:object-query-contracts` |
 | SV-I027 | API | Export bundles now declare a row cap and possibly truncated collections, but very large workspaces still need streamed or async export. | `startup-office:export-coverage` |
 | SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
@@ -193,7 +193,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I152 | Performance | Large summary endpoints may overfetch as workspace data grows. | growth summary |
 | SV-I153 | Performance | Client bundles still include multiple large app surfaces. | web build output |
 | SV-I154 | Performance | Search and memory retrieval are not optimized for Startup Office loops. | context builder |
-| SV-I155 | Performance | Receipts and operating object lists now expose cursor pagination; the full export bundle remains capped and should move to streamed/chunked export for large workspaces. | `startup-office:pagination`, export endpoint |
+| SV-I155 | Performance | Approvals, receipts, and operating object lists now expose cursor pagination; the full export bundle remains capped and should move to streamed/chunked export for large workspaces. | `startup-office:pagination`, export endpoint |
 | SV-I156 | Performance | Worker concurrency and queue backpressure are not modeled. | worker jobs |
 | SV-I157 | Performance | Repeated polling/refetch patterns are not audited for scale. | React Query usage |
 | SV-I158 | Performance | Database indexes are present but not proven against realistic data volumes. | migrations |
@@ -736,11 +736,12 @@ the final release commit or when a shared invariant changes.
   Startup Office customers through `POST /startup-office/customers/csv`; the
   import path enforces workspace storage limits, rate limits, and audit events
   under `startup-office:customer-csv`.
-- R8 now adds Startup Office list pagination. Receipts and operating object
-  lists accept ISO cursors, fetch one extra row, return `has_more` and
+- R8 now adds Startup Office list pagination. Approvals, receipts, and operating
+  object lists accept ISO cursors, fetch one extra row, return `has_more` and
   `next_cursor`, reject malformed cursors, and keep existing arrays stable for
-  older clients; `npm run startup-office:pagination` covers the helper,
-  handlers, web contract, and release gate.
+  older clients; approvals paginate on `requested_at`, while receipts and
+  objects paginate on `created_at`; `npm run startup-office:pagination` covers
+  the helper, handlers, web contract, and release gate.
 - R2/R8 now centralizes operating-object filtering and sorting. Assets,
   customers, metrics, and signals share `objectQueries.js` for allowed filters,
   aliases, and sort fields; unsupported sorts fail with typed 400s, and

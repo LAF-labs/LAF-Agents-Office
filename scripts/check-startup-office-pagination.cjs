@@ -42,8 +42,12 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/startup-office/queryHandlers.js",
-    ["startupOfficePageRequest", "startupOfficePageResult", "pagination"],
-    "receipts pagination handler",
+    [
+      "startupOfficePageRequest",
+      'startupOfficePageResult(rows, page, "requested_at")',
+      "pagination",
+    ],
+    "query pagination handlers",
   ],
   [
     "api/lib/startup-office/objectHandlers.js",
@@ -77,7 +81,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "docs/specs/SILICON-VALLEY-PRODUCTION-AUDIT.md",
-    ["startup-office:pagination", "Receipts and operating object lists now expose cursor pagination"],
+    ["startup-office:pagination", "Approvals, receipts, and operating object lists now expose cursor pagination"],
     "production audit pagination evidence",
   ],
 ]) {

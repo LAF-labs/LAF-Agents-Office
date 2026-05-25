@@ -130,11 +130,16 @@ function createStartupOfficeQueryHandlers(deps) {
     const { membership } = await requireUser(req);
     if (req.method !== "GET") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "workspace:read");
+    const page = startupOfficePageRequest(req.query, { createHTTPError });
+    const rows = await startupOfficeApprovals(membership.team_id, {
+      cursor: page.cursor,
+      limit: page.request_limit,
+      status: req.query?.status,
+    });
+    const { items, pagination } = startupOfficePageResult(rows, page, "requested_at");
     writeJSON(res, 200, {
-      approvals: await startupOfficeApprovals(membership.team_id, {
-        status: req.query?.status,
-        limit: Number(req.query?.limit) || 100,
-      }),
+      approvals: items,
+      pagination,
     });
   }
 

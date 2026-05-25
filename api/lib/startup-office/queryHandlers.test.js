@@ -192,8 +192,15 @@ test("approvals and receipts handlers preserve query limits", async () => {
   await handlers.receipts({ method: "GET", query: { limit: "3" } }, {});
 
   assert.deepEqual(deps.calls.writes[0].body.approvals[0].options, {
-    limit: 7,
+    cursor: "",
+    limit: 8,
     status: "pending",
+  });
+  assert.deepEqual(deps.calls.writes[0].body.pagination, {
+    cursor: null,
+    has_more: false,
+    limit: 7,
+    next_cursor: null,
   });
   assert.deepEqual(deps.calls.writes[1].body.receipts[0].options, {
     cursor: "",
@@ -205,6 +212,54 @@ test("approvals and receipts handlers preserve query limits", async () => {
     limit: 3,
     next_cursor: null,
   });
+});
+
+test("approvals handler returns cursor pagination metadata", async () => {
+  let approvalOptions = null;
+  const deps = baseDeps({
+    async startupOfficeApprovals(_teamID, options) {
+      approvalOptions = options;
+      return [
+        { id: "approval-3", requested_at: "2026-05-25T03:00:00.000Z" },
+        { id: "approval-2", requested_at: "2026-05-25T02:00:00.000Z" },
+        { id: "approval-1", requested_at: "2026-05-25T01:00:00.000Z" },
+      ];
+    },
+  });
+  const handlers = createStartupOfficeQueryHandlers(deps);
+
+  await handlers.approvals(
+    {
+      method: "GET",
+      query: { cursor: "2026-05-25T04:00:00Z", limit: "2", status: "pending" },
+    },
+    {},
+  );
+
+  assert.deepEqual(approvalOptions, {
+    cursor: "2026-05-25T04:00:00Z",
+    limit: 3,
+    status: "pending",
+  });
+  assert.deepEqual(
+    deps.calls.writes[0].body.approvals.map((approval) => approval.id),
+    ["approval-3", "approval-2"],
+  );
+  assert.deepEqual(deps.calls.writes[0].body.pagination, {
+    cursor: "2026-05-25T04:00:00Z",
+    has_more: true,
+    limit: 2,
+    next_cursor: "2026-05-25T02:00:00.000Z",
+  });
+});
+
+test("approvals handler rejects malformed cursors", async () => {
+  const handlers = createStartupOfficeQueryHandlers(baseDeps());
+
+  await assert.rejects(
+    () => handlers.approvals({ method: "GET", query: { cursor: "bad" } }, {}),
+    (err) => err.status === 400 && err.message === "cursor must be an ISO timestamp",
+  );
 });
 
 test("receipts handler returns cursor pagination metadata", async () => {
