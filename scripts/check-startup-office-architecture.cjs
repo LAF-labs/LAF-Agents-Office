@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2045);
+assertMaxLines("api/[...path].js", 2000);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -53,6 +53,7 @@ assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
 assertMaxLines("api/lib/hosted/redaction.js", 40);
 assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
+assertMaxLines("api/lib/hosted/requestIO.js", 100);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
 assertMaxLines("api/lib/hosted/securityHeaders.js", 55);
@@ -224,6 +225,11 @@ for (const [pattern, label] of [
   [/function applyBaselineSecurityHeaders\b/, "hosted baseline security headers"],
   [/function applyCORSHeaders\b/, "hosted CORS headers"],
   [/function trustedBrowserOrigin\b/, "hosted trusted browser origin helper"],
+  [/function requestPath\b/, "hosted request path helper"],
+  [/async function readBody\b/, "hosted request body reader"],
+  [/function writeJSON\b/, "hosted JSON response writer"],
+  [/function jsonByteSize\b/, "hosted JSON byte-size helper"],
+  [/function assertJSONByteSize\b/, "hosted JSON byte-size assertion"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

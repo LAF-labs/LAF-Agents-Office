@@ -74,6 +74,9 @@ const {
   createHostedRequestHandlers,
 } = require("./lib/hosted/requestHandlers");
 const {
+  createHostedRequestIO,
+} = require("./lib/hosted/requestIO");
+const {
   redactSensitiveValue,
 } = require("./lib/hosted/redaction");
 const {
@@ -229,6 +232,17 @@ const HOSTED_SECURITY_HEADERS = createHostedSecurityHeaders({
     process.env.LAF_OFFICE_ALLOWED_ORIGINS || "",
   ),
 });
+const HOSTED_REQUEST_IO = createHostedRequestIO({
+  createHTTPError: startupOfficeHTTPError,
+  maxRequestBodyBytes: MAX_REQUEST_BODY_BYTES,
+});
+const {
+  assertJSONByteSize,
+  jsonByteSize,
+  readBody,
+  requestPath,
+  writeJSON,
+} = HOSTED_REQUEST_IO;
 const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
@@ -961,65 +975,6 @@ function assertSupabaseEnv() {
       503,
       "supabase environment is not configured",
     );
-  }
-}
-
-function requestPath(req) {
-  const raw = req.query?.path;
-  if (Array.isArray(raw)) return raw.join("/");
-  return String(raw || "").replace(/^\/+|\/+$/g, "");
-}
-
-async function readBody(req) {
-  const contentLength = Number(req.headers?.["content-length"] || 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
-    throw new HTTPError(413, "request body exceeds 524288 bytes");
-  }
-  if (req.body && typeof req.body === "object") {
-    assertJSONByteSize(req.body, MAX_REQUEST_BODY_BYTES, "request body");
-    return req.body;
-  }
-  if (typeof req.body === "string" && req.body.trim()) {
-    if (Buffer.byteLength(req.body, "utf8") > MAX_REQUEST_BODY_BYTES) {
-      throw new HTTPError(413, "request body exceeds 524288 bytes");
-    }
-    try {
-      return JSON.parse(req.body);
-    } catch {
-      throw new HTTPError(400, "invalid json body");
-    }
-  }
-  const chunks = [];
-  let totalBytes = 0;
-  for await (const chunk of req) {
-    totalBytes += Buffer.byteLength(chunk);
-    if (totalBytes > MAX_REQUEST_BODY_BYTES) {
-      throw new HTTPError(413, "request body exceeds 524288 bytes");
-    }
-    chunks.push(chunk);
-  }
-  const text = Buffer.concat(chunks).toString("utf8").trim();
-  if (!text) return {};
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new HTTPError(400, "invalid json body");
-  }
-}
-
-function writeJSON(res, status, payload) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(payload));
-}
-
-function jsonByteSize(value) {
-  return Buffer.byteLength(JSON.stringify(value ?? null), "utf8");
-}
-
-function assertJSONByteSize(value, maxBytes, label) {
-  if (jsonByteSize(value) > maxBytes) {
-    throw new HTTPError(413, `${label} exceeds ${maxBytes} bytes`);
   }
 }
 

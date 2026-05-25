@@ -7,7 +7,7 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Evidence Baseline
 
-- `api/[...path].js` is still a 2,033-line hosted API facade after the cloud pivot.
+- `api/[...path].js` is still a 1,988-line hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema, and live PostgREST
@@ -617,6 +617,12 @@ the final release commit or when a shared invariant changes.
   release gate runs `api/lib/hosted/securityHeaders.test.js`, and
   `npm run startup-office:architecture` prevents baseline security header,
   CORS, and trusted browser-origin logic from drifting back into
+  `api/[...path].js`.
+- R2 now extracts hosted request parsing and JSON response IO into
+  `api/lib/hosted/requestIO.js`. The facade is down to 1,988 lines, the release
+  gate runs `api/lib/hosted/requestIO.test.js`, and
+  `npm run startup-office:architecture` prevents request path, body parsing,
+  JSON byte-size, and response writer helpers from drifting back into
   `api/[...path].js`.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
