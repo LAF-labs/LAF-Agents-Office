@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2115);
+assertMaxLines("api/[...path].js", 2085);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -59,6 +59,7 @@ assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/skillHandlers.js", 230);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/hosted/urlTrust.js", 215);
+assertMaxLines("api/lib/hosted/userPresentation.js", 55);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
 assertMaxLines("api/lib/startup-office/activationAnalytics.js", 180);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
@@ -213,6 +214,10 @@ for (const [pattern, label] of [
   [/function isPrivateHostedHostname\b/, "hosted private host classifier"],
   [/function redactSensitiveText\b/, "hosted redaction text helper"],
   [/function redactSensitiveValue\b/, "hosted redaction value helper"],
+  [/const DEFAULT_PROFILE_AVATAR_ID\b/, "hosted user default avatar constant"],
+  [/const PROFILE_AVATAR_IDS\b/, "hosted user avatar catalog"],
+  [/function publicUser\b/, "hosted user serializer"],
+  [/function normalizeProfileAvatarID\b/, "hosted user avatar normalizer"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
