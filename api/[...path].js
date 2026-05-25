@@ -113,6 +113,9 @@ const {
   publicTeam,
 } = require("./lib/hosted/teamPresentation");
 const {
+  createHostedUserContext,
+} = require("./lib/hosted/userContext");
+const {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
   createHostedPermissionGuards,
@@ -273,6 +276,17 @@ const {
   clearAuthCookies,
   setAuthCookies,
 } = HOSTED_SESSION_COOKIES;
+const HOSTED_USER_CONTEXT = createHostedUserContext({
+  authFetch,
+  authToken,
+  createHTTPError: startupOfficeHTTPError,
+  rest,
+});
+const {
+  activeMembership,
+  getTeam,
+  requireUser,
+} = HOSTED_USER_CONTEXT;
 const HOSTED_REQUEST_IO = createHostedRequestIO({
   createHTTPError: startupOfficeHTTPError,
   maxRequestBodyBytes: MAX_REQUEST_BODY_BYTES,
@@ -1039,36 +1053,6 @@ function inviteEmailProviderFromEnv() {
     });
   }
   throw new HTTPError(503, `unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
-}
-
-async function requireUser(req) {
-  if (req.__lafOfficeUserContext) return req.__lafOfficeUserContext;
-  const token = authToken(req);
-  if (!token) throw new HTTPError(401, "authentication required");
-  const user = await authFetch("user", { headers: { Authorization: `Bearer ${token}` } });
-  const membership = await activeMembership(user.id);
-  if (!membership) throw new HTTPError(403, "active team membership required");
-  const team = await getTeam(membership.team_id);
-  return (req.__lafOfficeUserContext = { membership, team, token, user });
-}
-
-async function activeMembership(userID) {
-  const rows = await rest("memberships", {
-    query: {
-      user_id: `eq.${userID}`,
-      status: "eq.active",
-      select: "*",
-      limit: "1",
-    },
-  });
-  return rows?.[0] || null;
-}
-
-async function getTeam(teamID) {
-  const rows = await rest("teams", {
-    query: { id: `eq.${teamID}`, select: "*", limit: "1" },
-  });
-  return rows?.[0] || null;
 }
 
 async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}, options = {}) {

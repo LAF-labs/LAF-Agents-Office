@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1770);
+assertMaxLines("api/[...path].js", 1750);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -65,6 +65,7 @@ assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/hosted/supabaseAccess.js", 160);
 assertMaxLines("api/lib/hosted/teamPresentation.js", 25);
 assertMaxLines("api/lib/hosted/urlTrust.js", 215);
+assertMaxLines("api/lib/hosted/userContext.js", 65);
 assertMaxLines("api/lib/hosted/userPresentation.js", 55);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
 assertMaxLines("api/lib/hosted/valueUtils.js", 80);
@@ -265,6 +266,9 @@ for (const [pattern, label] of [
   [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],
   [/async function claimHostedRateLimit\b/, "hosted persistent rate-limit claim helper"],
   [/const rateLimitBuckets\b/, "hosted in-memory rate-limit state"],
+  [/async function requireUser\b/, "hosted auth user context resolver"],
+  [/async function activeMembership\b/, "hosted active membership resolver"],
+  [/async function getTeam\b/, "hosted team resolver"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
