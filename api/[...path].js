@@ -18,6 +18,9 @@ const {
   createHostedMemberHandlers,
 } = require("./lib/hosted/memberHandlers");
 const {
+  createHostedMemoryHandlers,
+} = require("./lib/hosted/memoryHandlers");
+const {
   createHostedModelAccess,
   normalizeModelMode,
 } = require("./lib/hosted/modelAccess");
@@ -261,6 +264,20 @@ const HOSTED_ROSTER_HANDLERS = createHostedRosterHandlers({
   shortID,
   slugify,
   truncateText,
+  writeJSON,
+});
+
+const HOSTED_MEMORY_HANDLERS = createHostedMemoryHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  objectValue,
+  readBody,
+  requirePermission,
+  requireUser,
+  shortID,
+  slugify,
+  startupOfficeRepository,
+  truncateText,
+  writeAuditEvent,
   writeJSON,
 });
 
@@ -626,7 +643,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "memory") {
-      await handleHostedMemory(req, res);
+      await HOSTED_MEMORY_HANDLERS.memory(req, res);
       return;
     }
     if (path === "projects/repo-readiness" && req.method === "GET") {
@@ -1562,19 +1579,6 @@ async function handleHostedMessages(req, res) {
 
 async function handleHostedHomeSessions(req, res) {
   return HOSTED_CONVERSATION_HANDLERS.homeSessions(req, res);
-}
-
-async function handleHostedMemory(req, res) {
-  await requireUser(req);
-  if (req.method === "GET") {
-    writeJSON(res, 200, { memory: {}, namespaces: [] });
-    return;
-  }
-  if (req.method === "POST") {
-    writeJSON(res, 200, { ok: true });
-    return;
-  }
-  throw new HTTPError(405, "method not allowed");
 }
 
 async function handleHostedProjectRepoReadiness(req, res) {

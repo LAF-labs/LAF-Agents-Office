@@ -103,6 +103,16 @@ for (const [relativePath, snippet, label] of [
     "workspace onboarding completion",
   ],
   [
+    "api/lib/hosted/memoryHandlers.js",
+    '"memory.note_saved"',
+    "hosted memory write",
+  ],
+  [
+    "api/lib/hosted/memoryHandlers.test.js",
+    '"memory.note_saved"',
+    "hosted memory behavior test",
+  ],
+  [
     "api/lib/startup-office/workspaceConfigHandlers.test.js",
     '"workspace_config.updated"',
     "workspace config behavior test",

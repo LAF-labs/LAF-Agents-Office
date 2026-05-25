@@ -39,6 +39,7 @@ assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
 assertMaxLines("api/lib/hosted/conversationHandlers.js", 290);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
+assertMaxLines("api/lib/hosted/memoryHandlers.js", 100);
 assertMaxLines("api/lib/hosted/modelAccess.js", 90);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
@@ -140,6 +141,8 @@ for (const [pattern, label] of [
   [/async function handleHostedChannelMembers\b/, "hosted channel member handler"],
   [/function hostedOfficeMembers\b/, "hosted office members serializer"],
   [/function hostedOfficeMember\b/, "hosted office member serializer"],
+  [/async function handleHostedMemory\b/, "hosted memory handler"],
+  [/memory\.note_saved/, "hosted memory audit action"],
   [/function hostedChannel\b/, "hosted conversation channel serializer"],
   [/function normalizeStringList\b/, "hosted conversation string-list normalizer"],
   [/async function listHostedChannelMessages\b/, "hosted conversation message list helper"],

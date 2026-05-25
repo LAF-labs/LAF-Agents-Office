@@ -596,3 +596,8 @@ and missing typed contracts.
   member listing/creation, generated member templates, and channel member
   payloads are covered by dedicated tests and guarded against drifting back into
   the hosted API facade.
+- R5/R6 now replaces the hosted `/memory` stub with a Startup Office memory
+  adapter in `api/lib/hosted/memoryHandlers.js`. Human `/remember` notes now
+  upsert approved `startup_office_memory_pages`, reads return namespace maps plus
+  memory pages, writes require `memory:write_draft`, and `memory.note_saved`
+  audit coverage is checked by the release gate.
