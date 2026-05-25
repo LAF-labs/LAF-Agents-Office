@@ -1,0 +1,50 @@
+{
+  "version": "startup-office-environment-boundaries.v1",
+  "description": "Classifies fake providers, demo seed data, mock fixtures, and live checks by environment so production cloud releases cannot silently use local/test paths.",
+  "provider_policy": {
+    "production": {
+      "allowed": ["openai"],
+      "blocked": ["fake", "disabled"],
+      "guarded_by": [
+        "scripts/hosted-env-preflight.cjs",
+        "scripts/startup-office-live-model-smoke.cjs"
+      ]
+    },
+    "local_and_test": {
+      "allowed": ["fake", "disabled"],
+      "covered_by": [
+        "workers/startup-office/modelClient.test.js",
+        "scripts/hosted-env-preflight.test.cjs",
+        "scripts/startup-office-live-model-smoke.test.cjs"
+      ]
+    }
+  },
+  "demo_seed": {
+    "policy": "blocked in NODE_ENV=production unless LAF_OFFICE_ENABLE_DEMO_SEED is truthy",
+    "paths": [
+      "api/lib/startup-office/demoSeed.js",
+      "api/lib/startup-office/demoSeedHandlers.js",
+      "api/lib/startup-office/demoSeedHandlers.test.js"
+    ]
+  },
+  "mock_fixtures": {
+    "policy": "UI fixtures are opt-in preview/test inputs and must not replace canonical company memory paths.",
+    "paths": [
+      "web/src/api/__fixtures__/notebook-mock.ts",
+      "web/tests/fixtures/wikilinks.json"
+    ]
+  },
+  "live_checks": {
+    "policy": "Live model and hosted preflight checks require explicit production-compatible provider configuration.",
+    "paths": [
+      "scripts/startup-office-live-model-smoke.cjs",
+      "scripts/check-startup-office-live-model-smoke.cjs",
+      "scripts/hosted-env-preflight.cjs"
+    ]
+  },
+  "release_checks": [
+    "startup-office:environment-boundaries",
+    "startup-office:live-model-smoke-check",
+    "hosted-env:preflight:test"
+  ]
+}

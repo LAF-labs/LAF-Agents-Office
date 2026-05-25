@@ -247,7 +247,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I180 | Reliability | Deterministic core-loop failure injection now covers model outage, artifact write failure, and approval write failure so the loop fails closed with run/worker failure state and receipts instead of silently marking success. | `startup-office:loop-chaos` |
 | SV-I181 | Developer experience | The repository contains two eras of product architecture, increasing onboarding cost. | internal/team and Startup Office |
 | SV-I182 | Developer experience | Tests and docs sometimes contradict current completed state. | 100 goals vs scorecard |
-| SV-I183 | Developer experience | API fixtures, fake providers, and demo seeds are not clearly separated by environment. | tests and demo seed |
+| SV-I183 | Developer experience | API fixtures, fake providers, demo seeds, UI mock fixtures, and live checks now have an environment boundary manifest and release-gate check; deeper runtime demo-table separation remains future hardening. | `shared/startup-office-environment-boundaries.json`, `scripts/check-startup-office-environment-boundaries.cjs` |
 | SV-I184 | Developer experience | Generated artifacts now have a tracked manifest and release-gate drift check for workspace permission types and avatar sprite catalogs; broader API schema generation remains future hardening. | `startup-office:generated-artifacts`, `shared/generated-artifacts.json` |
 | SV-I185 | Developer experience | `beta:release-gate` is now the single deterministic command for repo-controlled cloud SaaS invariants; live provider reachability, DNS, and customer/payment proof remain deploy-time evidence. | `beta:release-gate` |
 | SV-I186 | Developer experience | Local development is now manifest-driven for setup, hosted API, web app, loop worker, outbox worker, repo checks, and live checks; true one-command multi-process orchestration remains future hardening. | `startup-office:dev-workflow`, `shared/startup-office-dev-workflow.json`, `DEVELOPMENT.md` |
@@ -479,6 +479,11 @@ the final release commit or when a shared invariant changes.
   `shared/startup-office-dev-workflow.json` against setup, local service,
   repo-check, live-check, package-script, and `DEVELOPMENT.md` documentation
   evidence.
+- R2/R7 now adds environment boundary control:
+  Startup Office environment boundaries now have a tracked manifest.
+  `npm run startup-office:environment-boundaries` checks fake/disabled AI
+  providers, demo seed production blocking, UI mock fixture opt-in behavior, and
+  live model smoke wiring before the beta release gate can pass.
 - R2/R7 now adds a product identity manifest:
   `npm run startup-office:product-identity` checks root and web package names,
   lockfiles, top-level docs, CODEOWNERS, and release-gate wiring against
