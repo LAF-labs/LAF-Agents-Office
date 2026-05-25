@@ -122,6 +122,8 @@ const HOSTED_PERMISSION_GUARDS = createHostedPermissionGuards({
 const requireAdminRole = HOSTED_PERMISSION_GUARDS.requireAdminRole;
 const requirePermission = HOSTED_PERMISSION_GUARDS.requirePermission;
 const enforceHostedActionRateLimit = createHostedActionRateLimiter({
+  claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
+  createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
   keyForRequest: clientRateLimitKey,
 });
@@ -441,7 +443,7 @@ module.exports = async function handler(req, res) {
     assertSupabaseEnv();
 
     const path = requestPath(req);
-    enforceHostedActionRateLimit(req, path);
+    await enforceHostedActionRateLimit(req, path);
     if (path === "health" && req.method === "GET") {
       writeJSON(res, 200, {
         service: "laf-hosted-api",
@@ -766,6 +768,22 @@ function enforceRateLimit(scope, key, limit, windowMs = RATE_LIMIT_WINDOW_MS) {
   if (bucket.count > limit) {
     throw new HTTPError(429, "rate limit exceeded");
   }
+}
+
+function persistentRateLimitsEnabled() {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.LAF_OFFICE_PERSISTENT_RATE_LIMITS === "1"
+  );
+}
+
+async function claimHostedRateLimit({ key, limit, scope, windowMs }) {
+  return rpc("claim_hosted_rate_limit", {
+    p_bucket_key: key || "anonymous",
+    p_limit: limit,
+    p_scope: scope,
+    p_window_ms: windowMs,
+  });
 }
 
 function supabaseURL(path) {

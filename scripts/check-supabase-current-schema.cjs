@@ -171,11 +171,23 @@ for (const fn of retired.functions || []) {
 }
 
 const guardMigration = read(
-  `supabase/migrations/${manifest.latestMigration}_assert_pure_cloud_runtime_schema.sql`,
+  `supabase/migrations/${manifest.pureCloudRuntimeGuardMigration}_assert_pure_cloud_runtime_schema.sql`,
 );
 for (const required of ["remaining_columns", "remaining_functions", "remaining_tables", "raise exception"]) {
   if (!guardMigration.includes(required)) {
     fail(`pure-cloud schema assertion migration is missing ${required}`);
+  }
+}
+
+for (const fn of manifest.internalFunctions || []) {
+  const createPattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\b`,
+    "i",
+  );
+  if (!createPattern.test(migrationText)) fail(`internal function is not created: ${fn}`);
+  const serviceGrantPattern = new RegExp(`grant\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\b[\\s\\S]+?to\\s+service_role`, "i");
+  if (!serviceGrantPattern.test(migrationText)) {
+    fail(`internal function is not limited to service_role execution: ${fn}`);
   }
 }
 

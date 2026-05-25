@@ -38,19 +38,35 @@ const HOSTED_ACTION_RATE_LIMITS = Object.freeze([
 ]);
 
 function createHostedActionRateLimiter({
+  claimPersistentRateLimit,
+  createRateLimitError,
   enforceRateLimit,
   keyForRequest,
   limits = HOSTED_ACTION_RATE_LIMITS,
+  windowMs = 60 * 1000,
 }) {
-  return function enforceHostedActionRateLimit(req, path) {
+  return async function enforceHostedActionRateLimit(req, path) {
     const method = String(req.method || "GET").toUpperCase();
     const normalizedPath = String(path || "").replace(/^\/+|\/+$/g, "");
-    const limit = limits.find(
+    const rule = limits.find(
       (candidate) =>
         candidate.method === method && candidate.pattern.test(normalizedPath),
     );
-    if (!limit) return;
-    enforceRateLimit(limit.scope, keyForRequest(req), limit.limit);
+    if (!rule) return;
+    const key = keyForRequest(req);
+    if (claimPersistentRateLimit) {
+      const result = await claimPersistentRateLimit({
+        key,
+        limit: rule.limit,
+        scope: rule.scope,
+        windowMs,
+      });
+      if (result?.allowed === false) {
+        throw createRateLimitError();
+      }
+      return;
+    }
+    enforceRateLimit(rule.scope, key, rule.limit, windowMs);
   };
 }
 

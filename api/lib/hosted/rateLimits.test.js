@@ -20,7 +20,7 @@ test("hosted action rate limits cover expensive founder actions", () => {
   }
 });
 
-test("hosted action rate limiter applies only matching methods and paths", () => {
+test("hosted action rate limiter applies only matching methods and paths", async () => {
   const calls = [];
   const enforceHostedActionRateLimit = createHostedActionRateLimiter({
     enforceRateLimit(scope, key, limit) {
@@ -40,13 +40,47 @@ test("hosted action rate limiter applies only matching methods and paths", () =>
     ["POST", "invites", "hosted_invite_create"],
     ["PATCH", "company/profile", "hosted_profile_write"],
   ]) {
-    enforceHostedActionRateLimit({ key: "ip-1", method }, path);
+    await enforceHostedActionRateLimit({ key: "ip-1", method }, path);
     assert.equal(calls.at(-1).scope, scope);
   }
 
   const count = calls.length;
-  enforceHostedActionRateLimit({ key: "ip-1", method: "GET" }, "startup-office/loops");
-  enforceHostedActionRateLimit({ key: "ip-1", method: "POST" }, "startup-office/export");
-  enforceHostedActionRateLimit({ key: "ip-1", method: "PATCH" }, "startup-office/runs/run-1/retry");
+  await enforceHostedActionRateLimit({ key: "ip-1", method: "GET" }, "startup-office/loops");
+  await enforceHostedActionRateLimit({ key: "ip-1", method: "POST" }, "startup-office/export");
+  await enforceHostedActionRateLimit({ key: "ip-1", method: "PATCH" }, "startup-office/runs/run-1/retry");
   assert.equal(calls.length, count);
+});
+
+test("hosted action rate limiter can use a persistent claim store", async () => {
+  const calls = [];
+  const enforceHostedActionRateLimit = createHostedActionRateLimiter({
+    async claimPersistentRateLimit(claim) {
+      calls.push(claim);
+      return { allowed: calls.length < 2 };
+    },
+    createRateLimitError() {
+      const err = new Error("rate limit exceeded");
+      err.status = 429;
+      return err;
+    },
+    enforceRateLimit() {
+      throw new Error("local fallback should not run");
+    },
+    keyForRequest() {
+      return "ip-1";
+    },
+    windowMs: 1234,
+  });
+
+  await enforceHostedActionRateLimit({ method: "GET" }, "startup-office/export");
+  assert.deepEqual(calls[0], {
+    key: "ip-1",
+    limit: 6,
+    scope: "startup_office_export",
+    windowMs: 1234,
+  });
+  await assert.rejects(
+    () => enforceHostedActionRateLimit({ method: "GET" }, "startup-office/export"),
+    /rate limit exceeded/,
+  );
 });

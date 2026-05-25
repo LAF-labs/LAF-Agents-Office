@@ -11,7 +11,7 @@ startup, what fundamental problems would we refuse to carry forward?
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
-  Supabase project has applied through `20260525020000`; RLS exercise, backup,
+  Supabase project has applied through `20260525030000`; RLS exercise, backup,
   restore, and rollback drills are still not proven.
 - The canonical current Supabase schema now lives in
   `supabase/schema/current.json` and is checked against migrations by
@@ -71,7 +71,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I041 | Security | Tenant isolation depends heavily on correct route membership checks plus RLS not yet live-tested. | auth routes, migrations |
 | SV-I042 | Security | Service-role usage is broad and needs stricter internal boundaries. | hosted API env requirements |
 | SV-I043 | Security | Support access policy is visible but not yet a complete impersonation and break-glass system. | policy API |
-| SV-I044 | Security | Rate limits cover signup and the first expensive hosted actions, but still need distributed storage and full write-surface coverage. | rate limit helpers |
+| SV-I044 | Security | Rate limits cover signup and the first expensive hosted actions with a Supabase-backed production path, but full write-surface coverage is still incomplete. | rate limit helpers |
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
 | SV-I047 | Security | Secrets scanning is present but not tied into the Startup Office release gate. | CI scripts |
@@ -437,7 +437,7 @@ and missing typed contracts.
   paths return to tracked source.
 - R3 now has a canonical current Supabase schema manifest at
   `supabase/schema/current.json`. `npm run startup-office:schema` parses the
-  migration history, verifies the manifest's 28 active tables, columns, tenant
+  migration history, verifies the manifest's 29 active tables, columns, tenant
   columns, RLS coverage, latest migration, and retired runtime objects, and the
   beta release gate now runs that check.
 - R3 now proves the hosted API request-size boundary. `api/hosted-api.test.js`
@@ -447,3 +447,7 @@ and missing typed contracts.
   API guards Startup Office export, loop runs, run retries/cancels, approval
   decisions, invite creation, and profile/policy/billing writes; release-gate
   tests prove both route matching and 429 behavior before auth/DB work.
+- R3 now adds a Supabase-backed production limiter. The
+  `hosted_rate_limits` table and `claim_hosted_rate_limit` RPC provide an
+  atomic shared bucket for deployed API instances, while tests keep the local
+  in-memory fallback covered.

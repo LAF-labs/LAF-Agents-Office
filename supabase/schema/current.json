@@ -1,6 +1,7 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525020000",
+  "latestMigration": "20260525030000",
+  "pureCloudRuntimeGuardMigration": "20260525020000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
     {
@@ -30,6 +31,13 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["id", "team_id", "project_id", "task_id", "delivery_url", "delivery_summary", "delivery_status", "delivery_review_decision", "delivery_checks_status", "delivery_merge_state", "delivery_draft", "delivery_checked_at", "delivered_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "hosted_rate_limits",
+      "domain": "security",
+      "tenantColumn": null,
+      "rls": true,
+      "columns": ["scope", "bucket_key", "window_start", "count", "reset_at", "updated_at"]
     },
     {
       "name": "memberships",
@@ -207,5 +215,6 @@
       "tasks": ["execution_mode", "worktree_path", "worktree_branch"],
       "wiki_write_requests": ["runner_id"]
     }
-  }
+  },
+  "internalFunctions": ["claim_hosted_rate_limit"]
 }
