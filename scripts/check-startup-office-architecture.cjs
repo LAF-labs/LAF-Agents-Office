@@ -38,7 +38,7 @@ assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
 assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
-assertMaxLines("api/lib/hosted/conversationHandlers.js", 290);
+assertMaxLines("api/lib/hosted/conversationHandlers.js", 360);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/memoryHandlers.js", 100);
@@ -162,10 +162,12 @@ for (const [pattern, label] of [
   [/channel_messages/, "hosted conversation persistence table"],
   [/content is required/, "hosted conversation content validation"],
   [/thread_id is required/, "hosted conversation home-session validation"],
+  [/async function handleHostedMessageReaction\b/, "hosted conversation reaction handler"],
   [/async function handleHostedAgentLogs\b/, "hosted agent log handler"],
   [/logs: \[\]/, "hosted agent logs empty stub"],
   [/async function handleHostedRequests\b/, "hosted request handler"],
   [/requests: \[\]/, "hosted requests empty stub"],
+  [/path === "messages\/react"[\s\S]{0,160}\{ ok: true \}/, "hosted message reaction no-op response"],
   [/path === "requests\/answer"[\s\S]{0,160}\{ ok: true \}/, "hosted request answer no-op response"],
   [/async function handleHostedScheduler\b/, "hosted scheduler handler"],
   [/jobs: \[\]/, "hosted scheduler empty stub"],

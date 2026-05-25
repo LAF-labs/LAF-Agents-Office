@@ -272,6 +272,7 @@ const HOSTED_CONVERSATION_HANDLERS = createHostedConversationHandlers({
   readBody,
   requireUser,
   rest,
+  rpc,
   shortID,
   slugify,
   truncateText,
@@ -662,7 +663,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "messages/react" && req.method === "POST") {
-      writeJSON(res, 200, { ok: true });
+      await HOSTED_CONVERSATION_HANDLERS.messageReaction(req, res);
       return;
     }
     if (path === "home-sessions") {

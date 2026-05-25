@@ -622,6 +622,13 @@ and missing typed contracts.
   legacy activity dashboard surface now reads Startup Office receipts, signals,
   approval decisions, failed runs, and failed worker jobs instead of returning
   placeholder arrays.
+- R5/R8 now replaces the hosted `/messages/react` no-op with a persisted
+  reaction toggle in `api/lib/hosted/conversationHandlers.js`. Migration
+  `20260525140000_channel_message_reactions.sql` adds explicit
+  `channel_messages.reactions` storage, and migration
+  `20260525150000_channel_message_reaction_rpc.sql` moves toggles into a
+  row-locking internal RPC so concurrent reactions do not overwrite each other.
+  The release gate now blocks this route from drifting back to `{ ok: true }`.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

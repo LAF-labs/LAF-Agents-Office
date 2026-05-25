@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525130000",
+  "latestMigration": "20260525150000",
   "pureCloudRuntimeGuardMigration": "20260525130000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -16,7 +16,7 @@
       "domain": "conversation",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "channel", "sender_slug", "kind", "content", "tagged", "audience", "reply_to", "public_reply_to", "home_session_thread_id", "thread_id", "project_id", "task_id", "scope", "visibility", "run_id", "model_mode", "metadata", "deleted_at", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "channel", "sender_slug", "kind", "content", "tagged", "audience", "reply_to", "public_reply_to", "home_session_thread_id", "thread_id", "project_id", "task_id", "scope", "visibility", "run_id", "model_mode", "metadata", "reactions", "deleted_at", "created_at", "updated_at"]
     },
     {
       "name": "company_profiles",
@@ -262,5 +262,5 @@
   ],
   "outboxClaimFunction": "claim_startup_office_outbox_event",
   "workerJobClaimFunction": "claim_startup_office_worker_job",
-  "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event", "claim_startup_office_worker_job"]
+  "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event", "claim_startup_office_worker_job", "toggle_channel_message_reaction"]
 }

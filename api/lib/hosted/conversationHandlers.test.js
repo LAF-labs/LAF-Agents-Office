@@ -7,7 +7,7 @@ const {
 
 const membership = Object.freeze({
   team_id: "team-1",
-  user_id: "user-1",
+  user_id: "11111111-1111-4111-8111-111111111111",
 });
 
 function createHTTPError(status, message) {
@@ -45,6 +45,11 @@ function baseDeps(overrides = {}) {
     },
     async rest(table, options) {
       calls.rest.push({ options, table });
+      return [];
+    },
+    async rpc(name, body) {
+      calls.rpc = calls.rpc || [];
+      calls.rpc.push({ body, name });
       return [];
     },
     shortID: () => "shortid",
@@ -172,6 +177,83 @@ test("messages handler creates normalized channel messages", async () => {
   assert.equal(body.model_mode, "laf_model");
   assert.equal(res.body.id, "msg-1");
   assert.equal(res.body.thread_id, "home-1");
+});
+
+test("message reaction handler persists a per-user reaction toggle", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { channel: "general", emoji: "👍", message_id: "22222222-2222-4222-8222-222222222222" };
+    },
+    async rpc(name, body) {
+      deps.calls.rpc = deps.calls.rpc || [];
+      deps.calls.rpc.push({ body, name });
+      return [{
+        channel: "general",
+        content: "React to this",
+        id: "22222222-2222-4222-8222-222222222222",
+        reactions: { "👍": ["11111111-1111-4111-8111-111111111111", "other-user"] },
+        sender_slug: "human",
+      }];
+    },
+  });
+  const handlers = createHostedConversationHandlers(deps);
+
+  const res = {};
+  await handlers.messageReaction({ method: "POST" }, res);
+
+  assert.deepEqual(deps.calls.rpc[0], {
+    name: "toggle_channel_message_reaction",
+    body: {
+      p_channel: "general",
+      p_emoji: "👍",
+      p_message_id: "22222222-2222-4222-8222-222222222222",
+      p_team_id: "team-1",
+      p_user_id: "11111111-1111-4111-8111-111111111111",
+    },
+  });
+  assert.deepEqual(res.body.reaction, {
+    active: true,
+    count: 2,
+    emoji: "👍",
+  });
+  assert.deepEqual(res.body.message.reactions, {
+    "👍": ["11111111-1111-4111-8111-111111111111", "other-user"],
+  });
+});
+
+test("message reaction handler removes an existing reaction and validates input", async () => {
+  const deps = baseDeps({
+    async readBody(req) {
+      if (req.kind === "bad") return { emoji: "", message_id: "" };
+      return { channel: "general", emoji: "🚀", message_id: "22222222-2222-4222-8222-222222222222" };
+    },
+    async rpc(name, body) {
+      deps.calls.rpc = deps.calls.rpc || [];
+      deps.calls.rpc.push({ body, name });
+      return [{
+        channel: "general",
+        content: "React to this",
+        id: "22222222-2222-4222-8222-222222222222",
+        reactions: {},
+        sender_slug: "human",
+      }];
+    },
+  });
+  const handlers = createHostedConversationHandlers(deps);
+
+  const res = {};
+  await handlers.messageReaction({ method: "POST" }, res);
+
+  assert.deepEqual(res.body.reaction, {
+    active: false,
+    count: 0,
+    emoji: "🚀",
+  });
+  assert.deepEqual(res.body.message.reactions, {});
+  await assert.rejects(
+    () => handlers.messageReaction({ kind: "bad", method: "POST" }, {}),
+    (err) => err.status === 400 && err.message === "message_id is required",
+  );
 });
 
 test("home sessions list summaries and delete by thread id", async () => {

@@ -9,6 +9,7 @@ function createHostedConversationHandlers(deps) {
     readBody,
     requireUser,
     rest,
+    rpc,
     shortID,
     slugify,
     truncateText,
@@ -60,6 +61,39 @@ function createHostedConversationHandlers(deps) {
     const body = await readBody(req);
     const message = await createHostedChannelMessage(membership, body);
     writeJSON(res, 200, message);
+  }
+
+  async function handleHostedMessageReaction(req, res) {
+    const { membership } = await requireUser(req);
+    const body = await readBody(req);
+    const messageID = String(body.message_id || body.id || "").trim();
+    const emoji = String(body.emoji || "").trim();
+    const channel = String(body.channel || "general").trim() || "general";
+    if (!messageID) throw createHTTPError(400, "message_id is required");
+    if (!isUUID(messageID)) throw createHTTPError(400, "message_id must be a uuid");
+    if (!isSafeEmojiToken(emoji)) throw createHTTPError(400, "emoji is required");
+
+    const rows = await rpc("toggle_channel_message_reaction", {
+      p_channel: channel,
+      p_emoji: emoji,
+      p_message_id: messageID,
+      p_team_id: membership.team_id,
+      p_user_id: membership.user_id,
+    });
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row || row.deleted_at) throw createHTTPError(404, "message not found");
+    const userID = String(membership.user_id || "user").trim() || "user";
+    const reactions = normalizeReactionMap(row.reactions);
+    const active = (reactions[emoji] || []).includes(userID);
+    writeJSON(res, 200, {
+      message: publicChannelMessage(row),
+      ok: true,
+      reaction: {
+        active,
+        count: (reactions[emoji] || []).length,
+        emoji,
+      },
+    });
   }
 
   async function handleHostedHomeSessions(req, res) {
@@ -214,7 +248,7 @@ function createHostedConversationHandlers(deps) {
       model_mode: row.model_mode || "record_only",
       project_id: row.project_id || "",
       public_reply_to: row.public_reply_to || row.reply_to || "",
-      reactions: row.reactions || {},
+      reactions: normalizeReactionMap(row.reactions),
       reply_to: row.reply_to || "",
       run_id: row.run_id || "",
       scope: row.scope || "",
@@ -236,6 +270,7 @@ function createHostedConversationHandlers(deps) {
     channels: handleHostedChannels,
     dmChannel: handleHostedDMChannel,
     homeSessions: handleHostedHomeSessions,
+    messageReaction: handleHostedMessageReaction,
     messages: handleHostedMessages,
   };
 }
@@ -263,6 +298,31 @@ function hostedMessageBelongsToThread(row, threadID) {
     row.reply_to,
     row.public_reply_to,
   ].some((value) => String(value || "").trim() === threadID);
+}
+
+function normalizeReactionMap(value) {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const out = {};
+  for (const [emoji, users] of Object.entries(raw)) {
+    const key = String(emoji || "").trim();
+    if (!isSafeEmojiToken(key)) continue;
+    const list = Array.isArray(users)
+      ? users.map((user) => String(user || "").trim()).filter(Boolean)
+      : [];
+    if (list.length) out[key] = [...new Set(list)].sort();
+  }
+  return out;
+}
+
+function isSafeEmojiToken(value) {
+  const token = String(value || "").trim();
+  return token.length > 0 && token.length <= 32 && !/[\s<>]/.test(token);
+}
+
+function isUUID(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || ""),
+  );
 }
 
 function isMissingChannelMessagesError(err) {
