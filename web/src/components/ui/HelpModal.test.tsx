@@ -53,7 +53,7 @@ describe("<HelpModal>", () => {
     expect(screen.queryByText("/reset")).not.toBeInTheDocument();
   });
 
-  it("can show local workflow commands when the runtime registry exposes them", () => {
+  it("can show workflow commands when the registry exposes them", () => {
     render(
       <HelpModal
         commands={[

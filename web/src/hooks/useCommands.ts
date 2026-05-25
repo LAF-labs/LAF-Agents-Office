@@ -1,19 +1,13 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import {
-  fetchCommands,
-  isLocalhostRuntime,
-  type SlashCommandDescriptor,
-} from "../api/client";
+import { fetchCommands, type SlashCommandDescriptor } from "../api/client";
 import { useI18n } from "../lib/i18n";
 import type { Language } from "../stores/app";
 
 /**
- * Web-autocomplete view of one slash command. Mirrors the legacy
- * SLASH_COMMANDS constant shape used by Autocomplete, so the renderer does
- * not need to know whether the list came from the broker or the hardcoded
- * fallback.
+ * Web-autocomplete view of one slash command. The renderer gets the same
+ * shape whether commands came from the hosted API or the cloud-safe fallback.
  */
 export interface SlashCommand {
   name: string;
@@ -22,117 +16,38 @@ export interface SlashCommand {
 }
 
 /**
- * Fallback used when the broker is unreachable. Keep the set + ordering in
- * sync with the broker's GET /commands output for webSupported=true. Today
- * both lists are derived from Composer.tsx's handleSlashCommand switch. If
- * they ever drift, the broker is the source of truth and this list is a
- * degraded-mode copy.
+ * Fallback used when the hosted command registry is unreachable. Keep the set
+ * in sync with the web-safe command set in the hosted API facade.
  *
- * Icons are web-only metadata — the broker does not carry them because the
- * TUI uses a different rendering path. Values are semantic glyph names that
- * the web renderer maps to line icons.
+ * Icons are web-only metadata. Values are semantic glyph names that the web
+ * renderer maps to line icons.
  */
-export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
+export const HOSTED_FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/ask", desc: "Ask the team lead", icon: "ask" },
   {
     name: "/approvals",
     desc: "Review founder approval queue",
     icon: "approvals",
   },
-  { name: "/lookup", desc: "Cited answer from the team wiki", icon: "lookup" },
-  {
-    name: "/lint",
-    desc: "Review wiki for contradictions and stale facts",
-    icon: "lint",
-  },
   { name: "/search", desc: "Search messages + KB", icon: "search" },
   { name: "/remember", desc: "Store a fact in memory", icon: "remember" },
   { name: "/help", desc: "Show all commands + keys", icon: "help" },
   { name: "/clear", desc: "Clear messages", icon: "clear" },
-  { name: "/reset", desc: "Reset the workspace", icon: "reset" },
-  { name: "/tasks", desc: "Open task board", icon: "tasks" },
   { name: "/growth", desc: "Open Startup Office", icon: "growth" },
   { name: "/loops", desc: "Open operating loops", icon: "loops" },
   { name: "/receipts", desc: "Open run receipts", icon: "receipts" },
   { name: "/requests", desc: "Open requests", icon: "requests" },
   { name: "/1o1", desc: "1:1 with agent", icon: "1o1" },
-  { name: "/task", desc: "Task actions", icon: "task" },
-  { name: "/cancel", desc: "Cancel a task", icon: "cancel" },
   { name: "/skills", desc: "View skills", icon: "skills" },
-  { name: "/focus", desc: "Switch to delegation mode", icon: "focus" },
-  { name: "/collab", desc: "Switch to collaborative mode", icon: "collab" },
-  { name: "/pause", desc: "Pause all agents", icon: "pause" },
-  { name: "/resume", desc: "Resume all agents", icon: "resume" },
   { name: "/threads", desc: "See every active thread", icon: "threads" },
-  {
-    name: "/provider",
-    desc: "Switch default AI provider",
-    icon: "provider",
-  },
-  {
-    name: "/hire-agent",
-    desc: "Workflow for hiring a Claude/Codex-backed LAF agent",
-    icon: "hire-agent",
-  },
-  {
-    name: "/assign-task",
-    desc: "Workflow for assigning task-board work to an agent",
-    icon: "assign-task",
-  },
-  {
-    name: "/daily-standup",
-    desc: "Run the LAF office daily standup workflow",
-    icon: "daily-standup",
-  },
-  {
-    name: "/review-office",
-    desc: "Run Reviewer checks for Office Rule, security, and memory consistency",
-    icon: "review-office",
-  },
-  {
-    name: "/promote-to-wiki",
-    desc: "Review Notebook drafts for manual Wiki promotion",
-    icon: "promote-to-wiki",
-  },
-  {
-    name: "/fix-bug",
-    desc: "TDD bug-fix workflow with review and memory capture",
-    icon: "fix-bug",
-  },
-  {
-    name: "/deploy-simulation",
-    desc: "Deployment rehearsal workflow for Claude or Codex mode",
-    icon: "deploy-simulation",
-  },
 ];
-
-const HOSTED_FALLBACK_COMMAND_NAMES = new Set([
-  "/1o1",
-  "/ask",
-  "/approvals",
-  "/clear",
-  "/growth",
-  "/help",
-  "/loops",
-  "/remember",
-  "/receipts",
-  "/requests",
-  "/search",
-  "/skills",
-  "/threads",
-]);
-
-export const HOSTED_FALLBACK_SLASH_COMMANDS: SlashCommand[] =
-  FALLBACK_SLASH_COMMANDS.filter((command) =>
-    HOSTED_FALLBACK_COMMAND_NAMES.has(command.name),
-  );
 
 const HOSTED_COMMAND_NAMES = new Set(
   HOSTED_FALLBACK_SLASH_COMMANDS.map((command) => command.name),
 );
 
 /**
- * Icon map for commands returned by the broker. Keyed by bare command name
+ * Icon map for commands returned by the hosted registry. Keyed by bare command name
  * (no leading slash). Unknown commands fall back to a generic icon so the
  * autocomplete never renders a blank glyph if someone adds a TUI command
  * and flips webSupported before updating this list.
@@ -233,30 +148,23 @@ function localizeCommands(
   });
 }
 
-function fallbackCommandsForRuntime(
-  language: Language,
-  localhostRuntime = isLocalhostRuntime(),
-): SlashCommand[] {
-  return localizeCommands(
-    localhostRuntime ? FALLBACK_SLASH_COMMANDS : HOSTED_FALLBACK_SLASH_COMMANDS,
-    language,
-  );
+function fallbackCommands(language: Language): SlashCommand[] {
+  return localizeCommands(HOSTED_FALLBACK_SLASH_COMMANDS, language);
 }
 
 /**
- * Convert the broker's payload into the shape the autocomplete renderer
+ * Convert the hosted registry payload into the shape the autocomplete renderer
  * expects. Filters to webSupported=true and only keeps commands the web
  * actually knows how to execute.
  */
 function toAutocomplete(
   commands: SlashCommandDescriptor[],
   language: Language = "en",
-  localhostRuntime = isLocalhostRuntime(),
 ): SlashCommand[] {
   return commands
     .filter((c) => {
       if (!c.webSupported || DEFERRED_WEB_COMMANDS.has(c.name)) return false;
-      return localhostRuntime || HOSTED_COMMAND_NAMES.has(`/${c.name}`);
+      return HOSTED_COMMAND_NAMES.has(`/${c.name}`);
     })
     .map((c) => ({
       name: `/${c.name}`,
@@ -266,8 +174,8 @@ function toAutocomplete(
 }
 
 /**
- * Read the canonical slash-command registry. Returns the broker's view when
- * available, or the hardcoded fallback if the broker is unreachable. The
+ * Read the canonical slash-command registry. Returns the hosted API view when
+ * available, or the hardcoded fallback if the registry is unreachable. The
  * hook never throws — a missing registry is a recoverable degradation, not
  * an error state the UI needs to render.
  *
@@ -276,12 +184,11 @@ function toAutocomplete(
  */
 export function useCommands(): SlashCommand[] {
   const { language } = useI18n();
-  const localhostRuntime = isLocalhostRuntime();
   const { data, isError } = useQuery({
     queryKey: ["commands"],
     queryFn: fetchCommands,
     // Registry only changes on rebuild. Five minutes is enough to absorb a
-    // dev loop without hammering the broker.
+    // dev loop without hammering the hosted API.
     staleTime: 5 * 60_000,
     // Failures fall through to the fallback — don't retry aggressively.
     retry: 1,
@@ -295,22 +202,22 @@ export function useCommands(): SlashCommand[] {
   // "Maximum update depth exceeded."
   return useMemo(() => {
     if (isError || !data) {
-      return fallbackCommandsForRuntime(language, localhostRuntime);
+      return fallbackCommands(language);
     }
-    const mapped = toAutocomplete(data, language, localhostRuntime);
-    // Defensive: if the broker returns an empty webSupported set (e.g. an
-    // older broker without the flag), prefer a runtime-scoped fallback
+    const mapped = toAutocomplete(data, language);
+    // Defensive: if the registry returns an empty webSupported set, prefer the
+    // cloud-safe fallback
     // rather than an empty autocomplete.
     return mapped.length > 0
       ? mapped
-      : fallbackCommandsForRuntime(language, localhostRuntime);
-  }, [data, isError, language, localhostRuntime]);
+      : fallbackCommands(language);
+  }, [data, isError, language]);
 }
 
 // Exported for tests.
 export const __test__ = {
   toAutocomplete,
-  fallbackCommandsForRuntime,
+  fallbackCommands,
   COMMAND_ICONS,
   DEFAULT_ICON,
 };

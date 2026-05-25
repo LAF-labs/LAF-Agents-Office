@@ -45,7 +45,7 @@ describe("SearchModal command palette", () => {
     expect(labels).not.toContain("/reset");
   });
 
-  it("keeps local workflow commands hidden unless the runtime registry exposes them", () => {
+  it("keeps workflow commands hidden unless the registry exposes them", () => {
     const hostedItems = __test__.buildCommandItems(
       deps([{ name: "/ask", desc: "Ask the team lead", icon: "ask" }]),
       "deploy",

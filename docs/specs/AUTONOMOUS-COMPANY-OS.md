@@ -1074,7 +1074,7 @@ Risk levels:
 
 ## 14. Cloud Execution Architecture
 
-No local runtime.
+No device-side runtime.
 
 Components:
 

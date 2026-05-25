@@ -318,4 +318,14 @@ test("workflow handlers preserve run-limit and missing approval errors", async (
     () => missingApproval.approvalAction({ method: "POST" }, {}, "missing", "approve"),
     (err) => err.status === 404 && err.message === "approval not found",
   );
+
+  const invalidRunPayload = createStartupOfficeWorkflowHandlers(baseDeps({
+    async readBody() {
+      return { defer: "yes" };
+    },
+  }));
+  await assert.rejects(
+    () => invalidRunPayload.loopRun({ method: "POST" }, {}, "idea-validation"),
+    (err) => err.status === 400 && err.message === "defer must be a boolean",
+  );
 });

@@ -8,7 +8,7 @@ LAF Agents Office is a cloud AI Startup Office for founders and small teams. It 
 - Workspace owners can invite teammates and assign roles.
 - The app runs in the cloud through the hosted web UI and API.
 - Skills, wiki, growth center, and operating loops are first-class product surfaces.
-- Local execution and local pairing flows are not part of the product.
+- Device-side execution and pairing flows are not part of the product.
 
 ## Development
 

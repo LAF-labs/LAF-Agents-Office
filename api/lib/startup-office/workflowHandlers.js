@@ -1,3 +1,7 @@
+const {
+  createStartupOfficeValidation,
+} = require("./validation");
+
 function createStartupOfficeWorkflowHandlers(deps) {
   const {
     applyStartupOfficeMemoryPromotion,
@@ -27,12 +31,17 @@ function createStartupOfficeWorkflowHandlers(deps) {
     writeAuditEvent,
     writeJSON,
   } = deps;
+  const validation = createStartupOfficeValidation({
+    createHTTPError,
+    objectValue,
+    truncateText,
+  });
 
   async function handleStartupOfficeLoopRun(req, res, loopID) {
     const { membership, team, user } = await requireUser(req);
     requirePermission(membership, "memory:write_draft");
     await enforceStartupOfficeRunLimit(membership.team_id);
-    const body = await readBody(req);
+    const body = validation.loopRunBody(await readBody(req));
     const loop = await ensureStartupOfficeLoop(membership, loopID);
     const profile = await companyProfileSnapshot(membership.team_id, team, user);
     const objective = truncateText(
@@ -43,7 +52,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     const repository = startupOfficeRepository();
     const modelClient = startupOfficeModelClient();
     const run = await repository.createRun(membership, {
-      inputs: objectValue(body.inputs),
+      inputs: body.inputs,
       loop_id: loop.id || null,
       metadata: {
         company_name: profile.name || "",
@@ -52,7 +61,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       },
       objective,
       status: "queued",
-      title: truncateText(body.title || loop.name, 180),
+      title: body.title || truncateText(loop.name, 180),
       updated_at: now,
     });
     const runID = run?.id || `run-${shortID()}`;
@@ -81,7 +90,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     });
     const queuedRun = run || {
       id: runID,
-      inputs: objectValue(body.inputs),
+      inputs: body.inputs,
       loop_id: loop.id || null,
       metadata: { loop_slug: loop.slug },
       objective,
@@ -98,7 +107,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       return;
     }
     const result = await runStartupOfficeLoop({
-      inputs: objectValue(body.inputs),
+      inputs: body.inputs,
       loop,
       membership,
       modelClient,
@@ -198,17 +207,18 @@ function createStartupOfficeWorkflowHandlers(deps) {
       if (!["failed", "canceled"].includes(run.status)) {
         throw createHTTPError(409, `run is ${run.status}; only failed or canceled runs can be retried`);
       }
-      const body = await readBody(req);
+      const body = validation.loopRunBody(await readBody(req));
       const loop = await ensureStartupOfficeLoop(membership, run.loop_id || run.metadata?.loop_slug);
       const profile = await companyProfileSnapshot(membership.team_id, team, user);
       const objective = truncateText(
         body.objective || run.objective || loop.objective || "Retry this operating loop.",
         2000,
       );
+      const inputs = body.inputsProvided ? body.inputs : objectValue(run.inputs);
       const now = nowISO();
       const retryRun = await repository.updateRun(membership.team_id, run.id, {
         completed_at: null,
-        inputs: objectValue(body.inputs || run.inputs),
+        inputs,
         metadata: {
           ...objectValue(run.metadata),
           retry_requested_at: now,
@@ -237,7 +247,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         trace: { worker_job_id: workerJob?.id || null },
       });
       const result = await runStartupOfficeLoop({
-        inputs: objectValue(body.inputs || run.inputs),
+        inputs,
         loop,
         membership,
         modelClient,

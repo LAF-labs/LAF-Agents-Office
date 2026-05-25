@@ -37,7 +37,7 @@ test("hosted API accepts Vercel rewrite path query", async () => {
   assert.equal(response.body.service, "laf-hosted-api");
 });
 
-test("local execution routes are no longer part of the hosted API surface", async () => {
+test("retired execution routes are no longer part of the hosted API surface", async () => {
   for (const route of [
     ["runner", "status"],
     ["runner", "jobs", "lease"],
@@ -86,7 +86,7 @@ test("hosted API rate limits expensive actions at ingress", async () => {
   }
 });
 
-test("pure cloud migration drops obsolete local execution schema", () => {
+test("pure cloud migration drops obsolete execution schema", () => {
   const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
   const obsoleteMigrationFiles = fs
     .readdirSync(migrationDir)
@@ -130,13 +130,14 @@ test("pure cloud migration drops obsolete local execution schema", () => {
   const schemaAssertionSql = fs.readFileSync(
     path.join(
       migrationDir,
-      "20260525020000_assert_pure_cloud_runtime_schema.sql",
+      "20260525040000_assert_pure_cloud_runtime_schema.sql",
     ),
     "utf8",
   );
   assert.match(schemaAssertionSql, /remaining_columns/);
   assert.match(schemaAssertionSql, /remaining_functions/);
   assert.match(schemaAssertionSql, /remaining_tables/);
+  assert.match(schemaAssertionSql, /runner\/bridge objects/);
   assert.match(schemaAssertionSql, /raise exception/);
 });
 
@@ -161,6 +162,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /api\/lib\/startup-office\/demoSeedHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/profileHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/services\.test\.js/);
+  assert.match(script, /api\/lib\/startup-office\/validation\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/workspaceConfigHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/workflowHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/operationsHandlers\.test\.js/);

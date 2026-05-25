@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Settings } from "iconoir-react";
 
-import { getHealth, supportsBrokerEvents } from "../../api/client";
+import { getHealth } from "../../api/client";
 import { useOfficeMembers } from "../../hooks/useMembers";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { type ChannelMeta, isDMChannel, useAppStore } from "../../stores/app";
@@ -97,44 +97,22 @@ function AIProviderStatus({
   );
 }
 
-function LocalConnectionStatus({
-  brokerConnected,
-  showLocalConnectionState,
-  t,
-}: {
-  brokerConnected: boolean;
-  showLocalConnectionState: boolean;
-  t: TranslationFn;
-}) {
-  if (!showLocalConnectionState) return null;
-  return (
-    <span
-      className={`status-bar-item status-bar-conn${brokerConnected ? "" : " disconnected"}`}
-    >
-      {brokerConnected ? t("common.connected") : t("common.disconnected")}
-    </span>
-  );
-}
-
 /**
- * Bottom status bar showing the active channel/app, mode, agent count, local
- * connection state when applicable, and AI provider.
+ * Bottom status bar showing the active channel/app, mode, agent count, and AI
+ * provider.
  */
 export function StatusBar() {
   const currentChannel = useAppStore((s) => s.currentChannel);
   const currentApp = useAppStore((s) => s.currentApp);
   const channelMeta = useAppStore((s) => s.channelMeta);
-  const brokerConnected = useAppStore((s) => s.brokerConnected);
   const setComposerHelpOpen = useAppStore((s) => s.setComposerHelpOpen);
   const { t } = useI18n();
   const { data: members = [] } = useOfficeMembers();
-  const showLocalConnectionState = supportsBrokerEvents();
 
   const { data: health } = useQuery<HealthSnapshot>({
     queryKey: ["health"],
     queryFn: () => getHealth() as Promise<HealthSnapshot>,
     refetchInterval: 15_000,
-    enabled: showLocalConnectionState && brokerConnected,
   });
 
   const agentCount = members.filter(
@@ -169,11 +147,6 @@ export function StatusBar() {
       <AIProviderStatus
         provider={provider}
         providerModel={providerModel}
-        t={t}
-      />
-      <LocalConnectionStatus
-        brokerConnected={brokerConnected}
-        showLocalConnectionState={showLocalConnectionState}
         t={t}
       />
     </div>

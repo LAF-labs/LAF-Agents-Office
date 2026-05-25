@@ -562,7 +562,7 @@ export function mockArticle(path: string): WikiArticle {
         "Project memory",
         "Agent workflow",
         "GitHub optional",
-        "Local runtime",
+        "Cloud office",
       ],
     };
   }
@@ -587,7 +587,7 @@ const MOCK_PROJECT_MEMORY_MD = `**Agent Workspace** is the project memory surfac
 ## Current objective
 
 - Make project work the default surface after login.
-- Keep durable context in the local team wiki.
+- Keep durable context in the cloud team wiki.
 - Let GitHub stay optional until a project is ready for implementation.
 - Require delivery receipts before repo-connected coding tasks are marked done.
 
@@ -605,7 +605,7 @@ GitHub connection is optional. Before a repo is connected, agents can plan, docu
 ## Open decisions
 
 - Should the project board make wiki freshness visible on every task?
-- Should delivery receipts accept local branch names before hosted PR automation exists?
+- Should delivery receipts require approval evidence before hosted PR automation exists?
 - Which project-level facts should be promoted into structured fields?
 
 ## Next steps

@@ -50,7 +50,7 @@ const messages = {
     "settings.general.runtimeGroup": "Runtime",
     "settings.general.provider": "LLM Provider",
     "settings.general.memory": "Memory Backend",
-    "settings.general.memoryNone": "None (local only)",
+    "settings.general.memoryNone": "None",
     "settings.general.agentsGroup": "Agents",
     "settings.general.teamLead": "Team Lead",
     "settings.general.teamLeadHint": "Default agent that leads operations",
@@ -194,57 +194,57 @@ const messages = {
     "settings.company.save": "Save company info",
     "settings.keys.title": "API Keys",
     "settings.keys.desc":
-      "Provider keys used by local agents when a CLI session is unavailable. Keys are stored in your local config file. Enter a new value to update, or leave blank to keep the current key.",
+      "Provider keys used by the cloud office. Enter a new value to update, or leave blank to keep the current key.",
     "settings.keys.env": "Env:",
     "settings.keys.noKeys":
       "No keys entered. Leave blank to keep existing keys.",
     "settings.keys.save": "Save API keys",
     "settings.danger.title": "Danger Zone",
     "settings.danger.desc":
-      "Irreversible operations on this developer workspace. Reset reloads the local runtime. Shred wipes workspace history and reopens onboarding in the running web UI.",
-    "settings.danger.resetTitle": "Reset local runtime state",
+      "Irreversible operations on this workspace. Reset clears transient workspace state. Shred wipes workspace history and reopens onboarding.",
+    "settings.danger.resetTitle": "Reset workspace state",
     "settings.danger.resetSubtitle":
       "Use this when something is stuck, the queue will not drain, or messages stop flowing, and you want a clean restart without losing your team or work.",
     "settings.danger.clears": "Clears",
     "settings.danger.preserved": "Preserved",
-    "settings.danger.resetClearRuntime": "Local runtime state",
+    "settings.danger.resetClearRuntime": "Transient workspace state",
     "settings.danger.resetClearSnapshot": "Last-good in-memory snapshot",
     "settings.danger.resetPreserveTeam":
       "Your team roster, company identity, tasks, workflows",
     "settings.danger.resetPreserveHistory":
-      "All on-disk history (logs, sessions, artifacts)",
+      "Workspace history, logs, sessions, artifacts",
     "settings.danger.resetPreserveKeys": "API keys and config",
-    "settings.danger.resetButton": "Reset local runtime...",
+    "settings.danger.resetButton": "Reset workspace state...",
     "settings.danger.shredTitle": "Shred workspace",
     "settings.danger.shredSubtitle":
-      "Full wipe. Deletes your team, company identity, project task receipts, saved workflows, local memory, logs, and provider session state, then returns you to onboarding.",
+      "Full wipe. Deletes your team, company identity, receipts, saved workflows, wiki memory, logs, and provider session state, then returns you to onboarding.",
     "settings.danger.deletes": "Deletes",
     "settings.danger.shredDeleteOnboarding":
       "Onboarding flag so the wizard reopens",
     "settings.danger.shredDeleteCompany": "Company identity",
     "settings.danger.shredDeleteRuntime":
-      "Team runtime state, workspace data, and workflows under",
+      "Workspace data, operating history, and workflows",
     "settings.danger.shredDeleteLogs":
-      "Logs, sessions, provider state, and local wiki memory",
+      "Logs, sessions, provider state, and wiki memory",
     "settings.danger.shredDeleteRuntimeState":
-      "Local runtime state (same as Reset)",
+      "Workspace state (same as Reset)",
     "settings.danger.shredPreserveWorktrees":
       "Cloud office exports and attached records stay available unless deleted separately",
     "settings.danger.shredPreserveConfig": "Your global config and API keys",
-    "settings.danger.shredPreserveDevice": "Local device identity",
+    "settings.danger.shredPreserveDevice": "Account identity",
     "settings.danger.shredButton": "Shred workspace...",
     "settings.danger.confirmType": "Type",
     "settings.danger.confirmTail": "to confirm",
-    "settings.danger.resetModalTitle": "Reset local runtime state?",
+    "settings.danger.resetModalTitle": "Reset workspace state?",
     "settings.danger.resetModalIntro":
-      "This clears local on-disk runtime state and reboots the workspace from a clean slate. Your team, company, tasks, and workflows are all kept. If this does not unblock things, try Shred workspace instead.",
-    "settings.danger.resetConfirm": "Reset local runtime",
+      "This clears transient workspace state and reloads from a clean slate. Your team, company, tasks, and workflows are all kept. If this does not unblock things, try Shred workspace instead.",
+    "settings.danger.resetConfirm": "Reset workspace state",
     "settings.danger.shredModalTitle": "Shred this workspace?",
     "settings.danger.shredModalIntro":
       "This permanently deletes your team, company identity, project task receipts, saved workflows, logs, sessions, provider state, and wiki memory. Onboarding will reopen immediately. API keys and account identity are kept. This cannot be undone.",
     "settings.danger.shredConfirm": "Shred workspace",
     "settings.danger.resetFailed": "Reset failed",
-    "settings.danger.resetSuccess": "Local runtime state cleared. Reloading...",
+    "settings.danger.resetSuccess": "Workspace state cleared. Reloading...",
     "settings.danger.shredFailed": "Shred failed",
     "settings.danger.shredSuccess": "Workspace shredded. Onboarding reopened.",
     "sidebar.collapse": "Collapse sidebar",
@@ -760,7 +760,7 @@ const messages = {
     "settings.general.runtimeGroup": "런타임",
     "settings.general.provider": "LLM 공급자",
     "settings.general.memory": "메모리 백엔드",
-    "settings.general.memoryNone": "없음 (로컬 전용)",
+    "settings.general.memoryNone": "없음",
     "settings.general.agentsGroup": "에이전트",
     "settings.general.teamLead": "팀 리드",
     "settings.general.teamLeadHint": "작업을 이끄는 기본 에이전트",
@@ -911,50 +911,50 @@ const messages = {
     "settings.keys.save": "API 키 저장",
     "settings.danger.title": "위험 구역",
     "settings.danger.desc":
-      "이 개발 워크스페이스에 대한 되돌릴 수 없는 작업입니다. 재설정은 로컬 런타임을 다시 불러오고, 완전 삭제는 워크스페이스 기록을 지운 뒤 실행 중인 웹 UI에서 온보딩을 다시 엽니다.",
-    "settings.danger.resetTitle": "로컬 런타임 상태 재설정",
+      "이 워크스페이스에 대한 되돌릴 수 없는 작업입니다. 재설정은 일시적인 워크스페이스 상태를 지우고, 완전 삭제는 워크스페이스 기록을 지운 뒤 온보딩을 다시 엽니다.",
+    "settings.danger.resetTitle": "워크스페이스 상태 재설정",
     "settings.danger.resetSubtitle":
       "무언가 멈췄거나 큐가 비워지지 않거나 메시지가 흐르지 않을 때, 팀과 작업을 잃지 않고 깨끗하게 재시작합니다.",
     "settings.danger.clears": "삭제됨",
     "settings.danger.preserved": "유지됨",
-    "settings.danger.resetClearRuntime": "로컬 런타임 상태",
+    "settings.danger.resetClearRuntime": "일시적인 워크스페이스 상태",
     "settings.danger.resetClearSnapshot": "마지막 정상 인메모리 스냅샷",
     "settings.danger.resetPreserveTeam": "팀 명단, 회사 정보, 태스크, 워크플로",
     "settings.danger.resetPreserveHistory":
       "디스크의 모든 기록 (로그, 세션, 산출물)",
     "settings.danger.resetPreserveKeys": "API 키와 설정",
-    "settings.danger.resetButton": "로컬 런타임 재설정...",
+    "settings.danger.resetButton": "워크스페이스 상태 재설정...",
     "settings.danger.shredTitle": "워크스페이스 완전 삭제",
     "settings.danger.shredSubtitle":
-      "전체 삭제입니다. 팀, 회사 정보, 프로젝트 태스크 영수증, 저장된 워크플로, 로컬 메모리, 로그, 공급자 세션 상태를 삭제한 뒤 온보딩으로 돌아갑니다.",
+      "전체 삭제입니다. 팀, 회사 정보, 영수증, 저장된 워크플로, 위키 메모리, 로그, 공급자 세션 상태를 삭제한 뒤 온보딩으로 돌아갑니다.",
     "settings.danger.deletes": "삭제됨",
     "settings.danger.shredDeleteOnboarding":
       "온보딩 플래그, 그래서 마법사가 다시 열림",
     "settings.danger.shredDeleteCompany": "회사 정보",
     "settings.danger.shredDeleteRuntime":
-      "아래 경로의 팀 런타임 상태, 워크스페이스 데이터, 워크플로",
+      "워크스페이스 데이터, 운영 기록, 워크플로",
     "settings.danger.shredDeleteLogs":
-      "로그, 세션, 공급자 상태, 로컬 위키 메모리",
+      "로그, 세션, 공급자 상태, 위키 메모리",
     "settings.danger.shredDeleteRuntimeState":
-      "로컬 런타임 상태 (재설정과 동일)",
+      "워크스페이스 상태 (재설정과 동일)",
     "settings.danger.shredPreserveWorktrees":
       "클라우드 오피스 내보내기와 첨부 기록은 별도로 삭제하지 않는 한 유지됨",
     "settings.danger.shredPreserveConfig": "전역 설정과 API 키",
-    "settings.danger.shredPreserveDevice": "로컬 디바이스 ID",
+    "settings.danger.shredPreserveDevice": "계정 식별 정보",
     "settings.danger.shredButton": "워크스페이스 완전 삭제...",
     "settings.danger.confirmType": "확인을 위해",
     "settings.danger.confirmTail": "를 입력하세요",
-    "settings.danger.resetModalTitle": "로컬 런타임 상태를 재설정할까요?",
+    "settings.danger.resetModalTitle": "워크스페이스 상태를 재설정할까요?",
     "settings.danger.resetModalIntro":
-      "로컬 디스크 런타임 상태를 지우고 워크스페이스를 깨끗한 상태에서 다시 시작합니다. 팀, 회사, 태스크, 워크플로는 유지됩니다. 그래도 풀리지 않으면 워크스페이스 완전 삭제를 시도하세요.",
-    "settings.danger.resetConfirm": "로컬 런타임 재설정",
+      "일시적인 워크스페이스 상태를 지우고 깨끗한 상태에서 다시 불러옵니다. 팀, 회사, 태스크, 워크플로는 유지됩니다. 그래도 풀리지 않으면 워크스페이스 완전 삭제를 시도하세요.",
+    "settings.danger.resetConfirm": "워크스페이스 상태 재설정",
     "settings.danger.shredModalTitle": "이 워크스페이스를 완전 삭제할까요?",
     "settings.danger.shredModalIntro":
       "팀, 회사 정보, 프로젝트 태스크 영수증, 저장된 워크플로, 로그, 세션, 공급자 상태, 위키 메모리를 영구 삭제합니다. 온보딩이 즉시 다시 열립니다. API 키와 계정 ID는 유지됩니다. 이 작업은 되돌릴 수 없습니다.",
     "settings.danger.shredConfirm": "워크스페이스 완전 삭제",
     "settings.danger.resetFailed": "재설정 실패",
     "settings.danger.resetSuccess":
-      "로컬 런타임 상태를 지웠습니다. 다시 불러옵니다...",
+      "워크스페이스 상태를 지웠습니다. 다시 불러옵니다...",
     "settings.danger.shredFailed": "완전 삭제 실패",
     "settings.danger.shredSuccess":
       "워크스페이스를 완전 삭제했습니다. 온보딩을 다시 열었습니다.",

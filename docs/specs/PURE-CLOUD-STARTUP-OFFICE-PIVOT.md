@@ -110,7 +110,7 @@ but the product language should be `account`, `workspace`, `teammate`, and
 ### Must Not Be True
 
 - Do not position LAF as another coding IDE or local agent runtime.
-- Do not require users to understand models, prompts, local runtimes, or
+- Do not require users to understand models, prompts, device-side runtimes, or
   automation graphs.
 - Do not make the MVP depend on Gmail, Notion, Slack, HubSpot, Zapier, Linear,
   or GitHub connectors.
@@ -500,7 +500,7 @@ Build:
 Do not build yet:
 
 - External SaaS integrations
-- Local runtime
+- Device-side runtime
 - Project/task Kanban
 - Full email sending
 - Paid ads execution

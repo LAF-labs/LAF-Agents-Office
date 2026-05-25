@@ -198,6 +198,15 @@ test("query handlers preserve typed 400 and 405 errors", async () => {
     () => handlers.loops({ method: "POST" }, {}),
     (err) => err.status === 400 && err.message === "name is required",
   );
+  const invalidPolicy = createStartupOfficeQueryHandlers(baseDeps({
+    async readBody() {
+      return { name: "Loop", policy: "yes" };
+    },
+  }));
+  await assert.rejects(
+    () => invalidPolicy.loops({ method: "POST" }, {}),
+    (err) => err.status === 400 && err.message === "policy must be an object",
+  );
   await assert.rejects(
     () => handlers.receipts({ method: "POST" }, {}),
     (err) => err.status === 405 && err.message === "method not allowed",

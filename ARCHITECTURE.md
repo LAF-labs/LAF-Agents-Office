@@ -11,7 +11,7 @@ Browser UI
   -> Cloud AI providers
 ```
 
-The product does not require local device pairing or user-side execution services. Local developer tooling remains only for contributors building the app.
+The product does not require device pairing or user-side execution services. Contributor tooling remains only for people building the app.
 
 ## Key Modules
 
@@ -21,11 +21,11 @@ The product does not require local device pairing or user-side execution service
 | `web/src/components/startup-office/` | Main Startup Office experience for founders and operators. |
 | `web/src/components/apps/SettingsApp.tsx` | Notion-style workspace, profile, team, permissions, company, API-key, and danger-zone settings. |
 | `workers/startup-office/loopEngine.js` | Cloud operating-loop worker logic and tests. |
-| `supabase/migrations/` | Workspace schema and forward migrations, including removal of obsolete local execution state. |
+| `supabase/migrations/` | Workspace schema and forward migrations, including removal of obsolete execution state. |
 
 ## Principles
 
 1. Hosted workspace state is the source of truth.
 2. Users control the company workspace, team membership, permissions, memory, and approvals.
 3. AI work is observable through messages, runs, artifacts, decisions, and wiki updates.
-4. Local execution surfaces are outside the product boundary.
+4. Device-side execution surfaces are outside the product boundary.

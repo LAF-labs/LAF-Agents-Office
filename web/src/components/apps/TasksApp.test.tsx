@@ -85,12 +85,12 @@ beforeEach(() => {
 });
 
 describe("TasksApp cloud office workflow", () => {
-  it("renders projects and tasks without local execution setup copy", async () => {
+  it("renders projects and tasks without obsolete execution setup copy", async () => {
     const user = userEvent.setup();
     renderTasksApp();
 
     await user.click(await screen.findByText("Customer Portal"));
     expect(await screen.findByText("Draft launch brief")).toBeInTheDocument();
-    expect(screen.queryByText(/local execution setup/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/obsolete execution setup/i)).not.toBeInTheDocument();
   });
 });

@@ -11,14 +11,14 @@ startup, what fundamental problems would we refuse to carry forward?
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
-  Supabase project has applied through `20260525030000`; RLS exercise, backup,
+  Supabase project has applied through `20260525040000`; RLS exercise, backup,
   restore, and rollback drills are still not proven.
 - The canonical current Supabase schema now lives in
   `supabase/schema/current.json` and is checked against migrations by
   `npm run startup-office:schema`.
 - The current release gate is deterministic and fake-provider friendly, but it
   does not prove live model, live Supabase, email, billing, DNS, or browser E2E.
-- Legacy Go, CLI, npm-wrapper, native-release, and local-runtime scripts have
+- Legacy Go, CLI, npm-wrapper, native-release, and device-runtime scripts have
   been removed from the tracked hosted SaaS tree and are now guarded by the
   release gate.
 - The product strategy is now clearer, but business proof still depends on a
@@ -48,7 +48,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I018 | Architecture | There is no event bus or outbox pattern for reliable side effects. | notification and receipt writes |
 | SV-I019 | Architecture | The system lacks a clear synchronous vs asynchronous boundary contract. | loop run and worker job APIs |
 | SV-I020 | Architecture | Multi-tenant business objects do not have a shared domain invariant layer. | assets, customers, metrics, signals |
-| SV-I021 | API | API input validation is scattered and often handwritten per route. | route handlers |
+| SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
 | SV-I023 | API | Error responses are not consistently typed for clients and operators. | `HTTPError`, client unwraps |
 | SV-I024 | API | Idempotency is not a first-class requirement for loop runs and approvals. | run creation routes |
@@ -251,7 +251,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G016 | Define async contracts. | Queued, running, retrying, failed, and canceled semantics are documented and tested. | worker tests |
 | SV-G017 | Own every domain module. | Auth, billing, memory, loops, objects, notifications, and admin have owners. | architecture doc |
 | SV-G018 | Decouple worker deployment. | Worker can deploy, run, and health-check independently. | deployment config |
-| SV-G019 | Remove hidden legacy dependencies. | Hosted release can build without legacy local runtime packages. | CI job |
+| SV-G019 | Remove hidden legacy dependencies. | Hosted release can build without retired runtime packages. | CI job |
 | SV-G020 | Add architecture decision records. | Major product and infra choices have dated ADRs. | docs check |
 | SV-G021 | Publish canonical current schema. | Fresh schema and migration history both exist and agree. | DB reset |
 | SV-G022 | Prove migrations on Supabase. | `supabase db reset` and policy tests pass locally. | CLI output |
@@ -381,9 +381,9 @@ and missing typed contracts.
   the web client function, method, response type, and path snippets; the release
   gate verifies `web/src/api/startupOffice.ts` cannot drift silently.
 - R2 now has a legacy-runtime removal gate. The repo no longer tracks the Go
-  desktop runtime, npm CLI wrapper, native release artifacts, local execution
-  scripts, or old TUI/E2E harnesses; `npm run startup-office:legacy-runtime`
-  blocks those paths and local-runtime terms from returning to hosted product
+  desktop runtime, npm CLI wrapper, native release artifacts, device-side
+  execution scripts, or old TUI/E2E harnesses; `npm run startup-office:legacy-runtime`
+  blocks those paths and device-runtime terms from returning to hosted product
   code.
 - R2 now extracts Startup Office company profile and demo seed behavior from
   the hosted API facade. The facade is down to 3,827 lines, and the beta release
@@ -427,10 +427,18 @@ and missing typed contracts.
   typed validation errors.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
-  `20260525020000_assert_pure_cloud_runtime_schema.sql`. A linked DB query confirms
+  `20260525040000_assert_pure_cloud_runtime_schema.sql`. A linked DB query confirms
   the obsolete device, queue, execution-plan, checkout-binding, and claim-function
   objects are absent; the newest migration now fails if any of those objects or
   columns survive.
+- R3 now removes remaining user-facing device/runtime reset copy from settings,
+  onboarding, command fallback, status-bar connection state, and memory docs.
+  The Supabase guard migration `20260525040000_assert_pure_cloud_runtime_schema.sql`
+  was applied to the linked remote project and asserts no retired runner/bridge
+  tables, functions, or columns survive.
+- R3 also removes the obsolete `web/e2e` harness that depended on the retired
+  desktop binary and state files; the legacy-runtime gate now rejects that path
+  if it returns.
 - The retired external runtime connector has been removed from the hosted
   product surface. `npm run startup-office:surface` and
   `npm run startup-office:legacy-runtime` now fail if those old product terms or
@@ -454,3 +462,6 @@ and missing typed contracts.
 - R3 now adds a service-role access allowlist. `rest(table)` and `rpc(name)`
   reject tables and functions that are not registered in
   `supabase/schema/current.json`, and the release gate checks the guard module.
+- R3 now starts shared API validation. Startup Office loop creation and loop run
+  payloads use `api/lib/startup-office/validation.js`, with release-gate tests
+  for malformed object, policy, inputs, and defer fields.

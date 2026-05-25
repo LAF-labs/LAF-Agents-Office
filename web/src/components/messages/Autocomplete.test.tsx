@@ -79,7 +79,7 @@ describe("<Autocomplete>", () => {
     expect(screen.queryByText("/deploy-simulation")).not.toBeInTheDocument();
   });
 
-  it("can show local workflow commands when the caller supplies them", () => {
+  it("can show workflow commands when the caller supplies them", () => {
     render(
       <Autocomplete
         value="/de"

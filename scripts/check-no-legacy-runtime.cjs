@@ -18,6 +18,9 @@ function trackedFiles() {
 }
 
 const tracked = trackedFiles();
+const existingTracked = tracked.filter((file) =>
+  fs.existsSync(path.join(root, file)),
+);
 
 const forbiddenPaths = [
   ".golangci.yml",
@@ -35,7 +38,7 @@ const forbiddenPaths = [
 ];
 
 for (const file of forbiddenPaths) {
-  if (tracked.includes(file)) {
+  if (existingTracked.includes(file)) {
     fail(`${file} must not be tracked in the hosted SaaS tree`);
   }
 }
@@ -51,9 +54,10 @@ const forbiddenPrefixes = [
   "packaging/",
   "testdata/",
   "tests/",
+  "web/e2e/",
 ];
 
-for (const file of tracked) {
+for (const file of existingTracked) {
   if (forbiddenPrefixes.some((prefix) => file.startsWith(prefix))) {
     fail(`${file} belongs to the retired local runtime surface`);
   }
@@ -76,7 +80,7 @@ const retiredScriptPaths = [
   "scripts/test-go.sh",
 ];
 
-for (const file of tracked) {
+for (const file of existingTracked) {
   if (retiredScriptPaths.some((retired) => file === retired || file.startsWith(retired))) {
     fail(`${file} is a retired local runtime script`);
   }
@@ -111,6 +115,8 @@ const forbiddenText = [
   [/worktree_(?:path|branch)/i, "worktree field"],
   [/managed_checkout|local_worktree/i, "local checkout execution mode"],
   [/headless_(?:claude|codex|opencode)/i, "headless local provider runtime"],
+  [/\blocal\s+(?:runtime|runner|bridge|execution)\b/i, "local runtime copy"],
+  [/로컬\s*(?:런타임|실행기)/i, "Korean local runtime copy"],
   [/\btmux\b/i, "tmux runtime"],
 ];
 
@@ -128,7 +134,7 @@ const binaryExtensions = new Set([
   ".woff2",
 ]);
 
-for (const file of tracked) {
+for (const file of existingTracked) {
   if (allowedFiles.has(file)) continue;
   if (!scanRoots.some((rootPath) => file === rootPath || file.startsWith(rootPath))) continue;
   if (binaryExtensions.has(path.extname(file).toLowerCase())) continue;

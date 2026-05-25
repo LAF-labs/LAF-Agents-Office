@@ -1,3 +1,7 @@
+const {
+  createStartupOfficeValidation,
+} = require("./validation");
+
 function createStartupOfficeQueryHandlers(deps) {
   const {
     createHTTPError,
@@ -23,6 +27,11 @@ function createStartupOfficeQueryHandlers(deps) {
     writeAuditEvent,
     writeJSON,
   } = deps;
+  const validation = createStartupOfficeValidation({
+    createHTTPError,
+    objectValue,
+    truncateText,
+  });
 
   async function handleStartupOfficeGrowthSummary(req, res) {
     const { membership, team, user } = await requireUser(req);
@@ -79,22 +88,20 @@ function createStartupOfficeQueryHandlers(deps) {
     }
     if (req.method !== "POST") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "workspace:manage");
-    const body = await readBody(req);
-    const name = truncateText(body.name || "", 160);
-    if (!name) throw createHTTPError(400, "name is required");
+    const body = validation.loopCreateBody(await readBody(req));
     const slug = await startupOfficeRepository().uniqueLoopSlug(
       membership.team_id,
-      body.slug || name,
+      body.slugSeed,
     );
     const [loop] = await safeStartupOfficeRest("startup_office_loops", {
       method: "POST",
       body: {
         cadence: normalizeStartupOfficeCadence(body.cadence),
         created_by: membership.user_id,
-        department: truncateText(body.department || "Operations", 80),
-        name,
-        objective: truncateText(body.objective || "", 2000),
-        policy: objectValue(body.policy),
+        department: body.department,
+        name: body.name,
+        objective: body.objective,
+        policy: body.policy,
         slug,
         status: normalizeStartupOfficeLoopStatus(body.status),
         team_id: membership.team_id,

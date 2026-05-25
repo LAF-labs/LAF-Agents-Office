@@ -45,19 +45,6 @@ export function hostedAPIURLFromBrowser(): string {
 
 // ── Init ──
 
-export function isLocalhostRuntime(
-  hostname = globalThis.location?.hostname ?? "",
-): boolean {
-  const host = String(hostname || "").toLowerCase();
-  return (
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host === "0.0.0.0" ||
-    host === "::1" ||
-    host.endsWith(".localhost")
-  );
-}
-
 export function supportsBrokerEvents(): boolean {
   return false;
 }
@@ -1454,10 +1441,9 @@ export interface WorkspaceWipeResult {
   error?: string;
 }
 
-// resetWorkspace is the narrow wipe: clears broker runtime state only.
+// resetWorkspace is the narrow wipe: clears transient workspace state only.
 // Team roster, company identity, tasks, and workflows all survive. Call
-// window.location.reload() after success so the UI picks up the empty
-// broker state.
+// window.location.reload() after success so the UI picks up the clean state.
 export function resetWorkspace(confirmPhrase: string) {
   return postWithTimeout<WorkspaceWipeResult>(
     "/workspace/reset",
@@ -1466,9 +1452,9 @@ export function resetWorkspace(confirmPhrase: string) {
   );
 }
 
-// shredWorkspace is the full wipe: broker runtime + team + company + office,
-// workflows, logs, sessions, provider state, and workspace wiki memory.
-// The broker resets in place after success so onboarding can reopen immediately.
+// shredWorkspace is the full wipe: team + company + office workflows, logs,
+// sessions, provider state, and workspace wiki memory.
+// The hosted API resets in place after success so onboarding can reopen.
 export function shredWorkspace(confirmPhrase: string) {
   return postWithTimeout<WorkspaceWipeResult>(
     "/workspace/shred",

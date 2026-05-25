@@ -2279,7 +2279,7 @@ function DangerZoneSection() {
         return;
       }
       queryClient.clear();
-      window.history.replaceState(null, "", "#/projects");
+      window.history.replaceState(null, "", "#/growth");
       resetForOnboarding();
       window.dispatchEvent(new Event("laf-office:workspace-shredded"));
       setOpen(null);
@@ -2299,7 +2299,7 @@ function DangerZoneSection() {
       <div style={styles.sectionTitle}>{t("settings.danger.title")}</div>
       <div style={styles.sectionDesc}>{t("settings.danger.desc")}</div>
 
-      {/* RESET: narrow local runtime state only. */}
+      {/* RESET: clears transient workspace state only. */}
       <div style={dangerStyles.card("warn")}>
         <div style={dangerStyles.cardTitle}>
           <Refresh width={16} height={16} />
@@ -2343,17 +2343,12 @@ function DangerZoneSection() {
         <div style={dangerStyles.listLabel}>{t("settings.danger.deletes")}</div>
         <ul style={dangerStyles.list}>
           <li>
-            {t("settings.danger.shredDeleteOnboarding")} (
-            <code>~/.laf-office/onboarded.json</code>)
+            {t("settings.danger.shredDeleteOnboarding")}
           </li>
           <li>
-            {t("settings.danger.shredDeleteCompany")} (
-            <code>~/.laf-office/company.json</code>)
+            {t("settings.danger.shredDeleteCompany")}
           </li>
-          <li>
-            {t("settings.danger.shredDeleteRuntime")}{" "}
-            <code>~/.laf-office/</code>
-          </li>
+          <li>{t("settings.danger.shredDeleteRuntime")}</li>
           <li>{t("settings.danger.shredDeleteLogs")}</li>
           <li>{t("settings.danger.shredDeleteRuntimeState")}</li>
         </ul>

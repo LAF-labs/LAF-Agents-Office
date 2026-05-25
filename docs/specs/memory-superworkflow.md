@@ -5,14 +5,13 @@ agent Notebook, the shared Wiki, and the repo Obsidian vault config.
 
 ## Source of Truth
 
-- Canonical team knowledge: `~/.laf-office/wiki/`.
-- Draft agent memory: `~/.laf-office/wiki/agents/{agent}/notebook/`.
-- Repo mirror for Obsidian browsing: `docs/wiki-mirror/`.
-- Obsidian config: `.obsidian/`.
+- Canonical team knowledge: hosted workspace Wiki.
+- Draft agent memory: hosted agent Notebook.
+- Optional repo mirror for browsing: `docs/wiki-mirror/`.
 
-`docs/wiki-mirror/` is not canonical. It is generated from the local wiki by
-`scripts/sync-obsidian-wiki.sh pull` and is ignored by git except for its
-README.
+`docs/wiki-mirror/` is not canonical. It is kept only as historical browsing
+scaffolding; production memory lives in Supabase-backed Wiki and Notebook
+records.
 
 ## Capture Flow
 
@@ -34,28 +33,11 @@ When MCP is available, memory adapters should call:
 - `notebook_promote` for reviewed promotion.
 - `team_wiki_search` and `laf_office_wiki_lookup` for canonical lookup.
 
-## Offline Integration
+## Hosted API Integration
 
-When MCP is not available, use:
-
-```bash
-printf '%s\n' "memory text" \
-  | ./scripts/laf-memory-capture.sh --agent ceo --source claude-subconscious --title "Draft title"
-```
-
-The script writes only under the agent Notebook namespace. It does not promote
-or commit canonical Wiki pages.
-
-## Obsidian Mirror
-
-Pull the local Wiki into the repo mirror:
-
-```bash
-./scripts/sync-obsidian-wiki.sh pull
-```
-
-Open the repository root as an Obsidian vault. The mirror appears under
-`docs/wiki-mirror/`.
+If MCP is not available, use the hosted Startup Office API endpoints for
+Notebook drafts and Wiki promotion. Do not add desktop scripts or file mirrors
+as a required production path.
 
 ## Hard Rules
 
@@ -66,4 +48,3 @@ Open the repository root as an Obsidian vault. The mirror appears under
 - Do not store secrets in Notebook or Wiki.
 - Do not sync hosted tool state into Wiki without an implemented, reviewed
   integration.
-

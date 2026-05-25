@@ -165,6 +165,19 @@ assertQuotedStringsNotMatch(
   ],
 );
 
+assertNotMatchesInSegment(
+  "web/src/lib/i18n.ts",
+  '"settings.danger.title"',
+  '"sidebar.collapse"',
+  [
+    { label: "danger zone copy mentions local runtime", pattern: /local runtime/i },
+    { label: "danger zone copy mentions Korean local runtime", pattern: /로컬\s*런타임/ },
+    { label: "danger zone copy mentions local runner", pattern: /local runner/i },
+    { label: "danger zone copy mentions Korean local runner", pattern: /로컬\s*실행기/ },
+    { label: "danger zone copy mentions local workspace path", pattern: /~\/\.laf-office/ },
+  ],
+);
+
 assertQuotedStringsNotMatch(
   "web/src/components/startup-office/startupOfficeCopy.ts",
   "export const STARTUP_OFFICE_WEDGE_COPY",

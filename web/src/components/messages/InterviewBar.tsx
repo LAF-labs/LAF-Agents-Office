@@ -5,8 +5,6 @@ import { NavArrowLeft, NavArrowRight, Xmark } from "iconoir-react";
 import {
   answerRequest,
   type InterviewOption,
-  isLocalhostRuntime,
-  post,
 } from "../../api/client";
 import { useRequests } from "../../hooks/useRequests";
 import { showNotice } from "../ui/Toast";
@@ -28,20 +26,12 @@ function sortInterviewOptions(
   });
 }
 
-function interviewSkipBehavior(localhostRuntime = isLocalhostRuntime()) {
-  return localhostRuntime
-    ? {
-        postPauseSignal: true,
-        notice: "Agents paused.",
-        ariaLabel: "Skip and pause agents",
-        title: "Skip - pause agents",
-      }
-    : {
-        postPauseSignal: false,
-        notice: "Request skipped.",
-        ariaLabel: "Skip request",
-        title: "Skip request",
-      };
+function interviewSkipBehavior() {
+  return {
+    notice: "Request skipped.",
+    ariaLabel: "Skip request",
+    title: "Skip request",
+  };
 }
 
 /**
@@ -50,7 +40,7 @@ function interviewSkipBehavior(localhostRuntime = isLocalhostRuntime()) {
  * - Allows cycling through queued requests with prev/next
  * - Renders option buttons; if the picked option requires custom text,
  *   switches to a text input mode using the option's hint as placeholder
- * - Skip / close dismisses hosted requests and only pauses agents on localhost
+ * - Skip / close dismisses hosted requests
  */
 export function InterviewBar() {
   const { pending } = useRequests();
@@ -128,21 +118,7 @@ export function InterviewBar() {
       return next;
     });
     setTextMode(null);
-    if (!skipBehavior.postPauseSignal) {
-      showNotice(skipBehavior.notice, "info");
-      return;
-    }
-    try {
-      await post("/signals", {
-        kind: "pause",
-        summary: "Human skipped a blocking interview",
-      });
-      showNotice(skipBehavior.notice, "info");
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to pause agents";
-      showNotice(message, "error");
-    }
+    showNotice(skipBehavior.notice, "info");
   };
 
   const handleNext = () =>

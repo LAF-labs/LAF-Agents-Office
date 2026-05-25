@@ -9,7 +9,6 @@ import {
   hostedAPIBaseURL,
   hostedAPIURLFromBrowser,
   initApi,
-  isLocalhostRuntime,
   login,
   normalizeHostedAPIBase,
   normalizeModelMode,
@@ -206,7 +205,7 @@ describe("workspace destructive api client", () => {
 });
 
 describe("cloud-only api client surface", () => {
-  it("does not expose local execution or project binding helpers", async () => {
+  it("does not expose obsolete execution or project binding helpers", async () => {
     const client = await import("./client");
     expect("getProjectLocalBindings" in client).toBe(false);
     expect("createProjectLocalBinding" in client).toBe(false);
@@ -347,7 +346,7 @@ describe("task api client", () => {
 });
 
 describe("hosted browser api client", () => {
-  it("uses hosted /api directly and skips local broker discovery off localhost", async () => {
+  it("uses hosted /api directly without discovery", async () => {
     vi.stubGlobal("location", { hostname: "laf-co.com" });
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ authenticated: false }), {
@@ -373,7 +372,7 @@ describe("hosted browser api client", () => {
     expect(supportsBrokerEvents()).toBe(false);
   });
 
-  it("supports a configured cross-origin hosted API base without local broker discovery", async () => {
+  it("supports a configured cross-origin hosted API base", async () => {
     vi.stubEnv("VITE_LAF_API_BASE_URL", "https://api.office.example/api/");
     vi.stubGlobal("location", {
       hostname: "app.office.example",
@@ -447,13 +446,6 @@ describe("hosted browser api client", () => {
       normalizeHostedAPIBase("https://api.office.example/api/?x=1#frag"),
     ).toBe("https://api.office.example/api");
     expect(hostedAPIURLFromBrowser()).toBe("https://office.example/api");
-  });
-
-  it("still identifies localhost for dev-only diagnostics without enabling broker events", () => {
-    expect(isLocalhostRuntime("localhost")).toBe(true);
-    expect(isLocalhostRuntime("127.0.0.1")).toBe(true);
-    expect(isLocalhostRuntime("laf-co.com")).toBe(false);
-    expect(supportsBrokerEvents()).toBe(false);
   });
 
   it("keeps same-origin cloud API mode when auth fails", async () => {

@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 describe("SettingsApp cloud office settings", () => {
-  it("does not expose local execution setup sections", () => {
+  it("does not expose obsolete execution setup sections", () => {
     const sections = __test__
       .visibleSectionGroups()
       .flatMap((group) => group.items.map((item) => item.id));
@@ -54,7 +54,7 @@ describe("SettingsApp cloud office settings", () => {
     expect(sections).toContain("danger");
   });
 
-  it("hides local runtime defaults in general settings", async () => {
+  it("hides obsolete execution defaults in general settings", async () => {
     renderSettingsApp();
 
     await screen.findByRole("button", { name: "Save general settings" });
@@ -67,7 +67,7 @@ describe("SettingsApp cloud office settings", () => {
     expect(screen.queryByText("laf-office shred")).not.toBeInTheDocument();
   });
 
-  it("saves general settings without local runtime defaults", async () => {
+  it("saves general settings without obsolete execution defaults", async () => {
     const user = userEvent.setup();
 
     renderSettingsApp();

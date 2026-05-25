@@ -341,7 +341,7 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
     readiness: {
       sessionLabel: "브라우저 세션",
       sessionReady:
-        "클라우드 워크스페이스 세션입니다. 로컬 실행기가 필요하지 않습니다.",
+        "클라우드 워크스페이스 세션입니다. 별도 설치가 필요하지 않습니다.",
       memoryLabel: "회사 위키",
       memoryMarkdown:
         "회사 목표, 결정, 승인, 자산, 루프 기록을 위키에 저장합니다.",

@@ -1,8 +1,8 @@
 # LAF Agents Office code owners
 #
-# The repository is now scoped to the hosted Startup Office SaaS. Legacy
-# local execution and native release ownership paths have been removed from the
-# product tree.
+# The repository is now scoped to the hosted Startup Office SaaS. Retired
+# device-side execution and native release ownership paths have been removed
+# from the product tree.
 
 *   @FranDias
 
