@@ -652,6 +652,12 @@ and missing typed contracts.
   `tasks`, `delivery_receipts`, plus project/task foreign-key columns from
   `channel_messages`, `wiki_article_index`, and `wiki_write_requests`. The
   linked Supabase project has that migration applied.
+- R3/R5 now makes the first-party asset library lifecycle explicit. Assets can
+  be listed, created, updated, linked to a run, saved from artifacts, and
+  archived through `startup_office_assets.status`; migration
+  `20260525170000_add_startup_office_asset_status.sql` adds the active/archive
+  state and the release gate checks the schema manifest plus object handler
+  coverage.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

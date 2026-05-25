@@ -203,6 +203,38 @@ test("project and task storage is removed from the current Supabase schema", () 
   assert.equal(messages.columns.includes("task_id"), false);
 });
 
+test("Startup Office assets support run links and archive status", () => {
+  const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
+  const sql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525170000_add_startup_office_asset_status.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /add column if not exists status text not null default 'active'/);
+  assert.match(sql, /startup_office_assets_status_check/);
+  assert.match(sql, /status in \('active', 'archived'\)/);
+  assert.match(sql, /idx_startup_office_assets_team_status/);
+
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "schema", "current.json"),
+      "utf8",
+    ),
+  );
+  const assets = schema.activeTables.find(
+    (table) => table.name === "startup_office_assets",
+  );
+  assert.equal(assets.columns.includes("run_id"), true);
+  assert.equal(assets.columns.includes("status"), true);
+
+  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  assert.match(source, /status: startupOfficeAssetStatus\(body\.status\)/);
+  assert.match(source, /patch\.run_id = body\.run_id \|\| null/);
+  assert.match(source, /body\.archive \? "archived" : startupOfficeAssetStatus/);
+});
+
 test("Startup Office release gate points at loop engine tests", () => {
   const script = fs.readFileSync(
     path.join(__dirname, "..", "scripts", "startup-office-beta-release-gate.cjs"),

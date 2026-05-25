@@ -1369,6 +1369,7 @@ function startupOfficeObjectPayload(kind, membership, body) {
       metadata: objectValue(body.metadata),
       name: truncateText(body.name || "Untitled asset", 180),
       run_id: body.run_id || null,
+      status: startupOfficeAssetStatus(body.status),
       team_id: membership.team_id,
       updated_at: now,
     };
@@ -1418,6 +1419,10 @@ function startupOfficeObjectPatch(kind, body) {
       if (body[key] !== undefined) patch[key] = truncateText(body[key], key === "body" ? 30000 : 180);
     }
     if (body.metadata !== undefined) patch.metadata = objectValue(body.metadata);
+    if (body.run_id !== undefined) patch.run_id = body.run_id || null;
+    if (body.status !== undefined || body.archive) {
+      patch.status = body.archive ? "archived" : startupOfficeAssetStatus(body.status);
+    }
     return patch;
   }
   if (kind === "customers") {
@@ -1460,6 +1465,11 @@ function startupOfficeCustomerStatus(value) {
   return ["lead", "interviewing", "qualified", "customer", "lost", "archived"].includes(raw)
     ? raw
     : "lead";
+}
+
+function startupOfficeAssetStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["active", "archived"].includes(raw) ? raw : "active";
 }
 
 function startupOfficeSignalStatus(value) {

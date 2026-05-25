@@ -115,6 +115,7 @@ export interface StartupOfficeArtifactObject {
   metadata?: Record<string, unknown>;
   name: string;
   run_id?: string | null;
+  status?: string;
   updated_at?: string | null;
 }
 

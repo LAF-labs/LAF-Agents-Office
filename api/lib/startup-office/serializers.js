@@ -133,6 +133,7 @@ function publicStartupOfficeAsset(row) {
     metadata: objectValue(row.metadata),
     name: row.name || "",
     run_id: row.run_id || null,
+    status: row.status || "active",
     updated_at: row.updated_at || null,
   };
 }

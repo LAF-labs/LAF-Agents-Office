@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525160000",
+  "latestMigration": "20260525170000",
   "pureCloudRuntimeGuardMigration": "20260525130000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -72,7 +72,7 @@
       "domain": "operating_objects",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "name", "kind", "body", "metadata", "created_by", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "run_id", "name", "kind", "status", "body", "metadata", "created_by", "created_at", "updated_at"]
     },
     {
       "name": "startup_office_customers",

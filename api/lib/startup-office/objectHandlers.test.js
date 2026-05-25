@@ -97,7 +97,7 @@ function baseDeps(overrides = {}) {
 test("object collection handler lists and creates typed operating objects", async () => {
   const deps = baseDeps({
     async readBody() {
-      return { name: "Launch list" };
+      return { name: "Launch list", run_id: "run-1", status: "active" };
     },
   });
   const handlers = createStartupOfficeObjectHandlers(deps);
@@ -119,8 +119,40 @@ test("object collection handler lists and creates typed operating objects", asyn
   assert.equal(deps.calls.permissions[1].permission, "memory:write_draft");
   assert.equal(deps.calls.rest[0].table, "startup_office_assets");
   assert.equal(deps.calls.rest[0].options.body.team_id, "team-1");
+  assert.equal(deps.calls.rest[0].options.body.run_id, "run-1");
+  assert.equal(deps.calls.rest[0].options.body.status, "active");
   assert.equal(deps.calls.audits[0][1], "startup_office.assets.created");
   assert.equal(deps.calls.writes[1].body.asset.kind, "assets");
+});
+
+test("asset item handler updates run links and archives by status", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { archive: true, run_id: "run-2" };
+    },
+    startupOfficeObjectPatch(kind, body) {
+      return {
+        patched_kind: kind,
+        run_id: body.run_id,
+        status: body.archive ? "archived" : body.status,
+      };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectItem({ method: "PATCH" }, {}, "assets", "asset-1");
+  assert.equal(deps.calls.permissions[0].permission, "memory:write_draft");
+  assert.equal(deps.calls.rest[0].table, "startup_office_assets");
+  assert.deepEqual(deps.calls.rest[0].options.query, {
+    id: "eq.asset-1",
+    team_id: "eq.team-1",
+  });
+  assert.deepEqual(deps.calls.rest[0].options.body, {
+    patched_kind: "assets",
+    run_id: "run-2",
+    status: "archived",
+  });
+  assert.equal(deps.calls.audits[0][1], "startup_office.assets.updated");
 });
 
 test("object item handler patches by id within the caller workspace", async () => {
