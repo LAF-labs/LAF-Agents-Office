@@ -180,6 +180,7 @@ const launchCampaignTemplate = Object.freeze({
           receipts: context.recent_receipts || [],
           revision_request: context.revision_request || {},
           signals: context.relevant_signals || [],
+          tool_policy: context.tool_policy || {},
           wiki_memory: context.wiki_memory || [],
         },
         null,

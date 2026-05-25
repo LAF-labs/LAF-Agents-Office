@@ -98,7 +98,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I057 | AI worker | Model cost calculation is heuristic and not reconciled against provider billing. | cost metadata |
 | SV-I058 | AI worker | Long-running work has no distributed cancellation contract. | cancel route and worker state |
 | SV-I059 | AI worker | There is no red-team harness for hallucination, unsafe advice, and overclaiming. | output eval test |
-| SV-I060 | AI worker | AI execution has no per-workspace tool permission manifest. | loops and skills |
+| SV-I060 | AI worker | Loop tool permission manifests now exist, but live connector-level enforcement must stay tied to this contract as new tools are added. | `workers/startup-office/toolPolicy.js`, `startup-office:tool-policy` |
 | SV-I061 | Memory | Company memory is promising but not yet the source of truth for all company operations. | memory pages and wiki |
 | SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | hosted wiki and Startup Office |
 | SV-I063 | Memory | Retrieval quality is not measured against business-loop outcomes. | wiki tests vs loop tests |
@@ -290,7 +290,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | manual gated script |
 | SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | worker tests |
 | SV-G046 | Add retrieval over memory and assets. | Loop outputs cite company memory and uploaded materials. | integration tests |
-| SV-G047 | Implement tool permission manifests. | Each loop declares allowed tools and external action policy. | manifest tests |
+| SV-G047 | Implement tool permission manifests. | Each loop declares allowed tools, disallowed external-execution tools, and external action policy; worker prompts, metadata, approvals, jobs, and receipts record the policy snapshot. | `startup-office:tool-policy`, worker tests |
 | SV-G048 | Add model cost reconciliation. | Estimated costs are compared with provider usage fields. | usage tests |
 | SV-G049 | Add red-team scenarios. | Unsafe, hallucinated, and overclaiming outputs fail the gate. | eval tests |
 | SV-G050 | Add dead-letter processing. | Failed worker jobs land in a visible recovery queue and scheduled monitor. | worker tests |
@@ -374,6 +374,13 @@ recorded in `startup_office_terms_acceptances`, shown in beta ops, audited as
 SV-G098 is covered on the unauthenticated signup entry screen: founder use
 cases, beta outcomes, and trust controls are visible before account creation and
 locked by `npm run startup-office:sales-proof` plus the auth UI regression test.
+SV-G047 is now covered by a versioned loop tool-policy manifest:
+`workers/startup-office/toolPolicy.js` declares allowed tools, blocked execution
+tools, and external action policy per loop; the AI worker injects that policy
+into prompts and records it on runs, artifacts, approvals, worker jobs, and
+receipts. `npm run startup-office:tool-policy` and
+`workers/startup-office/toolPolicy.test.js` prevent new loops from shipping
+without the same founder-control contract.
 SV-G023 is now broader than representative spot checks: `npm run
 startup-office:rls-live` applies every Supabase migration to a temporary
 PostgreSQL cluster, starts PostgREST, seeds Alpha/Beta rows across every
@@ -399,6 +406,10 @@ the final release commit or when a shared invariant changes.
   `npm run closed-beta:goals` requires G072-G098 to stay complete, allows only
   G099 and G100 to remain blocked, and requires those blockers to point to
   external deployment/customer proof instead of repository work.
+- R4 now includes a versioned tool permission manifest:
+  `npm run startup-office:tool-policy` checks that every loop declares allowed
+  tools, blocked external-execution tools, and never-auto-execute policy for
+  publish, send, spend, legal-sensitive, pricing, and customer-promise actions.
 - R2 has started with a dedicated Startup Office route contract and dispatcher:
   `api/lib/startup-office/routes.js` now owns the contract list, and
   `api/lib/startup-office/dispatcher.test.js` pins route IDs, aliases, params,

@@ -29,6 +29,7 @@ const checks = [
   ["npm", ["run", "startup-office:rls-verification"]],
   ["npm", ["run", "startup-office:sales-proof"]],
   ["npm", ["run", "startup-office:tenant-isolation"]],
+  ["npm", ["run", "startup-office:tool-policy"]],
   ["npm", ["run", "startup-office:permissions"]],
   ["npm", ["run", "startup-office:schema"]],
   ["npm", ["run", "startup-office:security"]],
@@ -98,6 +99,7 @@ const checks = [
   ["node", ["--test", "workers/startup-office/loopEngine.test.js"]],
   ["node", ["--test", "workers/startup-office/outboxWorker.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],
+  ["node", ["--test", "workers/startup-office/toolPolicy.test.js"]],
   ["node", ["--test", "api/hosted-api.test.js"]],
   [
     "npm",

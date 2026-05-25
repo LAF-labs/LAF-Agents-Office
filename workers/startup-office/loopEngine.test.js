@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { runStartupOfficeLoop } = require("./loopEngine");
+const { STARTUP_OFFICE_TOOL_POLICY_VERSION } = require("./toolPolicy");
 
 test("startup office loop engine creates AI artifact, approval, receipt, and cost metadata", async () => {
   const state = fakeRepositoryState();
@@ -26,6 +27,9 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.run.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(result.artifact.metadata.skill_invocations[0].reason, "Validate market evidence.");
   assert.equal(result.approval.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(result.artifact.metadata.tool_policy.version, STARTUP_OFFICE_TOOL_POLICY_VERSION);
+  assert.equal(result.artifact.metadata.tool_policy.allowed_tools.includes("browser_research"), true);
+  assert.equal(result.run.metadata.tool_policy.loop_slug, "idea-validation");
   assert.equal(result.approval.risk_level, "high");
   assert.deepEqual(
     gateTypes(result.approval.metadata.approval_gates),
@@ -51,6 +55,8 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
     ["customer_promise", "public_claim"],
   );
   assert.equal(state.receipts.at(0).trace.skill_invocations[0].skill_name, "market-research");
+  assert.equal(state.receipts.at(-1).trace.tool_policy.disallowed_tools.includes("payment_capture"), true);
+  assert.equal(state.jobPatches.at(-1).metadata.tool_policy.version, STARTUP_OFFICE_TOOL_POLICY_VERSION);
   assert.equal(state.receipts.at(-1).trace.skill_invocations[0].input_snapshot.objective, "Validate the first buyer segment");
   assert.deepEqual(
     state.runPatches.map((patch) => patch.status),
@@ -272,6 +278,43 @@ test("startup office loop engine gathers browser research and records cited sour
   assert.equal(result.run.metadata.browser_research.source_count, 1);
   assert.match(result.artifact.content, /Market Report: https:\/\/example.com\/report/);
   assert.equal(state.receipts.at(-1).trace.browser_research.source_count, 1);
+});
+
+test("startup office loop engine skips browser research when tool policy disallows it", async () => {
+  const state = fakeRepositoryState();
+  let researchCalled = false;
+  const result = await runStartupOfficeLoop({
+    browserResearchClient: {
+      provider: "fetch",
+      research: async () => {
+        researchCalled = true;
+        throw new Error("browser research should not run for weekly review");
+      },
+    },
+    inputs: {
+      research_urls: ["https://example.com/weekly-report"],
+    },
+    loop: weeklyReviewLoop(),
+    membership: membership(),
+    modelClient: weeklyReviewModelClient(),
+    nowISO: fixedNow,
+    objective: "Review the company operating week",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(researchCalled, false);
+  assert.equal(result.status, "waiting_approval");
+  assert.equal(result.artifact.metadata.browser_research.provider, "policy_denied");
+  assert.deepEqual(result.artifact.metadata.browser_research.skipped, [{
+    reason: "tool policy disallows browser_research",
+    url: "https://example.com/weekly-report",
+  }]);
+  assert.equal(result.artifact.metadata.tool_policy.allowed_tools.includes("browser_research"), false);
+  assert.equal(state.receipts.at(-1).trace.browser_research.source_count, 0);
 });
 
 test("startup office loop engine includes revision requests in the model prompt", async () => {
@@ -595,6 +638,63 @@ function launchCampaignModelClient() {
   };
 }
 
+function weeklyReviewModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async ({ input }) => {
+      assert.match(input, /tool_policy/);
+      assert.match(input, /weekly-operator-review/);
+      return {
+        cost: {
+          currency: "USD",
+          estimated_usd: null,
+          input_tokens: 10,
+          model: "fake-model",
+          output_tokens: 20,
+          pricing_source: "usage_tokens_only",
+          provider: "fake",
+          total_tokens: 30,
+        },
+        data: {
+          assumptions: [{
+            claim: "The weekly review needs current founder confirmation.",
+            confidence: "medium",
+            evidence_needed: "Founder confirms the next operating priority.",
+          }],
+          company_pulse: {
+            concerns: ["No live metric movement was supplied."],
+            status: "watch",
+            wins: ["The team has a clearer approval workflow."],
+          },
+          decisions: [{
+            decision: "Keep next week focused on first paid beta evidence.",
+            needs_approval: true,
+            rationale: "The workspace still needs external customer proof.",
+          }],
+          metrics_review: [{
+            current: "No current metric supplied.",
+            interpretation: "Treat activation as unknown until the founder updates metrics.",
+            metric: "qualified founder calls",
+            next_check: "Review after the next discovery loop.",
+          }],
+          next_actions: ["Ask the founder to approve the next discovery loop."],
+          next_loops: [{
+            loop_slug: "customer-discovery",
+            objective: "Book three qualified beta discovery calls.",
+            reason: "Customer proof is still the highest-leverage gap.",
+          }],
+          receipt_takeaways: ["Recent receipts show draft work, not executed external actions."],
+          risk_level: "medium",
+          risks: ["Operating priorities can drift without founder approval."],
+          sources: [],
+          summary: "Weekly operating review is ready for founder approval.",
+        },
+      };
+    },
+  };
+}
+
 function failingModelClient() {
   return {
     model: "fake-model",
@@ -635,6 +735,14 @@ function launchCampaignLoop() {
     id: "loop-2",
     name: "Launch Campaign",
     slug: "launch-campaign",
+  };
+}
+
+function weeklyReviewLoop() {
+  return {
+    id: "loop-3",
+    name: "Weekly Operator Review",
+    slug: "weekly-operator-review",
   };
 }
 

@@ -79,6 +79,11 @@ for (const [relativePath, snippets, label] of [
     "wiki and asset retrieval",
   ],
   [
+    "workers/startup-office/toolPolicy.js",
+    ["STARTUP_OFFICE_TOOL_POLICY_VERSION", "never_auto_execute", "weekly-operator-review"],
+    "loop tool permission policy",
+  ],
+  [
     "workers/startup-office/outputEval.test.js",
     ["fake loop outputs clear the beta quality rubric", "requires attached citations", "red-teams overclaiming and regulated advice"],
     "quality evaluation harness",
@@ -117,7 +122,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:production-handoff"],
+    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:production-handoff", "startup-office:tool-policy"],
     "release gate launch checks",
   ],
 ]) {

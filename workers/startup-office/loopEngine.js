@@ -12,6 +12,10 @@ const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
 const { writeStartupOfficeRunReceipt } = require("./receiptWriter");
 const {
+  startupOfficeLoopToolPolicy,
+  startupOfficeToolPolicyAllows,
+} = require("./toolPolicy");
+const {
   buildStartupOfficeMemoryDiff,
   startupOfficeMemoryPromotionPreview,
   startupOfficeWikiPromotionDraft,
@@ -43,6 +47,7 @@ async function runStartupOfficeLoop({
   const claimedAttempt = Number(workerJob?.attempts || 0);
   const attempt = claimedAttempt > 0 ? claimedAttempt : Number(run?.metadata?.attempt || 0) + 1;
   const recordedSkillInvocations = normalizedSkillInvocations(skillInvocations, run);
+  const toolPolicy = startupOfficeLoopToolPolicy({ approvalPolicy, loop });
   let modelResult = null;
 
   try {
@@ -61,6 +66,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
+        tool_policy: toolPolicy,
         worker_job_id: workerJob?.id || null,
       }),
       started_at: run.started_at || startedAt,
@@ -84,6 +90,7 @@ async function runStartupOfficeLoop({
         model: modelClient.model,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
+        tool_policy: toolPolicy,
         worker_job_id: workerJob?.id || null,
       },
     });
@@ -95,6 +102,7 @@ async function runStartupOfficeLoop({
       repository,
       run: runningRun || run,
     });
+    context.tool_policy = toolPolicy;
     context.citation_sources = buildCitationSources({
       assets: context.relevant_assets,
       customers: context.relevant_customers,
@@ -107,6 +115,7 @@ async function runStartupOfficeLoop({
       context,
       inputs,
       loop,
+      toolPolicy,
     });
     if (browserResearch.sources.length) {
       context.citation_sources = mergeCitationSources(
@@ -124,6 +133,8 @@ async function runStartupOfficeLoop({
         run_id: run.id,
         skill_names: recordedSkillInvocations.map((item) => item.skill_name),
         team_id: membership.team_id,
+        tool_policy_version: toolPolicy.version,
+        tools_allowed: toolPolicy.allowed_tools,
       },
       purpose: "startup_office_loop",
       schema: template.schema,
@@ -188,6 +199,7 @@ async function runStartupOfficeLoop({
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
         structured_output: modelResult.data,
+        tool_policy: toolPolicy,
         wiki_promotion: startupOfficeWikiPromotionDraft({
           artifact: null,
           context,
@@ -249,6 +261,7 @@ async function runStartupOfficeLoop({
           provider: modelClient.provider,
           quality: qualityMetadata,
           skill_invocations: recordedSkillInvocations,
+          tool_policy: toolPolicy,
         },
         requested_by: membership.user_id,
         risk_level: approvalRisk,
@@ -289,6 +302,7 @@ async function runStartupOfficeLoop({
         provider: modelClient.provider,
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
+        tool_policy: toolPolicy,
         worker_job_id: workerJob?.id || null,
       }),
       status: approvalRequired ? "waiting_approval" : "completed",
@@ -327,6 +341,7 @@ async function runStartupOfficeLoop({
           cost: modelResult.cost,
           run_id: run.id,
           skill_invocations: recordedSkillInvocations,
+          tool_policy: toolPolicy,
         },
         status: "completed",
         updated_at: completedAt,
@@ -355,6 +370,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
+        tool_policy: toolPolicy,
       },
     });
     return {
@@ -387,6 +403,7 @@ async function runStartupOfficeLoop({
         model: modelClient.model,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
+        tool_policy: toolPolicy,
         worker_job_id: workerJob?.id || null,
       }),
       status: "failed",
@@ -410,7 +427,7 @@ async function runStartupOfficeLoop({
         completed_at: failedAt,
         last_error: message,
         locked_at: null,
-        metadata: { cost, run_id: run.id },
+        metadata: { cost, run_id: run.id, tool_policy: toolPolicy },
         status: "failed",
         updated_at: failedAt,
       });
@@ -426,6 +443,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
+        tool_policy: toolPolicy,
       },
     });
     return {
@@ -459,7 +477,20 @@ async function auditStartupOfficeWrite(repository, membership, event) {
   return repository.createAuditEvent(membership, event);
 }
 
-async function gatherBrowserResearch({ browserResearchClient, context, inputs, loop }) {
+async function gatherBrowserResearch({ browserResearchClient, context, inputs, loop, toolPolicy }) {
+  if (!startupOfficeToolPolicyAllows(toolPolicy, "browser_research")) {
+    return {
+      enabled: false,
+      findings: [],
+      loop_slug: loop?.slug || "",
+      provider: "policy_denied",
+      skipped: requestedBrowserResearchInputs(inputs).map((url) => ({
+        reason: "tool policy disallows browser_research",
+        url,
+      })),
+      sources: [],
+    };
+  }
   if (!browserResearchClient?.research) {
     return {
       enabled: false,
@@ -483,6 +514,25 @@ async function gatherBrowserResearch({ browserResearchClient, context, inputs, l
     skipped: Array.isArray(result?.skipped) ? result.skipped : [],
     sources: Array.isArray(result?.sources) ? result.sources : [],
   };
+}
+
+function requestedBrowserResearchInputs(inputs = {}) {
+  const out = [];
+  for (const key of ["research_urls", "researchUrls", "urls"]) {
+    for (const item of arrayValue(inputs[key])) pushResearchURL(out, item);
+  }
+  for (const item of arrayValue(inputs.sources)) pushResearchURL(out, item);
+  return [...new Set(out)].slice(0, 10);
+}
+
+function pushResearchURL(out, value) {
+  const raw = typeof value === "object" && value ? value.url || value.source_url || value.href : value;
+  const url = String(raw || "").trim();
+  if (/^https?:\/\/[^\s]+$/i.test(url)) out.push(url);
+}
+
+function arrayValue(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 module.exports = {

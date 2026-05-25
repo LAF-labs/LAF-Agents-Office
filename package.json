@@ -31,6 +31,7 @@
     "startup-office:rls-verification": "node scripts/check-startup-office-rls-verification.cjs",
     "startup-office:sales-proof": "node scripts/check-startup-office-sales-proof.cjs",
     "startup-office:tenant-isolation": "node scripts/check-startup-office-tenant-isolation.cjs",
+    "startup-office:tool-policy": "node scripts/check-startup-office-tool-policy.cjs",
     "startup-office:permissions": "node scripts/check-workspace-permission-catalog.cjs",
     "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
     "startup-office:security": "node scripts/check-startup-office-security-gate.cjs",
