@@ -64,6 +64,7 @@
     "startup-office:model-failover": "node scripts/check-startup-office-model-failover.cjs",
     "startup-office:model-client:test": "node --test workers/startup-office/modelClient.test.js",
     "startup-office:object-invariants": "node scripts/check-startup-office-object-invariants.cjs",
+    "startup-office:object-payload-schemas": "node scripts/check-startup-office-object-payload-schemas.cjs",
     "startup-office:object-query-contracts": "node scripts/check-startup-office-object-query-contracts.cjs",
     "startup-office:ops-monitor": "node scripts/startup-office-ops-monitor.cjs",
     "startup-office:ops-monitor:test": "node --test scripts/startup-office-ops-monitor.test.cjs",

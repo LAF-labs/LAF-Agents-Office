@@ -59,7 +59,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I018 | Architecture | The outbox now has atomic claim, delivery worker, and Resend adapter, but live provider smoke and reconciliation remain. | notification and receipt writes |
 | SV-I019 | Architecture | Loop runs now have queued worker jobs, leases, retries, and dead letters, but the public API contract still needs stronger async state documentation. | loop run and worker job APIs |
 | SV-I020 | Architecture | Assets, customers, metrics, and signals now share a first-party object invariant module for status/type normalization; richer lifecycle history remains future hardening. | `startup-office:object-invariants` |
-| SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
+| SV-I021 | API | Core loop mutations and first-party operating-object writes now use shared validation contracts; broader generated schemas remain future hardening. | `startup-office:object-payload-schemas` |
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
 | SV-I023 | API | Hosted API errors now return a typed envelope with code, message, retryable, status, and optional request ID, while the web client unwraps legacy and typed shapes. | `startup-office:error-envelope` |
 | SV-I024 | API | Core run creation, run retry/cancel, approval decisions, and worker artifact/approval paths now carry idempotency keys, but lower-risk object CRUD still needs the same contract. | run lifecycle routes |
@@ -727,6 +727,10 @@ the final release commit or when a shared invariant changes.
   status and signal-type normalization live in `objectInvariants.js`, hosted
   writes, artifact-derived signals, and serializers use the same rules, and
   `npm run startup-office:object-invariants` guards against drift.
+- R2/R8 now adds operating-object payload schemas. Asset/customer/metric/signal
+  creates and patches plus artifact object actions reject unknown fields before
+  database writes, while preserving documented aliases; `npm run
+  startup-office:object-payload-schemas` pins the route contract.
 - R5/R8 now adds customer CSV interoperability. Founders can export customers
   as `name,status,loop_id,notes,profile_json` CSV and import CSV rows back into
   Startup Office customers through `POST /startup-office/customers/csv`; the

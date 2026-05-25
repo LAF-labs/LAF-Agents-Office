@@ -58,6 +58,7 @@ const checks = [
   ["npm", ["run", "startup-office:model-failover"]],
   ["npm", ["run", "startup-office:model-client:test"]],
   ["npm", ["run", "startup-office:object-invariants"]],
+  ["npm", ["run", "startup-office:object-payload-schemas"]],
   ["npm", ["run", "startup-office:object-query-contracts"]],
   ["node", ["--test", "workers/startup-office/modelCosts.test.js"]],
   ["npm", ["run", "startup-office:ops-monitor:test"]],

@@ -68,6 +68,7 @@ assertMaxLines("api/lib/startup-office/importHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectInvariants.js", 80);
+assertMaxLines("api/lib/startup-office/objectPayloadSchemas.js", 100);
 assertMaxLines("api/lib/startup-office/objectQueries.js", 120);
 assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/payloadLimits.js", 80);

@@ -9,6 +9,10 @@ const {
 } = require("./pagination");
 const { startupOfficeSignalType } = require("./objectInvariants");
 const { startupOfficeObjectListOptions } = require("./objectQueries");
+const {
+  assertStartupOfficeArtifactActionPayload,
+  assertStartupOfficeObjectPayloadSchema,
+} = require("./objectPayloadSchemas");
 
 function createStartupOfficeObjectHandlers(deps) {
   const {
@@ -46,6 +50,7 @@ function createStartupOfficeObjectHandlers(deps) {
     if (req.method !== "POST") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "memory:write_draft");
     const body = await readBody(req);
+    assertStartupOfficeObjectPayloadSchema(kind, "create", body, { createHTTPError });
     assertObjectPayloadLimits({ body, createHTTPError, kind });
     const payload = startupOfficeObjectPayload(kind, membership, body);
     await enforceStorageLimit({ createHTTPError, membership, payload });
@@ -81,6 +86,7 @@ function createStartupOfficeObjectHandlers(deps) {
       return;
     }
     const body = await readBody(req);
+    assertStartupOfficeObjectPayloadSchema(kind, "patch", body, { createHTTPError });
     assertObjectPayloadLimits({ body, createHTTPError, kind });
     const patch = startupOfficeObjectPatch(kind, body);
     await enforceStorageLimit({ createHTTPError, membership, payload: patch });
@@ -103,6 +109,7 @@ function createStartupOfficeObjectHandlers(deps) {
     const artifact = await startupOfficeRepository().findArtifact(membership.team_id, artifactID);
     if (!artifact) throw createHTTPError(404, "artifact not found");
     const body = await readBody(req);
+    assertStartupOfficeArtifactActionPayload(action, body, { createHTTPError });
     if (action === "save-as-asset") {
       assertStartupOfficePayloadSize({
         createHTTPError,

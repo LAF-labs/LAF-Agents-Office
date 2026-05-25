@@ -408,6 +408,21 @@ test("asset writes reject oversized user payloads before database writes", async
   assert.equal(patchDeps.calls.rest.length, 0);
 });
 
+test("object writes reject unknown payload fields before database writes", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { email: "buyer@example.com", name: "Buyer" };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.objectCollection({ method: "POST" }, {}, "customers"),
+    (err) => err.status === 400 && err.message === "unsupported payload fields: email",
+  );
+  assert.equal(deps.calls.rest.length, 0);
+});
+
 test("object writes enforce the closed beta workspace storage limit", async () => {
   const deps = baseDeps({
     async readBody() {
@@ -450,6 +465,21 @@ test("artifact to asset action rejects oversized model artifacts before database
   await assert.rejects(
     () => handlers.artifactObjectAction({ method: "POST" }, {}, "artifact-1", "save-as-asset"),
     (err) => err.status === 413 && err.message.includes("artifact asset body exceeds"),
+  );
+  assert.equal(deps.calls.rest.length, 0);
+});
+
+test("artifact object actions reject unknown payload fields before database writes", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { send_now: true, title: "Founder signal" };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.artifactObjectAction({ method: "POST" }, {}, "artifact-1", "record-signal"),
+    (err) => err.status === 400 && err.message === "unsupported payload fields: send_now",
   );
   assert.equal(deps.calls.rest.length, 0);
 });
