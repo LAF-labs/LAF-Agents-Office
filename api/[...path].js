@@ -2,6 +2,9 @@ const {
   createHostedAuditHandlers,
 } = require("./lib/hosted/auditHandlers");
 const {
+  createHostedAuditWriter,
+} = require("./lib/hosted/auditWriter");
+const {
   createHostedAgentLogHandlers,
 } = require("./lib/hosted/agentLogHandlers");
 const {
@@ -287,6 +290,15 @@ const {
   getTeam,
   requireUser,
 } = HOSTED_USER_CONTEXT;
+const HOSTED_AUDIT_WRITER = createHostedAuditWriter({
+  createHTTPError: startupOfficeHTTPError,
+  redactSensitiveValue,
+  rest,
+});
+const {
+  writeAuditEvent,
+  writeTeamAuditEvent,
+} = HOSTED_AUDIT_WRITER;
 const HOSTED_REQUEST_IO = createHostedRequestIO({
   createHTTPError: startupOfficeHTTPError,
   maxRequestBodyBytes: MAX_REQUEST_BODY_BYTES,
@@ -1053,47 +1065,6 @@ function inviteEmailProviderFromEnv() {
     });
   }
   throw new HTTPError(503, `unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
-}
-
-async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}, options = {}) {
-  return await writeTeamAuditEvent(
-    membership?.team_id,
-    membership?.user_id,
-    action,
-    targetType,
-    targetID,
-    metadata,
-    options,
-  );
-}
-
-async function writeTeamAuditEvent(
-  teamID,
-  actorUserID,
-  action,
-  targetType,
-  targetID,
-  metadata = {},
-  options = {},
-) {
-  if (!teamID) return null;
-  try {
-    const [event] = await rest("audit_events", {
-      method: "POST",
-      body: {
-        action,
-        actor_user_id: actorUserID || null,
-        metadata: redactSensitiveValue(metadata),
-        target_id: targetID || "",
-        target_type: targetType || "",
-        team_id: teamID,
-      },
-    });
-    return event;
-  } catch {
-    if (options.required) throw new HTTPError(500, "audit write failed");
-    return null;
-  }
 }
 
 async function handleAuthSession(req, res) {

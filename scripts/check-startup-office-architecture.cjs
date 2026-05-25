@@ -32,10 +32,11 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1750);
+assertMaxLines("api/[...path].js", 1725);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
+assertMaxLines("api/lib/hosted/auditWriter.js", 75);
 assertMaxLines("api/lib/hosted/actionRateLimitRules.js", 80);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
 assertMaxLines("api/lib/hosted/clientTelemetryHandlers.js", 180);
@@ -269,6 +270,8 @@ for (const [pattern, label] of [
   [/async function requireUser\b/, "hosted auth user context resolver"],
   [/async function activeMembership\b/, "hosted active membership resolver"],
   [/async function getTeam\b/, "hosted team resolver"],
+  [/async function writeAuditEvent\b/, "hosted audit event writer"],
+  [/async function writeTeamAuditEvent\b/, "hosted team audit event writer"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

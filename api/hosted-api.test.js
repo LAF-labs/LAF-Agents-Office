@@ -502,6 +502,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /api\/lib\/hosted\/agentLogHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/activityHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/auditHandlers\.test\.js/);
+  assert.match(script, /api\/lib\/hosted\/auditWriter\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/authHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/commandHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/conversationHandlers\.test\.js/);
