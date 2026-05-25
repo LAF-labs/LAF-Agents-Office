@@ -19,6 +19,9 @@ startup, what fundamental problems would we refuse to carry forward?
 - Workspace roles, permissions, and role presets now have a shared catalog at
   `shared/workspace-permissions.json`; the release gate checks API and web
   generated artifacts for drift.
+- Startup Office routes now have a declarative authorization registry at
+  `api/lib/startup-office/authorization.js`; the release gate verifies each
+  route method maps to a known permission or admin-only policy.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes secret scan plus dependency audit, but it does not prove live model,
   live Supabase, email, billing, DNS, or browser E2E.
@@ -61,7 +64,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I027 | API | Large export endpoints risk becoming unbounded operational hazards. | `/startup-office/export` |
 | SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
 | SV-I029 | API | Hosted command registries still coexist with legacy command concepts. | command routes and hooks |
-| SV-I030 | API | Route-level authorization is implemented manually rather than declaratively. | `requirePermission` calls |
+| SV-I030 | API | Startup Office route-level authorization now has a declarative registry, but older hosted facade routes still use manual checks. | `startup-office:authorization` |
 | SV-I031 | Data model | A canonical current schema now exists, but it is still statically checked rather than proven by a local Supabase reset and live RLS exercise. | `supabase/schema/current.json`, schema gate |
 | SV-I032 | Data model | Obsolete no-op migrations preserve continuity but add cognitive load to fresh installs. | obsolete local migration files |
 | SV-I033 | Data model | There is no automated Supabase reset test proving all migrations apply cleanly. | no DB reset gate |
@@ -249,7 +252,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G010 | Prove first sale. | A real founder pays or signs beta terms and completes a loop. | external sales evidence |
 | SV-G011 | Split the hosted API facade. | No single product route module exceeds an agreed size budget. | module size checker |
 | SV-G012 | Create typed API contracts. | Web client types are generated or checked from API schemas. | contract tests |
-| SV-G013 | Centralize authorization. | Routes declare required roles and permissions in one registry. | auth matrix test |
+| SV-G013 | Centralize authorization. | Startup Office routes declare required roles and permissions in one registry. | `startup-office:authorization` |
 | SV-G014 | Centralize validation. | Every mutation uses shared schema validation and body limits. | validation tests |
 | SV-G015 | Introduce an outbox. | Side effects use durable outbox records. | schema and tests |
 | SV-G016 | Define async contracts. | Queued, running, retrying, failed, and canceled semantics are documented and tested. | worker tests |
@@ -549,3 +552,9 @@ and missing typed contracts.
   `npm run startup-office:permissions` verifies role presets, unknown
   permissions, API constants, web artifact drift, and release-gate wiring. The
   old phantom viewer receipt permission was removed from effective permissions.
+- R3/R8 now adds a declarative Startup Office authorization registry.
+  `api/lib/startup-office/authorization.js` maps each route method to a known
+  workspace permission or an explicit owner/admin policy, the route matcher
+  returns the declared access contract, and `npm run startup-office:authorization`
+  fails if any route method is missing, uses an unknown permission, or mutates
+  state with read-only access.

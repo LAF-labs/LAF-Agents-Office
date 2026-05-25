@@ -1,0 +1,73 @@
+function permissionAccess(permission) {
+  return Object.freeze({ permission, type: "permission" });
+}
+
+function adminAccess(reason) {
+  return Object.freeze({ reason, type: "admin" });
+}
+
+function routeAccess(entries) {
+  return Object.freeze(Object.fromEntries(entries));
+}
+
+const STARTUP_OFFICE_ACCESS = Object.freeze({
+  adminBetaOps: adminAccess("owner or admin beta operations"),
+  adminBilling: adminAccess("owner or admin billing operations"),
+  adminDemoSeed: adminAccess("owner or admin demo seed"),
+  adminWorkerRecovery: adminAccess("owner or admin worker job recovery"),
+  approveMemory: permissionAccess("memory:promote"),
+  draftMemory: permissionAccess("memory:write_draft"),
+  manageWorkspace: permissionAccess("workspace:manage"),
+  readWorkspace: permissionAccess("workspace:read"),
+});
+
+const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
+  approvalAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.approveMemory]]),
+  approvals: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
+  artifactObjectAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.draftMemory]]),
+  betaDashboard: routeAccess([["GET", STARTUP_OFFICE_ACCESS.adminBetaOps]]),
+  billing: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["PATCH", STARTUP_OFFICE_ACCESS.adminBilling],
+  ]),
+  companyProfile: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["PATCH", STARTUP_OFFICE_ACCESS.manageWorkspace],
+  ]),
+  demoSeed: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminDemoSeed]]),
+  export: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
+  growthSummary: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
+  loopRun: routeAccess([["POST", STARTUP_OFFICE_ACCESS.draftMemory]]),
+  loops: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["POST", STARTUP_OFFICE_ACCESS.manageWorkspace],
+  ]),
+  objectCollection: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["POST", STARTUP_OFFICE_ACCESS.draftMemory],
+  ]),
+  objectItem: routeAccess([
+    ["DELETE", STARTUP_OFFICE_ACCESS.draftMemory],
+    ["PATCH", STARTUP_OFFICE_ACCESS.draftMemory],
+  ]),
+  policy: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["PATCH", STARTUP_OFFICE_ACCESS.manageWorkspace],
+  ]),
+  receipts: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
+  run: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
+    ["POST", STARTUP_OFFICE_ACCESS.draftMemory],
+  ]),
+  workerJobAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminWorkerRecovery]]),
+});
+
+function routeAccessForMethod(contract, method) {
+  return STARTUP_OFFICE_ROUTE_ACCESS[contract.id]?.[String(method || "").toUpperCase()] || null;
+}
+
+module.exports = {
+  STARTUP_OFFICE_ACCESS,
+  STARTUP_OFFICE_ROUTE_ACCESS,
+  routeAccessForMethod,
+};

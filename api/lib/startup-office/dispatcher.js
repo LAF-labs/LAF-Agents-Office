@@ -1,6 +1,7 @@
 const {
   STARTUP_OFFICE_ROUTE_CONTRACTS,
 } = require("./routes");
+const { routeAccessForMethod } = require("./authorization");
 
 async function dispatchStartupOfficeRoute({ handlers, path, req, res }) {
   const route = matchStartupOfficeRoute(path, req.method);
@@ -20,7 +21,12 @@ function matchStartupOfficeRoute(path, method) {
     if (!contract.methods.includes(normalizedMethod)) continue;
     const args = contractArgs(contract, normalizedPath);
     if (!args) continue;
-    return { args, contract, id: contract.id };
+    return {
+      access: routeAccessForMethod(contract, normalizedMethod),
+      args,
+      contract,
+      id: contract.id,
+    };
   }
   return null;
 }

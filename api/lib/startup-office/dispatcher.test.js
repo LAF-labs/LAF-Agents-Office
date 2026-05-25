@@ -8,6 +8,10 @@ const {
 const {
   STARTUP_OFFICE_ROUTE_CONTRACTS,
 } = require("./routes");
+const {
+  STARTUP_OFFICE_ROUTE_ACCESS,
+  routeAccessForMethod,
+} = require("./authorization");
 
 test("Startup Office route contracts are stable and uniquely named", () => {
   const ids = STARTUP_OFFICE_ROUTE_CONTRACTS.map((contract) => contract.id);
@@ -66,6 +70,35 @@ test("Startup Office route matcher decodes path params and aliases", () => {
     matchStartupOfficeRoute("startup-office/assets/asset%2F1", "PATCH")?.args,
     ["assets", "asset/1"],
   );
+});
+
+test("Startup Office route matcher returns declared authorization", () => {
+  assert.deepEqual(
+    matchStartupOfficeRoute("startup-office/growth-summary", "GET")?.access,
+    { permission: "workspace:read", type: "permission" },
+  );
+  assert.deepEqual(
+    matchStartupOfficeRoute("startup-office/approvals/approval-1/approve", "POST")
+      ?.access,
+    { permission: "memory:promote", type: "permission" },
+  );
+  assert.equal(
+    matchStartupOfficeRoute("startup-office/admin/beta-dashboard", "GET")?.access
+      .type,
+    "admin",
+  );
+});
+
+test("Startup Office route contracts declare access for every method", () => {
+  for (const contract of STARTUP_OFFICE_ROUTE_CONTRACTS) {
+    assert.deepEqual(
+      Object.keys(STARTUP_OFFICE_ROUTE_ACCESS[contract.id] || {}).sort(),
+      [...contract.methods].sort(),
+    );
+    for (const method of contract.methods) {
+      assert.ok(routeAccessForMethod(contract, method), `${contract.id}.${method}`);
+    }
+  }
 });
 
 test("Startup Office route matcher rejects wrong methods and unknown paths", () => {
