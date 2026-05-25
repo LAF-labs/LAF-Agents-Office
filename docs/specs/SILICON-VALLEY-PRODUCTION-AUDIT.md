@@ -36,6 +36,10 @@ startup, what fundamental problems would we refuse to carry forward?
   `shared/generated-artifacts.json`, and `startup-office:generated-artifacts`
   verifies declared generated files, permission type drift, avatar sprite drift,
   and release-gate wiring.
+- Static analysis now has a release-gate check:
+  `startup-office:static-analysis` syntax-checks hosted API, Startup Office API,
+  worker, and script JavaScript, and verifies CI runs web typecheck and build
+  after web dependency install.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes production audit, closed-beta goal locking, audit coverage, secret
   scan, and dependency audit, but it does not prove live model, live Supabase,
@@ -238,7 +242,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I186 | Developer experience | Local development is hosted-first but not yet one-command reproducible for web, API, worker, and Supabase. | `DEVELOPMENT.md` |
 | SV-I187 | Developer experience | Code ownership boundaries are now explicit for Startup Office API, worker, web, schema, migration, operations-doc, and release-script paths, with a release-gate check preventing drift. | `startup-office:code-ownership`, `.github/CODEOWNERS` |
 | SV-I188 | Developer experience | Package naming and repo naming still reflect historical LAF Agents Office identity. | repo paths |
-| SV-I189 | Developer experience | Static analysis/lint coverage is weaker than tests. | scripts |
+| SV-I189 | Developer experience | Static analysis now syntax-checks hosted API, Startup Office API, worker, and release scripts while CI pins web typecheck/build; full web lint cleanup and deeper typed API generation remain future hardening. | `startup-office:static-analysis`, CI |
 | SV-I190 | Developer experience | New contributors cannot easily tell which surfaces are product vs legacy. | file tree |
 | SV-I191 | Customer success | No real founder success checklist is implemented in-product. | beta goals |
 | SV-I192 | Customer success | Support playbooks now appear in the admin beta dashboard for failed runs, confused approvals, notification recovery, billing blocks, and customer-success review. | support playbooks |
@@ -446,6 +450,10 @@ the final release commit or when a shared invariant changes.
   file to appear in `shared/generated-artifacts.json`, re-runs the workspace
   permission catalog check, and regenerates avatar sprites to catch drift before
   release.
+- R2/R7 now adds static-analysis coverage:
+  `npm run startup-office:static-analysis` runs `node --check` over hosted API,
+  Startup Office API, worker, and script JavaScript, then verifies CI runs web
+  typecheck and build after web dependencies are installed.
 - R4 now includes a versioned tool permission manifest:
   `npm run startup-office:tool-policy` checks that every loop declares allowed
   tools, blocked external-execution tools, and never-auto-execute policy for

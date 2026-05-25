@@ -51,6 +51,7 @@
     "startup-office:permissions": "node scripts/check-workspace-permission-catalog.cjs",
     "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
     "startup-office:security": "node scripts/check-startup-office-security-gate.cjs",
+    "startup-office:static-analysis": "node scripts/check-startup-office-static-analysis.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "startup-office:support-playbooks": "node scripts/check-startup-office-support-playbooks.cjs",
     "startup-office:support-timeline": "node scripts/check-startup-office-support-timeline.cjs",
