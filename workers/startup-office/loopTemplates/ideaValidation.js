@@ -15,6 +15,20 @@ const IDEA_VALIDATION_SCHEMA = Object.freeze({
       type: "array",
     },
     customer_segment: { type: "string" },
+    icp_hypothesis: { type: "string" },
+    next_evidence: {
+      items: {
+        additionalProperties: false,
+        properties: {
+          experiment: { type: "string" },
+          owner_action: { type: "string" },
+          success_signal: { type: "string" },
+        },
+        required: ["experiment", "success_signal", "owner_action"],
+        type: "object",
+      },
+      type: "array",
+    },
     next_actions: {
       items: { type: "string" },
       type: "array",
@@ -41,9 +55,11 @@ const IDEA_VALIDATION_SCHEMA = Object.freeze({
   required: [
     "summary",
     "customer_segment",
+    "icp_hypothesis",
     "assumptions",
     "risks",
     "risk_level",
+    "next_evidence",
     "next_actions",
     "sources",
   ],
@@ -59,6 +75,10 @@ const ideaValidationTemplate = Object.freeze({
   schemaDescription:
     "Idea validation output with explicit assumptions, risks, sources, and next founder-controlled actions.",
   schemaName: "idea_validation_output",
+  qualityRules: {
+    requiredArrays: ["assumptions", "next_actions", "next_evidence", "risks"],
+    requiredStrings: ["customer_segment", "icp_hypothesis", "summary"],
+  },
   slug: "idea-validation",
   summary(output) {
     return output?.summary || "Idea validation draft is ready for founder review.";
@@ -73,8 +93,14 @@ const ideaValidationTemplate = Object.freeze({
       "## Customer Segment",
       clean(output.customer_segment),
       "",
+      "## ICP Hypothesis",
+      clean(output.icp_hypothesis),
+      "",
       "## Falsifiable Assumptions",
       ...listAssumptions(output.assumptions),
+      "",
+      "## Next Evidence",
+      ...listEvidence(output.next_evidence),
       "",
       "## Risks",
       ...listText(output.risks),
@@ -134,6 +160,13 @@ function listAssumptions(items) {
   return array(items).map(
     (item) =>
       `- ${clean(item.claim)} (${clean(item.confidence || "medium")} confidence) - evidence needed: ${clean(item.evidence_needed)}`,
+  );
+}
+
+function listEvidence(items) {
+  return array(items).map(
+    (item) =>
+      `- ${clean(item.experiment)} - success signal: ${clean(item.success_signal)}; founder action: ${clean(item.owner_action)}`,
   );
 }
 

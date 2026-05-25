@@ -157,6 +157,15 @@ function successfulModelClient() {
           },
         ],
         customer_segment: "Solo B2B founders",
+        icp_hypothesis:
+          "Solo B2B founders who need a paid-beta validation package before hiring operators.",
+        next_evidence: [
+          {
+            experiment: "Five discovery interviews",
+            owner_action: "Ask each founder for a paid beta commitment.",
+            success_signal: "Two deposits or signed commitments.",
+          },
+        ],
         next_actions: ["Ask five founders for paid beta commitments."],
         risk_level: "medium",
         risks: ["The wedge may still be too broad."],
