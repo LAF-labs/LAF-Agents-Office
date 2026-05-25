@@ -160,6 +160,9 @@ const {
   createStartupOfficeRepository,
 } = require("./lib/startup-office/repositories");
 const {
+  createStartupOfficeRepositoryDelegates,
+} = require("./lib/startup-office/repositoryDelegates");
+const {
   createStartupOfficeRuntimeFactories,
 } = require("./lib/startup-office/runtimeFactories");
 const {
@@ -370,6 +373,21 @@ const {
   startupOfficeRepository,
   startupOfficeServices,
 } = STARTUP_OFFICE_RUNTIME;
+const STARTUP_OFFICE_REPOSITORY_DELEGATES = createStartupOfficeRepositoryDelegates({
+  startupOfficeRepository,
+});
+const {
+  createStartupOfficeReceipt,
+  ensureStartupOfficeLoop,
+  findStartupOfficeApproval,
+  isMissingStartupOfficeTableError,
+  safeStartupOfficeRest,
+  startupOfficeApprovals,
+  startupOfficeArtifacts,
+  startupOfficeLoops,
+  startupOfficeReceipts,
+  startupOfficeRuns,
+} = STARTUP_OFFICE_REPOSITORY_DELEGATES;
 const HOSTED_HEALTH_HANDLERS = createHostedHealthHandlers({
   authFetch,
   env: process.env,
@@ -1548,46 +1566,6 @@ function percent(value, limit) {
   const denominator = Number(limit || 0);
   if (!denominator) return 0;
   return Math.round((Number(value || 0) / denominator) * 100);
-}
-
-async function startupOfficeLoops(teamID) {
-  return startupOfficeRepository().loops(teamID);
-}
-
-async function startupOfficeRuns(teamID, options = {}) {
-  return startupOfficeRepository().runs(teamID, options);
-}
-
-async function startupOfficeArtifacts(teamID, options = {}) {
-  return startupOfficeRepository().artifacts(teamID, options);
-}
-
-async function startupOfficeApprovals(teamID, options = {}) {
-  return startupOfficeRepository().approvals(teamID, options);
-}
-
-async function startupOfficeReceipts(teamID, options = {}) {
-  return startupOfficeRepository().receipts(teamID, options);
-}
-
-async function ensureStartupOfficeLoop(membership, loopID) {
-  return startupOfficeRepository().ensureLoop(membership, loopID);
-}
-
-async function findStartupOfficeApproval(teamID, approvalID) {
-  return startupOfficeRepository().findApproval(teamID, approvalID);
-}
-
-async function createStartupOfficeReceipt(membership, body) {
-  return startupOfficeRepository().createReceipt(membership, body);
-}
-
-async function safeStartupOfficeRest(table, options = {}) {
-  return startupOfficeRepository().safeRest(table, options);
-}
-
-function isMissingStartupOfficeTableError(err, table) {
-  return startupOfficeRepository().isMissingTableError(err, table);
 }
 
 function objectValue(value) {

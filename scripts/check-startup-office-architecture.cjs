@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1605);
+assertMaxLines("api/[...path].js", 1580);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -90,6 +90,7 @@ assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/payloadLimits.js", 80);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
 assertMaxLines("api/lib/startup-office/rateLimits.js", 90);
+assertMaxLines("api/lib/startup-office/repositoryDelegates.js", 70);
 assertMaxLines("api/lib/startup-office/runtimeFactories.js", 50);
 assertMaxLines("api/lib/startup-office/services.js", 90);
 assertMaxLines("api/lib/startup-office/supportPlaybooks.js", 100);
@@ -305,6 +306,16 @@ for (const [pattern, label] of [
   [/async function handleInvites\b/, "hosted invites facade wrapper"],
   [/async function handleInviteLookup\b/, "hosted invite-lookup facade wrapper"],
   [/async function handleInviteAccept\b/, "hosted invite-accept facade wrapper"],
+  [/async function startupOfficeLoops\b/, "startup office loops repository facade helper"],
+  [/async function startupOfficeRuns\b/, "startup office runs repository facade helper"],
+  [/async function startupOfficeArtifacts\b/, "startup office artifacts repository facade helper"],
+  [/async function startupOfficeApprovals\b/, "startup office approvals repository facade helper"],
+  [/async function startupOfficeReceipts\b/, "startup office receipts repository facade helper"],
+  [/async function ensureStartupOfficeLoop\b/, "startup office ensure-loop repository facade helper"],
+  [/async function findStartupOfficeApproval\b/, "startup office approval lookup facade helper"],
+  [/async function createStartupOfficeReceipt\b/, "startup office receipt creation facade helper"],
+  [/async function safeStartupOfficeRest\b/, "startup office safe-rest facade helper"],
+  [/function isMissingStartupOfficeTableError\b/, "startup office missing-table facade helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
