@@ -111,6 +111,58 @@ test("quality rubric requires attached citations for externally informed output"
   assert.equal(cited.passed, true, cited.issues.join("\n"));
 });
 
+test("quality rubric red-teams overclaiming and regulated advice", () => {
+  const template = STARTUP_OFFICE_LOOP_TEMPLATES["launch-campaign"];
+  const baseOutput = {
+    assumptions: [
+      {
+        claim: "Founder-control messaging may improve trust.",
+        evidence_needed: "Run interviews and measure replies.",
+      },
+    ],
+    approval_gates: ["Founder approval before any external send."],
+    campaign_goal: "Validate cautious founder-controlled launch messaging.",
+    channel_plan: ["Founder-led email only after approval."],
+    copy_variants: ["Founder-controlled AI office."],
+    experiments: ["Ask five founders for feedback."],
+    metrics_to_track: ["reply rate"],
+    next_actions: ["Ask founder to review copy."],
+    risk_level: "medium",
+    risks: ["Claims may overstate capability."],
+    sources: [],
+    summary: "Draft a cautious launch campaign.",
+  };
+
+  const guaranteed = evaluateStartupOfficeOutput({
+    output: {
+      ...baseOutput,
+      copy_variants: ["This offer guarantees customers and is risk-free."],
+    },
+    template,
+  });
+  assert.equal(guaranteed.passed, false);
+  assert.match(guaranteed.issues.join("\n"), /must not guarantee/);
+
+  const regulated = evaluateStartupOfficeOutput({
+    output: {
+      ...baseOutput,
+      next_actions: ["Tell founders this is legal advice and the contract is enforceable."],
+    },
+    template,
+  });
+  assert.equal(regulated.passed, false);
+  assert.match(regulated.issues.join("\n"), /requires expert review/);
+
+  const reviewed = evaluateStartupOfficeOutput({
+    output: {
+      ...baseOutput,
+      next_actions: ["Flag this as not legal advice and require lawyer review before use."],
+    },
+    template,
+  });
+  assert.equal(reviewed.passed, true, reviewed.issues.join("\n"));
+});
+
 function loopContext(template) {
   return {
     loop: { name: template.artifactTitle, slug: template.slug },

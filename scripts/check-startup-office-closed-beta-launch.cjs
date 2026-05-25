@@ -80,7 +80,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "workers/startup-office/outputEval.test.js",
-    ["fake loop outputs clear the beta quality rubric", "requires attached citations"],
+    ["fake loop outputs clear the beta quality rubric", "requires attached citations", "red-teams overclaiming and regulated advice"],
     "quality evaluation harness",
   ],
   [

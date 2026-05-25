@@ -60,6 +60,13 @@ function evaluateStartupOfficeOutput({ context = null, output, template = null }
       break;
     }
   }
+  const claimText = outputClaimText(output);
+  if (guaranteesOutcome(claimText)) {
+    issues.push("outputs must not guarantee business, legal, financial, or medical outcomes");
+  }
+  if (regulatedAdviceWithoutReview(claimText)) {
+    issues.push("regulated legal, financial, tax, or medical advice requires expert review language");
+  }
   return {
     issues,
     passed: issues.length === 0,
@@ -94,6 +101,76 @@ function looksExternalExecution(value) {
     "launched ads",
     "transferred",
   ].some((phrase) => raw.includes(phrase));
+}
+
+function guaranteesOutcome(value) {
+  const raw = String(value || "").toLowerCase();
+  return [
+    "100% guaranteed",
+    "guaranteed outcome",
+    "guaranteed revenue",
+    "guaranteed customers",
+    "guaranteed acquisition",
+    "guaranteed compliance",
+    "risk-free",
+    "will definitely",
+  ].some((phrase) => raw.includes(phrase));
+}
+
+function regulatedAdviceWithoutReview(value) {
+  const raw = String(value || "").toLowerCase();
+  const hasRegulatedAdvice = [
+    "legal advice",
+    "tax advice",
+    "investment advice",
+    "financial advice",
+    "medical advice",
+    "diagnosis",
+    "contract is enforceable",
+  ].some((phrase) => raw.includes(phrase));
+  if (!hasRegulatedAdvice) return false;
+  return ![
+    "expert review",
+    "lawyer review",
+    "attorney review",
+    "accountant review",
+    "doctor review",
+    "clinician review",
+    "professional review",
+    "not legal advice",
+    "not tax advice",
+    "not financial advice",
+    "not medical advice",
+  ].some((phrase) => raw.includes(phrase));
+}
+
+function outputClaimText(output) {
+  return [
+    output?.summary,
+    output?.customer_promise,
+    output?.icp_hypothesis,
+    output?.positioning,
+    output?.sales_copy,
+    output?.draft_sections,
+    output?.copy_variants,
+    output?.outreach_drafts,
+    output?.follow_up_drafts,
+    output?.channel_plan,
+    output?.experiments,
+    output?.next_actions,
+  ]
+    .map(flattenText)
+    .join(" ");
+}
+
+function flattenText(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) return value.map(flattenText).join(" ");
+  if (typeof value === "object") return Object.values(value).map(flattenText).join(" ");
+  return "";
 }
 
 module.exports = {

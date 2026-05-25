@@ -92,7 +92,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I051 | AI worker | The model client is OpenAI-first and does not yet support robust provider failover. | `modelClient.js` |
 | SV-I052 | AI worker | Fake-provider tests prove shape, not real model quality. | worker tests |
 | SV-I053 | AI worker | Prompt templates are present but not versioned as production artifacts. | loop templates |
-| SV-I054 | AI worker | Output quality checks are shallow compared with real founder decision risk. | `qualityChecks.js` |
+| SV-I054 | AI worker | Output quality checks now cover structure, sources, assumptions, external-action claims, overclaiming, and regulated-advice review language; real model evals remain a post-beta hardening need. | `qualityChecks.js` |
 | SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
 | SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
 | SV-I057 | AI worker | Model cost calculation is heuristic and not reconciled against provider billing. | cost metadata |
@@ -286,7 +286,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
 | SV-G041 | Add provider abstraction. | At least two model providers or one provider plus fallback are supported. | worker tests |
 | SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, and tied to receipts. | worker tests |
-| SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, and unsafe claims. | eval suite |
+| SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, unsafe external-action claims, overclaiming, and regulated-advice review. | eval suite |
 | SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | manual gated script |
 | SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | worker tests |
 | SV-G046 | Add retrieval over memory and assets. | Loop outputs cite company memory and uploaded materials. | integration tests |
