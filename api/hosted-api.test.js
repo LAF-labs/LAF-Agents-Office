@@ -72,6 +72,8 @@ test("hosted API rate limits expensive actions at ingress", async () => {
     ["startup-office/loops/idea-validation/run", "POST", 20],
     ["invites", "POST", 20],
     ["company/profile", "PATCH", 30],
+    ["config", "POST", 30],
+    ["onboarding/complete", "POST", 30],
   ]) {
     handler.__test.resetRateLimits();
     for (let index = 0; index < attempts; index += 1) {

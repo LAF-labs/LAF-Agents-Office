@@ -94,8 +94,18 @@ for (const [routeMethod, expectations] of Object.entries(routeAuditCoverage)) {
 for (const [relativePath, snippet, label] of [
   [
     "api/lib/startup-office/workspaceConfigHandlers.js",
+    '"workspace_config.updated"',
+    "workspace config update",
+  ],
+  [
+    "api/lib/startup-office/workspaceConfigHandlers.js",
     '"onboarding.completed"',
     "workspace onboarding completion",
+  ],
+  [
+    "api/lib/startup-office/workspaceConfigHandlers.test.js",
+    '"workspace_config.updated"',
+    "workspace config behavior test",
   ],
   [
     "api/lib/startup-office/workflowHandlers.test.js",

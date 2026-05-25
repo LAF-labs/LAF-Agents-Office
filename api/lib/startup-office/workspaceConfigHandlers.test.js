@@ -19,6 +19,7 @@ function createHTTPError(status, message) {
 function baseDeps(overrides = {}) {
   const calls = {
     audits: [],
+    permissions: [],
     rest: [],
     safeRest: [],
     seed: [],
@@ -36,6 +37,9 @@ function baseDeps(overrides = {}) {
     },
     async readBody() {
       return {};
+    },
+    requirePermission(value, permission) {
+      calls.permissions.push({ membership: value, permission });
     },
     async requireUser() {
       return {
@@ -134,6 +138,7 @@ test("config handler normalizes posted company profile and workspace preferences
   const res = {};
   await handlers.config({ method: "POST" }, res);
 
+  assert.equal(deps.calls.permissions[0].permission, "workspace:manage");
   const upsert = deps.calls.rest.find((call) => call.options.method === "POST");
   assert.equal(upsert.table, "workspace_settings");
   assert.equal(upsert.options.prefer, "resolution=merge-duplicates,return=representation");
@@ -143,6 +148,12 @@ test("config handler normalizes posted company profile and workspace preferences
   assert.deepEqual(upsert.options.body.preferences.agent_names, ["CEO", "Growth"]);
   assert.equal(upsert.options.body.llm_provider, "codex");
   assert.equal(upsert.options.body.team_lead_slug, "operator");
+  assert.equal(deps.calls.audits[0][1], "workspace_config.updated");
+  assert.deepEqual(deps.calls.audits[0][4].preference_fields, [
+    "agent_names",
+    "first_task",
+    "max_concurrent_agents",
+  ]);
   assert.equal(res.body.config.company_name, "LAF Office");
   assert.equal(res.body.config.llm_provider, "codex");
   assert.equal(res.body.status, "ok");
@@ -189,6 +200,7 @@ test("onboarding completion seeds the first Startup Office workspace once", asyn
   const res = {};
   await handlers.onboardingComplete({ method: "POST" }, res);
 
+  assert.equal(deps.calls.permissions[0].permission, "workspace:manage");
   assert.equal(deps.calls.seed.length, 1);
   assert.equal(deps.calls.seed[0][0].team_id, "team-1");
   assert.equal(deps.calls.audits[0][1], "onboarding.completed");

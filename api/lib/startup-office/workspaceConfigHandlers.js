@@ -23,6 +23,7 @@ function createStartupOfficeWorkspaceConfigHandlers(deps) {
     nowISO,
     objectValue,
     readBody,
+    requirePermission,
     requireUser,
     rest,
     safeStartupOfficeRest,
@@ -41,10 +42,15 @@ function createStartupOfficeWorkspaceConfigHandlers(deps) {
     }
     if (req.method !== "POST") throw createHTTPError(405, "method not allowed");
 
+    requirePermission(membership, "workspace:manage");
     const body = await readBody(req);
     const existing = await workspaceSettings(membership.team_id);
     const patch = workspaceSettingsPatch(existing, body);
     const settings = await upsertWorkspaceSettings(membership.team_id, patch);
+    await writeAuditEvent(membership, "workspace_config.updated", "team", membership.team_id, {
+      company_profile_fields: Object.keys(patch.company_profile || {}).sort(),
+      preference_fields: Object.keys(patch.preferences || {}).sort(),
+    });
     writeJSON(res, 200, {
       config: hostedConfigSnapshot({ settings, team, user }),
       status: "ok",
@@ -66,6 +72,7 @@ function createStartupOfficeWorkspaceConfigHandlers(deps) {
 
   async function handleHostedOnboardingComplete(req, res) {
     const { membership, team, user } = await requireUser(req);
+    requirePermission(membership, "workspace:manage");
     const body = await readBody(req);
     const existing = await workspaceSettings(membership.team_id);
     const patch = workspaceSettingsPatch(existing, body);

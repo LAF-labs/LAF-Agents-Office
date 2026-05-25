@@ -35,6 +35,12 @@ const HOSTED_ACTION_RATE_LIMITS = Object.freeze([
     pattern: /^(?:auth\/me|company\/profile|startup-office\/policy|startup-office\/billing)$/,
     scope: "hosted_profile_write",
   },
+  {
+    limit: 30,
+    method: "POST",
+    pattern: /^(?:config|onboarding\/complete)$/,
+    scope: "hosted_workspace_config_write",
+  },
 ]);
 
 function createHostedActionRateLimiter({

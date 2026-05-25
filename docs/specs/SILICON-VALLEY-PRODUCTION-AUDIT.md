@@ -572,3 +572,7 @@ and missing typed contracts.
   and artifact-to-signal paths assert their audit events in tests, and
   `npm run startup-office:audit-coverage` maps every mutating Startup Office
   route to expected audit actions inside the beta release gate.
+- R3/R8 now hardens founder workspace configuration writes. `POST /api/config`
+  and `POST /api/onboarding/complete` require `workspace:manage`, the config
+  write emits `workspace_config.updated`, and both routes are covered by hosted
+  action rate limits before auth or database work.

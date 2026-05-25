@@ -15,6 +15,7 @@ test("hosted action rate limits cover expensive founder actions", () => {
     "startup_office_run_mutation",
     "hosted_invite_create",
     "hosted_profile_write",
+    "hosted_workspace_config_write",
   ]) {
     assert.ok(scopes.has(scope), scope);
   }
@@ -39,6 +40,8 @@ test("hosted action rate limiter applies only matching methods and paths", async
     ["POST", "startup-office/approvals/approval-1/approve", "startup_office_approval_action"],
     ["POST", "invites", "hosted_invite_create"],
     ["PATCH", "company/profile", "hosted_profile_write"],
+    ["POST", "config", "hosted_workspace_config_write"],
+    ["POST", "onboarding/complete", "hosted_workspace_config_write"],
   ]) {
     await enforceHostedActionRateLimit({ key: "ip-1", method }, path);
     assert.equal(calls.at(-1).scope, scope);

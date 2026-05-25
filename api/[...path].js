@@ -138,6 +138,7 @@ const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
     nowISO,
     objectValue,
     readBody,
+    requirePermission,
     requireUser,
     rest,
     safeStartupOfficeRest,
