@@ -17,6 +17,7 @@
     "startup-office:cost-metering": "node scripts/check-startup-office-cost-metering.cjs",
     "startup-office:closed-beta-launch": "node scripts/check-startup-office-closed-beta-launch.cjs",
     "startup-office:deletion-coverage": "node scripts/check-startup-office-deletion-coverage.cjs",
+    "startup-office:export-coverage": "node scripts/check-startup-office-export-coverage.cjs",
     "startup-office:first-beta-smoke": "node scripts/startup-office-first-beta-smoke.cjs",
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
     "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",

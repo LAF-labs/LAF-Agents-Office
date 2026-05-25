@@ -185,7 +185,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I144 | Compliance | Data deletion now purges workspace-scoped product tables through the team cascade with receipt-delete bypass scoped to the purge transaction; auth-user deletion and external provider retention remain operator/legal follow-up. | `purge_startup_office_workspace` |
 | SV-I145 | Compliance | Support access lacks customer-visible consent and expiry mechanics. | policy |
 | SV-I146 | Compliance | Regulated-domain guardrails are prompt text, not enforceable product policy. | templates |
-| SV-I147 | Compliance | Export format is not designed for legal discovery or customer portability. | export endpoint |
+| SV-I147 | Compliance | Export now has a schema-derived v2 manifest and documented omissions; import/restore tooling remains future work. | `startup-office:export-coverage` |
 | SV-I148 | Compliance | Subprocessor/model provider disclosure is not represented. | docs |
 | SV-I149 | Compliance | Incident response is not operationalized. | beta goals |
 | SV-I150 | Compliance | Security review artifacts are not attached to release gates. | CI |
@@ -270,7 +270,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G024 | Add database comments and constraints. | Core invariants are encoded at the DB layer. | migration review |
 | SV-G025 | Make audit complete. | Every Startup Office write emits a structured audit event. | `startup-office:audit-coverage` |
 | SV-G026 | Define deletion and retention. | Workspace deletion has a schema-derived manifest, service-role purge RPC, tombstone proof, and release-gate coverage. | `startup-office:deletion-coverage` |
-| SV-G027 | Version exports. | Export bundles include schema version and restore notes. | export test |
+| SV-G027 | Version exports. | Export bundles include schema version, restore notes, export manifest, and schema-derived coverage checks. | `startup-office:export-coverage` |
 | SV-G028 | Add backup and restore drill. | Restore proves company data, memory, and receipts survive. | runbook evidence |
 | SV-G029 | Normalize lifecycle states. | Objects, runs, approvals, notifications, and memory use shared state conventions. | schema tests |
 | SV-G030 | Add realistic seed reset. | Demo workspaces can be reset safely outside production. | admin test |
@@ -410,9 +410,10 @@ the final release commit or when a shared invariant changes.
   `npm run startup-office:architecture` prevents those extracted handlers from
   moving back into `api/[...path].js`.
 - R2 continues with query/read handlers for growth summary, loops, approvals,
-  receipts, and export extracted behind tests. The hosted API facade is now
-  4,499 lines, and exports include `startup-office-export.v1` plus restore
-  notes so customer portability has an explicit contract.
+  receipts, and export extracted behind tests. Exports now use
+  `startup-office-export.v2` with a schema-derived manifest, restore notes,
+  invite-token redaction, customer-visible legal/support evidence, and
+  documented omissions for internal queues and post-deletion tombstones.
 - R2 now extracts the execution workflow handlers for loop runs, run detail,
   cancel/retry, approval decisions, run-limit enforcement, usage metering, and
   notification recording. The hosted API facade is down to 4,130 lines, with

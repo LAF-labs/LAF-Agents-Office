@@ -206,15 +206,31 @@ test("export handler includes schema version and restore notes", async () => {
 
   await handlers.export({ method: "GET" }, {});
   const bundle = deps.calls.writes[0].body.export;
-  assert.equal(bundle.schema_version, "startup-office-export.v1");
+  assert.equal(bundle.schema_version, "startup-office-export.v2");
+  assert.equal(bundle.export_manifest.exported_tables.includes("startup_office_artifacts"), true);
+  assert.equal(
+    bundle.export_manifest.omitted_tables[0].name,
+    "startup_office_outbox_events",
+  );
   assert.equal(bundle.company_profile.name, "Acme");
   assert.equal(bundle.beta_ops.billing.plan, "founder_beta");
+  assert.equal(bundle.workspace_billing.plan, "founder_beta");
   assert.equal(deps.calls.activations[0].milestone, "first_export");
   assert.equal(deps.calls.activations[0].membership.team_id, "team-1");
   assert.match(bundle.restore_notes, /approval decisions/);
   assert.equal(bundle.generated_at, "2026-05-25T00:00:00.000Z");
+  assert.equal(bundle.artifacts[0].id, "artifact-1");
   assert.equal(bundle.assets[0].kind, "assets");
+  assert.equal(bundle.loops.length, 2);
   assert.equal(bundle.runs[0].id, "run-1");
+  assert.equal(bundle.team_invites[0].token_hash, undefined, "does not expose invite token hashes");
+  assert.ok(
+    deps.calls.rest.find(
+      (call) =>
+        call.table === "team_invites" &&
+        !String(call.options.query.select).includes("token_hash"),
+    ),
+  );
   assert.deepEqual(
     deps.calls.rows.map((call) => [call.kind, call.options.limit]),
     [

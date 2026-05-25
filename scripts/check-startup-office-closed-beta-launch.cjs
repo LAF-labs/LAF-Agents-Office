@@ -70,7 +70,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/startup-office/queryHandlers.js",
-    ["company_profile: profile", "beta_ops: betaOps", "activity_notifications"],
+    ["company_profile: profile", "beta_ops: betaOps", "export_manifest", "activity_notifications"],
     "export and activity query surface",
   ],
   [

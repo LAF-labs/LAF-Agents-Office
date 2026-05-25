@@ -159,6 +159,22 @@ Support access:
    ID, deletion request ID, requester, manifest version, purged table list, and
    purge timestamp.
 
+## Export Coverage
+
+`GET /startup-office/export` returns `startup-office-export.v2` and an
+`export_manifest` derived from the active schema. The export includes company
+profile, team metadata, memberships, invites without token hashes, workspace
+settings and billing state, channel messages, skills, wiki index/write
+requests, loops, runs, artifacts, approvals, receipts, assets, customers,
+metrics, signals, memory pages, support access events, deletion requests,
+terms acceptances, activation events, usage events, notifications, audit
+events, and billing documents.
+
+Internal queue state is intentionally omitted: outbox events and worker jobs are
+represented by customer-visible runs, receipts, notifications, and usage
+events. Deletion tombstones are post-deletion legal proof, not pre-deletion
+workspace export content.
+
 ## Incident Response
 
 Data leak or cross-tenant bug:
