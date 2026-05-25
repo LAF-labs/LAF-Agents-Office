@@ -201,6 +201,56 @@ export interface StartupOfficeCompanyProfileUpdate {
   stage?: string;
 }
 
+export interface StartupOfficeLoopRunResponse {
+  approval?: StartupOfficeApproval | null;
+  artifact?: StartupOfficeArtifact | null;
+  error?: string;
+  receipt?: StartupOfficeReceipt | null;
+  run?: StartupOfficeRun | null;
+  status?: string;
+  worker_job?: Record<string, unknown> | null;
+}
+
+export interface StartupOfficeRunDetailResponse {
+  approvals: StartupOfficeApproval[];
+  artifacts: StartupOfficeArtifact[];
+  receipts: StartupOfficeReceipt[];
+  run: StartupOfficeRun;
+}
+
+export interface StartupOfficeRunMutationResponse {
+  approval?: StartupOfficeApproval | null;
+  artifact?: StartupOfficeArtifact | null;
+  error?: string;
+  receipt?: StartupOfficeReceipt | null;
+  run?: StartupOfficeRun | null;
+  status?: string;
+  worker_job?: Record<string, unknown> | null;
+}
+
+export interface StartupOfficeRunCancelResponse {
+  receipt?: StartupOfficeReceipt | null;
+  run?: StartupOfficeRun | null;
+  status?: string;
+}
+
+export interface StartupOfficeApprovalActionResponse {
+  approval?: StartupOfficeApproval | null;
+  memory_diff?: Record<string, unknown> | null;
+  memory_pages?: StartupOfficeMemoryPage[];
+  receipt?: StartupOfficeReceipt | null;
+  run?: StartupOfficeRun | null;
+  status?: string;
+}
+
+export interface StartupOfficePolicyResponse {
+  policy: StartupOfficeApprovalPolicy;
+}
+
+export interface StartupOfficeCompanyProfileResponse {
+  profile: StartupOfficeCompanyProfile;
+}
+
 export function getStartupOfficeGrowthSummary() {
   return get<StartupOfficeGrowthSummary>("/startup-office/growth-summary");
 }
@@ -209,57 +259,37 @@ export function runStartupOfficeLoop(
   loopID: string,
   body?: { defer?: boolean; objective?: string; inputs?: Record<string, unknown> },
 ) {
-  return post<{
-    approval?: StartupOfficeApproval | null;
-    artifact?: StartupOfficeArtifact | null;
-    error?: string;
-    receipt?: StartupOfficeReceipt | null;
-    run?: StartupOfficeRun | null;
-    status?: string;
-    worker_job?: Record<string, unknown> | null;
-  }>(`/startup-office/loops/${encodeURIComponent(loopID)}/run`, body ?? {});
+  return post<StartupOfficeLoopRunResponse>(
+    `/startup-office/loops/${encodeURIComponent(loopID)}/run`,
+    body ?? {},
+  );
 }
 
 export function getStartupOfficeRun(runID: string) {
-  return get<{
-    approvals: StartupOfficeApproval[];
-    artifacts: StartupOfficeArtifact[];
-    receipts: StartupOfficeReceipt[];
-    run: StartupOfficeRun;
-  }>(`/startup-office/runs/${encodeURIComponent(runID)}`);
+  return get<StartupOfficeRunDetailResponse>(
+    `/startup-office/runs/${encodeURIComponent(runID)}`,
+  );
 }
 
 export function retryStartupOfficeRun(runID: string, body?: { objective?: string }) {
-  return post<{
-    approval?: StartupOfficeApproval | null;
-    artifact?: StartupOfficeArtifact | null;
-    error?: string;
-    receipt?: StartupOfficeReceipt | null;
-    run?: StartupOfficeRun | null;
-    status?: string;
-  }>(`/startup-office/runs/${encodeURIComponent(runID)}/retry`, body ?? {});
+  return post<StartupOfficeRunMutationResponse>(
+    `/startup-office/runs/${encodeURIComponent(runID)}/retry`,
+    body ?? {},
+  );
 }
 
 export function cancelStartupOfficeRun(runID: string) {
-  return post<{
-    receipt?: StartupOfficeReceipt | null;
-    run?: StartupOfficeRun | null;
-    status?: string;
-  }>(`/startup-office/runs/${encodeURIComponent(runID)}/cancel`, {});
+  return post<StartupOfficeRunCancelResponse>(
+    `/startup-office/runs/${encodeURIComponent(runID)}/cancel`,
+    {},
+  );
 }
 
 export function approveStartupOfficeApproval(
   approvalID: string,
   body?: { note?: string },
 ) {
-  return post<{
-    approval?: StartupOfficeApproval | null;
-    memory_diff?: Record<string, unknown> | null;
-    memory_pages?: StartupOfficeMemoryPage[];
-    receipt?: StartupOfficeReceipt | null;
-    run?: StartupOfficeRun | null;
-    status?: string;
-  }>(
+  return post<StartupOfficeApprovalActionResponse>(
     `/startup-office/approvals/${encodeURIComponent(approvalID)}/approve`,
     body ?? {},
   );
@@ -269,12 +299,7 @@ export function rejectStartupOfficeApproval(
   approvalID: string,
   body?: { reason?: string },
 ) {
-  return post<{
-    approval?: StartupOfficeApproval | null;
-    receipt?: StartupOfficeReceipt | null;
-    run?: StartupOfficeRun | null;
-    status?: string;
-  }>(
+  return post<StartupOfficeApprovalActionResponse>(
     `/startup-office/approvals/${encodeURIComponent(approvalID)}/reject`,
     body ?? {},
   );
@@ -284,25 +309,20 @@ export function reviseStartupOfficeApproval(
   approvalID: string,
   body?: { revision_note?: string },
 ) {
-  return post<{
-    approval?: StartupOfficeApproval | null;
-    receipt?: StartupOfficeReceipt | null;
-    run?: StartupOfficeRun | null;
-    status?: string;
-  }>(
+  return post<StartupOfficeApprovalActionResponse>(
     `/startup-office/approvals/${encodeURIComponent(approvalID)}/revise`,
     body ?? {},
   );
 }
 
 export function getStartupOfficeApprovalPolicy() {
-  return get<{ policy: StartupOfficeApprovalPolicy }>("/startup-office/policy");
+  return get<StartupOfficePolicyResponse>("/startup-office/policy");
 }
 
 export function updateStartupOfficeApprovalPolicy(
   policy: Partial<StartupOfficeApprovalPolicy>,
 ) {
-  return patchJSON<{ policy: StartupOfficeApprovalPolicy }>(
+  return patchJSON<StartupOfficePolicyResponse>(
     "/startup-office/policy",
     { policy },
   );
@@ -311,7 +331,7 @@ export function updateStartupOfficeApprovalPolicy(
 export function updateStartupOfficeCompanyProfile(
   profile: StartupOfficeCompanyProfileUpdate,
 ) {
-  return patchJSON<{ profile: StartupOfficeCompanyProfile }>(
+  return patchJSON<StartupOfficeCompanyProfileResponse>(
     "/company/profile",
     {
       company_name: profile.name,

@@ -1,3 +1,12 @@
+function clientContract(functionName, method, responseType, pathIncludes) {
+  return Object.freeze({
+    functionName,
+    method,
+    pathIncludes: Object.freeze(pathIncludes),
+    responseType,
+  });
+}
+
 const STARTUP_OFFICE_ROUTE_PATHS = Object.freeze({
   demoSeed: "startup-office/demo-seed",
 });
@@ -7,6 +16,11 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     id: "companyProfile",
     methods: Object.freeze(["GET", "PATCH"]),
     paths: Object.freeze(["company/profile"]),
+    client: Object.freeze([
+      clientContract("updateStartupOfficeCompanyProfile", "PATCH", "StartupOfficeCompanyProfileResponse", [
+        "/company/profile",
+      ]),
+    ]),
   },
   {
     id: "demoSeed",
@@ -17,11 +31,24 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     id: "growthSummary",
     methods: Object.freeze(["GET"]),
     paths: Object.freeze(["startup-office/growth-summary"]),
+    client: Object.freeze([
+      clientContract("getStartupOfficeGrowthSummary", "GET", "StartupOfficeGrowthSummary", [
+        "/startup-office/growth-summary",
+      ]),
+    ]),
   },
   {
     id: "policy",
     methods: Object.freeze(["GET", "PATCH"]),
     paths: Object.freeze(["startup-office/policy"]),
+    client: Object.freeze([
+      clientContract("getStartupOfficeApprovalPolicy", "GET", "StartupOfficePolicyResponse", [
+        "/startup-office/policy",
+      ]),
+      clientContract("updateStartupOfficeApprovalPolicy", "PATCH", "StartupOfficePolicyResponse", [
+        "/startup-office/policy",
+      ]),
+    ]),
   },
   {
     id: "billing",
@@ -43,12 +70,28 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     methods: Object.freeze(["POST"]),
     pattern: "^(?:startup-office/)?loops/([^/]+)/run$",
     params: Object.freeze(["loopID"]),
+    client: Object.freeze([
+      clientContract("runStartupOfficeLoop", "POST", "StartupOfficeLoopRunResponse", [
+        "/startup-office/loops/${encodeURIComponent(loopID)}/run",
+      ]),
+    ]),
   },
   {
     id: "run",
     methods: Object.freeze(["GET", "POST"]),
     pattern: "^(?:startup-office/)?runs/([^/]+)(?:/(retry|cancel))?$",
     params: Object.freeze(["runID", "action"]),
+    client: Object.freeze([
+      clientContract("getStartupOfficeRun", "GET", "StartupOfficeRunDetailResponse", [
+        "/startup-office/runs/${encodeURIComponent(runID)}",
+      ]),
+      clientContract("retryStartupOfficeRun", "POST", "StartupOfficeRunMutationResponse", [
+        "/startup-office/runs/${encodeURIComponent(runID)}/retry",
+      ]),
+      clientContract("cancelStartupOfficeRun", "POST", "StartupOfficeRunCancelResponse", [
+        "/startup-office/runs/${encodeURIComponent(runID)}/cancel",
+      ]),
+    ]),
   },
   {
     id: "approvals",
@@ -60,6 +103,17 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     methods: Object.freeze(["POST"]),
     pattern: "^(?:startup-office/)?approvals/([^/]+)/(approve|reject|revise)$",
     params: Object.freeze(["approvalID", "action"]),
+    client: Object.freeze([
+      clientContract("approveStartupOfficeApproval", "POST", "StartupOfficeApprovalActionResponse", [
+        "/startup-office/approvals/${encodeURIComponent(approvalID)}/approve",
+      ]),
+      clientContract("rejectStartupOfficeApproval", "POST", "StartupOfficeApprovalActionResponse", [
+        "/startup-office/approvals/${encodeURIComponent(approvalID)}/reject",
+      ]),
+      clientContract("reviseStartupOfficeApproval", "POST", "StartupOfficeApprovalActionResponse", [
+        "/startup-office/approvals/${encodeURIComponent(approvalID)}/revise",
+      ]),
+    ]),
   },
   {
     id: "receipts",

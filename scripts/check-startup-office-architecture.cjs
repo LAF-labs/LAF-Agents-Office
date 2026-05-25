@@ -37,7 +37,7 @@ assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
 assertMaxLines("api/lib/startup-office/workflowHandlers.js", 520);
-assertMaxLines("api/lib/startup-office/routes.js", 140);
+assertMaxLines("api/lib/startup-office/routes.js", 180);
 assertMaxLines("api/lib/startup-office/dispatcher.js", 80);
 
 for (const [pattern, label] of [

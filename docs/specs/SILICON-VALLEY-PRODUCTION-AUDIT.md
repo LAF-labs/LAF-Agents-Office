@@ -373,6 +373,9 @@ and missing typed contracts.
   cancel/retry, approval decisions, run-limit enforcement, usage metering, and
   notification recording. The hosted API facade is down to 4,130 lines, with
   workflow tests in the beta release gate.
+- R2 now has a Startup Office API contract gate. Server route contracts declare
+  the web client function, method, response type, and path snippets; the release
+  gate verifies `web/src/api/startupOffice.ts` cannot drift silently.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   `20260525000000_remove_local_execution.sql`. A linked DB query confirms the

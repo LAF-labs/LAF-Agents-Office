@@ -86,6 +86,7 @@ test("Startup Office release gate points at loop engine tests", () => {
     "utf8",
   );
   assert.match(script, /startup-office:architecture/);
+  assert.match(script, /startup-office:api-contracts/);
   assert.match(script, /api\/lib\/startup-office\/queryHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/workflowHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/operationsHandlers\.test\.js/);
