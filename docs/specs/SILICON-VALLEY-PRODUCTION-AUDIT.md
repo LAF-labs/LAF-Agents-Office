@@ -591,3 +591,8 @@ and missing typed contracts.
   the API facade, and the architecture gate prevents command registry constants,
   parser logic, or command execution stubs from drifting back into
   `api/[...path].js`.
+- R2/R6 now extracts hosted roster identity surfaces into
+  `api/lib/hosted/rosterHandlers.js`. Human identity, team identity, office
+  member listing/creation, generated member templates, and channel member
+  payloads are covered by dedicated tests and guarded against drifting back into
+  the hosted API facade.

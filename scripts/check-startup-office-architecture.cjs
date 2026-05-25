@@ -42,6 +42,7 @@ assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/modelAccess.js", 90);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
+assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
@@ -132,6 +133,13 @@ for (const [pattern, label] of [
   [/HOSTED_WEB_COMMAND_NAMES/, "hosted web command lookup"],
   [/async function handleHostedCommandRun\b/, "hosted command run handler"],
   [/function hostedSlashCommandName\b/, "hosted command parser"],
+  [/async function handleHostedHumans\b/, "hosted human identity handler"],
+  [/async function handleHostedTeams\b/, "hosted team identity handler"],
+  [/async function handleHostedOfficeMembers\b/, "hosted office members handler"],
+  [/async function handleHostedOfficeMemberGenerate\b/, "hosted office member generator"],
+  [/async function handleHostedChannelMembers\b/, "hosted channel member handler"],
+  [/function hostedOfficeMembers\b/, "hosted office members serializer"],
+  [/function hostedOfficeMember\b/, "hosted office member serializer"],
   [/function hostedChannel\b/, "hosted conversation channel serializer"],
   [/function normalizeStringList\b/, "hosted conversation string-list normalizer"],
   [/async function listHostedChannelMessages\b/, "hosted conversation message list helper"],
