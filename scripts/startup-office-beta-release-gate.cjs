@@ -18,6 +18,7 @@ const checks = [
   ["npm", ["run", "startup-office:loop-worker:test"]],
   ["npm", ["run", "startup-office:ops-monitor:test"]],
   ["npm", ["run", "hosted-env:preflight:test"]],
+  ["node", ["--test", "api/lib/hosted/auditHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/authHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/conversationHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/inviteHandlers.test.js"]],

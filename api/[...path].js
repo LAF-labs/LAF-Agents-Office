@@ -1,5 +1,8 @@
 const crypto = require("node:crypto");
 const {
+  createHostedAuditHandlers,
+} = require("./lib/hosted/auditHandlers");
+const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
@@ -129,6 +132,15 @@ const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
   keyForRequest: clientRateLimitKey,
+});
+
+const HOSTED_AUDIT_HANDLERS = createHostedAuditHandlers({
+  clamp,
+  createHTTPError: startupOfficeHTTPError,
+  requirePermission,
+  requireUser,
+  rest,
+  writeJSON,
 });
 
 const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
@@ -616,7 +628,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "audit" && req.method === "GET") {
-      await handleAuditEvents(req, res);
+      await HOSTED_AUDIT_HANDLERS.auditEvents(req, res);
       return;
     }
     if (path === "model/availability" && req.method === "GET") {
@@ -1083,40 +1095,6 @@ async function resolveAllowedModelMode(membership, rawMode) {
     throw new HTTPError(403, availability[mode]?.reason || `model mode unavailable: ${mode}`);
   }
   return mode;
-}
-
-async function handleAuditEvents(req, res) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "audit:read");
-  const limit = clamp(Number(req.query?.limit) || 100, 1, 500);
-  const beforeRaw = String(req.query?.before || "").trim();
-  let beforeISO = "";
-  if (beforeRaw) {
-    const parsed = new Date(beforeRaw);
-    if (Number.isNaN(parsed.getTime())) {
-      throw new HTTPError(400, "before must be an ISO-8601 timestamp");
-    }
-    beforeISO = parsed.toISOString();
-  }
-  const query = {
-    order: "created_at.desc",
-    select: "*",
-    team_id: `eq.${membership.team_id}`,
-    limit: String(limit),
-  };
-  if (beforeISO) query.created_at = `lt.${beforeISO}`;
-  const rows = await rest("audit_events", { query });
-  writeJSON(res, 200, {
-    events: (rows || []).map((row) => ({
-      action: row.action,
-      actor_user_id: row.actor_user_id,
-      created_at: row.created_at,
-      id: row.id,
-      metadata: row.metadata || {},
-      target_id: row.target_id || "",
-      target_type: row.target_type || "",
-    })),
-  });
 }
 
 async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}, options = {}) {

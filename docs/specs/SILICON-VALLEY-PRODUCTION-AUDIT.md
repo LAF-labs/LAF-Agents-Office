@@ -576,3 +576,8 @@ and missing typed contracts.
   and `POST /api/onboarding/complete` require `workspace:manage`, the config
   write emits `workspace_config.updated`, and both routes are covered by hosted
   action rate limits before auth or database work.
+- R2/R8 now extracts hosted audit-event reads into
+  `api/lib/hosted/auditHandlers.js`. The hosted API facade no longer owns audit
+  pagination/cursor serialization, `api/lib/hosted/auditHandlers.test.js` covers
+  the `audit:read` permission and ISO cursor handling, and the architecture gate
+  prevents the handler from drifting back into `api/[...path].js`.
