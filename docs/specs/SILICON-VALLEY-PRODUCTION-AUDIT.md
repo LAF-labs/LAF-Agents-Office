@@ -10,9 +10,10 @@ startup, what fundamental problems would we refuse to carry forward?
 - `api/[...path].js` is still a 2,811-line hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
-- Supabase migrations now remove obsolete execution schema and the linked remote
-  Supabase project has applied through `20260525120000`; RLS exercise, backup,
-  restore, and rollback drills are still not proven.
+- Supabase migrations now remove obsolete execution schema, and live PostgREST
+  RLS verification seeds every Startup Office team-scoped table plus workspace
+  billing/settings/audit fixtures across Alpha/Beta tenants; external backup,
+  restore, and production deployment drills still require deploy-time evidence.
 - The canonical current Supabase schema now lives in
   `supabase/schema/current.json` and is checked against migrations by
   `npm run startup-office:schema`.
@@ -373,6 +374,15 @@ recorded in `startup_office_terms_acceptances`, shown in beta ops, audited as
 SV-G098 is covered on the unauthenticated signup entry screen: founder use
 cases, beta outcomes, and trust controls are visible before account creation and
 locked by `npm run startup-office:sales-proof` plus the auth UI regression test.
+SV-G023 is now broader than representative spot checks: `npm run
+startup-office:rls-live` applies every Supabase migration to a temporary
+PostgreSQL cluster, starts PostgREST, seeds Alpha/Beta rows across every
+`startup_office_*` table plus `company_profiles`, `workspace_billing`,
+`workspace_settings`, and `audit_events`, and proves anon isolation,
+authenticated same-tenant reads, cross-tenant read exclusion, and service-role
+bypass. `npm run startup-office:rls-verification` now derives the required
+fixture table names from `supabase/schema/current.json` so new Startup Office
+tables cannot silently fall out of live RLS coverage.
 
 The broader production audit is still not claimable as fully complete until
 that external handoff evidence is attached. Engineering should use targeted
@@ -742,3 +752,8 @@ the final release commit or when a shared invariant changes.
   constraints, functions, policies, relations, triggers, and types, then fails
   closed if any residue remains. The schema manifest and release gate now treat
   this migration as the canonical pure-cloud guard.
+- R3 now upgrades the live RLS verifier from representative checks to a
+  schema-drift-resistant table matrix. `scripts/verify-startup-office-rls-postgrest.cjs`
+  seeds Alpha/Beta fixtures for every Startup Office team table and the
+  workspace billing/settings/audit tables that gate the product, then verifies
+  anon, authenticated, cross-tenant, and service-role paths through PostgREST.

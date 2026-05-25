@@ -21,6 +21,8 @@ function assertContains(relativePath, snippet, label) {
 }
 
 const packageJson = JSON.parse(read("package.json"));
+const schema = JSON.parse(read("supabase/schema/current.json"));
+const verifierSource = read("scripts/verify-startup-office-rls-postgrest.cjs");
 if (
   packageJson.scripts?.["startup-office:rls-live"] !==
   "node scripts/verify-startup-office-rls-postgrest.cjs"
@@ -63,6 +65,16 @@ for (const [relativePath, snippet, label] of [
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
+    "RLS_TEAM_TABLE_FIXTURES",
+    "team-scoped table fixture matrix",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "verifyTeamTableReadIsolation",
+    "team-scoped read isolation verifier",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
     "startup_office_terms_acceptances",
     "terms acceptance RLS exercise",
   ],
@@ -93,6 +105,26 @@ for (const [relativePath, snippet, label] of [
   ],
 ]) {
   assertContains(relativePath, snippet, label);
+}
+
+const requiredRlsTables = schema.activeTables
+  .map((table) => table.name)
+  .filter((name) =>
+    name === "audit_events" ||
+    name === "company_profiles" ||
+    name === "workspace_billing" ||
+    name === "workspace_settings" ||
+    name.startsWith("startup_office_"),
+  )
+  .sort();
+const fixtureTableNames = new Set(
+  [...verifierSource.matchAll(/table:\s*"([^"]+)"/g)].map((match) => match[1]),
+);
+
+for (const tableName of requiredRlsTables) {
+  if (!fixtureTableNames.has(tableName)) {
+    fail(`live RLS fixture matrix is missing ${tableName}`);
+  }
 }
 
 console.log("startup-office RLS verification check passed");

@@ -11,16 +11,50 @@ const root = path.resolve(__dirname, "..");
 const migrationsDir = path.join(root, "supabase", "migrations");
 const JWT_SECRET = "laf-office-startup-office-rls-test-secret-2026";
 const IDS = Object.freeze({
+  alphaActivationEvent: "70000000-0000-0000-0000-000000000001",
   alphaAsset: "30000000-0000-0000-0000-000000000001",
+  alphaAuditEvent: "60000000-0000-0000-0000-000000000001",
+  alphaBillingDocument: "6f000000-0000-0000-0000-000000000001",
+  alphaCustomer: "65000000-0000-0000-0000-000000000001",
+  alphaDeletionRequest: "6e000000-0000-0000-0000-000000000001",
+  alphaArtifact: "62000000-0000-0000-0000-000000000001",
+  alphaApproval: "63000000-0000-0000-0000-000000000001",
+  alphaLoop: "61000000-0000-0000-0000-000000000001",
+  alphaMemoryPage: "68000000-0000-0000-0000-000000000001",
+  alphaMetric: "66000000-0000-0000-0000-000000000001",
+  alphaNotification: "6b000000-0000-0000-0000-000000000001",
+  alphaOutboxEvent: "6c000000-0000-0000-0000-000000000001",
+  alphaReceipt: "64000000-0000-0000-0000-000000000001",
   alphaRun: "40000000-0000-0000-0000-000000000001",
+  alphaSignal: "67000000-0000-0000-0000-000000000001",
+  alphaSupportAccess: "6d000000-0000-0000-0000-000000000001",
   alphaTeam: "10000000-0000-0000-0000-000000000001",
   alphaTerms: "50000000-0000-0000-0000-000000000001",
+  alphaUsageEvent: "6a000000-0000-0000-0000-000000000001",
   alphaUser: "00000000-0000-0000-0000-00000000a001",
+  alphaWorkerJob: "69000000-0000-0000-0000-000000000001",
+  betaActivationEvent: "70000000-0000-0000-0000-000000000002",
   betaAsset: "30000000-0000-0000-0000-000000000002",
+  betaAuditEvent: "60000000-0000-0000-0000-000000000002",
+  betaBillingDocument: "6f000000-0000-0000-0000-000000000002",
+  betaCustomer: "65000000-0000-0000-0000-000000000002",
+  betaDeletionRequest: "6e000000-0000-0000-0000-000000000002",
+  betaArtifact: "62000000-0000-0000-0000-000000000002",
+  betaApproval: "63000000-0000-0000-0000-000000000002",
+  betaLoop: "61000000-0000-0000-0000-000000000002",
+  betaMemoryPage: "68000000-0000-0000-0000-000000000002",
+  betaMetric: "66000000-0000-0000-0000-000000000002",
+  betaNotification: "6b000000-0000-0000-0000-000000000002",
+  betaOutboxEvent: "6c000000-0000-0000-0000-000000000002",
+  betaReceipt: "64000000-0000-0000-0000-000000000002",
   betaRun: "40000000-0000-0000-0000-000000000002",
+  betaSignal: "67000000-0000-0000-0000-000000000002",
+  betaSupportAccess: "6d000000-0000-0000-0000-000000000002",
   betaTeam: "10000000-0000-0000-0000-000000000002",
   betaTerms: "50000000-0000-0000-0000-000000000002",
+  betaUsageEvent: "6a000000-0000-0000-0000-000000000002",
   betaUser: "00000000-0000-0000-0000-00000000b001",
+  betaWorkerJob: "69000000-0000-0000-0000-000000000002",
 });
 const TERMS_VERSIONS = Object.freeze({
   ai_use_version: "startup-office-ai-use-2026-05-26",
@@ -30,6 +64,31 @@ const TERMS_VERSIONS = Object.freeze({
   retention_version: "startup-office-retention-2026-05-26",
   terms_version: "startup-office-beta-terms-2026-05-26",
 });
+const RLS_TEAM_TABLE_FIXTURES = Object.freeze([
+  { alphaKey: IDS.alphaAuditEvent, betaKey: IDS.betaAuditEvent, keyColumn: "id", table: "audit_events" },
+  { alphaKey: IDS.alphaTeam, betaKey: IDS.betaTeam, keyColumn: "team_id", table: "company_profiles" },
+  { alphaKey: IDS.alphaTeam, betaKey: IDS.betaTeam, keyColumn: "team_id", table: "workspace_billing" },
+  { alphaKey: IDS.alphaTeam, betaKey: IDS.betaTeam, keyColumn: "team_id", table: "workspace_settings" },
+  { alphaKey: IDS.alphaActivationEvent, betaKey: IDS.betaActivationEvent, keyColumn: "id", table: "startup_office_activation_events" },
+  { alphaKey: IDS.alphaApproval, betaKey: IDS.betaApproval, keyColumn: "id", table: "startup_office_approvals" },
+  { alphaKey: IDS.alphaArtifact, betaKey: IDS.betaArtifact, keyColumn: "id", table: "startup_office_artifacts" },
+  { alphaKey: IDS.alphaAsset, betaKey: IDS.betaAsset, keyColumn: "id", table: "startup_office_assets" },
+  { alphaKey: IDS.alphaBillingDocument, betaKey: IDS.betaBillingDocument, keyColumn: "id", table: "startup_office_billing_documents" },
+  { alphaKey: IDS.alphaCustomer, betaKey: IDS.betaCustomer, keyColumn: "id", table: "startup_office_customers" },
+  { alphaKey: IDS.alphaDeletionRequest, betaKey: IDS.betaDeletionRequest, keyColumn: "id", table: "startup_office_deletion_requests" },
+  { alphaKey: IDS.alphaLoop, betaKey: IDS.betaLoop, keyColumn: "id", table: "startup_office_loops" },
+  { alphaKey: IDS.alphaMemoryPage, betaKey: IDS.betaMemoryPage, keyColumn: "id", table: "startup_office_memory_pages" },
+  { alphaKey: IDS.alphaMetric, betaKey: IDS.betaMetric, keyColumn: "id", table: "startup_office_metrics" },
+  { alphaKey: IDS.alphaNotification, betaKey: IDS.betaNotification, keyColumn: "id", table: "startup_office_notifications" },
+  { alphaKey: IDS.alphaOutboxEvent, betaKey: IDS.betaOutboxEvent, keyColumn: "id", table: "startup_office_outbox_events" },
+  { alphaKey: IDS.alphaReceipt, betaKey: IDS.betaReceipt, keyColumn: "id", table: "startup_office_receipts" },
+  { alphaKey: IDS.alphaRun, betaKey: IDS.betaRun, keyColumn: "id", table: "startup_office_runs" },
+  { alphaKey: IDS.alphaSignal, betaKey: IDS.betaSignal, keyColumn: "id", table: "startup_office_signals" },
+  { alphaKey: IDS.alphaSupportAccess, betaKey: IDS.betaSupportAccess, keyColumn: "id", table: "startup_office_support_access_events" },
+  { alphaKey: IDS.alphaTerms, betaKey: IDS.betaTerms, keyColumn: "id", table: "startup_office_terms_acceptances" },
+  { alphaKey: IDS.alphaUsageEvent, betaKey: IDS.betaUsageEvent, keyColumn: "id", table: "startup_office_usage_events" },
+  { alphaKey: IDS.alphaWorkerJob, betaKey: IDS.betaWorkerJob, keyColumn: "id", table: "startup_office_worker_jobs" },
+]);
 
 main().catch((err) => {
   console.error(`startup-office RLS live verification failed: ${err.message}`);
@@ -209,20 +268,140 @@ function seedTenantFixtures(databaseURL) {
       ('${IDS.alphaTeam}', '${IDS.alphaUser}', 'owner', 'active'),
       ('${IDS.betaTeam}', '${IDS.betaUser}', 'owner', 'active');
 
+    insert into public.workspace_billing (team_id, plan)
+    values
+      ('${IDS.alphaTeam}', 'closed_beta'),
+      ('${IDS.betaTeam}', 'closed_beta');
+
+    insert into public.workspace_settings (team_id, team_lead_slug)
+    values
+      ('${IDS.alphaTeam}', 'alpha-founder'),
+      ('${IDS.betaTeam}', 'beta-founder');
+
+    insert into public.audit_events (id, team_id, actor_user_id, action, target_type, target_id)
+    values
+      ('${IDS.alphaAuditEvent}', '${IDS.alphaTeam}', '${IDS.alphaUser}', 'alpha.audit', 'rls_fixture', '${IDS.alphaTeam}'),
+      ('${IDS.betaAuditEvent}', '${IDS.betaTeam}', '${IDS.betaUser}', 'beta.audit', 'rls_fixture', '${IDS.betaTeam}');
+
     insert into public.company_profiles (team_id, name, description)
     values
       ('${IDS.alphaTeam}', 'Alpha Inc', 'Alpha private profile'),
       ('${IDS.betaTeam}', 'Beta Inc', 'Beta private profile');
+
+    insert into public.startup_office_loops (id, team_id, slug, name, department, objective, created_by)
+    values
+      ('${IDS.alphaLoop}', '${IDS.alphaTeam}', 'alpha-loop', 'Alpha loop', 'Growth', 'Alpha objective', '${IDS.alphaUser}'),
+      ('${IDS.betaLoop}', '${IDS.betaTeam}', 'beta-loop', 'Beta loop', 'Growth', 'Beta objective', '${IDS.betaUser}');
 
     insert into public.startup_office_runs (id, team_id, title, objective, status, created_by)
     values
       ('${IDS.alphaRun}', '${IDS.alphaTeam}', 'Alpha run', 'Alpha objective', 'queued', '${IDS.alphaUser}'),
       ('${IDS.betaRun}', '${IDS.betaTeam}', 'Beta run', 'Beta objective', 'queued', '${IDS.betaUser}');
 
+    insert into public.startup_office_artifacts (id, team_id, run_id, kind, title, content, created_by)
+    values
+      ('${IDS.alphaArtifact}', '${IDS.alphaTeam}', '${IDS.alphaRun}', 'draft', 'Alpha artifact', 'Alpha private artifact', '${IDS.alphaUser}'),
+      ('${IDS.betaArtifact}', '${IDS.betaTeam}', '${IDS.betaRun}', 'draft', 'Beta artifact', 'Beta private artifact', '${IDS.betaUser}');
+
+    insert into public.startup_office_approvals (id, team_id, run_id, artifact_id, title, action, requested_by)
+    values
+      ('${IDS.alphaApproval}', '${IDS.alphaTeam}', '${IDS.alphaRun}', '${IDS.alphaArtifact}', 'Alpha approval', 'approve_alpha', '${IDS.alphaUser}'),
+      ('${IDS.betaApproval}', '${IDS.betaTeam}', '${IDS.betaRun}', '${IDS.betaArtifact}', 'Beta approval', 'approve_beta', '${IDS.betaUser}');
+
+    insert into public.startup_office_receipts (id, team_id, run_id, approval_id, event_type, summary, created_by)
+    values
+      ('${IDS.alphaReceipt}', '${IDS.alphaTeam}', '${IDS.alphaRun}', '${IDS.alphaApproval}', 'alpha_event', 'Alpha receipt', '${IDS.alphaUser}'),
+      ('${IDS.betaReceipt}', '${IDS.betaTeam}', '${IDS.betaRun}', '${IDS.betaApproval}', 'beta_event', 'Beta receipt', '${IDS.betaUser}');
+
     insert into public.startup_office_assets (id, team_id, name, kind, body, status, created_by)
     values
       ('${IDS.alphaAsset}', '${IDS.alphaTeam}', 'Alpha asset', 'document', 'Alpha private asset', 'active', '${IDS.alphaUser}'),
       ('${IDS.betaAsset}', '${IDS.betaTeam}', 'Beta asset', 'document', 'Beta private asset', 'active', '${IDS.betaUser}');
+
+    insert into public.startup_office_customers (id, team_id, name, status, notes, created_by)
+    values
+      ('${IDS.alphaCustomer}', '${IDS.alphaTeam}', 'Alpha customer', 'lead', 'Alpha customer note', '${IDS.alphaUser}'),
+      ('${IDS.betaCustomer}', '${IDS.betaTeam}', 'Beta customer', 'lead', 'Beta customer note', '${IDS.betaUser}');
+
+    insert into public.startup_office_metrics (id, team_id, metric_key, metric_value, unit, created_by)
+    values
+      ('${IDS.alphaMetric}', '${IDS.alphaTeam}', 'alpha_metric', 1, 'count', '${IDS.alphaUser}'),
+      ('${IDS.betaMetric}', '${IDS.betaTeam}', 'beta_metric', 2, 'count', '${IDS.betaUser}');
+
+    insert into public.startup_office_signals (id, team_id, loop_id, run_id, signal_type, source, title, body, created_by)
+    values
+      ('${IDS.alphaSignal}', '${IDS.alphaTeam}', '${IDS.alphaLoop}', '${IDS.alphaRun}', 'market', 'alpha_source', 'Alpha signal', 'Alpha private signal', '${IDS.alphaUser}'),
+      ('${IDS.betaSignal}', '${IDS.betaTeam}', '${IDS.betaLoop}', '${IDS.betaRun}', 'market', 'beta_source', 'Beta signal', 'Beta private signal', '${IDS.betaUser}');
+
+    insert into public.startup_office_memory_pages (id, team_id, slug, title, body, created_by)
+    values
+      ('${IDS.alphaMemoryPage}', '${IDS.alphaTeam}', 'alpha-memory', 'Alpha memory', 'Alpha private memory', '${IDS.alphaUser}'),
+      ('${IDS.betaMemoryPage}', '${IDS.betaTeam}', 'beta-memory', 'Beta memory', 'Beta private memory', '${IDS.betaUser}');
+
+    insert into public.startup_office_worker_jobs (id, team_id, run_id, loop_slug, status, created_by)
+    values
+      ('${IDS.alphaWorkerJob}', '${IDS.alphaTeam}', '${IDS.alphaRun}', 'alpha-loop', 'queued', '${IDS.alphaUser}'),
+      ('${IDS.betaWorkerJob}', '${IDS.betaTeam}', '${IDS.betaRun}', 'beta-loop', 'queued', '${IDS.betaUser}');
+
+    insert into public.startup_office_usage_events (
+      id,
+      team_id,
+      run_id,
+      event_type,
+      provider,
+      model,
+      total_tokens,
+      cost_cents,
+      created_by
+    )
+    values
+      ('${IDS.alphaUsageEvent}', '${IDS.alphaTeam}', '${IDS.alphaRun}', 'model_run', 'fake', 'alpha-model', 10, 1, '${IDS.alphaUser}'),
+      ('${IDS.betaUsageEvent}', '${IDS.betaTeam}', '${IDS.betaRun}', 'model_run', 'fake', 'beta-model', 20, 2, '${IDS.betaUser}');
+
+    insert into public.startup_office_notifications (id, team_id, recipient_user_id, event_type, status)
+    values
+      ('${IDS.alphaNotification}', '${IDS.alphaTeam}', '${IDS.alphaUser}', 'alpha.notification', 'pending'),
+      ('${IDS.betaNotification}', '${IDS.betaTeam}', '${IDS.betaUser}', 'beta.notification', 'pending');
+
+    insert into public.startup_office_outbox_events (
+      id,
+      team_id,
+      source_table,
+      source_id,
+      event_type,
+      status,
+      created_by
+    )
+    values
+      ('${IDS.alphaOutboxEvent}', '${IDS.alphaTeam}', 'startup_office_receipts', '${IDS.alphaReceipt}', 'alpha.outbox', 'queued', '${IDS.alphaUser}'),
+      ('${IDS.betaOutboxEvent}', '${IDS.betaTeam}', 'startup_office_receipts', '${IDS.betaReceipt}', 'beta.outbox', 'queued', '${IDS.betaUser}');
+
+    insert into public.startup_office_support_access_events (id, team_id, support_user_id, event_type, reason, created_by)
+    values
+      ('${IDS.alphaSupportAccess}', '${IDS.alphaTeam}', '${IDS.alphaUser}', 'granted', 'Alpha support reason', '${IDS.alphaUser}'),
+      ('${IDS.betaSupportAccess}', '${IDS.betaTeam}', '${IDS.betaUser}', 'granted', 'Beta support reason', '${IDS.betaUser}');
+
+    insert into public.startup_office_deletion_requests (id, team_id, requested_by, status, reason)
+    values
+      ('${IDS.alphaDeletionRequest}', '${IDS.alphaTeam}', '${IDS.alphaUser}', 'queued', 'Alpha deletion drill'),
+      ('${IDS.betaDeletionRequest}', '${IDS.betaTeam}', '${IDS.betaUser}', 'queued', 'Beta deletion drill');
+
+    insert into public.startup_office_billing_documents (id, team_id, document_type, status, provider, created_by)
+    values
+      ('${IDS.alphaBillingDocument}', '${IDS.alphaTeam}', 'agreement', 'signed', 'manual', '${IDS.alphaUser}'),
+      ('${IDS.betaBillingDocument}', '${IDS.betaTeam}', 'agreement', 'signed', 'manual', '${IDS.betaUser}');
+
+    insert into public.startup_office_activation_events (
+      id,
+      team_id,
+      milestone,
+      source_table,
+      source_id,
+      created_by
+    )
+    values
+      ('${IDS.alphaActivationEvent}', '${IDS.alphaTeam}', 'first_loop_run', 'startup_office_runs', '${IDS.alphaRun}', '${IDS.alphaUser}'),
+      ('${IDS.betaActivationEvent}', '${IDS.betaTeam}', 'first_loop_run', 'startup_office_runs', '${IDS.betaRun}', '${IDS.betaUser}');
 
     insert into public.startup_office_terms_acceptances (
       id,
@@ -279,6 +458,12 @@ async function verifyRLS(baseURL) {
     exp: Math.floor(Date.now() / 1000) + 3600,
     role: "service_role",
     sub: "00000000-0000-0000-0000-00000000ffff",
+  });
+
+  await verifyTeamTableReadIsolation(baseURL, {
+    alphaToken,
+    betaToken,
+    serviceToken,
   });
 
   const anonAssets = await rest(baseURL, "/startup_office_assets?select=id,name,team_id");
@@ -400,6 +585,70 @@ async function verifyRLS(baseURL) {
     token: alphaToken,
   });
   assertRows(alphaRuns, [{ id: IDS.alphaRun, team_id: IDS.alphaTeam, title: "Alpha run" }]);
+}
+
+async function verifyTeamTableReadIsolation(baseURL, tokens) {
+  for (const fixture of RLS_TEAM_TABLE_FIXTURES) {
+    const select = fixture.keyColumn === "team_id"
+      ? "team_id"
+      : `${fixture.keyColumn},team_id`;
+    const route = `/${fixture.table}?select=${select}`;
+    const anonRows = await rest(baseURL, route);
+    assertRows(anonRows, []);
+
+    const alphaRows = await rest(baseURL, route, { token: tokens.alphaToken });
+    assertTenantRows({
+      expectedKey: fixture.alphaKey,
+      expectedTeam: IDS.alphaTeam,
+      fixture,
+      label: "alpha",
+      rows: alphaRows,
+    });
+
+    const betaRows = await rest(baseURL, route, { token: tokens.betaToken });
+    assertTenantRows({
+      expectedKey: fixture.betaKey,
+      expectedTeam: IDS.betaTeam,
+      fixture,
+      label: "beta",
+      rows: betaRows,
+    });
+
+    const serviceRows = await rest(baseURL, route, { token: tokens.serviceToken });
+    assertTenantRows({
+      allowOtherTeams: true,
+      expectedKey: fixture.alphaKey,
+      expectedTeam: IDS.alphaTeam,
+      fixture,
+      label: "service alpha",
+      rows: serviceRows,
+    });
+    assertTenantRows({
+      allowOtherTeams: true,
+      expectedKey: fixture.betaKey,
+      expectedTeam: IDS.betaTeam,
+      fixture,
+      label: "service beta",
+      rows: serviceRows,
+    });
+  }
+}
+
+function assertTenantRows({ allowOtherTeams = false, expectedKey, expectedTeam, fixture, label, rows }) {
+  if (!Array.isArray(rows)) {
+    throw new Error(`${label} ${fixture.table} expected rows, got ${JSON.stringify(rows)}`);
+  }
+  const seededRow = rows.find((row) => row[fixture.keyColumn] === expectedKey);
+  if (!seededRow) {
+    throw new Error(`${label} ${fixture.table} did not include seeded ${fixture.keyColumn} ${expectedKey}`);
+  }
+  if (!allowOtherTeams) {
+    for (const row of rows) {
+      if (row.team_id !== expectedTeam) {
+        throw new Error(`${label} ${fixture.table} leaked row for team ${row.team_id}`);
+      }
+    }
+  }
 }
 
 async function rest(baseURL, route, options = {}) {
