@@ -13,6 +13,7 @@
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
+    "startup-office:tenant-isolation": "node scripts/check-startup-office-tenant-isolation.cjs",
     "startup-office:permissions": "node scripts/check-workspace-permission-catalog.cjs",
     "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
     "startup-office:security": "node scripts/check-startup-office-security-gate.cjs",
