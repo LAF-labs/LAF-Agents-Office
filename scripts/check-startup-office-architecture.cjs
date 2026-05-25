@@ -32,7 +32,8 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 3650);
+assertMaxLines("api/[...path].js", 3580);
+assertMaxLines("api/lib/hosted/authHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
@@ -78,6 +79,9 @@ for (const [pattern, label] of [
   [/function isMissingWorkspaceSettingsError\b/, "workspace settings storage error helper"],
   [/async function workspaceHasAnyProject\b/, "workspace onboarding project fallback helper"],
   [/async function workspaceHasStartupOfficeState\b/, "workspace onboarding startup office fallback helper"],
+  [/profile\.updated/, "auth profile update audit action"],
+  [/profile\.password_changed/, "auth password update audit action"],
+  [/current password is incorrect/, "auth password verification detail"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

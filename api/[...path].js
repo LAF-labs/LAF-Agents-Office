@@ -1,5 +1,8 @@
 const crypto = require("node:crypto");
 const {
+  createHostedAuthHandlers,
+} = require("./lib/hosted/authHandlers");
+const {
   createStartupOfficeDemoSeedHandlers,
 } = require("./lib/startup-office/demoSeedHandlers");
 const {
@@ -140,6 +143,21 @@ const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
     writeAuditEvent,
     writeJSON,
   });
+
+const HOSTED_AUTH_HANDLERS = createHostedAuthHandlers({
+  activeMembership,
+  authFetch,
+  createHTTPError: startupOfficeHTTPError,
+  getTeam,
+  normalizeProfileAvatarID,
+  publicTeam,
+  publicUser,
+  readBody,
+  requireUser,
+  setAuthCookies,
+  writeAuditEvent,
+  writeJSON,
+});
 
 const STARTUP_OFFICE_OPERATIONS_HANDLERS = createStartupOfficeOperationsHandlers({
   clamp,
@@ -1164,20 +1182,7 @@ async function writeTeamAuditEvent(
 }
 
 async function handleAuthSession(req, res) {
-  try {
-    const { membership, team, user } = await requireUser(req);
-    writeJSON(res, 200, {
-      authenticated: true,
-      team: publicTeam(team),
-      user: publicUser(user, membership),
-    });
-  } catch (err) {
-    if (err instanceof HTTPError && err.status === 401) {
-      writeJSON(res, 200, { authenticated: false });
-      return;
-    }
-    throw err;
-  }
+  return HOSTED_AUTH_HANDLERS.session(req, res);
 }
 
 async function handleHostedConfig(req, res) {
@@ -2116,87 +2121,15 @@ async function handleAuthUsers(req, res) {
 }
 
 async function handleAuthMe(req, res) {
-  const { membership, token, user } = await requireUser(req);
-  const body = await readBody(req);
-  const name = String(body.name || "").trim();
-  if (!name) throw new HTTPError(400, "name is required");
-  if (name.length > 80) {
-    throw new HTTPError(400, "name must be 80 characters or fewer");
-  }
-  const avatarID = normalizeProfileAvatarID(body.avatar_id);
-  const currentMetadata =
-    user.user_metadata && typeof user.user_metadata === "object"
-      ? user.user_metadata
-      : {};
-  const updated = await authFetch("user", {
-    method: "PUT",
-    headers: { Authorization: `Bearer ${token}` },
-    body: {
-      data: {
-        ...currentMetadata,
-        avatar_id: avatarID,
-        name,
-      },
-    },
-  });
-  await writeAuditEvent(membership, "profile.updated", "user", user.id, {
-    avatar_id: avatarID,
-  });
-  writeJSON(res, 200, {
-    user: publicUser(
-      updated || {
-        ...user,
-        user_metadata: { ...currentMetadata, name, avatar_id: avatarID },
-      },
-      membership,
-    ),
-  });
+  return HOSTED_AUTH_HANDLERS.me(req, res);
 }
 
 async function handleAuthMePassword(req, res) {
-  const { membership, user } = await requireUser(req);
-  const body = await readBody(req);
-  const currentPassword = String(body.current_password || "").trim();
-  const newPassword = String(body.new_password || "").trim();
-  if (!currentPassword) throw new HTTPError(400, "current_password is required");
-  if (newPassword.length < 8) {
-    throw new HTTPError(400, "new_password length >= 8 required");
-  }
-  let verifiedSession;
-  try {
-    verifiedSession = await authFetch("token?grant_type=password", {
-      method: "POST",
-      body: { email: user.email, password: currentPassword },
-    });
-  } catch {
-    throw new HTTPError(403, "current password is incorrect");
-  }
-  const accessToken = verifiedSession?.access_token;
-  if (!accessToken) throw new HTTPError(403, "current password is incorrect");
-  await authFetch("user", {
-    method: "PUT",
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: { password: newPassword },
-  });
-  setAuthCookies(req, res, verifiedSession);
-  await writeAuditEvent(membership, "profile.password_changed", "user", user.id);
-  writeJSON(res, 200, { status: "ok" });
+  return HOSTED_AUTH_HANDLERS.password(req, res);
 }
 
 async function handleAuthLogin(req, res) {
-  const body = await readBody(req);
-  const session = await authFetch("token?grant_type=password", {
-    method: "POST",
-    body: { email: body.email, password: body.password },
-  });
-  const membership = await activeMembership(session.user.id);
-  if (!membership) throw new HTTPError(403, "active team membership required");
-  const team = await getTeam(membership.team_id);
-  setAuthCookies(req, res, session);
-  writeJSON(res, 200, {
-    team: publicTeam(team),
-    user: publicUser(session.user, membership),
-  });
+  return HOSTED_AUTH_HANDLERS.login(req, res);
 }
 
 async function handleAuthSignup(req, res) {

@@ -9,6 +9,7 @@ const checks = [
   ["npm", ["run", "startup-office:architecture"]],
   ["npm", ["run", "startup-office:legacy-runtime"]],
   ["npm", ["run", "startup-office:surface"]],
+  ["node", ["--test", "api/lib/hosted/authHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/dispatcher.test.js"]],
   ["node", ["--test", "api/lib/startup-office/demoSeedHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/profileHandlers.test.js"]],

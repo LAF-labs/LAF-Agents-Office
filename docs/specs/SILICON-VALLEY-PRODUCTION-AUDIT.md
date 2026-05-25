@@ -7,7 +7,7 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Evidence Baseline
 
-- `api/[...path].js` is still a 3,612-line hosted API facade after the cloud pivot.
+- `api/[...path].js` is still a 3,545-line hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
@@ -36,7 +36,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I009 | Positioning | The public site describes the vision but does not yet prove a buyer-ready package. | website/index.html |
 | SV-I010 | Positioning | The business model is represented as beta ops state, not a live pricing and entitlement system. | billing migration and API |
 | SV-I011 | Architecture | The hosted API facade remains too large to reason about as a production service boundary. | `api/[...path].js` |
-| SV-I012 | Architecture | Product domains are partially extracted, but auth, membership, messages, and older workspace behavior still mix in one server file. | `api/[...path].js`, `api/lib/startup-office` |
+| SV-I012 | Architecture | Product domains are partially extracted, but signup, invites, permissions, membership, messages, and older workspace behavior still mix in one server file. | `api/[...path].js`, `api/lib/startup-office`, `api/lib/hosted` |
 | SV-I013 | Architecture | Large legacy-adjacent web app modules still coexist with the focused hosted Startup Office. | `web/src/components/apps` |
 | SV-I014 | Architecture | There is no explicit service ownership map for auth, office objects, memory, workers, billing, and notifications. | architecture docs |
 | SV-I015 | Architecture | The cloud worker is a library-style worker, not a deployed independently operable service. | `workers/startup-office` |
@@ -392,6 +392,11 @@ and missing typed contracts.
   3,612 lines, and the release gate now tests workspace config snapshots,
   onboarding seeding, fallback detection, founder-control policy defaults, and
   company profile service normalization.
+- R2 now extracts hosted auth session, login, profile update, and password-change
+  behavior into `api/lib/hosted/authHandlers.js`. The facade is down to 3,545
+  lines, and the release gate now tests authenticated/unauthenticated sessions,
+  active-membership login, profile metadata writes, and current-password
+  verification before credential updates.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   `20260525010000_purge_legacy_runtime_columns.sql`. A linked DB query confirms the
