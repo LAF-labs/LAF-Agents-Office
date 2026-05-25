@@ -25,6 +25,7 @@
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",
     "startup-office:plan-limits": "node scripts/check-startup-office-plan-limits.cjs",
     "startup-office:production-handoff": "node scripts/check-startup-office-production-handoff.cjs",
+    "startup-office:prompt-versions": "node scripts/check-startup-office-prompt-versions.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
     "startup-office:rate-limits": "node scripts/check-startup-office-rate-limit-coverage.cjs",
     "startup-office:role-authorization": "node scripts/check-startup-office-role-authorization.cjs",

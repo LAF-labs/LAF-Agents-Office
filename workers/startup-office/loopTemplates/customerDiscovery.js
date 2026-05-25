@@ -176,6 +176,7 @@ const customerDiscoveryTemplate = Object.freeze({
           browser_research: context.browser_research || [],
           citation_sources: context.citation_sources || [],
           previous_runs: context.previous_runs || [],
+          prompt_version: context.prompt_version || {},
           receipts: context.recent_receipts || [],
           revision_request: context.revision_request || {},
           signals: context.relevant_signals || [],

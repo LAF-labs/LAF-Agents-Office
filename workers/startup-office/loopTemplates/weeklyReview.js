@@ -176,6 +176,7 @@ const weeklyReviewTemplate = Object.freeze({
           citation_sources: context.citation_sources || [],
           metrics: context.metrics || [],
           previous_runs: context.previous_runs || [],
+          prompt_version: context.prompt_version || {},
           receipts: context.recent_receipts || [],
           revision_request: context.revision_request || {},
           signals: context.relevant_signals || [],

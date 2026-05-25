@@ -24,6 +24,7 @@ const checks = [
   ["npm", ["run", "startup-office:payload-limits"]],
   ["npm", ["run", "startup-office:plan-limits"]],
   ["npm", ["run", "startup-office:production-handoff"]],
+  ["npm", ["run", "startup-office:prompt-versions"]],
   ["npm", ["run", "startup-office:pure-cloud-boundary"]],
   ["npm", ["run", "startup-office:rate-limits"]],
   ["npm", ["run", "startup-office:role-authorization"]],
@@ -100,6 +101,7 @@ const checks = [
   ["node", ["--test", "workers/startup-office/loopEngine.test.js"]],
   ["node", ["--test", "workers/startup-office/outboxWorker.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],
+  ["node", ["--test", "workers/startup-office/promptVersions.test.js"]],
   ["node", ["--test", "workers/startup-office/toolPolicy.test.js"]],
   ["node", ["--test", "api/hosted-api.test.js"]],
   [

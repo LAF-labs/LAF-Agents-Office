@@ -150,6 +150,7 @@ const ideaValidationTemplate = Object.freeze({
           assets: context.relevant_assets || [],
           browser_research: context.browser_research || [],
           citation_sources: context.citation_sources || [],
+          prompt_version: context.prompt_version || {},
           signals: context.relevant_signals || [],
           tool_policy: context.tool_policy || {},
           wiki_memory: context.wiki_memory || [],

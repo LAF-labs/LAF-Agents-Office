@@ -2,6 +2,9 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { runStartupOfficeLoop } = require("./loopEngine");
+const {
+  STARTUP_OFFICE_PROMPT_VERSION_MANIFEST_VERSION,
+} = require("./promptVersions");
 const { STARTUP_OFFICE_TOOL_POLICY_VERSION } = require("./toolPolicy");
 
 test("startup office loop engine creates AI artifact, approval, receipt, and cost metadata", async () => {
@@ -28,7 +31,15 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.artifact.metadata.skill_invocations[0].reason, "Validate market evidence.");
   assert.equal(result.approval.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(result.artifact.metadata.tool_policy.version, STARTUP_OFFICE_TOOL_POLICY_VERSION);
+  assert.equal(
+    result.artifact.metadata.prompt_version.manifest_version,
+    STARTUP_OFFICE_PROMPT_VERSION_MANIFEST_VERSION,
+  );
+  assert.equal(result.artifact.metadata.prompt_version.version, "idea-validation.prompt.v1");
+  assert.match(result.artifact.metadata.prompt_version.instructions_hash, /^[a-f0-9]{64}$/);
   assert.equal(result.artifact.metadata.tool_policy.allowed_tools.includes("browser_research"), true);
+  assert.equal(result.approval.metadata.prompt_version.version, "idea-validation.prompt.v1");
+  assert.equal(result.run.metadata.prompt_version.schema_name, "idea_validation_output");
   assert.equal(result.run.metadata.tool_policy.loop_slug, "idea-validation");
   assert.equal(result.approval.risk_level, "high");
   assert.deepEqual(
@@ -56,6 +67,9 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   );
   assert.equal(state.receipts.at(0).trace.skill_invocations[0].skill_name, "market-research");
   assert.equal(state.receipts.at(-1).trace.tool_policy.disallowed_tools.includes("payment_capture"), true);
+  assert.equal(state.receipts.at(0).trace.prompt_version.version, "idea-validation.prompt.v1");
+  assert.equal(state.receipts.at(-1).trace.prompt_version.version, "idea-validation.prompt.v1");
+  assert.equal(state.jobPatches.at(-1).metadata.prompt_version.version, "idea-validation.prompt.v1");
   assert.equal(state.jobPatches.at(-1).metadata.tool_policy.version, STARTUP_OFFICE_TOOL_POLICY_VERSION);
   assert.equal(state.receipts.at(-1).trace.skill_invocations[0].input_snapshot.objective, "Validate the first buyer segment");
   assert.deepEqual(

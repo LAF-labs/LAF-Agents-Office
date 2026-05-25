@@ -84,6 +84,11 @@ for (const [relativePath, snippets, label] of [
     "loop tool permission policy",
   ],
   [
+    "workers/startup-office/promptVersions.js",
+    ["STARTUP_OFFICE_PROMPT_VERSION_MANIFEST_VERSION", "instructions_hash", "schema_hash"],
+    "loop prompt version policy",
+  ],
+  [
     "workers/startup-office/outputEval.test.js",
     ["fake loop outputs clear the beta quality rubric", "requires attached citations", "red-teams overclaiming and regulated advice"],
     "quality evaluation harness",
@@ -122,7 +127,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:production-handoff", "startup-office:tool-policy"],
+    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:production-handoff", "startup-office:prompt-versions", "startup-office:tool-policy"],
     "release gate launch checks",
   ],
 ]) {

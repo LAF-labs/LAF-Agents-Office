@@ -9,6 +9,7 @@ const {
 } = require("../../api/lib/startup-office/payloadLimits");
 const { buildCitationSources, mergeCitationSources } = require("./citationSources");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
+const { startupOfficePromptVersion } = require("./promptVersions");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
 const { writeStartupOfficeRunReceipt } = require("./receiptWriter");
 const {
@@ -43,6 +44,7 @@ async function runStartupOfficeLoop({
     return err;
   };
   const template = startupOfficeLoopTemplate(loop.slug);
+  const promptVersion = startupOfficePromptVersion({ loop, template });
   const startedAt = nowISO();
   const claimedAttempt = Number(workerJob?.attempts || 0);
   const attempt = claimedAttempt > 0 ? claimedAttempt : Number(run?.metadata?.attempt || 0) + 1;
@@ -74,6 +76,7 @@ async function runStartupOfficeLoop({
       metadata: mergeMetadata(run.metadata, {
         attempt,
         loop_slug: loop.slug,
+        prompt_version: promptVersion,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
         tool_policy: toolPolicy,
@@ -99,6 +102,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
+        prompt_version: promptVersion,
         skill_invocations: recordedSkillInvocations,
         tool_policy: toolPolicy,
         worker_job_id: workerJob?.id || null,
@@ -112,6 +116,7 @@ async function runStartupOfficeLoop({
       repository,
       run: runningRun || run,
     });
+    context.prompt_version = promptVersion;
     context.tool_policy = toolPolicy;
     context.citation_sources = buildCitationSources({
       assets: context.relevant_assets,
@@ -153,6 +158,8 @@ async function runStartupOfficeLoop({
         run_id: run.id,
         skill_names: recordedSkillInvocations.map((item) => item.skill_name),
         team_id: membership.team_id,
+        prompt_version: promptVersion.version,
+        prompt_version_manifest: promptVersion,
         tool_policy_version: toolPolicy.version,
         tools_allowed: toolPolicy.allowed_tools,
       },
@@ -226,6 +233,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
+        prompt_version: promptVersion,
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
         structured_output: modelResult.data,
@@ -289,6 +297,7 @@ async function runStartupOfficeLoop({
           memory_diff: memoryDiff,
           model: modelClient.model,
           provider: modelClient.provider,
+          prompt_version: promptVersion,
           quality: qualityMetadata,
           skill_invocations: recordedSkillInvocations,
           tool_policy: toolPolicy,
@@ -330,6 +339,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
+        prompt_version: promptVersion,
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
         tool_policy: toolPolicy,
@@ -369,6 +379,7 @@ async function runStartupOfficeLoop({
             source_count: browserResearch.sources.length,
           },
           cost: modelResult.cost,
+          prompt_version: promptVersion,
           run_id: run.id,
           skill_invocations: recordedSkillInvocations,
           tool_policy: toolPolicy,
@@ -398,6 +409,7 @@ async function runStartupOfficeLoop({
         },
         cost: modelResult.cost,
         loop_slug: loop.slug,
+        prompt_version: promptVersion,
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
         tool_policy: toolPolicy,
@@ -442,6 +454,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         provider: modelClient.provider,
+        prompt_version: promptVersion,
         skill_invocations: recordedSkillInvocations,
         tool_policy: toolPolicy,
         worker_job_id: workerJob?.id || null,
@@ -467,7 +480,7 @@ async function runStartupOfficeLoop({
         completed_at: failedAt,
         last_error: message,
         locked_at: null,
-        metadata: { cost, run_id: run.id, tool_policy: toolPolicy },
+        metadata: { cost, prompt_version: promptVersion, run_id: run.id, tool_policy: toolPolicy },
         status: "failed",
         updated_at: failedAt,
       });
@@ -481,6 +494,7 @@ async function runStartupOfficeLoop({
         attempt,
         cost,
         loop_slug: loop.slug,
+        prompt_version: promptVersion,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
         tool_policy: toolPolicy,

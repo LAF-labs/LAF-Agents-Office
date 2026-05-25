@@ -91,7 +91,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
 | SV-I051 | AI worker | The model client is OpenAI-first and does not yet support robust provider failover. | `modelClient.js` |
 | SV-I052 | AI worker | Fake-provider tests prove shape, not real model quality. | worker tests |
-| SV-I053 | AI worker | Prompt templates are present but not versioned as production artifacts. | loop templates |
+| SV-I053 | AI worker | Prompt templates now have a version manifest, instruction/schema hashes, review scope, and receipt/run metadata traces. | `startup-office:prompt-versions`, worker tests |
 | SV-I054 | AI worker | Output quality checks now cover structure, sources, assumptions, external-action claims, overclaiming, and regulated-advice review language; real model evals remain a post-beta hardening need. | `qualityChecks.js` |
 | SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
 | SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
@@ -285,7 +285,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require disclaimer and approval. | output eval |
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
 | SV-G041 | Add provider abstraction. | At least two model providers or one provider plus fallback are supported. | worker tests |
-| SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, and tied to receipts. | worker tests |
+| SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, hashed, and tied to model calls, runs, artifacts, approvals, worker jobs, and receipts. | `startup-office:prompt-versions`, worker tests |
 | SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, unsafe external-action claims, overclaiming, and regulated-advice review. | eval suite |
 | SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | manual gated script |
 | SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | worker tests |
@@ -388,6 +388,13 @@ state before start, before model generation, after model generation, and on
 failure so canceled work cannot write artifacts, approvals, or failed-run
 receipts after the founder has stopped it. `npm run startup-office:cancellation`
 locks this contract.
+SV-G042 is now covered by a prompt version manifest:
+`workers/startup-office/promptVersions.js` pins one version per loop, records
+instruction and schema hashes, and carries reviewed-for evidence. The loop
+engine injects that snapshot into prompt context and records it on model
+metadata, runs, artifacts, approvals, worker jobs, and receipts.
+`npm run startup-office:prompt-versions` keeps new loops from shipping without
+the same traceability.
 SV-G023 is now broader than representative spot checks: `npm run
 startup-office:rls-live` applies every Supabase migration to a temporary
 PostgreSQL cluster, starts PostgREST, seeds Alpha/Beta rows across every
@@ -421,6 +428,10 @@ the final release commit or when a shared invariant changes.
   `npm run startup-office:cancellation` checks that API cancel propagates to
   open worker jobs and that the loop engine re-checks cancellation before
   side-effect writes after long model generation.
+- R4 now versions prompt templates as production artifacts:
+  `npm run startup-office:prompt-versions` checks that every loop has a stable
+  prompt version, instruction hash, schema hash, review scope, prompt-context
+  exposure, and receipt/run trace coverage.
 - R2 has started with a dedicated Startup Office route contract and dispatcher:
   `api/lib/startup-office/routes.js` now owns the contract list, and
   `api/lib/startup-office/dispatcher.test.js` pins route IDs, aliases, params,
