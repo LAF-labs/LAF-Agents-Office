@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1580);
+assertMaxLines("api/[...path].js", 1440);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -86,6 +86,7 @@ assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectInvariants.js", 80);
 assertMaxLines("api/lib/startup-office/objectPayloadSchemas.js", 100);
 assertMaxLines("api/lib/startup-office/objectQueries.js", 120);
+assertMaxLines("api/lib/startup-office/objectStore.js", 210);
 assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/payloadLimits.js", 80);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
@@ -316,6 +317,11 @@ for (const [pattern, label] of [
   [/async function createStartupOfficeReceipt\b/, "startup office receipt creation facade helper"],
   [/async function safeStartupOfficeRest\b/, "startup office safe-rest facade helper"],
   [/function isMissingStartupOfficeTableError\b/, "startup office missing-table facade helper"],
+  [/async function startupOfficeObjectRows\b/, "startup office object rows facade helper"],
+  [/function startupOfficeObjectDefinition\b/, "startup office object definition facade helper"],
+  [/function startupOfficeObjectPayload\b/, "startup office object payload facade helper"],
+  [/function startupOfficeObjectPatch\b/, "startup office object patch facade helper"],
+  [/function numericOrNull\b/, "startup office object numeric facade helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

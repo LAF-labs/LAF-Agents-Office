@@ -350,7 +350,10 @@ test("Startup Office assets support run links and archive status", () => {
   assert.equal(assets.columns.includes("run_id"), true);
   assert.equal(assets.columns.includes("status"), true);
 
-  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  const source = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectStore.js"),
+    "utf8",
+  );
   assert.match(source, /status: startupOfficeAssetStatus\(body\.status\)/);
   assert.match(source, /patch\.run_id = body\.run_id \|\| null/);
   assert.match(source, /body\.archive \? "archived" : startupOfficeAssetStatus/);
@@ -388,7 +391,10 @@ test("Startup Office customers support discovery loop links and filters", () => 
   assert.match(querySource, /loop_id: "loop_id"/);
   assert.match(querySource, /applyStartupOfficeObjectListQuery/);
 
-  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  const source = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectStore.js"),
+    "utf8",
+  );
   assert.match(source, /loop_id: body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
   assert.match(source, /patch\.loop_id = body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
 });
@@ -433,7 +439,10 @@ test("Startup Office signals support typed capture and reuse links", () => {
   assert.match(querySource, /run_id: "run_id"/);
   assert.match(querySource, /loop_id: "loop_id"/);
 
-  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  const source = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectStore.js"),
+    "utf8",
+  );
   const invariantSource = fs.readFileSync(
     path.join(__dirname, "lib", "startup-office", "objectInvariants.js"),
     "utf8",
@@ -468,7 +477,10 @@ test("Startup Office metrics support ingestion updates and Growth Center summari
   );
   assert.equal(metrics.columns.includes("updated_at"), true);
 
-  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  const source = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectStore.js"),
+    "utf8",
+  );
   assert.match(source, /metric_key: truncateText\(body\.metric_key \|\| body\.key \|\| "metric"/);
   assert.match(source, /metric_value: numericOrNull\(body\.metric_value \?\? body\.value\)/);
   assert.match(source, /updated_at: now/);
@@ -546,6 +558,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /api\/lib\/startup-office\/workflowHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/operationsHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/objectHandlers\.test\.js/);
+  assert.match(script, /api\/lib\/startup-office\/objectStore\.test\.js/);
   assert.match(script, /workers\/startup-office\/approvalGates\.test\.js/);
   assert.match(script, /workers\/startup-office\/loopEngine\.test\.js/);
   assert.doesNotMatch(script, new RegExp("loop" + ["Run", "ner"].join("")));
