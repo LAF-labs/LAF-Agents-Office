@@ -32,10 +32,11 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 4510);
+assertMaxLines("api/[...path].js", 4140);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
+assertMaxLines("api/lib/startup-office/workflowHandlers.js", 520);
 assertMaxLines("api/lib/startup-office/routes.js", 140);
 assertMaxLines("api/lib/startup-office/dispatcher.js", 80);
 
@@ -52,6 +53,11 @@ for (const [pattern, label] of [
   [/async function handleStartupOfficeReceipts\b/, "receipts handler"],
   [/async function handleStartupOfficeExport\b/, "export handler"],
   [/async function startupOfficeObjectSummary\b/, "object summary helper"],
+  [/async function handleStartupOfficeLoopRun\b/, "loop run handler"],
+  [/async function handleStartupOfficeRun\b/, "run handler"],
+  [/async function handleStartupOfficeApprovalAction\b/, "approval action handler"],
+  [/async function enforceStartupOfficeRunLimit\b/, "run limit helper"],
+  [/async function recordStartupOfficeRunOutcome\b/, "run outcome helper"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

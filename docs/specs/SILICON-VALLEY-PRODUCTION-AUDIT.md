@@ -369,6 +369,10 @@ and missing typed contracts.
   receipts, and export extracted behind tests. The hosted API facade is now
   4,499 lines, and exports include `startup-office-export.v1` plus restore
   notes so customer portability has an explicit contract.
+- R2 now extracts the execution workflow handlers for loop runs, run detail,
+  cancel/retry, approval decisions, run-limit enforcement, usage metering, and
+  notification recording. The hosted API facade is down to 4,130 lines, with
+  workflow tests in the beta release gate.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   `20260525000000_remove_local_execution.sql`. A linked DB query confirms the
