@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2440);
+assertMaxLines("api/[...path].js", 2335);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -48,6 +48,7 @@ assertMaxLines("api/lib/hosted/invitePresentation.js", 100);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/memoryHandlers.js", 100);
 assertMaxLines("api/lib/hosted/modelAccess.js", 90);
+assertMaxLines("api/lib/hosted/orchestrationHandlers.js", 150);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
 assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
@@ -195,6 +196,10 @@ for (const [pattern, label] of [
   [/path === "requests\/answer"[\s\S]{0,160}\{ ok: true \}/, "hosted request answer no-op response"],
   [/async function handleHostedScheduler\b/, "hosted scheduler handler"],
   [/jobs: \[\]/, "hosted scheduler empty stub"],
+  [/async function handleOrchestrationIntent\b/, "hosted orchestration intent handler"],
+  [/async function handleOrchestrationConfirm\b/, "hosted orchestration confirm handler"],
+  [/function buildOrchestrationIntent\b/, "hosted orchestration intent builder"],
+  [/async function applyOrchestrationAction\b/, "hosted orchestration action helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
