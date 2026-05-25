@@ -189,7 +189,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
       "utf8",
     ),
   );
-  assert.equal(schema.latestMigration, "20260526030000");
+  assert.equal(schema.latestMigration, "20260526060000");
   assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525235900");
 
   const latestBoundarySql = fs.readFileSync(

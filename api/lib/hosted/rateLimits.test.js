@@ -4,6 +4,7 @@ const test = require("node:test");
 const {
   HOSTED_ACTION_RATE_LIMITS,
   createHostedActionRateLimiter,
+  matchHostedActionRateLimit,
 } = require("./rateLimits");
 
 test("hosted action rate limits cover expensive founder actions", () => {
@@ -14,6 +15,15 @@ test("hosted action rate limits cover expensive founder actions", () => {
     "startup_office_loop_run",
     "startup_office_run_mutation",
     "startup_office_terms_acceptance",
+    "startup_office_admin_demo_seed",
+    "startup_office_artifact_action",
+    "startup_office_asset_upload_intent",
+    "startup_office_deletion_request",
+    "startup_office_loop_config_write",
+    "startup_office_object_write",
+    "startup_office_support_access_action",
+    "startup_office_support_access_write",
+    "startup_office_worker_job_action",
     "hosted_client_error_report",
     "hosted_invite_create",
     "hosted_profile_write",
@@ -41,6 +51,17 @@ test("hosted action rate limiter applies only matching methods and paths", async
     ["POST", "startup-office/runs/run-1/retry", "startup_office_run_mutation"],
     ["POST", "startup-office/approvals/approval-1/approve", "startup_office_approval_action"],
     ["POST", "startup-office/terms", "startup_office_terms_acceptance"],
+    ["POST", "startup-office/demo-seed", "startup_office_admin_demo_seed"],
+    ["POST", "startup-office/support-access", "startup_office_support_access_write"],
+    ["POST", "startup-office/support-access/support-1/revoke", "startup_office_support_access_action"],
+    ["POST", "startup-office/deletion-request", "startup_office_deletion_request"],
+    ["POST", "startup-office/admin/worker-jobs/job-1/retry", "startup_office_worker_job_action"],
+    ["POST", "startup-office/loops", "startup_office_loop_config_write"],
+    ["POST", "startup-office/assets/upload-intent", "startup_office_asset_upload_intent"],
+    ["POST", "startup-office/assets", "startup_office_object_write"],
+    ["PATCH", "startup-office/customers/customer-1", "startup_office_object_write"],
+    ["DELETE", "startup-office/signals/signal-1", "startup_office_object_write"],
+    ["POST", "startup-office/artifacts/artifact-1/save-as-asset", "startup_office_artifact_action"],
     ["POST", "client-errors", "hosted_client_error_report"],
     ["POST", "invites", "hosted_invite_create"],
     ["PATCH", "company/profile", "hosted_profile_write"],
@@ -56,6 +77,11 @@ test("hosted action rate limiter applies only matching methods and paths", async
   await enforceHostedActionRateLimit({ key: "ip-1", method: "POST" }, "startup-office/export");
   await enforceHostedActionRateLimit({ key: "ip-1", method: "PATCH" }, "startup-office/runs/run-1/retry");
   assert.equal(calls.length, count);
+});
+
+test("hosted action rate limit matcher normalizes slashes and methods", () => {
+  const rule = matchHostedActionRateLimit("post", "/startup-office/assets/");
+  assert.equal(rule.scope, "startup_office_object_write");
 });
 
 test("hosted action rate limiter can use a persistent claim store", async () => {

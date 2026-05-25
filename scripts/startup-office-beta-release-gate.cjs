@@ -22,6 +22,7 @@ const checks = [
   ["npm", ["run", "startup-office:plan-limits"]],
   ["npm", ["run", "startup-office:production-handoff"]],
   ["npm", ["run", "startup-office:pure-cloud-boundary"]],
+  ["npm", ["run", "startup-office:rate-limits"]],
   ["npm", ["run", "startup-office:role-authorization"]],
   ["npm", ["run", "startup-office:rls-verification"]],
   ["npm", ["run", "startup-office:sales-proof"]],

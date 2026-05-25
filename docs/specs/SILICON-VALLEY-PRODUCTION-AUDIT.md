@@ -82,7 +82,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I041 | Security | Tenant isolation depends heavily on correct route membership checks plus RLS not yet live-tested. | auth routes, migrations |
 | SV-I042 | Security | Service-role REST/RPC access is now manifest-allowlisted, but domain repositories still need narrower ownership boundaries. | hosted API env requirements |
 | SV-I043 | Security | Support access policy is visible but not yet a complete impersonation and break-glass system. | policy API |
-| SV-I044 | Security | Rate limits cover signup and the first expensive hosted actions with a Supabase-backed production path, but full write-surface coverage is still incomplete. | rate limit helpers |
+| SV-I044 | Security | Rate limits now cover the full Startup Office mutating route contract at ingress, but downstream provider and worker-specific quota policies still need live production tuning. | `startup-office:rate-limits` |
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
 | SV-I047 | Security | Secret scan and high-severity dependency audit are tied into the Startup Office release gate, but SAST/DAST and a launch security packet remain incomplete. | `startup-office:security` |
@@ -275,7 +275,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G029 | Normalize lifecycle states. | Objects, runs, approvals, notifications, and memory use shared state conventions. | schema tests |
 | SV-G030 | Add realistic seed reset. | Demo workspaces can be reset safely outside production. | admin test |
 | SV-G031 | Harden service-role boundaries. | Service role access is isolated behind repository functions. | code review gate |
-| SV-G032 | Add rate limits for expensive actions. | Runs, approvals, invites, exports, and profile writes are bounded. | API tests |
+| SV-G032 | Add rate limits for expensive actions. | Runs, approvals, invites, exports, profile writes, admin recovery actions, support/deletion actions, asset upload intents, artifact actions, and operating-object writes are bounded. | `startup-office:rate-limits` |
 | SV-G033 | Add idempotency keys. | Retries cannot duplicate runs, approvals, or artifacts. | API tests |
 | SV-G034 | Enforce body limits. | Oversized payloads are rejected before DB writes. | API tests |
 | SV-G035 | Add file upload controls. | Type, size, scan, and retention policies protect assets. | upload tests |
@@ -492,10 +492,14 @@ the final release commit or when a shared invariant changes.
 - R3 now proves the hosted API request-size boundary. `api/hosted-api.test.js`
   verifies oversized `Content-Length`, parsed JSON, and raw JSON payloads return
   413 before mutation handlers run; the beta release gate includes that test.
-- R3 now rate-limits the first expensive hosted actions at ingress. The hosted
-  API guards Startup Office export, loop runs, run retries/cancels, approval
-  decisions, invite creation, and profile/policy/billing writes; release-gate
-  tests prove both route matching and 429 behavior before auth/DB work.
+- R3 now rate-limits the full Startup Office mutating route contract at ingress.
+  The hosted API guards export, loop runs, run retries/cancels, approval
+  decisions, invite creation, profile/policy/billing writes, admin demo seed,
+  support access, deletion requests, worker-job recovery, loop configuration,
+  asset upload intents, artifact actions, and operating-object writes. `npm run
+  startup-office:rate-limits` derives mutating route samples from
+  `STARTUP_OFFICE_ROUTE_CONTRACTS` so new write routes cannot silently ship
+  without an ingress bucket.
 - R3 now adds a Supabase-backed production limiter. The
   `hosted_rate_limits` table and `claim_hosted_rate_limit` RPC provide an
   atomic shared bucket for deployed API instances, while tests keep the local
