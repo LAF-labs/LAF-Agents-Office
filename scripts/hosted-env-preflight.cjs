@@ -127,7 +127,11 @@ function runPreflight(env = process.env, options = {}) {
   }
 
   validateOutboxEnv(env, { errors, normalized });
-  validateStartupOfficeAIEnv(env, { errors, normalized });
+  validateStartupOfficeAIEnv(env, {
+    allowTestProvider: allowLocalhost,
+    errors,
+    normalized,
+  });
 
   return {
     errors,
@@ -137,13 +141,18 @@ function runPreflight(env = process.env, options = {}) {
   };
 }
 
-function validateStartupOfficeAIEnv(env, { errors, normalized }) {
+function validateStartupOfficeAIEnv(env, { allowTestProvider = false, errors, normalized }) {
   const explicitProvider = String(
     env.LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER || env.STARTUP_OFFICE_AI_PROVIDER || "",
   ).trim().toLowerCase();
   const hasOpenAIKey = Boolean(env.LAF_OFFICE_OPENAI_API_KEY || env.OPENAI_API_KEY);
   const provider = explicitProvider || (hasOpenAIKey ? "openai" : "");
-  if (!provider) return;
+  if (!provider) {
+    if (!allowTestProvider) {
+      errors.push("missing LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for Startup Office AI worker");
+    }
+    return;
+  }
   if (!["openai", "fake", "disabled"].includes(provider)) {
     errors.push("LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be one of openai, fake, or disabled");
     normalized.startup_office_ai_provider = provider;
@@ -155,6 +164,11 @@ function validateStartupOfficeAIEnv(env, { errors, normalized }) {
   ).trim();
   if (provider === "openai" && !hasOpenAIKey) {
     errors.push("missing LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for Startup Office AI worker");
+  }
+  if ((provider === "fake" || provider === "disabled") && !allowTestProvider) {
+    errors.push(
+      "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be openai for production preflight; fake and disabled are local/test only",
+    );
   }
 }
 
@@ -422,6 +436,7 @@ function usage(message = "", exitCode = 0) {
       "  SUPABASE_SERVICE_ROLE_KEY",
       "  SUPABASE_ANON_KEY",
       "  LAF_OFFICE_PUBLIC_HOST or VERCEL_URL",
+      "  LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY",
       "",
     ].join("\n"),
   );

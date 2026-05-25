@@ -80,7 +80,7 @@ Status values: `Complete`, `In progress`, `Not started`, `Blocked`.
 | G065 | Not started | Add role-specific authorization tests. | Viewer, member, manager, admin, and owner capabilities are covered for Startup Office routes. | pending |
 | G066 | Not started | Add RLS verification against a real Supabase test database. | Migration policies are exercised against PostgREST with anon and service roles. | pending |
 | G067 | Not started | Add migration rollback or forward-fix runbook. | Operators know how to recover if the Startup Office migration fails. | pending |
-| G068 | Not started | Add production environment preflight for pure cloud mode. | Release gate checks LLM keys, Supabase, CORS, worker secrets, billing, and public URL config. | pending |
+| G068 | In progress | Add production environment preflight for pure cloud mode. | Release gate checks LLM keys, Supabase, CORS, worker secrets, billing, and public URL config. | `scripts/hosted-env-preflight.cjs`, `scripts/hosted-env-preflight.test.cjs` |
 | G069 | Not started | Add cloud worker deployment config. | Worker can run in the chosen deployment environment with logs and health checks. | pending |
 | G070 | Not started | Add observability for runs and worker jobs. | Logs, metrics, and traces expose run latency, failures, approval waits, and model costs. | pending |
 | G071 | Not started | Add cost metering per workspace. | Token usage, tool calls, and run costs are attributed to company workspace. | pending |

@@ -23,6 +23,8 @@ function validEnv(overrides = {}) {
   return {
     LAF_OFFICE_ALLOWED_ORIGINS:
       "https://office.example.com, https://app.example.com",
+    LAF_OFFICE_OPENAI_API_KEY: "openai-key",
+    LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "openai",
     LAF_OFFICE_PUBLIC_HOST: "office.example.com",
     SUPABASE_ANON_KEY: "anon",
     SUPABASE_SERVICE_ROLE_KEY: "service-role",
@@ -41,11 +43,13 @@ test("preflight passes a production cloud office env", () => {
   assert.equal(result.normalized.outbox_email_provider, "in_app");
   assert.equal(result.normalized.outbox_batch_size, 25);
   assert.equal(result.normalized.outbox_lock_ms, 300000);
+  assert.equal(result.normalized.startup_office_ai_provider, "openai");
 
   const rendered = printText(result);
   assert.match(rendered, /PASS hosted Startup Office env is ready/);
   assert.match(rendered, /effective API base: https:\/\/office\.example\.com\/api/);
   assert.match(rendered, /outbox email provider: in_app/);
+  assert.match(rendered, /Startup Office AI provider: openai/);
 });
 
 test("preflight supports split-origin API deployments", () => {
@@ -74,6 +78,7 @@ test("preflight loads env files without leaking secret values", async (t) => {
       "SUPABASE_URL=https://project.supabase.co",
       "SUPABASE_SERVICE_ROLE_KEY=service-secret-from-file",
       "SUPABASE_ANON_KEY=anon-secret-from-file",
+      "LAF_OFFICE_OPENAI_API_KEY=openai-secret-from-file",
       "LAF_OFFICE_PUBLIC_HOST=office.example.com",
       "LAF_OFFICE_ALLOWED_ORIGINS=office.example.com",
     ].join("\n"),
@@ -84,7 +89,10 @@ test("preflight loads env files without leaking secret values", async (t) => {
   const result = runPreflight(env);
   assert.equal(result.ok, true, result.errors.join("\n"));
   const rendered = printText(result);
-  assert.doesNotMatch(rendered, /service-secret-from-file|anon-secret-from-file/);
+  assert.doesNotMatch(
+    rendered,
+    /service-secret-from-file|anon-secret-from-file|openai-secret-from-file/,
+  );
 });
 
 test("preflight reports missing required cloud env with actionable hints", () => {
@@ -139,7 +147,9 @@ test("preflight validates Startup Office AI worker env when provider is configur
 test("preflight rejects broken Startup Office AI worker env", () => {
   const missingKey = runPreflight(
     validEnv({
+      LAF_OFFICE_OPENAI_API_KEY: "",
       LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "openai",
+      OPENAI_API_KEY: "",
     }),
   );
   assert.equal(missingKey.ok, false);
@@ -160,6 +170,44 @@ test("preflight rejects broken Startup Office AI worker env", () => {
       "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be one of openai, fake, or disabled",
     ),
   );
+});
+
+test("preflight rejects fake or disabled AI providers outside local rehearsals", () => {
+  const fake = runPreflight(
+    validEnv({
+      LAF_OFFICE_OPENAI_API_KEY: "",
+      LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "fake",
+    }),
+  );
+  assert.equal(fake.ok, false);
+  assert(
+    fake.errors.includes(
+      "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be openai for production preflight; fake and disabled are local/test only",
+    ),
+  );
+
+  const disabled = runPreflight(
+    validEnv({
+      LAF_OFFICE_OPENAI_API_KEY: "",
+      LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "disabled",
+    }),
+  );
+  assert.equal(disabled.ok, false);
+  assert(
+    disabled.errors.includes(
+      "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be openai for production preflight; fake and disabled are local/test only",
+    ),
+  );
+
+  const local = runPreflight(
+    validEnv({
+      LAF_OFFICE_OPENAI_API_KEY: "",
+      LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "fake",
+    }),
+    { allowLocalhost: true },
+  );
+  assert.equal(local.ok, true, local.errors.join("\n"));
+  assert.equal(local.normalized.startup_office_ai_provider, "fake");
 });
 
 test("preflight rejects broken outbox email env", () => {
