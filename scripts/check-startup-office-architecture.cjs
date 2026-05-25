@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1840);
+assertMaxLines("api/[...path].js", 1800);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -57,6 +57,7 @@ assertMaxLines("api/lib/hosted/requestIO.js", 100);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
 assertMaxLines("api/lib/hosted/securityHeaders.js", 55);
+assertMaxLines("api/lib/hosted/sessionCookies.js", 80);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/skillHandlers.js", 230);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
@@ -252,6 +253,12 @@ for (const [pattern, label] of [
   [/async function authFetch\b/, "hosted Supabase auth fetch helper"],
   [/async function authAdminFetch\b/, "hosted Supabase auth admin fetch helper"],
   [/function responseErrorMessage\b/, "hosted upstream error parser"],
+  [/function cookie\b/, "hosted session cookie parser"],
+  [/function bearer\b/, "hosted bearer token parser"],
+  [/function authToken\b/, "hosted auth token resolver"],
+  [/function authCookieSameSite\b/, "hosted auth cookie SameSite policy"],
+  [/function setAuthCookies\b/, "hosted auth cookie writer"],
+  [/function clearAuthCookies\b/, "hosted auth cookie clearer"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

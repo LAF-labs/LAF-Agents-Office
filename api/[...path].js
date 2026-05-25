@@ -98,6 +98,9 @@ const {
   createHostedSecurityHeaders,
 } = require("./lib/hosted/securityHeaders");
 const {
+  createHostedSessionCookies,
+} = require("./lib/hosted/sessionCookies");
+const {
   createHostedSkillHandlers,
 } = require("./lib/hosted/skillHandlers");
 const {
@@ -259,6 +262,15 @@ const HOSTED_SECURITY_HEADERS = createHostedSecurityHeaders({
     process.env.LAF_OFFICE_ALLOWED_ORIGINS || "",
   ),
 });
+const HOSTED_SESSION_COOKIES = createHostedSessionCookies({
+  env: process.env,
+  trustedBrowserOrigin: HOSTED_SECURITY_HEADERS.trustedBrowserOrigin,
+});
+const {
+  authToken,
+  clearAuthCookies,
+  setAuthCookies,
+} = HOSTED_SESSION_COOKIES;
 const HOSTED_REQUEST_IO = createHostedRequestIO({
   createHTTPError: startupOfficeHTTPError,
   maxRequestBodyBytes: MAX_REQUEST_BODY_BYTES,
@@ -1057,59 +1069,6 @@ function inviteEmailProviderFromEnv() {
     });
   }
   throw new HTTPError(503, `unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
-}
-
-function cookie(req, name) {
-  const header = req.headers.cookie || "";
-  const parts = header.split(";").map((part) => part.trim());
-  for (const part of parts) {
-    const index = part.indexOf("=");
-    if (index < 0) continue;
-    if (part.slice(0, index) === name) {
-      return decodeURIComponent(part.slice(index + 1));
-    }
-  }
-  return "";
-}
-
-function bearer(req) {
-  const header = req.headers.authorization || "";
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1].trim() : "";
-}
-
-function authToken(req) {
-  return bearer(req) || cookie(req, "laf_access");
-}
-
-function authCookieSameSite(req) {
-  return process.env.NODE_ENV === "production" && HOSTED_SECURITY_HEADERS.trustedBrowserOrigin(req)
-    ? "None"
-    : "Lax";
-}
-
-function setAuthCookies(req, res, session) {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const sameSite = authCookieSameSite(req);
-  const accessMaxAge = Number(session.expires_in || 3600);
-  const cookies = [
-    `laf_access=${encodeURIComponent(session.access_token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${accessMaxAge}${secure}`,
-  ];
-  if (session.refresh_token) {
-    cookies.push(
-      `laf_refresh=${encodeURIComponent(session.refresh_token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=2592000${secure}`,
-    );
-  }
-  res.setHeader("Set-Cookie", cookies);
-}
-
-function clearAuthCookies(req, res) {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const sameSite = authCookieSameSite(req);
-  res.setHeader("Set-Cookie", [
-    `laf_access=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0${secure}`,
-    `laf_refresh=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0${secure}`,
-  ]);
 }
 
 async function requireUser(req) {

@@ -97,6 +97,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/rosterHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/schedulerHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/securityHeaders.test.js"]],
+  ["node", ["--test", "api/lib/hosted/sessionCookies.test.js"]],
   ["node", ["--test", "api/lib/hosted/serviceRoleAccess.test.js"]],
   ["node", ["--test", "api/lib/hosted/skillHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/signupHandlers.test.js"]],
