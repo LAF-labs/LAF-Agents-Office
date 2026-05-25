@@ -459,6 +459,12 @@ export interface StartupOfficeReceiptsResponse {
   receipts: StartupOfficeReceipt[];
 }
 
+export interface StartupOfficeMemoryImportResponse {
+  imported_count: number;
+  memory_pages: StartupOfficeMemoryPage[];
+  status: string;
+}
+
 export function getStartupOfficeGrowthSummary() {
   return get<StartupOfficeGrowthSummary>("/startup-office/growth-summary");
 }
@@ -468,6 +474,17 @@ export function getStartupOfficeReceipts(opts?: { cursor?: string; limit?: numbe
     cursor: opts?.cursor,
     limit: opts?.limit,
   });
+}
+
+export function importStartupOfficeMemory(body: {
+  export?: Record<string, unknown>;
+  memory_pages?: StartupOfficeMemoryPage[];
+  schema_version?: string;
+}) {
+  return post<StartupOfficeMemoryImportResponse>(
+    "/startup-office/memory/import",
+    body,
+  );
 }
 
 export function runStartupOfficeLoop(

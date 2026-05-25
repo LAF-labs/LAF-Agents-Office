@@ -119,6 +119,9 @@ const {
   createStartupOfficeAssetUploadHandlers,
 } = require("./lib/startup-office/assetUploadHandlers");
 const {
+  createStartupOfficeImportHandlers,
+} = require("./lib/startup-office/importHandlers");
+const {
   createStartupOfficeQueryHandlers,
 } = require("./lib/startup-office/queryHandlers");
 const {
@@ -448,6 +451,19 @@ const STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS = createStartupOfficeAssetUploadHandl
   writeJSON,
 });
 
+const STARTUP_OFFICE_IMPORT_HANDLERS = createStartupOfficeImportHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  objectValue,
+  readBody,
+  requirePermission,
+  requireUser,
+  startupOfficeRepository,
+  truncateText,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_QUERY_HANDLERS = createStartupOfficeQueryHandlers({
   createHTTPError: startupOfficeHTTPError,
   companyProfileSnapshot,
@@ -574,6 +590,7 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   growthSummary: STARTUP_OFFICE_QUERY_HANDLERS.growthSummary,
   loopRun: STARTUP_OFFICE_WORKFLOW_HANDLERS.loopRun,
   loops: STARTUP_OFFICE_QUERY_HANDLERS.loops,
+  memoryImport: STARTUP_OFFICE_IMPORT_HANDLERS.memoryImport,
   objectCollection: STARTUP_OFFICE_OBJECT_HANDLERS.objectCollection,
   objectItem: STARTUP_OFFICE_OBJECT_HANDLERS.objectItem,
   policy: STARTUP_OFFICE_OPERATIONS_HANDLERS.policy,

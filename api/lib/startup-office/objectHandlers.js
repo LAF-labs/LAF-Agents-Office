@@ -1,7 +1,4 @@
-const {
-  STARTUP_OFFICE_PAYLOAD_LIMITS,
-  assertStartupOfficePayloadSize,
-} = require("./payloadLimits");
+const { STARTUP_OFFICE_PAYLOAD_LIMITS, assertStartupOfficePayloadSize } = require("./payloadLimits");
 const {
   assertStartupOfficeStorageLimit,
   startupOfficeStorageBytes,
@@ -51,9 +48,7 @@ function createStartupOfficeObjectHandlers(deps) {
         options.run_id = req.query?.run_id;
         options.signal_type = req.query?.signal_type || req.query?.type;
       }
-      const rows = await startupOfficeObjectRows(membership.team_id, kind, {
-        ...options,
-      });
+      const rows = await startupOfficeObjectRows(membership.team_id, kind, options);
       const { items, pagination } = startupOfficePageResult(rows, page);
       writeJSON(res, 200, { [definition.responseKey]: items, pagination });
       return;
@@ -129,10 +124,7 @@ function createStartupOfficeObjectHandlers(deps) {
         body: truncateText(artifact.content || "", 30000),
         created_by: membership.user_id,
         kind: truncateText(body.kind || artifact.kind || "document", 80),
-        metadata: {
-          artifact_id: artifact.id,
-          source: "artifact",
-        },
+        metadata: { artifact_id: artifact.id, source: "artifact" },
         name: truncateText(body.name || artifact.title || "Startup Office asset", 180),
         run_id: artifact.run_id || null,
         team_id: membership.team_id,
@@ -153,11 +145,7 @@ function createStartupOfficeObjectHandlers(deps) {
         body: truncateText(body.body || artifact.content || "", 6000),
         created_by: membership.user_id,
         loop_id: body.loop_id || null,
-        metadata: {
-          artifact_id: artifact.id,
-          run_id: runID,
-          source: "artifact",
-        },
+        metadata: { artifact_id: artifact.id, run_id: runID, source: "artifact" },
         run_id: runID,
         signal_type: startupOfficeSignalType(body.signal_type || body.type || "internal"),
         source: truncateText(body.source || "artifact", 120),

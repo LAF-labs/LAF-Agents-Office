@@ -37,6 +37,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "receipts",
     "objectCollection",
     "assetUploadIntent",
+    "memoryImport",
     "objectItem",
     "artifactObjectAction",
     "export",
@@ -80,6 +81,10 @@ test("Startup Office route matcher decodes path params and aliases", () => {
   assert.equal(
     matchStartupOfficeRoute("startup-office/assets/upload-intent", "POST")?.id,
     "assetUploadIntent",
+  );
+  assert.equal(
+    matchStartupOfficeRoute("startup-office/memory/import", "POST")?.id,
+    "memoryImport",
   );
   assert.deepEqual(
     matchStartupOfficeRoute("startup-office/support-access/support%2F1/revoke", "POST")

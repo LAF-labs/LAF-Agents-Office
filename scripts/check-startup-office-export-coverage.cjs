@@ -62,7 +62,7 @@ for (const table of STARTUP_OFFICE_EXPORT_OMITTED_TABLES) {
   }
 }
 
-const queryHandlers = read("api/lib/startup-office/queryHandlers.js");
+const exportHandlers = read("api/lib/startup-office/exportHandlers.js");
 const exportManifest = read("api/lib/startup-office/exportManifest.js");
 if (!exportManifest.includes(STARTUP_OFFICE_EXPORT_SCHEMA_VERSION)) {
   fail("export manifest is missing the current schema version");
@@ -80,11 +80,11 @@ for (const snippet of [
   "workspace_billing",
   "workspace_settings",
 ]) {
-  if (!queryHandlers.includes(snippet)) {
+  if (!exportHandlers.includes(snippet)) {
     fail(`export handler is missing ${snippet}`);
   }
 }
-if (queryHandlers.includes("token_hash")) {
+if (exportHandlers.includes("token_hash")) {
   fail("export handler must not expose invite token_hash values");
 }
 

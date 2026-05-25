@@ -185,7 +185,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I144 | Compliance | Data deletion now purges workspace-scoped product tables through the team cascade with receipt-delete bypass scoped to the purge transaction; auth-user deletion and external provider retention remain operator/legal follow-up. | `purge_startup_office_workspace` |
 | SV-I145 | Compliance | Support access lacks customer-visible consent and expiry mechanics. | policy |
 | SV-I146 | Compliance | Regulated-domain guardrails are prompt text, not enforceable product policy. | templates |
-| SV-I147 | Compliance | Export now has a schema-derived v2 manifest and documented omissions; import/restore tooling remains future work. | `startup-office:export-coverage` |
+| SV-I147 | Compliance | Export now has a schema-derived v2 manifest, documented omissions, and an approved company-memory import path; full workspace restore tooling remains future work. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-I148 | Compliance | Subprocessor/model provider disclosure is not represented. | docs |
 | SV-I149 | Compliance | Incident response is not operationalized. | beta goals |
 | SV-I150 | Compliance | Security review artifacts are not attached to release gates. | CI |
@@ -199,11 +199,11 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I158 | Performance | Database indexes are present but not proven against realistic data volumes. | migrations |
 | SV-I159 | Performance | Model call latency is not budgeted per loop. | worker |
 | SV-I160 | Performance | Static marketing site and app assets are not performance-budgeted together. | website and web build |
-| SV-I161 | Portability | Export exists but no import/restore path exists for a workspace. | export endpoint |
-| SV-I162 | Portability | Users cannot migrate company memory into another account or workspace. | no import |
+| SV-I161 | Portability | Founder can restore company memory into another workspace, but full workspace import/restore still needs table-by-table adapters. | `startup-office:memory-import` |
+| SV-I162 | Portability | Approved company memory can migrate by export bundle or direct `memory_pages` import; non-memory workspace objects still need import tooling. | `startup-office:memory-import` |
 | SV-I163 | Portability | Artifacts lack stable public or private share URLs. | artifact viewer |
 | SV-I164 | Portability | Receipts are DB append-only and expose a canonical SHA-256 digest; third-party signing and share links remain future trust hardening. | `startup-office:receipt-integrity`, DB gate |
-| SV-I165 | Portability | Data schemas are not versioned in exported bundles. | export endpoint |
+| SV-I165 | Portability | Export bundles are schema-versioned and memory import records source schema version; per-table restore schema adapters remain future work. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-I166 | Portability | Workspace deletion and data download are not one coherent account flow. | settings |
 | SV-I167 | Portability | Asset upload and material library are incomplete. | beta goals |
 | SV-I168 | Portability | Customer CRM data lacks common CSV/API interoperability. | customers |
@@ -301,7 +301,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G055 | Add provenance replay. | Receipts can reconstruct inputs, prompt version, output, approval, and memory diffs. | `startup-office:provenance-replay`, receipt test |
 | SV-G056 | Add asset-grounded retrieval. | Uploaded business materials become retrievable loop context. | retrieval tests |
 | SV-G057 | Show why-this-output everywhere. | Artifacts and approvals show memory, source, and assumption basis. | UI tests |
-| SV-G058 | Add memory export/import. | Founder can download and restore company memory. | export/import tests |
+| SV-G058 | Add memory export/import. | Founder can download and restore company memory from an export bundle or direct `memory_pages` payload. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-G059 | Add memory permission checks. | Sensitive pages respect workspace roles. | RLS tests |
 | SV-G060 | Measure retrieval quality. | A business-loop retrieval eval tracks recall and precision. | `startup-office:retrieval-quality`, eval report |
 | SV-G061 | Map a founder operating week. | Loops cover the weekly cadence from strategy to growth review. | product spec |
@@ -456,7 +456,11 @@ the final release commit or when a shared invariant changes.
   receipts, and export extracted behind tests. Exports now use
   `startup-office-export.v2` with a schema-derived manifest, restore notes,
   invite-token redaction, customer-visible legal/support evidence, and
-  documented omissions for internal queues and post-deletion tombstones.
+  documented omissions for internal queues and post-deletion tombstones. Founder
+  can restore company memory through `POST /startup-office/memory/import`, which
+  accepts exported `memory_pages`, promotes them as approved memory, records
+  source schema/version provenance, audits the import, and is pinned by
+  `npm run startup-office:memory-import`.
 - R2 now extracts the execution workflow handlers for loop runs, run detail,
   cancel/retry, approval decisions, run-limit enforcement, usage metering, and
   notification recording. The hosted API facade is down to 4,130 lines, with

@@ -70,8 +70,13 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/startup-office/queryHandlers.js",
-    ["company_profile: profile", "beta_ops: betaOps", "export_manifest", "activity_notifications"],
-    "export and activity query surface",
+    ["company_profile: profile", "beta_ops: betaOps", "activity_notifications"],
+    "activity query surface",
+  ],
+  [
+    "api/lib/startup-office/exportHandlers.js",
+    ["export_manifest", "workspace_billing", "restore_notes"],
+    "export query surface",
   ],
   [
     "workers/startup-office/contextBuilder.js",
@@ -105,8 +110,13 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/hosted/inviteHandlers.js",
-    ["one_time_invite_url", "invite_url", "sendInviteEmail", "mailto_url"],
+    ["one_time_invite_url", "invite_url", "sendInviteEmail"],
     "team invite notification fallback",
+  ],
+  [
+    "api/lib/hosted/invitePresentation.js",
+    ["mailto_url", "inviteMailtoURL"],
+    "team invite presentation fallback",
   ],
   [
     launchDoc,
@@ -132,7 +142,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:citation-enforcement", "startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:live-model-smoke-check", "startup-office:memory-conflicts", "startup-office:memory-freshness", "startup-office:model-failover", "startup-office:pagination", "startup-office:production-handoff", "startup-office:provenance-replay", "startup-office:prompt-versions", "startup-office:receipt-integrity", "startup-office:retrieval-quality", "startup-office:tool-policy"],
+    ["startup-office:citation-enforcement", "startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:live-model-smoke-check", "startup-office:memory-conflicts", "startup-office:memory-freshness", "startup-office:memory-import", "startup-office:model-failover", "startup-office:pagination", "startup-office:production-handoff", "startup-office:provenance-replay", "startup-office:prompt-versions", "startup-office:receipt-integrity", "startup-office:retrieval-quality", "startup-office:tool-policy"],
     "release gate launch checks",
   ],
 ]) {
