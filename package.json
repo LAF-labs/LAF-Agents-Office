@@ -18,6 +18,7 @@
     "startup-office:cancellation": "node scripts/check-startup-office-cancellation-contract.cjs",
     "startup-office:citation-enforcement": "node scripts/check-startup-office-citation-enforcement.cjs",
     "startup-office:client-telemetry": "node scripts/check-startup-office-client-telemetry.cjs",
+    "startup-office:code-ownership": "node scripts/check-startup-office-code-ownership.cjs",
     "startup-office:cost-metering": "node scripts/check-startup-office-cost-metering.cjs",
     "startup-office:model-costs": "node scripts/check-startup-office-model-costs.cjs",
     "startup-office:customer-csv": "node scripts/check-startup-office-customer-csv.cjs",

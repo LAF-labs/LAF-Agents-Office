@@ -13,8 +13,17 @@
 /web/                       @FranDias
 /website/                   @FranDias
 
+# Startup Office production domain boundaries
+/api/lib/startup-office/            @FranDias
+/workers/startup-office/            @FranDias
+/web/src/components/startup-office/ @FranDias
+/web/src/api/startupOffice.ts       @FranDias
+/supabase/migrations/               @FranDias
+/supabase/schema/                   @FranDias
+
 # Product strategy and launch documentation
 /docs/specs/                @FranDias
+/docs/ops/                  @FranDias
 README.md                   @FranDias
 ARCHITECTURE.md             @FranDias
 DESIGN.md                   @FranDias
@@ -23,6 +32,8 @@ DEVELOPMENT.md              @FranDias
 # Build, release, and supply-chain hygiene
 /.github/                   @FranDias
 /scripts/                   @FranDias
+/scripts/check-startup-office-*.cjs @FranDias
+/scripts/startup-office-*.cjs       @FranDias
 /package.json               @FranDias
 /lefthook.yml               @FranDias
 /.commitlintrc.json         @FranDias

@@ -18,6 +18,7 @@ const checks = [
   ["npm", ["run", "startup-office:cancellation"]],
   ["npm", ["run", "startup-office:citation-enforcement"]],
   ["npm", ["run", "startup-office:client-telemetry"]],
+  ["npm", ["run", "startup-office:code-ownership"]],
   ["npm", ["run", "startup-office:closed-beta-launch"]],
   ["npm", ["run", "startup-office:cost-metering"]],
   ["npm", ["run", "startup-office:model-costs"]],

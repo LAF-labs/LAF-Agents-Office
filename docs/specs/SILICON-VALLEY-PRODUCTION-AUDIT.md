@@ -29,6 +29,9 @@ startup, what fundamental problems would we refuse to carry forward?
 - Startup Office mutating routes now have a declared audit coverage map at
   `scripts/check-startup-office-audit-coverage.cjs`; the release gate fails if a
   new `POST`, `PATCH`, or `DELETE` route is added without an audit event.
+- CODEOWNERS now pins Startup Office API, worker, web, schema, migration,
+  operations-doc, and release-script boundaries, and
+  `startup-office:code-ownership` keeps those review paths in the release gate.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes production audit, closed-beta goal locking, audit coverage, secret
   scan, and dependency audit, but it does not prove live model, live Supabase,
@@ -229,7 +232,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I184 | Developer experience | Generated assets and manual code are mixed without a full generation check. | avatar scripts |
 | SV-I185 | Developer experience | `beta:release-gate` is now the single deterministic command for repo-controlled cloud SaaS invariants; live provider reachability, DNS, and customer/payment proof remain deploy-time evidence. | `beta:release-gate` |
 | SV-I186 | Developer experience | Local development is hosted-first but not yet one-command reproducible for web, API, worker, and Supabase. | `DEVELOPMENT.md` |
-| SV-I187 | Developer experience | Code ownership boundaries are not explicit. | docs |
+| SV-I187 | Developer experience | Code ownership boundaries are now explicit for Startup Office API, worker, web, schema, migration, operations-doc, and release-script paths, with a release-gate check preventing drift. | `startup-office:code-ownership`, `.github/CODEOWNERS` |
 | SV-I188 | Developer experience | Package naming and repo naming still reflect historical LAF Agents Office identity. | repo paths |
 | SV-I189 | Developer experience | Static analysis/lint coverage is weaker than tests. | scripts |
 | SV-I190 | Developer experience | New contributors cannot easily tell which surfaces are product vs legacy. | file tree |
@@ -430,6 +433,10 @@ the final release commit or when a shared invariant changes.
   `npm run closed-beta:goals` requires G072-G098 to stay complete, allows only
   G099 and G100 to remain blocked, and requires those blockers to point to
   external deployment/customer proof instead of repository work.
+- R2/R7 now adds explicit code ownership:
+  `npm run startup-office:code-ownership` checks that CODEOWNERS pins the
+  Startup Office API, worker, web, schema, migration, ops-doc, and release-script
+  paths before the beta release gate can pass.
 - R4 now includes a versioned tool permission manifest:
   `npm run startup-office:tool-policy` checks that every loop declares allowed
   tools, blocked external-execution tools, and never-auto-execute policy for
