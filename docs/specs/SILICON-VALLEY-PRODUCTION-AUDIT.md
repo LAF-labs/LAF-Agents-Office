@@ -160,7 +160,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
 | SV-I131 | Release | The release gate does not include the new production audit. | scripts |
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
-| SV-I133 | Release | Environment preflight validates config presence but not external reachability. | hosted-env preflight |
+| SV-I133 | Release | Environment preflight now validates hosted config and outbox email shape, but not live external reachability. | hosted-env preflight |
 | SV-I134 | Release | Worker deployment is not independently packaged. | workers directory |
 | SV-I135 | Release | CI is now hosted-only but still lacks a production deploy smoke with live environment reachability. | `.github/workflows/ci.yml` |
 | SV-I136 | Release | There is no staged rollout or feature flag plan for risky cloud loops. | docs |
@@ -501,3 +501,7 @@ and missing typed contracts.
   recipient emails through Supabase Auth Admin. Tests cover email rendering,
   HTML escaping, Resend request shape, provider errors, and notification
   delivery metadata.
+- R7/R8 now hardens deployment preflight. `npm run hosted-env:preflight`
+  validates outbox email provider selection, Resend secrets, sender/reply-to
+  email shapes, batch size, and lock timeout without printing secret values, and
+  the beta release gate now runs the preflight test suite.

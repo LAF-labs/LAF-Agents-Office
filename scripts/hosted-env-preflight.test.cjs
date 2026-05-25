@@ -38,10 +38,14 @@ test("preflight passes a production cloud office env", () => {
   assert.equal(result.normalized.effective_api_base, "https://office.example.com/api");
   assert.equal(result.normalized.supabase_url, "https://project.supabase.co");
   assert.equal(result.normalized.allowed_origins.length, 2);
+  assert.equal(result.normalized.outbox_email_provider, "in_app");
+  assert.equal(result.normalized.outbox_batch_size, 25);
+  assert.equal(result.normalized.outbox_lock_ms, 300000);
 
   const rendered = printText(result);
   assert.match(rendered, /PASS hosted Startup Office env is ready/);
   assert.match(rendered, /effective API base: https:\/\/office\.example\.com\/api/);
+  assert.match(rendered, /outbox email provider: in_app/);
 });
 
 test("preflight supports split-origin API deployments", () => {
@@ -97,6 +101,58 @@ test("preflight reports missing required cloud env with actionable hints", () =>
     hints.at(-1),
     "rerun `npm run hosted-env:preflight` before deploying or smoke testing",
   );
+});
+
+test("preflight validates Resend outbox email deployment env", () => {
+  const result = runPreflight(
+    validEnv({
+      LAF_EMAIL_FROM: "LAF Startup Office <founder@example.com>",
+      LAF_EMAIL_REPLY_TO: "support@example.com",
+      LAF_OUTBOX_BATCH_SIZE: "50",
+      LAF_OUTBOX_EMAIL_PROVIDER: "resend",
+      LAF_OUTBOX_LOCK_MS: "120000",
+      RESEND_API_KEY: "resend-key",
+    }),
+  );
+
+  assert.equal(result.ok, true, result.errors.join("\n"));
+  assert.equal(result.normalized.outbox_email_provider, "resend");
+  assert.equal(result.normalized.outbox_batch_size, 50);
+  assert.equal(result.normalized.outbox_lock_ms, 120000);
+});
+
+test("preflight rejects broken outbox email env", () => {
+  const result = runPreflight(
+    validEnv({
+      LAF_EMAIL_FROM: "not-an-email",
+      LAF_EMAIL_REPLY_TO: "support",
+      LAF_OUTBOX_BATCH_SIZE: "0",
+      LAF_OUTBOX_EMAIL_PROVIDER: "resend",
+      LAF_OUTBOX_LOCK_MS: "999",
+    }),
+  );
+
+  assert.equal(result.ok, false);
+  assert(result.errors.includes("missing RESEND_API_KEY"));
+  assert(result.errors.includes("LAF_EMAIL_FROM must be an email address or Name <email@example.com>"));
+  assert(result.errors.includes("LAF_EMAIL_REPLY_TO must be an email address"));
+  assert(result.errors.includes("LAF_OUTBOX_BATCH_SIZE must be an integer between 1 and 100"));
+  assert(result.errors.includes("LAF_OUTBOX_LOCK_MS must be an integer between 1000 and 3600000"));
+
+  const hints = remediationHints(result.errors);
+  assert(hints.some((hint) => hint.includes("LAF_OUTBOX_EMAIL_PROVIDER=resend")));
+  assert(hints.some((hint) => hint.includes("LAF_OUTBOX_BATCH_SIZE")));
+});
+
+test("preflight rejects unsupported outbox email providers", () => {
+  const result = runPreflight(
+    validEnv({
+      LAF_OUTBOX_EMAIL_PROVIDER: "smtp",
+    }),
+  );
+
+  assert.equal(result.ok, false);
+  assert(result.errors.includes("LAF_OUTBOX_EMAIL_PROVIDER must be one of in_app, none, or resend"));
 });
 
 test("env parsing and API base normalization remain strict", () => {

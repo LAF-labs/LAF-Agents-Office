@@ -15,6 +15,9 @@ function runPreflight(env = process.env, options = {}) {
     allowed_origins: [],
     browser_api_base: "",
     effective_api_base: "",
+    outbox_batch_size: 25,
+    outbox_email_provider: "in_app",
+    outbox_lock_ms: 300000,
     public_api_base: "",
     public_host: "",
     supabase_url: "",
@@ -121,12 +124,51 @@ function runPreflight(env = process.env, options = {}) {
     );
   }
 
+  validateOutboxEnv(env, { errors, normalized });
+
   return {
     errors,
     normalized,
     ok: errors.length === 0,
     warnings,
   };
+}
+
+function validateOutboxEnv(env, { errors, normalized }) {
+  const provider = String(env.LAF_OUTBOX_EMAIL_PROVIDER || "in_app").trim().toLowerCase();
+  if (!["in_app", "none", "resend"].includes(provider)) {
+    errors.push("LAF_OUTBOX_EMAIL_PROVIDER must be one of in_app, none, or resend");
+  }
+  normalized.outbox_email_provider = provider || "in_app";
+
+  if (provider === "resend") {
+    requireEnv(env, "RESEND_API_KEY", errors);
+    const from = requireEnv(env, "LAF_EMAIL_FROM", errors);
+    if (from && !emailHeaderValue(from)) {
+      errors.push("LAF_EMAIL_FROM must be an email address or Name <email@example.com>");
+    }
+  }
+  const replyTo = String(env.LAF_EMAIL_REPLY_TO || "").trim();
+  if (replyTo && !emailAddress(replyTo)) {
+    errors.push("LAF_EMAIL_REPLY_TO must be an email address");
+  }
+
+  normalized.outbox_batch_size = boundedIntegerEnv(
+    env,
+    "LAF_OUTBOX_BATCH_SIZE",
+    25,
+    1,
+    100,
+    errors,
+  );
+  normalized.outbox_lock_ms = boundedIntegerEnv(
+    env,
+    "LAF_OUTBOX_LOCK_MS",
+    300000,
+    1000,
+    3600000,
+    errors,
+  );
 }
 
 function requireEnv(env, name, errors) {
@@ -152,6 +194,31 @@ function normalizeAPIBase(raw, name, options = {}) {
   }
   const withSlash = value.startsWith("/") ? value : `/${value}`;
   return { value: withSlash.replace(/\/+$/, "") || "/api" };
+}
+
+function boundedIntegerEnv(env, name, defaultValue, min, max, errors) {
+  const raw = String(env[name] || "").trim();
+  if (!raw) return defaultValue;
+  if (!/^\d+$/.test(raw)) {
+    errors.push(`${name} must be an integer between ${min} and ${max}`);
+    return defaultValue;
+  }
+  const value = Number(raw);
+  if (value < min || value > max) {
+    errors.push(`${name} must be an integer between ${min} and ${max}`);
+    return defaultValue;
+  }
+  return value;
+}
+
+function emailHeaderValue(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/<([^<>]+)>$/);
+  return emailAddress(match ? match[1] : raw);
+}
+
+function emailAddress(value) {
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(value || "").trim());
 }
 
 function normalizePublicAPIBase(raw, name, options = {}) {
@@ -421,6 +488,9 @@ function printText(result) {
   if (result.normalized.browser_api_base) {
     lines.push(`[hosted-env-preflight] browser API base: ${result.normalized.browser_api_base}`);
   }
+  if (result.normalized.outbox_email_provider) {
+    lines.push(`[hosted-env-preflight] outbox email provider: ${result.normalized.outbox_email_provider}`);
+  }
   if (result.normalized.allowed_origins.length) {
     lines.push(
       `[hosted-env-preflight] allowed browser origins: ${result.normalized.allowed_origins.join(", ")}`,
@@ -460,6 +530,16 @@ function remediationHints(errors) {
   if (/LAF_OFFICE_PUBLIC_API_BASE_URL must match VITE_LAF_API_BASE_URL/.test(joined)) {
     hints.push(
       "make LAF_OFFICE_PUBLIC_API_BASE_URL and VITE_LAF_API_BASE_URL normalize to the same deployed /api base",
+    );
+  }
+  if (/RESEND_API_KEY|LAF_EMAIL_FROM|LAF_OUTBOX_EMAIL_PROVIDER/.test(joined)) {
+    hints.push(
+      "set LAF_OUTBOX_EMAIL_PROVIDER=resend with RESEND_API_KEY and LAF_EMAIL_FROM, or use in_app until email sending is configured",
+    );
+  }
+  if (/LAF_OUTBOX_(?:BATCH_SIZE|LOCK_MS)/.test(joined)) {
+    hints.push(
+      "set LAF_OUTBOX_BATCH_SIZE between 1 and 100 and LAF_OUTBOX_LOCK_MS between 1000 and 3600000",
     );
   }
   if (/localhost or a private network address/.test(joined)) {
