@@ -1,4 +1,8 @@
-const { startupOfficeExportManifest } = require("./exportManifest");
+const {
+  STARTUP_OFFICE_EXPORT_ROW_LIMIT,
+  startupOfficeExportLimitReport,
+  startupOfficeExportManifest,
+} = require("./exportManifest");
 
 function createStartupOfficeExportHandlers(deps) {
   const {
@@ -64,7 +68,7 @@ function createStartupOfficeExportHandlers(deps) {
       teamRows("workspace_settings", membership.team_id, { limit: 1, order: "updated_at.desc" }),
     ]);
     await deps.recordStartupOfficeExportActivation?.({ membership });
-    writeJSON(res, 200, { export: {
+    const exportBundle = {
       activation_events: activationEvents, audit_events: auditEvents, approvals,
       artifacts, assets, beta_ops: betaOps,
       billing_documents: betaOps.billing_documents || [],
@@ -78,12 +82,14 @@ function createStartupOfficeExportHandlers(deps) {
       terms_acceptances: termsAcceptances, usage_events: usageEvents,
       wiki_article_index: wikiArticleIndex, wiki_write_requests: wikiWriteRequests,
       workspace_billing: betaOps.billing, workspace_settings: workspaceSettingsRows[0] || null,
-    } });
+    };
+    exportBundle.export_limits = startupOfficeExportLimitReport(exportBundle);
+    writeJSON(res, 200, { export: exportBundle });
   }
 
   function teamRows(table, teamID, options = {}) {
     return safeStartupOfficeRest(table, { query: {
-      limit: String(options.limit || 1000),
+      limit: String(options.limit || STARTUP_OFFICE_EXPORT_ROW_LIMIT),
       order: options.order || "created_at.desc",
       select: options.select || "*",
       team_id: `eq.${teamID}`,

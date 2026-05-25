@@ -262,6 +262,11 @@ test("export handler includes schema version and restore notes", async () => {
   const bundle = deps.calls.writes[0].body.export;
   assert.equal(bundle.schema_version, "startup-office-export.v2");
   assert.equal(bundle.export_manifest.exported_tables.includes("startup_office_artifacts"), true);
+  assert.equal(bundle.export_manifest.row_limit, 1000);
+  assert.deepEqual(bundle.export_limits, {
+    possibly_truncated_collections: [],
+    row_limit: 1000,
+  });
   assert.equal(
     bundle.export_manifest.omitted_tables[0].name,
     "startup_office_outbox_events",
@@ -294,6 +299,22 @@ test("export handler includes schema version and restore notes", async () => {
       ["signals", 1000],
     ],
   );
+});
+
+test("export handler reports possibly truncated capped collections", async () => {
+  const deps = baseDeps({
+    async startupOfficeArtifacts(_teamID, options) {
+      return Array.from({ length: options.limit }, (_, index) => ({ id: `artifact-${index}` }));
+    },
+  });
+  const handlers = createStartupOfficeQueryHandlers(deps);
+
+  await handlers.export({ method: "GET" }, {});
+  const bundle = deps.calls.writes[0].body.export;
+
+  assert.deepEqual(bundle.export_limits.possibly_truncated_collections, [
+    { count: 1000, key: "artifacts", row_limit: 1000 },
+  ]);
 });
 
 test("query handlers preserve typed 400 and 405 errors", async () => {

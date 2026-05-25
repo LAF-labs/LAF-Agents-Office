@@ -65,7 +65,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I024 | API | Core run creation, run retry/cancel, approval decisions, and worker artifact/approval paths now carry idempotency keys, but lower-risk object CRUD still needs the same contract. | run lifecycle routes |
 | SV-I025 | API | Pagination is inconsistent across business objects and messages. | `limit` handling |
 | SV-I026 | API | Filtering and sorting contracts are not documented or centrally tested. | repository query helpers |
-| SV-I027 | API | Large export endpoints risk becoming unbounded operational hazards. | `/startup-office/export` |
+| SV-I027 | API | Export bundles now declare a row cap and possibly truncated collections, but very large workspaces still need streamed or async export. | `startup-office:export-coverage` |
 | SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
 | SV-I029 | API | Hosted command registries still coexist with legacy command concepts. | command routes and hooks |
 | SV-I030 | API | Startup Office route-level authorization now has a declarative registry, but older hosted facade routes still use manual checks. | `startup-office:authorization` |
@@ -455,9 +455,10 @@ the final release commit or when a shared invariant changes.
 - R2 continues with query/read handlers for growth summary, loops, approvals,
   receipts, and export extracted behind tests. Exports now use
   `startup-office-export.v2` with a schema-derived manifest, restore notes,
-  invite-token redaction, customer-visible legal/support evidence, and
-  documented omissions for internal queues and post-deletion tombstones. Founder
-  can restore company memory through `POST /startup-office/memory/import`, which
+  invite-token redaction, customer-visible legal/support evidence, documented
+  omissions for internal queues and post-deletion tombstones, and
+  `export_limits` metadata when capped collections may be truncated. Founder can
+  restore company memory through `POST /startup-office/memory/import`, which
   accepts exported `memory_pages`, promotes them as approved memory, records
   source schema/version provenance, audits the import, and is pinned by
   `npm run startup-office:memory-import`.

@@ -69,7 +69,9 @@ if (!exportManifest.includes(STARTUP_OFFICE_EXPORT_SCHEMA_VERSION)) {
 }
 for (const snippet of [
   "startupOfficeExportManifest",
+  "startupOfficeExportLimitReport",
   "export_manifest",
+  "export_limits",
   "billing_documents",
   "channel_messages",
   "deletion_requests",
@@ -79,6 +81,7 @@ for (const snippet of [
   "usage_events",
   "workspace_billing",
   "workspace_settings",
+  "STARTUP_OFFICE_EXPORT_ROW_LIMIT",
 ]) {
   if (!exportHandlers.includes(snippet)) {
     fail(`export handler is missing ${snippet}`);

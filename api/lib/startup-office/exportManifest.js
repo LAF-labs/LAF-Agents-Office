@@ -1,4 +1,5 @@
 const STARTUP_OFFICE_EXPORT_SCHEMA_VERSION = "startup-office-export.v2";
+const STARTUP_OFFICE_EXPORT_ROW_LIMIT = 1000;
 
 const STARTUP_OFFICE_EXPORTED_TABLES = Object.freeze([
   "audit_events",
@@ -51,13 +52,25 @@ function startupOfficeExportManifest() {
   return {
     exported_tables: [...STARTUP_OFFICE_EXPORTED_TABLES],
     omitted_tables: STARTUP_OFFICE_EXPORT_OMITTED_TABLES.map((table) => ({ ...table })),
+    row_limit: STARTUP_OFFICE_EXPORT_ROW_LIMIT,
     schema_version: STARTUP_OFFICE_EXPORT_SCHEMA_VERSION,
+  };
+}
+
+function startupOfficeExportLimitReport(exportBundle, rowLimit = STARTUP_OFFICE_EXPORT_ROW_LIMIT) {
+  return {
+    possibly_truncated_collections: Object.entries(exportBundle)
+      .filter(([, value]) => Array.isArray(value) && value.length >= rowLimit)
+      .map(([key, value]) => ({ count: value.length, key, row_limit: rowLimit })),
+    row_limit: rowLimit,
   };
 }
 
 module.exports = {
   STARTUP_OFFICE_EXPORTED_TABLES,
   STARTUP_OFFICE_EXPORT_OMITTED_TABLES,
+  STARTUP_OFFICE_EXPORT_ROW_LIMIT,
   STARTUP_OFFICE_EXPORT_SCHEMA_VERSION,
+  startupOfficeExportLimitReport,
   startupOfficeExportManifest,
 };
