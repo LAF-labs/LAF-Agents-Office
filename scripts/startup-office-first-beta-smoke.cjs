@@ -22,11 +22,11 @@ function assertContains(relativePath, snippet, label) {
 
 for (const [relativePath, snippets] of [
   [
-    "tests/playwright/startup-office-first-beta-flow.spec.ts",
+    "web/playwright/startup-office-first-beta-flow.spec.ts",
     ["Company name", "Run Idea Validation", "Approve", "Receipts", "logout"],
   ],
   [
-    "tests/playwright/startup-office-accessibility-mobile.spec.ts",
+    "web/playwright/startup-office-accessibility-mobile.spec.ts",
     ["setViewportSize", "keyboard.press", "Beta operations", "Workspace activity"],
   ],
   [
