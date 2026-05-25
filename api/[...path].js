@@ -3,6 +3,9 @@ const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
+  createHostedInviteHandlers,
+} = require("./lib/hosted/inviteHandlers");
+const {
   createHostedMemberHandlers,
 } = require("./lib/hosted/memberHandlers");
 const {
@@ -151,6 +154,19 @@ const HOSTED_MEMBER_HANDLERS = createHostedMemberHandlers({
   normalizeRole,
   nowISO,
   publicUser,
+  readBody,
+  requirePermission,
+  requireUser,
+  rest,
+  writeAuditEvent,
+  writeJSON,
+});
+
+const HOSTED_INVITE_HANDLERS = createHostedInviteHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  normalizeRole,
+  nowISO,
+  originFor,
   readBody,
   requirePermission,
   requireUser,
@@ -908,19 +924,6 @@ async function activeMembership(userID) {
 async function getTeam(teamID) {
   const rows = await rest("teams", {
     query: { id: `eq.${teamID}`, select: "*", limit: "1" },
-  });
-  return rows?.[0] || null;
-}
-
-async function inviteByToken(token) {
-  const raw = String(token || "").trim();
-  if (!raw) return null;
-  const rows = await rest("team_invites", {
-    query: {
-      limit: "1",
-      select: "*",
-      token_hash: `eq.${hashToken(raw)}`,
-    },
   });
   return rows?.[0] || null;
 }
@@ -1929,7 +1932,7 @@ async function handleAuthSignup(req, res) {
   const emailConfirmationRequired = !authenticated;
 
   if (body.team_action === "join") {
-    const invite = await inviteByToken(body.invite_token);
+    const invite = await HOSTED_INVITE_HANDLERS.inviteByToken(body.invite_token);
     if (!invite || invite.status !== "pending") {
       throw new HTTPError(404, "invite not found");
     }
@@ -2041,98 +2044,15 @@ async function handlePermissions(req, res) {
 }
 
 async function handleInvites(req, res) {
-  const { membership } = await requireUser(req);
-  if (req.method === "GET") {
-    const rows = await rest("team_invites", {
-      query: {
-        order: "created_at.desc",
-        select: "*",
-        team_id: `eq.${membership.team_id}`,
-      },
-    });
-    writeJSON(res, 200, {
-      human_members: [],
-      invites: rows.map((invite) => publicInvite(invite, req)),
-    });
-    return;
-  }
-  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
-  requirePermission(membership, "member:invite");
-  const body = await readBody(req);
-  const token = `laf_invite_${crypto.randomBytes(18).toString("hex")}`;
-  const [invite] = await rest("team_invites", {
-    method: "POST",
-    body: {
-      channel: body.channel || "",
-      created_by: membership.user_id,
-      email: String(body.email || "").trim().toLowerCase(),
-      name: body.name || "",
-      role: normalizeRole(body.role || "member") === "owner" ? "member" : normalizeRole(body.role || "member"),
-      status: "pending",
-      team_id: membership.team_id,
-      token_hash: hashToken(token),
-    },
-  });
-  // Token-bearing fields are returned ONCE on creation and never again.
-  // GET /invites and /invites/lookup only see token_hash from the DB, so
-  // they cannot reconstruct the plaintext token. We strip the raw `token`
-  // string from the embedded invite object — clients should consume the
-  // generated URL, not the raw token — and reduce the surface where a
-  // careless logger persists it.
-  const withToken = publicInvite({ ...invite, token }, req);
-  const oneTimeURL = withToken.invite_url;
-  const inviteForBody = { ...withToken };
-  delete inviteForBody.token;
-  await writeAuditEvent(membership, "invite.created", "invite", invite.id, {
-    email: invite.email,
-    role: invite.role,
-  });
-  writeJSON(res, 200, {
-    email_sent: false,
-    invite: inviteForBody,
-    invite_url: oneTimeURL,
-    one_time_invite_url: oneTimeURL,
-  });
+  return HOSTED_INVITE_HANDLERS.invites(req, res);
 }
 
 async function handleInviteLookup(req, res) {
-  const invite = await inviteByToken(req.query.token);
-  if (!invite || invite.status !== "pending") {
-    throw new HTTPError(404, "invite not found");
-  }
-  writeJSON(res, 200, { invite: publicInvite(invite, req) });
+  return HOSTED_INVITE_HANDLERS.inviteLookup(req, res);
 }
 
 async function handleInviteAccept(req, res) {
-  const body = await readBody(req);
-  const { membership, team, user } = await requireUser(req);
-  const invite = await inviteByToken(body.token);
-  if (!invite || invite.status !== "pending") {
-    throw new HTTPError(404, "invite not found");
-  }
-  if (invite.team_id !== membership.team_id) {
-    throw new HTTPError(403, "active session is for a different team");
-  }
-  await rest("team_invites", {
-    method: "PATCH",
-    query: { id: `eq.${invite.id}` },
-    body: {
-      accepted_at: nowISO(),
-      accepted_by: user.id,
-      status: "accepted",
-    },
-  });
-  writeJSON(res, 200, {
-    invite: publicInvite({ ...invite, status: "accepted" }, req),
-    member: {
-      email: user.email,
-      joined_at: membership.created_at,
-      name: body.name || user.user_metadata?.name || user.email,
-      role: membership.role,
-      slug: user.email,
-      team_id: team.id,
-    },
-  });
+  return HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
 }
 
 async function uniqueTeamSlug(name) {
@@ -2926,43 +2846,6 @@ function publicTeam(row) {
   };
 }
 
-// publicInvite renders an invite row for the client. The plaintext token is
-// only included when explicitly passed (row.token is only present on the
-// one-time creation response and on the recipient-side /invites/lookup path
-// that already requires the token to be known). The general /invites listing
-// and audit responses never see the token.
-function publicInvite(row, req) {
-  const token = row.token || "";
-  let inviteURL = "";
-  if (token) {
-    try {
-      inviteURL = `${originFor(req)}/invite/${encodeURIComponent(token)}`;
-    } catch {
-      inviteURL = "";
-    }
-  }
-  const result = {
-    accepted_at: row.accepted_at,
-    accepted_by: row.accepted_by,
-    channel: row.channel,
-    created_at: row.created_at,
-    created_by: row.created_by,
-    email: row.email,
-    expires_at: row.expires_at,
-    id: row.id,
-    invite_url: inviteURL,
-    mailto_url: "",
-    name: row.name,
-    role: row.role,
-    send_error: row.send_error,
-    send_status: row.send_status,
-    sent_at: row.sent_at,
-    status: row.status,
-  };
-  if (token) result.token = token;
-  return result;
-}
-
 function normalizeStringList(values) {
   if (!Array.isArray(values)) return [];
   return values.map((value) => String(value || "").trim()).filter(Boolean);
@@ -3020,10 +2903,6 @@ function truncateText(value, max) {
 
 function isHuman(slug) {
   return slug === "human" || slug === "you";
-}
-
-function hashToken(token) {
-  return crypto.createHash("sha256").update(String(token).trim()).digest("hex");
 }
 
 function trustedPublicAPIURL(req) {

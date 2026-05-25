@@ -32,8 +32,9 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 3270);
+assertMaxLines("api/[...path].js", 3150);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
+assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
@@ -102,6 +103,11 @@ for (const [pattern, label] of [
   [/member\.role_updated/, "hosted member role update audit action"],
   [/permissions\.updated/, "hosted member permission update audit action"],
   [/cannot change your own permissions/, "hosted member self-permission guard"],
+  [/async function inviteByToken\b/, "hosted invite token lookup helper"],
+  [/function publicInvite\b/, "hosted invite serializer"],
+  [/function hashToken\b/, "hosted invite token hash helper"],
+  [/invite\.created/, "hosted invite audit action"],
+  [/active session is for a different team/, "hosted invite accept team guard"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }
