@@ -17,6 +17,10 @@ test("service-role guards allow only current schema tables and internal RPCs", (
   assert.equal(guards.assertAllowedRestTable("startup_office_runs"), "startup_office_runs");
   assert.equal(guards.assertAllowedRestTable("hosted_rate_limits"), "hosted_rate_limits");
   assert.equal(guards.assertAllowedRPC("claim_hosted_rate_limit"), "claim_hosted_rate_limit");
+  assert.equal(
+    guards.assertAllowedRPC("claim_startup_office_outbox_event"),
+    "claim_startup_office_outbox_event",
+  );
 
   assert.throws(
     () => guards.assertAllowedRestTable("auth.users"),

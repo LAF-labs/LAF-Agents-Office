@@ -257,6 +257,29 @@ for (const rule of manifest.outboxSources || []) {
   }
 }
 
+if (manifest.outboxClaimFunction) {
+  const fn = manifest.outboxClaimFunction;
+  const claimFunctionPattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\b[\\s\\S]+?returns\\s+jsonb[\\s\\S]+?security\\s+definer[\\s\\S]+?set\\s+search_path\\s+=\\s+public`,
+    "i",
+  );
+  if (!claimFunctionPattern.test(migrationText)) {
+    fail(`${fn} must return jsonb and run as SECURITY DEFINER with a pinned search_path`);
+  }
+  const requiredClaimSnippets = [
+    "from public.startup_office_outbox_events",
+    "for update skip locked",
+    "status = 'processing'",
+    "attempts = events.attempts + 1",
+    "locked_at = now_ts",
+  ];
+  for (const snippet of requiredClaimSnippets) {
+    if (!migrationText.includes(snippet)) {
+      fail(`${fn} is missing claim invariant: ${snippet}`);
+    }
+  }
+}
+
 for (const fn of retired.functions || []) {
   const createPattern = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\b`, "i");
   if (createPattern.test(migrationText)) fail(`retired runtime function is created: ${fn}`);

@@ -29,6 +29,7 @@ const checks = [
   ["node", ["--test", "api/lib/startup-office/operationsHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/objectHandlers.test.js"]],
   ["node", ["--test", "workers/startup-office/loopEngine.test.js"]],
+  ["node", ["--test", "workers/startup-office/outboxWorker.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],
   ["node", ["--test", "api/hosted-api.test.js"]],
   [
