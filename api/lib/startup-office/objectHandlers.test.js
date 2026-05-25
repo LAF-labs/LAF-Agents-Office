@@ -4,6 +4,9 @@ const test = require("node:test");
 const {
   createStartupOfficeObjectHandlers,
 } = require("./objectHandlers");
+const {
+  STARTUP_OFFICE_PAYLOAD_LIMITS,
+} = require("./payloadLimits");
 
 const membership = Object.freeze({
   team_id: "team-1",
@@ -295,6 +298,55 @@ test("asset item handler updates run links and archives by status", async () => 
     status: "archived",
   });
   assert.equal(deps.calls.audits[0][1], "startup_office.assets.updated");
+});
+
+test("asset writes reject oversized user payloads before database writes", async () => {
+  const oversized = "x".repeat(STARTUP_OFFICE_PAYLOAD_LIMITS.assetBodyBytes + 1);
+  const createHandler = createStartupOfficeObjectHandlers(baseDeps({
+    async readBody() {
+      return { body: oversized, name: "Too large" };
+    },
+  }));
+  await assert.rejects(
+    () => createHandler.objectCollection({ method: "POST" }, {}, "assets"),
+    (err) => err.status === 413 && err.message.includes("asset body exceeds"),
+  );
+
+  const patchDeps = baseDeps({
+    async readBody() {
+      return { body: oversized };
+    },
+  });
+  const patchHandler = createStartupOfficeObjectHandlers(patchDeps);
+  await assert.rejects(
+    () => patchHandler.objectItem({ method: "PATCH" }, {}, "assets", "asset-1"),
+    (err) => err.status === 413 && err.message.includes("asset body exceeds"),
+  );
+  assert.equal(patchDeps.calls.rest.length, 0);
+});
+
+test("artifact to asset action rejects oversized model artifacts before database writes", async () => {
+  const deps = baseDeps({
+    startupOfficeRepository() {
+      return {
+        async findArtifact() {
+          return {
+            content: "x".repeat(STARTUP_OFFICE_PAYLOAD_LIMITS.assetBodyBytes + 1),
+            id: "artifact-1",
+            kind: "memo",
+            title: "Large model artifact",
+          };
+        },
+      };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.artifactObjectAction({ method: "POST" }, {}, "artifact-1", "save-as-asset"),
+    (err) => err.status === 413 && err.message.includes("artifact asset body exceeds"),
+  );
+  assert.equal(deps.calls.rest.length, 0);
 });
 
 test("object item handler patches by id within the caller workspace", async () => {

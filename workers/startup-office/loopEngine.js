@@ -3,6 +3,10 @@ const { approvalGatesFor, approvalRiskLevel } = require("./approvalGates");
 const {
   startupOfficeApprovalDecision,
 } = require("../../api/lib/startup-office/approvalPolicy");
+const {
+  STARTUP_OFFICE_PAYLOAD_LIMITS,
+  assertStartupOfficePayloadSize,
+} = require("../../api/lib/startup-office/payloadLimits");
 const { buildCitationSources, mergeCitationSources } = require("./citationSources");
 const { startupOfficeLoopTemplate } = require("./loopTemplates");
 const { evaluateStartupOfficeOutput } = require("./qualityChecks");
@@ -29,6 +33,11 @@ async function runStartupOfficeLoop({
   workerJob = null,
   approvalPolicy = null,
 }) {
+  const createHTTPError = (status, message) => {
+    const err = new Error(message);
+    err.status = status;
+    return err;
+  };
   const template = startupOfficeLoopTemplate(loop.slug);
   const startedAt = nowISO();
   const claimedAttempt = Number(workerJob?.attempts || 0);
@@ -144,6 +153,18 @@ async function runStartupOfficeLoop({
 
     const sideEffectKey = `${run.id}:${workerJob?.id || "direct"}`;
     const artifactContent = template.toArtifact(modelResult.data, context);
+    assertStartupOfficePayloadSize({
+      createHTTPError,
+      label: "model artifact content",
+      maxBytes: STARTUP_OFFICE_PAYLOAD_LIMITS.artifactContentBytes,
+      value: artifactContent,
+    });
+    assertStartupOfficePayloadSize({
+      createHTTPError,
+      label: "model structured output",
+      maxBytes: STARTUP_OFFICE_PAYLOAD_LIMITS.modelOutputBytes,
+      value: modelResult.data,
+    });
     const artifact = await repository.createArtifact(membership, {
       content: truncateText(artifactContent, 20000),
       idempotency_key: `${sideEffectKey}:artifact`,

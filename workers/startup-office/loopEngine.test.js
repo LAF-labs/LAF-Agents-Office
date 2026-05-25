@@ -170,6 +170,29 @@ test("startup office loop engine records failed model calls as receipted run fai
   assert.equal(state.audits.at(-1).action, "startup_office.receipt.created");
 });
 
+test("startup office loop engine rejects oversized model artifacts before database writes", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    inputs: {},
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: oversizedArtifactModelClient(),
+    nowISO: fixedNow,
+    objective: "Validate the first buyer segment",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "failed");
+  assert.match(result.error, /model artifact content exceeds/);
+  assert.equal(state.artifacts.length, 0);
+  assert.equal(state.approvals.length, 0);
+  assert.equal(state.audits.some((audit) => audit.action === "startup_office.artifact.created"), false);
+});
+
 test("startup office loop engine blocks externally informed drafts without citations", async () => {
   const state = fakeRepositoryState();
   const result = await runStartupOfficeLoop({
@@ -579,6 +602,16 @@ function failingModelClient() {
     generateStructured: async () => {
       throw new Error("model unavailable");
     },
+  };
+}
+
+function oversizedArtifactModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async () => successfulModelOutput({
+      summary: "x".repeat(100 * 1024),
+    }),
   };
 }
 

@@ -1,3 +1,8 @@
+const {
+  STARTUP_OFFICE_PAYLOAD_LIMITS,
+  assertStartupOfficePayloadSize,
+} = require("./payloadLimits");
+
 function createStartupOfficeObjectHandlers(deps) {
   const {
     createHTTPError,
@@ -44,6 +49,7 @@ function createStartupOfficeObjectHandlers(deps) {
     if (req.method !== "POST") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "memory:write_draft");
     const body = await readBody(req);
+    assertObjectPayloadLimits({ body, createHTTPError, kind });
     const [row] = await safeStartupOfficeRest(definition.table, {
       method: "POST",
       body: startupOfficeObjectPayload(kind, membership, body),
@@ -76,6 +82,7 @@ function createStartupOfficeObjectHandlers(deps) {
       return;
     }
     const body = await readBody(req);
+    assertObjectPayloadLimits({ body, createHTTPError, kind });
     const [row] = await safeStartupOfficeRest(definition.table, {
       method: "PATCH",
       query: {
@@ -96,6 +103,12 @@ function createStartupOfficeObjectHandlers(deps) {
     if (!artifact) throw createHTTPError(404, "artifact not found");
     const body = await readBody(req);
     if (action === "save-as-asset") {
+      assertStartupOfficePayloadSize({
+        createHTTPError,
+        label: "artifact asset body",
+        maxBytes: STARTUP_OFFICE_PAYLOAD_LIMITS.assetBodyBytes,
+        value: artifact.content || "",
+      });
       const [asset] = await safeStartupOfficeRest("startup_office_assets", {
         method: "POST",
         body: {
@@ -150,6 +163,26 @@ function createStartupOfficeObjectHandlers(deps) {
     objectCollection: handleStartupOfficeObjectCollection,
     objectItem: handleStartupOfficeObjectItem,
   };
+}
+
+function assertObjectPayloadLimits({ body, createHTTPError, kind }) {
+  if (kind !== "assets") return;
+  if (body.body !== undefined) {
+    assertStartupOfficePayloadSize({
+      createHTTPError,
+      label: "asset body",
+      maxBytes: STARTUP_OFFICE_PAYLOAD_LIMITS.assetBodyBytes,
+      value: body.body,
+    });
+  }
+  if (body.metadata !== undefined) {
+    assertStartupOfficePayloadSize({
+      createHTTPError,
+      label: "asset metadata",
+      maxBytes: STARTUP_OFFICE_PAYLOAD_LIMITS.assetBodyBytes,
+      value: body.metadata,
+    });
+  }
 }
 
 function startupOfficeSignalType(value) {
