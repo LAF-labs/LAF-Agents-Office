@@ -23,7 +23,8 @@ async function runStartupOfficeLoop({
 }) {
   const template = startupOfficeLoopTemplate(loop.slug);
   const startedAt = nowISO();
-  const attempt = Number(run?.metadata?.attempt || 0) + 1;
+  const claimedAttempt = Number(workerJob?.attempts || 0);
+  const attempt = claimedAttempt > 0 ? claimedAttempt : Number(run?.metadata?.attempt || 0) + 1;
   let modelResult = null;
 
   try {
@@ -173,6 +174,7 @@ async function runStartupOfficeLoop({
     if (workerJob?.id) {
       await repository.updateWorkerJob(membership.team_id, workerJob.id, {
         completed_at: completedAt,
+        locked_at: null,
         metadata: {
           artifact_id: artifact?.id || null,
           approval_id: approval?.id || null,
@@ -236,6 +238,7 @@ async function runStartupOfficeLoop({
         attempts: attempt,
         completed_at: failedAt,
         last_error: message,
+        locked_at: null,
         metadata: { cost, run_id: run.id },
         status: "failed",
         updated_at: failedAt,

@@ -121,6 +121,47 @@ test("preflight validates Resend outbox email deployment env", () => {
   assert.equal(result.normalized.outbox_lock_ms, 120000);
 });
 
+test("preflight validates Startup Office AI worker env when provider is configured", () => {
+  const result = runPreflight(
+    validEnv({
+      LAF_OFFICE_OPENAI_API_KEY: "openai-key",
+      LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "openai",
+      LAF_OFFICE_STARTUP_OFFICE_MODEL: "gpt-5-mini",
+    }),
+  );
+
+  assert.equal(result.ok, true, result.errors.join("\n"));
+  assert.equal(result.normalized.startup_office_ai_provider, "openai");
+  assert.equal(result.normalized.startup_office_model, "gpt-5-mini");
+  assert.match(printText(result), /Startup Office AI provider: openai/);
+});
+
+test("preflight rejects broken Startup Office AI worker env", () => {
+  const missingKey = runPreflight(
+    validEnv({
+      LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "openai",
+    }),
+  );
+  assert.equal(missingKey.ok, false);
+  assert(
+    missingKey.errors.includes(
+      "missing LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for Startup Office AI worker",
+    ),
+  );
+
+  const unsupported = runPreflight(
+    validEnv({
+      LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "anthropic",
+    }),
+  );
+  assert.equal(unsupported.ok, false);
+  assert(
+    unsupported.errors.includes(
+      "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be one of openai, fake, or disabled",
+    ),
+  );
+});
+
 test("preflight rejects broken outbox email env", () => {
   const result = runPreflight(
     validEnv({

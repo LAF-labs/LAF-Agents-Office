@@ -20,6 +20,8 @@ function runPreflight(env = process.env, options = {}) {
     outbox_lock_ms: 300000,
     public_api_base: "",
     public_host: "",
+    startup_office_ai_provider: "",
+    startup_office_model: "",
     supabase_url: "",
   };
 
@@ -125,6 +127,7 @@ function runPreflight(env = process.env, options = {}) {
   }
 
   validateOutboxEnv(env, { errors, normalized });
+  validateStartupOfficeAIEnv(env, { errors, normalized });
 
   return {
     errors,
@@ -132,6 +135,27 @@ function runPreflight(env = process.env, options = {}) {
     ok: errors.length === 0,
     warnings,
   };
+}
+
+function validateStartupOfficeAIEnv(env, { errors, normalized }) {
+  const explicitProvider = String(
+    env.LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER || env.STARTUP_OFFICE_AI_PROVIDER || "",
+  ).trim().toLowerCase();
+  const hasOpenAIKey = Boolean(env.LAF_OFFICE_OPENAI_API_KEY || env.OPENAI_API_KEY);
+  const provider = explicitProvider || (hasOpenAIKey ? "openai" : "");
+  if (!provider) return;
+  if (!["openai", "fake", "disabled"].includes(provider)) {
+    errors.push("LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be one of openai, fake, or disabled");
+    normalized.startup_office_ai_provider = provider;
+    return;
+  }
+  normalized.startup_office_ai_provider = provider;
+  normalized.startup_office_model = String(
+    env.LAF_OFFICE_STARTUP_OFFICE_MODEL || env.STARTUP_OFFICE_MODEL || "gpt-5-mini",
+  ).trim();
+  if (provider === "openai" && !hasOpenAIKey) {
+    errors.push("missing LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for Startup Office AI worker");
+  }
 }
 
 function validateOutboxEnv(env, { errors, normalized }) {
@@ -491,6 +515,11 @@ function printText(result) {
   if (result.normalized.outbox_email_provider) {
     lines.push(`[hosted-env-preflight] outbox email provider: ${result.normalized.outbox_email_provider}`);
   }
+  if (result.normalized.startup_office_ai_provider) {
+    lines.push(
+      `[hosted-env-preflight] Startup Office AI provider: ${result.normalized.startup_office_ai_provider}`,
+    );
+  }
   if (result.normalized.allowed_origins.length) {
     lines.push(
       `[hosted-env-preflight] allowed browser origins: ${result.normalized.allowed_origins.join(", ")}`,
@@ -540,6 +569,11 @@ function remediationHints(errors) {
   if (/LAF_OUTBOX_(?:BATCH_SIZE|LOCK_MS)/.test(joined)) {
     hints.push(
       "set LAF_OUTBOX_BATCH_SIZE between 1 and 100 and LAF_OUTBOX_LOCK_MS between 1000 and 3600000",
+    );
+  }
+  if (/STARTUP_OFFICE_AI_PROVIDER|OPENAI_API_KEY|Startup Office AI worker/.test(joined)) {
+    hints.push(
+      "set LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER=openai with LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY for scheduled loop execution",
     );
   }
   if (/localhost or a private network address/.test(joined)) {

@@ -12,6 +12,8 @@
     "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "startup-office:worker-deploy": "node scripts/check-startup-office-worker-deploy.cjs",
+    "startup-office:loop-worker": "node scripts/startup-office-loop-worker.cjs",
+    "startup-office:loop-worker:test": "node --test workers/startup-office/loopWorker.test.js",
     "startup-office:ops-monitor": "node scripts/startup-office-ops-monitor.cjs",
     "startup-office:ops-monitor:test": "node --test scripts/startup-office-ops-monitor.test.cjs",
     "startup-office:outbox-worker": "node scripts/startup-office-outbox-worker.cjs",

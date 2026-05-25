@@ -25,6 +25,7 @@ test("ops monitor passes when counts are within thresholds", () => {
     },
     {
       maxDeadLetterOutbox: 0,
+      maxDeadLetterWorkerJobs: 0,
       maxFailedOutbox: 5,
       maxStaleProcessingOutbox: 0,
       maxStuckWorkerJobs: 5,
@@ -48,10 +49,12 @@ test("ops monitor fails on dead letters, stale processing rows, and stuck jobs",
       ],
       worker_jobs: [
         { id: "job-1", status: "running", locked_at: "2026-05-25T11:00:00.000Z" },
+        { id: "job-2", status: "dead_letter", updated_at: "2026-05-25T11:59:00.000Z" },
       ],
     },
     {
       maxDeadLetterOutbox: 0,
+      maxDeadLetterWorkerJobs: 0,
       maxFailedOutbox: 25,
       maxStaleProcessingOutbox: 0,
       maxStuckWorkerJobs: 0,
@@ -63,11 +66,13 @@ test("ops monitor fails on dead letters, stale processing rows, and stuck jobs",
   assert.equal(result.ok, false);
   assert.deepEqual(result.counts, {
     dead_letter_outbox: 1,
+    dead_letter_worker_jobs: 1,
     failed_outbox: 0,
     stale_processing_outbox: 1,
     stuck_worker_jobs: 1,
   });
   assert(result.issues.some((issue) => issue.includes("dead-letter outbox")));
+  assert(result.issues.some((issue) => issue.includes("dead-letter worker jobs")));
   assert(result.issues.some((issue) => issue.includes("stale processing outbox")));
   assert(result.issues.some((issue) => issue.includes("stuck worker jobs")));
 });
@@ -84,6 +89,7 @@ test("ops monitor honors the failed outbox threshold", () => {
     },
     {
       maxDeadLetterOutbox: 0,
+      maxDeadLetterWorkerJobs: 0,
       maxFailedOutbox: 1,
       maxStaleProcessingOutbox: 0,
       maxStuckWorkerJobs: 0,
@@ -100,6 +106,7 @@ test("ops monitor honors the failed outbox threshold", () => {
 test("ops monitor threshold env parsing is strict", () => {
   const thresholds = thresholdsFromEnv({
     LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX: "1",
+    LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS: "5",
     LAF_MONITOR_MAX_FAILED_OUTBOX: "2",
     LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX: "3",
     LAF_MONITOR_MAX_STUCK_WORKER_JOBS: "4",
@@ -109,6 +116,7 @@ test("ops monitor threshold env parsing is strict", () => {
 
   assert.deepEqual(thresholds, {
     maxDeadLetterOutbox: 1,
+    maxDeadLetterWorkerJobs: 5,
     maxFailedOutbox: 2,
     maxStaleProcessingOutbox: 3,
     maxStuckWorkerJobs: 4,
@@ -138,6 +146,7 @@ test("ops monitor text output redacts row details", () => {
   const text = printMonitorResult({
     counts: {
       dead_letter_outbox: 1,
+      dead_letter_worker_jobs: 0,
       failed_outbox: 0,
       stale_processing_outbox: 0,
       stuck_worker_jobs: 0,

@@ -303,6 +303,33 @@ if (manifest.outboxClaimFunction) {
   }
 }
 
+if (manifest.workerJobClaimFunction) {
+  const fn = manifest.workerJobClaimFunction;
+  const claimFunctionPattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\b[\\s\\S]+?returns\\s+jsonb[\\s\\S]+?security\\s+definer[\\s\\S]+?set\\s+search_path\\s+=\\s+public`,
+    "i",
+  );
+  if (!claimFunctionPattern.test(migrationText)) {
+    fail(`${fn} must return jsonb and run as SECURITY DEFINER with a pinned search_path`);
+  }
+  const requiredClaimSnippets = [
+    "from public.startup_office_worker_jobs",
+    "for update skip locked",
+    "status = 'running'",
+    "attempts = jobs.attempts + 1",
+    "available_at <= now_ts",
+    "locked_at = now_ts",
+  ];
+  for (const snippet of requiredClaimSnippets) {
+    if (!migrationText.includes(snippet)) {
+      fail(`${fn} is missing claim invariant: ${snippet}`);
+    }
+  }
+  if (!migrationText.includes("'dead_letter'")) {
+    fail("startup_office_worker_jobs must support dead_letter status");
+  }
+}
+
 for (const fn of retired.functions || []) {
   const createPattern = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\b`, "i");
   if (createPattern.test(migrationText)) fail(`retired runtime function is created: ${fn}`);

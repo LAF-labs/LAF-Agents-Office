@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525100000",
+  "latestMigration": "20260525110000",
   "pureCloudRuntimeGuardMigration": "20260525040000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -163,7 +163,7 @@
       "domain": "worker",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "loop_slug", "status", "attempts", "max_attempts", "last_error", "metadata", "created_by", "locked_at", "started_at", "completed_at", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "run_id", "loop_slug", "status", "attempts", "max_attempts", "last_error", "metadata", "created_by", "locked_at", "started_at", "completed_at", "available_at", "created_at", "updated_at"]
     },
     {
       "name": "tasks",
@@ -261,5 +261,6 @@
     }
   ],
   "outboxClaimFunction": "claim_startup_office_outbox_event",
-  "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event"]
+  "workerJobClaimFunction": "claim_startup_office_worker_job",
+  "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event", "claim_startup_office_worker_job"]
 }

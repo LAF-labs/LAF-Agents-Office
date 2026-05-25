@@ -5,6 +5,7 @@ function thresholdsFromEnv(env = process.env) {
   return {
     maxDeadLetterOutbox: intEnv(env, "LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX", 0, 0, 10000),
     maxFailedOutbox: intEnv(env, "LAF_MONITOR_MAX_FAILED_OUTBOX", 25, 0, 10000),
+    maxDeadLetterWorkerJobs: intEnv(env, "LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS", 0, 0, 10000),
     maxStaleProcessingOutbox: intEnv(env, "LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX", 0, 0, 10000),
     maxStuckWorkerJobs: intEnv(env, "LAF_MONITOR_MAX_STUCK_WORKER_JOBS", 0, 0, 10000),
     outboxStaleMs: intEnv(env, "LAF_MONITOR_OUTBOX_STALE_MS", 600000, 1000, 86400000),
@@ -18,6 +19,7 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
   const workerJobs = Array.isArray(snapshot.worker_jobs) ? snapshot.worker_jobs : [];
   const deadLetterOutbox = outboxEvents.filter((row) => row.status === "dead_letter");
   const failedOutbox = outboxEvents.filter((row) => row.status === "failed");
+  const deadLetterWorkerJobs = workerJobs.filter((row) => row.status === "dead_letter");
   const staleProcessingOutbox = outboxEvents.filter(
     (row) =>
       row.status === "processing" &&
@@ -38,6 +40,11 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
   if (failedOutbox.length > thresholds.maxFailedOutbox) {
     issues.push(`failed outbox rows ${failedOutbox.length} > ${thresholds.maxFailedOutbox}`);
   }
+  if (deadLetterWorkerJobs.length > thresholds.maxDeadLetterWorkerJobs) {
+    issues.push(
+      `dead-letter worker jobs ${deadLetterWorkerJobs.length} > ${thresholds.maxDeadLetterWorkerJobs}`,
+    );
+  }
   if (staleProcessingOutbox.length > thresholds.maxStaleProcessingOutbox) {
     issues.push(
       `stale processing outbox rows ${staleProcessingOutbox.length} > ${thresholds.maxStaleProcessingOutbox}`,
@@ -50,6 +57,7 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
   return {
     counts: {
       dead_letter_outbox: deadLetterOutbox.length,
+      dead_letter_worker_jobs: deadLetterWorkerJobs.length,
       failed_outbox: failedOutbox.length,
       stale_processing_outbox: staleProcessingOutbox.length,
       stuck_worker_jobs: stuckWorkerJobs.length,
@@ -129,8 +137,8 @@ async function readStartupOfficeOpsSnapshot(now = new Date().toISOString()) {
       queryPath("startup_office_worker_jobs", {
         limit: "1000",
         order: "created_at.asc",
-        select: "id,status,attempts,max_attempts,locked_at,started_at,completed_at,last_error,created_at,updated_at",
-        status: "in.(queued,running)",
+        select: "id,status,attempts,max_attempts,available_at,locked_at,started_at,completed_at,last_error,created_at,updated_at",
+        status: "in.(queued,running,dead_letter)",
       }),
     ),
   ]);
@@ -145,6 +153,7 @@ function printMonitorResult(result) {
   const lines = [
     `[startup-office-ops-monitor] ${result.ok ? "PASS" : "FAIL"} Startup Office ops thresholds`,
     `[startup-office-ops-monitor] dead-letter outbox: ${result.counts.dead_letter_outbox}`,
+    `[startup-office-ops-monitor] dead-letter worker jobs: ${result.counts.dead_letter_worker_jobs}`,
     `[startup-office-ops-monitor] failed outbox: ${result.counts.failed_outbox}`,
     `[startup-office-ops-monitor] stale processing outbox: ${result.counts.stale_processing_outbox}`,
     `[startup-office-ops-monitor] stuck worker jobs: ${result.counts.stuck_worker_jobs}`,

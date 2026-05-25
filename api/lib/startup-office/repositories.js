@@ -405,6 +405,7 @@ function createStartupOfficeRepository({
       method: "POST",
       body: {
         attempts: Number(body.attempts || 0),
+        available_at: body.available_at || nowISO(),
         created_by: membership.user_id,
         loop_slug: truncateText(body.loop_slug || "", 120),
         max_attempts: Number(body.max_attempts || 2),

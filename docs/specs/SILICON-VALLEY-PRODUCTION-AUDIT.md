@@ -42,11 +42,11 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I012 | Architecture | Product domains are partially extracted, but older project/task-era workspace behavior still mixes into the hosted server file. | `api/[...path].js`, `api/lib/startup-office`, `api/lib/hosted` |
 | SV-I013 | Architecture | Large legacy-adjacent web app modules still coexist with the focused hosted Startup Office. | `web/src/components/apps` |
 | SV-I014 | Architecture | There is no explicit service ownership map for auth, office objects, memory, workers, billing, and notifications. | architecture docs |
-| SV-I015 | Architecture | The cloud worker is a library-style worker, not a deployed independently operable service. | `workers/startup-office` |
+| SV-I015 | Architecture | The AI loop and outbox workers now have scheduled deploy surfaces, but they still run through GitHub Actions rather than a dedicated long-lived worker platform. | `workers/startup-office` |
 | SV-I016 | Architecture | Data access uses ad hoc REST helper patterns instead of a typed repository contract across all domains. | API helpers |
 | SV-I017 | Architecture | Startup Office modules are new but not yet enforced as the only path for company operations. | legacy apps still present |
 | SV-I018 | Architecture | The outbox now has atomic claim, delivery worker, and Resend adapter, but live provider smoke and reconciliation remain. | notification and receipt writes |
-| SV-I019 | Architecture | The system lacks a clear synchronous vs asynchronous boundary contract. | loop run and worker job APIs |
+| SV-I019 | Architecture | Loop runs now have queued worker jobs, leases, retries, and dead letters, but the public API contract still needs stronger async state documentation. | loop run and worker job APIs |
 | SV-I020 | Architecture | Multi-tenant business objects do not have a shared domain invariant layer. | assets, customers, metrics, signals |
 | SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
@@ -83,7 +83,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I053 | AI worker | Prompt templates are present but not versioned as production artifacts. | loop templates |
 | SV-I054 | AI worker | Output quality checks are shallow compared with real founder decision risk. | `qualityChecks.js` |
 | SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
-| SV-I056 | AI worker | Worker retries are not backed by a production queue with leases and dead letters. | worker job table |
+| SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
 | SV-I057 | AI worker | Model cost calculation is heuristic and not reconciled against provider billing. | cost metadata |
 | SV-I058 | AI worker | Long-running work has no distributed cancellation contract. | cancel route and worker state |
 | SV-I059 | AI worker | There is no red-team harness for hallucination, unsafe advice, and overclaiming. | output eval test |
@@ -131,7 +131,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I101 | Observability | Runs, approvals, notifications, and model calls lack production traces. | no telemetry integration |
 | SV-I102 | Observability | Logs are not structured around workspace, run, and actor IDs everywhere. | server and worker logs |
 | SV-I103 | Observability | There is no dashboard for latency, queue age, failure rate, or cost anomalies. | admin beta dashboard |
-| SV-I104 | Observability | Scheduled GitHub Actions monitoring now fails on dead-letter outbox rows, stale processing outbox rows, and stuck worker jobs; external paging and tuned severity routing remain. | beta ops |
+| SV-I104 | Observability | Scheduled GitHub Actions monitoring now fails on dead-letter outbox rows, dead-letter worker jobs, stale processing outbox rows, and stuck worker jobs; external paging and tuned severity routing remain. | beta ops |
 | SV-I105 | Observability | Audit logs are product data but not operational telemetry. | audit events |
 | SV-I106 | Observability | Error budgets and SLOs are undefined. | docs |
 | SV-I107 | Observability | There is no synthetic production smoke monitor. | release gate only local |
@@ -160,8 +160,8 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
 | SV-I131 | Release | The release gate does not include the new production audit. | scripts |
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
-| SV-I133 | Release | Environment preflight now validates hosted config and outbox email shape, but not live external reachability. | hosted-env preflight |
-| SV-I134 | Release | The outbox worker is independently scheduled, but AI loop worker deployment still needs the same treatment. | workers directory |
+| SV-I133 | Release | Environment preflight now validates hosted config, outbox email, and AI provider shape, but not live external reachability. | hosted-env preflight |
+| SV-I134 | Release | The outbox and AI loop workers are independently scheduled, but production deploy evidence and live smoke are still missing. | workers directory |
 | SV-I135 | Release | CI is now hosted-only but still lacks a production deploy smoke with live environment reachability. | `.github/workflows/ci.yml` |
 | SV-I136 | Release | There is no staged rollout or feature flag plan for risky cloud loops. | docs |
 | SV-I137 | Release | Database migration failure recovery is not rehearsed. | migrations |
@@ -198,9 +198,9 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I168 | Portability | Customer CRM data lacks common CSV/API interoperability. | customers |
 | SV-I169 | Portability | Wiki/company memory is not packaged for founder handoff. | memory pages |
 | SV-I170 | Portability | There is no escrow or backup story for paid customers. | ops |
-| SV-I171 | Reliability | Worker job state exists but does not prove exactly-once or at-least-once semantics. | worker jobs |
-| SV-I172 | Reliability | Startup Office loop side effects are now idempotency-keyed, but retries outside the loop worker still need the same protection. | retry route |
-| SV-I173 | Reliability | Dead-letter handling is not implemented for failed cloud loops. | worker jobs |
+| SV-I171 | Reliability | Worker jobs now claim with leases and idempotent side effects, but exactly-once semantics still need concurrency and crash-recovery proof. | worker jobs |
+| SV-I172 | Reliability | Startup Office loop side effects are idempotency-keyed across direct and scheduled worker paths, but the remaining write surface still needs the same contract. | retry route |
+| SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer, but founder-facing recovery and replay controls are not complete. | worker jobs |
 | SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
 | SV-I176 | Reliability | Long-running model calls do not have durable timeout policy in schema. | worker |
@@ -250,7 +250,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G015 | Introduce an outbox. | Side effects use durable outbox records. | schema and tests |
 | SV-G016 | Define async contracts. | Queued, running, retrying, failed, and canceled semantics are documented and tested. | worker tests |
 | SV-G017 | Own every domain module. | Auth, billing, memory, loops, objects, notifications, and admin have owners. | architecture doc |
-| SV-G018 | Decouple worker deployment. | Worker can deploy, run, and health-check independently. | deployment config |
+| SV-G018 | Decouple worker deployment. | AI loop and outbox workers can deploy, run, and health-check independently. | deployment config |
 | SV-G019 | Remove hidden legacy dependencies. | Hosted release can build without retired runtime packages. | CI job |
 | SV-G020 | Add architecture decision records. | Major product and infra choices have dated ADRs. | docs check |
 | SV-G021 | Publish canonical current schema. | Fresh schema and migration history both exist and agree. | DB reset |
@@ -282,7 +282,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G047 | Implement tool permission manifests. | Each loop declares allowed tools and external action policy. | manifest tests |
 | SV-G048 | Add model cost reconciliation. | Estimated costs are compared with provider usage fields. | usage tests |
 | SV-G049 | Add red-team scenarios. | Unsafe, hallucinated, and overclaiming outputs fail the gate. | eval tests |
-| SV-G050 | Add dead-letter processing. | Failed worker jobs land in a visible recovery queue. | worker tests |
+| SV-G050 | Add dead-letter processing. | Failed worker jobs land in a visible recovery queue and scheduled monitor. | worker tests |
 | SV-G051 | Unify wiki and company memory. | Founder-facing memory has one canonical source of truth. | architecture and tests |
 | SV-G052 | Add memory conflict resolution. | Contradictions require explicit resolution before promotion. | memory tests |
 | SV-G053 | Add memory freshness policy. | Stale claims surface for review by date and risk. | UI and API tests |
@@ -503,16 +503,27 @@ and missing typed contracts.
   delivery metadata.
 - R7/R8 now hardens deployment preflight. `npm run hosted-env:preflight`
   validates outbox email provider selection, Resend secrets, sender/reply-to
-  email shapes, batch size, and lock timeout without printing secret values, and
-  the beta release gate now runs the preflight test suite.
+  email shapes, batch size, lock timeout, and configured Startup Office AI
+  provider/key shape without printing secret values, and the beta release gate
+  now runs the preflight test suite.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
   preflights production env, then drains a bounded outbox batch with
   `npm run startup-office:outbox-worker`. `docs/ops/STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md`
   documents deploy order, secrets, migrations, worker smoke, and rollback, and
   `npm run startup-office:worker-deploy` gates the workflow and runbook.
+- R7/R8 now packages the AI loop worker for independent operation. Supabase
+  migration `20260525110000_claim_startup_office_worker_jobs.sql` adds
+  `available_at`, `dead_letter`, and the service-role
+  `claim_startup_office_worker_job` lease RPC with stale-lock reclaim.
+  `scripts/startup-office-loop-worker.cjs` processes queued loop jobs through
+  the same idempotent loop engine, retries with backoff, and dead-letters
+  exhausted jobs. `.github/workflows/startup-office-loop-worker.yml` runs the
+  worker on schedule, and the release gate covers `loopWorker` tests plus the
+  deploy/runbook checker.
 - R7/R8 now adds scheduled queue monitoring. `.github/workflows/startup-office-ops-monitor.yml`
   runs every fifteen minutes, preflights production env, then fails on
-  dead-letter outbox rows, stale processing outbox rows, and stuck worker jobs.
+  dead-letter outbox rows, dead-letter worker jobs, stale processing outbox
+  rows, and stuck worker jobs.
   `npm run startup-office:ops-monitor:test` is part of the release gate, and
   the deployment runbook documents monitor thresholds and incident handling.

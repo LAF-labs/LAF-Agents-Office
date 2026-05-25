@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const workflowPath = path.join(root, ".github", "workflows", "startup-office-outbox-worker.yml");
+const loopWorkflowPath = path.join(root, ".github", "workflows", "startup-office-loop-worker.yml");
 const monitorWorkflowPath = path.join(root, ".github", "workflows", "startup-office-ops-monitor.yml");
 const packagePath = path.join(root, "package.json");
 const runbookPath = path.join(root, "docs", "ops", "STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md");
@@ -21,6 +22,9 @@ function read(relativePath) {
 if (!fs.existsSync(workflowPath)) {
   fail("missing .github/workflows/startup-office-outbox-worker.yml");
 }
+if (!fs.existsSync(loopWorkflowPath)) {
+  fail("missing .github/workflows/startup-office-loop-worker.yml");
+}
 if (!fs.existsSync(monitorWorkflowPath)) {
   fail("missing .github/workflows/startup-office-ops-monitor.yml");
 }
@@ -29,12 +33,19 @@ if (!fs.existsSync(runbookPath)) {
 }
 
 const workflow = fs.readFileSync(workflowPath, "utf8");
+const loopWorkflow = fs.readFileSync(loopWorkflowPath, "utf8");
 const monitorWorkflow = fs.readFileSync(monitorWorkflowPath, "utf8");
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const runbook = fs.readFileSync(runbookPath, "utf8");
 
 if (pkg.scripts?.["startup-office:outbox-worker"] !== "node scripts/startup-office-outbox-worker.cjs") {
   fail("package.json must expose startup-office:outbox-worker");
+}
+if (pkg.scripts?.["startup-office:loop-worker"] !== "node scripts/startup-office-loop-worker.cjs") {
+  fail("package.json must expose startup-office:loop-worker");
+}
+if (pkg.scripts?.["startup-office:loop-worker:test"] !== "node --test workers/startup-office/loopWorker.test.js") {
+  fail("package.json must expose startup-office:loop-worker:test");
 }
 if (pkg.scripts?.["startup-office:ops-monitor"] !== "node scripts/startup-office-ops-monitor.cjs") {
   fail("package.json must expose startup-office:ops-monitor");
@@ -81,6 +92,43 @@ const workflowOrder =
 if (!workflowOrder) fail("worker workflow must run preflight before draining outbox");
 
 for (const snippet of [
+  "name: Startup Office Loop Worker",
+  "schedule:",
+  'cron: "*/5 * * * *"',
+  "workflow_dispatch:",
+  "permissions:\n  contents: read",
+  "concurrency:",
+  "timeout-minutes: 20",
+  "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+  "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
+  "npm run hosted-env:preflight -- --no-env-file",
+  "npm run startup-office:loop-worker",
+]) {
+  if (!loopWorkflow.includes(snippet)) fail(`loop worker workflow is missing ${snippet}`);
+}
+
+for (const name of [
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_ANON_KEY",
+  "LAF_OFFICE_PUBLIC_HOST",
+  "LAF_LOOP_WORKER_BATCH_SIZE",
+  "LAF_LOOP_WORKER_LOCK_MS",
+  "LAF_LOOP_WORKER_ID",
+  "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER",
+  "LAF_OFFICE_STARTUP_OFFICE_MODEL",
+  "LAF_OFFICE_OPENAI_API_KEY",
+  "OPENAI_API_KEY",
+]) {
+  if (!loopWorkflow.includes(name)) fail(`loop worker workflow is missing env ${name}`);
+}
+
+const loopWorkflowOrder =
+  loopWorkflow.indexOf("npm run hosted-env:preflight -- --no-env-file") <
+  loopWorkflow.indexOf("npm run startup-office:loop-worker");
+if (!loopWorkflowOrder) fail("loop worker workflow must run preflight before processing jobs");
+
+for (const snippet of [
   "name: Startup Office Ops Monitor",
   "schedule:",
   'cron: "*/15 * * * *"',
@@ -109,6 +157,7 @@ for (const name of [
   "LAF_EMAIL_FROM",
   "LAF_EMAIL_REPLY_TO",
   "LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX",
+  "LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS",
   "LAF_MONITOR_MAX_FAILED_OUTBOX",
   "LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX",
   "LAF_MONITOR_MAX_STUCK_WORKER_JOBS",
@@ -126,6 +175,7 @@ if (!monitorWorkflowOrder) fail("ops monitor workflow must run preflight before 
 for (const heading of [
   "## Deploy Order",
   "## Required Secrets And Variables",
+  "## AI Loop Worker Schedule",
   "## Outbox Worker Schedule",
   "## Operational Monitor",
   "## Smoke Test",
@@ -143,10 +193,16 @@ for (const term of [
   "npm run hosted-env:preflight",
   "npx supabase db push",
   "startup-office-outbox-worker.yml",
+  "startup-office-loop-worker.yml",
   "startup-office-ops-monitor.yml",
   "npm run startup-office:outbox-worker",
+  "npm run startup-office:loop-worker",
+  "claim_startup_office_worker_job",
+  "LAF_LOOP_WORKER_BATCH_SIZE",
+  "LAF_LOOP_WORKER_LOCK_MS",
   "npm run startup-office:ops-monitor",
   "LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX",
+  "LAF_MONITOR_MAX_DEAD_LETTER_WORKER_JOBS",
   "LAF_MONITOR_OUTBOX_STALE_MS",
   "LAF_MONITOR_WORKER_JOB_STUCK_MS",
   "npm run beta:release-gate",
@@ -157,6 +213,9 @@ for (const term of [
 const releaseGate = read("scripts/startup-office-beta-release-gate.cjs");
 if (!releaseGate.includes("npm\", [\"run\", \"startup-office:worker-deploy\"")) {
   fail("beta release gate must run startup-office:worker-deploy");
+}
+if (!releaseGate.includes("npm\", [\"run\", \"startup-office:loop-worker:test\"")) {
+  fail("beta release gate must run startup-office:loop-worker:test");
 }
 if (!releaseGate.includes("npm\", [\"run\", \"startup-office:ops-monitor:test\"")) {
   fail("beta release gate must run startup-office:ops-monitor:test");

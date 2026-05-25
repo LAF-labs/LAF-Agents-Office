@@ -1533,7 +1533,7 @@ async function startupOfficeStuckJobs(teamID) {
     query: {
       limit: "20",
       select: "*",
-      status: "in.(queued,running)",
+      status: "in.(queued,running,failed,dead_letter)",
       team_id: `eq.${teamID}`,
     },
   });
