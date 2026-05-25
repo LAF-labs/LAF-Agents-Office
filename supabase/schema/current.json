@@ -1,0 +1,211 @@
+{
+  "version": "startup-office-schema.v1",
+  "latestMigration": "20260525020000",
+  "productBoundary": "pure_cloud_startup_office",
+  "activeTables": [
+    {
+      "name": "audit_events",
+      "domain": "audit",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "actor_user_id", "action", "target_type", "target_id", "metadata", "created_at"]
+    },
+    {
+      "name": "channel_messages",
+      "domain": "conversation",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "channel", "sender_slug", "kind", "content", "tagged", "audience", "reply_to", "public_reply_to", "home_session_thread_id", "thread_id", "project_id", "task_id", "scope", "visibility", "run_id", "model_mode", "metadata", "deleted_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "company_profiles",
+      "domain": "company",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["team_id", "name", "description", "goals", "size", "priority", "stage", "icp", "offer", "positioning", "metadata", "created_at", "updated_at"]
+    },
+    {
+      "name": "delivery_receipts",
+      "domain": "legacy_workspace",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "project_id", "task_id", "delivery_url", "delivery_summary", "delivery_status", "delivery_review_decision", "delivery_checks_status", "delivery_merge_state", "delivery_draft", "delivery_checked_at", "delivered_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "memberships",
+      "domain": "identity",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "user_id", "role", "status", "created_at", "updated_at", "permissions"]
+    },
+    {
+      "name": "orchestration_intents",
+      "domain": "governance",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "requested_by", "type", "risk", "summary", "proposed_actions", "required_permissions", "status", "created_at", "confirmed_at", "confirmation_id"]
+    },
+    {
+      "name": "projects",
+      "domain": "legacy_workspace",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "local_id", "name", "description", "additional_info", "channel", "lead_agent", "github_repo_url", "recipe_filename", "recipe_markdown", "recipe_updated_at", "status", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "skills",
+      "domain": "skills",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "name", "title", "description", "content", "created_by", "created_by_user_id", "channel", "tags", "trigger", "workflow_provider", "workflow_key", "workflow_definition", "workflow_schedule", "status", "version", "risk", "usage_count", "last_execution_at", "last_execution_status", "approved_by", "approved_at", "rejected_by", "rejected_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_approvals",
+      "domain": "workflow",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "run_id", "artifact_id", "title", "details", "action", "risk_level", "status", "requested_by", "decided_by", "decision_note", "metadata", "requested_at", "decided_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_artifacts",
+      "domain": "workflow",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "run_id", "kind", "title", "content", "metadata", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_assets",
+      "domain": "operating_objects",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "run_id", "name", "kind", "body", "metadata", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_customers",
+      "domain": "operating_objects",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "name", "status", "profile", "notes", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_loops",
+      "domain": "workflow",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "slug", "name", "department", "objective", "cadence", "status", "policy", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_memory_pages",
+      "domain": "memory",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "slug", "title", "body", "summary", "status", "provenance", "sources", "assumptions", "last_verified_at", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_metrics",
+      "domain": "operating_objects",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "metric_key", "metric_value", "unit", "period_start", "period_end", "metadata", "created_by", "created_at"]
+    },
+    {
+      "name": "startup_office_notifications",
+      "domain": "notifications",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "recipient_user_id", "event_type", "status", "payload", "created_at", "sent_at"]
+    },
+    {
+      "name": "startup_office_receipts",
+      "domain": "receipts",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "run_id", "approval_id", "actor_slug", "event_type", "summary", "trace", "created_by", "created_at"]
+    },
+    {
+      "name": "startup_office_runs",
+      "domain": "workflow",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "loop_id", "title", "objective", "status", "inputs", "metadata", "summary", "created_by", "started_at", "completed_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_signals",
+      "domain": "operating_objects",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "source", "title", "body", "status", "metadata", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "startup_office_usage_events",
+      "domain": "usage",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "run_id", "event_type", "provider", "model", "input_tokens", "output_tokens", "total_tokens", "cost_cents", "worker_duration_ms", "metadata", "created_by", "created_at"]
+    },
+    {
+      "name": "startup_office_worker_jobs",
+      "domain": "worker",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "run_id", "loop_slug", "status", "attempts", "max_attempts", "last_error", "metadata", "created_by", "locked_at", "started_at", "completed_at", "created_at", "updated_at"]
+    },
+    {
+      "name": "tasks",
+      "domain": "legacy_workspace",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "project_id", "local_id", "channel", "title", "details", "human_details", "owner", "status", "created_by", "thread_id", "task_type", "pipeline_id", "pipeline_stage", "review_state", "source_signal_id", "source_decision_id", "delivery_url", "delivery_summary", "delivery_status", "delivery_review_decision", "delivery_checks_status", "delivery_merge_state", "delivery_draft", "delivery_checked_at", "delivered_at", "depends_on", "blocked", "acked_at", "due_at", "follow_up_at", "reminder_at", "recheck_at", "created_at", "updated_at", "assignee_type", "assignee_id", "human_owner_user_id", "model_mode"]
+    },
+    {
+      "name": "team_invites",
+      "domain": "identity",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "email", "name", "role", "channel", "token_hash", "status", "created_by", "created_at", "expires_at", "accepted_at", "accepted_by", "sent_at", "send_status", "send_error"]
+    },
+    {
+      "name": "teams",
+      "domain": "identity",
+      "tenantColumn": null,
+      "rls": true,
+      "columns": ["id", "name", "slug", "created_by", "created_at", "updated_at"]
+    },
+    {
+      "name": "wiki_article_index",
+      "domain": "knowledge",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "project_id", "article_path", "title", "last_commit", "excerpt", "decisions", "risks", "open_questions", "updated_at"]
+    },
+    {
+      "name": "wiki_write_requests",
+      "domain": "knowledge",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "project_id", "article_path", "status", "requested_by", "commit_sha", "error", "created_at", "updated_at", "completed_at"]
+    },
+    {
+      "name": "workspace_billing",
+      "domain": "billing",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["team_id", "plan", "laf_model_enabled", "updated_at", "billing_state", "monthly_run_limit", "monthly_model_spend_cents", "storage_mb_limit", "support_notes"]
+    },
+    {
+      "name": "workspace_settings",
+      "domain": "settings",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["team_id", "onboarding_completed_at", "llm_provider", "team_lead_slug", "company_profile", "preferences", "updated_at"]
+    }
+  ],
+  "retiredRuntime": {
+    "tables": ["execution_receipts", "execution_events", "execution_plans", "project_local_bindings", "bridge_pairing_codes", "bridge_devices", "runner_pairing_codes", "runner_job_events", "runner_jobs", "runner_capabilities", "runners"],
+    "functions": ["claim_runner_job"],
+    "columns": {
+      "tasks": ["execution_mode", "worktree_path", "worktree_branch"],
+      "wiki_write_requests": ["runner_id"]
+    }
+  }
+}

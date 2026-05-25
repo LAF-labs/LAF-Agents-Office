@@ -9,6 +9,7 @@
     "startup-office:api-contracts": "node scripts/check-startup-office-api-contracts.cjs",
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
     "startup-office:legacy-runtime": "node scripts/check-no-legacy-runtime.cjs",
+    "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "hosted-api:dev": "node scripts/hosted-api-dev-server.cjs",
     "hosted-env:preflight": "node scripts/hosted-env-preflight.cjs",

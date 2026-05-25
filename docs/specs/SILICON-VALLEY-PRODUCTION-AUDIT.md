@@ -13,6 +13,9 @@ startup, what fundamental problems would we refuse to carry forward?
 - Supabase migrations now remove obsolete execution schema and the linked remote
   Supabase project has applied through `20260525020000`; RLS exercise, backup,
   restore, and rollback drills are still not proven.
+- The canonical current Supabase schema now lives in
+  `supabase/schema/current.json` and is checked against migrations by
+  `npm run startup-office:schema`.
 - The current release gate is deterministic and fake-provider friendly, but it
   does not prove live model, live Supabase, email, billing, DNS, or browser E2E.
 - Legacy Go, CLI, npm-wrapper, native-release, and local-runtime scripts have
@@ -55,7 +58,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
 | SV-I029 | API | Hosted command registries still coexist with legacy command concepts. | command routes and hooks |
 | SV-I030 | API | Route-level authorization is implemented manually rather than declaratively. | `requirePermission` calls |
-| SV-I031 | Data model | Migrations are append-only history, but the desired cloud schema is not captured as a canonical current-state schema. | `supabase/migrations` |
+| SV-I031 | Data model | A canonical current schema now exists, but it is still statically checked rather than proven by a local Supabase reset and live RLS exercise. | `supabase/schema/current.json`, schema gate |
 | SV-I032 | Data model | Obsolete no-op migrations preserve continuity but add cognitive load to fresh installs. | obsolete local migration files |
 | SV-I033 | Data model | There is no automated Supabase reset test proving all migrations apply cleanly. | no DB reset gate |
 | SV-I034 | Data model | RLS policies are written but not exercised against a real Supabase test database. | migration tests are static |
@@ -432,3 +435,8 @@ and missing typed contracts.
   product surface. `npm run startup-office:surface` and
   `npm run startup-office:legacy-runtime` now fail if those old product terms or
   paths return to tracked source.
+- R3 now has a canonical current Supabase schema manifest at
+  `supabase/schema/current.json`. `npm run startup-office:schema` parses the
+  migration history, verifies the manifest's 28 active tables, columns, tenant
+  columns, RLS coverage, latest migration, and retired runtime objects, and the
+  beta release gate now runs that check.
