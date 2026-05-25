@@ -25,6 +25,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "supportAccessAction",
     "deletionRequest",
     "betaDashboard",
+    "supportTimeline",
     "workerJobAction",
     "loops",
     "loopRun",

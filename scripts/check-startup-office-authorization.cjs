@@ -66,6 +66,7 @@ const expectedAccess = {
     POST: { type: "admin" },
   },
   supportAccessAction: { POST: { type: "admin" } },
+  supportTimeline: { GET: { type: "admin" } },
   workerJobAction: { POST: { type: "admin" } },
 };
 

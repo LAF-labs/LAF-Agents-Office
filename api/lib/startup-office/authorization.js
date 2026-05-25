@@ -42,6 +42,7 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
   demoSeed: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminDemoSeed]]),
   export: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
   growthSummary: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
+  supportTimeline: routeAccess([["GET", STARTUP_OFFICE_ACCESS.adminBetaOps]]),
   loopRun: routeAccess([["POST", STARTUP_OFFICE_ACCESS.draftMemory]]),
   loops: routeAccess([
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],

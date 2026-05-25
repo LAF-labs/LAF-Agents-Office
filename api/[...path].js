@@ -533,6 +533,7 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   run: STARTUP_OFFICE_WORKFLOW_HANDLERS.run,
   supportAccess: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
   supportAccessAction: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
+  supportTimeline: STARTUP_OFFICE_OPERATIONS_HANDLERS.supportTimeline,
   workerJobAction: STARTUP_OFFICE_OPERATIONS_HANDLERS.workerJobAction,
 });
 

@@ -60,6 +60,7 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
   },
   { id: "deletionRequest", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/deletion-request"]) },
   { id: "betaDashboard", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/admin/beta-dashboard"]) },
+  { id: "supportTimeline", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/admin/support-timeline"]) },
   {
     id: "workerJobAction",
     methods: Object.freeze(["POST"]),

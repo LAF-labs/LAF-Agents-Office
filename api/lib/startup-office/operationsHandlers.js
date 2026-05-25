@@ -4,6 +4,9 @@ const {
 const {
   mergeStartupOfficeApprovalPolicyPatch,
 } = require("./approvalPolicy");
+const {
+  createStartupOfficeSupportTimelineHandlers,
+} = require("./supportTimeline");
 
 function createStartupOfficeOperationsHandlers(deps) {
   const {
@@ -31,6 +34,7 @@ function createStartupOfficeOperationsHandlers(deps) {
     writeJSON,
   } = deps;
   const recoveryHandlers = createStartupOfficeWorkerJobRecoveryHandlers(deps);
+  const supportTimelineHandlers = createStartupOfficeSupportTimelineHandlers(deps);
 
   async function handleStartupOfficePolicy(req, res) {
     const { membership } = await requireUser(req);
@@ -155,6 +159,7 @@ function createStartupOfficeOperationsHandlers(deps) {
     betaDashboard: handleStartupOfficeBetaDashboard,
     billing: handleStartupOfficeBilling,
     policy: handleStartupOfficePolicy,
+    supportTimeline: supportTimelineHandlers.supportTimeline,
     workerJobAction: recoveryHandlers.workerJobAction,
   };
 }

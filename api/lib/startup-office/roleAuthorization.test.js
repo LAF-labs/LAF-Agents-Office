@@ -65,6 +65,7 @@ const ADMIN_KEYS = Object.freeze([
   "supportAccess.GET",
   "supportAccess.POST",
   "supportAccessAction.POST",
+  "supportTimeline.GET",
   "workerJobAction.POST",
 ]);
 

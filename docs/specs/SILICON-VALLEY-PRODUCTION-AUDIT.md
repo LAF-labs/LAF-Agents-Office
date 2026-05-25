@@ -146,7 +146,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I106 | Observability | Error budgets and SLOs are undefined. | docs |
 | SV-I107 | Observability | A deployed synthetic monitor now exercises login, profile, live loop run, approval, receipt, and logout; external credentials and run evidence are still deploy-time proof. | synthetic monitor |
 | SV-I108 | Observability | Browser-side errors now report workspace-scoped, redacted client telemetry, but external paging and session replay are not included. | frontend |
-| SV-I109 | Observability | Support tooling lacks a timeline view from user action to model output. | admin dashboard |
+| SV-I109 | Observability | Support tooling now has an admin timeline from user/audit events through worker jobs, approvals, receipts, notifications, outbox, and client errors; richer paging remains. | admin dashboard |
 | SV-I110 | Observability | Cost telemetry is not reconciled with billing state. | usage events |
 | SV-I111 | Billing | Billing is manual state, not payment infrastructure. | workspace_billing |
 | SV-I112 | Billing | Entitlements are read at run time but not centrally enforced across all premium features. | billing helpers |
@@ -332,7 +332,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G087 | Add incident runbook. | Data leak, tenant bug, worker outage, and billing abuse drills exist. | docs |
 | SV-G088 | Add deployment runbook. | DNS, env, migrations, worker, rollback, and smoke are documented. | docs gate |
 | SV-G089 | Add cost anomaly alerts. | Global model spend, single-event cost spikes, and current-month workspace spend ratios trip scheduled monitor failures. | ops monitor tests |
-| SV-G090 | Add support timeline. | Operators see user action to model output sequence. | admin UI |
+| SV-G090 | Add support timeline. | Operators see user action, worker/model, approval, receipt, notification, outbox, and client-error sequence. | admin API |
 | SV-G091 | Integrate payment. | Stripe or signed manual billing agreement gates paid beta. | billing tests |
 | SV-G092 | Enforce entitlements. | Seats, runs, storage, support, and model spend apply everywhere. | integration tests |
 | SV-G093 | Add invoices and receipts. | Customers can see billing status and receipts. | UI/API tests |
@@ -574,6 +574,11 @@ the final release commit or when a shared invariant changes.
   read, live loop execution, approval, receipt, and logout against the
   production API. The release gate checks the monitor contract and unit tests
   without requiring external credentials.
+- R7 now adds an admin support timeline. `GET /startup-office/admin/support-timeline`
+  composes audit events, runs, worker jobs, approvals, receipts, notifications,
+  outbox state, and client-error audit events into one workspace-scoped sequence
+  so operators can follow a customer report from user action to model output and
+  recovery state.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
   runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
   high or critical dependency advisories, hosted-runtime boundary checks,
