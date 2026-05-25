@@ -11,7 +11,7 @@ const pairToken = ["pair", "ing"].join("");
 const providerModeToken = ["head", "less"].join("");
 
 function fail(message) {
-  console.error(`legacy runtime check failed: ${message}`);
+  console.error(`pure-cloud boundary check failed: ${message}`);
   process.exitCode = 1;
 }
 
@@ -106,7 +106,7 @@ const scanRoots = [
 
 const allowedFiles = new Set([
   "api/hosted-api.test.js",
-  "scripts/check-no-legacy-runtime.cjs",
+  "scripts/check-pure-cloud-boundary.cjs",
   "scripts/check-startup-office-surface.cjs",
 ]);
 
@@ -163,5 +163,5 @@ for (const file of existingTracked) {
 }
 
 if (!process.exitCode) {
-  console.log("legacy runtime check passed");
+  console.log("pure-cloud boundary check passed");
 }

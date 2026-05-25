@@ -157,7 +157,7 @@ function runDependencyAudit(label, cwd) {
 runSecretlint();
 runDependencyAudit("root", root);
 runDependencyAudit("web", path.join(root, "web"));
-run("hosted runtime boundary", "npm", ["run", "startup-office:legacy-runtime"]);
+run("pure-cloud boundary", "npm", ["run", "startup-office:pure-cloud-boundary"]);
 run("Supabase schema boundary", "npm", ["run", "startup-office:schema"]);
 run("service-role access tests", "node", [
   "--test",

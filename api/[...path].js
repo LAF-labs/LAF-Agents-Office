@@ -1323,6 +1323,11 @@ async function startupOfficeObjectRows(teamID, kind, options = {}) {
   };
   if (options.status) query.status = `eq.${options.status}`;
   if (kind === "customers" && options.loop_id) query.loop_id = `eq.${options.loop_id}`;
+  if (kind === "signals") {
+    if (options.signal_type) query.signal_type = `eq.${options.signal_type}`;
+    if (options.loop_id) query.loop_id = `eq.${options.loop_id}`;
+    if (options.run_id) query.run_id = `eq.${options.run_id}`;
+  }
   if (options.limit) query.limit = String(clamp(Number(options.limit) || 100, 1, 1000));
   const rows = await safeStartupOfficeRest(definition.table, { query });
   return rows.map(definition.public).filter(Boolean);
@@ -1404,7 +1409,10 @@ function startupOfficeObjectPayload(kind, membership, body) {
     return {
       body: truncateText(body.body || "", 6000),
       created_by: membership.user_id,
+      loop_id: body.loop_id || body.discovery_loop_id || null,
       metadata: objectValue(body.metadata),
+      run_id: body.run_id || null,
+      signal_type: startupOfficeSignalType(body.signal_type || body.type),
       source: truncateText(body.source || "manual", 120),
       status: startupOfficeSignalStatus(body.status),
       team_id: membership.team_id,
@@ -1454,6 +1462,13 @@ function startupOfficeObjectPatch(kind, body) {
     return patch;
   }
   if (kind === "signals") {
+    if (body.loop_id !== undefined || body.discovery_loop_id !== undefined) {
+      patch.loop_id = body.loop_id || body.discovery_loop_id || null;
+    }
+    if (body.run_id !== undefined) patch.run_id = body.run_id || null;
+    if (body.signal_type !== undefined || body.type !== undefined) {
+      patch.signal_type = startupOfficeSignalType(body.signal_type || body.type);
+    }
     if (body.title !== undefined) patch.title = truncateText(body.title, 180);
     if (body.body !== undefined) patch.body = truncateText(body.body, 6000);
     if (body.source !== undefined) patch.source = truncateText(body.source, 120);
@@ -1481,6 +1496,13 @@ function startupOfficeAssetStatus(value) {
 function startupOfficeSignalStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
   return ["new", "triaged", "used", "archived"].includes(raw) ? raw : "new";
+}
+
+function startupOfficeSignalType(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["market", "customer", "competitor", "internal"].includes(raw)
+    ? raw
+    : "market";
 }
 
 function numericOrNull(value) {

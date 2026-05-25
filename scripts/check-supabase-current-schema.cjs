@@ -10,7 +10,7 @@ const serviceRoleAccessPath = path.join(root, "api", "lib", "hosted", "serviceRo
 const retiredDeviceName = ["bri", "dge"].join("");
 const retiredQueueName = ["run", "ner"].join("");
 const retiredPairCodes = ["pair", "ing_codes"].join("");
-const retiredRuntimeGuard = {
+const retiredExecutionGuard = {
   tables: [
     "execution_receipts",
     "execution_events",
@@ -156,6 +156,9 @@ if (!serviceRoleAccessSource.includes("supabase/schema/current.json")) {
 if (Object.hasOwn(manifest, "retiredRuntime")) {
   fail("current schema manifest must not carry retired runtime objects");
 }
+if (Object.hasOwn(manifest, "pureCloudRuntimeGuardMigration")) {
+  fail("current schema manifest must use pureCloudBoundaryGuardMigration");
+}
 
 const state = parseMigrationState();
 const latestMigration = state.files.at(-1)?.replace(/_.+$/, "");
@@ -184,16 +187,16 @@ for (const table of manifestTables) {
   }
 }
 
-const retired = retiredRuntimeGuard;
+const retired = retiredExecutionGuard;
 for (const table of retired.tables || []) {
-  if (state.tables.has(table)) fail(`retired runtime table remains active: ${table}`);
+  if (state.tables.has(table)) fail(`retired execution table remains active: ${table}`);
 }
 
 for (const [table, columns] of Object.entries(retired.columns || {})) {
   const actualColumns = state.tables.get(table) || new Set();
   for (const column of columns) {
     if (actualColumns.has(column)) {
-      fail(`retired runtime column remains active: ${table}.${column}`);
+      fail(`retired execution column remains active: ${table}.${column}`);
     }
   }
 }
@@ -340,11 +343,11 @@ if (manifest.workerJobClaimFunction) {
 
 for (const fn of retired.functions || []) {
   const createPattern = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\b`, "i");
-  if (createPattern.test(migrationText)) fail(`retired runtime function is created: ${fn}`);
+  if (createPattern.test(migrationText)) fail(`retired execution function is created: ${fn}`);
 }
 
 const guardMigration = read(
-  `supabase/migrations/${manifest.pureCloudRuntimeGuardMigration}_assert_pure_cloud_runtime_schema.sql`,
+  `supabase/migrations/${manifest.pureCloudBoundaryGuardMigration}_assert_pure_cloud_boundary_schema.sql`,
 );
 for (const required of [
   "remaining_columns",

@@ -164,6 +164,70 @@ test("customer collection handler filters and links discovery loops", async () =
   assert.equal(deps.calls.writes[1].body.customer.kind, "customers");
 });
 
+test("signal collection handler filters and links reusable evidence", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return {
+        body: "Buyer mentioned switching costs.",
+        loop_id: "loop-1",
+        run_id: "run-1",
+        signal_type: "competitor",
+        status: "triaged",
+        title: "Competitor objection",
+      };
+    },
+    startupOfficeObjectPayload(kind, value, body) {
+      return {
+        body: body.body,
+        created_by: value.user_id,
+        loop_id: body.loop_id,
+        run_id: body.run_id,
+        signal_type: body.signal_type,
+        status: body.status,
+        team_id: value.team_id,
+        title: body.title,
+        typed_kind: kind,
+      };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectCollection(
+    {
+      method: "GET",
+      query: {
+        loop_id: "loop-1",
+        run_id: "run-1",
+        signal_type: "competitor",
+        status: "triaged",
+      },
+    },
+    {},
+    "signals",
+  );
+  assert.equal(deps.calls.permissions[0].permission, "workspace:read");
+  assert.deepEqual(deps.calls.rows[0], {
+    kind: "signals",
+    options: {
+      limit: 100,
+      loop_id: "loop-1",
+      run_id: "run-1",
+      signal_type: "competitor",
+      status: "triaged",
+    },
+    teamID: "team-1",
+  });
+
+  await handlers.objectCollection({ method: "POST" }, {}, "signals");
+  assert.equal(deps.calls.permissions[1].permission, "memory:write_draft");
+  assert.equal(deps.calls.rest[0].table, "startup_office_signals");
+  assert.equal(deps.calls.rest[0].options.body.loop_id, "loop-1");
+  assert.equal(deps.calls.rest[0].options.body.run_id, "run-1");
+  assert.equal(deps.calls.rest[0].options.body.signal_type, "competitor");
+  assert.equal(deps.calls.rest[0].options.body.status, "triaged");
+  assert.equal(deps.calls.audits[0][1], "startup_office.signals.created");
+});
+
 test("metric collection handler records company metrics for growth summary", async () => {
   const deps = baseDeps({
     async readBody() {
@@ -301,17 +365,37 @@ test("artifact object action can save an artifact as a first-party asset", async
 test("artifact object action can record an artifact-derived signal", async () => {
   const deps = baseDeps({
     async readBody() {
-      return { source: "interview", title: "Founder signal" };
+      return {
+        loop_id: "loop-1",
+        signal_type: "customer",
+        source: "interview",
+        title: "Founder signal",
+      };
     },
   });
   const handlers = createStartupOfficeObjectHandlers(deps);
 
   await handlers.artifactObjectAction({ method: "POST" }, {}, "artifact-1", "record-signal");
   assert.equal(deps.calls.rest[0].table, "startup_office_signals");
+  assert.equal(deps.calls.rest[0].options.body.loop_id, "loop-1");
   assert.equal(deps.calls.rest[0].options.body.source, "interview");
+  assert.equal(deps.calls.rest[0].options.body.signal_type, "customer");
+  assert.equal(deps.calls.rest[0].options.body.run_id, "run-1");
   assert.equal(deps.calls.rest[0].options.body.metadata.run_id, "run-1");
   assert.equal(deps.calls.audits[0][1], "startup_office.signal.created_from_artifact");
   assert.equal(deps.calls.writes[0].body.signal.public, "signal");
+});
+
+test("artifact signal action falls back to market for unknown signal types", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { signal_type: "random" };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.artifactObjectAction({ method: "POST" }, {}, "artifact-1", "record-signal");
+  assert.equal(deps.calls.rest[0].options.body.signal_type, "market");
 });
 
 test("object handlers preserve typed errors for unsupported methods and actions", async () => {

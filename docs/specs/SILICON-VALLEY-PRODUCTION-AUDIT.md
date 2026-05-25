@@ -390,9 +390,9 @@ and missing typed contracts.
 - R2 now has a Startup Office API contract gate. Server route contracts declare
   the web client function, method, response type, and path snippets; the release
   gate verifies `web/src/api/startupOffice.ts` cannot drift silently.
-- R2 now has a legacy-runtime removal gate. The repo no longer tracks the Go
+- R2 now has a pure-cloud boundary gate. The repo no longer tracks the Go
   desktop runtime, npm CLI wrapper, native release artifacts, customer-managed
-  execution scripts, or old TUI/E2E harnesses; `npm run startup-office:legacy-runtime`
+  execution scripts, or old TUI/E2E harnesses; `npm run startup-office:pure-cloud-boundary`
   blocks those paths and device-runtime terms from returning to hosted product
   code.
 - R2 now extracts Startup Office company profile and demo seed behavior from
@@ -437,21 +437,22 @@ and missing typed contracts.
   typed validation errors.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
-  `20260525040000_assert_pure_cloud_runtime_schema.sql`. A linked DB query confirms
+  the pure-cloud boundary guard. A linked DB query confirms
   the obsolete device, queue, execution-plan, checkout-binding, and claim-function
   objects are absent; the newest migration now fails if any of those objects or
   columns survive.
 - R3 now removes remaining user-facing device/runtime reset copy from settings,
   onboarding, command fallback, status-bar connection state, and memory docs.
-  The Supabase guard migration `20260525120000_assert_pure_cloud_runtime_schema.sql`
+  The Supabase guard migration
+  `20260525210000_assert_pure_cloud_boundary_schema.sql`
   was applied to the linked remote project and now purges/asserts retired local
   execution tables, columns, functions, policies, relation names, and types.
 - R3 also removes the obsolete `web/e2e` harness that depended on the retired
-  desktop binary and state files; the legacy-runtime gate now rejects that path
+  desktop binary and state files; the pure-cloud boundary gate now rejects that path
   if it returns.
 - The retired external runtime connector has been removed from the hosted
   product surface. `npm run startup-office:surface` and
-  `npm run startup-office:legacy-runtime` now fail if those old product terms or
+  `npm run startup-office:pure-cloud-boundary` now fail if those old product terms or
   paths return to tracked source.
 - R3 now has a canonical current Supabase schema manifest at
   `supabase/schema/current.json`. `npm run startup-office:schema` parses the
@@ -670,8 +671,12 @@ and missing typed contracts.
   migration `20260525190000_add_startup_office_metric_updated_at.sql` keeps the
   schema aligned with the object update path and the release gate covers the
   summary contract.
+- R3/R5 now classifies captured signals as market, customer, competitor, or
+  internal evidence. Signals can be filtered by type, triaged through the
+  operating-object API, and linked back to loops/runs so research and artifact
+  evidence can be reused without any local execution surface.
 - R3/R8 now applies Supabase migration
-  `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
+  `20260525210000_assert_pure_cloud_boundary_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,
   constraints, functions, policies, relations, triggers, and types, then fails
   closed if any residue remains. The schema manifest and release gate now treat

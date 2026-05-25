@@ -154,7 +154,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
   const schemaAssertionSql = fs.readFileSync(
     path.join(
       migrationDir,
-      "20260525130000_assert_pure_cloud_runtime_schema.sql",
+      "20260525210000_assert_pure_cloud_boundary_schema.sql",
     ),
     "utf8",
   );
@@ -167,7 +167,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
   assert.match(schemaAssertionSql, /remaining_types/);
   assert.match(schemaAssertionSql, /drop constraint if exists/);
   assert.match(schemaAssertionSql, /drop trigger if exists/);
-  assert.match(schemaAssertionSql, /retired execution residue/);
+  assert.match(schemaAssertionSql, /retired customer-managed execution residue/);
   assert.match(schemaAssertionSql, /raise exception/);
 });
 
@@ -265,6 +265,48 @@ test("Startup Office customers support discovery loop links and filters", () => 
   assert.match(source, /patch\.loop_id = body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
 });
 
+test("Startup Office signals support typed capture and reuse links", () => {
+  const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
+  const sql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525200000_add_startup_office_signal_reuse_links.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /add column if not exists signal_type text not null default 'market'/);
+  assert.match(sql, /add column if not exists loop_id uuid references public\.startup_office_loops/);
+  assert.match(sql, /add column if not exists run_id uuid references public\.startup_office_runs/);
+  assert.match(sql, /startup_office_signals_signal_type_check/);
+  assert.match(sql, /'market', 'customer', 'competitor', 'internal'/);
+  assert.match(sql, /idx_startup_office_signals_team_type_status/);
+  assert.match(sql, /idx_startup_office_signals_team_loop/);
+  assert.match(sql, /idx_startup_office_signals_team_run/);
+
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "schema", "current.json"),
+      "utf8",
+    ),
+  );
+  const signals = schema.activeTables.find(
+    (table) => table.name === "startup_office_signals",
+  );
+  assert.equal(signals.columns.includes("signal_type"), true);
+  assert.equal(signals.columns.includes("loop_id"), true);
+  assert.equal(signals.columns.includes("run_id"), true);
+
+  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  assert.match(source, /function startupOfficeSignalType/);
+  assert.match(source, /query\.signal_type = `eq\.\$\{options\.signal_type\}`/);
+  assert.match(source, /query\.loop_id = `eq\.\$\{options\.loop_id\}`/);
+  assert.match(source, /query\.run_id = `eq\.\$\{options\.run_id\}`/);
+  assert.match(source, /loop_id: body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
+  assert.match(source, /run_id: body\.run_id \|\| null/);
+  assert.match(source, /signal_type: startupOfficeSignalType\(body\.signal_type \|\| body\.type\)/);
+  assert.match(source, /patch\.signal_type = startupOfficeSignalType/);
+});
+
 test("Startup Office metrics support ingestion updates and Growth Center summaries", () => {
   const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
   const sql = fs.readFileSync(
@@ -311,7 +353,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /startup-office:api-contracts/);
   assert.match(script, /startup-office:authorization/);
   assert.match(script, /startup-office:audit-coverage/);
-  assert.match(script, /startup-office:legacy-runtime/);
+  assert.match(script, /startup-office:pure-cloud-boundary/);
   assert.match(script, /startup-office:permissions/);
   assert.match(script, /startup-office:schema/);
   assert.match(script, /startup-office:security/);

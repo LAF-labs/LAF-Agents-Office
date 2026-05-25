@@ -30,6 +30,11 @@ function createStartupOfficeObjectHandlers(deps) {
       if (kind === "customers") {
         options.loop_id = req.query?.loop_id || req.query?.discovery_loop_id;
       }
+      if (kind === "signals") {
+        options.loop_id = req.query?.loop_id || req.query?.discovery_loop_id;
+        options.run_id = req.query?.run_id;
+        options.signal_type = req.query?.signal_type || req.query?.type;
+      }
       const rows = await startupOfficeObjectRows(membership.team_id, kind, {
         ...options,
       });
@@ -112,16 +117,20 @@ function createStartupOfficeObjectHandlers(deps) {
       return;
     }
     if (action === "record-signal") {
+      const runID = artifact.run_id || body.run_id || null;
       const [signal] = await safeStartupOfficeRest("startup_office_signals", {
         method: "POST",
         body: {
           body: truncateText(body.body || artifact.content || "", 6000),
           created_by: membership.user_id,
+          loop_id: body.loop_id || null,
           metadata: {
             artifact_id: artifact.id,
-            run_id: artifact.run_id || null,
+            run_id: runID,
             source: "artifact",
           },
+          run_id: runID,
+          signal_type: startupOfficeSignalType(body.signal_type || body.type || "internal"),
           source: truncateText(body.source || "artifact", 120),
           status: "new",
           team_id: membership.team_id,
@@ -141,6 +150,13 @@ function createStartupOfficeObjectHandlers(deps) {
     objectCollection: handleStartupOfficeObjectCollection,
     objectItem: handleStartupOfficeObjectItem,
   };
+}
+
+function startupOfficeSignalType(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return ["market", "customer", "competitor", "internal"].includes(raw)
+    ? raw
+    : "market";
 }
 
 module.exports = {
