@@ -50,6 +50,9 @@ const {
   createHostedUsageHandlers,
 } = require("./lib/hosted/usageHandlers");
 const {
+  createHostedURLTrust,
+} = require("./lib/hosted/urlTrust");
+const {
   createHostedSignupHandlers,
 } = require("./lib/hosted/signupHandlers");
 const { createServiceRoleAccessGuards } = require("./lib/hosted/serviceRoleAccess");
@@ -216,6 +219,10 @@ const HOSTED_PERMISSION_GUARDS = createHostedPermissionGuards({
 const requireAdminRole = HOSTED_PERMISSION_GUARDS.requireAdminRole;
 const requirePermission = HOSTED_PERMISSION_GUARDS.requirePermission;
 const SERVICE_ROLE_ACCESS_GUARDS = createServiceRoleAccessGuards({ createHTTPError: startupOfficeHTTPError });
+const HOSTED_URL_TRUST = createHostedURLTrust({
+  createHTTPError: startupOfficeHTTPError,
+  env: process.env,
+});
 const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
@@ -332,7 +339,7 @@ const HOSTED_INVITE_HANDLERS = createHostedInviteHandlers({
   createHTTPError: startupOfficeHTTPError,
   normalizeRole,
   nowISO,
-  originFor,
+  originFor: HOSTED_URL_TRUST.trustedPublicOrigin,
   readBody,
   requirePermission,
   requireUser,
@@ -692,47 +699,9 @@ function startupOfficeHTTPError(status, message) {
 
 const rateLimitBuckets = new Map();
 
-const ALLOWED_ORIGINS = normalizeAllowedOrigins(
+const ALLOWED_ORIGINS = HOSTED_URL_TRUST.normalizeAllowedOrigins(
   process.env.LAF_OFFICE_ALLOWED_ORIGINS || "",
 );
-
-function normalizeAllowedOrigins(value) {
-  return [
-    ...new Set(
-      String(value || "")
-        .split(",")
-        .map(normalizeAllowedOrigin)
-        .filter(Boolean),
-    ),
-  ];
-}
-
-function normalizeAllowedOrigin(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  let parsed;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    return "";
-  }
-  if (
-    !parsed.hostname ||
-    parsed.username ||
-    parsed.password ||
-    parsed.pathname !== "/" ||
-    parsed.search ||
-    parsed.hash
-  ) {
-    return "";
-  }
-  const allowLocalhost = allowLocalHostedURLs();
-  if (!allowLocalhost && parsed.protocol !== "https:") return "";
-  if (!allowLocalhost && isPrivateHostedHostname(parsed.hostname)) return "";
-  const protocol = allowLocalhost ? parsed.protocol : "https:";
-  return `${protocol}//${parsed.host}`;
-}
 
 function applyBaselineSecurityHeaders(res) {
   // Conservative defaults. The web bundle is served same-origin via Vercel
@@ -2109,28 +2078,6 @@ function isHuman(slug) {
   return slug === "human" || slug === "you";
 }
 
-function trustedPublicAPIURL(req) {
-  const publicAPIBase = String(process.env.LAF_OFFICE_PUBLIC_API_BASE_URL || "").trim();
-  if (publicAPIBase) {
-    return normalizeConfiguredPublicAPIBase(
-      publicAPIBase,
-      req,
-      "LAF_OFFICE_PUBLIC_API_BASE_URL",
-    );
-  }
-  const browserAPIBase = String(process.env.VITE_LAF_API_BASE_URL || "").trim();
-  if (browserAPIBase) {
-    return normalizeConfiguredPublicAPIBase(
-      browserAPIBase,
-      req,
-      "VITE_LAF_API_BASE_URL",
-    );
-  }
-  const origin = trustedPublicOrigin(req);
-  if (!origin) throw new HTTPError(503, "canonical hosted API URL is not configured");
-  return `${origin}/api`;
-}
-
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -2171,150 +2118,6 @@ function compactObject(value) {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   );
-}
-
-// trustedPublicOrigin resolves the absolute origin used in user-facing URLs
-// such as invite links. It never trusts request headers in
-// production, because Host / x-forwarded-host are client-controlled when the
-// API is reached through unexpected proxies, enabling host-header injection
-// against invite recipients. The canonical host is configured via
-// LAF_OFFICE_PUBLIC_HOST (or VERCEL_URL on Vercel), and only falls back to
-// request headers in local development (NODE_ENV !== "production").
-function trustedPublicOrigin(req) {
-  const configured = String(
-    process.env.LAF_OFFICE_PUBLIC_HOST || process.env.VERCEL_URL || "",
-  ).trim();
-  if (configured) {
-    return normalizeConfiguredPublicOrigin(configured);
-  }
-  if (process.env.NODE_ENV === "production") {
-    throw new HTTPError(
-      503,
-      "LAF_OFFICE_PUBLIC_HOST is not configured for production",
-    );
-  }
-  const proto = String(req.headers["x-forwarded-proto"] || "http")
-    .split(",")[0]
-    .trim();
-  const host = String(req.headers.host || "").trim();
-  if (!host) {
-    throw new HTTPError(400, "cannot resolve public origin");
-  }
-  return `${proto}://${host}`;
-}
-
-function normalizeConfiguredPublicOrigin(value) {
-  const raw = String(value || "").trim();
-  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  const allowLocalhost = allowLocalHostedURLs();
-  let parsed;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must be a valid origin");
-  }
-  if (!parsed.hostname || parsed.username || parsed.password) {
-    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must be a valid origin");
-  }
-  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
-    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must be an origin without a path");
-  }
-  if (!allowLocalhost && parsed.protocol !== "https:") {
-    throw new HTTPError(503, "LAF_OFFICE_PUBLIC_HOST must use https");
-  }
-  if (!allowLocalhost && isPrivateHostedHostname(parsed.hostname)) {
-    throw new HTTPError(
-      503,
-      "LAF_OFFICE_PUBLIC_HOST must not point at localhost or a private network address",
-    );
-  }
-  const protocol = allowLocalhost ? parsed.protocol : "https:";
-  return `${protocol}//${parsed.host}`;
-}
-
-function normalizeConfiguredPublicAPIBase(
-  value,
-  req,
-  label = "LAF_OFFICE_PUBLIC_API_BASE_URL",
-) {
-  const raw = String(value || "").trim();
-  if (raw.startsWith("//")) {
-    throw new HTTPError(503, `${label} must not be a protocol-relative URL`);
-  }
-  if (
-    raw.startsWith("/") ||
-    (label === "VITE_LAF_API_BASE_URL" && !looksLikeBareHostedAPIHost(raw))
-  ) {
-    if (/[?#]/.test(raw)) {
-      throw new HTTPError(503, `${label} must not include a query string or hash`);
-    }
-    const origin = trustedPublicOrigin(req);
-    const pathname = (raw.startsWith("/") ? raw : `/${raw}`).replace(/\/+$/, "") || "/api";
-    return `${origin}${pathname}`;
-  }
-  if (!/^https?:\/\//i.test(raw) && !looksLikeBareHostedAPIHost(raw)) {
-    throw new HTTPError(503, `${label} must be a valid URL`);
-  }
-  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  let parsed;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    throw new HTTPError(503, `${label} must be a valid URL`);
-  }
-  if (!parsed.hostname || parsed.username || parsed.password) {
-    throw new HTTPError(503, `${label} must be a valid URL`);
-  }
-  if (parsed.search || parsed.hash) {
-    throw new HTTPError(503, `${label} must not include a query string or hash`);
-  }
-  const allowLocalhost = allowLocalHostedURLs();
-  if (!allowLocalhost && parsed.protocol !== "https:") {
-    throw new HTTPError(503, `${label} must use https`);
-  }
-  if (!allowLocalhost && isPrivateHostedHostname(parsed.hostname)) {
-    throw new HTTPError(
-      503,
-      `${label} must not point at localhost or a private network address`,
-    );
-  }
-  const pathname = parsed.pathname.replace(/\/+$/, "");
-  parsed.pathname = pathname && pathname !== "/" ? pathname : "/api";
-  const protocol = allowLocalhost ? parsed.protocol : "https:";
-  return `${protocol}//${parsed.host}${parsed.pathname}`;
-}
-
-function allowLocalHostedURLs() {
-  return process.env.NODE_ENV !== "production";
-}
-
-function looksLikeBareHostedAPIHost(value) {
-  const hostPart = String(value || "").split(/[/?#]/)[0];
-  return hostPart.includes(".") || hostPart.includes(":") || hostPart.startsWith("[");
-}
-
-function isPrivateHostedHostname(hostname) {
-  const host = String(hostname || "").toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
-  if (
-    host === "localhost" ||
-    host === "0.0.0.0" ||
-    host === "127.0.0.1" ||
-    host === "::" ||
-    host === "::1"
-  ) {
-    return true;
-  }
-  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true;
-  if (/^169\.254\./.test(host)) return true;
-  const private172 = host.match(/^172\.(\d+)\./);
-  if (private172 && Number(private172[1]) >= 16 && Number(private172[1]) <= 31) return true;
-  const carrierGradeNAT = host.match(/^100\.(\d+)\./);
-  if (carrierGradeNAT && Number(carrierGradeNAT[1]) >= 64 && Number(carrierGradeNAT[1]) <= 127) return true;
-  return host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:");
-}
-
-function originFor(req) {
-  return trustedPublicOrigin(req);
 }
 
 module.exports.__test = {

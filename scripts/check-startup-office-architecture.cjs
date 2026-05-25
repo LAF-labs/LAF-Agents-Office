@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2335);
+assertMaxLines("api/[...path].js", 2140);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -57,6 +57,7 @@ assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/skillHandlers.js", 230);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
+assertMaxLines("api/lib/hosted/urlTrust.js", 215);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
 assertMaxLines("api/lib/startup-office/activationAnalytics.js", 180);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
@@ -200,6 +201,15 @@ for (const [pattern, label] of [
   [/async function handleOrchestrationConfirm\b/, "hosted orchestration confirm handler"],
   [/function buildOrchestrationIntent\b/, "hosted orchestration intent builder"],
   [/async function applyOrchestrationAction\b/, "hosted orchestration action helper"],
+  [/function normalizeAllowedOrigins\b/, "hosted URL allowed-origin list normalizer"],
+  [/function normalizeAllowedOrigin\b/, "hosted URL allowed-origin normalizer"],
+  [/function trustedPublicAPIURL\b/, "hosted public API URL resolver"],
+  [/function trustedPublicOrigin\b/, "hosted public origin resolver"],
+  [/function normalizeConfiguredPublicOrigin\b/, "hosted public origin normalizer"],
+  [/function normalizeConfiguredPublicAPIBase\b/, "hosted public API base normalizer"],
+  [/function allowLocalHostedURLs\b/, "hosted local URL policy helper"],
+  [/function looksLikeBareHostedAPIHost\b/, "hosted bare API host classifier"],
+  [/function isPrivateHostedHostname\b/, "hosted private host classifier"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
