@@ -23,12 +23,14 @@ if (rows.length !== 100) {
 }
 
 const seen = new Set();
+const rowsById = new Map();
 for (let index = 0; index < rows.length; index += 1) {
   const [id, status, goal, exitCriterion, evidence] = rows[index];
   const expectedID = `G${String(index + 1).padStart(3, "0")}`;
   if (id !== expectedID) fail(`expected ${expectedID}, found ${id || "<empty>"}`);
   if (seen.has(id)) fail(`duplicate goal id ${id}`);
   seen.add(id);
+  rowsById.set(id, { status, goal, exitCriterion, evidence });
   if (!allowedStatuses.has(status)) fail(`${id} has invalid status ${status || "<empty>"}`);
   if (!goal) fail(`${id} has empty goal`);
   if (!exitCriterion) fail(`${id} has empty exit criterion`);
@@ -42,6 +44,33 @@ const counts = rows.reduce((acc, [, status]) => {
   acc[status] = (acc[status] || 0) + 1;
   return acc;
 }, {});
+
+if ((counts.Complete || 0) !== 98) {
+  fail(`expected 98 complete goals, found ${counts.Complete || 0}`);
+}
+if ((counts.Blocked || 0) !== 2) {
+  fail(`expected exactly 2 externally blocked goals, found ${counts.Blocked || 0}`);
+}
+if ((counts["In progress"] || 0) !== 0 || (counts["Not started"] || 0) !== 0) {
+  fail("closed beta goals must not leave repository-controlled work in progress or not started");
+}
+
+for (let goalNumber = 72; goalNumber <= 98; goalNumber += 1) {
+  const id = `G${String(goalNumber).padStart(3, "0")}`;
+  if (rowsById.get(id)?.status !== "Complete") {
+    fail(`${id} must stay complete in the final closed-beta tranche`);
+  }
+}
+
+for (const id of ["G099", "G100"]) {
+  const row = rowsById.get(id);
+  if (row?.status !== "Blocked") {
+    fail(`${id} must remain blocked until external evidence is recorded`);
+  }
+  if (!/External .* required/i.test(row.evidence)) {
+    fail(`${id} must explain the external evidence required to unblock it`);
+  }
+}
 
 console.log(
   `closed-beta goals check passed: ${rows.length} goals, ` +

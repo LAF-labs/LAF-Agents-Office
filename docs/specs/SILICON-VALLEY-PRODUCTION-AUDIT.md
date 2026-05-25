@@ -359,16 +359,25 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Current Completion Verdict
 
-The goal is not complete. The repository has made real progress toward the
-pure-cloud Startup Office, but current evidence does not yet prove a production
-SaaS that only lacks final secrets. The immediate next engineering move is to
-continue attacking the largest remaining root cause: the oversized hosted API
-and missing typed contracts.
+Repository-controlled closed beta readiness is complete through G098 and is now
+locked by `npm run closed-beta:goals`. G099 and G100 remain blocked only by
+external proof: a production-domain deployment with live Supabase, workers,
+monitoring, and smoke evidence, then one real founder payment or signed beta
+agreement with a first approved loop and receipt.
+
+The broader production audit is still not claimable as fully complete until
+that external handoff evidence is attached. Engineering should use targeted
+checks while closing grouped goals, then run `npm run beta:release-gate` once on
+the final release commit or when a shared invariant changes.
 
 ## Progress Log
 
 - R1 audit lock is now executable through `npm run production:audit`, and the
   beta release gate runs it before surface, worker, API, UI, and build checks.
+- The G072-G100 final closed-beta tranche is now an executable invariant:
+  `npm run closed-beta:goals` requires G072-G098 to stay complete, allows only
+  G099 and G100 to remain blocked, and requires those blockers to point to
+  external deployment/customer proof instead of repository work.
 - R2 has started with a dedicated Startup Office route contract and dispatcher:
   `api/lib/startup-office/routes.js` now owns the contract list, and
   `api/lib/startup-office/dispatcher.test.js` pins route IDs, aliases, params,
