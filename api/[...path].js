@@ -33,11 +33,11 @@ const {
   createHostedInviteHandlers,
 } = require("./lib/hosted/inviteHandlers");
 const {
+  createHostedInviteEmailDelivery,
+} = require("./lib/hosted/inviteEmailDelivery");
+const {
   createHostedIngressRateLimits,
 } = require("./lib/hosted/ingressRateLimits");
-const {
-  createResendEmailProvider,
-} = require("../workers/startup-office/outboxWorker");
 const {
   createHostedMemberHandlers,
 } = require("./lib/hosted/memberHandlers");
@@ -299,6 +299,13 @@ const {
   writeAuditEvent,
   writeTeamAuditEvent,
 } = HOSTED_AUDIT_WRITER;
+const HOSTED_INVITE_EMAIL_DELIVERY = createHostedInviteEmailDelivery({
+  createHTTPError: startupOfficeHTTPError,
+  env: process.env,
+});
+const {
+  sendInviteEmail,
+} = HOSTED_INVITE_EMAIL_DELIVERY;
 const HOSTED_REQUEST_IO = createHostedRequestIO({
   createHTTPError: startupOfficeHTTPError,
   maxRequestBodyBytes: MAX_REQUEST_BODY_BYTES,
@@ -1044,27 +1051,6 @@ module.exports = async function handler(req, res) {
 
 function requestIDFor(req) {
   return String(req.headers?.["x-request-id"] || req.headers?.["x-vercel-id"] || "").trim();
-}
-
-async function sendInviteEmail(email) {
-  const provider = inviteEmailProviderFromEnv();
-  if (!provider) return null;
-  return provider.sendEmail(email);
-}
-
-function inviteEmailProviderFromEnv() {
-  const provider = String(process.env.LAF_OUTBOX_EMAIL_PROVIDER || "in_app")
-    .trim()
-    .toLowerCase();
-  if (!provider || provider === "in_app" || provider === "none") return null;
-  if (provider === "resend") {
-    return createResendEmailProvider({
-      apiKey: process.env.RESEND_API_KEY || "",
-      from: process.env.LAF_EMAIL_FROM || "",
-      replyTo: process.env.LAF_EMAIL_REPLY_TO || "",
-    });
-  }
-  throw new HTTPError(503, `unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
 }
 
 async function handleAuthSession(req, res) {

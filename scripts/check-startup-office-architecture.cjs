@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1725);
+assertMaxLines("api/[...path].js", 1710);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -45,6 +45,7 @@ assertMaxLines("api/lib/hosted/conversationHandlers.js", 360);
 assertMaxLines("api/lib/hosted/errorEnvelope.js", 80);
 assertMaxLines("api/lib/hosted/healthHandlers.js", 140);
 assertMaxLines("api/lib/hosted/ingressRateLimits.js", 85);
+assertMaxLines("api/lib/hosted/inviteEmailDelivery.js", 60);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/invitePresentation.js", 100);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
@@ -272,6 +273,8 @@ for (const [pattern, label] of [
   [/async function getTeam\b/, "hosted team resolver"],
   [/async function writeAuditEvent\b/, "hosted audit event writer"],
   [/async function writeTeamAuditEvent\b/, "hosted team audit event writer"],
+  [/async function sendInviteEmail\b/, "hosted invite email sender"],
+  [/function inviteEmailProviderFromEnv\b/, "hosted invite email provider resolver"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
