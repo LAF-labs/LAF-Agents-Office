@@ -17,6 +17,13 @@ function fail(message) {
 }
 
 const doc = fs.readFileSync(auditPath, "utf8");
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(root, "package.json"), "utf8"),
+);
+const releaseGate = fs.readFileSync(
+  path.join(root, "scripts", "startup-office-beta-release-gate.cjs"),
+  "utf8",
+);
 
 function parseRows(prefix) {
   return doc
@@ -65,6 +72,29 @@ for (const required of [
   "## Current Completion Verdict",
 ]) {
   if (!doc.includes(required)) fail(`missing section ${required}`);
+}
+
+for (const [scriptName, command] of [
+  ["beta:release-gate", "node scripts/startup-office-beta-release-gate.cjs"],
+  ["production:audit", "node scripts/check-sv-production-audit.cjs"],
+  ["closed-beta:goals", "node scripts/check-closed-beta-goals.cjs"],
+]) {
+  if (packageJson.scripts?.[scriptName] !== command) {
+    fail(`package.json must expose ${scriptName}`);
+  }
+}
+
+for (const releaseGateScript of ["production:audit", "closed-beta:goals"]) {
+  if (!releaseGate.includes(`"${releaseGateScript}"`)) {
+    fail(`beta release gate must include ${releaseGateScript}`);
+  }
+}
+
+for (const staleClaim of [
+  "The release gate does not include the new production audit.",
+  "There is no single command proving all cloud SaaS invariants.",
+]) {
+  if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
 
 console.log(

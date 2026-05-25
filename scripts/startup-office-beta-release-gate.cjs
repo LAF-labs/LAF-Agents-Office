@@ -5,6 +5,7 @@ const { spawnSync } = require("node:child_process");
 const checks = [
   ["git", ["diff", "--check"]],
   ["npm", ["run", "production:audit"]],
+  ["npm", ["run", "closed-beta:goals"]],
   ["npm", ["run", "startup-office:activation-analytics"]],
   ["npm", ["run", "startup-office:api-contracts"]],
   ["npm", ["run", "startup-office:architecture"]],

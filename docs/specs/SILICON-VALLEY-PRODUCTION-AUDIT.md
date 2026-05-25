@@ -30,8 +30,9 @@ startup, what fundamental problems would we refuse to carry forward?
   `scripts/check-startup-office-audit-coverage.cjs`; the release gate fails if a
   new `POST`, `PATCH`, or `DELETE` route is added without an audit event.
 - The current release gate is deterministic, fake-provider friendly, and now
-  includes audit coverage, secret scan, and dependency audit, but it does not
-  prove live model, live Supabase, email, billing, DNS, or browser E2E.
+  includes production audit, closed-beta goal locking, audit coverage, secret
+  scan, and dependency audit, but it does not prove live model, live Supabase,
+  email, billing, DNS, or browser E2E.
 - Legacy Go, CLI, npm-wrapper, native-release, and device-runtime scripts have
   been removed from the tracked hosted SaaS tree and are now guarded by the
   release gate.
@@ -172,7 +173,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I128 | Testing | Visual regression tests are missing. | UI |
 | SV-I129 | Testing | Load and concurrency tests for loop runs are missing. | worker |
 | SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
-| SV-I131 | Release | The release gate does not include the new production audit. | scripts |
+| SV-I131 | Release | The release gate now includes the production audit and closed-beta goal lock before Startup Office checks, but live deploy proof remains external. | `beta:release-gate`, `production:audit`, `closed-beta:goals` |
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
 | SV-I133 | Release | Environment preflight now validates hosted config, outbox email, and AI provider shape, but not live external reachability. | hosted-env preflight |
 | SV-I134 | Release | The outbox and AI loop workers are independently scheduled, but production deploy evidence and live smoke are still missing. | workers directory |
@@ -226,7 +227,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I182 | Developer experience | Tests and docs sometimes contradict current completed state. | 100 goals vs scorecard |
 | SV-I183 | Developer experience | API fixtures, fake providers, and demo seeds are not clearly separated by environment. | tests and demo seed |
 | SV-I184 | Developer experience | Generated assets and manual code are mixed without a full generation check. | avatar scripts |
-| SV-I185 | Developer experience | There is no single command proving all cloud SaaS invariants. | release gate gaps |
+| SV-I185 | Developer experience | `beta:release-gate` is now the single deterministic command for repo-controlled cloud SaaS invariants; live provider reachability, DNS, and customer/payment proof remain deploy-time evidence. | `beta:release-gate` |
 | SV-I186 | Developer experience | Local development is hosted-first but not yet one-command reproducible for web, API, worker, and Supabase. | `DEVELOPMENT.md` |
 | SV-I187 | Developer experience | Code ownership boundaries are not explicit. | docs |
 | SV-I188 | Developer experience | Package naming and repo naming still reflect historical LAF Agents Office identity. | repo paths |
