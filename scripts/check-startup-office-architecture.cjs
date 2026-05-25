@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1700);
+assertMaxLines("api/[...path].js", 1675);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -282,6 +282,11 @@ for (const [pattern, label] of [
   [/function startupOfficeRepository\b/, "startup office repository factory"],
   [/function startupOfficeServices\b/, "startup office services factory"],
   [/function startupOfficeModelClient\b/, "startup office model-client factory"],
+  [/async function workspaceSettings\b/, "workspace config settings facade helper"],
+  [/async function upsertWorkspaceSettings\b/, "workspace config upsert facade helper"],
+  [/function workspaceSettingsPatch\b/, "workspace config patch facade helper"],
+  [/function startupOfficeApprovalPolicy\b/, "workspace config approval-policy facade helper"],
+  [/function hostedConfigSnapshot\b/, "workspace config snapshot facade helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

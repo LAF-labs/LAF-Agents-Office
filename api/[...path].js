@@ -429,6 +429,13 @@ const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
     writeAuditEvent,
     writeJSON,
   });
+const {
+  hostedConfigSnapshot,
+  startupOfficeApprovalPolicy,
+  upsertWorkspaceSettings,
+  workspaceSettings,
+  workspaceSettingsPatch,
+} = STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS;
 
 const HOSTED_AUTH_HANDLERS = createHostedAuthHandlers({
   activeMembership,
@@ -1097,30 +1104,6 @@ async function handleHostedOnboardingState(req, res) {
 
 async function handleHostedOnboardingComplete(req, res) {
   return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingComplete(req, res);
-}
-
-async function workspaceSettings(teamID) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.workspaceSettings(teamID);
-}
-
-async function upsertWorkspaceSettings(teamID, patch) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.upsertWorkspaceSettings(teamID, patch);
-}
-
-function workspaceSettingsPatch(existing, body) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.workspaceSettingsPatch(existing, body);
-}
-
-function startupOfficeApprovalPolicy(settings) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.startupOfficeApprovalPolicy(settings);
-}
-
-function hostedConfigSnapshot({ settings, team, user }) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.hostedConfigSnapshot({
-    settings,
-    team,
-    user,
-  });
 }
 
 const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
