@@ -50,6 +50,20 @@ test("local execution routes are no longer part of the hosted API surface", asyn
   }
 });
 
+test("hosted API rejects oversized request bodies before mutation handlers", async () => {
+  const oversizedText = "x".repeat(512 * 1024 + 1);
+
+  for (const [label, body, headers] of [
+    ["content-length", {}, { "content-length": String(512 * 1024 + 1) }],
+    ["parsed json", { company: oversizedText }, {}],
+    ["raw json", JSON.stringify({ company: oversizedText }), {}],
+  ]) {
+    const response = await invoke("auth/signup", "POST", body, { headers });
+    assert.equal(response.status, 413, label);
+    assert.match(response.body.error, /request body exceeds 524288 bytes/);
+  }
+});
+
 test("pure cloud migration drops obsolete local execution schema", () => {
   const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
   const obsoleteMigrationFiles = fs

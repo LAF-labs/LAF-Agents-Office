@@ -682,6 +682,10 @@ function requestPath(req) {
 }
 
 async function readBody(req) {
+  const contentLength = Number(req.headers?.["content-length"] || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
+    throw new HTTPError(413, "request body exceeds 524288 bytes");
+  }
   if (req.body && typeof req.body === "object") {
     assertJSONByteSize(req.body, MAX_REQUEST_BODY_BYTES, "request body");
     return req.body;

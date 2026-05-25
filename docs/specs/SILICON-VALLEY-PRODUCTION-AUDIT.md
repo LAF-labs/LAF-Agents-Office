@@ -72,7 +72,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I042 | Security | Service-role usage is broad and needs stricter internal boundaries. | hosted API env requirements |
 | SV-I043 | Security | Support access policy is visible but not yet a complete impersonation and break-glass system. | policy API |
 | SV-I044 | Security | Rate limits exist for auth but not uniformly for expensive AI and write actions. | rate limit helpers |
-| SV-I045 | Security | Request body size limits are not enforced as a cross-cutting API policy. | route handlers |
+| SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
 | SV-I047 | Security | Secrets scanning is present but not tied into the Startup Office release gate. | CI scripts |
 | SV-I048 | Security | Permission names are maintained in multiple layers and can drift. | API and web types |
@@ -440,3 +440,6 @@ and missing typed contracts.
   migration history, verifies the manifest's 28 active tables, columns, tenant
   columns, RLS coverage, latest migration, and retired runtime objects, and the
   beta release gate now runs that check.
+- R3 now proves the hosted API request-size boundary. `api/hosted-api.test.js`
+  verifies oversized `Content-Length`, parsed JSON, and raw JSON payloads return
+  413 before mutation handlers run; the beta release gate includes that test.
