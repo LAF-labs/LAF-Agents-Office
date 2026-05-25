@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2140);
+assertMaxLines("api/[...path].js", 2115);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -51,6 +51,7 @@ assertMaxLines("api/lib/hosted/modelAccess.js", 90);
 assertMaxLines("api/lib/hosted/orchestrationHandlers.js", 150);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
+assertMaxLines("api/lib/hosted/redaction.js", 40);
 assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
@@ -210,6 +211,8 @@ for (const [pattern, label] of [
   [/function allowLocalHostedURLs\b/, "hosted local URL policy helper"],
   [/function looksLikeBareHostedAPIHost\b/, "hosted bare API host classifier"],
   [/function isPrivateHostedHostname\b/, "hosted private host classifier"],
+  [/function redactSensitiveText\b/, "hosted redaction text helper"],
+  [/function redactSensitiveValue\b/, "hosted redaction value helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
