@@ -581,3 +581,8 @@ and missing typed contracts.
   pagination/cursor serialization, `api/lib/hosted/auditHandlers.test.js` covers
   the `audit:read` permission and ISO cursor handling, and the architecture gate
   prevents the handler from drifting back into `api/[...path].js`.
+- R2/R8 now extracts hosted model-access policy into
+  `api/lib/hosted/modelAccess.js`. Managed-model availability, billing fallback,
+  `model:use_laf` enforcement, the `model/availability` route, and model-mode
+  normalization are covered by dedicated tests and prevented from moving back
+  into the hosted API facade by the architecture gate.

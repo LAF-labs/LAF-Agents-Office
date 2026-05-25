@@ -15,6 +15,10 @@ const {
   createHostedMemberHandlers,
 } = require("./lib/hosted/memberHandlers");
 const {
+  createHostedModelAccess,
+  normalizeModelMode,
+} = require("./lib/hosted/modelAccess");
+const {
   createHostedSignupHandlers,
 } = require("./lib/hosted/signupHandlers");
 const { createServiceRoleAccessGuards } = require("./lib/hosted/serviceRoleAccess");
@@ -142,6 +146,18 @@ const HOSTED_AUDIT_HANDLERS = createHostedAuditHandlers({
   rest,
   writeJSON,
 });
+
+const HOSTED_MODEL_ACCESS = createHostedModelAccess({
+  createHTTPError: startupOfficeHTTPError,
+  hasPermission,
+  managedModelEnabled: () =>
+    truthy(process.env.LAF_OFFICE_WORKSPACE_PAID) ||
+    truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED),
+  requireUser,
+  rest,
+  writeJSON,
+});
+const resolveAllowedModelMode = HOSTED_MODEL_ACCESS.resolveAllowedModelMode;
 
 const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
   createStartupOfficeWorkspaceConfigHandlers({
@@ -632,7 +648,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "model/availability" && req.method === "GET") {
-      await handleModelAvailability(req, res);
+      await HOSTED_MODEL_ACCESS.availability(req, res);
       return;
     }
     if (path === "orchestration/intent" && req.method === "POST") {
@@ -1039,62 +1055,6 @@ function publicUser(user, membership) {
 function normalizeProfileAvatarID(value) {
   const id = String(value || "").trim().toLowerCase();
   return PROFILE_AVATAR_IDS.has(id) ? id : DEFAULT_PROFILE_AVATAR_ID;
-}
-
-function normalizeModelMode(raw) {
-  const value = String(raw || "").trim();
-  return ["laf_model", "record_only"].includes(value)
-    ? value
-    : "record_only";
-}
-
-async function modelAvailabilityForMembership(membership) {
-  let billingRows = [];
-  try {
-    billingRows = await rest("workspace_billing", {
-      query: { team_id: `eq.${membership.team_id}`, select: "*", limit: "1" },
-    });
-  } catch {
-    billingRows = [];
-  }
-  const billing = billingRows?.[0] || null;
-  const paid = billing
-    ? Boolean(billing.laf_model_enabled)
-    : truthy(process.env.LAF_OFFICE_WORKSPACE_PAID) ||
-      truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED);
-  const lafAllowed = paid && hasPermission(membership, "model:use_laf");
-  const allowedModes = ["record_only"];
-  if (lafAllowed) allowedModes.unshift("laf_model");
-  const defaultMode = lafAllowed ? "laf_model" : "record_only";
-  return {
-    default_mode: defaultMode,
-    allowed_modes: allowedModes,
-    laf_model: {
-      available: lafAllowed,
-      reason: lafAllowed
-        ? ""
-        : paid
-          ? "permission required: model:use_laf"
-          : "workspace is not on a paid managed-model plan",
-    },
-    record_only: {
-      available: true,
-      reason: "records chat without agent execution",
-    },
-    reason: billing
-      ? "workspace billing loaded from DB"
-      : "workspace billing uses environment fallback",
-  };
-}
-
-async function resolveAllowedModelMode(membership, rawMode) {
-  const mode = normalizeModelMode(rawMode);
-  if (mode === "record_only") return mode;
-  const availability = await modelAvailabilityForMembership(membership);
-  if (!availability.allowed_modes.includes(mode)) {
-    throw new HTTPError(403, availability[mode]?.reason || `model mode unavailable: ${mode}`);
-  }
-  return mode;
 }
 
 async function writeAuditEvent(membership, action, targetType, targetID, metadata = {}, options = {}) {
@@ -2051,11 +2011,6 @@ function taskStatusPayload(action, body) {
     if (body[key] !== undefined) payload[key] = body[key];
   }
   return payload;
-}
-
-async function handleModelAvailability(req, res) {
-  const { membership } = await requireUser(req);
-  writeJSON(res, 200, await modelAvailabilityForMembership(membership));
 }
 
 async function handleOrchestrationIntent(req, res) {

@@ -38,6 +38,7 @@ assertMaxLines("api/lib/hosted/authHandlers.js", 140);
 assertMaxLines("api/lib/hosted/conversationHandlers.js", 290);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);
+assertMaxLines("api/lib/hosted/modelAccess.js", 90);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
@@ -92,6 +93,10 @@ for (const [pattern, label] of [
   [/profile\.updated/, "auth profile update audit action"],
   [/async function handleAuditEvents\b/, "hosted audit events handler"],
   [/profile\.password_changed/, "auth password update audit action"],
+  [/function normalizeModelMode\b/, "hosted model mode normalizer"],
+  [/async function modelAvailabilityForMembership\b/, "hosted model availability policy"],
+  [/async function resolveAllowedModelMode\b/, "hosted model mode resolver"],
+  [/async function handleModelAvailability\b/, "hosted model availability handler"],
   [/current password is incorrect/, "auth password verification detail"],
   [/const WORKSPACE_ROLES\b/, "workspace role constants"],
   [/const WORKSPACE_PERMISSIONS\b/, "workspace permission constants"],
