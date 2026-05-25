@@ -1,6 +1,6 @@
 # Development
 
-LAF Agents Office is now a hosted Startup Office SaaS. The development surface is:
+Startup Office is now a hosted Startup Office SaaS. The development surface is:
 
 - `web/` for the React app.
 - `api/` for the Vercel-compatible hosted API facade.

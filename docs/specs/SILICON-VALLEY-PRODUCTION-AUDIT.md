@@ -48,6 +48,9 @@ startup, what fundamental problems would we refuse to carry forward?
   `shared/startup-office-dev-workflow.json`; `startup-office:dev-workflow`
   verifies setup, local service, repo-check, and live-check commands against
   package scripts and `DEVELOPMENT.md`.
+- Startup Office product identity now has a tracked manifest at
+  `shared/startup-office-product-identity.json`; `startup-office:product-identity`
+  verifies root/web package names, lockfiles, top-level docs, and CODEOWNERS.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes production audit, closed-beta goal locking, audit coverage, secret
   scan, and dependency audit, but it does not prove live model, live Supabase,
@@ -249,7 +252,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I185 | Developer experience | `beta:release-gate` is now the single deterministic command for repo-controlled cloud SaaS invariants; live provider reachability, DNS, and customer/payment proof remain deploy-time evidence. | `beta:release-gate` |
 | SV-I186 | Developer experience | Local development is now manifest-driven for setup, hosted API, web app, loop worker, outbox worker, repo checks, and live checks; true one-command multi-process orchestration remains future hardening. | `startup-office:dev-workflow`, `shared/startup-office-dev-workflow.json`, `DEVELOPMENT.md` |
 | SV-I187 | Developer experience | Code ownership boundaries are now explicit for Startup Office API, worker, web, schema, migration, operations-doc, and release-script paths, with a release-gate check preventing drift. | `startup-office:code-ownership`, `.github/CODEOWNERS` |
-| SV-I188 | Developer experience | Package naming and repo naming still reflect historical LAF Agents Office identity. | repo paths |
+| SV-I188 | Developer experience | Package names, lockfiles, top-level docs, and CODEOWNERS now use Startup Office identity; the historical GitHub repository slug remains external migration work. | `startup-office:product-identity`, `shared/startup-office-product-identity.json` |
 | SV-I189 | Developer experience | Static analysis now syntax-checks hosted API, Startup Office API, worker, and release scripts while CI pins web lint warning budget, typecheck, and build; stricter warning cleanup and deeper typed API generation remain future hardening. | `startup-office:static-analysis`, `startup-office:web-lint-budget`, CI |
 | SV-I190 | Developer experience | New contributors can now inspect a tracked Startup Office surface manifest that separates primary product apps, hidden utilities, preload surfaces, and retired project/task apps, with release-gate drift checks. | `startup-office:surface`, `shared/startup-office-surfaces.json` |
 | SV-I191 | Customer success | No real founder success checklist is implemented in-product. | beta goals |
@@ -476,6 +479,10 @@ the final release commit or when a shared invariant changes.
   `shared/startup-office-dev-workflow.json` against setup, local service,
   repo-check, live-check, package-script, and `DEVELOPMENT.md` documentation
   evidence.
+- R2/R7 now adds a product identity manifest:
+  `npm run startup-office:product-identity` checks root and web package names,
+  lockfiles, top-level docs, CODEOWNERS, and release-gate wiring against
+  `shared/startup-office-product-identity.json`.
 - R4 now includes a versioned tool permission manifest:
   `npm run startup-office:tool-policy` checks that every loop declares allowed
   tools, blocked external-execution tools, and never-auto-execute policy for

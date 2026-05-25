@@ -1,5 +1,5 @@
 {
-  "name": "laf-office-dev-tooling",
+  "name": "startup-office-dev-tooling",
   "private": true,
   "description": "Root-level dev tooling for the hosted Startup Office SaaS; web UI lives in ./web with its own package.json.",
   "scripts": {
@@ -36,6 +36,7 @@
     "startup-office:pagination": "node scripts/check-startup-office-pagination.cjs",
     "startup-office:plan-limits": "node scripts/check-startup-office-plan-limits.cjs",
     "startup-office:production-handoff": "node scripts/check-startup-office-production-handoff.cjs",
+    "startup-office:product-identity": "node scripts/check-startup-office-product-identity.cjs",
     "startup-office:provenance-replay": "node scripts/check-startup-office-provenance-replay.cjs",
     "startup-office:prompt-versions": "node scripts/check-startup-office-prompt-versions.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",

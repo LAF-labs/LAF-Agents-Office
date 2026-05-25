@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "laf-office-web",
+      "name": "startup-office-web",
       "dependencies": {
         "@tanstack/react-query": "^5.80.7",
         "iconoir-react": "^7.11.0",

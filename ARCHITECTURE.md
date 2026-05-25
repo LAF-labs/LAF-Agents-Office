@@ -1,6 +1,6 @@
-# LAF Agents Office Architecture
+# Startup Office Architecture
 
-LAF Agents Office is a pure cloud AI Startup Office. One account belongs to one company workspace, and every workspace can invite teammates, configure company memory, run operating loops, and coordinate AI agents from the hosted web app.
+Startup Office is a pure cloud AI operating system. One account belongs to one company workspace, and every workspace can invite teammates, configure company memory, run operating loops, and coordinate AI agents from the hosted web app.
 
 ## System Boundary
 

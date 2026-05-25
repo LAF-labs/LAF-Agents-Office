@@ -36,6 +36,7 @@ const checks = [
   ["npm", ["run", "startup-office:pagination"]],
   ["npm", ["run", "startup-office:plan-limits"]],
   ["npm", ["run", "startup-office:production-handoff"]],
+  ["npm", ["run", "startup-office:product-identity"]],
   ["npm", ["run", "startup-office:provenance-replay"]],
   ["npm", ["run", "startup-office:prompt-versions"]],
   ["npm", ["run", "startup-office:pure-cloud-boundary"]],

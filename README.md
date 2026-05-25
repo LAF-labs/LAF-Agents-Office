@@ -1,6 +1,6 @@
-# LAF Agents Office
+# Startup Office
 
-LAF Agents Office is a cloud AI Startup Office for founders and small teams. It gives one company workspace a CEO-style AI operating layer: company context, AI agents, skills, wiki memory, growth loops, requests, artifacts, decisions, and team collaboration.
+Startup Office is a cloud AI operating system for founders and small teams. It gives one company workspace a CEO-style AI operating layer: company context, AI agents, skills, wiki memory, growth loops, requests, artifacts, decisions, and team collaboration.
 
 ## Product Direction
 

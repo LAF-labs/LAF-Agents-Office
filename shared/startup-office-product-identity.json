@@ -1,0 +1,7 @@
+{
+  "version": "startup-office-product-identity.v1",
+  "productName": "Startup Office",
+  "rootPackageName": "startup-office-dev-tooling",
+  "webPackageName": "startup-office-web",
+  "historicalRepoSlug": "LAF-Agents-Office"
+}

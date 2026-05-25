@@ -1,6 +1,7 @@
 {
-  "name": "laf-office-web",
+  "name": "startup-office-web",
   "private": true,
+  "description": "Hosted Startup Office web app for founders and operators.",
   "version": "0.0.6.0",
   "type": "module",
   "scripts": {
