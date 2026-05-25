@@ -1,4 +1,10 @@
 const { startupOfficeMemoryFreshness } = require("./memoryFreshness");
+const {
+  startupOfficeAssetStatus,
+  startupOfficeCustomerStatus,
+  startupOfficeSignalStatus,
+  startupOfficeSignalType,
+} = require("./objectInvariants");
 const { startupOfficeReceiptIntegrity } = require("./receiptIntegrity");
 
 function objectValue(value) {
@@ -144,7 +150,7 @@ function publicStartupOfficeAsset(row) {
     name: row.name || "",
     run_id: row.run_id || null,
     size_bytes: Number(row.size_bytes || 0),
-    status: row.status || "active",
+    status: startupOfficeAssetStatus(row.status),
     storage_path: row.storage_path || "",
     updated_at: row.updated_at || null,
     upload_status: row.upload_status || "inline",
@@ -160,7 +166,7 @@ function publicStartupOfficeCustomer(row) {
     name: row.name || "",
     notes: row.notes || "",
     profile: objectValue(row.profile),
-    status: row.status || "lead",
+    status: startupOfficeCustomerStatus(row.status),
     updated_at: row.updated_at || null,
   };
 }
@@ -189,9 +195,9 @@ function publicStartupOfficeSignal(row) {
     loop_id: row.loop_id || null,
     metadata: objectValue(row.metadata),
     run_id: row.run_id || null,
-    signal_type: row.signal_type || "market",
+    signal_type: startupOfficeSignalType(row.signal_type),
     source: row.source || "",
-    status: row.status || "new",
+    status: startupOfficeSignalStatus(row.status),
     title: row.title || "",
     updated_at: row.updated_at || null,
   };

@@ -400,7 +400,11 @@ test("Startup Office signals support typed capture and reuse links", () => {
   assert.match(querySource, /loop_id: "loop_id"/);
 
   const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
-  assert.match(source, /function startupOfficeSignalType/);
+  const invariantSource = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectInvariants.js"),
+    "utf8",
+  );
+  assert.match(invariantSource, /function startupOfficeSignalType/);
   assert.match(source, /loop_id: body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
   assert.match(source, /run_id: body\.run_id \|\| null/);
   assert.match(source, /signal_type: startupOfficeSignalType\(body\.signal_type \|\| body\.type\)/);

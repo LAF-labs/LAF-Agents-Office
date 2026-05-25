@@ -7,6 +7,7 @@ const {
   startupOfficePageRequest,
   startupOfficePageResult,
 } = require("./pagination");
+const { startupOfficeSignalType } = require("./objectInvariants");
 const { startupOfficeObjectListOptions } = require("./objectQueries");
 
 function createStartupOfficeObjectHandlers(deps) {
@@ -189,13 +190,6 @@ function assertObjectPayloadLimits({ body, createHTTPError, kind }) {
       value: body.metadata,
     });
   }
-}
-
-function startupOfficeSignalType(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["market", "customer", "competitor", "internal"].includes(raw)
-    ? raw
-    : "market";
 }
 
 module.exports = {

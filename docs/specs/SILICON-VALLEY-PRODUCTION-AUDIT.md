@@ -58,7 +58,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I017 | Architecture | Startup Office modules are new but not yet enforced as the only path for company operations. | legacy apps still present |
 | SV-I018 | Architecture | The outbox now has atomic claim, delivery worker, and Resend adapter, but live provider smoke and reconciliation remain. | notification and receipt writes |
 | SV-I019 | Architecture | Loop runs now have queued worker jobs, leases, retries, and dead letters, but the public API contract still needs stronger async state documentation. | loop run and worker job APIs |
-| SV-I020 | Architecture | Multi-tenant business objects do not have a shared domain invariant layer. | assets, customers, metrics, signals |
+| SV-I020 | Architecture | Assets, customers, metrics, and signals now share a first-party object invariant module for status/type normalization; richer lifecycle history remains future hardening. | `startup-office:object-invariants` |
 | SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
 | SV-I023 | API | Hosted API errors now return a typed envelope with code, message, retryable, status, and optional request ID, while the web client unwraps legacy and typed shapes. | `startup-office:error-envelope` |
@@ -723,6 +723,10 @@ the final release commit or when a shared invariant changes.
   upstream details still collapse to generic messages, the web client unwraps
   both typed and legacy shapes, and `npm run startup-office:error-envelope`
   pins the contract.
+- R2/R8 now adds shared operating-object invariants. Asset/customer/signal
+  status and signal-type normalization live in `objectInvariants.js`, hosted
+  writes, artifact-derived signals, and serializers use the same rules, and
+  `npm run startup-office:object-invariants` guards against drift.
 - R5/R8 now adds customer CSV interoperability. Founders can export customers
   as `name,status,loop_id,notes,profile_json` CSV and import CSV rows back into
   Startup Office customers through `POST /startup-office/customers/csv`; the

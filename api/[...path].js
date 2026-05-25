@@ -109,6 +109,12 @@ const {
 const {
   applyStartupOfficeObjectListQuery,
 } = require("./lib/startup-office/objectQueries");
+const {
+  startupOfficeAssetStatus,
+  startupOfficeCustomerStatus,
+  startupOfficeSignalStatus,
+  startupOfficeSignalType,
+} = require("./lib/startup-office/objectInvariants");
 const { authorizeStartupOfficeAccess } = require("./lib/startup-office/authorization");
 const {
   dispatchStartupOfficeRoute,
@@ -1672,30 +1678,6 @@ function startupOfficeObjectPatch(kind, body) {
     return patch;
   }
   throw new HTTPError(400, "unsupported startup office object");
-}
-
-function startupOfficeCustomerStatus(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["lead", "interviewing", "qualified", "customer", "lost", "archived"].includes(raw)
-    ? raw
-    : "lead";
-}
-
-function startupOfficeAssetStatus(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["active", "archived"].includes(raw) ? raw : "active";
-}
-
-function startupOfficeSignalStatus(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["new", "triaged", "used", "archived"].includes(raw) ? raw : "new";
-}
-
-function startupOfficeSignalType(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["market", "customer", "competitor", "internal"].includes(raw)
-    ? raw
-    : "market";
 }
 
 function numericOrNull(value) {
