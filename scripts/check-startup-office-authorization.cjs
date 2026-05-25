@@ -1,15 +1,22 @@
 #!/usr/bin/env node
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const permissionCatalog = require("../shared/workspace-permissions.json");
 const {
   STARTUP_OFFICE_ROUTE_CONTRACTS,
 } = require("../api/lib/startup-office/routes");
 const {
   STARTUP_OFFICE_ROUTE_ACCESS,
+  authorizeStartupOfficeAccess,
   routeAccessForMethod,
 } = require("../api/lib/startup-office/authorization");
 
+const hostedFacadeSource = fs.readFileSync(
+  path.join(__dirname, "..", "api", "[...path].js"),
+  "utf8",
+);
 const permissions = new Set(permissionCatalog.permissions);
 const expectedAccess = {
   approvalAction: { POST: { permission: "memory:promote", type: "permission" } },
@@ -59,6 +66,19 @@ function fail(message) {
 
 const contractIDs = STARTUP_OFFICE_ROUTE_CONTRACTS.map((contract) => contract.id);
 assert.deepEqual(contractIDs.sort(), Object.keys(expectedAccess).sort());
+if (typeof authorizeStartupOfficeAccess !== "function") {
+  fail("startup office authorization executor is missing");
+}
+if (
+  !hostedFacadeSource.includes("authorizeStartupOfficeAccess") ||
+  !hostedFacadeSource.includes("dispatchStartupOfficeRoute({") ||
+  !hostedFacadeSource.includes("authorize: (access, request)")
+) {
+  fail("hosted facade must enforce Startup Office route authorization centrally");
+}
+if (!hostedFacadeSource.includes("req.__lafOfficeUserContext")) {
+  fail("hosted facade must cache requireUser context for central route authorization");
+}
 
 for (const contract of STARTUP_OFFICE_ROUTE_CONTRACTS) {
   const expected = expectedAccess[contract.id];

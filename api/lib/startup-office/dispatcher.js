@@ -3,9 +3,13 @@ const {
 } = require("./routes");
 const { routeAccessForMethod } = require("./authorization");
 
-async function dispatchStartupOfficeRoute({ handlers, path, req, res }) {
+async function dispatchStartupOfficeRoute({ authorize, handlers, path, req, res }) {
   const route = matchStartupOfficeRoute(path, req.method);
   if (!route) return false;
+  if (typeof authorize !== "function") {
+    throw new Error(`startup office authorizer missing: ${route.id}`);
+  }
+  await authorize(route.access, req, route);
   const handler = handlers[route.id];
   if (typeof handler !== "function") {
     throw new Error(`startup office handler missing: ${route.id}`);

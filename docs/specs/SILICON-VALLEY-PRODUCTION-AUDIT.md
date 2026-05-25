@@ -554,7 +554,8 @@ and missing typed contracts.
   old phantom viewer receipt permission was removed from effective permissions.
 - R3/R8 now adds a declarative Startup Office authorization registry.
   `api/lib/startup-office/authorization.js` maps each route method to a known
-  workspace permission or an explicit owner/admin policy, the route matcher
-  returns the declared access contract, and `npm run startup-office:authorization`
-  fails if any route method is missing, uses an unknown permission, or mutates
-  state with read-only access.
+  workspace permission or an explicit owner/admin policy. The dispatcher now
+  executes that declared access contract before Startup Office handlers run,
+  `requireUser` caches the request auth context to avoid duplicate auth lookups,
+  and `npm run startup-office:authorization` fails if any route method is
+  missing, uses an unknown permission, or mutates state with read-only access.

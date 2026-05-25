@@ -109,6 +109,8 @@ test("Startup Office route matcher rejects wrong methods and unknown paths", () 
 test("Startup Office dispatcher calls only the matched domain handler", async () => {
   const calls = [];
   const handled = await dispatchStartupOfficeRoute({
+    authorize: async (access, _req, route) =>
+      calls.push(["authorize", route.id, access.permission || access.type]),
     handlers: {
       loopRun: async (_req, _res, loopID) => calls.push(["loopRun", loopID]),
     },
@@ -117,7 +119,25 @@ test("Startup Office dispatcher calls only the matched domain handler", async ()
     res: {},
   });
   assert.equal(handled, true);
-  assert.deepEqual(calls, [["loopRun", "customer-discovery"]]);
+  assert.deepEqual(calls, [
+    ["authorize", "loopRun", "memory:write_draft"],
+    ["loopRun", "customer-discovery"],
+  ]);
+});
+
+test("Startup Office dispatcher requires authorization before handlers", async () => {
+  await assert.rejects(
+    () =>
+      dispatchStartupOfficeRoute({
+        handlers: {
+          loopRun: async () => {},
+        },
+        path: "startup-office/loops/customer-discovery/run",
+        req: { method: "POST" },
+        res: {},
+      }),
+    /startup office authorizer missing: loopRun/,
+  );
 });
 
 test("Startup Office dispatcher leaves non-domain routes to the hosted facade", async () => {

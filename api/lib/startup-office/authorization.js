@@ -66,8 +66,29 @@ function routeAccessForMethod(contract, method) {
   return STARTUP_OFFICE_ROUTE_ACCESS[contract.id]?.[String(method || "").toUpperCase()] || null;
 }
 
+async function authorizeStartupOfficeAccess({
+  access,
+  req,
+  requireAdminRole,
+  requirePermission,
+  requireUser,
+}) {
+  if (!access) throw new Error("startup office access contract is missing");
+  const { membership } = await requireUser(req);
+  if (access.type === "permission") {
+    requirePermission(membership, access.permission);
+    return { membership };
+  }
+  if (access.type === "admin") {
+    requireAdminRole(membership, access.reason);
+    return { membership };
+  }
+  throw new Error(`unsupported startup office access type: ${access.type}`);
+}
+
 module.exports = {
   STARTUP_OFFICE_ACCESS,
   STARTUP_OFFICE_ROUTE_ACCESS,
+  authorizeStartupOfficeAccess,
   routeAccessForMethod,
 };

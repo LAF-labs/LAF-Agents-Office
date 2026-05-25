@@ -36,6 +36,7 @@ const {
 const {
   createStartupOfficeRepository,
 } = require("./lib/startup-office/repositories");
+const { authorizeStartupOfficeAccess } = require("./lib/startup-office/authorization");
 const {
   dispatchStartupOfficeRoute,
 } = require("./lib/startup-office/dispatcher");
@@ -505,6 +506,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (await dispatchStartupOfficeRoute({
+      authorize: (access, request) => authorizeStartupOfficeAccess({ access, req: request, requireAdminRole, requirePermission, requireUser }),
       handlers: STARTUP_OFFICE_ROUTE_HANDLERS,
       path,
       req,
@@ -976,15 +978,14 @@ function clearAuthCookies(req, res) {
 }
 
 async function requireUser(req) {
+  if (req.__lafOfficeUserContext) return req.__lafOfficeUserContext;
   const token = authToken(req);
   if (!token) throw new HTTPError(401, "authentication required");
-  const user = await authFetch("user", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const user = await authFetch("user", { headers: { Authorization: `Bearer ${token}` } });
   const membership = await activeMembership(user.id);
   if (!membership) throw new HTTPError(403, "active team membership required");
   const team = await getTeam(membership.team_id);
-  return { membership, team, token, user };
+  return (req.__lafOfficeUserContext = { membership, team, token, user });
 }
 
 async function activeMembership(userID) {
