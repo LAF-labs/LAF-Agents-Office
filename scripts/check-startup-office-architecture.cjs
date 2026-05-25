@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1675);
+assertMaxLines("api/[...path].js", 1605);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -287,6 +287,24 @@ for (const [pattern, label] of [
   [/function workspaceSettingsPatch\b/, "workspace config patch facade helper"],
   [/function startupOfficeApprovalPolicy\b/, "workspace config approval-policy facade helper"],
   [/function hostedConfigSnapshot\b/, "workspace config snapshot facade helper"],
+  [/async function handleAuthSession\b/, "hosted auth session facade wrapper"],
+  [/async function handleHostedConfig\b/, "hosted config facade wrapper"],
+  [/async function handleHostedOnboardingState\b/, "hosted onboarding-state facade wrapper"],
+  [/async function handleHostedOnboardingComplete\b/, "hosted onboarding-complete facade wrapper"],
+  [/async function handleHostedChannels\b/, "hosted channels facade wrapper"],
+  [/async function handleHostedChannelGenerate\b/, "hosted channel-generate facade wrapper"],
+  [/async function handleHostedDMChannel\b/, "hosted dm-channel facade wrapper"],
+  [/async function handleHostedMessages\b/, "hosted messages facade wrapper"],
+  [/async function handleHostedHomeSessions\b/, "hosted home-sessions facade wrapper"],
+  [/async function handleAuthUsers\b/, "hosted auth-users facade wrapper"],
+  [/async function handleAuthMe\b/, "hosted auth-me facade wrapper"],
+  [/async function handleAuthMePassword\b/, "hosted auth-password facade wrapper"],
+  [/async function handleAuthLogin\b/, "hosted login facade wrapper"],
+  [/async function handleAuthSignup\b/, "hosted signup facade wrapper"],
+  [/async function handlePermissions\b/, "hosted permissions facade wrapper"],
+  [/async function handleInvites\b/, "hosted invites facade wrapper"],
+  [/async function handleInviteLookup\b/, "hosted invite-lookup facade wrapper"],
+  [/async function handleInviteAccept\b/, "hosted invite-accept facade wrapper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

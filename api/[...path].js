@@ -861,27 +861,27 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "auth/session" && req.method === "GET") {
-      await handleAuthSession(req, res);
+      await HOSTED_AUTH_HANDLERS.session(req, res);
       return;
     }
     if (path === "auth/users") {
-      await handleAuthUsers(req, res);
+      await HOSTED_MEMBER_HANDLERS.authUsers(req, res);
       return;
     }
     if (path === "auth/me" && req.method === "PATCH") {
-      await handleAuthMe(req, res);
+      await HOSTED_AUTH_HANDLERS.me(req, res);
       return;
     }
     if (path === "auth/me/password" && req.method === "PATCH") {
-      await handleAuthMePassword(req, res);
+      await HOSTED_AUTH_HANDLERS.password(req, res);
       return;
     }
     if (path === "auth/login" && req.method === "POST") {
-      await handleAuthLogin(req, res);
+      await HOSTED_AUTH_HANDLERS.login(req, res);
       return;
     }
     if (path === "auth/signup" && req.method === "POST") {
-      await handleAuthSignup(req, res);
+      await HOSTED_SIGNUP_HANDLERS.signup(req, res);
       return;
     }
     if (path === "auth/logout" && req.method === "POST") {
@@ -890,15 +890,15 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "config") {
-      await handleHostedConfig(req, res);
+      await STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.config(req, res);
       return;
     }
     if (path === "onboarding/state" && req.method === "GET") {
-      await handleHostedOnboardingState(req, res);
+      await STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingState(req, res);
       return;
     }
     if (path === "onboarding/complete" && req.method === "POST") {
-      await handleHostedOnboardingComplete(req, res);
+      await STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingComplete(req, res);
       return;
     }
     if (path === "onboarding/prereqs" && req.method === "GET") {
@@ -939,19 +939,19 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "channels") {
-      await handleHostedChannels(req, res);
+      await HOSTED_CONVERSATION_HANDLERS.channels(req, res);
       return;
     }
     if (path === "channels/generate" && req.method === "POST") {
-      await handleHostedChannelGenerate(req, res);
+      await HOSTED_CONVERSATION_HANDLERS.channelGenerate(req, res);
       return;
     }
     if (path === "channels/dm" && req.method === "POST") {
-      await handleHostedDMChannel(req, res);
+      await HOSTED_CONVERSATION_HANDLERS.dmChannel(req, res);
       return;
     }
     if (path === "messages") {
-      await handleHostedMessages(req, res);
+      await HOSTED_CONVERSATION_HANDLERS.messages(req, res);
       return;
     }
     if (path === "messages/react" && req.method === "POST") {
@@ -959,7 +959,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "home-sessions") {
-      await handleHostedHomeSessions(req, res);
+      await HOSTED_CONVERSATION_HANDLERS.homeSessions(req, res);
       return;
     }
     if (path === "commands" && req.method === "GET") {
@@ -1015,19 +1015,19 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "invites/lookup" && req.method === "GET") {
-      await handleInviteLookup(req, res);
+      await HOSTED_INVITE_HANDLERS.inviteLookup(req, res);
       return;
     }
     if (path === "invites/accept" && req.method === "POST") {
-      await handleInviteAccept(req, res);
+      await HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
       return;
     }
     if (path === "invites") {
-      await handleInvites(req, res);
+      await HOSTED_INVITE_HANDLERS.invites(req, res);
       return;
     }
     if (path === "permissions") {
-      await handlePermissions(req, res);
+      await HOSTED_MEMBER_HANDLERS.permissions(req, res);
       return;
     }
     if (path === "audit" && req.method === "GET") {
@@ -1088,22 +1088,6 @@ module.exports = async function handler(req, res) {
 
 function requestIDFor(req) {
   return String(req.headers?.["x-request-id"] || req.headers?.["x-vercel-id"] || "").trim();
-}
-
-async function handleAuthSession(req, res) {
-  return HOSTED_AUTH_HANDLERS.session(req, res);
-}
-
-async function handleHostedConfig(req, res) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.config(req, res);
-}
-
-async function handleHostedOnboardingState(req, res) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingState(req, res);
-}
-
-async function handleHostedOnboardingComplete(req, res) {
-  return STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingComplete(req, res);
 }
 
 const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
@@ -1608,62 +1592,6 @@ function isMissingStartupOfficeTableError(err, table) {
 
 function objectValue(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-}
-
-async function handleHostedChannels(req, res) {
-  return HOSTED_CONVERSATION_HANDLERS.channels(req, res);
-}
-
-async function handleHostedChannelGenerate(req, res) {
-  return HOSTED_CONVERSATION_HANDLERS.channelGenerate(req, res);
-}
-
-async function handleHostedDMChannel(req, res) {
-  return HOSTED_CONVERSATION_HANDLERS.dmChannel(req, res);
-}
-
-async function handleHostedMessages(req, res) {
-  return HOSTED_CONVERSATION_HANDLERS.messages(req, res);
-}
-
-async function handleHostedHomeSessions(req, res) {
-  return HOSTED_CONVERSATION_HANDLERS.homeSessions(req, res);
-}
-
-async function handleAuthUsers(req, res) {
-  return HOSTED_MEMBER_HANDLERS.authUsers(req, res);
-}
-
-async function handleAuthMe(req, res) {
-  return HOSTED_AUTH_HANDLERS.me(req, res);
-}
-
-async function handleAuthMePassword(req, res) {
-  return HOSTED_AUTH_HANDLERS.password(req, res);
-}
-
-async function handleAuthLogin(req, res) {
-  return HOSTED_AUTH_HANDLERS.login(req, res);
-}
-
-async function handleAuthSignup(req, res) {
-  return HOSTED_SIGNUP_HANDLERS.signup(req, res);
-}
-
-async function handlePermissions(req, res) {
-  return HOSTED_MEMBER_HANDLERS.permissions(req, res);
-}
-
-async function handleInvites(req, res) {
-  return HOSTED_INVITE_HANDLERS.invites(req, res);
-}
-
-async function handleInviteLookup(req, res) {
-  return HOSTED_INVITE_HANDLERS.inviteLookup(req, res);
-}
-
-async function handleInviteAccept(req, res) {
-  return HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
 }
 
 module.exports.__test = {
