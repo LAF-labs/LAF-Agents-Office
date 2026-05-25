@@ -4,6 +4,7 @@ const test = require("node:test");
 
 const {
   createHostedInviteHandlers,
+  inviteEmail,
 } = require("./inviteHandlers");
 const { normalizeRole } = require("./permissions");
 
@@ -133,10 +134,88 @@ test("invite creation stores only a token hash and returns a one-time URL", asyn
   assert.equal(inserted.role, "member");
   assert.match(inserted.token_hash, /^[a-f0-9]{64}$/);
   assert.equal(res.body.invite.token, undefined);
+  assert.match(res.body.invite.mailto_url, /^mailto:new\.member%40example\.com/);
   assert.match(res.body.one_time_invite_url, /^https:\/\/office\.example\.com\/invite\/laf_invite_/);
   const token = decodeURIComponent(res.body.one_time_invite_url.split("/invite/")[1]);
   assert.equal(inserted.token_hash, hashToken(token));
   assert.equal(deps.calls.audits[0][1], "invite.created");
+});
+
+test("invite creation sends transactional email when provider is configured", async () => {
+  const emails = [];
+  const deps = baseDeps({
+    async readBody() {
+      return {
+        email: "member@example.com",
+        name: "Member",
+      };
+    },
+    async rest(table, options) {
+      deps.calls.rest.push({ options, table });
+      if (options.method === "PATCH") return [{ id: "invite-1", ...options.body }];
+      return [
+        {
+          ...options.body,
+          created_at: "2026-05-25T12:00:00.000Z",
+          id: "invite-1",
+        },
+      ];
+    },
+    async sendInviteEmail(email) {
+      emails.push(email);
+      return { message_id: "email-1", provider: "fake-email" };
+    },
+  });
+  const handlers = createHostedInviteHandlers(deps);
+
+  const res = {};
+  await handlers.invites({ method: "POST" }, res);
+
+  assert.equal(res.body.email_sent, true);
+  assert.deepEqual(res.body.email_delivery, { message_id: "email-1", provider: "fake-email" });
+  assert.equal(emails[0].to, "member@example.com");
+  assert.match(emails[0].text, /https:\/\/office\.example\.com\/invite\/laf_invite_/);
+  const patch = deps.calls.rest.find((call) => call.options.method === "PATCH");
+  assert.deepEqual(patch.options.body, {
+    send_error: "",
+    send_status: "sent",
+    sent_at: "2026-05-25T12:00:00.000Z",
+  });
+});
+
+test("invite creation records email failure without losing the one-time link", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { email: "member@example.com" };
+    },
+    async rest(table, options) {
+      deps.calls.rest.push({ options, table });
+      if (options.method === "PATCH") return [{ id: "invite-1", ...options.body }];
+      return [
+        {
+          ...options.body,
+          created_at: "2026-05-25T12:00:00.000Z",
+          id: "invite-1",
+        },
+      ];
+    },
+    async sendInviteEmail() {
+      throw new Error("provider rejected sender");
+    },
+  });
+  const handlers = createHostedInviteHandlers(deps);
+
+  const res = {};
+  await handlers.invites({ method: "POST" }, res);
+
+  assert.equal(res.body.email_sent, false);
+  assert.equal(res.body.email_error, "provider rejected sender");
+  assert.match(res.body.one_time_invite_url, /^https:\/\/office\.example\.com\/invite\/laf_invite_/);
+  const patch = deps.calls.rest.find((call) => call.options.method === "PATCH");
+  assert.deepEqual(patch.options.body, {
+    send_error: "provider rejected sender",
+    send_status: "failed",
+  });
 });
 
 test("invite creation enforces the closed beta seat limit before persistence", async () => {
@@ -240,4 +319,15 @@ test("invite accept rejects a token from another workspace", async () => {
     () => handlers.inviteAccept({ method: "POST" }, {}),
     (err) => err.status === 403 && err.message === "active session is for a different team",
   );
+});
+
+test("invite email escapes html", () => {
+  const email = inviteEmail({
+    invite: { email: "member@example.com", name: "<Member>" },
+    invite_url: "https://office.example.com/invite/abc<script>",
+    team_name: "<Acme>",
+  });
+  assert.equal(email.subject, "You're invited to <Acme>");
+  assert.match(email.html, /&lt;Member&gt;/);
+  assert.match(email.html, /abc&lt;script&gt;/);
 });

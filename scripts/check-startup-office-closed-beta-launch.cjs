@@ -90,7 +90,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/hosted/inviteHandlers.js",
-    ["one_time_invite_url", "invite_url"],
+    ["one_time_invite_url", "invite_url", "sendInviteEmail", "mailto_url"],
     "team invite notification fallback",
   ],
   [

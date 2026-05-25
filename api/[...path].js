@@ -24,6 +24,9 @@ const {
   createHostedInviteHandlers,
 } = require("./lib/hosted/inviteHandlers");
 const {
+  createResendEmailProvider,
+} = require("../workers/startup-office/outboxWorker");
+const {
   createHostedMemberHandlers,
 } = require("./lib/hosted/memberHandlers");
 const {
@@ -296,6 +299,7 @@ const HOSTED_INVITE_HANDLERS = createHostedInviteHandlers({
   requirePermission,
   requireUser,
   rest,
+  sendInviteEmail,
   writeAuditEvent,
   writeJSON,
 });
@@ -1027,6 +1031,27 @@ async function claimHostedRateLimit({ key, limit, scope, windowMs }) {
     p_scope: scope,
     p_window_ms: windowMs,
   });
+}
+
+async function sendInviteEmail(email) {
+  const provider = inviteEmailProviderFromEnv();
+  if (!provider) return null;
+  return provider.sendEmail(email);
+}
+
+function inviteEmailProviderFromEnv() {
+  const provider = String(process.env.LAF_OUTBOX_EMAIL_PROVIDER || "in_app")
+    .trim()
+    .toLowerCase();
+  if (!provider || provider === "in_app" || provider === "none") return null;
+  if (provider === "resend") {
+    return createResendEmailProvider({
+      apiKey: process.env.RESEND_API_KEY || "",
+      from: process.env.LAF_EMAIL_FROM || "",
+      replyTo: process.env.LAF_EMAIL_REPLY_TO || "",
+    });
+  }
+  throw new HTTPError(503, `unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
 }
 
 function supabaseURL(path) {
