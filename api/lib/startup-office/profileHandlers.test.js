@@ -49,6 +49,11 @@ test("company profile handler reads the merged company profile", async () => {
       return [{ name: "Acme AI" }];
     },
     startupOfficeCompanyProfilePatch: (body) => body,
+    startupOfficeRepository: () => ({
+      async upsertMemoryPage() {
+        throw new Error("GET must not write memory");
+      },
+    }),
     upsertWorkspaceSettings: async () => ({}),
     workspaceSettings: async () => ({ company_profile: { name: "Settings Name" } }),
     workspaceSettingsPatch: () => ({}),
@@ -73,6 +78,7 @@ test("company profile handler patches settings, row, and audit event together", 
   const json = createJSONRecorder();
   const restCalls = [];
   const auditCalls = [];
+  const memoryWrites = [];
   const handlers = createStartupOfficeProfileHandlers({
     companyProfileRowPayload: (profile) => ({ name: profile.name, stage: profile.stage }),
     createHTTPError,
@@ -99,6 +105,12 @@ test("company profile handler patches settings, row, and audit event together", 
       name: body.name,
       stage: body.stage,
     }),
+    startupOfficeRepository: () => ({
+      async upsertMemoryPage(membership, page) {
+        memoryWrites.push({ membership, page });
+        return { id: "memory-1", ...page };
+      },
+    }),
     upsertWorkspaceSettings: async (_teamID, patch) => patch,
     workspaceSettings: async () => ({ company_profile: { name: "Old" } }),
     workspaceSettingsPatch: (_existing, patch) => patch,
@@ -117,8 +129,36 @@ test("company profile handler patches settings, row, and audit event together", 
     team_id: "team-1",
     updated_at: "2026-05-25T00:00:00.000Z",
   });
+  assert.equal(memoryWrites.length, 1);
+  assert.deepEqual(memoryWrites[0].membership, { team_id: "team-1", user_id: "user-1" });
+  assert.equal(memoryWrites[0].page.slug, "company-profile");
+  assert.equal(memoryWrites[0].page.title, "Company Profile");
+  assert.equal(memoryWrites[0].page.status, "approved");
+  assert.equal(memoryWrites[0].page.last_verified_at, "2026-05-25T00:00:00.000Z");
+  assert.match(memoryWrites[0].page.body, /# Company Profile/);
+  assert.match(memoryWrites[0].page.body, /- Name: Acme AI/);
+  assert.match(memoryWrites[0].page.body, /- Stage: paid_beta/);
+  assert.deepEqual(memoryWrites[0].page.provenance, {
+    changed_fields: ["name", "stage"],
+    event: "company_profile.updated",
+    source: "company_profile",
+    updated_at: "2026-05-25T00:00:00.000Z",
+    updated_by: "user-1",
+  });
+  assert.deepEqual(memoryWrites[0].page.sources, [
+    {
+      actor_user_id: "user-1",
+      event: "company_profile.updated",
+      fields: ["name", "stage"],
+      type: "founder_profile_edit",
+      updated_at: "2026-05-25T00:00:00.000Z",
+    },
+  ]);
   assert.equal(auditCalls[0][1], "company_profile.updated");
-  assert.deepEqual(auditCalls[0][4], { fields: ["name", "stage"] });
+  assert.deepEqual(auditCalls[0][4], {
+    fields: ["name", "stage"],
+    memory_page_slug: "company-profile",
+  });
   assert.deepEqual(res.body, {
     profile: {
       name: "Acme AI",

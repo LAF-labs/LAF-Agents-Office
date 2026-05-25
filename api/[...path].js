@@ -1270,6 +1270,7 @@ const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
   safeStartupOfficeRest,
   startupOfficeCompanyProfilePatch: (body) =>
     startupOfficeServices().startupOfficeCompanyProfilePatch(body),
+  startupOfficeRepository,
   upsertWorkspaceSettings,
   workspaceSettings,
   workspaceSettingsPatch,

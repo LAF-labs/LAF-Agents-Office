@@ -1,3 +1,8 @@
+const {
+  COMPANY_PROFILE_MEMORY_SLUG,
+  materializeCompanyProfileMemory,
+} = require("./profileMemory");
+
 function createStartupOfficeProfileHandlers(deps) {
   const {
     companyProfileRowPayload,
@@ -10,6 +15,7 @@ function createStartupOfficeProfileHandlers(deps) {
     requireUser,
     safeStartupOfficeRest,
     startupOfficeCompanyProfilePatch,
+    startupOfficeRepository,
     upsertWorkspaceSettings,
     workspaceSettings,
     workspaceSettingsPatch,
@@ -48,8 +54,10 @@ function createStartupOfficeProfileHandlers(deps) {
     if (req.method !== "PATCH") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "workspace:manage");
     const body = await readBody(req);
+    const updatedAt = nowISO();
     const existing = await workspaceSettings(membership.team_id);
     const profilePatch = startupOfficeCompanyProfilePatch(body);
+    const changedFields = Object.keys(profilePatch).sort();
     const settings = await upsertWorkspaceSettings(membership.team_id, {
       ...workspaceSettingsPatch(existing, { company_profile: profilePatch }),
       company_profile: {
@@ -64,19 +72,32 @@ function createStartupOfficeProfileHandlers(deps) {
       body: {
         ...companyProfileRowPayload(profilePatch),
         team_id: membership.team_id,
-        updated_at: nowISO(),
+        updated_at: updatedAt,
       },
     });
+    const profile = publicCompanyProfile({
+      row,
+      settings,
+      team,
+      user,
+    });
+    const memoryPage = await materializeCompanyProfileMemory({
+      changedFields,
+      membership,
+      profile: {
+        ...objectValue(existing?.company_profile),
+        ...profile,
+        ...profilePatch,
+      },
+      repository: startupOfficeRepository(),
+      updatedAt,
+    });
     await writeAuditEvent(membership, "company_profile.updated", "company", membership.team_id, {
-      fields: Object.keys(profilePatch).sort(),
+      fields: changedFields,
+      memory_page_slug: memoryPage?.slug || COMPANY_PROFILE_MEMORY_SLUG,
     });
     writeJSON(res, 200, {
-      profile: publicCompanyProfile({
-        row,
-        settings,
-        team,
-        user,
-      }),
+      profile,
       status: "ok",
     });
   }

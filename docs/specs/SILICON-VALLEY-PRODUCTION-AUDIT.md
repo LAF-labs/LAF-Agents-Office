@@ -675,6 +675,10 @@ and missing typed contracts.
   internal evidence. Signals can be filtered by type, triaged through the
   operating-object API, and linked back to loops/runs so research and artifact
   evidence can be reused without any local execution surface.
+- R5 now materializes founder company-profile edits into the canonical
+  `company-profile` memory page. The page stores a markdown snapshot plus
+  changed fields, actor, timestamp, source metadata, and verification time, so
+  profile state becomes reusable company memory instead of UI-only settings.
 - R3/R8 now applies Supabase migration
   `20260525210000_assert_pure_cloud_boundary_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,
