@@ -15,6 +15,9 @@ const {
   createHostedSignupHandlers,
 } = require("./lib/hosted/signupHandlers");
 const {
+  createHostedActionRateLimiter,
+} = require("./lib/hosted/rateLimits");
+const {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
   createHostedPermissionGuards,
@@ -118,6 +121,10 @@ const HOSTED_PERMISSION_GUARDS = createHostedPermissionGuards({
 });
 const requireAdminRole = HOSTED_PERMISSION_GUARDS.requireAdminRole;
 const requirePermission = HOSTED_PERMISSION_GUARDS.requirePermission;
+const enforceHostedActionRateLimit = createHostedActionRateLimiter({
+  enforceRateLimit,
+  keyForRequest: clientRateLimitKey,
+});
 
 const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
   createStartupOfficeWorkspaceConfigHandlers({
@@ -434,6 +441,7 @@ module.exports = async function handler(req, res) {
     assertSupabaseEnv();
 
     const path = requestPath(req);
+    enforceHostedActionRateLimit(req, path);
     if (path === "health" && req.method === "GET") {
       writeJSON(res, 200, {
         service: "laf-hosted-api",

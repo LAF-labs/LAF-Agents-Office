@@ -64,6 +64,28 @@ test("hosted API rejects oversized request bodies before mutation handlers", asy
   }
 });
 
+test("hosted API rate limits expensive actions at ingress", async () => {
+  for (const [routePath, method, attempts] of [
+    ["startup-office/export", "GET", 6],
+    ["startup-office/loops/idea-validation/run", "POST", 20],
+    ["invites", "POST", 20],
+    ["company/profile", "PATCH", 30],
+  ]) {
+    handler.__test.resetRateLimits();
+    for (let index = 0; index < attempts; index += 1) {
+      const response = await invoke(routePath, method, {}, {
+        headers: { authorization: "", "x-forwarded-for": "203.0.113.10" },
+      });
+      assert.notEqual(response.status, 429, routePath);
+    }
+    const limited = await invoke(routePath, method, {}, {
+      headers: { authorization: "", "x-forwarded-for": "203.0.113.10" },
+    });
+    assert.equal(limited.status, 429, routePath);
+    assert.equal(limited.body.error, "rate limit exceeded");
+  }
+});
+
 test("pure cloud migration drops obsolete local execution schema", () => {
   const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
   const obsoleteMigrationFiles = fs
@@ -132,6 +154,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /api\/lib\/hosted\/inviteHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/memberHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/permissions\.test\.js/);
+  assert.match(script, /api\/lib\/hosted\/rateLimits\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/signupHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/queryHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/demoSeedHandlers\.test\.js/);

@@ -71,7 +71,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I041 | Security | Tenant isolation depends heavily on correct route membership checks plus RLS not yet live-tested. | auth routes, migrations |
 | SV-I042 | Security | Service-role usage is broad and needs stricter internal boundaries. | hosted API env requirements |
 | SV-I043 | Security | Support access policy is visible but not yet a complete impersonation and break-glass system. | policy API |
-| SV-I044 | Security | Rate limits exist for auth but not uniformly for expensive AI and write actions. | rate limit helpers |
+| SV-I044 | Security | Rate limits cover signup and the first expensive hosted actions, but still need distributed storage and full write-surface coverage. | rate limit helpers |
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
 | SV-I047 | Security | Secrets scanning is present but not tied into the Startup Office release gate. | CI scripts |
@@ -443,3 +443,7 @@ and missing typed contracts.
 - R3 now proves the hosted API request-size boundary. `api/hosted-api.test.js`
   verifies oversized `Content-Length`, parsed JSON, and raw JSON payloads return
   413 before mutation handlers run; the beta release gate includes that test.
+- R3 now rate-limits the first expensive hosted actions at ingress. The hosted
+  API guards Startup Office export, loop runs, run retries/cancels, approval
+  decisions, invite creation, and profile/policy/billing writes; release-gate
+  tests prove both route matching and 429 behavior before auth/DB work.
