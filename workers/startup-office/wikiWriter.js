@@ -7,6 +7,7 @@ const CANONICAL_MEMORY_PAGES = Object.freeze([
   { slug: "decisions", title: "Decisions" },
   { slug: "risks", title: "Risks" },
 ]);
+const CONFLICT_CHECKED_MEMORY_SLUGS = new Set(["company-profile", "icp", "offer"]);
 
 function startupOfficeWikiPromotionDraft({ artifact, context, output }) {
   return {
@@ -92,7 +93,7 @@ function startupOfficeMemoryPromotionPreview({
   }));
 }
 
-function buildStartupOfficeMemoryDiff({ currentPages = [], nextPages = [] }) {
+function buildStartupOfficeMemoryDiff({ approval = null, currentPages = [], nextPages = [] }) {
   const currentBySlug = new Map(currentPages.map((page) => [page.slug, page]));
   const changed_pages = nextPages
     .filter((page) => {
@@ -108,8 +109,13 @@ function buildStartupOfficeMemoryDiff({ currentPages = [], nextPages = [] }) {
         title: page.title,
       };
     });
+  const conflicts = memoryDiffConflicts({ approval, changedPages: changed_pages });
   return {
     changed_pages,
+    conflicts,
+    has_unresolved_conflicts: conflicts.some(
+      (conflict) => conflict.resolution_status !== "founder_approved",
+    ),
     page_count: nextPages.length,
   };
 }
@@ -134,13 +140,53 @@ async function applyStartupOfficeMemoryPromotion({
     run,
   });
   const written = [];
+  const diff = buildStartupOfficeMemoryDiff({ approval, currentPages, nextPages });
+  assertStartupOfficeMemoryConflictsResolved({ approval, diff });
   for (const nextPage of nextPages) {
     written.push(await repository.upsertMemoryPage(membership, nextPage));
   }
   return {
-    diff: buildStartupOfficeMemoryDiff({ currentPages, nextPages }),
+    diff,
     pages: written,
   };
+}
+
+function memoryDiffConflicts({ approval, changedPages }) {
+  return changedPages
+    .filter(
+      (page) =>
+        CONFLICT_CHECKED_MEMORY_SLUGS.has(page.slug) &&
+        page.before_summary &&
+        page.after_summary &&
+        normalizeForConflict(page.before_summary) !== normalizeForConflict(page.after_summary),
+    )
+    .map((page) => ({
+      after_summary: page.after_summary,
+      before_summary: page.before_summary,
+      resolution_required: true,
+      resolution_status: founderApproved(approval)
+        ? "founder_approved"
+        : "founder_approval_required",
+      slug: page.slug,
+      title: page.title || page.slug,
+    }));
+}
+
+function assertStartupOfficeMemoryConflictsResolved({ approval, diff }) {
+  if (!diff?.has_unresolved_conflicts) return;
+  if (founderApproved(approval)) return;
+  const err = new Error("memory conflicts require founder approval before promotion");
+  err.status = 409;
+  err.details = { conflicts: diff.conflicts || [] };
+  throw err;
+}
+
+function founderApproved(approval) {
+  return approval?.status === "approved" && Boolean(approval.decided_by || approval.decided_at);
+}
+
+function normalizeForConflict(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function appendPage(currentPages, slug, title, entry) {
@@ -179,6 +225,7 @@ function arrayValue(value) {
 module.exports = {
   CANONICAL_MEMORY_PAGES,
   applyStartupOfficeMemoryPromotion,
+  assertStartupOfficeMemoryConflictsResolved,
   buildStartupOfficeMemoryDiff,
   startupOfficeMemoryPromotionPreview,
   startupOfficeWikiPromotionDraft,

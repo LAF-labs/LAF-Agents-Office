@@ -45,6 +45,7 @@ const checks = [
   ["npm", ["run", "startup-office:loop-worker:test"]],
   ["npm", ["run", "startup-office:live-model-smoke-check"]],
   ["npm", ["run", "startup-office:live-model-smoke:test"]],
+  ["npm", ["run", "startup-office:memory-conflicts"]],
   ["npm", ["run", "startup-office:model-failover"]],
   ["npm", ["run", "startup-office:model-client:test"]],
   ["node", ["--test", "workers/startup-office/modelCosts.test.js"]],
@@ -110,6 +111,7 @@ const checks = [
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],
   ["node", ["--test", "workers/startup-office/promptVersions.test.js"]],
   ["node", ["--test", "workers/startup-office/toolPolicy.test.js"]],
+  ["node", ["--test", "workers/startup-office/wikiWriter.test.js"]],
   ["node", ["--test", "api/hosted-api.test.js"]],
   [
     "npm",

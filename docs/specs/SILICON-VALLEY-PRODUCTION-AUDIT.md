@@ -75,7 +75,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I034 | Data model | RLS policies are written but not exercised against a real Supabase test database. | migration tests are static |
 | SV-I035 | Data model | Startup Office route writes are now machine-checked for audit events, but live audit replay, export, and operator review are not proven. | `startup-office:audit-coverage` |
 | SV-I036 | Data model | Business object schemas lack rich lifecycle history. | assets/customers/metrics/signals tables |
-| SV-I037 | Data model | Company memory pages do not yet have conflict resolution as a domain primitive. | memory pages |
+| SV-I037 | Data model | Canonical company memory promotions now carry conflict metadata and require founder-approved resolution before overwrite; database-native conflict objects remain future hardening. | `startup-office:memory-conflicts` |
 | SV-I038 | Data model | Workspace-wide deletion now has a manifest, request flow, service-role purge RPC, and tombstone proof; long-term configurable retention tiers remain future work. | `startup-office:deletion-coverage` |
 | SV-I039 | Data model | Billing, usage, and workspace limits are not normalized into a durable entitlement model. | workspace_billing |
 | SV-I040 | Data model | Schema comments and database-level constraints do not fully encode product invariants. | migrations |
@@ -102,7 +102,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I061 | Memory | Company memory is promising but not yet the source of truth for all company operations. | memory pages and wiki |
 | SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | hosted wiki and Startup Office |
 | SV-I063 | Memory | Retrieval quality is not measured against business-loop outcomes. | wiki tests vs loop tests |
-| SV-I064 | Memory | Memory promotion lacks human-readable diff quality gates beyond basic preview. | approval metadata |
+| SV-I064 | Memory | Memory promotion diffs now flag canonical summary conflicts, expose founder-resolution status, and fail closed before unresolved promotion writes. | `startup-office:memory-conflicts`, wiki writer tests |
 | SV-I065 | Memory | Receipts can replay run inputs, prompt/tool policy, model cost, structured output, approval state, and memory diffs from related records; operator UI replay remains future hardening. | `startup-office:provenance-replay`, receipt tests |
 | SV-I066 | Memory | Contradiction handling is stronger in the wiki layer than in Startup Office memory. | wiki lint vs memory pages |
 | SV-I067 | Memory | Uploaded materials and assets are not part of retrieval. | asset upload pending |
@@ -295,7 +295,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G049 | Add red-team scenarios. | Unsafe, hallucinated, and overclaiming outputs fail the gate. | eval tests |
 | SV-G050 | Add dead-letter processing. | Failed worker jobs land in a visible recovery queue and scheduled monitor. | worker tests |
 | SV-G051 | Unify wiki and company memory. | Founder-facing memory has one canonical source of truth. | architecture and tests |
-| SV-G052 | Add memory conflict resolution. | Contradictions require explicit resolution before promotion. | memory tests |
+| SV-G052 | Add memory conflict resolution. | Contradictions require explicit resolution before promotion. | `startup-office:memory-conflicts`, memory tests |
 | SV-G053 | Add memory freshness policy. | Stale claims surface for review by date and risk. | UI and API tests |
 | SV-G054 | Make profile edits memory-backed. | Profile changes create approved memory updates. | API tests |
 | SV-G055 | Add provenance replay. | Receipts can reconstruct inputs, prompt version, output, approval, and memory diffs. | `startup-office:provenance-replay`, receipt test |

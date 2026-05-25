@@ -460,7 +460,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       ]);
       if (artifact) {
         memoryPromotion = await applyStartupOfficeMemoryPromotion({
-          approval,
+          approval: updatedApproval || approval,
           artifact,
           membership,
           profile,
