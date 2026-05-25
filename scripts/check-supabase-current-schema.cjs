@@ -7,6 +7,26 @@ const root = path.resolve(__dirname, "..");
 const schemaPath = path.join(root, "supabase", "schema", "current.json");
 const migrationsDir = path.join(root, "supabase", "migrations");
 const serviceRoleAccessPath = path.join(root, "api", "lib", "hosted", "serviceRoleAccess.js");
+const retiredRuntimeGuard = {
+  tables: [
+    "execution_receipts",
+    "execution_events",
+    "execution_plans",
+    "project_local_bindings",
+    "bridge_pairing_codes",
+    "bridge_devices",
+    "runner_pairing_codes",
+    "runner_job_events",
+    "runner_jobs",
+    "runner_capabilities",
+    "runners",
+  ],
+  functions: ["claim_runner_job"],
+  columns: {
+    tasks: ["execution_mode", "worktree_path", "worktree_branch"],
+    wiki_write_requests: ["runner_id"],
+  },
+};
 
 function fail(message) {
   console.error(`supabase current schema check failed: ${message}`);
@@ -125,6 +145,9 @@ if (manifest.version !== "startup-office-schema.v1") {
 if (!serviceRoleAccessSource.includes("supabase/schema/current.json")) {
   fail("service-role access guards must use the canonical current schema manifest");
 }
+if (Object.hasOwn(manifest, "retiredRuntime")) {
+  fail("current schema manifest must not carry retired runtime objects");
+}
 
 const state = parseMigrationState();
 const latestMigration = state.files.at(-1)?.replace(/_.+$/, "");
@@ -153,7 +176,7 @@ for (const table of manifestTables) {
   }
 }
 
-const retired = manifest.retiredRuntime || {};
+const retired = retiredRuntimeGuard;
 for (const table of retired.tables || []) {
   if (state.tables.has(table)) fail(`retired runtime table remains active: ${table}`);
 }

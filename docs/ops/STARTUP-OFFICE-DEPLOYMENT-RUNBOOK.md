@@ -1,8 +1,9 @@
 # Startup Office Deployment Runbook
 
 This runbook keeps the pure-cloud Startup Office deployable without local
-runtime assumptions. It covers the web/API deploy, Supabase migrations, and the
-independent outbox worker used for notification delivery.
+runtime assumptions. It covers the web/API deploy, Supabase migrations, the
+independent outbox worker used for notification delivery, and the scheduled ops
+monitor that catches silent queue failure.
 
 ## Deploy Order
 
@@ -13,7 +14,10 @@ independent outbox worker used for notification delivery.
 5. Enable `.github/workflows/startup-office-outbox-worker.yml`.
 6. Run the outbox worker once with `npm run startup-office:outbox-worker` or
    the workflow dispatch button.
-7. Complete the smoke test below.
+7. Enable `.github/workflows/startup-office-ops-monitor.yml`.
+8. Run the ops monitor once with `npm run startup-office:ops-monitor` or the
+   workflow dispatch button.
+9. Complete the smoke test below.
 
 ## Required Secrets And Variables
 
@@ -33,6 +37,12 @@ GitHub Actions variables:
 - `LAF_OUTBOX_LOCK_MS`, default `300000`
 - `LAF_EMAIL_FROM` when email delivery is enabled
 - `LAF_EMAIL_REPLY_TO` when a support reply address is available
+- `LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX`, default `0`
+- `LAF_MONITOR_MAX_FAILED_OUTBOX`, default `25`
+- `LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX`, default `0`
+- `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`, default `0`
+- `LAF_MONITOR_OUTBOX_STALE_MS`, default `600000`
+- `LAF_MONITOR_WORKER_JOB_STUCK_MS`, default `1800000`
 
 Do not put secret values in this repository. The preflight prints normalized
 origins and provider choices, not secret contents.
@@ -51,6 +61,28 @@ The workflow runs `npm run hosted-env:preflight -- --no-env-file` before
 draining. If required secrets or email variables are missing, the worker fails
 before claiming outbox rows.
 
+## Operational Monitor
+
+The scheduled monitor workflow runs every fifteen minutes and fails loudly when
+the office is no longer draining work:
+
+- Workflow: `.github/workflows/startup-office-ops-monitor.yml`
+- Command: `npm run startup-office:ops-monitor`
+- Data sources: `startup_office_outbox_events` and
+  `startup_office_worker_jobs`
+- Hard failures by default: any `dead_letter` outbox row, any stale processing
+  outbox row, and any stuck queued/running worker job
+- Tunable thresholds: `LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX`,
+  `LAF_MONITOR_MAX_FAILED_OUTBOX`,
+  `LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX`,
+  `LAF_MONITOR_MAX_STUCK_WORKER_JOBS`, `LAF_MONITOR_OUTBOX_STALE_MS`, and
+  `LAF_MONITOR_WORKER_JOB_STUCK_MS`
+
+The monitor prints only aggregate counts and threshold failures. It does not
+print payloads, last-error bodies, user data, or provider secrets. A failed
+scheduled run should be treated as a closed-beta incident until the stuck rows
+are drained, replayed, or intentionally dead-lettered.
+
 ## Smoke Test
 
 After deploying:
@@ -63,6 +95,8 @@ After deploying:
 6. Confirm the matching `startup_office_outbox_events` row is `delivered`.
 7. If `LAF_OUTBOX_EMAIL_PROVIDER=resend`, confirm the Resend dashboard shows the
    message and the notification payload stores `email_delivery`.
+8. Run `.github/workflows/startup-office-ops-monitor.yml` manually and confirm
+   `npm run startup-office:ops-monitor` passes.
 
 ## Rollback
 
@@ -72,12 +106,15 @@ outbox workflow disabled until the app smoke passes.
 If the outbox worker fails repeatedly:
 
 1. Disable `.github/workflows/startup-office-outbox-worker.yml`.
-2. Set `LAF_OUTBOX_EMAIL_PROVIDER=in_app` to stop external email attempts.
-3. Inspect `startup_office_outbox_events` rows with `failed` or `dead_letter`
+2. Keep `.github/workflows/startup-office-ops-monitor.yml` enabled unless it is
+   blocking emergency migration work; its red state is the incident signal.
+3. Set `LAF_OUTBOX_EMAIL_PROVIDER=in_app` to stop external email attempts.
+4. Inspect `startup_office_outbox_events` rows with `failed` or `dead_letter`
    status.
-4. Fix the provider configuration or code path.
-5. Re-run `npm run beta:release-gate` and `npm run hosted-env:preflight`.
-6. Re-enable the workflow and dispatch one manual run.
+5. Fix the provider configuration or code path.
+6. Re-run `npm run beta:release-gate`, `npm run hosted-env:preflight`, and
+   `npm run startup-office:ops-monitor`.
+7. Re-enable the worker workflow and dispatch one manual run.
 
 If `npx supabase db push` fails during migration, do not edit applied migration
 files. Add a forward-fix migration, run the release gate, and apply again.

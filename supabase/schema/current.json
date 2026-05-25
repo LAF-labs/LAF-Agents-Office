@@ -261,13 +261,5 @@
     }
   ],
   "outboxClaimFunction": "claim_startup_office_outbox_event",
-  "retiredRuntime": {
-    "tables": ["execution_receipts", "execution_events", "execution_plans", "project_local_bindings", "bridge_pairing_codes", "bridge_devices", "runner_pairing_codes", "runner_job_events", "runner_jobs", "runner_capabilities", "runners"],
-    "functions": ["claim_runner_job"],
-    "columns": {
-      "tasks": ["execution_mode", "worktree_path", "worktree_branch"],
-      "wiki_write_requests": ["runner_id"]
-    }
-  },
   "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event"]
 }

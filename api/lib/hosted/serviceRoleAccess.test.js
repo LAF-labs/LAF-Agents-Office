@@ -27,7 +27,7 @@ test("service-role guards allow only current schema tables and internal RPCs", (
     /invalid service-role table/,
   );
   assert.throws(
-    () => guards.assertAllowedRestTable(["runner", "jobs"].join("_")),
+    () => guards.assertAllowedRestTable("unregistered_table"),
     /service-role table is not registered/,
   );
   assert.throws(

@@ -1,0 +1,51 @@
+name: Startup Office Ops Monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: startup-office-ops-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Preflight monitor environment
+        env:
+          LAF_EMAIL_FROM: ${{ vars.LAF_EMAIL_FROM }}
+          LAF_EMAIL_REPLY_TO: ${{ vars.LAF_EMAIL_REPLY_TO }}
+          LAF_OFFICE_ALLOWED_ORIGINS: ${{ vars.LAF_OFFICE_ALLOWED_ORIGINS }}
+          LAF_OFFICE_PUBLIC_HOST: ${{ vars.LAF_OFFICE_PUBLIC_HOST }}
+          LAF_OUTBOX_BATCH_SIZE: ${{ vars.LAF_OUTBOX_BATCH_SIZE || '25' }}
+          LAF_OUTBOX_EMAIL_PROVIDER: ${{ vars.LAF_OUTBOX_EMAIL_PROVIDER || 'in_app' }}
+          LAF_OUTBOX_LOCK_MS: ${{ vars.LAF_OUTBOX_LOCK_MS || '300000' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: npm run hosted-env:preflight -- --no-env-file
+
+      - name: Check Startup Office ops thresholds
+        env:
+          LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX: ${{ vars.LAF_MONITOR_MAX_DEAD_LETTER_OUTBOX || '0' }}
+          LAF_MONITOR_MAX_FAILED_OUTBOX: ${{ vars.LAF_MONITOR_MAX_FAILED_OUTBOX || '25' }}
+          LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX: ${{ vars.LAF_MONITOR_MAX_STALE_PROCESSING_OUTBOX || '0' }}
+          LAF_MONITOR_MAX_STUCK_WORKER_JOBS: ${{ vars.LAF_MONITOR_MAX_STUCK_WORKER_JOBS || '0' }}
+          LAF_MONITOR_OUTBOX_STALE_MS: ${{ vars.LAF_MONITOR_OUTBOX_STALE_MS || '600000' }}
+          LAF_MONITOR_WORKER_JOB_STUCK_MS: ${{ vars.LAF_MONITOR_WORKER_JOB_STUCK_MS || '1800000' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: npm run startup-office:ops-monitor

@@ -131,7 +131,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I101 | Observability | Runs, approvals, notifications, and model calls lack production traces. | no telemetry integration |
 | SV-I102 | Observability | Logs are not structured around workspace, run, and actor IDs everywhere. | server and worker logs |
 | SV-I103 | Observability | There is no dashboard for latency, queue age, failure rate, or cost anomalies. | admin beta dashboard |
-| SV-I104 | Observability | Alerting policy is missing for stuck jobs and failed notifications. | beta ops |
+| SV-I104 | Observability | Scheduled GitHub Actions monitoring now fails on dead-letter outbox rows, stale processing outbox rows, and stuck worker jobs; external paging and tuned severity routing remain. | beta ops |
 | SV-I105 | Observability | Audit logs are product data but not operational telemetry. | audit events |
 | SV-I106 | Observability | Error budgets and SLOs are undefined. | docs |
 | SV-I107 | Observability | There is no synthetic production smoke monitor. | release gate only local |
@@ -316,7 +316,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G081 | Add structured telemetry. | Every run has trace IDs across API, worker, DB, and UI. | log tests |
 | SV-G082 | Add operational dashboards. | Latency, failures, queue age, approvals, and cost are visible. | admin UI |
 | SV-G083 | Define SLOs. | Availability, run latency, notification latency, and data integrity SLOs exist. | ops docs |
-| SV-G084 | Add alerts. | Stuck jobs, failed notifications, high cost, and auth spikes alert operators. | monitor config |
+| SV-G084 | Add alerts. | Stuck jobs and failed notifications trip a scheduled monitor; high cost and auth spikes still need alert wiring. | monitor config |
 | SV-G085 | Add browser error collection. | Client exceptions include workspace-safe context. | telemetry test |
 | SV-G086 | Add synthetic monitor. | Production smoke exercises login, profile, run, approval, receipt. | monitor |
 | SV-G087 | Add incident runbook. | Data leak, tenant bug, worker outage, and billing abuse drills exist. | docs |
@@ -445,9 +445,9 @@ and missing typed contracts.
   paths return to tracked source.
 - R3 now has a canonical current Supabase schema manifest at
   `supabase/schema/current.json`. `npm run startup-office:schema` parses the
-  migration history, verifies the manifest's 29 active tables, columns, tenant
-  columns, RLS coverage, latest migration, and retired runtime objects, and the
-  beta release gate now runs that check.
+  migration history, verifies the manifest's 30 active tables, columns, tenant
+  columns, RLS coverage, latest migration, and pure-cloud guard migration, and
+  the beta release gate now runs that check.
 - R3 now proves the hosted API request-size boundary. `api/hosted-api.test.js`
   verifies oversized `Content-Length`, parsed JSON, and raw JSON payloads return
   413 before mutation handlers run; the beta release gate includes that test.
@@ -511,3 +511,8 @@ and missing typed contracts.
   `npm run startup-office:outbox-worker`. `docs/ops/STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md`
   documents deploy order, secrets, migrations, worker smoke, and rollback, and
   `npm run startup-office:worker-deploy` gates the workflow and runbook.
+- R7/R8 now adds scheduled queue monitoring. `.github/workflows/startup-office-ops-monitor.yml`
+  runs every fifteen minutes, preflights production env, then fails on
+  dead-letter outbox rows, stale processing outbox rows, and stuck worker jobs.
+  `npm run startup-office:ops-monitor:test` is part of the release gate, and
+  the deployment runbook documents monitor thresholds and incident handling.
