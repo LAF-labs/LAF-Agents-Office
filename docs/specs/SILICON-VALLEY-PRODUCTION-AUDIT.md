@@ -32,6 +32,10 @@ startup, what fundamental problems would we refuse to carry forward?
 - CODEOWNERS now pins Startup Office API, worker, web, schema, migration,
   operations-doc, and release-script boundaries, and
   `startup-office:code-ownership` keeps those review paths in the release gate.
+- Generated artifacts now have a tracked manifest at
+  `shared/generated-artifacts.json`, and `startup-office:generated-artifacts`
+  verifies declared generated files, permission type drift, avatar sprite drift,
+  and release-gate wiring.
 - The current release gate is deterministic, fake-provider friendly, and now
   includes production audit, closed-beta goal locking, audit coverage, secret
   scan, and dependency audit, but it does not prove live model, live Supabase,
@@ -229,7 +233,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I181 | Developer experience | The repository contains two eras of product architecture, increasing onboarding cost. | internal/team and Startup Office |
 | SV-I182 | Developer experience | Tests and docs sometimes contradict current completed state. | 100 goals vs scorecard |
 | SV-I183 | Developer experience | API fixtures, fake providers, and demo seeds are not clearly separated by environment. | tests and demo seed |
-| SV-I184 | Developer experience | Generated assets and manual code are mixed without a full generation check. | avatar scripts |
+| SV-I184 | Developer experience | Generated artifacts now have a tracked manifest and release-gate drift check for workspace permission types and avatar sprite catalogs; broader API schema generation remains future hardening. | `startup-office:generated-artifacts`, `shared/generated-artifacts.json` |
 | SV-I185 | Developer experience | `beta:release-gate` is now the single deterministic command for repo-controlled cloud SaaS invariants; live provider reachability, DNS, and customer/payment proof remain deploy-time evidence. | `beta:release-gate` |
 | SV-I186 | Developer experience | Local development is hosted-first but not yet one-command reproducible for web, API, worker, and Supabase. | `DEVELOPMENT.md` |
 | SV-I187 | Developer experience | Code ownership boundaries are now explicit for Startup Office API, worker, web, schema, migration, operations-doc, and release-script paths, with a release-gate check preventing drift. | `startup-office:code-ownership`, `.github/CODEOWNERS` |
@@ -437,6 +441,11 @@ the final release commit or when a shared invariant changes.
   `npm run startup-office:code-ownership` checks that CODEOWNERS pins the
   Startup Office API, worker, web, schema, migration, ops-doc, and release-script
   paths before the beta release gate can pass.
+- R2/R7 now adds generated-artifact drift control:
+  `npm run startup-office:generated-artifacts` requires every tracked generated
+  file to appear in `shared/generated-artifacts.json`, re-runs the workspace
+  permission catalog check, and regenerates avatar sprites to catch drift before
+  release.
 - R4 now includes a versioned tool permission manifest:
   `npm run startup-office:tool-policy` checks that every loop declares allowed
   tools, blocked external-execution tools, and never-auto-execute policy for

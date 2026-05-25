@@ -26,6 +26,7 @@
     "startup-office:deletion-coverage": "node scripts/check-startup-office-deletion-coverage.cjs",
     "startup-office:error-envelope": "node scripts/check-startup-office-error-envelope.cjs",
     "startup-office:export-coverage": "node scripts/check-startup-office-export-coverage.cjs",
+    "startup-office:generated-artifacts": "node scripts/check-startup-office-generated-artifacts.cjs",
     "startup-office:first-beta-smoke": "node scripts/startup-office-first-beta-smoke.cjs",
     "startup-office:health-dependencies": "node scripts/check-startup-office-health-dependencies.cjs",
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",

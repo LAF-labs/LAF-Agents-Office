@@ -26,6 +26,7 @@ const checks = [
   ["npm", ["run", "startup-office:deletion-coverage"]],
   ["npm", ["run", "startup-office:error-envelope"]],
   ["npm", ["run", "startup-office:export-coverage"]],
+  ["npm", ["run", "startup-office:generated-artifacts"]],
   ["npm", ["run", "startup-office:first-beta-smoke"]],
   ["npm", ["run", "startup-office:health-dependencies"]],
   ["npm", ["run", "startup-office:idempotency"]],

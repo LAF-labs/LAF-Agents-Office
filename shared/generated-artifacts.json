@@ -1,0 +1,17 @@
+{
+  "version": "generated-artifacts.v1",
+  "artifacts": [
+    {
+      "path": "web/src/api/workspacePermissions.ts",
+      "source": "shared/workspace-permissions.json",
+      "command": "npm run startup-office:permissions",
+      "checker": "scripts/check-workspace-permission-catalog.cjs"
+    },
+    {
+      "path": "web/src/lib/avatarSprites.generated.ts",
+      "source": "assets/avatar-system/base-sprites.json",
+      "command": "node scripts/generate-avatar-sprites.mjs",
+      "checker": "scripts/generate-avatar-sprites.mjs"
+    }
+  ]
+}
