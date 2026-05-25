@@ -1,3 +1,7 @@
+const {
+  startupOfficeDeletionManifest,
+} = require("./deletionManifest");
+
 function createStartupOfficeLifecycleHandlers(deps) {
   const {
     createHTTPError,
@@ -5,11 +9,13 @@ function createStartupOfficeLifecycleHandlers(deps) {
     readBody,
     requireAdminRole,
     requireUser,
+    rpc,
     safeStartupOfficeRest,
     truncateText,
     writeAuditEvent,
     writeJSON,
   } = deps;
+  const deletionManifest = startupOfficeDeletionManifest();
 
   async function handleSupportAccess(req, res, eventID = "", action = "") {
     const { membership } = await requireUser(req);
@@ -55,6 +61,7 @@ function createStartupOfficeLifecycleHandlers(deps) {
     requireAdminRole(membership, "owner or admin role required for deletion");
     if (req.method === "GET") {
       writeJSON(res, 200, {
+        deletion_manifest: deletionManifest,
         deletion_requests: await deletionRequests(membership.team_id),
       });
       return;
@@ -68,7 +75,12 @@ function createStartupOfficeLifecycleHandlers(deps) {
       method: "POST",
       body: {
         created_at: nowISO(),
-        metadata: { export_before_delete: body.export_before_delete !== false },
+        metadata: {
+          deletion_manifest_version: deletionManifest.version,
+          export_before_delete: body.export_before_delete !== false,
+          purged_tables: deletionManifest.purged_tables,
+          retained_tables: deletionManifest.retained_tables,
+        },
         reason: truncateText(body.reason || "", 1000),
         requested_by: membership.user_id,
         status: "queued",
@@ -77,10 +89,34 @@ function createStartupOfficeLifecycleHandlers(deps) {
     });
     await writeAuditEvent(membership, "startup_office.deletion_requested", "team", membership.team_id, {
       deletion_request_id: request?.id || "",
+      deletion_manifest_version: deletionManifest.version,
     });
     writeJSON(res, 202, {
+      deletion_manifest: deletionManifest,
       deletion_request: request,
       status: "queued",
+    });
+  }
+
+  async function handleDeletionPurge(req, res, deletionRequestID = "") {
+    const { membership } = await requireUser(req);
+    requireAdminRole(membership, "owner or admin role required for deletion purge");
+    if (req.method !== "POST") throw createHTTPError(405, "method not allowed");
+    if (typeof rpc !== "function") {
+      throw createHTTPError(500, "deletion purge rpc is not configured");
+    }
+    const body = await readBody(req);
+    if (String(body.confirmation || "").trim() !== "PURGE STARTUP OFFICE") {
+      throw createHTTPError(400, "confirmation must be PURGE STARTUP OFFICE");
+    }
+    const purge = await rpc("purge_startup_office_workspace", {
+      target_deletion_request_id: deletionRequestID,
+      target_team_id: membership.team_id,
+    });
+    writeJSON(res, 202, {
+      deletion_manifest: deletionManifest,
+      purge,
+      status: purge?.status || "purged",
     });
   }
 
@@ -107,6 +143,7 @@ function createStartupOfficeLifecycleHandlers(deps) {
   }
 
   return {
+    deletionPurge: handleDeletionPurge,
     deletionRequest: handleDeletionRequest,
     supportAccess: handleSupportAccess,
   };

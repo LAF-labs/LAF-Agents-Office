@@ -76,7 +76,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I035 | Data model | Startup Office route writes are now machine-checked for audit events, but live audit replay, export, and operator review are not proven. | `startup-office:audit-coverage` |
 | SV-I036 | Data model | Business object schemas lack rich lifecycle history. | assets/customers/metrics/signals tables |
 | SV-I037 | Data model | Company memory pages do not yet have conflict resolution as a domain primitive. | memory pages |
-| SV-I038 | Data model | Operating object item DELETE is implemented and audited, but workspace-wide deletion, retention, and purge semantics are not uniform. | object routes and deletion plan |
+| SV-I038 | Data model | Workspace-wide deletion now has a manifest, request flow, service-role purge RPC, and tombstone proof; long-term configurable retention tiers remain future work. | `startup-office:deletion-coverage` |
 | SV-I039 | Data model | Billing, usage, and workspace limits are not normalized into a durable entitlement model. | workspace_billing |
 | SV-I040 | Data model | Schema comments and database-level constraints do not fully encode product invariants. | migrations |
 | SV-I041 | Security | Tenant isolation depends heavily on correct route membership checks plus RLS not yet live-tested. | auth routes, migrations |
@@ -182,7 +182,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I141 | Compliance | Privacy policy, DPA, and terms are not implemented as launch artifacts. | docs |
 | SV-I142 | Compliance | AI output disclaimers are not consistently surfaced at decision points. | UI |
 | SV-I143 | Compliance | Customer data retention is not a configurable workspace policy. | schema |
-| SV-I144 | Compliance | Data deletion is not complete across company memory, assets, logs, and auth. | no deletion workflow |
+| SV-I144 | Compliance | Data deletion now purges workspace-scoped product tables through the team cascade with receipt-delete bypass scoped to the purge transaction; auth-user deletion and external provider retention remain operator/legal follow-up. | `purge_startup_office_workspace` |
 | SV-I145 | Compliance | Support access lacks customer-visible consent and expiry mechanics. | policy |
 | SV-I146 | Compliance | Regulated-domain guardrails are prompt text, not enforceable product policy. | templates |
 | SV-I147 | Compliance | Export format is not designed for legal discovery or customer portability. | export endpoint |
@@ -269,7 +269,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G023 | Exercise RLS for all Startup Office tables. | Cross-tenant reads/writes fail with user tokens. | integration tests |
 | SV-G024 | Add database comments and constraints. | Core invariants are encoded at the DB layer. | migration review |
 | SV-G025 | Make audit complete. | Every Startup Office write emits a structured audit event. | `startup-office:audit-coverage` |
-| SV-G026 | Define deletion and retention. | Workspace deletion purges or schedules every table. | deletion test |
+| SV-G026 | Define deletion and retention. | Workspace deletion has a schema-derived manifest, service-role purge RPC, tombstone proof, and release-gate coverage. | `startup-office:deletion-coverage` |
 | SV-G027 | Version exports. | Export bundles include schema version and restore notes. | export test |
 | SV-G028 | Add backup and restore drill. | Restore proves company data, memory, and receipts survive. | runbook evidence |
 | SV-G029 | Normalize lifecycle states. | Objects, runs, approvals, notifications, and memory use shared state conventions. | schema tests |
@@ -495,11 +495,20 @@ the final release commit or when a shared invariant changes.
 - R3 now rate-limits the full Startup Office mutating route contract at ingress.
   The hosted API guards export, loop runs, run retries/cancels, approval
   decisions, invite creation, profile/policy/billing writes, admin demo seed,
-  support access, deletion requests, worker-job recovery, loop configuration,
-  asset upload intents, artifact actions, and operating-object writes. `npm run
-  startup-office:rate-limits` derives mutating route samples from
+  support access, deletion requests, deletion purge, worker-job recovery, loop
+  configuration, asset upload intents, artifact actions, and operating-object
+  writes. `npm run startup-office:rate-limits` derives mutating route samples from
   `STARTUP_OFFICE_ROUTE_CONTRACTS` so new write routes cannot silently ship
   without an ingress bucket.
+- R3/R8 now closes the workspace deletion contract. The deletion handler returns
+  a manifest, records it on deletion requests, and exposes an explicit purge
+  confirmation route. Supabase migration
+  `20260526070000_add_startup_office_workspace_purge.sql` adds
+  `startup_office_deletion_tombstones` plus the service-role-only
+  `purge_startup_office_workspace` RPC, which sets
+  `app.allow_receipt_delete=on` only for the transaction and deletes the
+  workspace through `teams` cascade. `npm run startup-office:deletion-coverage`
+  derives the required purge table list from `supabase/schema/current.json`.
 - R3 now adds a Supabase-backed production limiter. The
   `hosted_rate_limits` table and `claim_hosted_rate_limit` RPC provide an
   atomic shared bucket for deployed API instances, while tests keep the local

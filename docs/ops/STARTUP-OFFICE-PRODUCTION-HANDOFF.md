@@ -13,7 +13,7 @@ these commands pass on the deploy commit:
 - `npm run startup-office:rls-live`
 - `npm run hosted-env:preflight -- --no-env-file` against production variables
 - `npx supabase migration list` shows local and remote at the same latest
-  migration, currently at least `20260526060000`
+  migration, currently at least `20260526070000`
 
 The repository now contains:
 
@@ -22,7 +22,8 @@ The repository now contains:
   admin-only beta operations.
 - Company profile, operating loops, runs, artifacts, approvals, receipts,
   assets, customers, metrics, signals, memory pages, usage events,
-  notifications, support access events, and deletion requests.
+  notifications, support access events, deletion requests, and deletion
+  tombstones.
 - Versioned beta terms, privacy, DPA, AI use, retention, and deletion
   acceptance records in `startup_office_terms_acceptances`.
 - Cloud loop worker, outbox worker, ops monitor, model provider abstraction,

@@ -17,6 +17,7 @@ const IDS = Object.freeze({
   alphaBillingDocument: "6f000000-0000-0000-0000-000000000001",
   alphaCustomer: "65000000-0000-0000-0000-000000000001",
   alphaDeletionRequest: "6e000000-0000-0000-0000-000000000001",
+  alphaDeletionTombstone: "71000000-0000-0000-0000-000000000001",
   alphaArtifact: "62000000-0000-0000-0000-000000000001",
   alphaApproval: "63000000-0000-0000-0000-000000000001",
   alphaLoop: "61000000-0000-0000-0000-000000000001",
@@ -39,6 +40,7 @@ const IDS = Object.freeze({
   betaBillingDocument: "6f000000-0000-0000-0000-000000000002",
   betaCustomer: "65000000-0000-0000-0000-000000000002",
   betaDeletionRequest: "6e000000-0000-0000-0000-000000000002",
+  betaDeletionTombstone: "71000000-0000-0000-0000-000000000002",
   betaArtifact: "62000000-0000-0000-0000-000000000002",
   betaApproval: "63000000-0000-0000-0000-000000000002",
   betaLoop: "61000000-0000-0000-0000-000000000002",
@@ -76,6 +78,7 @@ const RLS_TEAM_TABLE_FIXTURES = Object.freeze([
   { alphaKey: IDS.alphaBillingDocument, betaKey: IDS.betaBillingDocument, keyColumn: "id", table: "startup_office_billing_documents" },
   { alphaKey: IDS.alphaCustomer, betaKey: IDS.betaCustomer, keyColumn: "id", table: "startup_office_customers" },
   { alphaKey: IDS.alphaDeletionRequest, betaKey: IDS.betaDeletionRequest, keyColumn: "id", table: "startup_office_deletion_requests" },
+  { alphaKey: IDS.alphaDeletionTombstone, betaKey: IDS.betaDeletionTombstone, keyColumn: "id", table: "startup_office_deletion_tombstones" },
   { alphaKey: IDS.alphaLoop, betaKey: IDS.betaLoop, keyColumn: "id", table: "startup_office_loops" },
   { alphaKey: IDS.alphaMemoryPage, betaKey: IDS.betaMemoryPage, keyColumn: "id", table: "startup_office_memory_pages" },
   { alphaKey: IDS.alphaMetric, betaKey: IDS.betaMetric, keyColumn: "id", table: "startup_office_metrics" },
@@ -309,6 +312,18 @@ const RLS_DIRECT_WRITE_BLOCK_FIXTURES = Object.freeze([
       team_id: IDS.alphaTeam,
     }),
     table: "startup_office_activation_events",
+  },
+  {
+    body: () => ({
+      deletion_request_id: IDS.alphaDeletionRequest,
+      id: crypto.randomUUID(),
+      manifest_version: "startup-office-deletion-manifest-2026-05-26",
+      purged_tables: ["teams"],
+      requested_by: IDS.alphaUser,
+      status: "purged",
+      team_id: IDS.alphaTeam,
+    }),
+    table: "startup_office_deletion_tombstones",
   },
 ]);
 
@@ -608,6 +623,33 @@ function seedTenantFixtures(databaseURL) {
       ('${IDS.alphaDeletionRequest}', '${IDS.alphaTeam}', '${IDS.alphaUser}', 'queued', 'Alpha deletion drill'),
       ('${IDS.betaDeletionRequest}', '${IDS.betaTeam}', '${IDS.betaUser}', 'queued', 'Beta deletion drill');
 
+    insert into public.startup_office_deletion_tombstones (
+      id, team_id, deletion_request_id, requested_by, status, reason, manifest_version, purged_tables, retained_tables
+    )
+    values
+      (
+        '${IDS.alphaDeletionTombstone}',
+        '${IDS.alphaTeam}',
+        '${IDS.alphaDeletionRequest}',
+        '${IDS.alphaUser}',
+        'purged',
+        'Alpha deletion drill',
+        'startup-office-deletion-manifest-2026-05-26',
+        array['teams'],
+        array['startup_office_deletion_tombstones']
+      ),
+      (
+        '${IDS.betaDeletionTombstone}',
+        '${IDS.betaTeam}',
+        '${IDS.betaDeletionRequest}',
+        '${IDS.betaUser}',
+        'purged',
+        'Beta deletion drill',
+        'startup-office-deletion-manifest-2026-05-26',
+        array['teams'],
+        array['startup_office_deletion_tombstones']
+      );
+
     insert into public.startup_office_billing_documents (id, team_id, document_type, status, provider, created_by)
     values
       ('${IDS.alphaBillingDocument}', '${IDS.alphaTeam}', 'agreement', 'signed', 'manual', '${IDS.alphaUser}'),
@@ -784,6 +826,8 @@ async function verifyRLS(baseURL) {
     token: alphaToken,
   });
   assertRows(alphaRuns, [{ id: IDS.alphaRun, team_id: IDS.alphaTeam, title: "Alpha run" }]);
+
+  await verifyWorkspacePurgeRPC(baseURL, { alphaToken, serviceToken });
 }
 
 async function verifyTeamTableReadIsolation(baseURL, tokens) {
@@ -874,6 +918,63 @@ async function verifyDirectWritePolicyBlocks(baseURL, tokens) {
     if (attempted.ok) {
       throw new Error(`authenticated user wrote directly to service-owned table ${fixture.table} despite RLS`);
     }
+  }
+}
+
+async function verifyWorkspacePurgeRPC(baseURL, tokens) {
+  const payload = {
+    target_deletion_request_id: IDS.alphaDeletionRequest,
+    target_team_id: IDS.alphaTeam,
+  };
+  const authenticatedPurge = await rest(baseURL, "/rpc/purge_startup_office_workspace", {
+    body: payload,
+    method: "POST",
+    token: tokens.alphaToken,
+  });
+  if (authenticatedPurge.ok) {
+    throw new Error("authenticated user called purge_startup_office_workspace despite service-role guard");
+  }
+
+  const servicePurge = await rest(baseURL, "/rpc/purge_startup_office_workspace", {
+    body: payload,
+    method: "POST",
+    token: tokens.serviceToken,
+  });
+  if (!servicePurge.ok || servicePurge.body?.status !== "purged") {
+    throw new Error(`service_role purge failed: ${servicePurge.text}`);
+  }
+  if (!servicePurge.body?.purged_tables?.includes("startup_office_receipts")) {
+    throw new Error("service_role purge did not return the receipt purge manifest");
+  }
+
+  assertRows(
+    await rest(baseURL, `/teams?select=id&id=eq.${IDS.alphaTeam}`, {
+      token: tokens.serviceToken,
+    }),
+    [],
+  );
+  assertRows(
+    await rest(baseURL, `/startup_office_receipts?select=id,team_id&team_id=eq.${IDS.alphaTeam}`, {
+      token: tokens.serviceToken,
+    }),
+    [],
+  );
+  const tombstones = await rest(
+    baseURL,
+    `/startup_office_deletion_tombstones?select=team_id,deletion_request_id,manifest_version&team_id=eq.${IDS.alphaTeam}`,
+    { token: tokens.serviceToken },
+  );
+  if (!Array.isArray(tombstones) || tombstones.length < 1) {
+    throw new Error("workspace purge did not retain deletion tombstone evidence");
+  }
+  if (
+    !tombstones.some(
+      (row) =>
+        row.deletion_request_id === IDS.alphaDeletionRequest &&
+        row.manifest_version === "startup-office-deletion-manifest-2026-05-26",
+    )
+  ) {
+    throw new Error("workspace purge tombstone did not retain the deletion request and manifest version");
   }
 }
 

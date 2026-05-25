@@ -121,6 +121,13 @@ signals, loops, runs, artifacts, approvals, receipts where deletion is
 authorized, notifications, support access, usage, worker jobs, billing documents,
 and workspace settings.
 
+The production purge path is `purge_startup_office_workspace`, guarded for the
+service role and the explicit deletion request. It records the active deletion
+manifest, enables the receipt-delete bypass only for the purge transaction, and
+deletes the workspace through the `teams` cascade. A minimal
+`startup_office_deletion_tombstones` row is retained outside that cascade as
+isolated deletion proof.
+
 Before destructive deletion, operators should offer export. After deletion,
 records required for security, fraud prevention, accounting, legal compliance,
 or incident investigation may be retained only for those purposes and isolated

@@ -25,6 +25,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "supportAccess",
     "supportAccessAction",
     "deletionRequest",
+    "deletionPurge",
     "betaDashboard",
     "supportTimeline",
     "workerJobAction",
@@ -84,6 +85,11 @@ test("Startup Office route matcher decodes path params and aliases", () => {
     matchStartupOfficeRoute("startup-office/support-access/support%2F1/revoke", "POST")
       ?.args,
     ["support/1", "revoke"],
+  );
+  assert.deepEqual(
+    matchStartupOfficeRoute("startup-office/deletion-request/delete%2F1/purge", "POST")
+      ?.args,
+    ["delete/1"],
   );
 });
 

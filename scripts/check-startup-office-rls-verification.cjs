@@ -120,6 +120,16 @@ for (const [relativePath, snippet, label] of [
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
+    "authenticated user called purge_startup_office_workspace despite service-role guard",
+    "workspace purge service-role guard verification",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "workspace purge did not retain deletion tombstone evidence",
+    "workspace purge tombstone verification",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
     "startup-office RLS live verification passed",
     "success signal",
   ],

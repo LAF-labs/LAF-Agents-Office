@@ -72,6 +72,12 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     params: Object.freeze(["eventID", "action"]),
   },
   { id: "deletionRequest", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/deletion-request"]) },
+  {
+    id: "deletionPurge",
+    methods: Object.freeze(["POST"]),
+    pattern: "^startup-office/deletion-request/([^/]+)/purge$",
+    params: Object.freeze(["deletionRequestID"]),
+  },
   { id: "betaDashboard", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/admin/beta-dashboard"]) },
   { id: "supportTimeline", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/admin/support-timeline"]) },
   {

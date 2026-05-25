@@ -43,6 +43,7 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
     ["GET", STARTUP_OFFICE_ACCESS.adminBetaOps],
     ["POST", STARTUP_OFFICE_ACCESS.adminBetaOps],
   ]),
+  deletionPurge: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminBetaOps]]),
   demoSeed: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminDemoSeed]]),
   export: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
   growthSummary: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),

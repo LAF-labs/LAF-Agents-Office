@@ -60,7 +60,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/startup-office/lifecycleHandlers.js",
-    ["support_access", "deletion_requested", "visible_to_owner"],
+    ["support_access", "deletion_requested", "visible_to_owner", "deletion_manifest"],
     "support and deletion lifecycle",
   ],
   [

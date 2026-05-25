@@ -37,6 +37,7 @@ const PATTERN_SAMPLES = Object.freeze({
     "startup-office/artifacts/artifact-1/save-as-asset",
     "startup-office/artifacts/artifact-1/record-signal",
   ],
+  deletionPurge: ["startup-office/deletion-request/delete-1/purge"],
   loopRun: ["startup-office/loops/idea-validation/run", "loops/customer-discovery/run"],
   objectCollection: [
     "startup-office/assets",

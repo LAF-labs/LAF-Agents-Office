@@ -26,6 +26,10 @@ test("service-role guards allow only current schema tables and internal RPCs", (
     "claim_startup_office_worker_job",
   );
   assert.equal(
+    guards.assertAllowedRPC("purge_startup_office_workspace"),
+    "purge_startup_office_workspace",
+  );
+  assert.equal(
     guards.assertAllowedRPC("toggle_channel_message_reaction"),
     "toggle_channel_message_reaction",
   );

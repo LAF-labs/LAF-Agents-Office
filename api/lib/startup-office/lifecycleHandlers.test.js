@@ -10,6 +10,7 @@ function baseDeps(overrides = {}) {
     audits: [],
     admin: [],
     rest: [],
+    rpc: [],
     writes: [],
   };
   const deps = {
@@ -36,6 +37,10 @@ function baseDeps(overrides = {}) {
     async safeStartupOfficeRest(table, options) {
       calls.rest.push({ options, table });
       return [{ id: `${table}-1`, ...options.body }];
+    },
+    async rpc(name, body) {
+      calls.rpc.push({ body, name });
+      return { status: "purged", team_id: body.target_team_id };
     },
     truncateText(value, max) {
       return String(value || "").slice(0, max);
@@ -94,6 +99,44 @@ test("deletion request requires owner/admin and explicit confirmation", async ()
   assert.equal(deps.calls.admin[0].message, "owner or admin role required for deletion");
   assert.equal(deps.calls.rest[0].table, "startup_office_deletion_requests");
   assert.equal(deps.calls.rest[0].options.body.status, "queued");
+  assert.equal(
+    deps.calls.rest[0].options.body.metadata.deletion_manifest_version,
+    "startup-office-deletion-manifest-2026-05-26",
+  );
+  assert.ok(deps.calls.rest[0].options.body.metadata.purged_tables.includes("startup_office_receipts"));
+  assert.equal(
+    deps.calls.rest[0].options.body.metadata.retained_tables[0].name,
+    "startup_office_deletion_tombstones",
+  );
+  assert.equal(
+    deps.calls.writes[0].body.deletion_manifest.purge_method,
+    "purge_startup_office_workspace",
+  );
   assert.equal(deps.calls.writes[0].status, 202);
   assert.equal(deps.calls.audits[0][1], "startup_office.deletion_requested");
+});
+
+test("deletion purge requires explicit destructive confirmation and calls service rpc", async () => {
+  const invalid = createStartupOfficeLifecycleHandlers(baseDeps());
+  await assert.rejects(
+    () => invalid.deletionPurge({ method: "POST" }, {}, "delete-1"),
+    (err) => err.status === 400 && err.message === "confirmation must be PURGE STARTUP OFFICE",
+  );
+
+  const deps = baseDeps({
+    async readBody() {
+      return { confirmation: "PURGE STARTUP OFFICE" };
+    },
+  });
+  const handlers = createStartupOfficeLifecycleHandlers(deps);
+  await handlers.deletionPurge({ method: "POST" }, {}, "delete-1");
+
+  assert.equal(deps.calls.admin[0].message, "owner or admin role required for deletion purge");
+  assert.equal(deps.calls.rpc[0].name, "purge_startup_office_workspace");
+  assert.deepEqual(deps.calls.rpc[0].body, {
+    target_deletion_request_id: "delete-1",
+    target_team_id: "team-1",
+  });
+  assert.equal(deps.calls.writes[0].status, 202);
+  assert.equal(deps.calls.writes[0].body.status, "purged");
 });

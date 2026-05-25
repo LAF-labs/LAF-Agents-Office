@@ -54,6 +54,12 @@ const HOSTED_ACTION_RATE_LIMITS = Object.freeze([
     scope: "startup_office_deletion_request",
   },
   {
+    limit: 3,
+    method: "POST",
+    pattern: /^startup-office\/deletion-request\/[^/]+\/purge$/,
+    scope: "startup_office_deletion_purge",
+  },
+  {
     limit: 30,
     method: "POST",
     pattern: /^startup-office\/admin\/worker-jobs\/[^/]+\/(?:retry|cancel)$/,

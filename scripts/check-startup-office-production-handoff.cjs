@@ -32,7 +32,7 @@ if (
 
 for (const snippet of [
   "Repository-Controlled Readiness",
-  "20260526060000",
+  "20260526070000",
   "G099 Production Deployment Evidence",
   "G100 First Customer Evidence",
   "Deploy commit SHA",

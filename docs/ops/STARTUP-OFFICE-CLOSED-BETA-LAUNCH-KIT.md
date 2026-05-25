@@ -146,6 +146,19 @@ Support access:
 3. Owner can read the access events.
 4. Silent impersonation is prohibited.
 
+## Workspace Deletion Processing
+
+1. Owner/admin requests deletion with `DELETE STARTUP OFFICE`.
+2. Operator offers `GET /startup-office/export` before destructive purge.
+3. Owner/admin confirms purge with `PURGE STARTUP OFFICE` against the deletion
+   request.
+4. `purge_startup_office_workspace` runs through service role only, sets
+   `app.allow_receipt_delete=on` for the transaction, deletes the workspace via
+   the `teams` cascade, and returns the deletion manifest.
+5. `startup_office_deletion_tombstones` retains only minimal proof: workspace
+   ID, deletion request ID, requester, manifest version, purged table list, and
+   purge timestamp.
+
 ## Incident Response
 
 Data leak or cross-tenant bug:

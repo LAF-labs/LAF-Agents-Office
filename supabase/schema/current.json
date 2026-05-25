@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526060000",
+  "latestMigration": "20260526070000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -173,6 +173,13 @@
       "columns": ["id", "team_id", "requested_by", "status", "reason", "metadata", "created_at", "updated_at"]
     },
     {
+      "name": "startup_office_deletion_tombstones",
+      "domain": "lifecycle",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "deletion_request_id", "requested_by", "status", "reason", "manifest_version", "purged_tables", "retained_tables", "metadata", "requested_at", "purged_at", "created_at"]
+    },
+    {
       "name": "startup_office_usage_events",
       "domain": "usage",
       "tenantColumn": "team_id",
@@ -281,5 +288,5 @@
   ],
   "outboxClaimFunction": "claim_startup_office_outbox_event",
   "workerJobClaimFunction": "claim_startup_office_worker_job",
-  "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event", "claim_startup_office_worker_job", "toggle_channel_message_reaction"]
+  "internalFunctions": ["claim_hosted_rate_limit", "claim_startup_office_outbox_event", "claim_startup_office_worker_job", "purge_startup_office_workspace", "toggle_channel_message_reaction"]
 }
