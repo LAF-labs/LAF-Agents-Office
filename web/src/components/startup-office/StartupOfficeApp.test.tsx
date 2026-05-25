@@ -332,11 +332,33 @@ describe("StartupOfficeApp", () => {
     const profileDialog = await screen.findByRole("dialog", {
       name: "Company profile",
     });
-    const nameInput = within(profileDialog).getByLabelText("Company name");
-    await user.clear(nameInput);
-    await user.type(nameInput, "Updated Labs");
+    const profileForm = within(profileDialog);
+    await user.clear(profileForm.getByLabelText("Company name"));
+    await user.type(profileForm.getByLabelText("Company name"), "Updated Labs");
+    await user.clear(profileForm.getByLabelText("Stage"));
+    await user.type(profileForm.getByLabelText("Stage"), "paid_beta");
+    await user.clear(profileForm.getByLabelText("Priority"));
+    await user.type(
+      profileForm.getByLabelText("Priority"),
+      "Book 10 founder calls this week",
+    );
+    await user.clear(profileForm.getByLabelText("ICP"));
+    await user.type(
+      profileForm.getByLabelText("ICP"),
+      "Bootstrapped B2B SaaS founders with first revenue",
+    );
+    await user.clear(profileForm.getByLabelText("Offer"));
+    await user.type(
+      profileForm.getByLabelText("Offer"),
+      "A controlled AI Startup Office for beta sales",
+    );
+    await user.clear(profileForm.getByLabelText("Positioning"));
+    await user.type(
+      profileForm.getByLabelText("Positioning"),
+      "Safer and more transparent Polsia alternative",
+    );
     await user.click(
-      within(profileDialog).getByRole("button", { name: "Save profile" }),
+      profileForm.getByRole("button", { name: "Save profile" }),
     );
 
     await waitFor(() =>
@@ -344,8 +366,12 @@ describe("StartupOfficeApp", () => {
         startupOfficeMocks.updateStartupOfficeCompanyProfile,
       ).toHaveBeenCalledWith(
         expect.objectContaining({
+          icp: "Bootstrapped B2B SaaS founders with first revenue",
           name: "Updated Labs",
-          priority: "Validate paid beta demand",
+          offer: "A controlled AI Startup Office for beta sales",
+          positioning: "Safer and more transparent Polsia alternative",
+          priority: "Book 10 founder calls this week",
+          stage: "paid_beta",
         }),
       ),
     );
