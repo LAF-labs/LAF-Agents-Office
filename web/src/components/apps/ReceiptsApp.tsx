@@ -208,6 +208,19 @@ function ReceiptDetail({
                   {entry.summary.slice(0, 200)}
                 </div>
               ) : null}
+              {entry.integrity?.digest ? (
+                <div className="app-trace-integrity">
+                  <span>{copy.digest}</span>
+                  <code title={entry.integrity.digest}>
+                    {shortDigest(entry.integrity.digest)}
+                  </code>
+                  {entry.integrity.signed ? null : (
+                    <span className="app-trace-integrity-badge">
+                      {copy.unsigned}
+                    </span>
+                  )}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
@@ -237,4 +250,10 @@ function objectValue(value: unknown): Record<string, unknown> {
 function numberValue(value: unknown): number {
   const number = Number(value || 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+function shortDigest(digest: string): string {
+  return digest.length > 20
+    ? `${digest.slice(0, 12)}...${digest.slice(-8)}`
+    : digest;
 }

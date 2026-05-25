@@ -202,7 +202,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I161 | Portability | Export exists but no import/restore path exists for a workspace. | export endpoint |
 | SV-I162 | Portability | Users cannot migrate company memory into another account or workspace. | no import |
 | SV-I163 | Portability | Artifacts lack stable public or private share URLs. | artifact viewer |
-| SV-I164 | Portability | Receipts are now DB append-only, but not yet signed or shareable enough for external trust. | receipts |
+| SV-I164 | Portability | Receipts are DB append-only and expose a canonical SHA-256 digest; third-party signing and share links remain future trust hardening. | `startup-office:receipt-integrity`, DB gate |
 | SV-I165 | Portability | Data schemas are not versioned in exported bundles. | export endpoint |
 | SV-I166 | Portability | Workspace deletion and data download are not one coherent account flow. | settings |
 | SV-I167 | Portability | Asset upload and material library are incomplete. | beta goals |
@@ -312,7 +312,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G066 | Add external action policy. | Publish, send, spend, and legal-sensitive actions are always gated. | policy tests |
 | SV-G067 | Build support recovery workflows. | Operators can retry, cancel, annotate, and notify from admin. | admin tests |
 | SV-G068 | Add dependency-aware loops. | Runs can wait on prior evidence or approvals. | workflow tests |
-| SV-G069 | Make receipts externally verifiable. | Receipts are append-only in Supabase and can later be signed for third-party trust. | DB gate and receipt tests |
+| SV-G069 | Make receipts externally verifiable. | Receipts are append-only in Supabase and expose a deterministic canonical SHA-256 digest that founders can inspect. | `startup-office:receipt-integrity`, DB gate and receipt tests |
 | SV-G070 | Add customer-facing receipt view. | Founder can inspect and share safe receipt summaries. | UI tests |
 | SV-G071 | Collapse legacy web surfaces. | Primary hosted app no longer ships confusing project/task-era UX. | route and bundle checks |
 | SV-G072 | Build a polished operator cockpit. | Growth Center supports daily scan, action, review, and archive. | browser QA |
@@ -576,7 +576,10 @@ the final release commit or when a shared invariant changes.
   `20260525060000_startup_office_receipt_append_only.sql` adds a database
   trigger that blocks receipt updates and requires
   `app.allow_receipt_delete=on` before receipt deletion; the schema gate verifies
-  the append-only function, trigger, and bypass setting.
+  the append-only function, trigger, and bypass setting. API receipts now also
+  include a canonical SHA-256 digest over actor, approval, creation time, event
+  type, id, run, summary, and trace fields, and the Receipts app displays the
+  digest with `startup-office:receipt-integrity` release coverage.
 - R3/R7 now starts a durable outbox. Supabase migration
   `20260525070000_startup_office_outbox_events.sql` creates
   `startup_office_outbox_events` and DB triggers that enqueue outbox rows on

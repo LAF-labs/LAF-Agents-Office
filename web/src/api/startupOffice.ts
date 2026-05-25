@@ -66,6 +66,15 @@ export interface StartupOfficeReceipt {
   created_at?: string | null;
   event_type: string;
   id: string;
+  integrity?: {
+    algorithm: "sha256";
+    canonical_fields: string[];
+    digest: string;
+    digest_input_version: string;
+    signed: boolean;
+    signed_note: string;
+    version: string;
+  };
   run_id?: string | null;
   summary: string;
   trace?: Record<string, unknown>;

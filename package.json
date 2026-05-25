@@ -31,6 +31,7 @@
     "startup-office:prompt-versions": "node scripts/check-startup-office-prompt-versions.cjs",
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
     "startup-office:rate-limits": "node scripts/check-startup-office-rate-limit-coverage.cjs",
+    "startup-office:receipt-integrity": "node scripts/check-startup-office-receipt-integrity.cjs",
     "startup-office:retrieval-quality": "node scripts/check-startup-office-retrieval-quality.cjs",
     "startup-office:role-authorization": "node scripts/check-startup-office-role-authorization.cjs",
     "startup-office:rls-live": "node scripts/verify-startup-office-rls-postgrest.cjs",

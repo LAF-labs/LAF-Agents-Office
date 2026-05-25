@@ -1,4 +1,5 @@
 const { startupOfficeMemoryFreshness } = require("./memoryFreshness");
+const { startupOfficeReceiptIntegrity } = require("./receiptIntegrity");
 
 function objectValue(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -96,7 +97,7 @@ function publicStartupOfficeApproval(row) {
 
 function publicStartupOfficeReceipt(row) {
   if (!row) return null;
-  return {
+  const receipt = {
     actor_slug: row.actor_slug || "",
     approval_id: row.approval_id || null,
     created_at: row.created_at || null,
@@ -105,6 +106,10 @@ function publicStartupOfficeReceipt(row) {
     run_id: row.run_id || null,
     summary: row.summary || "",
     trace: objectValue(row.trace),
+  };
+  return {
+    ...receipt,
+    integrity: startupOfficeReceiptIntegrity(receipt),
   };
 }
 

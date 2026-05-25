@@ -2357,6 +2357,27 @@ html[data-theme="office"]
   line-height: 1.5;
   padding-left: 74px;
 }
+.app-trace-integrity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-left: 74px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.app-trace-integrity code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.app-trace-integrity-badge {
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  padding: 1px 6px;
+  color: var(--text-tertiary);
+}
 
 /* ─── Insights (activity panel) ─── */
 .insight-list {

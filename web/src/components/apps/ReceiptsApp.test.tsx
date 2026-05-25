@@ -63,6 +63,17 @@ describe("ReceiptsApp", () => {
           created_at: "2026-05-24T00:00:00Z",
           event_type: "approval.approved",
           id: "receipt-1",
+          integrity: {
+            algorithm: "sha256",
+            canonical_fields: ["id"],
+            digest:
+              "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            digest_input_version: "startup-office-receipt.v1",
+            signed: false,
+            signed_note:
+              "Digest is deterministic; external signing can be layered on this canonical payload.",
+            version: "startup-office-receipt-integrity.v1",
+          },
           run_id: "run-1",
           summary: "Founder approved the validation draft.",
           trace: {},
@@ -104,5 +115,8 @@ describe("ReceiptsApp", () => {
     expect(
       screen.getByText("Founder approved the validation draft."),
     ).toBeInTheDocument();
+    expect(screen.getByText("Digest")).toBeInTheDocument();
+    expect(screen.getByText("0123456789ab...89abcdef")).toBeInTheDocument();
+    expect(screen.getByText("Unsigned")).toBeInTheDocument();
   });
 });
