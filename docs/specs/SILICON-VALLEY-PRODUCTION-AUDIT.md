@@ -605,6 +605,10 @@ and missing typed contracts.
   `api/lib/hosted/usageHandlers.js`. Usage totals, token counts, model-spend
   percent, run count, plan, and billing state now come from the Startup Office
   billing/usage snapshot and are covered by the beta release gate.
+- R5/R8 now replaces the hosted `/agent-logs` empty stub with
+  `api/lib/hosted/agentLogHandlers.js`. The legacy receipt table UI now reads
+  Startup Office receipts, maps run IDs into the existing detail route, and
+  carries receipt trace cost/tokens into the existing log contract.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

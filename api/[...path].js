@@ -3,6 +3,9 @@ const {
   createHostedAuditHandlers,
 } = require("./lib/hosted/auditHandlers");
 const {
+  createHostedAgentLogHandlers,
+} = require("./lib/hosted/agentLogHandlers");
+const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
@@ -130,6 +133,13 @@ const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
   keyForRequest: clientRateLimitKey,
+});
+
+const HOSTED_AGENT_LOG_HANDLERS = createHostedAgentLogHandlers({
+  requirePermission,
+  requireUser,
+  startupOfficeReceipts,
+  writeJSON,
 });
 
 const HOSTED_AUDIT_HANDLERS = createHostedAuditHandlers({
@@ -649,7 +659,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "agent-logs" && req.method === "GET") {
-      writeJSON(res, 200, { logs: [] });
+      await HOSTED_AGENT_LOG_HANDLERS.agentLogs(req, res);
       return;
     }
     if (path === "memory") {

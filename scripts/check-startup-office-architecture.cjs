@@ -33,6 +33,7 @@ function assertNotContains(relativePath, pattern, label) {
 }
 
 assertMaxLines("api/[...path].js", 2850);
+assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
 assertMaxLines("api/lib/hosted/authHandlers.js", 140);
 assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
@@ -158,6 +159,8 @@ for (const [pattern, label] of [
   [/channel_messages/, "hosted conversation persistence table"],
   [/content is required/, "hosted conversation content validation"],
   [/thread_id is required/, "hosted conversation home-session validation"],
+  [/async function handleHostedAgentLogs\b/, "hosted agent log handler"],
+  [/logs: \[\]/, "hosted agent logs empty stub"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }
