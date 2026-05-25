@@ -94,6 +94,7 @@ const checks = [
   ["node", ["--test", "workers/startup-office/approvalGates.test.js"]],
   ["node", ["--test", "workers/startup-office/browserResearch.test.js"]],
   ["node", ["--test", "workers/startup-office/citationSources.test.js"]],
+  ["node", ["--test", "workers/startup-office/contextBuilder.test.js"]],
   ["node", ["--test", "workers/startup-office/loopEngine.test.js"]],
   ["node", ["--test", "workers/startup-office/outboxWorker.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],

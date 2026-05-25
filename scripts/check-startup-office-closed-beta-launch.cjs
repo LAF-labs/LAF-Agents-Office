@@ -75,7 +75,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "workers/startup-office/contextBuilder.js",
-    ["relevant_assets", "wiki_memory", "citation_sources"],
+    ["rankByRelevance", "relevant_assets", "wiki_memory", "citation_sources"],
     "wiki and asset retrieval",
   ],
   [
