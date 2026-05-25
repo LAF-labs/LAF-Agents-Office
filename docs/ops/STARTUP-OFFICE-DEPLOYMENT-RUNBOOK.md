@@ -52,6 +52,10 @@ GitHub Actions variables:
 - `LAF_LOOP_WORKER_LOCK_MS`, default `1800000`
 - `LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER`, default `openai`
 - `LAF_OFFICE_STARTUP_OFFICE_MODEL`, default `gpt-5-mini`
+- `LAF_OFFICE_MODEL_PRICING_JSON`, a JSON object keyed by
+  `provider:model`, `model`, provider, or `*`. Each entry must include
+  `input_cents_per_1m` and `output_cents_per_1m` or the USD equivalents,
+  plus an optional `source`. Example key: `openai:gpt-5-mini`.
 - `LAF_OFFICE_OPENAI_FALLBACK_API_KEY` when using a backup
   OpenAI-compatible model route
 - `LAF_OFFICE_OPENAI_FALLBACK_BASE_URL` when the backup route is a gateway or

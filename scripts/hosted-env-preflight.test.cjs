@@ -24,6 +24,13 @@ function validEnv(overrides = {}) {
     LAF_OFFICE_ALLOWED_ORIGINS:
       "https://office.example.com, https://app.example.com",
     LAF_OFFICE_BILLING_MODE: "manual",
+    LAF_OFFICE_MODEL_PRICING_JSON: JSON.stringify({
+      "openai:gpt-5-mini": {
+        input_cents_per_1m: 100,
+        output_cents_per_1m: 200,
+        source: "test-pricing",
+      },
+    }),
     LAF_OFFICE_OPENAI_API_KEY: "openai-key",
     LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "openai",
     LAF_OFFICE_PUBLIC_HOST: "office.example.com",
@@ -46,6 +53,7 @@ test("preflight passes a production cloud office env", () => {
   assert.equal(result.normalized.outbox_lock_ms, 300000);
   assert.equal(result.normalized.billing_mode, "manual");
   assert.equal(result.normalized.startup_office_ai_provider, "openai");
+  assert.equal(result.normalized.startup_office_model_pricing_configured, true);
 
   const rendered = printText(result);
   assert.match(rendered, /PASS hosted Startup Office env is ready/);
@@ -53,6 +61,7 @@ test("preflight passes a production cloud office env", () => {
   assert.match(rendered, /billing mode: manual/);
   assert.match(rendered, /outbox email provider: in_app/);
   assert.match(rendered, /Startup Office AI provider: openai/);
+  assert.match(rendered, /Startup Office model pricing: configured/);
 });
 
 test("preflight supports split-origin API deployments", () => {
@@ -82,6 +91,7 @@ test("preflight loads env files without leaking secret values", async (t) => {
       "SUPABASE_SERVICE_ROLE_KEY=service-secret-from-file",
       "SUPABASE_ANON_KEY=anon-secret-from-file",
       "LAF_OFFICE_BILLING_MODE=manual",
+      'LAF_OFFICE_MODEL_PRICING_JSON={"openai:gpt-5-mini":{"input_cents_per_1m":100,"output_cents_per_1m":200}}',
       "LAF_OFFICE_OPENAI_API_KEY=openai-secret-from-file",
       "LAF_OFFICE_PUBLIC_HOST=office.example.com",
       "LAF_OFFICE_ALLOWED_ORIGINS=office.example.com",
@@ -160,6 +170,16 @@ test("preflight validates Startup Office AI fallback env without printing secret
       LAF_OFFICE_OPENAI_FALLBACK_API_KEY: "fallback-key",
       LAF_OFFICE_OPENAI_FALLBACK_BASE_URL: "https://fallback-models.example.test/v1",
       LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL: "gpt-fallback",
+      LAF_OFFICE_MODEL_PRICING_JSON: JSON.stringify({
+        "openai:gpt-5-mini": {
+          input_cents_per_1m: 100,
+          output_cents_per_1m: 200,
+        },
+        "openai_fallback:gpt-fallback": {
+          input_cents_per_1m: 150,
+          output_cents_per_1m: 300,
+        },
+      }),
     }),
   );
 
@@ -169,6 +189,33 @@ test("preflight validates Startup Office AI fallback env without printing secret
   const rendered = printText(result);
   assert.match(rendered, /Startup Office AI fallback: enabled/);
   assert.doesNotMatch(rendered, /fallback-key/);
+});
+
+test("preflight requires model pricing for production cost reconciliation", () => {
+  const missingPricing = runPreflight(
+    validEnv({
+      LAF_OFFICE_MODEL_PRICING_JSON: "",
+    }),
+  );
+  assert.equal(missingPricing.ok, false);
+  assert(
+    missingPricing.errors.includes(
+      "missing LAF_OFFICE_MODEL_PRICING_JSON for Startup Office model cost reconciliation",
+    ),
+  );
+
+  const missingFallbackPricing = runPreflight(
+    validEnv({
+      LAF_OFFICE_OPENAI_FALLBACK_API_KEY: "fallback-key",
+      LAF_OFFICE_STARTUP_OFFICE_FALLBACK_MODEL: "gpt-fallback",
+    }),
+  );
+  assert.equal(missingFallbackPricing.ok, false);
+  assert(
+    missingFallbackPricing.errors.includes(
+      "LAF_OFFICE_MODEL_PRICING_JSON must include pricing for openai_fallback:gpt-fallback or gpt-fallback",
+    ),
+  );
 });
 
 test("preflight rejects broken Startup Office AI worker env", () => {

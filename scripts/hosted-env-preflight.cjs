@@ -3,6 +3,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { validateModelPricingCatalog } = require("../workers/startup-office/modelCosts");
 
 const repoRoot = path.resolve(__dirname, "..");
 const defaultEnvFiles = [path.join(repoRoot, ".env"), path.join(repoRoot, ".env.local")];
@@ -23,6 +24,7 @@ function runPreflight(env = process.env, options = {}) {
     public_api_base: "",
     public_host: "",
     startup_office_ai_provider: "",
+    startup_office_model_pricing_configured: false,
     startup_office_model: "",
     supabase_url: "",
   };
@@ -214,6 +216,20 @@ function validateStartupOfficeAIEnv(env, { allowTestProvider = false, errors, no
     errors.push(
       "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be openai for production preflight; fake and disabled are local/test only",
     );
+  }
+  if (provider === "openai") {
+    const pricingRoutes = [
+      { model: normalized.startup_office_model, provider: "openai" },
+    ];
+    if (normalized.startup_office_ai_fallback_enabled) {
+      pricingRoutes.push({
+        model: normalized.startup_office_fallback_model || normalized.startup_office_model,
+        provider: "openai_fallback",
+      });
+    }
+    const pricing = validateModelPricingCatalog(env, pricingRoutes);
+    normalized.startup_office_model_pricing_configured = pricing.configured;
+    errors.push(...pricing.errors);
   }
 }
 
@@ -598,6 +614,9 @@ function printText(result) {
   }
   if (result.normalized.startup_office_ai_fallback_enabled) {
     lines.push("[hosted-env-preflight] Startup Office AI fallback: enabled");
+  }
+  if (result.normalized.startup_office_model_pricing_configured) {
+    lines.push("[hosted-env-preflight] Startup Office model pricing: configured");
   }
   if (result.normalized.allowed_origins.length) {
     lines.push(

@@ -58,6 +58,9 @@ function startupOfficeUsageEventBody({
     input_tokens: numberValue(cost.input_tokens),
     metadata: {
       cost_pricing_source: cost.pricing_source || "",
+      cost_billing_reconciliation: cost.billing_reconciliation || "",
+      cost_pricing_key: cost.pricing_key || "",
+      cost_raw_estimated_cents: numberValue(cost.estimated_raw_cents),
       run_status: run.status || "",
       status: result?.status || run.status || "",
       tool_calls: toolCalls,

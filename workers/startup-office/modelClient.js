@@ -1,3 +1,5 @@
+const { modelCostEstimate } = require("./modelCosts");
+
 class StartupOfficeModelError extends Error {
   constructor(message, details = {}) {
     super(message);
@@ -22,7 +24,7 @@ function createStartupOfficeModelClient(options = {}) {
     "gpt-5-mini";
 
   async function generateStructured(input) {
-    if (provider === "fake") return fakeStructuredResponse(input, model);
+    if (provider === "fake") return fakeStructuredResponse(input, model, env);
     if (provider !== "openai") {
       throw new StartupOfficeModelError(
         "startup office model provider is not configured",
@@ -41,7 +43,7 @@ function createStartupOfficeModelClient(options = {}) {
   async function generateText(input) {
     if (provider === "fake") {
       return {
-        cost: costMetadata({ model, provider, usage: fakeUsage() }),
+        cost: costMetadata({ env, model, provider, usage: fakeUsage() }),
         metadata: { fake: true },
         provider,
         text: `Fake ${input?.purpose || "Startup Office"} response`,
@@ -138,6 +140,7 @@ async function openAIResponsesRequest({ env, fetchImpl, input, model, structured
 
 async function singleOpenAIResponsesRequest({
   config,
+  env,
   fetchImpl,
   input,
   structured,
@@ -198,14 +201,24 @@ async function singleOpenAIResponsesRequest({
   };
   if (!structured) {
     return {
-      cost: costMetadata({ model: payload?.model || config.model, provider: config.provider, usage }),
+      cost: costMetadata({
+        env,
+        model: payload?.model || config.model,
+        provider: config.provider,
+        usage,
+      }),
       metadata,
       provider: config.provider,
       text,
     };
   }
   return {
-    cost: costMetadata({ model: payload?.model || config.model, provider: config.provider, usage }),
+    cost: costMetadata({
+      env,
+      model: payload?.model || config.model,
+      provider: config.provider,
+      usage,
+    }),
     data: parseStructuredText(text),
     metadata,
     provider: config.provider,
@@ -213,11 +226,11 @@ async function singleOpenAIResponsesRequest({
   };
 }
 
-function fakeStructuredResponse(input, model) {
+function fakeStructuredResponse(input, model, env = process.env) {
   const data = fakeOutputFor(input);
   const usage = fakeUsage();
   return {
-    cost: costMetadata({ model, provider: "fake", usage }),
+    cost: costMetadata({ env, model, provider: "fake", usage }),
     data,
     metadata: { fake: true },
     provider: "fake",
@@ -542,16 +555,25 @@ function fakeWeeklyReviewOutput() {
   };
 }
 
-function costMetadata({ model, provider, usage }) {
+function costMetadata({ env = process.env, model, provider, usage }) {
   const normalized = normalizeUsage(usage);
+  const estimate = modelCostEstimate({ env, model, provider, usage: normalized });
   return {
+    billing_reconciliation: estimate.billing_reconciliation,
     currency: "USD",
-    estimated_usd: null,
+    estimated_cents: estimate.estimated_cents,
+    estimated_raw_cents: estimate.estimated_raw_cents,
+    estimated_usd: estimate.estimated_usd,
+    input_cents_per_1m: estimate.input_cents_per_1m,
     input_tokens: normalized.input_tokens,
     model,
+    output_cents_per_1m: estimate.output_cents_per_1m,
     output_tokens: normalized.output_tokens,
+    pricing_error: estimate.pricing_error,
+    pricing_key: estimate.pricing_key,
+    pricing_units: estimate.pricing_units,
     provider,
-    pricing_source: "usage_tokens_only",
+    pricing_source: estimate.pricing_source,
     total_tokens: normalized.total_tokens,
   };
 }

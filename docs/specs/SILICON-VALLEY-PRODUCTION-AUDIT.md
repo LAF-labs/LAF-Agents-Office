@@ -95,7 +95,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I054 | AI worker | Output quality checks now cover structure, sources, assumptions, external-action claims, overclaiming, and regulated-advice review language; real model evals remain a post-beta hardening need. | `qualityChecks.js` |
 | SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
 | SV-I056 | AI worker | Worker retries now have service-role leases and dead letters, but live replay and operator recovery UX remain incomplete. | worker job table |
-| SV-I057 | AI worker | Model cost calculation is heuristic and not reconciled against provider billing. | cost metadata |
+| SV-I057 | AI worker | Model costs now reconcile provider usage fields against an operator pricing catalog and carry pricing provenance; invoice-level finance reconciliation remains future ops hardening. | `startup-office:model-costs`, usage tests |
 | SV-I058 | AI worker | Long-running work now has a distributed cancellation contract across API cancel, worker-job state, and loop side-effect guards; live provider abort signals remain future hardening. | `startup-office:cancellation`, worker tests |
 | SV-I059 | AI worker | There is no red-team harness for hallucination, unsafe advice, and overclaiming. | output eval test |
 | SV-I060 | AI worker | Loop tool permission manifests now exist, but live connector-level enforcement must stay tied to this contract as new tools are added. | `workers/startup-office/toolPolicy.js`, `startup-office:tool-policy` |
@@ -291,7 +291,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | worker tests |
 | SV-G046 | Add retrieval over memory and assets. | Loop outputs cite company memory and uploaded materials. | integration tests |
 | SV-G047 | Implement tool permission manifests. | Each loop declares allowed tools, disallowed external-execution tools, and external action policy; worker prompts, metadata, approvals, jobs, and receipts record the policy snapshot. | `startup-office:tool-policy`, worker tests |
-| SV-G048 | Add model cost reconciliation. | Estimated costs are compared with provider usage fields. | usage tests |
+| SV-G048 | Add model cost reconciliation. | Estimated costs are compared with provider usage fields and operator pricing catalog provenance. | `startup-office:model-costs`, usage tests |
 | SV-G049 | Add red-team scenarios. | Unsafe, hallucinated, and overclaiming outputs fail the gate. | eval tests |
 | SV-G050 | Add dead-letter processing. | Failed worker jobs land in a visible recovery queue and scheduled monitor. | worker tests |
 | SV-G051 | Unify wiki and company memory. | Founder-facing memory has one canonical source of truth. | architecture and tests |

@@ -16,6 +16,7 @@
     "startup-office:cancellation": "node scripts/check-startup-office-cancellation-contract.cjs",
     "startup-office:client-telemetry": "node scripts/check-startup-office-client-telemetry.cjs",
     "startup-office:cost-metering": "node scripts/check-startup-office-cost-metering.cjs",
+    "startup-office:model-costs": "node scripts/check-startup-office-model-costs.cjs",
     "startup-office:closed-beta-launch": "node scripts/check-startup-office-closed-beta-launch.cjs",
     "startup-office:deletion-coverage": "node scripts/check-startup-office-deletion-coverage.cjs",
     "startup-office:export-coverage": "node scripts/check-startup-office-export-coverage.cjs",

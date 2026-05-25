@@ -29,6 +29,10 @@ test("usage event body attributes tokens, tools, duration, and cost to workspace
   assert.equal(body.output_tokens, 40);
   assert.equal(body.total_tokens, 140);
   assert.equal(body.cost_cents, 37);
+  assert.equal(body.metadata.cost_billing_reconciliation, "estimated_from_provider_usage");
+  assert.equal(body.metadata.cost_pricing_key, "openai:gpt-5-mini");
+  assert.equal(body.metadata.cost_pricing_source, "unit-test-pricing");
+  assert.equal(body.metadata.cost_raw_estimated_cents, 36.6);
   assert.equal(body.tool_calls, 3);
   assert.equal(body.worker_duration_ms, 120000);
   assert.deepEqual(body.metadata.tool_calls, {
@@ -111,10 +115,13 @@ function meteredResult() {
         },
         cost: {
           estimated_cents: 37,
+          estimated_raw_cents: 36.6,
           input_tokens: 100,
           model: "gpt-5-mini",
           output_tokens: 40,
-          pricing_source: "usage_tokens_only",
+          billing_reconciliation: "estimated_from_provider_usage",
+          pricing_key: "openai:gpt-5-mini",
+          pricing_source: "unit-test-pricing",
           provider: "openai",
           total_tokens: 140,
         },

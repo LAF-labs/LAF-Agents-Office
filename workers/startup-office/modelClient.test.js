@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   StartupOfficeModelError,
+  costMetadata,
   createStartupOfficeModelClient,
   normalizeUsage,
   openAIProviderConfigs,
@@ -248,6 +249,29 @@ test("usage normalization accepts provider token aliases", () => {
     normalizeUsage({ input_tokens: Number.NaN, output_tokens: 4, total_tokens: 9 }),
     { input_tokens: 0, output_tokens: 4, total_tokens: 9 },
   );
+});
+
+test("cost metadata carries pricing provenance when a catalog is configured", () => {
+  const cost = costMetadata({
+    env: {
+      LAF_OFFICE_MODEL_PRICING_JSON: JSON.stringify({
+        "openai:gpt-test": {
+          input_cents_per_1m: 100,
+          output_cents_per_1m: 200,
+          source: "unit-test-pricing",
+        },
+      }),
+    },
+    model: "gpt-test",
+    provider: "openai",
+    usage: { input_tokens: 10000, output_tokens: 20000, total_tokens: 30000 },
+  });
+
+  assert.equal(cost.billing_reconciliation, "estimated_from_provider_usage");
+  assert.equal(cost.estimated_cents, 5);
+  assert.equal(cost.estimated_usd, 0.05);
+  assert.equal(cost.pricing_key, "openai:gpt-test");
+  assert.equal(cost.pricing_source, "unit-test-pricing");
 });
 
 function jsonResponse(payload, status = 200) {
