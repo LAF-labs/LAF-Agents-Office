@@ -32,13 +32,15 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 3860);
+assertMaxLines("api/[...path].js", 3650);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
+assertMaxLines("api/lib/startup-office/services.js", 90);
 assertMaxLines("api/lib/startup-office/workflowHandlers.js", 520);
+assertMaxLines("api/lib/startup-office/workspaceConfigHandlers.js", 320);
 assertMaxLines("api/lib/startup-office/routes.js", 180);
 assertMaxLines("api/lib/startup-office/dispatcher.js", 80);
 
@@ -69,6 +71,13 @@ for (const [pattern, label] of [
   [/const DEMO_COMPANY_PROFILE\b/, "demo seed constants"],
   [/const DEMO_ARTIFACTS\b/, "demo seed constants"],
   [/demoSeedUUID\b/, "demo seed UUID helper"],
+  [/const DEFAULT_STARTUP_OFFICE_APPROVAL_POLICY\b/, "workspace approval policy defaults"],
+  [/function companyProfilePatch\b/, "workspace company profile patch helper"],
+  [/function workspacePreferencesPatch\b/, "workspace preferences patch helper"],
+  [/function normalizeHostedLLMProvider\b/, "hosted LLM provider normalizer"],
+  [/function isMissingWorkspaceSettingsError\b/, "workspace settings storage error helper"],
+  [/async function workspaceHasAnyProject\b/, "workspace onboarding project fallback helper"],
+  [/async function workspaceHasStartupOfficeState\b/, "workspace onboarding startup office fallback helper"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }
