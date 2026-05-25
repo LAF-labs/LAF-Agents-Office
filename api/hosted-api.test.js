@@ -169,6 +169,19 @@ test("pure cloud migration drops obsolete execution schema", () => {
   assert.match(schemaAssertionSql, /drop trigger if exists/);
   assert.match(schemaAssertionSql, /retired customer-managed execution residue/);
   assert.match(schemaAssertionSql, /raise exception/);
+
+  const localIdentitySql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525220000_purge_local_identity_columns.sql",
+    ),
+    "utf8",
+  );
+  assert.match(localIdentitySql, /local_identity_column_names text\[\]/);
+  assert.match(localIdentitySql, /'local_id'/);
+  assert.match(localIdentitySql, /drop column if exists %I cascade/);
+  assert.match(localIdentitySql, /obsolete local identity columns/);
+  assert.match(localIdentitySql, /raise exception/);
 });
 
 test("project and task storage is removed from the current Supabase schema", () => {
@@ -196,6 +209,13 @@ test("project and task storage is removed from the current Supabase schema", () 
   assert.equal(activeTables.has("projects"), false);
   assert.equal(activeTables.has("tasks"), false);
   assert.equal(activeTables.has("delivery_receipts"), false);
+  for (const table of schema.activeTables) {
+    assert.equal(
+      table.columns.some((column) => column === "local_id" || column.endsWith("_local_id")),
+      false,
+      `${table.name} must not expose local identity columns`,
+    );
+  }
   const messages = schema.activeTables.find(
     (table) => table.name === "channel_messages",
   );

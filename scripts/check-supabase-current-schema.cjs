@@ -35,6 +35,15 @@ const retiredExecutionGuard = {
     wiki_write_requests: ["project_id", `${retiredQueueName}_id`],
   },
 };
+const retiredLocalIdentityColumns = new Set([
+  "local_id",
+  "local_path",
+  "local_root",
+  "local_workspace",
+  "local_workspace_path",
+  "local_project_id",
+  "local_task_id",
+]);
 
 function fail(message) {
   console.error(`supabase current schema check failed: ${message}`);
@@ -197,6 +206,15 @@ for (const [table, columns] of Object.entries(retired.columns || {})) {
   for (const column of columns) {
     if (actualColumns.has(column)) {
       fail(`retired execution column remains active: ${table}.${column}`);
+    }
+  }
+}
+
+for (const [table, columns] of state.tables) {
+  for (const column of columns) {
+    const normalized = column.toLowerCase();
+    if (retiredLocalIdentityColumns.has(normalized) || normalized.endsWith("_local_id")) {
+      fail(`retired local identity column remains active: ${table}.${column}`);
     }
   }
 }

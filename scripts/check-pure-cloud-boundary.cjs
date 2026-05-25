@@ -120,6 +120,7 @@ const forbiddenText = [
   [/project_local_bindings/i, "project local binding"],
   [new RegExp(`claim_${queueRuntime}_job`, "i"), "retired queue claim function"],
   [/worktree_(?:path|branch)/i, "worktree field"],
+  [/\blocal_id\b/i, "retired local sync id"],
   [/managed_checkout|local_worktree/i, "local checkout execution mode"],
   [new RegExp(`${providerModeToken}_(?:claude|codex|opencode)`, "i"), "retired provider mode"],
   [
