@@ -658,6 +658,12 @@ and missing typed contracts.
   `20260525170000_add_startup_office_asset_status.sql` adds the active/archive
   state and the release gate checks the schema manifest plus object handler
   coverage.
+- R3/R5 now makes the customer CRM loop-aware. Customer records can be created,
+  listed, status-filtered, updated, archived, and linked to discovery loops
+  through `startup_office_customers.loop_id`; migration
+  `20260525180000_add_startup_office_customer_loop_links.sql` adds the loop
+  reference and index, and the release gate checks both the generic object
+  handlers and hosted schema contract.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

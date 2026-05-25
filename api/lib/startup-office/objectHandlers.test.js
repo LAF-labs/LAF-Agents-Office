@@ -125,6 +125,45 @@ test("object collection handler lists and creates typed operating objects", asyn
   assert.equal(deps.calls.writes[1].body.asset.kind, "assets");
 });
 
+test("customer collection handler filters and links discovery loops", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { loop_id: "loop-1", name: "Beta buyer", status: "qualified" };
+    },
+    startupOfficeObjectPayload(kind, value, body) {
+      return {
+        created_by: value.user_id,
+        loop_id: body.loop_id,
+        name: body.name,
+        status: body.status,
+        team_id: value.team_id,
+        typed_kind: kind,
+      };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectCollection(
+    { method: "GET", query: { loop_id: "loop-1", status: "qualified" } },
+    {},
+    "customers",
+  );
+  assert.equal(deps.calls.permissions[0].permission, "workspace:read");
+  assert.deepEqual(deps.calls.rows[0], {
+    kind: "customers",
+    options: { limit: 100, loop_id: "loop-1", status: "qualified" },
+    teamID: "team-1",
+  });
+
+  await handlers.objectCollection({ method: "POST" }, {}, "customers");
+  assert.equal(deps.calls.permissions[1].permission, "memory:write_draft");
+  assert.equal(deps.calls.rest[0].table, "startup_office_customers");
+  assert.equal(deps.calls.rest[0].options.body.loop_id, "loop-1");
+  assert.equal(deps.calls.rest[0].options.body.status, "qualified");
+  assert.equal(deps.calls.audits[0][1], "startup_office.customers.created");
+  assert.equal(deps.calls.writes[1].body.customer.kind, "customers");
+});
+
 test("asset item handler updates run links and archives by status", async () => {
   const deps = baseDeps({
     async readBody() {
@@ -158,7 +197,14 @@ test("asset item handler updates run links and archives by status", async () => 
 test("object item handler patches by id within the caller workspace", async () => {
   const deps = baseDeps({
     async readBody() {
-      return { status: "archived" };
+      return { discovery_loop_id: "loop-2", status: "archived" };
+    },
+    startupOfficeObjectPatch(kind, body) {
+      return {
+        discovery_loop_id: body.discovery_loop_id,
+        patched_kind: kind,
+        status: body.status,
+      };
     },
   });
   const handlers = createStartupOfficeObjectHandlers(deps);
@@ -170,6 +216,7 @@ test("object item handler patches by id within the caller workspace", async () =
     team_id: "eq.team-1",
   });
   assert.deepEqual(deps.calls.rest[0].options.body, {
+    discovery_loop_id: "loop-2",
     patched_kind: "customers",
     status: "archived",
   });

@@ -23,9 +23,15 @@ function createStartupOfficeObjectHandlers(deps) {
     const definition = startupOfficeObjectDefinition(kind);
     if (req.method === "GET") {
       requirePermission(membership, "workspace:read");
-      const rows = await startupOfficeObjectRows(membership.team_id, kind, {
+      const options = {
         limit: Number(req.query?.limit) || 100,
         status: req.query?.status,
+      };
+      if (kind === "customers") {
+        options.loop_id = req.query?.loop_id || req.query?.discovery_loop_id;
+      }
+      const rows = await startupOfficeObjectRows(membership.team_id, kind, {
+        ...options,
       });
       writeJSON(res, 200, { [definition.responseKey]: rows });
       return;

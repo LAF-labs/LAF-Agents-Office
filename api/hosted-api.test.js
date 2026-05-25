@@ -235,6 +235,36 @@ test("Startup Office assets support run links and archive status", () => {
   assert.match(source, /body\.archive \? "archived" : startupOfficeAssetStatus/);
 });
 
+test("Startup Office customers support discovery loop links and filters", () => {
+  const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
+  const sql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525180000_add_startup_office_customer_loop_links.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /add column if not exists loop_id uuid references public\.startup_office_loops/);
+  assert.match(sql, /on delete set null/);
+  assert.match(sql, /idx_startup_office_customers_team_loop/);
+
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "schema", "current.json"),
+      "utf8",
+    ),
+  );
+  const customers = schema.activeTables.find(
+    (table) => table.name === "startup_office_customers",
+  );
+  assert.equal(customers.columns.includes("loop_id"), true);
+
+  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  assert.match(source, /query\.loop_id = `eq\.\$\{options\.loop_id\}`/);
+  assert.match(source, /loop_id: body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
+  assert.match(source, /patch\.loop_id = body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
+});
+
 test("Startup Office release gate points at loop engine tests", () => {
   const script = fs.readFileSync(
     path.join(__dirname, "..", "scripts", "startup-office-beta-release-gate.cjs"),

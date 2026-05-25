@@ -121,6 +121,7 @@ export interface StartupOfficeArtifactObject {
 
 export interface StartupOfficeCustomer {
   id: string;
+  loop_id?: string | null;
   name: string;
   notes?: string;
   profile?: Record<string, unknown>;

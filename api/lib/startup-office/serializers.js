@@ -143,6 +143,7 @@ function publicStartupOfficeCustomer(row) {
   return {
     created_at: row.created_at || null,
     id: row.id || "",
+    loop_id: row.loop_id || null,
     name: row.name || "",
     notes: row.notes || "",
     profile: objectValue(row.profile),

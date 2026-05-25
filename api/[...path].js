@@ -1322,6 +1322,7 @@ async function startupOfficeObjectRows(teamID, kind, options = {}) {
     team_id: `eq.${teamID}`,
   };
   if (options.status) query.status = `eq.${options.status}`;
+  if (kind === "customers" && options.loop_id) query.loop_id = `eq.${options.loop_id}`;
   if (options.limit) query.limit = String(clamp(Number(options.limit) || 100, 1, 1000));
   const rows = await safeStartupOfficeRest(definition.table, { query });
   return rows.map(definition.public).filter(Boolean);
@@ -1377,6 +1378,7 @@ function startupOfficeObjectPayload(kind, membership, body) {
   if (kind === "customers") {
     return {
       created_by: membership.user_id,
+      loop_id: body.loop_id || body.discovery_loop_id || null,
       name: truncateText(body.name || "Untitled customer", 180),
       notes: truncateText(body.notes || "", 6000),
       profile: objectValue(body.profile),
@@ -1426,6 +1428,9 @@ function startupOfficeObjectPatch(kind, body) {
     return patch;
   }
   if (kind === "customers") {
+    if (body.loop_id !== undefined || body.discovery_loop_id !== undefined) {
+      patch.loop_id = body.loop_id || body.discovery_loop_id || null;
+    }
     if (body.name !== undefined) patch.name = truncateText(body.name, 180);
     if (body.notes !== undefined) patch.notes = truncateText(body.notes, 6000);
     if (body.profile !== undefined) patch.profile = objectValue(body.profile);
