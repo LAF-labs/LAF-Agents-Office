@@ -80,6 +80,9 @@ const {
   createHostedSchedulerHandlers,
 } = require("./lib/hosted/schedulerHandlers");
 const {
+  createHostedSecurityHeaders,
+} = require("./lib/hosted/securityHeaders");
+const {
   createHostedSkillHandlers,
 } = require("./lib/hosted/skillHandlers");
 const {
@@ -220,6 +223,11 @@ const SERVICE_ROLE_ACCESS_GUARDS = createServiceRoleAccessGuards({ createHTTPErr
 const HOSTED_URL_TRUST = createHostedURLTrust({
   createHTTPError: startupOfficeHTTPError,
   env: process.env,
+});
+const HOSTED_SECURITY_HEADERS = createHostedSecurityHeaders({
+  allowedOrigins: HOSTED_URL_TRUST.normalizeAllowedOrigins(
+    process.env.LAF_OFFICE_ALLOWED_ORIGINS || "",
+  ),
 });
 const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
@@ -697,45 +705,9 @@ function startupOfficeHTTPError(status, message) {
 
 const rateLimitBuckets = new Map();
 
-const ALLOWED_ORIGINS = HOSTED_URL_TRUST.normalizeAllowedOrigins(
-  process.env.LAF_OFFICE_ALLOWED_ORIGINS || "",
-);
-
-function applyBaselineSecurityHeaders(res) {
-  // Conservative defaults. The web bundle is served same-origin via Vercel
-  // rewrites, so the API doesn't need a permissive CSP; we just lock down
-  // common XSS/clickjacking/MIME-sniffing vectors here.
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains",
-  );
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-}
-
-function applyCORSHeaders(req, res) {
-  const origin = String(req.headers.origin || "").trim();
-  if (!origin) return;
-  if (!ALLOWED_ORIGINS.includes(origin)) return;
-  res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Authorization, Content-Type, X-Requested-With",
-  );
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PATCH, DELETE, OPTIONS",
-  );
-  res.setHeader("Access-Control-Max-Age", "600");
-}
-
 module.exports = async function handler(req, res) {
-  applyBaselineSecurityHeaders(res);
-  applyCORSHeaders(req, res);
+  HOSTED_SECURITY_HEADERS.applyBaselineSecurityHeaders(res);
+  HOSTED_SECURITY_HEADERS.applyCORSHeaders(req, res);
   try {
     if (req.method === "OPTIONS") {
       res.status(204).end();
@@ -1264,13 +1236,8 @@ function authToken(req) {
   return bearer(req) || cookie(req, "laf_access");
 }
 
-function trustedBrowserOrigin(req) {
-  const origin = String(req.headers.origin || "").trim();
-  return origin && ALLOWED_ORIGINS.includes(origin) ? origin : "";
-}
-
 function authCookieSameSite(req) {
-  return process.env.NODE_ENV === "production" && trustedBrowserOrigin(req)
+  return process.env.NODE_ENV === "production" && HOSTED_SECURITY_HEADERS.trustedBrowserOrigin(req)
     ? "None"
     : "Lax";
 }

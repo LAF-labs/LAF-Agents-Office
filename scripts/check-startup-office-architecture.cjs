@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2075);
+assertMaxLines("api/[...path].js", 2045);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -55,6 +55,7 @@ assertMaxLines("api/lib/hosted/redaction.js", 40);
 assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
+assertMaxLines("api/lib/hosted/securityHeaders.js", 55);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/skillHandlers.js", 230);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
@@ -220,6 +221,9 @@ for (const [pattern, label] of [
   [/function publicUser\b/, "hosted user serializer"],
   [/function normalizeProfileAvatarID\b/, "hosted user avatar normalizer"],
   [/function publicTeam\b/, "hosted team serializer"],
+  [/function applyBaselineSecurityHeaders\b/, "hosted baseline security headers"],
+  [/function applyCORSHeaders\b/, "hosted CORS headers"],
+  [/function trustedBrowserOrigin\b/, "hosted trusted browser origin helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
