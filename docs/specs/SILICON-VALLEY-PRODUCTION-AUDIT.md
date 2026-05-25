@@ -664,6 +664,12 @@ and missing typed contracts.
   `20260525180000_add_startup_office_customer_loop_links.sql` adds the loop
   reference and index, and the release gate checks both the generic object
   handlers and hosted schema contract.
+- R3/R5 now makes metric ingestion visible in the operating surface. Metrics
+  can be recorded through `startup_office_metrics`, safely updated through
+  `updated_at`, and summarized in Growth Center as latest/previous/change rows;
+  migration `20260525190000_add_startup_office_metric_updated_at.sql` keeps the
+  schema aligned with the object update path and the release gate covers the
+  summary contract.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

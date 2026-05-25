@@ -105,6 +105,7 @@ export interface StartupOfficeOperatingObjects {
   };
   customers?: StartupOfficeCustomer[];
   metrics?: StartupOfficeMetric[];
+  metrics_summary?: StartupOfficeMetricSummary[];
   signals?: StartupOfficeSignal[];
 }
 
@@ -130,10 +131,23 @@ export interface StartupOfficeCustomer {
 }
 
 export interface StartupOfficeMetric {
+  created_at?: string | null;
   id: string;
   metric_key: string;
   metric_value?: number | null;
+  period_end?: string | null;
+  period_start?: string | null;
   unit?: string;
+  updated_at?: string | null;
+}
+
+export interface StartupOfficeMetricSummary {
+  change?: number | null;
+  latest_value?: number | null;
+  metric_key: string;
+  previous_value?: number | null;
+  unit?: string;
+  updated_at?: string | null;
 }
 
 export interface StartupOfficeSignal {

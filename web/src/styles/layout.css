@@ -1352,6 +1352,9 @@ html[data-theme="office"]
   grid-template-columns: repeat(4, minmax(0, 1fr));
   padding-bottom: 0;
 }
+.startup-metric-summary {
+  padding-top: 0;
+}
 .startup-pulse-datum,
 .startup-approval-row,
 .startup-loop-card,

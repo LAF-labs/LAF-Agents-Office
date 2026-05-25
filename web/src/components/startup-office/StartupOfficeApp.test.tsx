@@ -133,9 +133,19 @@ function mockStartupOfficeSummary() {
       counts: {
         assets: 2,
         customers: 1,
-        metrics: 1,
+        metrics: 2,
         signals: 3,
       },
+      metrics_summary: [
+        {
+          change: 500,
+          latest_value: 1500,
+          metric_key: "mrr",
+          previous_value: 1000,
+          unit: "usd",
+          updated_at: "2026-05-25T00:00:00Z",
+        },
+      ],
     },
     recent_artifacts: [
       {
@@ -309,6 +319,8 @@ describe("StartupOfficeApp", () => {
       screen.getByText("Memory update: Validation Log, Decisions"),
     ).toBeInTheDocument();
     expect(screen.getByText("Assets")).toBeInTheDocument();
+    expect(screen.getByText("mrr")).toBeInTheDocument();
+    expect(screen.getByText("1,500 usd (+500)")).toBeInTheDocument();
     expect(screen.getByText("2 / 50")).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("Projects");

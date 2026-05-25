@@ -164,6 +164,45 @@ test("customer collection handler filters and links discovery loops", async () =
   assert.equal(deps.calls.writes[1].body.customer.kind, "customers");
 });
 
+test("metric collection handler records company metrics for growth summary", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return {
+        key: "mrr",
+        metadata: { source: "manual" },
+        period_end: "2026-05-31",
+        period_start: "2026-05-01",
+        unit: "usd",
+        value: 1500,
+      };
+    },
+    startupOfficeObjectPayload(kind, value, body) {
+      return {
+        created_by: value.user_id,
+        metadata: body.metadata,
+        metric_key: body.key,
+        metric_value: body.value,
+        period_end: body.period_end,
+        period_start: body.period_start,
+        team_id: value.team_id,
+        typed_kind: kind,
+        unit: body.unit,
+        updated_at: "2026-05-25T00:00:00.000Z",
+      };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectCollection({ method: "POST" }, {}, "metrics");
+  assert.equal(deps.calls.permissions[0].permission, "memory:write_draft");
+  assert.equal(deps.calls.rest[0].table, "startup_office_metrics");
+  assert.equal(deps.calls.rest[0].options.body.metric_key, "mrr");
+  assert.equal(deps.calls.rest[0].options.body.metric_value, 1500);
+  assert.equal(deps.calls.rest[0].options.body.updated_at, "2026-05-25T00:00:00.000Z");
+  assert.equal(deps.calls.audits[0][1], "startup_office.metrics.created");
+  assert.equal(deps.calls.writes[0].body.metric.kind, "metrics");
+});
+
 test("asset item handler updates run links and archives by status", async () => {
   const deps = baseDeps({
     async readBody() {

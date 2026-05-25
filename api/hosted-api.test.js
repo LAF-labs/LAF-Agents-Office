@@ -265,6 +265,43 @@ test("Startup Office customers support discovery loop links and filters", () => 
   assert.match(source, /patch\.loop_id = body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
 });
 
+test("Startup Office metrics support ingestion updates and Growth Center summaries", () => {
+  const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
+  const sql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260525190000_add_startup_office_metric_updated_at.sql",
+    ),
+    "utf8",
+  );
+  assert.match(sql, /add column if not exists updated_at timestamptz not null default now\(\)/);
+  assert.match(sql, /idx_startup_office_metrics_team_updated/);
+
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "schema", "current.json"),
+      "utf8",
+    ),
+  );
+  const metrics = schema.activeTables.find(
+    (table) => table.name === "startup_office_metrics",
+  );
+  assert.equal(metrics.columns.includes("updated_at"), true);
+
+  const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
+  assert.match(source, /metric_key: truncateText\(body\.metric_key \|\| body\.key \|\| "metric"/);
+  assert.match(source, /metric_value: numericOrNull\(body\.metric_value \?\? body\.value\)/);
+  assert.match(source, /updated_at: now/);
+
+  const querySource = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "queryHandlers.js"),
+    "utf8",
+  );
+  assert.match(querySource, /metrics_summary: startupOfficeMetricSummary\(metrics\)/);
+  assert.match(querySource, /latest_value/);
+  assert.match(querySource, /previous_value/);
+});
+
 test("Startup Office release gate points at loop engine tests", () => {
   const script = fs.readFileSync(
     path.join(__dirname, "..", "scripts", "startup-office-beta-release-gate.cjs"),

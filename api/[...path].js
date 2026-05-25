@@ -1397,6 +1397,7 @@ function startupOfficeObjectPayload(kind, membership, body) {
       period_start: body.period_start || null,
       team_id: membership.team_id,
       unit: truncateText(body.unit || "", 40),
+      updated_at: now,
     };
   }
   if (kind === "signals") {

@@ -85,6 +85,24 @@ function baseDeps(overrides = {}) {
     },
     async startupOfficeObjectRows(teamID, kind, options) {
       calls.rows.push({ kind, options, teamID });
+      if (kind === "metrics") {
+        return [
+          {
+            id: "metric-2",
+            metric_key: "mrr",
+            metric_value: 1500,
+            unit: "usd",
+            updated_at: "2026-05-25T00:00:00Z",
+          },
+          {
+            id: "metric-1",
+            metric_key: "mrr",
+            metric_value: 1000,
+            unit: "usd",
+            updated_at: "2026-05-24T00:00:00Z",
+          },
+        ];
+      }
       return [{ id: `${kind}-1`, kind }];
     },
     async startupOfficeReceipts(_teamID, options) {
@@ -121,6 +139,15 @@ test("growth summary composes pulse, memory, beta ops, and operating object summ
   assert.equal(body.pulse.active_loops, 1);
   assert.equal(body.pulse.pending_approvals, 1);
   assert.equal(body.operating_objects.counts.assets, 1);
+  assert.equal(body.operating_objects.counts.metrics, 2);
+  assert.deepEqual(body.operating_objects.metrics_summary[0], {
+    change: 500,
+    latest_value: 1500,
+    metric_key: "mrr",
+    previous_value: 1000,
+    unit: "usd",
+    updated_at: "2026-05-25T00:00:00Z",
+  });
   assert.equal(body.memory_pages[0].slug, "positioning");
 });
 

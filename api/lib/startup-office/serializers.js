@@ -163,6 +163,7 @@ function publicStartupOfficeMetric(row) {
     period_end: row.period_end || null,
     period_start: row.period_start || null,
     unit: row.unit || "",
+    updated_at: row.updated_at || row.created_at || null,
   };
 }
 

@@ -179,7 +179,7 @@ function createStartupOfficeQueryHandlers(deps) {
     const [assets, customers, metrics, signals] = await Promise.all([
       startupOfficeObjectRows(teamID, "assets", { limit: 5 }),
       startupOfficeObjectRows(teamID, "customers", { limit: 5 }),
-      startupOfficeObjectRows(teamID, "metrics", { limit: 5 }),
+      startupOfficeObjectRows(teamID, "metrics", { limit: 50 }),
       startupOfficeObjectRows(teamID, "signals", { limit: 5 }),
     ]);
     return {
@@ -192,8 +192,42 @@ function createStartupOfficeQueryHandlers(deps) {
       },
       customers,
       metrics,
+      metrics_summary: startupOfficeMetricSummary(metrics),
       signals,
     };
+  }
+
+  function startupOfficeMetricSummary(metrics) {
+    const rowsByKey = new Map();
+    for (const metric of metrics || []) {
+      const key = String(metric?.metric_key || "").trim();
+      if (!key) continue;
+      if (!rowsByKey.has(key)) rowsByKey.set(key, []);
+      rowsByKey.get(key).push(metric);
+    }
+    return [...rowsByKey.entries()].map(([metricKey, rows]) => {
+      const latest = rows[0] || {};
+      const previous = rows[1] || {};
+      const latestValue = numericMetricValue(latest.metric_value);
+      const previousValue = numericMetricValue(previous.metric_value);
+      return {
+        change:
+          latestValue === null || previousValue === null
+            ? null
+            : latestValue - previousValue,
+        latest_value: latestValue,
+        metric_key: metricKey,
+        previous_value: previousValue,
+        unit: latest.unit || "",
+        updated_at: latest.updated_at || latest.created_at || null,
+      };
+    });
+  }
+
+  function numericMetricValue(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
   }
 
   return {
