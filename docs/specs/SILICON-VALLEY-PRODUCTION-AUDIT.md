@@ -513,10 +513,12 @@ and missing typed contracts.
   delivery metadata.
 - R7/R8 now hardens deployment preflight. `npm run hosted-env:preflight`
   validates outbox email provider selection, Resend secrets, sender/reply-to
-  email shapes, batch size, lock timeout, and Startup Office AI worker readiness
-  without printing secret values. Production preflight now requires an OpenAI
-  AI worker key and rejects `fake`/`disabled` providers outside local hosted
-  rehearsals, and the beta release gate now runs the preflight test suite.
+  email shapes, batch size, lock timeout, closed-beta billing mode, managed-model
+  fallback flags, and Startup Office AI worker readiness without printing secret
+  values. Production preflight now requires `LAF_OFFICE_BILLING_MODE=manual`,
+  requires an OpenAI AI worker key, rejects `fake`/`disabled` providers outside
+  local hosted rehearsals, and the beta release gate now runs the preflight test
+  suite.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
   preflights production env, then drains a bounded outbox batch with

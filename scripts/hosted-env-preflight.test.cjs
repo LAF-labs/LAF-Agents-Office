@@ -23,6 +23,7 @@ function validEnv(overrides = {}) {
   return {
     LAF_OFFICE_ALLOWED_ORIGINS:
       "https://office.example.com, https://app.example.com",
+    LAF_OFFICE_BILLING_MODE: "manual",
     LAF_OFFICE_OPENAI_API_KEY: "openai-key",
     LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER: "openai",
     LAF_OFFICE_PUBLIC_HOST: "office.example.com",
@@ -43,11 +44,13 @@ test("preflight passes a production cloud office env", () => {
   assert.equal(result.normalized.outbox_email_provider, "in_app");
   assert.equal(result.normalized.outbox_batch_size, 25);
   assert.equal(result.normalized.outbox_lock_ms, 300000);
+  assert.equal(result.normalized.billing_mode, "manual");
   assert.equal(result.normalized.startup_office_ai_provider, "openai");
 
   const rendered = printText(result);
   assert.match(rendered, /PASS hosted Startup Office env is ready/);
   assert.match(rendered, /effective API base: https:\/\/office\.example\.com\/api/);
+  assert.match(rendered, /billing mode: manual/);
   assert.match(rendered, /outbox email provider: in_app/);
   assert.match(rendered, /Startup Office AI provider: openai/);
 });
@@ -78,6 +81,7 @@ test("preflight loads env files without leaking secret values", async (t) => {
       "SUPABASE_URL=https://project.supabase.co",
       "SUPABASE_SERVICE_ROLE_KEY=service-secret-from-file",
       "SUPABASE_ANON_KEY=anon-secret-from-file",
+      "LAF_OFFICE_BILLING_MODE=manual",
       "LAF_OFFICE_OPENAI_API_KEY=openai-secret-from-file",
       "LAF_OFFICE_PUBLIC_HOST=office.example.com",
       "LAF_OFFICE_ALLOWED_ORIGINS=office.example.com",
@@ -102,9 +106,15 @@ test("preflight reports missing required cloud env with actionable hints", () =>
   assert(result.errors.includes("missing SUPABASE_SERVICE_ROLE_KEY"));
   assert(result.errors.includes("missing SUPABASE_ANON_KEY"));
   assert(result.errors.includes("missing LAF_OFFICE_PUBLIC_HOST or VERCEL_URL"));
+  assert(
+    result.errors.includes(
+      "missing LAF_OFFICE_BILLING_MODE (set manual for closed beta billing)",
+    ),
+  );
 
   const hints = remediationHints(result.errors);
   assert(hints.some((hint) => hint.includes("SUPABASE_URL")));
+  assert(hints.some((hint) => hint.includes("LAF_OFFICE_BILLING_MODE=manual")));
   assert.equal(
     hints.at(-1),
     "rerun `npm run hosted-env:preflight` before deploying or smoke testing",
@@ -208,6 +218,42 @@ test("preflight rejects fake or disabled AI providers outside local rehearsals",
   );
   assert.equal(local.ok, true, local.errors.join("\n"));
   assert.equal(local.normalized.startup_office_ai_provider, "fake");
+});
+
+test("preflight validates billing mode and managed-model fallback flags", () => {
+  const unsupported = runPreflight(
+    validEnv({
+      LAF_OFFICE_BILLING_MODE: "stripe",
+    }),
+  );
+  assert.equal(unsupported.ok, false);
+  assert(
+    unsupported.errors.includes(
+      "LAF_OFFICE_BILLING_MODE must be manual for closed beta production",
+    ),
+  );
+
+  const invalidFallback = runPreflight(
+    validEnv({
+      LAF_OFFICE_MANAGED_MODEL_ENABLED: "sometimes",
+      LAF_OFFICE_WORKSPACE_PAID: "yes",
+    }),
+  );
+  assert.equal(invalidFallback.ok, false);
+  assert(
+    invalidFallback.errors.includes(
+      "LAF_OFFICE_MANAGED_MODEL_ENABLED must be a boolean value",
+    ),
+  );
+  assert.equal(invalidFallback.normalized.managed_model_fallback_enabled, true);
+
+  const local = runPreflight(
+    validEnv({
+      LAF_OFFICE_BILLING_MODE: "",
+    }),
+    { allowLocalhost: true },
+  );
+  assert.equal(local.ok, true, local.errors.join("\n"));
 });
 
 test("preflight rejects broken outbox email env", () => {

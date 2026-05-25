@@ -27,6 +27,7 @@ jobs:
         env:
           LAF_EMAIL_FROM: ${{ vars.LAF_EMAIL_FROM }}
           LAF_EMAIL_REPLY_TO: ${{ vars.LAF_EMAIL_REPLY_TO }}
+          LAF_OFFICE_BILLING_MODE: ${{ vars.LAF_OFFICE_BILLING_MODE || 'manual' }}
           LAF_OFFICE_ALLOWED_ORIGINS: ${{ vars.LAF_OFFICE_ALLOWED_ORIGINS }}
           LAF_OFFICE_OPENAI_API_KEY: ${{ secrets.LAF_OFFICE_OPENAI_API_KEY }}
           LAF_OFFICE_OPENAI_BASE_URL: ${{ vars.LAF_OFFICE_OPENAI_BASE_URL }}

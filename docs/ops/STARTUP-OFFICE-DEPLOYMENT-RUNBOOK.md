@@ -36,6 +36,7 @@ GitHub Actions secrets:
 GitHub Actions variables:
 
 - `LAF_OFFICE_PUBLIC_HOST`
+- `LAF_OFFICE_BILLING_MODE`, set to `manual` for the closed beta
 - `LAF_OFFICE_ALLOWED_ORIGINS`
 - `LAF_OUTBOX_EMAIL_PROVIDER`, either `in_app`, `none`, or `resend`
 - `LAF_OUTBOX_BATCH_SIZE`, default `25`

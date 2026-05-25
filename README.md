@@ -35,6 +35,8 @@ Copy `.env.example` to `.env.local` for local hosted API work, and mirror produc
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `LAF_OFFICE_PUBLIC_HOST`
+- `LAF_OFFICE_BILLING_MODE=manual`
+- `LAF_OFFICE_OPENAI_API_KEY` or `OPENAI_API_KEY`
 - optional `LAF_OFFICE_PUBLIC_API_BASE_URL`
 - optional `VITE_LAF_API_BASE_URL`
 - optional `LAF_OFFICE_ALLOWED_ORIGINS`

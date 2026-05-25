@@ -14,7 +14,9 @@ function runPreflight(env = process.env, options = {}) {
   const normalized = {
     allowed_origins: [],
     browser_api_base: "",
+    billing_mode: "",
     effective_api_base: "",
+    managed_model_fallback_enabled: false,
     outbox_batch_size: 25,
     outbox_email_provider: "in_app",
     outbox_lock_ms: 300000,
@@ -127,6 +129,11 @@ function runPreflight(env = process.env, options = {}) {
   }
 
   validateOutboxEnv(env, { errors, normalized });
+  validateBillingEnv(env, {
+    allowLocalhost,
+    errors,
+    normalized,
+  });
   validateStartupOfficeAIEnv(env, {
     allowTestProvider: allowLocalhost,
     errors,
@@ -139,6 +146,21 @@ function runPreflight(env = process.env, options = {}) {
     ok: errors.length === 0,
     warnings,
   };
+}
+
+function validateBillingEnv(env, { allowLocalhost = false, errors, normalized }) {
+  const billingMode = String(env.LAF_OFFICE_BILLING_MODE || "").trim().toLowerCase();
+  if (!billingMode && !allowLocalhost) {
+    errors.push("missing LAF_OFFICE_BILLING_MODE (set manual for closed beta billing)");
+  }
+  if (billingMode && billingMode !== "manual") {
+    errors.push("LAF_OFFICE_BILLING_MODE must be manual for closed beta production");
+  }
+  normalized.billing_mode = billingMode;
+
+  const workspacePaid = optionalBooleanEnv(env, "LAF_OFFICE_WORKSPACE_PAID", errors);
+  const managedModel = optionalBooleanEnv(env, "LAF_OFFICE_MANAGED_MODEL_ENABLED", errors);
+  normalized.managed_model_fallback_enabled = Boolean(workspacePaid || managedModel);
 }
 
 function validateStartupOfficeAIEnv(env, { allowTestProvider = false, errors, normalized }) {
@@ -170,6 +192,15 @@ function validateStartupOfficeAIEnv(env, { allowTestProvider = false, errors, no
       "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER must be openai for production preflight; fake and disabled are local/test only",
     );
   }
+}
+
+function optionalBooleanEnv(env, name, errors) {
+  const raw = String(env[name] || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (["1", "true", "yes", "on"].includes(raw)) return true;
+  if (["0", "false", "no", "off"].includes(raw)) return false;
+  errors.push(`${name} must be a boolean value`);
+  return null;
 }
 
 function validateOutboxEnv(env, { errors, normalized }) {
@@ -436,6 +467,7 @@ function usage(message = "", exitCode = 0) {
       "  SUPABASE_SERVICE_ROLE_KEY",
       "  SUPABASE_ANON_KEY",
       "  LAF_OFFICE_PUBLIC_HOST or VERCEL_URL",
+      "  LAF_OFFICE_BILLING_MODE=manual",
       "  LAF_OFFICE_OPENAI_API_KEY or OPENAI_API_KEY",
       "",
     ].join("\n"),
@@ -530,6 +562,12 @@ function printText(result) {
   if (result.normalized.outbox_email_provider) {
     lines.push(`[hosted-env-preflight] outbox email provider: ${result.normalized.outbox_email_provider}`);
   }
+  if (result.normalized.billing_mode) {
+    lines.push(`[hosted-env-preflight] billing mode: ${result.normalized.billing_mode}`);
+  }
+  if (result.normalized.managed_model_fallback_enabled) {
+    lines.push("[hosted-env-preflight] managed model fallback: enabled");
+  }
   if (result.normalized.startup_office_ai_provider) {
     lines.push(
       `[hosted-env-preflight] Startup Office AI provider: ${result.normalized.startup_office_ai_provider}`,
@@ -584,6 +622,11 @@ function remediationHints(errors) {
   if (/LAF_OUTBOX_(?:BATCH_SIZE|LOCK_MS)/.test(joined)) {
     hints.push(
       "set LAF_OUTBOX_BATCH_SIZE between 1 and 100 and LAF_OUTBOX_LOCK_MS between 1000 and 3600000",
+    );
+  }
+  if (/LAF_OFFICE_BILLING_MODE|LAF_OFFICE_WORKSPACE_PAID|LAF_OFFICE_MANAGED_MODEL_ENABLED/.test(joined)) {
+    hints.push(
+      "set LAF_OFFICE_BILLING_MODE=manual for closed beta billing and use boolean values for managed-model fallback flags",
     );
   }
   if (/STARTUP_OFFICE_AI_PROVIDER|OPENAI_API_KEY|Startup Office AI worker/.test(joined)) {
