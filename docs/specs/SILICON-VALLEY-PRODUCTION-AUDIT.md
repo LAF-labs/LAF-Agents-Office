@@ -11,13 +11,14 @@ startup, what fundamental problems would we refuse to carry forward?
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema and the linked remote
-  Supabase project has applied through `20260525040000`; RLS exercise, backup,
+  Supabase project has applied through `20260525120000`; RLS exercise, backup,
   restore, and rollback drills are still not proven.
 - The canonical current Supabase schema now lives in
   `supabase/schema/current.json` and is checked against migrations by
   `npm run startup-office:schema`.
-- The current release gate is deterministic and fake-provider friendly, but it
-  does not prove live model, live Supabase, email, billing, DNS, or browser E2E.
+- The current release gate is deterministic, fake-provider friendly, and now
+  includes secret scan plus dependency audit, but it does not prove live model,
+  live Supabase, email, billing, DNS, or browser E2E.
 - Legacy Go, CLI, npm-wrapper, native-release, and device-runtime scripts have
   been removed from the tracked hosted SaaS tree and are now guarded by the
   release gate.
@@ -74,7 +75,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I044 | Security | Rate limits cover signup and the first expensive hosted actions with a Supabase-backed production path, but full write-surface coverage is still incomplete. | rate limit helpers |
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
-| SV-I047 | Security | Secrets scanning is present but not tied into the Startup Office release gate. | CI scripts |
+| SV-I047 | Security | Secret scan and high-severity dependency audit are tied into the Startup Office release gate, but SAST/DAST and a launch security packet remain incomplete. | `startup-office:security` |
 | SV-I048 | Security | Permission names are maintained in multiple layers and can drift. | API and web types |
 | SV-I049 | Security | External action approval policy is not enforced by a centralized policy engine. | policy route and loop templates |
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
@@ -269,7 +270,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G034 | Enforce body limits. | Oversized payloads are rejected before DB writes. | API tests |
 | SV-G035 | Add file upload controls. | Type, size, scan, and retention policies protect assets. | upload tests |
 | SV-G036 | Implement support access consent. | Owner-visible, expiring support sessions gate staff access. | policy tests |
-| SV-G037 | Add security release gate. | Secret scan, dependency audit, and boundary checks run together. | CI |
+| SV-G037 | Add security release gate. | Secret scan, high-severity dependency audit, and boundary checks run together. | `startup-office:security` |
 | SV-G038 | Unify permission definitions. | API, DB, and web permission lists cannot drift. | generated artifact |
 | SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require disclaimer and approval. | output eval |
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
@@ -433,9 +434,9 @@ and missing typed contracts.
   columns survive.
 - R3 now removes remaining user-facing device/runtime reset copy from settings,
   onboarding, command fallback, status-bar connection state, and memory docs.
-  The Supabase guard migration `20260525040000_assert_pure_cloud_runtime_schema.sql`
-  was applied to the linked remote project and asserts no retired runner/bridge
-  tables, functions, or columns survive.
+  The Supabase guard migration `20260525120000_assert_pure_cloud_runtime_schema.sql`
+  was applied to the linked remote project and now purges/asserts retired local
+  execution tables, columns, functions, policies, relation names, and types.
 - R3 also removes the obsolete `web/e2e` harness that depended on the retired
   desktop binary and state files; the legacy-runtime gate now rejects that path
   if it returns.
@@ -533,3 +534,9 @@ and missing typed contracts.
   rows, and stuck worker jobs.
   `npm run startup-office:ops-monitor:test` is part of the release gate, and
   the deployment runbook documents monitor thresholds and incident handling.
+- R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
+  runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
+  high or critical dependency advisories, hosted-runtime boundary checks,
+  Supabase schema checks, and service-role allowlist tests; the beta release
+  gate now includes this command. Root `fast-uri` and web `ws` are pinned to
+  patched versions through package overrides.

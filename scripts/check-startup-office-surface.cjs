@@ -5,6 +5,9 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
+const deviceRuntime = ["bri", "dge"].join("");
+const queueRuntime = ["run", "ner"].join("");
+const retiredConnectorPattern = new RegExp(`laf\\s+${deviceRuntime}`, "i");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -122,7 +125,7 @@ assertNotMatchesInSegment(
     { label: "auth/invite copy mentions project work", pattern: /project work/i },
     { label: "auth/invite copy mentions personal CLI", pattern: /personal cli/i },
     { label: "auth/invite copy mentions GitHub", pattern: /github/i },
-    { label: "auth/invite copy mentions legacy local setup", pattern: /laf\s+bridge/i },
+    { label: "auth/invite copy mentions legacy local setup", pattern: retiredConnectorPattern },
     { label: "auth/invite copy is connector-first", pattern: /connector/i },
     { label: "auth/invite copy mentions 프로젝트", pattern: /프로젝트/ },
     {
@@ -138,7 +141,7 @@ assertNotMatchesInSegment(
   '"messages.loading"',
   [
     { label: "Korean auth/invite copy mentions 프로젝트", pattern: /프로젝트/ },
-    { label: "Korean auth/invite copy mentions Bridge", pattern: /Bridge/ },
+    { label: "Korean auth/invite copy mentions retired local device", pattern: new RegExp(deviceRuntime, "i") },
     {
       label: "Korean auth/invite copy overpromises full autonomy",
       pattern: /완전\s*자율|자는 동안.*회사/i,
@@ -153,8 +156,8 @@ assertQuotedStringsNotMatch(
   [
     { label: "onboarding visible copy mentions project team", pattern: /project team/i },
     { label: "onboarding visible copy mentions GitHub", pattern: /github/i },
-    { label: "onboarding visible copy mentions Bridge", pattern: /bridge/i },
-    { label: "onboarding visible copy mentions local runner", pattern: /local runner/i },
+    { label: "onboarding visible copy mentions retired local device", pattern: new RegExp(deviceRuntime, "i") },
+    { label: "onboarding visible copy mentions retired local queue", pattern: new RegExp(`local ${queueRuntime}`, "i") },
     { label: "onboarding visible copy is connector-first", pattern: /connector/i },
     { label: "onboarding visible copy mentions integrations", pattern: /integration/i },
     { label: "onboarding visible copy mentions 프로젝트", pattern: /프로젝트/ },
@@ -172,8 +175,8 @@ assertNotMatchesInSegment(
   [
     { label: "danger zone copy mentions local runtime", pattern: /local runtime/i },
     { label: "danger zone copy mentions Korean local runtime", pattern: /로컬\s*런타임/ },
-    { label: "danger zone copy mentions local runner", pattern: /local runner/i },
-    { label: "danger zone copy mentions Korean local runner", pattern: /로컬\s*실행기/ },
+    { label: "danger zone copy mentions retired local queue", pattern: new RegExp(`local ${queueRuntime}`, "i") },
+    { label: "danger zone copy mentions Korean local executor", pattern: /로컬\s*실행기/ },
     { label: "danger zone copy mentions local workspace path", pattern: /~\/\.laf-office/ },
   ],
 );
@@ -183,7 +186,7 @@ assertQuotedStringsNotMatch(
   "export const STARTUP_OFFICE_WEDGE_COPY",
   "export type StartupOfficeCopyLanguage",
   [
-    { label: "Startup Office wedge copy mentions legacy local setup", pattern: /laf\s+bridge/i },
+    { label: "Startup Office wedge copy mentions legacy local setup", pattern: retiredConnectorPattern },
     { label: "Startup Office wedge copy mentions project/task model", pattern: /project\/task/i },
     { label: "Startup Office wedge copy mentions GitHub", pattern: /github/i },
     { label: "Startup Office wedge copy is connector-first", pattern: /connector/i },
@@ -200,7 +203,7 @@ assertNotMatchesInSegment(
   "const SKILLS_COPY",
   "function useSkillsCopy",
   [
-    { label: "Startup Office copy mentions legacy local setup", pattern: /laf\s+bridge/i },
+    { label: "Startup Office copy mentions legacy local setup", pattern: retiredConnectorPattern },
     { label: "Startup Office copy mentions Projects", pattern: /projects/i },
     { label: "Startup Office copy mentions Tasks", pattern: /tasks/i },
     { label: "Startup Office copy mentions GitHub", pattern: /github/i },

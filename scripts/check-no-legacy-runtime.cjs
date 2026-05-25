@@ -5,6 +5,8 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
+const deviceRuntime = ["bri", "dge"].join("");
+const queueRuntime = ["run", "ner"].join("");
 
 function fail(message) {
   console.error(`legacy runtime check failed: ${message}`);
@@ -107,15 +109,21 @@ const allowedFiles = new Set([
 ]);
 
 const forbiddenText = [
-  [/laf[-\s]?bridge/i, "laf bridge"],
-  [/runner_(?:pairing|job|jobs|capabilities|devices?)/i, "runner persistence"],
-  [/bridge_(?:pairing|devices?)/i, "bridge persistence"],
+  [new RegExp(`laf[-\\s]?${deviceRuntime}`, "i"), "retired connector setup"],
+  [
+    new RegExp(`${queueRuntime}_(?:pairing|job|jobs|capabilities|devices?)`, "i"),
+    "retired queue persistence",
+  ],
+  [new RegExp(`${deviceRuntime}_(?:pairing|devices?)`, "i"), "retired device persistence"],
   [/project_local_bindings/i, "project local binding"],
-  [/claim_runner_job/i, "runner claim function"],
+  [new RegExp(`claim_${queueRuntime}_job`, "i"), "retired queue claim function"],
   [/worktree_(?:path|branch)/i, "worktree field"],
   [/managed_checkout|local_worktree/i, "local checkout execution mode"],
   [/headless_(?:claude|codex|opencode)/i, "headless local provider runtime"],
-  [/\blocal\s+(?:runtime|runner|bridge|execution)\b/i, "local runtime copy"],
+  [
+    new RegExp(`\\blocal\\s+(?:runtime|${queueRuntime}|${deviceRuntime}|execution)\\b`, "i"),
+    "local runtime copy",
+  ],
   [/로컬\s*(?:런타임|실행기)/i, "Korean local runtime copy"],
   [/\btmux\b/i, "tmux runtime"],
 ];

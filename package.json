@@ -10,6 +10,7 @@
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
     "startup-office:legacy-runtime": "node scripts/check-no-legacy-runtime.cjs",
     "startup-office:schema": "node scripts/check-supabase-current-schema.cjs",
+    "startup-office:security": "node scripts/check-startup-office-security-gate.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "startup-office:worker-deploy": "node scripts/check-startup-office-worker-deploy.cjs",
     "startup-office:loop-worker": "node scripts/startup-office-loop-worker.cjs",
@@ -28,5 +29,8 @@
     "@secretlint/secretlint-rule-preset-recommend": "^12.2.0",
     "secretlint": "^12.2.0"
   },
-  "version": "0.0.7.1"
+  "version": "0.0.7.1",
+  "overrides": {
+    "fast-uri": "3.1.2"
+  }
 }

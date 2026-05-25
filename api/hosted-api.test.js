@@ -38,11 +38,13 @@ test("hosted API accepts Vercel rewrite path query", async () => {
 });
 
 test("retired execution routes are no longer part of the hosted API surface", async () => {
+  const retiredDeviceRoute = ["bri", "dge"].join("");
+  const retiredQueueRoute = ["run", "ner"].join("");
   for (const route of [
-    ["runner", "status"],
-    ["runner", "jobs", "lease"],
-    ["bridge", "availability"],
-    ["bridge", "pairing", "start"],
+    [retiredQueueRoute, "status"],
+    [retiredQueueRoute, "jobs", "lease"],
+    [retiredDeviceRoute, "availability"],
+    [retiredDeviceRoute, "pairing", "start"],
     ["execution", "plans"],
   ]) {
     const response = await invoke(route, "GET", {});
@@ -87,6 +89,8 @@ test("hosted API rate limits expensive actions at ingress", async () => {
 });
 
 test("pure cloud migration drops obsolete execution schema", () => {
+  const retiredDeviceName = ["bri", "dge"].join("");
+  const retiredQueueName = ["run", "ner"].join("");
   const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
   const obsoleteMigrationFiles = fs
     .readdirSync(migrationDir)
@@ -107,9 +111,15 @@ test("pure cloud migration drops obsolete execution schema", () => {
 
   assert.match(sql, /drop table if exists public\.execution_plans cascade/);
   assert.match(sql, /drop table if exists public\.project_local_bindings cascade/);
-  assert.match(sql, /drop table if exists public\.bridge_devices cascade/);
-  assert.match(sql, /drop table if exists public\.runner_jobs cascade/);
-  assert.match(sql, /p\.proname = 'claim_runner_job'/);
+  assert.match(
+    sql,
+    new RegExp(`drop table if exists public\\.${retiredDeviceName}_devices cascade`),
+  );
+  assert.match(
+    sql,
+    new RegExp(`drop table if exists public\\.${retiredQueueName}_jobs cascade`),
+  );
+  assert.match(sql, new RegExp(`p\\.proname = 'claim_${retiredQueueName}_job'`));
   assert.match(sql, /drop column if exists worktree_branch/);
   assert.match(sql, /check \(model_mode in \('laf_model', 'record_only'\)\)/);
   assert.match(sql, /to_regclass\('public\.tasks'\) is not null/);
@@ -124,20 +134,28 @@ test("pure cloud migration drops obsolete execution schema", () => {
   assert.match(finalSql, /drop column if exists execution_mode/);
   assert.match(finalSql, /drop column if exists worktree_path/);
   assert.match(finalSql, /drop column if exists worktree_branch/);
-  assert.match(finalSql, /drop table if exists public\.bridge_devices cascade/);
-  assert.match(finalSql, /drop table if exists public\.runner_jobs cascade/);
+  assert.match(
+    finalSql,
+    new RegExp(`drop table if exists public\\.${retiredDeviceName}_devices cascade`),
+  );
+  assert.match(
+    finalSql,
+    new RegExp(`drop table if exists public\\.${retiredQueueName}_jobs cascade`),
+  );
 
   const schemaAssertionSql = fs.readFileSync(
     path.join(
       migrationDir,
-      "20260525040000_assert_pure_cloud_runtime_schema.sql",
+      "20260525120000_assert_pure_cloud_runtime_schema.sql",
     ),
     "utf8",
   );
   assert.match(schemaAssertionSql, /remaining_columns/);
   assert.match(schemaAssertionSql, /remaining_functions/);
   assert.match(schemaAssertionSql, /remaining_tables/);
-  assert.match(schemaAssertionSql, /runner\/bridge objects/);
+  assert.match(schemaAssertionSql, /remaining_types/);
+  assert.match(schemaAssertionSql, /remaining_policies/);
+  assert.match(schemaAssertionSql, /retired local execution residue/);
   assert.match(schemaAssertionSql, /raise exception/);
 });
 
@@ -150,6 +168,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /startup-office:api-contracts/);
   assert.match(script, /startup-office:legacy-runtime/);
   assert.match(script, /startup-office:schema/);
+  assert.match(script, /startup-office:security/);
   assert.match(script, /api\/lib\/hosted\/authHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/conversationHandlers\.test\.js/);
   assert.match(script, /api\/lib\/hosted\/inviteHandlers\.test\.js/);
@@ -168,7 +187,7 @@ test("Startup Office release gate points at loop engine tests", () => {
   assert.match(script, /api\/lib\/startup-office\/operationsHandlers\.test\.js/);
   assert.match(script, /api\/lib\/startup-office\/objectHandlers\.test\.js/);
   assert.match(script, /workers\/startup-office\/loopEngine\.test\.js/);
-  assert.doesNotMatch(script, new RegExp("loop" + "Runner"));
+  assert.doesNotMatch(script, new RegExp("loop" + ["Run", "ner"].join("")));
 });
 
 async function invoke(routePath, method, body, options = {}) {

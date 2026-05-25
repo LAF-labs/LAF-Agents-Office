@@ -1,7 +1,7 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525110000",
-  "pureCloudRuntimeGuardMigration": "20260525040000",
+  "latestMigration": "20260525120000",
+  "pureCloudRuntimeGuardMigration": "20260525120000",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
     {
