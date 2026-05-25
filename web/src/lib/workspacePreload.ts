@@ -42,12 +42,6 @@ export function loadGrowthCenterApp() {
   );
 }
 
-export function loadTasksApp() {
-  return import("../components/apps/TasksApp").then((module) => ({
-    default: module.TasksApp,
-  }));
-}
-
 export function loadThreadsApp() {
   return import("../components/apps/ThreadsApp").then((module) => ({
     default: module.ThreadsApp,
@@ -98,9 +92,6 @@ export function preloadWorkspaceSurface(surface: string | null | undefined) {
       break;
     case "skills":
       void loadSkillsApp();
-      break;
-    case "tasks":
-      void loadTasksApp();
       break;
     case "threads":
       void loadThreadsApp();

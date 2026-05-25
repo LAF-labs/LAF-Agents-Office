@@ -22,7 +22,6 @@ import {
   loadReviewQueueKanban,
   loadSettingsApp,
   loadSkillsApp,
-  loadTasksApp,
   loadThreadsApp,
   loadWiki,
 } from "../../lib/workspacePreload";
@@ -56,7 +55,6 @@ const RequestsApp = lazy(loadRequestsApp);
 const SettingsApp = lazy(loadSettingsApp);
 const SkillsApp = lazy(loadSkillsApp);
 const StartupOfficeApp = lazy(loadGrowthCenterApp);
-const TasksApp = lazy(loadTasksApp);
 const ThreadsApp = lazy(loadThreadsApp);
 const CitedAnswer = lazy(loadCitedAnswer);
 const HomeApp = lazy(loadHomeApp);
@@ -195,7 +193,6 @@ function MainContent() {
   if (currentApp) {
     const panels: Record<string, PanelComponent> = {
       home: HomeApp,
-      tasks: TasksApp,
       growth: StartupOfficeApp,
       requests: RequestsApp,
       skills: SkillsApp,

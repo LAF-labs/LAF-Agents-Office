@@ -629,6 +629,11 @@ and missing typed contracts.
   `20260525150000_channel_message_reaction_rpc.sql` moves toggles into a
   row-locking internal RPC so concurrent reactions do not overwrite each other.
   The release gate now blocks this route from drifting back to `{ ok: true }`.
+- R2/R8 now removes the remaining user-facing Tasks/Projects app entrypoint
+  from the workspace shell. `#/projects`, `#/apps/projects`, and `#/apps/tasks`
+  route to Startup Office, `TasksApp` is no longer lazy-loaded or preloaded, and
+  the surface gate blocks the legacy project/task app from returning to primary
+  navigation.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

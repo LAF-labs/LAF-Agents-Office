@@ -104,6 +104,15 @@ assertIncludes(
   "web/src/hooks/useHashRouter.ts",
   "const DEFAULT_ROUTE: Route = GROWTH_ROUTE;",
 );
+assertIncludes(
+  "web/src/hooks/useHashRouter.ts",
+  'if (app === "projects" || app === "tasks") return GROWTH_ROUTE;',
+);
+assertNotIncludes("web/src/hooks/useHashRouter.ts", "const PROJECTS_ROUTE");
+assertNotIncludes("web/src/components/workspace/WorkspaceApp.tsx", "loadTasksApp");
+assertNotIncludes("web/src/components/workspace/WorkspaceApp.tsx", "tasks: TasksApp");
+assertNotIncludes("web/src/lib/workspacePreload.ts", "loadTasksApp");
+assertNotIncludes("web/src/lib/workspacePreload.ts", 'case "tasks"');
 
 assertNotIncludes("web/src/lib/constants.ts", 'id: "tasks"');
 assertNotIncludes("web/src/lib/constants.ts", 'name: "Projects"');

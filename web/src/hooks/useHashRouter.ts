@@ -25,11 +25,10 @@ type Route =
 
 const HOME_ROUTE = { view: "app", app: "home" } as const;
 const GROWTH_ROUTE = { view: "app", app: "growth" } as const;
-const PROJECTS_ROUTE = { view: "app", app: "tasks" } as const;
 const DEFAULT_ROUTE: Route = GROWTH_ROUTE;
 
 function appRoute(app: string): Route {
-  if (app === "projects") return { view: "app", app: "tasks" };
+  if (app === "projects" || app === "tasks") return GROWTH_ROUTE;
   return { view: "app", app };
 }
 
@@ -51,16 +50,7 @@ function parseHash(hash: string): Route {
     case "home":
       return HOME_ROUTE;
     case "projects":
-      return {
-        ...PROJECTS_ROUTE,
-        projectId: parts[1] ? decodeURIComponent(parts[1]) : null,
-        taskId:
-          parts[1] &&
-          (parts[2] === "tickets" || parts[2] === "tasks") &&
-          parts[3]
-            ? decodeURIComponent(parts[3])
-            : null,
-      };
+      return GROWTH_ROUTE;
     case "skills":
       return { view: "app", app: "skills" };
     case "growth":
@@ -143,13 +133,7 @@ function appStateToHash(state: {
     case "home":
       return "#/home";
     case "tasks":
-      if (!state.projectFocusId) return "#/projects";
-      if (state.taskFocusId) {
-        return `#/projects/${encodeURIComponent(
-          state.projectFocusId,
-        )}/tasks/${encodeURIComponent(state.taskFocusId)}`;
-      }
-      return `#/projects/${encodeURIComponent(state.projectFocusId)}`;
+      return "#/growth";
     case "growth":
       return "#/growth";
     case "skills":
