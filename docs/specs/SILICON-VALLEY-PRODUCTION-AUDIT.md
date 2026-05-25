@@ -365,6 +365,10 @@ and missing typed contracts.
   facade is reduced from 4,773 to 4,635 lines, and
   `npm run startup-office:architecture` prevents those extracted handlers from
   moving back into `api/[...path].js`.
+- R2 continues with query/read handlers for growth summary, loops, approvals,
+  receipts, and export extracted behind tests. The hosted API facade is now
+  4,499 lines, and exports include `startup-office-export.v1` plus restore
+  notes so customer portability has an explicit contract.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   `20260525000000_remove_local_execution.sql`. A linked DB query confirms the

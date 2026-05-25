@@ -21,6 +21,9 @@ const {
   createStartupOfficeObjectHandlers,
 } = require("./lib/startup-office/objectHandlers");
 const {
+  createStartupOfficeQueryHandlers,
+} = require("./lib/startup-office/queryHandlers");
+const {
   normalizeStartupOfficeCadence,
   normalizeStartupOfficeLoopStatus,
   publicCompanyProfile,
@@ -178,22 +181,47 @@ const STARTUP_OFFICE_OBJECT_HANDLERS = createStartupOfficeObjectHandlers({
   writeJSON,
 });
 
+const STARTUP_OFFICE_QUERY_HANDLERS = createStartupOfficeQueryHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  companyProfileSnapshot,
+  normalizeStartupOfficeCadence,
+  normalizeStartupOfficeLoopStatus,
+  nowISO,
+  objectValue,
+  publicStartupOfficeLoop,
+  readBody,
+  requirePermission,
+  requireUser,
+  safeStartupOfficeRest,
+  startupOfficeApprovals,
+  startupOfficeArtifacts,
+  startupOfficeBetaOpsSnapshot,
+  startupOfficeLoops,
+  startupOfficeObjectRows,
+  startupOfficeReceipts,
+  startupOfficeRepository,
+  startupOfficeRuns,
+  truncateText,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   approvalAction: handleStartupOfficeApprovalAction,
-  approvals: handleStartupOfficeApprovals,
+  approvals: STARTUP_OFFICE_QUERY_HANDLERS.approvals,
   artifactObjectAction: STARTUP_OFFICE_OBJECT_HANDLERS.artifactObjectAction,
   betaDashboard: STARTUP_OFFICE_OPERATIONS_HANDLERS.betaDashboard,
   billing: STARTUP_OFFICE_OPERATIONS_HANDLERS.billing,
   companyProfile: handleCompanyProfile,
   demoSeed: handleStartupOfficeDemoSeed,
-  export: handleStartupOfficeExport,
-  growthSummary: handleStartupOfficeGrowthSummary,
+  export: STARTUP_OFFICE_QUERY_HANDLERS.export,
+  growthSummary: STARTUP_OFFICE_QUERY_HANDLERS.growthSummary,
   loopRun: handleStartupOfficeLoopRun,
-  loops: handleStartupOfficeLoops,
+  loops: STARTUP_OFFICE_QUERY_HANDLERS.loops,
   objectCollection: STARTUP_OFFICE_OBJECT_HANDLERS.objectCollection,
   objectItem: STARTUP_OFFICE_OBJECT_HANDLERS.objectItem,
   policy: STARTUP_OFFICE_OPERATIONS_HANDLERS.policy,
-  receipts: handleStartupOfficeReceipts,
+  receipts: STARTUP_OFFICE_QUERY_HANDLERS.receipts,
   run: handleStartupOfficeRun,
 });
 
@@ -1422,85 +1450,6 @@ async function handleCompanyProfile(req, res) {
   });
 }
 
-async function handleStartupOfficeGrowthSummary(req, res) {
-  const { membership, team, user } = await requireUser(req);
-  requirePermission(membership, "workspace:read");
-  const [
-    loops,
-    runs,
-    artifacts,
-    approvals,
-    receipts,
-    memoryPages,
-    objectSummary,
-    betaOps,
-    profile,
-  ] = await Promise.all([
-    startupOfficeLoops(membership.team_id),
-    startupOfficeRuns(membership.team_id, { limit: 10 }),
-    startupOfficeArtifacts(membership.team_id, { limit: 10 }),
-    startupOfficeApprovals(membership.team_id, { status: "pending", limit: 10 }),
-    startupOfficeReceipts(membership.team_id, { limit: 10 }),
-    startupOfficeRepository().memoryPages(membership.team_id, {
-      status: "approved",
-      limit: 10,
-    }),
-    startupOfficeObjectSummary(membership.team_id),
-    startupOfficeBetaOpsSnapshot(membership.team_id),
-    companyProfileSnapshot(membership.team_id, team, user),
-  ]);
-  writeJSON(res, 200, {
-    company_profile: profile,
-    beta_ops: betaOps,
-    loops,
-    pulse: {
-      active_loops: loops.filter((loop) => loop.status === "active").length,
-      pending_approvals: approvals.length,
-      recent_receipts: receipts.length,
-      recent_runs: runs.length,
-    },
-    memory_pages: memoryPages,
-    operating_objects: objectSummary,
-    recent_artifacts: artifacts,
-    recent_receipts: receipts,
-    recent_runs: runs,
-    pending_approvals: approvals,
-  });
-}
-
-async function handleStartupOfficeLoops(req, res) {
-  const { membership } = await requireUser(req);
-  if (req.method === "GET") {
-    requirePermission(membership, "workspace:read");
-    writeJSON(res, 200, { loops: await startupOfficeLoops(membership.team_id) });
-    return;
-  }
-  if (req.method !== "POST") throw new HTTPError(405, "method not allowed");
-  requirePermission(membership, "workspace:manage");
-  const body = await readBody(req);
-  const name = truncateText(body.name || "", 160);
-  if (!name) throw new HTTPError(400, "name is required");
-  const slug = await uniqueStartupOfficeLoopSlug(membership.team_id, body.slug || name);
-  const [loop] = await safeStartupOfficeRest("startup_office_loops", {
-    method: "POST",
-    body: {
-      cadence: normalizeStartupOfficeCadence(body.cadence),
-      created_by: membership.user_id,
-      department: truncateText(body.department || "Operations", 80),
-      name,
-      objective: truncateText(body.objective || "", 2000),
-      policy: objectValue(body.policy),
-      slug,
-      status: normalizeStartupOfficeLoopStatus(body.status),
-      team_id: membership.team_id,
-    },
-  });
-  await writeAuditEvent(membership, "startup_office.loop_created", "loop", loop?.id || slug, {
-    slug,
-  });
-  writeJSON(res, 200, { loop: publicStartupOfficeLoop(loop || { ...body, slug }) });
-}
-
 async function handleStartupOfficeLoopRun(req, res, loopID) {
   const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "memory:write_draft");
@@ -1736,18 +1685,6 @@ async function handleStartupOfficeRun(req, res, runID, action) {
   throw new HTTPError(405, "method not allowed");
 }
 
-async function handleStartupOfficeApprovals(req, res) {
-  const { membership } = await requireUser(req);
-  if (req.method !== "GET") throw new HTTPError(405, "method not allowed");
-  requirePermission(membership, "workspace:read");
-  writeJSON(res, 200, {
-    approvals: await startupOfficeApprovals(membership.team_id, {
-      status: req.query?.status,
-      limit: Number(req.query?.limit) || 100,
-    }),
-  });
-}
-
 async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
   const { membership, team, user } = await requireUser(req);
   requirePermission(membership, "memory:promote");
@@ -1864,75 +1801,6 @@ async function handleStartupOfficeApprovalAction(req, res, approvalID, action) {
     run: publicStartupOfficeRun(updatedRun),
     status: "ok",
   });
-}
-
-async function handleStartupOfficeReceipts(req, res) {
-  const { membership } = await requireUser(req);
-  if (req.method !== "GET") throw new HTTPError(405, "method not allowed");
-  requirePermission(membership, "workspace:read");
-  writeJSON(res, 200, {
-    receipts: await startupOfficeReceipts(membership.team_id, {
-      limit: Number(req.query?.limit) || 100,
-    }),
-  });
-}
-
-async function handleStartupOfficeExport(req, res) {
-  const { membership } = await requireUser(req);
-  requirePermission(membership, "workspace:read");
-  const [
-    assets,
-    customers,
-    metrics,
-    signals,
-    runs,
-    approvals,
-    receipts,
-    memoryPages,
-  ] = await Promise.all([
-    startupOfficeObjectRows(membership.team_id, "assets", { limit: 1000 }),
-    startupOfficeObjectRows(membership.team_id, "customers", { limit: 1000 }),
-    startupOfficeObjectRows(membership.team_id, "metrics", { limit: 1000 }),
-    startupOfficeObjectRows(membership.team_id, "signals", { limit: 1000 }),
-    startupOfficeRuns(membership.team_id, { limit: 1000 }),
-    startupOfficeApprovals(membership.team_id, { limit: 1000 }),
-    startupOfficeReceipts(membership.team_id, { limit: 1000 }),
-    startupOfficeRepository().memoryPages(membership.team_id, { limit: 1000 }),
-  ]);
-  writeJSON(res, 200, {
-    export: {
-      approvals,
-      assets,
-      customers,
-      generated_at: nowISO(),
-      memory_pages: memoryPages,
-      metrics,
-      receipts,
-      runs,
-      signals,
-    },
-  });
-}
-
-async function startupOfficeObjectSummary(teamID) {
-  const [assets, customers, metrics, signals] = await Promise.all([
-    startupOfficeObjectRows(teamID, "assets", { limit: 5 }),
-    startupOfficeObjectRows(teamID, "customers", { limit: 5 }),
-    startupOfficeObjectRows(teamID, "metrics", { limit: 5 }),
-    startupOfficeObjectRows(teamID, "signals", { limit: 5 }),
-  ]);
-  return {
-    assets,
-    counts: {
-      assets: assets.length,
-      customers: customers.length,
-      metrics: metrics.length,
-      signals: signals.length,
-    },
-    customers,
-    metrics,
-    signals,
-  };
 }
 
 async function startupOfficeObjectRows(teamID, kind, options = {}) {
@@ -2585,10 +2453,6 @@ async function safeStartupOfficeRest(table, options = {}) {
 
 function isMissingStartupOfficeTableError(err, table) {
   return startupOfficeRepository().isMissingTableError(err, table);
-}
-
-async function uniqueStartupOfficeLoopSlug(teamID, seed) {
-  return startupOfficeRepository().uniqueLoopSlug(teamID, seed);
 }
 
 async function workspaceHasAnyProject(teamID) {
