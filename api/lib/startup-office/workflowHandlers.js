@@ -10,6 +10,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     createStartupOfficeReceipt,
     ensureStartupOfficeLoop,
     findStartupOfficeApproval,
+    materializeStartupOfficeReceiptMemory,
     nowISO,
     objectValue,
     publicStartupOfficeApproval,
@@ -25,6 +26,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     startupOfficeArtifacts,
     startupOfficeBetaOpsSnapshot,
     startupOfficeModelClient,
+    startupOfficeReceiptMemoryPageSlugs = [],
     startupOfficeReceipts,
     startupOfficeRepository,
     truncateText,
@@ -416,9 +418,13 @@ function createStartupOfficeWorkflowHandlers(deps) {
         approval_id: approval.id,
         decision_note: body.traceNote,
         idempotency_key: idempotencyKey || "",
-        memory_pages: memoryPromotion?.pages?.map((page) => page.slug) || [],
+        memory_pages: [...(memoryPromotion?.pages?.map((page) => page.slug) || []), ...(approved ? startupOfficeReceiptMemoryPageSlugs : [])],
       },
     });
+    const receiptMemory = approved && materializeStartupOfficeReceiptMemory
+      ? await materializeStartupOfficeReceiptMemory({ approval, membership, receipt, repository: startupOfficeRepository(), run: updatedRun })
+      : null;
+    const memoryPages = [...(memoryPromotion?.pages || []), ...(receiptMemory?.pages || [])];
     await writeAuditEvent(
       membership,
       approved
@@ -432,7 +438,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     writeJSON(res, 200, {
       approval: publicStartupOfficeApproval(updatedApproval || approval),
       memory_diff: memoryPromotion?.diff || null,
-      memory_pages: memoryPromotion?.pages || [],
+      memory_pages: memoryPages,
       receipt,
       run: publicStartupOfficeRun(updatedRun),
       status: "ok",

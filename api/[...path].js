@@ -112,6 +112,10 @@ const {
 const {
   applyStartupOfficeMemoryPromotion,
 } = require("../workers/startup-office/wikiWriter");
+const {
+  STARTUP_OFFICE_RECEIPT_MEMORY_PAGE_SLUGS,
+  materializeStartupOfficeReceiptMemory,
+} = require("./lib/startup-office/receiptMemory");
 
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -385,6 +389,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   createStartupOfficeReceipt,
   ensureStartupOfficeLoop,
   findStartupOfficeApproval,
+  materializeStartupOfficeReceiptMemory,
   nowISO,
   objectValue,
   publicStartupOfficeApproval,
@@ -400,6 +405,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   startupOfficeArtifacts,
   startupOfficeBetaOpsSnapshot,
   startupOfficeModelClient,
+  startupOfficeReceiptMemoryPageSlugs: STARTUP_OFFICE_RECEIPT_MEMORY_PAGE_SLUGS,
   startupOfficeReceipts,
   startupOfficeRepository,
   truncateText,

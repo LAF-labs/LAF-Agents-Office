@@ -15,6 +15,7 @@ function baseDeps(overrides = {}) {
     audits: [],
     loops: [],
     promotions: [],
+    receiptMemory: [],
     receipts: [],
     rest: [],
     writes: [],
@@ -93,6 +94,12 @@ function baseDeps(overrides = {}) {
         metadata: {},
         run_id: "run-1",
         status: "pending",
+      };
+    },
+    async materializeStartupOfficeReceiptMemory(args) {
+      calls.receiptMemory.push(args);
+      return {
+        pages: [{ slug: "loop-receipts" }, { slug: "learning-updates" }],
       };
     },
     nowISO() {
@@ -181,6 +188,7 @@ function baseDeps(overrides = {}) {
     startupOfficeModelClient() {
       return { provider: "fake" };
     },
+    startupOfficeReceiptMemoryPageSlugs: ["loop-receipts", "learning-updates"],
     async startupOfficeReceipts(_teamID, options) {
       return [{ id: "receipt-1", options }];
     },
@@ -322,8 +330,20 @@ test("approval action approves, promotes memory, records receipt, and audits", a
   assert.equal(deps.calls.rest[1].options.body.status, "completed");
   assert.equal(deps.calls.promotions[0].approval.id, "approval-1");
   assert.equal(deps.calls.receipts[0].event_type, "approval.approved");
+  assert.deepEqual(deps.calls.receipts[0].trace.memory_pages, [
+    "positioning",
+    "loop-receipts",
+    "learning-updates",
+  ]);
+  assert.equal(deps.calls.receiptMemory[0].approval.id, "approval-1");
+  assert.equal(deps.calls.receiptMemory[0].receipt.id, "receipt-1");
+  assert.equal(deps.calls.receiptMemory[0].run.status, "completed");
   assert.equal(deps.calls.audits[0][1], "startup_office.approved");
-  assert.deepEqual(deps.calls.writes[0].body.memory_pages, [{ slug: "positioning" }]);
+  assert.deepEqual(deps.calls.writes[0].body.memory_pages, [
+    { slug: "positioning" },
+    { slug: "loop-receipts" },
+    { slug: "learning-updates" },
+  ]);
 });
 
 test("approval action replays a matching idempotent decision", async () => {

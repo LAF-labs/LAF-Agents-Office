@@ -679,6 +679,10 @@ and missing typed contracts.
   `company-profile` memory page. The page stores a markdown snapshot plus
   changed fields, actor, timestamp, source metadata, and verification time, so
   profile state becomes reusable company memory instead of UI-only settings.
+- R5 now materializes approved loop receipts into canonical memory pages.
+  Completed approvals append structured entries to `loop-receipts` and
+  learning summaries to `learning-updates`, with receipt/run/approval
+  provenance and release-gate coverage.
 - R3/R8 now applies Supabase migration
   `20260525210000_assert_pure_cloud_boundary_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,
