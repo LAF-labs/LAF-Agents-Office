@@ -60,6 +60,19 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
     state.jobPatches.map((patch) => patch.status),
     ["running", "completed"],
   );
+  assert.deepEqual(
+    state.audits.map((audit) => audit.action),
+    [
+      "startup_office.run_started",
+      "startup_office.receipt.created",
+      "startup_office.artifact.created",
+      "startup_office.approval.created",
+      "startup_office.run_waiting_approval",
+      "startup_office.receipt.created",
+    ],
+  );
+  assert.equal(state.audits[2].target_id, result.artifact.id);
+  assert.equal(state.audits[3].target_id, result.approval.id);
 });
 
 test("startup office loop engine records external-impact approval gates", async () => {
@@ -125,6 +138,8 @@ test("startup office loop engine completes draft-only policy runs without approv
   assert.equal(result.artifact.metadata.approval_gates.every((gate) => gate.required === false), true);
   assert.equal(state.receipts.at(-1).trace.approval_required, false);
   assert.equal(state.jobPatches.at(-1).metadata.approval_required, false);
+  assert.equal(state.audits.some((audit) => audit.action === "startup_office.approval.created"), false);
+  assert.equal(state.audits.some((audit) => audit.action === "startup_office.run_completed"), true);
 });
 
 test("startup office loop engine records failed model calls as receipted run failures", async () => {
@@ -151,6 +166,8 @@ test("startup office loop engine records failed model calls as receipted run fai
   assert.equal(state.receipts.at(-1).event_type, "run.failed");
   assert.equal(state.receipts.at(-1).trace.skill_invocations[0].skill_name, "market-research");
   assert.equal(state.jobPatches.at(-1).status, "failed");
+  assert.equal(state.audits.some((audit) => audit.action === "startup_office.run_failed"), true);
+  assert.equal(state.audits.at(-1).action, "startup_office.receipt.created");
 });
 
 test("startup office loop engine blocks externally informed drafts without citations", async () => {
@@ -271,6 +288,7 @@ test("startup office loop engine includes revision requests in the model prompt"
 
 function fakeRepositoryState() {
   return {
+    audits: [],
     approvals: [],
     artifacts: [],
     jobPatches: [],
@@ -292,6 +310,15 @@ function fakeRepository(state) {
       };
       state.approvals.push(approval);
       return approval;
+    },
+    createAuditEvent: async (membershipValue, body) => {
+      const audit = {
+        id: `audit-${state.audits.length + 1}`,
+        team_id: membershipValue.team_id,
+        ...body,
+      };
+      state.audits.push(audit);
+      return audit;
     },
     createArtifact: async (membershipValue, body) => {
       const artifact = {

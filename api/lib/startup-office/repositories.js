@@ -345,6 +345,21 @@ function createStartupOfficeRepository({
     );
   }
 
+  async function createAuditEvent(membership, body) {
+    const [event] = await safeRest("audit_events", {
+      method: "POST",
+      body: {
+        action: truncateText(body.action || "", 120),
+        actor_user_id: body.actor_user_id || membership.user_id || null,
+        metadata: objectValue(body.metadata),
+        target_id: truncateText(body.target_id || "", 120),
+        target_type: truncateText(body.target_type || "", 80),
+        team_id: membership.team_id,
+      },
+    });
+    return event || null;
+  }
+
   async function memoryPages(teamID, options = {}) {
     const query = {
       order: "updated_at.desc",
@@ -441,6 +456,7 @@ function createStartupOfficeRepository({
     artifacts,
     createApproval,
     createArtifact,
+    createAuditEvent,
     createReceipt,
     createRun,
     createWorkerJob,

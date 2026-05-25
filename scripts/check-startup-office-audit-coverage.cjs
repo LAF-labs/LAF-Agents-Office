@@ -123,6 +123,61 @@ for (const [relativePath, snippet, label] of [
     "run retry behavior test",
   ],
   [
+    "workers/startup-office/loopEngine.js",
+    '"startup_office.run_started"',
+    "worker run started audit",
+  ],
+  [
+    "workers/startup-office/loopEngine.js",
+    '"startup_office.run_waiting_approval"',
+    "worker run waiting approval audit",
+  ],
+  [
+    "workers/startup-office/loopEngine.js",
+    '"startup_office.run_completed"',
+    "worker run completed audit",
+  ],
+  [
+    "workers/startup-office/loopEngine.js",
+    '"startup_office.run_failed"',
+    "worker run failed audit",
+  ],
+  [
+    "workers/startup-office/loopEngine.js",
+    '"startup_office.artifact.created"',
+    "worker artifact creation audit",
+  ],
+  [
+    "workers/startup-office/loopEngine.js",
+    '"startup_office.approval.created"',
+    "worker approval creation audit",
+  ],
+  [
+    "workers/startup-office/receiptWriter.js",
+    '"startup_office.receipt.created"',
+    "worker receipt creation audit",
+  ],
+  [
+    "api/lib/startup-office/repositories.js",
+    "async function createAuditEvent",
+    "repository audit writer",
+  ],
+  [
+    "api/lib/startup-office/repositories.test.js",
+    '"startup_office.artifact.created"',
+    "repository audit writer test",
+  ],
+  [
+    "workers/startup-office/loopEngine.test.js",
+    '"startup_office.approval.created"',
+    "worker approval audit behavior test",
+  ],
+  [
+    "workers/startup-office/loopEngine.test.js",
+    '"startup_office.receipt.created"',
+    "worker receipt audit behavior test",
+  ],
+  [
     "api/lib/startup-office/objectHandlers.test.js",
     '"startup_office.asset.created_from_artifact"',
     "artifact asset behavior test",

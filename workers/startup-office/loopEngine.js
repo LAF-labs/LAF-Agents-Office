@@ -58,6 +58,12 @@ async function runStartupOfficeLoop({
       status: "running",
       updated_at: startedAt,
     });
+    await auditStartupOfficeWrite(repository, membership, {
+      action: "startup_office.run_started",
+      metadata: { attempt, loop_slug: loop.slug, worker_job_id: workerJob?.id || "" },
+      target_id: run.id,
+      target_type: "run",
+    });
     await writeStartupOfficeRunReceipt(repository, membership, {
       actor_slug: "agent",
       event_type: "run.started",
@@ -170,6 +176,17 @@ async function runStartupOfficeLoop({
       run_id: run.id,
       title: truncateText(template.artifactTitle, 180),
     });
+    await auditStartupOfficeWrite(repository, membership, {
+      action: "startup_office.artifact.created",
+      metadata: {
+        approval_required: approvalRequired,
+        artifact_kind: template.artifactKind,
+        loop_slug: loop.slug,
+        run_id: run.id,
+      },
+      target_id: artifact?.id || "",
+      target_type: "artifact",
+    });
     let approval = null;
     let memoryDiff = null;
     if (approvalRequired) {
@@ -218,6 +235,18 @@ async function runStartupOfficeLoop({
         status: "pending",
         title: truncateText(`Approve ${loop.name} AI draft`, 180),
       });
+      await auditStartupOfficeWrite(repository, membership, {
+        action: "startup_office.approval.created",
+        metadata: {
+          approval_mode: approvalDecision.approval_mode,
+          approval_required: approvalRequired,
+          loop_slug: loop.slug,
+          risk_level: approvalRisk,
+          run_id: run.id,
+        },
+        target_id: approval?.id || "",
+        target_type: "approval",
+      });
     }
     const completedAt = nowISO();
     const updatedRun = await repository.updateRun(membership.team_id, run.id, {
@@ -244,6 +273,19 @@ async function runStartupOfficeLoop({
       status: approvalRequired ? "waiting_approval" : "completed",
       summary: truncateText(template.summary(modelResult.data), 2000),
       updated_at: completedAt,
+    });
+    await auditStartupOfficeWrite(repository, membership, {
+      action: approvalRequired
+        ? "startup_office.run_waiting_approval"
+        : "startup_office.run_completed",
+      metadata: {
+        approval_id: approval?.id || "",
+        approval_required: approvalRequired,
+        artifact_id: artifact?.id || "",
+        loop_slug: loop.slug,
+      },
+      target_id: run.id,
+      target_type: "run",
     });
     if (workerJob?.id) {
       await repository.updateWorkerJob(membership.team_id, workerJob.id, {
@@ -330,6 +372,17 @@ async function runStartupOfficeLoop({
       summary: message,
       updated_at: failedAt,
     });
+    await auditStartupOfficeWrite(repository, membership, {
+      action: "startup_office.run_failed",
+      metadata: {
+        attempt,
+        error: message,
+        loop_slug: loop.slug,
+        worker_job_id: workerJob?.id || "",
+      },
+      target_id: run.id,
+      target_type: "run",
+    });
     if (workerJob?.id) {
       await repository.updateWorkerJob(membership.team_id, workerJob.id, {
         attempts: attempt,
@@ -378,6 +431,11 @@ function normalizedSkillInvocations(skillInvocations, run) {
   if (Array.isArray(skillInvocations) && skillInvocations.length) return skillInvocations;
   const metadataInvocations = run?.metadata?.skill_invocations;
   return Array.isArray(metadataInvocations) ? metadataInvocations : [];
+}
+
+async function auditStartupOfficeWrite(repository, membership, event) {
+  if (typeof repository.createAuditEvent !== "function") return null;
+  return repository.createAuditEvent(membership, event);
 }
 
 async function gatherBrowserResearch({ browserResearchClient, context, inputs, loop }) {
