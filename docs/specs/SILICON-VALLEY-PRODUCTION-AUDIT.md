@@ -7,7 +7,7 @@ startup, what fundamental problems would we refuse to carry forward?
 
 ## Evidence Baseline
 
-- `api/[...path].js` is still a 2,613-line hosted API facade after the cloud pivot.
+- `api/[...path].js` is still a 2,428-line hosted API facade after the cloud pivot.
 - `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
   `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
 - Supabase migrations now remove obsolete execution schema, and live PostgREST
@@ -580,6 +580,11 @@ the final release commit or when a shared invariant changes.
   `api/[...path].js` count is 2,613 lines, and
   `npm run startup-office:architecture` fails if the facade grows past 2,620
   lines before more routes are extracted.
+- R2 now extracts hosted skill CRUD and invocation behavior into
+  `api/lib/hosted/skillHandlers.js`. The facade is down to 2,428 lines, the
+  release gate runs `api/lib/hosted/skillHandlers.test.js`, and
+  `npm run startup-office:architecture` prevents skill handler logic from
+  drifting back into `api/[...path].js`.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   the pure-cloud boundary guard. A linked DB query confirms

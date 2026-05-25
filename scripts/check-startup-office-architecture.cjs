@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2620);
+assertMaxLines("api/[...path].js", 2440);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -54,6 +54,7 @@ assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/schedulerHandlers.js", 90);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
+assertMaxLines("api/lib/hosted/skillHandlers.js", 230);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
 assertMaxLines("api/lib/startup-office/activationAnalytics.js", 180);
@@ -194,6 +195,10 @@ for (const [pattern, label] of [
   [/path === "requests\/answer"[\s\S]{0,160}\{ ok: true \}/, "hosted request answer no-op response"],
   [/async function handleHostedScheduler\b/, "hosted scheduler handler"],
   [/jobs: \[\]/, "hosted scheduler empty stub"],
+  [/async function handleSkills\b/, "hosted skills handler"],
+  [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
+  [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
+  [/function permissionRequirementList\b/, "hosted skill permission normalizer"],
   [/\["actions", "signals", "decisions", "watchdogs"\]/, "hosted activity multiplexer stub"],
   [/\{\s*\[path\]: \[\]\s*\}/, "hosted activity empty stub"],
   [/path === "projects"[\s\S]{0,100}handleProjects/, "hosted projects route"],
