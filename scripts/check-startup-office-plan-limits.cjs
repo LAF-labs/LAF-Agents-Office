@@ -29,8 +29,8 @@ if (
 }
 
 const schema = JSON.parse(read("supabase/schema/current.json"));
-if (schema.latestMigration !== "20260526020000") {
-  fail("schema latestMigration must point at the plan limits migration");
+if (String(schema.latestMigration || "") < "20260526020000") {
+  fail("schema latestMigration must include the plan limits migration or a later migration");
 }
 const billing = schema.activeTables.find((table) => table.name === "workspace_billing");
 if (!billing?.columns?.includes("seat_limit")) {

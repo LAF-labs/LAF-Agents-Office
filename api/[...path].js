@@ -65,6 +65,12 @@ const {
   createStartupOfficeDemoSeedHandlers,
 } = require("./lib/startup-office/demoSeedHandlers");
 const {
+  startupOfficeBillingBlockReason,
+  startupOfficeBillingProviderValue,
+  startupOfficeBillingStateValue,
+  startupOfficePaymentStatusValue,
+} = require("./lib/startup-office/billingState");
+const {
   createStartupOfficeProfileHandlers,
 } = require("./lib/startup-office/profileHandlers");
 const {
@@ -81,8 +87,14 @@ const {
   createStartupOfficeObjectHandlers,
 } = require("./lib/startup-office/objectHandlers");
 const {
+  createStartupOfficeAssetUploadHandlers,
+} = require("./lib/startup-office/assetUploadHandlers");
+const {
   createStartupOfficeQueryHandlers,
 } = require("./lib/startup-office/queryHandlers");
+const {
+  createStartupOfficeLifecycleHandlers,
+} = require("./lib/startup-office/lifecycleHandlers");
 const {
   createStartupOfficeWorkflowHandlers,
 } = require("./lib/startup-office/workflowHandlers");
@@ -339,7 +351,9 @@ const STARTUP_OFFICE_OPERATIONS_HANDLERS = createStartupOfficeOperationsHandlers
   startupOfficeApprovalPolicy,
   startupOfficeApprovals,
   startupOfficeBetaOpsSnapshot,
+  startupOfficeBillingProviderValue,
   startupOfficeBillingStateValue,
+  startupOfficePaymentStatusValue,
   startupOfficeRuns,
   startupOfficeStuckJobs,
   truncateText,
@@ -364,6 +378,20 @@ const STARTUP_OFFICE_OBJECT_HANDLERS = createStartupOfficeObjectHandlers({
   startupOfficeObjectPayload,
   startupOfficeObjectRows,
   startupOfficeRepository,
+  startupOfficeBetaOpsSnapshot,
+  truncateText,
+  writeAuditEvent,
+  writeJSON,
+});
+
+const STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS = createStartupOfficeAssetUploadHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  publicStartupOfficeAsset,
+  readBody,
+  requirePermission,
+  requireUser,
+  safeStartupOfficeRest,
   startupOfficeBetaOpsSnapshot,
   truncateText,
   writeAuditEvent,
@@ -395,6 +423,18 @@ const STARTUP_OFFICE_QUERY_HANDLERS = createStartupOfficeQueryHandlers({
   writeJSON,
 });
 
+const STARTUP_OFFICE_LIFECYCLE_HANDLERS = createStartupOfficeLifecycleHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  readBody,
+  requireAdminRole,
+  requireUser,
+  safeStartupOfficeRest,
+  truncateText,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   applyStartupOfficeMemoryPromotion,
   companyProfileSnapshot,
@@ -419,6 +459,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   startupOfficeApprovals,
   startupOfficeArtifacts,
   startupOfficeBetaOpsSnapshot,
+  startupOfficeBillingBlockReason,
   startupOfficeModelClient,
   startupOfficeReceiptMemoryPageSlugs: STARTUP_OFFICE_RECEIPT_MEMORY_PAGE_SLUGS,
   startupOfficeLoopSkillInvocations,
@@ -464,9 +505,11 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   approvalAction: STARTUP_OFFICE_WORKFLOW_HANDLERS.approvalAction,
   approvals: STARTUP_OFFICE_QUERY_HANDLERS.approvals,
   artifactObjectAction: STARTUP_OFFICE_OBJECT_HANDLERS.artifactObjectAction,
+  assetUploadIntent: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS.assetUploadIntent,
   betaDashboard: STARTUP_OFFICE_OPERATIONS_HANDLERS.betaDashboard,
   billing: STARTUP_OFFICE_OPERATIONS_HANDLERS.billing,
   companyProfile: handleCompanyProfile,
+  deletionRequest: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionRequest,
   demoSeed: handleStartupOfficeDemoSeed,
   export: STARTUP_OFFICE_QUERY_HANDLERS.export,
   growthSummary: STARTUP_OFFICE_QUERY_HANDLERS.growthSummary,
@@ -477,6 +520,8 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   policy: STARTUP_OFFICE_OPERATIONS_HANDLERS.policy,
   receipts: STARTUP_OFFICE_QUERY_HANDLERS.receipts,
   run: STARTUP_OFFICE_WORKFLOW_HANDLERS.run,
+  supportAccess: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
+  supportAccessAction: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
   workerJobAction: STARTUP_OFFICE_OPERATIONS_HANDLERS.workerJobAction,
 });
 
@@ -1568,10 +1613,15 @@ async function startupOfficeBilling(teamID) {
   });
   const billing = rows?.[0] || {};
   return {
+    beta_agreement_url: billing.beta_agreement_url || "",
+    billing_provider: startupOfficeBillingProviderValue(billing.billing_provider || "manual"),
     billing_state: startupOfficeBillingStateValue(billing.billing_state || "trial"),
+    blocked_reason: billing.blocked_reason || "",
     laf_model_enabled: billing.laf_model_enabled !== false,
+    last_paid_at: billing.last_paid_at || null,
     monthly_model_spend_cents: Number(billing.monthly_model_spend_cents || 20000),
     monthly_run_limit: Number(billing.monthly_run_limit || 50),
+    payment_status: startupOfficePaymentStatusValue(billing.payment_status || billing.billing_state),
     plan: billing.plan || "trial",
     seat_limit: Number(billing.seat_limit || 5),
     storage_mb_limit: Number(billing.storage_mb_limit || 1024),
@@ -1684,13 +1734,6 @@ async function startupOfficeStuckJobs(teamID) {
       team_id: `eq.${teamID}`,
     },
   });
-}
-
-function startupOfficeBillingStateValue(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  return ["trial", "active", "past_due", "paused", "comped", "canceled"].includes(raw)
-    ? raw
-    : "trial";
 }
 
 function percent(value, limit) {

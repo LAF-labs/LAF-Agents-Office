@@ -25,6 +25,7 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
   approvalAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.approveMemory]]),
   approvals: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
   artifactObjectAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.draftMemory]]),
+  assetUploadIntent: routeAccess([["POST", STARTUP_OFFICE_ACCESS.draftMemory]]),
   betaDashboard: routeAccess([["GET", STARTUP_OFFICE_ACCESS.adminBetaOps]]),
   billing: routeAccess([
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
@@ -33,6 +34,10 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
   companyProfile: routeAccess([
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
     ["PATCH", STARTUP_OFFICE_ACCESS.manageWorkspace],
+  ]),
+  deletionRequest: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.adminBetaOps],
+    ["POST", STARTUP_OFFICE_ACCESS.adminBetaOps],
   ]),
   demoSeed: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminDemoSeed]]),
   export: routeAccess([["GET", STARTUP_OFFICE_ACCESS.readWorkspace]]),
@@ -59,6 +64,11 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
     ["GET", STARTUP_OFFICE_ACCESS.readWorkspace],
     ["POST", STARTUP_OFFICE_ACCESS.draftMemory],
   ]),
+  supportAccess: routeAccess([
+    ["GET", STARTUP_OFFICE_ACCESS.adminBetaOps],
+    ["POST", STARTUP_OFFICE_ACCESS.adminBetaOps],
+  ]),
+  supportAccessAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminBetaOps]]),
   workerJobAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminWorkerRecovery]]),
 });
 

@@ -18,7 +18,11 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
       <dl className="startup-memory-list">
         <div>
           <dt>{copy.betaOpsLabels.state}</dt>
-          <dd>{billing?.billing_state || "trial"}</dd>
+          <dd>{billing?.payment_status || billing?.billing_state || "trial"}</dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.provider}</dt>
+          <dd>{billing?.billing_provider || "manual"}</dd>
         </div>
         <div>
           <dt>{copy.betaOpsLabels.runs}</dt>

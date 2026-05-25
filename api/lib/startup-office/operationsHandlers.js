@@ -18,7 +18,9 @@ function createStartupOfficeOperationsHandlers(deps) {
     startupOfficeApprovalPolicy,
     startupOfficeApprovals,
     startupOfficeBetaOpsSnapshot,
+    startupOfficeBillingProviderValue,
     startupOfficeBillingStateValue,
+    startupOfficePaymentStatusValue,
     startupOfficeRuns,
     startupOfficeStuckJobs,
     truncateText,
@@ -82,10 +84,15 @@ function createStartupOfficeOperationsHandlers(deps) {
     requireAdminRole(membership, "owner or admin role required for billing changes");
     const body = await readBody(req);
     const billing = await upsertStartupOfficeBilling(membership.team_id, {
+      beta_agreement_url: truncateText(body.beta_agreement_url || "", 1000),
+      billing_provider: startupOfficeBillingProviderValue(body.billing_provider || body.provider),
       billing_state: startupOfficeBillingStateValue(body.billing_state || body.state),
+      blocked_reason: truncateText(body.blocked_reason || "", 1000),
       laf_model_enabled: body.laf_model_enabled === undefined ? true : Boolean(body.laf_model_enabled),
+      last_paid_at: body.last_paid_at || null,
       monthly_model_spend_cents: clamp(Number(body.monthly_model_spend_cents || 20000), 0, 10000000),
       monthly_run_limit: clamp(Number(body.monthly_run_limit || 50), 0, 100000),
+      payment_status: startupOfficePaymentStatusValue(body.payment_status || body.status),
       plan: truncateText(body.plan || "founder_beta", 80),
       seat_limit: clamp(Number(body.seat_limit || 5), 1, 100000),
       storage_mb_limit: clamp(Number(body.storage_mb_limit || 1024), 0, 1000000),
@@ -94,6 +101,7 @@ function createStartupOfficeOperationsHandlers(deps) {
     await writeAuditEvent(membership, "startup_office.billing_updated", "team", membership.team_id, {
       billing_state: billing.billing_state,
       monthly_run_limit: billing.monthly_run_limit,
+      payment_status: billing.payment_status,
       seat_limit: billing.seat_limit,
     });
     writeJSON(res, 200, await startupOfficeBetaOpsSnapshot(membership.team_id));

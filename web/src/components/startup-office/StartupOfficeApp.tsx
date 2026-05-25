@@ -18,6 +18,7 @@ import { showNotice } from "../ui/Toast";
 import { ApprovalDeskPanel } from "./ApprovalDeskPanel";
 import { ArtifactsPanel } from "./ArtifactsPanel";
 import { ArtifactViewer } from "./ArtifactViewer";
+import { ActivityNotificationsPanel } from "./ActivityNotificationsPanel";
 import { BetaOpsPanel } from "./BetaOpsPanel";
 import { CompanyProfilePanel } from "./CompanyProfilePanel";
 import { CompanyPulsePanel } from "./CompanyPulsePanel";
@@ -196,6 +197,10 @@ export function StartupOfficeApp() {
           objects={summary.operating_objects}
         />
         <BetaOpsPanel betaOps={summary.beta_ops} copy={copy} />
+        <ActivityNotificationsPanel
+          copy={copy}
+          notifications={summary.activity_notifications}
+        />
         <ReceiptsTimelinePanel
           copy={copy}
           nextApproval={firstApproval}

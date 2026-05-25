@@ -193,6 +193,12 @@ function baseDeps(overrides = {}) {
         },
       };
     },
+    startupOfficeBillingBlockReason(billing) {
+      if (billing.payment_status === "blocked") return "blocked";
+      return ["past_due", "paused", "canceled"].includes(billing.billing_state)
+        ? billing.billing_state
+        : "";
+    },
     startupOfficeModelClient() {
       return { provider: "fake" };
     },
@@ -496,6 +502,27 @@ test("workflow handlers preserve run-limit and missing approval errors", async (
   await assert.rejects(
     () => overLimit.loopRun({ method: "POST" }, {}, "idea-validation"),
     (err) => err.status === 402 && err.message === "monthly Startup Office run limit reached",
+  );
+
+  const blockedPayment = createStartupOfficeWorkflowHandlers(baseDeps({
+    async startupOfficeBetaOpsSnapshot() {
+      return {
+        billing: {
+          billing_state: "active",
+          monthly_model_spend_cents: 100,
+          monthly_run_limit: 10,
+          payment_status: "blocked",
+        },
+        usage: {
+          model_spend_cents: 0,
+          runs: 0,
+        },
+      };
+    },
+  }));
+  await assert.rejects(
+    () => blockedPayment.loopRun({ method: "POST" }, {}, "idea-validation"),
+    (err) => err.status === 402 && err.message === "billing state blocks AI runs: blocked",
   );
 
   const missingApproval = createStartupOfficeWorkflowHandlers(baseDeps({

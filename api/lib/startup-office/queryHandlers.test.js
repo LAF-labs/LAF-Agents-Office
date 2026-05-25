@@ -136,6 +136,7 @@ test("growth summary composes pulse, memory, beta ops, and operating object summ
   const body = deps.calls.writes[0].body;
   assert.equal(deps.calls.permissions[0].permission, "workspace:read");
   assert.equal(body.company_profile.name, "Acme");
+  assert.equal(body.activity_notifications[0].id, "loop-1");
   assert.equal(body.pulse.active_loops, 1);
   assert.equal(body.pulse.pending_approvals, 1);
   assert.equal(body.operating_objects.counts.assets, 1);
@@ -202,6 +203,8 @@ test("export handler includes schema version and restore notes", async () => {
   await handlers.export({ method: "GET" }, {});
   const bundle = deps.calls.writes[0].body.export;
   assert.equal(bundle.schema_version, "startup-office-export.v1");
+  assert.equal(bundle.company_profile.name, "Acme");
+  assert.equal(bundle.beta_ops.billing.plan, "founder_beta");
   assert.match(bundle.restore_notes, /approval decisions/);
   assert.equal(bundle.generated_at, "2026-05-25T00:00:00.000Z");
   assert.equal(bundle.assets[0].kind, "assets");

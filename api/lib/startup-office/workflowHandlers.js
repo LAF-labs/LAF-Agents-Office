@@ -1,6 +1,4 @@
-const {
-  createStartupOfficeValidation,
-} = require("./validation");
+const { createStartupOfficeValidation } = require("./validation");
 const {
   queueStartupOfficeApprovalRevision,
   startupOfficeRevisionRequest,
@@ -32,6 +30,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     startupOfficeApprovals,
     startupOfficeArtifacts,
     startupOfficeBetaOpsSnapshot,
+    startupOfficeBillingBlockReason,
     startupOfficeLoopSkillInvocations,
     startupOfficeModelClient,
     startupOfficeReceiptMemoryPageSlugs = [],
@@ -483,8 +482,9 @@ function createStartupOfficeWorkflowHandlers(deps) {
 
   async function enforceStartupOfficeRunLimit(teamID) {
     const { billing, usage } = await startupOfficeBetaOpsSnapshot(teamID);
-    if (["past_due", "paused", "canceled"].includes(billing.billing_state)) {
-      throw createHTTPError(402, `billing state blocks AI runs: ${billing.billing_state}`);
+    const blockReason = startupOfficeBillingBlockReason ? startupOfficeBillingBlockReason(billing) : "";
+    if (blockReason) {
+      throw createHTTPError(402, `billing state blocks AI runs: ${blockReason}`);
     }
     if (usage.runs >= billing.monthly_run_limit) {
       throw createHTTPError(402, "monthly Startup Office run limit reached");

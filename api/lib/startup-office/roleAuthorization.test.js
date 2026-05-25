@@ -38,6 +38,7 @@ const READ_KEYS = Object.freeze([
 
 const DRAFT_KEYS = Object.freeze([
   "artifactObjectAction.POST",
+  "assetUploadIntent.POST",
   "loopRun.POST",
   "objectCollection.POST",
   "objectItem.DELETE",
@@ -56,9 +57,14 @@ const ADMIN_KEYS = Object.freeze([
   "betaDashboard.GET",
   "billing.PATCH",
   "companyProfile.PATCH",
+  "deletionRequest.GET",
+  "deletionRequest.POST",
   "demoSeed.POST",
   "loops.POST",
   "policy.PATCH",
+  "supportAccess.GET",
+  "supportAccess.POST",
+  "supportAccessAction.POST",
   "workerJobAction.POST",
 ]);
 

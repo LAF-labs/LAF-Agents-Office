@@ -1,0 +1,132 @@
+#!/usr/bin/env node
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const launchDoc = "docs/ops/STARTUP-OFFICE-CLOSED-BETA-LAUNCH-KIT.md";
+
+function fail(message) {
+  console.error(`startup-office closed beta launch check failed: ${message}`);
+  process.exit(1);
+}
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
+
+function assertContains(relativePath, snippet, label) {
+  if (!read(relativePath).includes(snippet)) {
+    fail(`${label} is missing ${snippet} in ${relativePath}`);
+  }
+}
+
+const pkg = JSON.parse(read("package.json"));
+if (pkg.scripts?.["startup-office:closed-beta-launch"] !== "node scripts/check-startup-office-closed-beta-launch.cjs") {
+  fail("package.json must expose startup-office:closed-beta-launch");
+}
+if (pkg.scripts?.["startup-office:first-beta-smoke"] !== "node scripts/startup-office-first-beta-smoke.cjs") {
+  fail("package.json must expose startup-office:first-beta-smoke");
+}
+
+const schema = JSON.parse(read("supabase/schema/current.json"));
+if (schema.latestMigration !== "20260526030000") {
+  fail("schema latestMigration must point at the launch readiness migration");
+}
+
+for (const [tableName, columns] of [
+  ["workspace_billing", ["billing_provider", "payment_status", "beta_agreement_url", "last_paid_at", "blocked_reason"]],
+  ["startup_office_assets", ["content_type", "size_bytes", "storage_path", "checksum_sha256", "upload_status"]],
+  ["startup_office_support_access_events", ["event_type", "reason", "expires_at"]],
+  ["startup_office_deletion_requests", ["requested_by", "status", "reason"]],
+]) {
+  const table = schema.activeTables.find((entry) => entry.name === tableName);
+  if (!table) fail(`${tableName} must be present in schema manifest`);
+  for (const column of columns) {
+    if (!table.columns.includes(column)) fail(`${tableName} must include ${column}`);
+  }
+}
+
+for (const [relativePath, snippets, label] of [
+  [
+    "supabase/migrations/20260526030000_add_startup_office_launch_readiness.sql",
+    ["payment_status", "startup_office_support_access_events", "startup_office_deletion_requests", "upload_status"],
+    "launch readiness migration",
+  ],
+  [
+    "api/lib/startup-office/billingState.js",
+    ["startupOfficePaymentStatusValue", "startupOfficeBillingBlockReason"],
+    "manual billing state",
+  ],
+  [
+    "api/lib/startup-office/lifecycleHandlers.js",
+    ["support_access", "deletion_requested", "visible_to_owner"],
+    "support and deletion lifecycle",
+  ],
+  [
+    "api/lib/startup-office/assetUploadHandlers.js",
+    ["ALLOWED_CONTENT_TYPES", "MAX_ASSET_UPLOAD_BYTES", "storage_path"],
+    "secure asset upload intent",
+  ],
+  [
+    "api/lib/startup-office/queryHandlers.js",
+    ["company_profile: profile", "beta_ops: betaOps", "activity_notifications"],
+    "export and activity query surface",
+  ],
+  [
+    "workers/startup-office/contextBuilder.js",
+    ["relevant_assets", "wiki_memory", "citation_sources"],
+    "wiki and asset retrieval",
+  ],
+  [
+    "workers/startup-office/outputEval.test.js",
+    ["fake loop outputs clear the beta quality rubric", "requires attached citations"],
+    "quality evaluation harness",
+  ],
+  [
+    "workers/startup-office/outboxWorker.test.js",
+    ["configured email notifications", "notification.approval_waiting"],
+    "approval notification email",
+  ],
+  [
+    "api/lib/hosted/inviteHandlers.js",
+    ["one_time_invite_url", "invite_url"],
+    "team invite notification fallback",
+  ],
+  [
+    launchDoc,
+    [
+      "Commercial Positioning",
+      "Privacy And Data Processing Terms",
+      "Safety Boundaries",
+      "Beta Onboarding Email Sequence",
+      "Acceptance Criteria",
+      "Founder Success Checklist",
+      "Support Playbook",
+      "Incident Response",
+      "Backup And Restore Drill",
+      "Production Deployment And DNS",
+      "First Closed Beta Sale",
+    ],
+    "closed beta launch kit",
+  ],
+  [
+    "scripts/startup-office-beta-release-gate.cjs",
+    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke"],
+    "release gate launch checks",
+  ],
+]) {
+  for (const snippet of snippets) assertContains(relativePath, snippet, label);
+}
+
+const goals = read("docs/specs/CLOSED-BETA-100-GOALS.md");
+for (let id = 73; id <= 98; id += 1) {
+  if (!goals.includes(`| G${String(id).padStart(3, "0")} | Complete |`)) {
+    fail(`G${String(id).padStart(3, "0")} must be marked complete`);
+  }
+}
+for (const id of ["G099", "G100"]) {
+  if (!goals.includes(`| ${id} | Blocked |`)) fail(`${id} must be blocked until external proof exists`);
+}
+
+console.log("startup-office closed beta launch check passed");

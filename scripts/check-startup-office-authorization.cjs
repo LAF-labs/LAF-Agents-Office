@@ -22,6 +22,7 @@ const expectedAccess = {
   approvalAction: { POST: { permission: "memory:promote", type: "permission" } },
   approvals: { GET: { permission: "workspace:read", type: "permission" } },
   artifactObjectAction: { POST: { permission: "memory:write_draft", type: "permission" } },
+  assetUploadIntent: { POST: { permission: "memory:write_draft", type: "permission" } },
   betaDashboard: { GET: { type: "admin" } },
   billing: {
     GET: { permission: "workspace:read", type: "permission" },
@@ -30,6 +31,10 @@ const expectedAccess = {
   companyProfile: {
     GET: { permission: "workspace:read", type: "permission" },
     PATCH: { permission: "workspace:manage", type: "permission" },
+  },
+  deletionRequest: {
+    GET: { type: "admin" },
+    POST: { type: "admin" },
   },
   demoSeed: { POST: { type: "admin" } },
   export: { GET: { permission: "workspace:read", type: "permission" } },
@@ -56,6 +61,11 @@ const expectedAccess = {
     GET: { permission: "workspace:read", type: "permission" },
     POST: { permission: "memory:write_draft", type: "permission" },
   },
+  supportAccess: {
+    GET: { type: "admin" },
+    POST: { type: "admin" },
+  },
+  supportAccessAction: { POST: { type: "admin" } },
   workerJobAction: { POST: { type: "admin" } },
 };
 

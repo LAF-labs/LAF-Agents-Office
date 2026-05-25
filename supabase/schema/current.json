@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526020000",
+  "latestMigration": "20260526030000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -72,7 +72,7 @@
       "domain": "operating_objects",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "name", "kind", "status", "body", "metadata", "created_by", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "run_id", "name", "kind", "status", "body", "metadata", "created_by", "created_at", "updated_at", "content_type", "size_bytes", "storage_path", "checksum_sha256", "upload_status"]
     },
     {
       "name": "startup_office_customers",
@@ -138,6 +138,20 @@
       "columns": ["id", "team_id", "loop_id", "run_id", "signal_type", "source", "title", "body", "status", "metadata", "created_by", "created_at", "updated_at"]
     },
     {
+      "name": "startup_office_support_access_events",
+      "domain": "support",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "support_user_id", "event_type", "reason", "metadata", "created_by", "expires_at", "created_at"]
+    },
+    {
+      "name": "startup_office_deletion_requests",
+      "domain": "lifecycle",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "requested_by", "status", "reason", "metadata", "created_at", "updated_at"]
+    },
+    {
       "name": "startup_office_usage_events",
       "domain": "usage",
       "tenantColumn": "team_id",
@@ -184,7 +198,7 @@
       "domain": "billing",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["team_id", "plan", "laf_model_enabled", "updated_at", "billing_state", "monthly_run_limit", "monthly_model_spend_cents", "storage_mb_limit", "support_notes", "seat_limit"]
+      "columns": ["team_id", "plan", "laf_model_enabled", "updated_at", "billing_state", "monthly_run_limit", "monthly_model_spend_cents", "storage_mb_limit", "support_notes", "seat_limit", "billing_provider", "payment_status", "beta_agreement_url", "last_paid_at", "blocked_reason"]
     },
     {
       "name": "workspace_settings",

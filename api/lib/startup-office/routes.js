@@ -50,16 +50,16 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
       ]),
     ]),
   },
+  { id: "billing", methods: Object.freeze(["GET", "PATCH"]), paths: Object.freeze(["startup-office/billing"]) },
+  { id: "supportAccess", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/support-access"]) },
   {
-    id: "billing",
-    methods: Object.freeze(["GET", "PATCH"]),
-    paths: Object.freeze(["startup-office/billing"]),
+    id: "supportAccessAction",
+    methods: Object.freeze(["POST"]),
+    pattern: "^startup-office/support-access/([^/]+)/(revoke|log-access)$",
+    params: Object.freeze(["eventID", "action"]),
   },
-  {
-    id: "betaDashboard",
-    methods: Object.freeze(["GET"]),
-    paths: Object.freeze(["startup-office/admin/beta-dashboard"]),
-  },
+  { id: "deletionRequest", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/deletion-request"]) },
+  { id: "betaDashboard", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/admin/beta-dashboard"]) },
   {
     id: "workerJobAction",
     methods: Object.freeze(["POST"]),
@@ -74,11 +74,7 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
       ]),
     ]),
   },
-  {
-    id: "loops",
-    methods: Object.freeze(["GET", "POST"]),
-    paths: Object.freeze(["startup-office/loops", "loops"]),
-  },
+  { id: "loops", methods: Object.freeze(["GET", "POST"]), paths: Object.freeze(["startup-office/loops", "loops"]) },
   {
     id: "loopRun",
     methods: Object.freeze(["POST"]),
@@ -107,11 +103,7 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
       ]),
     ]),
   },
-  {
-    id: "approvals",
-    methods: Object.freeze(["GET"]),
-    paths: Object.freeze(["startup-office/approvals", "approvals"]),
-  },
+  { id: "approvals", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/approvals", "approvals"]) },
   {
     id: "approvalAction",
     methods: Object.freeze(["POST"]),
@@ -139,12 +131,8 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
       ]),
     ]),
   },
-  {
-    id: "objectCollection",
-    methods: Object.freeze(["GET", "POST"]),
-    pattern: "^startup-office/(assets|customers|metrics|signals)$",
-    params: Object.freeze(["kind"]),
-  },
+  { id: "objectCollection", methods: Object.freeze(["GET", "POST"]), pattern: "^startup-office/(assets|customers|metrics|signals)$", params: Object.freeze(["kind"]) },
+  { id: "assetUploadIntent", methods: Object.freeze(["POST"]), paths: Object.freeze(["startup-office/assets/upload-intent"]) },
   {
     id: "objectItem",
     methods: Object.freeze(["PATCH", "DELETE"]),
@@ -157,11 +145,7 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
     pattern: "^startup-office/artifacts/([^/]+)/(save-as-asset|record-signal)$",
     params: Object.freeze(["artifactID", "action"]),
   },
-  {
-    id: "export",
-    methods: Object.freeze(["GET"]),
-    paths: Object.freeze(["startup-office/export"]),
-  },
+  { id: "export", methods: Object.freeze(["GET"]), paths: Object.freeze(["startup-office/export"]) },
 ]);
 
 module.exports = {

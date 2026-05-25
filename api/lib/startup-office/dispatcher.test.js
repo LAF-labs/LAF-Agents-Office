@@ -21,6 +21,9 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "growthSummary",
     "policy",
     "billing",
+    "supportAccess",
+    "supportAccessAction",
+    "deletionRequest",
     "betaDashboard",
     "workerJobAction",
     "loops",
@@ -30,6 +33,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "approvalAction",
     "receipts",
     "objectCollection",
+    "assetUploadIntent",
     "objectItem",
     "artifactObjectAction",
     "export",
@@ -69,6 +73,15 @@ test("Startup Office route matcher decodes path params and aliases", () => {
   assert.deepEqual(
     matchStartupOfficeRoute("startup-office/assets/asset%2F1", "PATCH")?.args,
     ["assets", "asset/1"],
+  );
+  assert.equal(
+    matchStartupOfficeRoute("startup-office/assets/upload-intent", "POST")?.id,
+    "assetUploadIntent",
+  );
+  assert.deepEqual(
+    matchStartupOfficeRoute("startup-office/support-access/support%2F1/revoke", "POST")
+      ?.args,
+    ["support/1", "revoke"],
   );
 });
 

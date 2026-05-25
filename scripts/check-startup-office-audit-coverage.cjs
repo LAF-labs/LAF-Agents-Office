@@ -33,11 +33,17 @@ const routeAuditCoverage = {
     ["api/lib/startup-office/objectHandlers.js", '"startup_office.asset.created_from_artifact"'],
     ["api/lib/startup-office/objectHandlers.js", '"startup_office.signal.created_from_artifact"'],
   ],
+  "assetUploadIntent.POST": [
+    ["api/lib/startup-office/assetUploadHandlers.js", '"startup_office.asset_upload_intent.created"'],
+  ],
   "billing.PATCH": [
     ["api/lib/startup-office/operationsHandlers.js", '"startup_office.billing_updated"'],
   ],
   "companyProfile.PATCH": [
     ["api/lib/startup-office/profileHandlers.js", '"company_profile.updated"'],
+  ],
+  "deletionRequest.POST": [
+    ["api/lib/startup-office/lifecycleHandlers.js", '"startup_office.deletion_requested"'],
   ],
   "demoSeed.POST": [
     ["api/lib/startup-office/demoSeedHandlers.js", '"startup_office.demo_seeded"'],
@@ -63,6 +69,12 @@ const routeAuditCoverage = {
   "run.POST": [
     ["api/lib/startup-office/workflowHandlers.js", '"startup_office.run_canceled"'],
     ["api/lib/startup-office/workflowHandlers.js", '"startup_office.run_retry_queued"'],
+  ],
+  "supportAccess.POST": [
+    ["api/lib/startup-office/lifecycleHandlers.js", "`startup_office.support_access.${eventType}`"],
+  ],
+  "supportAccessAction.POST": [
+    ["api/lib/startup-office/lifecycleHandlers.js", "`startup_office.support_access.${eventType}`"],
   ],
   "workerJobAction.POST": [
     ["api/lib/startup-office/workerJobRecoveryHandlers.js", '"startup_office.worker_job_retried"'],

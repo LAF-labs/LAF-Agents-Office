@@ -73,7 +73,13 @@ function baseDeps(overrides = {}) {
         usage: { monthly_runs: 1 },
       };
     },
+    startupOfficeBillingProviderValue(value) {
+      return String(value || "manual");
+    },
     startupOfficeBillingStateValue(value) {
+      return String(value || "trial");
+    },
+    startupOfficePaymentStatusValue(value) {
       return String(value || "trial");
     },
     async startupOfficeRuns() {
@@ -180,7 +186,9 @@ test("billing handler clamps beta limits and records an audit event", async () =
       return {
         monthly_model_spend_cents: -10,
         monthly_run_limit: 200000,
+        payment_status: "paid",
         plan: "paid-beta",
+        provider: "manual",
         seat_limit: 7,
         state: "active",
         storage_mb_limit: 42,
@@ -192,8 +200,10 @@ test("billing handler clamps beta limits and records an audit event", async () =
   await handlers.billing({ method: "PATCH" }, {});
   const patch = deps.calls.billingPatches[0];
   assert.equal(patch.billing_state, "active");
+  assert.equal(patch.billing_provider, "manual");
   assert.equal(patch.monthly_model_spend_cents, 0);
   assert.equal(patch.monthly_run_limit, 100000);
+  assert.equal(patch.payment_status, "paid");
   assert.equal(patch.seat_limit, 7);
   assert.equal(patch.storage_mb_limit, 42);
   assert.equal(deps.calls.adminChecks[0].message, "owner or admin role required for billing changes");

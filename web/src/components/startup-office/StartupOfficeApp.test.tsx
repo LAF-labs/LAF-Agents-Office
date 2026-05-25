@@ -44,9 +44,11 @@ function mockStartupOfficeSummary() {
     startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
     beta_ops: {
       billing: {
+        billing_provider: "manual",
         billing_state: "active",
         monthly_model_spend_cents: 20000,
         monthly_run_limit: 50,
+        payment_status: "paid",
         plan: "founder_beta",
         seat_limit: 5,
         storage_mb_limit: 1024,
@@ -71,6 +73,14 @@ function mockStartupOfficeSummary() {
         total_tokens: 3800,
       },
     },
+    activity_notifications: [
+      {
+        created_at: "2026-05-25T00:00:00Z",
+        event_type: "notification.approval_waiting",
+        id: "notification-1",
+        status: "pending",
+      },
+    ],
     company_profile: {
       icp: "Solo founders selling B2B software",
       name: "LAF Labs",
@@ -340,6 +350,10 @@ describe("StartupOfficeApp", () => {
     expect(within(betaOpsPanel).getByText("12.5 / 1024 MB")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Tool calls")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("5")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Provider")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("manual")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Workspace activity" })).toBeInTheDocument();
+    expect(screen.getByText("approval waiting")).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("Projects");
     expect(container.textContent).not.toContain("Tasks");

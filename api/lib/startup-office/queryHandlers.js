@@ -1,6 +1,4 @@
-const {
-  createStartupOfficeValidation,
-} = require("./validation");
+const { createStartupOfficeValidation } = require("./validation");
 
 function createStartupOfficeQueryHandlers(deps) {
   const {
@@ -45,6 +43,7 @@ function createStartupOfficeQueryHandlers(deps) {
       memoryPages,
       objectSummary,
       betaOps,
+      notifications,
       profile,
     ] = await Promise.all([
       startupOfficeLoops(membership.team_id),
@@ -58,9 +57,18 @@ function createStartupOfficeQueryHandlers(deps) {
       }),
       startupOfficeObjectSummary(membership.team_id),
       startupOfficeBetaOpsSnapshot(membership.team_id),
+      safeStartupOfficeRest("startup_office_notifications", {
+        query: {
+          limit: "10",
+          order: "created_at.desc",
+          select: "*",
+          team_id: `eq.${membership.team_id}`,
+        },
+      }),
       companyProfileSnapshot(membership.team_id, team, user),
     ]);
     writeJSON(res, 200, {
+      activity_notifications: notifications,
       company_profile: profile,
       beta_ops: betaOps,
       loops,
@@ -137,7 +145,7 @@ function createStartupOfficeQueryHandlers(deps) {
   }
 
   async function handleStartupOfficeExport(req, res) {
-    const { membership } = await requireUser(req);
+    const { membership, team, user } = await requireUser(req);
     requirePermission(membership, "workspace:read");
     const [
       assets,
@@ -148,6 +156,8 @@ function createStartupOfficeQueryHandlers(deps) {
       approvals,
       receipts,
       memoryPages,
+      betaOps,
+      profile,
     ] = await Promise.all([
       startupOfficeObjectRows(membership.team_id, "assets", { limit: 1000 }),
       startupOfficeObjectRows(membership.team_id, "customers", { limit: 1000 }),
@@ -157,11 +167,15 @@ function createStartupOfficeQueryHandlers(deps) {
       startupOfficeApprovals(membership.team_id, { limit: 1000 }),
       startupOfficeReceipts(membership.team_id, { limit: 1000 }),
       startupOfficeRepository().memoryPages(membership.team_id, { limit: 1000 }),
+      startupOfficeBetaOpsSnapshot(membership.team_id),
+      companyProfileSnapshot(membership.team_id, team, user),
     ]);
     writeJSON(res, 200, {
       export: {
         approvals,
         assets,
+        beta_ops: betaOps,
+        company_profile: profile,
         customers,
         generated_at: nowISO(),
         memory_pages: memoryPages,

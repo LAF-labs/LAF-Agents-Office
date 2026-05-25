@@ -127,14 +127,19 @@ function publicStartupOfficeAsset(row) {
   if (!row) return null;
   return {
     body: row.body || "",
+    checksum_sha256: row.checksum_sha256 || "",
+    content_type: row.content_type || "",
     created_at: row.created_at || null,
     id: row.id || "",
     kind: row.kind || "document",
     metadata: objectValue(row.metadata),
     name: row.name || "",
     run_id: row.run_id || null,
+    size_bytes: Number(row.size_bytes || 0),
     status: row.status || "active",
+    storage_path: row.storage_path || "",
     updated_at: row.updated_at || null,
+    upload_status: row.upload_status || "inline",
   };
 }
 

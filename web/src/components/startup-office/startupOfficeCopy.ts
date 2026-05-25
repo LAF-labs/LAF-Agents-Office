@@ -163,6 +163,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsDescription:
       "Billing state, run limits, and usage stay visible for closed beta operations.",
     betaOpsLabels: {
+      provider: "Provider",
       runs: "Runs",
       seats: "Seats",
       state: "State",
@@ -170,6 +171,10 @@ export const STARTUP_OFFICE_APP_COPY = {
       toolCalls: "Tool calls",
       tokens: "Tokens",
     },
+    activityTitle: "Workspace activity",
+    activityDescription:
+      "Recent run changes, failed notifications, approvals, and receipts stay visible when the founder returns.",
+    noActivity: "No workspace activity notifications yet.",
     profileTitle: "Company profile",
     profileDescription:
       "Edit the operating facts every loop should obey: ICP, offer, positioning, stage, and priority.",
@@ -325,6 +330,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsDescription:
       "클로즈드 베타 운영을 위해 결제 상태, 실행 제한, 사용량을 표시합니다.",
     betaOpsLabels: {
+      provider: "결제 방식",
       runs: "실행",
       seats: "좌석",
       state: "상태",
@@ -332,6 +338,10 @@ export const STARTUP_OFFICE_APP_COPY = {
       toolCalls: "툴 호출",
       tokens: "토큰",
     },
+    activityTitle: "워크스페이스 활동",
+    activityDescription:
+      "창업자가 다시 들어오면 최근 실행 변화, 실패 알림, 승인, 영수증을 바로 확인합니다.",
+    noActivity: "아직 워크스페이스 활동 알림이 없습니다.",
     profileTitle: "회사 프로필",
     profileDescription:
       "모든 루프가 따라야 할 ICP, 오퍼, 포지셔닝, 단계, 우선순위를 수정합니다.",

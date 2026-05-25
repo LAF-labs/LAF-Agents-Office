@@ -111,13 +111,18 @@ export interface StartupOfficeOperatingObjects {
 
 export interface StartupOfficeArtifactObject {
   body?: string;
+  checksum_sha256?: string;
+  content_type?: string;
   id: string;
   kind?: string;
   metadata?: Record<string, unknown>;
   name: string;
   run_id?: string | null;
+  size_bytes?: number;
   status?: string;
+  storage_path?: string;
   updated_at?: string | null;
+  upload_status?: string;
 }
 
 export interface StartupOfficeCustomer {
@@ -159,6 +164,7 @@ export interface StartupOfficeSignal {
 }
 
 export interface StartupOfficeGrowthSummary {
+  activity_notifications?: StartupOfficeNotification[];
   beta_ops?: StartupOfficeBetaOps;
   company_profile: StartupOfficeCompanyProfile;
   loops: StartupOfficeLoop[];
@@ -178,9 +184,14 @@ export interface StartupOfficeGrowthSummary {
 
 export interface StartupOfficeBetaOps {
   billing: {
+    beta_agreement_url?: string;
+    billing_provider: string;
     billing_state: string;
+    blocked_reason?: string;
+    last_paid_at?: string | null;
     monthly_model_spend_cents: number;
     monthly_run_limit: number;
+    payment_status: string;
     plan: string;
     seat_limit: number;
     storage_mb_limit: number;
@@ -204,6 +215,14 @@ export interface StartupOfficeBetaOps {
     tool_calls: number;
     total_tokens: number;
   };
+}
+
+export interface StartupOfficeNotification {
+  created_at?: string | null;
+  event_type: string;
+  id: string;
+  payload?: Record<string, unknown>;
+  status: string;
 }
 
 export interface StartupOfficeWorkerJob {
