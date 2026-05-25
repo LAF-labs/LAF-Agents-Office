@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./App";
+import {
+  installClientErrorReporter,
+  reportClientError,
+} from "./lib/clientTelemetry";
 
 // Hoisted out of App() so hooks called *during* App's render (e.g.
 // useKeyboardShortcuts → useQueryClient) find a client. Previously the
@@ -46,6 +50,7 @@ function showFatalError(title: string, detail: string) {
 }
 
 try {
+  installClientErrorReporter();
   const root = document.getElementById("root");
   if (!root) {
     throw new Error("#root element not found in DOM");
@@ -58,6 +63,7 @@ try {
   // Tell the HTML-level timeout handler that we're alive.
   window.__lafOfficeBootDone?.();
 } catch (err) {
+  void reportClientError({ error: err, source: "react_mount" });
   const message = err instanceof Error ? err.message : String(err);
   const stack = err instanceof Error && err.stack ? err.stack : "";
   showFatalError("React failed to mount", `${message}\n\n${stack}`);

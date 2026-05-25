@@ -9,6 +9,7 @@ const checks = [
   ["npm", ["run", "startup-office:architecture"]],
   ["npm", ["run", "startup-office:audit-coverage"]],
   ["npm", ["run", "startup-office:authorization"]],
+  ["npm", ["run", "startup-office:client-telemetry"]],
   ["npm", ["run", "startup-office:closed-beta-launch"]],
   ["npm", ["run", "startup-office:cost-metering"]],
   ["npm", ["run", "startup-office:first-beta-smoke"]],
@@ -34,6 +35,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/activityHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/auditHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/authHandlers.test.js"]],
+  ["node", ["--test", "api/lib/hosted/clientTelemetryHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/commandHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/conversationHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/inviteHandlers.test.js"]],
@@ -79,6 +81,17 @@ const checks = [
   ["node", ["--test", "workers/startup-office/outboxWorker.test.js"]],
   ["node", ["--test", "workers/startup-office/outputEval.test.js"]],
   ["node", ["--test", "api/hosted-api.test.js"]],
+  [
+    "npm",
+    [
+      "--prefix",
+      "web",
+      "run",
+      "test",
+      "--",
+      "src/lib/clientTelemetry.test.ts",
+    ],
+  ],
   [
     "npm",
     [

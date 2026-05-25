@@ -30,6 +30,12 @@ const HOSTED_ACTION_RATE_LIMITS = Object.freeze([
     scope: "hosted_invite_create",
   },
   {
+    limit: 60,
+    method: "POST",
+    pattern: /^client-errors$/,
+    scope: "hosted_client_error_report",
+  },
+  {
     limit: 30,
     method: "PATCH",
     pattern: /^(?:auth\/me|company\/profile|startup-office\/policy|startup-office\/billing)$/,

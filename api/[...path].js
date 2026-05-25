@@ -12,6 +12,9 @@ const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
+  createHostedClientTelemetryHandlers,
+} = require("./lib/hosted/clientTelemetryHandlers");
+const {
   createHostedCommandHandlers,
 } = require("./lib/hosted/commandHandlers");
 const {
@@ -184,6 +187,14 @@ const HOSTED_AUDIT_HANDLERS = createHostedAuditHandlers({
   requirePermission,
   requireUser,
   rest,
+  writeJSON,
+});
+
+const HOSTED_CLIENT_TELEMETRY_HANDLERS = createHostedClientTelemetryHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  readBody,
+  requireUser,
+  writeAuditEvent,
   writeJSON,
 });
 
@@ -775,6 +786,10 @@ module.exports = async function handler(req, res) {
     }
     if (path === "usage" && req.method === "GET") {
       await HOSTED_USAGE_HANDLERS.usage(req, res);
+      return;
+    }
+    if (path === "client-errors") {
+      await HOSTED_CLIENT_TELEMETRY_HANDLERS.clientError(req, res);
       return;
     }
     if (path === "agent-logs" && req.method === "GET") {

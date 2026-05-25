@@ -145,7 +145,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I105 | Observability | Audit logs are product data but not operational telemetry. | audit events |
 | SV-I106 | Observability | Error budgets and SLOs are undefined. | docs |
 | SV-I107 | Observability | There is no synthetic production smoke monitor. | release gate only local |
-| SV-I108 | Observability | Browser-side errors are not collected. | frontend |
+| SV-I108 | Observability | Browser-side errors now report workspace-scoped, redacted client telemetry, but external paging and session replay are not included. | frontend |
 | SV-I109 | Observability | Support tooling lacks a timeline view from user action to model output. | admin dashboard |
 | SV-I110 | Observability | Cost telemetry is not reconciled with billing state. | usage events |
 | SV-I111 | Billing | Billing is manual state, not payment infrastructure. | workspace_billing |
@@ -563,6 +563,11 @@ the final release commit or when a shared invariant changes.
   IDs, or user data.
   `npm run startup-office:ops-monitor:test` is part of the release gate, and
   the deployment runbook documents monitor thresholds and incident handling.
+- R7 now adds browser error collection. Browser-side errors now become
+  workspace-scoped client.error_reported audit events through
+  `POST /api/client-errors`, with client and server redaction for emails, URLs,
+  query/hash tokens, unsafe route segments, and raw stack traces. The release
+  gate includes both the hosted handler test and the browser telemetry test.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
   runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
   high or critical dependency advisories, hosted-runtime boundary checks,
