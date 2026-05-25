@@ -229,7 +229,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I189 | Developer experience | Static analysis/lint coverage is weaker than tests. | scripts |
 | SV-I190 | Developer experience | New contributors cannot easily tell which surfaces are product vs legacy. | file tree |
 | SV-I191 | Customer success | No real founder success checklist is implemented in-product. | beta goals |
-| SV-I192 | Customer success | Support playbooks exist as intent, not workflow. | docs |
+| SV-I192 | Customer success | Support playbooks now appear in the admin beta dashboard for failed runs, confused approvals, notification recovery, billing blocks, and customer-success review. | support playbooks |
 | SV-I193 | Customer success | First paid beta workspace is not proven. | goal context |
 | SV-I194 | Customer success | Sales site lacks concrete before/after founder examples. | website |
 | SV-I195 | Customer success | Onboarding email and approval notification loops are missing. | notifications |
@@ -338,7 +338,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G093 | Add invoices and receipts. | Customers can see billing agreements, invoices, payment receipts, and commercial status in beta ops. | UI/API tests |
 | SV-G094 | Add plan-change workflow. | Trial, paid, paused, and canceled plan transitions create commercial billing document evidence. | tests |
 | SV-G095 | Add activation analytics. | Product records durable first loop, first approval, second loop, and first export milestones and exposes progress in beta ops. | analytics tests |
-| SV-G096 | Add support playbooks. | Failed runs and confused approvals have operator scripts. | docs |
+| SV-G096 | Add support playbooks. | Failed runs, confused approvals, notification delivery, billing blocks, and clean customer-success review have operator scripts in beta dashboard and launch docs. | API/docs tests |
 | SV-G097 | Add beta terms. | Privacy, DPA, AI use, retention, and deletion terms are ready. | legal docs |
 | SV-G098 | Add sales page proof. | Website shows founder use cases, outcomes, and trust controls. | website QA |
 | SV-G099 | Run production rehearsal. | A staging workspace completes full flow with live dependencies. | checklist |
@@ -588,6 +588,10 @@ the final release commit or when a shared invariant changes.
   first loop, first approval decision, second loop, and first export milestones
   idempotently from workflow/export paths, and the beta ops UI shows activation
   progress plus the next milestone for customer success review.
+- R8 now adds support playbooks. The admin beta dashboard returns
+  `support_playbooks` for failed run recovery, confused approval rescue,
+  notification delivery recovery, billing block rescue, and clean
+  customer-success review, with matching operator scripts in the launch kit.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
   runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
   high or critical dependency advisories, hosted-runtime boundary checks,

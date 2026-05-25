@@ -70,7 +70,7 @@ function baseDeps(overrides = {}) {
     },
     async startupOfficeBetaOpsSnapshot() {
       return {
-        billing: { support_notes: "" },
+        billing: { billing_state: "active", payment_status: "paid", support_notes: "" },
         billing_documents: [],
         usage: { monthly_runs: 1 },
       };
@@ -253,7 +253,7 @@ test("beta dashboard composes billing, failures, approvals, notifications, outbo
       if (table === "startup_office_outbox_events") {
         return [{ event_type: "notification.approval_waiting", id: "outbox-1" }];
       }
-      return [{ id: "notification-1" }];
+      return [{ id: "notification-1", status: "pending" }];
     },
     async startupOfficeApprovals() {
       return [{ id: "approval-1" }];
@@ -273,7 +273,9 @@ test("beta dashboard composes billing, failures, approvals, notifications, outbo
   await handlers.betaDashboard({ method: "GET" }, {});
   const dashboard = deps.calls.writes[0].body.dashboard;
   assert.deepEqual(dashboard.pending_approvals, [{ id: "approval-1" }]);
-  assert.deepEqual(dashboard.notifications, [{ id: "notification-1" }]);
+  assert.deepEqual(dashboard.notifications, [{ id: "notification-1", status: "pending" }]);
+  assert.equal(dashboard.support_playbooks[0].id, "failed_run_recovery");
+  assert.equal(dashboard.support_playbooks[1].id, "approval_confusion");
   assert.deepEqual(dashboard.outbox_events, [
     { event_type: "notification.approval_waiting", id: "outbox-1" },
   ]);

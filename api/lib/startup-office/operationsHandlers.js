@@ -8,6 +8,9 @@ const {
   createStartupOfficeSupportTimelineHandlers,
 } = require("./supportTimeline");
 const {
+  startupOfficeSupportPlaybooks,
+} = require("./supportPlaybooks");
+const {
   assertStartupOfficePaidBetaEvidence,
   startupOfficeBillingPatch,
   startupOfficeBillingDocumentPayload,
@@ -128,7 +131,7 @@ function createStartupOfficeOperationsHandlers(deps) {
   async function handleStartupOfficeBetaDashboard(req, res) {
     const { membership, team } = await requireUser(req);
     requireAdminRole(membership, "owner or admin role required for beta dashboard");
-    const [betaOps, runs, approvals, notifications, outboxEvents] = await Promise.all([
+    const [betaOps, runs, approvals, notifications, outboxEvents, stuckJobs] = await Promise.all([
       startupOfficeBetaOpsSnapshot(membership.team_id),
       startupOfficeRuns(membership.team_id, { limit: 20 }),
       startupOfficeApprovals(membership.team_id, { status: "pending", limit: 20 }),
@@ -149,15 +152,24 @@ function createStartupOfficeOperationsHandlers(deps) {
           team_id: `eq.${membership.team_id}`,
         },
       }),
+      startupOfficeStuckJobs(membership.team_id),
     ]);
+    const runFailures = runs.filter((run) => run.status === "failed");
     writeJSON(res, 200, {
       dashboard: {
         billing: betaOps.billing,
         notifications,
         outbox_events: outboxEvents,
         pending_approvals: approvals,
-        run_failures: runs.filter((run) => run.status === "failed"),
-        stuck_jobs: await startupOfficeStuckJobs(membership.team_id),
+        run_failures: runFailures,
+        stuck_jobs: stuckJobs,
+        support_playbooks: startupOfficeSupportPlaybooks({
+          approvals,
+          betaOps,
+          outboxEvents,
+          runFailures,
+          stuckJobs,
+        }),
         support_notes: betaOps.billing.support_notes || "",
         team: {
           id: team.id,
