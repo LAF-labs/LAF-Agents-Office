@@ -24,6 +24,7 @@
     "startup-office:customer-csv": "node scripts/check-startup-office-customer-csv.cjs",
     "startup-office:closed-beta-launch": "node scripts/check-startup-office-closed-beta-launch.cjs",
     "startup-office:deletion-coverage": "node scripts/check-startup-office-deletion-coverage.cjs",
+    "startup-office:dev-workflow": "node scripts/check-startup-office-dev-workflow.cjs",
     "startup-office:error-envelope": "node scripts/check-startup-office-error-envelope.cjs",
     "startup-office:export-coverage": "node scripts/check-startup-office-export-coverage.cjs",
     "startup-office:generated-artifacts": "node scripts/check-startup-office-generated-artifacts.cjs",

@@ -1,0 +1,38 @@
+{
+  "version": "startup-office-dev-workflow.v1",
+  "setup": [
+    "npm install",
+    "cd web && bun install"
+  ],
+  "localServices": [
+    {
+      "name": "hosted-api",
+      "command": "npm run hosted-api:dev"
+    },
+    {
+      "name": "web",
+      "command": "cd web && bun run dev"
+    },
+    {
+      "name": "loop-worker",
+      "command": "npm run startup-office:loop-worker"
+    },
+    {
+      "name": "outbox-worker",
+      "command": "npm run startup-office:outbox-worker"
+    }
+  ],
+  "repoChecks": [
+    "npm run beta:release-gate",
+    "npm run startup-office:web-lint-budget",
+    "npm --prefix web run typecheck",
+    "npm --prefix web run build",
+    "npm run hosted-env:preflight:test",
+    "npm run startup-office:schema"
+  ],
+  "liveChecks": [
+    "npm run hosted-env:preflight",
+    "npm run startup-office:rls-live",
+    "npm run startup-office:synthetic-monitor"
+  ]
+}
