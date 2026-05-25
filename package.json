@@ -9,6 +9,7 @@
     "startup-office:activation-analytics": "node scripts/check-startup-office-activation-analytics.cjs",
     "startup-office:api-contracts": "node scripts/check-startup-office-api-contracts.cjs",
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
+    "startup-office:approval-races": "node scripts/check-startup-office-approval-races.cjs",
     "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
     "startup-office:beta-terms": "node scripts/check-startup-office-beta-terms.cjs",

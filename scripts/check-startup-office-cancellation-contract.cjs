@@ -36,7 +36,7 @@ assertContains(
 
 for (const [relativePath, snippets, label] of [
   [
-    "api/lib/startup-office/workflowHandlers.js",
+    "api/lib/startup-office/workflowRunHandlers.js",
     [
       "cancelOpenWorkerJobs",
       "startup_office_worker_jobs",

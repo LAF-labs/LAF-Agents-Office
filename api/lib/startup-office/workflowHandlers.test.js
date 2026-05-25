@@ -45,7 +45,7 @@ function baseDeps(overrides = {}) {
         loop_id: "loop-1",
         metadata: { loop_slug: "idea-validation" },
         objective: "Validate idea",
-        status: "queued",
+        status: "waiting_approval",
       };
     },
     async findRunByIdempotencyKey(_teamID, key) {
@@ -559,6 +559,52 @@ test("approval action replays a matching idempotent decision", async () => {
   assert.equal(deps.calls.receipts.length, 0);
   assert.equal(deps.calls.writes[0].body.idempotent, true);
   assert.equal(deps.calls.writes[0].body.approval.status, "approved");
+});
+
+test("approval action rejects stale linked runs before mutating approvals", async () => {
+  const deps = baseDeps({
+    runRecord: {
+      inputs: {},
+      loop_id: "loop-1",
+      metadata: { loop_slug: "idea-validation" },
+      objective: "Validate idea",
+      status: "canceled",
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.approvalAction({ method: "POST" }, {}, "approval-1", "approve"),
+    (err) =>
+      err.status === 409 &&
+      err.message === "approval run is no longer waiting for approval",
+  );
+  assert.equal(deps.calls.rest.length, 0);
+  assert.equal(deps.calls.receipts.length, 0);
+  assert.equal(deps.calls.audits.length, 0);
+  assert.equal(deps.calls.promotions.length, 0);
+});
+
+test("approval action fails closed when the pending approval update loses a race", async () => {
+  const deps = baseDeps();
+  deps.safeStartupOfficeRest = async (table, options) => {
+    deps.calls.rest.push({ options, table });
+    if (table === "startup_office_approvals") return [];
+    if (table === "startup_office_runs") return [{ id: "run-1", ...options.body }];
+    return [{ id: `${table}-${deps.calls.rest.length}`, ...options.body }];
+  };
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.approvalAction({ method: "POST" }, {}, "approval-1", "approve"),
+    (err) => err.status === 409 && err.message === "approval is already decided",
+  );
+  assert.equal(deps.calls.rest[0].table, "startup_office_approvals");
+  assert.equal(deps.calls.rest[0].options.query.status, "eq.pending");
+  assert.equal(deps.calls.rest.length, 1);
+  assert.equal(deps.calls.receipts.length, 0);
+  assert.equal(deps.calls.audits.length, 0);
+  assert.equal(deps.calls.promotions.length, 0);
 });
 
 test("workflow handlers preserve run-limit and missing approval errors", async () => {

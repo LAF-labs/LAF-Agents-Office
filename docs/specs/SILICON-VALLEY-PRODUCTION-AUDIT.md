@@ -213,7 +213,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I172 | Reliability | Startup Office loop side effects and run lifecycle retries are idempotency-keyed across direct and scheduled worker paths, but exactly-once semantics still need deeper concurrency proof. | run lifecycle routes |
 | SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer and have admin retry/cancel APIs, but founder-facing recovery UI is not complete. | worker jobs |
 | SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
-| SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
+| SV-I175 | Reliability | Approval decisions now fail closed on stale linked runs and pending-update races: stale runs are rejected before mutation, pending-only approval updates are required, and lost races emit no receipt/audit/memory promotion. | `startup-office:approval-races` |
 | SV-I176 | Reliability | Model timeout policy is now durable on runs and worker jobs, enforced around structured model calls, receipted on timeout failures, and covered by a release-gate check; live provider abort signals remain future hardening. | `startup-office:model-timeouts` |
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
 | SV-I178 | Reliability | Health checks now cover hosted dependencies: Supabase REST/Auth reachability, Startup Office run/worker/outbox tables, model config, and outbox email config report through a degraded-safe endpoint. | `startup-office:health-dependencies` |
@@ -635,6 +635,12 @@ the final release commit or when a shared invariant changes.
   approval write failure into the AI loop and asserts the system fails closed:
   no unapproved success state is emitted, run/worker status becomes failed, and
   the failure receipt remains the final customer-visible trace.
+- R7/R8 now hardens approval race handling. Approval decisions reject linked
+  runs that are no longer `waiting_approval`, keep the approval update
+  constrained to `status=eq.pending`, and fail closed without receipt, audit, or
+  memory promotion when the pending update loses a concurrent decision race.
+  `npm run startup-office:approval-races` pins the route guard and regression
+  cases.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
   preflights the same Supabase, public host, billing, AI worker, and outbox env

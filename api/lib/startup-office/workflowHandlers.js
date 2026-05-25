@@ -184,6 +184,12 @@ function createStartupOfficeWorkflowHandlers(deps) {
     const existingRun = approval.run_id
       ? await startupOfficeRepository().findRun(membership.team_id, approval.run_id)
       : null;
+    if (approval.run_id && !existingRun) {
+      throw createHTTPError(409, "approval run is unavailable");
+    }
+    if (existingRun && existingRun.status !== "waiting_approval") {
+      throw createHTTPError(409, "approval run is no longer waiting for approval");
+    }
     const existingRunMetadata = objectValue(existingRun?.metadata);
     const revisionRequest = revisionRequested
       ? startupOfficeRevisionRequest({
