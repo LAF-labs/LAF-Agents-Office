@@ -52,6 +52,12 @@ if (
 ) {
   fail("package.json must expose startup-office:static-analysis");
 }
+if (
+  pkg.scripts?.["startup-office:web-lint-budget"] !==
+  "node scripts/check-startup-office-web-lint-budget.cjs"
+) {
+  fail("package.json must expose startup-office:web-lint-budget");
+}
 
 const webPackage = JSON.parse(read("web/package.json"));
 for (const scriptName of ["lint", "typecheck", "build"]) {
@@ -60,7 +66,7 @@ for (const scriptName of ["lint", "typecheck", "build"]) {
 
 assertContains(
   ".github/workflows/ci.yml",
-  ["bun run lint", "bun run typecheck", "bun run build"],
+  ["startup-office:web-lint-budget", "bun run typecheck", "bun run build"],
   "web CI static analysis",
 );
 assertContains(

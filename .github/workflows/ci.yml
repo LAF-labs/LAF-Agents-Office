@@ -36,6 +36,6 @@ jobs:
         working-directory: web
         run: |
           bun install --frozen-lockfile
-          bun run lint
+          npm --prefix .. run startup-office:web-lint-budget
           bun run typecheck
           bun run build
