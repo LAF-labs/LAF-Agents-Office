@@ -5,6 +5,6 @@ LAF Agents Office is now a pure cloud AI Startup Office. Treat the hosted web ap
 ## Working Rules
 
 - Keep user-facing flows cloud-first and founder-friendly.
-- Do not add local pairing, local device execution, or terminal setup surfaces.
+- Do not add customer-managed execution or developer setup surfaces to the product.
 - Preserve workspace/team/account semantics: one account starts with one company workspace, and teammates join workspaces by invitation.
 - Prefer small, verifiable changes and keep UI language transparent about AI actions, approvals, memory, and artifacts.

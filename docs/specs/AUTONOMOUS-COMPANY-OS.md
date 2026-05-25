@@ -361,7 +361,7 @@ Remove from primary product:
 - Project-scoped local execution setup readiness.
 - GitHub repo requirement.
 - PR and code-review language.
-- local execution setup pairing.
+- customer-managed execution setup.
 - Local CLI detection.
 - Local execution mode toggles.
 
@@ -1074,7 +1074,7 @@ Risk levels:
 
 ## 14. Cloud Execution Architecture
 
-No device-side runtime.
+No customer-managed runtime.
 
 Components:
 

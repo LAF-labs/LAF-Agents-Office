@@ -249,7 +249,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G004 | Make first value happen in five minutes. | Signup to first useful artifact is browser-tested. | Playwright test |
 | SV-G005 | Convert safety into metrics. | Trust, approval, citation, and receipt coverage are counted. | production audit gate |
 | SV-G006 | Package the paid beta. | Pricing, limits, onboarding, and support promise are visible. | website and billing test |
-| SV-G007 | Separate hosted SaaS from legacy runtime. | Release gate proves hosted code does not depend on local/headless runtime. | boundary checker |
+| SV-G007 | Separate hosted SaaS from legacy runtime. | Release gate proves hosted code does not depend on customer-managed runtime. | boundary checker |
 | SV-G008 | Write a founder success checklist. | Operators can qualify activation per workspace. | admin dashboard |
 | SV-G009 | Instrument buyer outcomes. | Activation, first approval, repeat loop, and export are tracked. | analytics events |
 | SV-G010 | Prove first sale. | A real founder pays or signs beta terms and completes a loop. | external sales evidence |
@@ -391,7 +391,7 @@ and missing typed contracts.
   the web client function, method, response type, and path snippets; the release
   gate verifies `web/src/api/startupOffice.ts` cannot drift silently.
 - R2 now has a legacy-runtime removal gate. The repo no longer tracks the Go
-  desktop runtime, npm CLI wrapper, native release artifacts, device-side
+  desktop runtime, npm CLI wrapper, native release artifacts, customer-managed
   execution scripts, or old TUI/E2E harnesses; `npm run startup-office:legacy-runtime`
   blocks those paths and device-runtime terms from returning to hosted product
   code.
@@ -601,3 +601,9 @@ and missing typed contracts.
   upsert approved `startup_office_memory_pages`, reads return namespace maps plus
   memory pages, writes require `memory:write_draft`, and `memory.note_saved`
   audit coverage is checked by the release gate.
+- R3/R8 now applies Supabase migration
+  `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
+  project. It purges retired customer-managed execution residue across columns,
+  constraints, functions, policies, relations, triggers, and types, then fails
+  closed if any residue remains. The schema manifest and release gate now treat
+  this migration as the canonical pure-cloud guard.

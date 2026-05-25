@@ -11,7 +11,7 @@ Browser UI
   -> Cloud AI providers
 ```
 
-The product does not require device pairing or user-side execution services. Contributor tooling remains only for people building the app.
+Customer workflows execute through hosted services only. Contributor tooling remains only for people building the app.
 
 ## Key Modules
 

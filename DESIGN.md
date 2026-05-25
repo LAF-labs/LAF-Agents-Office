@@ -11,7 +11,7 @@ The interface should feel like a focused operating system for founders, not a de
 - Workspace-first: every screen belongs to the current company workspace.
 - Operator control: approvals, decisions, members, permissions, memory, and artifacts stay visible.
 - Transparent AI: show what ran, what changed, what was remembered, and what needs human input.
-- No device setup: do not introduce pairing, terminal commands, or runtime diagnostics in user-facing flows.
+- Cloud-only: keep user-facing workflows inside the workspace UI, API, and managed workers.
 - Notion-like collaboration: workspace, members, pages, records, and settings should feel familiar to non-technical founders.
 
 ## Core Surfaces

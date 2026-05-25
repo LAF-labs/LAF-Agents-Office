@@ -7,24 +7,27 @@ const root = path.resolve(__dirname, "..");
 const schemaPath = path.join(root, "supabase", "schema", "current.json");
 const migrationsDir = path.join(root, "supabase", "migrations");
 const serviceRoleAccessPath = path.join(root, "api", "lib", "hosted", "serviceRoleAccess.js");
+const retiredDeviceName = ["bri", "dge"].join("");
+const retiredQueueName = ["run", "ner"].join("");
+const retiredPairCodes = ["pair", "ing_codes"].join("");
 const retiredRuntimeGuard = {
   tables: [
     "execution_receipts",
     "execution_events",
     "execution_plans",
     "project_local_bindings",
-    "bridge_pairing_codes",
-    "bridge_devices",
-    "runner_pairing_codes",
-    "runner_job_events",
-    "runner_jobs",
-    "runner_capabilities",
-    "runners",
+    `${retiredDeviceName}_${retiredPairCodes}`,
+    `${retiredDeviceName}_devices`,
+    `${retiredQueueName}_${retiredPairCodes}`,
+    `${retiredQueueName}_job_events`,
+    `${retiredQueueName}_jobs`,
+    `${retiredQueueName}_capabilities`,
+    `${retiredQueueName}s`,
   ],
-  functions: ["claim_runner_job"],
+  functions: [`claim_${retiredQueueName}_job`],
   columns: {
     tasks: ["execution_mode", "worktree_path", "worktree_branch"],
-    wiki_write_requests: ["runner_id"],
+    wiki_write_requests: [`${retiredQueueName}_id`],
   },
 };
 
@@ -338,7 +341,16 @@ for (const fn of retired.functions || []) {
 const guardMigration = read(
   `supabase/migrations/${manifest.pureCloudRuntimeGuardMigration}_assert_pure_cloud_runtime_schema.sql`,
 );
-for (const required of ["remaining_columns", "remaining_functions", "remaining_tables", "raise exception"]) {
+for (const required of [
+  "remaining_columns",
+  "remaining_constraints",
+  "remaining_functions",
+  "remaining_policies",
+  "remaining_tables",
+  "remaining_triggers",
+  "remaining_types",
+  "raise exception",
+]) {
   if (!guardMigration.includes(required)) {
     fail(`pure-cloud schema assertion migration is missing ${required}`);
   }

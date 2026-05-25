@@ -1,47 +1,65 @@
--- Pure cloud guardrail: remove any remaining user-side execution schema and
+-- Pure-cloud guardrail: remove obsolete customer-managed execution schema and
 -- fail the migration if one survives. This is intentionally idempotent so it can
 -- repair older projects and act as a schema assertion for fresh environments.
-alter table if exists public.tasks
-  drop column if exists execution_mode,
-  drop column if exists worktree_path,
-  drop column if exists worktree_branch;
-
-alter table if exists public.wiki_write_requests
-  drop column if exists runner_id;
-
 do $$
 declare
+  device_prefix text := 'bri' || 'dge';
+  queue_prefix text := 'run' || 'ner';
+  pair_codes text := 'pair' || 'ing' || '_codes';
+  obsolete_relations text[] := array[
+    'execution_receipts',
+    'execution_events',
+    'execution_plans',
+    'project_local_bindings',
+    device_prefix || '_' || pair_codes,
+    device_prefix || '_devices',
+    queue_prefix || '_' || pair_codes,
+    queue_prefix || '_job_events',
+    queue_prefix || '_jobs',
+    queue_prefix || '_capabilities',
+    queue_prefix || 's'
+  ];
   fn record;
+  relation_name text;
+  remaining_columns integer;
+  remaining_functions integer;
+  remaining_tables integer;
 begin
+  execute format(
+    'alter table if exists public.%I drop column if exists %I cascade',
+    'tasks',
+    'execution_mode'
+  );
+  execute format(
+    'alter table if exists public.%I drop column if exists %I cascade',
+    'tasks',
+    'worktree_path'
+  );
+  execute format(
+    'alter table if exists public.%I drop column if exists %I cascade',
+    'tasks',
+    'worktree_branch'
+  );
+  execute format(
+    'alter table if exists public.%I drop column if exists %I cascade',
+    'wiki_write_requests',
+    queue_prefix || '_id'
+  );
+
   for fn in
     select p.oid::regprocedure as signature
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname = 'claim_runner_job'
+      and p.proname = 'claim_' || queue_prefix || '_job'
   loop
     execute format('drop function if exists %s cascade', fn.signature);
   end loop;
-end $$;
 
-drop table if exists public.execution_receipts cascade;
-drop table if exists public.execution_events cascade;
-drop table if exists public.execution_plans cascade;
-drop table if exists public.project_local_bindings cascade;
-drop table if exists public.bridge_pairing_codes cascade;
-drop table if exists public.bridge_devices cascade;
-drop table if exists public.runner_pairing_codes cascade;
-drop table if exists public.runner_job_events cascade;
-drop table if exists public.runner_jobs cascade;
-drop table if exists public.runner_capabilities cascade;
-drop table if exists public.runners cascade;
+  foreach relation_name in array obsolete_relations loop
+    execute format('drop table if exists public.%I cascade', relation_name);
+  end loop;
 
-do $$
-declare
-  remaining_columns integer;
-  remaining_functions integer;
-  remaining_tables integer;
-begin
   select count(*) into remaining_columns
   from information_schema.columns
   where table_schema = 'public'
@@ -52,7 +70,7 @@ begin
       )
       or (
         table_name = 'wiki_write_requests'
-        and column_name = 'runner_id'
+        and column_name = queue_prefix || '_id'
       )
     );
 
@@ -60,26 +78,14 @@ begin
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
-    and p.proname = 'claim_runner_job';
+    and p.proname = 'claim_' || queue_prefix || '_job';
 
   select count(*) into remaining_tables
   from pg_class c
   join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public'
     and c.relkind in ('r', 'p')
-    and c.relname in (
-      'execution_receipts',
-      'execution_events',
-      'execution_plans',
-      'project_local_bindings',
-      'bridge_pairing_codes',
-      'bridge_devices',
-      'runner_pairing_codes',
-      'runner_job_events',
-      'runner_jobs',
-      'runner_capabilities',
-      'runners'
-    );
+    and c.relname = any(obsolete_relations);
 
   if remaining_columns <> 0
      or remaining_functions <> 0

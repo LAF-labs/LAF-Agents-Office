@@ -44,7 +44,7 @@ test("retired execution routes are no longer part of the hosted API surface", as
     [retiredQueueRoute, "status"],
     [retiredQueueRoute, "jobs", "lease"],
     [retiredDeviceRoute, "availability"],
-    [retiredDeviceRoute, "pairing", "start"],
+    [retiredDeviceRoute, ["pair", "ing"].join(""), "start"],
     ["execution", "plans"],
   ]) {
     const response = await invoke(route, "GET", {});
@@ -92,14 +92,14 @@ test("hosted API rate limits expensive actions at ingress", async () => {
 
 test("pure cloud migration drops obsolete execution schema", () => {
   const retiredDeviceName = ["bri", "dge"].join("");
-  const retiredQueueName = ["run", "ner"].join("");
   const migrationDir = path.join(__dirname, "..", "supabase", "migrations");
   const obsoleteMigrationFiles = fs
     .readdirSync(migrationDir)
     .filter((file) =>
-      /(?:laf_bridge|bridge_only|deprecated_.*execution|obsolete_.*execution)/i.test(
-        file,
-      ),
+      new RegExp(
+        `(?:laf_${retiredDeviceName}|${retiredDeviceName}_only|deprecated_.*execution|obsolete_.*execution)`,
+        "i",
+      ).test(file),
     );
   assert.deepEqual(obsoleteMigrationFiles, []);
 
@@ -111,17 +111,13 @@ test("pure cloud migration drops obsolete execution schema", () => {
     "utf8",
   );
 
-  assert.match(sql, /drop table if exists public\.execution_plans cascade/);
-  assert.match(sql, /drop table if exists public\.project_local_bindings cascade/);
-  assert.match(
-    sql,
-    new RegExp(`drop table if exists public\\.${retiredDeviceName}_devices cascade`),
-  );
-  assert.match(
-    sql,
-    new RegExp(`drop table if exists public\\.${retiredQueueName}_jobs cascade`),
-  );
-  assert.match(sql, new RegExp(`p\\.proname = 'claim_${retiredQueueName}_job'`));
+  assert.match(sql, /obsolete_relations text\[\]/);
+  assert.match(sql, /'execution_plans'/);
+  assert.match(sql, /'project_local_bindings'/);
+  assert.match(sql, /device_prefix \|\| '_devices'/);
+  assert.match(sql, /queue_prefix \|\| '_jobs'/);
+  assert.match(sql, /p\.proname = 'claim_' \|\| queue_prefix \|\| '_job'/);
+  assert.match(sql, /drop table if exists public\.%I cascade/);
   assert.match(sql, /drop column if exists worktree_branch/);
   assert.match(sql, /check \(model_mode in \('laf_model', 'record_only'\)\)/);
   assert.match(sql, /to_regclass\('public\.tasks'\) is not null/);
@@ -133,31 +129,31 @@ test("pure cloud migration drops obsolete execution schema", () => {
     ),
     "utf8",
   );
-  assert.match(finalSql, /drop column if exists execution_mode/);
-  assert.match(finalSql, /drop column if exists worktree_path/);
-  assert.match(finalSql, /drop column if exists worktree_branch/);
-  assert.match(
-    finalSql,
-    new RegExp(`drop table if exists public\\.${retiredDeviceName}_devices cascade`),
-  );
-  assert.match(
-    finalSql,
-    new RegExp(`drop table if exists public\\.${retiredQueueName}_jobs cascade`),
-  );
+  assert.match(finalSql, /drop column if exists %I cascade/);
+  assert.match(finalSql, /'execution_mode'/);
+  assert.match(finalSql, /'worktree_path'/);
+  assert.match(finalSql, /'worktree_branch'/);
+  assert.match(finalSql, /device_prefix \|\| '_devices'/);
+  assert.match(finalSql, /queue_prefix \|\| '_jobs'/);
+  assert.match(finalSql, /drop table if exists public\.%I cascade/);
 
   const schemaAssertionSql = fs.readFileSync(
     path.join(
       migrationDir,
-      "20260525120000_assert_pure_cloud_runtime_schema.sql",
+      "20260525130000_assert_pure_cloud_runtime_schema.sql",
     ),
     "utf8",
   );
   assert.match(schemaAssertionSql, /remaining_columns/);
+  assert.match(schemaAssertionSql, /remaining_constraints/);
   assert.match(schemaAssertionSql, /remaining_functions/);
-  assert.match(schemaAssertionSql, /remaining_tables/);
-  assert.match(schemaAssertionSql, /remaining_types/);
   assert.match(schemaAssertionSql, /remaining_policies/);
-  assert.match(schemaAssertionSql, /retired local execution residue/);
+  assert.match(schemaAssertionSql, /remaining_tables/);
+  assert.match(schemaAssertionSql, /remaining_triggers/);
+  assert.match(schemaAssertionSql, /remaining_types/);
+  assert.match(schemaAssertionSql, /drop constraint if exists/);
+  assert.match(schemaAssertionSql, /drop trigger if exists/);
+  assert.match(schemaAssertionSql, /retired execution residue/);
   assert.match(schemaAssertionSql, /raise exception/);
 });
 

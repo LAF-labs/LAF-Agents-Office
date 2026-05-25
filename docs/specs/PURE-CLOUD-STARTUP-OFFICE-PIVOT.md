@@ -96,8 +96,8 @@ but the product language should be `account`, `workspace`, `teammate`, and
 - Every account gets one default workspace.
 - Any teammate can invite another teammate into the workspace unless later
   workspace policy restricts invitations.
-- No primary onboarding path requires local commands, local files, or pairing.
-- No local pairing requirement for core business workflows.
+- No primary onboarding path requires local commands or local files.
+- Core business workflows run through the hosted workspace and managed workers.
 - Business memory, documents, campaigns, customer records, operating records,
   assets, and decisions live inside LAF.
 - Project and task-board workflows are removed from the primary product.
@@ -110,7 +110,7 @@ but the product language should be `account`, `workspace`, `teammate`, and
 ### Must Not Be True
 
 - Do not position LAF as another coding IDE or local agent runtime.
-- Do not require users to understand models, prompts, device-side runtimes, or
+- Do not require users to understand models, prompts, customer-managed runtimes, or
   automation graphs.
 - Do not make the MVP depend on Gmail, Notion, Slack, HubSpot, Zapier, Linear,
   or GitHub connectors.
@@ -211,13 +211,13 @@ Near-term treatment:
 - Keep the primary product cloud-only.
 - Remove local execution setup from homepage, onboarding, and business-workflow
   copy.
-- Keep local execution setup code available only as a legacy or advanced execution adapter
-  until the pure-cloud execution path replaces it.
+- Delete the legacy execution adapter path from the hosted product tree; cloud
+  workers are the only execution path for customer workflows.
 
 Long-term treatment:
 
-- Deprecate local execution setup from the main product unless a specific high-value customer
-  segment demands self-hosted execution.
+- Keep self-hosted execution outside this product line unless it becomes a
+  separately scoped enterprise SKU.
 
 ### Local Development Workflow
 
@@ -390,7 +390,7 @@ Verification:
 - README describes cloud startup operations as the main product.
 - New onboarding creates a default workspace for the account.
 - A workspace member can invite another person as a teammate.
-- Settings/onboarding does not require local pairing for the default path.
+- Settings/onboarding stays inside the hosted workspace by default.
 - The primary product no longer exposes project boards or task Kanban.
 
 ### Phase 2: Business Memory And Playbooks

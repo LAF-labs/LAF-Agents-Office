@@ -7,6 +7,8 @@ const { execFileSync } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
 const deviceRuntime = ["bri", "dge"].join("");
 const queueRuntime = ["run", "ner"].join("");
+const pairToken = ["pair", "ing"].join("");
+const providerModeToken = ["head", "less"].join("");
 
 function fail(message) {
   console.error(`legacy runtime check failed: ${message}`);
@@ -59,9 +61,9 @@ const forbiddenPrefixes = [
   "web/e2e/",
 ];
 
-for (const file of existingTracked) {
+  for (const file of existingTracked) {
   if (forbiddenPrefixes.some((prefix) => file.startsWith(prefix))) {
-    fail(`${file} belongs to the retired local runtime surface`);
+    fail(`${file} belongs to the retired customer-managed execution surface`);
   }
 }
 
@@ -111,15 +113,15 @@ const allowedFiles = new Set([
 const forbiddenText = [
   [new RegExp(`laf[-\\s]?${deviceRuntime}`, "i"), "retired connector setup"],
   [
-    new RegExp(`${queueRuntime}_(?:pairing|job|jobs|capabilities|devices?)`, "i"),
+    new RegExp(`${queueRuntime}_(?:${pairToken}|job|jobs|capabilities|devices?)`, "i"),
     "retired queue persistence",
   ],
-  [new RegExp(`${deviceRuntime}_(?:pairing|devices?)`, "i"), "retired device persistence"],
+  [new RegExp(`${deviceRuntime}_(?:${pairToken}|devices?)`, "i"), "retired device persistence"],
   [/project_local_bindings/i, "project local binding"],
   [new RegExp(`claim_${queueRuntime}_job`, "i"), "retired queue claim function"],
   [/worktree_(?:path|branch)/i, "worktree field"],
   [/managed_checkout|local_worktree/i, "local checkout execution mode"],
-  [/headless_(?:claude|codex|opencode)/i, "headless local provider runtime"],
+  [new RegExp(`${providerModeToken}_(?:claude|codex|opencode)`, "i"), "retired provider mode"],
   [
     new RegExp(`\\blocal\\s+(?:runtime|${queueRuntime}|${deviceRuntime}|execution)\\b`, "i"),
     "local runtime copy",
