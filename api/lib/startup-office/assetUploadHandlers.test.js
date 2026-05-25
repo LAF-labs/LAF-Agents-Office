@@ -25,9 +25,13 @@ function baseDeps(overrides = {}) {
     publicStartupOfficeAsset(row) {
       return row;
     },
+    randomUUID() {
+      return "upload-uuid-1";
+    },
     async readBody() {
       return {
         content_type: "text/markdown",
+        checksum_sha256: "a".repeat(64),
         name: "Founder Memo.md",
         size_bytes: 2048,
       };
@@ -74,8 +78,12 @@ test("asset upload intent validates content type, size, storage limit, and retur
   assert.equal(deps.calls.permissions[0], "memory:write_draft");
   assert.equal(deps.calls.rest[0].table, "startup_office_assets");
   assert.equal(deps.calls.rest[0].options.body.content_type, "text/markdown");
+  assert.equal(deps.calls.rest[0].options.body.checksum_sha256, "a".repeat(64));
   assert.equal(deps.calls.rest[0].options.body.size_bytes, 2048);
-  assert.equal(deps.calls.rest[0].options.body.storage_path.startsWith("team-1/"), true);
+  assert.equal(
+    deps.calls.rest[0].options.body.storage_path,
+    "team-1/upload-uuid-1-founder-memo.md",
+  );
   assert.equal(deps.calls.writes[0].body.upload.bucket, "startup-office-assets");
   assert.equal(deps.calls.audits[0][1], "startup_office.asset_upload_intent.created");
 });
@@ -99,5 +107,17 @@ test("asset upload intent rejects unsupported content type and oversized uploads
   await assert.rejects(
     () => oversized.assetUploadIntent({ method: "POST" }, {}),
     (err) => err.status === 400 && err.message === "asset upload size must be between 1 byte and 25 MB",
+  );
+
+  const badChecksum = createStartupOfficeAssetUploadHandlers(baseDeps({
+    async readBody() {
+      return { checksum_sha256: "not-sha", content_type: "text/plain", name: "memo.txt", size_bytes: 1 };
+    },
+  }));
+  await assert.rejects(
+    () => badChecksum.assetUploadIntent({ method: "POST" }, {}),
+    (err) =>
+      err.status === 400 &&
+      err.message === "asset checksum must be a lowercase SHA-256 hex digest",
   );
 });

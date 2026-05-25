@@ -1,3 +1,5 @@
+const crypto = require("node:crypto");
+
 const {
   assertStartupOfficeStorageLimit,
   startupOfficeStorageBytes,
@@ -41,9 +43,14 @@ function createStartupOfficeAssetUploadHandlers(deps) {
     if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_ASSET_UPLOAD_BYTES) {
       throw createHTTPError(400, "asset upload size must be between 1 byte and 25 MB");
     }
+    const checksum = String(body.checksum_sha256 || body.sha256 || "").trim().toLowerCase();
+    if (checksum && !/^[a-f0-9]{64}$/.test(checksum)) {
+      throw createHTTPError(400, "asset checksum must be a lowercase SHA-256 hex digest");
+    }
+    const uploadID = typeof deps.randomUUID === "function" ? deps.randomUUID() : crypto.randomUUID();
     const uploadPath = [
       membership.team_id,
-      `${Date.now()}-${sanitizeName(body.name || "startup-office-asset")}`,
+      `${uploadID}-${sanitizeName(body.name || "startup-office-asset")}`,
     ].join("/");
     await assertStartupOfficeStorageLimit({
       additionalBytes: Math.max(sizeBytes, startupOfficeStorageBytes(body.metadata)),
@@ -55,7 +62,7 @@ function createStartupOfficeAssetUploadHandlers(deps) {
       method: "POST",
       body: {
         body: "",
-        checksum_sha256: truncateText(body.checksum_sha256 || body.sha256 || "", 80),
+        checksum_sha256: checksum,
         content_type: contentType,
         created_by: membership.user_id,
         kind: truncateText(body.kind || "uploaded_material", 80),

@@ -65,7 +65,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "api/lib/startup-office/assetUploadHandlers.js",
-    ["ALLOWED_CONTENT_TYPES", "MAX_ASSET_UPLOAD_BYTES", "storage_path"],
+    ["ALLOWED_CONTENT_TYPES", "MAX_ASSET_UPLOAD_BYTES", "crypto.randomUUID", "checksum must be a lowercase SHA-256 hex digest", "storage_path"],
     "secure asset upload intent",
   ],
   [
