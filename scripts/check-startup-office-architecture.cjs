@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1960);
+assertMaxLines("api/[...path].js", 1840);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -60,6 +60,7 @@ assertMaxLines("api/lib/hosted/securityHeaders.js", 55);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/skillHandlers.js", 230);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
+assertMaxLines("api/lib/hosted/supabaseAccess.js", 160);
 assertMaxLines("api/lib/hosted/teamPresentation.js", 25);
 assertMaxLines("api/lib/hosted/urlTrust.js", 215);
 assertMaxLines("api/lib/hosted/userPresentation.js", 55);
@@ -242,6 +243,15 @@ for (const [pattern, label] of [
   [/function clamp\b/, "hosted numeric clamp helper"],
   [/function arrayOrEmpty\b/, "hosted array fallback helper"],
   [/function compactObject\b/, "hosted compact object helper"],
+  [/function assertSupabaseEnv\b/, "hosted Supabase env guard"],
+  [/function supabaseURL\b/, "hosted Supabase URL helper"],
+  [/function serviceHeaders\b/, "hosted Supabase service headers helper"],
+  [/function anonHeaders\b/, "hosted Supabase anon headers helper"],
+  [/async function rest\b/, "hosted Supabase REST helper"],
+  [/async function rpc\b/, "hosted Supabase RPC helper"],
+  [/async function authFetch\b/, "hosted Supabase auth fetch helper"],
+  [/async function authAdminFetch\b/, "hosted Supabase auth admin fetch helper"],
+  [/function responseErrorMessage\b/, "hosted upstream error parser"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],

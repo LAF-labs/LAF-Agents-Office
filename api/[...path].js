@@ -101,6 +101,9 @@ const {
   createHostedSkillHandlers,
 } = require("./lib/hosted/skillHandlers");
 const {
+  createHostedSupabaseAccess,
+} = require("./lib/hosted/supabaseAccess");
+const {
   publicTeam,
 } = require("./lib/hosted/teamPresentation");
 const {
@@ -235,6 +238,18 @@ const HOSTED_PERMISSION_GUARDS = createHostedPermissionGuards({
 const requireAdminRole = HOSTED_PERMISSION_GUARDS.requireAdminRole;
 const requirePermission = HOSTED_PERMISSION_GUARDS.requirePermission;
 const SERVICE_ROLE_ACCESS_GUARDS = createServiceRoleAccessGuards({ createHTTPError: startupOfficeHTTPError });
+const HOSTED_SUPABASE_ACCESS = createHostedSupabaseAccess({
+  createHTTPError: startupOfficeHTTPError,
+  env: process.env,
+  serviceRoleAccessGuards: SERVICE_ROLE_ACCESS_GUARDS,
+});
+const {
+  assertSupabaseEnv,
+  authAdminFetch,
+  authFetch,
+  rest,
+  rpc,
+} = HOSTED_SUPABASE_ACCESS;
 const HOSTED_URL_TRUST = createHostedURLTrust({
   createHTTPError: startupOfficeHTTPError,
   env: process.env,
@@ -725,8 +740,8 @@ class HTTPError extends Error {
   }
 }
 
-function startupOfficeHTTPError(status, message) {
-  return new HTTPError(status, message);
+function startupOfficeHTTPError(status, message, opts = {}) {
+  return new HTTPError(status, message, opts);
 }
 
 const rateLimitBuckets = new Map();
@@ -981,15 +996,6 @@ function requestIDFor(req) {
   return String(req.headers?.["x-request-id"] || req.headers?.["x-vercel-id"] || "").trim();
 }
 
-function assertSupabaseEnv() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new HTTPError(
-      503,
-      "supabase environment is not configured",
-    );
-  }
-}
-
 function clientRateLimitKey(req) {
   return String(
     req.headers?.["x-forwarded-for"] ||
@@ -1051,133 +1057,6 @@ function inviteEmailProviderFromEnv() {
     });
   }
   throw new HTTPError(503, `unsupported LAF_OUTBOX_EMAIL_PROVIDER: ${provider}`);
-}
-
-function supabaseURL(path) {
-  return `${process.env.SUPABASE_URL.replace(/\/+$/, "")}${path}`;
-}
-
-function serviceHeaders(extra = {}) {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    "Content-Type": "application/json",
-    ...extra,
-  };
-}
-
-function anonHeaders(extra = {}) {
-  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    "Content-Type": "application/json",
-    ...extra,
-  };
-}
-
-async function rest(table, options = {}) {
-  const tableName = SERVICE_ROLE_ACCESS_GUARDS.assertAllowedRestTable(table);
-  const method = options.method || "GET";
-  const url = new URL(supabaseURL(`/rest/v1/${tableName}`));
-  for (const [key, value] of Object.entries(options.query || {})) {
-    if (value !== undefined && value !== null && value !== "") {
-      url.searchParams.set(key, String(value));
-    }
-  }
-  const headers = serviceHeaders();
-  if (method !== "GET") {
-    headers.Prefer = options.prefer || "return=representation";
-  }
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    // safe=false: upstream PostgREST errors can include column names,
-    // constraint identifiers, or RLS detail that should not reach the
-    // browser. The catch in handler() will redact and log.
-    throw new HTTPError(
-      response.status,
-      responseErrorMessage(text, response.statusText),
-      { safe: false },
-    );
-  }
-  return text ? JSON.parse(text) : null;
-}
-
-async function rpc(name, body = {}) {
-  const rpcName = SERVICE_ROLE_ACCESS_GUARDS.assertAllowedRPC(name);
-  const response = await fetch(supabaseURL(`/rest/v1/rpc/${rpcName}`), {
-    method: "POST",
-    headers: serviceHeaders(),
-    body: JSON.stringify(body),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new HTTPError(
-      response.status,
-      responseErrorMessage(text, response.statusText),
-      { safe: false },
-    );
-  }
-  return text ? JSON.parse(text) : null;
-}
-
-async function authFetch(path, options = {}) {
-  const response = await fetch(supabaseURL(`/auth/v1/${path}`), {
-    method: options.method || "GET",
-    headers: anonHeaders(options.headers),
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new HTTPError(
-      response.status,
-      responseErrorMessage(text, response.statusText),
-      { safe: false },
-    );
-  }
-  return text ? JSON.parse(text) : null;
-}
-
-async function authAdminFetch(path, options = {}) {
-  const response = await fetch(supabaseURL(`/auth/v1/${path}`), {
-    method: options.method || "GET",
-    headers: serviceHeaders(options.headers),
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new HTTPError(
-      response.status,
-      responseErrorMessage(text, response.statusText),
-      { safe: false },
-    );
-  }
-  return text ? JSON.parse(text) : null;
-}
-
-function responseErrorMessage(text, fallback) {
-  const trimmed = String(text || "").trim();
-  if (!trimmed) return fallback;
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed && typeof parsed === "object") {
-      for (const key of ["msg", "message", "error_description", "error"]) {
-        const value = parsed[key];
-        if (typeof value === "string" && value.trim()) {
-          return value.trim();
-        }
-      }
-    }
-  } catch {
-    // Plain-text upstream errors are already useful.
-  }
-  return trimmed || fallback;
 }
 
 function cookie(req, name) {
