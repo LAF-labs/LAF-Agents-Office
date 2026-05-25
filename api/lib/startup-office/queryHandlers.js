@@ -2,6 +2,10 @@ const { createStartupOfficeValidation } = require("./validation");
 const {
   startupOfficeExportManifest,
 } = require("./exportManifest");
+const {
+  startupOfficePageRequest,
+  startupOfficePageResult,
+} = require("./pagination");
 
 function createStartupOfficeQueryHandlers(deps) {
   const {
@@ -141,10 +145,15 @@ function createStartupOfficeQueryHandlers(deps) {
     const { membership } = await requireUser(req);
     if (req.method !== "GET") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "workspace:read");
+    const page = startupOfficePageRequest(req.query, { createHTTPError });
+    const rows = await startupOfficeReceipts(membership.team_id, {
+      cursor: page.cursor,
+      limit: page.request_limit,
+    });
+    const { items, pagination } = startupOfficePageResult(rows, page);
     writeJSON(res, 200, {
-      receipts: await startupOfficeReceipts(membership.team_id, {
-        limit: Number(req.query?.limit) || 100,
-      }),
+      pagination,
+      receipts: items,
     });
   }
 

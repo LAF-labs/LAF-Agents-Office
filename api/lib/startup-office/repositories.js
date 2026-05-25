@@ -2,6 +2,9 @@ const {
   STARTUP_OFFICE_LOOP_DEFINITIONS,
 } = require("./loopDefinitions");
 const {
+  applyStartupOfficeCursor,
+} = require("./pagination");
+const {
   normalizeStartupOfficeApprovalStatus,
   objectValue,
   publicStartupOfficeApproval,
@@ -76,6 +79,7 @@ function createStartupOfficeRepository({
     if (options.run_id) query.id = `eq.${options.run_id}`;
     if (options.loop_id) query.loop_id = `eq.${options.loop_id}`;
     if (options.status) query.status = `eq.${options.status}`;
+    applyStartupOfficeCursor(query, options.cursor);
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_runs", { query });
     return rows.map(publicStartupOfficeRun).filter(Boolean);
@@ -88,6 +92,7 @@ function createStartupOfficeRepository({
       team_id: `eq.${teamID}`,
     };
     if (options.run_id) query.run_id = `eq.${options.run_id}`;
+    applyStartupOfficeCursor(query, options.cursor);
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_artifacts", { query });
     return rows.map(publicStartupOfficeArtifact).filter(Boolean);
@@ -103,6 +108,7 @@ function createStartupOfficeRepository({
       query.status = `eq.${normalizeStartupOfficeApprovalStatus(options.status)}`;
     }
     if (options.run_id) query.run_id = `eq.${options.run_id}`;
+    applyStartupOfficeCursor(query, options.cursor, "requested_at");
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_approvals", { query });
     return rows.map(publicStartupOfficeApproval).filter(Boolean);
@@ -115,6 +121,7 @@ function createStartupOfficeRepository({
       team_id: `eq.${teamID}`,
     };
     if (options.run_id) query.run_id = `eq.${options.run_id}`;
+    applyStartupOfficeCursor(query, options.cursor);
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_receipts", { query });
     return rows.map(publicStartupOfficeReceipt).filter(Boolean);
@@ -368,6 +375,7 @@ function createStartupOfficeRepository({
     };
     if (options.status) query.status = `eq.${options.status}`;
     if (options.slug) query.slug = `eq.${options.slug}`;
+    applyStartupOfficeCursor(query, options.cursor, "updated_at");
     applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_memory_pages", { query });
     return rows.map(publicStartupOfficeMemoryPage).filter(Boolean);

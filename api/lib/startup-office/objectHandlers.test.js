@@ -119,10 +119,16 @@ test("object collection handler lists and creates typed operating objects", asyn
   assert.equal(deps.calls.permissions[0].permission, "workspace:read");
   assert.deepEqual(deps.calls.rows[0], {
     kind: "assets",
-    options: { limit: 7, status: "active" },
+    options: { cursor: "", limit: 8, status: "active" },
     teamID: "team-1",
   });
   assert.deepEqual(deps.calls.writes[0].body.assets_rows, [{ id: "row-1", kind: "assets" }]);
+  assert.deepEqual(deps.calls.writes[0].body.pagination, {
+    cursor: null,
+    has_more: false,
+    limit: 7,
+    next_cursor: null,
+  });
 
   await handlers.objectCollection({ method: "POST" }, {}, "assets");
   assert.equal(deps.calls.permissions[1].permission, "memory:write_draft");
@@ -160,7 +166,7 @@ test("customer collection handler filters and links discovery loops", async () =
   assert.equal(deps.calls.permissions[0].permission, "workspace:read");
   assert.deepEqual(deps.calls.rows[0], {
     kind: "customers",
-    options: { limit: 100, loop_id: "loop-1", status: "qualified" },
+    options: { cursor: "", limit: 101, loop_id: "loop-1", status: "qualified" },
     teamID: "team-1",
   });
 
@@ -218,7 +224,8 @@ test("signal collection handler filters and links reusable evidence", async () =
   assert.deepEqual(deps.calls.rows[0], {
     kind: "signals",
     options: {
-      limit: 100,
+      cursor: "",
+      limit: 101,
       loop_id: "loop-1",
       run_id: "run-1",
       signal_type: "competitor",
@@ -235,6 +242,50 @@ test("signal collection handler filters and links reusable evidence", async () =
   assert.equal(deps.calls.rest[0].options.body.signal_type, "competitor");
   assert.equal(deps.calls.rest[0].options.body.status, "triaged");
   assert.equal(deps.calls.audits[0][1], "startup_office.signals.created");
+});
+
+test("object collection handler returns cursor pagination metadata", async () => {
+  let objectOptions = null;
+  const deps = baseDeps({
+    async startupOfficeObjectRows(teamID, kind, options) {
+      objectOptions = { kind, options, teamID };
+      return [
+        { created_at: "2026-05-25T03:00:00.000Z", id: "asset-3", kind },
+        { created_at: "2026-05-25T02:00:00.000Z", id: "asset-2", kind },
+        { created_at: "2026-05-25T01:00:00.000Z", id: "asset-1", kind },
+      ];
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectCollection(
+    {
+      method: "GET",
+      query: { cursor: "2026-05-25T04:00:00Z", limit: "2" },
+    },
+    {},
+    "assets",
+  );
+
+  assert.deepEqual(objectOptions, {
+    kind: "assets",
+    options: {
+      cursor: "2026-05-25T04:00:00Z",
+      limit: 3,
+      status: undefined,
+    },
+    teamID: "team-1",
+  });
+  assert.deepEqual(
+    deps.calls.writes[0].body.assets_rows.map((asset) => asset.id),
+    ["asset-3", "asset-2"],
+  );
+  assert.deepEqual(deps.calls.writes[0].body.pagination, {
+    cursor: "2026-05-25T04:00:00Z",
+    has_more: true,
+    limit: 2,
+    next_cursor: "2026-05-25T02:00:00.000Z",
+  });
 });
 
 test("metric collection handler records company metrics for growth summary", async () => {

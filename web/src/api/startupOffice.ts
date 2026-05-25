@@ -447,7 +447,15 @@ export interface StartupOfficeTermsAcceptResponse {
   status: string;
 }
 
+export interface StartupOfficePagination {
+  cursor?: string | null;
+  has_more: boolean;
+  limit: number;
+  next_cursor?: string | null;
+}
+
 export interface StartupOfficeReceiptsResponse {
+  pagination?: StartupOfficePagination;
   receipts: StartupOfficeReceipt[];
 }
 
@@ -455,8 +463,9 @@ export function getStartupOfficeGrowthSummary() {
   return get<StartupOfficeGrowthSummary>("/startup-office/growth-summary");
 }
 
-export function getStartupOfficeReceipts(opts?: { limit?: number }) {
+export function getStartupOfficeReceipts(opts?: { cursor?: string; limit?: number }) {
   return get<StartupOfficeReceiptsResponse>("/startup-office/receipts", {
+    cursor: opts?.cursor,
     limit: opts?.limit,
   });
 }

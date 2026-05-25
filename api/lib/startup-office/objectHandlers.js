@@ -6,6 +6,10 @@ const {
   assertStartupOfficeStorageLimit,
   startupOfficeStorageBytes,
 } = require("./planLimits");
+const {
+  startupOfficePageRequest,
+  startupOfficePageResult,
+} = require("./pagination");
 
 function createStartupOfficeObjectHandlers(deps) {
   const {
@@ -33,8 +37,10 @@ function createStartupOfficeObjectHandlers(deps) {
     const definition = startupOfficeObjectDefinition(kind);
     if (req.method === "GET") {
       requirePermission(membership, "workspace:read");
+      const page = startupOfficePageRequest(req.query, { createHTTPError });
       const options = {
-        limit: Number(req.query?.limit) || 100,
+        cursor: page.cursor,
+        limit: page.request_limit,
         status: req.query?.status,
       };
       if (kind === "customers") {
@@ -48,7 +54,8 @@ function createStartupOfficeObjectHandlers(deps) {
       const rows = await startupOfficeObjectRows(membership.team_id, kind, {
         ...options,
       });
-      writeJSON(res, 200, { [definition.responseKey]: rows });
+      const { items, pagination } = startupOfficePageResult(rows, page);
+      writeJSON(res, 200, { [definition.responseKey]: items, pagination });
       return;
     }
     if (req.method !== "POST") throw createHTTPError(405, "method not allowed");

@@ -193,7 +193,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I152 | Performance | Large summary endpoints may overfetch as workspace data grows. | growth summary |
 | SV-I153 | Performance | Client bundles still include multiple large app surfaces. | web build output |
 | SV-I154 | Performance | Search and memory retrieval are not optimized for Startup Office loops. | context builder |
-| SV-I155 | Performance | Export, receipts, and object lists lack cursor-based pagination. | endpoints |
+| SV-I155 | Performance | Receipts and operating object lists now expose cursor pagination; the full export bundle remains capped and should move to streamed/chunked export for large workspaces. | `startup-office:pagination`, export endpoint |
 | SV-I156 | Performance | Worker concurrency and queue backpressure are not modeled. | worker jobs |
 | SV-I157 | Performance | Repeated polling/refetch patterns are not audited for scale. | React Query usage |
 | SV-I158 | Performance | Database indexes are present but not proven against realistic data volumes. | migrations |
@@ -713,6 +713,11 @@ the final release commit or when a shared invariant changes.
   pagination/cursor serialization, `api/lib/hosted/auditHandlers.test.js` covers
   the `audit:read` permission and ISO cursor handling, and the architecture gate
   prevents the handler from drifting back into `api/[...path].js`.
+- R8 now adds Startup Office list pagination. Receipts and operating object
+  lists accept ISO cursors, fetch one extra row, return `has_more` and
+  `next_cursor`, reject malformed cursors, and keep existing arrays stable for
+  older clients; `npm run startup-office:pagination` covers the helper,
+  handlers, web contract, and release gate.
 - R2/R8 now extracts hosted model-access policy into
   `api/lib/hosted/modelAccess.js`. Managed-model availability, billing fallback,
   `model:use_laf` enforcement, the `model/availability` route, and model-mode

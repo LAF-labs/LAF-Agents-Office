@@ -99,6 +99,9 @@ const {
 const {
   createStartupOfficeRepository,
 } = require("./lib/startup-office/repositories");
+const {
+  applyStartupOfficeCursor,
+} = require("./lib/startup-office/pagination");
 const { authorizeStartupOfficeAccess } = require("./lib/startup-office/authorization");
 const {
   dispatchStartupOfficeRoute,
@@ -1480,6 +1483,7 @@ async function startupOfficeObjectRows(teamID, kind, options = {}) {
     if (options.loop_id) query.loop_id = `eq.${options.loop_id}`;
     if (options.run_id) query.run_id = `eq.${options.run_id}`;
   }
+  applyStartupOfficeCursor(query, options.cursor);
   if (options.limit) query.limit = String(clamp(Number(options.limit) || 100, 1, 1000));
   const rows = await safeStartupOfficeRest(definition.table, { query });
   return rows.map(definition.public).filter(Boolean);

@@ -196,8 +196,62 @@ test("approvals and receipts handlers preserve query limits", async () => {
     status: "pending",
   });
   assert.deepEqual(deps.calls.writes[1].body.receipts[0].options, {
+    cursor: "",
+    limit: 4,
+  });
+  assert.deepEqual(deps.calls.writes[1].body.pagination, {
+    cursor: null,
+    has_more: false,
+    limit: 3,
+    next_cursor: null,
+  });
+});
+
+test("receipts handler returns cursor pagination metadata", async () => {
+  let receiptOptions = null;
+  const deps = baseDeps({
+    async startupOfficeReceipts(_teamID, options) {
+      receiptOptions = options;
+      return [
+        { created_at: "2026-05-25T03:00:00.000Z", id: "receipt-3" },
+        { created_at: "2026-05-25T02:00:00.000Z", id: "receipt-2" },
+        { created_at: "2026-05-25T01:00:00.000Z", id: "receipt-1" },
+      ];
+    },
+  });
+  const handlers = createStartupOfficeQueryHandlers(deps);
+
+  await handlers.receipts(
+    {
+      method: "GET",
+      query: { cursor: "2026-05-25T04:00:00Z", limit: "2" },
+    },
+    {},
+  );
+
+  assert.deepEqual(receiptOptions, {
+    cursor: "2026-05-25T04:00:00Z",
     limit: 3,
   });
+  assert.deepEqual(
+    deps.calls.writes[0].body.receipts.map((receipt) => receipt.id),
+    ["receipt-3", "receipt-2"],
+  );
+  assert.deepEqual(deps.calls.writes[0].body.pagination, {
+    cursor: "2026-05-25T04:00:00Z",
+    has_more: true,
+    limit: 2,
+    next_cursor: "2026-05-25T02:00:00.000Z",
+  });
+});
+
+test("receipts handler rejects malformed cursors", async () => {
+  const handlers = createStartupOfficeQueryHandlers(baseDeps());
+
+  await assert.rejects(
+    () => handlers.receipts({ method: "GET", query: { cursor: "bad" } }, {}),
+    (err) => err.status === 400 && err.message === "cursor must be an ISO timestamp",
+  );
 });
 
 test("export handler includes schema version and restore notes", async () => {
