@@ -41,6 +41,9 @@ const {
   createHostedActionRateLimiter,
 } = require("./lib/hosted/rateLimits");
 const {
+  createStartupOfficeRateLimiter,
+} = require("./lib/startup-office/rateLimits");
+const {
   createHostedRosterHandlers,
 } = require("./lib/hosted/rosterHandlers");
 const {
@@ -149,6 +152,11 @@ const enforceHostedActionRateLimit = createHostedActionRateLimiter({
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
   keyForRequest: clientRateLimitKey,
+});
+const enforceStartupOfficeRateLimit = createStartupOfficeRateLimiter({
+  claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
+  createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
+  enforceRateLimit,
 });
 
 const HOSTED_AGENT_LOG_HANDLERS = createHostedAgentLogHandlers({
@@ -390,6 +398,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   companyProfileSnapshot,
   createHTTPError: startupOfficeHTTPError,
   createStartupOfficeReceipt,
+  enforceStartupOfficeRateLimit,
   ensureStartupOfficeLoop,
   findStartupOfficeApproval,
   materializeStartupOfficeReceiptMemory,

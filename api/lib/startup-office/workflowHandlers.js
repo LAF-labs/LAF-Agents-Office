@@ -13,6 +13,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     companyProfileSnapshot,
     createHTTPError,
     createStartupOfficeReceipt,
+    enforceStartupOfficeRateLimit,
     ensureStartupOfficeLoop,
     findStartupOfficeApproval,
     materializeStartupOfficeReceiptMemory,
@@ -66,6 +67,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         return;
       }
     }
+    await enforceWorkflowRateLimit(membership, "loop_run");
     await enforceStartupOfficeRunLimit(membership.team_id);
     const loop = await ensureStartupOfficeLoop(membership, loopID);
     const profile = await companyProfileSnapshot(membership.team_id, team, user);
@@ -223,6 +225,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
 
     if (action === "retry" && req.method === "POST") {
       requirePermission(membership, "memory:write_draft");
+      await enforceWorkflowRateLimit(membership, "loop_run");
       await enforceStartupOfficeRunLimit(membership.team_id);
       if (!["failed", "canceled"].includes(run.status)) {
         throw createHTTPError(409, `run is ${run.status}; only failed or canceled runs can be retried`);
@@ -313,6 +316,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     if (revisionRequested && !body.decisionNote) {
       throw createHTTPError(400, "revision_note is required");
     }
+    await enforceWorkflowRateLimit(membership, "approval_action");
     const now = nowISO();
     const existingRun = approval.run_id
       ? await startupOfficeRepository().findRun(membership.team_id, approval.run_id)
@@ -494,6 +498,12 @@ function createStartupOfficeWorkflowHandlers(deps) {
     if (typeof startupOfficeApprovalPolicy !== "function") return null;
     const settings = typeof workspaceSettings === "function" ? await workspaceSettings(teamID) : null;
     return startupOfficeApprovalPolicy(settings);
+  }
+
+  async function enforceWorkflowRateLimit(membership, action) {
+    if (typeof enforceStartupOfficeRateLimit === "function") {
+      await enforceStartupOfficeRateLimit(membership, action);
+    }
   }
 
   return {

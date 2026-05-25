@@ -15,6 +15,7 @@ function baseDeps(overrides = {}) {
     audits: [],
     loops: [],
     promotions: [],
+    rateLimits: [],
     receiptMemory: [],
     receipts: [],
     rest: [],
@@ -75,6 +76,9 @@ function baseDeps(overrides = {}) {
     async createStartupOfficeReceipt(_membership, body) {
       calls.receipts.push(body);
       return { id: `receipt-${calls.receipts.length}`, ...body };
+    },
+    async enforceStartupOfficeRateLimit(membershipValue, action) {
+      calls.rateLimits.push({ action, membership: membershipValue });
     },
     async ensureStartupOfficeLoop(_membership, loopID) {
       calls.loops.push(loopID);
@@ -232,6 +236,7 @@ test("loopRun can queue a deferred run without executing the worker", async () =
   await handlers.loopRun({ method: "POST" }, {}, "idea-validation");
 
   assert.equal(deps.calls.permission, "memory:write_draft");
+  assert.equal(deps.calls.rateLimits[0].action, "loop_run");
   assert.equal(deps.calls.createdRun.metadata.provider, "fake");
   assert.equal(deps.calls.createdRun.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].reason, "Ground the loop in a reusable playbook.");
@@ -263,6 +268,7 @@ test("loopRun replays an existing idempotent run without duplicate side effects"
   );
 
   assert.equal(deps.calls.findRunByIdempotencyKey, "run-key-1");
+  assert.equal(deps.calls.rateLimits.length, 0);
   assert.equal(deps.calls.createdRun, undefined);
   assert.equal(deps.calls.createdWorkerJob, undefined);
   assert.equal(deps.calls.receipts.length, 0);
@@ -296,6 +302,7 @@ test("loopRun executes immediately and records usage plus notification events", 
   await handlers.loopRun({ method: "POST" }, {}, "idea-validation");
 
   assert.equal(deps.calls.loopRunArgs.modelClient.provider, "fake");
+  assert.equal(deps.calls.rateLimits[0].action, "loop_run");
   assert.equal(deps.calls.loopRunArgs.approvalPolicy.action_modes.external_send, "draft_only");
   assert.equal(deps.calls.createdRun.metadata.approval_policy.action_modes.external_send, "draft_only");
   assert.equal(deps.calls.createdWorkerJob.metadata.approval_policy.action_modes.external_send, "draft_only");
@@ -340,6 +347,7 @@ test("run handler retries failed runs through the worker path", async () => {
   await handlers.run({ method: "POST" }, {}, "run-1", "retry");
 
   assert.equal(deps.calls.createdWorkerJob.metadata.retry, true);
+  assert.equal(deps.calls.rateLimits[0].action, "loop_run");
   assert.equal(deps.calls.updatedRun.patch.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(deps.calls.receipts[0].trace.skill_invocations[0].skill_name, "market-research");
@@ -359,6 +367,7 @@ test("approval action approves, promotes memory, records receipt, and audits", a
 
   await handlers.approvalAction({ method: "POST" }, {}, "approval-1", "approve");
 
+  assert.equal(deps.calls.rateLimits[0].action, "approval_action");
   assert.equal(deps.calls.rest[0].table, "startup_office_approvals");
   assert.equal(deps.calls.rest[0].options.body.status, "approved");
   assert.equal(deps.calls.rest[0].options.query.status, "eq.pending");
@@ -399,6 +408,7 @@ test("approval action requests revision and queues a structured worker job", asy
 
   await handlers.approvalAction({ method: "POST" }, {}, "approval-1", "revise");
 
+  assert.equal(deps.calls.rateLimits[0].action, "approval_action");
   assert.equal(deps.calls.rest[0].table, "startup_office_approvals");
   assert.equal(deps.calls.rest[0].options.body.status, "revision_requested");
   assert.equal(
@@ -455,6 +465,7 @@ test("approval action replays a matching idempotent decision", async () => {
   );
 
   assert.equal(deps.calls.rest.length, 0);
+  assert.equal(deps.calls.rateLimits.length, 0);
   assert.equal(deps.calls.receipts.length, 0);
   assert.equal(deps.calls.writes[0].body.idempotent, true);
   assert.equal(deps.calls.writes[0].body.approval.status, "approved");
@@ -500,4 +511,30 @@ test("workflow handlers preserve run-limit and missing approval errors", async (
     () => invalidRunPayload.loopRun({ method: "POST" }, {}, "idea-validation"),
     (err) => err.status === 400 && err.message === "defer must be a boolean",
   );
+});
+
+test("workflow handlers enforce workspace-user rate limits before mutations", async () => {
+  const deps = baseDeps({
+    async enforceStartupOfficeRateLimit(_membership, action) {
+      deps.calls.rateLimits.push({ action });
+      const err = new Error("rate limit exceeded");
+      err.status = 429;
+      throw err;
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.loopRun({ method: "POST" }, {}, "idea-validation"),
+    (err) => err.status === 429 && err.message === "rate limit exceeded",
+  );
+  assert.equal(deps.calls.rateLimits[0].action, "loop_run");
+  assert.equal(deps.calls.createdRun, undefined);
+
+  await assert.rejects(
+    () => handlers.approvalAction({ method: "POST" }, {}, "approval-1", "approve"),
+    (err) => err.status === 429 && err.message === "rate limit exceeded",
+  );
+  assert.equal(deps.calls.rateLimits[1].action, "approval_action");
+  assert.equal(deps.calls.rest.length, 0);
 });
