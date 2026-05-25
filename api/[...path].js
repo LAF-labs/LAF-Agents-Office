@@ -41,6 +41,9 @@ const {
   createHostedRosterHandlers,
 } = require("./lib/hosted/rosterHandlers");
 const {
+  createHostedRequestHandlers,
+} = require("./lib/hosted/requestHandlers");
+const {
   WORKSPACE_PERMISSIONS,
   WORKSPACE_ROLES,
   createHostedPermissionGuards,
@@ -398,6 +401,16 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   writeJSON,
 });
 
+const HOSTED_REQUEST_HANDLERS = createHostedRequestHandlers({
+  approvalAction: STARTUP_OFFICE_WORKFLOW_HANDLERS.approvalAction,
+  createHTTPError: startupOfficeHTTPError,
+  readBody,
+  requirePermission,
+  requireUser,
+  startupOfficeApprovals,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   approvalAction: STARTUP_OFFICE_WORKFLOW_HANDLERS.approvalAction,
   approvals: STARTUP_OFFICE_QUERY_HANDLERS.approvals,
@@ -639,11 +652,11 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "requests" && req.method === "GET") {
-      writeJSON(res, 200, { requests: [] });
+      await HOSTED_REQUEST_HANDLERS.requests(req, res);
       return;
     }
     if (path === "requests/answer" && req.method === "POST") {
-      writeJSON(res, 200, { ok: true });
+      await HOSTED_REQUEST_HANDLERS.requestAnswer(req, res);
       return;
     }
     if (["actions", "signals", "decisions", "watchdogs"].includes(path) && req.method === "GET") {

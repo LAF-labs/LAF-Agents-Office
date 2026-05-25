@@ -609,6 +609,10 @@ and missing typed contracts.
   `api/lib/hosted/agentLogHandlers.js`. The legacy receipt table UI now reads
   Startup Office receipts, maps run IDs into the existing detail route, and
   carries receipt trace cost/tokens into the existing log contract.
+- R5/R8 now replaces the hosted `/requests` empty stub and `/requests/answer`
+  no-op with `api/lib/hosted/requestHandlers.js`. The Requests app and global
+  request overlay now read Startup Office approvals and delegate answers to the
+  same approval action workflow used by the Approval Desk.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,

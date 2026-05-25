@@ -44,6 +44,7 @@ assertMaxLines("api/lib/hosted/memoryHandlers.js", 100);
 assertMaxLines("api/lib/hosted/modelAccess.js", 90);
 assertMaxLines("api/lib/hosted/permissions.js", 170);
 assertMaxLines("api/lib/hosted/rateLimits.js", 90);
+assertMaxLines("api/lib/hosted/requestHandlers.js", 120);
 assertMaxLines("api/lib/hosted/rosterHandlers.js", 120);
 assertMaxLines("api/lib/hosted/serviceRoleAccess.js", 60);
 assertMaxLines("api/lib/hosted/signupHandlers.js", 170);
@@ -161,6 +162,9 @@ for (const [pattern, label] of [
   [/thread_id is required/, "hosted conversation home-session validation"],
   [/async function handleHostedAgentLogs\b/, "hosted agent log handler"],
   [/logs: \[\]/, "hosted agent logs empty stub"],
+  [/async function handleHostedRequests\b/, "hosted request handler"],
+  [/requests: \[\]/, "hosted requests empty stub"],
+  [/path === "requests\/answer"[\s\S]{0,160}\{ ok: true \}/, "hosted request answer no-op response"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

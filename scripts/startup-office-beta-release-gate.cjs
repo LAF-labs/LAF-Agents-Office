@@ -29,6 +29,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/modelAccess.test.js"]],
   ["node", ["--test", "api/lib/hosted/permissions.test.js"]],
   ["node", ["--test", "api/lib/hosted/rateLimits.test.js"]],
+  ["node", ["--test", "api/lib/hosted/requestHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/rosterHandlers.test.js"]],
   ["node", ["--test", "api/lib/hosted/serviceRoleAccess.test.js"]],
   ["node", ["--test", "api/lib/hosted/signupHandlers.test.js"]],
