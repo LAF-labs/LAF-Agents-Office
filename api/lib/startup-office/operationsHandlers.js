@@ -87,12 +87,14 @@ function createStartupOfficeOperationsHandlers(deps) {
       monthly_model_spend_cents: clamp(Number(body.monthly_model_spend_cents || 20000), 0, 10000000),
       monthly_run_limit: clamp(Number(body.monthly_run_limit || 50), 0, 100000),
       plan: truncateText(body.plan || "founder_beta", 80),
+      seat_limit: clamp(Number(body.seat_limit || 5), 1, 100000),
       storage_mb_limit: clamp(Number(body.storage_mb_limit || 1024), 0, 1000000),
       support_notes: truncateText(body.support_notes || "", 4000),
     });
     await writeAuditEvent(membership, "startup_office.billing_updated", "team", membership.team_id, {
       billing_state: billing.billing_state,
       monthly_run_limit: billing.monthly_run_limit,
+      seat_limit: billing.seat_limit,
     });
     writeJSON(res, 200, await startupOfficeBetaOpsSnapshot(membership.team_id));
   }

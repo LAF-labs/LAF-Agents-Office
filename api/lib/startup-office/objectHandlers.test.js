@@ -70,6 +70,12 @@ function baseDeps(overrides = {}) {
       calls.rows.push({ kind, options, teamID });
       return [{ id: "row-1", kind }];
     },
+    async startupOfficeBetaOpsSnapshot() {
+      return {
+        limits: { storage_mb_limit: 1024 },
+        usage: { storage_bytes: 0 },
+      };
+    },
     startupOfficeRepository() {
       return {
         async findArtifact() {
@@ -323,6 +329,28 @@ test("asset writes reject oversized user payloads before database writes", async
     (err) => err.status === 413 && err.message.includes("asset body exceeds"),
   );
   assert.equal(patchDeps.calls.rest.length, 0);
+});
+
+test("object writes enforce the closed beta workspace storage limit", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { body: "new storage", name: "Overflow" };
+    },
+    async startupOfficeBetaOpsSnapshot() {
+      return {
+        limits: { storage_mb_limit: 0.00001 },
+        usage: { storage_bytes: 8 },
+      };
+    },
+  });
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.objectCollection({ method: "POST" }, {}, "assets"),
+    (err) => err.status === 402 && err.message === "closed beta storage limit reached",
+  );
+  assert.equal(deps.calls.rest.length, 0);
+  assert.equal(deps.calls.audits.length, 0);
 });
 
 test("artifact to asset action rejects oversized model artifacts before database writes", async () => {

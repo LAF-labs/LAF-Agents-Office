@@ -2,6 +2,10 @@ const {
   STARTUP_OFFICE_PAYLOAD_LIMITS,
   assertStartupOfficePayloadSize,
 } = require("./payloadLimits");
+const {
+  assertStartupOfficeStorageLimit,
+  startupOfficeStorageBytes,
+} = require("./planLimits");
 
 function createStartupOfficeObjectHandlers(deps) {
   const {
@@ -18,6 +22,7 @@ function createStartupOfficeObjectHandlers(deps) {
     startupOfficeObjectPayload,
     startupOfficeObjectRows,
     startupOfficeRepository,
+    startupOfficeBetaOpsSnapshot,
     truncateText,
     writeAuditEvent,
     writeJSON,
@@ -50,9 +55,11 @@ function createStartupOfficeObjectHandlers(deps) {
     requirePermission(membership, "memory:write_draft");
     const body = await readBody(req);
     assertObjectPayloadLimits({ body, createHTTPError, kind });
+    const payload = startupOfficeObjectPayload(kind, membership, body);
+    await enforceStorageLimit({ createHTTPError, membership, payload });
     const [row] = await safeStartupOfficeRest(definition.table, {
       method: "POST",
-      body: startupOfficeObjectPayload(kind, membership, body),
+      body: payload,
     });
     const item = definition.public(row);
     await writeAuditEvent(membership, `startup_office.${kind}.created`, kind, item?.id || "");
@@ -83,13 +90,15 @@ function createStartupOfficeObjectHandlers(deps) {
     }
     const body = await readBody(req);
     assertObjectPayloadLimits({ body, createHTTPError, kind });
+    const patch = startupOfficeObjectPatch(kind, body);
+    await enforceStorageLimit({ createHTTPError, membership, payload: patch });
     const [row] = await safeStartupOfficeRest(definition.table, {
       method: "PATCH",
       query: {
         id: `eq.${objectID}`,
         team_id: `eq.${membership.team_id}`,
       },
-      body: startupOfficeObjectPatch(kind, body),
+      body: patch,
     });
     const item = definition.public(row);
     await writeAuditEvent(membership, `startup_office.${kind}.updated`, kind, objectID);
@@ -109,21 +118,23 @@ function createStartupOfficeObjectHandlers(deps) {
         maxBytes: STARTUP_OFFICE_PAYLOAD_LIMITS.assetBodyBytes,
         value: artifact.content || "",
       });
+      const payload = {
+        body: truncateText(artifact.content || "", 30000),
+        created_by: membership.user_id,
+        kind: truncateText(body.kind || artifact.kind || "document", 80),
+        metadata: {
+          artifact_id: artifact.id,
+          source: "artifact",
+        },
+        name: truncateText(body.name || artifact.title || "Startup Office asset", 180),
+        run_id: artifact.run_id || null,
+        team_id: membership.team_id,
+        updated_at: nowISO(),
+      };
+      await enforceStorageLimit({ createHTTPError, membership, payload });
       const [asset] = await safeStartupOfficeRest("startup_office_assets", {
         method: "POST",
-        body: {
-          body: truncateText(artifact.content || "", 30000),
-          created_by: membership.user_id,
-          kind: truncateText(body.kind || artifact.kind || "document", 80),
-          metadata: {
-            artifact_id: artifact.id,
-            source: "artifact",
-          },
-          name: truncateText(body.name || artifact.title || "Startup Office asset", 180),
-          run_id: artifact.run_id || null,
-          team_id: membership.team_id,
-          updated_at: nowISO(),
-        },
+        body: payload,
       });
       await writeAuditEvent(membership, "startup_office.asset.created_from_artifact", "artifact", artifact.id);
       writeJSON(res, 200, { asset: publicStartupOfficeAsset(asset) });
@@ -131,25 +142,27 @@ function createStartupOfficeObjectHandlers(deps) {
     }
     if (action === "record-signal") {
       const runID = artifact.run_id || body.run_id || null;
+      const payload = {
+        body: truncateText(body.body || artifact.content || "", 6000),
+        created_by: membership.user_id,
+        loop_id: body.loop_id || null,
+        metadata: {
+          artifact_id: artifact.id,
+          run_id: runID,
+          source: "artifact",
+        },
+        run_id: runID,
+        signal_type: startupOfficeSignalType(body.signal_type || body.type || "internal"),
+        source: truncateText(body.source || "artifact", 120),
+        status: "new",
+        team_id: membership.team_id,
+        title: truncateText(body.title || artifact.title || "Artifact signal", 180),
+        updated_at: nowISO(),
+      };
+      await enforceStorageLimit({ createHTTPError, membership, payload });
       const [signal] = await safeStartupOfficeRest("startup_office_signals", {
         method: "POST",
-        body: {
-          body: truncateText(body.body || artifact.content || "", 6000),
-          created_by: membership.user_id,
-          loop_id: body.loop_id || null,
-          metadata: {
-            artifact_id: artifact.id,
-            run_id: runID,
-            source: "artifact",
-          },
-          run_id: runID,
-          signal_type: startupOfficeSignalType(body.signal_type || body.type || "internal"),
-          source: truncateText(body.source || "artifact", 120),
-          status: "new",
-          team_id: membership.team_id,
-          title: truncateText(body.title || artifact.title || "Artifact signal", 180),
-          updated_at: nowISO(),
-        },
+        body: payload,
       });
       await writeAuditEvent(membership, "startup_office.signal.created_from_artifact", "artifact", artifact.id);
       writeJSON(res, 200, { signal: publicStartupOfficeSignal(signal) });
@@ -163,6 +176,15 @@ function createStartupOfficeObjectHandlers(deps) {
     objectCollection: handleStartupOfficeObjectCollection,
     objectItem: handleStartupOfficeObjectItem,
   };
+
+  async function enforceStorageLimit({ createHTTPError, membership, payload }) {
+    await assertStartupOfficeStorageLimit({
+      additionalBytes: startupOfficeStorageBytes(payload),
+      createHTTPError,
+      membership,
+      startupOfficeBetaOpsSnapshot,
+    });
+  }
 }
 
 function assertObjectPayloadLimits({ body, createHTTPError, kind }) {

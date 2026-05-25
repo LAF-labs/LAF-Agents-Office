@@ -1000,9 +1000,16 @@ export interface UsageData {
     model_spend_cents?: number;
     monthly_model_spend_cents?: number;
     monthly_run_limit?: number;
+    pending_invites?: number;
     plan?: string;
     run_percent?: number;
     runs?: number;
+    seat_limit?: number;
+    seat_percent?: number;
+    seats?: number;
+    storage_mb?: number;
+    storage_mb_limit?: number;
+    storage_percent?: number;
     tool_calls?: number;
     total_tokens?: number;
   };

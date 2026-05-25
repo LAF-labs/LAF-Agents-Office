@@ -29,8 +29,8 @@ if (
 }
 
 const schema = JSON.parse(read("supabase/schema/current.json"));
-if (schema.latestMigration !== "20260526010000") {
-  fail("schema latestMigration must point at the cost metering migration");
+if (String(schema.latestMigration || "") < "20260526010000") {
+  fail("schema latestMigration must include the cost metering migration");
 }
 const usageEvents = schema.activeTables.find(
   (table) => table.name === "startup_office_usage_events",

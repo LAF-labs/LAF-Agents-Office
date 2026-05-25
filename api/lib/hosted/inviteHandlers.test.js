@@ -56,6 +56,12 @@ function baseDeps(overrides = {}) {
       calls.rest.push({ options, table });
       return [];
     },
+    async startupOfficeBetaOpsSnapshot() {
+      return {
+        limits: { seat_limit: 5 },
+        usage: { pending_invites: 0, seats: 1 },
+      };
+    },
     async writeAuditEvent(...args) {
       calls.audits.push(args);
     },
@@ -131,6 +137,28 @@ test("invite creation stores only a token hash and returns a one-time URL", asyn
   const token = decodeURIComponent(res.body.one_time_invite_url.split("/invite/")[1]);
   assert.equal(inserted.token_hash, hashToken(token));
   assert.equal(deps.calls.audits[0][1], "invite.created");
+});
+
+test("invite creation enforces the closed beta seat limit before persistence", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { email: "blocked@example.com" };
+    },
+    async startupOfficeBetaOpsSnapshot() {
+      return {
+        limits: { seat_limit: 2 },
+        usage: { pending_invites: 1, seats: 1 },
+      };
+    },
+  });
+  const handlers = createHostedInviteHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.invites({ method: "POST" }, {}),
+    (err) => err.status === 402 && err.message === "closed beta seat limit reached",
+  );
+  assert.equal(deps.calls.rest.length, 0);
+  assert.equal(deps.calls.audits.length, 0);
 });
 
 test("invite lookup requires a pending invite", async () => {

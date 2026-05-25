@@ -16,15 +16,22 @@ function createHostedUsageHandlers(deps) {
     const modelSpendCents = numberValue(usage.model_spend_cents);
     const totalTokens = numberValue(usage.total_tokens);
     const toolCalls = numberValue(usage.tool_calls);
+    const seats = numberValue(usage.seats);
+    const pendingInvites = numberValue(usage.pending_invites);
+    const storageMB = numberValue(usage.storage_mb);
     const runs = numberValue(usage.runs);
     const modelSpendPercent = numberValue(usage.model_spend_percent);
     const runPercent = numberValue(usage.run_percent);
+    const seatPercent = numberValue(usage.seat_percent);
+    const storagePercent = numberValue(usage.storage_percent);
     const monthlyModelSpendCents = numberValue(
       limits.monthly_model_spend_cents ?? billing.monthly_model_spend_cents,
     );
     const monthlyRunLimit = numberValue(
       limits.monthly_run_limit ?? billing.monthly_run_limit,
     );
+    const seatLimit = numberValue(limits.seat_limit ?? billing.seat_limit);
+    const storageMBLimit = numberValue(limits.storage_mb_limit ?? billing.storage_mb_limit);
 
     writeJSON(res, 200, {
       total: {
@@ -48,18 +55,23 @@ function createHostedUsageHandlers(deps) {
         model_spend_cents: modelSpendCents,
         monthly_model_spend_cents: monthlyModelSpendCents,
         monthly_run_limit: monthlyRunLimit,
+        pending_invites: pendingInvites,
         plan: billing.plan || "trial",
         run_percent: runPercent,
         runs,
+        seat_limit: seatLimit,
+        seat_percent: seatPercent,
+        seats,
+        storage_mb: storageMB,
+        storage_mb_limit: storageMBLimit,
+        storage_percent: storagePercent,
         tool_calls: toolCalls,
         total_tokens: totalTokens,
       },
     });
   }
 
-  return {
-    usage: handleHostedUsage,
-  };
+  return { usage: handleHostedUsage };
 }
 
 function numberValue(value) {

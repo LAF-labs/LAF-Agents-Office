@@ -181,6 +181,7 @@ test("billing handler clamps beta limits and records an audit event", async () =
         monthly_model_spend_cents: -10,
         monthly_run_limit: 200000,
         plan: "paid-beta",
+        seat_limit: 7,
         state: "active",
         storage_mb_limit: 42,
       };
@@ -193,6 +194,7 @@ test("billing handler clamps beta limits and records an audit event", async () =
   assert.equal(patch.billing_state, "active");
   assert.equal(patch.monthly_model_spend_cents, 0);
   assert.equal(patch.monthly_run_limit, 100000);
+  assert.equal(patch.seat_limit, 7);
   assert.equal(patch.storage_mb_limit, 42);
   assert.equal(deps.calls.adminChecks[0].message, "owner or admin role required for billing changes");
   assert.equal(deps.calls.audits[0][1], "startup_office.billing_updated");

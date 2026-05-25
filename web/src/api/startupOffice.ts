@@ -182,17 +182,25 @@ export interface StartupOfficeBetaOps {
     monthly_model_spend_cents: number;
     monthly_run_limit: number;
     plan: string;
+    seat_limit: number;
+    storage_mb_limit: number;
   };
   limits: {
     monthly_model_spend_cents: number;
     monthly_run_limit: number;
+    seat_limit: number;
     storage_mb_limit: number;
   };
   usage: {
     model_spend_cents: number;
     model_spend_percent: number;
+    pending_invites: number;
     run_percent: number;
     runs: number;
+    seat_percent: number;
+    seats: number;
+    storage_mb: number;
+    storage_percent: number;
     tool_calls: number;
     total_tokens: number;
   };

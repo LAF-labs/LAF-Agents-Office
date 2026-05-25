@@ -48,17 +48,25 @@ function mockStartupOfficeSummary() {
         monthly_model_spend_cents: 20000,
         monthly_run_limit: 50,
         plan: "founder_beta",
+        seat_limit: 5,
+        storage_mb_limit: 1024,
       },
       limits: {
         monthly_model_spend_cents: 20000,
         monthly_run_limit: 50,
+        seat_limit: 5,
         storage_mb_limit: 1024,
       },
       usage: {
         model_spend_cents: 0,
         model_spend_percent: 0,
+        pending_invites: 1,
         run_percent: 4,
         runs: 2,
+        seat_percent: 60,
+        seats: 2,
+        storage_mb: 12.5,
+        storage_percent: 1,
         tool_calls: 5,
         total_tokens: 3800,
       },
@@ -326,6 +334,10 @@ describe("StartupOfficeApp", () => {
     const betaOpsPanel = screen
       .getByRole("heading", { name: "Beta operations" })
       .closest("section") as HTMLElement;
+    expect(within(betaOpsPanel).getByText("Seats")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("3 / 5")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Storage")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("12.5 / 1024 MB")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Tool calls")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("5")).toBeInTheDocument();
 

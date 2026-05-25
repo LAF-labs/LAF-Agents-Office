@@ -1,4 +1,7 @@
 const crypto = require("node:crypto");
+const {
+  assertStartupOfficeSeatLimit,
+} = require("../startup-office/planLimits");
 
 function createHostedInviteHandlers(deps) {
   const {
@@ -10,6 +13,7 @@ function createHostedInviteHandlers(deps) {
     requirePermission,
     requireUser,
     rest,
+    startupOfficeBetaOpsSnapshot,
     writeAuditEvent,
     writeJSON,
   } = deps;
@@ -77,6 +81,11 @@ function createHostedInviteHandlers(deps) {
     }
     if (req.method !== "POST") throw createHTTPError(405, "method not allowed");
     requirePermission(membership, "member:invite");
+    await assertStartupOfficeSeatLimit({
+      createHTTPError,
+      membership,
+      startupOfficeBetaOpsSnapshot,
+    });
     const body = await readBody(req);
     const token = `laf_invite_${crypto.randomBytes(18).toString("hex")}`;
     const role = normalizeRole(body.role || "member");

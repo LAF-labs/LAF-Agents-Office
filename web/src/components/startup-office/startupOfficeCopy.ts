@@ -164,7 +164,9 @@ export const STARTUP_OFFICE_APP_COPY = {
       "Billing state, run limits, and usage stay visible for closed beta operations.",
     betaOpsLabels: {
       runs: "Runs",
+      seats: "Seats",
       state: "State",
+      storage: "Storage",
       toolCalls: "Tool calls",
       tokens: "Tokens",
     },
@@ -324,7 +326,9 @@ export const STARTUP_OFFICE_APP_COPY = {
       "클로즈드 베타 운영을 위해 결제 상태, 실행 제한, 사용량을 표시합니다.",
     betaOpsLabels: {
       runs: "실행",
+      seats: "좌석",
       state: "상태",
+      storage: "저장소",
       toolCalls: "툴 호출",
       tokens: "토큰",
     },

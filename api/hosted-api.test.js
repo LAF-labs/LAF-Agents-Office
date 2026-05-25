@@ -189,7 +189,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
       "utf8",
     ),
   );
-  assert.equal(schema.latestMigration, "20260526010000");
+  assert.equal(schema.latestMigration, "20260526020000");
   assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525235900");
 
   const latestBoundarySql = fs.readFileSync(
@@ -224,6 +224,19 @@ test("pure cloud migration drops obsolete execution schema", () => {
   );
   assert.equal(usageEvents.columns.includes("tool_calls"), true);
   assert.equal(usageEvents.columns.includes("idempotency_key"), true);
+
+  const planLimitsSql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260526020000_add_startup_office_plan_limits.sql",
+    ),
+    "utf8",
+  );
+  assert.match(planLimitsSql, /add column if not exists seat_limit integer/);
+  const workspaceBilling = schema.activeTables.find(
+    (table) => table.name === "workspace_billing",
+  );
+  assert.equal(workspaceBilling.columns.includes("seat_limit"), true);
 });
 
 test("project and task storage is removed from the current Supabase schema", () => {

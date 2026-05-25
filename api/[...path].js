@@ -239,6 +239,7 @@ const HOSTED_MEMBER_HANDLERS = createHostedMemberHandlers({
   requirePermission,
   requireUser,
   rest,
+  startupOfficeBetaOpsSnapshot,
   writeAuditEvent,
   writeJSON,
 });
@@ -363,6 +364,7 @@ const STARTUP_OFFICE_OBJECT_HANDLERS = createStartupOfficeObjectHandlers({
   startupOfficeObjectPayload,
   startupOfficeObjectRows,
   startupOfficeRepository,
+  startupOfficeBetaOpsSnapshot,
   truncateText,
   writeAuditEvent,
   writeJSON,
@@ -1543,12 +1545,15 @@ async function startupOfficeBetaOpsSnapshot(teamID) {
     limits: {
       monthly_model_spend_cents: billing.monthly_model_spend_cents,
       monthly_run_limit: billing.monthly_run_limit,
+      seat_limit: billing.seat_limit,
       storage_mb_limit: billing.storage_mb_limit,
     },
     usage: {
       ...usage,
       model_spend_percent: percent(usage.model_spend_cents, billing.monthly_model_spend_cents),
       run_percent: percent(usage.runs, billing.monthly_run_limit),
+      seat_percent: percent(usage.seats + usage.pending_invites, billing.seat_limit),
+      storage_percent: percent(usage.storage_mb, billing.storage_mb_limit),
     },
   };
 }
@@ -1568,6 +1573,7 @@ async function startupOfficeBilling(teamID) {
     monthly_model_spend_cents: Number(billing.monthly_model_spend_cents || 20000),
     monthly_run_limit: Number(billing.monthly_run_limit || 50),
     plan: billing.plan || "trial",
+    seat_limit: Number(billing.seat_limit || 5),
     storage_mb_limit: Number(billing.storage_mb_limit || 1024),
     support_notes: billing.support_notes || "",
     team_id: teamID,
@@ -1593,14 +1599,31 @@ async function upsertStartupOfficeBilling(teamID, patch) {
 }
 
 async function startupOfficeUsage(teamID) {
-  const events = await safeStartupOfficeRest("startup_office_usage_events", {
-    query: {
-      limit: "1000",
-      order: "created_at.desc",
-      select: "*",
-      team_id: `eq.${teamID}`,
-    },
-  });
+  const [events, memberships, invites, storageBytes] = await Promise.all([
+    safeStartupOfficeRest("startup_office_usage_events", {
+      query: {
+        limit: "1000",
+        order: "created_at.desc",
+        select: "*",
+        team_id: `eq.${teamID}`,
+      },
+    }),
+    safeStartupOfficeRest("memberships", {
+      query: {
+        select: "id",
+        status: "eq.active",
+        team_id: `eq.${teamID}`,
+      },
+    }),
+    safeStartupOfficeRest("team_invites", {
+      query: {
+        select: "id",
+        status: "eq.pending",
+        team_id: `eq.${teamID}`,
+      },
+    }),
+    startupOfficeStorageUsage(teamID),
+  ]);
   return events.reduce(
     (out, event) => {
       out.model_spend_cents += Number(event.cost_cents || 0);
@@ -1609,8 +1632,47 @@ async function startupOfficeUsage(teamID) {
       out.total_tokens += Number(event.total_tokens || 0);
       return out;
     },
-    { model_spend_cents: 0, runs: 0, tool_calls: 0, total_tokens: 0 },
+    {
+      model_spend_cents: 0,
+      pending_invites: invites.length,
+      runs: 0,
+      seats: memberships.length,
+      storage_bytes: storageBytes,
+      storage_mb: storageBytes / 1024 / 1024,
+      tool_calls: 0,
+      total_tokens: 0,
+    },
   );
+}
+
+const STARTUP_OFFICE_STORAGE_SOURCES = Object.freeze([
+  ["company_profiles", "description,goals,priority,icp,offer,positioning,metadata"],
+  ["startup_office_artifacts", "title,content,metadata"],
+  ["startup_office_assets", "name,body,metadata"],
+  ["startup_office_customers", "name,profile,notes"],
+  ["startup_office_loops", "name,objective,policy"],
+  ["startup_office_memory_pages", "slug,title,body,summary,provenance,sources,assumptions"],
+  ["startup_office_metrics", "metric_key,unit,metadata"],
+  ["startup_office_receipts", "summary,trace"],
+  ["startup_office_runs", "title,objective,inputs,metadata,summary"],
+  ["startup_office_signals", "source,title,body,metadata"],
+]);
+
+async function startupOfficeStorageUsage(teamID) {
+  const rowsBySource = await Promise.all(
+    STARTUP_OFFICE_STORAGE_SOURCES.map(([table, select]) =>
+      safeStartupOfficeRest(table, {
+        query: {
+          limit: "1000",
+          select,
+          team_id: `eq.${teamID}`,
+        },
+      }),
+    ),
+  );
+  return rowsBySource.flat().reduce((sum, row) => {
+    return sum + Buffer.byteLength(JSON.stringify(row || {}), "utf8");
+  }, 0);
 }
 
 async function startupOfficeStuckJobs(teamID) {

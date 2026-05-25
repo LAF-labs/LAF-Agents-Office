@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526010000",
+  "latestMigration": "20260526020000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -184,7 +184,7 @@
       "domain": "billing",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["team_id", "plan", "laf_model_enabled", "updated_at", "billing_state", "monthly_run_limit", "monthly_model_spend_cents", "storage_mb_limit", "support_notes"]
+      "columns": ["team_id", "plan", "laf_model_enabled", "updated_at", "billing_state", "monthly_run_limit", "monthly_model_spend_cents", "storage_mb_limit", "support_notes", "seat_limit"]
     },
     {
       "name": "workspace_settings",

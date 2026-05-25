@@ -27,6 +27,18 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
           </dd>
         </div>
         <div>
+          <dt>{copy.betaOpsLabels.seats}</dt>
+          <dd>
+            {(usage?.seats ?? 0) + (usage?.pending_invites ?? 0)} / {billing?.seat_limit ?? 5}
+          </dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.storage}</dt>
+          <dd>
+            {(usage?.storage_mb ?? 0).toFixed(1)} / {billing?.storage_mb_limit ?? 1024} MB
+          </dd>
+        </div>
+        <div>
           <dt>{copy.betaOpsLabels.tokens}</dt>
           <dd>{(usage?.total_tokens ?? 0).toLocaleString()} tokens</dd>
         </div>
