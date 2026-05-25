@@ -353,6 +353,33 @@ test("run handler returns run detail and can cancel an unfinished run", async ()
   assert.equal(deps.calls.writes[1].body.status, "canceled");
 });
 
+test("run cancel replays a matching idempotent cancellation without duplicate side effects", async () => {
+  const deps = baseDeps({
+    runRecord: {
+      metadata: {
+        cancellation_idempotency_key: "cancel-key-1",
+        loop_slug: "idea-validation",
+      },
+      status: "canceled",
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await handlers.run(
+    { headers: { "idempotency-key": "cancel-key-1" }, method: "POST" },
+    {},
+    "run-1",
+    "cancel",
+  );
+
+  assert.equal(deps.calls.rateLimits.length, 0);
+  assert.equal(deps.calls.updatedRun, undefined);
+  assert.equal(deps.calls.receipts.length, 0);
+  assert.equal(deps.calls.audits.length, 0);
+  assert.equal(deps.calls.writes[0].body.idempotent, true);
+  assert.equal(deps.calls.writes[0].body.run.status, "canceled");
+});
+
 test("run handler retries failed runs through the worker path", async () => {
   const deps = baseDeps({
     runRecord: {
@@ -365,9 +392,15 @@ test("run handler retries failed runs through the worker path", async () => {
   });
   const handlers = createStartupOfficeWorkflowHandlers(deps);
 
-  await handlers.run({ method: "POST" }, {}, "run-1", "retry");
+  await handlers.run(
+    { headers: { "idempotency-key": "retry-key-2" }, method: "POST" },
+    {},
+    "run-1",
+    "retry",
+  );
 
   assert.equal(deps.calls.createdWorkerJob.metadata.retry, true);
+  assert.equal(deps.calls.updatedRun.patch.metadata.retry_idempotency_key, "retry-key-2");
   assert.equal(deps.calls.rateLimits[0].action, "loop_run");
   assert.equal(deps.calls.updatedRun.patch.metadata.skill_invocations[0].skill_name, "market-research");
   assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].skill_name, "market-research");
@@ -376,6 +409,35 @@ test("run handler retries failed runs through the worker path", async () => {
   assert.equal(deps.calls.audits[0][1], "startup_office.run_retry_queued");
   assert.equal(deps.calls.audits[0][4].worker_job_id, "job-1");
   assert.equal(deps.calls.writes[0].body.status, "approval_waiting");
+});
+
+test("run retry replays a matching idempotent retry without duplicate worker jobs", async () => {
+  const deps = baseDeps({
+    runRecord: {
+      metadata: {
+        loop_slug: "idea-validation",
+        retry_idempotency_key: "retry-key-1",
+      },
+      status: "failed",
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await handlers.run(
+    { headers: { "idempotency-key": "retry-key-1" }, method: "POST" },
+    {},
+    "run-1",
+    "retry",
+  );
+
+  assert.equal(deps.calls.rateLimits.length, 0);
+  assert.equal(deps.calls.updatedRun, undefined);
+  assert.equal(deps.calls.createdWorkerJob, undefined);
+  assert.equal(deps.calls.receipts.length, 0);
+  assert.equal(deps.calls.audits.length, 0);
+  assert.equal(deps.calls.writes[0].status, 200);
+  assert.equal(deps.calls.writes[0].body.idempotent, true);
+  assert.equal(deps.calls.writes[0].body.run.status, "failed");
 });
 
 test("approval action approves, promotes memory, records receipt, and audits", async () => {

@@ -61,6 +61,21 @@ for (const [relativePath, snippet, label] of [
     "loop run idempotency key persistence",
   ],
   [
+    "api/lib/startup-office/workflowHandlers.js",
+    "cancellation_idempotency_key: idempotencyKey",
+    "run cancel idempotency key persistence",
+  ],
+  [
+    "api/lib/startup-office/workflowHandlers.js",
+    "retry_idempotency_key: idempotencyKey",
+    "run retry idempotency key persistence",
+  ],
+  [
+    "api/lib/startup-office/workflowHandlers.js",
+    "writeIdempotentRunResponse",
+    "run mutation idempotent replay response",
+  ],
+  [
     "api/lib/startup-office/repositories.js",
     "err.status !== 409",
     "repository conflict fallback",
@@ -69,6 +84,16 @@ for (const [relativePath, snippet, label] of [
     "api/lib/startup-office/workflowHandlers.test.js",
     "loopRun replays an existing idempotent run without duplicate side effects",
     "workflow idempotency replay test",
+  ],
+  [
+    "api/lib/startup-office/workflowHandlers.test.js",
+    "run cancel replays a matching idempotent cancellation without duplicate side effects",
+    "run cancel idempotency replay test",
+  ],
+  [
+    "api/lib/startup-office/workflowHandlers.test.js",
+    "run retry replays a matching idempotent retry without duplicate worker jobs",
+    "run retry idempotency replay test",
   ],
   [
     "api/lib/startup-office/repositories.test.js",

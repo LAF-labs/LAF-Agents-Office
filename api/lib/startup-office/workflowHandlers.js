@@ -162,6 +162,9 @@ function createStartupOfficeWorkflowHandlers(deps) {
     const repository = startupOfficeRepository();
     const run = await repository.findRun(membership.team_id, runID);
     if (!run) throw createHTTPError(404, "run not found");
+    const rawBody = req.method === "POST" ? await readBody(req) : {};
+    const idempotencyKey = req.method === "POST" ? validation.idempotencyKey(req, rawBody) : "";
+    const runMetadata = objectValue(run.metadata);
 
     if (!action && req.method === "GET") {
       requirePermission(membership, "workspace:read");
@@ -182,6 +185,14 @@ function createStartupOfficeWorkflowHandlers(deps) {
     if (action === "cancel" && req.method === "POST") {
       requirePermission(membership, "memory:write_draft");
       if (["completed", "canceled"].includes(run.status)) {
+        if (
+          run.status === "canceled" &&
+          idempotencyKey &&
+          runMetadata.cancellation_idempotency_key === idempotencyKey
+        ) {
+          writeIdempotentRunResponse(res, run);
+          return;
+        }
         throw createHTTPError(409, `run is already ${run.status}`);
       }
       const now = nowISO();
@@ -203,8 +214,9 @@ function createStartupOfficeWorkflowHandlers(deps) {
       const updatedRun = await repository.updateRun(membership.team_id, run.id, {
         completed_at: now,
         metadata: {
-          ...objectValue(run.metadata),
+          ...runMetadata,
           canceled_by: membership.user_id,
+          cancellation_idempotency_key: idempotencyKey || "",
         },
         status: "canceled",
         summary: "Founder canceled the Startup Office run.",
@@ -229,12 +241,19 @@ function createStartupOfficeWorkflowHandlers(deps) {
 
     if (action === "retry" && req.method === "POST") {
       requirePermission(membership, "memory:write_draft");
+      if (
+        idempotencyKey &&
+        runMetadata.retry_idempotency_key === idempotencyKey
+      ) {
+        writeIdempotentRunResponse(res, run);
+        return;
+      }
       await enforceWorkflowRateLimit(membership, "loop_run");
       await enforceStartupOfficeRunLimit(membership.team_id);
       if (!["failed", "canceled"].includes(run.status)) {
         throw createHTTPError(409, `run is ${run.status}; only failed or canceled runs can be retried`);
       }
-      const body = validation.loopRunBody(await readBody(req));
+      const body = validation.loopRunBody(rawBody);
       const loop = await ensureStartupOfficeLoop(membership, run.loop_id || run.metadata?.loop_slug);
       const profile = await companyProfileSnapshot(membership.team_id, team, user);
       const objective = truncateText(body.objective || run.objective || loop.objective || "Retry this operating loop.", 2000);
@@ -247,8 +266,9 @@ function createStartupOfficeWorkflowHandlers(deps) {
         completed_at: null,
         inputs,
         metadata: {
-          ...objectValue(run.metadata),
+          ...runMetadata,
           approval_policy: approvalPolicy,
+          retry_idempotency_key: idempotencyKey || "",
           retry_requested_at: now,
           retry_requested_by: membership.user_id,
           skill_invocations: skillInvocations,
@@ -483,6 +503,16 @@ function createStartupOfficeWorkflowHandlers(deps) {
       receipt: null,
       run: null,
       status: "ok",
+    });
+  }
+
+  function writeIdempotentRunResponse(res, run) {
+    writeJSON(res, ["queued", "running"].includes(run.status) ? 202 : 200, {
+      idempotent: true,
+      receipt: null,
+      run: publicStartupOfficeRun(run),
+      status: run.status,
+      worker_job: null,
     });
   }
 

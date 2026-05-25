@@ -62,7 +62,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I021 | API | Core Startup Office loop mutations now use shared validation, but many route payloads remain handwritten. | route handlers |
 | SV-I022 | API | API response shapes are not generated from a shared schema. | web API types and serializers |
 | SV-I023 | API | Error responses are not consistently typed for clients and operators. | `HTTPError`, client unwraps |
-| SV-I024 | API | Core run, approval, and artifact paths now carry idempotency keys, but the remaining write surface still needs the same contract. | run creation routes |
+| SV-I024 | API | Core run creation, run retry/cancel, approval decisions, and worker artifact/approval paths now carry idempotency keys, but lower-risk object CRUD still needs the same contract. | run lifecycle routes |
 | SV-I025 | API | Pagination is inconsistent across business objects and messages. | `limit` handling |
 | SV-I026 | API | Filtering and sorting contracts are not documented or centrally tested. | repository query helpers |
 | SV-I027 | API | Large export endpoints risk becoming unbounded operational hazards. | `/startup-office/export` |
@@ -210,7 +210,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I169 | Portability | Wiki/company memory is not packaged for founder handoff. | memory pages |
 | SV-I170 | Portability | There is no escrow or backup story for paid customers. | ops |
 | SV-I171 | Reliability | Worker jobs now claim with leases and idempotent side effects, but exactly-once semantics still need concurrency and crash-recovery proof. | worker jobs |
-| SV-I172 | Reliability | Startup Office loop side effects are idempotency-keyed across direct and scheduled worker paths, but the remaining write surface still needs the same contract. | retry route |
+| SV-I172 | Reliability | Startup Office loop side effects and run lifecycle retries are idempotency-keyed across direct and scheduled worker paths, but exactly-once semantics still need deeper concurrency proof. | run lifecycle routes |
 | SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer and have admin retry/cancel APIs, but founder-facing recovery UI is not complete. | worker jobs |
 | SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
@@ -276,7 +276,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G030 | Add realistic seed reset. | Demo workspaces can be reset safely outside production. | admin test |
 | SV-G031 | Harden service-role boundaries. | Service role access is isolated behind repository functions. | code review gate |
 | SV-G032 | Add rate limits for expensive actions. | Runs, approvals, invites, exports, profile writes, admin recovery actions, support/deletion actions, asset upload intents, artifact actions, and operating-object writes are bounded. | `startup-office:rate-limits` |
-| SV-G033 | Add idempotency keys. | Retries cannot duplicate runs, approvals, or artifacts. | API tests |
+| SV-G033 | Add idempotency keys. | Retries cannot duplicate runs, run retries/cancellations, approvals, or artifacts. | `startup-office:idempotency` |
 | SV-G034 | Enforce body limits. | Oversized payloads are rejected before DB writes. | API tests |
 | SV-G035 | Add file upload controls. | Type, size, scan, and retention policies protect assets. | upload tests |
 | SV-G036 | Implement support access consent. | Owner-visible, expiring support sessions gate staff access. | policy tests |
@@ -510,13 +510,15 @@ the final release commit or when a shared invariant changes.
 - R3 now starts shared API validation. Startup Office loop creation and loop run
   payloads use `api/lib/startup-office/validation.js`, with release-gate tests
   for malformed object, policy, inputs, and defer fields.
-- R3 now starts the idempotency contract. Loop run requests accept
+- R3 now strengthens the idempotency contract. Loop run requests accept
   `Idempotency-Key` or `idempotency_key`, replay existing runs without duplicate
-  worker jobs or receipts, approval decisions replay matching decided approvals,
-  and the loop worker writes deterministic idempotency keys for artifacts and
-  approvals. Supabase migration `20260525050000_startup_office_idempotency_keys.sql`
-  adds non-empty unique indexes for runs, artifacts, and approvals, and the
-  schema gate verifies those indexes.
+  worker jobs or receipts, run cancel/retry requests replay matching lifecycle
+  mutations without duplicate receipts or worker jobs, approval decisions replay
+  matching decided approvals, and the loop worker writes deterministic
+  idempotency keys for artifacts and approvals. Supabase migration
+  `20260525050000_startup_office_idempotency_keys.sql` adds non-empty unique
+  indexes for runs, artifacts, and approvals, and the schema gate verifies those
+  indexes.
 - R5 now starts receipt immutability. Supabase migration
   `20260525060000_startup_office_receipt_append_only.sql` adds a database
   trigger that blocks receipt updates and requires
