@@ -26,6 +26,12 @@ const HOSTED_ACTION_RATE_LIMITS = Object.freeze([
   {
     limit: 20,
     method: "POST",
+    pattern: /^startup-office\/terms$/,
+    scope: "startup_office_terms_acceptance",
+  },
+  {
+    limit: 20,
+    method: "POST",
     pattern: /^invites$/,
     scope: "hosted_invite_create",
   },

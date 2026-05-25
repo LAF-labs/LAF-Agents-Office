@@ -14,11 +14,21 @@ const IDS = Object.freeze({
   alphaAsset: "30000000-0000-0000-0000-000000000001",
   alphaRun: "40000000-0000-0000-0000-000000000001",
   alphaTeam: "10000000-0000-0000-0000-000000000001",
+  alphaTerms: "50000000-0000-0000-0000-000000000001",
   alphaUser: "00000000-0000-0000-0000-00000000a001",
   betaAsset: "30000000-0000-0000-0000-000000000002",
   betaRun: "40000000-0000-0000-0000-000000000002",
   betaTeam: "10000000-0000-0000-0000-000000000002",
+  betaTerms: "50000000-0000-0000-0000-000000000002",
   betaUser: "00000000-0000-0000-0000-00000000b001",
+});
+const TERMS_VERSIONS = Object.freeze({
+  ai_use_version: "startup-office-ai-use-2026-05-26",
+  deletion_version: "startup-office-deletion-2026-05-26",
+  dpa_version: "startup-office-dpa-2026-05-26",
+  privacy_version: "startup-office-privacy-2026-05-26",
+  retention_version: "startup-office-retention-2026-05-26",
+  terms_version: "startup-office-beta-terms-2026-05-26",
 });
 
 main().catch((err) => {
@@ -213,6 +223,41 @@ function seedTenantFixtures(databaseURL) {
     values
       ('${IDS.alphaAsset}', '${IDS.alphaTeam}', 'Alpha asset', 'document', 'Alpha private asset', 'active', '${IDS.alphaUser}'),
       ('${IDS.betaAsset}', '${IDS.betaTeam}', 'Beta asset', 'document', 'Beta private asset', 'active', '${IDS.betaUser}');
+
+    insert into public.startup_office_terms_acceptances (
+      id,
+      team_id,
+      accepted_by,
+      terms_version,
+      privacy_version,
+      dpa_version,
+      ai_use_version,
+      retention_version,
+      deletion_version
+    )
+    values
+      (
+        '${IDS.alphaTerms}',
+        '${IDS.alphaTeam}',
+        '${IDS.alphaUser}',
+        '${TERMS_VERSIONS.terms_version}',
+        '${TERMS_VERSIONS.privacy_version}',
+        '${TERMS_VERSIONS.dpa_version}',
+        '${TERMS_VERSIONS.ai_use_version}',
+        '${TERMS_VERSIONS.retention_version}',
+        '${TERMS_VERSIONS.deletion_version}'
+      ),
+      (
+        '${IDS.betaTerms}',
+        '${IDS.betaTeam}',
+        '${IDS.betaUser}',
+        '${TERMS_VERSIONS.terms_version}',
+        '${TERMS_VERSIONS.privacy_version}',
+        '${TERMS_VERSIONS.dpa_version}',
+        '${TERMS_VERSIONS.ai_use_version}',
+        '${TERMS_VERSIONS.retention_version}',
+        '${TERMS_VERSIONS.deletion_version}'
+      );
   `);
 }
 
@@ -239,6 +284,9 @@ async function verifyRLS(baseURL) {
   const anonAssets = await rest(baseURL, "/startup_office_assets?select=id,name,team_id");
   assertRows(anonAssets, []);
 
+  const anonTerms = await rest(baseURL, "/startup_office_terms_acceptances?select=id,team_id,terms_version");
+  assertRows(anonTerms, []);
+
   const alphaAssets = await rest(baseURL, "/startup_office_assets?select=id,name,team_id", {
     token: alphaToken,
   });
@@ -253,6 +301,38 @@ async function verifyRLS(baseURL) {
     token: alphaToken,
   });
   assertRows(alphaProfiles, [{ name: "Alpha Inc", team_id: IDS.alphaTeam }]);
+
+  const alphaTerms = await rest(
+    baseURL,
+    "/startup_office_terms_acceptances?select=id,team_id,terms_version",
+    { token: alphaToken },
+  );
+  assertRows(alphaTerms, [
+    { id: IDS.alphaTerms, team_id: IDS.alphaTeam, terms_version: TERMS_VERSIONS.terms_version },
+  ]);
+
+  const betaTerms = await rest(
+    baseURL,
+    "/startup_office_terms_acceptances?select=id,team_id,terms_version",
+    { token: betaToken },
+  );
+  assertRows(betaTerms, [
+    { id: IDS.betaTerms, team_id: IDS.betaTeam, terms_version: TERMS_VERSIONS.terms_version },
+  ]);
+
+  const directTermsInsert = await rest(baseURL, "/startup_office_terms_acceptances", {
+    body: {
+      ...TERMS_VERSIONS,
+      accepted_by: IDS.alphaUser,
+      team_id: IDS.alphaTeam,
+      terms_version: "startup-office-beta-terms-direct-insert-test",
+    },
+    method: "POST",
+    token: alphaToken,
+  });
+  if (directTermsInsert.ok) {
+    throw new Error("authenticated user inserted terms acceptance directly despite RLS");
+  }
 
   const inserted = await rest(baseURL, "/startup_office_assets?select=id,name,team_id", {
     body: {
@@ -307,6 +387,13 @@ async function verifyRLS(baseURL) {
   }
   if (serviceAssets.length < 3) {
     throw new Error("service_role did not bypass RLS to see all seeded and inserted assets");
+  }
+
+  const serviceTerms = await rest(baseURL, "/startup_office_terms_acceptances?select=id,team_id", {
+    token: serviceToken,
+  });
+  if (!Array.isArray(serviceTerms) || serviceTerms.length < 2) {
+    throw new Error("service_role did not bypass RLS to see all terms acceptances");
   }
 
   const alphaRuns = await rest(baseURL, "/startup_office_runs?select=id,title,team_id", {

@@ -63,13 +63,28 @@ for (const [relativePath, snippet, label] of [
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
+    "startup_office_terms_acceptances",
+    "terms acceptance RLS exercise",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
     "crossTeamInsert",
     "cross-tenant write rejection",
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
+    "authenticated user inserted terms acceptance directly despite RLS",
+    "direct terms insert rejection",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
     "beta asset was modified by alpha user despite RLS",
     "cross-tenant update assertion",
+  ],
+  [
+    "scripts/verify-startup-office-rls-postgrest.cjs",
+    "service_role did not bypass RLS to see all terms acceptances",
+    "service-role terms bypass verification",
   ],
   [
     "scripts/verify-startup-office-rls-postgrest.cjs",
