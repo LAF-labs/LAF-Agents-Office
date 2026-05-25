@@ -101,7 +101,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I060 | AI worker | Loop tool permission manifests now exist, but live connector-level enforcement must stay tied to this contract as new tools are added. | `workers/startup-office/toolPolicy.js`, `startup-office:tool-policy` |
 | SV-I061 | Memory | Company memory is promising but not yet the source of truth for all company operations. | memory pages and wiki |
 | SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | hosted wiki and Startup Office |
-| SV-I063 | Memory | Retrieval quality is not measured against business-loop outcomes. | wiki tests vs loop tests |
+| SV-I063 | Memory | Retrieval quality now has a business-loop eval that tracks precision and recall against expected memory, asset, signal, and customer evidence for core loops. | `startup-office:retrieval-quality`, retrieval eval tests |
 | SV-I064 | Memory | Memory promotion diffs now flag canonical summary conflicts, expose founder-resolution status, and fail closed before unresolved promotion writes. | `startup-office:memory-conflicts`, wiki writer tests |
 | SV-I065 | Memory | Receipts can replay run inputs, prompt/tool policy, model cost, structured output, approval state, and memory diffs from related records; operator UI replay remains future hardening. | `startup-office:provenance-replay`, receipt tests |
 | SV-I066 | Memory | Contradiction handling is stronger in the wiki layer than in Startup Office memory. | wiki lint vs memory pages |
@@ -303,7 +303,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G057 | Show why-this-output everywhere. | Artifacts and approvals show memory, source, and assumption basis. | UI tests |
 | SV-G058 | Add memory export/import. | Founder can download and restore company memory. | export/import tests |
 | SV-G059 | Add memory permission checks. | Sensitive pages respect workspace roles. | RLS tests |
-| SV-G060 | Measure retrieval quality. | A business-loop retrieval eval tracks recall and precision. | eval report |
+| SV-G060 | Measure retrieval quality. | A business-loop retrieval eval tracks recall and precision. | `startup-office:retrieval-quality`, eval report |
 | SV-G061 | Map a founder operating week. | Loops cover the weekly cadence from strategy to growth review. | product spec |
 | SV-G062 | Implement scheduled loops. | Weekly operator review can run on schedule with approval policy. | worker test |
 | SV-G063 | Complete revision re-entry. | Revision notes restart worker generation with comparison. | API and worker tests |
