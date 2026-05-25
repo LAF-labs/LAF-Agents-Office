@@ -7,6 +7,7 @@ const {
   startupOfficePageRequest,
   startupOfficePageResult,
 } = require("./pagination");
+const { startupOfficeObjectListOptions } = require("./objectQueries");
 
 function createStartupOfficeObjectHandlers(deps) {
   const {
@@ -35,19 +36,7 @@ function createStartupOfficeObjectHandlers(deps) {
     if (req.method === "GET") {
       requirePermission(membership, "workspace:read");
       const page = startupOfficePageRequest(req.query, { createHTTPError });
-      const options = {
-        cursor: page.cursor,
-        limit: page.request_limit,
-        status: req.query?.status,
-      };
-      if (kind === "customers") {
-        options.loop_id = req.query?.loop_id || req.query?.discovery_loop_id;
-      }
-      if (kind === "signals") {
-        options.loop_id = req.query?.loop_id || req.query?.discovery_loop_id;
-        options.run_id = req.query?.run_id;
-        options.signal_type = req.query?.signal_type || req.query?.type;
-      }
+      const options = startupOfficeObjectListOptions(kind, req.query, { createHTTPError, page });
       const rows = await startupOfficeObjectRows(membership.team_id, kind, options);
       const { items, pagination } = startupOfficePageResult(rows, page);
       writeJSON(res, 200, { [definition.responseKey]: items, pagination });

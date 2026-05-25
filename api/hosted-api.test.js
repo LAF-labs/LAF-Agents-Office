@@ -334,8 +334,15 @@ test("Startup Office customers support discovery loop links and filters", () => 
   );
   assert.equal(customers.columns.includes("loop_id"), true);
 
+  const querySource = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectQueries.js"),
+    "utf8",
+  );
+  assert.match(querySource, /discovery_loop_id: "loop_id"/);
+  assert.match(querySource, /loop_id: "loop_id"/);
+  assert.match(querySource, /applyStartupOfficeObjectListQuery/);
+
   const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
-  assert.match(source, /query\.loop_id = `eq\.\$\{options\.loop_id\}`/);
   assert.match(source, /loop_id: body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
   assert.match(source, /patch\.loop_id = body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
 });
@@ -371,11 +378,17 @@ test("Startup Office signals support typed capture and reuse links", () => {
   assert.equal(signals.columns.includes("loop_id"), true);
   assert.equal(signals.columns.includes("run_id"), true);
 
+  const querySource = fs.readFileSync(
+    path.join(__dirname, "lib", "startup-office", "objectQueries.js"),
+    "utf8",
+  );
+  assert.match(querySource, /signal_type: "signal_type"/);
+  assert.match(querySource, /type: "signal_type"/);
+  assert.match(querySource, /run_id: "run_id"/);
+  assert.match(querySource, /loop_id: "loop_id"/);
+
   const source = fs.readFileSync(path.join(__dirname, "[...path].js"), "utf8");
   assert.match(source, /function startupOfficeSignalType/);
-  assert.match(source, /query\.signal_type = `eq\.\$\{options\.signal_type\}`/);
-  assert.match(source, /query\.loop_id = `eq\.\$\{options\.loop_id\}`/);
-  assert.match(source, /query\.run_id = `eq\.\$\{options\.run_id\}`/);
   assert.match(source, /loop_id: body\.loop_id \|\| body\.discovery_loop_id \|\| null/);
   assert.match(source, /run_id: body\.run_id \|\| null/);
   assert.match(source, /signal_type: startupOfficeSignalType\(body\.signal_type \|\| body\.type\)/);

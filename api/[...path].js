@@ -102,6 +102,9 @@ const {
 const {
   applyStartupOfficeCursor,
 } = require("./lib/startup-office/pagination");
+const {
+  applyStartupOfficeObjectListQuery,
+} = require("./lib/startup-office/objectQueries");
 const { authorizeStartupOfficeAccess } = require("./lib/startup-office/authorization");
 const {
   dispatchStartupOfficeRoute,
@@ -1509,17 +1512,10 @@ async function seedStartupOfficeWorkspace(membership, team, body) {
 async function startupOfficeObjectRows(teamID, kind, options = {}) {
   const definition = startupOfficeObjectDefinition(kind);
   const query = {
-    order: "created_at.desc",
     select: "*",
     team_id: `eq.${teamID}`,
   };
-  if (options.status) query.status = `eq.${options.status}`;
-  if (kind === "customers" && options.loop_id) query.loop_id = `eq.${options.loop_id}`;
-  if (kind === "signals") {
-    if (options.signal_type) query.signal_type = `eq.${options.signal_type}`;
-    if (options.loop_id) query.loop_id = `eq.${options.loop_id}`;
-    if (options.run_id) query.run_id = `eq.${options.run_id}`;
-  }
+  applyStartupOfficeObjectListQuery(query, kind, options);
   applyStartupOfficeCursor(query, options.cursor);
   if (options.limit) query.limit = String(clamp(Number(options.limit) || 100, 1, 1000));
   const rows = await safeStartupOfficeRest(definition.table, { query });

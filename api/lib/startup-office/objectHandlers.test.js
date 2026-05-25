@@ -244,6 +244,33 @@ test("signal collection handler filters and links reusable evidence", async () =
   assert.equal(deps.calls.audits[0][1], "startup_office.signals.created");
 });
 
+test("object collection handler accepts documented sort contracts", async () => {
+  const deps = baseDeps();
+  const handlers = createStartupOfficeObjectHandlers(deps);
+
+  await handlers.objectCollection(
+    { method: "GET", query: { sort: "name.asc", status: "active" } },
+    {},
+    "customers",
+  );
+
+  assert.deepEqual(deps.calls.rows[0].options, {
+    cursor: "",
+    limit: 101,
+    order: "name.asc",
+    status: "active",
+  });
+});
+
+test("object collection handler rejects undocumented sort contracts", async () => {
+  const handlers = createStartupOfficeObjectHandlers(baseDeps());
+
+  await assert.rejects(
+    () => handlers.objectCollection({ method: "GET", query: { sort: "email.asc" } }, {}, "customers"),
+    (err) => err.status === 400 && err.message.includes("sort must be one of"),
+  );
+});
+
 test("object collection handler returns cursor pagination metadata", async () => {
   let objectOptions = null;
   const deps = baseDeps({
@@ -272,7 +299,6 @@ test("object collection handler returns cursor pagination metadata", async () =>
     options: {
       cursor: "2026-05-25T04:00:00Z",
       limit: 3,
-      status: undefined,
     },
     teamID: "team-1",
   });

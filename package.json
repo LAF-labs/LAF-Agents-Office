@@ -62,6 +62,7 @@
     "startup-office:memory-import": "node scripts/check-startup-office-memory-import.cjs",
     "startup-office:model-failover": "node scripts/check-startup-office-model-failover.cjs",
     "startup-office:model-client:test": "node --test workers/startup-office/modelClient.test.js",
+    "startup-office:object-query-contracts": "node scripts/check-startup-office-object-query-contracts.cjs",
     "startup-office:ops-monitor": "node scripts/startup-office-ops-monitor.cjs",
     "startup-office:ops-monitor:test": "node --test scripts/startup-office-ops-monitor.test.cjs",
     "startup-office:outbox-worker": "node scripts/startup-office-outbox-worker.cjs",

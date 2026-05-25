@@ -64,7 +64,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I023 | API | Error responses are not consistently typed for clients and operators. | `HTTPError`, client unwraps |
 | SV-I024 | API | Core run creation, run retry/cancel, approval decisions, and worker artifact/approval paths now carry idempotency keys, but lower-risk object CRUD still needs the same contract. | run lifecycle routes |
 | SV-I025 | API | Pagination is inconsistent across business objects and messages. | `limit` handling |
-| SV-I026 | API | Filtering and sorting contracts are not documented or centrally tested. | repository query helpers |
+| SV-I026 | API | Operating-object filtering and sorting now use a central contract with whitelisted fields and release-gate coverage; wider generated API schemas remain future hardening. | `startup-office:object-query-contracts` |
 | SV-I027 | API | Export bundles now declare a row cap and possibly truncated collections, but very large workspaces still need streamed or async export. | `startup-office:export-coverage` |
 | SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
 | SV-I029 | API | Hosted command registries still coexist with legacy command concepts. | command routes and hooks |
@@ -728,6 +728,10 @@ the final release commit or when a shared invariant changes.
   `next_cursor`, reject malformed cursors, and keep existing arrays stable for
   older clients; `npm run startup-office:pagination` covers the helper,
   handlers, web contract, and release gate.
+- R2/R8 now centralizes operating-object filtering and sorting. Assets,
+  customers, metrics, and signals share `objectQueries.js` for allowed filters,
+  aliases, and sort fields; unsupported sorts fail with typed 400s, and
+  `npm run startup-office:object-query-contracts` pins the API contract.
 - R4/R8 now adds a deterministic red-team harness. `npm run startup-office:red-team`
   checks unsupported external claims, hallucinated citations, external-action
   claims, guaranteed outcomes, and regulated advice before loop outputs can
