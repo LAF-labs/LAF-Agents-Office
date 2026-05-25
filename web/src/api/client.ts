@@ -1278,6 +1278,17 @@ export interface UsageData {
   session?: { total_tokens: number };
   personal_cli?: { total_tokens?: number };
   laf_ai?: { limit_percent?: number; percent?: number };
+  startup_office?: {
+    billing_state?: string;
+    cost_usd?: number;
+    model_spend_cents?: number;
+    monthly_model_spend_cents?: number;
+    monthly_run_limit?: number;
+    plan?: string;
+    run_percent?: number;
+    runs?: number;
+    total_tokens?: number;
+  };
   agents?: Record<string, AgentUsage>;
   optimization?: UsageOptimizationStats;
 }

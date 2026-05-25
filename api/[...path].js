@@ -25,6 +25,9 @@ const {
   normalizeModelMode,
 } = require("./lib/hosted/modelAccess");
 const {
+  createHostedUsageHandlers,
+} = require("./lib/hosted/usageHandlers");
+const {
   createHostedSignupHandlers,
 } = require("./lib/hosted/signupHandlers");
 const { createServiceRoleAccessGuards } = require("./lib/hosted/serviceRoleAccess");
@@ -278,6 +281,13 @@ const HOSTED_MEMORY_HANDLERS = createHostedMemoryHandlers({
   startupOfficeRepository,
   truncateText,
   writeAuditEvent,
+  writeJSON,
+});
+
+const HOSTED_USAGE_HANDLERS = createHostedUsageHandlers({
+  requirePermission,
+  requireUser,
+  startupOfficeBetaOpsSnapshot,
   writeJSON,
 });
 
@@ -635,7 +645,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (path === "usage" && req.method === "GET") {
-      writeJSON(res, 200, { total: { cost_usd: 0, total_tokens: 0 } });
+      await HOSTED_USAGE_HANDLERS.usage(req, res);
       return;
     }
     if (path === "agent-logs" && req.method === "GET") {

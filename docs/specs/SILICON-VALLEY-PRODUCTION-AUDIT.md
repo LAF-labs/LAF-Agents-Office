@@ -601,6 +601,10 @@ and missing typed contracts.
   upsert approved `startup_office_memory_pages`, reads return namespace maps plus
   memory pages, writes require `memory:write_draft`, and `memory.note_saved`
   audit coverage is checked by the release gate.
+- R5/R8 now replaces the hosted `/usage` zero stub with
+  `api/lib/hosted/usageHandlers.js`. Usage totals, token counts, model-spend
+  percent, run count, plan, and billing state now come from the Startup Office
+  billing/usage snapshot and are covered by the beta release gate.
 - R3/R8 now applies Supabase migration
   `20260525130000_assert_pure_cloud_runtime_schema.sql` to the linked remote
   project. It purges retired customer-managed execution residue across columns,
