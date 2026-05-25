@@ -103,7 +103,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I062 | Memory | Wiki, notebook, memory pages, and operating objects overlap conceptually. | hosted wiki and Startup Office |
 | SV-I063 | Memory | Retrieval quality is not measured against business-loop outcomes. | wiki tests vs loop tests |
 | SV-I064 | Memory | Memory promotion lacks human-readable diff quality gates beyond basic preview. | approval metadata |
-| SV-I065 | Memory | Provenance exists but does not yet support full audit replay. | receipts and memory pages |
+| SV-I065 | Memory | Receipts can replay run inputs, prompt/tool policy, model cost, structured output, approval state, and memory diffs from related records; operator UI replay remains future hardening. | `startup-office:provenance-replay`, receipt tests |
 | SV-I066 | Memory | Contradiction handling is stronger in the wiki layer than in Startup Office memory. | wiki lint vs memory pages |
 | SV-I067 | Memory | Uploaded materials and assets are not part of retrieval. | asset upload pending |
 | SV-I068 | Memory | Company profile edits do not yet materialize into canonical memory with approvals. | profile API |
@@ -298,7 +298,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G052 | Add memory conflict resolution. | Contradictions require explicit resolution before promotion. | memory tests |
 | SV-G053 | Add memory freshness policy. | Stale claims surface for review by date and risk. | UI and API tests |
 | SV-G054 | Make profile edits memory-backed. | Profile changes create approved memory updates. | API tests |
-| SV-G055 | Add provenance replay. | Receipts can reconstruct inputs, prompt version, output, approval, and memory diffs. | receipt test |
+| SV-G055 | Add provenance replay. | Receipts can reconstruct inputs, prompt version, output, approval, and memory diffs. | `startup-office:provenance-replay`, receipt test |
 | SV-G056 | Add asset-grounded retrieval. | Uploaded business materials become retrievable loop context. | retrieval tests |
 | SV-G057 | Show why-this-output everywhere. | Artifacts and approvals show memory, source, and assumption basis. | UI tests |
 | SV-G058 | Add memory export/import. | Founder can download and restore company memory. | export/import tests |
