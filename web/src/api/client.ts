@@ -1,12 +1,6 @@
 /**
- * Typed LAFOfficeAPI client.
- * Mirrors every method from the legacy IIFE in index.legacy.html.
+ * Typed hosted LAF Office API client.
  */
-
-let brokerDirect = "http://localhost:7890";
-let useProxy = true;
-let token: string | null = null;
-const PUBLIC_BRIDGE_PAIR_COMMAND = "npx laf-bridge pair";
 
 export function normalizeHostedAPIBase(value = ""): string {
   const raw = String(value || "").trim();
@@ -65,65 +59,21 @@ export function isLocalhostRuntime(
 }
 
 export function supportsBrokerEvents(): boolean {
-  return isLocalhostRuntime();
+  return false;
 }
 
 export async function initApi(): Promise<void> {
-  if (!isLocalhostRuntime()) {
-    useProxy = true;
-    token = null;
-    return;
-  }
-  try {
-    const r = await fetch("/api-token", { credentials: "include" });
-    if (!r.ok) {
-      useProxy = true;
-      token = null;
-      return;
-    }
-    const contentType = r.headers.get("Content-Type") || "";
-    if (!contentType.toLowerCase().includes("application/json")) {
-      useProxy = true;
-      token = null;
-      return;
-    }
-    const data = await r.json();
-    const { broker_url: brokerURL, token: apiToken } = data;
-    token = apiToken;
-    if (brokerURL) {
-      brokerDirect = String(brokerURL).replace(/\/+$/, "");
-    }
-    useProxy = true;
-  } catch {
-    if (!isLocalhostRuntime()) {
-      useProxy = true;
-      token = null;
-      return;
-    }
-    useProxy = false;
-    try {
-      const r = await fetch(`${brokerDirect}/web-token`, {
-        credentials: "include",
-      });
-      const data = await r.json();
-      const { token: apiToken } = data;
-      token = apiToken;
-    } catch {
-      // broker unreachable — will fail on first request
-    }
-  }
+  return Promise.resolve();
 }
 
 // ── Internal helpers ──
 
 function baseURL(): string {
-  return useProxy ? hostedAPIBaseURL() : brokerDirect;
+  return hostedAPIBaseURL();
 }
 
 function authHeaders(): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (!useProxy && token) h.Authorization = `Bearer ${token}`;
-  return h;
+  return { "Content-Type": "application/json" };
 }
 
 function buildURL(
@@ -275,9 +225,7 @@ export async function del<T = unknown>(
 // ── SSE ──
 
 export function sseURL(path: string): string {
-  let url = baseURL() + path;
-  if (!useProxy && token) url += `?token=${encodeURIComponent(token)}`;
-  return url;
+  return baseURL() + path;
 }
 
 // ── Auth/session ──
@@ -323,15 +271,6 @@ export type WorkspacePermission =
   | "memory:write_canonical"
   | "wiki:read"
   | "model:use_laf"
-  | "bridge:pair_own"
-  | "bridge:read_own"
-  | "bridge:execute_own"
-  | "bridge:manage_own"
-  | "execution:plan_create"
-  | "execution:read"
-  | "execution:cancel"
-  | "execution:receipt_read"
-  | "execution:receipt_write"
   | "mcp:use_task_context"
   | "mcp:use_workspace_context"
   | "audit:read";
@@ -357,25 +296,10 @@ export interface PermissionsResponse {
   members: PermissionMember[];
 }
 
-export type ModelMode = "laf_model" | "my_bridge" | "record_only";
-
-const LEGACY_PERSONAL_BRIDGE_MODEL_MODES = new Set([
-  ["local", "cli"].join("_"),
-  ["team", "bridge"].join("_"),
-]);
+export type ModelMode = "laf_model" | "record_only";
 
 export function normalizeModelMode(value: unknown): ModelMode {
-  if (
-    typeof value === "string" &&
-    LEGACY_PERSONAL_BRIDGE_MODEL_MODES.has(value)
-  ) {
-    return "my_bridge";
-  }
-  if (
-    value === "laf_model" ||
-    value === "my_bridge" ||
-    value === "record_only"
-  ) {
+  if (value === "laf_model" || value === "record_only") {
     return value;
   }
   return "record_only";
@@ -385,133 +309,8 @@ export interface ModelAvailability {
   default_mode: ModelMode;
   allowed_modes: ModelMode[];
   laf_model: { available: boolean; reason?: string };
-  my_bridge: { available: boolean; reason?: string; runtimes?: string[] };
   record_only: { available: boolean; reason?: string };
   reason?: string;
-}
-
-export interface BridgeDevice {
-  id: string;
-  team_id: string;
-  user_id: string;
-  device_label: string;
-  device_kind: "desktop" | string;
-  platform?: string;
-  arch?: string;
-  bridge_version?: string;
-  public_key?: string;
-  capabilities?: Record<string, unknown>;
-  status: "online" | "offline" | "revoked" | string;
-  paired_at?: string;
-  last_seen_at?: string;
-  revoked_at?: string;
-  revoked_by?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface BridgeAvailability {
-  available: boolean;
-  default_device_id?: string;
-  device_count: number;
-  online_device_count: number;
-  runtimes?: string[];
-  reason?: string;
-}
-
-export interface BridgePairingStartResponse {
-  api_url: string;
-  pairing: {
-    expires_at: string;
-    setup_code: string;
-    team_id: string;
-  };
-  commands: {
-    pair: string;
-  };
-}
-
-export interface ExecutionPlan {
-  id: string;
-  team_id: string;
-  project_id?: string | null;
-  task_id?: string | null;
-  actor_user_id: string;
-  executor_user_id?: string | null;
-  device_id?: string | null;
-  mode: ModelMode;
-  provider: "codex" | "claude_code" | "laf_model" | string;
-  status:
-    | "pending"
-    | "dispatched"
-    | "acknowledged"
-    | "running"
-    | "completed"
-    | "failed"
-    | "cancelled"
-    | "expired"
-    | string;
-  prompt: string;
-  required_permissions?: WorkspacePermission[];
-  effective_permissions?: WorkspacePermission[];
-  context_refs?: unknown[];
-  policy?: Record<string, unknown>;
-  signature_alg?: string;
-  signature_key_id?: string;
-  payload_hash?: string;
-  signature?: string;
-  nonce?: string;
-  local_approval_status?: string;
-  expires_at?: string;
-  lease_until?: string | null;
-  dispatched_at?: string | null;
-  acknowledged_at?: string | null;
-  started_at?: string | null;
-  completed_at?: string | null;
-  cancel_requested_at?: string | null;
-  last_error?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ExecutionEvent {
-  id: string;
-  team_id: string;
-  plan_id: string;
-  task_id?: string | null;
-  sequence: number;
-  event_type: string;
-  payload: Record<string, unknown>;
-  redacted: boolean;
-  created_at?: string;
-}
-
-export interface ExecutionReceipt {
-  id: string;
-  team_id: string;
-  project_id?: string | null;
-  task_id?: string | null;
-  plan_id?: string | null;
-  actor_user_id?: string | null;
-  executor_user_id?: string | null;
-  device_id?: string | null;
-  mode: ModelMode;
-  provider: string;
-  provider_version?: string;
-  status: "completed" | "failed" | "cancelled" | string;
-  summary?: string;
-  changed_files?: unknown[];
-  test_results?: unknown[];
-  artifacts?: unknown[];
-  usage?: Record<string, unknown>;
-  started_at?: string | null;
-  completed_at?: string | null;
-  created_at?: string;
-}
-
-export interface ExecutionPlanRelayResult {
-  published: boolean;
-  error?: string;
 }
 
 export interface OrchestrationIntent {
@@ -579,83 +378,6 @@ export function updatePermissions(body: {
 
 export function getModelAvailability() {
   return get<ModelAvailability>("/model/availability");
-}
-
-export function getBridgeAvailability() {
-  return get<{
-    my_bridge: BridgeAvailability;
-    devices: BridgeDevice[];
-  }>("/bridge/availability");
-}
-
-export function getBridgeDevices() {
-  return get<{ devices: BridgeDevice[] }>("/bridge/devices");
-}
-
-function normalizeBridgePairingStartResponse(
-  value: BridgePairingStartResponse,
-): BridgePairingStartResponse {
-  return {
-    api_url: String(value?.api_url || ""),
-    commands: {
-      pair: PUBLIC_BRIDGE_PAIR_COMMAND,
-    },
-    pairing: {
-      expires_at: String(value?.pairing?.expires_at || ""),
-      setup_code: String(value?.pairing?.setup_code || ""),
-      team_id: String(value?.pairing?.team_id || ""),
-    },
-  };
-}
-
-export async function startBridgePairing(body: { api_url?: string } = {}) {
-  const response = await post<BridgePairingStartResponse>(
-    "/bridge/pairing/start",
-    body,
-  );
-  return normalizeBridgePairingStartResponse(response);
-}
-
-export function revokeBridgeDevice(deviceID: string) {
-  return post<{ device: BridgeDevice }>(
-    `/bridge/devices/${encodeURIComponent(deviceID)}/revoke`,
-    {},
-  );
-}
-
-export function createExecutionPlan(body: {
-  task_id: string;
-  message: string;
-  mode: Exclude<ModelMode, "record_only">;
-  provider?: "codex" | "claude_code" | "laf_model";
-  device_id?: string;
-  required_permissions?: WorkspacePermission[];
-  expires_in_seconds?: number;
-  policy?: Record<string, unknown>;
-}) {
-  return post<{ plan: ExecutionPlan; relay?: ExecutionPlanRelayResult }>(
-    "/execution/plans",
-    body,
-  );
-}
-
-export function getExecutionPlan(planID: string) {
-  return get<{ plan: ExecutionPlan; receipt?: ExecutionReceipt | null }>(
-    `/execution/plans/${encodeURIComponent(planID)}`,
-  );
-}
-
-export function cancelExecutionPlan(planID: string) {
-  return post<{ plan: ExecutionPlan; cancelled: boolean }>(
-    `/execution/plans/${encodeURIComponent(planID)}/cancel`,
-    {},
-  );
-}
-
-export function getExecutionPlanEvents(planID: string) {
-  return get<{ events: ExecutionEvent[] }>(
-    `/execution/plans/${encodeURIComponent(planID)}/events`,
-  );
 }
 
 export function routeOrchestrationIntent(body: {

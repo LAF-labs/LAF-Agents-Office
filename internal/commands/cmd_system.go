@@ -121,15 +121,15 @@ func cmdInit(ctx *SlashContext, args string) error {
 
 func cmdProvider(ctx *SlashContext, args string) error {
 	options := []PickerOption{
-		{Label: "Codex CLI", Value: "codex", Description: "Codex CLI through LAF Bridge"},
-		{Label: "Claude Code", Value: "claude-code", Description: "Claude Code CLI through LAF Bridge"},
+		{Label: "Codex", Value: "codex", Description: "Codex model provider"},
+		{Label: "Claude Code", Value: "claude-code", Description: "Claude Code model provider"},
 	}
 	if ctx.ShowPicker != nil {
-		ctx.ShowPicker("Switch default Bridge provider", options)
+		ctx.ShowPicker("Switch default AI provider", options)
 		return nil
 	}
 	var sb strings.Builder
-	sb.WriteString("Bridge providers:\n")
+	sb.WriteString("AI providers:\n")
 	for _, opt := range options {
 		sb.WriteString(fmt.Sprintf("  • %s — %s\n", opt.Label, opt.Description))
 	}

@@ -12,24 +12,18 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building,
-  Check,
   Copy,
   Key,
-  Laptop,
   PeopleTag,
   Refresh,
   SendMail,
   Settings as SettingsIcon,
-  Terminal,
   WarningTriangle,
 } from "iconoir-react";
 
 import {
   type AgentModelDefaults,
   type AuthUser,
-  type BridgeAvailability,
-  type BridgeDevice,
-  type BridgePairingStartResponse,
   type ConfigSnapshot,
   type ConfigUpdate,
   changeOwnPassword,
@@ -39,18 +33,14 @@ import {
   generateAgent,
   getAuthSession,
   getAuthUsers,
-  getBridgeAvailability,
   getConfig,
   getInvites,
   getOfficeMembers,
   getPermissions,
-  hostedAPIURLFromBrowser,
-  isLocalhostRuntime,
   type OfficeMember,
   type PermissionMember,
   resetWorkspace,
   shredWorkspace,
-  startBridgePairing,
   updateAuthUserRole,
   updateConfig,
   updateOfficeMember,
@@ -75,7 +65,6 @@ type SectionId =
   | "team"
   | "access"
   | "company"
-  | "bridge"
   | "keys"
   | "danger";
 
@@ -89,7 +78,6 @@ interface Section {
     | "settings.section.team"
     | "settings.section.access"
     | "settings.section.company"
-    | "settings.section.bridge"
     | "settings.section.keys"
     | "settings.section.danger";
 }
@@ -98,18 +86,11 @@ interface SectionGroup {
   labelKey:
     | "settings.group.workspace"
     | "settings.group.credentials"
-    | "settings.group.system"
     | "settings.group.advanced";
   items: Section[];
 }
 
 type TranslationFn = ReturnType<typeof useI18n>["t"];
-
-const LOCAL_RUNTIME_SECTION_IDS = new Set<SectionId>([
-  "bridge",
-  "danger",
-  "keys",
-]);
 
 const SECTION_GROUPS: SectionGroup[] = [
   {
@@ -132,10 +113,6 @@ const SECTION_GROUPS: SectionGroup[] = [
     items: [{ id: "keys", Icon: Key, nameKey: "settings.section.keys" }],
   },
   {
-    labelKey: "settings.group.system",
-    items: [{ id: "bridge", Icon: Laptop, nameKey: "settings.section.bridge" }],
-  },
-  {
     labelKey: "settings.group.advanced",
     items: [
       {
@@ -147,20 +124,8 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
 ];
 
-function visibleSectionGroupsForRuntime(
-  showLocalRuntimeSettings: boolean,
-): SectionGroup[] {
-  if (showLocalRuntimeSettings) return SECTION_GROUPS;
-  return SECTION_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter(
-      (item) => !LOCAL_RUNTIME_SECTION_IDS.has(item.id),
-    ),
-  })).filter((group) => group.items.length > 0);
-}
-
 function visibleSectionGroups(): SectionGroup[] {
-  return visibleSectionGroupsForRuntime(isLocalhostRuntime());
+  return SECTION_GROUPS;
 }
 
 function sectionIsVisible(section: string, groups: SectionGroup[]): boolean {
@@ -409,90 +374,6 @@ const styles = {
     lineHeight: 1.5,
     padding: "12px 0",
     marginBottom: 20,
-  } as const,
-  bridgeSetupDesc: {
-    color: "var(--text-secondary)",
-    fontSize: 13,
-    lineHeight: 1.5,
-    margin: "0 0 12px",
-  } as const,
-  bridgeStepRail: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
-    gap: 8,
-    marginBottom: 16,
-  } as const,
-  bridgeStep: (done: boolean, active: boolean) => ({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    minHeight: 38,
-    padding: "8px 0",
-    borderTop: "1px solid var(--border-light)",
-    borderBottom: active
-      ? "2px solid var(--accent)"
-      : "1px solid var(--border-light)",
-    color: done || active ? "var(--text-primary)" : "var(--text-tertiary)",
-    fontSize: 12,
-    fontWeight: active ? 700 : 600,
-  }),
-  bridgeStepMark: (done: boolean, active: boolean) => ({
-    width: 22,
-    height: 22,
-    flex: "0 0 22px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "50%",
-    border: `1px solid ${
-      done || active ? "var(--accent-border)" : "var(--border-light)"
-    }`,
-    background: done ? "var(--accent)" : "transparent",
-    color: done
-      ? "var(--accent-ink)"
-      : active
-        ? "var(--accent)"
-        : "var(--text-tertiary)",
-    fontSize: 11,
-    fontWeight: 700,
-  }),
-  bridgeHelpBox: {
-    display: "grid",
-    gap: 8,
-    padding: "12px 0",
-    marginBottom: 14,
-    borderTop: "1px solid var(--border-light)",
-    borderBottom: "1px solid var(--border-light)",
-  } as const,
-  bridgeHelpTitle: {
-    fontSize: 12,
-    fontWeight: 750,
-    color: "var(--text-primary)",
-  } as const,
-  bridgeHelpText: {
-    margin: 0,
-    color: "var(--text-secondary)",
-    fontSize: 12,
-    lineHeight: 1.5,
-  } as const,
-  bridgeStepList: {
-    display: "grid",
-    gap: 8,
-    margin: "0 0 14px",
-    paddingLeft: 18,
-    color: "var(--text-secondary)",
-    fontSize: 12,
-    lineHeight: 1.5,
-  } as const,
-  bridgeStepItem: {
-    paddingLeft: 2,
-  } as const,
-  bridgeActionRow: {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    alignItems: "center",
-    marginBottom: 14,
   } as const,
 };
 
@@ -768,29 +649,15 @@ interface SectionProps {
 function GeneralSection({ cfg, save }: SectionProps) {
   const { language, t } = useI18n();
   const setLanguage = useAppStore((s) => s.setLanguage);
-  const showLocalRuntimeSettings = isLocalhostRuntime();
-  const [provider, setProvider] = useState(cfg.llm_provider ?? "claude-code");
   const [teamLead, setTeamLead] = useState(cfg.team_lead_slug ?? "");
   const [maxConcurrent, setMaxConcurrent] = useState(
     cfg.max_concurrent_agents ? String(cfg.max_concurrent_agents) : "",
   );
-  const [format, setFormat] = useState(cfg.default_format ?? "text");
-  const [timeout, setTimeout] = useState(
-    cfg.default_timeout ? String(cfg.default_timeout) : "",
-  );
-  const [devUrl, setDevUrl] = useState(cfg.dev_url ?? "");
 
   const onSave = async () => {
     const patch: ConfigUpdate = {
       team_lead_slug: teamLead,
     };
-    if (showLocalRuntimeSettings) {
-      patch.llm_provider = provider as ConfigUpdate["llm_provider"];
-      patch.memory_backend = "markdown";
-      patch.default_format = format;
-      patch.dev_url = devUrl;
-      if (timeout) patch.default_timeout = parseInt(timeout, 10);
-    }
     if (maxConcurrent)
       patch.max_concurrent_agents = parseInt(maxConcurrent, 10);
     await save(patch);
@@ -800,28 +667,6 @@ function GeneralSection({ cfg, save }: SectionProps) {
     <div>
       <h2 style={styles.sectionTitle}>{t("settings.general.title")}</h2>
       <p style={styles.sectionDesc}>{t("settings.general.desc")}</p>
-
-      {showLocalRuntimeSettings ? (
-        <div style={styles.banner}>
-          <span style={{ fontSize: 14, flexShrink: 0 }}>{"\u26A0"}</span>
-          <div>
-            <strong>{t("settings.general.restartTitle")} </strong>
-            {t("settings.general.restartBody")}{" "}
-            <code
-              style={{
-                fontFamily: "var(--font-mono)",
-                padding: "1px 6px",
-                background: "var(--accent-bg)",
-                color: "var(--accent-strong)",
-                borderRadius: 3,
-              }}
-            >
-              laf-office shred
-            </code>{" "}
-            {t("settings.general.restartTail")}
-          </div>
-        </div>
-      ) : null}
 
       <div style={styles.groupTitle}>{t("settings.general.languageGroup")}</div>
       <Field
@@ -837,24 +682,6 @@ function GeneralSection({ cfg, save }: SectionProps) {
           <option value="ko">{t("language.korean")}</option>
         </select>
       </Field>
-
-      {showLocalRuntimeSettings ? (
-        <>
-          <div style={styles.groupTitle}>
-            {t("settings.general.runtimeGroup")}
-          </div>
-          <Field label={t("settings.general.provider")} hint="--provider">
-            <select
-              style={styles.input}
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as typeof provider)}
-            >
-              <option value="claude-code">Claude Code</option>
-              <option value="codex">Codex</option>
-            </select>
-          </Field>
-        </>
-      ) : null}
 
       <div style={{ ...styles.groupTitle, marginTop: 24 }}>
         {t("settings.general.agentsGroup")}
@@ -884,68 +711,9 @@ function GeneralSection({ cfg, save }: SectionProps) {
         />
       </Field>
 
-      {showLocalRuntimeSettings ? (
-        <>
-          <div style={{ ...styles.groupTitle, marginTop: 24 }}>
-            {t("settings.general.defaultsGroup")}
-          </div>
-          <Field label={t("settings.general.outputFormat")} hint="--format">
-            <select
-              style={styles.input}
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-            >
-              <option value="text">Text</option>
-              <option value="json">JSON</option>
-            </select>
-          </Field>
-          <Field
-            label={t("settings.general.timeout")}
-            hint={t("settings.general.timeoutHint")}
-          >
-            <input
-              style={styles.input}
-              type="number"
-              min={1000}
-              placeholder="120000"
-              value={timeout}
-              onChange={(e) => setTimeout(e.target.value)}
-            />
-          </Field>
-        </>
-      ) : null}
-
-      {showLocalRuntimeSettings ? (
-        <>
-          <div style={{ ...styles.groupTitle, marginTop: 24 }}>
-            {t("settings.general.developmentGroup")}
-          </div>
-          <Field
-            label={t("settings.general.devUrl")}
-            hint={t("settings.general.devUrlHint")}
-          >
-            <input
-              style={styles.input}
-              placeholder="http://localhost:7890"
-              value={devUrl}
-              onChange={(e) => setDevUrl(e.target.value)}
-            />
-          </Field>
-        </>
-      ) : null}
-
       <div style={{ marginTop: 24 }}>
         <SaveButton label={t("settings.general.save")} onSave={onSave} />
       </div>
-
-      {showLocalRuntimeSettings && cfg.config_path ? (
-        <div style={{ marginTop: 24 }}>
-          <div style={styles.groupTitle}>
-            {t("settings.general.configFile")}
-          </div>
-          <div style={styles.filePath}>{cfg.config_path}</div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1357,7 +1125,7 @@ function AgentMakerSection() {
       <p style={styles.sectionDesc}>{t("settings.agents.desc")}</p>
 
       <div style={styles.groupTitle}>{t("settings.agents.coreTeam")}</div>
-      <p style={styles.bridgeSetupDesc}>{t("settings.agents.modelDesc")}</p>
+      <p style={styles.sectionDesc}>{t("settings.agents.modelDesc")}</p>
       <div style={{ ...styles.emptyState, paddingTop: 2 }}>
         {members.map((member, index) => (
           <div
@@ -2235,379 +2003,6 @@ function KeysSection({ cfg, save }: SectionProps) {
 
 // ─── Danger Zone ────────────────────────────────────────────────────────
 
-const BRIDGE_PAIR_COMMAND_PREFIX = "npx laf-bridge pair";
-const BRIDGE_RUNTIME_LABELS: Record<string, string> = {
-  claude: "Claude Code",
-  "claude-code": "Claude Code",
-  codex: "Codex",
-};
-const BRIDGE_RUNTIME_DISPLAY_ORDER = ["Codex", "Claude Code"];
-
-function visibleBridgePairCommand(
-  pairing: BridgePairingStartResponse | null,
-): string {
-  if (!pairing) return "";
-  return BRIDGE_PAIR_COMMAND_PREFIX;
-}
-
-async function writeClipboardText(value: string) {
-  const writeText = globalThis.navigator?.clipboard?.writeText;
-  if (typeof writeText !== "function") {
-    throw new Error("clipboard unavailable");
-  }
-  await writeText.call(globalThis.navigator.clipboard, value);
-}
-
-function BridgeSection() {
-  const { t } = useI18n();
-  const [pairing, setPairing] = useState<BridgePairingStartResponse | null>(
-    null,
-  );
-  const bridgeQuery = useQuery({
-    queryKey: ["bridge-availability", "settings"],
-    queryFn: () => getBridgeAvailability(),
-    refetchInterval: 5_000,
-  });
-  const pairingMutation = useMutation({
-    mutationFn: () => startBridgePairing({ api_url: browserBridgeAPIURL() }),
-    onSuccess: async (result) => {
-      setPairing(result);
-      const command = visibleBridgePairCommand(result);
-      if (!command) {
-        showNotice(t("settings.bridge.codeReady"), "success");
-        return;
-      }
-      try {
-        await writeClipboardText(command);
-        showNotice(t("settings.bridge.commandReadyCopied"), "success");
-      } catch {
-        showNotice(t("settings.bridge.codeReady"), "success");
-      }
-    },
-    onError: (err) => {
-      showNotice(
-        err instanceof Error
-          ? err.message
-          : t("settings.bridge.generateFailed"),
-        "error",
-      );
-    },
-  });
-
-  const devices = bridgeQuery.data?.devices ?? [];
-  const bridge = preferredBridgeDevice(devices);
-  const connected = lafBridgeConnected(bridge);
-  const setupCommand = visibleBridgePairCommand(pairing);
-  const setupCode = pairing?.pairing.setup_code || "";
-  const runtimeLabels = bridgeRuntimeLabels(
-    bridge,
-    bridgeQuery.data?.my_bridge,
-  );
-
-  const copyCommand = async (
-    command: string,
-    successMessage = t("settings.bridge.commandCopied"),
-  ) => {
-    try {
-      await writeClipboardText(command);
-      showNotice(successMessage, "success");
-    } catch {
-      showNotice(t("settings.bridge.copyFailed"), "error");
-    }
-  };
-
-  return (
-    <div>
-      <h2 style={styles.sectionTitle}>{t("settings.bridge.title")}</h2>
-      <p style={styles.sectionDesc}>{t("settings.bridge.desc")}</p>
-
-      <Field
-        label={t("settings.bridge.status")}
-        hint={lafBridgeStatusHint(t, bridge)}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={styles.statusDot(lafBridgeStatusColor(bridge))} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {lafBridgeStatusLabel(t, bridge)}
-          </span>
-        </div>
-      </Field>
-
-      <Field label={t("settings.bridge.tools")}>
-        {runtimeLabels.length ? (
-          <div
-            style={{
-              alignItems: "center",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-            }}
-          >
-            <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
-              {t("settings.bridge.providerReady")}
-            </span>
-            {runtimeLabels.map((label) => (
-              <span
-                key={label}
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: 999,
-                  color: "var(--text-primary)",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: "3px 8px",
-                }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
-            {bridge
-              ? t("settings.bridge.providerMissing")
-              : t("settings.bridge.toolsUnknown")}
-          </span>
-        )}
-      </Field>
-
-      <div style={styles.groupTitle}>{t("settings.bridge.setupTitle")}</div>
-      <p style={styles.bridgeSetupDesc}>{t("settings.bridge.setupDesc")}</p>
-      <div style={styles.bridgeHelpBox}>
-        <div style={styles.bridgeHelpTitle}>
-          {t("settings.bridge.whyTitle")}
-        </div>
-        <p style={styles.bridgeHelpText}>{t("settings.bridge.whyBody")}</p>
-      </div>
-      <LafBridgeSetupProgress
-        connected={connected}
-        commandReady={Boolean(pairing)}
-        t={t}
-      />
-      {!connected ? (
-        <ol style={styles.bridgeStepList}>
-          <li style={styles.bridgeStepItem}>
-            {t("settings.bridge.helpOpenTerminal")}
-          </li>
-          <li style={styles.bridgeStepItem}>
-            {t("settings.bridge.helpCreateCopy")}
-          </li>
-          <li style={styles.bridgeStepItem}>
-            {t("settings.bridge.helpPasteEnter")}
-          </li>
-          <li style={styles.bridgeStepItem}>
-            {t("settings.bridge.helpReturn")}
-          </li>
-        </ol>
-      ) : null}
-      {!connected ? (
-        <div style={styles.bridgeActionRow}>
-          <button
-            type="button"
-            style={{
-              ...styles.primaryButton,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-            }}
-            onClick={() => pairingMutation.mutate()}
-            disabled={pairingMutation.isPending}
-          >
-            <Refresh width={14} height={14} />
-            {pairingMutation.isPending
-              ? t("settings.bridge.generating")
-              : t("settings.bridge.generate")}
-          </button>
-        </div>
-      ) : null}
-
-      {pairing && setupCommand && !connected ? (
-        <Field
-          label={t("settings.bridge.commandLabel")}
-          hint={t("settings.bridge.commandHint")}
-        >
-          <div style={{ display: "grid", gap: 8 }}>
-            <code style={styles.filePath}>{setupCommand}</code>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => copyCommand(setupCommand)}
-              style={{ justifySelf: "start" }}
-            >
-              <Terminal width={13} height={13} />
-              <Copy width={13} height={13} />
-              {t("settings.bridge.copyCommand")}
-            </button>
-          </div>
-        </Field>
-      ) : null}
-
-      {pairing && setupCode && !connected ? (
-        <Field
-          label={t("settings.bridge.codeLabel")}
-          hint={`${t("settings.bridge.codeHint")} ${t("settings.bridge.expires")} ${formatPairingExpiry(pairing.pairing.expires_at)}`}
-        >
-          <div style={{ display: "grid", gap: 8 }}>
-            <code style={styles.filePath}>{setupCode}</code>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() =>
-                copyCommand(setupCode, t("settings.bridge.codeCopied"))
-              }
-              style={{ justifySelf: "start" }}
-            >
-              <Copy width={13} height={13} />
-              {t("settings.bridge.copyCode")}
-            </button>
-          </div>
-        </Field>
-      ) : null}
-    </div>
-  );
-}
-
-function LafBridgeSetupProgress({
-  connected,
-  commandReady,
-  t,
-}: {
-  connected: boolean;
-  commandReady: boolean;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  const steps = [
-    {
-      done: commandReady || connected,
-      label: t("settings.bridge.stepCommand"),
-    },
-    {
-      done: connected,
-      label: t("settings.bridge.stepConnect"),
-    },
-    {
-      done: connected,
-      label: t("settings.bridge.stepReady"),
-    },
-  ];
-  const firstOpenIndex = steps.findIndex((step) => !step.done);
-
-  return (
-    <div style={styles.bridgeStepRail}>
-      {steps.map((step, index) => {
-        const active = index === firstOpenIndex || (connected && index === 2);
-        return (
-          <div
-            key={step.label}
-            style={styles.bridgeStep(step.done, active)}
-            aria-current={active ? "step" : undefined}
-          >
-            <span style={styles.bridgeStepMark(step.done, active)}>
-              {step.done ? <Check width={13} height={13} /> : index + 1}
-            </span>
-            <span>{step.label}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function preferredBridgeDevice(devices: BridgeDevice[]) {
-  const active = devices.filter((device) => device.status !== "revoked");
-  return (
-    active.find((device) => device.status === "online") ||
-    active.find((device) => device.status === "offline") ||
-    active[0]
-  );
-}
-
-function lafBridgeConnected(bridge?: BridgeDevice) {
-  return bridge?.status === "online";
-}
-
-function lafBridgeStatusLabel(t: TranslationFn, bridge?: BridgeDevice) {
-  if (lafBridgeConnected(bridge)) return t("settings.bridge.connected");
-  if (bridge?.status === "offline") {
-    return t("settings.bridge.needsAttention");
-  }
-  return t("settings.bridge.noBridge");
-}
-
-function lafBridgeStatusColor(bridge?: BridgeDevice) {
-  if (lafBridgeConnected(bridge)) return "var(--green)";
-  if (bridge?.status === "offline") {
-    return "var(--yellow)";
-  }
-  return "var(--text-tertiary)";
-}
-
-function lafBridgeStatusHint(t: TranslationFn, bridge?: BridgeDevice) {
-  if (bridge) return bridgeStatusHint(bridge);
-  return t("settings.bridge.optionalHint");
-}
-
-function bridgeStatusHint(bridge?: BridgeDevice) {
-  if (!bridge?.last_seen_at) return bridge?.device_label || "";
-  return `${bridge.device_label || bridge.id} · ${new Date(bridge.last_seen_at).toLocaleString()}`;
-}
-
-function bridgeRuntimeLabels(
-  bridge?: BridgeDevice,
-  availability?: BridgeAvailability,
-) {
-  const labels = new Set<string>();
-  const addRuntime = (value: unknown) => {
-    if (typeof value !== "string") return;
-    const label = BRIDGE_RUNTIME_LABELS[value.trim().toLowerCase()];
-    if (label) labels.add(label);
-  };
-
-  availability?.runtimes?.forEach(addRuntime);
-  const capabilities =
-    bridge?.capabilities &&
-    typeof bridge.capabilities === "object" &&
-    !Array.isArray(bridge.capabilities)
-      ? bridge.capabilities
-      : null;
-  const providerRuntimes = capabilities?.provider_runtimes;
-  if (Array.isArray(providerRuntimes)) {
-    providerRuntimes.forEach(addRuntime);
-  }
-  const cliDetails = capabilities?.cli_details;
-  if (
-    cliDetails &&
-    typeof cliDetails === "object" &&
-    !Array.isArray(cliDetails)
-  ) {
-    for (const [runtime, detail] of Object.entries(cliDetails)) {
-      if (
-        detail === true ||
-        (detail &&
-          typeof detail === "object" &&
-          !Array.isArray(detail) &&
-          (detail as { detected?: unknown }).detected === true)
-      ) {
-        addRuntime(runtime);
-      }
-    }
-  }
-
-  return BRIDGE_RUNTIME_DISPLAY_ORDER.filter((label) => labels.has(label));
-}
-
-function browserBridgeAPIURL() {
-  return hostedAPIURLFromBrowser();
-}
-
-function formatPairingExpiry(value: string) {
-  if (!value) return "";
-  return new Date(value).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 // dangerStyles lives next to the section because it's the only caller and the
 // warning palette shouldn't bleed into the rest of the app's styling surface.
 const dangerStyles = {
@@ -3034,20 +2429,14 @@ function SettingsSectionBody({
   save: (patch: ConfigUpdate) => Promise<void>;
   section: SectionId;
 }) {
-  const showLocalRuntimeSettings = isLocalhostRuntime();
   if (section === "profile") return <ProfileSection />;
   if (section === "general") return <GeneralSection cfg={data} save={save} />;
   if (section === "agents") return <AgentMakerSection />;
   if (section === "team") return <TeamSection />;
   if (section === "access") return <AccessControlSection />;
   if (section === "company") return <CompanySection cfg={data} save={save} />;
-  if (section === "bridge") return <BridgeSection />;
-  if (showLocalRuntimeSettings && section === "keys") {
-    return <KeysSection cfg={data} save={save} />;
-  }
-  if (showLocalRuntimeSettings && section === "danger") {
-    return <DangerZoneSection />;
-  }
+  if (section === "keys") return <KeysSection cfg={data} save={save} />;
+  if (section === "danger") return <DangerZoneSection />;
   return null;
 }
 
@@ -3142,13 +2531,9 @@ export function SettingsApp() {
 }
 
 export const __test__ = {
-  BRIDGE_PAIR_COMMAND_PREFIX,
   CODEX_MODEL_OPTIONS,
   DEFAULT_AGENT_MODEL_DEFAULTS,
   LAF_MODEL_OPTIONS,
-  bridgeRuntimeLabels,
   normalizeAgentModelDefaults,
-  visibleBridgePairCommand,
-  visibleSectionGroupsForRuntime,
-  writeClipboardText,
+  visibleSectionGroups,
 };

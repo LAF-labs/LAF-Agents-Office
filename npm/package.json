@@ -1,7 +1,7 @@
 {
   "name": "laf-office",
   "version": "0.0.0",
-  "description": "Hosted AI development workspace bootstrap with local Codex and Claude execution through LAF Bridge.",
+  "description": "Hosted AI Startup Office bootstrap for cloud-first founder operations.",
   "bin": {
     "laf-office": "bin/laf-office.js"
   },
@@ -41,15 +41,15 @@
   "keywords": [
     "laf-office",
     "ai-agents",
-    "laf-bridge",
     "hosted-workspace",
-    "ai-development",
+    "startup-office",
+    "ai-operations",
     "multi-agent",
     "agent-office",
     "claude-code",
     "codex",
-    "cli",
-    "project-management",
+    "company-os",
+    "growth",
     "office"
   ]
 }

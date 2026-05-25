@@ -16,7 +16,7 @@ create table if not exists public.channel_messages (
   scope text,
   visibility text,
   run_id text,
-  model_mode text check (model_mode in ('laf_model', 'my_bridge', 'record_only')),
+  model_mode text check (model_mode in ('laf_model', 'record_only')),
   metadata jsonb not null default '{}'::jsonb,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),

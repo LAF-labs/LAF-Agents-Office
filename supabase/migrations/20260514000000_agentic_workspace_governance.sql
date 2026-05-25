@@ -21,7 +21,7 @@ alter table public.tasks
   add column if not exists assignee_id text,
   add column if not exists human_owner_user_id uuid references auth.users(id) on delete set null,
   add column if not exists model_mode text not null default 'record_only'
-    check (model_mode in ('laf_model', 'my_bridge', 'record_only'));
+    check (model_mode in ('laf_model', 'record_only'));
 
 update public.tasks
 set assignee_id = coalesce(nullif(owner, ''), assignee_id),

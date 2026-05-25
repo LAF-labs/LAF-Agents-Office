@@ -3,21 +3,13 @@
   "private": true,
   "description": "Root-level dev tooling (secretlint, commitlint). The app itself is Go; web UI lives in ./web with its own package.json.",
   "scripts": {
-    "bridge-only:surface": "node scripts/check-bridge-only-surface.cjs",
     "beta:release-gate": "node scripts/startup-office-beta-release-gate.cjs",
     "closed-beta:goals": "node scripts/check-closed-beta-goals.cjs",
+    "production:audit": "node scripts/check-sv-production-audit.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "hosted-api:dev": "node scripts/hosted-api-dev-server.cjs",
-    "hosted-bridge:keys": "node scripts/generate-execution-plan-keys.cjs",
-    "hosted-bridge:ops:test": "node --test scripts/generate-execution-plan-keys.test.cjs scripts/hosted-bridge-deploy-inputs.test.cjs scripts/hosted-bridge-readiness.test.cjs scripts/hosted-bridge-release-gate.test.cjs scripts/hosted-env-preflight.test.cjs",
-    "hosted-bridge:preflight": "node scripts/hosted-env-preflight.cjs",
-    "hosted-bridge:readiness": "node scripts/hosted-bridge-readiness.cjs",
-    "hosted-bridge:release-gate": "node scripts/hosted-bridge-release-gate.cjs",
-    "hosted-bridge:schema": "node scripts/check-hosted-bridge-schema.cjs",
-    "hosted-bridge:smoke": "node scripts/hosted-bridge-smoke.cjs",
-    "hosted-bridge:smoke:integration": "node --test scripts/hosted-bridge-real-api-smoke.test.cjs",
-    "hosted-bridge:smoke:test": "node --test scripts/hosted-bridge-smoke.test.cjs",
-    "laf-bridge:package:test": "node --test npm-bridge/*.test.cjs"
+    "hosted-env:preflight": "node scripts/hosted-env-preflight.cjs",
+    "hosted-env:preflight:test": "node --test scripts/hosted-env-preflight.test.cjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",

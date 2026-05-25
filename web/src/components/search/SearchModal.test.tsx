@@ -30,7 +30,7 @@ describe("SearchModal command palette", () => {
         { name: "/ask", desc: "Ask the team lead", icon: "ask" },
         {
           name: "/provider",
-          desc: "Switch default Bridge provider",
+          desc: "Switch default AI provider",
           icon: "provider",
         },
         { name: "/tasks", desc: "Open task board", icon: "tasks" },

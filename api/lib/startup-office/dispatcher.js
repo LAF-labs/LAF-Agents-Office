@@ -1,0 +1,41 @@
+const {
+  STARTUP_OFFICE_ROUTE_CONTRACTS,
+} = require("./routes");
+
+async function dispatchStartupOfficeRoute({ handlers, path, req, res }) {
+  const route = matchStartupOfficeRoute(path, req.method);
+  if (!route) return false;
+  const handler = handlers[route.id];
+  if (typeof handler !== "function") {
+    throw new Error(`startup office handler missing: ${route.id}`);
+  }
+  await handler(req, res, ...route.args);
+  return true;
+}
+
+function matchStartupOfficeRoute(path, method) {
+  const normalizedPath = String(path || "").trim();
+  const normalizedMethod = String(method || "").toUpperCase();
+  for (const contract of STARTUP_OFFICE_ROUTE_CONTRACTS) {
+    if (!contract.methods.includes(normalizedMethod)) continue;
+    const args = contractArgs(contract, normalizedPath);
+    if (!args) continue;
+    return { args, contract, id: contract.id };
+  }
+  return null;
+}
+
+function contractArgs(contract, path) {
+  if (contract.paths?.includes(path)) return [];
+  if (!contract.pattern) return null;
+  const match = path.match(new RegExp(contract.pattern));
+  if (!match) return null;
+  return match.slice(1).map((value) =>
+    value === undefined ? "" : decodeURIComponent(value),
+  );
+}
+
+module.exports = {
+  dispatchStartupOfficeRoute,
+  matchStartupOfficeRoute,
+};

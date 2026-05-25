@@ -20,9 +20,9 @@ Status values: `Complete`, `In progress`, `Not started`, `Blocked`.
 | G005 | Complete | Remove Projects and Tasks from the primary app shell. | Startup Office surface guard checks navigation no longer exposes them. | `scripts/check-startup-office-surface.cjs` |
 | G006 | Complete | Make Growth Center the default authenticated route. | Router test and surface guard enforce Growth Center as first app. | `web/src/hooks/useHashRouter.test.ts` |
 | G007 | Complete | Reframe onboarding as company setup. | Onboarding copy creates a company workspace for memory, approvals, assets, and loops. | `web/src/components/onboarding/Wizard.tsx` |
-| G008 | Complete | Hide local Bridge setup from hosted settings. | Startup Office surface guard blocks Bridge copy in primary hosted surface. | `scripts/check-startup-office-surface.cjs` |
+| G008 | Complete | Hide local execution setup setup from hosted settings. | Startup Office surface guard blocks local execution setup copy in primary hosted surface. | `scripts/check-startup-office-surface.cjs` |
 | G009 | Complete | Add visible Growth Center launch loops. | UI renders launch loops, approval desk, pulse, and receipts. | `web/src/components/apps/SkillsApp.tsx` |
-| G010 | Complete | Add a Startup Office surface regression check. | Root script fails on project, task, Bridge, or GitHub copy in primary surface. | `package.json`, `scripts/check-startup-office-surface.cjs` |
+| G010 | Complete | Add a Startup Office surface regression check. | Root script fails on project, task, local execution setup, or GitHub copy in primary surface. | `package.json`, `scripts/check-startup-office-surface.cjs` |
 | G011 | Complete | Keep hosted auth and session foundation working. | Hosted API auth/session tests still pass. | `api/hosted-api.test.js` |
 | G012 | Complete | Keep team invite and membership foundation working. | Existing invite and membership handlers remain available for Notion-like workspaces. | `api/[...path].js` |
 | G013 | Complete | Add company profile database schema. | Supabase migration creates `company_profiles` with RLS. | `supabase/migrations/20260524000000_startup_office_domain.sql` |
@@ -61,7 +61,7 @@ Status values: `Complete`, `In progress`, `Not started`, `Blocked`.
 | G046 | Not started | Implement wiki materialization for loop receipts. | Completed runs write structured wiki entries and learning updates. | pending |
 | G047 | Not started | Implement skill invocation records for loops. | Each loop run records which skills were selected, why, and with what inputs. | pending |
 | G048 | Not started | Implement a cloud worker for loop execution. | Runs can progress beyond record-only drafts through a server-side worker. | pending |
-| G049 | Not started | Implement model provider abstraction for cloud execution. | Backend can call configured LLM providers without local Bridge or local CLIs. | pending |
+| G049 | Not started | Implement model provider abstraction for cloud execution. | Backend can call configured LLM providers without local execution setup or local CLIs. | pending |
 | G050 | Not started | Implement prompt templates for Idea Validation. | Idea Validation loop produces sourced ICP, assumptions, risks, and next evidence. | pending |
 | G051 | Not started | Implement prompt templates for Offer Package. | Offer Package loop produces offer, pricing hypothesis, objections, and sales copy. | pending |
 | G052 | Not started | Implement prompt templates for Customer Discovery. | Discovery loop produces target list criteria, interview guide, and follow-up drafts. | pending |

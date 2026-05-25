@@ -41,15 +41,6 @@ const (
 	permissionMemoryWriteCanonical    = "memory:write_canonical"
 	permissionWikiRead                = "wiki:read"
 	permissionModelUseLAF             = "model:use_laf"
-	permissionBridgePairOwn           = "bridge:pair_own"
-	permissionBridgeReadOwn           = "bridge:read_own"
-	permissionBridgeExecuteOwn        = "bridge:execute_own"
-	permissionBridgeManageOwn         = "bridge:manage_own"
-	permissionExecutionPlanCreate     = "execution:plan_create"
-	permissionExecutionRead           = "execution:read"
-	permissionExecutionCancel         = "execution:cancel"
-	permissionExecutionReceiptRead    = "execution:receipt_read"
-	permissionExecutionReceiptWrite   = "execution:receipt_write"
 	permissionMCPUseTaskContext       = "mcp:use_task_context"
 	permissionMCPUseWorkspaceContext  = "mcp:use_workspace_context"
 	permissionAuditRead               = "audit:read"
@@ -85,15 +76,6 @@ var workspacePermissions = []string{
 	permissionMemoryWriteCanonical,
 	permissionWikiRead,
 	permissionModelUseLAF,
-	permissionBridgePairOwn,
-	permissionBridgeReadOwn,
-	permissionBridgeExecuteOwn,
-	permissionBridgeManageOwn,
-	permissionExecutionPlanCreate,
-	permissionExecutionRead,
-	permissionExecutionCancel,
-	permissionExecutionReceiptRead,
-	permissionExecutionReceiptWrite,
 	permissionMCPUseTaskContext,
 	permissionMCPUseWorkspaceContext,
 	permissionAuditRead,
@@ -184,11 +166,6 @@ func rolePresetPermissions(role string) []string {
 			permissionMemoryPromote,
 			permissionWikiRead,
 			permissionModelUseLAF,
-			permissionBridgeExecuteOwn,
-			permissionExecutionPlanCreate,
-			permissionExecutionRead,
-			permissionExecutionCancel,
-			permissionExecutionReceiptRead,
 			permissionMCPUseTaskContext,
 			permissionMCPUseWorkspaceContext,
 		}
@@ -207,14 +184,6 @@ func rolePresetPermissions(role string) []string {
 			permissionMemoryRead,
 			permissionMemoryWriteDraft,
 			permissionWikiRead,
-			permissionBridgePairOwn,
-			permissionBridgeReadOwn,
-			permissionBridgeExecuteOwn,
-			permissionBridgeManageOwn,
-			permissionExecutionPlanCreate,
-			permissionExecutionRead,
-			permissionExecutionCancel,
-			permissionExecutionReceiptRead,
 			permissionMCPUseTaskContext,
 		}
 	case "viewer":
@@ -223,7 +192,6 @@ func rolePresetPermissions(role string) []string {
 			permissionSkillRead,
 			permissionMemoryRead,
 			permissionWikiRead,
-			permissionExecutionReceiptRead,
 		}
 	default:
 		return rolePresetPermissions("member")
@@ -331,8 +299,6 @@ func (b *Broker) modelModeAvailableLocked(r *http.Request, mode string) (bool, s
 			return false, "permission required: " + permissionModelUseLAF
 		}
 		return true, ""
-	case "my_bridge":
-		return false, "no paired LAF Bridge detected"
 	default:
 		return true, ""
 	}
@@ -509,27 +475,20 @@ func (b *Broker) handleModelAvailability(w http.ResponseWriter, r *http.Request)
 	} else if !canUseLAF {
 		laf.Reason = "permission required: " + permissionModelUseLAF
 	}
-	myBridge := modelAvailabilityMode{Available: false, Reason: "no paired LAF Bridge detected"}
 	record := modelAvailabilityMode{Available: true, Reason: "records chat without agent execution"}
 
 	defaultMode := "record_only"
 	if laf.Available {
 		defaultMode = "laf_model"
-	} else if myBridge.Available {
-		defaultMode = "my_bridge"
 	}
 	allowed := []string{"record_only"}
 	if laf.Available {
 		allowed = append([]string{"laf_model"}, allowed...)
 	}
-	if myBridge.Available {
-		allowed = append(allowed, "my_bridge")
-	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"default_mode":  defaultMode,
 		"allowed_modes": allowed,
 		"laf_model":     laf,
-		"my_bridge":     myBridge,
 		"record_only":   record,
 		"reason":        "DB billing is used by hosted API; local broker uses environment fallback.",
 	})

@@ -23,7 +23,7 @@ The product should feel less like "AI agents for code" and more like:
 > One founder controlling a cloud AI company of 50 specialized employees.
 
 Development remains one department, but it is no longer the product center. The
-primary customer should not need a terminal, local bridge, repo checkout, Claude
+primary customer should not need a terminal, local execution setup, repo checkout, Claude
 Code setup, Codex setup, or external automation stack.
 
 The previous project/task workflow is not carried forward. Projects, task
@@ -97,7 +97,7 @@ but the product language should be `account`, `workspace`, `teammate`, and
 - Any teammate can invite another teammate into the workspace unless later
   workspace policy restricts invitations.
 - No primary onboarding path requires local commands, local files, or pairing.
-- No LAF Bridge requirement for core business workflows.
+- No local pairing requirement for core business workflows.
 - Business memory, documents, campaigns, customer records, operating records,
   assets, and decisions live inside LAF.
 - Project and task-board workflows are removed from the primary product.
@@ -109,7 +109,7 @@ but the product language should be `account`, `workspace`, `teammate`, and
 
 ### Must Not Be True
 
-- Do not position LAF as another coding IDE or local agent runner.
+- Do not position LAF as another coding IDE or local agent runtime.
 - Do not require users to understand models, prompts, local runtimes, or
   automation graphs.
 - Do not make the MVP depend on Gmail, Notion, Slack, HubSpot, Zapier, Linear,
@@ -202,20 +202,21 @@ departments:
 
 ## What We Remove From The Center
 
-### LAF Bridge
+### Local Execution
 
-Bridge should not be the default product spine.
+Local execution is not part of the default product spine.
 
 Near-term treatment:
 
-- Move Bridge to advanced/developer-only docs.
-- Remove Bridge from primary homepage, onboarding, and business-workflow copy.
-- Keep Bridge code available only as a legacy or advanced execution adapter
+- Keep the primary product cloud-only.
+- Remove local execution setup from homepage, onboarding, and business-workflow
+  copy.
+- Keep local execution setup code available only as a legacy or advanced execution adapter
   until the pure-cloud execution path replaces it.
 
 Long-term treatment:
 
-- Deprecate Bridge from the main product unless a specific high-value customer
+- Deprecate local execution setup from the main product unless a specific high-value customer
   segment demands self-hosted execution.
 
 ### Local Development Workflow
@@ -321,13 +322,13 @@ Keep the hosted API and database as the core product state owner:
 
 ### Execution Plane
 
-Replace Bridge-first execution with cloud workers:
+Replace local execution setup-first execution with cloud workers:
 
 - Agent job queue
 - Model broker
 - Tool sandbox
 - Artifact generator
-- Scheduled job runner
+- Scheduled job worker
 - Approval gate executor
 - Receipt writer
 
@@ -375,7 +376,7 @@ Work:
   controlled.
 - Remove project/task workflow from the new product model.
 - Lock product language to Notion-like accounts and workspaces.
-- Remove Bridge from primary marketing and onboarding copy.
+- Remove local execution setup from primary marketing and onboarding copy.
 - Define company-first information architecture around Growth Center, loops,
   approvals, assets, customers, metrics, and wiki.
 - Define teammate invitation and workspace membership behavior.
@@ -385,7 +386,7 @@ Work:
 
 Verification:
 
-- Homepage no longer leads with Codex, Claude Code, Bridge, or local CLI.
+- Homepage no longer leads with Codex, Claude Code, local execution setup, or local CLI.
 - README describes cloud startup operations as the main product.
 - New onboarding creates a default workspace for the account.
 - A workspace member can invite another person as a teammate.
@@ -417,13 +418,13 @@ Verification:
 
 ### Phase 3: Cloud Agent Execution
 
-Goal: make core workflows run without local bridge or developer setup.
+Goal: make core workflows run without local execution setup or developer setup.
 
 Work:
 
 - Add cloud job queue.
 - Add model routing and budget controls.
-- Add scheduled work runner.
+- Add scheduled cloud work dispatcher.
 - Add receipt and audit log writer.
 - Add sandboxed artifact generation.
 - Add cloud Builder department for product/mock/site generation.
@@ -499,7 +500,7 @@ Build:
 Do not build yet:
 
 - External SaaS integrations
-- Local runner
+- Local runtime
 - Project/task Kanban
 - Full email sending
 - Paid ads execution

@@ -3,7 +3,6 @@
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
-  type ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -17,15 +16,8 @@ import {
 import { NavArrowLeft, Plus } from "iconoir-react";
 
 import {
-  createExecutionPlan,
   createProject,
   createTask,
-  type ExecutionEvent,
-  type ExecutionPlan,
-  type ExecutionReceipt,
-  getBridgeAvailability,
-  getExecutionPlan,
-  getExecutionPlanEvents,
   getOfficeTasks,
   getProjects,
   getThreadMessages,
@@ -39,17 +31,14 @@ import {
   updateProject,
   updateTask,
 } from "../../api/client";
-import { subscribeExecutionPlanEvents } from "../../api/executionEvents";
 import { type OfficeMember, useOfficeMembers } from "../../hooks/useMembers";
 import { formatTime } from "../../lib/format";
 import { type I18nKey, useI18n } from "../../lib/i18n";
 import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
 import { cn } from "../../lib/utils";
 import { type Language, useAppStore } from "../../stores/app";
-import { ModelModeToggle } from "../ModelModeToggle";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
-import { confirm } from "../ui/ConfirmDialog";
 import {
   Card,
   CardContent,
@@ -77,7 +66,6 @@ import {
   TableRow,
 } from "../ui/table";
 import { Textarea } from "../ui/textarea";
-import { ProjectBridgeWorkspacePanel } from "./tasks/ProjectBridgeWorkspacePanel";
 import { ProjectTaskKanban } from "./tasks/ProjectTaskKanban";
 import {
   agentLabel,
@@ -97,7 +85,7 @@ const TASK_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 const TASK_PENDING_REPLY_TIMEOUT_MS = 90_000;
 const HUMAN_SLUG = "human";
 const DEFAULT_AGENT = "ceo";
-const DEFAULT_MODEL_MODE: ModelMode = "record_only";
+const DEFAULT_MODEL_MODE: ModelMode = "laf_model";
 
 type ProjectCreatorState = ReturnType<typeof useProjectCreator>;
 type TaskCreatorState = ReturnType<typeof useTaskCreator>;
@@ -111,17 +99,6 @@ type ProjectTaskCounts = {
   waiting: number;
 };
 type ProjectSaveState = "idle" | "saving" | "saved" | "error";
-type BridgeSignalState =
-  | "connected"
-  | "loading"
-  | "no_bridge"
-  | "queued"
-  | "running"
-  | "stale";
-type BridgeSignal = {
-  labelKey: I18nKey;
-  state: BridgeSignalState;
-};
 type ProjectInfoDraft = {
   additionalInfo: string;
   code: string;
@@ -214,23 +191,6 @@ function projectLifecycleLabelKey(status: ProjectLifecycle): I18nKey {
     case "not_started":
       return "tasks.projectStatus.notStarted";
   }
-}
-
-function bridgeSignalFromAvailability(
-  availability: Awaited<ReturnType<typeof getBridgeAvailability>> | undefined,
-  isLoading: boolean,
-): BridgeSignal {
-  if (isLoading && !availability) {
-    return { labelKey: "tasks.bridgeChecking", state: "loading" };
-  }
-  const devices = availability?.devices ?? [];
-  if (devices.some((device) => device.status === "online")) {
-    return { labelKey: "tasks.bridgeConnected", state: "connected" };
-  }
-  if (devices.some((device) => device.status === "offline")) {
-    return { labelKey: "tasks.bridgeStale", state: "stale" };
-  }
-  return { labelKey: "tasks.bridgeNoCapable", state: "no_bridge" };
 }
 
 function projectLoadMessage(
@@ -337,80 +297,6 @@ function taskChannel(task: Task, project: Project): string {
 
 function normalizeTaskModelMode(mode?: string | null): ModelMode {
   return normalizeModelMode(mode);
-}
-
-function isBridgeExecutionMode(mode: ModelMode): boolean {
-  return mode === "my_bridge";
-}
-
-function bridgeProviderFromRuntimes(
-  runtimes?: string[],
-): "codex" | "claude_code" {
-  const normalized = new Set(
-    (runtimes ?? []).map((runtime) =>
-      runtime.trim().toLowerCase().replace(/_/g, "-"),
-    ),
-  );
-  if (normalized.has("codex")) return "codex";
-  if (normalized.has("claude-code") || normalized.has("claude")) {
-    return "claude_code";
-  }
-  return "codex";
-}
-
-function executionPlanIsTerminal(plan?: ExecutionPlan | null): boolean {
-  return ["completed", "failed", "cancelled", "expired"].includes(
-    String(plan?.status || ""),
-  );
-}
-
-function eventPayloadPreview(event: ExecutionEvent): string {
-  const payload = event.payload || {};
-  for (const key of ["summary", "message", "line", "text", "error"]) {
-    const value = payload[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  try {
-    return JSON.stringify(payload);
-  } catch {
-    return "";
-  }
-}
-
-function receiptArtifacts(receipt: ExecutionReceipt | null): Array<{
-  title: string;
-  type: string;
-  url: string;
-}> {
-  return (Array.isArray(receipt?.artifacts) ? receipt.artifacts : [])
-    .map((artifact) =>
-      artifact && typeof artifact === "object"
-        ? (artifact as Record<string, unknown>)
-        : {},
-    )
-    .map((artifact) => ({
-      title: String(
-        artifact.title || artifact.type || artifact.url || "",
-      ).trim(),
-      type: String(artifact.type || "").trim(),
-      url: String(artifact.url || artifact.href || "").trim(),
-    }))
-    .filter((artifact) => artifact.url);
-}
-
-function receiptChangedFiles(receipt: ExecutionReceipt | null): Array<{
-  path: string;
-  status: string;
-}> {
-  return (Array.isArray(receipt?.changed_files) ? receipt.changed_files : [])
-    .map((file) =>
-      file && typeof file === "object" ? (file as Record<string, unknown>) : {},
-    )
-    .map((file) => ({
-      path: String(file.path || "").trim(),
-      status: String(file.status || "").trim(),
-    }))
-    .filter((file) => file.path);
 }
 
 function assignmentAck(t: TranslationFn): string {
@@ -1591,16 +1477,6 @@ function ProjectDetailView({
   const counts = projectTaskCounts(tasks);
   const lifecycle = projectLifecycle(project, counts);
   const projectInfoEditor = useProjectInfoEditor(project, queryClient, t);
-  const bridgeAvailabilityQuery = useQuery({
-    queryKey: ["bridge-availability", project.id],
-    queryFn: () => getBridgeAvailability(),
-    refetchInterval: TASK_REFETCH_MS,
-    staleTime: 5_000,
-  });
-  const bridgeSignal = bridgeSignalFromAvailability(
-    bridgeAvailabilityQuery.data,
-    bridgeAvailabilityQuery.isLoading,
-  );
   const openTaskDraft = () => {
     onCloseTask();
     taskCreator.handleOpenTaskDraft();
@@ -1613,13 +1489,6 @@ function ProjectDetailView({
   return (
     <main className="project-app project-detail-app">
       <ProjectDetailHeader
-        bridgeWorkspace={
-          <ProjectBridgeWorkspacePanel
-            project={project}
-            bridgeSignal={bridgeSignal}
-            t={t}
-          />
-        }
         codeLocked={tasks.length > 0}
         editor={projectInfoEditor}
         project={project}
@@ -1631,7 +1500,6 @@ function ProjectDetailView({
           counts={counts}
           isStatsReady={isStatsReady}
           language={language}
-          bridgeSignal={bridgeSignal}
           status={lifecycle}
           t={t}
           onCreateTask={openTaskDraft}
@@ -1685,14 +1553,12 @@ function projectInfoSaveLabel(
 }
 
 function ProjectDetailHeader({
-  bridgeWorkspace,
   codeLocked,
   editor,
   project,
   t,
   onBack,
 }: {
-  bridgeWorkspace: ReactNode;
   codeLocked: boolean;
   editor: ReturnType<typeof useProjectInfoEditor>;
   project: Project;
@@ -1756,7 +1622,6 @@ function ProjectDetailHeader({
       </div>
       {isInfoExpanded ? (
         <ProjectInfoPanel
-          bridgeWorkspace={bridgeWorkspace}
           codeLocked={codeLocked}
           editor={editor}
           t={t}
@@ -1767,7 +1632,6 @@ function ProjectDetailHeader({
 }
 
 function ProjectTaskToolbar({
-  bridgeSignal,
   counts,
   isStatsReady,
   language,
@@ -1775,7 +1639,6 @@ function ProjectTaskToolbar({
   t,
   onCreateTask,
 }: {
-  bridgeSignal: BridgeSignal;
   counts: ProjectTaskCounts;
   isStatsReady: boolean;
   language: Language;
@@ -1795,15 +1658,6 @@ function ProjectTaskToolbar({
               ? countLabel(counts.total, "task", "tasks", "업무", language)
               : t("tasks.loadingTasks")}
           </span>
-          <span
-            className={cn(
-              "project-inline-status",
-              "is-bridge",
-              `is-bridge-${bridgeSignal.state}`,
-            )}
-          >
-            {t(bridgeSignal.labelKey)}
-          </span>
         </div>
         <Button
           type="button"
@@ -1822,12 +1676,10 @@ function ProjectTaskToolbar({
 }
 
 function ProjectInfoPanel({
-  bridgeWorkspace,
   codeLocked,
   editor,
   t,
 }: {
-  bridgeWorkspace: ReactNode;
   codeLocked: boolean;
   editor: ReturnType<typeof useProjectInfoEditor>;
   t: TranslationFn;
@@ -1900,7 +1752,6 @@ function ProjectInfoPanel({
             />
           </label>
         </div>
-        {bridgeWorkspace}
         <label className="project-info-field" htmlFor="project-info-summary">
           <span>{t("tasks.projectInfoSummary")}</span>
           <Textarea
@@ -2332,69 +2183,17 @@ function TaskDetailSection({
   );
 }
 
-function taskBridgeBlocker({
-  bridgeReason,
-  bridgeAvailable,
-  hasManagedCheckout,
-  hasTargetDevice,
-  isLoading,
-  modelMode,
-  t,
-}: {
-  bridgeAvailable: boolean;
-  bridgeReason?: string;
-  hasManagedCheckout: boolean;
-  hasTargetDevice: boolean;
-  isLoading: boolean;
-  modelMode: ModelMode;
-  t: TranslationFn;
-}): string {
-  if (!isBridgeExecutionMode(modelMode)) return "";
-  if (isLoading) return t("tasks.bridgeChecking");
-  if (!bridgeAvailable) return taskBridgeUnavailableReason(bridgeReason, t);
-  if (hasManagedCheckout) {
-    return hasTargetDevice ? "" : t("tasks.bridgeUnavailable");
-  }
-  return t("tasks.bridgeNoBindingReason");
-}
-
-function taskBridgeUnavailableReason(
-  bridgeReason: string | undefined,
-  t: TranslationFn,
-): string {
-  switch (bridgeReason?.trim()) {
-    case "no paired LAF Bridge detected":
-      return t("tasks.bridgeNoPairedDevice");
-    case "no online LAF Bridge detected":
-      return t("tasks.bridgeNoOnlineDevice");
-    case "no supported local CLI detected":
-    case "LAF Bridge has no supported local CLI detected":
-      return t("tasks.bridgeNoLocalCLI");
-    case "permission required: bridge:execute_own":
-      return t("tasks.bridgePermissionRequired");
-    default:
-      return t("tasks.bridgeUnavailable");
-  }
-}
-
 function taskRouteHint({
-  bridgeBlocker,
   commentTargets,
   instruction,
   members,
-  modelMode,
   t,
 }: {
-  bridgeBlocker: string;
   commentTargets: string[];
   instruction: string;
   members: OfficeMember[];
-  modelMode: ModelMode;
   t: TranslationFn;
 }): string {
-  if (isBridgeExecutionMode(modelMode)) {
-    return bridgeBlocker || t("tasks.bridgeReadyToRun");
-  }
   if (!instruction.trim() || commentTargets.length === 0) {
     return t("tasks.mentionHint");
   }
@@ -2404,13 +2203,11 @@ function taskRouteHint({
 }
 
 function taskComposerStatusText({
-  modelMode,
   routeHint,
   sendError,
   sent,
   t,
 }: {
-  modelMode: ModelMode;
   routeHint: string;
   sendError: string | null;
   sent: boolean;
@@ -2418,135 +2215,7 @@ function taskComposerStatusText({
 }): string {
   if (sendError) return sendError;
   if (!sent) return routeHint;
-  return isBridgeExecutionMode(modelMode)
-    ? t("tasks.bridgePlanCreated")
-    : t("tasks.sent");
-}
-
-type BridgeExecutionSubmitResult = { ok: true } | { error: string; ok: false };
-
-function useTaskBridgeExecutionState({
-  modelMode,
-  project,
-  queryClient,
-  taskID,
-  threadKey,
-  t,
-}: {
-  modelMode: ModelMode;
-  project: Project;
-  queryClient: QueryClient;
-  taskID: string;
-  threadKey: string;
-  t: TranslationFn;
-}) {
-  const [createdPlan, setCreatedPlan] = useState<ExecutionPlan | null>(null);
-  const bridgeMode = isBridgeExecutionMode(modelMode);
-  const bridgeAvailabilityQuery = useQuery({
-    queryKey: ["bridge-availability"],
-    queryFn: () => getBridgeAvailability(),
-    enabled: bridgeMode,
-    staleTime: 30_000,
-  });
-  const hasManagedCheckout = Boolean(project.github_repo_url?.trim());
-  const availabilityForMode = bridgeAvailabilityQuery.data?.my_bridge;
-  const targetDeviceID = availabilityForMode?.default_device_id;
-  const bridgeBlocker = taskBridgeBlocker({
-    bridgeAvailable: Boolean(availabilityForMode?.available),
-    bridgeReason: availabilityForMode?.reason,
-    hasManagedCheckout,
-    hasTargetDevice: Boolean(targetDeviceID),
-    isLoading: bridgeAvailabilityQuery.isLoading,
-    modelMode,
-    t,
-  });
-  const activePlanID = createdPlan?.id || "";
-  const executionPlanQuery = useQuery({
-    queryKey: ["execution-plan", activePlanID],
-    queryFn: () => getExecutionPlan(activePlanID),
-    enabled: Boolean(activePlanID),
-    refetchInterval: (query) => {
-      const latestPlan =
-        (query.state.data as { plan?: ExecutionPlan } | undefined)?.plan ??
-        createdPlan;
-      return activePlanID && !executionPlanIsTerminal(latestPlan)
-        ? 3_000
-        : false;
-    },
-  });
-  const executionEventsQuery = useQuery({
-    queryKey: ["execution-plan-events", activePlanID],
-    queryFn: () => getExecutionPlanEvents(activePlanID),
-    enabled: Boolean(activePlanID),
-    refetchInterval:
-      activePlanID && !executionPlanIsTerminal(executionPlanQuery.data?.plan)
-        ? 3_000
-        : false,
-  });
-  const executionPlan = executionPlanQuery.data?.plan ?? createdPlan;
-
-  useEffect(() => {
-    if (threadKey) setCreatedPlan(null);
-  }, [threadKey]);
-
-  useEffect(() => {
-    if (!activePlanID) return;
-    return subscribeExecutionPlanEvents(activePlanID, () => {
-      void Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["execution-plan", activePlanID],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["execution-plan-events", activePlanID],
-        }),
-      ]);
-    });
-  }, [activePlanID, queryClient]);
-
-  async function submitExecutionPlan(
-    text: string,
-  ): Promise<BridgeExecutionSubmitResult> {
-    if (bridgeBlocker) {
-      return {
-        error: bridgeBlocker,
-        ok: false,
-      };
-    }
-    try {
-      const result = await createExecutionPlan({
-        device_id: targetDeviceID,
-        message: text,
-        mode: "my_bridge",
-        provider: bridgeProviderFromRuntimes(availabilityForMode?.runtimes),
-        task_id: taskID,
-      });
-      setCreatedPlan(result.plan);
-      void Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["execution-plan", result.plan.id],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["execution-plan-events", result.plan.id],
-        }),
-      ]);
-      return { ok: true };
-    } catch (err) {
-      return {
-        error: err instanceof Error ? err.message : t("tasks.bridgePlanFailed"),
-        ok: false,
-      };
-    }
-  }
-
-  return {
-    activePlanID,
-    bridgeBlocker,
-    executionEvents: executionEventsQuery.data?.events ?? [],
-    executionPlan,
-    executionPlanIsLoading: executionPlanQuery.isLoading,
-    executionReceipt: executionPlanQuery.data?.receipt ?? null,
-    submitExecutionPlan,
-  };
+  return t("tasks.sent");
 }
 
 function useTaskSidePanelController({
@@ -2566,9 +2235,7 @@ function useTaskSidePanelController({
   const [sendError, setSendError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [modelMode, setModelMode] = useState<ModelMode>(() =>
-    normalizeTaskModelMode(task.model_mode),
-  );
+  const modelMode = normalizeTaskModelMode(task.model_mode);
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [pendingReply, setPendingReply] = useState<{
     afterMessageId: string | null;
@@ -2580,14 +2247,6 @@ function useTaskSidePanelController({
   const threadId = task.thread_id || task.id;
   const threadKey = `${channel}:${threadId}`;
   const previousThreadKeyRef = useRef(threadKey);
-  const bridgeExecution = useTaskBridgeExecutionState({
-    modelMode,
-    project,
-    queryClient,
-    taskID: task.id,
-    threadKey,
-    t,
-  });
   const threadMessagesQuery = useQuery({
     queryKey: ["thread-messages", channel, threadId],
     queryFn: () => getThreadMessages(channel, threadId),
@@ -2609,17 +2268,11 @@ function useTaskSidePanelController({
   ]);
   const commentTargets = taskCommentTargets(instruction, task, members);
   const routeHint = taskRouteHint({
-    bridgeBlocker: bridgeExecution.bridgeBlocker,
     commentTargets,
     instruction,
     members,
-    modelMode,
     t,
   });
-
-  useEffect(() => {
-    setModelMode(normalizeTaskModelMode(task.model_mode));
-  }, [task.model_mode]);
 
   useEffect(() => {
     setPendingReply((current) => {
@@ -2664,41 +2317,10 @@ function useTaskSidePanelController({
     return () => globalThis.clearTimeout(timeout);
   }, [pendingReply.sentAt, pendingReply.slugs.length]);
 
-  async function submitBridgeExecutionPlan(text: string) {
-    setIsSending(true);
-    setSendError(null);
-    setSent(false);
-    try {
-      const result = await bridgeExecution.submitExecutionPlan(text);
-      if (!result.ok) {
-        setSendError(result.error);
-        return;
-      }
-      setInstruction("");
-      setSent(true);
-    } finally {
-      setIsSending(false);
-    }
-  }
-
   async function handleSendInstruction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = instruction.trim();
     if (!text || isSending) return;
-    if (isBridgeExecutionMode(modelMode)) {
-      if (bridgeExecution.bridgeBlocker) {
-        setSendError(bridgeExecution.bridgeBlocker);
-        return;
-      }
-      confirm({
-        cancelLabel: t("common.cancel"),
-        confirmLabel: t("tasks.bridgeConfirmSubmit"),
-        message: t("tasks.bridgeConfirmMessage"),
-        onConfirm: () => submitBridgeExecutionPlan(text),
-        title: t("tasks.bridgeConfirmTitle"),
-      });
-      return;
-    }
     const taggedTargets = taskCommentTargets(text, task, members);
     setIsSending(true);
     setSendError(null);
@@ -2754,12 +2376,6 @@ function useTaskSidePanelController({
   }
 
   return {
-    activePlanID: bridgeExecution.activePlanID,
-    bridgeBlocker: bridgeExecution.bridgeBlocker,
-    executionEvents: bridgeExecution.executionEvents,
-    executionPlan: bridgeExecution.executionPlan,
-    executionPlanIsLoading: bridgeExecution.executionPlanIsLoading,
-    executionReceipt: bridgeExecution.executionReceipt,
     handleInstructionChange: (value: string) => {
       setInstruction(value);
       setSent(false);
@@ -2767,11 +2383,9 @@ function useTaskSidePanelController({
     handleSendInstruction,
     instruction,
     isSending,
-    modelMode,
     routeHint,
     sendError,
     sent,
-    setModelMode,
     status,
     threadMessages,
     threadMessagesIsLoading: threadMessagesQuery.isLoading,
@@ -2817,16 +2431,9 @@ function TaskSidePanel({
         <TaskSidePanelHeader task={task} t={t} onClose={onClose} />
 
         <TaskSidePanelBody
-          activePlanID={controller.activePlanID}
-          bridgeBlocker={controller.bridgeBlocker}
-          executionEvents={controller.executionEvents}
-          executionPlan={controller.executionPlan}
-          executionPlanIsLoading={controller.executionPlanIsLoading}
-          executionReceipt={controller.executionReceipt}
           instruction={controller.instruction}
           isSending={controller.isSending}
           members={members}
-          modelMode={controller.modelMode}
           project={project}
           queryClient={queryClient}
           routeHint={controller.routeHint}
@@ -2839,7 +2446,6 @@ function TaskSidePanel({
           threadMessagesIsLoading={controller.threadMessagesIsLoading}
           typingSlugs={controller.typingSlugs}
           onInstructionChange={controller.handleInstructionChange}
-          onModelModeChange={controller.setModelMode}
           onSubmit={controller.handleSendInstruction}
         />
       </SheetContent>
@@ -2848,16 +2454,9 @@ function TaskSidePanel({
 }
 
 function TaskSidePanelBody({
-  activePlanID,
-  bridgeBlocker,
-  executionEvents,
-  executionPlan,
-  executionPlanIsLoading,
-  executionReceipt,
   instruction,
   isSending,
   members,
-  modelMode,
   project,
   queryClient,
   routeHint,
@@ -2870,19 +2469,11 @@ function TaskSidePanelBody({
   threadMessagesIsLoading,
   typingSlugs,
   onInstructionChange,
-  onModelModeChange,
   onSubmit,
 }: {
-  activePlanID: string;
-  bridgeBlocker: string;
-  executionEvents: ExecutionEvent[];
-  executionPlan: ExecutionPlan | null;
-  executionPlanIsLoading: boolean;
-  executionReceipt: ExecutionReceipt | null;
   instruction: string;
   isSending: boolean;
   members: OfficeMember[];
-  modelMode: ModelMode;
   project: Project;
   queryClient: QueryClient;
   routeHint: string;
@@ -2895,7 +2486,6 @@ function TaskSidePanelBody({
   threadMessagesIsLoading: boolean;
   typingSlugs: string[];
   onInstructionChange: (value: string) => void;
-  onModelModeChange: (mode: ModelMode) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
@@ -2924,26 +2514,14 @@ function TaskSidePanelBody({
           t={t}
           typingSlugs={typingSlugs}
         />
-        {activePlanID ? (
-          <BridgeExecutionPanel
-            events={executionEvents}
-            isLoading={executionPlanIsLoading}
-            plan={executionPlan}
-            receipt={executionReceipt}
-            t={t}
-          />
-        ) : null}
         <TaskChatComposer
-          bridgeBlocker={bridgeBlocker}
           instruction={instruction}
           isSending={isSending}
-          modelMode={modelMode}
           routeHint={routeHint}
           sendError={sendError}
           sent={sent}
           t={t}
           onInstructionChange={onInstructionChange}
-          onModelModeChange={onModelModeChange}
         />
       </form>
     </div>
@@ -3015,30 +2593,23 @@ function TaskSidePanelMeta({
 }
 
 function TaskChatComposer({
-  bridgeBlocker,
   instruction,
   isSending,
-  modelMode,
   routeHint,
   sendError,
   sent,
   t,
   onInstructionChange,
-  onModelModeChange,
 }: {
-  bridgeBlocker: string;
   instruction: string;
   isSending: boolean;
-  modelMode: ModelMode;
   routeHint: string;
   sendError: string | null;
   sent: boolean;
   t: TranslationFn;
   onInstructionChange: (value: string) => void;
-  onModelModeChange: (mode: ModelMode) => void;
 }) {
   const statusText = taskComposerStatusText({
-    modelMode,
     routeHint,
     sendError,
     sent,
@@ -3067,116 +2638,16 @@ function TaskChatComposer({
             >
               {statusText}
             </span>
-            <ModelModeToggle value={modelMode} onChange={onModelModeChange} />
           </div>
           <Button
             type="submit"
-            disabled={
-              !instruction.trim() ||
-              isSending ||
-              (isBridgeExecutionMode(modelMode) && Boolean(bridgeBlocker))
-            }
+            disabled={!instruction.trim() || isSending}
           >
-            {isSending
-              ? t("tasks.sending")
-              : isBridgeExecutionMode(modelMode)
-                ? t("tasks.createExecutionPlan")
-                : t("tasks.sendInstruction")}
+            {isSending ? t("tasks.sending") : t("tasks.sendInstruction")}
           </Button>
         </div>
       </div>
     </div>
-  );
-}
-
-function BridgeExecutionPanel({
-  events,
-  isLoading,
-  plan,
-  receipt,
-  t,
-}: {
-  events: ExecutionEvent[];
-  isLoading: boolean;
-  plan: ExecutionPlan | null;
-  receipt: ExecutionReceipt | null;
-  t: TranslationFn;
-}) {
-  const status = plan?.status || (isLoading ? "loading" : "pending");
-  const artifacts = receiptArtifacts(receipt);
-  const changedFiles = receiptChangedFiles(receipt);
-  return (
-    <section
-      className="task-bridge-execution mx-6 mb-4 grid gap-3 border-y bg-transparent py-3"
-      aria-label={t("tasks.bridgeExecution")}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h5 className="text-sm font-medium text-foreground">
-            {t("tasks.bridgeExecution")}
-          </h5>
-          <p className="text-xs text-muted-foreground">
-            {t("tasks.bridgeExecutionStatus")} {status}
-          </p>
-        </div>
-        <span className={cn("task-inline-status", `is-${status}`)}>
-          {status}
-        </span>
-      </div>
-
-      {events.length > 0 ? (
-        <ol className="task-bridge-event-list">
-          {events.slice(-5).map((event) => (
-            <li className="task-bridge-event" key={event.id}>
-              <span>{event.event_type}</span>
-              <p>{eventPayloadPreview(event) || t("tasks.bridgeEvent")}</p>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          {t("tasks.bridgeExecutionNoEvents")}
-        </p>
-      )}
-
-      {receipt ? (
-        <div className="task-bridge-receipt">
-          <div className="text-xs font-medium text-muted-foreground">
-            {t("tasks.bridgeExecutionReceipt")}
-          </div>
-          <p>{receipt.summary || t("tasks.bridgeExecutionReceiptEmpty")}</p>
-          {artifacts.length > 0 ? (
-            <div className="task-bridge-receipt-group">
-              <span>{t("tasks.bridgeExecutionArtifacts")}</span>
-              <ul>
-                {artifacts.map((artifact) => (
-                  <li key={`${artifact.type}:${artifact.url}`}>
-                    <a href={artifact.url} rel="noreferrer" target="_blank">
-                      {artifact.title || artifact.url}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {changedFiles.length > 0 ? (
-            <div className="task-bridge-receipt-group">
-              <span>{t("tasks.bridgeExecutionChangedFiles")}</span>
-              <ul>
-                {changedFiles.slice(0, 12).map((file) => (
-                  <li key={`${file.status}:${file.path}`}>
-                    <code>
-                      {file.status ? `${file.status} ` : ""}
-                      {file.path}
-                    </code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
   );
 }
 

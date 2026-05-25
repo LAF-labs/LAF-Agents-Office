@@ -66,7 +66,7 @@ export const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
   { name: "/threads", desc: "See every active thread", icon: "threads" },
   {
     name: "/provider",
-    desc: "Switch default Bridge provider",
+    desc: "Switch default AI provider",
     icon: "provider",
   },
   {
@@ -198,7 +198,7 @@ const COMMAND_DESCRIPTIONS_KO: Record<string, string> = {
   pause: "모든 에이전트 일시정지",
   resume: "모든 에이전트 재개",
   threads: "활성 스레드 보기",
-  provider: "기본 Bridge 제공자 전환",
+  provider: "기본 AI 제공자 전환",
   "hire-agent": "Claude/Codex 기반 에이전트 추가",
   "assign-task": "작업 보드 일을 에이전트에게 배정",
   "daily-standup": "데일리 스탠드업 실행",

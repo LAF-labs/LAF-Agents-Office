@@ -26,9 +26,9 @@ const PROVIDERS: ProviderOption[] = [
   {
     id: "claude-code",
     name: "Claude Code",
-    desc: "Claude Code CLI through LAF Bridge",
+    desc: "Claude model routing for cloud office work",
   },
-  { id: "codex", name: "Codex", desc: "Codex CLI through LAF Bridge" },
+  { id: "codex", name: "Codex", desc: "Codex model routing for cloud office work" },
 ];
 
 export function ProviderSwitcherHost() {
@@ -66,8 +66,8 @@ export function ProviderSwitcherHost() {
   async function switchTo(p: ProviderOption) {
     if (!current || p.id === current) return;
     confirm({
-      title: "Switch default Bridge provider?",
-      message: `Future Bridge executions will prefer ${p.name}.`,
+      title: "Switch default AI provider?",
+      message: `Future office work will prefer ${p.name}.`,
       confirmLabel: "Switch",
       onConfirm: async () => {
         setPending(p.id);
@@ -76,10 +76,7 @@ export function ProviderSwitcherHost() {
           await queryClient.invalidateQueries({ queryKey: ["config"] });
           await queryClient.invalidateQueries({ queryKey: ["health"] });
           setCurrent(p.id);
-          showNotice(
-            `Default Bridge provider switched to ${p.name}`,
-            "success",
-          );
+          showNotice(`Default AI provider switched to ${p.name}`, "success");
           setOpen(false);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Switch failed";
@@ -107,7 +104,7 @@ export function ProviderSwitcherHost() {
     >
       <div className="provider-panel card">
         <h3 id="provider-title" className="provider-title">
-          Default Bridge provider
+          Default AI provider
         </h3>
         {loading ? (
           <p className="provider-loading">Loading current provider...</p>

@@ -27,7 +27,7 @@ export type SchemaKind =
   | "team"
   | "workspace";
 
-/** Bridge helper — maps the legacy plural (people/companies/customers) to
+/** Compatibility helper — maps the legacy plural (people/companies/customers) to
  *  the schema singular (person/company). customers → company per §4.1 (no
  *  separate "customer" kind at the schema level; customers are companies
  *  with project-relationship context). */
@@ -42,7 +42,7 @@ export function toSchemaKind(k: EntityKind): SchemaKind {
   }
 }
 
-/** Bridge helper — maps a schema singular back to the nearest legacy plural.
+/** Compatibility helper — maps a schema singular back to the nearest legacy plural.
  *  project, team, and workspace have no legacy v1.2 mapping and throw. */
 export function fromSchemaKind(k: SchemaKind): EntityKind {
   switch (k) {

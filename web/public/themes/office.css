@@ -2245,21 +2245,6 @@ html[data-theme^="office"] .task-inline-status.is-canceled {
   color: var(--text-tertiary);
 }
 
-html[data-theme^="office"] .project-inline-status.is-bridge-connected,
-html[data-theme^="office"] .project-inline-status.is-bridge-running {
-  color: var(--green);
-}
-
-html[data-theme^="office"] .project-inline-status.is-bridge-queued,
-html[data-theme^="office"] .project-inline-status.is-bridge-loading {
-  color: var(--accent);
-}
-
-html[data-theme^="office"] .project-inline-status.is-bridge-stale,
-html[data-theme^="office"] .project-inline-status.is-bridge-no_bridge {
-  color: var(--yellow);
-}
-
 html[data-theme^="office"] .project-task-metrics,
 html[data-theme^="office"] .project-detail-metrics {
   display: flex;
@@ -7340,5 +7325,411 @@ html[data-theme^="office"] .project-empty-card > div {
 
   html[data-theme^="office"] .project-info-content {
     padding: 16px !important;
+  }
+}
+
+/* Unified operator UX pass: one compact office system across app surfaces. */
+html[data-theme^="office"] {
+  --control-radius: 6px;
+  --panel-radius: 8px;
+  --row-radius: 6px;
+  --surface-line: #dfe3ea;
+  --surface-line-strong: #cfd5de;
+  --surface-hover: #f0f3f7;
+  --surface-selected: rgba(0, 113, 227, 0.08);
+}
+
+html[data-theme^="office"] .main {
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .app-panel,
+html[data-theme^="office"] .project-app,
+html[data-theme^="office"] .requests-dashboard {
+  gap: 14px;
+  padding: 24px 28px 48px;
+}
+
+html[data-theme^="office"] .wiki-tabs {
+  height: 46px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--surface-line);
+  background: var(--color-fog);
+}
+
+html[data-theme^="office"] .wiki-tab {
+  height: 30px;
+  border-radius: var(--control-radius);
+  color: var(--color-graphite);
+  font-size: 12px;
+}
+
+html[data-theme^="office"] .wiki-tab:hover {
+  background: var(--surface-hover);
+}
+
+html[data-theme^="office"] .wiki-tab.is-active,
+html[data-theme^="office"]
+  .wiki-shell:has(.notebook-surface)
+  .wiki-tab.is-active {
+  background: var(--color-snow);
+  border-color: var(--surface-line);
+  box-shadow: inset 2px 0 0 var(--color-azure);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .skills-growth,
+html[data-theme^="office"] .startup-office-app {
+  width: min(1240px, 100%);
+  gap: 14px;
+}
+
+html[data-theme^="office"] .skills-hero,
+html[data-theme^="office"] .startup-office-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 0;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--surface-line);
+}
+
+html[data-theme^="office"] .skills-hero h2,
+html[data-theme^="office"] .startup-office-header h2 {
+  color: var(--color-ink);
+  font-size: 22px;
+  font-weight: 720;
+  line-height: 1.16;
+}
+
+html[data-theme^="office"] .skills-hero p,
+html[data-theme^="office"] .startup-office-header p:not(.skills-kicker) {
+  max-width: 74ch;
+  color: var(--color-graphite);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html[data-theme^="office"] .skills-kicker {
+  color: var(--color-graphite) !important;
+  font-size: 10px !important;
+  font-weight: 720;
+}
+
+html[data-theme^="office"] .skills-panel,
+html[data-theme^="office"] .skills-metric-strip,
+html[data-theme^="office"] .skills-loop-step,
+html[data-theme^="office"] .startup-pulse-datum,
+html[data-theme^="office"] .startup-loop-card,
+html[data-theme^="office"] .startup-approval-row,
+html[data-theme^="office"] .startup-artifact-row,
+html[data-theme^="office"] .startup-memory-list div,
+html[data-theme^="office"] .startup-approval-empty,
+html[data-theme^="office"] .startup-next-action {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: var(--color-snow);
+  box-shadow: none !important;
+}
+
+html[data-theme^="office"] .skills-panel {
+  overflow: hidden;
+}
+
+html[data-theme^="office"] .skills-section-head {
+  min-height: 68px;
+  border-bottom: 1px solid var(--surface-line);
+  padding: 13px 16px 12px;
+}
+
+html[data-theme^="office"] .skills-section-head h3 {
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 720;
+}
+
+html[data-theme^="office"] .skills-section-head p {
+  max-width: 68ch;
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .startup-office-grid,
+html[data-theme^="office"] .skills-dashboard-grid {
+  gap: 12px;
+}
+
+html[data-theme^="office"] .startup-office-status-strip,
+html[data-theme^="office"] .startup-office-pulse-list,
+html[data-theme^="office"] .startup-loop-list,
+html[data-theme^="office"] .startup-approval-list,
+html[data-theme^="office"] .startup-receipt-list,
+html[data-theme^="office"] .startup-artifact-list,
+html[data-theme^="office"] .startup-run-list,
+html[data-theme^="office"] .startup-memory-list {
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+html[data-theme^="office"] .startup-office-status-strip {
+  padding-bottom: 0;
+}
+
+html[data-theme^="office"] .startup-pulse-datum,
+html[data-theme^="office"] .startup-loop-card,
+html[data-theme^="office"] .startup-approval-row,
+html[data-theme^="office"] .startup-artifact-row,
+html[data-theme^="office"] .startup-memory-list div,
+html[data-theme^="office"] .startup-next-action {
+  background: color-mix(in srgb, var(--color-snow) 86%, var(--color-fog));
+}
+
+html[data-theme^="office"] .startup-loop-card:hover,
+html[data-theme^="office"] .startup-artifact-row:hover,
+html[data-theme^="office"] .startup-approval-row:hover {
+  border-color: var(--surface-line-strong);
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .skills-tabs {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  padding: 2px;
+}
+
+html[data-theme^="office"] .skills-tabs button {
+  height: 30px;
+  border-radius: 4px;
+  color: var(--color-graphite);
+}
+
+html[data-theme^="office"] .skills-tabs button.is-active {
+  background: var(--surface-selected);
+  box-shadow: inset 2px 0 0 var(--color-azure);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .skills-create-button,
+html[data-theme^="office"] .startup-office-action,
+html[data-theme^="office"] .skills-link-button,
+html[data-theme^="office"] .skills-invoke,
+html[data-theme^="office"] .creation-modal-close,
+html[data-theme^="office"] .home-session-icon-button,
+html[data-theme^="office"] .home-session-new-button,
+html[data-theme^="office"] .home-session-close,
+html[data-theme^="office"] .home-session-delete {
+  border-radius: var(--control-radius);
+  box-shadow: none !important;
+}
+
+html[data-theme^="office"] .skills-create-button,
+html[data-theme^="office"] .startup-office-action:not(.is-secondary) {
+  min-height: 32px;
+  border: 1px solid var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-snow);
+  font-weight: 680;
+}
+
+html[data-theme^="office"] .skills-create-button:hover,
+html[data-theme^="office"] .startup-office-action:not(.is-secondary):hover {
+  background: var(--color-ash);
+}
+
+html[data-theme^="office"] .startup-office-action.is-secondary,
+html[data-theme^="office"] .skills-link-button,
+html[data-theme^="office"] .skills-invoke {
+  min-height: 30px;
+  border: 1px solid var(--surface-line);
+  background: var(--color-snow);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .startup-office-action.is-secondary:hover,
+html[data-theme^="office"] .skills-link-button:hover,
+html[data-theme^="office"] .skills-invoke:hover:not(:disabled) {
+  border-color: var(--surface-line-strong);
+  background: var(--surface-hover);
+  color: var(--color-ink);
+}
+
+html[data-theme^="office"] .skills-status,
+html[data-theme^="office"] .skills-tag,
+html[data-theme^="office"] .startup-loop-controls > span {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  color: var(--color-graphite) !important;
+}
+
+html[data-theme^="office"] .skills-status.is-active {
+  border-color: var(--accent-border);
+  background: var(--surface-selected);
+  color: var(--accent-strong) !important;
+}
+
+html[data-theme^="office"] .startup-receipt-list li::before {
+  border-color: var(--color-azure);
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .startup-next-action {
+  background: color-mix(in srgb, var(--accent-bg) 58%, var(--color-snow));
+}
+
+html[data-theme^="office"] .startup-office-drawer-backdrop {
+  background: rgba(29, 29, 31, 0.24);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+html[data-theme^="office"] .startup-office-drawer {
+  border-left: 1px solid var(--surface-line);
+  background: var(--color-fog);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .startup-office-drawer-header,
+html[data-theme^="office"] .startup-office-drawer-footer {
+  border-color: var(--surface-line);
+  background: var(--color-snow);
+}
+
+html[data-theme^="office"] .startup-profile-form input,
+html[data-theme^="office"] .startup-profile-form textarea,
+html[data-theme^="office"] .startup-artifact-content {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--control-radius);
+  background: var(--color-snow);
+  box-shadow: none;
+}
+
+html[data-theme^="office"] .settings-shell {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 820px);
+  align-items: start !important;
+  gap: 24px !important;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+html[data-theme^="office"] .settings-nav {
+  width: auto !important;
+  padding: 0 !important;
+  gap: 14px !important;
+}
+
+html[data-theme^="office"] .settings-nav p {
+  margin: 0 0 6px !important;
+  color: var(--color-graphite) !important;
+  font-size: 10px !important;
+  font-weight: 720 !important;
+}
+
+html[data-theme^="office"] .settings-nav-item {
+  min-height: 34px;
+  border-radius: var(--row-radius) !important;
+  padding: 0 10px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-graphite) !important;
+}
+
+html[data-theme^="office"] .settings-nav-item:hover {
+  background: var(--surface-hover) !important;
+  color: var(--color-ink) !important;
+}
+
+html[data-theme^="office"] .settings-nav-item.is-active {
+  background: var(--color-snow) !important;
+  box-shadow: inset 2px 0 0 var(--color-azure) !important;
+  color: var(--color-ink) !important;
+}
+
+html[data-theme^="office"] .settings-body {
+  max-width: none !important;
+  padding: 0 0 64px !important;
+}
+
+html[data-theme^="office"] .settings-body > section {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: var(--color-snow);
+  padding: 18px 20px 20px;
+}
+
+html[data-theme^="office"] .settings-field {
+  display: grid !important;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+  gap: 14px !important;
+  margin-bottom: 12px !important;
+}
+
+html[data-theme^="office"] .settings-field-label {
+  width: auto !important;
+  padding-top: 7px !important;
+}
+
+html[data-theme^="office"] .settings-field-control > input,
+html[data-theme^="office"] .settings-field-control > select,
+html[data-theme^="office"] .settings-field-control > textarea {
+  border: 1px solid var(--surface-line) !important;
+  border-radius: var(--control-radius) !important;
+  background: var(--color-snow) !important;
+  padding: 8px 10px !important;
+}
+
+html[data-theme^="office"] .settings-team-summary,
+html[data-theme^="office"] .settings-team-invite,
+html[data-theme^="office"] .settings-team-table {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: color-mix(in srgb, var(--color-snow) 88%, var(--color-fog));
+}
+
+html[data-theme^="office"] .app-loading-state,
+html[data-theme^="office"] .app-empty-state,
+html[data-theme^="office"] .skills-empty-inline,
+html[data-theme^="office"] .threads-view-empty {
+  border: 1px solid var(--surface-line);
+  border-radius: var(--panel-radius);
+  background: var(--color-snow);
+  color: var(--color-graphite);
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  html[data-theme^="office"] .settings-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-theme^="office"] .settings-nav {
+    position: static !important;
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  html[data-theme^="office"] .app-panel,
+  html[data-theme^="office"] .project-app,
+  html[data-theme^="office"] .requests-dashboard {
+    padding: 16px 12px 64px;
+  }
+
+  html[data-theme^="office"] .skills-hero,
+  html[data-theme^="office"] .startup-office-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  html[data-theme^="office"] .settings-body > section {
+    padding: 16px;
+  }
+
+  html[data-theme^="office"] .settings-field {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px !important;
   }
 }

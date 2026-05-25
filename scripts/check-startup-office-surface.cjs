@@ -84,7 +84,7 @@ assertNotMatchesInSegment(
     { label: "auth/invite copy mentions project work", pattern: /project work/i },
     { label: "auth/invite copy mentions personal CLI", pattern: /personal cli/i },
     { label: "auth/invite copy mentions GitHub", pattern: /github/i },
-    { label: "auth/invite copy mentions LAF Bridge", pattern: /laf bridge/i },
+    { label: "auth/invite copy mentions legacy local setup", pattern: /laf\s+bridge/i },
     { label: "auth/invite copy is connector-first", pattern: /connector/i },
     { label: "auth/invite copy mentions 프로젝트", pattern: /프로젝트/ },
     {
@@ -132,7 +132,7 @@ assertQuotedStringsNotMatch(
   "export const STARTUP_OFFICE_WEDGE_COPY",
   "export type StartupOfficeCopyLanguage",
   [
-    { label: "Startup Office wedge copy mentions LAF Bridge", pattern: /laf bridge/i },
+    { label: "Startup Office wedge copy mentions legacy local setup", pattern: /laf\s+bridge/i },
     { label: "Startup Office wedge copy mentions project/task model", pattern: /project\/task/i },
     { label: "Startup Office wedge copy mentions GitHub", pattern: /github/i },
     { label: "Startup Office wedge copy is connector-first", pattern: /connector/i },
@@ -149,7 +149,7 @@ assertNotMatchesInSegment(
   "const SKILLS_COPY",
   "function useSkillsCopy",
   [
-    { label: "Startup Office copy mentions LAF Bridge", pattern: /laf bridge/i },
+    { label: "Startup Office copy mentions legacy local setup", pattern: /laf\s+bridge/i },
     { label: "Startup Office copy mentions Projects", pattern: /projects/i },
     { label: "Startup Office copy mentions Tasks", pattern: /tasks/i },
     { label: "Startup Office copy mentions GitHub", pattern: /github/i },

@@ -848,7 +848,7 @@ func configureServerTools(server *mcp.Server, slug string, channel string, oneOn
 
 	mcp.AddTool(server, readOnlyTool(
 		"team_task_status",
-		"Summarize how many shared tasks are running and whether any use LAF Bridge managed checkout isolation.",
+		"Summarize how many shared tasks are running and whether any need review or approval.",
 	), handleTeamTaskStatus)
 
 	mcp.AddTool(server, readOnlyTool(

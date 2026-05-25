@@ -36,19 +36,19 @@ describe("ProviderSwitcher", () => {
     apiMocks.updateConfig.mockResolvedValue({ status: "ok" });
   });
 
-  it("presents provider choice as hosted Bridge execution configuration", async () => {
+  it("presents provider choice as cloud office AI configuration", async () => {
     renderProviderSwitcher();
 
     act(() => openProviderSwitcher());
 
     expect(
-      await screen.findByRole("heading", { name: "Default Bridge provider" }),
+      await screen.findByRole("heading", { name: "Default AI provider" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Claude Code CLI through LAF Bridge"),
+      screen.getByText("Claude model routing for cloud office work"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Codex CLI through LAF Bridge"),
+      screen.getByText("Codex model routing for cloud office work"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Runtime provider")).not.toBeInTheDocument();
     expect(screen.queryByText("런타임 제공자 전환")).not.toBeInTheDocument();

@@ -2859,20 +2859,20 @@ func TestHomeSessionWorkPacketDoesNotTreatPastParticipantsAsActive(t *testing.T)
 	}
 }
 
-func TestMessageWorkPacketInjectsRuntimeBoundaryCapsuleForHostedBridgeQuestions(t *testing.T) {
+func TestMessageWorkPacketInjectsRuntimeBoundaryCapsuleForHostedQuestions(t *testing.T) {
 	l := &Launcher{}
 	packet := l.buildMessageWorkPacket(channelMessage{
 		ID:        "msg-runtime-boundary",
 		From:      "you",
 		Channel:   "general",
-		Content:   "LAF Bridge가 꺼져 있는데 Headless reply transport로 답했으면 웹호스팅에서도 로컬 CLI 실행이 되는 건가?",
-		ModelMode: "my_bridge",
+		Content:   "웹호스팅 배포에서도 사용자가 노트북을 켜둬야 AI가 실행되는 건가?",
+		ModelMode: "laf_model",
 	}, "ceo")
 	for _, want := range []string{
 		runtimeBoundaryCapsuleHeading,
-		"does not prove hosted LAF Bridge is connected",
-		"Hosted web/API can queue and control work",
-		"check model/availability and Bridge availability",
+		"should not depend on a user's local machine",
+		"laf_model uses the managed cloud AI path",
+		"check model/availability before concluding",
 	} {
 		if !strings.Contains(packet, want) {
 			t.Fatalf("runtime boundary capsule missing %q in packet: %q", want, packet)
@@ -2893,7 +2893,7 @@ func TestMessageWorkPacketDoesNotInjectRuntimeBoundaryCapsuleForUnrelatedWork(t 
 	}
 }
 
-func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForBridgeMode(t *testing.T) {
+func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForHostedMode(t *testing.T) {
 	l := &Launcher{}
 	packet := l.buildTaskExecutionPacket("eng", officeActionLog{
 		Kind:  "task_updated",
@@ -2901,16 +2901,16 @@ func TestTaskExecutionPacketInjectsRuntimeBoundaryCapsuleForBridgeMode(t *testin
 	}, teamTask{
 		ID:        "task-runtime-boundary",
 		Channel:   "general",
-		Title:     "Diagnose hosted LAF Bridge execution",
-		Details:   "Explain why record_only still works when no paired LAF Bridge exists.",
-		ModelMode: "my_bridge",
+		Title:     "Diagnose hosted cloud execution",
+		Details:   "Explain why record_only still works when managed AI is unavailable.",
+		ModelMode: "laf_model",
 		Owner:     "eng",
 		Status:    "in_progress",
-	}, "Compare execution_plans and Bridge availability before answering.")
+	}, "Compare model availability before answering.")
 	for _, want := range []string{
 		runtimeBoundaryCapsuleHeading,
 		"record_only records chat/tasks without agent execution",
-		"my_bridge uses a user's paired LAF Bridge",
+		"laf_model uses the managed cloud AI path",
 	} {
 		if !strings.Contains(packet, want) {
 			t.Fatalf("runtime boundary capsule missing %q in task packet: %q", want, packet)

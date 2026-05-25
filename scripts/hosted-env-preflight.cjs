@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 "use strict";
 
-const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -14,12 +13,10 @@ function runPreflight(env = process.env, options = {}) {
   const warnings = [];
   const normalized = {
     allowed_origins: [],
-    bridge_setup_api_base: "",
     browser_api_base: "",
+    effective_api_base: "",
     public_api_base: "",
     public_host: "",
-    signing_key_fingerprint: "",
-    signing_key_id: "",
     supabase_url: "",
   };
 
@@ -107,7 +104,7 @@ function runPreflight(env = process.env, options = {}) {
     );
   }
 
-  normalized.bridge_setup_api_base =
+  normalized.effective_api_base =
     publicAPIBaseAbsolute ||
     browserAPIBaseAbsolute ||
     (normalized.public_host ? `${normalized.public_host}/api` : "");
@@ -122,24 +119,6 @@ function runPreflight(env = process.env, options = {}) {
     errors.push(
       "LAF_OFFICE_ALLOWED_ORIGINS must include LAF_OFFICE_PUBLIC_HOST when LAF_OFFICE_PUBLIC_API_BASE_URL or VITE_LAF_API_BASE_URL points at a different origin",
     );
-  }
-
-  const privateKeyPEM = requireEnv(env, "LAF_EXECUTION_PLAN_SIGNING_PRIVATE_KEY", errors);
-  const publicKeyPEM = requireEnv(env, "LAF_EXECUTION_PLAN_SIGNING_PUBLIC_KEY", errors);
-  const keyID = requireEnv(env, "LAF_EXECUTION_PLAN_SIGNING_KEY_ID", errors);
-  if (keyID) {
-    if (!/^[A-Za-z0-9._:-]{3,128}$/.test(keyID)) {
-      errors.push(
-        "LAF_EXECUTION_PLAN_SIGNING_KEY_ID must be 3-128 characters using letters, numbers, dot, underscore, colon, or dash",
-      );
-    } else {
-      normalized.signing_key_id = keyID;
-    }
-  }
-  if (privateKeyPEM || publicKeyPEM) {
-    const checked = validateSigningKeys(privateKeyPEM, publicKeyPEM);
-    pushValidation(checked, errors);
-    normalized.signing_key_fingerprint = checked.value || "";
   }
 
   return {
@@ -303,42 +282,6 @@ function isLocalHost(hostname) {
   return host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:");
 }
 
-function validateSigningKeys(privateKeyPEM, publicKeyPEM) {
-  if (!privateKeyPEM || !publicKeyPEM) {
-    return { error: "execution plan signing key pair is incomplete" };
-  }
-  if (looksEscapedPEM(privateKeyPEM) || looksEscapedPEM(publicKeyPEM)) {
-    return {
-      error:
-        "execution plan signing PEM values must contain real newlines; do not store literal \\n escapes",
-    };
-  }
-  let privateKey;
-  let publicKey;
-  try {
-    privateKey = crypto.createPrivateKey(privateKeyPEM);
-    publicKey = crypto.createPublicKey(publicKeyPEM);
-  } catch (err) {
-    return { error: `execution plan signing keys must be valid PEM: ${err.message}` };
-  }
-  if (privateKey.asymmetricKeyType !== "ed25519" || publicKey.asymmetricKeyType !== "ed25519") {
-    return { error: "execution plan signing keys must be an Ed25519 key pair" };
-  }
-  const probe = Buffer.from("laf execution plan signing self-test");
-  const signature = crypto.sign(null, probe, privateKey);
-  if (!crypto.verify(null, probe, publicKey, signature)) {
-    return { error: "execution plan signing key pair is invalid" };
-  }
-  const der = publicKey.export({ format: "der", type: "spki" });
-  return {
-    value: crypto.createHash("sha256").update(der).digest("base64url"),
-  };
-}
-
-function looksEscapedPEM(value) {
-  return /-----BEGIN [^-]+-----\\n/.test(value) || /\\n-----END [^-]+-----/.test(value);
-}
-
 function pushValidation(result, errors) {
   if (result.error) errors.push(result.error);
 }
@@ -379,7 +322,7 @@ function usage(message = "", exitCode = 0) {
     [
       "usage: node scripts/hosted-env-preflight.cjs [--json] [--allow-localhost] [--dotenv <path>] [--no-env-file]",
       "",
-      "Validates hosted LAF Bridge deployment environment variables before Vercel deploys.",
+      "Validates hosted Startup Office deployment environment variables before Vercel deploys.",
       "Loads .env and .env.local by default when present; shell environment variables still win.",
       "Use --allow-localhost only for local hosted-API rehearsals, never as a production gate.",
       "",
@@ -387,9 +330,6 @@ function usage(message = "", exitCode = 0) {
       "  SUPABASE_URL",
       "  SUPABASE_SERVICE_ROLE_KEY",
       "  SUPABASE_ANON_KEY",
-      "  LAF_EXECUTION_PLAN_SIGNING_PRIVATE_KEY",
-      "  LAF_EXECUTION_PLAN_SIGNING_PUBLIC_KEY",
-      "  LAF_EXECUTION_PLAN_SIGNING_KEY_ID",
       "  LAF_OFFICE_PUBLIC_HOST or VERCEL_URL",
       "",
     ].join("\n"),
@@ -462,9 +402,9 @@ function findClosingQuote(value, quote) {
 function printText(result) {
   const lines = [];
   if (result.ok) {
-    lines.push("[hosted-env-preflight] PASS hosted Bridge deployment env is ready");
+    lines.push("[hosted-env-preflight] PASS hosted Startup Office env is ready");
   } else {
-    lines.push("[hosted-env-preflight] FAIL hosted Bridge deployment env is not ready");
+    lines.push("[hosted-env-preflight] FAIL hosted Startup Office env is not ready");
   }
   if (result.normalized.public_host) {
     lines.push(`[hosted-env-preflight] public host: ${result.normalized.public_host}`);
@@ -472,24 +412,14 @@ function printText(result) {
   if (result.normalized.public_api_base) {
     lines.push(`[hosted-env-preflight] public API base: ${result.normalized.public_api_base}`);
   }
-  if (result.normalized.bridge_setup_api_base) {
-    lines.push(
-      `[hosted-env-preflight] Bridge setup API base: ${result.normalized.bridge_setup_api_base}`,
-    );
+  if (result.normalized.effective_api_base) {
+    lines.push(`[hosted-env-preflight] effective API base: ${result.normalized.effective_api_base}`);
   }
   if (result.normalized.supabase_url) {
     lines.push(`[hosted-env-preflight] Supabase URL: ${result.normalized.supabase_url}`);
   }
   if (result.normalized.browser_api_base) {
     lines.push(`[hosted-env-preflight] browser API base: ${result.normalized.browser_api_base}`);
-  }
-  if (result.normalized.signing_key_id) {
-    lines.push(`[hosted-env-preflight] signing key id: ${result.normalized.signing_key_id}`);
-  }
-  if (result.normalized.signing_key_fingerprint) {
-    lines.push(
-      `[hosted-env-preflight] signing public key sha256: ${result.normalized.signing_key_fingerprint}`,
-    );
   }
   if (result.normalized.allowed_origins.length) {
     lines.push(
@@ -517,11 +447,6 @@ function remediationHints(errors) {
       "set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_ANON_KEY from the Supabase project settings",
     );
   }
-  if (/LAF_EXECUTION_PLAN_SIGNING_|execution plan signing/.test(joined)) {
-    hints.push(
-      "generate signing keys with `npm run hosted-bridge:keys -- --dotenv --key-id execution-plan-prod-YYYY-MM` and store the PEM values with real newlines",
-    );
-  }
   if (/missing LAF_OFFICE_PUBLIC_HOST or VERCEL_URL/.test(joined)) {
     hints.push(
       "set LAF_OFFICE_PUBLIC_HOST to the production web origin, for example https://office.example.com",
@@ -542,7 +467,7 @@ function remediationHints(errors) {
       "use public HTTPS deployment URLs for production; reserve --allow-localhost for local hosted-API rehearsals",
     );
   }
-  hints.push("rerun `npm run hosted-bridge:preflight` before deploying or smoke testing");
+  hints.push("rerun `npm run hosted-env:preflight` before deploying or smoke testing");
   return [...new Set(hints)];
 }
 
@@ -586,5 +511,4 @@ module.exports = {
   printText,
   remediationHints,
   runPreflight,
-  validateSigningKeys,
 };

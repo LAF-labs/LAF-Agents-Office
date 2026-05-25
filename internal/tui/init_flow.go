@@ -265,15 +265,15 @@ func (f InitFlowModel) emitPhase(phase InitPhase) tea.Cmd {
 	}
 }
 
-// ProviderOptions returns the picker options for Bridge provider selection.
+// ProviderOptions returns the picker options for default AI provider selection.
 func ProviderOptions() []PickerOption {
-	claudeDesc := "Claude Code CLI through LAF Bridge (recommended)"
+	claudeDesc := "Claude Code provider (recommended)"
 	if _, err := initFlowLookPathFn("claude"); err != nil {
-		claudeDesc = "Claude Code CLI through LAF Bridge (not found in PATH!)"
+		claudeDesc = "Claude Code provider (not found in PATH)"
 	}
-	codexDesc := "Codex CLI through LAF Bridge"
+	codexDesc := "Codex provider"
 	if _, err := initFlowLookPathFn("codex"); err != nil {
-		codexDesc = "Codex CLI through LAF Bridge (not found in PATH!)"
+		codexDesc = "Codex provider (not found in PATH)"
 	}
 	options := []PickerOption{
 		{Label: "Claude Code (default)", Value: "claude-code", Description: claudeDesc},
@@ -574,7 +574,7 @@ func (f InitFlowModel) phaseText() (heading, instructions string) {
 	case InitAPIKey:
 		return "Enter API Key", "Paste an API key for the selected provider."
 	case InitProviderChoice:
-		return "Choose default Bridge provider", "Select the CLI provider LAF Bridge should use."
+		return "Choose default AI provider", "Select the provider this office should use."
 	case InitMemoryChoice:
 		return "Choose Memory Backend", "Where should the office remember what it learns? Team wiki is the default git-native LLM wiki."
 	case InitGBrainOpenAIKey:

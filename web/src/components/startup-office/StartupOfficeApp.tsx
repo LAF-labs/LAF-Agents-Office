@@ -101,7 +101,7 @@ export function StartupOfficeApp() {
         reason: "Rejected from Startup Office.",
       }),
     onSuccess: () => {
-      showNotice(copy.approvalRevisionRequested, "success");
+      showNotice(copy.approvalRejected, "success");
       void refreshSummary();
     },
     onError: (error: Error) => {
@@ -115,7 +115,7 @@ export function StartupOfficeApp() {
         revision_note: "Revision requested from Startup Office.",
       }),
     onSuccess: () => {
-      showNotice(copy.approvalRejected, "success");
+      showNotice(copy.approvalRevisionRequested, "success");
       void refreshSummary();
     },
     onError: (error: Error) => {

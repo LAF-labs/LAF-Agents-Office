@@ -38,7 +38,6 @@ import { formatTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import { formatMarkdown } from "../../lib/markdown";
 import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
-import { ModelModeToggle } from "../ModelModeToggle";
 import { PixelAvatar } from "../ui/PixelAvatar";
 
 const HOME_CHANNEL = "general";
@@ -774,7 +773,7 @@ function HomeComposer({
   const [caret, setCaret] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [modelMode, setModelMode] = useState<ModelMode>("record_only");
+  const modelMode: ModelMode = "laf_model";
   const [pendingIntent, setPendingIntent] =
     useState<OrchestrationIntent | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -845,7 +844,7 @@ function HomeComposer({
       return {
         kind: "message" as const,
         message: sentMessage,
-        waitsForReply: modelMode !== "record_only",
+        waitsForReply: true,
       };
     },
     onSuccess: (result) => {
@@ -1093,7 +1092,6 @@ function HomeComposer({
           <SendDiagonal />
         </button>
       </div>
-      <ModelModeToggle value={modelMode} onChange={setModelMode} />
       {sendError ? <p className="home-inline-error">{sendError}</p> : null}
     </div>
   );

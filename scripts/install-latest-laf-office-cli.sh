@@ -13,8 +13,7 @@ npm install -g "${PKG}@latest"
 
 echo
 echo "Done. This package is for contributor/local developer bootstrap."
-echo "Hosted production users should create a Bridge setup code in the hosted web app and run:"
-echo "  npx laf-bridge pair"
+echo "Hosted production users should sign in to the cloud Startup Office web app."
 echo
 echo "Verify the local developer bootstrap with:"
 echo "  laf-office --version"

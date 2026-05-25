@@ -63,7 +63,7 @@ function statusModeLabel({
   return isDMChannel(currentChannel, channelMeta) ? "1:1" : t("status.office");
 }
 
-function BridgeProviderStatus({
+function AIProviderStatus({
   provider,
   providerModel,
   t,
@@ -74,8 +74,8 @@ function BridgeProviderStatus({
 }) {
   if (!provider) return null;
   const title = providerModel
-    ? `${t("status.bridgeProvider")}: ${provider} · ${providerModel}`
-    : `${t("status.bridgeProvider")}: ${provider}`;
+    ? `${t("status.aiProvider")}: ${provider} · ${providerModel}`
+    : `${t("status.aiProvider")}: ${provider}`;
 
   return (
     <span className="status-bar-item" title={title}>
@@ -118,7 +118,7 @@ function LocalConnectionStatus({
 
 /**
  * Bottom status bar showing the active channel/app, mode, agent count, local
- * connection state when applicable, and Bridge provider.
+ * connection state when applicable, and AI provider.
  */
 export function StatusBar() {
   const currentChannel = useAppStore((s) => s.currentChannel);
@@ -166,7 +166,7 @@ export function StatusBar() {
       <span className="status-bar-item">
         {agentCount} {agentCount === 1 ? t("status.agent") : t("status.agents")}
       </span>
-      <BridgeProviderStatus
+      <AIProviderStatus
         provider={provider}
         providerModel={providerModel}
         t={t}

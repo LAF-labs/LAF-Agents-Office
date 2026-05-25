@@ -17,7 +17,6 @@ const apiMocks = vi.hoisted(() => ({
   getAuthSession: vi.fn(),
   getConfig: vi.fn(),
   getHomeSessions: vi.fn(),
-  getModelAvailability: vi.fn(),
   getOfficeMembers: vi.fn(),
   getProjects: vi.fn(),
   getSkills: vi.fn(),
@@ -99,13 +98,6 @@ describe("HomeApp", () => {
       },
     });
     apiMocks.getConfig.mockResolvedValue({ team_lead_slug: "ceo" });
-    apiMocks.getModelAvailability.mockResolvedValue({
-      allowed_modes: ["record_only"],
-      default_mode: "record_only",
-      laf_model: { available: false, reason: "paid workspace required" },
-      my_bridge: { available: false, reason: "bridge required" },
-      record_only: { available: true },
-    });
     apiMocks.routeOrchestrationIntent.mockResolvedValue({
       intent: {
         id: "intent-chat",
@@ -191,7 +183,7 @@ describe("HomeApp", () => {
           home_session_thread_id: expect.stringMatching(
             /^home:team-alpha:user-alpha:s-/,
           ),
-          model_mode: "record_only",
+          model_mode: "laf_model",
           scope: "home_orchestration",
         }),
       );
@@ -221,7 +213,7 @@ describe("HomeApp", () => {
         expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["engineer"],
         expect.objectContaining({
-          model_mode: "record_only",
+          model_mode: "laf_model",
           scope: "home_orchestration",
         }),
       );
@@ -250,7 +242,7 @@ describe("HomeApp", () => {
         expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["ceo"],
         expect.objectContaining({
-          model_mode: "record_only",
+          model_mode: "laf_model",
           scope: "home_orchestration",
         }),
       );
@@ -287,7 +279,7 @@ describe("HomeApp", () => {
         expect.stringMatching(/^home:team-alpha:user-alpha:s-/),
         ["ceo"],
         expect.objectContaining({
-          model_mode: "record_only",
+          model_mode: "laf_model",
           scope: "home_orchestration",
         }),
       );
@@ -296,18 +288,8 @@ describe("HomeApp", () => {
 
   it("shows a thinking bubble and streams an incoming agent reply", async () => {
     const user = userEvent.setup();
-    apiMocks.getModelAvailability.mockResolvedValue({
-      allowed_modes: ["my_bridge", "record_only"],
-      default_mode: "my_bridge",
-      laf_model: { available: false, reason: "paid workspace required" },
-      my_bridge: { available: true, runtimes: ["codex"] },
-      record_only: { available: true },
-    });
     renderHomeApp();
 
-    await waitFor(() =>
-      expect(screen.getByText("Codex CLI를 사용합니다.")).toBeInTheDocument(),
-    );
     await user.type(
       await screen.findByPlaceholderText("무엇이든 물어보세요"),
       "현재 상태 알려줘",

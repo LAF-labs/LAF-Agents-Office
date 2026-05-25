@@ -33,7 +33,7 @@ jobs:
     # the native release and npm publish surface together.
     environment:
       name: npm-publish
-      url: https://www.npmjs.com/package/laf-bridge
+      url: https://www.npmjs.com/package/laf-office
     permissions:
       contents: write
     outputs:
@@ -47,7 +47,7 @@ jobs:
       - name: Verify releasable tree
         run: |
           missing=0
-          for path in go.mod cmd/laf-office/main.go cmd/laf-bridge/main.go npm/package.json npm-bridge/package.json web/bun.lock; do
+          for path in go.mod cmd/laf-office/main.go npm/package.json web/bun.lock; do
             if [ ! -e "$path" ]; then
               echo "::error::missing ${path}; refusing to build or publish this tag"
               missing=1
@@ -92,7 +92,7 @@ jobs:
         run: |
           missing_publish=0
           tag_update_needed=0
-          for package in laf-bridge laf-office; do
+          for package in laf-office; do
             if npm view "${package}@${VERSION}" version >/dev/null 2>&1; then
               echo "::notice::${package}@${VERSION} is already published; publish step will skip it"
             else
@@ -108,7 +108,7 @@ jobs:
 
           if [ "$missing_publish" -eq 1 ] || [ "$tag_update_needed" -eq 1 ]; then
             if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-              echo "::error::NPM_TOKEN is required before publishing or updating npm dist-tags for laf-bridge/laf-office"
+              echo "::error::NPM_TOKEN is required before publishing or updating npm dist-tags for laf-office"
               exit 1
             fi
             npm whoami >/dev/null
@@ -121,12 +121,6 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      - name: Set LAF Bridge npm package version
-        working-directory: npm-bridge
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
-
       - name: Dry-run npm publish artifacts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -134,28 +128,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd npm-bridge && npm publish --dry-run --access public --tag "$NPM_TAG")
           (cd npm && npm publish --dry-run --access public --tag "$NPM_TAG")
 
       - name: Restore npm package manifests before native release
         shell: bash
         run: |
           set -euo pipefail
-          git checkout -- npm/package.json npm-bridge/package.json
-          git diff --exit-code -- npm/package.json npm-bridge/package.json
+          git checkout -- npm/package.json
+          git diff --exit-code -- npm/package.json
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # ratchet:actions/setup-go@v6
         with:
           go-version-file: go.mod
 
-      - name: Test LAF Bridge npm entrypoint
+      - name: Test hosted cloud release gates
         run: |
-          npm run bridge-only:surface
-          npm run hosted-bridge:schema
-          npm run hosted-bridge:ops:test
-          npm run laf-bridge:package:test
-          npm run hosted-bridge:smoke:test
-          npm run hosted-bridge:smoke:integration
+          npm run startup-office:surface
+          npm run hosted-env:preflight:test
 
       # Pin to full SHA: third-party action, runs with write access to
       # contents (release upload). Same SHA is reused across all web-facing
@@ -186,14 +175,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd npm-bridge && npm version "$VERSION" --no-git-tag-version --allow-same-version)
           (cd npm && npm version "$VERSION" --no-git-tag-version --allow-same-version)
 
-      # npm publish runs after goreleaser because the packages lazy-download
-      # binaries from that GitHub Release. Publish laf-bridge first so the
-      # hosted Bridge setup flow cannot be left behind a fresh laf-office release.
-      # Each publish is idempotent for manual retry after a partial registry
-      # failure.
+      # npm publish runs after goreleaser because the package lazy-downloads
+      # binaries from that GitHub Release. Publish is idempotent for manual
+      # retry after a partial registry failure.
       - name: Publish npm packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -224,7 +210,6 @@ jobs:
             add_dist_tag_with_retry "$package"
           }
 
-          publish_and_tag laf-bridge npm-bridge
           publish_and_tag laf-office npm
 
   smoke-test-npx:
@@ -275,33 +260,4 @@ jobs:
               echo "output was: $LATEST_OUT"
               exit 1
             }
-          fi
-
-      - name: Verify published LAF Bridge release gate
-        timeout-minutes: 10
-        shell: bash
-        run: |
-          verify_bridge_package() {
-            local package="$1"
-            shift
-            for attempt in 1 2 3 4 5 6; do
-              if node scripts/hosted-bridge-release-gate.cjs --package "$package" "$@"; then
-                return 0
-              fi
-              echo "::warning::${package} release gate attempt ${attempt} failed; waiting for npm registry propagation"
-              sleep 20
-            done
-            node scripts/hosted-bridge-release-gate.cjs --package "$package" "$@"
-          }
-
-          if [ "$NPM_TAG" = "latest" ]; then
-            verify_bridge_package "laf-bridge@latest" --expect-version "$VERSION"
-          else
-            verify_bridge_package "laf-bridge@$VERSION"
-            latest_version="$(npm view laf-bridge@latest version 2>/dev/null || true)"
-            if [ "$latest_version" = "$VERSION" ]; then
-              echo "::error::pre-release ${VERSION} is published on laf-bridge@latest; expected npm dist-tag ${NPM_TAG}"
-              exit 1
-            fi
-            echo "::notice::laf-bridge@latest remains ${latest_version:-unpublished}; npm dist-tag ${NPM_TAG} did not move latest"
           fi

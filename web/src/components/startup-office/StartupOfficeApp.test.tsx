@@ -255,7 +255,6 @@ describe("StartupOfficeApp", () => {
     expect(screen.getByText("Assets")).toBeInTheDocument();
     expect(screen.getByText("2 / 50")).toBeInTheDocument();
 
-    expect(container.textContent).not.toContain("LAF Bridge");
     expect(container.textContent).not.toContain("Projects");
     expect(container.textContent).not.toContain("Tasks");
   });

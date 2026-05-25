@@ -230,7 +230,7 @@ describe("entity api client", () => {
   });
 });
 
-describe("SchemaKind bridge helpers (Fix C2)", () => {
+describe("SchemaKind compatibility helpers (Fix C2)", () => {
   it("toSchemaKind maps all legacy plural kinds to schema singular", () => {
     expect(api.toSchemaKind("people")).toBe("person");
     expect(api.toSchemaKind("companies")).toBe("company");

@@ -5,32 +5,16 @@ import "strings"
 const runtimeBoundaryCapsuleHeading = "Internal runtime boundary capsule:"
 
 var runtimeBoundaryTriggerTerms = []string{
-	"bridge/pairing",
-	"codex cli",
-	"claude code cli",
-	"execution plan",
-	"headless reply",
-	"headless runtime",
-	"headless transport",
 	"hosted",
-	"laf bridge",
-	"local cli",
 	"model/availability",
-	"my bridge",
-	"my-bridge",
-	"my_bridge",
-	"paired bridge",
 	"record only",
 	"record-only",
 	"record_only",
 	"web hosting",
-	"브리지",
-	"브릿지",
 	"실배포",
 	"웹 호스팅",
 	"웹호스팅",
 	"호스팅",
-	"헤드리스",
 }
 
 func runtimeBoundaryCapsuleForParts(parts ...string) string {
@@ -51,7 +35,7 @@ func runtimeBoundaryCapsuleRelevant(parts ...string) bool {
 		}
 	}
 	compact := strings.NewReplacer("-", "", "_", "", " ", "").Replace(text)
-	for _, term := range []string{"lafbridge", "mybridge", "recordonly"} {
+	for _, term := range []string{"recordonly"} {
 		if strings.Contains(compact, term) {
 			return true
 		}
@@ -62,11 +46,9 @@ func runtimeBoundaryCapsuleRelevant(parts ...string) bool {
 func runtimeBoundaryCapsuleText() string {
 	return strings.Join([]string{
 		runtimeBoundaryCapsuleHeading,
-		"- Headless reply transport is local LAF-Office reply plumbing; it does not prove hosted LAF Bridge is connected.",
-		"- Hosted web/API can queue and control work, but cannot directly run a user's local Codex CLI or Claude Code CLI.",
-		"- Local CLI execution needs a paired LAF Bridge or a managed execution backend.",
+		"- Hosted web/API is the product runtime and should not depend on a user's local machine.",
+		"- laf_model uses the managed cloud AI path when the workspace plan and permissions allow it.",
 		"- record_only records chat/tasks without agent execution.",
-		"- my_bridge uses a user's paired LAF Bridge and execution_plans.",
-		"- For deployment or execution-availability questions, check model/availability and Bridge availability before concluding.",
+		"- For deployment or execution-availability questions, check model/availability before concluding.",
 	}, "\n")
 }

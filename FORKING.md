@@ -91,8 +91,8 @@ goreleaser release --clean
 
 - **Broker push model.** It's the architectural spine.
 - **Per-turn fresh sessions.** This is the reason for the benchmark win.
-- **LAF Bridge managed checkout isolation.** Each coding task works in its own
-  branch.
+- **Cloud workspace isolation.** Company data, approvals, logs, skills, and
+  wiki updates stay scoped to the active workspace.
 
 Fork anything above the broker freely. Fork the broker and you're building a
 different project.

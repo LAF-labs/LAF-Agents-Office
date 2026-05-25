@@ -34,7 +34,7 @@ operation for founders who do not know how to use AI deeply.
 Required product boundaries:
 
 - Pure cloud only.
-- No local bridge as a primary experience.
+- No local execution setup as a primary experience.
 - No connector-first product strategy.
 - No external tool dependency in the first paid beta.
 - No "bring your Notion/GitHub/Gmail" requirement.
@@ -87,7 +87,7 @@ The code earns 90+ only when all of these are true:
   domain modules.
 - Every domain module has clear input, output, permission, and error behavior.
 - The first beta flow is covered by unit, API, and browser tests.
-- No primary hosted surface reintroduces local bridge, project/task, or
+- No primary hosted surface reintroduces local execution setup, project/task, or
   developer-agent copy.
 - No component owns unrelated responsibilities.
 - Each phase can be reviewed as a small PR or commit with a narrow purpose.
@@ -167,7 +167,7 @@ workers/startup-office/index.js
 workers/startup-office/queue.js
 workers/startup-office/contextBuilder.js
 workers/startup-office/modelClient.js
-workers/startup-office/loopRunner.js
+workers/startup-office/loopEngine.js
 workers/startup-office/qualityChecks.js
 workers/startup-office/wikiWriter.js
 workers/startup-office/receiptWriter.js
@@ -298,7 +298,7 @@ POST /startup-office/demo-seed
 ```
 
 - Add surface guard checks that block:
-  - local bridge copy in hosted primary UI
+  - local execution setup copy in hosted primary UI
   - project/task copy in hosted primary UI
   - connector-first copy in onboarding
   - "fully autonomous" copy without approval language
@@ -523,7 +523,7 @@ Worker files:
 ```text
 workers/startup-office/modelClient.js
 workers/startup-office/contextBuilder.js
-workers/startup-office/loopRunner.js
+workers/startup-office/loopEngine.js
 workers/startup-office/qualityChecks.js
 workers/startup-office/receiptWriter.js
 workers/startup-office/wikiWriter.js
@@ -994,7 +994,7 @@ third commit must pass the full web test suite and full hosted API suite.
 
 No beta release if any item is false:
 
-- No primary hosted UI shows local bridge setup.
+- No primary hosted UI shows local execution setup setup.
 - No primary hosted UI uses project/task as the central business model.
 - No loop output completes without artifact and receipt.
 - No approval action can mutate another workspace.

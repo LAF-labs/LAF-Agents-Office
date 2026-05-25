@@ -2146,6 +2146,7 @@ html[data-theme="office"]
   font-size: 11px !important;
   font-weight: 720;
   padding: 2px 8px;
+  white-space: nowrap;
 }
 .skills-status.is-active {
   background: var(--accent-bg);
@@ -2761,71 +2762,6 @@ html[data-theme="office"]
   line-height: 1.45;
   text-align: center;
 }
-.project-bridge-inline {
-  display: grid;
-  min-width: 0;
-  border-top: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
-}
-.project-bridge-inline-main {
-  display: grid;
-  grid-template-columns: minmax(132px, 160px) minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
-  padding: 10px 0;
-}
-.project-bridge-inline-label {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.project-bridge-inline-label strong {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 560;
-  line-height: 1.35;
-}
-.project-bridge-inline-label small,
-.project-bridge-inline-help {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 520;
-  line-height: 1.4;
-}
-.project-bridge-inline-label small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.project-bridge-inline-controls {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 7px;
-  min-width: 0;
-}
-.project-bridge-advanced-button {
-  min-height: 28px;
-  padding: 0 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 650;
-}
-.project-bridge-advanced-button:hover {
-  color: var(--text-primary);
-  background: var(--bg);
-}
-.project-bridge-inline-expanded {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 0 0 12px 172px;
-}
-.project-bridge-inline-help {
-  margin: 0;
-}
 .project-inline-status,
 .task-inline-status {
   display: inline-flex;
@@ -2845,8 +2781,6 @@ html[data-theme="office"]
 .project-inline-status.is-active,
 .project-inline-status.is-running,
 .project-inline-status.is-in_progress,
-.project-inline-status.is-bridge-connected,
-.project-inline-status.is-bridge-running,
 .task-inline-status.is-in_progress,
 .task-inline-status.is-review {
   color: var(--accent);
@@ -2855,24 +2789,18 @@ html[data-theme="office"]
 }
 .project-inline-status.is-ready,
 .project-inline-status.is-done,
-.project-inline-status.is-bridge-ready,
 .task-inline-status.is-done {
   color: var(--green);
   border-color: color-mix(in srgb, var(--green) 24%, var(--border));
   background: color-mix(in srgb, var(--green) 8%, var(--bg-card));
 }
 .project-inline-status.is-waiting,
-.project-inline-status.is-bridge-waiting,
-.project-inline-status.is-bridge-loading,
-.project-inline-status.is-bridge-queued,
 .project-inline-status.is-not_started,
 .task-inline-status.is-pending,
 .task-inline-status.is-open {
   color: var(--text-secondary);
 }
 .project-inline-status.is-blocked,
-.project-inline-status.is-bridge-no_bridge,
-.project-inline-status.is-bridge-stale,
 .task-inline-status.is-blocked {
   color: var(--red);
   border-color: color-mix(in srgb, var(--red) 25%, var(--border));
@@ -2905,15 +2833,6 @@ html[data-theme="office"]
 @media (max-width: 860px) {
   .project-info-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .project-bridge-inline-main {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .project-bridge-inline-controls {
-    justify-content: flex-start;
-  }
-  .project-bridge-inline-expanded {
-    padding-left: 0;
   }
   .project-task-toolbar-row {
     align-items: flex-start;
@@ -3519,30 +3438,6 @@ html[data-theme="office"]
   border-radius: 9px;
   background: var(--surface-muted);
 }
-.project-bridge-command {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--border-light);
-  border-radius: 9px;
-  background: var(--surface-muted);
-}
-.project-bridge-command-label {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-}
-.project-bridge-command-code {
-  display: block;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text);
-}
 .project-kanban-section {
   display: grid;
   gap: 10px;
@@ -3713,67 +3608,6 @@ html[data-theme="office"]
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.task-bridge-event-list {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--border-light);
-}
-.task-bridge-event {
-  display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-light);
-  font-size: 12px;
-}
-.task-bridge-event span {
-  color: var(--text-tertiary);
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
-}
-.task-bridge-event p,
-.task-bridge-receipt p {
-  margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-.task-bridge-receipt {
-  display: grid;
-  gap: 4px;
-  padding-top: 4px;
-}
-.task-bridge-receipt-group {
-  display: grid;
-  gap: 4px;
-  margin-top: 4px;
-}
-.task-bridge-receipt-group > span {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-}
-.task-bridge-receipt-group ul {
-  display: grid;
-  gap: 3px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.task-bridge-receipt-group li {
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.task-bridge-receipt-group code {
-  color: inherit;
-  font-family: var(--font-mono);
-}
-
 @media (max-width: 640px) {
   .project-detail-heading {
     align-items: flex-start;
@@ -3793,9 +3627,6 @@ html[data-theme="office"]
     gap: 2px;
   }
   .task-detail-execution-facts {
-    grid-template-columns: 1fr;
-  }
-  .task-bridge-event {
     grid-template-columns: 1fr;
   }
   .project-kanban-board {
@@ -4453,5 +4284,146 @@ html[data-theme^="office"] .sidebar-project-link span {
   .confirm-overlay,
   .task-detail-overlay {
     padding: 12px;
+  }
+}
+
+/* Startup Office surface refinement: compact, predictable operating UI. */
+.startup-office-app {
+  width: min(1240px, 100%);
+}
+
+.startup-office-app .skills-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.startup-office-app .skills-section-head {
+  min-height: 72px;
+}
+
+.startup-office-app .skills-section-head > div {
+  min-width: 0;
+}
+
+.startup-office-grid {
+  align-items: start;
+}
+
+.startup-office-status-strip {
+  align-items: stretch;
+}
+
+.startup-pulse-datum,
+.startup-loop-card,
+.startup-approval-row,
+.startup-artifact-row,
+.startup-memory-list div,
+.startup-next-action {
+  overflow-wrap: anywhere;
+}
+
+.startup-loop-card {
+  min-height: 118px;
+}
+
+.startup-loop-controls,
+.startup-approval-actions {
+  align-self: start;
+}
+
+.startup-office-action {
+  min-width: 0;
+  border-radius: 6px;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease,
+    opacity 0.14s ease;
+}
+
+.startup-office-action.is-secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: var(--accent-bg);
+  color: var(--text-primary);
+}
+
+.startup-office-action:focus-visible,
+.skills-create-button:focus-visible,
+.skills-tabs button:focus-visible,
+.skills-link-button:focus-visible,
+.skills-invoke:focus-visible,
+.creation-modal-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.startup-office-drawer-backdrop {
+  padding-left: min(30vw, 360px);
+}
+
+.startup-office-drawer {
+  display: flex;
+  max-width: calc(100vw - 24px);
+  flex-direction: column;
+}
+
+.startup-office-drawer-header,
+.startup-office-drawer-footer {
+  flex: 0 0 auto;
+}
+
+.startup-profile-form,
+.startup-detail-list,
+.startup-artifact-content {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 760px) {
+  .startup-office-drawer-backdrop {
+    padding-left: 0;
+  }
+
+  .startup-office-drawer {
+    max-width: 100vw;
+  }
+
+  .startup-office-status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .startup-office-header {
+    display: flex;
+  }
+
+  .startup-office-header,
+  .startup-office-section-head,
+  .startup-office-drawer-header,
+  .startup-office-drawer-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .startup-office-action {
+    width: 100%;
+  }
+
+  .startup-loop-card,
+  .startup-artifact-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .startup-loop-controls,
+  .startup-approval-actions {
+    width: 100%;
+  }
+
+  .startup-profile-form,
+  .startup-detail-list {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
   }
 }

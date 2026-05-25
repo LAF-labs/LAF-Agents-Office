@@ -29,7 +29,7 @@ questions.
   - Offer Package artifact.
   - Customer Discovery receipt.
 - Demo seed is owner/admin gated and disabled in production unless explicitly enabled.
-- Surface guard blocks local bridge, project/task, connector-first, and full-autonomy positioning in primary hosted copy.
+- Surface guard blocks local execution setup, project/task, connector-first, and full-autonomy positioning in primary hosted copy.
 
 ## Remaining Before 90+
 
@@ -61,7 +61,7 @@ questions.
 ## Phase 4 Evidence
 
 - `workers/startup-office/modelClient.js` adds an OpenAI Responses API provider, fake provider for deterministic tests, text/structured generation, optional embeddings, and per-run usage/cost metadata.
-- `workers/startup-office/loopRunner.js` moves loop execution through queued, running, waiting approval, failed, canceled, and retryable states.
+- `workers/startup-office/loopEngine.js` moves loop execution through queued, running, waiting approval, failed, canceled, and retryable states.
 - Five loop templates now exist for Idea Validation, Offer Package, Customer Discovery, Launch Campaign, and Weekly Operator Review.
 - Quality checks require summary, next action, risk level, source/assumption discipline, and no implied external action execution.
 - `startup_office_worker_jobs` migration adds durable async job state with attempts, errors, timestamps, indexes, and RLS.
@@ -122,7 +122,7 @@ questions.
 - `npm run beta:release-gate` runs:
   - `git diff --check`
   - Startup Office surface guard
-  - worker loop runner tests
+  - worker loop worker tests
   - fake output evaluation test
   - hosted API tests
   - Startup Office UI tests

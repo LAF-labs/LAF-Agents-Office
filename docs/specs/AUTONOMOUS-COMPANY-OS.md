@@ -9,7 +9,7 @@ Build LAF as a pure-cloud, Notion-style AI Startup Office:
 
 > A safer, more transparent Polsia where the founder stays in control.
 
-LAF is not a developer workspace, project manager, task board, local bridge, or
+LAF is not a developer workspace, project manager, task board, local execution setup, or
 coding agent wrapper. LAF is a company operating system for non-technical
 founders who want an AI staff to validate, launch, market, operate, and learn
 inside one controlled workspace.
@@ -242,7 +242,7 @@ What LAF is:
 What LAF is not:
 
 - Not a coding IDE.
-- Not a local agent runner.
+- Not a local agent runtime.
 - Not a repo task board.
 - Not a Zapier clone.
 - Not a generic AI chatbot.
@@ -358,10 +358,10 @@ Remove from primary product:
 - Task keys.
 - Task detail modal.
 - Project detail page.
-- Project-scoped Bridge readiness.
+- Project-scoped local execution setup readiness.
 - GitHub repo requirement.
 - PR and code-review language.
-- Local bridge pairing.
+- local execution setup pairing.
 - Local CLI detection.
 - Local execution mode toggles.
 
@@ -1074,7 +1074,7 @@ Risk levels:
 
 ## 14. Cloud Execution Architecture
 
-No local runner.
+No local runtime.
 
 Components:
 
@@ -1438,7 +1438,7 @@ Before launching paid self-serve, LAF must pass these commercial checks:
 6. The pricing page explains outcomes before usage limits.
 7. The product can sell as a 7-day launch office even if external integrations
    are absent.
-8. The product does not need local setup, GitHub, Bridge, CLI tools, or a
+8. The product does not need local setup, GitHub, local execution setup, CLI tools, or a
    developer environment.
 9. The founder can export core records.
 10. A concierge sale can be fulfilled with the same product surface and
@@ -1491,7 +1491,7 @@ Work:
 Acceptance:
 
 - A new user lands in Growth Center, not Projects or Tasks.
-- No default screen asks for Bridge, repo, project, or task.
+- No default screen asks for local execution setup, repo, project, or task.
 
 #### Phase 2: Onboarding And Company Memory
 
@@ -1600,7 +1600,7 @@ Commit:
 
 Goal:
 
-- Make the default web UI stop advertising the old developer/project/Bridge
+- Make the default web UI stop advertising the old developer/project/local execution setup
   product.
 
 Work:
@@ -1645,7 +1645,7 @@ Work:
 Verification:
 
 - UI tests assert the sellable panels render.
-- UI tests assert project/task/Bridge terms are absent from the default Growth
+- UI tests assert project/task/local execution setup terms are absent from the default Growth
   Center.
 - `npm run -w web typecheck`
 - Focused Vitest for Growth Center and app shell.
@@ -1716,10 +1716,10 @@ Before every release on this branch:
 4. Confirm unauthenticated entry says AI Startup Office and company workspace.
 5. Confirm default authenticated route resolves to Growth Center.
 6. Confirm primary sidebar does not show Projects or Tasks.
-7. Confirm hosted settings do not show LAF Bridge.
+7. Confirm hosted settings do not show local execution setup.
 8. Confirm Growth Center shows Company Pulse, Launch Office loops, Approval
    Desk, and Receipts/Trace.
-9. Confirm no first-session copy asks for GitHub, repo, PR, local CLI, or Bridge.
+9. Confirm no first-session copy asks for GitHub, repo, PR, local CLI, or local execution setup.
 10. Confirm local API absence does not blank the UI.
 
 ## 23. Test Plan
@@ -1758,7 +1758,7 @@ Before every release on this branch:
 - Approving an artifact saves or publishes it.
 - Company Wiki shows new namespaces.
 - Skills screen uses operating-skill language.
-- Projects/Tasks/Bridge are not visible in default navigation.
+- Projects/Tasks/local execution setup are not visible in default navigation.
 
 ### End-to-End Smoke
 
@@ -1798,7 +1798,7 @@ Scenario: landing page.
 Product:
 
 - Homepage and README position LAF as AI Startup Office.
-- No default Bridge/local CLI copy.
+- No default local execution setup/local CLI copy.
 - No default project/task copy.
 - Onboarding creates default workspace.
 - Growth Center is primary app.
@@ -1838,7 +1838,7 @@ The service is sellable when:
 8. Wiki memory updates persist and can be read.
 9. Skills can be invoked and proposed for improvement.
 10. Workspace invites work.
-11. Projects, Tasks, Bridge, local CLI, repo, and PR language are absent from
+11. Projects, Tasks, local execution setup, local CLI, repo, and PR language are absent from
     default UX.
 12. Test plan passes.
 13. Pricing and trust copy are published.

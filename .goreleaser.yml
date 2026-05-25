@@ -21,28 +21,10 @@ builds:
       - -s -w
       - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.Version={{.Version}}
       - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.BuildTimestamp={{.Date}}
-  - id: laf-bridge
-    main: ./cmd/laf-bridge
-    binary: laf-bridge
-    goos:
-      - darwin
-      - linux
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-      - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.Version={{.Version}}
-      - -X github.com/LAF-labs/LAF-Agents-Office/internal/buildinfo.BuildTimestamp={{.Date}}
 
 archives:
   - ids:
       - laf-office
-      - laf-bridge
-    allow_different_binary_count: true
     formats: [tar.gz]
     name_template: "laf-office_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:

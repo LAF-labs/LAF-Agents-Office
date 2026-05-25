@@ -25,7 +25,6 @@ const messages = {
     "settings.saved": "Settings saved.",
     "settings.group.workspace": "Workspace",
     "settings.group.credentials": "Credentials",
-    "settings.group.system": "System",
     "settings.group.advanced": "Advanced",
     "settings.section.profile": "Profile",
     "settings.section.general": "General",
@@ -33,7 +32,6 @@ const messages = {
     "settings.section.team": "Team",
     "settings.section.access": "Access Control",
     "settings.section.company": "Company",
-    "settings.section.bridge": "LAF Bridge",
     "settings.section.keys": "API Keys",
     "settings.section.integrations": "Connected Apps",
     "settings.section.intervals": "Polling",
@@ -110,69 +108,6 @@ const messages = {
     "settings.agents.creating": "Adding...",
     "settings.agents.created": "Agent added.",
     "settings.agents.createFailed": "Failed to add agent",
-    "settings.bridge.title": "LAF Bridge",
-    "settings.bridge.desc":
-      "Connect this workspace to LAF Bridge on your computer.",
-    "settings.bridge.status": "Status",
-    "settings.bridge.connected": "LAF Bridge online",
-    "settings.bridge.disconnected": "LAF Bridge offline",
-    "settings.bridge.needsAttention": "LAF Bridge needs attention",
-    "settings.bridge.noBridge": "No LAF Bridge connected",
-    "settings.bridge.online": "LAF Bridge online",
-    "settings.bridge.offline": "LAF Bridge response delayed",
-    "settings.bridge.optionalHint":
-      "LAF Bridge is not connected yet. Follow the setup steps below.",
-    "settings.bridge.management": "LAF Bridge access",
-    "settings.bridge.managementHint": "Disconnect this LAF Bridge connection",
-    "settings.bridge.revoke": "Disconnect LAF Bridge",
-    "settings.bridge.revoked": "LAF Bridge disconnected.",
-    "settings.bridge.revokeFailed": "Failed to disconnect LAF Bridge.",
-    "settings.bridge.revokeTitle": "Disconnect LAF Bridge?",
-    "settings.bridge.revokeMessage":
-      "This computer will stop receiving LAF Bridge execution plans until it is paired again.",
-    "settings.bridge.revokeConfirm": "Disconnect",
-    "settings.bridge.tools": "Local checks",
-    "settings.bridge.toolsUnknown":
-      "Tool checks appear after LAF Bridge is connected.",
-    "settings.bridge.providerReady": "Provider runtime found:",
-    "settings.bridge.providerMissing":
-      "Install or expose Codex CLI or Claude Code CLI to LAF Bridge",
-    "settings.bridge.setupTitle": "Setup",
-    "settings.bridge.setupDesc":
-      "Create a setup code, run npx laf-bridge pair on the computer that should handle approved agent execution, and paste the code when LAF Bridge asks for it.",
-    "settings.bridge.whyTitle": "Why this is needed",
-    "settings.bridge.whyBody":
-      "The browser cannot directly run Codex CLI or Claude Code CLI on your computer. LAF Bridge is the small helper that receives approved work from this workspace and runs it locally.",
-    "settings.bridge.helpOpenTerminal":
-      "Open a terminal app. On macOS use Terminal, on Windows use PowerShell, and on Linux use your terminal.",
-    "settings.bridge.helpCreateCopy":
-      "Click Create setup code here. If the command is not copied automatically, click Copy command.",
-    "settings.bridge.helpPasteEnter":
-      "Paste the command and press Enter, then paste the setup code when LAF Bridge asks for it.",
-    "settings.bridge.helpReturn":
-      "Come back to this page. When the status says LAF Bridge online, setup is done.",
-    "settings.bridge.stepCommand": "Create code",
-    "settings.bridge.stepConnect": "Run command",
-    "settings.bridge.stepReady": "Ready",
-    "settings.bridge.generate": "Create setup code",
-    "settings.bridge.generating": "Generating...",
-    "settings.bridge.codeReady":
-      "Setup code created. Command copied if your browser allowed it.",
-    "settings.bridge.generateFailed": "Failed to create setup code",
-    "settings.bridge.codeLabel": "Setup code",
-    "settings.bridge.codeHint":
-      "Paste this into Terminal when LAF Bridge asks for it.",
-    "settings.bridge.copyCode": "Copy code",
-    "settings.bridge.codeCopied": "Setup code copied.",
-    "settings.bridge.expires": "Valid until",
-    "settings.bridge.commandLabel": "Terminal command",
-    "settings.bridge.commandHint":
-      "Run this command first. npx downloads LAF Bridge if needed.",
-    "settings.bridge.copyCommand": "Copy command",
-    "settings.bridge.commandReadyCopied":
-      "Command copied. Run it in Terminal, then paste the setup code when prompted.",
-    "settings.bridge.commandCopied": "Command copied.",
-    "settings.bridge.copyFailed": "Could not copy command.",
     "settings.general.maxConcurrent": "Max Concurrent",
     "settings.general.maxConcurrentHint": "Parallel agent limit",
     "settings.general.unlimited": "Unlimited",
@@ -294,7 +229,7 @@ const messages = {
     "settings.danger.shredDeleteRuntimeState":
       "Local runtime state (same as Reset)",
     "settings.danger.shredPreserveWorktrees":
-      "Bridge managed checkouts: uncommitted branch work stays on disk",
+      "Cloud office exports and attached records stay available unless deleted separately",
     "settings.danger.shredPreserveConfig": "Your global config and API keys",
     "settings.danger.shredPreserveDevice": "Local device identity",
     "settings.danger.shredButton": "Shred workspace...",
@@ -306,7 +241,7 @@ const messages = {
     "settings.danger.resetConfirm": "Reset local runtime",
     "settings.danger.shredModalTitle": "Shred this workspace?",
     "settings.danger.shredModalIntro":
-      "This permanently deletes your team, company identity, project task receipts, and saved workflows, plus local logs, sessions, provider state, and wiki memory. Onboarding will reopen immediately. Bridge managed checkouts, config, and device identity are kept. This cannot be undone.",
+      "This permanently deletes your team, company identity, project task receipts, saved workflows, logs, sessions, provider state, and wiki memory. Onboarding will reopen immediately. API keys and account identity are kept. This cannot be undone.",
     "settings.danger.shredConfirm": "Shred workspace",
     "settings.danger.resetFailed": "Reset failed",
     "settings.danger.resetSuccess": "Local runtime state cleared. Reloading...",
@@ -423,7 +358,7 @@ const messages = {
     "tasks.repoNotConnectedDesc": "Connect it only when code work starts.",
     "tasks.repoReady": "Repo ready",
     "tasks.repoReadyDesc":
-      "GitHub access, PR delivery, and Bridge managed checkout are ready.",
+      "GitHub access and PR delivery are ready.",
     "tasks.repoChecking": "Checking repo",
     "tasks.repoCheckingDesc": "Checking GitHub CLI auth and repository access.",
     "tasks.repoNeedsSetup": "Repo setup needed",
@@ -447,50 +382,6 @@ const messages = {
     "tasks.defaultBranch": "Default branch: ",
     "tasks.repoCodingEnabled": "Coding tasks create branches and PR receipts.",
     "tasks.repoCodingBlocked": "Coding tasks are held until setup is fixed.",
-    "tasks.bridgeChecking": "Checking LAF Bridge",
-    "tasks.bridgeConnected": "LAF Bridge connected",
-    "tasks.bridgeStale": "LAF Bridge stale",
-    "tasks.bridgeNoCapable": "No capable LAF Bridge",
-    "tasks.bridgeJobQueued": "Job queued",
-    "tasks.bridgeJobRunning": "Job running",
-    "tasks.bridgeWorkspaceTitle": "LAF Bridge work location",
-    "tasks.bridgeWorkspaceDesc":
-      "LAF Bridge uses a managed checkout for this project on the paired computer.",
-    "tasks.bridgeWorkspaceAutoTitle": "Managed checkout",
-    "tasks.bridgeWorkspaceRepoNeeded": "GitHub repo required",
-    "tasks.bridgeWorkspaceAutoBadge": "Default",
-    "tasks.bridgeWorkspaceAutoDesc":
-      "LAF Bridge uses a dedicated checkout for this project and keeps it separate from your personal folders.",
-    "tasks.bridgeWorkspaceBridgeReady": "LAF Bridge connected",
-    "tasks.bridgeWorkspaceBridgeWaiting": "Waiting for LAF Bridge",
-    "tasks.bridgeWorkspaceChecking": "Checking bridge",
-    "tasks.bridgeUnavailable": "LAF Bridge is unavailable",
-    "tasks.bridgeNoPairedDevice":
-      "No LAF Bridge is connected. Pair one in Settings.",
-    "tasks.bridgeNoOnlineDevice":
-      "LAF Bridge is offline. Reconnect the Bridge terminal.",
-    "tasks.bridgeNoLocalCLI":
-      "LAF Bridge has not detected Codex or Claude Code CLI.",
-    "tasks.bridgePermissionRequired":
-      "Your account cannot run LAF Bridge execution plans.",
-    "tasks.bridgeNoBindingReason":
-      "Connect a GitHub repo for Bridge managed checkout",
-    "tasks.bridgeReadyToRun": "Ready to create a LAF Bridge execution plan",
-    "tasks.bridgeConfirmTitle": "Run with LAF Bridge?",
-    "tasks.bridgeConfirmMessage":
-      "LAF Bridge will run Codex or Claude Code CLI on the connected computer.",
-    "tasks.bridgeConfirmSubmit": "Create plan",
-    "tasks.createExecutionPlan": "Create plan",
-    "tasks.bridgePlanCreated": "Execution plan created.",
-    "tasks.bridgePlanFailed": "Could not create execution plan",
-    "tasks.bridgeExecution": "Bridge execution",
-    "tasks.bridgeExecutionStatus": "Status:",
-    "tasks.bridgeExecutionNoEvents": "Waiting for bridge events.",
-    "tasks.bridgeExecutionReceipt": "Receipt",
-    "tasks.bridgeExecutionReceiptEmpty": "Bridge completed without a summary.",
-    "tasks.bridgeExecutionArtifacts": "Artifacts",
-    "tasks.bridgeExecutionChangedFiles": "Changed files",
-    "tasks.bridgeEvent": "Event received",
     "tasks.saving": "Saving...",
     "tasks.saveGithubRepo": "Save GitHub repo",
     "tasks.cancel": "Cancel",
@@ -816,7 +707,7 @@ const messages = {
     "status.agent": "agent",
     "status.agents": "agents",
     "status.runtime": "Runtime",
-    "status.bridgeProvider": "Bridge provider",
+    "status.aiProvider": "AI provider",
     "invite.kicker": "LAF-Office invite",
     "invite.title": "Join the company workspace",
     "invite.checking": "Checking invite...",
@@ -848,7 +739,6 @@ const messages = {
     "settings.saved": "설정을 저장했습니다.",
     "settings.group.workspace": "워크스페이스",
     "settings.group.credentials": "인증 정보",
-    "settings.group.system": "시스템",
     "settings.group.advanced": "고급",
     "settings.section.profile": "프로필",
     "settings.section.general": "일반",
@@ -856,7 +746,6 @@ const messages = {
     "settings.section.team": "팀",
     "settings.section.access": "권한 관리",
     "settings.section.company": "회사",
-    "settings.section.bridge": "LAF Bridge",
     "settings.section.keys": "API 키",
     "settings.section.integrations": "연결 앱",
     "settings.section.intervals": "폴링",
@@ -1019,74 +908,11 @@ const messages = {
     "settings.company.save": "회사 정보 저장",
     "settings.keys.title": "API 키",
     "settings.keys.desc":
-      "CLI 세션을 사용할 수 없을 때 로컬 에이전트가 사용할 제공자 키입니다. 키는 로컬 설정 파일에 저장됩니다. 새 값으로 업데이트하거나 비워 두면 기존 키를 유지합니다.",
+      "클라우드 오피스가 사용할 제공자 키입니다. 새 값으로 업데이트하거나 비워 두면 기존 키를 유지합니다.",
     "settings.keys.env": "환경 변수:",
     "settings.keys.noKeys":
       "입력한 키가 없습니다. 비워 두면 기존 키를 유지합니다.",
     "settings.keys.save": "API 키 저장",
-    "settings.bridge.title": "LAF Bridge",
-    "settings.bridge.desc":
-      "이 워크스페이스를 내 컴퓨터의 LAF Bridge와 연결합니다.",
-    "settings.bridge.status": "상태",
-    "settings.bridge.connected": "LAF Bridge 온라인",
-    "settings.bridge.disconnected": "LAF Bridge 오프라인",
-    "settings.bridge.needsAttention": "LAF Bridge 확인 필요",
-    "settings.bridge.noBridge": "연결된 LAF Bridge 없음",
-    "settings.bridge.online": "LAF Bridge 온라인",
-    "settings.bridge.offline": "LAF Bridge 응답 지연",
-    "settings.bridge.optionalHint":
-      "아직 LAF Bridge가 연결되지 않았습니다. 아래 설정 순서대로 진행하세요.",
-    "settings.bridge.management": "LAF Bridge 접근",
-    "settings.bridge.managementHint": "이 LAF Bridge 연결 해제",
-    "settings.bridge.revoke": "LAF Bridge 연결 해제",
-    "settings.bridge.revoked": "LAF Bridge 연결을 해제했습니다.",
-    "settings.bridge.revokeFailed": "LAF Bridge 연결 해제 실패",
-    "settings.bridge.revokeTitle": "LAF Bridge 연결을 해제할까요?",
-    "settings.bridge.revokeMessage":
-      "다시 페어링할 때까지 이 컴퓨터는 LAF Bridge 실행 계획을 받지 않습니다.",
-    "settings.bridge.revokeConfirm": "연결 해제",
-    "settings.bridge.tools": "로컬 확인",
-    "settings.bridge.toolsUnknown":
-      "LAF Bridge가 연결되면 도구 확인 결과가 표시됩니다.",
-    "settings.bridge.providerReady": "제공자 런타임 감지:",
-    "settings.bridge.providerMissing":
-      "LAF Bridge에서 Codex CLI 또는 Claude Code CLI를 사용할 수 있게 설정하세요",
-    "settings.bridge.setupTitle": "설정 방법",
-    "settings.bridge.setupDesc":
-      "설정 코드를 만든 뒤 승인된 에이전트 실행을 처리할 컴퓨터에서 npx laf-bridge pair를 실행하고, LAF Bridge가 물어보면 코드를 붙여넣으세요.",
-    "settings.bridge.whyTitle": "왜 필요한가요?",
-    "settings.bridge.whyBody":
-      "브라우저는 이 컴퓨터의 Codex CLI나 Claude Code CLI를 직접 실행할 수 없습니다. LAF Bridge는 워크스페이스에서 승인된 작업을 받아 이 컴퓨터에서 실행해주는 작은 연결 도구입니다.",
-    "settings.bridge.helpOpenTerminal":
-      "터미널 앱을 여세요. macOS에서는 Terminal, Windows에서는 PowerShell, Linux에서는 사용하는 터미널을 열면 됩니다.",
-    "settings.bridge.helpCreateCopy":
-      "여기에서 설정 코드 만들기를 누르세요. 명령이 자동으로 복사되지 않으면 명령 복사를 누르세요.",
-    "settings.bridge.helpPasteEnter":
-      "명령을 붙여넣고 Enter를 누른 뒤, LAF Bridge가 요청하면 설정 코드를 붙여넣으세요.",
-    "settings.bridge.helpReturn":
-      "이 화면으로 돌아오세요. 상태가 LAF Bridge 온라인으로 바뀌면 끝입니다.",
-    "settings.bridge.stepCommand": "코드 만들기",
-    "settings.bridge.stepConnect": "명령 실행",
-    "settings.bridge.stepReady": "준비됨",
-    "settings.bridge.generate": "설정 코드 만들기",
-    "settings.bridge.generating": "생성 중...",
-    "settings.bridge.codeReady":
-      "설정 코드가 생성되었습니다. 브라우저가 허용했다면 명령도 복사되었습니다.",
-    "settings.bridge.generateFailed": "설정 코드 생성 실패",
-    "settings.bridge.codeLabel": "설정 코드",
-    "settings.bridge.codeHint":
-      "LAF Bridge가 터미널에서 요청하면 이 코드를 붙여넣으세요.",
-    "settings.bridge.copyCode": "코드 복사",
-    "settings.bridge.codeCopied": "설정 코드를 복사했습니다.",
-    "settings.bridge.expires": "유효 시간",
-    "settings.bridge.commandLabel": "터미널에 붙여넣을 명령",
-    "settings.bridge.commandHint":
-      "먼저 이 명령을 실행하세요. npx가 필요하면 LAF Bridge를 내려받습니다.",
-    "settings.bridge.copyCommand": "명령 복사",
-    "settings.bridge.commandReadyCopied":
-      "명령을 복사했습니다. 터미널에서 실행한 뒤 요청이 나오면 설정 코드를 붙여넣으세요.",
-    "settings.bridge.commandCopied": "명령을 복사했습니다.",
-    "settings.bridge.copyFailed": "명령을 복사하지 못했습니다.",
     "settings.danger.title": "위험 구역",
     "settings.danger.desc":
       "이 개발 워크스페이스에 대한 되돌릴 수 없는 작업입니다. 재설정은 로컬 런타임을 다시 불러오고, 완전 삭제는 워크스페이스 기록을 지운 뒤 실행 중인 웹 UI에서 온보딩을 다시 엽니다.",
@@ -1116,7 +942,7 @@ const messages = {
     "settings.danger.shredDeleteRuntimeState":
       "로컬 런타임 상태 (재설정과 동일)",
     "settings.danger.shredPreserveWorktrees":
-      "Bridge managed checkout: 브랜치의 커밋되지 않은 작업은 디스크에 유지됨",
+      "클라우드 오피스 내보내기와 첨부 기록은 별도로 삭제하지 않는 한 유지됨",
     "settings.danger.shredPreserveConfig": "전역 설정과 API 키",
     "settings.danger.shredPreserveDevice": "로컬 디바이스 ID",
     "settings.danger.shredButton": "워크스페이스 완전 삭제...",
@@ -1128,7 +954,7 @@ const messages = {
     "settings.danger.resetConfirm": "로컬 런타임 재설정",
     "settings.danger.shredModalTitle": "이 워크스페이스를 완전 삭제할까요?",
     "settings.danger.shredModalIntro":
-      "팀, 회사 정보, 프로젝트 태스크 영수증, 저장된 워크플로와 로컬 로그, 세션, 공급자 상태, 위키 메모리를 영구 삭제합니다. 온보딩이 즉시 다시 열립니다. Bridge managed checkout, 설정, 디바이스 ID는 유지됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "팀, 회사 정보, 프로젝트 태스크 영수증, 저장된 워크플로, 로그, 세션, 공급자 상태, 위키 메모리를 영구 삭제합니다. 온보딩이 즉시 다시 열립니다. API 키와 계정 ID는 유지됩니다. 이 작업은 되돌릴 수 없습니다.",
     "settings.danger.shredConfirm": "워크스페이스 완전 삭제",
     "settings.danger.resetFailed": "재설정 실패",
     "settings.danger.resetSuccess":
@@ -1245,8 +1071,7 @@ const messages = {
     "tasks.repoConnectedDesc": "프로젝트 단위 개발 작업을 시작할 수 있습니다.",
     "tasks.repoNotConnectedDesc": "코드 작업을 시작할 때만 연결하면 됩니다.",
     "tasks.repoReady": "저장소 준비됨",
-    "tasks.repoReadyDesc":
-      "GitHub 접근, PR 전달, Bridge managed checkout이 준비되었습니다.",
+    "tasks.repoReadyDesc": "GitHub 접근과 PR 전달이 준비되었습니다.",
     "tasks.repoChecking": "저장소 확인 중",
     "tasks.repoCheckingDesc":
       "GitHub CLI 로그인과 저장소 접근 권한을 확인합니다.",
@@ -1272,50 +1097,6 @@ const messages = {
     "tasks.defaultBranch": "기본 브랜치: ",
     "tasks.repoCodingEnabled": "개발 작업은 브랜치와 PR 전달로 생성됩니다.",
     "tasks.repoCodingBlocked": "설정이 해결될 때까지 개발 작업을 보류합니다.",
-    "tasks.bridgeChecking": "LAF Bridge 확인 중",
-    "tasks.bridgeConnected": "LAF Bridge 연결됨",
-    "tasks.bridgeStale": "LAF Bridge 응답 지연",
-    "tasks.bridgeNoCapable": "실행 가능한 LAF Bridge 없음",
-    "tasks.bridgeJobQueued": "작업 대기 중",
-    "tasks.bridgeJobRunning": "작업 실행 중",
-    "tasks.bridgeWorkspaceTitle": "LAF Bridge 작업 위치",
-    "tasks.bridgeWorkspaceDesc":
-      "LAF Bridge는 페어링된 컴퓨터에서 이 프로젝트의 managed checkout을 사용합니다.",
-    "tasks.bridgeWorkspaceAutoTitle": "자동 관리 체크아웃",
-    "tasks.bridgeWorkspaceRepoNeeded": "GitHub repo 필요",
-    "tasks.bridgeWorkspaceAutoBadge": "기본",
-    "tasks.bridgeWorkspaceAutoDesc":
-      "LAF Bridge가 이 프로젝트 전용 작업 폴더를 만들고 관리합니다. 팀원마다 자기 컴퓨터에서 별도로 적용됩니다.",
-    "tasks.bridgeWorkspaceBridgeReady": "LAF Bridge 연결됨",
-    "tasks.bridgeWorkspaceBridgeWaiting": "LAF Bridge 연결 대기",
-    "tasks.bridgeWorkspaceChecking": "브리지 확인 중",
-    "tasks.bridgeUnavailable": "LAF Bridge를 사용할 수 없습니다",
-    "tasks.bridgeNoPairedDevice":
-      "LAF Bridge가 연결되어 있지 않습니다. Settings에서 연결하세요.",
-    "tasks.bridgeNoOnlineDevice":
-      "LAF Bridge가 오프라인입니다. Bridge 터미널을 다시 연결해주세요.",
-    "tasks.bridgeNoLocalCLI":
-      "LAF Bridge가 Codex/Claude Code CLI를 감지하지 못했습니다.",
-    "tasks.bridgePermissionRequired":
-      "이 계정에는 LAF Bridge 실행 권한이 없습니다.",
-    "tasks.bridgeNoBindingReason":
-      "Bridge managed checkout을 위해 GitHub repo를 연결하세요",
-    "tasks.bridgeReadyToRun": "LAF Bridge 실행 계획을 만들 준비가 됐습니다",
-    "tasks.bridgeConfirmTitle": "LAF Bridge로 실행할까요?",
-    "tasks.bridgeConfirmMessage":
-      "LAF Bridge가 연결된 컴퓨터에서 Codex 또는 Claude Code CLI로 작업을 실행합니다.",
-    "tasks.bridgeConfirmSubmit": "계획 만들기",
-    "tasks.createExecutionPlan": "계획 만들기",
-    "tasks.bridgePlanCreated": "실행 계획을 만들었습니다.",
-    "tasks.bridgePlanFailed": "실행 계획을 만들지 못했습니다",
-    "tasks.bridgeExecution": "브리지 실행",
-    "tasks.bridgeExecutionStatus": "상태:",
-    "tasks.bridgeExecutionNoEvents": "브리지 이벤트를 기다리는 중입니다.",
-    "tasks.bridgeExecutionReceipt": "Receipt",
-    "tasks.bridgeExecutionReceiptEmpty": "브리지가 요약 없이 완료되었습니다.",
-    "tasks.bridgeExecutionArtifacts": "결과 링크",
-    "tasks.bridgeExecutionChangedFiles": "변경 파일",
-    "tasks.bridgeEvent": "이벤트 수신",
     "tasks.saving": "저장 중...",
     "tasks.saveGithubRepo": "GitHub 저장소 저장",
     "tasks.cancel": "취소",
@@ -1644,7 +1425,7 @@ const messages = {
     "status.agent": "에이전트",
     "status.agents": "에이전트",
     "status.runtime": "런타임",
-    "status.bridgeProvider": "Bridge 제공자",
+    "status.aiProvider": "AI 제공자",
     "invite.kicker": "LAF-Office 초대",
     "invite.title": "회사 워크스페이스 합류",
     "invite.checking": "초대를 확인하는 중...",

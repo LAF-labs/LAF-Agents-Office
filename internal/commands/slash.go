@@ -7,7 +7,7 @@ package commands
 // (web/src/components/messages/Composer.tsx). Flip WebSupported on a command
 // the moment a web handler exists; leave it off until then. This is the
 // source of truth for local broker autocomplete. Hosted deployments expose a
-// smaller Bridge-safe GET /commands registry from the hosted API.
+// smaller cloud-safe GET /commands registry from the hosted API.
 func RegisterAllCommands(r *Registry) {
 	// AI
 	r.Register(SlashCommand{Name: "ask", Description: "Ask the team lead", WebSupported: true, Execute: cmdAsk})
@@ -39,7 +39,7 @@ func RegisterAllCommands(r *Registry) {
 	r.Register(SlashCommand{Name: "config", Description: "Config commands (show/set/path)", Execute: cmdConfig})
 	r.Register(SlashCommand{Name: "detect", Description: "Detect installed AI platforms", Execute: cmdDetect})
 	r.Register(SlashCommand{Name: "init", Description: "Run setup", Execute: cmdInit})
-	r.Register(SlashCommand{Name: "provider", Description: "Switch default Bridge provider", WebSupported: true, Execute: cmdProvider})
+	r.Register(SlashCommand{Name: "provider", Description: "Switch default AI provider", WebSupported: true, Execute: cmdProvider})
 
 	// System
 	r.Register(SlashCommand{Name: "help", Description: "Show all commands + keys", WebSupported: true, Execute: cmdHelp})

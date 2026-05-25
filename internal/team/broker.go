@@ -852,7 +852,7 @@ func (b *Broker) syncTaskWorktreeLocked(task *teamTask) error {
 	if task == nil {
 		return nil
 	}
-	if hostedExecutionBoundaryEnabled() {
+	if hostedCloudRuntimeEnabled() {
 		task.WorktreePath = ""
 		task.WorktreeBranch = ""
 		return nil

@@ -43,8 +43,7 @@ export function Shell({ children, onLogout, userEmail }: ShellProps) {
   const searchOpen = useAppStore((s) => s.searchOpen);
   const composerHelpOpen = useAppStore((s) => s.composerHelpOpen);
   const inDM = !currentApp && !!isDMChannel(currentChannel, channelMeta);
-  const inAppCanvas =
-    currentApp === "home" || currentApp === "tasks" || currentApp === "growth";
+  const inAppSurface = Boolean(currentApp);
 
   const shellClassName = [
     "office",
@@ -59,10 +58,10 @@ export function Shell({ children, onLogout, userEmail }: ShellProps) {
       <Sidebar />
       <main className="main">
         <DisconnectBanner />
-        {!(inDM || inAppCanvas) && (
+        {!(inDM || inAppSurface) && (
           <ChannelHeader onLogout={onLogout} userEmail={userEmail} />
         )}
-        {!(inDM || inAppCanvas) && <RuntimeStrip />}
+        {!(inDM || inAppSurface) && <RuntimeStrip />}
         {children}
         <StatusBar />
       </main>
