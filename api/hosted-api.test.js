@@ -189,7 +189,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
       "utf8",
     ),
   );
-  assert.equal(schema.latestMigration, "20260525235900");
+  assert.equal(schema.latestMigration, "20260526010000");
   assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525235900");
 
   const latestBoundarySql = fs.readFileSync(
@@ -208,6 +208,22 @@ test("pure cloud migration drops obsolete execution schema", () => {
   assert.match(latestBoundarySql, /remaining_triggers/);
   assert.match(latestBoundarySql, /remaining_types/);
   assert.match(latestBoundarySql, /raise exception/);
+
+  const usageMeteringSql = fs.readFileSync(
+    path.join(
+      migrationDir,
+      "20260526010000_add_startup_office_cost_metering.sql",
+    ),
+    "utf8",
+  );
+  assert.match(usageMeteringSql, /add column if not exists tool_calls integer/);
+  assert.match(usageMeteringSql, /add column if not exists idempotency_key text/);
+  assert.match(usageMeteringSql, /idx_startup_office_usage_events_idempotency_key/);
+  const usageEvents = schema.activeTables.find(
+    (table) => table.name === "startup_office_usage_events",
+  );
+  assert.equal(usageEvents.columns.includes("tool_calls"), true);
+  assert.equal(usageEvents.columns.includes("idempotency_key"), true);
 });
 
 test("project and task storage is removed from the current Supabase schema", () => {

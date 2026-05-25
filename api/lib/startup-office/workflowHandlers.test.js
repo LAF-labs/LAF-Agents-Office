@@ -152,8 +152,11 @@ function baseDeps(overrides = {}) {
               provider: "fake",
               total_tokens: 30,
             },
+            skill_invocations: args.skillInvocations,
           },
+          started_at: "2026-05-25T00:00:00.000Z",
           status: "approval_waiting",
+          updated_at: "2026-05-25T00:01:00.000Z",
         },
         status: "approval_waiting",
       };
@@ -314,6 +317,9 @@ test("loopRun executes immediately and records usage plus notification events", 
     ["startup_office_usage_events", "startup_office_notifications"],
   );
   assert.equal(deps.calls.rest[0].options.body.cost_cents, 12);
+  assert.equal(deps.calls.rest[0].options.body.idempotency_key, "run-1:model_run");
+  assert.equal(deps.calls.rest[0].options.body.tool_calls, 1);
+  assert.equal(deps.calls.rest[0].options.body.worker_duration_ms, 60000);
   assert.equal(deps.calls.rest[1].options.body.event_type, "approval_waiting");
 });
 

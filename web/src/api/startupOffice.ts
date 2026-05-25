@@ -193,6 +193,7 @@ export interface StartupOfficeBetaOps {
     model_spend_percent: number;
     run_percent: number;
     runs: number;
+    tool_calls: number;
     total_tokens: number;
   };
 }

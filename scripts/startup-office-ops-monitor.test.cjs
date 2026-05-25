@@ -140,8 +140,8 @@ test("ops monitor exposes run latency, approval wait, failure, and model cost me
         { id: "run-3", status: "failed", updated_at: "2026-05-25T11:59:00.000Z" },
       ],
       usage_events: [
-        { cost_cents: 12, total_tokens: 1000, worker_duration_ms: 1200 },
-        { cost_cents: 8, total_tokens: 500, worker_duration_ms: 800 },
+        { cost_cents: 12, tool_calls: 3, total_tokens: 1000, worker_duration_ms: 1200 },
+        { cost_cents: 8, tool_calls: 2, total_tokens: 500, worker_duration_ms: 800 },
       ],
       worker_jobs: [],
     },
@@ -168,6 +168,7 @@ test("ops monitor exposes run latency, approval wait, failure, and model cost me
   assert.equal(result.metrics.approval_wait_ms_avg, 1860000);
   assert.equal(result.metrics.approval_wait_ms_max, 3600000);
   assert.equal(result.metrics.total_tokens, 1500);
+  assert.equal(result.metrics.tool_calls, 5);
   assert.equal(result.metrics.model_cost_cents, 20);
   assert.equal(result.metrics.worker_duration_ms_avg, 1000);
   assert.equal(result.metrics.worker_duration_ms_max, 1200);

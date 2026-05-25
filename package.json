@@ -10,6 +10,7 @@
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
     "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
+    "startup-office:cost-metering": "node scripts/check-startup-office-cost-metering.cjs",
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
     "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",

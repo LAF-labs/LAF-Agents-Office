@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260525235900",
+  "latestMigration": "20260526010000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -142,7 +142,7 @@
       "domain": "usage",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "event_type", "provider", "model", "input_tokens", "output_tokens", "total_tokens", "cost_cents", "worker_duration_ms", "metadata", "created_by", "created_at"]
+      "columns": ["id", "team_id", "run_id", "event_type", "provider", "model", "input_tokens", "output_tokens", "total_tokens", "cost_cents", "worker_duration_ms", "metadata", "created_by", "created_at", "tool_calls", "idempotency_key"]
     },
     {
       "name": "startup_office_worker_jobs",
@@ -199,6 +199,11 @@
       "table": "startup_office_runs",
       "column": "idempotency_key",
       "index": "idx_startup_office_runs_idempotency_key"
+    },
+    {
+      "table": "startup_office_usage_events",
+      "column": "idempotency_key",
+      "index": "idx_startup_office_usage_events_idempotency_key"
     },
     {
       "table": "startup_office_artifacts",

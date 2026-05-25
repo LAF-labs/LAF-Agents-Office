@@ -15,6 +15,7 @@ function createHostedUsageHandlers(deps) {
     const limits = snapshot.limits || {};
     const modelSpendCents = numberValue(usage.model_spend_cents);
     const totalTokens = numberValue(usage.total_tokens);
+    const toolCalls = numberValue(usage.tool_calls);
     const runs = numberValue(usage.runs);
     const modelSpendPercent = numberValue(usage.model_spend_percent);
     const runPercent = numberValue(usage.run_percent);
@@ -28,6 +29,7 @@ function createHostedUsageHandlers(deps) {
     writeJSON(res, 200, {
       total: {
         cost_usd: centsToUSD(modelSpendCents),
+        tool_calls: toolCalls,
         total_tokens: totalTokens,
       },
       session: {
@@ -49,6 +51,7 @@ function createHostedUsageHandlers(deps) {
         plan: billing.plan || "trial",
         run_percent: runPercent,
         runs,
+        tool_calls: toolCalls,
         total_tokens: totalTokens,
       },
     });

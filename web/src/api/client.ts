@@ -990,7 +990,7 @@ export interface UsageOptimizationStats {
 }
 
 export interface UsageData {
-  total?: { cost_usd: number; total_tokens?: number };
+  total?: { cost_usd: number; tool_calls?: number; total_tokens?: number };
   session?: { total_tokens: number };
   personal_cli?: { total_tokens?: number };
   laf_ai?: { limit_percent?: number; percent?: number };
@@ -1003,6 +1003,7 @@ export interface UsageData {
     plan?: string;
     run_percent?: number;
     runs?: number;
+    tool_calls?: number;
     total_tokens?: number;
   };
   agents?: Record<string, AgentUsage>;

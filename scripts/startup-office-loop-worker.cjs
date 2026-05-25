@@ -3,6 +3,9 @@
 const crypto = require("node:crypto");
 const { createServiceRoleAccessGuards } = require("../api/lib/hosted/serviceRoleAccess");
 const { startupOfficeApprovalPolicy } = require("../api/lib/startup-office/approvalPolicy");
+const {
+  recordStartupOfficeUsageEvent,
+} = require("../api/lib/startup-office/runOutcomeRecorder");
 const { createStartupOfficeRepository } = require("../api/lib/startup-office/repositories");
 const { publicCompanyProfile } = require("../api/lib/startup-office/serializers");
 const { createBrowserResearchClient } = require("../workers/startup-office/browserResearch");
@@ -248,6 +251,7 @@ async function main() {
     claimWorkerJob,
     loadWorkerJobContext,
     nowISO,
+    recordUsageEvent,
     runLoop: runStartupOfficeLoop,
     truncateText,
     updateWorkerJob,
@@ -256,6 +260,15 @@ async function main() {
     limit: Number(process.env.LAF_LOOP_WORKER_BATCH_SIZE || 5),
   });
   console.log(JSON.stringify(redactWorkerResult(result), null, 2));
+}
+
+async function recordUsageEvent({ context, result }) {
+  await recordStartupOfficeUsageEvent({
+    membership: context.membership,
+    objectValue,
+    result,
+    safeStartupOfficeRest: repository().safeRest,
+  });
 }
 
 function redactWorkerResult(result) {

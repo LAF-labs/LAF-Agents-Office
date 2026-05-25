@@ -42,6 +42,7 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
     .map((row) => numberValue(row.worker_duration_ms))
     .filter((value) => value > 0);
   const modelCostCents = usageEvents.reduce((sum, row) => sum + numberValue(row.cost_cents), 0);
+  const toolCalls = usageEvents.reduce((sum, row) => sum + numberValue(row.tool_calls), 0);
   const totalTokens = usageEvents.reduce((sum, row) => sum + numberValue(row.total_tokens), 0);
   const staleProcessingOutbox = outboxEvents.filter(
     (row) =>
@@ -103,6 +104,7 @@ function evaluateStartupOfficeOpsSnapshot(snapshot, thresholds = thresholdsFromE
       model_cost_cents: modelCostCents,
       run_latency_ms_avg: average(completedRunLatencies),
       run_latency_ms_p95: percentile(completedRunLatencies, 0.95),
+      tool_calls: toolCalls,
       total_tokens: totalTokens,
       worker_duration_ms_avg: average(workerDurations),
       worker_duration_ms_max: max(workerDurations),
@@ -240,7 +242,7 @@ async function readStartupOfficeOpsSnapshot(now = new Date().toISOString()) {
       queryPath("startup_office_usage_events", {
         limit: "1000",
         order: "created_at.desc",
-        select: "id,run_id,provider,model,total_tokens,cost_cents,worker_duration_ms,created_at",
+        select: "id,run_id,provider,model,total_tokens,tool_calls,cost_cents,worker_duration_ms,created_at",
       }),
     ),
   ]);
@@ -262,6 +264,7 @@ function printMonitorResult(result) {
     model_cost_cents: 0,
     run_latency_ms_avg: 0,
     run_latency_ms_p95: 0,
+    tool_calls: 0,
     total_tokens: 0,
     worker_duration_ms_avg: 0,
     worker_duration_ms_max: 0,
@@ -279,6 +282,7 @@ function printMonitorResult(result) {
     `[startup-office-ops-monitor] run latency avg/p95 ms: ${metrics.run_latency_ms_avg}/${metrics.run_latency_ms_p95}`,
     `[startup-office-ops-monitor] approval wait avg/max ms: ${metrics.approval_wait_ms_avg}/${metrics.approval_wait_ms_max}`,
     `[startup-office-ops-monitor] model tokens/cost cents: ${metrics.total_tokens}/${metrics.model_cost_cents}`,
+    `[startup-office-ops-monitor] tool calls: ${metrics.tool_calls}`,
     `[startup-office-ops-monitor] worker duration avg/max ms: ${metrics.worker_duration_ms_avg}/${metrics.worker_duration_ms_max}`,
   ];
   for (const issue of result.issues) {

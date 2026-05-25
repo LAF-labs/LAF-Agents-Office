@@ -22,6 +22,7 @@ test("loop worker idles when no job is claimable", async () => {
 
 test("loop worker executes a claimed job with loaded context", async () => {
   const calls = [];
+  const usageEvents = [];
   const job = claimedJob({ attempts: 1 });
   const worker = createStartupOfficeLoopWorker({
     claimWorkerJob: async () => job,
@@ -38,9 +39,22 @@ test("loop worker executes a claimed job with loaded context", async () => {
       truncateText,
     }),
     nowISO: fixedNow,
+    recordUsageEvent: async (payload) => {
+      usageEvents.push(payload);
+    },
     runLoop: async (context) => {
       calls.push(context);
-      return { status: "waiting_approval" };
+      return {
+        run: {
+          id: context.run.id,
+          metadata: {
+            cost: { total_tokens: 30 },
+            skill_invocations: [{ skill_name: "market-research" }],
+          },
+          status: "waiting_approval",
+        },
+        status: "waiting_approval",
+      };
     },
     updateWorkerJob: async () => {
       throw new Error("loop engine owns success job update");
@@ -52,6 +66,9 @@ test("loop worker executes a claimed job with loaded context", async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].workerJob.id, job.id);
   assert.equal(calls[0].workerJob.attempts, 1);
+  assert.equal(usageEvents.length, 1);
+  assert.equal(usageEvents[0].context.membership.team_id, "team-1");
+  assert.equal(usageEvents[0].result.run.id, "run-1");
 });
 
 test("loop worker schedules retry when a claimed job fails below max attempts", async () => {
@@ -102,12 +119,24 @@ test("loop worker dead-letters exhausted failed jobs", async () => {
 
 test("loop worker skips jobs whose run already reached a terminal state", async () => {
   const updates = [];
+  const usageEvents = [];
   const worker = createStartupOfficeLoopWorker({
     claimWorkerJob: async () => claimedJob({ attempts: 1 }),
     loadWorkerJobContext: async (job) => ({
-      run: { id: job.run_id, status: "waiting_approval" },
+      membership: { team_id: job.team_id, user_id: "user-1" },
+      run: {
+        id: job.run_id,
+        metadata: {
+          cost: { total_tokens: 30 },
+          skill_invocations: [{ skill_name: "market-research" }],
+        },
+        status: "waiting_approval",
+      },
     }),
     nowISO: fixedNow,
+    recordUsageEvent: async (payload) => {
+      usageEvents.push(payload);
+    },
     runLoop: async () => {
       throw new Error("should not run loop");
     },
@@ -118,6 +147,8 @@ test("loop worker skips jobs whose run already reached a terminal state", async 
 
   const result = await worker.processOne();
   assert.equal(result.status, "skipped");
+  assert.equal(usageEvents.length, 1);
+  assert.equal(usageEvents[0].result.status, "completed");
   assert.equal(updates[0].patch.status, "completed");
   assert.equal(updates[0].patch.locked_at, null);
   assert.equal(updates[0].patch.metadata.skipped_run_status, "waiting_approval");

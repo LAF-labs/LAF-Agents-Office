@@ -30,6 +30,10 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
           <dt>{copy.betaOpsLabels.tokens}</dt>
           <dd>{(usage?.total_tokens ?? 0).toLocaleString()} tokens</dd>
         </div>
+        <div>
+          <dt>{copy.betaOpsLabels.toolCalls}</dt>
+          <dd>{(usage?.tool_calls ?? 0).toLocaleString()}</dd>
+        </div>
       </dl>
     </section>
   );

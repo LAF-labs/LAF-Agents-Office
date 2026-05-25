@@ -2,6 +2,7 @@ function createStartupOfficeLoopWorker({
   claimWorkerJob,
   loadWorkerJobContext,
   nowISO = () => new Date().toISOString(),
+  recordUsageEvent = null,
   retryDelayMs = defaultRetryDelayMs,
   runLoop,
   truncateText = defaultTruncateText,
@@ -21,6 +22,11 @@ function createStartupOfficeLoopWorker({
       const terminal = terminalRunStatus(context.run?.status);
       if (terminal) {
         const skippedAt = nowISO();
+        await maybeRecordUsageEvent({
+          context,
+          job,
+          result: { run: context.run, status: terminal },
+        });
         await updateWorkerJob(job.team_id, job.id, {
           completed_at: skippedAt,
           last_error: "",
@@ -39,6 +45,7 @@ function createStartupOfficeLoopWorker({
         ...context,
         workerJob: job,
       });
+      await maybeRecordUsageEvent({ context, job, result });
       if (result.status === "failed") {
         const failure = await markFailed(job, result.error || "Startup Office loop failed");
         return { error: failure.error, job, result, status: failure.status };
@@ -70,6 +77,11 @@ function createStartupOfficeLoopWorker({
     }
     await updateWorkerJob(job.team_id, job.id, patch);
     return { error: patch.last_error, status: patch.status };
+  }
+
+  async function maybeRecordUsageEvent(payload) {
+    if (typeof recordUsageEvent !== "function") return;
+    await recordUsageEvent(payload);
   }
 
   async function processBatch({ limit = 5 } = {}) {

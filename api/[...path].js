@@ -1605,10 +1605,11 @@ async function startupOfficeUsage(teamID) {
     (out, event) => {
       out.model_spend_cents += Number(event.cost_cents || 0);
       out.runs += event.event_type === "model_run" ? 1 : 0;
+      out.tool_calls += Number(event.tool_calls || 0);
       out.total_tokens += Number(event.total_tokens || 0);
       return out;
     },
-    { model_spend_cents: 0, runs: 0, total_tokens: 0 },
+    { model_spend_cents: 0, runs: 0, tool_calls: 0, total_tokens: 0 },
   );
 }
 

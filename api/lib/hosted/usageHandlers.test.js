@@ -42,6 +42,7 @@ function baseDeps(overrides = {}) {
           model_spend_percent: 6,
           run_percent: 14,
           runs: 7,
+          tool_calls: 22,
           total_tokens: 4567,
         },
       };
@@ -66,6 +67,7 @@ test("usage handler returns Startup Office usage and billing snapshot", async ()
     body: {
       total: {
         cost_usd: 12.34,
+        tool_calls: 22,
         total_tokens: 4567,
       },
       session: {
@@ -87,6 +89,7 @@ test("usage handler returns Startup Office usage and billing snapshot", async ()
         plan: "beta",
         run_percent: 14,
         runs: 7,
+        tool_calls: 22,
         total_tokens: 4567,
       },
     },

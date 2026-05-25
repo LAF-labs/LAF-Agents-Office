@@ -165,6 +165,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsLabels: {
       runs: "Runs",
       state: "State",
+      toolCalls: "Tool calls",
       tokens: "Tokens",
     },
     profileTitle: "Company profile",
@@ -324,6 +325,7 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsLabels: {
       runs: "실행",
       state: "상태",
+      toolCalls: "툴 호출",
       tokens: "토큰",
     },
     profileTitle: "회사 프로필",

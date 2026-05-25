@@ -59,6 +59,7 @@ function mockStartupOfficeSummary() {
         model_spend_percent: 0,
         run_percent: 4,
         runs: 2,
+        tool_calls: 5,
         total_tokens: 3800,
       },
     },
@@ -322,6 +323,11 @@ describe("StartupOfficeApp", () => {
     expect(screen.getByText("mrr")).toBeInTheDocument();
     expect(screen.getByText("1,500 usd (+500)")).toBeInTheDocument();
     expect(screen.getByText("2 / 50")).toBeInTheDocument();
+    const betaOpsPanel = screen
+      .getByRole("heading", { name: "Beta operations" })
+      .closest("section") as HTMLElement;
+    expect(within(betaOpsPanel).getByText("Tool calls")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("5")).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("Projects");
     expect(container.textContent).not.toContain("Tasks");
