@@ -90,7 +90,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I049 | Security | External action approval policy is not enforced by a centralized policy engine. | policy route and loop templates |
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
 | SV-I051 | AI worker | The model client now supports an OpenAI-compatible fallback route for transient primary model failures; true multi-SDK provider diversity remains future hardening. | `startup-office:model-failover`, worker tests |
-| SV-I052 | AI worker | Fake-provider tests prove shape, not real model quality. | worker tests |
+| SV-I052 | AI worker | A manual gated live model smoke now verifies one real structured model path with usage tokens and quality checks; broad live evals remain future hardening. | `startup-office:live-model-smoke`, `startup-office:live-model-smoke-check` |
 | SV-I053 | AI worker | Prompt templates now have a version manifest, instruction/schema hashes, review scope, and receipt/run metadata traces. | `startup-office:prompt-versions`, worker tests |
 | SV-I054 | AI worker | Output quality checks now cover structure, sources, assumptions, external-action claims, overclaiming, and regulated-advice review language; real model evals remain a post-beta hardening need. | `qualityChecks.js` |
 | SV-I055 | AI worker | Source citation enforcement is not connected to live research or retrieval. | loop templates and context builder |
@@ -163,7 +163,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I122 | Testing | Hosted API tests are highly valuable but too concentrated in one massive file. | `api/hosted-api.test.js` |
 | SV-I123 | Testing | Browser E2E for signup-to-first-approved-loop is missing. | no Playwright gate |
 | SV-I124 | Testing | Real Supabase RLS tests are missing. | migrations |
-| SV-I125 | Testing | Live model smoke tests are intentionally absent from release gate. | fake provider |
+| SV-I125 | Testing | Live model API calls remain intentionally absent from release gate, but the gate now pins the manual gated script and deterministic harness. | `startup-office:live-model-smoke-check` |
 | SV-I126 | Testing | Contract tests between web client types and API responses are not generated. | TypeScript types |
 | SV-I127 | Testing | Accessibility tests are missing. | web tests |
 | SV-I128 | Testing | Visual regression tests are missing. | UI |
@@ -287,7 +287,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G041 | Add provider abstraction. | The worker supports primary OpenAI plus an OpenAI-compatible fallback endpoint/key/model with redacted attempt metadata. | `startup-office:model-failover`, worker tests |
 | SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, hashed, and tied to model calls, runs, artifacts, approvals, worker jobs, and receipts. | `startup-office:prompt-versions`, worker tests |
 | SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, unsafe external-action claims, overclaiming, and regulated-advice review. | eval suite |
-| SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | manual gated script |
+| SV-G044 | Add live model smoke. | Non-release live smoke can verify one real model path. | `startup-office:live-model-smoke`, manual gated script |
 | SV-G045 | Enforce citations. | Research-like outputs cannot complete without source metadata. | worker tests |
 | SV-G046 | Add retrieval over memory and assets. | Loop outputs cite company memory and uploaded materials. | integration tests |
 | SV-G047 | Implement tool permission manifests. | Each loop declares allowed tools, disallowed external-execution tools, and external action policy; worker prompts, metadata, approvals, jobs, and receipts record the policy snapshot. | `startup-office:tool-policy`, worker tests |

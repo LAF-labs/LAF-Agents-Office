@@ -100,6 +100,19 @@ The worker prints aggregate job IDs and statuses only. It does not print model
 prompts, generated artifacts, user profile payloads, provider responses, or
 secrets.
 
+## Live Model Smoke
+
+The release gate intentionally avoids live model calls. Before a closed-beta
+deploy, operators can verify one real structured model path manually:
+
+```bash
+LAF_RUN_LIVE_MODEL_SMOKE=1 npm run startup-office:live-model-smoke
+```
+
+The command requires an OpenAI or OpenAI-compatible key, rejects fake/disabled
+providers, checks provider usage tokens, runs the Startup Office output quality
+rubric, and prints only provider, model, token count, and pricing source.
+
 ## Outbox Worker Schedule
 
 The scheduled workflow runs every five minutes and drains one bounded batch:

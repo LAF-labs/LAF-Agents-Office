@@ -132,7 +132,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "scripts/startup-office-beta-release-gate.cjs",
-    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:model-failover", "startup-office:production-handoff", "startup-office:prompt-versions", "startup-office:tool-policy"],
+    ["startup-office:closed-beta-launch", "startup-office:first-beta-smoke", "startup-office:live-model-smoke-check", "startup-office:model-failover", "startup-office:production-handoff", "startup-office:prompt-versions", "startup-office:tool-policy"],
     "release gate launch checks",
   ],
 ]) {
