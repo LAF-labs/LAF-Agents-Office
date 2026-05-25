@@ -100,7 +100,7 @@ jobs:
       # Pin to full SHA: third-party action, runs on pull_request from forks
       # and can read any GITHUB_TOKEN the workflow exposes. A @v9 re-tag
       # would execute with CI privileges.
-      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # ratchet:golangci/golangci-lint-action@v9.2.0
+      - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # ratchet:golangci/golangci-lint-action@v9.2.1
         with:
           version: v2.11.4
           args: --timeout=5m
@@ -480,7 +480,7 @@ jobs:
         with:
           name: web-dist
           path: web/dist
-      - uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # ratchet:goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # ratchet:goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --snapshot --clean --skip=publish
