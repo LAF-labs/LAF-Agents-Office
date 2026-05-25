@@ -216,7 +216,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
 | SV-I176 | Reliability | Model timeout policy is now durable on runs and worker jobs, enforced around structured model calls, receipted on timeout failures, and covered by a release-gate check; live provider abort signals remain future hardening. | `startup-office:model-timeouts` |
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
-| SV-I178 | Reliability | Health checks do not cover dependencies. | hosted API |
+| SV-I178 | Reliability | Health checks now cover hosted dependencies: Supabase REST/Auth reachability, Startup Office run/worker/outbox tables, model config, and outbox email config report through a degraded-safe endpoint. | `startup-office:health-dependencies` |
 | SV-I179 | Reliability | Backup and restore are not verified. | no runbook evidence |
 | SV-I180 | Reliability | There is no chaos or failure-injection suite for the core loop. | tests |
 | SV-I181 | Developer experience | The repository contains two eras of product architecture, increasing onboarding cost. | internal/team and Startup Office |
@@ -623,6 +623,13 @@ the final release commit or when a shared invariant changes.
   jobs; the loop worker records the policy before model generation, fails and
   receipts timeout breaches, and `npm run startup-office:model-timeouts` pins
   the schema, workflow env, worker enforcement, tests, and release gate.
+- R7/R8 now adds dependency-aware hosted health. `/api/health` remains a cheap
+  liveness probe, while `/api/health/dependencies` checks Supabase REST/Auth,
+  Startup Office run/worker/outbox tables, model configuration, and outbox email
+  configuration without returning secret values. It returns `503` with
+  redacted degraded components when dependencies fail; `npm run
+  startup-office:health-dependencies` pins the route, handler tests, hosted API
+  integration, docs, and release gate.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
   preflights the same Supabase, public host, billing, AI worker, and outbox env

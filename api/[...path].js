@@ -25,6 +25,9 @@ const {
   hostedAPIErrorPayload,
 } = require("./lib/hosted/errorEnvelope");
 const {
+  createHostedHealthHandlers,
+} = require("./lib/hosted/healthHandlers");
+const {
   createHostedInviteHandlers,
 } = require("./lib/hosted/inviteHandlers");
 const {
@@ -217,6 +220,13 @@ const enforceStartupOfficeRateLimit = createStartupOfficeRateLimiter({
   claimPersistentRateLimit: persistentRateLimitsEnabled() ? claimHostedRateLimit : null,
   createRateLimitError: () => new HTTPError(429, "rate limit exceeded"),
   enforceRateLimit,
+});
+const HOSTED_HEALTH_HANDLERS = createHostedHealthHandlers({
+  authFetch,
+  env: process.env,
+  nowISO,
+  rest,
+  writeJSON,
 });
 
 const HOSTED_AGENT_LOG_HANDLERS = createHostedAgentLogHandlers({
@@ -740,10 +750,11 @@ module.exports = async function handler(req, res) {
     const path = requestPath(req);
     await enforceHostedActionRateLimit(req, path);
     if (path === "health" && req.method === "GET") {
-      writeJSON(res, 200, {
-        service: "laf-hosted-api",
-        status: "ok",
-      });
+      await HOSTED_HEALTH_HANDLERS.health(req, res);
+      return;
+    }
+    if (path === "health/dependencies" && req.method === "GET") {
+      await HOSTED_HEALTH_HANDLERS.dependencies(req, res);
       return;
     }
     if (path === "auth/session" && req.method === "GET") {

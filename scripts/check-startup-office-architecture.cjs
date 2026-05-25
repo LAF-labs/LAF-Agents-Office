@@ -42,6 +42,7 @@ assertMaxLines("api/lib/hosted/clientTelemetryHandlers.js", 180);
 assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
 assertMaxLines("api/lib/hosted/conversationHandlers.js", 360);
 assertMaxLines("api/lib/hosted/errorEnvelope.js", 80);
+assertMaxLines("api/lib/hosted/healthHandlers.js", 140);
 assertMaxLines("api/lib/hosted/inviteHandlers.js", 180);
 assertMaxLines("api/lib/hosted/invitePresentation.js", 100);
 assertMaxLines("api/lib/hosted/memberHandlers.js", 240);

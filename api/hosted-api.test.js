@@ -37,6 +37,40 @@ test("hosted API accepts Vercel rewrite path query", async () => {
   assert.equal(response.body.service, "laf-hosted-api");
 });
 
+test("hosted API exposes dependency-aware health without leaking secrets", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    const path = String(url);
+    if (path.includes("/auth/v1/settings")) {
+      return { ok: true, status: 200, statusText: "OK", text: async () => "{}" };
+    }
+    if (path.includes("/rest/v1/")) {
+      return { ok: true, status: 200, statusText: "OK", text: async () => "[]" };
+    }
+    throw new Error(`unexpected fetch: ${path}`);
+  };
+  try {
+    const response = await invoke("health/dependencies", "GET", {});
+    assert.equal(response.status, 200);
+    assert.equal(response.body.service, "laf-hosted-api");
+    assert.equal(response.body.status, "ok");
+    assert.deepEqual(
+      response.body.dependencies.map((check) => check.name),
+      [
+        "supabase_rest",
+        "supabase_auth",
+        "startup_office_runs_table",
+        "startup_office_worker_jobs_table",
+        "startup_office_outbox_events_table",
+        "startup_office_model_config",
+        "outbox_email_config",
+      ],
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test("retired execution routes are no longer part of the hosted API surface", async () => {
   const retiredDeviceRoute = ["bri", "dge"].join("");
   const retiredQueueRoute = ["run", "ner"].join("");
@@ -201,7 +235,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
       "utf8",
     ),
   );
-  assert.equal(schema.latestMigration, "20260526070000");
+  assert.equal(schema.latestMigration, "20260526080000");
   assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525235900");
 
   const latestBoundarySql = fs.readFileSync(
