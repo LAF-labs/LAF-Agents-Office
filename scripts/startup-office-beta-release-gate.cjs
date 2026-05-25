@@ -104,6 +104,7 @@ const checks = [
   ["node", ["--test", "api/lib/hosted/urlTrust.test.js"]],
   ["node", ["--test", "api/lib/hosted/userPresentation.test.js"]],
   ["node", ["--test", "api/lib/hosted/usageHandlers.test.js"]],
+  ["node", ["--test", "api/lib/hosted/valueUtils.test.js"]],
   ["node", ["--test", "api/lib/startup-office/activationAnalytics.test.js"]],
   ["node", ["--test", "api/lib/startup-office/authorization.test.js"]],
   ["node", ["--test", "api/lib/startup-office/assetUploadHandlers.test.js"]],

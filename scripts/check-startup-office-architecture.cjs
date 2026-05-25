@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 2000);
+assertMaxLines("api/[...path].js", 1960);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -64,6 +64,7 @@ assertMaxLines("api/lib/hosted/teamPresentation.js", 25);
 assertMaxLines("api/lib/hosted/urlTrust.js", 215);
 assertMaxLines("api/lib/hosted/userPresentation.js", 55);
 assertMaxLines("api/lib/hosted/usageHandlers.js", 90);
+assertMaxLines("api/lib/hosted/valueUtils.js", 80);
 assertMaxLines("api/lib/startup-office/activationAnalytics.js", 180);
 assertMaxLines("api/lib/startup-office/demoSeedHandlers.js", 340);
 assertMaxLines("api/lib/startup-office/authorization.js", 120);
@@ -230,6 +231,17 @@ for (const [pattern, label] of [
   [/function writeJSON\b/, "hosted JSON response writer"],
   [/function jsonByteSize\b/, "hosted JSON byte-size helper"],
   [/function assertJSONByteSize\b/, "hosted JSON byte-size assertion"],
+  [/function truncateText\b/, "hosted text truncation helper"],
+  [/function isHuman\b/, "hosted human actor helper"],
+  [/function slugify\b/, "hosted slug helper"],
+  [/function shortID\b/, "hosted short ID helper"],
+  [/function randomID\b/, "hosted random ID helper"],
+  [/function nowISO\b/, "hosted clock helper"],
+  [/function truthy\b/, "hosted truthy flag helper"],
+  [/function isUUID\b/, "hosted UUID helper"],
+  [/function clamp\b/, "hosted numeric clamp helper"],
+  [/function arrayOrEmpty\b/, "hosted array fallback helper"],
+  [/function compactObject\b/, "hosted compact object helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
