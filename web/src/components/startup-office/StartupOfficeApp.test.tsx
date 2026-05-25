@@ -41,9 +41,10 @@ function mockStartupOfficeSummary() {
     language: "en",
     wikiPath: null,
   });
-    startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
+  startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue({
     beta_ops: {
       billing: {
+        beta_agreement_url: "https://example.com/signed-beta-agreement.pdf",
         billing_provider: "manual",
         billing_state: "active",
         monthly_model_spend_cents: 20000,
@@ -52,6 +53,42 @@ function mockStartupOfficeSummary() {
         plan: "founder_beta",
         seat_limit: 5,
         storage_mb_limit: 1024,
+      },
+      billing_documents: [
+        {
+          amount_cents: 50000,
+          currency: "USD",
+          document_type: "agreement",
+          id: "billing-document-1",
+          provider: "manual",
+          reference_url: "https://example.com/signed-beta-agreement.pdf",
+          status: "signed",
+        },
+        {
+          amount_cents: 50000,
+          currency: "USD",
+          document_type: "invoice",
+          external_reference: "manual-invoice-001",
+          id: "billing-document-2",
+          provider: "manual",
+          status: "paid",
+        },
+      ],
+      commercial: {
+        agreement_status: "signed",
+        can_start_paid_beta: true,
+        next_step: "Paid beta is commercially cleared.",
+        paid_evidence_status: "present",
+        status: "paid_beta_ready",
+      },
+      entitlements: {
+        ai_runs: true,
+        asset_uploads: true,
+        blocks: [],
+        commercial_status: "paid_beta_ready",
+        managed_model: true,
+        seats_available: true,
+        support_timeline: true,
       },
       limits: {
         monthly_model_spend_cents: 20000,
@@ -211,7 +248,7 @@ function mockStartupOfficeSummary() {
         title: "Idea Validation",
       },
     ],
-    });
+  });
   Object.defineProperty(globalThis.navigator, "clipboard", {
     configurable: true,
     value: {
@@ -347,12 +384,33 @@ describe("StartupOfficeApp", () => {
     expect(within(betaOpsPanel).getByText("Seats")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("3 / 5")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Storage")).toBeInTheDocument();
-    expect(within(betaOpsPanel).getByText("12.5 / 1024 MB")).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText("12.5 / 1024 MB"),
+    ).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Tool calls")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("5")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Provider")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("manual")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Workspace activity" })).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Plan")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("founder_beta")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Agreement")).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("signed")).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText("Paid beta is commercially cleared."),
+    ).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText("Signed agreement"),
+    ).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText(/signed - \$500\.00/),
+    ).toBeInTheDocument();
+    expect(within(betaOpsPanel).getByText("Invoice")).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText(/paid - \$500\.00 - manual-invoice-001/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Workspace activity" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("approval waiting")).toBeInTheDocument();
 
     expect(container.textContent).not.toContain("Projects");
@@ -504,9 +562,7 @@ describe("StartupOfficeApp", () => {
       profileForm.getByLabelText("Positioning"),
       "Safer and more transparent Polsia alternative",
     );
-    await user.click(
-      profileForm.getByRole("button", { name: "Save profile" }),
-    );
+    await user.click(profileForm.getByRole("button", { name: "Save profile" }));
 
     await waitFor(() =>
       expect(

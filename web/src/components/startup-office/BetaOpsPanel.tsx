@@ -9,6 +9,8 @@ interface BetaOpsPanelProps {
 export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
   const billing = betaOps?.billing;
   const usage = betaOps?.usage;
+  const commercial = betaOps?.commercial;
+  const documents = betaOps?.billing_documents ?? [];
   return (
     <section className="skills-panel startup-office-beta-ops">
       <div className="skills-section-head">
@@ -18,7 +20,15 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
       <dl className="startup-memory-list">
         <div>
           <dt>{copy.betaOpsLabels.state}</dt>
-          <dd>{billing?.payment_status || billing?.billing_state || "trial"}</dd>
+          <dd>{billingStateLabel(betaOps)}</dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.plan}</dt>
+          <dd>{billing?.plan || "trial"}</dd>
+        </div>
+        <div>
+          <dt>{copy.betaOpsLabels.agreement}</dt>
+          <dd>{commercial?.agreement_status || "missing"}</dd>
         </div>
         <div>
           <dt>{copy.betaOpsLabels.provider}</dt>
@@ -33,13 +43,15 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
         <div>
           <dt>{copy.betaOpsLabels.seats}</dt>
           <dd>
-            {(usage?.seats ?? 0) + (usage?.pending_invites ?? 0)} / {billing?.seat_limit ?? 5}
+            {(usage?.seats ?? 0) + (usage?.pending_invites ?? 0)} /{" "}
+            {billing?.seat_limit ?? 5}
           </dd>
         </div>
         <div>
           <dt>{copy.betaOpsLabels.storage}</dt>
           <dd>
-            {(usage?.storage_mb ?? 0).toFixed(1)} / {billing?.storage_mb_limit ?? 1024} MB
+            {(usage?.storage_mb ?? 0).toFixed(1)} /{" "}
+            {billing?.storage_mb_limit ?? 1024} MB
           </dd>
         </div>
         <div>
@@ -50,7 +62,50 @@ export function BetaOpsPanel({ betaOps, copy }: BetaOpsPanelProps) {
           <dt>{copy.betaOpsLabels.toolCalls}</dt>
           <dd>{(usage?.tool_calls ?? 0).toLocaleString()}</dd>
         </div>
+        <div>
+          <dt>{copy.betaOpsLabels.nextStep}</dt>
+          <dd>{commercial?.next_step || copy.betaOpsNoDocuments}</dd>
+        </div>
+        {documents.slice(0, 3).map((document) => (
+          <div key={document.id}>
+            <dt>{copy.betaOpsDocumentLabel(document.document_type)}</dt>
+            <dd>{billingDocumentText(document)}</dd>
+          </div>
+        ))}
+        {!documents.length ? (
+          <div>
+            <dt>{copy.betaOpsLabels.documents}</dt>
+            <dd>{copy.betaOpsNoDocuments}</dd>
+          </div>
+        ) : null}
       </dl>
     </section>
   );
+}
+
+function billingStateLabel(betaOps?: StartupOfficeBetaOps) {
+  return (
+    betaOps?.commercial?.status ||
+    betaOps?.billing?.payment_status ||
+    betaOps?.billing?.billing_state ||
+    "trial"
+  );
+}
+
+function billingDocumentText(
+  document: NonNullable<StartupOfficeBetaOps["billing_documents"]>[number],
+) {
+  const reference = document.reference_url || document.external_reference;
+  const amount = formatBillingAmount(document.amount_cents, document.currency);
+  return reference
+    ? `${document.status} - ${amount} - ${reference}`
+    : `${document.status} - ${amount}`;
+}
+
+function formatBillingAmount(amountCents = 0, currency = "USD") {
+  if (!amountCents) return currency;
+  return new Intl.NumberFormat(undefined, {
+    currency,
+    style: "currency",
+  }).format(amountCents / 100);
 }

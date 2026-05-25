@@ -74,6 +74,12 @@ const {
   startupOfficePaymentStatusValue,
 } = require("./lib/startup-office/billingState");
 const {
+  publicStartupOfficeBillingDocument,
+  startupOfficeCommercialSnapshot,
+  startupOfficeEntitlementBlock,
+  startupOfficeEntitlementSnapshot,
+} = require("./lib/startup-office/commercialBilling");
+const {
   createStartupOfficeProfileHandlers,
 } = require("./lib/startup-office/profileHandlers");
 const {
@@ -362,13 +368,11 @@ const STARTUP_OFFICE_OPERATIONS_HANDLERS = createStartupOfficeOperationsHandlers
   startupOfficeApprovalPolicy,
   startupOfficeApprovals,
   startupOfficeBetaOpsSnapshot,
-  startupOfficeBillingProviderValue,
-  startupOfficeBillingStateValue,
-  startupOfficePaymentStatusValue,
   startupOfficeRuns,
   startupOfficeStuckJobs,
   truncateText,
   upsertStartupOfficeBilling,
+  upsertStartupOfficeBillingDocument,
   upsertWorkspaceSettings,
   workspaceSettings,
   writeAuditEvent,
@@ -471,6 +475,7 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   startupOfficeArtifacts,
   startupOfficeBetaOpsSnapshot,
   startupOfficeBillingBlockReason,
+  startupOfficeEntitlementBlock,
   startupOfficeModelClient,
   startupOfficeReceiptMemoryPageSlugs: STARTUP_OFFICE_RECEIPT_MEMORY_PAGE_SLUGS,
   startupOfficeLoopSkillInvocations,
@@ -1597,12 +1602,25 @@ function numericOrNull(value) {
 }
 
 async function startupOfficeBetaOpsSnapshot(teamID) {
-  const [billing, usage] = await Promise.all([
+  const [billing, usage, billingDocuments] = await Promise.all([
     startupOfficeBilling(teamID),
     startupOfficeUsage(teamID),
+    startupOfficeBillingDocuments(teamID),
   ]);
+  const commercial = startupOfficeCommercialSnapshot({
+    billing,
+    documents: billingDocuments,
+  });
+  const entitlements = startupOfficeEntitlementSnapshot({
+    billing,
+    commercial,
+    usage,
+  });
   return {
     billing,
+    billing_documents: billingDocuments,
+    commercial,
+    entitlements,
     limits: {
       monthly_model_spend_cents: billing.monthly_model_spend_cents,
       monthly_run_limit: billing.monthly_run_limit,
@@ -1617,6 +1635,18 @@ async function startupOfficeBetaOpsSnapshot(teamID) {
       storage_percent: percent(usage.storage_mb, billing.storage_mb_limit),
     },
   };
+}
+
+async function startupOfficeBillingDocuments(teamID, options = {}) {
+  const rows = await safeStartupOfficeRest("startup_office_billing_documents", {
+    query: {
+      limit: String(clamp(Number(options.limit) || 20, 1, 100)),
+      order: "created_at.desc",
+      select: "*",
+      team_id: `eq.${teamID}`,
+    },
+  });
+  return rows.map(publicStartupOfficeBillingDocument);
 }
 
 async function startupOfficeBilling(teamID) {
@@ -1662,6 +1692,19 @@ async function upsertStartupOfficeBilling(teamID, patch) {
     ...(billing || patch),
     team_id: teamID,
   };
+}
+
+async function upsertStartupOfficeBillingDocument(membership, patch) {
+  if (!patch) return null;
+  const [document] = await safeStartupOfficeRest("startup_office_billing_documents", {
+    method: "POST",
+    body: {
+      ...patch,
+      created_by: patch.created_by || membership.user_id || null,
+      team_id: membership.team_id,
+    },
+  });
+  return publicStartupOfficeBillingDocument(document || patch);
 }
 
 async function startupOfficeUsage(teamID) {
@@ -1715,6 +1758,7 @@ const STARTUP_OFFICE_STORAGE_SOURCES = Object.freeze([
   ["company_profiles", "description,goals,priority,icp,offer,positioning,metadata"],
   ["startup_office_artifacts", "title,content,metadata"],
   ["startup_office_assets", "name,body,metadata"],
+  ["startup_office_billing_documents", "document_type,status,reference_url,external_reference,notes,metadata"],
   ["startup_office_customers", "name,profile,notes"],
   ["startup_office_loops", "name,objective,policy"],
   ["startup_office_memory_pages", "slug,title,body,summary,provenance,sources,assumptions"],

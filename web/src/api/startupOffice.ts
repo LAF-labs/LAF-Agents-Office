@@ -196,6 +196,23 @@ export interface StartupOfficeBetaOps {
     seat_limit: number;
     storage_mb_limit: number;
   };
+  billing_documents?: StartupOfficeBillingDocument[];
+  commercial?: {
+    agreement_status: string;
+    can_start_paid_beta: boolean;
+    next_step: string;
+    paid_evidence_status: string;
+    status: string;
+  };
+  entitlements?: {
+    ai_runs: boolean;
+    asset_uploads: boolean;
+    blocks: Array<{ code?: string; message: string; scope: string }>;
+    commercial_status: string;
+    managed_model: boolean;
+    seats_available: boolean;
+    support_timeline: boolean;
+  };
   limits: {
     monthly_model_spend_cents: number;
     monthly_run_limit: number;
@@ -215,6 +232,23 @@ export interface StartupOfficeBetaOps {
     tool_calls: number;
     total_tokens: number;
   };
+}
+
+export interface StartupOfficeBillingDocument {
+  amount_cents: number;
+  created_at?: string | null;
+  currency: string;
+  document_type: string;
+  external_reference?: string;
+  id: string;
+  notes?: string;
+  period_end?: string | null;
+  period_start?: string | null;
+  plan?: string;
+  provider: string;
+  reference_url?: string;
+  status: string;
+  updated_at?: string | null;
 }
 
 export interface StartupOfficeNotification {
@@ -340,7 +374,11 @@ export function getStartupOfficeReceipts(opts?: { limit?: number }) {
 
 export function runStartupOfficeLoop(
   loopID: string,
-  body?: { defer?: boolean; objective?: string; inputs?: Record<string, unknown> },
+  body?: {
+    defer?: boolean;
+    objective?: string;
+    inputs?: Record<string, unknown>;
+  },
 ) {
   return post<StartupOfficeLoopRunResponse>(
     `/startup-office/loops/${encodeURIComponent(loopID)}/run`,
@@ -354,7 +392,10 @@ export function getStartupOfficeRun(runID: string) {
   );
 }
 
-export function retryStartupOfficeRun(runID: string, body?: { objective?: string }) {
+export function retryStartupOfficeRun(
+  runID: string,
+  body?: { objective?: string },
+) {
   return post<StartupOfficeRunMutationResponse>(
     `/startup-office/runs/${encodeURIComponent(runID)}/retry`,
     body ?? {},
@@ -368,14 +409,20 @@ export function cancelStartupOfficeRun(runID: string) {
   );
 }
 
-export function retryStartupOfficeWorkerJob(jobID: string, body?: { note?: string }) {
+export function retryStartupOfficeWorkerJob(
+  jobID: string,
+  body?: { note?: string },
+) {
   return post<StartupOfficeWorkerJobActionResponse>(
     `/startup-office/admin/worker-jobs/${encodeURIComponent(jobID)}/retry`,
     body ?? {},
   );
 }
 
-export function cancelStartupOfficeWorkerJob(jobID: string, body?: { note?: string }) {
+export function cancelStartupOfficeWorkerJob(
+  jobID: string,
+  body?: { note?: string },
+) {
   return post<StartupOfficeWorkerJobActionResponse>(
     `/startup-office/admin/worker-jobs/${encodeURIComponent(jobID)}/cancel`,
     body ?? {},
@@ -419,26 +466,22 @@ export function getStartupOfficeApprovalPolicy() {
 export function updateStartupOfficeApprovalPolicy(
   policy: Partial<StartupOfficeApprovalPolicy>,
 ) {
-  return patchJSON<StartupOfficePolicyResponse>(
-    "/startup-office/policy",
-    { policy },
-  );
+  return patchJSON<StartupOfficePolicyResponse>("/startup-office/policy", {
+    policy,
+  });
 }
 
 export function updateStartupOfficeCompanyProfile(
   profile: StartupOfficeCompanyProfileUpdate,
 ) {
-  return patchJSON<StartupOfficeCompanyProfileResponse>(
-    "/company/profile",
-    {
-      company_name: profile.name,
-      company_profile: {
-        icp: profile.icp,
-        offer: profile.offer,
-        positioning: profile.positioning,
-        stage: profile.stage,
-      },
-      priority: profile.priority,
+  return patchJSON<StartupOfficeCompanyProfileResponse>("/company/profile", {
+    company_name: profile.name,
+    company_profile: {
+      icp: profile.icp,
+      offer: profile.offer,
+      positioning: profile.positioning,
+      stage: profile.stage,
     },
-  );
+    priority: profile.priority,
+  });
 }

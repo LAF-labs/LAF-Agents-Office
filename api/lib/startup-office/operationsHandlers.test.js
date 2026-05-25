@@ -18,6 +18,7 @@ function baseDeps(overrides = {}) {
     adminChecks: [],
     rest: [],
     settingsPatches: [],
+    billingDocuments: [],
     billingPatches: [],
     writes: [],
   };
@@ -70,6 +71,7 @@ function baseDeps(overrides = {}) {
     async startupOfficeBetaOpsSnapshot() {
       return {
         billing: { support_notes: "" },
+        billing_documents: [],
         usage: { monthly_runs: 1 },
       };
     },
@@ -94,6 +96,10 @@ function baseDeps(overrides = {}) {
     async upsertStartupOfficeBilling(_teamID, patch) {
       calls.billingPatches.push(patch);
       return patch;
+    },
+    async upsertStartupOfficeBillingDocument(_membership, patch) {
+      calls.billingDocuments.push(patch);
+      return { id: "billing-document-1", ...patch };
     },
     async upsertWorkspaceSettings(_teamID, patch) {
       calls.settingsPatches.push(patch);
@@ -189,6 +195,7 @@ test("billing handler clamps beta limits and records an audit event", async () =
         payment_status: "paid",
         plan: "paid-beta",
         provider: "manual",
+        beta_agreement_url: "https://example.com/signed-beta-agreement.pdf",
         seat_limit: 7,
         state: "active",
         storage_mb_limit: 42,
@@ -201,13 +208,42 @@ test("billing handler clamps beta limits and records an audit event", async () =
   const patch = deps.calls.billingPatches[0];
   assert.equal(patch.billing_state, "active");
   assert.equal(patch.billing_provider, "manual");
+  assert.equal(patch.beta_agreement_url, "https://example.com/signed-beta-agreement.pdf");
   assert.equal(patch.monthly_model_spend_cents, 0);
   assert.equal(patch.monthly_run_limit, 100000);
   assert.equal(patch.payment_status, "paid");
   assert.equal(patch.seat_limit, 7);
   assert.equal(patch.storage_mb_limit, 42);
+  assert.equal(deps.calls.billingDocuments[0].document_type, "agreement");
+  assert.equal(
+    deps.calls.billingDocuments[0].reference_url,
+    "https://example.com/signed-beta-agreement.pdf",
+  );
   assert.equal(deps.calls.adminChecks[0].message, "owner or admin role required for billing changes");
   assert.equal(deps.calls.audits[0][1], "startup_office.billing_updated");
+  assert.equal(deps.calls.audits[0][4].billing_document_type, "agreement");
+});
+
+test("billing handler rejects paid beta state without contract or payment evidence", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return {
+        payment_status: "paid",
+        provider: "manual",
+        state: "active",
+      };
+    },
+  });
+  const handlers = createStartupOfficeOperationsHandlers(deps);
+
+  await assert.rejects(
+    () => handlers.billing({ method: "PATCH" }, {}),
+    (err) =>
+      err.status === 400 &&
+      err.message === "paid beta requires signed agreement, paid invoice, or payment reference",
+  );
+  assert.equal(deps.calls.billingPatches.length, 0);
+  assert.equal(deps.calls.billingDocuments.length, 0);
 });
 
 test("beta dashboard composes billing, failures, approvals, notifications, outbox, and stuck jobs", async () => {

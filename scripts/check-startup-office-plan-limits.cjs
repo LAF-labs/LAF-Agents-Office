@@ -64,12 +64,12 @@ for (const [relativePath, snippet, label] of [
     "object storage limit enforcement",
   ],
   [
-    "api/lib/startup-office/workflowHandlers.js",
+    "api/lib/startup-office/workflowEntitlements.js",
     "monthly Startup Office run limit reached",
     "run limit enforcement",
   ],
   [
-    "api/lib/startup-office/workflowHandlers.js",
+    "api/lib/startup-office/workflowEntitlements.js",
     "monthly Startup Office model spend limit reached",
     "spend limit enforcement",
   ],

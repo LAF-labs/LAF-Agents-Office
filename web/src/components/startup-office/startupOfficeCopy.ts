@@ -163,6 +163,10 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsDescription:
       "Billing state, run limits, and usage stay visible for closed beta operations.",
     betaOpsLabels: {
+      agreement: "Agreement",
+      documents: "Billing docs",
+      nextStep: "Next step",
+      plan: "Plan",
       provider: "Provider",
       runs: "Runs",
       seats: "Seats",
@@ -171,6 +175,15 @@ export const STARTUP_OFFICE_APP_COPY = {
       toolCalls: "Tool calls",
       tokens: "Tokens",
     },
+    betaOpsNoDocuments:
+      "Attach a signed agreement, paid invoice, or payment reference.",
+    betaOpsDocumentLabel: (type: string) =>
+      ({
+        agreement: "Signed agreement",
+        invoice: "Invoice",
+        plan_change: "Plan change",
+        receipt: "Payment receipt",
+      })[type] || "Billing document",
     activityTitle: "Workspace activity",
     activityDescription:
       "Recent run changes, failed notifications, approvals, and receipts stay visible when the founder returns.",
@@ -330,6 +343,10 @@ export const STARTUP_OFFICE_APP_COPY = {
     betaOpsDescription:
       "클로즈드 베타 운영을 위해 결제 상태, 실행 제한, 사용량을 표시합니다.",
     betaOpsLabels: {
+      agreement: "계약",
+      documents: "청구 문서",
+      nextStep: "다음 조치",
+      plan: "플랜",
       provider: "결제 방식",
       runs: "실행",
       seats: "좌석",
@@ -338,6 +355,15 @@ export const STARTUP_OFFICE_APP_COPY = {
       toolCalls: "툴 호출",
       tokens: "토큰",
     },
+    betaOpsNoDocuments:
+      "서명된 계약, 결제 완료 인보이스, 또는 결제 참조를 연결하세요.",
+    betaOpsDocumentLabel: (type: string) =>
+      ({
+        agreement: "서명 계약",
+        invoice: "인보이스",
+        plan_change: "플랜 변경",
+        receipt: "결제 영수증",
+      })[type] || "청구 문서",
     activityTitle: "워크스페이스 활동",
     activityDescription:
       "창업자가 다시 들어오면 최근 실행 변화, 실패 알림, 승인, 영수증을 바로 확인합니다.",

@@ -1,5 +1,8 @@
 const { createStartupOfficeValidation } = require("./validation");
 const {
+  enforceStartupOfficeRunEntitlements,
+} = require("./workflowEntitlements");
+const {
   queueStartupOfficeApprovalRevision,
   startupOfficeRevisionRequest,
 } = require("./approvalRevisions");
@@ -31,6 +34,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
     startupOfficeArtifacts,
     startupOfficeBetaOpsSnapshot,
     startupOfficeBillingBlockReason,
+    startupOfficeEntitlementBlock,
     startupOfficeLoopSkillInvocations,
     startupOfficeModelClient,
     startupOfficeReceiptMemoryPageSlugs = [],
@@ -481,17 +485,13 @@ function createStartupOfficeWorkflowHandlers(deps) {
   }
 
   async function enforceStartupOfficeRunLimit(teamID) {
-    const { billing, usage } = await startupOfficeBetaOpsSnapshot(teamID);
-    const blockReason = startupOfficeBillingBlockReason ? startupOfficeBillingBlockReason(billing) : "";
-    if (blockReason) {
-      throw createHTTPError(402, `billing state blocks AI runs: ${blockReason}`);
-    }
-    if (usage.runs >= billing.monthly_run_limit) {
-      throw createHTTPError(402, "monthly Startup Office run limit reached");
-    }
-    if (usage.model_spend_cents >= billing.monthly_model_spend_cents) {
-      throw createHTTPError(402, "monthly Startup Office model spend limit reached");
-    }
+    await enforceStartupOfficeRunEntitlements({
+      createHTTPError,
+      startupOfficeBetaOpsSnapshot,
+      startupOfficeBillingBlockReason,
+      startupOfficeEntitlementBlock,
+      teamID,
+    });
   }
 
   async function approvalPolicyForMembership(teamID) {

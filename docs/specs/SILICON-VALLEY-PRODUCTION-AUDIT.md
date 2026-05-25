@@ -147,13 +147,13 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I107 | Observability | A deployed synthetic monitor now exercises login, profile, live loop run, approval, receipt, and logout; external credentials and run evidence are still deploy-time proof. | synthetic monitor |
 | SV-I108 | Observability | Browser-side errors now report workspace-scoped, redacted client telemetry, but external paging and session replay are not included. | frontend |
 | SV-I109 | Observability | Support tooling now has an admin timeline from user/audit events through worker jobs, approvals, receipts, notifications, outbox, and client errors; richer paging remains. | admin dashboard |
-| SV-I110 | Observability | Cost telemetry is not reconciled with billing state. | usage events |
-| SV-I111 | Billing | Billing is manual state, not payment infrastructure. | workspace_billing |
-| SV-I112 | Billing | Entitlements are read at run time but not centrally enforced across all premium features. | billing helpers |
-| SV-I113 | Billing | Seat limits are not enforced. | invites and billing |
-| SV-I114 | Billing | Storage limits are stored but not enforced. | storage_mb_limit |
+| SV-I110 | Observability | Cost telemetry now feeds billing entitlements and spend alerts; provider invoice reconciliation remains external. | usage events |
+| SV-I111 | Billing | Paid beta billing now requires signed manual or Stripe/payment evidence, but live charge capture still depends on deploy-time provider setup. | commercial billing document |
+| SV-I112 | Billing | Entitlements now derive from billing, commercial evidence, usage, seats, storage, and model spend; external provider entitlement sync remains. | billing helpers |
+| SV-I113 | Billing | Seat limits are enforced for workspace invites, with external identity-provider sync still deploy-time. | invites and billing |
+| SV-I114 | Billing | Storage limits are enforced for Startup Office writes and assets; provider bucket quotas remain deploy-time. | storage_mb_limit |
 | SV-I115 | Billing | Usage metering covers model runs but not all valuable actions. | usage events |
-| SV-I116 | Billing | There is no customer invoice, receipt, or plan-change flow. | no Stripe |
+| SV-I116 | Billing | Customers can see billing agreements, invoices, receipts, and plan changes in beta ops; live Stripe invoice sync remains external. | commercial billing document |
 | SV-I117 | Billing | Operator support notes are not a CRM. | billing state |
 | SV-I118 | Billing | Trial conversion paths are not instrumented. | onboarding and beta ops |
 | SV-I119 | Billing | Cost overrun protection is too coarse for real provider spikes. | monthly model spend limit |
@@ -333,10 +333,10 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G088 | Add deployment runbook. | DNS, env, migrations, worker, rollback, and smoke are documented. | docs gate |
 | SV-G089 | Add cost anomaly alerts. | Global model spend, single-event cost spikes, and current-month workspace spend ratios trip scheduled monitor failures. | ops monitor tests |
 | SV-G090 | Add support timeline. | Operators see user action, worker/model, approval, receipt, notification, outbox, and client-error sequence. | admin API |
-| SV-G091 | Integrate payment. | Stripe or signed manual billing agreement gates paid beta. | billing tests |
-| SV-G092 | Enforce entitlements. | Seats, runs, storage, support, and model spend apply everywhere. | integration tests |
-| SV-G093 | Add invoices and receipts. | Customers can see billing status and receipts. | UI/API tests |
-| SV-G094 | Add plan-change workflow. | Trial, paid, paused, and canceled states have clear UX. | tests |
+| SV-G091 | Integrate payment. | Stripe references or signed manual billing agreements are required before paid beta can be marked ready. | billing tests |
+| SV-G092 | Enforce entitlements. | Central entitlements block AI runs on billing state, monthly runs, and model spend while exposing seat, storage, support, and managed-model availability. | billing/workflow tests |
+| SV-G093 | Add invoices and receipts. | Customers can see billing agreements, invoices, payment receipts, and commercial status in beta ops. | UI/API tests |
+| SV-G094 | Add plan-change workflow. | Trial, paid, paused, and canceled plan transitions create commercial billing document evidence. | tests |
 | SV-G095 | Add activation analytics. | Product tracks first loop, first approval, second loop, export. | analytics tests |
 | SV-G096 | Add support playbooks. | Failed runs and confused approvals have operator scripts. | docs |
 | SV-G097 | Add beta terms. | Privacy, DPA, AI use, retention, and deletion terms are ready. | legal docs |
@@ -579,6 +579,11 @@ the final release commit or when a shared invariant changes.
   outbox state, and client-error audit events into one workspace-scoped sequence
   so operators can follow a customer report from user action to model output and
   recovery state.
+- R8 now adds commercial billing documents. `startup_office_billing_documents`
+  stores signed agreements, invoices, payment receipts, and plan changes; billing
+  updates reject paid beta state without signed agreement, paid invoice, or
+  payment reference evidence, and the beta ops UI exposes commercial status,
+  entitlements, next action, and recent billing documents to the customer.
 - R3/R8 now adds the Startup Office security gate. `npm run startup-office:security`
   runs a full tracked-file `secretlint` scan, root/web `bun audit` checks for
   high or critical dependency advisories, hosted-runtime boundary checks,

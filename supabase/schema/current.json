@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526030000",
+  "latestMigration": "20260526040000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -73,6 +73,13 @@
       "tenantColumn": "team_id",
       "rls": true,
       "columns": ["id", "team_id", "run_id", "name", "kind", "status", "body", "metadata", "created_by", "created_at", "updated_at", "content_type", "size_bytes", "storage_path", "checksum_sha256", "upload_status"]
+    },
+    {
+      "name": "startup_office_billing_documents",
+      "domain": "billing",
+      "tenantColumn": "team_id",
+      "rls": true,
+      "columns": ["id", "team_id", "document_type", "status", "provider", "reference_url", "external_reference", "amount_cents", "currency", "plan", "period_start", "period_end", "notes", "metadata", "created_by", "created_at", "updated_at"]
     },
     {
       "name": "startup_office_customers",

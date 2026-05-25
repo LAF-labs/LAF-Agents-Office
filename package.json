@@ -10,6 +10,7 @@
     "startup-office:architecture": "node scripts/check-startup-office-architecture.cjs",
     "startup-office:audit-coverage": "node scripts/check-startup-office-audit-coverage.cjs",
     "startup-office:authorization": "node scripts/check-startup-office-authorization.cjs",
+    "startup-office:commercial-billing": "node scripts/check-startup-office-commercial-billing.cjs",
     "startup-office:client-telemetry": "node scripts/check-startup-office-client-telemetry.cjs",
     "startup-office:cost-metering": "node scripts/check-startup-office-cost-metering.cjs",
     "startup-office:closed-beta-launch": "node scripts/check-startup-office-closed-beta-launch.cjs",

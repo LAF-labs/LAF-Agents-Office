@@ -546,6 +546,36 @@ test("workflow handlers preserve run-limit and missing approval errors", async (
   );
 });
 
+test("workflow handlers honor central commercial entitlement blocks", async () => {
+  const handlers = createStartupOfficeWorkflowHandlers(baseDeps({
+    startupOfficeEntitlementBlock(snapshot, scope) {
+      assert.equal(scope, "ai_runs");
+      return snapshot.entitlements.blocks[0];
+    },
+    async startupOfficeBetaOpsSnapshot() {
+      return {
+        billing: { billing_state: "active" },
+        entitlements: {
+          blocks: [
+            {
+              message: "monthly Startup Office model spend limit reached",
+              scope: "ai_runs",
+            },
+          ],
+        },
+        usage: { model_spend_cents: 100, runs: 1 },
+      };
+    },
+  }));
+
+  await assert.rejects(
+    () => handlers.loopRun({ method: "POST" }, {}, "idea-validation"),
+    (err) =>
+      err.status === 402 &&
+      err.message === "monthly Startup Office model spend limit reached",
+  );
+});
+
 test("workflow handlers enforce workspace-user rate limits before mutations", async () => {
   const deps = baseDeps({
     async enforceStartupOfficeRateLimit(_membership, action) {
