@@ -33,7 +33,7 @@ for (const [relativePath, snippet, label] of [
   [
     "scripts/startup-office-synthetic-monitor.cjs",
     "runStartupOfficeSyntheticMonitor",
-    "synthetic monitor runner",
+    "synthetic monitor entrypoint",
   ],
   [
     "scripts/startup-office-synthetic-monitor.cjs",

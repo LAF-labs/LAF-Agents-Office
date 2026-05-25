@@ -76,6 +76,10 @@ const routeAuditCoverage = {
   "supportAccessAction.POST": [
     ["api/lib/startup-office/lifecycleHandlers.js", "`startup_office.support_access.${eventType}`"],
   ],
+  "terms.POST": [
+    ["api/lib/startup-office/termsHandlers.js", '"startup_office.terms_accepted"'],
+    ["api/lib/startup-office/termsHandlers.test.js", '"startup_office.terms_accepted"'],
+  ],
   "workerJobAction.POST": [
     ["api/lib/startup-office/workerJobRecoveryHandlers.js", '"startup_office.worker_job_retried"'],
     ["api/lib/startup-office/workerJobRecoveryHandlers.js", '"startup_office.worker_job_canceled"'],
