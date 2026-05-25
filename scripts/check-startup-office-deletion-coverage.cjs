@@ -51,7 +51,7 @@ if (!read("scripts/startup-office-beta-release-gate.cjs").includes('"startup-off
 }
 
 const schema = JSON.parse(read("supabase/schema/current.json"));
-if (schema.latestMigration !== "20260526070000") {
+if (String(schema.latestMigration || "") < "20260526070000") {
   fail("schema latestMigration must include the workspace purge migration");
 }
 const retainedTableNames = STARTUP_OFFICE_RETAINED_TABLES.map((table) => table.name);
@@ -112,7 +112,7 @@ for (const [relativePath, snippets, label] of [
     "deletion purge route",
   ],
   [
-    "api/lib/hosted/rateLimits.js",
+    "api/lib/hosted/actionRateLimitRules.js",
     ["startup_office_deletion_purge"],
     "deletion purge rate limit",
   ],

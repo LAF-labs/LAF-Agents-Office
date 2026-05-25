@@ -41,6 +41,9 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.approval.metadata.prompt_version.version, "idea-validation.prompt.v1");
   assert.equal(result.run.metadata.prompt_version.schema_name, "idea_validation_output");
   assert.equal(result.run.metadata.tool_policy.loop_slug, "idea-validation");
+  assert.equal(result.run.metadata.model_timeout.version, "startup-office-model-timeout.v1");
+  assert.equal(result.run.model_timeout_ms, 120000);
+  assert.equal(result.run.model_deadline_at, "2026-05-24T00:02:00.000Z");
   assert.equal(result.approval.risk_level, "high");
   assert.deepEqual(
     gateTypes(result.approval.metadata.approval_gates),
@@ -188,6 +191,34 @@ test("startup office loop engine records failed model calls as receipted run fai
   assert.equal(state.jobPatches.at(-1).status, "failed");
   assert.equal(state.audits.some((audit) => audit.action === "startup_office.run_failed"), true);
   assert.equal(state.audits.at(-1).action, "startup_office.receipt.created");
+});
+
+test("startup office loop engine fails and receipts model calls that exceed the durable timeout", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    inputs: {},
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: hangingModelClient(),
+    modelTimeoutMs: 1,
+    nowISO: fixedNow,
+    objective: "Validate the first buyer segment",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: queuedRun(),
+    truncateText,
+    workerJob: { id: "job-1" },
+  });
+
+  assert.equal(result.status, "failed");
+  assert.match(result.error, /model call timed out after 1ms/);
+  assert.equal(result.run.timed_out_at, "2026-05-24T00:00:00.000Z");
+  assert.equal(result.run.model_timeout_ms, 1);
+  assert.equal(result.run.model_deadline_at, "2026-05-24T00:00:00.001Z");
+  assert.equal(result.run.metadata.model_timeout.timed_out, true);
+  assert.equal(state.jobPatches.at(0).model_deadline_at, "2026-05-24T00:00:00.001Z");
+  assert.equal(state.jobPatches.at(-1).timed_out_at, "2026-05-24T00:00:00.000Z");
+  assert.equal(state.receipts.at(-1).trace.model_timeout.timed_out, true);
 });
 
 test("startup office loop engine stops before side effects when a run is canceled during generation", async () => {
@@ -795,6 +826,14 @@ function failingModelClient() {
     generateStructured: async () => {
       throw new Error("model unavailable");
     },
+  };
+}
+
+function hangingModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async () => new Promise(() => {}),
   };
 }
 

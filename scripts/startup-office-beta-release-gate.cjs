@@ -56,6 +56,7 @@ const checks = [
   ["npm", ["run", "startup-office:memory-freshness"]],
   ["npm", ["run", "startup-office:memory-import"]],
   ["npm", ["run", "startup-office:model-failover"]],
+  ["npm", ["run", "startup-office:model-timeouts"]],
   ["npm", ["run", "startup-office:model-client:test"]],
   ["npm", ["run", "startup-office:object-invariants"]],
   ["npm", ["run", "startup-office:object-payload-schemas"]],

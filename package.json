@@ -66,6 +66,7 @@
     "startup-office:object-invariants": "node scripts/check-startup-office-object-invariants.cjs",
     "startup-office:object-payload-schemas": "node scripts/check-startup-office-object-payload-schemas.cjs",
     "startup-office:object-query-contracts": "node scripts/check-startup-office-object-query-contracts.cjs",
+    "startup-office:model-timeouts": "node scripts/check-startup-office-model-timeouts.cjs",
     "startup-office:ops-monitor": "node scripts/startup-office-ops-monitor.cjs",
     "startup-office:ops-monitor:test": "node --test scripts/startup-office-ops-monitor.test.cjs",
     "startup-office:outbox-worker": "node scripts/startup-office-outbox-worker.cjs",

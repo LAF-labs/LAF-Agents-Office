@@ -22,11 +22,16 @@ const {
   startupOfficeWikiPromotionDraft,
 } = require("./wikiWriter");
 
+const STARTUP_OFFICE_MODEL_TIMEOUT_POLICY_VERSION = "startup-office-model-timeout.v1";
+const DEFAULT_STARTUP_OFFICE_MODEL_TIMEOUT_MS = 120000;
+const MAX_STARTUP_OFFICE_MODEL_TIMEOUT_MS = 900000;
+
 async function runStartupOfficeLoop({
   inputs = {},
   loop,
   membership,
   modelClient,
+  modelTimeoutMs = null,
   nowISO,
   objective,
   profile,
@@ -50,6 +55,12 @@ async function runStartupOfficeLoop({
   const attempt = claimedAttempt > 0 ? claimedAttempt : Number(run?.metadata?.attempt || 0) + 1;
   const recordedSkillInvocations = normalizedSkillInvocations(skillInvocations, run);
   const toolPolicy = startupOfficeLoopToolPolicy({ approvalPolicy, loop });
+  const modelTimeout = startupOfficeModelTimeoutPolicy({
+    modelTimeoutMs,
+    run,
+    startedAt,
+    workerJob,
+  });
   let modelResult = null;
 
   try {
@@ -67,15 +78,24 @@ async function runStartupOfficeLoop({
       await repository.updateWorkerJob(membership.team_id, workerJob.id, {
         attempts: attempt,
         locked_at: startedAt,
+        metadata: mergeMetadata(workerJob.metadata, {
+          model_timeout: modelTimeout,
+          run_id: run.id,
+        }),
+        model_deadline_at: modelTimeout.deadline_at,
+        model_timeout_ms: modelTimeout.timeout_ms,
         started_at: workerJob.started_at || startedAt,
         status: "running",
         updated_at: startedAt,
       });
     }
     const runningRun = await repository.updateRun(membership.team_id, run.id, {
+      model_deadline_at: modelTimeout.deadline_at,
+      model_timeout_ms: modelTimeout.timeout_ms,
       metadata: mergeMetadata(run.metadata, {
         attempt,
         loop_slug: loop.slug,
+        model_timeout: modelTimeout,
         prompt_version: promptVersion,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
@@ -101,6 +121,7 @@ async function runStartupOfficeLoop({
         attempt,
         loop_slug: loop.slug,
         model: modelClient.model,
+        model_timeout: modelTimeout,
         provider: modelClient.provider,
         prompt_version: promptVersion,
         skill_invocations: recordedSkillInvocations,
@@ -149,7 +170,7 @@ async function runStartupOfficeLoop({
     });
     if (canceledBeforeModel) return canceledBeforeModel;
 
-    modelResult = await modelClient.generateStructured({
+    modelResult = await generateStructuredWithTimeout(modelClient, {
       input: template.userPrompt({ context, inputs, objective }),
       instructions: template.instructions,
       metadata: {
@@ -158,6 +179,7 @@ async function runStartupOfficeLoop({
         run_id: run.id,
         skill_names: recordedSkillInvocations.map((item) => item.skill_name),
         team_id: membership.team_id,
+        model_timeout: modelTimeout,
         prompt_version: promptVersion.version,
         prompt_version_manifest: promptVersion,
         tool_policy_version: toolPolicy.version,
@@ -167,7 +189,7 @@ async function runStartupOfficeLoop({
       schema: template.schema,
       schemaDescription: template.schemaDescription,
       schemaName: template.schemaName,
-    });
+    }, modelTimeout);
     const canceledAfterModel = await finishCanceledRun({
       membership,
       nowISO,
@@ -324,6 +346,8 @@ async function runStartupOfficeLoop({
     const completedAt = nowISO();
     const updatedRun = await repository.updateRun(membership.team_id, run.id, {
       completed_at: approvalRequired ? null : completedAt,
+      model_deadline_at: modelTimeout.deadline_at,
+      model_timeout_ms: modelTimeout.timeout_ms,
       metadata: mergeMetadata(run.metadata, {
         attempt,
         cost: modelResult.cost,
@@ -338,6 +362,7 @@ async function runStartupOfficeLoop({
         },
         loop_slug: loop.slug,
         model: modelClient.model,
+        model_timeout: modelTimeout,
         provider: modelClient.provider,
         prompt_version: promptVersion,
         quality: qualityMetadata,
@@ -379,6 +404,7 @@ async function runStartupOfficeLoop({
             source_count: browserResearch.sources.length,
           },
           cost: modelResult.cost,
+          model_timeout: modelTimeout,
           prompt_version: promptVersion,
           run_id: run.id,
           skill_invocations: recordedSkillInvocations,
@@ -409,6 +435,7 @@ async function runStartupOfficeLoop({
         },
         cost: modelResult.cost,
         loop_slug: loop.slug,
+        model_timeout: modelTimeout,
         prompt_version: promptVersion,
         quality: qualityMetadata,
         skill_invocations: recordedSkillInvocations,
@@ -435,6 +462,7 @@ async function runStartupOfficeLoop({
 
     const failedAt = nowISO();
     const message = truncateText(err.message || "Startup Office AI run failed", 2000);
+    const timedOut = isStartupOfficeModelTimeout(err);
     const cost = modelResult?.cost || {
       currency: "USD",
       estimated_usd: null,
@@ -445,14 +473,21 @@ async function runStartupOfficeLoop({
       provider: modelClient.provider,
       total_tokens: 0,
     };
-    const failedRun = await repository.updateRun(membership.team_id, run.id, {
+    const failedRunPatch = {
       completed_at: failedAt,
+      model_deadline_at: modelTimeout.deadline_at,
+      model_timeout_ms: modelTimeout.timeout_ms,
       metadata: mergeMetadata(run.metadata, {
         attempt,
         cost,
         error: message,
         loop_slug: loop.slug,
         model: modelClient.model,
+        model_timeout: {
+          ...modelTimeout,
+          timed_out: timedOut,
+          timed_out_at: timedOut ? failedAt : null,
+        },
         provider: modelClient.provider,
         prompt_version: promptVersion,
         skill_invocations: recordedSkillInvocations,
@@ -462,7 +497,9 @@ async function runStartupOfficeLoop({
       status: "failed",
       summary: message,
       updated_at: failedAt,
-    });
+    };
+    if (timedOut) failedRunPatch.timed_out_at = failedAt;
+    const failedRun = await repository.updateRun(membership.team_id, run.id, failedRunPatch);
     await auditStartupOfficeWrite(repository, membership, {
       action: "startup_office.run_failed",
       metadata: {
@@ -475,15 +512,29 @@ async function runStartupOfficeLoop({
       target_type: "run",
     });
     if (workerJob?.id) {
-      await repository.updateWorkerJob(membership.team_id, workerJob.id, {
+      const failedWorkerJobPatch = {
         attempts: attempt,
         completed_at: failedAt,
         last_error: message,
         locked_at: null,
-        metadata: { cost, prompt_version: promptVersion, run_id: run.id, tool_policy: toolPolicy },
+        metadata: {
+          cost,
+          model_timeout: {
+            ...modelTimeout,
+            timed_out: timedOut,
+            timed_out_at: timedOut ? failedAt : null,
+          },
+          prompt_version: promptVersion,
+          run_id: run.id,
+          tool_policy: toolPolicy,
+        },
+        model_deadline_at: modelTimeout.deadline_at,
+        model_timeout_ms: modelTimeout.timeout_ms,
         status: "failed",
         updated_at: failedAt,
-      });
+      };
+      if (timedOut) failedWorkerJobPatch.timed_out_at = failedAt;
+      await repository.updateWorkerJob(membership.team_id, workerJob.id, failedWorkerJobPatch);
     }
     const receipt = await writeStartupOfficeRunReceipt(repository, membership, {
       actor_slug: "agent",
@@ -494,6 +545,11 @@ async function runStartupOfficeLoop({
         attempt,
         cost,
         loop_slug: loop.slug,
+        model_timeout: {
+          ...modelTimeout,
+          timed_out: timedOut,
+          timed_out_at: timedOut ? failedAt : null,
+        },
         prompt_version: promptVersion,
         provider: modelClient.provider,
         skill_invocations: recordedSkillInvocations,
@@ -514,6 +570,63 @@ function mergeMetadata(current, patch) {
     ...(isObject(current) ? current : {}),
     ...patch,
   };
+}
+
+function startupOfficeModelTimeoutPolicy({ modelTimeoutMs = null, run = {}, startedAt, workerJob = {} }) {
+  const timeoutMs = clampModelTimeoutMs(
+    modelTimeoutMs ||
+      objectValue(workerJob.metadata).model_timeout_ms ||
+      objectValue(run.metadata).model_timeout_ms ||
+      process.env.LAF_STARTUP_OFFICE_MODEL_TIMEOUT_MS,
+  );
+  const startedAtMs = Date.parse(startedAt);
+  const baseMs = Number.isFinite(startedAtMs) ? startedAtMs : Date.now();
+  return {
+    deadline_at: new Date(baseMs + timeoutMs).toISOString(),
+    started_at: Number.isFinite(startedAtMs) ? startedAt : new Date(baseMs).toISOString(),
+    timeout_ms: timeoutMs,
+    version: STARTUP_OFFICE_MODEL_TIMEOUT_POLICY_VERSION,
+  };
+}
+
+function clampModelTimeoutMs(value) {
+  const parsed = Number(value || DEFAULT_STARTUP_OFFICE_MODEL_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(parsed)
+    ? Math.trunc(parsed)
+    : DEFAULT_STARTUP_OFFICE_MODEL_TIMEOUT_MS;
+  return Math.max(1, Math.min(timeoutMs, MAX_STARTUP_OFFICE_MODEL_TIMEOUT_MS));
+}
+
+async function generateStructuredWithTimeout(modelClient, request, modelTimeout) {
+  let timeout = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeout = setTimeout(() => reject(modelTimeoutError(modelTimeout)), modelTimeout.timeout_ms);
+  });
+  try {
+    return await Promise.race([
+      modelClient.generateStructured(request),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function modelTimeoutError(modelTimeout) {
+  const err = new Error(
+    `model call timed out after ${modelTimeout.timeout_ms}ms; deadline ${modelTimeout.deadline_at}`,
+  );
+  err.code = "startup_office_model_timeout";
+  err.retryable = true;
+  return err;
+}
+
+function isStartupOfficeModelTimeout(err) {
+  return err?.code === "startup_office_model_timeout";
+}
+
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 function isObject(value) {

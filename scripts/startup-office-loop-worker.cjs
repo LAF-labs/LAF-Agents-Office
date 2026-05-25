@@ -151,6 +151,7 @@ async function loadWorkerJobContext(job) {
       env: process.env,
       fetchImpl: fetch,
     }),
+    modelTimeoutMs: process.env.LAF_STARTUP_OFFICE_MODEL_TIMEOUT_MS,
     nowISO,
     objective: truncateText(
       run.objective || jobMetadata.objective || loop.objective || "Run this operating loop.",

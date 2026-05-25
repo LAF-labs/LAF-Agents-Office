@@ -1,6 +1,6 @@
 {
   "version": "startup-office-schema.v1",
-  "latestMigration": "20260526070000",
+  "latestMigration": "20260526080000",
   "pureCloudBoundaryGuardMigration": "20260525235900",
   "productBoundary": "pure_cloud_startup_office",
   "activeTables": [
@@ -142,7 +142,7 @@
       "domain": "workflow",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "loop_id", "title", "objective", "status", "inputs", "metadata", "summary", "created_by", "started_at", "completed_at", "created_at", "updated_at", "idempotency_key"]
+      "columns": ["id", "team_id", "loop_id", "title", "objective", "status", "inputs", "metadata", "summary", "created_by", "started_at", "completed_at", "created_at", "updated_at", "idempotency_key", "model_timeout_ms", "model_deadline_at", "timed_out_at"]
     },
     {
       "name": "startup_office_signals",
@@ -191,7 +191,7 @@
       "domain": "worker",
       "tenantColumn": "team_id",
       "rls": true,
-      "columns": ["id", "team_id", "run_id", "loop_slug", "status", "attempts", "max_attempts", "last_error", "metadata", "created_by", "locked_at", "started_at", "completed_at", "available_at", "created_at", "updated_at"]
+      "columns": ["id", "team_id", "run_id", "loop_slug", "status", "attempts", "max_attempts", "last_error", "metadata", "created_by", "locked_at", "started_at", "completed_at", "available_at", "created_at", "updated_at", "model_timeout_ms", "model_deadline_at", "timed_out_at"]
     },
     {
       "name": "team_invites",

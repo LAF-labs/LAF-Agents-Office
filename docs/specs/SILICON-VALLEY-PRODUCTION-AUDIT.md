@@ -214,7 +214,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer and have admin retry/cancel APIs, but founder-facing recovery UI is not complete. | worker jobs |
 | SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions do not guard every race condition between user and worker. | approval routes |
-| SV-I176 | Reliability | Long-running model calls do not have durable timeout policy in schema. | worker |
+| SV-I176 | Reliability | Model timeout policy is now durable on runs and worker jobs, enforced around structured model calls, receipted on timeout failures, and covered by a release-gate check; live provider abort signals remain future hardening. | `startup-office:model-timeouts` |
 | SV-I177 | Reliability | Partial failure between artifact, approval, receipt, and memory writes needs stronger transaction design. | service helpers |
 | SV-I178 | Reliability | Health checks do not cover dependencies. | hosted API |
 | SV-I179 | Reliability | Backup and restore are not verified. | no runbook evidence |
@@ -617,6 +617,12 @@ the final release commit or when a shared invariant changes.
   requires an OpenAI AI worker key, rejects `fake`/`disabled` providers outside
   local hosted rehearsals, and the beta release gate now runs the preflight test
   suite.
+- R7/R8 now adds durable model timeout policy. Migration
+  `20260526080000_add_startup_office_model_timeouts.sql` adds
+  `model_timeout_ms`, `model_deadline_at`, and `timed_out_at` to runs and worker
+  jobs; the loop worker records the policy before model generation, fails and
+  receipts timeout breaches, and `npm run startup-office:model-timeouts` pins
+  the schema, workflow env, worker enforcement, tests, and release gate.
 - R7/R8 now packages the outbox worker for independent operation.
   `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
   preflights the same Supabase, public host, billing, AI worker, and outbox env
