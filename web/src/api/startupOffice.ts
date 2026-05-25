@@ -264,6 +264,7 @@ export interface StartupOfficeRunCancelResponse {
   receipt?: StartupOfficeReceipt | null;
   run?: StartupOfficeRun | null;
   status?: string;
+  worker_job?: StartupOfficeWorkerJob | null;
 }
 
 export interface StartupOfficeWorkerJobActionResponse {

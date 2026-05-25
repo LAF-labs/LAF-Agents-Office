@@ -365,6 +365,59 @@ test("approval action approves, promotes memory, records receipt, and audits", a
   ]);
 });
 
+test("approval action requests revision and queues a structured worker job", async () => {
+  const deps = baseDeps({
+    async readBody() {
+      return { revision_note: "Tighten the ICP and remove the pricing claim." };
+    },
+    runRecord: {
+      inputs: { market: "founders" },
+      loop_id: "loop-1",
+      metadata: { loop_slug: "idea-validation" },
+      objective: "Validate idea",
+      status: "waiting_approval",
+    },
+  });
+  const handlers = createStartupOfficeWorkflowHandlers(deps);
+
+  await handlers.approvalAction({ method: "POST" }, {}, "approval-1", "revise");
+
+  assert.equal(deps.calls.rest[0].table, "startup_office_approvals");
+  assert.equal(deps.calls.rest[0].options.body.status, "revision_requested");
+  assert.equal(
+    deps.calls.rest[0].options.body.metadata.revision_request.note,
+    "Tighten the ICP and remove the pricing claim.",
+  );
+  assert.equal(deps.calls.rest[1].table, "startup_office_runs");
+  assert.equal(deps.calls.rest[1].options.body.status, "queued");
+  assert.equal(
+    deps.calls.rest[1].options.body.metadata.revision_request.approval_id,
+    "approval-1",
+  );
+  assert.equal(deps.calls.createdWorkerJob.metadata.revision, true);
+  assert.equal(
+    deps.calls.createdWorkerJob.metadata.revision_request.note,
+    "Tighten the ICP and remove the pricing claim.",
+  );
+  assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(deps.calls.createdWorkerJob.run_id, "run-1");
+  assert.equal(deps.calls.receipts[0].event_type, "approval.revision_requested");
+  assert.equal(deps.calls.receipts[0].trace.worker_job_id, "job-1");
+  assert.equal(deps.calls.receipts[0].trace.revision_request.source, "approval_revision");
+  assert.equal(deps.calls.audits[0][1], "startup_office.revision_requested");
+  assert.equal(deps.calls.writes[0].body.status, "revision_queued");
+  assert.equal(deps.calls.writes[0].body.worker_job.id, "job-1");
+});
+
+test("approval revision requires a concrete revision note", async () => {
+  const handlers = createStartupOfficeWorkflowHandlers(baseDeps());
+
+  await assert.rejects(
+    () => handlers.approvalAction({ method: "POST" }, {}, "approval-1", "revise"),
+    (err) => err.status === 400 && err.message === "revision_note is required",
+  );
+});
+
 test("approval action replays a matching idempotent decision", async () => {
   const deps = baseDeps({
     approvalRecord: {

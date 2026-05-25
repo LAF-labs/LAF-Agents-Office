@@ -196,6 +196,41 @@ test("startup office loop engine gathers browser research and records cited sour
   assert.equal(state.receipts.at(-1).trace.browser_research.source_count, 1);
 });
 
+test("startup office loop engine includes revision requests in the model prompt", async () => {
+  const state = fakeRepositoryState();
+  const result = await runStartupOfficeLoop({
+    inputs: { market: "AI operations" },
+    loop: ideaValidationLoop(),
+    membership: membership(),
+    modelClient: revisionAwareModelClient(),
+    nowISO: fixedNow,
+    objective: "Revise the first buyer segment",
+    profile: { name: "LAF Labs" },
+    repository: fakeRepository(state),
+    run: {
+      ...queuedRun(),
+      metadata: {
+        revision_request: {
+          approval_id: "approval-1",
+          note: "Tighten the ICP and remove the pricing claim.",
+          requested_by: "user-1",
+          source: "approval_revision",
+        },
+      },
+    },
+    truncateText,
+    workerJob: {
+      id: "job-1",
+      metadata: {
+        revision: true,
+      },
+    },
+  });
+
+  assert.equal(result.status, "waiting_approval");
+  assert.match(result.artifact.metadata.structured_output.summary, /Revised/);
+});
+
 function fakeRepositoryState() {
   return {
     approvals: [],
@@ -346,6 +381,60 @@ function citingModelClient() {
         },
         data: output,
       };
+    },
+  };
+}
+
+function revisionAwareModelClient() {
+  return {
+    model: "fake-model",
+    provider: "fake",
+    generateStructured: async ({ input }) => {
+      assert.match(input, /Revision request/);
+      assert.match(input, /Tighten the ICP and remove the pricing claim/);
+      return successfulModelOutput({
+        summary: "Revised paid-beta validation wedge is ready.",
+      });
+    },
+  };
+}
+
+function successfulModelOutput(overrides = {}) {
+  return {
+    cost: {
+      currency: "USD",
+      estimated_usd: null,
+      input_tokens: 10,
+      model: "fake-model",
+      output_tokens: 20,
+      pricing_source: "usage_tokens_only",
+      provider: "fake",
+      total_tokens: 30,
+    },
+    data: {
+      assumptions: [
+        {
+          claim: "Founders will pay for controlled validation.",
+          confidence: "medium",
+          evidence_needed: "Paid beta deposits.",
+        },
+      ],
+      customer_segment: "Solo B2B founders",
+      icp_hypothesis:
+        "Solo B2B founders who need a paid-beta validation package before hiring operators.",
+      next_evidence: [
+        {
+          experiment: "Five discovery interviews",
+          owner_action: "Ask each founder for a paid beta commitment.",
+          success_signal: "Two deposits or signed commitments.",
+        },
+      ],
+      next_actions: ["Ask five founders for paid beta commitments."],
+      risk_level: "medium",
+      risks: ["The wedge may still be too broad."],
+      sources: [],
+      summary: "A paid-beta validation wedge is plausible.",
+      ...overrides,
     },
   };
 }

@@ -154,6 +154,9 @@ async function loadWorkerJobContext(job) {
     profile,
     repository: repo,
     run,
+    skillInvocations: Array.isArray(jobMetadata.skill_invocations)
+      ? jobMetadata.skill_invocations
+      : [],
     truncateText,
   };
 }

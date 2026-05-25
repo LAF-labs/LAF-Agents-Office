@@ -1,6 +1,11 @@
 const {
   createStartupOfficeValidation,
 } = require("./validation");
+const {
+  queueStartupOfficeApprovalRevision,
+  startupOfficeRevisionRequest,
+} = require("./approvalRevisions");
+const { recordStartupOfficeRunOutcome } = require("./runOutcomeRecorder");
 
 function createStartupOfficeWorkflowHandlers(deps) {
   const {
@@ -139,7 +144,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       truncateText,
       workerJob,
     });
-    await recordStartupOfficeRunOutcome(membership, result);
+    await recordStartupOfficeRunOutcome({ membership, objectValue, result, safeStartupOfficeRest });
     writeJSON(res, 200, {
       approval: publicStartupOfficeApproval(result.approval),
       artifact: publicStartupOfficeArtifact(result.artifact),
@@ -284,7 +289,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         truncateText,
         workerJob,
       });
-      await recordStartupOfficeRunOutcome(membership, result);
+      await recordStartupOfficeRunOutcome({ membership, objectValue, result, safeStartupOfficeRest });
       writeJSON(res, 200, {
         approval: publicStartupOfficeApproval(result.approval),
         artifact: publicStartupOfficeArtifact(result.artifact),
@@ -317,7 +322,22 @@ function createStartupOfficeWorkflowHandlers(deps) {
     }
     const approved = action === "approve";
     const revisionRequested = action === "revise";
+    if (revisionRequested && !body.decisionNote) {
+      throw createHTTPError(400, "revision_note is required");
+    }
     const now = nowISO();
+    const existingRun = approval.run_id
+      ? await startupOfficeRepository().findRun(membership.team_id, approval.run_id)
+      : null;
+    const existingRunMetadata = objectValue(existingRun?.metadata);
+    const revisionRequest = revisionRequested
+      ? startupOfficeRevisionRequest({
+          approval,
+          decisionNote: body.decisionNote,
+          membership,
+          now,
+        })
+      : null;
     const [updatedApproval] = await safeStartupOfficeRest("startup_office_approvals", {
       method: "PATCH",
       query: {
@@ -333,6 +353,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         metadata: {
           ...objectValue(approval.metadata),
           decision_idempotency_key: idempotencyKey || "",
+          ...(revisionRequest ? { revision_request: revisionRequest } : {}),
         },
         status: approved ? "approved" : revisionRequested ? "revision_requested" : "rejected",
         updated_at: now,
@@ -348,38 +369,46 @@ function createStartupOfficeWorkflowHandlers(deps) {
     if (!updatedApproval) throw createHTTPError(409, "approval is already decided");
     let updatedRun = null;
     let memoryPromotion = null;
+    let revisionWorkerJob = null;
     if (approval.run_id) {
-      const existingRun = await startupOfficeRepository().findRun(
-        membership.team_id,
-        approval.run_id,
-      );
-      const existingRunMetadata = objectValue(existingRun?.metadata);
-      const [run] = await safeStartupOfficeRest("startup_office_runs", {
-        method: "PATCH",
-        query: {
-          id: `eq.${approval.run_id}`,
-          team_id: `eq.${membership.team_id}`,
-        },
-        body: {
-          completed_at: revisionRequested ? null : now,
-          metadata: revisionRequested
-            ? {
-                ...existingRunMetadata,
-                revision_note: body.decisionNote,
-                revision_requested_at: now,
-                revision_requested_by: membership.user_id,
-              }
-            : existingRunMetadata,
-          status: approved ? "completed" : revisionRequested ? "queued" : "canceled",
-          summary: approved
-            ? "Founder approved the drafted loop output."
-            : revisionRequested
-              ? "Founder requested a revision before approval."
+      if (revisionRequested) {
+        const queued = await queueStartupOfficeApprovalRevision({
+          approval,
+          companyProfileSnapshot,
+          ensureStartupOfficeLoop,
+          existingRun,
+          membership,
+          objectValue,
+          revisionRequest,
+          safeStartupOfficeRest,
+          startupOfficeLoopSkillInvocations,
+          startupOfficeModelClient,
+          startupOfficeRepository,
+          team,
+          truncateText,
+          user,
+        });
+        updatedRun = queued.run;
+        revisionWorkerJob = queued.workerJob;
+      } else {
+        const [run] = await safeStartupOfficeRest("startup_office_runs", {
+          method: "PATCH",
+          query: {
+            id: `eq.${approval.run_id}`,
+            team_id: `eq.${membership.team_id}`,
+          },
+          body: {
+            completed_at: now,
+            metadata: existingRunMetadata,
+            status: approved ? "completed" : "canceled",
+            summary: approved
+              ? "Founder approved the drafted loop output."
               : "Founder rejected the drafted loop output.",
-          updated_at: now,
-        },
-      });
-      updatedRun = run;
+            updated_at: now,
+          },
+        });
+        updatedRun = run;
+      }
     }
     if (approved && approval.artifact_id) {
       const repository = startupOfficeRepository();
@@ -419,6 +448,8 @@ function createStartupOfficeWorkflowHandlers(deps) {
         decision_note: body.traceNote,
         idempotency_key: idempotencyKey || "",
         memory_pages: [...(memoryPromotion?.pages?.map((page) => page.slug) || []), ...(approved ? startupOfficeReceiptMemoryPageSlugs : [])],
+        revision_request: revisionRequest,
+        worker_job_id: revisionWorkerJob?.id || null,
       },
     });
     const receiptMemory = approved && materializeStartupOfficeReceiptMemory
@@ -441,7 +472,8 @@ function createStartupOfficeWorkflowHandlers(deps) {
       memory_pages: memoryPages,
       receipt,
       run: publicStartupOfficeRun(updatedRun),
-      status: "ok",
+      status: revisionRequested ? "revision_queued" : "ok",
+      worker_job: revisionWorkerJob,
     });
   }
 
@@ -468,41 +500,6 @@ function createStartupOfficeWorkflowHandlers(deps) {
     if (usage.model_spend_cents >= billing.monthly_model_spend_cents) {
       throw createHTTPError(402, "monthly Startup Office model spend limit reached");
     }
-  }
-
-  async function recordStartupOfficeRunOutcome(membership, result) {
-    const cost = objectValue(result?.run?.metadata?.cost);
-    await safeStartupOfficeRest("startup_office_usage_events", {
-      method: "POST",
-      body: {
-        cost_cents: Number(cost.estimated_cents || 0),
-        created_by: membership.user_id,
-        event_type: "model_run",
-        input_tokens: Number(cost.input_tokens || 0),
-        metadata: {
-          status: result?.status || "",
-        },
-        model: cost.model || result?.run?.metadata?.model || "",
-        output_tokens: Number(cost.output_tokens || 0),
-        provider: cost.provider || result?.run?.metadata?.provider || "",
-        run_id: result?.run?.id || null,
-        team_id: membership.team_id,
-        total_tokens: Number(cost.total_tokens || 0),
-      },
-    });
-    await safeStartupOfficeRest("startup_office_notifications", {
-      method: "POST",
-      body: {
-        event_type: result?.status === "failed" ? "run_failed" : "approval_waiting",
-        payload: {
-          run_id: result?.run?.id || null,
-          status: result?.status || "",
-        },
-        recipient_user_id: membership.user_id,
-        status: "pending",
-        team_id: membership.team_id,
-      },
-    });
   }
 
   return {

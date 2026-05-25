@@ -48,6 +48,7 @@ async function buildStartupOfficeContext({
     }),
     repository.memoryPages(teamID, { status: "approved", limit: 8 }),
   ]);
+  const runMetadata = objectValue(run?.metadata);
 
   const context = {
     loop,
@@ -70,6 +71,7 @@ async function buildStartupOfficeContext({
     relevant_signals: relevantSignals.map((item) =>
       pick(item, ["id", "source", "title", "body", "metadata", "created_at"]),
     ),
+    revision_request: objectValue(runMetadata.revision_request),
     run,
     wiki_memory: wikiMemory.map((item) =>
       pick(item, ["id", "slug", "title", "summary", "body", "sources", "assumptions", "updated_at"]),
@@ -90,6 +92,10 @@ function pick(object, keys) {
     if (object?.[key] !== undefined) out[key] = object[key];
   }
   return out;
+}
+
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 module.exports = {
