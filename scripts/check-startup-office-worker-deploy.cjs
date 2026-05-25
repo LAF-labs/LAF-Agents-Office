@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const workflowPath = path.join(root, ".github", "workflows", "startup-office-outbox-worker.yml");
+const packagePath = path.join(root, "package.json");
+const runbookPath = path.join(root, "docs", "ops", "STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md");
+
+function fail(message) {
+  console.error(`startup office worker deploy check failed: ${message}`);
+  process.exit(1);
+}
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
+
+if (!fs.existsSync(workflowPath)) {
+  fail("missing .github/workflows/startup-office-outbox-worker.yml");
+}
+if (!fs.existsSync(runbookPath)) {
+  fail("missing docs/ops/STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md");
+}
+
+const workflow = fs.readFileSync(workflowPath, "utf8");
+const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+const runbook = fs.readFileSync(runbookPath, "utf8");
+
+if (pkg.scripts?.["startup-office:outbox-worker"] !== "node scripts/startup-office-outbox-worker.cjs") {
+  fail("package.json must expose startup-office:outbox-worker");
+}
+
+for (const snippet of [
+  "name: Startup Office Outbox Worker",
+  "schedule:",
+  'cron: "*/5 * * * *"',
+  "workflow_dispatch:",
+  "permissions:\n  contents: read",
+  "concurrency:",
+  "timeout-minutes: 10",
+  "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+  "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
+  "npm run hosted-env:preflight -- --no-env-file",
+  "npm run startup-office:outbox-worker",
+]) {
+  if (!workflow.includes(snippet)) fail(`worker workflow is missing ${snippet}`);
+}
+
+for (const name of [
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_ANON_KEY",
+  "LAF_OFFICE_PUBLIC_HOST",
+  "LAF_OUTBOX_EMAIL_PROVIDER",
+  "LAF_OUTBOX_BATCH_SIZE",
+  "LAF_OUTBOX_LOCK_MS",
+  "LAF_OUTBOX_WORKER_ID",
+  "RESEND_API_KEY",
+  "LAF_EMAIL_FROM",
+  "LAF_EMAIL_REPLY_TO",
+]) {
+  if (!workflow.includes(name)) fail(`worker workflow is missing env ${name}`);
+}
+
+const workflowOrder =
+  workflow.indexOf("npm run hosted-env:preflight -- --no-env-file") <
+  workflow.indexOf("npm run startup-office:outbox-worker");
+if (!workflowOrder) fail("worker workflow must run preflight before draining outbox");
+
+for (const heading of [
+  "## Deploy Order",
+  "## Required Secrets And Variables",
+  "## Outbox Worker Schedule",
+  "## Smoke Test",
+  "## Rollback",
+]) {
+  if (!runbook.includes(heading)) fail(`deployment runbook is missing ${heading}`);
+}
+
+for (const term of [
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_ANON_KEY",
+  "LAF_OUTBOX_EMAIL_PROVIDER",
+  "RESEND_API_KEY",
+  "npm run hosted-env:preflight",
+  "npx supabase db push",
+  "startup-office-outbox-worker.yml",
+  "npm run startup-office:outbox-worker",
+  "npm run beta:release-gate",
+]) {
+  if (!runbook.includes(term)) fail(`deployment runbook is missing ${term}`);
+}
+
+const releaseGate = read("scripts/startup-office-beta-release-gate.cjs");
+if (!releaseGate.includes("npm\", [\"run\", \"startup-office:worker-deploy\"")) {
+  fail("beta release gate must run startup-office:worker-deploy");
+}
+
+console.log("startup office worker deploy check passed");

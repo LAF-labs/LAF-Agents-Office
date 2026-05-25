@@ -161,7 +161,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I131 | Release | The release gate does not include the new production audit. | scripts |
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
 | SV-I133 | Release | Environment preflight now validates hosted config and outbox email shape, but not live external reachability. | hosted-env preflight |
-| SV-I134 | Release | Worker deployment is not independently packaged. | workers directory |
+| SV-I134 | Release | The outbox worker is independently scheduled, but AI loop worker deployment still needs the same treatment. | workers directory |
 | SV-I135 | Release | CI is now hosted-only but still lacks a production deploy smoke with live environment reachability. | `.github/workflows/ci.yml` |
 | SV-I136 | Release | There is no staged rollout or feature flag plan for risky cloud loops. | docs |
 | SV-I137 | Release | Database migration failure recovery is not rehearsed. | migrations |
@@ -505,3 +505,9 @@ and missing typed contracts.
   validates outbox email provider selection, Resend secrets, sender/reply-to
   email shapes, batch size, and lock timeout without printing secret values, and
   the beta release gate now runs the preflight test suite.
+- R7/R8 now packages the outbox worker for independent operation.
+  `.github/workflows/startup-office-outbox-worker.yml` runs every five minutes,
+  preflights production env, then drains a bounded outbox batch with
+  `npm run startup-office:outbox-worker`. `docs/ops/STARTUP-OFFICE-DEPLOYMENT-RUNBOOK.md`
+  documents deploy order, secrets, migrations, worker smoke, and rollback, and
+  `npm run startup-office:worker-deploy` gates the workflow and runbook.
