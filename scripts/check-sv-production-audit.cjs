@@ -372,6 +372,24 @@ if (!releaseGate.includes('"startup-office:web-bundle-budget"')) {
 }
 
 for (const required of [
+  "startup-office:site-assets-budget",
+  "shared/startup-office-site-asset-budget.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record site assets budget evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:site-assets-budget"] !==
+  "node scripts/check-startup-office-site-assets-budget.cjs"
+) {
+  fail("package.json must expose startup-office:site-assets-budget");
+}
+
+if (!releaseGate.includes('"startup-office:site-assets-budget"')) {
+  fail("beta release gate must include the site assets budget contract");
+}
+
+for (const required of [
   "startup-office:web-query-policy",
   "shared/startup-office-web-query-policy.json",
 ]) {

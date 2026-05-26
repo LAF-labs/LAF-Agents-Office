@@ -67,6 +67,7 @@
     "startup-office:security": "node scripts/check-startup-office-security-gate.cjs",
     "startup-office:security-review": "node scripts/check-startup-office-security-review.cjs",
     "startup-office:secret-rotation": "node scripts/check-startup-office-secret-rotation.cjs",
+    "startup-office:site-assets-budget": "node scripts/check-startup-office-site-assets-budget.cjs",
     "startup-office:static-analysis": "node scripts/check-startup-office-static-analysis.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
     "startup-office:subprocessors": "node scripts/check-startup-office-subprocessors.cjs",

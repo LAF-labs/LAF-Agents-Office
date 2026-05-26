@@ -1,0 +1,21 @@
+{
+  "version": "startup-office-site-asset-budget.v1",
+  "scope": "Combined static marketing website and hosted Startup Office web build assets.",
+  "paths": {
+    "app_build_dir": "web/dist",
+    "marketing_dir": "website"
+  },
+  "budgets": {
+    "max_app_build_asset_bytes": 1700000,
+    "max_asset_file_count": 80,
+    "max_combined_asset_bytes": 1800000,
+    "max_marketing_asset_bytes": 80000,
+    "max_single_css_bytes": 220000,
+    "max_single_image_bytes": 10000,
+    "max_single_js_bytes": 210000,
+    "max_static_marketing_css_bytes": 10000,
+    "max_static_marketing_js_bytes": 30000
+  },
+  "asset_extensions": [".css", ".html", ".ico", ".jpeg", ".jpg", ".js", ".png", ".svg", ".webp"],
+  "release_gate": "npm run startup-office:site-assets-budget"
+}
