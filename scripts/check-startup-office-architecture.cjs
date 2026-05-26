@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 745);
+assertMaxLines("api/[...path].js", 700);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/apiEntrypoint.js", 70);
@@ -87,6 +87,7 @@ assertMaxLines("api/lib/startup-office/customerCsvHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/exportHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/importHandlers.js", 140);
 assertMaxLines("api/lib/startup-office/operationsHandlers.js", 220);
+assertMaxLines("api/lib/startup-office/objectHandlerBundle.js", 110);
 assertMaxLines("api/lib/startup-office/objectHandlers.js", 220);
 assertMaxLines("api/lib/startup-office/objectInvariants.js", 80);
 assertMaxLines("api/lib/startup-office/objectPayloadSchemas.js", 100);
@@ -385,6 +386,10 @@ for (const [pattern, label] of [
   [/function publicTask\b/, "hosted task serializer"],
   [/path: "\/projects"/, "orchestration project action"],
   [/path: "\/tasks"/, "orchestration task action"],
+  [/createStartupOfficeObjectHandlers\(/, "startup office object handler wiring"],
+  [/createStartupOfficeAssetUploadHandlers\(/, "startup office asset upload handler wiring"],
+  [/createStartupOfficeCustomerCsvHandlers\(/, "startup office customer CSV handler wiring"],
+  [/createStartupOfficeImportHandlers\(/, "startup office import handler wiring"],
 ]) {
   assertNotContains("api/[...path].js", pattern, label);
 }

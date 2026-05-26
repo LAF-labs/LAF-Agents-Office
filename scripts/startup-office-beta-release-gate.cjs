@@ -127,6 +127,7 @@ const checks = [
   ["node", ["--test", "api/lib/startup-office/customerCsvHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/dispatcher.test.js"]],
   ["node", ["--test", "api/lib/startup-office/importHandlers.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/objectHandlerBundle.test.js"]],
   ["node", ["--test", "api/lib/startup-office/demoSeedHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/lifecycleHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/memoryFreshness.test.js"]],

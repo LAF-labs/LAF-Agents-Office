@@ -131,17 +131,8 @@ const {
   createStartupOfficeTermsHandlers,
 } = require("./lib/startup-office/termsHandlers");
 const {
-  createStartupOfficeObjectHandlers,
-} = require("./lib/startup-office/objectHandlers");
-const {
-  createStartupOfficeAssetUploadHandlers,
-} = require("./lib/startup-office/assetUploadHandlers");
-const {
-  createStartupOfficeCustomerCsvHandlers,
-} = require("./lib/startup-office/customerCsvHandlers");
-const {
-  createStartupOfficeImportHandlers,
-} = require("./lib/startup-office/importHandlers");
+  createStartupOfficeObjectHandlerBundle,
+} = require("./lib/startup-office/objectHandlerBundle");
 const {
   createStartupOfficeQueryHandlers,
 } = require("./lib/startup-office/queryHandlers");
@@ -434,68 +425,33 @@ const STARTUP_OFFICE_TERMS_HANDLERS = createStartupOfficeTermsHandlers({
   writeJSON,
 });
 
-const STARTUP_OFFICE_OBJECT_HANDLERS = createStartupOfficeObjectHandlers({
+const STARTUP_OFFICE_OBJECT_HANDLER_BUNDLE = createStartupOfficeObjectHandlerBundle({
   createHTTPError: startupOfficeHTTPError,
   nowISO,
+  objectValue,
   publicStartupOfficeAsset,
+  publicStartupOfficeCustomer,
   publicStartupOfficeSignal,
   readBody,
   requirePermission,
   requireUser,
   safeStartupOfficeRest,
+  startupOfficeBetaOpsSnapshot,
   startupOfficeObjectDefinition,
   startupOfficeObjectPatch,
   startupOfficeObjectPayload,
   startupOfficeObjectRows,
   startupOfficeRepository,
-  startupOfficeBetaOpsSnapshot,
   truncateText,
   writeAuditEvent,
   writeJSON,
 });
-
-const STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS = createStartupOfficeAssetUploadHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
-  publicStartupOfficeAsset,
-  readBody,
-  requirePermission,
-  requireUser,
-  safeStartupOfficeRest,
-  startupOfficeBetaOpsSnapshot,
-  truncateText,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS = createStartupOfficeCustomerCsvHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
-  publicStartupOfficeCustomer,
-  readBody,
-  requirePermission,
-  requireUser,
-  safeStartupOfficeRest,
-  startupOfficeBetaOpsSnapshot,
-  startupOfficeObjectPayload,
-  startupOfficeObjectRows,
-  truncateText,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const STARTUP_OFFICE_IMPORT_HANDLERS = createStartupOfficeImportHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
-  objectValue,
-  readBody,
-  requirePermission,
-  requireUser,
-  startupOfficeRepository,
-  truncateText,
-  writeAuditEvent,
-  writeJSON,
-});
+const {
+  assetUploadHandlers: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS,
+  customerCsvHandlers: STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS,
+  importHandlers: STARTUP_OFFICE_IMPORT_HANDLERS,
+  objectHandlers: STARTUP_OFFICE_OBJECT_HANDLERS,
+} = STARTUP_OFFICE_OBJECT_HANDLER_BUNDLE;
 
 const STARTUP_OFFICE_QUERY_HANDLERS = createStartupOfficeQueryHandlers({
   createHTTPError: startupOfficeHTTPError,
