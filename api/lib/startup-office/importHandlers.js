@@ -1,3 +1,7 @@
+const {
+  createStartupOfficeWorkspaceImportHandler,
+} = require("./workspaceImportAdapters");
+
 const STARTUP_OFFICE_MEMORY_IMPORT_LIMIT = 200;
 
 function createStartupOfficeImportHandlers(deps) {
@@ -13,6 +17,7 @@ function createStartupOfficeImportHandlers(deps) {
     writeAuditEvent,
     writeJSON,
   } = deps;
+  const workspaceImport = createStartupOfficeWorkspaceImportHandler(deps);
 
   async function handleStartupOfficeMemoryImport(req, res) {
     const { membership } = await requireUser(req);
@@ -62,6 +67,7 @@ function createStartupOfficeImportHandlers(deps) {
 
   return {
     memoryImport: handleStartupOfficeMemoryImport,
+    workspaceImport,
   };
 
   function importMemoryPagesFromBody(body = {}) {

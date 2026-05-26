@@ -11,7 +11,7 @@ test("route handler map exposes every Startup Office route handler id", async ()
     assetUploadHandlers: handlers("assetUploadIntent", calls),
     customerCsvHandlers: handlers("customerCsv", calls),
     demoSeedHandlers: () => handlers("demoSeed", calls),
-    importHandlers: handlers("memoryImport", calls),
+    importHandlers: handlers("memoryImport", calls, "workspaceImport"),
     lifecycleHandlers: handlers("deletionPurge", calls, "deletionRequest", "supportAccess"),
     objectHandlers: handlers("artifactObjectAction", calls, "objectCollection", "objectItem"),
     operationsHandlers: handlers(
@@ -62,6 +62,7 @@ test("route handler map exposes every Startup Office route handler id", async ()
     "supportTimeline",
     "terms",
     "workerJobAction",
+    "workspaceImport",
   ]);
   assert.equal(Object.isFrozen(handlerMap), true);
   await handlerMap.companyProfile("req", "res");

@@ -478,6 +478,17 @@ export interface StartupOfficeMemoryImportResponse {
   status: string;
 }
 
+export interface StartupOfficeWorkspaceImportResponse {
+  imported_count: number;
+  objects: {
+    assets: StartupOfficeArtifactObject[];
+    customers: StartupOfficeCustomer[];
+    metrics: StartupOfficeMetric[];
+    signals: StartupOfficeSignal[];
+  };
+  status: string;
+}
+
 export interface StartupOfficeCustomerCsvResponse {
   content_type: "text/csv";
   count: number;
@@ -512,6 +523,21 @@ export function importStartupOfficeMemory(body: {
 }) {
   return post<StartupOfficeMemoryImportResponse>(
     "/startup-office/memory/import",
+    body,
+  );
+}
+
+export function importStartupOfficeWorkspace(body: {
+  assets?: Partial<StartupOfficeArtifactObject>[];
+  customers?: Partial<StartupOfficeCustomer>[];
+  export?: Record<string, unknown>;
+  metrics?: Partial<StartupOfficeMetric>[];
+  objects?: Record<string, unknown>;
+  schema_version?: string;
+  signals?: Partial<StartupOfficeSignal>[];
+}) {
+  return post<StartupOfficeWorkspaceImportResponse>(
+    "/startup-office/import",
     body,
   );
 }

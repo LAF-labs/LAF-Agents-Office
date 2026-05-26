@@ -39,6 +39,7 @@ function createStartupOfficeRouteHandlerMap(deps) {
     supportTimeline: operationsHandlers.supportTimeline,
     terms: termsHandlers.terms,
     workerJobAction: operationsHandlers.workerJobAction,
+    workspaceImport: deps.importHandlers.workspaceImport,
   });
 }
 

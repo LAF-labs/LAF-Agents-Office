@@ -81,6 +81,7 @@ const STARTUP_OFFICE_ROUTE_ACCESS = Object.freeze({
   ]),
   supportAccessAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminBetaOps]]),
   workerJobAction: routeAccess([["POST", STARTUP_OFFICE_ACCESS.adminWorkerRecovery]]),
+  workspaceImport: routeAccess([["POST", STARTUP_OFFICE_ACCESS.approveMemory]]),
 });
 
 function routeAccessForMethod(contract, method) {

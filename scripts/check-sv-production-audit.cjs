@@ -561,6 +561,25 @@ if (!releaseGate.includes('"startup-office:compliance-disclosures"')) {
   fail("beta release gate must include startup-office:compliance-disclosures");
 }
 
+for (const required of [
+  "startup-office:workspace-import",
+  "api/lib/startup-office/workspaceImportAdapters.js",
+  "non-memory operating objects",
+]) {
+  if (!doc.includes(required)) fail(`audit must record workspace import evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:workspace-import"] !==
+  "node scripts/check-startup-office-workspace-import.cjs"
+) {
+  fail("package.json must expose startup-office:workspace-import");
+}
+
+if (!releaseGate.includes('"startup-office:workspace-import"')) {
+  fail("beta release gate must include startup-office:workspace-import");
+}
+
 console.log(
   `production audit check passed: ${issues.length} issues, ${goals.length} goals, ${roadmapRows.length} roadmap phases`,
 );

@@ -17,6 +17,14 @@ const hostedFacadeSource = fs.readFileSync(
   path.join(__dirname, "..", "api", "[...path].js"),
   "utf8",
 );
+const hostedRouteDispatcherSource = fs.readFileSync(
+  path.join(__dirname, "..", "api", "lib", "hosted", "apiRouteDispatcher.js"),
+  "utf8",
+);
+const hostedUserContextSource = fs.readFileSync(
+  path.join(__dirname, "..", "api", "lib", "hosted", "userContext.js"),
+  "utf8",
+);
 const permissions = new Set(permissionCatalog.permissions);
 const expectedAccess = {
   approvalAction: { POST: { permission: "memory:promote", type: "permission" } },
@@ -36,6 +44,11 @@ const expectedAccess = {
     GET: { permission: "workspace:read", type: "permission" },
     PATCH: { permission: "workspace:manage", type: "permission" },
   },
+  customerCsv: {
+    GET: { permission: "workspace:read", type: "permission" },
+    POST: { permission: "memory:write_draft", type: "permission" },
+  },
+  deletionPurge: { POST: { type: "admin" } },
   deletionRequest: {
     GET: { type: "admin" },
     POST: { type: "admin" },
@@ -48,6 +61,7 @@ const expectedAccess = {
     GET: { permission: "workspace:read", type: "permission" },
     POST: { permission: "workspace:manage", type: "permission" },
   },
+  memoryImport: { POST: { permission: "memory:promote", type: "permission" } },
   objectCollection: {
     GET: { permission: "workspace:read", type: "permission" },
     POST: { permission: "memory:write_draft", type: "permission" },
@@ -72,6 +86,7 @@ const expectedAccess = {
   supportAccessAction: { POST: { type: "admin" } },
   supportTimeline: { GET: { type: "admin" } },
   workerJobAction: { POST: { type: "admin" } },
+  workspaceImport: { POST: { permission: "memory:promote", type: "permission" } },
 };
 
 function fail(message) {
@@ -86,12 +101,13 @@ if (typeof authorizeStartupOfficeAccess !== "function") {
 }
 if (
   !hostedFacadeSource.includes("authorizeStartupOfficeAccess") ||
-  !hostedFacadeSource.includes("dispatchStartupOfficeRoute({") ||
-  !hostedFacadeSource.includes("authorize: (access, request)")
+  !hostedFacadeSource.includes("dispatchStartupOfficeRoute") ||
+  !hostedRouteDispatcherSource.includes("dispatchStartupOfficeRoute({") ||
+  !hostedRouteDispatcherSource.includes("authorize: (access, request)")
 ) {
   fail("hosted facade must enforce Startup Office route authorization centrally");
 }
-if (!hostedFacadeSource.includes("req.__lafOfficeUserContext")) {
+if (!hostedUserContextSource.includes("req.__lafOfficeUserContext")) {
   fail("hosted facade must cache requireUser context for central route authorization");
 }
 

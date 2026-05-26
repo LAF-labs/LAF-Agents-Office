@@ -92,6 +92,7 @@
     "startup-office:memory-conflicts": "node scripts/check-startup-office-memory-conflicts.cjs",
     "startup-office:memory-freshness": "node scripts/check-startup-office-memory-freshness.cjs",
     "startup-office:memory-import": "node scripts/check-startup-office-memory-import.cjs",
+    "startup-office:workspace-import": "node scripts/check-startup-office-workspace-import.cjs",
     "startup-office:model-failover": "node scripts/check-startup-office-model-failover.cjs",
     "startup-office:model-latency-budget": "node scripts/check-startup-office-model-latency-budget.cjs",
     "startup-office:model-client:test": "node --test workers/startup-office/modelClient.test.js",

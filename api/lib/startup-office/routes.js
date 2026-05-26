@@ -160,6 +160,7 @@ const STARTUP_OFFICE_ROUTE_CONTRACTS = Object.freeze([
   { id: "memoryImport", methods: Object.freeze(["POST"]), paths: Object.freeze(["startup-office/memory/import"]), client: Object.freeze([
     clientContract("importStartupOfficeMemory", "POST", "StartupOfficeMemoryImportResponse", ["/startup-office/memory/import"]),
   ]) },
+  { id: "workspaceImport", methods: Object.freeze(["POST"]), paths: Object.freeze(["startup-office/import"]), client: Object.freeze([clientContract("importStartupOfficeWorkspace", "POST", "StartupOfficeWorkspaceImportResponse", ["/startup-office/import"])]) },
   {
     id: "objectItem",
     methods: Object.freeze(["PATCH", "DELETE"]),
