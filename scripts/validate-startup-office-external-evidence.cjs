@@ -3,13 +3,29 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const packagePath = path.join(root, "package.json");
 const schemaPath = path.join(root, "supabase", "schema", "current.json");
 const templatePath = path.join(root, "shared", "startup-office-external-evidence-template.json");
 const { startupOfficeCurrentTermsPackage } = require("../api/lib/startup-office/betaTerms");
-const PLACEHOLDER_VALUES = new Set(["", "n/a", "na", "none", "null", "pending", "tbd", "todo", "unknown"]);
+const { STARTUP_OFFICE_LOOP_DEFINITIONS } = require("../api/lib/startup-office/loopDefinitions");
+const PLACEHOLDER_VALUES = new Set([
+  "",
+  "dummy",
+  "example",
+  "fake",
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "pending",
+  "sample",
+  "tbd",
+  "todo",
+  "unknown",
+]);
 const FORBIDDEN_VALUE_PATTERNS = [
   { label: "AWS access key", pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/ },
   { label: "GitHub token", pattern: /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/ },
@@ -19,6 +35,8 @@ const FORBIDDEN_VALUE_PATTERNS = [
   { label: "Stripe secret key", pattern: /\bsk_(?:live|test)_[A-Za-z0-9]{16,}\b/ },
   { label: "bearer token", pattern: /\bBearer\s+[A-Za-z0-9._~+/-]{20,}={0,2}\b/i },
 ];
+const VALID_BILLING_PROVIDERS = new Set(["manual", "stripe"]);
+const VALID_LOOP_SLUGS = new Set(STARTUP_OFFICE_LOOP_DEFINITIONS.map((loop) => loop.slug));
 
 function loadJSON(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -31,9 +49,18 @@ function loadTemplate() {
 function loadReleaseContext() {
   return {
     currentTermsVersion: startupOfficeCurrentTermsPackage().terms_version,
+    deployCommitSha: currentGitSha(),
     latestMigration: String(loadJSON(schemaPath).latestMigration),
     packageVersion: String(loadJSON(packagePath).version),
   };
+}
+
+function currentGitSha() {
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
 }
 
 function normalizeRecords(payload) {
@@ -138,19 +165,16 @@ function validateFieldSemantics(record, releaseContext) {
   const fields = record.fields;
   validateTermsEvidence(record.goalId, fields.current_beta_terms_acceptance, releaseContext);
   if (record.goalId === "G099") {
-    if (!/^[a-f0-9]{7,40}$/i.test(String(fields.deploy_commit_sha))) {
-      throw new Error("G099 deploy_commit_sha must look like a git SHA");
-    }
+    validateDeployCommit(fields.deploy_commit_sha, releaseContext);
     if (String(fields.package_version).trim() !== releaseContext.packageVersion) {
       throw new Error(`G099 package_version must match package.json ${releaseContext.packageVersion}`);
     }
     if (!String(fields.supabase_project_ref_latest_migration).includes(releaseContext.latestMigration)) {
       throw new Error(`G099 Supabase evidence must include latest migration ${releaseContext.latestMigration}`);
     }
+    validateDNSProviderRecord(fields.dns_provider_record);
     for (const key of ["production_app_url", "production_api_base_url"]) {
-      if (!String(fields[key]).startsWith("https://")) {
-        throw new Error(`G099 ${key} must be an HTTPS URL`);
-      }
+      validatePublicHttpsURL(`G099 ${key}`, fields[key]);
     }
     for (const key of [
       "hosted_env_preflight_result",
@@ -163,16 +187,152 @@ function validateFieldSemantics(record, releaseContext) {
         throw new Error(`G099 ${key} must record a successful result`);
       }
     }
+    validateRedactedPreflight(fields.hosted_env_preflight_result);
+    validateResultIncludesCommit(fields.release_gate_result, releaseContext);
+    for (const key of [
+      "loop_worker_workflow_run_id",
+      "outbox_worker_workflow_run_id",
+      "ops_monitor_workflow_run_id",
+      "synthetic_monitor_workflow_run_id",
+    ]) {
+      validateExternalReference(`G099 ${key}`, fields[key]);
+    }
+    for (const key of [
+      "production_smoke_workspace_id",
+      "first_production_smoke_run_id",
+      "first_production_approval_id",
+      "first_production_receipt_id",
+    ]) {
+      validateOpaqueID(`G099 ${key}`, fields[key]);
+    }
+    validateRollbackDecision(fields.rollback_decision_owner);
+    validateMonitorWindow(fields.post_release_monitor_window_result);
+    validateBrowserArtifact(fields.production_browser_artifact);
   }
   if (record.goalId === "G100") {
     validateCustomerAgreementReference(fields.signed_beta_agreement_or_payment_reference);
+    validateOpaqueID("G100 workspace_id", fields.workspace_id);
+    validateLoopSlug(fields.first_loop_slug);
+    validateOpaqueID("G100 first_customer_run_id", fields.first_customer_run_id);
+    validateOpaqueID("G100 first_approval_id", fields.first_approval_id);
+    validateOpaqueID("G100 first_receipt_id", fields.first_receipt_id);
+    validateBillingProvider(fields.billing_provider);
     if (!["trial", "paid", "paused", "blocked"].includes(String(fields.payment_status))) {
       throw new Error("G100 payment_status must be trial, paid, paused, or blocked");
     }
     if (!["approved", "revised", "rejected"].includes(String(fields.founder_decision))) {
       throw new Error("G100 founder_decision must be approved, revised, or rejected");
     }
+    validateSuccessNote(fields.success_note);
   }
+}
+
+function validateDeployCommit(value, releaseContext) {
+  const commit = String(value).trim();
+  if (!/^[a-f0-9]{40}$/i.test(commit)) {
+    throw new Error("G099 deploy_commit_sha must be a full 40-character git SHA");
+  }
+  if (commit !== releaseContext.deployCommitSha) {
+    throw new Error(`G099 deploy_commit_sha must match current deploy commit ${releaseContext.deployCommitSha}`);
+  }
+}
+
+function validateDNSProviderRecord(value) {
+  const text = String(value).trim();
+  if (!/\b(?:A|AAAA|ALIAS|ANAME|CNAME|TXT)\b/.test(text)) {
+    throw new Error("G099 dns_provider_record must include a DNS record type");
+  }
+  if (text.length < 6) {
+    throw new Error("G099 dns_provider_record must include provider and record type");
+  }
+}
+
+function validatePublicHttpsURL(label, value) {
+  let url;
+  try {
+    url = new URL(String(value).trim());
+  } catch (error) {
+    throw new Error(`${label} must be a valid HTTPS URL`);
+  }
+  if (url.protocol !== "https:" || url.username || url.password) {
+    throw new Error(`${label} must be a public HTTPS URL without embedded credentials`);
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".example") ||
+    hostname.endsWith(".invalid") ||
+    hostname.endsWith(".test") ||
+    /^(?:0|10|127|169\.254|192\.168)\./.test(hostname) ||
+    /^172\.(?:1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+    hostname === "::1"
+  ) {
+    throw new Error(`${label} must point at a production public host`);
+  }
+}
+
+function validateRedactedPreflight(value) {
+  if (!/\b(?:redacted|hidden|masked|no secret values)\b/i.test(String(value))) {
+    throw new Error("G099 hosted_env_preflight_result must state that output was redacted");
+  }
+}
+
+function validateResultIncludesCommit(value, releaseContext) {
+  const shortSha = releaseContext.deployCommitSha.slice(0, 12);
+  if (!String(value).includes(shortSha) && !String(value).includes(releaseContext.deployCommitSha)) {
+    throw new Error(`G099 release_gate_result must include deploy commit ${shortSha}`);
+  }
+}
+
+function validateExternalReference(label, value) {
+  const text = String(value).trim();
+  if (text.startsWith("https://")) {
+    validatePublicHttpsURL(label, text);
+    return;
+  }
+  if (/^[A-Za-z0-9][A-Za-z0-9_.:/#-]{2,160}$/.test(text)) {
+    return;
+  }
+  throw new Error(`${label} must be an external workflow URL or run reference`);
+}
+
+function validateOpaqueID(label, value) {
+  if (/^[A-Za-z0-9][A-Za-z0-9_-]{2,120}$/.test(String(value).trim())) {
+    return;
+  }
+  throw new Error(`${label} must be an opaque ID without spaces`);
+}
+
+function validateRollbackDecision(value) {
+  const text = String(value);
+  if (
+    /\b(?:rollback|forward[- ]?fix|no[- ]?rollback)\b/i.test(text) &&
+    /\b(?:approver|by|founder|operator|owner)\b/i.test(text)
+  ) {
+    return;
+  }
+  throw new Error("G099 rollback_decision_owner must include a rollback decision and owner");
+}
+
+function validateMonitorWindow(value) {
+  if (/\b\d+\s*(?:m|min|minute|minutes|h|hr|hour|hours)\b/i.test(String(value))) {
+    return;
+  }
+  throw new Error("G099 post_release_monitor_window_result must include a monitor window duration");
+}
+
+function validateBrowserArtifact(value) {
+  const text = String(value).trim();
+  if (text.startsWith("https://")) {
+    validatePublicHttpsURL("G099 production_browser_artifact", text);
+    return;
+  }
+  if (/^(?:artifact|browser|playwright|screenshot|trace)[:/._#-][A-Za-z0-9:/._#-]{3,160}$/i.test(text)) {
+    return;
+  }
+  throw new Error("G099 production_browser_artifact must be an external browser artifact URL or ID");
 }
 
 function validateTermsEvidence(goalId, value, releaseContext) {
@@ -183,14 +343,40 @@ function validateTermsEvidence(goalId, value, releaseContext) {
 
 function validateCustomerAgreementReference(value) {
   const text = String(value).trim();
+  if (text.startsWith("https://")) {
+    validatePublicHttpsURL("G100 signed_beta_agreement_or_payment_reference", text);
+    return;
+  }
+  if (/\b(?:agr|contract|cs|in|inv|pay|pi)_[A-Za-z0-9_-]{4,}\b/i.test(text)) {
+    return;
+  }
   if (
-    text.startsWith("https://") ||
-    /\b(?:agreement|contract|invoice|payment|reference|ref|signed|stripe|manual)\b/i.test(text) ||
-    /\b(?:inv|pay|agr|contract)_[A-Za-z0-9_-]{4,}\b/i.test(text)
+    /\b(?:agreement|contract|invoice|manual|payment|signed|stripe)\b/i.test(text) &&
+    /\b(?:agreement|contract|id|invoice|payment|ref(?:erence)?|signed)?\s*[#:]?\s*[A-Z]{2,}[-_][A-Za-z0-9-]{3,}\b/i.test(text)
   ) {
     return;
   }
   throw new Error("G100 signed_beta_agreement_or_payment_reference must be an external agreement, invoice, or payment reference");
+}
+
+function validateLoopSlug(value) {
+  const slug = String(value).trim();
+  if (!VALID_LOOP_SLUGS.has(slug)) {
+    throw new Error(`G100 first_loop_slug must be one of ${Array.from(VALID_LOOP_SLUGS).sort().join(", ")}`);
+  }
+}
+
+function validateBillingProvider(value) {
+  const provider = String(value).trim().toLowerCase();
+  if (!VALID_BILLING_PROVIDERS.has(provider)) {
+    throw new Error("G100 billing_provider must be manual or stripe");
+  }
+}
+
+function validateSuccessNote(value) {
+  if (String(value).trim().length < 12) {
+    throw new Error("G100 success_note must describe the founder outcome");
+  }
 }
 
 function validateExternalEvidencePayload(payload, template = loadTemplate(), releaseContext = loadReleaseContext()) {
