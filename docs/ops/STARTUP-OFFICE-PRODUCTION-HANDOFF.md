@@ -20,7 +20,7 @@ these commands pass on the deploy commit:
 - `npm run startup-office:rls-live`
 - `npm run hosted-env:preflight -- --no-env-file` against production variables
 - `npx supabase migration list` shows local and remote at the same latest
-  migration, currently at least `20260526080000`
+  migration, currently at least `20260526090000`
 
 The repository now contains:
 
@@ -76,8 +76,7 @@ fields in the operator system of record:
 - First production receipt ID.
 - Rollback decision and owner.
 - Post-release monitor window result.
-- Screenshot or browser-test artifact proving profile, loop, approval, receipt,
-  notification, export, and logout work on the production domain.
+- Screenshot or browser-test artifact proving profile, loop, approval, receipt, notification, export, and logout work on the production domain.
 
 If any field is missing, G099 remains blocked by external deployment proof.
 

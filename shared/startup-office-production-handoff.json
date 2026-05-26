@@ -1,6 +1,6 @@
 {
   "version": "startup-office-production-handoff.v1",
-  "currentMinimumMigration": "20260526080000",
+  "currentMinimumMigration": "20260526090000",
   "repositoryReadiness": {
     "deployCommitChecks": [
       "npm run beta:release-gate",
@@ -46,7 +46,7 @@
         "First production receipt ID",
         "Rollback decision and owner",
         "Post-release monitor window result",
-        "Screenshot or browser-test artifact proving profile, loop, approval, receipt,"
+        "Screenshot or browser-test artifact proving profile, loop, approval, receipt, notification, export, and logout work on the production domain."
       ]
     },
     {
@@ -79,7 +79,7 @@
     "Configure production secrets and variables.",
     "Run production preflight.",
     "Enable and dispatch loop worker, outbox worker, and ops monitor workflows.",
-    "Create a staging workspace and complete the production smoke flow.",
+    "Create a staging workspace, accept the current beta terms, and complete the production smoke flow.",
     "Record G099 evidence.",
     "Invite the first beta founder and record G100 evidence."
   ]

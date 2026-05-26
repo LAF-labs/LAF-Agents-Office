@@ -4,7 +4,7 @@
   "schema_version_source": "supabase/schema/current.json",
   "release_id_format": "startup-office@{package.version}+schema.{latestMigration}+commit.{shortSha}",
   "current_package_version": "0.0.7.1",
-  "current_minimum_migration": "20260526080000",
+  "current_minimum_migration": "20260526090000",
   "required_release_evidence": [
     "Deploy commit SHA",
     "Package version",

@@ -49,8 +49,8 @@ if (
 if (manifest.version !== "startup-office-production-handoff.v1") {
   fail(`unexpected production handoff manifest version ${manifest.version || "<missing>"}`);
 }
-if (String(schema.latestMigration) < String(manifest.currentMinimumMigration)) {
-  fail(`schema latest migration ${schema.latestMigration} is older than handoff minimum ${manifest.currentMinimumMigration}`);
+if (String(schema.latestMigration) !== String(manifest.currentMinimumMigration)) {
+  fail(`handoff minimum migration ${manifest.currentMinimumMigration} must match schema latest migration ${schema.latestMigration}`);
 }
 assertArray(manifest.repositoryReadiness?.deployCommitChecks, "repository readiness deploy checks", 4);
 assertArray(manifest.repositoryReadiness?.forbiddenInRepo, "repository forbidden-in-repo list", 4);

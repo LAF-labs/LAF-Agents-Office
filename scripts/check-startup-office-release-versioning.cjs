@@ -65,8 +65,8 @@ if (manifest.current_package_version !== pkg.version) {
 if (manifest.current_minimum_migration !== handoff.currentMinimumMigration) {
   fail("release versioning minimum migration must match production handoff");
 }
-if (String(schema.latestMigration) < String(manifest.current_minimum_migration)) {
-  fail(`schema latest migration ${schema.latestMigration} is older than release minimum ${manifest.current_minimum_migration}`);
+if (String(schema.latestMigration) !== String(manifest.current_minimum_migration)) {
+  fail(`release minimum migration ${manifest.current_minimum_migration} must match schema latest migration ${schema.latestMigration}`);
 }
 if (!manifest.release_id_format.includes("{package.version}") || !manifest.release_id_format.includes("{latestMigration}")) {
   fail("release ID format must include package and schema versions");
