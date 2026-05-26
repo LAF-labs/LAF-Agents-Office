@@ -132,6 +132,7 @@ const checks = [
   ["node", ["--test", "api/lib/startup-office/payloadLimits.test.js"]],
   ["node", ["--test", "api/lib/startup-office/planLimits.test.js"]],
   ["node", ["--test", "api/lib/startup-office/profileHandlers.test.js"]],
+  ["node", ["--test", "api/lib/startup-office/profileSeedHandlers.test.js"]],
   ["node", ["--test", "api/lib/startup-office/provenanceReplay.test.js"]],
   ["node", ["--test", "api/lib/startup-office/rateLimits.test.js"]],
   ["node", ["--test", "api/lib/startup-office/receiptIntegrity.test.js"]],

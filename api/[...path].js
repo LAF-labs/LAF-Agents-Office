@@ -140,9 +140,6 @@ const {
   normalizeRole,
 } = require("./lib/hosted/permissions");
 const {
-  createStartupOfficeDemoSeedHandlers,
-} = require("./lib/startup-office/demoSeedHandlers");
-const {
   startupOfficeBillingBlockReason,
 } = require("./lib/startup-office/billingState");
 const {
@@ -154,8 +151,8 @@ const {
   recordStartupOfficeRunActivation,
 } = require("./lib/startup-office/activationAnalytics");
 const {
-  createStartupOfficeProfileHandlers,
-} = require("./lib/startup-office/profileHandlers");
+  createStartupOfficeProfileSeedHandlers,
+} = require("./lib/startup-office/profileSeedHandlers");
 const {
   createStartupOfficeRepository,
 } = require("./lib/startup-office/repositories");
@@ -865,30 +862,11 @@ const HOSTED_SKILL_HANDLERS = createHostedSkillHandlers({
   writeJSON,
 });
 
-STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
-  companyProfileRowPayload: (profile) => startupOfficeServices().companyProfileRowPayload(profile),
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
-  objectValue,
-  publicCompanyProfile,
-  readBody,
-  requirePermission,
-  requireUser,
-  safeStartupOfficeRest,
-  startupOfficeCompanyProfilePatch: (body) =>
-    startupOfficeServices().startupOfficeCompanyProfilePatch(body),
-  startupOfficeRepository,
-  upsertWorkspaceSettings,
-  workspaceSettings,
-  workspaceSettingsPatch,
-  writeAuditEvent,
-  writeJSON,
-});
-
-STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
+const STARTUP_OFFICE_PROFILE_SEED_HANDLERS = createStartupOfficeProfileSeedHandlers({
   createHTTPError: startupOfficeHTTPError,
   createStartupOfficeReceipt,
   nowISO,
+  objectValue,
   publicCompanyProfile,
   publicStartupOfficeApproval,
   publicStartupOfficeArtifact,
@@ -897,14 +875,21 @@ STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
   publicStartupOfficeRun,
   readBody,
   requireAdminRole,
+  requirePermission,
   requireUser,
   safeStartupOfficeRest,
+  startupOfficeRepository,
+  startupOfficeServices,
   truncateText,
   truthy,
+  upsertWorkspaceSettings,
   workspaceSettings,
+  workspaceSettingsPatch,
   writeAuditEvent,
   writeJSON,
 });
+STARTUP_OFFICE_PROFILE_HANDLERS = STARTUP_OFFICE_PROFILE_SEED_HANDLERS.profileHandlers;
+STARTUP_OFFICE_DEMO_SEED_HANDLERS = STARTUP_OFFICE_PROFILE_SEED_HANDLERS.demoSeedHandlers;
 
 const STARTUP_OFFICE_ROUTE_HANDLERS = createStartupOfficeRouteHandlerMap({
   assetUploadHandlers: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS,
