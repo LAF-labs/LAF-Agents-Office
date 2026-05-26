@@ -36,6 +36,276 @@ function renderStartupOfficeApp() {
   );
 }
 
+const STARTUP_OFFICE_SUMMARY_FIXTURE = {
+  beta_ops: {
+    activation: {
+      activated: false,
+      completed_count: 3,
+      milestones: [
+        {
+          completed: true,
+          label: "First loop run",
+          milestone: "first_loop_run",
+        },
+        {
+          completed: true,
+          label: "First approval decision",
+          milestone: "first_approval_decision",
+        },
+        {
+          completed: true,
+          label: "Second loop run",
+          milestone: "second_loop_run",
+        },
+        {
+          completed: false,
+          label: "First export",
+          milestone: "first_export",
+        },
+      ],
+      next_milestone: "first_export",
+      required_count: 4,
+    },
+    billing: {
+      beta_agreement_url: "https://example.com/signed-beta-agreement.pdf",
+      billing_provider: "manual",
+      billing_state: "active",
+      monthly_model_spend_cents: 20000,
+      monthly_run_limit: 50,
+      payment_status: "paid",
+      plan: "founder_beta",
+      seat_limit: 5,
+      storage_mb_limit: 1024,
+    },
+    billing_documents: [
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        document_type: "agreement",
+        id: "billing-document-1",
+        provider: "manual",
+        reference_url: "https://example.com/signed-beta-agreement.pdf",
+        status: "signed",
+      },
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        document_type: "invoice",
+        external_reference: "manual-invoice-001",
+        id: "billing-document-2",
+        provider: "manual",
+        status: "paid",
+      },
+    ],
+    commercial: {
+      agreement_status: "signed",
+      can_start_paid_beta: true,
+      next_step: "Paid beta is commercially cleared.",
+      paid_evidence_status: "present",
+      status: "paid_beta_ready",
+      terms_status: "accepted",
+    },
+    entitlements: {
+      ai_runs: true,
+      asset_uploads: true,
+      blocks: [],
+      commercial_status: "paid_beta_ready",
+      managed_model: true,
+      seats_available: true,
+      support_timeline: true,
+    },
+    limits: {
+      monthly_model_spend_cents: 20000,
+      monthly_run_limit: 50,
+      seat_limit: 5,
+      storage_mb_limit: 1024,
+    },
+    terms: {
+      accepted: true,
+      current: {
+        ai_use_version: "startup-office-ai-use-2026-05-26",
+        deletion_version: "startup-office-deletion-2026-05-26",
+        docs_path: "docs/legal/STARTUP-OFFICE-BETA-TERMS.md",
+        dpa_version: "startup-office-dpa-2026-05-26",
+        privacy_version: "startup-office-privacy-2026-05-26",
+        retention_version: "startup-office-retention-2026-05-26",
+        terms_version: "startup-office-beta-terms-2026-05-26",
+      },
+      latest_acceptance: {
+        accepted_at: "2026-05-26T00:00:00Z",
+        accepted_by: "user-1",
+        ai_use_version: "startup-office-ai-use-2026-05-26",
+        deletion_version: "startup-office-deletion-2026-05-26",
+        dpa_version: "startup-office-dpa-2026-05-26",
+        id: "terms-acceptance-1",
+        privacy_version: "startup-office-privacy-2026-05-26",
+        retention_version: "startup-office-retention-2026-05-26",
+        terms_version: "startup-office-beta-terms-2026-05-26",
+      } as StartupOfficeTermsAcceptance | null,
+      missing_versions: [] as string[],
+    },
+    usage: {
+      model_spend_cents: 0,
+      model_spend_percent: 0,
+      pending_invites: 1,
+      run_percent: 4,
+      runs: 2,
+      seat_percent: 60,
+      seats: 2,
+      storage_mb: 12.5,
+      storage_percent: 1,
+      tool_calls: 5,
+      total_tokens: 3800,
+    },
+  },
+  activity_notifications: [
+    {
+      created_at: "2026-05-25T00:00:00Z",
+      event_type: "notification.approval_waiting",
+      id: "notification-1",
+      status: "pending",
+    },
+  ],
+  company_profile: {
+    icp: "Solo founders selling B2B software",
+    name: "LAF Labs",
+    offer: "AI Startup Office in a box",
+    positioning: "Founder-controlled AI operators",
+    priority: "Validate paid beta demand",
+    stage: "closed_beta",
+  },
+  loops: [
+    {
+      cadence: "manual",
+      department: "Strategy",
+      id: "idea-validation",
+      name: "Idea Validation",
+      objective: "Find the first paid beta buyer segment.",
+      policy: { founder_approval_required: true },
+      slug: "idea-validation",
+      status: "active",
+    },
+    {
+      cadence: "weekly",
+      department: "Operations",
+      id: "weekly-operator-review",
+      name: "Weekly Operator Review",
+      objective: "Summarize signals, decisions, receipts, and next loops.",
+      policy: { founder_approval_required: true },
+      slug: "weekly-operator-review",
+      status: "active",
+    },
+  ],
+  pending_approvals: [
+    {
+      action: "approve_loop_draft",
+      details: "Founder control gate before publishing public claims.",
+      id: "approval-1",
+      metadata: {
+        loop_slug: "idea-validation",
+        memory_diff: {
+          changed_pages: [
+            { slug: "validation-log", title: "Validation Log" },
+            { slug: "decisions", title: "Decisions" },
+          ],
+        },
+      },
+      requested_at: "2026-05-24T00:00:00Z",
+      risk_level: "medium",
+      run_id: "run-1",
+      status: "pending",
+      title: "Approve Idea Validation draft",
+    },
+  ],
+  pulse: {
+    active_loops: 2,
+    pending_approvals: 1,
+    recent_receipts: 1,
+    recent_runs: 1,
+  },
+  memory_pages: [
+    {
+      freshness: {
+        days_since_verification: null,
+        reason: "never_verified",
+        review_due_at: null,
+        review_interval_days: 60,
+        risk_level: "medium",
+        status: "needs_review",
+      },
+      id: "memory-1",
+      slug: "validation-log",
+      status: "approved",
+      summary: "First paid-beta validation draft approved.",
+      title: "Validation Log",
+      updated_at: "2026-05-24T00:00:00Z",
+    },
+  ],
+  operating_objects: {
+    counts: {
+      assets: 2,
+      customers: 1,
+      metrics: 2,
+      signals: 3,
+    },
+    metrics_summary: [
+      {
+        change: 500,
+        latest_value: 1500,
+        metric_key: "mrr",
+        previous_value: 1000,
+        unit: "usd",
+        updated_at: "2026-05-25T00:00:00Z",
+      },
+    ],
+  },
+  recent_artifacts: [
+    {
+      content: "Validate and launch a paid beta with founder control.",
+      created_at: "2026-05-24T00:00:00Z",
+      id: "artifact-1",
+      kind: "offer_package",
+      metadata: {
+        context: { memory_page_count: 1 },
+        loop_slug: "offer-package",
+        quality: { risk_level: "medium" },
+        structured_output: {
+          assumptions: [{ claim: "Founders want control" }],
+          sources: [],
+        },
+      },
+      run_id: "run-1",
+      title: "Offer Package artifact",
+    },
+  ],
+  recent_receipts: [
+    {
+      actor_slug: "ceo",
+      created_at: "2026-05-24T00:00:00Z",
+      event_type: "run.created",
+      id: "receipt-1",
+      run_id: "run-1",
+      summary: "Idea Validation run drafted and queued for founder approval.",
+      trace: { loop_slug: "idea-validation" },
+    },
+  ],
+  recent_runs: [
+    {
+      created_at: "2026-05-24T00:00:00Z",
+      id: "run-1",
+      metadata: {
+        cost: { total_tokens: 1900 },
+        model: "fake-model",
+        provider: "fake",
+      },
+      objective: "Find the first paid beta buyer segment.",
+      status: "waiting_approval",
+      summary: "Drafted buyer segment and founder approval request.",
+      title: "Idea Validation",
+    },
+  ],
+};
+
 function mockStartupOfficeSummary() {
   vi.clearAllMocks();
   useAppStore.setState({
@@ -43,275 +313,7 @@ function mockStartupOfficeSummary() {
     language: "en",
     wikiPath: null,
   });
-  const summary = {
-    beta_ops: {
-      activation: {
-        activated: false,
-        completed_count: 3,
-        milestones: [
-          {
-            completed: true,
-            label: "First loop run",
-            milestone: "first_loop_run",
-          },
-          {
-            completed: true,
-            label: "First approval decision",
-            milestone: "first_approval_decision",
-          },
-          {
-            completed: true,
-            label: "Second loop run",
-            milestone: "second_loop_run",
-          },
-          {
-            completed: false,
-            label: "First export",
-            milestone: "first_export",
-          },
-        ],
-        next_milestone: "first_export",
-        required_count: 4,
-      },
-      billing: {
-        beta_agreement_url: "https://example.com/signed-beta-agreement.pdf",
-        billing_provider: "manual",
-        billing_state: "active",
-        monthly_model_spend_cents: 20000,
-        monthly_run_limit: 50,
-        payment_status: "paid",
-        plan: "founder_beta",
-        seat_limit: 5,
-        storage_mb_limit: 1024,
-      },
-      billing_documents: [
-        {
-          amount_cents: 50000,
-          currency: "USD",
-          document_type: "agreement",
-          id: "billing-document-1",
-          provider: "manual",
-          reference_url: "https://example.com/signed-beta-agreement.pdf",
-          status: "signed",
-        },
-        {
-          amount_cents: 50000,
-          currency: "USD",
-          document_type: "invoice",
-          external_reference: "manual-invoice-001",
-          id: "billing-document-2",
-          provider: "manual",
-          status: "paid",
-        },
-      ],
-      commercial: {
-        agreement_status: "signed",
-        can_start_paid_beta: true,
-        next_step: "Paid beta is commercially cleared.",
-        paid_evidence_status: "present",
-        status: "paid_beta_ready",
-        terms_status: "accepted",
-      },
-      entitlements: {
-        ai_runs: true,
-        asset_uploads: true,
-        blocks: [],
-        commercial_status: "paid_beta_ready",
-        managed_model: true,
-        seats_available: true,
-        support_timeline: true,
-      },
-      limits: {
-        monthly_model_spend_cents: 20000,
-        monthly_run_limit: 50,
-        seat_limit: 5,
-        storage_mb_limit: 1024,
-      },
-      terms: {
-        accepted: true,
-        current: {
-          ai_use_version: "startup-office-ai-use-2026-05-26",
-          deletion_version: "startup-office-deletion-2026-05-26",
-          docs_path: "docs/legal/STARTUP-OFFICE-BETA-TERMS.md",
-          dpa_version: "startup-office-dpa-2026-05-26",
-          privacy_version: "startup-office-privacy-2026-05-26",
-          retention_version: "startup-office-retention-2026-05-26",
-          terms_version: "startup-office-beta-terms-2026-05-26",
-        },
-        latest_acceptance: {
-          accepted_at: "2026-05-26T00:00:00Z",
-          accepted_by: "user-1",
-          ai_use_version: "startup-office-ai-use-2026-05-26",
-          deletion_version: "startup-office-deletion-2026-05-26",
-          dpa_version: "startup-office-dpa-2026-05-26",
-          id: "terms-acceptance-1",
-          privacy_version: "startup-office-privacy-2026-05-26",
-          retention_version: "startup-office-retention-2026-05-26",
-          terms_version: "startup-office-beta-terms-2026-05-26",
-        } as StartupOfficeTermsAcceptance | null,
-        missing_versions: [] as string[],
-      },
-      usage: {
-        model_spend_cents: 0,
-        model_spend_percent: 0,
-        pending_invites: 1,
-        run_percent: 4,
-        runs: 2,
-        seat_percent: 60,
-        seats: 2,
-        storage_mb: 12.5,
-        storage_percent: 1,
-        tool_calls: 5,
-        total_tokens: 3800,
-      },
-    },
-    activity_notifications: [
-      {
-        created_at: "2026-05-25T00:00:00Z",
-        event_type: "notification.approval_waiting",
-        id: "notification-1",
-        status: "pending",
-      },
-    ],
-    company_profile: {
-      icp: "Solo founders selling B2B software",
-      name: "LAF Labs",
-      offer: "AI Startup Office in a box",
-      positioning: "Founder-controlled AI operators",
-      priority: "Validate paid beta demand",
-      stage: "closed_beta",
-    },
-    loops: [
-      {
-        cadence: "manual",
-        department: "Strategy",
-        id: "idea-validation",
-        name: "Idea Validation",
-        objective: "Find the first paid beta buyer segment.",
-        policy: { founder_approval_required: true },
-        slug: "idea-validation",
-        status: "active",
-      },
-      {
-        cadence: "weekly",
-        department: "Operations",
-        id: "weekly-operator-review",
-        name: "Weekly Operator Review",
-        objective: "Summarize signals, decisions, receipts, and next loops.",
-        policy: { founder_approval_required: true },
-        slug: "weekly-operator-review",
-        status: "active",
-      },
-    ],
-    pending_approvals: [
-      {
-        action: "approve_loop_draft",
-        details: "Founder control gate before publishing public claims.",
-        id: "approval-1",
-        metadata: {
-          loop_slug: "idea-validation",
-          memory_diff: {
-            changed_pages: [
-              { slug: "validation-log", title: "Validation Log" },
-              { slug: "decisions", title: "Decisions" },
-            ],
-          },
-        },
-        requested_at: "2026-05-24T00:00:00Z",
-        risk_level: "medium",
-        run_id: "run-1",
-        status: "pending",
-        title: "Approve Idea Validation draft",
-      },
-    ],
-    pulse: {
-      active_loops: 2,
-      pending_approvals: 1,
-      recent_receipts: 1,
-      recent_runs: 1,
-    },
-    memory_pages: [
-      {
-        freshness: {
-          days_since_verification: null,
-          reason: "never_verified",
-          review_due_at: null,
-          review_interval_days: 60,
-          risk_level: "medium",
-          status: "needs_review",
-        },
-        id: "memory-1",
-        slug: "validation-log",
-        status: "approved",
-        summary: "First paid-beta validation draft approved.",
-        title: "Validation Log",
-        updated_at: "2026-05-24T00:00:00Z",
-      },
-    ],
-    operating_objects: {
-      counts: {
-        assets: 2,
-        customers: 1,
-        metrics: 2,
-        signals: 3,
-      },
-      metrics_summary: [
-        {
-          change: 500,
-          latest_value: 1500,
-          metric_key: "mrr",
-          previous_value: 1000,
-          unit: "usd",
-          updated_at: "2026-05-25T00:00:00Z",
-        },
-      ],
-    },
-    recent_artifacts: [
-      {
-        content: "Validate and launch a paid beta with founder control.",
-        created_at: "2026-05-24T00:00:00Z",
-        id: "artifact-1",
-        kind: "offer_package",
-        metadata: {
-          context: { memory_page_count: 1 },
-          loop_slug: "offer-package",
-          quality: { risk_level: "medium" },
-          structured_output: {
-            assumptions: [{ claim: "Founders want control" }],
-            sources: [],
-          },
-        },
-        run_id: "run-1",
-        title: "Offer Package artifact",
-      },
-    ],
-    recent_receipts: [
-      {
-        actor_slug: "ceo",
-        created_at: "2026-05-24T00:00:00Z",
-        event_type: "run.created",
-        id: "receipt-1",
-        run_id: "run-1",
-        summary: "Idea Validation run drafted and queued for founder approval.",
-        trace: { loop_slug: "idea-validation" },
-      },
-    ],
-    recent_runs: [
-      {
-        created_at: "2026-05-24T00:00:00Z",
-        id: "run-1",
-        metadata: {
-          cost: { total_tokens: 1900 },
-          model: "fake-model",
-          provider: "fake",
-        },
-        objective: "Find the first paid beta buyer segment.",
-        status: "waiting_approval",
-        summary: "Drafted buyer segment and founder approval request.",
-        title: "Idea Validation",
-      },
-    ],
-  };
+  const summary = structuredClone(STARTUP_OFFICE_SUMMARY_FIXTURE);
   startupOfficeMocks.getStartupOfficeGrowthSummary.mockResolvedValue(summary);
   Object.defineProperty(globalThis.navigator, "clipboard", {
     configurable: true,
@@ -495,6 +497,12 @@ describe("StartupOfficeApp", () => {
     expect(container.textContent).not.toContain("Projects");
     expect(container.textContent).not.toContain("Tasks");
   });
+});
+
+describe("StartupOfficeApp beta operations", () => {
+  beforeEach(() => {
+    mockStartupOfficeSummary();
+  });
 
   it("accepts current beta terms from beta operations", async () => {
     const user = userEvent.setup();
@@ -530,6 +538,12 @@ describe("StartupOfficeApp", () => {
         startupOfficeMocks.acceptStartupOfficeTerms,
       ).toHaveBeenCalledWith(),
     );
+  });
+});
+
+describe("StartupOfficeApp loop workflow", () => {
+  beforeEach(() => {
+    mockStartupOfficeSummary();
   });
 
   it("runs loops, approves decisions, opens run/artifact detail, and edits profile", async () => {

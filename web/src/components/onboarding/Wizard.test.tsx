@@ -91,7 +91,7 @@ afterEach(() => {
   }
 });
 
-describe("Wizard keyboard advancement", () => {
+describe("Wizard onboarding safeguards", () => {
   it("renders Korean onboarding copy when Korean is selected", async () => {
     useAppStore.setState({ language: "ko" });
 
@@ -269,7 +269,9 @@ describe("Wizard keyboard advancement", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Media & Community")).not.toBeInTheDocument();
   });
+});
 
+describe("Wizard keyboard advancement", () => {
   it("shows publishing controls as a post-onboarding setup item", async () => {
     getMock.mockImplementation(async (path: string) => {
       if (path === "/onboarding/prereqs") {
