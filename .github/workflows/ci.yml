@@ -37,5 +37,5 @@ jobs:
         run: |
           bun install --frozen-lockfile
           npm --prefix .. run startup-office:web-lint-budget
-          bun run typecheck
-          bun run build
+          npm run typecheck
+          npm run build
