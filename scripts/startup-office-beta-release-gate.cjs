@@ -30,6 +30,7 @@ const checks = [
   ["npm", ["run", "startup-office:export-coverage"]],
   ["npm", ["run", "startup-office:generated-artifacts"]],
   ["npm", ["run", "startup-office:first-beta-smoke"]],
+  ["npm", ["run", "startup-office:visual-regression"]],
   ["npm", ["run", "startup-office:health-dependencies"]],
   ["npm", ["run", "startup-office:idempotency"]],
   ["npm", ["run", "startup-office:migration-recovery"]],

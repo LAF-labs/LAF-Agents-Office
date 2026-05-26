@@ -97,6 +97,9 @@ for (const staleClaim of [
   "Accessibility tests are missing.",
   "Accessibility checks are not in the release gate.",
   "Browser E2E for signup-to-first-approved-loop is missing.",
+  "Mobile review and approval flows are not proven.",
+  "Visual regression is absent for the core founder flow.",
+  "Visual regression tests are missing.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -115,6 +118,22 @@ if (!doc.includes("web/playwright/startup-office-first-beta-flow.spec.ts")) {
 
 if (!releaseGate.includes('"startup-office:first-beta-smoke"')) {
   fail("beta release gate must include the first beta smoke contract");
+}
+
+for (const required of [
+  "startup-office:visual-regression",
+  "web/playwright/startup-office-visual-regression.spec.ts",
+  "shared/startup-office-visual-regression.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record visual regression evidence: ${required}`);
+}
+
+if (packageJson.scripts?.["startup-office:visual-regression"] !== "node scripts/check-startup-office-visual-regression.cjs") {
+  fail("package.json must expose startup-office:visual-regression");
+}
+
+if (!releaseGate.includes('"startup-office:visual-regression"')) {
+  fail("beta release gate must include the visual regression contract");
 }
 
 console.log(

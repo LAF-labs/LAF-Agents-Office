@@ -30,6 +30,7 @@
     "startup-office:export-coverage": "node scripts/check-startup-office-export-coverage.cjs",
     "startup-office:generated-artifacts": "node scripts/check-startup-office-generated-artifacts.cjs",
     "startup-office:first-beta-smoke": "node scripts/startup-office-first-beta-smoke.cjs",
+    "startup-office:visual-regression": "node scripts/check-startup-office-visual-regression.cjs",
     "startup-office:health-dependencies": "node scripts/check-startup-office-health-dependencies.cjs",
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
     "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",

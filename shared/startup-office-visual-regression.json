@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "scope": "closed-beta-founder-core-flow",
+  "runner": "Playwright toHaveScreenshot",
+  "screens": [
+    {
+      "id": "founder-dashboard-desktop",
+      "viewport": { "width": 1440, "height": 900 },
+      "screenshot": "startup-office-founder-dashboard-desktop.png",
+      "mustShow": ["Startup Office", "Growth Center", "Approval Desk", "Receipts"]
+    },
+    {
+      "id": "mobile-approval-desk",
+      "viewport": { "width": 390, "height": 844 },
+      "screenshot": "startup-office-mobile-approval-desk.png",
+      "mustShow": ["Startup Office", "Approval Desk"]
+    },
+    {
+      "id": "approved-receipt-desktop",
+      "viewport": { "width": 1440, "height": 900 },
+      "screenshot": "startup-office-approved-receipt-desktop.png",
+      "mustShow": ["Approval Desk", "Receipts", "approved"]
+    }
+  ]
+}

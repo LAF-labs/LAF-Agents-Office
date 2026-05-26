@@ -152,7 +152,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I084 | Frontend | Home orchestration is not yet fully aligned with Growth Center as the main surface. | `HomeApp.tsx` |
 | SV-I085 | Frontend | Startup Office panels are small but still mostly read/update forms, not a polished operator cockpit. | startup-office components |
 | SV-I086 | Frontend | Empty, loading, error, and optimistic states are not consistently designed across all panels. | UI tests and components |
-| SV-I087 | Frontend | Mobile review and approval flows are not proven. | no mobile E2E gate |
+| SV-I087 | Frontend | Mobile review and approval flows are now covered by the first-beta smoke contract and mobile Playwright spec; live mobile device proof remains deploy-time QA. | `startup-office:first-beta-smoke`, `web/playwright/startup-office-accessibility-mobile.spec.ts` |
 | SV-I088 | Frontend | The product lacks a first-run guided founder success path after onboarding. | onboarding to Growth Center |
 | SV-I089 | Frontend | Search, wiki, receipts, and objects feel like adjacent apps rather than one operating system. | app shell |
 | SV-I090 | Frontend | UI copy is guarded against old terms but not continuously evaluated for conversion clarity. | surface guard |
@@ -160,7 +160,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I092 | Design system | Design tokens are not enforced as a typed system. | CSS files |
 | SV-I093 | Design system | Accessibility and mobile checks are now pinned in the beta release gate through the first-beta smoke contract; deeper automated axe/contrast coverage remains future hardening. | `startup-office:first-beta-smoke`, `web/playwright/startup-office-accessibility-mobile.spec.ts` |
 | SV-I094 | Design system | Focus management for drawers, modals, and approval controls is not proven end to end. | component tests |
-| SV-I095 | Design system | Visual regression is absent for the core founder flow. | no screenshot diff gate |
+| SV-I095 | Design system | The core founder flow now has a Playwright screenshot baseline contract for desktop dashboard, mobile approval desk, and approved receipt states. | `startup-office:visual-regression`, `web/playwright/startup-office-visual-regression.spec.ts` |
 | SV-I096 | Design system | Localization coverage is incomplete for the new Startup Office. | i18n and component copy |
 | SV-I097 | Design system | The static website and app design are not yet a single brand system. | website and web app |
 | SV-I098 | Design system | Information density is not tuned for repeated daily operation. | Startup Office panels |
@@ -193,7 +193,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I125 | Testing | Live model API calls remain intentionally absent from release gate, but the gate now pins the manual gated script and deterministic harness. | `startup-office:live-model-smoke-check` |
 | SV-I126 | Testing | Contract tests between web client types and API responses are not generated. | TypeScript types |
 | SV-I127 | Testing | Startup Office accessibility and mobile review now has a Playwright smoke path for keyboard reachability and mobile beta panels; automated axe/contrast coverage remains future hardening. | `web/playwright/startup-office-accessibility-mobile.spec.ts`, `startup-office:first-beta-smoke` |
-| SV-I128 | Testing | Visual regression tests are missing. | UI |
+| SV-I128 | Testing | Visual regression coverage is now release-gated through the Startup Office screenshot contract; broader pixel baselines can expand after deploy-browser infrastructure is attached. | `shared/startup-office-visual-regression.json`, `startup-office:visual-regression` |
 | SV-I129 | Testing | Load and concurrency tests for loop runs are missing. | worker |
 | SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
 | SV-I131 | Release | The release gate now includes the production audit and closed-beta goal lock before Startup Office checks, but live deploy proof remains external. | `beta:release-gate`, `production:audit`, `closed-beta:goals` |
@@ -347,7 +347,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G074 | Finish mobile approval UX. | Founder can approve/revise on mobile without layout issues. | screenshots |
 | SV-G075 | Add empty/error/loading standards. | All panels have consistent states. | component tests |
 | SV-G076 | Add accessibility gate. | Keyboard, focus, labels, and contrast are tested. | axe/Playwright |
-| SV-G077 | Add visual regression. | Core screens have screenshot baselines. | browser tests |
+| SV-G077 | Add visual regression. | Core screens have screenshot baselines for desktop dashboard, mobile approval, and approved receipt states. | `startup-office:visual-regression`, Playwright |
 | SV-G078 | Unify design tokens. | CSS tokens and components follow one design system. | style lint |
 | SV-G079 | Complete localization. | Core beta flow works in Korean and English. | i18n tests |
 | SV-G080 | Align website and app brand. | Static site and app share voice, hierarchy, and product promise. | visual review |
@@ -460,6 +460,11 @@ the final release commit or when a shared invariant changes.
   minimum, deploy-commit checks, forbidden-in-repo data, external evidence
   fields, and cutover order; `npm run startup-office:production-handoff` checks
   the manifest, handoff doc, closed-beta goals, and release-gate wiring.
+- R6 now has a release-gated visual regression contract:
+  `shared/startup-office-visual-regression.json` defines the desktop dashboard,
+  mobile approval desk, and approved receipt screenshot baselines, while
+  `web/playwright/startup-office-visual-regression.spec.ts` binds them to
+  Playwright `toHaveScreenshot` checks.
 - R2/R7 now adds explicit code ownership:
   `npm run startup-office:code-ownership` checks that CODEOWNERS pins the
   Startup Office API, worker, web, schema, migration, ops-doc, and release-script
