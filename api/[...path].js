@@ -1,15 +1,6 @@
 const {
-  createHostedAuditHandlers,
-} = require("./lib/hosted/auditHandlers");
-const {
   createHostedAuditWriter,
 } = require("./lib/hosted/auditWriter");
-const {
-  createHostedAgentLogHandlers,
-} = require("./lib/hosted/agentLogHandlers");
-const {
-  createHostedActivityHandlers,
-} = require("./lib/hosted/activityHandlers");
 const {
   HTTPError,
   objectValue,
@@ -23,54 +14,18 @@ const {
   createHostedAPIEntrypoint,
 } = require("./lib/hosted/apiEntrypoint");
 const {
-  createHostedAuthHandlers,
-} = require("./lib/hosted/authHandlers");
-const {
-  createHostedClientTelemetryHandlers,
-} = require("./lib/hosted/clientTelemetryHandlers");
-const {
-  createHostedCommandHandlers,
-} = require("./lib/hosted/commandHandlers");
-const {
-  createHostedConversationHandlers,
-} = require("./lib/hosted/conversationHandlers");
+  createHostedHandlerBundle,
+} = require("./lib/hosted/handlerBundle");
 const {
   defaultHostedAPIErrorMessage,
   hostedAPIErrorPayload,
 } = require("./lib/hosted/errorEnvelope");
-const {
-  createHostedHealthHandlers,
-} = require("./lib/hosted/healthHandlers");
-const {
-  createHostedInviteHandlers,
-} = require("./lib/hosted/inviteHandlers");
 const {
   createHostedInviteEmailDelivery,
 } = require("./lib/hosted/inviteEmailDelivery");
 const {
   createHostedIngressRateLimits,
 } = require("./lib/hosted/ingressRateLimits");
-const {
-  createHostedMemberHandlers,
-} = require("./lib/hosted/memberHandlers");
-const {
-  createHostedMemoryHandlers,
-} = require("./lib/hosted/memoryHandlers");
-const {
-  createHostedOrchestrationHandlers,
-} = require("./lib/hosted/orchestrationHandlers");
-const {
-  createHostedModelAccess,
-  normalizeModelMode,
-} = require("./lib/hosted/modelAccess");
-const {
-  createHostedUsageHandlers,
-} = require("./lib/hosted/usageHandlers");
-const {
-  DEFAULT_PROFILE_AVATAR_ID,
-  normalizeProfileAvatarID,
-  publicUser,
-} = require("./lib/hosted/userPresentation");
 const {
   createHostedURLTrust,
 } = require("./lib/hosted/urlTrust");
@@ -87,9 +42,6 @@ const {
   truncateText,
   truthy,
 } = require("./lib/hosted/valueUtils");
-const {
-  createHostedSignupHandlers,
-} = require("./lib/hosted/signupHandlers");
 const { createServiceRoleAccessGuards } = require("./lib/hosted/serviceRoleAccess");
 const {
   createHostedActionRateLimiter,
@@ -98,20 +50,11 @@ const {
   createStartupOfficeRateLimiter,
 } = require("./lib/startup-office/rateLimits");
 const {
-  createHostedRosterHandlers,
-} = require("./lib/hosted/rosterHandlers");
-const {
-  createHostedRequestHandlers,
-} = require("./lib/hosted/requestHandlers");
-const {
   createHostedRequestIO,
 } = require("./lib/hosted/requestIO");
 const {
   redactSensitiveValue,
 } = require("./lib/hosted/redaction");
-const {
-  createHostedSchedulerHandlers,
-} = require("./lib/hosted/schedulerHandlers");
 const {
   createHostedSecurityHeaders,
 } = require("./lib/hosted/securityHeaders");
@@ -119,14 +62,8 @@ const {
   createHostedSessionCookies,
 } = require("./lib/hosted/sessionCookies");
 const {
-  createHostedSkillHandlers,
-} = require("./lib/hosted/skillHandlers");
-const {
   createHostedSupabaseAccess,
 } = require("./lib/hosted/supabaseAccess");
-const {
-  publicTeam,
-} = require("./lib/hosted/teamPresentation");
 const {
   createHostedUserContext,
 } = require("./lib/hosted/userContext");
@@ -433,48 +370,6 @@ const {
 } = STARTUP_OFFICE_OPERATIONS_STORE;
 let STARTUP_OFFICE_PROFILE_HANDLERS;
 let STARTUP_OFFICE_DEMO_SEED_HANDLERS;
-const HOSTED_HEALTH_HANDLERS = createHostedHealthHandlers({
-  authFetch,
-  env: process.env,
-  nowISO,
-  rest,
-  writeJSON,
-});
-
-const HOSTED_AGENT_LOG_HANDLERS = createHostedAgentLogHandlers({
-  requirePermission,
-  requireUser,
-  startupOfficeReceipts,
-  writeJSON,
-});
-
-const HOSTED_AUDIT_HANDLERS = createHostedAuditHandlers({
-  clamp,
-  createHTTPError: startupOfficeHTTPError,
-  requirePermission,
-  requireUser,
-  rest,
-  writeJSON,
-});
-
-const HOSTED_CLIENT_TELEMETRY_HANDLERS = createHostedClientTelemetryHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  readBody,
-  requireUser,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const HOSTED_MODEL_ACCESS = createHostedModelAccess({
-  createHTTPError: startupOfficeHTTPError,
-  hasPermission,
-  managedModelEnabled: () =>
-    truthy(process.env.LAF_OFFICE_WORKSPACE_PAID) ||
-    truthy(process.env.LAF_OFFICE_MANAGED_MODEL_ENABLED),
-  requireUser,
-  rest,
-  writeJSON,
-});
 
 const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
   createStartupOfficeWorkspaceConfigHandlers({
@@ -500,142 +395,6 @@ const {
   workspaceSettings,
   workspaceSettingsPatch,
 } = STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS;
-
-const HOSTED_AUTH_HANDLERS = createHostedAuthHandlers({
-  activeMembership,
-  authFetch,
-  createHTTPError: startupOfficeHTTPError,
-  getTeam,
-  normalizeProfileAvatarID,
-  publicTeam,
-  publicUser,
-  readBody,
-  requireUser,
-  setAuthCookies,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const HOSTED_COMMAND_HANDLERS = createHostedCommandHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  readBody,
-  requireUser,
-  writeJSON,
-});
-
-const HOSTED_MEMBER_HANDLERS = createHostedMemberHandlers({
-  WORKSPACE_PERMISSIONS,
-  WORKSPACE_ROLES,
-  authAdminFetch,
-  createHTTPError: startupOfficeHTTPError,
-  effectivePermissions,
-  normalizePermissionOverride,
-  normalizeRole,
-  nowISO,
-  publicUser,
-  readBody,
-  requirePermission,
-  requireUser,
-  rest,
-  startupOfficeBetaOpsSnapshot,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const HOSTED_INVITE_HANDLERS = createHostedInviteHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  normalizeRole,
-  nowISO,
-  originFor: HOSTED_URL_TRUST.trustedPublicOrigin,
-  readBody,
-  requirePermission,
-  requireUser,
-  rest,
-  sendInviteEmail,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const HOSTED_SIGNUP_HANDLERS = createHostedSignupHandlers({
-  authAdminFetch,
-  authFetch,
-  createHTTPError: startupOfficeHTTPError,
-  defaultProfileAvatarID: DEFAULT_PROFILE_AVATAR_ID,
-  enforceSignupRateLimit: (req) =>
-    enforceRateLimit("auth_signup", clientRateLimitKey(req), RATE_LIMITS.authSignup),
-  getTeam,
-  inviteByToken: HOSTED_INVITE_HANDLERS.inviteByToken,
-  nowISO,
-  publicTeam,
-  publicUser,
-  readBody,
-  rest,
-  setAuthCookies,
-  shortID,
-  slugify,
-  writeJSON,
-});
-
-const HOSTED_CONVERSATION_HANDLERS = createHostedConversationHandlers({
-  clamp,
-  createHTTPError: startupOfficeHTTPError,
-  isHuman,
-  normalizeModelMode,
-  nowISO,
-  objectValue,
-  readBody,
-  requireUser,
-  rest,
-  rpc,
-  shortID,
-  slugify,
-  truncateText,
-  writeJSON,
-});
-
-const HOSTED_ROSTER_HANDLERS = createHostedRosterHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  publicTeam,
-  readBody,
-  requireUser,
-  shortID,
-  slugify,
-  truncateText,
-  writeJSON,
-});
-
-const HOSTED_MEMORY_HANDLERS = createHostedMemoryHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  objectValue,
-  readBody,
-  requirePermission,
-  requireUser,
-  shortID,
-  slugify,
-  startupOfficeRepository,
-  truncateText,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const HOSTED_USAGE_HANDLERS = createHostedUsageHandlers({
-  requirePermission,
-  requireUser,
-  startupOfficeBetaOpsSnapshot,
-  writeJSON,
-});
-
-const HOSTED_ORCHESTRATION_HANDLERS = createHostedOrchestrationHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
-  randomID,
-  readBody,
-  requirePermission,
-  requireUser,
-  rest,
-  writeAuditEvent,
-  writeJSON,
-});
 
 const STARTUP_OFFICE_OPERATIONS_HANDLERS = createStartupOfficeOperationsHandlers({
   clamp,
@@ -821,46 +580,69 @@ const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   writeJSON,
 });
 
-const HOSTED_REQUEST_HANDLERS = createHostedRequestHandlers({
+const HOSTED_HANDLER_BUNDLE = createHostedHandlerBundle({
+  WORKSPACE_PERMISSIONS,
+  WORKSPACE_ROLES,
+  RATE_LIMITS,
+  activeMembership,
   approvalAction: STARTUP_OFFICE_WORKFLOW_HANDLERS.approvalAction,
+  authAdminFetch,
+  authFetch,
+  clamp,
+  clientRateLimitKey,
   createHTTPError: startupOfficeHTTPError,
-  readBody,
-  requirePermission,
-  requireUser,
-  startupOfficeApprovals,
-  writeJSON,
-});
-
-const HOSTED_ACTIVITY_HANDLERS = createHostedActivityHandlers({
-  createHTTPError: startupOfficeHTTPError,
+  effectivePermissions,
+  enforceRateLimit,
+  env: process.env,
+  getTeam,
+  hasPermission,
+  isHuman,
+  normalizePermissionOverride,
+  normalizeRole,
   nowISO,
-  readBody,
-  requirePermission,
-  requireUser,
-  safeStartupOfficeRest,
-  truncateText,
-  writeAuditEvent,
-  writeJSON,
-});
-
-const HOSTED_SCHEDULER_HANDLERS = createHostedSchedulerHandlers({
-  nowISO,
-  requirePermission,
-  requireUser,
-  safeStartupOfficeRest,
-  writeJSON,
-});
-
-const HOSTED_SKILL_HANDLERS = createHostedSkillHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
+  objectValue,
+  originFor: HOSTED_URL_TRUST.trustedPublicOrigin,
+  randomID,
   readBody,
   requirePermission,
   requireUser,
   rest,
+  rpc,
+  safeStartupOfficeRest,
+  sendInviteEmail,
+  setAuthCookies,
+  shortID,
+  slugify,
+  startupOfficeApprovals,
+  startupOfficeBetaOpsSnapshot,
+  startupOfficeReceipts,
+  startupOfficeRepository,
+  truncateText,
+  truthy,
   writeAuditEvent,
   writeJSON,
 });
+const {
+  activityHandlers: HOSTED_ACTIVITY_HANDLERS,
+  agentLogHandlers: HOSTED_AGENT_LOG_HANDLERS,
+  auditHandlers: HOSTED_AUDIT_HANDLERS,
+  authHandlers: HOSTED_AUTH_HANDLERS,
+  clientTelemetryHandlers: HOSTED_CLIENT_TELEMETRY_HANDLERS,
+  commandHandlers: HOSTED_COMMAND_HANDLERS,
+  conversationHandlers: HOSTED_CONVERSATION_HANDLERS,
+  healthHandlers: HOSTED_HEALTH_HANDLERS,
+  inviteHandlers: HOSTED_INVITE_HANDLERS,
+  memberHandlers: HOSTED_MEMBER_HANDLERS,
+  memoryHandlers: HOSTED_MEMORY_HANDLERS,
+  modelAccess: HOSTED_MODEL_ACCESS,
+  orchestrationHandlers: HOSTED_ORCHESTRATION_HANDLERS,
+  requestHandlers: HOSTED_REQUEST_HANDLERS,
+  rosterHandlers: HOSTED_ROSTER_HANDLERS,
+  schedulerHandlers: HOSTED_SCHEDULER_HANDLERS,
+  signupHandlers: HOSTED_SIGNUP_HANDLERS,
+  skillHandlers: HOSTED_SKILL_HANDLERS,
+  usageHandlers: HOSTED_USAGE_HANDLERS,
+} = HOSTED_HANDLER_BUNDLE;
 
 const STARTUP_OFFICE_PROFILE_SEED_HANDLERS = createStartupOfficeProfileSeedHandlers({
   createHTTPError: startupOfficeHTTPError,

@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 960);
+assertMaxLines("api/[...path].js", 745);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/apiEntrypoint.js", 70);
@@ -46,6 +46,7 @@ assertMaxLines("api/lib/hosted/clientTelemetryHandlers.js", 180);
 assertMaxLines("api/lib/hosted/commandHandlers.js", 70);
 assertMaxLines("api/lib/hosted/conversationHandlers.js", 360);
 assertMaxLines("api/lib/hosted/errorEnvelope.js", 80);
+assertMaxLines("api/lib/hosted/handlerBundle.js", 340);
 assertMaxLines("api/lib/hosted/healthHandlers.js", 140);
 assertMaxLines("api/lib/hosted/ingressRateLimits.js", 85);
 assertMaxLines("api/lib/hosted/inviteEmailDelivery.js", 60);
@@ -147,6 +148,10 @@ for (const [pattern, label] of [
   [/async function workspaceHasStartupOfficeState\b/, "workspace onboarding startup office fallback helper"],
   [/profile\.updated/, "auth profile update audit action"],
   [/async function handleAuditEvents\b/, "hosted audit events handler"],
+  [/createHostedAuthHandlers\(/, "hosted auth handler wiring"],
+  [/createHostedInviteHandlers\(/, "hosted invite handler wiring"],
+  [/createHostedConversationHandlers\(/, "hosted conversation handler wiring"],
+  [/createHostedSkillHandlers\(/, "hosted skill handler wiring"],
   [/profile\.password_changed/, "auth password update audit action"],
   [/function normalizeModelMode\b/, "hosted model mode normalizer"],
   [/async function modelAvailabilityForMembership\b/, "hosted model availability policy"],
