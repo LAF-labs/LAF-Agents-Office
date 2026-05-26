@@ -194,7 +194,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I126 | Testing | Contract tests between web client types and API responses are not generated. | TypeScript types |
 | SV-I127 | Testing | Startup Office accessibility and mobile review now has a Playwright smoke path for keyboard reachability and mobile beta panels; automated axe/contrast coverage remains future hardening. | `web/playwright/startup-office-accessibility-mobile.spec.ts`, `startup-office:first-beta-smoke` |
 | SV-I128 | Testing | Visual regression coverage is now release-gated through the Startup Office screenshot contract; broader pixel baselines can expand after deploy-browser infrastructure is attached. | `shared/startup-office-visual-regression.json`, `startup-office:visual-regression` |
-| SV-I129 | Testing | Load and concurrency tests for loop runs are missing. | worker |
+| SV-I129 | Testing | Loop run load and concurrency now have a release-gated worker contract covering concurrent unique claims, capped batch processing, DB skip-locked leases, stale-lock recovery, and idempotent side-effect boundaries. | `startup-office:loop-concurrency`, `workers/startup-office/loopWorker.test.js` |
 | SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
 | SV-I131 | Release | The release gate now includes the production audit and closed-beta goal lock before Startup Office checks, but live deploy proof remains external. | `beta:release-gate`, `production:audit`, `closed-beta:goals` |
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
@@ -221,7 +221,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I153 | Performance | Client bundles still include multiple large app surfaces. | web build output |
 | SV-I154 | Performance | Search and memory retrieval are not optimized for Startup Office loops. | context builder |
 | SV-I155 | Performance | Approvals, receipts, and operating object lists now expose cursor pagination; the full export bundle remains capped and should move to streamed/chunked export for large workspaces. | `startup-office:pagination`, export endpoint |
-| SV-I156 | Performance | Worker concurrency and queue backpressure are not modeled. | worker jobs |
+| SV-I156 | Performance | Worker concurrency and queue backpressure are now modeled through a capped batch runner, scheduled workflow concurrency groups, and a release-gated lease/claim contract; realistic volume benchmarking remains future hardening. | `startup-office:loop-concurrency`, worker workflows |
 | SV-I157 | Performance | Repeated polling/refetch patterns are not audited for scale. | React Query usage |
 | SV-I158 | Performance | Database indexes are present but not proven against realistic data volumes. | migrations |
 | SV-I159 | Performance | Model call latency is not budgeted per loop. | worker |
@@ -236,8 +236,8 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I168 | Portability | Customer CRM data now has a customer CSV export/import API with storage-limit, rate-limit, and audit coverage; deeper CRM mapping remains future work. | `startup-office:customer-csv` |
 | SV-I169 | Portability | Wiki/company memory is not packaged for founder handoff. | memory pages |
 | SV-I170 | Portability | There is no escrow or backup story for paid customers. | ops |
-| SV-I171 | Reliability | Worker jobs now claim with leases and idempotent side effects, but exactly-once semantics still need concurrency and crash-recovery proof. | worker jobs |
-| SV-I172 | Reliability | Startup Office loop side effects and run lifecycle retries are idempotency-keyed across direct and scheduled worker paths, but exactly-once semantics still need deeper concurrency proof. | run lifecycle routes |
+| SV-I171 | Reliability | Worker jobs now claim with skip-locked leases, stale-lock recovery, capped batch processing, and concurrent unique-job tests; crash-recovery proof still needs live rehearsal. | `startup-office:loop-concurrency`, worker jobs |
+| SV-I172 | Reliability | Startup Office loop side effects and run lifecycle retries are idempotency-keyed across direct and scheduled worker paths, with concurrent worker regression coverage now release-gated; multi-process live proof remains deploy-time. | `startup-office:loop-concurrency`, run lifecycle routes |
 | SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer and have admin retry/cancel APIs, but founder-facing recovery UI is not complete. | worker jobs |
 | SV-I174 | Reliability | Notifications now enqueue durable outbox rows with retry/dead-letter handling and a Resend adapter, but provider reconciliation is incomplete. | notifications |
 | SV-I175 | Reliability | Approval decisions now fail closed on stale linked runs and pending-update races: stale runs are rejected before mutation, pending-only approval updates are required, and lost races emit no receipt/audit/memory promotion. | `startup-office:approval-races` |
@@ -903,6 +903,10 @@ the final release commit or when a shared invariant changes.
   exhausted jobs. `.github/workflows/startup-office-loop-worker.yml` runs the
   worker on schedule, and the release gate covers `loopWorker` tests plus the
   deploy/runbook checker.
+- R7 now gates loop concurrency and queue backpressure. `npm run
+  startup-office:loop-concurrency` checks the skip-locked worker-job claim RPC,
+  stale-lock reclaim, capped `processBatch` behavior, and concurrent unique-job
+  worker regression tests before beta release.
 - R7/R8 now adds worker job recovery APIs. Owner/admin operators can call
   `POST /api/startup-office/admin/worker-jobs/{job_id}/retry` to requeue
   failed, canceled, or dead-letter jobs after fixing provider/config issues, or

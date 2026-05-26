@@ -154,6 +154,85 @@ test("loop worker skips jobs whose run already reached a terminal state", async 
   assert.equal(updates[0].patch.metadata.skipped_run_status, "waiting_approval");
 });
 
+test("loop worker processes concurrent unique loop jobs without duplicate side effects", async () => {
+  const jobs = Array.from({ length: 8 }, (_, index) =>
+    claimedJob({
+      id: `job-${index + 1}`,
+      run_id: `run-${index + 1}`,
+    }),
+  );
+  const seenJobs = [];
+  const usageEvents = [];
+  const worker = createStartupOfficeLoopWorker({
+    claimWorkerJob: async () => jobs.shift() || null,
+    loadWorkerJobContext: async (job) => ({
+      membership: { team_id: job.team_id, user_id: "user-1" },
+      run: { id: job.run_id, status: "queued" },
+    }),
+    nowISO: fixedNow,
+    recordUsageEvent: async (payload) => {
+      usageEvents.push(payload);
+    },
+    runLoop: async (context) => {
+      seenJobs.push(context.workerJob.id);
+      await Promise.resolve();
+      return {
+        run: {
+          id: context.run.id,
+          metadata: { cost: { total_tokens: 10 } },
+          status: "waiting_approval",
+        },
+        status: "waiting_approval",
+      };
+    },
+    updateWorkerJob: async () => {
+      throw new Error("loop engine owns success job update");
+    },
+  });
+
+  const results = await Promise.all(Array.from({ length: 8 }, () => worker.processOne()));
+  assert.deepEqual(results.map((result) => result.status), Array(8).fill("waiting_approval"));
+  assert.equal(new Set(seenJobs).size, 8);
+  assert.equal(usageEvents.length, 8);
+  assert.equal(new Set(usageEvents.map((event) => event.job.id)).size, 8);
+});
+
+test("loop worker batch load is capped and stops at idle", async () => {
+  const jobs = Array.from({ length: 60 }, (_, index) =>
+    claimedJob({
+      id: `batch-job-${index + 1}`,
+      run_id: `batch-run-${index + 1}`,
+    }),
+  );
+  const processed = [];
+  const worker = createStartupOfficeLoopWorker({
+    claimWorkerJob: async () => jobs.shift() || null,
+    loadWorkerJobContext: async (job) => ({
+      run: { id: job.run_id, status: "queued" },
+    }),
+    nowISO: fixedNow,
+    runLoop: async (context) => {
+      processed.push(context.workerJob.id);
+      return {
+        run: { id: context.run.id, status: "waiting_approval" },
+        status: "waiting_approval",
+      };
+    },
+    updateWorkerJob: async () => {
+      throw new Error("loop engine owns success job update");
+    },
+  });
+
+  const capped = await worker.processBatch({ limit: 1000 });
+  assert.equal(capped.processed, 50);
+  assert.equal(capped.completed, 50);
+  assert.equal(new Set(processed).size, 50);
+
+  const remaining = await worker.processBatch({ limit: 50 });
+  assert.equal(remaining.processed, 10);
+  assert.equal(remaining.completed, 10);
+});
+
 test("loop worker retry backoff doubles with attempts", () => {
   assert.equal(defaultRetryDelayMs(1), 60000);
   assert.equal(defaultRetryDelayMs(2), 120000);

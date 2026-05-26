@@ -66,6 +66,7 @@
     "startup-office:worker-deploy": "node scripts/check-startup-office-worker-deploy.cjs",
     "startup-office:loop-worker": "node scripts/startup-office-loop-worker.cjs",
     "startup-office:loop-worker:test": "node --test workers/startup-office/loopWorker.test.js",
+    "startup-office:loop-concurrency": "node scripts/check-startup-office-loop-concurrency.cjs",
     "startup-office:loop-chaos": "node --test workers/startup-office/loopFailureInjection.test.js",
     "startup-office:live-model-smoke": "node scripts/startup-office-live-model-smoke.cjs",
     "startup-office:live-model-smoke-check": "node scripts/check-startup-office-live-model-smoke.cjs",

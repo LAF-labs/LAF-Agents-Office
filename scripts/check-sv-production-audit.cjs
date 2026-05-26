@@ -100,6 +100,8 @@ for (const staleClaim of [
   "Mobile review and approval flows are not proven.",
   "Visual regression is absent for the core founder flow.",
   "Visual regression tests are missing.",
+  "Load and concurrency tests for loop runs are missing.",
+  "Worker concurrency and queue backpressure are not modeled.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -134,6 +136,21 @@ if (packageJson.scripts?.["startup-office:visual-regression"] !== "node scripts/
 
 if (!releaseGate.includes('"startup-office:visual-regression"')) {
   fail("beta release gate must include the visual regression contract");
+}
+
+for (const required of [
+  "startup-office:loop-concurrency",
+  "workers/startup-office/loopWorker.test.js",
+]) {
+  if (!doc.includes(required)) fail(`audit must record loop concurrency evidence: ${required}`);
+}
+
+if (packageJson.scripts?.["startup-office:loop-concurrency"] !== "node scripts/check-startup-office-loop-concurrency.cjs") {
+  fail("package.json must expose startup-office:loop-concurrency");
+}
+
+if (!releaseGate.includes('"startup-office:loop-concurrency"')) {
+  fail("beta release gate must include the loop concurrency contract");
 }
 
 console.log(
