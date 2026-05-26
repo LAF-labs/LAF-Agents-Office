@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1191);
+assertMaxLines("api/[...path].js", 1180);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/apiPrimitives.js", 35);
@@ -272,6 +272,10 @@ for (const [pattern, label] of [
   [/function startupOfficeHTTPError\b/, "hosted HTTP error factory primitive"],
   [/function requestIDFor\b/, "hosted request id primitive"],
   [/function objectValue\b/, "hosted object value primitive"],
+  [/async function handleCompanyProfile\b/, "startup office profile route facade wrapper"],
+  [/async function companyProfileSnapshot\b/, "startup office profile snapshot facade wrapper"],
+  [/async function handleStartupOfficeDemoSeed\b/, "startup office demo seed facade wrapper"],
+  [/async function seedStartupOfficeWorkspace\b/, "startup office demo seed workspace facade wrapper"],
   [/function clientRateLimitKey\b/, "hosted client rate-limit key helper"],
   [/function enforceRateLimit\b/, "hosted in-memory rate-limit helper"],
   [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],

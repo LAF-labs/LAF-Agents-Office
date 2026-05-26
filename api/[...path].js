@@ -425,6 +425,8 @@ const {
   upsertStartupOfficeBillingDocument,
   upsertStartupOfficeTermsAcceptance,
 } = STARTUP_OFFICE_OPERATIONS_STORE;
+let STARTUP_OFFICE_PROFILE_HANDLERS;
+let STARTUP_OFFICE_DEMO_SEED_HANDLERS;
 const HOSTED_HEALTH_HANDLERS = createHostedHealthHandlers({
   authFetch,
   env: process.env,
@@ -479,7 +481,8 @@ const STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS =
     requireUser,
     rest,
     safeStartupOfficeRest,
-    seedStartupOfficeWorkspace,
+    seedStartupOfficeWorkspace: (membership, team, body) =>
+      STARTUP_OFFICE_DEMO_SEED_HANDLERS.seedStartupOfficeWorkspace(membership, team, body),
     truncateText,
     writeAuditEvent,
     writeJSON,
@@ -731,7 +734,8 @@ const STARTUP_OFFICE_IMPORT_HANDLERS = createStartupOfficeImportHandlers({
 
 const STARTUP_OFFICE_QUERY_HANDLERS = createStartupOfficeQueryHandlers({
   createHTTPError: startupOfficeHTTPError,
-  companyProfileSnapshot,
+  companyProfileSnapshot: (teamID, team, user) =>
+    STARTUP_OFFICE_PROFILE_HANDLERS.companyProfileSnapshot(teamID, team, user),
   normalizeStartupOfficeCadence,
   normalizeStartupOfficeLoopStatus,
   nowISO,
@@ -771,7 +775,8 @@ const STARTUP_OFFICE_LIFECYCLE_HANDLERS = createStartupOfficeLifecycleHandlers({
 
 const STARTUP_OFFICE_WORKFLOW_HANDLERS = createStartupOfficeWorkflowHandlers({
   applyStartupOfficeMemoryPromotion,
-  companyProfileSnapshot,
+  companyProfileSnapshot: (teamID, team, user) =>
+    STARTUP_OFFICE_PROFILE_HANDLERS.companyProfileSnapshot(teamID, team, user),
   createHTTPError: startupOfficeHTTPError,
   createStartupOfficeReceipt,
   enforceStartupOfficeRateLimit,
@@ -858,11 +863,11 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   assetUploadIntent: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS.assetUploadIntent,
   betaDashboard: STARTUP_OFFICE_OPERATIONS_HANDLERS.betaDashboard,
   billing: STARTUP_OFFICE_OPERATIONS_HANDLERS.billing,
-  companyProfile: handleCompanyProfile,
+  companyProfile: (req, res) => STARTUP_OFFICE_PROFILE_HANDLERS.companyProfile(req, res),
   customerCsv: STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS.customerCsv,
   deletionPurge: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionPurge,
   deletionRequest: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionRequest,
-  demoSeed: handleStartupOfficeDemoSeed,
+  demoSeed: (req, res) => STARTUP_OFFICE_DEMO_SEED_HANDLERS.demoSeed(req, res),
   export: STARTUP_OFFICE_QUERY_HANDLERS.export,
   growthSummary: STARTUP_OFFICE_QUERY_HANDLERS.growthSummary,
   loopRun: STARTUP_OFFICE_WORKFLOW_HANDLERS.loopRun,
@@ -1126,7 +1131,7 @@ module.exports = async function handler(req, res) {
   }
 };
 
-const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
+STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
   companyProfileRowPayload: (profile) => startupOfficeServices().companyProfileRowPayload(profile),
   createHTTPError: startupOfficeHTTPError,
   nowISO,
@@ -1146,7 +1151,7 @@ const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
   writeJSON,
 });
 
-const STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
+STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
   createHTTPError: startupOfficeHTTPError,
   createStartupOfficeReceipt,
   nowISO,
@@ -1166,22 +1171,6 @@ const STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
   writeAuditEvent,
   writeJSON,
 });
-
-async function handleCompanyProfile(req, res) {
-  return STARTUP_OFFICE_PROFILE_HANDLERS.companyProfile(req, res);
-}
-
-async function companyProfileSnapshot(teamID, team, user) {
-  return STARTUP_OFFICE_PROFILE_HANDLERS.companyProfileSnapshot(teamID, team, user);
-}
-
-async function handleStartupOfficeDemoSeed(req, res) {
-  return STARTUP_OFFICE_DEMO_SEED_HANDLERS.demoSeed(req, res);
-}
-
-async function seedStartupOfficeWorkspace(membership, team, body) {
-  return STARTUP_OFFICE_DEMO_SEED_HANDLERS.seedStartupOfficeWorkspace(membership, team, body);
-}
 
 module.exports.__test = {
   resetRateLimits() {
