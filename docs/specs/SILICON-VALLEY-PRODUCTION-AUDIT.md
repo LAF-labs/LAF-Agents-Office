@@ -112,7 +112,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I044 | Security | Rate limits now cover the full Startup Office mutating route contract at ingress, but downstream provider and worker-specific quota policies still need live production tuning. | `startup-office:rate-limits` |
 | SV-I045 | Security | Request body size limits are enforced at API ingress, but route payload schemas still need a shared validation contract. | `readBody`, route handlers |
 | SV-I046 | Security | File upload security is not implemented for founder assets. | beta goals |
-| SV-I047 | Security | Secret scan and high-severity dependency audit are tied into the Startup Office release gate, but SAST/DAST and a launch security packet remain incomplete. | `startup-office:security` |
+| SV-I047 | Security | Secret scan, high-severity dependency audit, boundary checks, and the launch security review packet are tied into release gates; live SAST/DAST tooling remains future hardening. | `startup-office:security`, `startup-office:security-review` |
 | SV-I048 | Security | Workspace permissions now use one shared catalog with API/web drift checks; route-level authorization still needs a full declarative matrix. | `startup-office:permissions` |
 | SV-I049 | Security | External action approval policy is not enforced by a centralized policy engine. | policy route and loop templates |
 | SV-I050 | Security | Privacy, retention, and model data use terms are not product-enforced. | docs and no legal artifacts |
@@ -215,7 +215,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I147 | Compliance | Export now has a schema-derived v2 manifest, documented omissions, and an approved company-memory import path; full workspace restore tooling remains future work. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-I148 | Compliance | Subprocessor and model-provider disclosure is now represented as a release-gated closed-beta manifest covering Supabase, model provider, Resend, GitHub Actions, host provider, billing evidence, change notice, and model-provider controls. | `shared/startup-office-subprocessors.json`, `startup-office:subprocessors` |
 | SV-I149 | Compliance | Incident response is now release-gated through a closed-beta operational manifest covering data leak/cross-tenant access, provider or secret breach, worker/outbox outage, billing abuse, evidence fields, owner, SLA, and verification commands. | `shared/startup-office-incident-response.json`, `startup-office:incident-response` |
-| SV-I150 | Compliance | Security review artifacts are not attached to release gates. | CI |
+| SV-I150 | Compliance | Security review artifacts are now attached to release gates through a launch packet covering threat model, trust boundaries, abuse paths, mitigations, tenant/RLS evidence, incident response, legal artifacts, subprocessors, and release decision. | `shared/startup-office-security-review.json`, `startup-office:security-review` |
 | SV-I151 | Performance | API server cold-start and route dispatch performance are not measured. | Vercel-style facade |
 | SV-I152 | Performance | Large summary endpoints may overfetch as workspace data grows. | growth summary |
 | SV-I153 | Performance | Client bundles still include multiple large app surfaces. | web build output |
@@ -310,7 +310,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G037 | Add security release gate. | Secret scan, high-severity dependency audit, and boundary checks run together. | `startup-office:security` |
 | SV-G038 | Unify permission definitions. | API and web permission lists cannot drift from the shared catalog. | `startup-office:permissions` |
 | SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require expert-review language, founder approval gates, and visible UI decision boundary disclosures. | `startup-office:compliance-disclosures`, output eval |
-| SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
+| SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, subprocessor disclosure, and review evidence are complete and release-gated. | `startup-office:security-review` |
 | SV-G041 | Add provider abstraction. | The worker supports primary OpenAI plus an OpenAI-compatible fallback endpoint/key/model with redacted attempt metadata. | `startup-office:model-failover`, worker tests |
 | SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, hashed, and tied to model calls, runs, artifacts, approvals, worker jobs, and receipts. | `startup-office:prompt-versions`, worker tests |
 | SV-G043 | Upgrade output evaluation. | Rubrics cover usefulness, sources, risks, next actions, unsafe external-action claims, overclaiming, and regulated-advice review. | eval suite |

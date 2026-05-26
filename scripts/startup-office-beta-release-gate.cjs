@@ -60,6 +60,7 @@ const checks = [
   ["npm", ["run", "startup-office:permissions"]],
   ["npm", ["run", "startup-office:schema"]],
   ["npm", ["run", "startup-office:security"]],
+  ["npm", ["run", "startup-office:security-review"]],
   ["npm", ["run", "startup-office:secret-rotation"]],
   ["npm", ["run", "startup-office:static-analysis"]],
   ["npm", ["run", "startup-office:web-lint-budget"]],

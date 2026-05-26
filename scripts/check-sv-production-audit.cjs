@@ -109,6 +109,8 @@ for (const staleClaim of [
   "Privacy policy, DPA, and terms are not implemented as launch artifacts.",
   "Subprocessor/model provider disclosure is not represented.",
   "Incident response is not operationalized.",
+  "Security review artifacts are not attached to release gates.",
+  "SAST/DAST and a launch security packet remain incomplete.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
@@ -294,6 +296,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:incident-response"')) {
   fail("beta release gate must include the incident response contract");
+}
+
+for (const required of [
+  "startup-office:security-review",
+  "shared/startup-office-security-review.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record security review evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:security-review"] !==
+  "node scripts/check-startup-office-security-review.cjs"
+) {
+  fail("package.json must expose startup-office:security-review");
+}
+
+if (!releaseGate.includes('"startup-office:security-review"')) {
+  fail("beta release gate must include the security review contract");
 }
 
 for (const required of [

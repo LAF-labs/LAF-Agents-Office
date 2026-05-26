@@ -1,0 +1,67 @@
+{
+  "version": "startup-office-security-review.v1",
+  "status": "release_gated_closed_beta_packet",
+  "review_document": "docs/ops/STARTUP-OFFICE-SECURITY-REVIEW.md",
+  "required_sections": [
+    "## Threat Model",
+    "## Trust Boundaries",
+    "## Abuse Paths",
+    "## Mitigations And Gates",
+    "## Security Review Evidence",
+    "## Release Decision"
+  ],
+  "artifacts": [
+    {
+      "id": "security_gate",
+      "title": "Secret scan, dependency audit, schema boundary, and service-role tests",
+      "gate": "npm run startup-office:security",
+      "source": "scripts/check-startup-office-security-gate.cjs"
+    },
+    {
+      "id": "tenant_isolation",
+      "title": "Cross-tenant API isolation regression",
+      "gate": "npm run startup-office:tenant-isolation",
+      "source": "scripts/check-startup-office-tenant-isolation.cjs"
+    },
+    {
+      "id": "rls_verification",
+      "title": "Schema-derived RLS verification",
+      "gate": "npm run startup-office:rls-verification",
+      "source": "scripts/check-startup-office-rls-verification.cjs"
+    },
+    {
+      "id": "incident_response",
+      "title": "Closed-beta incident response contract",
+      "gate": "npm run startup-office:incident-response",
+      "source": "shared/startup-office-incident-response.json"
+    },
+    {
+      "id": "legal_artifacts",
+      "title": "Terms, privacy, DPA, AI use, retention, and deletion package",
+      "gate": "npm run startup-office:legal-artifacts",
+      "source": "shared/startup-office-legal-artifacts.json"
+    },
+    {
+      "id": "subprocessors",
+      "title": "Subprocessor and model-provider disclosure",
+      "gate": "npm run startup-office:subprocessors",
+      "source": "shared/startup-office-subprocessors.json"
+    },
+    {
+      "id": "secret_rotation",
+      "title": "Secret and config rotation checklist",
+      "gate": "npm run startup-office:secret-rotation",
+      "source": "shared/startup-office-secret-rotation.json"
+    },
+    {
+      "id": "release_health",
+      "title": "Post-release monitoring and rollback contract",
+      "gate": "npm run startup-office:release-health",
+      "source": "shared/startup-office-release-health.json"
+    }
+  ],
+  "release_decision": {
+    "closed_beta": "Allowed only when every artifact gate passes on the deploy commit and external G099/G100 evidence remains recorded outside the repository.",
+    "public_self_serve": "Blocked until counsel approves legal terms, named subprocessors, regional transfer terms, and live production security evidence."
+  }
+}
