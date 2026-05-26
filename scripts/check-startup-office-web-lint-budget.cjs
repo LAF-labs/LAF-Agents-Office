@@ -19,7 +19,7 @@ function parseCount(output, label) {
   return match ? Number(match[1]) : 0;
 }
 
-const result = spawnSync("bun", ["run", "lint"], {
+const result = spawnSync("npm", ["run", "lint"], {
   cwd: webRoot,
   encoding: "utf8",
   maxBuffer: 1024 * 1024 * 8,
