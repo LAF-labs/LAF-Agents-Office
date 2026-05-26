@@ -1288,9 +1288,9 @@ html[data-theme="office"]
   line-height: 1;
 }
 .skills-kicker {
-  margin: 0 0 4px !important;
-  color: var(--text-secondary) !important;
-  font-size: 11px !important;
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
   font-weight: 720;
   text-transform: uppercase;
 }
@@ -2178,21 +2178,21 @@ html[data-theme="office"]
   width: 156px;
 }
 .skills-status {
-  display: inline-flex !important;
+  display: inline-flex;
   width: fit-content;
   align-items: center;
   min-height: 22px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--bg-subtle) 88%, var(--border));
-  color: var(--text-secondary) !important;
-  font-size: 11px !important;
+  color: var(--text-secondary);
+  font-size: 11px;
   font-weight: 720;
   padding: 2px 8px;
   white-space: nowrap;
 }
 .skills-status.is-active {
   background: var(--accent-bg);
-  color: var(--accent) !important;
+  color: var(--accent);
 }
 .skills-link-button,
 .skills-invoke {
@@ -2244,11 +2244,11 @@ html[data-theme="office"]
   margin-top: 7px;
 }
 .skills-tag {
-  display: inline-flex !important;
+  display: inline-flex;
   width: fit-content;
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
   padding: 2px 6px;
 }
 .skills-run-status {
