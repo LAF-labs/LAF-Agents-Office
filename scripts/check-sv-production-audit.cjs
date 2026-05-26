@@ -103,6 +103,7 @@ for (const staleClaim of [
   "Load and concurrency tests for loop runs are missing.",
   "Worker concurrency and queue backpressure are not modeled.",
   "There is no staged rollout or feature flag plan for risky cloud loops.",
+  "Secrets and config rotation are not a release checklist item.",
   "Post-release monitoring and rollback criteria are undefined.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
@@ -199,6 +200,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:release-health"')) {
   fail("beta release gate must include the release health contract");
+}
+
+for (const required of [
+  "startup-office:secret-rotation",
+  "shared/startup-office-secret-rotation.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record secret rotation evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:secret-rotation"] !==
+  "node scripts/check-startup-office-secret-rotation.cjs"
+) {
+  fail("package.json must expose startup-office:secret-rotation");
+}
+
+if (!releaseGate.includes('"startup-office:secret-rotation"')) {
+  fail("beta release gate must include the secret rotation contract");
 }
 
 for (const required of [

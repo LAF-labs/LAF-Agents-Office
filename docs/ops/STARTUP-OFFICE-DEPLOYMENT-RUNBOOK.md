@@ -82,6 +82,27 @@ GitHub Actions variables:
 Do not put secret values in this repository. The preflight prints normalized
 origins and provider choices, not secret contents.
 
+## Secret And Config Rotation
+
+`shared/startup-office-secret-rotation.json` is the source of truth for the
+closed-beta secret and config rotation checklist. Run
+`npm run startup-office:secret-rotation` before a production handoff to verify
+that required secrets, owners, cadence, emergency rotation triggers, and
+post-rotation verification commands stay aligned with this runbook.
+
+Review the inventory every 30 days. Rotate immediately after suspected
+credential exposure, a departing operator with production access, provider
+dashboard compromise, or a failed secret scan on a deploy branch. Never record
+raw secret values, provider token fragments, customer private data, or payment
+instruments in repository files or handoff notes.
+
+After any rotation, run the post-rotation verification commands:
+
+1. `npm run hosted-env:preflight -- --no-env-file`
+2. `npm run startup-office:ops-monitor`
+3. `npm run startup-office:synthetic-monitor`
+4. `npm run beta:release-gate`
+
 ## AI Loop Worker Schedule
 
 The scheduled loop worker runs every five minutes and processes one bounded

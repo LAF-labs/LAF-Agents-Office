@@ -5,6 +5,7 @@
     "deployCommitChecks": [
       "npm run beta:release-gate",
       "npm run startup-office:release-health",
+      "npm run startup-office:secret-rotation",
       "npm run startup-office:rls-live",
       "npm run hosted-env:preflight -- --no-env-file",
       "npx supabase migration list"

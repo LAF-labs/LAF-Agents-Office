@@ -13,6 +13,7 @@ The current codebase is ready for a closed beta production rehearsal when all of
 these commands pass on the deploy commit:
 
 - `npm run beta:release-gate`
+- `npm run startup-office:secret-rotation`
 - `npm run startup-office:rls-live`
 - `npm run hosted-env:preflight -- --no-env-file` against production variables
 - `npx supabase migration list` shows local and remote at the same latest
