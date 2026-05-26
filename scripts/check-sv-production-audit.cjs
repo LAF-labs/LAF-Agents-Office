@@ -94,12 +94,17 @@ for (const staleClaim of [
   "The release gate does not include the new production audit.",
   "There is no single command proving all cloud SaaS invariants.",
   "stricter warning cleanup",
+  "Accessibility tests are missing.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
 
 if (!doc.includes("zero web lint errors, warnings, or infos")) {
   fail("audit must record the zero-warning web lint gate");
+}
+
+if (!doc.includes("web/playwright/startup-office-accessibility-mobile.spec.ts")) {
+  fail("audit must record the Startup Office accessibility smoke evidence");
 }
 
 console.log(

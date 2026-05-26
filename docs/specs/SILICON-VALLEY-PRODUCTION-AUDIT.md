@@ -192,7 +192,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I124 | Testing | Real Supabase RLS tests are missing. | migrations |
 | SV-I125 | Testing | Live model API calls remain intentionally absent from release gate, but the gate now pins the manual gated script and deterministic harness. | `startup-office:live-model-smoke-check` |
 | SV-I126 | Testing | Contract tests between web client types and API responses are not generated. | TypeScript types |
-| SV-I127 | Testing | Accessibility tests are missing. | web tests |
+| SV-I127 | Testing | Startup Office accessibility and mobile review now has a Playwright smoke path for keyboard reachability and mobile beta panels; automated axe/contrast coverage remains future hardening. | `web/playwright/startup-office-accessibility-mobile.spec.ts`, `startup-office:first-beta-smoke` |
 | SV-I128 | Testing | Visual regression tests are missing. | UI |
 | SV-I129 | Testing | Load and concurrency tests for loop runs are missing. | worker |
 | SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
