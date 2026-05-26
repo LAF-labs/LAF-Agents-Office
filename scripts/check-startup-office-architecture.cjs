@@ -32,9 +32,10 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1210);
+assertMaxLines("api/[...path].js", 1191);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
+assertMaxLines("api/lib/hosted/apiPrimitives.js", 35);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditWriter.js", 75);
 assertMaxLines("api/lib/hosted/actionRateLimitRules.js", 80);
@@ -267,6 +268,10 @@ for (const [pattern, label] of [
   [/function authCookieSameSite\b/, "hosted auth cookie SameSite policy"],
   [/function setAuthCookies\b/, "hosted auth cookie writer"],
   [/function clearAuthCookies\b/, "hosted auth cookie clearer"],
+  [/class HTTPError\b/, "hosted HTTP error primitive"],
+  [/function startupOfficeHTTPError\b/, "hosted HTTP error factory primitive"],
+  [/function requestIDFor\b/, "hosted request id primitive"],
+  [/function objectValue\b/, "hosted object value primitive"],
   [/function clientRateLimitKey\b/, "hosted client rate-limit key helper"],
   [/function enforceRateLimit\b/, "hosted in-memory rate-limit helper"],
   [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],

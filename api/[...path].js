@@ -11,6 +11,12 @@ const {
   createHostedActivityHandlers,
 } = require("./lib/hosted/activityHandlers");
 const {
+  HTTPError,
+  objectValue,
+  requestIDFor,
+  startupOfficeHTTPError,
+} = require("./lib/hosted/apiPrimitives");
+const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
@@ -874,21 +880,6 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
   workerJobAction: STARTUP_OFFICE_OPERATIONS_HANDLERS.workerJobAction,
 });
 
-class HTTPError extends Error {
-  constructor(status, message, opts = {}) {
-    super(message);
-    this.status = status;
-    // When safe=true the caller has confirmed the message is generic enough
-    // to forward to the client. Upstream Supabase/auth errors should default
-    // to safe=false so we don't leak internal detail to attackers.
-    this.safe = opts.safe !== false;
-  }
-}
-
-function startupOfficeHTTPError(status, message, opts = {}) {
-  return new HTTPError(status, message, opts);
-}
-
 module.exports = async function handler(req, res) {
   HOSTED_SECURITY_HEADERS.applyBaselineSecurityHeaders(res);
   HOSTED_SECURITY_HEADERS.applyCORSHeaders(req, res);
@@ -1135,10 +1126,6 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function requestIDFor(req) {
-  return String(req.headers?.["x-request-id"] || req.headers?.["x-vercel-id"] || "").trim();
-}
-
 const STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
   companyProfileRowPayload: (profile) => startupOfficeServices().companyProfileRowPayload(profile),
   createHTTPError: startupOfficeHTTPError,
@@ -1194,10 +1181,6 @@ async function handleStartupOfficeDemoSeed(req, res) {
 
 async function seedStartupOfficeWorkspace(membership, team, body) {
   return STARTUP_OFFICE_DEMO_SEED_HANDLERS.seedStartupOfficeWorkspace(membership, team, body);
-}
-
-function objectValue(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 module.exports.__test = {
