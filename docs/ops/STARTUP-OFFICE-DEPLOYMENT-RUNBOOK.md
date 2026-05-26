@@ -182,6 +182,26 @@ live model/worker path was not exercised. The script prints step names, run ID,
 receipt ID, and status only; it does not print credentials, prompts, artifacts,
 or customer data.
 
+## Release Health Contract
+
+`shared/startup-office-release-health.json` is the repository-controlled release
+health contract. It defines a 60 minute post-release window, the required ops
+and synthetic monitors, and the rollback triggers operators must evaluate before
+reopening or expanding a beta deploy.
+
+The release is unhealthy if either `.github/workflows/startup-office-ops-monitor.yml`
+or `.github/workflows/startup-office-synthetic-monitor.yml` fails during the
+post-release window. Recovery must rerun `npm run beta:release-gate`,
+`npm run hosted-env:preflight`, `npm run startup-office:ops-monitor`, and
+`npm run startup-office:synthetic-monitor` on the repaired deployment.
+
+Rollback triggers are web/API smoke failure, repeated loop worker failure,
+repeated outbox worker failure, and migration failure. Web/API failures roll
+back through the host provider. Worker failures disable only the affected worker
+workflow while the ops monitor remains the incident signal. Migration failures
+stop deploys and use a forward-fix migration unless destructive corruption
+requires PITR.
+
 ## Smoke Test
 
 After deploying:

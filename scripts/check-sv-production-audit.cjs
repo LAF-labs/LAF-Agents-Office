@@ -103,6 +103,7 @@ for (const staleClaim of [
   "Load and concurrency tests for loop runs are missing.",
   "Worker concurrency and queue backpressure are not modeled.",
   "There is no staged rollout or feature flag plan for risky cloud loops.",
+  "Post-release monitoring and rollback criteria are undefined.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
@@ -180,6 +181,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:loop-rollout"')) {
   fail("beta release gate must include the loop rollout contract");
+}
+
+for (const required of [
+  "startup-office:release-health",
+  "shared/startup-office-release-health.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record release health evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:release-health"] !==
+  "node scripts/check-startup-office-release-health.cjs"
+) {
+  fail("package.json must expose startup-office:release-health");
+}
+
+if (!releaseGate.includes('"startup-office:release-health"')) {
+  fail("beta release gate must include the release health contract");
 }
 
 for (const required of [

@@ -1,0 +1,52 @@
+{
+  "version": "startup-office-release-health.v1",
+  "post_release_window_minutes": 60,
+  "required_monitors": [
+    {
+      "name": "ops_monitor",
+      "workflow": ".github/workflows/startup-office-ops-monitor.yml",
+      "command": "npm run startup-office:ops-monitor",
+      "cadence": "15 minutes",
+      "signal": "dead letters, stuck jobs, stale approvals, failed runs, and model-spend anomalies"
+    },
+    {
+      "name": "synthetic_monitor",
+      "workflow": ".github/workflows/startup-office-synthetic-monitor.yml",
+      "command": "npm run startup-office:synthetic-monitor",
+      "cadence": "60 minutes",
+      "signal": "health, login, profile, loop run, approval, receipt, and logout"
+    }
+  ],
+  "rollback_triggers": [
+    {
+      "id": "web_api_smoke_failed",
+      "signal": "Production web/API smoke or synthetic monitor fails after deploy.",
+      "decision": "Roll back the web/API deploy through the host provider.",
+      "operator_action": "Keep outbox disabled until smoke passes on the restored deployment."
+    },
+    {
+      "id": "loop_worker_repeated_failure",
+      "signal": "Loop worker produces repeated failures, stuck jobs, or dead-letter jobs.",
+      "decision": "Disable the loop worker workflow and keep ops monitor enabled as the incident signal.",
+      "operator_action": "Repair or cancel unsafe jobs through the admin worker-job API before re-enabling."
+    },
+    {
+      "id": "outbox_worker_repeated_failure",
+      "signal": "Outbox worker produces repeated failed or dead-letter delivery rows.",
+      "decision": "Disable the outbox worker workflow and switch email provider to in-app if needed.",
+      "operator_action": "Fix provider configuration, rerun preflight and ops monitor, then dispatch one manual worker run."
+    },
+    {
+      "id": "migration_failure",
+      "signal": "Production migration apply fails or targets the wrong Supabase project.",
+      "decision": "Stop deploys and ship a forward-fix migration; use PITR only for destructive corruption.",
+      "operator_action": "Run RLS live verification and the beta release gate on the exact repair commit."
+    }
+  ],
+  "required_recovery_commands": [
+    "npm run beta:release-gate",
+    "npm run hosted-env:preflight",
+    "npm run startup-office:ops-monitor",
+    "npm run startup-office:synthetic-monitor"
+  ]
+}
