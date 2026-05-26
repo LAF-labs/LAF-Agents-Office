@@ -22,6 +22,16 @@ function assertContains(relativePath, snippets, label) {
   }
 }
 
+function assertOrdered(relativePath, snippets, label) {
+  const body = read(relativePath);
+  let cursor = -1;
+  for (const snippet of snippets) {
+    const index = body.indexOf(snippet, cursor + 1);
+    if (index === -1) fail(`${label} is missing ordered ${snippet} in ${relativePath}`);
+    cursor = index;
+  }
+}
+
 function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: root,
@@ -78,6 +88,17 @@ assertContains(
     '"build"',
   ],
   "beta release gate",
+);
+assertOrdered(
+  "scripts/startup-office-beta-release-gate.cjs",
+  [
+    '"startup-office:web-lint-budget"',
+    '"src/api/notebook.test.ts"',
+    '"src/api/wiki.test.ts"',
+    '"typecheck"',
+    '"build"',
+  ],
+  "beta release gate web quality sequence",
 );
 assertContains(
   "docs/specs/SILICON-VALLEY-PRODUCTION-AUDIT.md",
