@@ -5,6 +5,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
+const packagePath = path.join(root, "package.json");
+const schemaPath = path.join(root, "supabase", "schema", "current.json");
 const templatePath = path.join(root, "shared", "startup-office-external-evidence-template.json");
 const PLACEHOLDER_VALUES = new Set(["", "n/a", "na", "none", "null", "pending", "tbd", "todo", "unknown"]);
 const FORBIDDEN_VALUE_PATTERNS = [
@@ -23,6 +25,13 @@ function loadJSON(filePath) {
 
 function loadTemplate() {
   return loadJSON(templatePath);
+}
+
+function loadReleaseContext() {
+  return {
+    latestMigration: String(loadJSON(schemaPath).latestMigration),
+    packageVersion: String(loadJSON(packagePath).version),
+  };
 }
 
 function normalizeRecords(payload) {
@@ -58,9 +67,13 @@ function assertNoForbiddenValue(value, label) {
       throw new Error(`${label} contains a forbidden ${rule.label}`);
     }
   }
-  if (containsPaymentCardNumber(text)) {
+  if (isPaymentSensitiveField(label) && containsPaymentCardNumber(text)) {
     throw new Error(`${label} contains a forbidden payment card number`);
   }
+}
+
+function isPaymentSensitiveField(label) {
+  return /agreement|billing|card|invoice|payment/i.test(label);
 }
 
 function containsPaymentCardNumber(text) {
@@ -86,7 +99,7 @@ function luhnValid(digits) {
   return sum > 0 && sum % 10 === 0;
 }
 
-function validateRecord(record, template) {
+function validateRecord(record, template, releaseContext) {
   if (!record || typeof record !== "object" || Array.isArray(record)) {
     throw new Error("evidence record must be an object");
   }
@@ -111,7 +124,7 @@ function validateRecord(record, template) {
     }
     assertNoForbiddenValue(value, `${record.goalId}.${field.key}`);
   }
-  validateFieldSemantics(record);
+  validateFieldSemantics(record, releaseContext);
   return {
     fieldCount: templateRecord.requiredFields.length,
     goalId: record.goalId,
@@ -119,15 +132,32 @@ function validateRecord(record, template) {
   };
 }
 
-function validateFieldSemantics(record) {
+function validateFieldSemantics(record, releaseContext) {
   const fields = record.fields;
   if (record.goalId === "G099") {
     if (!/^[a-f0-9]{7,40}$/i.test(String(fields.deploy_commit_sha))) {
       throw new Error("G099 deploy_commit_sha must look like a git SHA");
     }
+    if (String(fields.package_version).trim() !== releaseContext.packageVersion) {
+      throw new Error(`G099 package_version must match package.json ${releaseContext.packageVersion}`);
+    }
+    if (!String(fields.supabase_project_ref_latest_migration).includes(releaseContext.latestMigration)) {
+      throw new Error(`G099 Supabase evidence must include latest migration ${releaseContext.latestMigration}`);
+    }
     for (const key of ["production_app_url", "production_api_base_url"]) {
       if (!String(fields[key]).startsWith("https://")) {
         throw new Error(`G099 ${key} must be an HTTPS URL`);
+      }
+    }
+    for (const key of [
+      "hosted_env_preflight_result",
+      "release_gate_result",
+      "release_health_result",
+      "secret_rotation_result",
+      "post_release_monitor_window_result",
+    ]) {
+      if (!/\b(?:green|ok|pass(?:ed)?|success(?:ful)?)\b/i.test(String(fields[key]))) {
+        throw new Error(`G099 ${key} must record a successful result`);
       }
     }
   }
@@ -141,10 +171,10 @@ function validateFieldSemantics(record) {
   }
 }
 
-function validateExternalEvidencePayload(payload, template = loadTemplate()) {
+function validateExternalEvidencePayload(payload, template = loadTemplate(), releaseContext = loadReleaseContext()) {
   const records = normalizeRecords(payload);
   if (records.length === 0) throw new Error("evidence payload must contain at least one record");
-  const results = records.map((record) => validateRecord(record, template));
+  const results = records.map((record) => validateRecord(record, template, releaseContext));
   const ids = new Set(results.map((result) => result.goalId));
   if (ids.size !== results.length) throw new Error("evidence payload contains duplicate goalId records");
   return results;
@@ -177,6 +207,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  loadReleaseContext,
   loadTemplate,
   validateExternalEvidencePayload,
 };

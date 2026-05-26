@@ -4,10 +4,12 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  loadReleaseContext,
   loadTemplate,
   validateExternalEvidencePayload,
 } = require("./validate-startup-office-external-evidence.cjs");
 
+const releaseContext = loadReleaseContext();
 const template = loadTemplate();
 
 function recordFor(goalId, overrides = {}) {
@@ -17,8 +19,15 @@ function recordFor(goalId, overrides = {}) {
   );
   if (goalId === "G099") {
     fields.deploy_commit_sha = "abcdef1234567890abcdef1234567890abcdef12";
+    fields.hosted_env_preflight_result = "passed with redacted output";
+    fields.package_version = releaseContext.packageVersion;
     fields.production_app_url = "https://startup-office.example";
     fields.production_api_base_url = "https://startup-office.example/api";
+    fields.release_gate_result = "passed on deploy commit";
+    fields.release_health_result = "green";
+    fields.secret_rotation_result = "success";
+    fields.supabase_project_ref_latest_migration = `project abc latest ${releaseContext.latestMigration}`;
+    fields.post_release_monitor_window_result = "ok after 60 minutes";
   }
   if (goalId === "G100") {
     fields.payment_status = "paid";
@@ -108,5 +117,26 @@ test("rejects production deployment records without HTTPS URLs or commit SHAs", 
       fields: { deploy_commit_sha: "not-a-sha" },
     }), template),
     /deploy_commit_sha/,
+  );
+});
+
+test("rejects stale or unsuccessful production deployment evidence", () => {
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G099", {
+      fields: { package_version: "0.0.0-stale" },
+    }), template, releaseContext),
+    /package_version must match package\.json/,
+  );
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G099", {
+      fields: { supabase_project_ref_latest_migration: "project abc latest 20200101000000" },
+    }), template, releaseContext),
+    /latest migration/,
+  );
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G099", {
+      fields: { release_gate_result: "failed on deploy commit" },
+    }), template, releaseContext),
+    /release_gate_result must record a successful result/,
   );
 });
