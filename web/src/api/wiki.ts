@@ -1,8 +1,8 @@
 /**
  * Wiki API client — thin wrapper over the shared fetch helper in `client.ts`.
- * Uses the live broker by default. Demo fixtures remain for preview paths, but
- * canonical company memory paths never fall back to mock
- * content because agents and humans rely on them as durable state.
+ * Uses the live broker by default. Mock fixtures are opt-in with
+ * VITE_WIKI_MOCK=true for isolated preview work; production paths never
+ * silently fall back to mock content.
  */
 
 import { get, getHumans, type HumanIdentity, post } from "./client";
@@ -191,6 +191,11 @@ function isExplicitCompanyArticlePath(pathOrSlug: string): boolean {
   return trimmed.startsWith("company/") || trimmed.startsWith("team/company/");
 }
 
+function shouldUseMocks(): boolean {
+  const value = (import.meta.env.VITE_WIKI_MOCK ?? "false") as string;
+  return value === "true";
+}
+
 export async function fetchArticle(path: string): Promise<WikiArticle> {
   const tried: string[] = [];
   const explicitCompanyArticle = isExplicitCompanyArticlePath(path);
@@ -205,11 +210,13 @@ export async function fetchArticle(path: string): Promise<WikiArticle> {
       lastError = err;
       if (explicitCompanyArticle) throw err;
       // Try next candidate. Real 404s and bare-slug misses look identical
-      // from the client — fall through and mock at the end.
+      // from the client, so only explicit mock mode may synthesize content.
     }
   }
   if (explicitCompanyArticle && lastError) throw lastError;
-  return mockArticle(tried[tried.length - 1] ?? path);
+  if (shouldUseMocks()) return mockArticle(tried[tried.length - 1] ?? path);
+  if (lastError) throw lastError;
+  throw new Error("wiki article path is empty");
 }
 
 /**
@@ -281,7 +288,7 @@ export async function fetchCatalog(): Promise<WikiCatalogEntry[]> {
     const res = await get<{ articles: WikiCatalogEntry[] }>("/wiki/catalog");
     return Array.isArray(res?.articles) ? res.articles : [];
   } catch {
-    return MOCK_CATALOG;
+    return shouldUseMocks() ? MOCK_CATALOG : [];
   }
 }
 
@@ -397,7 +404,7 @@ export async function fetchHistory(
       `/wiki/history/${encodeURI(path)}`,
     );
   } catch (err) {
-    if (isExplicitCompanyArticlePath(path)) throw err;
+    if (!shouldUseMocks() || isExplicitCompanyArticlePath(path)) throw err;
     return {
       commits: mockArticle(path).contributors.map((slug, i) => ({
         sha: `mock${i}`,

@@ -3,15 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "./client";
 import * as api from "./wiki";
 
-describe("wiki api client", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.stubEnv("VITE_WIKI_MOCK", "false");
+});
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
+describe("wiki article client", () => {
   it("fetchArticle returns the server response when the endpoint succeeds", async () => {
     const article: api.WikiArticle = {
       path: "people/nazz",
@@ -31,9 +33,15 @@ describe("wiki api client", () => {
   });
 
   it("fetchArticle falls back to a mock for legacy preview paths on network error", async () => {
+    vi.stubEnv("VITE_WIKI_MOCK", "true");
     vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
     const result = await api.fetchArticle("preview-only");
     expect(result.content).toContain("Article not found in mock fixtures.");
+  });
+
+  it("fetchArticle rethrows preview misses in live backend mode", async () => {
+    vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
+    await expect(api.fetchArticle("preview-only")).rejects.toThrow("boom");
   });
 
   it("fetchArticle does not mock explicit company memory paths", async () => {
@@ -108,16 +116,31 @@ describe("wiki api client", () => {
     expect(result).toEqual(entries);
   });
 
-  it("fetchCatalog falls back to MOCK_CATALOG on error", async () => {
+  it("fetchCatalog returns empty on live backend error", async () => {
+    vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
+    const result = await api.fetchCatalog();
+    expect(result).toEqual([]);
+  });
+
+  it("fetchCatalog falls back to MOCK_CATALOG in explicit mock mode", async () => {
+    vi.stubEnv("VITE_WIKI_MOCK", "true");
     vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
     const result = await api.fetchCatalog();
     expect(result.length).toBeGreaterThan(0);
   });
 
   it("fetchHistory returns mock commits on error", async () => {
+    vi.stubEnv("VITE_WIKI_MOCK", "true");
     vi.spyOn(client, "get").mockRejectedValue(new Error("boom"));
     const result = await api.fetchHistory("people/customer-x");
     expect(result.commits.length).toBeGreaterThan(0);
+  });
+
+  it("fetchHistory rethrows errors in live backend mode", async () => {
+    vi.spyOn(client, "get").mockRejectedValue(new Error("history down"));
+    await expect(api.fetchHistory("people/customer-x")).rejects.toThrow(
+      "history down",
+    );
   });
 
   it("fetchHistory does not mock explicit company memory paths", async () => {
@@ -153,7 +176,9 @@ describe("wiki api client", () => {
     expect(result.title).toBe("Company Operating Memory");
     expect(result.contributors.length).toBeGreaterThan(0);
   });
+});
 
+describe("wiki sections and writes", () => {
   it("fetchSections returns the server response when the endpoint succeeds", async () => {
     const sections: api.DiscoveredSection[] = [
       {

@@ -124,8 +124,9 @@ assertContains(
   "web/src/api/wiki.ts",
   [
     "Uses the live broker by default",
-    "Demo fixtures remain for preview paths",
-    "canonical company memory paths never fall back",
+    "Mock fixtures are opt-in",
+    "VITE_WIKI_MOCK=true",
+    "production paths never",
   ],
   "wiki fixture boundary",
 );

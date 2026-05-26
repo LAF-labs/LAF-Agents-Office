@@ -28,9 +28,10 @@
     ]
   },
   "mock_fixtures": {
-    "policy": "UI fixtures are opt-in preview/test inputs and must not replace canonical company memory paths.",
+    "policy": "UI fixtures are opt-in preview/test inputs and must not replace live wiki, notebook, or canonical company memory responses.",
     "paths": [
       "web/src/api/__fixtures__/notebook-mock.ts",
+      "web/src/api/wiki.ts",
       "web/tests/fixtures/wikilinks.json"
     ]
   },
