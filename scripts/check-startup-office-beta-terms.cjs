@@ -73,7 +73,7 @@ for (const [relativePath, snippet, label] of [
     "terms authorization",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/operationsStore.js",
     "startupOfficeTermsSnapshot",
     "terms beta ops snapshot",
   ],

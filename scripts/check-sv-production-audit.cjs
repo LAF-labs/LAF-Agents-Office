@@ -106,6 +106,7 @@ for (const staleClaim of [
   "Secrets and config rotation are not a release checklist item.",
   "Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence.",
   "Post-release monitoring and rollback criteria are undefined.",
+  "Privacy policy, DPA, and terms are not implemented as launch artifacts.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
@@ -237,6 +238,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:release-versioning"')) {
   fail("beta release gate must include the release versioning contract");
+}
+
+for (const required of [
+  "startup-office:legal-artifacts",
+  "shared/startup-office-legal-artifacts.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record legal artifact evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:legal-artifacts"] !==
+  "node scripts/check-startup-office-legal-artifacts.cjs"
+) {
+  fail("package.json must expose startup-office:legal-artifacts");
+}
+
+if (!releaseGate.includes('"startup-office:legal-artifacts"')) {
+  fail("beta release gate must include the legal artifact contract");
 }
 
 for (const required of [

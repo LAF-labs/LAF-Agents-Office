@@ -1,0 +1,51 @@
+{
+  "version": "startup-office-legal-artifacts.v1",
+  "status": "operator_ready_beta_template",
+  "counsel_gate": "Counsel approval is required before public self-serve launch.",
+  "source_document": "docs/legal/STARTUP-OFFICE-BETA-TERMS.md",
+  "acceptance_table": "startup_office_terms_acceptances",
+  "artifacts": [
+    {
+      "name": "Product Terms",
+      "version_key": "terms_version",
+      "current_version": "startup-office-beta-terms-2026-05-26",
+      "required_section": "## Product Terms"
+    },
+    {
+      "name": "Privacy Policy",
+      "version_key": "privacy_version",
+      "current_version": "startup-office-privacy-2026-05-26",
+      "required_section": "## Privacy Policy"
+    },
+    {
+      "name": "Data Processing Addendum",
+      "version_key": "dpa_version",
+      "current_version": "startup-office-dpa-2026-05-26",
+      "required_section": "## Data Processing Addendum"
+    },
+    {
+      "name": "AI Use Terms",
+      "version_key": "ai_use_version",
+      "current_version": "startup-office-ai-use-2026-05-26",
+      "required_section": "## AI Use Terms"
+    },
+    {
+      "name": "Retention Terms",
+      "version_key": "retention_version",
+      "current_version": "startup-office-retention-2026-05-26",
+      "required_section": "## Retention Terms"
+    },
+    {
+      "name": "Deletion Terms",
+      "version_key": "deletion_version",
+      "current_version": "startup-office-deletion-2026-05-26",
+      "required_section": "## Deletion Terms"
+    }
+  ],
+  "launch_controls": [
+    "Version bundle is stored in startup_office_terms_acceptances.",
+    "Beta Ops exposes acceptance status and the accept action.",
+    "Commercial beta readiness is blocked until current terms are accepted.",
+    "Source references are attached for privacy, DPA, AI, and deletion review."
+  ]
+}
