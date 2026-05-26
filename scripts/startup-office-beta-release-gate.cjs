@@ -72,6 +72,7 @@ const checks = [
   ["npm", ["run", "startup-office:subprocessors"]],
   ["npm", ["run", "startup-office:support-playbooks"]],
   ["npm", ["run", "startup-office:support-timeline"]],
+  ["npm", ["run", "startup-office:web-query-policy"]],
   ["npm", ["run", "startup-office:synthetic-monitor-check"]],
   ["npm", ["run", "startup-office:worker-deploy"]],
   ["npm", ["run", "startup-office:loop-worker:test"]],

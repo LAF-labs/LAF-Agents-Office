@@ -6,7 +6,7 @@ import { getMembers, getOfficeMembers } from "../api/client";
 const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined";
-const MEMBER_REFETCH_MS = liveEventsSupported ? 15_000 : 5_000;
+const MEMBER_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 
 export function useOfficeMembers() {
   return useQuery({

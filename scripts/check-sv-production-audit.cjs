@@ -372,6 +372,24 @@ if (!releaseGate.includes('"startup-office:web-bundle-budget"')) {
 }
 
 for (const required of [
+  "startup-office:web-query-policy",
+  "shared/startup-office-web-query-policy.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record web query policy evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:web-query-policy"] !==
+  "node scripts/check-startup-office-web-query-policy.cjs"
+) {
+  fail("package.json must expose startup-office:web-query-policy");
+}
+
+if (!releaseGate.includes('"startup-office:web-query-policy"')) {
+  fail("beta release gate must include the web query policy contract");
+}
+
+for (const required of [
   "startup-office:retrieval-performance",
   "shared/startup-office-retrieval-performance.json",
 ]) {

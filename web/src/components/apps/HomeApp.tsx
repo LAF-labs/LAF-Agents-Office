@@ -44,8 +44,8 @@ const NON_AGENT_SLUGS = new Set(["human", "you", "system"]);
 const HOME_MESSAGE_REFETCH_MS =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined"
-    ? 10_000
-    : 2_000;
+    ? 30_000
+    : 10_000;
 const HOME_STREAM_INITIAL_CHARS = 10;
 const HOME_STREAM_INTERVAL_MS = 18;
 

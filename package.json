@@ -71,6 +71,7 @@
     "startup-office:subprocessors": "node scripts/check-startup-office-subprocessors.cjs",
     "startup-office:support-playbooks": "node scripts/check-startup-office-support-playbooks.cjs",
     "startup-office:support-timeline": "node scripts/check-startup-office-support-timeline.cjs",
+    "startup-office:web-query-policy": "node scripts/check-startup-office-web-query-policy.cjs",
     "startup-office:web-bundle-budget": "node scripts/check-startup-office-web-bundle-budget.cjs",
     "startup-office:web-lint-budget": "node scripts/check-startup-office-web-lint-budget.cjs",
     "startup-office:synthetic-monitor": "node scripts/startup-office-synthetic-monitor.cjs",

@@ -272,7 +272,7 @@ function UsageBody() {
   const { data: usage } = useQuery({
     queryKey: ["usage"],
     queryFn: () => getUsage(),
-    refetchInterval: 5000,
+    refetchInterval: 30_000,
   });
   const { data: availability } = useQuery({
     queryKey: ["model-availability"],

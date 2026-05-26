@@ -12,7 +12,7 @@ export function UsagePanel() {
     queryKey: ["usage"],
     queryFn: () => getUsage(),
     enabled: open,
-    refetchInterval: open ? 5000 : false,
+    refetchInterval: open ? 15_000 : false,
   });
   const { data: availability } = useQuery({
     queryKey: ["model-availability"],

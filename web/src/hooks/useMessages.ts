@@ -6,8 +6,8 @@ import { getMessages, getThreadMessages } from "../api/client";
 const liveEventsSupported =
   typeof (globalThis as { EventSource?: typeof EventSource }).EventSource !==
   "undefined";
-const MESSAGE_REFETCH_MS = liveEventsSupported ? 10_000 : 2_000;
-const THREAD_REFETCH_MS = liveEventsSupported ? 10_000 : 3_000;
+const MESSAGE_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
+const THREAD_REFETCH_MS = liveEventsSupported ? 30_000 : 10_000;
 
 export function useMessages(channel: string, sinceId?: string | null) {
   return useQuery({

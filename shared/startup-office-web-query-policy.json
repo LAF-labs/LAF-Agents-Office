@@ -1,0 +1,21 @@
+{
+  "version": "startup-office-web-query-policy.v1",
+  "scope": "React Query polling and refetch behavior for the hosted Startup Office web app.",
+  "min_refetch_interval_ms": 10000,
+  "max_refetch_interval_occurrences": 34,
+  "live_event_backstop_min_ms": 30000,
+  "global_query_defaults": {
+    "stale_time_ms": 5000,
+    "gc_time_ms": 300000,
+    "retry": 1,
+    "refetch_on_window_focus": false
+  },
+  "required_event_invalidation": [
+    "message",
+    "activity",
+    "office_changed",
+    "action",
+    "review:state_change"
+  ],
+  "release_gate": "npm run startup-office:web-query-policy"
+}
