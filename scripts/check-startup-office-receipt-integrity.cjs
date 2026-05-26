@@ -47,7 +47,7 @@ for (const [relativePath, snippets, label] of [
   ],
   [
     "web/src/components/apps/ReceiptsApp.tsx",
-    ["app-trace-integrity", "shortDigest(entry.integrity.digest)"],
+    ["app-trace-integrity", "shortDigest(digest)"],
     "receipt digest UI",
   ],
   [

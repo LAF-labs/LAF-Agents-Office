@@ -43,8 +43,8 @@ assertContains(
   "hosted health handlers",
 );
 assertContains(
-  "api/[...path].js",
-  ['path === "health/dependencies"', "HOSTED_HEALTH_HANDLERS.dependencies"],
+  "api/lib/hosted/apiRouteDispatcher.js",
+  ['path === "health/dependencies"', "healthHandlers.dependencies"],
   "hosted API health route",
 );
 assertContains(

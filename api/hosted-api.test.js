@@ -235,7 +235,7 @@ test("pure cloud migration drops obsolete execution schema", () => {
       "utf8",
     ),
   );
-  assert.equal(schema.latestMigration, "20260526080000");
+  assert.equal(schema.latestMigration, "20260526090000");
   assert.equal(schema.pureCloudBoundaryGuardMigration, "20260525235900");
 
   const latestBoundarySql = fs.readFileSync(
@@ -486,7 +486,7 @@ test("Startup Office metrics support ingestion updates and Growth Center summari
   assert.match(source, /updated_at: now/);
 
   const querySource = fs.readFileSync(
-    path.join(__dirname, "lib", "startup-office", "queryHandlers.js"),
+    path.join(__dirname, "lib", "startup-office", "growthSummaryHandlers.js"),
     "utf8",
   );
   assert.match(querySource, /metrics_summary: startupOfficeMetricSummary\(metrics\)/);

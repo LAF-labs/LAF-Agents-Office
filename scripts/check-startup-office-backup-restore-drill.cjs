@@ -77,7 +77,7 @@ assertContains(
   "export manifest",
 );
 assertContains(
-  "api/lib/startup-office/exportHandlers.js",
+  "api/lib/startup-office/exportBundleBuilder.js",
   ["restore_notes", "export_manifest", "workspace_billing", "terms_acceptances"],
   "export restore payload",
 );

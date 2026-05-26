@@ -61,17 +61,17 @@ for (const [relativePath, snippet, label] of [
     "loop run idempotency key persistence",
   ],
   [
-    "api/lib/startup-office/workflowHandlers.js",
+    "api/lib/startup-office/workflowRunHandlers.js",
     "cancellation_idempotency_key: idempotencyKey",
     "run cancel idempotency key persistence",
   ],
   [
-    "api/lib/startup-office/workflowHandlers.js",
+    "api/lib/startup-office/workflowRunHandlers.js",
     "retry_idempotency_key: idempotencyKey",
     "run retry idempotency key persistence",
   ],
   [
-    "api/lib/startup-office/workflowHandlers.js",
+    "api/lib/startup-office/workflowRunHandlers.js",
     "writeIdempotentRunResponse",
     "run mutation idempotent replay response",
   ],

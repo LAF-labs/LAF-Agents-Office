@@ -61,12 +61,12 @@ for (const [relativePath, snippet, label] of [
     "approval activation hook",
   ],
   [
-    "api/lib/startup-office/queryHandlers.js",
+    "api/lib/startup-office/exportBundleBuilder.js",
     "recordStartupOfficeExportActivation",
     "export activation hook",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/operationsStore.js",
     "startupOfficeActivationSnapshot",
     "beta ops activation snapshot",
   ],

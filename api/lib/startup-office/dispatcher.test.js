@@ -39,6 +39,7 @@ test("Startup Office route contracts are stable and uniquely named", () => {
     "customerCsv",
     "assetUploadIntent",
     "memoryImport",
+    "workspaceImport",
     "objectItem",
     "artifactObjectAction",
     "export",

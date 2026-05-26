@@ -69,12 +69,12 @@ for (const [relativePath, snippets, label] of [
     "secure asset upload intent",
   ],
   [
-    "api/lib/startup-office/queryHandlers.js",
+    "api/lib/startup-office/growthSummaryHandlers.js",
     ["company_profile: profile", "beta_ops: betaOps", "activity_notifications"],
     "activity query surface",
   ],
   [
-    "api/lib/startup-office/exportHandlers.js",
+    "api/lib/startup-office/exportBundleBuilder.js",
     ["export_manifest", "workspace_billing", "restore_notes"],
     "export query surface",
   ],

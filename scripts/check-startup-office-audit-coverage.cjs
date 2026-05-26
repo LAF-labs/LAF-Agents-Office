@@ -42,6 +42,13 @@ const routeAuditCoverage = {
   "companyProfile.PATCH": [
     ["api/lib/startup-office/profileHandlers.js", '"company_profile.updated"'],
   ],
+  "customerCsv.POST": [
+    ["api/lib/startup-office/customerCsvHandlers.js", '"startup_office.customers_csv_imported"'],
+  ],
+  "deletionPurge.POST": [
+    ["api/lib/startup-office/lifecycleHandlers.js", '"startup_office.deletion_purged"'],
+    ["api/lib/startup-office/lifecycleHandlers.test.js", '"startup_office.deletion_purged"'],
+  ],
   "deletionRequest.POST": [
     ["api/lib/startup-office/lifecycleHandlers.js", '"startup_office.deletion_requested"'],
   ],
@@ -53,6 +60,10 @@ const routeAuditCoverage = {
   ],
   "loops.POST": [
     ["api/lib/startup-office/queryHandlers.js", '"startup_office.loop_created"'],
+  ],
+  "memoryImport.POST": [
+    ["api/lib/startup-office/importHandlers.js", '"startup_office.memory_imported"'],
+    ["api/lib/startup-office/importHandlers.test.js", '"startup_office.memory_imported"'],
   ],
   "objectCollection.POST": [
     ["api/lib/startup-office/objectHandlers.js", "`startup_office.${kind}.created`"],
@@ -67,8 +78,8 @@ const routeAuditCoverage = {
     ["api/lib/startup-office/operationsHandlers.js", '"startup_office.policy_updated"'],
   ],
   "run.POST": [
-    ["api/lib/startup-office/workflowHandlers.js", '"startup_office.run_canceled"'],
-    ["api/lib/startup-office/workflowHandlers.js", '"startup_office.run_retry_queued"'],
+    ["api/lib/startup-office/workflowRunHandlers.js", '"startup_office.run_canceled"'],
+    ["api/lib/startup-office/workflowRunHandlers.js", '"startup_office.run_retry_queued"'],
   ],
   "supportAccess.POST": [
     ["api/lib/startup-office/lifecycleHandlers.js", "`startup_office.support_access.${eventType}`"],
@@ -83,6 +94,10 @@ const routeAuditCoverage = {
   "workerJobAction.POST": [
     ["api/lib/startup-office/workerJobRecoveryHandlers.js", '"startup_office.worker_job_retried"'],
     ["api/lib/startup-office/workerJobRecoveryHandlers.js", '"startup_office.worker_job_canceled"'],
+  ],
+  "workspaceImport.POST": [
+    ["api/lib/startup-office/workspaceImportAdapters.js", '"startup_office.workspace_imported"'],
+    ["api/lib/startup-office/importHandlers.test.js", '"startup_office.workspace_imported"'],
   ],
 };
 

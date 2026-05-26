@@ -113,6 +113,10 @@ function createStartupOfficeLifecycleHandlers(deps) {
       target_deletion_request_id: deletionRequestID,
       target_team_id: membership.team_id,
     });
+    await writeAuditEvent(membership, "startup_office.deletion_purged", "team", membership.team_id, {
+      deletion_request_id: deletionRequestID,
+      purge_status: purge?.status || "purged",
+    });
     writeJSON(res, 202, {
       deletion_manifest: deletionManifest,
       purge,

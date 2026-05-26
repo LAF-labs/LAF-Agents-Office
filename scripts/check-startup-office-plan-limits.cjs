@@ -74,12 +74,12 @@ for (const [relativePath, snippet, label] of [
     "spend limit enforcement",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/operationsStore.js",
     "pending_invites: invites.length",
     "seat usage aggregation",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/operationsStore.js",
     "startupOfficeStorageUsage",
     "storage usage aggregation",
   ],

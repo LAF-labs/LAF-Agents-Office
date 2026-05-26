@@ -61,7 +61,7 @@ for (const [relativePath, snippet, label] of [
     "central entitlement run gate",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/operationsStore.js",
     "startupOfficeBillingDocuments",
     "billing document snapshot",
   ],

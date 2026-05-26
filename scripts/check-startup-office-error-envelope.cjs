@@ -33,7 +33,7 @@ for (const [relativePath, snippets, label] of [
     "hosted error envelope helper",
   ],
   [
-    "api/[...path].js",
+    "api/lib/hosted/apiEntrypoint.js",
     ["hostedAPIErrorPayload", "requestIDFor(req)", "defaultHostedAPIErrorMessage"],
     "hosted API facade",
   ],

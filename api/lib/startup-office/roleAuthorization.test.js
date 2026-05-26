@@ -27,6 +27,7 @@ const READ_KEYS = Object.freeze([
   "approvals.GET",
   "billing.GET",
   "companyProfile.GET",
+  "customerCsv.GET",
   "export.GET",
   "growthSummary.GET",
   "loops.GET",
@@ -40,6 +41,7 @@ const READ_KEYS = Object.freeze([
 const DRAFT_KEYS = Object.freeze([
   "artifactObjectAction.POST",
   "assetUploadIntent.POST",
+  "customerCsv.POST",
   "loopRun.POST",
   "objectCollection.POST",
   "objectItem.DELETE",
@@ -51,6 +53,8 @@ const MANAGER_KEYS = Object.freeze([
   ...READ_KEYS,
   ...DRAFT_KEYS,
   "approvalAction.POST",
+  "memoryImport.POST",
+  "workspaceImport.POST",
 ]);
 
 const ADMIN_KEYS = Object.freeze([
@@ -58,6 +62,7 @@ const ADMIN_KEYS = Object.freeze([
   "betaDashboard.GET",
   "billing.PATCH",
   "companyProfile.PATCH",
+  "deletionPurge.POST",
   "deletionRequest.GET",
   "deletionRequest.POST",
   "demoSeed.POST",

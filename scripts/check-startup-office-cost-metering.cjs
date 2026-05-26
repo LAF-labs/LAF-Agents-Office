@@ -79,7 +79,7 @@ for (const [relativePath, snippet, label] of [
     "deployed worker usage recorder",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/operationsStore.js",
     "out.tool_calls += Number(event.tool_calls || 0);",
     "workspace usage aggregation",
   ],

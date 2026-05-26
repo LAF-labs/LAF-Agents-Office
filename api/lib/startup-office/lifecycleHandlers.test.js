@@ -139,4 +139,9 @@ test("deletion purge requires explicit destructive confirmation and calls servic
   });
   assert.equal(deps.calls.writes[0].status, 202);
   assert.equal(deps.calls.writes[0].body.status, "purged");
+  assert.equal(deps.calls.audits[0][1], "startup_office.deletion_purged");
+  assert.deepEqual(deps.calls.audits[0][4], {
+    deletion_request_id: "delete-1",
+    purge_status: "purged",
+  });
 });

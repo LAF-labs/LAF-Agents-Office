@@ -40,12 +40,12 @@ for (const [relativePath, snippet, label] of [
     "server telemetry redaction",
   ],
   [
-    "api/[...path].js",
+    "api/lib/hosted/apiRouteDispatcher.js",
     'path === "client-errors"',
     "hosted client telemetry route",
   ],
   [
-    "api/lib/hosted/rateLimits.js",
+    "api/lib/hosted/actionRateLimitRules.js",
     "hosted_client_error_report",
     "client telemetry rate limit",
   ],
