@@ -57,6 +57,17 @@ function trackedJSONFiles() {
   return result.stdout.split(/\r?\n/).filter(Boolean);
 }
 
+function trackedExternalEvidenceTextFiles() {
+  const result = spawnSync("git", ["ls-files", "*.md", "*.txt", "*.yaml", "*.yml", "*.csv"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    fail(`could not inspect tracked text evidence files: ${result.stderr || result.stdout}`);
+  }
+  return result.stdout.split(/\r?\n/).filter(Boolean);
+}
+
 function containsCompletedExternalEvidence(value, completedRecordStore) {
   if (!value || typeof value !== "object") return false;
   if (Array.isArray(value)) {
@@ -76,6 +87,18 @@ function containsCompletedExternalEvidence(value, completedRecordStore) {
   );
 }
 
+function containsCompletedExternalEvidenceText(raw, completedRecordStore) {
+  if (!raw.includes(completedRecordStore)) return false;
+  const hasGoal = /\bgoal[_-]?id\b\s*[:=]\s*["']?G0(?:99|100)\b/i.test(raw);
+  const hasRecordType =
+    /\brecord[_-]?type\b\s*[:=]\s*["']?(?:production_deployment|first_customer)\b/i.test(raw);
+  const hasCompletedFields =
+    /\bfields\b\s*[:=]/i.test(raw) ||
+    /\bdeploy_commit_sha\b\s*[:=]/i.test(raw) ||
+    /\bsigned_beta_agreement_or_payment_reference\b\s*[:=]/i.test(raw);
+  return hasGoal && hasRecordType && hasCompletedFields;
+}
+
 function assertNoCompletedExternalEvidenceCommitted(template) {
   for (const file of trackedJSONFiles()) {
     const absolutePath = path.join(root, file);
@@ -89,6 +112,12 @@ function assertNoCompletedExternalEvidenceCommitted(template) {
     }
     if (containsCompletedExternalEvidence(parsed, template.recordCompletedCopiesIn)) {
       fail(`completed external G099/G100 evidence must not be committed: ${file}`);
+    }
+  }
+  for (const file of trackedExternalEvidenceTextFiles()) {
+    const raw = fs.readFileSync(path.join(root, file), "utf8");
+    if (containsCompletedExternalEvidenceText(raw, template.recordCompletedCopiesIn)) {
+      fail(`completed external G099/G100 text evidence must not be committed: ${file}`);
     }
   }
 }
@@ -159,6 +188,7 @@ for (const snippet of [
   evidenceTemplatePath,
   "npm run startup-office:external-evidence:validate -- --print-template",
   "npm run startup-office:external-evidence:validate -- --file",
+  "scans tracked JSON, Markdown, YAML, text",
   manifest.currentMinimumMigration,
   "G099 Production Deployment Evidence",
   "G100 First Customer Evidence",

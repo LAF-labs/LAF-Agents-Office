@@ -15,8 +15,8 @@ only in the operator system of record, export a redacted JSON evidence record
 from that system, and run
 `npm run startup-office:external-evidence:validate -- --file /path/to/evidence.json`.
 Do not commit completed evidence JSON; `npm run
-startup-office:production-handoff` scans tracked JSON files for completed
-G099/G100 records and fails if one is present.
+startup-office:production-handoff` scans tracked JSON, Markdown, YAML, text,
+and CSV files for completed G099/G100 records and fails if one is present.
 
 ## Repository-Controlled Readiness
 
