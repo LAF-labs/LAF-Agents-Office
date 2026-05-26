@@ -72,6 +72,11 @@ for (const requiredPermission of ["workspace:read", "member:invite", "audit:read
     fail(`missing required permission: ${requiredPermission}`);
   }
 }
+for (const permission of catalog.permissions) {
+  if (/^(project|task|mcp):/.test(permission)) {
+    fail(`retired permission namespace must not ship: ${permission}`);
+  }
+}
 
 const presetRoles = Object.keys(catalog.rolePresets || {});
 assert.deepEqual(presetRoles.sort(), [...catalog.roles].sort());

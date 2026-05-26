@@ -7,14 +7,6 @@
     "member:invite",
     "member:manage_roles",
     "member:manage_permissions",
-    "project:create",
-    "project:update",
-    "project:archive",
-    "task:create",
-    "task:update",
-    "task:assign",
-    "task:change_status",
-    "task:execute_agent",
     "agent:create",
     "agent:update",
     "agent:assign",
@@ -31,8 +23,6 @@
     "memory:write_canonical",
     "wiki:read",
     "model:use_laf",
-    "mcp:use_task_context",
-    "mcp:use_workspace_context",
     "audit:read"
   ],
   "rolePresets": {
@@ -41,14 +31,6 @@
     "manager": [
       "workspace:read",
       "member:invite",
-      "project:create",
-      "project:update",
-      "project:archive",
-      "task:create",
-      "task:update",
-      "task:assign",
-      "task:change_status",
-      "task:execute_agent",
       "agent:assign",
       "skill:read",
       "skill:propose",
@@ -59,25 +41,16 @@
       "memory:write_draft",
       "memory:promote",
       "wiki:read",
-      "model:use_laf",
-      "mcp:use_task_context",
-      "mcp:use_workspace_context"
+      "model:use_laf"
     ],
     "member": [
       "workspace:read",
-      "project:create",
-      "project:update",
-      "task:create",
-      "task:update",
-      "task:change_status",
-      "task:execute_agent",
       "skill:read",
       "skill:propose",
       "skill:invoke",
       "memory:read",
       "memory:write_draft",
-      "wiki:read",
-      "mcp:use_task_context"
+      "wiki:read"
     ],
     "viewer": ["workspace:read", "skill:read", "memory:read", "wiki:read"]
   }

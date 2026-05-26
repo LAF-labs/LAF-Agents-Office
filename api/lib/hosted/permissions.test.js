@@ -31,11 +31,11 @@ test("permission overrides are normalized, deduped, sorted, and allow-listed", (
   assert.deepEqual(
     normalizePermissionOverride({
       allow: ["wiki:read", "bad:value", "wiki:read", "model:use_laf"],
-      deny: ["TASK:UPDATE", "unknown"],
+      deny: ["SKILL:INVOKE", "unknown"],
     }),
     {
       allow: ["model:use_laf", "wiki:read"],
-      deny: ["task:update"],
+      deny: ["skill:invoke"],
     },
   );
 });
@@ -56,13 +56,13 @@ test("effective permissions apply role defaults plus explicit allow and deny", (
   const permissions = effectivePermissions({
     permissions: {
       allow: ["model:use_laf"],
-      deny: ["task:update"],
+      deny: ["skill:invoke"],
     },
     role: "member",
   });
 
   assert.ok(permissions.includes("model:use_laf"));
-  assert.ok(!permissions.includes("task:update"));
+  assert.ok(!permissions.includes("skill:invoke"));
   assert.ok(hasPermission({ role: "owner" }, "audit:read"));
   assert.ok(!hasPermission({ role: "viewer" }, "model:use_laf"));
 });

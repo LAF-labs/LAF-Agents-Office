@@ -147,7 +147,7 @@ test("permissions handler lists role metadata and effective member permissions",
       deps.calls.rest.push({ options, table });
       return [
         {
-          permissions: { allow: ["model:use_laf"], deny: ["task:update"] },
+          permissions: { allow: ["model:use_laf"], deny: ["skill:invoke"] },
           role: "member",
           status: "active",
           team_id: "team-1",
@@ -164,10 +164,10 @@ test("permissions handler lists role metadata and effective member permissions",
   assert.deepEqual(res.body.roles, WORKSPACE_ROLES);
   assert.deepEqual(res.body.members[0].overrides, {
     allow: ["model:use_laf"],
-    deny: ["task:update"],
+    deny: ["skill:invoke"],
   });
   assert.ok(res.body.members[0].effective_permissions.includes("model:use_laf"));
-  assert.ok(!res.body.members[0].effective_permissions.includes("task:update"));
+  assert.ok(!res.body.members[0].effective_permissions.includes("skill:invoke"));
 });
 
 test("permissions handler blocks self-permission edits", async () => {
@@ -191,7 +191,7 @@ test("permissions handler patches role and overrides for another member", async 
   const deps = baseDeps({
     async readBody() {
       return {
-        permissions: { allow: ["model:use_laf"], deny: ["task:update"] },
+        permissions: { allow: ["model:use_laf"], deny: ["skill:invoke"] },
         role: "manager",
         user_id: "member-1",
       };
@@ -214,7 +214,7 @@ test("permissions handler patches role and overrides for another member", async 
 
   const patchCall = deps.calls.rest.find((call) => call.options.method === "PATCH");
   assert.deepEqual(patchCall.options.body, {
-    permissions: { allow: ["model:use_laf"], deny: ["task:update"] },
+    permissions: { allow: ["model:use_laf"], deny: ["skill:invoke"] },
     role: "manager",
     updated_at: "2026-05-25T00:00:00.000Z",
   });

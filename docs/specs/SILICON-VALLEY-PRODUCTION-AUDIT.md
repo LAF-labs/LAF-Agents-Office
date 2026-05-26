@@ -1077,6 +1077,10 @@ the final release commit or when a shared invariant changes.
   `tasks`, `delivery_receipts`, plus project/task foreign-key columns from
   `channel_messages`, `wiki_article_index`, and `wiki_write_requests`. The
   linked Supabase project has that migration applied.
+- R2/R5/R8 now strips retired project/task and MCP namespaces from the shared
+  workspace permission catalog. The API and generated web permission types expose
+  only first-party Startup Office roles, and `startup-office:permissions` blocks
+  `project:*`, `task:*`, or `mcp:*` permission drift from returning.
 - R3/R5 now makes the first-party asset library lifecycle explicit. Assets can
   be listed, created, updated, linked to a run, saved from artifacts, and
   archived through `startup_office_assets.status`; migration
