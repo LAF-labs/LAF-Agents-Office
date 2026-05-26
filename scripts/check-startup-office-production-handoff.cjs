@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const handoffPath = "docs/ops/STARTUP-OFFICE-PRODUCTION-HANDOFF.md";
@@ -42,6 +43,53 @@ function assertUnique(values, label) {
   for (const value of values) {
     if (seen.has(value)) fail(`${label} contains duplicate ${value}`);
     seen.add(value);
+  }
+}
+
+function trackedJSONFiles() {
+  const result = spawnSync("git", ["ls-files", "*.json"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    fail(`could not inspect tracked JSON files: ${result.stderr || result.stdout}`);
+  }
+  return result.stdout.split(/\r?\n/).filter(Boolean);
+}
+
+function containsCompletedExternalEvidence(value, completedRecordStore) {
+  if (!value || typeof value !== "object") return false;
+  if (Array.isArray(value)) {
+    return value.some((entry) => containsCompletedExternalEvidence(entry, completedRecordStore));
+  }
+  if (
+    ["G099", "G100"].includes(value.goalId) &&
+    value.recordedIn === completedRecordStore &&
+    value.fields &&
+    typeof value.fields === "object" &&
+    !Array.isArray(value.fields)
+  ) {
+    return true;
+  }
+  return Object.values(value).some((entry) =>
+    containsCompletedExternalEvidence(entry, completedRecordStore),
+  );
+}
+
+function assertNoCompletedExternalEvidenceCommitted(template) {
+  for (const file of trackedJSONFiles()) {
+    const absolutePath = path.join(root, file);
+    const raw = fs.readFileSync(absolutePath, "utf8");
+    if (!raw.includes(template.recordCompletedCopiesIn)) continue;
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      fail(`tracked JSON file ${file} could not be parsed while checking external evidence: ${error.message}`);
+    }
+    if (containsCompletedExternalEvidence(parsed, template.recordCompletedCopiesIn)) {
+      fail(`completed external G099/G100 evidence must not be committed: ${file}`);
+    }
   }
 }
 
@@ -86,6 +134,7 @@ if (evidenceTemplate.recordCompletedCopiesIn !== "operator system of record") {
 if (evidenceTemplate.doNotCommitCompletedRecords !== true) {
   fail("external evidence template must forbid committing completed records");
 }
+assertNoCompletedExternalEvidenceCommitted(evidenceTemplate);
 assertArray(manifest.repositoryReadiness?.deployCommitChecks, "repository readiness deploy checks", 4);
 assertArray(manifest.repositoryReadiness?.forbiddenInRepo, "repository forbidden-in-repo list", 4);
 assertArray(manifest.externalEvidence, "external evidence goals", 2);
