@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { get, post } from "../../api/client";
+import { post } from "../../api/client";
 import type { Language } from "../../stores/app";
 import { useAppStore } from "../../stores/app";
 import { STARTUP_OFFICE_WEDGE_COPY } from "../startup-office/startupOfficeCopy";
@@ -10,14 +10,6 @@ import "../../styles/onboarding.css";
 /* ═══════════════════════════════════════════
    Types
    ═══════════════════════════════════════════ */
-
-interface BlueprintTemplate {
-  id: string;
-  name: string;
-  description: string;
-  emoji?: string;
-  agents?: BlueprintAgent[];
-}
 
 interface BlueprintAgent {
   slug: string;
@@ -41,9 +33,8 @@ interface TaskTemplate {
 
 type WizardStep = "welcome" | "templates" | "identity" | "task" | "ready";
 
-// Step order: company info before blueprint. The blueprint picker is a
-// decision about how the project workspace starts; it makes more sense after the
-// user has anchored who they are than as the very first question.
+// Step order: company info before operators. The department naming step is
+// easier once the user has anchored what company this workspace represents.
 // `ready` is the final-step readiness summary matching the TUI's InitDone
 // phase (see internal/tui/init_flow.go readinessChecks()) — shows the user
 // exactly what's configured before we submit.
@@ -55,12 +46,11 @@ const STEP_ORDER: readonly WizardStep[] = [
   "ready",
 ] as const;
 
-// "Start from scratch" starter roster. Mirrors scratchProjectTeamBlueprint
-// in internal/team/broker_onboarding.go — the broker seeds these exact slugs
+// "Start from scratch" starter roster. The hosted API seeds these exact slugs
 // when the wizard POSTs blueprint:null. Kept in sync manually; backend is the
-// source of truth, this is just the Team-step preview so users don't see an
+// source of truth, this is just the team-step preview so users don't see an
 // empty roster before confirming.
-const SCRATCH_PROJECT_TEAM: readonly BlueprintAgent[] = [
+const SCRATCH_STARTUP_OFFICE_TEAM: readonly BlueprintAgent[] = [
   {
     slug: "ceo",
     name: "CEO",
@@ -72,41 +62,6 @@ const SCRATCH_PROJECT_TEAM: readonly BlueprintAgent[] = [
   { slug: "be", name: "BD", role: "backend", checked: true },
   { slug: "reviewer", name: "REV", role: "review", checked: true },
 ];
-
-// Only show onboarding presets that match the current startup product-work
-// wedge. Older operation templates remain loadable by id for backwards
-// compatibility, but they should not appear in the first-run picker.
-const ONBOARDING_BLUEPRINT_ALLOWLIST = new Set<string>();
-
-function visibleOnboardingBlueprints(
-  templates: BlueprintTemplate[],
-): BlueprintTemplate[] {
-  return templates.filter((template) =>
-    ONBOARDING_BLUEPRINT_ALLOWLIST.has(template.id),
-  );
-}
-
-type BlueprintCategoryKey = "project";
-
-interface BlueprintDisplay {
-  category: BlueprintCategoryKey;
-  shortDescription: string;
-  icon: string;
-}
-
-const BLUEPRINT_CATEGORIES: ReadonlyArray<{
-  key: BlueprintCategoryKey;
-  label: string;
-  hint: string;
-}> = [
-  {
-    key: "project",
-    label: "Startup Projects",
-    hint: "Planning, development, and workflow automation",
-  },
-] as const;
-
-const BLUEPRINT_DISPLAY: Record<string, BlueprintDisplay> = {};
 
 type MemoryBackend = "markdown";
 
@@ -127,15 +82,9 @@ interface WizardCopy {
     eyebrow: string;
     headline: string;
     subhead: string;
-    loading: string;
-    other: string;
-    scratchTitle: string;
-    scratchSubhead: string;
     next: string;
     agentNameLabel: string;
     agentDescriptions: Record<string, string>;
-    categories: Record<BlueprintCategoryKey, { label: string; hint: string }>;
-    display: Record<string, { name: string; shortDescription: string }>;
   };
   identity: {
     title: string;
@@ -200,10 +149,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       headline: "Name your operators.",
       subhead:
         "Start with strategy, growth, operations, and risk review. You can add specialists later.",
-      loading: "Loading starters...",
-      other: "Other",
-      scratchTitle: "Start from scratch",
-      scratchSubhead: "4-department office: CEO, Growth, Ops, Risk",
       next: "Continue",
       agentNameLabel: "Operator name",
       agentDescriptions: {
@@ -212,13 +157,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         be: "Maintains operating loops, records, metrics, and assets.",
         reviewer: "Checks claims, approvals, risks, and founder-control gates.",
       },
-      categories: {
-        project: {
-          label: "Startup Office",
-          hint: "Validation, growth, sales, operations, and review",
-        },
-      },
-      display: {},
     },
     identity: {
       title: "Tell us about this company",
@@ -288,10 +226,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
       headline: "오퍼레이터의 이름을 지어주세요.",
       subhead:
         "전략, 성장, 운영, 리스크 검토로 시작합니다. 필요한 전문가는 나중에 추가할 수 있습니다.",
-      loading: "시작 방식 불러오는 중...",
-      other: "기타",
-      scratchTitle: "처음부터 시작",
-      scratchSubhead: "4개 부서 오피스: CEO, Growth, Ops, Risk",
       next: "계속",
       agentNameLabel: "오퍼레이터 이름",
       agentDescriptions: {
@@ -300,13 +234,6 @@ const WIZARD_COPY: Record<Language, WizardCopy> = {
         be: "운영 루프, 기록, 지표, 자산 관리를 맡습니다.",
         reviewer: "주장, 승인, 리스크, 창업자 통제 기준을 확인합니다.",
       },
-      categories: {
-        project: {
-          label: "Startup Office",
-          hint: "검증, 성장, 세일즈, 운영, 검토",
-        },
-      },
-      display: {},
     },
     identity: {
       title: "이 회사에 대해 알려주세요",
@@ -791,8 +718,6 @@ function ReadyStep({
 interface ReadinessOptions {
   copy: WizardCopy;
   memoryBackend: MemoryBackend;
-  selectedBlueprint: string | null;
-  blueprints: BlueprintTemplate[];
 }
 
 function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
@@ -804,11 +729,7 @@ function buildReadinessChecks(options: ReadinessOptions): ReadinessCheck[] {
     },
     memoryReadinessCheck(options.copy),
     githubReadinessCheck(options.copy),
-    blueprintReadinessCheck(
-      options.selectedBlueprint,
-      options.blueprints,
-      options.copy,
-    ),
+    blueprintReadinessCheck(options.copy),
   ];
 }
 
@@ -828,26 +749,11 @@ function githubReadinessCheck(copy: WizardCopy): ReadinessCheck {
   };
 }
 
-function blueprintReadinessCheck(
-  selectedBlueprint: string | null,
-  blueprints: BlueprintTemplate[],
-  copy: WizardCopy,
-): ReadinessCheck {
-  if (selectedBlueprint === null) {
-    return {
-      label: copy.readiness.blueprintLabel,
-      status: "ready",
-      detail: copy.readiness.blueprintScratch,
-    };
-  }
-  const blueprint = blueprints.find((item) => item.id === selectedBlueprint);
+function blueprintReadinessCheck(copy: WizardCopy): ReadinessCheck {
   return {
     label: copy.readiness.blueprintLabel,
     status: "ready",
-    detail:
-      copy.templates.display[selectedBlueprint]?.name ??
-      blueprint?.name ??
-      selectedBlueprint,
+    detail: copy.readiness.blueprintScratch,
   };
 }
 
@@ -955,7 +861,6 @@ interface WizardProps {
   onComplete?: () => void;
 }
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: This component owns the onboarding state machine; step UI is already split into subcomponents.
 export function Wizard({ onComplete }: WizardProps) {
   const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
   const language = useAppStore((s) => s.language);
@@ -964,13 +869,6 @@ export function Wizard({ onComplete }: WizardProps) {
   // Navigation
   const [step, setStep] = useState<WizardStep>("welcome");
 
-  // Step 2: templates
-  const [blueprints, setBlueprints] = useState<BlueprintTemplate[]>([]);
-  const [blueprintsLoading, setBlueprintsLoading] = useState(true);
-  const [selectedBlueprint, setSelectedBlueprint] = useState<string | null>(
-    null,
-  );
-
   // Step 3: identity
   const [company, setCompany] = useState("");
   const [description, setDescription] = useState("");
@@ -978,76 +876,20 @@ export function Wizard({ onComplete }: WizardProps) {
 
   // Step 4: agent names
   const [agents, setAgents] = useState<BlueprintAgent[]>(() =>
-    SCRATCH_PROJECT_TEAM.map((agent) => ({ ...agent })),
+    SCRATCH_STARTUP_OFFICE_TEAM.map((agent) => ({ ...agent })),
   );
 
-  // Project wiki is the only memory backend exposed in onboarding; keep it as
+  // Workspace wiki is the only memory backend exposed in onboarding; keep it as
   // an internal fixed value instead of rendering a one-choice selector.
   const memoryBackend: MemoryBackend = "markdown";
 
   // Step 6: first task
-  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
+  const taskTemplates: TaskTemplate[] = [];
   const [selectedTaskTemplate, setSelectedTaskTemplate] = useState<
     string | null
   >(null);
   const [taskText, setTaskText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  // Fetch blueprints on mount
-  useEffect(() => {
-    let cancelled = false;
-    setBlueprintsLoading(true);
-
-    get<{ templates?: BlueprintTemplate[] }>("/onboarding/blueprints")
-      .then((data) => {
-        if (cancelled) return;
-        const tpls = data.templates ?? [];
-        setBlueprints(visibleOnboardingBlueprints(tpls));
-      })
-      .catch(() => {
-        // Endpoint may not exist yet; continue with empty list
-      })
-      .finally(() => {
-        if (!cancelled) setBlueprintsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // When a blueprint is selected, populate agents AND first tasks from that
-  // blueprint only. Previously we flattened tasks across every blueprint, so
-  // the task step showed ~26 tiles of unrelated work — including tasks from
-  // blueprints the user never picked.
-  useEffect(() => {
-    if (selectedBlueprint === null) {
-      setTaskTemplates([]);
-      return;
-    }
-    const bp = blueprints.find((b) => b.id === selectedBlueprint);
-    if (bp?.agents) {
-      setAgents(
-        bp.agents.map((a) => ({
-          ...a,
-          checked: a.checked !== false,
-        })),
-      );
-    } else {
-      setAgents([]);
-    }
-    const bpTasks = (bp as unknown as { tasks?: TaskTemplate[] } | undefined)
-      ?.tasks;
-    setTaskTemplates(Array.isArray(bpTasks) ? bpTasks : []);
-    // Clear any task-template selection and suggestion-derived text when the
-    // starter changes. Without this, switching presets leaves a suggestion
-    // stuck in the textarea that no longer matches the new context. User-typed
-    // custom text is preserved, since selectedTaskTemplate is null for that path.
-    setSelectedTaskTemplate((prevSel) => {
-      if (prevSel !== null) setTaskText("");
-      return null;
-    });
-  }, [selectedBlueprint, blueprints]);
 
   // Navigation helpers
   const goTo = useCallback((target: WizardStep) => {
@@ -1077,8 +919,6 @@ export function Wizard({ onComplete }: WizardProps) {
   const readinessChecks = buildReadinessChecks({
     copy,
     memoryBackend,
-    selectedBlueprint,
-    blueprints,
   });
 
   // Complete onboarding
@@ -1099,7 +939,7 @@ export function Wizard({ onComplete }: WizardProps) {
           description,
           priority,
           memory_backend: memoryBackend,
-          blueprint: selectedBlueprint,
+          blueprint: null,
           agents: agents.filter((a) => a.checked).map((a) => a.slug),
           agent_names: agentNamePayload(agents),
           task: skipTask ? "" : taskText.trim(),
@@ -1117,7 +957,6 @@ export function Wizard({ onComplete }: WizardProps) {
       company,
       description,
       priority,
-      selectedBlueprint,
       agents,
       taskText,
       setOnboardingComplete,

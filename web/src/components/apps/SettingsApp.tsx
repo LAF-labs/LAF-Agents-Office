@@ -90,8 +90,6 @@ interface SectionGroup {
   items: Section[];
 }
 
-type TranslationFn = ReturnType<typeof useI18n>["t"];
-
 const SECTION_GROUPS: SectionGroup[] = [
   {
     labelKey: "settings.group.workspace",
