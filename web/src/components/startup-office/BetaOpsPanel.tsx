@@ -39,7 +39,7 @@ export function BetaOpsPanel({
         </div>
         <div>
           <dt>{copy.betaOpsLabels.plan}</dt>
-          <dd>{billing?.plan || "trial"}</dd>
+          <dd>{commercial?.package?.name || billing?.plan || "trial"}</dd>
         </div>
         <div>
           <dt>{copy.betaOpsLabels.agreement}</dt>

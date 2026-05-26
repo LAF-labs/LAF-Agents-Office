@@ -36,6 +36,7 @@
     "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",
     "startup-office:pagination": "node scripts/check-startup-office-pagination.cjs",
+    "startup-office:paid-beta-package": "node scripts/check-startup-office-paid-beta-package.cjs",
     "startup-office:plan-limits": "node scripts/check-startup-office-plan-limits.cjs",
     "startup-office:production-handoff": "node scripts/check-startup-office-production-handoff.cjs",
     "startup-office:product-identity": "node scripts/check-startup-office-product-identity.cjs",

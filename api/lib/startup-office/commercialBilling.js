@@ -8,6 +8,10 @@ const {
   publicStartupOfficeBillingDocument,
   startupOfficeBillingDocumentPayload,
 } = require("./commercialBillingDocuments");
+const {
+  startupOfficePackageBillingDefaults,
+  startupOfficePackageCommercialSummary,
+} = require("./paidBetaPackage");
 
 function startupOfficeCommercialSnapshot({ billing = {}, documents = [], termsAccepted = true }) {
   const docs = documents.map(publicStartupOfficeBillingDocument);
@@ -33,6 +37,7 @@ function startupOfficeCommercialSnapshot({ billing = {}, documents = [], termsAc
         ? `Resolve billing block: ${blockReason}.`
         : "Attach a signed agreement, paid invoice, or payment reference.",
     paid_evidence_status: hasPaymentEvidence ? "present" : "missing",
+    package: startupOfficePackageCommercialSummary(),
     status: paid
       ? "paid_beta_ready"
       : blockReason
@@ -128,6 +133,7 @@ function paidBetaEvidencePresent({
 }
 
 function startupOfficeBillingPatch({ body = {}, clamp, currentBilling = {}, truncateText }) {
+  const packageDefaults = startupOfficePackageBillingDefaults();
   return {
     beta_agreement_url: truncateText(
       body.beta_agreement_url ?? currentBilling.beta_agreement_url ?? "",
@@ -146,22 +152,38 @@ function startupOfficeBillingPatch({ body = {}, clamp, currentBilling = {}, trun
         : Boolean(body.laf_model_enabled),
     last_paid_at: body.last_paid_at ?? currentBilling.last_paid_at ?? null,
     monthly_model_spend_cents: clamp(
-      Number(body.monthly_model_spend_cents ?? currentBilling.monthly_model_spend_cents ?? 20000),
+      Number(
+        body.monthly_model_spend_cents ??
+          currentBilling.monthly_model_spend_cents ??
+          packageDefaults.monthly_model_spend_cents,
+      ),
       0,
       10000000,
     ),
     monthly_run_limit: clamp(
-      Number(body.monthly_run_limit ?? currentBilling.monthly_run_limit ?? 50),
+      Number(
+        body.monthly_run_limit ??
+          currentBilling.monthly_run_limit ??
+          packageDefaults.monthly_run_limit,
+      ),
       0,
       100000,
     ),
     payment_status: startupOfficePaymentStatusValue(
       body.payment_status ?? body.status ?? currentBilling.payment_status,
     ),
-    plan: truncateText(body.plan ?? currentBilling.plan ?? "founder_beta", 80),
-    seat_limit: clamp(Number(body.seat_limit ?? currentBilling.seat_limit ?? 5), 1, 100000),
+    plan: truncateText(body.plan ?? currentBilling.plan ?? packageDefaults.plan, 80),
+    seat_limit: clamp(
+      Number(body.seat_limit ?? currentBilling.seat_limit ?? packageDefaults.seat_limit),
+      1,
+      100000,
+    ),
     storage_mb_limit: clamp(
-      Number(body.storage_mb_limit ?? currentBilling.storage_mb_limit ?? 1024),
+      Number(
+        body.storage_mb_limit ??
+          currentBilling.storage_mb_limit ??
+          packageDefaults.storage_mb_limit,
+      ),
       0,
       1000000,
     ),
@@ -181,6 +203,7 @@ function objectValue(value) {
 module.exports = {
   assertStartupOfficePaidBetaEvidence,
   publicStartupOfficeBillingDocument,
+  startupOfficePackageBillingDefaults,
   startupOfficeBillingPatch,
   startupOfficeBillingDocumentPayload,
   startupOfficeCommercialSnapshot,

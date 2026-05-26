@@ -36,6 +36,7 @@ const checks = [
   ["npm", ["run", "startup-office:migration-recovery"]],
   ["npm", ["run", "startup-office:payload-limits"]],
   ["npm", ["run", "startup-office:pagination"]],
+  ["npm", ["run", "startup-office:paid-beta-package"]],
   ["npm", ["run", "startup-office:plan-limits"]],
   ["npm", ["run", "startup-office:production-handoff"]],
   ["npm", ["run", "startup-office:product-identity"]],

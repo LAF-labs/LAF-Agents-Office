@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "plan": "founder_beta",
+  "name": "Founder Beta Package",
+  "buyer": "solo B2B software founders before hiring operators",
+  "outcome": "ship one founder-controlled validation loop with approval receipts in the first week",
+  "price": {
+    "amount_cents": 50000,
+    "currency": "USD",
+    "interval": "month",
+    "label": "$500/month"
+  },
+  "limits": {
+    "seat_limit": 5,
+    "monthly_run_limit": 50,
+    "monthly_model_spend_cents": 20000,
+    "storage_mb_limit": 1024
+  },
+  "support": [
+    "guided onboarding",
+    "weekly operator review",
+    "billing-block rescue",
+    "failed-run recovery"
+  ],
+  "trust_controls": [
+    "founder approval gates",
+    "source citations",
+    "receipt ledger",
+    "workspace export"
+  ],
+  "required_evidence": [
+    "signed beta agreement",
+    "paid invoice or payment reference",
+    "accepted beta terms"
+  ]
+}

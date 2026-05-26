@@ -74,7 +74,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I006 | Positioning | Founder onboarding does not yet force a single moment of value inside five minutes. | onboarding and demo seed |
 | SV-I007 | Positioning | The product is not yet opinionated about which company stage it serves first. | company profile fields |
 | SV-I008 | Positioning | Customer-success workflows are weaker than product workflows, so activation risk is high. | docs and beta goals |
-| SV-I009 | Positioning | The public site describes the vision but does not yet prove a buyer-ready package. | website/index.html |
+| SV-I009 | Positioning | The public site now exposes the Founder Beta Package with price, limits, trust controls, and required purchase evidence; live customer proof remains external. | `startup-office:paid-beta-package`, website |
 | SV-I010 | Positioning | The business model is represented as beta ops state, not a live pricing and entitlement system. | billing migration and API |
 | SV-I011 | Architecture | The hosted API facade remains too large to reason about as a production service boundary. | `api/[...path].js` |
 | SV-I012 | Architecture | Product domains are partially extracted, but older project/task-era workspace behavior still mixes into the hosted server file. | `api/[...path].js`, `api/lib/startup-office`, `api/lib/hosted` |
@@ -185,7 +185,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I117 | Billing | Operator support notes are not a CRM. | billing state |
 | SV-I118 | Billing | Trial conversion now records activation milestones for first loop, first approval, second loop, and first export; paid conversion proof still requires customer/payment evidence. | activation analytics |
 | SV-I119 | Billing | Cost overrun protection is too coarse for real provider spikes. | monthly model spend limit |
-| SV-I120 | Billing | Pricing packaging is not represented in product code or site. | website and docs |
+| SV-I120 | Billing | Pricing packaging is now represented as a shared Founder Beta Package contract, wired into billing defaults, commercial snapshots, beta ops UI, and the public site. | `shared/startup-office-paid-beta-package.json`, `startup-office:paid-beta-package` |
 | SV-I121 | Testing | The test suite is broad but not organized around buyer-critical journeys. | many unit tests |
 | SV-I122 | Testing | Hosted API tests are highly valuable but too concentrated in one massive file. | `api/hosted-api.test.js` |
 | SV-I123 | Testing | A Playwright contract now covers the first closed-beta founder flow from entry through profile, loop run, approval, receipt, and logout; live signup-to-approved-loop proof remains deploy-time synthetic evidence. | `web/playwright/startup-office-first-beta-flow.spec.ts`, `startup-office:first-beta-smoke` |
@@ -276,7 +276,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G003 | Guarantee one-account one-company semantics. | Auth, onboarding, billing, and exports all use company workspace language. | API and UI tests |
 | SV-G004 | Make first value happen in five minutes. | Signup to first useful artifact is browser-tested. | Playwright test |
 | SV-G005 | Convert safety into metrics. | Trust, approval, citation, and receipt coverage are counted. | production audit gate |
-| SV-G006 | Package the paid beta. | Pricing, limits, onboarding, and support promise are visible. | website and billing test |
+| SV-G006 | Package the paid beta. | Pricing, limits, onboarding, support promise, trust controls, and purchase evidence are visible and release-gated. | `startup-office:paid-beta-package` |
 | SV-G007 | Separate hosted SaaS from legacy runtime. | Release gate proves hosted code does not depend on customer-managed runtime. | boundary checker |
 | SV-G008 | Write a founder success checklist. | Operators can qualify activation per workspace. | admin dashboard |
 | SV-G009 | Instrument buyer outcomes. | Activation, first approval, repeat loop, and export are tracked. | analytics events |

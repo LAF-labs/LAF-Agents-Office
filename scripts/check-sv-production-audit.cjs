@@ -108,6 +108,8 @@ for (const staleClaim of [
   "RLS policies are written but not exercised against a real Supabase test database.",
   "Real Supabase RLS tests are missing.",
   "it is still statically checked rather than proven by a local Supabase reset and live RLS exercise",
+  "Pricing packaging is not represented in product code or site.",
+  "does not yet prove a buyer-ready package.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -197,6 +199,25 @@ for (const [scriptName, command] of [
 
 if (!releaseGate.includes('"startup-office:rls-verification"')) {
   fail("beta release gate must include startup-office:rls-verification");
+}
+
+for (const required of [
+  "startup-office:paid-beta-package",
+  "shared/startup-office-paid-beta-package.json",
+  "Founder Beta Package",
+]) {
+  if (!doc.includes(required)) fail(`audit must record paid beta package evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:paid-beta-package"] !==
+  "node scripts/check-startup-office-paid-beta-package.cjs"
+) {
+  fail("package.json must expose startup-office:paid-beta-package");
+}
+
+if (!releaseGate.includes('"startup-office:paid-beta-package"')) {
+  fail("beta release gate must include startup-office:paid-beta-package");
 }
 
 console.log(

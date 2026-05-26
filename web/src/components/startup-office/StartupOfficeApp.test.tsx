@@ -101,6 +101,20 @@ const STARTUP_OFFICE_SUMMARY_FIXTURE = {
       agreement_status: "signed",
       can_start_paid_beta: true,
       next_step: "Paid beta is commercially cleared.",
+      package: {
+        amount_cents: 50000,
+        buyer: "solo B2B software founders before hiring operators",
+        currency: "USD",
+        interval: "month",
+        name: "Founder Beta Package",
+        outcome:
+          "ship one founder-controlled validation loop with approval receipts in the first week",
+        plan: "founder_beta",
+        price_label: "$500/month",
+        required_evidence: ["signed beta agreement"],
+        support: ["weekly operator review"],
+        trust_controls: ["approval receipts"],
+      },
       paid_evidence_status: "present",
       status: "paid_beta_ready",
       terms_status: "accepted",
@@ -469,7 +483,9 @@ describe("StartupOfficeApp", () => {
       within(betaOpsPanel).getByText("3 / 4 - next: first export"),
     ).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Plan")).toBeInTheDocument();
-    expect(within(betaOpsPanel).getByText("founder_beta")).toBeInTheDocument();
+    expect(
+      within(betaOpsPanel).getByText("Founder Beta Package"),
+    ).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Agreement")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("signed")).toBeInTheDocument();
     expect(within(betaOpsPanel).getByText("Beta terms")).toBeInTheDocument();

@@ -4,6 +4,8 @@ const test = require("node:test");
 const {
   assertStartupOfficePaidBetaEvidence,
   publicStartupOfficeBillingDocument,
+  startupOfficePackageBillingDefaults,
+  startupOfficeBillingPatch,
   startupOfficeBillingDocumentPayload,
   startupOfficeCommercialSnapshot,
   startupOfficeEntitlementBlock,
@@ -41,6 +43,8 @@ test("commercial snapshot requires signed manual or payment evidence before paid
   });
   assert.equal(ready.can_start_paid_beta, true);
   assert.equal(ready.status, "paid_beta_ready");
+  assert.equal(ready.package.name, "Founder Beta Package");
+  assert.equal(ready.package.price_label, "$500/month");
 
   const needsTerms = startupOfficeCommercialSnapshot({
     billing: { billing_state: "active", payment_status: "paid" },
@@ -59,6 +63,27 @@ test("commercial snapshot requires signed manual or payment evidence before paid
     needsTerms.next_step,
     "Accept the current beta terms before starting paid beta.",
   );
+});
+
+test("commercial billing defaults come from the paid beta package", () => {
+  const defaults = startupOfficePackageBillingDefaults();
+  const patch = startupOfficeBillingPatch({
+    body: {},
+    clamp: (value) => value,
+    currentBilling: {},
+    truncateText: (value) => value,
+  });
+
+  assert.deepEqual(defaults, {
+    monthly_model_spend_cents: 20000,
+    monthly_run_limit: 50,
+    plan: "founder_beta",
+    seat_limit: 5,
+    storage_mb_limit: 1024,
+  });
+  assert.equal(patch.plan, "founder_beta");
+  assert.equal(patch.monthly_run_limit, 50);
+  assert.equal(patch.monthly_model_spend_cents, 20000);
 });
 
 test("paid beta validation rejects paid status without evidence", () => {

@@ -220,6 +220,19 @@ export interface StartupOfficeBetaOps {
     agreement_status: string;
     can_start_paid_beta: boolean;
     next_step: string;
+    package?: {
+      amount_cents: number;
+      buyer: string;
+      currency: string;
+      interval: string;
+      name: string;
+      outcome: string;
+      plan: string;
+      price_label: string;
+      required_evidence: string[];
+      support: string[];
+      trust_controls: string[];
+    };
     paid_evidence_status: string;
     status: string;
     terms_status?: string;
