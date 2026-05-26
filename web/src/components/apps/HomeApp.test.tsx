@@ -76,69 +76,71 @@ function renderHomeApp() {
   );
 }
 
-describe("HomeApp", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    eventMocks.reset();
-    __test__.resetHomeSessionMemory();
-    apiMocks.getAuthSession.mockResolvedValue({
-      authenticated: true,
-      team: {
-        created_at: "2026-05-01T00:00:00Z",
-        id: "team-alpha",
-        name: "Alpha",
-        slug: "alpha",
-      },
-      user: {
-        email: "owner@example.com",
-        id: "user-alpha",
-        name: "Owner",
-        role: "owner",
-        status: "active",
-        team_id: "team-alpha",
-      },
-    });
-    apiMocks.getConfig.mockResolvedValue({ team_lead_slug: "ceo" });
-    apiMocks.routeOrchestrationIntent.mockResolvedValue({
-      intent: {
-        id: "intent-chat",
-        proposed_actions: [],
-        required_permissions: [],
-        requires_confirmation: false,
-        risk: "low",
-        status: "routed",
-        summary: "Chat message",
-        type: "chat",
-      },
-    });
-    apiMocks.getThreadMessages.mockResolvedValue({ messages: [] });
-    apiMocks.getHomeSessions.mockResolvedValue({ sessions: [] });
-    apiMocks.deleteHomeSession.mockResolvedValue({ ok: true, deleted: true });
-    apiMocks.getOfficeMembers.mockResolvedValue({
-      members: [
-        { built_in: true, name: "CEO", role: "Lead", slug: "ceo" },
-        { name: "Engineer", role: "Build", slug: "engineer" },
-        { name: "Human", role: "User", slug: "human" },
-      ],
-    });
-    apiMocks.getSkills.mockResolvedValue({
-      skills: [
-        {
-          description: "Release readiness runbook.",
-          name: "deploy-check",
-          status: "active",
-          title: "Deploy Check",
-        },
-        {
-          description: "Archived skill.",
-          name: "old-skill",
-          status: "archived",
-          title: "Old Skill",
-        },
-      ],
-    });
-    apiMocks.postMessage.mockResolvedValue({ id: "msg-1" });
+function mockHomeAppDefaults() {
+  vi.clearAllMocks();
+  eventMocks.reset();
+  __test__.resetHomeSessionMemory();
+  apiMocks.getAuthSession.mockResolvedValue({
+    authenticated: true,
+    team: {
+      created_at: "2026-05-01T00:00:00Z",
+      id: "team-alpha",
+      name: "Alpha",
+      slug: "alpha",
+    },
+    user: {
+      email: "owner@example.com",
+      id: "user-alpha",
+      name: "Owner",
+      role: "owner",
+      status: "active",
+      team_id: "team-alpha",
+    },
   });
+  apiMocks.getConfig.mockResolvedValue({ team_lead_slug: "ceo" });
+  apiMocks.routeOrchestrationIntent.mockResolvedValue({
+    intent: {
+      id: "intent-chat",
+      proposed_actions: [],
+      required_permissions: [],
+      requires_confirmation: false,
+      risk: "low",
+      status: "routed",
+      summary: "Chat message",
+      type: "chat",
+    },
+  });
+  apiMocks.getThreadMessages.mockResolvedValue({ messages: [] });
+  apiMocks.getHomeSessions.mockResolvedValue({ sessions: [] });
+  apiMocks.deleteHomeSession.mockResolvedValue({ ok: true, deleted: true });
+  apiMocks.getOfficeMembers.mockResolvedValue({
+    members: [
+      { built_in: true, name: "CEO", role: "Lead", slug: "ceo" },
+      { name: "Engineer", role: "Build", slug: "engineer" },
+      { name: "Human", role: "User", slug: "human" },
+    ],
+  });
+  apiMocks.getSkills.mockResolvedValue({
+    skills: [
+      {
+        description: "Release readiness runbook.",
+        name: "deploy-check",
+        status: "active",
+        title: "Deploy Check",
+      },
+      {
+        description: "Archived skill.",
+        name: "old-skill",
+        status: "archived",
+        title: "Old Skill",
+      },
+    ],
+  });
+  apiMocks.postMessage.mockResolvedValue({ id: "msg-1" });
+}
+
+describe("HomeApp composer", () => {
+  beforeEach(mockHomeAppDefaults);
 
   it("does not render the project picker on the home page", async () => {
     renderHomeApp();
@@ -241,6 +243,10 @@ describe("HomeApp", () => {
       );
     });
   });
+});
+
+describe("HomeApp message stream", () => {
+  beforeEach(mockHomeAppDefaults);
 
   it("shows a thinking bubble and streams an incoming agent reply", async () => {
     const user = userEvent.setup();
@@ -392,6 +398,10 @@ describe("HomeApp", () => {
 
     expect(apiMocks.postMessage).not.toHaveBeenCalled();
   });
+});
+
+describe("HomeApp sessions", () => {
+  beforeEach(mockHomeAppDefaults);
 
   it("starts a fresh home chat session for the authenticated user", async () => {
     renderHomeApp();
