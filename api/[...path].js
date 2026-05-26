@@ -20,6 +20,9 @@ const {
   createHostedAPIRouteDispatcher,
 } = require("./lib/hosted/apiRouteDispatcher");
 const {
+  createHostedAPIEntrypoint,
+} = require("./lib/hosted/apiEntrypoint");
+const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
@@ -862,6 +865,47 @@ const HOSTED_SKILL_HANDLERS = createHostedSkillHandlers({
   writeJSON,
 });
 
+STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
+  companyProfileRowPayload: (profile) => startupOfficeServices().companyProfileRowPayload(profile),
+  createHTTPError: startupOfficeHTTPError,
+  nowISO,
+  objectValue,
+  publicCompanyProfile,
+  readBody,
+  requirePermission,
+  requireUser,
+  safeStartupOfficeRest,
+  startupOfficeCompanyProfilePatch: (body) =>
+    startupOfficeServices().startupOfficeCompanyProfilePatch(body),
+  startupOfficeRepository,
+  upsertWorkspaceSettings,
+  workspaceSettings,
+  workspaceSettingsPatch,
+  writeAuditEvent,
+  writeJSON,
+});
+
+STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
+  createHTTPError: startupOfficeHTTPError,
+  createStartupOfficeReceipt,
+  nowISO,
+  publicCompanyProfile,
+  publicStartupOfficeApproval,
+  publicStartupOfficeArtifact,
+  publicStartupOfficeLoop,
+  publicStartupOfficeReceipt,
+  publicStartupOfficeRun,
+  readBody,
+  requireAdminRole,
+  requireUser,
+  safeStartupOfficeRest,
+  truncateText,
+  truthy,
+  workspaceSettings,
+  writeAuditEvent,
+  writeJSON,
+});
+
 const STARTUP_OFFICE_ROUTE_HANDLERS = createStartupOfficeRouteHandlerMap({
   assetUploadHandlers: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS,
   customerCsvHandlers: STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS,
@@ -907,92 +951,20 @@ const HOSTED_API_ROUTE_DISPATCHER = createHostedAPIRouteDispatcher({
   writeJSON,
 });
 
-module.exports = async function handler(req, res) {
-  HOSTED_SECURITY_HEADERS.applyBaselineSecurityHeaders(res);
-  HOSTED_SECURITY_HEADERS.applyCORSHeaders(req, res);
-  try {
-    if (req.method === "OPTIONS") {
-      res.status(204).end();
-      return;
-    }
-    assertSupabaseEnv();
-
-    const path = requestPath(req);
-    await enforceHostedActionRateLimit(req, path);
-    if (await HOSTED_API_ROUTE_DISPATCHER.dispatch(req, res, path)) {
-      return;
-    }
-    writeJSON(res, 404, hostedAPIErrorPayload({
-      message: "hosted API route not found",
-      requestID: requestIDFor(req),
-      status: 404,
-    }));
-  } catch (err) {
-    const status = err instanceof HTTPError ? err.status : 500;
-    let message;
-    if (err instanceof HTTPError) {
-      // Only forward HTTPError.message when explicitly marked safe. Upstream
-      // (Supabase/auth) detail is wrapped with safe=false so we expose a
-      // generic message and log the real one server-side.
-      message = err.safe === false ? defaultHostedAPIErrorMessage(status) : err.message;
-    } else {
-      message = "hosted API internal error";
-    }
-    if (status >= 500 || (err instanceof HTTPError && err.safe === false)) {
-      try {
-        console.error("[laf-office:api]", req.method, requestPath(req), err);
-      } catch {
-        // best-effort logging
-      }
-    }
-    writeJSON(res, status, hostedAPIErrorPayload({
-      message,
-      requestID: requestIDFor(req),
-      status,
-    }));
-  }
-};
-
-STARTUP_OFFICE_PROFILE_HANDLERS = createStartupOfficeProfileHandlers({
-  companyProfileRowPayload: (profile) => startupOfficeServices().companyProfileRowPayload(profile),
-  createHTTPError: startupOfficeHTTPError,
-  nowISO,
-  objectValue,
-  publicCompanyProfile,
-  readBody,
-  requirePermission,
-  requireUser,
-  safeStartupOfficeRest,
-  startupOfficeCompanyProfilePatch: (body) =>
-    startupOfficeServices().startupOfficeCompanyProfilePatch(body),
-  startupOfficeRepository,
-  upsertWorkspaceSettings,
-  workspaceSettings,
-  workspaceSettingsPatch,
-  writeAuditEvent,
+const HOSTED_API_ENTRYPOINT = createHostedAPIEntrypoint({
+  HTTPError,
+  apiRouteDispatcher: HOSTED_API_ROUTE_DISPATCHER,
+  assertSupabaseEnv,
+  defaultHostedAPIErrorMessage,
+  enforceHostedActionRateLimit,
+  hostedAPIErrorPayload,
+  requestIDFor,
+  requestPath,
+  securityHeaders: HOSTED_SECURITY_HEADERS,
   writeJSON,
 });
 
-STARTUP_OFFICE_DEMO_SEED_HANDLERS = createStartupOfficeDemoSeedHandlers({
-  createHTTPError: startupOfficeHTTPError,
-  createStartupOfficeReceipt,
-  nowISO,
-  publicCompanyProfile,
-  publicStartupOfficeApproval,
-  publicStartupOfficeArtifact,
-  publicStartupOfficeLoop,
-  publicStartupOfficeReceipt,
-  publicStartupOfficeRun,
-  readBody,
-  requireAdminRole,
-  requireUser,
-  safeStartupOfficeRest,
-  truncateText,
-  truthy,
-  workspaceSettings,
-  writeAuditEvent,
-  writeJSON,
-});
+module.exports = HOSTED_API_ENTRYPOINT;
 
 module.exports.__test = {
   resetRateLimits() {

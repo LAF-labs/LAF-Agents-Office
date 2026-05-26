@@ -32,9 +32,10 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1005);
+assertMaxLines("api/[...path].js", 975);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
+assertMaxLines("api/lib/hosted/apiEntrypoint.js", 70);
 assertMaxLines("api/lib/hosted/apiPrimitives.js", 35);
 assertMaxLines("api/lib/hosted/apiRouteDispatcher.js", 150);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -285,6 +286,9 @@ for (const [pattern, label] of [
   [/path === "messages\/react"/, "hosted conversation route dispatch chain"],
   [/path === "orchestration\/confirm"/, "hosted orchestration route dispatch chain"],
   [/skillInvokeMatch/, "hosted skill route dispatch chain"],
+  [/module\.exports = async function/, "hosted API request entrypoint"],
+  [/res\.status\(204\)\.end/, "hosted API preflight handling"],
+  [/hosted API internal error/, "hosted API error handling"],
   [/function clientRateLimitKey\b/, "hosted client rate-limit key helper"],
   [/function enforceRateLimit\b/, "hosted in-memory rate-limit helper"],
   [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],

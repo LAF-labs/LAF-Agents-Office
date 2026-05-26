@@ -77,6 +77,7 @@ const checks = [
   ["npm", ["run", "startup-office:synthetic-monitor:test"]],
   ["npm", ["run", "hosted-env:preflight:test"]],
   ["node", ["--test", "api/lib/hosted/agentLogHandlers.test.js"]],
+  ["node", ["--test", "api/lib/hosted/apiEntrypoint.test.js"]],
   ["node", ["--test", "api/lib/hosted/apiPrimitives.test.js"]],
   ["node", ["--test", "api/lib/hosted/apiRouteDispatcher.test.js"]],
   ["node", ["--test", "api/lib/hosted/activityHandlers.test.js"]],
