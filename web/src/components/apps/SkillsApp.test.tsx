@@ -190,6 +190,24 @@ describe("SkillsApp management UI", () => {
       );
     });
   });
+
+  it("archives a skill through the in-app confirmation dialog", async () => {
+    const user = userEvent.setup();
+    apiMocks.deleteSkill.mockResolvedValue({ ok: true });
+    renderSkillsApp();
+
+    await screen.findByText("Daily Standup");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /Archive skill "Daily Standup"/,
+    });
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(apiMocks.deleteSkill).toHaveBeenCalledWith("daily-standup");
+    });
+  });
 });
 
 describe("Skills growth model", () => {

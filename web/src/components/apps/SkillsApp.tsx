@@ -524,6 +524,7 @@ export function SkillsApp() {
   const copy = useSkillsCopy();
   return (
     <section className="skills-growth" aria-label={copy.skillAria}>
+      <SkillsDashboard />
       <SkillManager />
     </section>
   );
@@ -1435,14 +1436,37 @@ function SkillDeleteButton({
   skill: Skill;
 }) {
   const queryClient = useQueryClient();
-  const [state, setState] = useState<"idle" | "deleting">("idle");
+  const [state, setState] = useState<"idle" | "confirming" | "deleting">(
+    "idle",
+  );
+  const confirmationMessage = copy.archiveConfirm(
+    skill.title || skill.name || copy.untitled,
+  );
 
-  const handleDelete = useCallback(() => {
+  const requestDelete = useCallback(() => {
     if (!skill.name) return;
-    const confirmed = window.confirm(
-      copy.archiveConfirm(skill.title || skill.name),
-    );
-    if (!confirmed) return;
+    setState("confirming");
+  }, [skill.name]);
+
+  const closeConfirm = useCallback(() => {
+    if (state !== "deleting") setState("idle");
+  }, [state]);
+
+  const handleBackdropClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (event.target === event.currentTarget) closeConfirm();
+    },
+    [closeConfirm],
+  );
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") closeConfirm();
+    },
+    [closeConfirm],
+  );
+
+  const confirmDelete = useCallback(() => {
+    if (!skill.name) return;
     setState("deleting");
     deleteSkill(skill.name)
       .then(() => {
@@ -1453,17 +1477,58 @@ function SkillDeleteButton({
         showNotice(copy.skillArchiveFailed(e.message), "error");
       })
       .finally(() => setState("idle"));
-  }, [copy, queryClient, skill.name, skill.title]);
+  }, [copy, queryClient, skill.name]);
 
   return (
-    <button
-      type="button"
-      className="skills-link-button is-danger"
-      disabled={state !== "idle" || !skill.name}
-      onClick={handleDelete}
-    >
-      {state === "deleting" ? copy.deleting : copy.delete}
-    </button>
+    <>
+      <button
+        type="button"
+        className="skills-link-button is-danger"
+        disabled={state !== "idle" || !skill.name}
+        onClick={requestDelete}
+      >
+        {state === "deleting" ? copy.deleting : copy.delete}
+      </button>
+      {state !== "idle" ? (
+        <div
+          className="creation-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={confirmationMessage}
+          onClick={handleBackdropClick}
+          onKeyDown={handleKeyDown}
+          tabIndex={-1}
+        >
+          <div className="creation-modal skill-delete-modal">
+            <header className="creation-modal-header">
+              <div>
+                <p className="creation-modal-kicker">{copy.skillKicker}</p>
+                <h2>{copy.delete}</h2>
+                <p>{confirmationMessage}</p>
+              </div>
+            </header>
+            <footer className="creation-modal-footer">
+              <button
+                type="button"
+                className="skills-link-button"
+                disabled={state === "deleting"}
+                onClick={closeConfirm}
+              >
+                {copy.closeEditor}
+              </button>
+              <button
+                type="button"
+                className="skills-invoke is-danger"
+                disabled={state === "deleting"}
+                onClick={confirmDelete}
+              >
+                {state === "deleting" ? copy.deleting : copy.delete}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
