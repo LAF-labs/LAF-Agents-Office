@@ -5,8 +5,13 @@ const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 const goalPath = path.join(root, "docs", "specs", "CLOSED-BETA-100-GOALS.md");
+const handoffManifestPath = path.join(root, "shared", "startup-office-production-handoff.json");
 const doc = fs.readFileSync(goalPath, "utf8");
+const handoffManifest = JSON.parse(fs.readFileSync(handoffManifestPath, "utf8"));
 const allowedStatuses = new Set(["Complete", "In progress", "Not started", "Blocked"]);
+const handoffEvidenceByGoal = new Map(
+  (handoffManifest.externalEvidence || []).map((evidence) => [evidence.goalId, evidence]),
+);
 
 function fail(message) {
   console.error(`closed-beta goals check failed: ${message}`);
@@ -64,11 +69,27 @@ for (let goalNumber = 72; goalNumber <= 98; goalNumber += 1) {
 
 for (const id of ["G099", "G100"]) {
   const row = rowsById.get(id);
+  const handoffEvidence = handoffEvidenceByGoal.get(id);
   if (row?.status !== "Blocked") {
     fail(`${id} must remain blocked until external evidence is recorded`);
   }
+  if (!handoffEvidence) {
+    fail(`${id} must be defined in shared/startup-office-production-handoff.json`);
+  }
+  if (handoffEvidence.statusUntilRecorded !== "Blocked") {
+    fail(`${id} handoff evidence must stay blocked until recorded`);
+  }
+  if (!/^external .+ proof$/.test(handoffEvidence.unlockCondition || "")) {
+    fail(`${id} handoff evidence must require external proof`);
+  }
+  if (!Array.isArray(handoffEvidence.requiredFields) || handoffEvidence.requiredFields.length < 12) {
+    fail(`${id} handoff evidence must define concrete required fields`);
+  }
   if (!/External .* required/i.test(row.evidence)) {
     fail(`${id} must explain the external evidence required to unblock it`);
+  }
+  if (!row.evidence.includes("shared/startup-office-production-handoff.json")) {
+    fail(`${id} evidence must point to the production handoff manifest`);
   }
 }
 
