@@ -51,6 +51,7 @@
     "startup-office:release-versioning": "node scripts/check-startup-office-release-versioning.cjs",
     "startup-office:red-team": "node --test workers/startup-office/redTeamHarness.test.js",
     "startup-office:receipt-integrity": "node scripts/check-startup-office-receipt-integrity.cjs",
+    "startup-office:retrieval-performance": "node scripts/check-startup-office-retrieval-performance.cjs",
     "startup-office:retrieval-quality": "node scripts/check-startup-office-retrieval-quality.cjs",
     "startup-office:role-authorization": "node scripts/check-startup-office-role-authorization.cjs",
     "startup-office:rls-live": "node scripts/verify-startup-office-rls-postgrest.cjs",

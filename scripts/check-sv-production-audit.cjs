@@ -372,6 +372,24 @@ if (!releaseGate.includes('"startup-office:web-bundle-budget"')) {
 }
 
 for (const required of [
+  "startup-office:retrieval-performance",
+  "shared/startup-office-retrieval-performance.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record retrieval performance evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:retrieval-performance"] !==
+  "node scripts/check-startup-office-retrieval-performance.cjs"
+) {
+  fail("package.json must expose startup-office:retrieval-performance");
+}
+
+if (!releaseGate.includes('"startup-office:retrieval-performance"')) {
+  fail("beta release gate must include the retrieval performance contract");
+}
+
+for (const required of [
   "startup-office:backup-restore-drill",
   "docs/ops/STARTUP-OFFICE-BACKUP-RESTORE-DRILL.md",
   "startup-office:migration-recovery",

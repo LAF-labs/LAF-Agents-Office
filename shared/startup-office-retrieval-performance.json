@@ -1,0 +1,33 @@
+{
+  "version": "startup-office-retrieval-performance.v1",
+  "scope": "Startup Office loop context retrieval",
+  "budgets": {
+    "artifact_candidate_limit": 24,
+    "artifact_output_limit": 6,
+    "asset_candidate_limit": 40,
+    "customer_candidate_limit": 40,
+    "memory_candidate_limit": 40,
+    "previous_run_limit": 6,
+    "recent_receipt_limit": 8,
+    "signal_candidate_limit": 40,
+    "top_k_per_collection": 8,
+    "max_search_terms": 40,
+    "max_body_chars": 2400,
+    "max_metadata_chars": 1200,
+    "max_notes_chars": 1200,
+    "max_summary_chars": 1000
+  },
+  "select_policy": {
+    "forbid_context_wildcard_selects": true,
+    "required_collections": [
+      "artifacts",
+      "assets",
+      "customers",
+      "memoryPages",
+      "receipts",
+      "runs",
+      "signals"
+    ]
+  },
+  "release_gate": "npm run startup-office:retrieval-performance"
+}

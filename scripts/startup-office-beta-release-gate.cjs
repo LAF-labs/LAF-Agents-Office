@@ -52,6 +52,7 @@ const checks = [
   ["npm", ["run", "startup-office:release-versioning"]],
   ["npm", ["run", "startup-office:red-team"]],
   ["npm", ["run", "startup-office:receipt-integrity"]],
+  ["npm", ["run", "startup-office:retrieval-performance"]],
   ["npm", ["run", "startup-office:retrieval-quality"]],
   ["npm", ["run", "startup-office:role-authorization"]],
   ["npm", ["run", "startup-office:rls-verification"]],

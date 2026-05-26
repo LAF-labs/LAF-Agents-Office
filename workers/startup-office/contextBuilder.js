@@ -1,5 +1,32 @@
 const { buildCitationSources } = require("./citationSources");
 
+const STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET = Object.freeze({
+  artifact_candidate_limit: 24,
+  artifact_output_limit: 6,
+  asset_candidate_limit: 40,
+  customer_candidate_limit: 40,
+  memory_candidate_limit: 40,
+  previous_run_limit: 6,
+  recent_receipt_limit: 8,
+  signal_candidate_limit: 40,
+  top_k_per_collection: 8,
+  max_search_terms: 40,
+  max_body_chars: 2400,
+  max_metadata_chars: 1200,
+  max_notes_chars: 1200,
+  max_summary_chars: 1000,
+});
+
+const STARTUP_OFFICE_CONTEXT_SELECTS = Object.freeze({
+  artifacts: "id,kind,title,content,metadata,created_at",
+  assets: "id,name,kind,body,metadata,updated_at",
+  customers: "id,name,status,profile,notes,updated_at",
+  memoryPages: "id,slug,title,summary,body,sources,assumptions,updated_at",
+  receipts: "id,actor_slug,event_type,summary,created_at",
+  runs: "id,title,status,summary,updated_at",
+  signals: "id,source,title,body,metadata,created_at",
+});
+
 async function buildStartupOfficeContext({
   loop,
   membership,
@@ -18,36 +45,49 @@ async function buildStartupOfficeContext({
     signalCandidates,
     memoryCandidates,
   ] = await Promise.all([
-    repository.receipts(teamID, { limit: 8 }),
-    repository.runs(teamID, { limit: 6 }),
-    repository.artifacts(teamID, { limit: 24 }),
+    repository.receipts(teamID, {
+      limit: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.recent_receipt_limit,
+      select: STARTUP_OFFICE_CONTEXT_SELECTS.receipts,
+    }),
+    repository.runs(teamID, {
+      limit: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.previous_run_limit,
+      select: STARTUP_OFFICE_CONTEXT_SELECTS.runs,
+    }),
+    repository.artifacts(teamID, {
+      limit: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.artifact_candidate_limit,
+      select: STARTUP_OFFICE_CONTEXT_SELECTS.artifacts,
+    }),
     repository.safeRest("startup_office_assets", {
       query: {
-        limit: "50",
+        limit: String(STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.asset_candidate_limit),
         order: "updated_at.desc",
-        select: "*",
+        select: STARTUP_OFFICE_CONTEXT_SELECTS.assets,
         team_id: `eq.${teamID}`,
       },
     }),
     repository.safeRest("startup_office_customers", {
       query: {
-        limit: "50",
+        limit: String(STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.customer_candidate_limit),
         order: "updated_at.desc",
-        select: "*",
+        select: STARTUP_OFFICE_CONTEXT_SELECTS.customers,
         status: "not.in.(archived)",
         team_id: `eq.${teamID}`,
       },
     }),
     repository.safeRest("startup_office_signals", {
       query: {
-        limit: "50",
+        limit: String(STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.signal_candidate_limit),
         order: "created_at.desc",
-        select: "*",
+        select: STARTUP_OFFICE_CONTEXT_SELECTS.signals,
         status: "not.in.(archived)",
         team_id: `eq.${teamID}`,
       },
     }),
-    repository.memoryPages(teamID, { status: "approved", limit: 50 }),
+    repository.memoryPages(teamID, {
+      limit: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.memory_candidate_limit,
+      select: STARTUP_OFFICE_CONTEXT_SELECTS.memoryPages,
+      status: "approved",
+    }),
   ]);
   const runMetadata = objectValue(run?.metadata);
   const relevantAssets = rankByRelevance(assetCandidates, searchTerms, [
@@ -55,19 +95,19 @@ async function buildStartupOfficeContext({
     "kind",
     "body",
     "metadata",
-  ]).slice(0, 8);
+  ]).slice(0, STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.top_k_per_collection);
   const relevantCustomers = rankByRelevance(customerCandidates, searchTerms, [
     "name",
     "status",
     "profile",
     "notes",
-  ]).slice(0, 8);
+  ]).slice(0, STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.top_k_per_collection);
   const relevantSignals = rankByRelevance(signalCandidates, searchTerms, [
     "source",
     "title",
     "body",
     "metadata",
-  ]).slice(0, 8);
+  ]).slice(0, STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.top_k_per_collection);
   const wikiMemory = rankByRelevance(memoryCandidates, searchTerms, [
     "slug",
     "title",
@@ -75,39 +115,39 @@ async function buildStartupOfficeContext({
     "body",
     "sources",
     "assumptions",
-  ]).slice(0, 8);
+  ]).slice(0, STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.top_k_per_collection);
   const artifacts = rankByRelevance(relevantArtifacts, searchTerms, [
     "kind",
     "title",
     "content",
     "metadata",
-  ]).slice(0, 6);
+  ]).slice(0, STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.artifact_output_limit);
 
   const context = {
     loop,
     previous_runs: previousRuns
       .filter((item) => item.id !== run?.id)
-      .map((item) => pick(item, ["id", "title", "status", "summary", "updated_at"])),
+      .map((item) => pickContext(item, ["id", "title", "status", "summary", "updated_at"])),
     profile,
     recent_artifacts: artifacts.map((item) =>
-      pick(item, ["id", "kind", "title", "created_at"]),
+      pickContext(item, ["id", "kind", "title", "created_at"]),
     ),
     recent_receipts: recentReceipts.map((item) =>
-      pick(item, ["id", "actor_slug", "event_type", "summary", "created_at"]),
+      pickContext(item, ["id", "actor_slug", "event_type", "summary", "created_at"]),
     ),
     relevant_assets: relevantAssets.map((item) =>
-      pick(item, ["id", "name", "kind", "body", "metadata", "updated_at"]),
+      pickContext(item, ["id", "name", "kind", "body", "metadata", "updated_at"]),
     ),
     relevant_customers: relevantCustomers.map((item) =>
-      pick(item, ["id", "name", "status", "profile", "notes", "updated_at"]),
+      pickContext(item, ["id", "name", "status", "profile", "notes", "updated_at"]),
     ),
     relevant_signals: relevantSignals.map((item) =>
-      pick(item, ["id", "source", "title", "body", "metadata", "created_at"]),
+      pickContext(item, ["id", "source", "title", "body", "metadata", "created_at"]),
     ),
     revision_request: objectValue(runMetadata.revision_request),
     run,
     wiki_memory: wikiMemory.map((item) =>
-      pick(item, ["id", "slug", "title", "summary", "body", "sources", "assumptions", "updated_at"]),
+      pickContext(item, ["id", "slug", "title", "summary", "body", "sources", "assumptions", "updated_at"]),
     ),
   };
   context.citation_sources = buildCitationSources({
@@ -170,7 +210,9 @@ function uniqueTerms(value) {
   const terms = String(value || "")
     .toLowerCase()
     .match(/[a-z0-9가-힣]{3,}/g) || [];
-  return [...new Set(terms)].filter((term) => !stop.has(term)).slice(0, 40);
+  return [...new Set(terms)]
+    .filter((term) => !stop.has(term))
+    .slice(0, STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_search_terms);
 }
 
 function searchableText(value) {
@@ -183,12 +225,40 @@ function searchableText(value) {
   return "";
 }
 
-function pick(object, keys) {
+function pickContext(object, keys) {
+  const fieldLimits = {
+    assumptions: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_metadata_chars,
+    body: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_body_chars,
+    metadata: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_metadata_chars,
+    notes: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_notes_chars,
+    profile: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_metadata_chars,
+    sources: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_metadata_chars,
+    summary: STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET.max_summary_chars,
+  };
   const out = {};
   for (const key of keys) {
-    if (object?.[key] !== undefined) out[key] = object[key];
+    if (object?.[key] === undefined) continue;
+    out[key] = boundedContextValue(object[key], fieldLimits[key]);
   }
   return out;
+}
+
+function boundedContextValue(value, maxChars) {
+  if (!maxChars) return value;
+  if (typeof value === "string") return truncateContextText(value, maxChars);
+  const serialized = JSON.stringify(value || {});
+  if (serialized.length <= maxChars) return value;
+  return {
+    preview: truncateContextText(serialized, maxChars),
+    truncated: true,
+  };
+}
+
+function truncateContextText(value, maxChars) {
+  const text = String(value || "");
+  if (text.length <= maxChars) return text;
+  const suffix = "...[truncated]";
+  return `${text.slice(0, Math.max(maxChars - suffix.length, 0))}${suffix}`;
 }
 
 function objectValue(value) {
@@ -202,5 +272,8 @@ function array(value) {
 module.exports = {
   buildStartupOfficeContext,
   contextSearchTerms,
+  pickContext,
   rankByRelevance,
+  STARTUP_OFFICE_CONTEXT_RETRIEVAL_BUDGET,
+  STARTUP_OFFICE_CONTEXT_SELECTS,
 };
