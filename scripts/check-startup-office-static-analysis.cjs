@@ -71,7 +71,7 @@ assertContains(
 );
 assertContains(
   "scripts/startup-office-beta-release-gate.cjs",
-  ['"startup-office:static-analysis"'],
+  ['"startup-office:static-analysis"', '"startup-office:web-lint-budget"'],
   "beta release gate",
 );
 assertContains(

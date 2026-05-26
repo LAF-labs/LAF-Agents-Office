@@ -476,8 +476,7 @@ the final release commit or when a shared invariant changes.
   installed.
 - R2/R7 now adds a web lint warning budget:
   `npm run startup-office:web-lint-budget` runs Biome against the web app,
-  requires zero lint errors, and prevents the current warning/info count from
-  increasing while the remaining warnings are paid down.
+  requires zero lint errors, zero warnings, and zero infos before release.
 - R2/R7 now adds a product surface manifest:
   `npm run startup-office:surface` checks `shared/startup-office-surfaces.json`
   against the sidebar, workspace panel registry, preload registry, hidden

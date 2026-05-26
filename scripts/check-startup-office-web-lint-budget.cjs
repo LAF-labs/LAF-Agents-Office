@@ -5,8 +5,8 @@ const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const webRoot = path.join(root, "web");
-const warningBudget = 38;
-const infoBudget = 3;
+const warningBudget = 0;
+const infoBudget = 0;
 
 function fail(message, output = "") {
   console.error(`startup-office web lint budget check failed: ${message}`);
