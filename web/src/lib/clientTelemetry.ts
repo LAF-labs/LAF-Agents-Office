@@ -105,9 +105,9 @@ export function currentClientTelemetryRoute(
   win: Pick<Window, "location"> = window,
 ): string {
   const pathname = win.location?.pathname || "/";
-  const hash = String(win.location?.hash || "")
+  const [hash = ""] = String(win.location?.hash || "")
     .replace(/^#\/?/, "")
-    .split(/[/?#]/)[0];
+    .split(/[/?#]/);
   const safeHash = /^[a-z0-9_-]{1,40}$/i.test(hash)
     ? `#${hash.toLowerCase()}`
     : "";
