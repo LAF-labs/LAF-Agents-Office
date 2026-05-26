@@ -9,6 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ConfirmHost } from "../ui/ConfirmDialog";
 import { __test__, HomeApp } from "./HomeApp";
 
 const apiMocks = vi.hoisted(() => ({
@@ -70,6 +71,7 @@ function renderHomeApp() {
   return render(
     <QueryClientProvider client={queryClient}>
       <HomeApp />
+      <ConfirmHost />
     </QueryClientProvider>,
   );
 }
@@ -450,8 +452,6 @@ describe("HomeApp", () => {
 
   it("deletes a home session from the session panel", async () => {
     const user = userEvent.setup();
-    const originalConfirm = window.confirm;
-    window.confirm = vi.fn(() => true);
     apiMocks.getHomeSessions.mockResolvedValue({
       sessions: [
         {
@@ -468,11 +468,12 @@ describe("HomeApp", () => {
 
     await user.click(await screen.findByRole("button", { name: "대화 기록" }));
     await user.click(await screen.findByRole("button", { name: /대화 삭제/ }));
+    expect(await screen.findByText("대화 기록 삭제")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "삭제" }));
 
     expect(apiMocks.deleteHomeSession).toHaveBeenCalledWith(
       "home:team-alpha:user-alpha:s-old",
     );
-    window.confirm = originalConfirm;
   });
 
   it("renders compacted home summaries as summary messages", async () => {

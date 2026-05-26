@@ -36,6 +36,7 @@ import { formatTime } from "../../lib/format";
 import { useI18n } from "../../lib/i18n";
 import { formatMarkdown } from "../../lib/markdown";
 import { extractTaggedMentions, renderMentions } from "../../lib/mentions";
+import { confirm } from "../ui/ConfirmDialog";
 import { PixelAvatar } from "../ui/PixelAvatar";
 
 const HOME_CHANNEL = "general";
@@ -1159,11 +1160,14 @@ function HomeSessionDrawer({
               deleting={deleteMutation.isPending}
               session={session}
               onDelete={() => {
-                const ok =
-                  typeof window === "undefined" ||
-                  window.confirm("이 대화 기록을 삭제할까요?");
-                if (!ok) return;
-                deleteMutation.mutate(session.thread_id);
+                confirm({
+                  title: "대화 기록 삭제",
+                  message: `"${session.title || "제목 없는 대화"}" 대화 기록을 삭제할까요?`,
+                  confirmLabel: "삭제",
+                  cancelLabel: "취소",
+                  danger: true,
+                  onConfirm: () => deleteMutation.mutate(session.thread_id),
+                });
               }}
               onLoad={() => onLoad(session.thread_id)}
             />
