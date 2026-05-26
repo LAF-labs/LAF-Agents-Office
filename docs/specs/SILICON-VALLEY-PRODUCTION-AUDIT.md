@@ -158,7 +158,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I090 | Frontend | UI copy is guarded against old terms but not continuously evaluated for conversion clarity. | surface guard |
 | SV-I091 | Design system | The code uses a mixture of shadcn-style primitives, custom CSS, and historical styles. | styles and components |
 | SV-I092 | Design system | Design tokens are not enforced as a typed system. | CSS files |
-| SV-I093 | Design system | Accessibility checks are not in the release gate. | missing axe/Playwright gate |
+| SV-I093 | Design system | Accessibility and mobile checks are now pinned in the beta release gate through the first-beta smoke contract; deeper automated axe/contrast coverage remains future hardening. | `startup-office:first-beta-smoke`, `web/playwright/startup-office-accessibility-mobile.spec.ts` |
 | SV-I094 | Design system | Focus management for drawers, modals, and approval controls is not proven end to end. | component tests |
 | SV-I095 | Design system | Visual regression is absent for the core founder flow. | no screenshot diff gate |
 | SV-I096 | Design system | Localization coverage is incomplete for the new Startup Office. | i18n and component copy |
@@ -188,7 +188,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I120 | Billing | Pricing packaging is not represented in product code or site. | website and docs |
 | SV-I121 | Testing | The test suite is broad but not organized around buyer-critical journeys. | many unit tests |
 | SV-I122 | Testing | Hosted API tests are highly valuable but too concentrated in one massive file. | `api/hosted-api.test.js` |
-| SV-I123 | Testing | Browser E2E for signup-to-first-approved-loop is missing. | no Playwright gate |
+| SV-I123 | Testing | A Playwright contract now covers the first closed-beta founder flow from entry through profile, loop run, approval, receipt, and logout; live signup-to-approved-loop proof remains deploy-time synthetic evidence. | `web/playwright/startup-office-first-beta-flow.spec.ts`, `startup-office:first-beta-smoke` |
 | SV-I124 | Testing | Real Supabase RLS tests are missing. | migrations |
 | SV-I125 | Testing | Live model API calls remain intentionally absent from release gate, but the gate now pins the manual gated script and deterministic harness. | `startup-office:live-model-smoke-check` |
 | SV-I126 | Testing | Contract tests between web client types and API responses are not generated. | TypeScript types |

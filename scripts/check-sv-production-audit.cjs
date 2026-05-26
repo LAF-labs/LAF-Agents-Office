@@ -95,6 +95,8 @@ for (const staleClaim of [
   "There is no single command proving all cloud SaaS invariants.",
   "stricter warning cleanup",
   "Accessibility tests are missing.",
+  "Accessibility checks are not in the release gate.",
+  "Browser E2E for signup-to-first-approved-loop is missing.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -105,6 +107,14 @@ if (!doc.includes("zero web lint errors, warnings, or infos")) {
 
 if (!doc.includes("web/playwright/startup-office-accessibility-mobile.spec.ts")) {
   fail("audit must record the Startup Office accessibility smoke evidence");
+}
+
+if (!doc.includes("web/playwright/startup-office-first-beta-flow.spec.ts")) {
+  fail("audit must record the first beta Playwright flow evidence");
+}
+
+if (!releaseGate.includes('"startup-office:first-beta-smoke"')) {
+  fail("beta release gate must include the first beta smoke contract");
 }
 
 console.log(
