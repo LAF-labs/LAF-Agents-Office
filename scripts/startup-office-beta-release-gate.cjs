@@ -218,6 +218,7 @@ const checks = [
       "src/components/apps/ReceiptsApp.test.tsx",
     ],
   ],
+  ["npm", ["--prefix", "web", "run", "typecheck"]],
   ["npm", ["--prefix", "web", "run", "build"]],
 ];
 
