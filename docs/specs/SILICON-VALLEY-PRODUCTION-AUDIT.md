@@ -195,14 +195,14 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I127 | Testing | Startup Office accessibility and mobile review now has a Playwright smoke path for keyboard reachability and mobile beta panels; automated axe/contrast coverage remains future hardening. | `web/playwright/startup-office-accessibility-mobile.spec.ts`, `startup-office:first-beta-smoke` |
 | SV-I128 | Testing | Visual regression coverage is now release-gated through the Startup Office screenshot contract; broader pixel baselines can expand after deploy-browser infrastructure is attached. | `shared/startup-office-visual-regression.json`, `startup-office:visual-regression` |
 | SV-I129 | Testing | Loop run load and concurrency now have a release-gated worker contract covering concurrent unique claims, capped batch processing, DB skip-locked leases, stale-lock recovery, and idempotent side-effect boundaries. | `startup-office:loop-concurrency`, `workers/startup-office/loopWorker.test.js` |
-| SV-I130 | Testing | Disaster recovery tests are missing. | ops docs |
+| SV-I130 | Testing | Disaster recovery is now repository-gated for export coverage, restore omissions, approved memory import rehearsal, PITR runbook evidence, and receipt trace spot-checks; live Supabase restore proof remains deploy-time. | `startup-office:backup-restore-drill`, `docs/ops/STARTUP-OFFICE-BACKUP-RESTORE-DRILL.md` |
 | SV-I131 | Release | The release gate now includes the production audit and closed-beta goal lock before Startup Office checks, but live deploy proof remains external. | `beta:release-gate`, `production:audit`, `closed-beta:goals` |
 | SV-I132 | Release | Production deploy evidence is not captured in the repository. | no deployment manifest |
 | SV-I133 | Release | Environment preflight now validates hosted config, outbox email, and AI provider shape, but not live external reachability. | hosted-env preflight |
 | SV-I134 | Release | The outbox and AI loop workers are independently scheduled, but production deploy evidence and live smoke are still missing. | workers directory |
 | SV-I135 | Release | CI is now hosted-only but still lacks a production deploy smoke with live environment reachability. | `.github/workflows/ci.yml` |
 | SV-I136 | Release | There is no staged rollout or feature flag plan for risky cloud loops. | docs |
-| SV-I137 | Release | Database migration failure recovery is not rehearsed. | migrations |
+| SV-I137 | Release | Database migration failure recovery is now release-gated through a forward-only repair policy, applied-version inspection, tenant-safe repair boundary, live RLS verification step, beta gate rerun, and PITR fallback. | `startup-office:migration-recovery`, deployment runbook |
 | SV-I138 | Release | Secrets and config rotation are not a release checklist item. | env docs |
 | SV-I139 | Release | Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence. | release docs |
 | SV-I140 | Release | Post-release monitoring and rollback criteria are undefined. | docs |
@@ -235,7 +235,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I167 | Portability | Asset upload and material library are incomplete. | beta goals |
 | SV-I168 | Portability | Customer CRM data now has a customer CSV export/import API with storage-limit, rate-limit, and audit coverage; deeper CRM mapping remains future work. | `startup-office:customer-csv` |
 | SV-I169 | Portability | Wiki/company memory is not packaged for founder handoff. | memory pages |
-| SV-I170 | Portability | There is no escrow or backup story for paid customers. | ops |
+| SV-I170 | Portability | Paid-customer backup story now has a closed-beta runbook for Supabase backup/PITR, schema-derived export coverage, documented restore omissions, memory import rehearsal, and evidence records; legal escrow remains future commercial hardening. | `startup-office:backup-restore-drill`, launch kit |
 | SV-I171 | Reliability | Worker jobs now claim with skip-locked leases, stale-lock recovery, capped batch processing, and concurrent unique-job tests; crash-recovery proof still needs live rehearsal. | `startup-office:loop-concurrency`, worker jobs |
 | SV-I172 | Reliability | Startup Office loop side effects and run lifecycle retries are idempotency-keyed across direct and scheduled worker paths, with concurrent worker regression coverage now release-gated; multi-process live proof remains deploy-time. | `startup-office:loop-concurrency`, run lifecycle routes |
 | SV-I173 | Reliability | Failed cloud loops now dead-letter at the worker job layer and have admin retry/cancel APIs, but founder-facing recovery UI is not complete. | worker jobs |
@@ -298,7 +298,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G025 | Make audit complete. | Every Startup Office write emits a structured audit event. | `startup-office:audit-coverage` |
 | SV-G026 | Define deletion and retention. | Workspace deletion has a schema-derived manifest, service-role purge RPC, tombstone proof, and release-gate coverage. | `startup-office:deletion-coverage` |
 | SV-G027 | Version exports. | Export bundles include schema version, restore notes, export manifest, and schema-derived coverage checks. | `startup-office:export-coverage` |
-| SV-G028 | Add backup and restore drill. | Restore proves company data, memory, and receipts survive. | runbook evidence |
+| SV-G028 | Add backup and restore drill. | Restore coverage proves export tables, omitted-table reasons, approved memory import, receipt trace spot-checks, and PITR runbook evidence. | `startup-office:backup-restore-drill` |
 | SV-G029 | Normalize lifecycle states. | Objects, runs, approvals, notifications, and memory use shared state conventions. | schema tests |
 | SV-G030 | Add realistic seed reset. | Demo workspaces can be reset safely outside production. | admin test |
 | SV-G031 | Harden service-role boundaries. | Service role access is isolated behind repository functions. | code review gate |

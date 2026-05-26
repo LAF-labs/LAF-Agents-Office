@@ -102,6 +102,9 @@ for (const staleClaim of [
   "Visual regression tests are missing.",
   "Load and concurrency tests for loop runs are missing.",
   "Worker concurrency and queue backpressure are not modeled.",
+  "Disaster recovery tests are missing.",
+  "Database migration failure recovery is not rehearsed.",
+  "There is no escrow or backup story for paid customers.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -151,6 +154,26 @@ if (packageJson.scripts?.["startup-office:loop-concurrency"] !== "node scripts/c
 
 if (!releaseGate.includes('"startup-office:loop-concurrency"')) {
   fail("beta release gate must include the loop concurrency contract");
+}
+
+for (const required of [
+  "startup-office:backup-restore-drill",
+  "docs/ops/STARTUP-OFFICE-BACKUP-RESTORE-DRILL.md",
+  "startup-office:migration-recovery",
+]) {
+  if (!doc.includes(required)) fail(`audit must record recovery evidence: ${required}`);
+}
+
+for (const [scriptName, command] of [
+  ["startup-office:backup-restore-drill", "node scripts/check-startup-office-backup-restore-drill.cjs"],
+  ["startup-office:migration-recovery", "node scripts/check-startup-office-migration-recovery.cjs"],
+]) {
+  if (packageJson.scripts?.[scriptName] !== command) {
+    fail(`package.json must expose ${scriptName}`);
+  }
+  if (!releaseGate.includes(`"${scriptName}"`)) {
+    fail(`beta release gate must include ${scriptName}`);
+  }
 }
 
 console.log(
