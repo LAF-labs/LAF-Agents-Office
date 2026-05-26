@@ -53,6 +53,27 @@ test("rejects missing required evidence fields", () => {
   );
 });
 
+test("rejects secrets and payment instruments in external evidence fields", () => {
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G099", {
+      fields: { secret_rotation_result: "passed with sk-test-abcdefghijklmnopqrstuvwxyz123456" },
+    }), template),
+    /forbidden OpenAI-style API key/,
+  );
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G099", {
+      fields: { release_health_result: "Authorization: Bearer abcdefghijklmnopqrstuvwxyz1234567890" },
+    }), template),
+    /forbidden bearer token/,
+  );
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G100", {
+      fields: { signed_beta_agreement_or_payment_reference: "card 4242 4242 4242 4242" },
+    }), template),
+    /forbidden payment card number/,
+  );
+});
+
 test("rejects duplicate goal records", () => {
   assert.throws(
     () => validateExternalEvidencePayload({ records: [recordFor("G100"), recordFor("G100")] }, template),
