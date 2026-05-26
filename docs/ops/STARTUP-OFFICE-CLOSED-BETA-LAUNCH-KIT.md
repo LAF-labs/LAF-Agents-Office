@@ -177,26 +177,55 @@ workspace export content.
 
 ## Incident Response
 
-Data leak or cross-tenant bug:
+`shared/startup-office-incident-response.json` is the Release-Gated Incident
+Response contract. It sets a 60 minute first response SLA, identifies the
+operator owner, and requires each incident record to include incident class,
+severity, operator owner, affected workspace IDs, UTC start and resolution
+timestamps, commands run and results, customer notification decision, and
+post-incident corrective action.
+
+`data_leak_or_cross_tenant_access`:
 
 1. Freeze deploys and disable loop/outbox workers.
 2. Preserve audit events, support access events, affected workspace IDs, and
    timestamps.
 3. Rotate service role keys if service-side access is suspected.
-4. Run tenant-isolation, RLS, schema, and release-gate checks on the fix commit.
-5. Notify affected founders with scope, mitigation, and deletion/export options.
+4. Notify affected founders with scope, mitigation, and deletion/export options.
+5. Run `npm run startup-office:tenant-isolation`,
+   `npm run startup-office:rls-verification`, `npm run startup-office:schema`,
+   and `npm run beta:release-gate` on the fix commit.
 
-Billing abuse:
+`provider_or_secret_breach`:
+
+1. Rotate affected provider credentials.
+2. Run production preflight with redacted output.
+3. Review subprocessor and model-provider disclosure impact.
+4. Record whether customer notice is required.
+5. Run `npm run startup-office:secret-rotation`,
+   `npm run startup-office:subprocessors`, `npm run hosted-env:preflight:test`,
+   and `npm run beta:release-gate`.
+
+`worker_or_outbox_outage`:
+
+1. Keep ops monitor enabled as the incident signal.
+2. Pause only the affected worker if jobs are compounding.
+3. Inspect support timeline evidence before retrying or canceling jobs.
+4. Use admin recovery endpoints for safe retry/cancel decisions.
+5. Run `npm run startup-office:ops-monitor:test`,
+   `npm run startup-office:support-timeline`,
+   `npm run startup-office:support-playbooks`, and
+   `npm run startup-office:loop-concurrency`.
+
+`billing_abuse_or_commercial_block`:
 
 1. Mark `payment_status=blocked` and write a `blocked_reason`.
-2. Confirm run/spend/seat/storage limits.
-3. Preserve usage events and receipts.
-
-Worker outage:
-
-1. Check ops monitor, stuck jobs, and outbox status.
-2. Pause workers if jobs are compounding.
-3. Retry or cancel jobs through admin recovery endpoints.
+2. Preserve usage events, receipts, billing documents, and agreement references.
+3. Confirm entitlements before restoring paid beta access.
+4. Record customer-facing explanation in support notes.
+5. Run `npm run startup-office:commercial-billing`,
+   `npm run startup-office:paid-beta-package`,
+   `npm run startup-office:plan-limits`, and
+   `npm run startup-office:support-playbooks`.
 
 ## Backup And Restore Drill
 

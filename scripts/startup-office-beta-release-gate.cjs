@@ -35,6 +35,7 @@ const checks = [
   ["npm", ["run", "startup-office:visual-regression"]],
   ["npm", ["run", "startup-office:health-dependencies"]],
   ["npm", ["run", "startup-office:idempotency"]],
+  ["npm", ["run", "startup-office:incident-response"]],
   ["npm", ["run", "startup-office:migration-recovery"]],
   ["npm", ["run", "startup-office:payload-limits"]],
   ["npm", ["run", "startup-office:pagination"]],

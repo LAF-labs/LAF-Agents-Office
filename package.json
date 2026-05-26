@@ -34,6 +34,7 @@
     "startup-office:visual-regression": "node scripts/check-startup-office-visual-regression.cjs",
     "startup-office:health-dependencies": "node scripts/check-startup-office-health-dependencies.cjs",
     "startup-office:idempotency": "node scripts/check-startup-office-idempotency.cjs",
+    "startup-office:incident-response": "node scripts/check-startup-office-incident-response.cjs",
     "startup-office:migration-recovery": "node scripts/check-startup-office-migration-recovery.cjs",
     "startup-office:payload-limits": "node scripts/check-startup-office-payload-limits.cjs",
     "startup-office:pagination": "node scripts/check-startup-office-pagination.cjs",

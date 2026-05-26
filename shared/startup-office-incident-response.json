@@ -1,0 +1,86 @@
+{
+  "version": "startup-office-incident-response.v1",
+  "status": "closed_beta_operational",
+  "incident_owner": "founder/operator on call",
+  "first_response_sla_minutes": 60,
+  "incident_classes": [
+    {
+      "id": "data_leak_or_cross_tenant_access",
+      "severity": "critical",
+      "trigger": "Customer data is exposed to the wrong workspace, support access is suspicious, or tenant isolation is suspected to fail.",
+      "immediate_actions": [
+        "Freeze deploys and disable loop/outbox workers.",
+        "Preserve audit events, support access events, affected workspace IDs, and timestamps.",
+        "Rotate service role keys if service-side access is suspected.",
+        "Notify affected founders with scope, mitigation, and deletion/export options."
+      ],
+      "verification_commands": [
+        "npm run startup-office:tenant-isolation",
+        "npm run startup-office:rls-verification",
+        "npm run startup-office:schema",
+        "npm run beta:release-gate"
+      ]
+    },
+    {
+      "id": "provider_or_secret_breach",
+      "severity": "critical",
+      "trigger": "Provider dashboard compromise, credential exposure, suspicious model/email usage, or failed secret scan.",
+      "immediate_actions": [
+        "Rotate affected provider credentials.",
+        "Run production preflight with redacted output.",
+        "Review subprocessor and model-provider disclosure impact.",
+        "Record whether customer notice is required."
+      ],
+      "verification_commands": [
+        "npm run startup-office:secret-rotation",
+        "npm run startup-office:subprocessors",
+        "npm run hosted-env:preflight:test",
+        "npm run beta:release-gate"
+      ]
+    },
+    {
+      "id": "worker_or_outbox_outage",
+      "severity": "high",
+      "trigger": "Ops monitor reports stuck worker jobs, dead-letter worker jobs, failed outbox rows, or stale approvals.",
+      "immediate_actions": [
+        "Keep ops monitor enabled as the incident signal.",
+        "Pause only the affected worker if jobs are compounding.",
+        "Inspect support timeline evidence before retrying or canceling jobs.",
+        "Use admin recovery endpoints for safe retry/cancel decisions."
+      ],
+      "verification_commands": [
+        "npm run startup-office:ops-monitor:test",
+        "npm run startup-office:support-timeline",
+        "npm run startup-office:support-playbooks",
+        "npm run startup-office:loop-concurrency"
+      ]
+    },
+    {
+      "id": "billing_abuse_or_commercial_block",
+      "severity": "medium",
+      "trigger": "Run, model-spend, seat, storage, payment, or signed-agreement evidence is abused or inconsistent.",
+      "immediate_actions": [
+        "Mark payment_status=blocked and write a blocked_reason.",
+        "Preserve usage events, receipts, billing documents, and agreement references.",
+        "Confirm entitlements before restoring paid beta access.",
+        "Record customer-facing explanation in support notes."
+      ],
+      "verification_commands": [
+        "npm run startup-office:commercial-billing",
+        "npm run startup-office:paid-beta-package",
+        "npm run startup-office:plan-limits",
+        "npm run startup-office:support-playbooks"
+      ]
+    }
+  ],
+  "required_evidence": [
+    "incident class",
+    "severity",
+    "operator owner",
+    "affected workspace IDs",
+    "UTC start and resolution timestamps",
+    "commands run and results",
+    "customer notification decision",
+    "post-incident corrective action"
+  ]
+}

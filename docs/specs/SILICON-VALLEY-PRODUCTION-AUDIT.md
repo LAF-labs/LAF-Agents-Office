@@ -214,7 +214,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I146 | Compliance | Regulated-domain guardrails are now enforced through legal-sensitive approval gates, output quality checks, red-team cases, and visible decision-boundary disclosures; real expert review remains a human workflow. | `startup-office:compliance-disclosures`, `startup-office:red-team` |
 | SV-I147 | Compliance | Export now has a schema-derived v2 manifest, documented omissions, and an approved company-memory import path; full workspace restore tooling remains future work. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-I148 | Compliance | Subprocessor and model-provider disclosure is now represented as a release-gated closed-beta manifest covering Supabase, model provider, Resend, GitHub Actions, host provider, billing evidence, change notice, and model-provider controls. | `shared/startup-office-subprocessors.json`, `startup-office:subprocessors` |
-| SV-I149 | Compliance | Incident response is not operationalized. | beta goals |
+| SV-I149 | Compliance | Incident response is now release-gated through a closed-beta operational manifest covering data leak/cross-tenant access, provider or secret breach, worker/outbox outage, billing abuse, evidence fields, owner, SLA, and verification commands. | `shared/startup-office-incident-response.json`, `startup-office:incident-response` |
 | SV-I150 | Compliance | Security review artifacts are not attached to release gates. | CI |
 | SV-I151 | Performance | API server cold-start and route dispatch performance are not measured. | Vercel-style facade |
 | SV-I152 | Performance | Large summary endpoints may overfetch as workspace data grows. | growth summary |

@@ -108,6 +108,7 @@ for (const staleClaim of [
   "Post-release monitoring and rollback criteria are undefined.",
   "Privacy policy, DPA, and terms are not implemented as launch artifacts.",
   "Subprocessor/model provider disclosure is not represented.",
+  "Incident response is not operationalized.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
@@ -275,6 +276,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:subprocessors"')) {
   fail("beta release gate must include the subprocessor disclosure contract");
+}
+
+for (const required of [
+  "startup-office:incident-response",
+  "shared/startup-office-incident-response.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record incident response evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:incident-response"] !==
+  "node scripts/check-startup-office-incident-response.cjs"
+) {
+  fail("package.json must expose startup-office:incident-response");
+}
+
+if (!releaseGate.includes('"startup-office:incident-response"')) {
+  fail("beta release gate must include the incident response contract");
 }
 
 for (const required of [
