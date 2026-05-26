@@ -88,7 +88,7 @@ function LogTable({
         <tbody>
           {receipts.map((receipt) => {
             const cost = receiptCost(receipt);
-            const totalTokens = cost.totalTokens;
+            const { totalTokens } = cost;
             return (
               <tr
                 key={receipt.id}

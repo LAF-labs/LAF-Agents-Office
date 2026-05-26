@@ -1032,6 +1032,7 @@ function SkillEditor({
     : form.action === "propose"
       ? copy.submitForApproval
       : copy.registerSkill;
+  const submitLabel = isSaving ? copy.saving : primaryLabel;
   const closeIfIdle = useCallback(() => {
     if (!isSaving) onCancel();
   }, [isSaving, onCancel]);
@@ -1203,7 +1204,7 @@ function SkillEditor({
             {isEditing ? copy.cancelEdit : copy.closeEditor}
           </button>
           <button type="submit" className="skills-invoke" disabled={isSaving}>
-            {isSaving ? copy.saving : primaryLabel}
+            {submitLabel}
           </button>
         </footer>
       </form>
