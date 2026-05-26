@@ -2,6 +2,7 @@ import {
   type ComponentType,
   type LazyExoticComponent,
   lazy,
+  type ReactNode,
   Suspense,
   useState,
 } from "react";
@@ -62,6 +63,17 @@ const Notebook = lazy(loadNotebook);
 const ReviewQueueKanban = lazy(loadReviewQueueKanban);
 const Wiki = lazy(loadWiki);
 
+const APP_PANELS: Record<string, PanelComponent> = {
+  home: HomeApp,
+  growth: StartupOfficeApp,
+  requests: RequestsApp,
+  skills: SkillsApp,
+  activity: ArtifactsApp,
+  receipts: ReceiptsApp,
+  settings: SettingsApp,
+  threads: ThreadsApp,
+};
+
 interface WorkspaceAppProps {
   userEmail?: string;
   onLoggedOut: () => void;
@@ -95,137 +107,138 @@ function WorkspaceLoadingFallback() {
 }
 
 function MainContent() {
-  const { t } = useI18n();
   const currentApp = useAppStore((s) => s.currentApp);
   const currentChannel = useAppStore((s) => s.currentChannel);
   const channelMeta = useAppStore((s) => s.channelMeta);
+
+  if (!currentApp && isDMChannel(currentChannel, channelMeta)) {
+    return <DMView />;
+  }
+  if (currentApp === "wiki-lookup") return <WikiLookupView />;
+  if (isWikiWorkspaceApp(currentApp)) {
+    return <WikiWorkspaceView currentApp={currentApp} />;
+  }
+  if (currentApp) return <AppPanel currentApp={currentApp} />;
+  return <ConversationView />;
+}
+
+function WikiLookupView() {
+  const wikiLookupQuery = useAppStore((s) => s.wikiLookupQuery);
+  return (
+    <WikiShell current="wiki">
+      <CitedAnswer query={wikiLookupQuery || ""} />
+    </WikiShell>
+  );
+}
+
+function WikiWorkspaceView({
+  currentApp,
+}: {
+  currentApp: "wiki" | "notebooks" | "reviews";
+}) {
   const wikiPath = useAppStore((s) => s.wikiPath);
   const setWikiPath = useAppStore((s) => s.setWikiPath);
-  const wikiLookupQuery = useAppStore((s) => s.wikiLookupQuery);
   const setCurrentApp = useAppStore((s) => s.setCurrentApp);
   const notebookAgentSlug = useAppStore((s) => s.notebookAgentSlug);
   const notebookEntrySlug = useAppStore((s) => s.notebookEntrySlug);
   const setNotebookRoute = useAppStore((s) => s.setNotebookRoute);
   const [articleRefreshNonce, setArticleRefreshNonce] = useState(0);
 
-  if (!currentApp && isDMChannel(currentChannel, channelMeta)) {
-    return <DMView />;
-  }
-
-  if (currentApp === "wiki-lookup") {
-    return (
-      <div className="wiki-shell">
-        <WikiTabs
-          current="wiki"
-          onSelect={(tab) => {
-            if (tab === "wiki") setCurrentApp("wiki");
-            else if (tab === "notebooks") {
-              setNotebookRoute(null, null);
-              setCurrentApp("notebooks");
-            } else setCurrentApp("reviews");
+  return (
+    <WikiShell
+      current={currentApp}
+      onPamActionDone={() => setArticleRefreshNonce((n) => n + 1)}
+      pamArticlePath={currentApp === "wiki" ? (wikiPath ?? null) : null}
+    >
+      {currentApp === "wiki" ? (
+        <Wiki
+          articlePath={wikiPath}
+          externalRefreshNonce={articleRefreshNonce}
+          onNavigate={(path) => setWikiPath(path || null)}
+        />
+      ) : null}
+      {currentApp === "notebooks" ? (
+        <Notebook
+          agentSlug={notebookAgentSlug}
+          entrySlug={notebookEntrySlug}
+          onOpenCatalog={() => setNotebookRoute(null, null)}
+          onOpenAgent={(slug) => setNotebookRoute(slug, null)}
+          onOpenEntry={(slug, entry) => setNotebookRoute(slug, entry)}
+          onNavigateWiki={(path) => {
+            setCurrentApp("wiki");
+            setWikiPath(path || null);
           }}
         />
-        <div className="wiki-shell-body">
-          <CitedAnswer query={wikiLookupQuery || ""} />
-        </div>
-      </div>
-    );
-  }
+      ) : null}
+      {currentApp === "reviews" ? <ReviewQueueKanban /> : null}
+    </WikiShell>
+  );
+}
 
-  if (
-    currentApp === "wiki" ||
-    currentApp === "notebooks" ||
-    currentApp === "reviews"
-  ) {
-    const handleTabChange = (tab: WikiTab) => {
-      if (tab === "wiki") {
-        setCurrentApp("wiki");
-      } else if (tab === "notebooks") {
-        setNotebookRoute(null, null);
-        setCurrentApp("notebooks");
-      } else {
-        setCurrentApp("reviews");
-      }
-    };
-    const pamArticlePath = currentApp === "wiki" ? (wikiPath ?? null) : null;
+function WikiShell({
+  children,
+  current,
+  onPamActionDone,
+  pamArticlePath,
+}: {
+  children: ReactNode;
+  current: WikiTab;
+  onPamActionDone?: () => void;
+  pamArticlePath?: string | null;
+}) {
+  const setCurrentApp = useAppStore((s) => s.setCurrentApp);
+  const setNotebookRoute = useAppStore((s) => s.setNotebookRoute);
+  const handleTabChange = (tab: WikiTab) => {
+    if (tab === "wiki") setCurrentApp("wiki");
+    else if (tab === "notebooks") {
+      setNotebookRoute(null, null);
+      setCurrentApp("notebooks");
+    } else setCurrentApp("reviews");
+  };
 
-    return (
-      <div className="wiki-shell">
-        <WikiTabs
-          current={currentApp}
-          onSelect={handleTabChange}
-          pamArticlePath={pamArticlePath}
-          onPamActionDone={() => setArticleRefreshNonce((n) => n + 1)}
-        />
-        <div className="wiki-shell-body">
-          {currentApp === "wiki" && (
-            <Wiki
-              articlePath={wikiPath}
-              externalRefreshNonce={articleRefreshNonce}
-              onNavigate={(path) => {
-                if (path === null) {
-                  setWikiPath(null);
-                } else {
-                  setWikiPath(path || null);
-                }
-              }}
-            />
-          )}
-          {currentApp === "notebooks" && (
-            <Notebook
-              agentSlug={notebookAgentSlug}
-              entrySlug={notebookEntrySlug}
-              onOpenCatalog={() => setNotebookRoute(null, null)}
-              onOpenAgent={(slug) => setNotebookRoute(slug, null)}
-              onOpenEntry={(slug, entry) => setNotebookRoute(slug, entry)}
-              onNavigateWiki={(path) => {
-                setCurrentApp("wiki");
-                setWikiPath(path || null);
-              }}
-            />
-          )}
-          {currentApp === "reviews" && <ReviewQueueKanban />}
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div className="wiki-shell">
+      <WikiTabs
+        current={current}
+        onPamActionDone={onPamActionDone}
+        onSelect={handleTabChange}
+        pamArticlePath={pamArticlePath}
+      />
+      <div className="wiki-shell-body">{children}</div>
+    </div>
+  );
+}
 
-  if (currentApp) {
-    const panels: Record<string, PanelComponent> = {
-      home: HomeApp,
-      growth: StartupOfficeApp,
-      requests: RequestsApp,
-      skills: SkillsApp,
-      activity: ArtifactsApp,
-      receipts: ReceiptsApp,
-      settings: SettingsApp,
-      threads: ThreadsApp,
-    };
-    const Panel = panels[currentApp];
-    return (
-      <div
-        className={`app-panel active${currentApp === "home" ? " home-panel" : ""}`}
-      >
-        {Panel ? (
-          <Panel />
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flex: 1,
-              color: "var(--text-tertiary)",
-              fontSize: 14,
-            }}
-          >
-            {t("workspace.unknownApp").replace("{app}", currentApp)}
-          </div>
-        )}
-      </div>
-    );
-  }
+function AppPanel({ currentApp }: { currentApp: string }) {
+  const Panel = APP_PANELS[currentApp];
+  return (
+    <div
+      className={`app-panel active${currentApp === "home" ? " home-panel" : ""}`}
+    >
+      {Panel ? <Panel /> : <UnknownAppPanel currentApp={currentApp} />}
+    </div>
+  );
+}
 
+function UnknownAppPanel({ currentApp }: { currentApp: string }) {
+  const { t } = useI18n();
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: 1,
+        color: "var(--text-tertiary)",
+        fontSize: 14,
+      }}
+    >
+      {t("workspace.unknownApp").replace("{app}", currentApp)}
+    </div>
+  );
+}
+
+function ConversationView() {
   return (
     <>
       <MessageFeed />
@@ -233,6 +246,16 @@ function MainContent() {
       <InterviewBar />
       <Composer />
     </>
+  );
+}
+
+function isWikiWorkspaceApp(
+  currentApp: string | null,
+): currentApp is "wiki" | "notebooks" | "reviews" {
+  return (
+    currentApp === "wiki" ||
+    currentApp === "notebooks" ||
+    currentApp === "reviews"
   );
 }
 
