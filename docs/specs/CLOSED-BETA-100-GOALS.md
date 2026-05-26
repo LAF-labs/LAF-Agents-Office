@@ -121,7 +121,8 @@ remaining blocked items are external proof tasks: G099 requires a production
 domain deployment record with working Supabase, workers, monitor, and smoke
 evidence; G100 requires a real founder payment or signed beta agreement plus a
 first loop, approval, and receipt record. The exact evidence contract lives in
-`docs/ops/STARTUP-OFFICE-PRODUCTION-HANDOFF.md`.
+`docs/ops/STARTUP-OFFICE-PRODUCTION-HANDOFF.md` and
+`shared/startup-office-production-handoff.json`.
 
 `npm run closed-beta:goals` now treats G072 through G100 as the final tranche:
 G072 through G098 must stay complete, G099 and G100 must stay blocked only by

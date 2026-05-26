@@ -1,0 +1,78 @@
+{
+  "version": "startup-office-production-handoff.v1",
+  "currentMinimumMigration": "20260526080000",
+  "repositoryReadiness": {
+    "deployCommitChecks": [
+      "npm run beta:release-gate",
+      "npm run startup-office:rls-live",
+      "npm run hosted-env:preflight -- --no-env-file",
+      "npx supabase migration list"
+    ],
+    "forbiddenInRepo": [
+      "secret values",
+      "customer private data",
+      "payment instruments",
+      "provider tokens"
+    ]
+  },
+  "externalEvidence": [
+    {
+      "goalId": "G099",
+      "statusUntilRecorded": "Blocked",
+      "unlockCondition": "external deployment proof",
+      "systemOfRecord": "operator system of record",
+      "requiredFields": [
+        "Deploy commit SHA",
+        "Production app URL",
+        "Production API base URL",
+        "DNS provider and record type, without credentials.",
+        "Supabase project ref and latest applied migration",
+        "Redacted `npm run hosted-env:preflight -- --no-env-file` result.",
+        "Release gate result for the deploy commit",
+        "Loop worker workflow run ID",
+        "Outbox worker workflow run ID",
+        "Ops monitor workflow run ID",
+        "Synthetic monitor workflow run ID",
+        "Production smoke workspace ID",
+        "Current beta terms acceptance ID and terms version",
+        "First production smoke run ID",
+        "First production approval ID",
+        "First production receipt ID",
+        "Screenshot or browser-test artifact proving profile, loop, approval, receipt,"
+      ]
+    },
+    {
+      "goalId": "G100",
+      "statusUntilRecorded": "Blocked",
+      "unlockCondition": "external customer proof",
+      "systemOfRecord": "operator system of record",
+      "requiredFields": [
+        "Customer company name",
+        "Founder contact owner",
+        "Signed beta agreement URL or payment/invoice reference",
+        "Current beta terms acceptance ID and terms version",
+        "Workspace ID",
+        "Billing provider",
+        "Payment status",
+        "First loop slug",
+        "First customer run ID",
+        "First approval ID",
+        "First receipt ID",
+        "Founder decision",
+        "Success note"
+      ]
+    }
+  ],
+  "cutoverOrder": [
+    "Confirm the deploy commit is pushed and protected.",
+    "Run the release gate and RLS live verification.",
+    "Apply Supabase migrations to production.",
+    "Deploy web/API.",
+    "Configure production secrets and variables.",
+    "Run production preflight.",
+    "Enable and dispatch loop worker, outbox worker, and ops monitor workflows.",
+    "Create a staging workspace and complete the production smoke flow.",
+    "Record G099 evidence.",
+    "Invite the first beta founder and record G100 evidence."
+  ]
+}

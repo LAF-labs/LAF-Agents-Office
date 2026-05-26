@@ -390,7 +390,9 @@ Repository-controlled closed beta readiness is complete through G098 and is now
 locked by `npm run closed-beta:goals`. G099 and G100 remain blocked only by
 external proof: a production-domain deployment with live Supabase, workers,
 monitoring, and smoke evidence, then one real founder payment or signed beta
-agreement with a first approved loop and receipt.
+agreement with a first approved loop and receipt. The external proof contract is
+now machine-readable in `shared/startup-office-production-handoff.json` and
+checked by `npm run startup-office:production-handoff`.
 
 SV-G097 is now product-enforced rather than doc-only: the beta terms package in
 `docs/legal/STARTUP-OFFICE-BETA-TERMS.md` is versioned in
@@ -452,6 +454,11 @@ the final release commit or when a shared invariant changes.
   `npm run closed-beta:goals` requires G072-G098 to stay complete, allows only
   G099 and G100 to remain blocked, and requires those blockers to point to
   external deployment/customer proof instead of repository work.
+- The G099/G100 production handoff is now a tracked manifest:
+  `shared/startup-office-production-handoff.json` pins the latest migration
+  minimum, deploy-commit checks, forbidden-in-repo data, external evidence
+  fields, and cutover order; `npm run startup-office:production-handoff` checks
+  the manifest, handoff doc, closed-beta goals, and release-gate wiring.
 - R2/R7 now adds explicit code ownership:
   `npm run startup-office:code-ownership` checks that CODEOWNERS pins the
   Startup Office API, worker, web, schema, migration, ops-doc, and release-script

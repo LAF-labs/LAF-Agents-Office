@@ -3,6 +3,9 @@
 This handoff separates repository-controlled readiness from proof that must come
 from production infrastructure or a real customer. Do not commit secret values,
 customer private data, payment instruments, or provider tokens to this file.
+The machine-readable evidence contract lives in
+`shared/startup-office-production-handoff.json` and is enforced by
+`npm run startup-office:production-handoff`.
 
 ## Repository-Controlled Readiness
 
@@ -13,7 +16,7 @@ these commands pass on the deploy commit:
 - `npm run startup-office:rls-live`
 - `npm run hosted-env:preflight -- --no-env-file` against production variables
 - `npx supabase migration list` shows local and remote at the same latest
-  migration, currently at least `20260526070000`
+  migration, currently at least `20260526080000`
 
 The repository now contains:
 
