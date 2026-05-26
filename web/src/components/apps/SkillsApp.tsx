@@ -619,14 +619,14 @@ function SkillsDashboard() {
 
 function GrowthLoop({ copy }: { copy: SkillsCopy }) {
   return (
-    <div className="skills-loop" role="list" aria-label={copy.growthLoopAria}>
+    <ol className="skills-loop" aria-label={copy.growthLoopAria}>
       {copy.growthSteps.map((step, index) => (
-        <div className="skills-loop-step" key={step} role="listitem">
+        <li className="skills-loop-step" key={step}>
           <span className="skills-loop-index">{index + 1}</span>
           <span>{step}</span>
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 

@@ -1064,7 +1064,11 @@ function HomeSessionToolbar({
   historyOpen: boolean;
 }) {
   return (
-    <div className="home-session-toolbar" aria-label="홈 채팅 세션">
+    <div
+      className="home-session-toolbar"
+      role="toolbar"
+      aria-label="홈 채팅 세션"
+    >
       <button
         type="button"
         className="home-session-new-button"

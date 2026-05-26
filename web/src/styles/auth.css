@@ -87,9 +87,11 @@
   width: min(520px, 100%);
   gap: 10px;
   margin-top: 6px;
+  padding: 0;
+  list-style: none;
 }
 
-.auth-proof-grid div {
+.auth-proof-grid li {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-card) 72%, var(--bg));
@@ -1070,14 +1072,14 @@ html[data-theme^="office"] .auth-proof-grid {
   border-bottom: 1px solid var(--border-light);
 }
 
-html[data-theme^="office"] .auth-proof-grid div {
+html[data-theme^="office"] .auth-proof-grid li {
   border: 0;
   border-radius: 0;
   background: transparent;
   padding: 10px 0;
 }
 
-html[data-theme^="office"] .auth-proof-grid div + div {
+html[data-theme^="office"] .auth-proof-grid li + li {
   border-top: 1px solid var(--border-light);
 }
 
