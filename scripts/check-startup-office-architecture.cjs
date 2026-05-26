@@ -32,10 +32,11 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1168);
+assertMaxLines("api/[...path].js", 1005);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/apiPrimitives.js", 35);
+assertMaxLines("api/lib/hosted/apiRouteDispatcher.js", 150);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditWriter.js", 75);
 assertMaxLines("api/lib/hosted/actionRateLimitRules.js", 80);
@@ -279,6 +280,11 @@ for (const [pattern, label] of [
   [/async function seedStartupOfficeWorkspace\b/, "startup office demo seed workspace facade wrapper"],
   [/const STARTUP_OFFICE_ROUTE_HANDLERS = Object\.freeze/, "startup office route handler facade map"],
   [/companyProfile: \(req, res\) => STARTUP_OFFICE_PROFILE_HANDLERS/, "startup office route map profile entry"],
+  [/path === "health\/dependencies"/, "hosted health route dispatch chain"],
+  [/path === "auth\/session"/, "hosted auth route dispatch chain"],
+  [/path === "messages\/react"/, "hosted conversation route dispatch chain"],
+  [/path === "orchestration\/confirm"/, "hosted orchestration route dispatch chain"],
+  [/skillInvokeMatch/, "hosted skill route dispatch chain"],
   [/function clientRateLimitKey\b/, "hosted client rate-limit key helper"],
   [/function enforceRateLimit\b/, "hosted in-memory rate-limit helper"],
   [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],

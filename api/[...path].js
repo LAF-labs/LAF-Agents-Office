@@ -17,6 +17,9 @@ const {
   startupOfficeHTTPError,
 } = require("./lib/hosted/apiPrimitives");
 const {
+  createHostedAPIRouteDispatcher,
+} = require("./lib/hosted/apiRouteDispatcher");
+const {
   createHostedAuthHandlers,
 } = require("./lib/hosted/authHandlers");
 const {
@@ -873,6 +876,37 @@ const STARTUP_OFFICE_ROUTE_HANDLERS = createStartupOfficeRouteHandlerMap({
   workflowHandlers: STARTUP_OFFICE_WORKFLOW_HANDLERS,
 });
 
+const HOSTED_API_ROUTE_DISPATCHER = createHostedAPIRouteDispatcher({
+  activityHandlers: HOSTED_ACTIVITY_HANDLERS,
+  agentLogHandlers: HOSTED_AGENT_LOG_HANDLERS,
+  auditHandlers: HOSTED_AUDIT_HANDLERS,
+  authHandlers: HOSTED_AUTH_HANDLERS,
+  authorizeStartupOfficeAccess,
+  clearAuthCookies,
+  clientTelemetryHandlers: HOSTED_CLIENT_TELEMETRY_HANDLERS,
+  commandHandlers: HOSTED_COMMAND_HANDLERS,
+  conversationHandlers: HOSTED_CONVERSATION_HANDLERS,
+  dispatchStartupOfficeRoute,
+  healthHandlers: HOSTED_HEALTH_HANDLERS,
+  inviteHandlers: HOSTED_INVITE_HANDLERS,
+  memberHandlers: HOSTED_MEMBER_HANDLERS,
+  memoryHandlers: HOSTED_MEMORY_HANDLERS,
+  modelAccess: HOSTED_MODEL_ACCESS,
+  orchestrationHandlers: HOSTED_ORCHESTRATION_HANDLERS,
+  requireAdminRole,
+  requirePermission,
+  requireUser,
+  requestHandlers: HOSTED_REQUEST_HANDLERS,
+  rosterHandlers: HOSTED_ROSTER_HANDLERS,
+  schedulerHandlers: HOSTED_SCHEDULER_HANDLERS,
+  signupHandlers: HOSTED_SIGNUP_HANDLERS,
+  skillHandlers: HOSTED_SKILL_HANDLERS,
+  startupOfficeRouteHandlers: STARTUP_OFFICE_ROUTE_HANDLERS,
+  usageHandlers: HOSTED_USAGE_HANDLERS,
+  workspaceConfigHandlers: STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS,
+  writeJSON,
+});
+
 module.exports = async function handler(req, res) {
   HOSTED_SECURITY_HEADERS.applyBaselineSecurityHeaders(res);
   HOSTED_SECURITY_HEADERS.applyCORSHeaders(req, res);
@@ -885,207 +919,7 @@ module.exports = async function handler(req, res) {
 
     const path = requestPath(req);
     await enforceHostedActionRateLimit(req, path);
-    if (path === "health" && req.method === "GET") {
-      await HOSTED_HEALTH_HANDLERS.health(req, res);
-      return;
-    }
-    if (path === "health/dependencies" && req.method === "GET") {
-      await HOSTED_HEALTH_HANDLERS.dependencies(req, res);
-      return;
-    }
-    if (path === "auth/session" && req.method === "GET") {
-      await HOSTED_AUTH_HANDLERS.session(req, res);
-      return;
-    }
-    if (path === "auth/users") {
-      await HOSTED_MEMBER_HANDLERS.authUsers(req, res);
-      return;
-    }
-    if (path === "auth/me" && req.method === "PATCH") {
-      await HOSTED_AUTH_HANDLERS.me(req, res);
-      return;
-    }
-    if (path === "auth/me/password" && req.method === "PATCH") {
-      await HOSTED_AUTH_HANDLERS.password(req, res);
-      return;
-    }
-    if (path === "auth/login" && req.method === "POST") {
-      await HOSTED_AUTH_HANDLERS.login(req, res);
-      return;
-    }
-    if (path === "auth/signup" && req.method === "POST") {
-      await HOSTED_SIGNUP_HANDLERS.signup(req, res);
-      return;
-    }
-    if (path === "auth/logout" && req.method === "POST") {
-      clearAuthCookies(req, res);
-      writeJSON(res, 200, { status: "ok" });
-      return;
-    }
-    if (path === "config") {
-      await STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.config(req, res);
-      return;
-    }
-    if (path === "onboarding/state" && req.method === "GET") {
-      await STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingState(req, res);
-      return;
-    }
-    if (path === "onboarding/complete" && req.method === "POST") {
-      await STARTUP_OFFICE_WORKSPACE_CONFIG_HANDLERS.onboardingComplete(req, res);
-      return;
-    }
-    if (path === "onboarding/prereqs" && req.method === "GET") {
-      writeJSON(res, 200, { prereqs: [] });
-      return;
-    }
-    if (path === "onboarding/blueprints" && req.method === "GET") {
-      writeJSON(res, 200, { templates: [] });
-      return;
-    }
-    if (await dispatchStartupOfficeRoute({
-      authorize: (access, request) => authorizeStartupOfficeAccess({ access, req: request, requireAdminRole, requirePermission, requireUser }),
-      handlers: STARTUP_OFFICE_ROUTE_HANDLERS,
-      path,
-      req,
-      res,
-    })) {
-      return;
-    }
-    if (path === "humans" && req.method === "GET") {
-      await HOSTED_ROSTER_HANDLERS.humans(req, res);
-      return;
-    }
-    if (path === "teams" && req.method === "GET") {
-      await HOSTED_ROSTER_HANDLERS.teams(req, res);
-      return;
-    }
-    if (path === "office-members") {
-      await HOSTED_ROSTER_HANDLERS.officeMembers(req, res);
-      return;
-    }
-    if (path === "office-members/generate" && req.method === "POST") {
-      await HOSTED_ROSTER_HANDLERS.officeMemberGenerate(req, res);
-      return;
-    }
-    if (path === "members" && req.method === "GET") {
-      await HOSTED_ROSTER_HANDLERS.channelMembers(req, res);
-      return;
-    }
-    if (path === "channels") {
-      await HOSTED_CONVERSATION_HANDLERS.channels(req, res);
-      return;
-    }
-    if (path === "channels/generate" && req.method === "POST") {
-      await HOSTED_CONVERSATION_HANDLERS.channelGenerate(req, res);
-      return;
-    }
-    if (path === "channels/dm" && req.method === "POST") {
-      await HOSTED_CONVERSATION_HANDLERS.dmChannel(req, res);
-      return;
-    }
-    if (path === "messages") {
-      await HOSTED_CONVERSATION_HANDLERS.messages(req, res);
-      return;
-    }
-    if (path === "messages/react" && req.method === "POST") {
-      await HOSTED_CONVERSATION_HANDLERS.messageReaction(req, res);
-      return;
-    }
-    if (path === "home-sessions") {
-      await HOSTED_CONVERSATION_HANDLERS.homeSessions(req, res);
-      return;
-    }
-    if (path === "commands" && req.method === "GET") {
-      HOSTED_COMMAND_HANDLERS.commands(req, res);
-      return;
-    }
-    if (path === "commands/run" && req.method === "POST") {
-      await HOSTED_COMMAND_HANDLERS.commandRun(req, res);
-      return;
-    }
-    if (path === "requests" && req.method === "GET") {
-      await HOSTED_REQUEST_HANDLERS.requests(req, res);
-      return;
-    }
-    if (path === "requests/answer" && req.method === "POST") {
-      await HOSTED_REQUEST_HANDLERS.requestAnswer(req, res);
-      return;
-    }
-    if (path === "actions" && req.method === "GET") {
-      await HOSTED_ACTIVITY_HANDLERS.actions(req, res);
-      return;
-    }
-    if (path === "signals") {
-      await HOSTED_ACTIVITY_HANDLERS.signals(req, res);
-      return;
-    }
-    if (path === "decisions" && req.method === "GET") {
-      await HOSTED_ACTIVITY_HANDLERS.decisions(req, res);
-      return;
-    }
-    if (path === "watchdogs" && req.method === "GET") {
-      await HOSTED_ACTIVITY_HANDLERS.watchdogs(req, res);
-      return;
-    }
-    if (path === "scheduler" && req.method === "GET") {
-      await HOSTED_SCHEDULER_HANDLERS.scheduler(req, res);
-      return;
-    }
-    if (path === "usage" && req.method === "GET") {
-      await HOSTED_USAGE_HANDLERS.usage(req, res);
-      return;
-    }
-    if (path === "client-errors") {
-      await HOSTED_CLIENT_TELEMETRY_HANDLERS.clientError(req, res);
-      return;
-    }
-    if (path === "agent-logs" && req.method === "GET") {
-      await HOSTED_AGENT_LOG_HANDLERS.agentLogs(req, res);
-      return;
-    }
-    if (path === "memory") {
-      await HOSTED_MEMORY_HANDLERS.memory(req, res);
-      return;
-    }
-    if (path === "invites/lookup" && req.method === "GET") {
-      await HOSTED_INVITE_HANDLERS.inviteLookup(req, res);
-      return;
-    }
-    if (path === "invites/accept" && req.method === "POST") {
-      await HOSTED_INVITE_HANDLERS.inviteAccept(req, res);
-      return;
-    }
-    if (path === "invites") {
-      await HOSTED_INVITE_HANDLERS.invites(req, res);
-      return;
-    }
-    if (path === "permissions") {
-      await HOSTED_MEMBER_HANDLERS.permissions(req, res);
-      return;
-    }
-    if (path === "audit" && req.method === "GET") {
-      await HOSTED_AUDIT_HANDLERS.auditEvents(req, res);
-      return;
-    }
-    if (path === "model/availability" && req.method === "GET") {
-      await HOSTED_MODEL_ACCESS.availability(req, res);
-      return;
-    }
-    if (path === "orchestration/intent" && req.method === "POST") {
-      await HOSTED_ORCHESTRATION_HANDLERS.orchestrationIntent(req, res);
-      return;
-    }
-    if (path === "orchestration/confirm" && req.method === "POST") {
-      await HOSTED_ORCHESTRATION_HANDLERS.orchestrationConfirm(req, res);
-      return;
-    }
-    if (path === "skills") {
-      await HOSTED_SKILL_HANDLERS.skills(req, res);
-      return;
-    }
-    const skillInvokeMatch = path.match(/^skills\/([^/]+)\/invoke$/);
-    if (skillInvokeMatch && req.method === "POST") {
-      await HOSTED_SKILL_HANDLERS.skillInvoke(req, res, decodeURIComponent(skillInvokeMatch[1]));
+    if (await HOSTED_API_ROUTE_DISPATCHER.dispatch(req, res, path)) {
       return;
     }
     writeJSON(res, 404, hostedAPIErrorPayload({
