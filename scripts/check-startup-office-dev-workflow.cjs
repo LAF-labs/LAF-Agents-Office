@@ -55,7 +55,7 @@ for (const field of ["setup", "localServices", "repoChecks", "liveChecks"]) {
 for (const command of manifest.repoChecks) assertCommandExists(command, pkg, webPkg);
 for (const service of manifest.localServices) {
   if (!service.name || !service.command) fail("localServices entries need name and command");
-  assertCommandExists(service.command.replace(/^cd web && bun run /, "npm --prefix web run "), pkg, webPkg);
+  assertCommandExists(service.command, pkg, webPkg);
 }
 for (const command of manifest.liveChecks) assertCommandExists(command, pkg, webPkg);
 
@@ -65,7 +65,7 @@ assertContains(
     "shared/startup-office-dev-workflow.json",
     "npm run startup-office:dev-workflow",
     "npm run hosted-api:dev",
-    "cd web && bun run dev",
+    "npm --prefix web run dev",
     "npm run startup-office:loop-worker",
     "npm run startup-office:outbox-worker",
     "npm run beta:release-gate",

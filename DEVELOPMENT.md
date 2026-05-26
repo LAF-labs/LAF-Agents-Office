@@ -44,7 +44,7 @@ Run the hosted API facade and Vite app separately:
 
 ```bash
 npm run hosted-api:dev
-cd web && bun run dev
+npm --prefix web run dev
 ```
 
 For local worker rehearsals, run these in separate terminals with non-production

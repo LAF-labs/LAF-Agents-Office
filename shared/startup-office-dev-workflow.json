@@ -11,7 +11,7 @@
     },
     {
       "name": "web",
-      "command": "cd web && bun run dev"
+      "command": "npm --prefix web run dev"
     },
     {
       "name": "loop-worker",
