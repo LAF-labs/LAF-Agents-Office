@@ -96,10 +96,10 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I028 | API | Demo seed is now isolated from the facade, but production and demo records still share the same tables and need stronger environment policy. | `api/lib/startup-office/demoSeedHandlers.js` |
 | SV-I029 | API | Hosted command registries still coexist with legacy command concepts. | command routes and hooks |
 | SV-I030 | API | Startup Office route-level authorization now has a declarative registry, but older hosted facade routes still use manual checks. | `startup-office:authorization` |
-| SV-I031 | Data model | A canonical current schema now exists, but it is still statically checked rather than proven by a local Supabase reset and live RLS exercise. | `supabase/schema/current.json`, schema gate |
+| SV-I031 | Data model | A canonical current schema now exists and the RLS verifier applies all migrations to a temporary PostgreSQL/PostgREST stack; a full Supabase CLI reset remains an optional local environment proof. | `supabase/schema/current.json`, `startup-office:rls-verification` |
 | SV-I032 | Data model | Obsolete no-op migrations preserve continuity but add cognitive load to fresh installs. | obsolete local migration files |
 | SV-I033 | Data model | There is no automated Supabase reset test proving all migrations apply cleanly. | no DB reset gate |
-| SV-I034 | Data model | RLS policies are written but not exercised against a real Supabase test database. | migration tests are static |
+| SV-I034 | Data model | RLS policies are now exercised through the live PostgREST verifier across anon, authenticated, cross-tenant, direct-write, purge, and service-role paths; hosted Supabase project proof remains deploy-time. | `startup-office:rls-live`, `startup-office:rls-verification` |
 | SV-I035 | Data model | Startup Office route writes are now machine-checked for audit events, but live audit replay, export, and operator review are not proven. | `startup-office:audit-coverage` |
 | SV-I036 | Data model | Business object schemas lack rich lifecycle history. | assets/customers/metrics/signals tables |
 | SV-I037 | Data model | Canonical company memory promotions now carry conflict metadata and require founder-approved resolution before overwrite; database-native conflict objects remain future hardening. | `startup-office:memory-conflicts` |
@@ -189,7 +189,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I121 | Testing | The test suite is broad but not organized around buyer-critical journeys. | many unit tests |
 | SV-I122 | Testing | Hosted API tests are highly valuable but too concentrated in one massive file. | `api/hosted-api.test.js` |
 | SV-I123 | Testing | A Playwright contract now covers the first closed-beta founder flow from entry through profile, loop run, approval, receipt, and logout; live signup-to-approved-loop proof remains deploy-time synthetic evidence. | `web/playwright/startup-office-first-beta-flow.spec.ts`, `startup-office:first-beta-smoke` |
-| SV-I124 | Testing | Real Supabase RLS tests are missing. | migrations |
+| SV-I124 | Testing | RLS coverage is now schema-drift-resistant through a live verifier and release-gated contract; external hosted Supabase replay remains deploy-time evidence. | `startup-office:rls-live`, `startup-office:rls-verification` |
 | SV-I125 | Testing | Live model API calls remain intentionally absent from release gate, but the gate now pins the manual gated script and deterministic harness. | `startup-office:live-model-smoke-check` |
 | SV-I126 | Testing | Contract tests between web client types and API responses are not generated. | TypeScript types |
 | SV-I127 | Testing | Startup Office accessibility and mobile review now has a Playwright smoke path for keyboard reachability and mobile beta panels; automated axe/contrast coverage remains future hardening. | `web/playwright/startup-office-accessibility-mobile.spec.ts`, `startup-office:first-beta-smoke` |
@@ -292,8 +292,8 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G019 | Remove hidden legacy dependencies. | Hosted release can build without retired runtime packages. | CI job |
 | SV-G020 | Add architecture decision records. | Major product and infra choices have dated ADRs. | docs check |
 | SV-G021 | Publish canonical current schema. | Fresh schema and migration history both exist and agree. | DB reset |
-| SV-G022 | Prove migrations on Supabase. | `supabase db reset` and policy tests pass locally. | CLI output |
-| SV-G023 | Exercise RLS for all Startup Office tables. | Cross-tenant reads/writes fail with user tokens. | integration tests |
+| SV-G022 | Prove migrations on Supabase. | Migrations apply cleanly to a temporary PostgreSQL/PostgREST stack and the runbook still requires Supabase CLI/live replay before production cutover. | `startup-office:rls-live`, deployment runbook |
+| SV-G023 | Exercise RLS for all Startup Office tables. | Cross-tenant reads/writes fail with user tokens and service-owned direct writes are rejected across the schema-derived fixture matrix. | `startup-office:rls-verification` |
 | SV-G024 | Add database comments and constraints. | Core invariants are encoded at the DB layer. | migration review |
 | SV-G025 | Make audit complete. | Every Startup Office write emits a structured audit event. | `startup-office:audit-coverage` |
 | SV-G026 | Define deletion and retention. | Workspace deletion has a schema-derived manifest, service-role purge RPC, tombstone proof, and release-gate coverage. | `startup-office:deletion-coverage` |

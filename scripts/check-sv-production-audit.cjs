@@ -105,6 +105,9 @@ for (const staleClaim of [
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
+  "RLS policies are written but not exercised against a real Supabase test database.",
+  "Real Supabase RLS tests are missing.",
+  "it is still statically checked rather than proven by a local Supabase reset and live RLS exercise",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -174,6 +177,26 @@ for (const [scriptName, command] of [
   if (!releaseGate.includes(`"${scriptName}"`)) {
     fail(`beta release gate must include ${scriptName}`);
   }
+}
+
+for (const required of [
+  "startup-office:rls-live",
+  "startup-office:rls-verification",
+]) {
+  if (!doc.includes(required)) fail(`audit must record RLS verification evidence: ${required}`);
+}
+
+for (const [scriptName, command] of [
+  ["startup-office:rls-live", "node scripts/verify-startup-office-rls-postgrest.cjs"],
+  ["startup-office:rls-verification", "node scripts/check-startup-office-rls-verification.cjs"],
+]) {
+  if (packageJson.scripts?.[scriptName] !== command) {
+    fail(`package.json must expose ${scriptName}`);
+  }
+}
+
+if (!releaseGate.includes('"startup-office:rls-verification"')) {
+  fail("beta release gate must include startup-office:rls-verification");
 }
 
 console.log(
