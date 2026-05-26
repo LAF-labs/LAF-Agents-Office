@@ -1,6 +1,10 @@
 import type { StartupOfficeBetaOps } from "../../api/startupOffice";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 
+type BillingDocument = NonNullable<
+  StartupOfficeBetaOps["billing_documents"]
+>[number];
+
 interface BetaOpsPanelProps {
   acceptingTerms?: boolean;
   betaOps?: StartupOfficeBetaOps;
@@ -18,7 +22,6 @@ export function BetaOpsPanel({
   const usage = betaOps?.usage;
   const commercial = betaOps?.commercial;
   const documents = betaOps?.billing_documents ?? [];
-  const termsAccepted = betaOps?.terms?.accepted === true;
   return (
     <section className="skills-panel startup-office-beta-ops">
       <div className="skills-section-head">
@@ -45,17 +48,12 @@ export function BetaOpsPanel({
         <div>
           <dt>{copy.betaOpsLabels.terms}</dt>
           <dd>
-            {termsStatusText(betaOps, copy)}
-            {!termsAccepted && onAcceptTerms ? (
-              <button
-                className="startup-office-action is-secondary startup-office-terms-action"
-                disabled={Boolean(acceptingTerms)}
-                onClick={onAcceptTerms}
-                type="button"
-              >
-                {acceptingTerms ? copy.acceptingTerms : copy.acceptTerms}
-              </button>
-            ) : null}
+            <BetaTermsStatus
+              acceptingTerms={acceptingTerms}
+              betaOps={betaOps}
+              copy={copy}
+              onAcceptTerms={onAcceptTerms}
+            />
           </dd>
         </div>
         <div>
@@ -94,20 +92,72 @@ export function BetaOpsPanel({
           <dt>{copy.betaOpsLabels.nextStep}</dt>
           <dd>{commercial?.next_step || copy.betaOpsNoDocuments}</dd>
         </div>
-        {documents.slice(0, 3).map((document) => (
-          <div key={document.id}>
-            <dt>{copy.betaOpsDocumentLabel(document.document_type)}</dt>
-            <dd>{billingDocumentText(document)}</dd>
-          </div>
-        ))}
-        {!documents.length ? (
-          <div>
-            <dt>{copy.betaOpsLabels.documents}</dt>
-            <dd>{copy.betaOpsNoDocuments}</dd>
-          </div>
-        ) : null}
+        <BillingDocumentRows copy={copy} documents={documents} />
       </dl>
     </section>
+  );
+}
+
+function BetaTermsStatus({
+  acceptingTerms,
+  betaOps,
+  copy,
+  onAcceptTerms,
+}: BetaOpsPanelProps) {
+  const termsAccepted = betaOps?.terms?.accepted === true;
+  return (
+    <>
+      {termsStatusText(betaOps, copy)}
+      {!termsAccepted && onAcceptTerms ? (
+        <button
+          className="startup-office-action is-secondary startup-office-terms-action"
+          disabled={Boolean(acceptingTerms)}
+          onClick={onAcceptTerms}
+          type="button"
+        >
+          {acceptingTerms ? copy.acceptingTerms : copy.acceptTerms}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function BillingDocumentRows({
+  copy,
+  documents,
+}: {
+  copy: StartupOfficeAppCopy;
+  documents: BillingDocument[];
+}) {
+  if (!documents.length) {
+    return (
+      <div>
+        <dt>{copy.betaOpsLabels.documents}</dt>
+        <dd>{copy.betaOpsNoDocuments}</dd>
+      </div>
+    );
+  }
+  return (
+    <>
+      {documents.slice(0, 3).map((document) => (
+        <BillingDocumentRow copy={copy} document={document} key={document.id} />
+      ))}
+    </>
+  );
+}
+
+function BillingDocumentRow({
+  copy,
+  document,
+}: {
+  copy: StartupOfficeAppCopy;
+  document: BillingDocument;
+}) {
+  return (
+    <div>
+      <dt>{copy.betaOpsDocumentLabel(document.document_type)}</dt>
+      <dd>{billingDocumentText(document)}</dd>
+    </div>
   );
 }
 
@@ -148,9 +198,7 @@ function termsStatusText(
   return copy.termsMissing;
 }
 
-function billingDocumentText(
-  document: NonNullable<StartupOfficeBetaOps["billing_documents"]>[number],
-) {
+function billingDocumentText(document: BillingDocument) {
   const reference = document.reference_url || document.external_reference;
   const amount = formatBillingAmount(document.amount_cents, document.currency);
   return reference
