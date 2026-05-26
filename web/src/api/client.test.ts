@@ -147,6 +147,12 @@ describe("hosted browser api client", () => {
     expect(sseURL("/events")).toBe("https://api.office.example/api/events");
   });
 
+  it("enables broker events when the browser provides EventSource", () => {
+    vi.stubGlobal("EventSource", class {} as unknown as typeof EventSource);
+
+    expect(supportsBrokerEvents()).toBe(true);
+  });
+
   it("normalizes a bare browser API host for split-origin deployments", async () => {
     vi.stubEnv("VITE_LAF_API_BASE_URL", "api.office.example");
     vi.stubGlobal("location", {

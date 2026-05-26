@@ -1,6 +1,6 @@
 /**
- * Entity-brief API client — thin wrapper over `client.ts` covering the v1.2
- * entity-brief surface: facts log + brief synthesis.
+ * Entity-brief API client - thin wrapper over `client.ts` covering the
+ * Startup Office facts log and brief synthesis surface.
  *
  * Unlike `api/notebook.ts` this module has no mock mode — errors propagate so
  * empty-state / error-state UI surfaces real backend problems instead of
@@ -27,10 +27,10 @@ export type SchemaKind =
   | "team"
   | "workspace";
 
-/** Compatibility helper — maps the legacy plural (people/companies/customers) to
+/** Compatibility helper - maps route kinds (people/companies/customers) to
  *  the schema singular (person/company). customers → company per §4.1 (no
  *  separate "customer" kind at the schema level; customers are companies
- *  with project-relationship context). */
+ *  with commercial-relationship context). */
 export function toSchemaKind(k: EntityKind): SchemaKind {
   switch (k) {
     case "people":
@@ -42,8 +42,8 @@ export function toSchemaKind(k: EntityKind): SchemaKind {
   }
 }
 
-/** Compatibility helper — maps a schema singular back to the nearest legacy plural.
- *  project, team, and workspace have no legacy v1.2 mapping and throw. */
+/** Compatibility helper - maps a schema singular back to the nearest route kind.
+ *  project, team, and workspace are schema-only kinds and throw. */
 export function fromSchemaKind(k: SchemaKind): EntityKind {
   switch (k) {
     case "person":
@@ -53,7 +53,7 @@ export function fromSchemaKind(k: SchemaKind): EntityKind {
     case "project":
     case "team":
     case "workspace":
-      throw new Error(`Schema kind "${k}" has no legacy v1.2 mapping`);
+      throw new Error(`Schema kind "${k}" has no Startup Office route mapping`);
   }
 }
 
@@ -69,7 +69,7 @@ export interface Triplet {
 }
 
 /**
- * FactType is the §4.3 enum. Legacy rows without a type parse as `undefined`;
+ * FactType is the §4.3 enum. Older rows without a type parse as `undefined`;
  * the UI treats that the same as `"observation"` (the §4.3 default).
  */
 export type FactType = "status" | "observation" | "relationship" | "background";
@@ -82,8 +82,8 @@ export interface Fact {
   source_path?: string;
   recorded_by: string;
   created_at: string;
-  // Typed fields from docs/specs/WIKI-SCHEMA.md §4.2. All optional so legacy
-  // v1.2 rows parse with zero values and render without these fields.
+  // Typed fields from docs/specs/WIKI-SCHEMA.md §4.2. All optional so older
+  // fact rows parse with zero values and render without these fields.
   type?: FactType;
   triplet?: Triplet;
   confidence?: number;

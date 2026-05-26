@@ -230,8 +230,8 @@ describe("entity api client", () => {
   });
 });
 
-describe("SchemaKind compatibility helpers (Fix C2)", () => {
-  it("toSchemaKind maps all legacy plural kinds to schema singular", () => {
+describe("SchemaKind route compatibility helpers", () => {
+  it("toSchemaKind maps all route kinds to schema singular", () => {
     expect(api.toSchemaKind("people")).toBe("person");
     expect(api.toSchemaKind("companies")).toBe("company");
     expect(api.toSchemaKind("customers")).toBe("company");
@@ -242,11 +242,15 @@ describe("SchemaKind compatibility helpers (Fix C2)", () => {
     expect(api.fromSchemaKind("company")).toBe("companies");
   });
 
-  it("fromSchemaKind throws for schema-only kinds with no legacy mapping", () => {
-    expect(() => api.fromSchemaKind("project")).toThrow("legacy v1.2 mapping");
-    expect(() => api.fromSchemaKind("team")).toThrow("legacy v1.2 mapping");
+  it("fromSchemaKind throws for schema-only kinds with no route mapping", () => {
+    expect(() => api.fromSchemaKind("project")).toThrow(
+      "Startup Office route mapping",
+    );
+    expect(() => api.fromSchemaKind("team")).toThrow(
+      "Startup Office route mapping",
+    );
     expect(() => api.fromSchemaKind("workspace")).toThrow(
-      "legacy v1.2 mapping",
+      "Startup Office route mapping",
     );
   });
 
@@ -258,7 +262,7 @@ describe("SchemaKind compatibility helpers (Fix C2)", () => {
   });
 
   it("customers roundtrip loses specificity (customers → company → companies)", () => {
-    // customers maps to company (schema) which maps back to companies (legacy) — not customers.
+    // customers maps to company (schema) which maps back to companies, not customers.
     // This is expected: customers is a sales-relationship signal, not a distinct schema kind.
     expect(api.toSchemaKind("customers")).toBe("company");
     expect(api.fromSchemaKind("company")).toBe("companies");

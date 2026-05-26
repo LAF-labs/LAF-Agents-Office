@@ -56,7 +56,9 @@ export function hostedAPIURLFromBrowser(): string {
 // ── Init ──
 
 export function supportsBrokerEvents(): boolean {
-  return false;
+  return (
+    typeof (globalThis as { EventSource?: unknown }).EventSource === "function"
+  );
 }
 
 export async function initApi(): Promise<void> {

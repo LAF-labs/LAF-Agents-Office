@@ -263,8 +263,8 @@ function FactSource({ path }: { path: string }) {
  *  Schema §3 three-layer architecture: wiki/artifacts/ (Layer 1, raw),
  *  team/ (Layer 2, briefs), wiki/facts/ (Layer 2, fact log),
  *  wiki/insights/ (Layer 2, insights), wiki/playbooks/ (Layer 2, playbooks).
- *  agents/ is the legacy v1.2 per-agent notebook path and is retained for
- *  backwards compatibility with existing fact rows. */
+ *  agents/ is the historical per-agent notebook path and is retained for
+ *  existing fact rows. */
 function isWikiSource(path?: string): path is string {
   if (!path) return false;
   return (
@@ -273,7 +273,7 @@ function isWikiSource(path?: string): path is string {
     path.startsWith("wiki/facts/") ||
     path.startsWith("wiki/insights/") ||
     path.startsWith("wiki/playbooks/") ||
-    path.startsWith("agents/") // legacy v1.2 per-agent notebook path
+    path.startsWith("agents/") // historical per-agent notebook path
   );
 }
 

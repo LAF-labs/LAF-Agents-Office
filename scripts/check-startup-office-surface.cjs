@@ -231,6 +231,9 @@ assertPathMissing(path.join("web", "src", "components", "apps", "TasksApp.tsx"))
 assertPathMissing(path.join("web", "src", "components", "apps", "TaskDetailModal.tsx"));
 assertPathMissing(path.join("web", "src", "components", "apps", "tasks"));
 assertRepoTextAbsent("retired external runtime connector", ["open", "claw"]);
+assertNotIncludes("web/src/api/entity.ts", "legacy v1.2");
+assertNotIncludes("web/src/api/entity.test.ts", "legacy v1.2");
+assertNotIncludes("web/src/components/wiki/FactsOnFile.tsx", "legacy v1.2");
 
 assertNotMatchesInSegment(
   "web/src/lib/i18n.ts",

@@ -8,8 +8,9 @@ startup, what fundamental problems would we refuse to carry forward?
 ## Evidence Baseline
 
 - `api/[...path].js` is still a 696-line hosted API facade after the cloud pivot.
-- `web/src/components/apps/TasksApp.tsx`, `SettingsApp.tsx`, `HomeApp.tsx`, and
-  `SkillsApp.tsx` remain large app modules alongside newer Startup Office panels.
+- `web/src/components/apps/SettingsApp.tsx`, `HomeApp.tsx`, and `SkillsApp.tsx`
+  remain large app modules alongside newer Startup Office panels; the retired
+  Tasks app has been removed and is guarded by `startup-office:surface`.
 - Supabase migrations now remove obsolete execution schema, and live PostgREST
   RLS verification seeds every Startup Office team-scoped table plus workspace
   billing/settings/audit fixtures across Alpha/Beta tenants; external backup,
@@ -146,7 +147,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I079 | Workflow | There is no policy-driven “draft only” mode per workspace. | policy API |
 | SV-I080 | Workflow | Failed run recovery is not a full support workflow. | retry, failure receipt |
 | SV-I081 | Frontend | The app still exposes large legacy surfaces alongside the new Startup Office. | apps directory |
-| SV-I082 | Frontend | Tasks and Projects are hidden from primary shell but not removed from web code. | `TasksApp.tsx` |
+| SV-I082 | Frontend | Retired Tasks/Projects surfaces require explicit deletion and drift guards, not just hidden navigation. | `startup-office:surface` |
 | SV-I083 | Frontend | Settings is too large and mixes account, provider, model, team, and danger flows. | `SettingsApp.tsx` |
 | SV-I084 | Frontend | Home orchestration is not yet fully aligned with Growth Center as the main surface. | `HomeApp.tsx` |
 | SV-I085 | Frontend | Startup Office panels are small but still mostly read/update forms, not a polished operator cockpit. | startup-office components |
@@ -1081,6 +1082,10 @@ the final release commit or when a shared invariant changes.
   workspace permission catalog. The API and generated web permission types expose
   only first-party Startup Office roles, and `startup-office:permissions` blocks
   `project:*`, `task:*`, or `mcp:*` permission drift from returning.
+- R5 now re-enables shared browser event subscriptions when `EventSource` is
+  available. Wiki, notebook, and entity surfaces use the shared `/events`
+  broker path in tests, while non-SSE environments still degrade to no-op
+  subscriptions.
 - R3/R5 now makes the first-party asset library lifecycle explicit. Assets can
   be listed, created, updated, linked to a run, saved from artifacts, and
   archived through `startup_office_assets.status`; migration
