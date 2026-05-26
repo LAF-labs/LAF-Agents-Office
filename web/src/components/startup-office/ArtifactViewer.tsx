@@ -3,6 +3,7 @@ import { Copy, Download, Xmark } from "iconoir-react";
 
 import type { StartupOfficeArtifact } from "../../api/startupOffice";
 import { showNotice } from "../ui/Toast";
+import { ComplianceDisclosure } from "./ComplianceDisclosure";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 import { dateLabel } from "./startupOfficeViewModel";
 
@@ -83,6 +84,7 @@ export function ArtifactViewer({
             {copy.exportArtifact}
           </button>
         </div>
+        <ComplianceDisclosure copy={copy} />
         <pre className="startup-artifact-content">{artifact.content}</pre>
         <WhyThisOutput artifact={artifact} />
       </section>

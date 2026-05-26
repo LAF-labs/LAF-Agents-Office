@@ -110,6 +110,8 @@ for (const staleClaim of [
   "it is still statically checked rather than proven by a local Supabase reset and live RLS exercise",
   "Pricing packaging is not represented in product code or site.",
   "does not yet prove a buyer-ready package.",
+  "AI output disclaimers are not consistently surfaced at decision points.",
+  "Regulated-domain guardrails are prompt text, not enforceable product policy.",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
 }
@@ -218,6 +220,27 @@ if (
 
 if (!releaseGate.includes('"startup-office:paid-beta-package"')) {
   fail("beta release gate must include startup-office:paid-beta-package");
+}
+
+for (const required of [
+  "startup-office:compliance-disclosures",
+  "shared/startup-office-compliance-disclosures.json",
+  "AI decision boundary",
+]) {
+  if (!doc.includes(required)) {
+    fail(`audit must record compliance disclosure evidence: ${required}`);
+  }
+}
+
+if (
+  packageJson.scripts?.["startup-office:compliance-disclosures"] !==
+  "node scripts/check-startup-office-compliance-disclosures.cjs"
+) {
+  fail("package.json must expose startup-office:compliance-disclosures");
+}
+
+if (!releaseGate.includes('"startup-office:compliance-disclosures"')) {
+  fail("beta release gate must include startup-office:compliance-disclosures");
 }
 
 console.log(

@@ -1,6 +1,7 @@
 import { CheckCircle, XmarkCircle } from "iconoir-react";
 
 import type { StartupOfficeApproval } from "../../api/startupOffice";
+import { ComplianceDisclosure } from "./ComplianceDisclosure";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 import {
   approvalActionLabel,
@@ -56,6 +57,7 @@ export function ApprovalDeskPanel({
                   <p>{compactText(approval.details, 220)}</p>
                 ) : null}
                 <MemoryDiffSummary approval={approval} />
+                <ComplianceDisclosure copy={copy} />
                 <div className="startup-approval-actions">
                   <button
                     type="button"

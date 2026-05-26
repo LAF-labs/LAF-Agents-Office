@@ -15,6 +15,7 @@
     "startup-office:backup-restore-drill": "node scripts/check-startup-office-backup-restore-drill.cjs",
     "startup-office:beta-terms": "node scripts/check-startup-office-beta-terms.cjs",
     "startup-office:commercial-billing": "node scripts/check-startup-office-commercial-billing.cjs",
+    "startup-office:compliance-disclosures": "node scripts/check-startup-office-compliance-disclosures.cjs",
     "startup-office:cancellation": "node scripts/check-startup-office-cancellation-contract.cjs",
     "startup-office:citation-enforcement": "node scripts/check-startup-office-citation-enforcement.cjs",
     "startup-office:client-telemetry": "node scripts/check-startup-office-client-telemetry.cjs",

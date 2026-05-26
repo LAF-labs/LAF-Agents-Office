@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "title": "AI decision boundary",
+  "summary": "AI outputs are drafts for founder review. Legal, financial, medical, tax, privacy, regulatory, pricing, public-claim, outbound, and customer-promise decisions require human approval and appropriate expert review before external use.",
+  "decision_points": [
+    "approval_desk",
+    "artifact_copy_export",
+    "receipt_trace"
+  ],
+  "regulated_gate_types": [
+    "legal_sensitive",
+    "pricing_change",
+    "payment",
+    "public_claim",
+    "external_send",
+    "customer_promise"
+  ],
+  "required_language": [
+    "AI outputs are drafts",
+    "founder review",
+    "expert review before external use"
+  ]
+}

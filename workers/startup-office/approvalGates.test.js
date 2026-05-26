@@ -19,6 +19,10 @@ test("approval gate definitions cover required external action classes", () => {
     assert.equal(gate.required, true, type);
     assert.equal(gate.type, type, type);
   }
+  assert.match(
+    approvalGateDefinition("legal_sensitive").reason,
+    /expert review before external use/,
+  );
 });
 
 test("every Startup Office loop declares machine-readable approval gates", () => {

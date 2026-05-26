@@ -461,6 +461,12 @@ describe("StartupOfficeApp", () => {
     expect(
       screen.getByText("Memory update: Validation Log, Decisions"),
     ).toBeInTheDocument();
+    expect(screen.getAllByText("AI decision boundary").length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      screen.getAllByText(/expert review before external use/).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Assets")).toBeInTheDocument();
     expect(screen.getByText("mrr")).toBeInTheDocument();
     expect(screen.getByText("1,500 usd (+500)")).toBeInTheDocument();
@@ -597,6 +603,11 @@ describe("StartupOfficeApp loop workflow", () => {
       ).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("Why this output")).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("dialog", { name: "Offer Package artifact" }),
+      ).getByText("AI decision boundary"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("1 memory pages, 0 sources, 1 assumptions"),
     ).toBeInTheDocument();

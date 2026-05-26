@@ -1,3 +1,7 @@
+const {
+  startupOfficeComplianceDisclosureText,
+} = require("./complianceDisclosures");
+
 const APPROVAL_GATE_DEFINITIONS = Object.freeze({
   customer_promise: Object.freeze({
     category: "external_impact",
@@ -14,7 +18,7 @@ const APPROVAL_GATE_DEFINITIONS = Object.freeze({
   legal_sensitive: Object.freeze({
     category: "external_impact",
     label: "Legal-sensitive action",
-    reason: "Legal, compliance, refund, contract, privacy, or regulated claims need review.",
+    reason: startupOfficeComplianceDisclosureText(),
     type: "legal_sensitive",
   }),
   payment: Object.freeze({

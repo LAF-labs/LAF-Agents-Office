@@ -207,11 +207,11 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I139 | Release | Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence. | release docs |
 | SV-I140 | Release | Post-release monitoring and rollback criteria are undefined. | docs |
 | SV-I141 | Compliance | Privacy policy, DPA, and terms are not implemented as launch artifacts. | docs |
-| SV-I142 | Compliance | AI output disclaimers are not consistently surfaced at decision points. | UI |
+| SV-I142 | Compliance | AI decision boundary disclosures are now release-gated across approval desk, artifact copy/export, and receipt trace decision points. | `startup-office:compliance-disclosures`, `shared/startup-office-compliance-disclosures.json` |
 | SV-I143 | Compliance | Customer data retention is not a configurable workspace policy. | schema |
 | SV-I144 | Compliance | Data deletion now purges workspace-scoped product tables through the team cascade with receipt-delete bypass scoped to the purge transaction; auth-user deletion and external provider retention remain operator/legal follow-up. | `purge_startup_office_workspace` |
 | SV-I145 | Compliance | Support access lacks customer-visible consent and expiry mechanics. | policy |
-| SV-I146 | Compliance | Regulated-domain guardrails are prompt text, not enforceable product policy. | templates |
+| SV-I146 | Compliance | Regulated-domain guardrails are now enforced through legal-sensitive approval gates, output quality checks, red-team cases, and visible decision-boundary disclosures; real expert review remains a human workflow. | `startup-office:compliance-disclosures`, `startup-office:red-team` |
 | SV-I147 | Compliance | Export now has a schema-derived v2 manifest, documented omissions, and an approved company-memory import path; full workspace restore tooling remains future work. | `startup-office:export-coverage`, `startup-office:memory-import` |
 | SV-I148 | Compliance | Subprocessor/model provider disclosure is not represented. | docs |
 | SV-I149 | Compliance | Incident response is not operationalized. | beta goals |
@@ -309,7 +309,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-G036 | Implement support access consent. | Owner-visible, expiring support sessions gate staff access. | policy tests |
 | SV-G037 | Add security release gate. | Secret scan, high-severity dependency audit, and boundary checks run together. | `startup-office:security` |
 | SV-G038 | Unify permission definitions. | API and web permission lists cannot drift from the shared catalog. | `startup-office:permissions` |
-| SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require disclaimer and approval. | output eval |
+| SV-G039 | Enforce regulated advice boundaries. | Legal/financial sensitive outputs require expert-review language, founder approval gates, and visible UI decision boundary disclosures. | `startup-office:compliance-disclosures`, output eval |
 | SV-G040 | Produce launch security packet. | Threat model, privacy terms, incident runbook, and review evidence are complete. | docs gate |
 | SV-G041 | Add provider abstraction. | The worker supports primary OpenAI plus an OpenAI-compatible fallback endpoint/key/model with redacted attempt metadata. | `startup-office:model-failover`, worker tests |
 | SV-G042 | Version prompts. | Loop prompts are versioned, reviewable, hashed, and tied to model calls, runs, artifacts, approvals, worker jobs, and receipts. | `startup-office:prompt-versions`, worker tests |

@@ -121,6 +121,9 @@ export const STARTUP_OFFICE_APP_COPY = {
     approving: "Approving",
     rejecting: "Rejecting",
     revising: "Revising",
+    complianceDisclosureTitle: "AI decision boundary",
+    complianceDisclosureBody:
+      "AI outputs are drafts for founder review. Legal, financial, medical, tax, privacy, regulatory, pricing, public-claim, outbound, and customer-promise decisions require human approval and appropriate expert review before external use.",
     receiptsTitle: "Receipts and trace",
     receiptsDescription:
       "Every run should leave proof the founder can inspect or export.",
@@ -325,6 +328,9 @@ export const STARTUP_OFFICE_APP_COPY = {
     approving: "승인 중",
     rejecting: "거절 중",
     revising: "요청 중",
+    complianceDisclosureTitle: "AI 결정 경계",
+    complianceDisclosureBody:
+      "AI 산출물은 창업자 검토용 초안입니다. 법률, 금융, 의료, 세무, 개인정보, 규제, 가격, 공개 주장, 외부 발송, 고객 약속은 외부 사용 전에 사람의 승인과 필요한 전문가 검토가 필요합니다.",
     receiptsTitle: "영수증과 추적",
     receiptsDescription:
       "모든 실행은 창업자가 확인하고 내보낼 수 있는 증거를 남겨야 합니다.",

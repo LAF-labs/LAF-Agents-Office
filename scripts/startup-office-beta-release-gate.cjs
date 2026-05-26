@@ -15,6 +15,7 @@ const checks = [
   ["npm", ["run", "startup-office:backup-restore-drill"]],
   ["npm", ["run", "startup-office:beta-terms"]],
   ["npm", ["run", "startup-office:commercial-billing"]],
+  ["npm", ["run", "startup-office:compliance-disclosures"]],
   ["npm", ["run", "startup-office:cancellation"]],
   ["npm", ["run", "startup-office:citation-enforcement"]],
   ["npm", ["run", "startup-office:client-telemetry"]],

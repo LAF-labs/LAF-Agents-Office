@@ -2,6 +2,7 @@ import type {
   StartupOfficeApproval,
   StartupOfficeReceipt,
 } from "../../api/startupOffice";
+import { ComplianceDisclosure } from "./ComplianceDisclosure";
 import type { StartupOfficeAppCopy } from "./startupOfficeCopy";
 
 interface ReceiptsTimelinePanelProps {
@@ -37,6 +38,7 @@ export function ReceiptsTimelinePanel({
         <strong>{copy.nextActionTitle}</strong>
         <span>{nextApproval?.title || copy.nextActionDescription}</span>
       </div>
+      <ComplianceDisclosure copy={copy} />
     </section>
   );
 }
