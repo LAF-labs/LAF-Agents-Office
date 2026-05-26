@@ -57,17 +57,17 @@ for (const collection of manifest.select_policy?.required_collections || []) {
 
 for (const [relativePath, snippet, label] of [
   [
-    "api/lib/startup-office/queryHandlers.js",
+    "api/lib/startup-office/growthSummaryHandlers.js",
     "startupOfficeLoops(membership.team_id, {",
     "growth summary loop budget",
   ],
   [
-    "api/lib/startup-office/queryHandlers.js",
+    "api/lib/startup-office/growthSummaryHandlers.js",
     "startupOfficeBetaOpsSnapshot(membership.team_id, {",
     "growth summary beta ops budget",
   ],
   [
-    "api/lib/startup-office/queryHandlers.js",
+    "api/lib/startup-office/growthSummaryHandlers.js",
     "STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.notifications",
     "growth summary notification projection",
   ],
@@ -125,9 +125,7 @@ for (const [relativePath, snippet, label] of [
   assertContains(relativePath, snippet, label);
 }
 
-const growthSummarySource = read("api/lib/startup-office/queryHandlers.js").match(
-  /async function handleStartupOfficeGrowthSummary[\s\S]+?async function handleStartupOfficeLoops/,
-)?.[0] || "";
+const growthSummarySource = read("api/lib/startup-office/growthSummaryHandlers.js");
 if (growthSummarySource.includes('select: "*"')) {
   fail("growth summary handler must not issue wildcard selects");
 }

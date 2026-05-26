@@ -10,7 +10,6 @@ const {
 const {
   createStartupOfficeObjectHandlers,
 } = require("./objectHandlers");
-
 function createStartupOfficeObjectHandlerBundle(deps) {
   const {
     createAssetUploadHandlers = createStartupOfficeAssetUploadHandlers,

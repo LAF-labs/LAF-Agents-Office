@@ -62,7 +62,9 @@ for (const table of STARTUP_OFFICE_EXPORT_OMITTED_TABLES) {
   }
 }
 
-const exportHandlers = read("api/lib/startup-office/exportHandlers.js");
+const exportSource =
+  read("api/lib/startup-office/exportHandlers.js") +
+  read("api/lib/startup-office/exportBundleBuilder.js");
 const exportManifest = read("api/lib/startup-office/exportManifest.js");
 if (!exportManifest.includes(STARTUP_OFFICE_EXPORT_SCHEMA_VERSION)) {
   fail("export manifest is missing the current schema version");
@@ -85,11 +87,11 @@ for (const snippet of [
   "STARTUP_OFFICE_EXPORT_ROW_LIMIT",
   "startupOfficeExportChunkManifest",
 ]) {
-  if (!exportHandlers.includes(snippet)) {
+  if (!exportSource.includes(snippet)) {
     fail(`export handler is missing ${snippet}`);
   }
 }
-if (exportHandlers.includes("token_hash")) {
+if (exportSource.includes("token_hash")) {
   fail("export handler must not expose invite token_hash values");
 }
 
