@@ -46,6 +46,7 @@
     "startup-office:pure-cloud-boundary": "node scripts/check-pure-cloud-boundary.cjs",
     "startup-office:rate-limits": "node scripts/check-startup-office-rate-limit-coverage.cjs",
     "startup-office:release-health": "node scripts/check-startup-office-release-health.cjs",
+    "startup-office:release-versioning": "node scripts/check-startup-office-release-versioning.cjs",
     "startup-office:red-team": "node --test workers/startup-office/redTeamHarness.test.js",
     "startup-office:receipt-integrity": "node scripts/check-startup-office-receipt-integrity.cjs",
     "startup-office:retrieval-quality": "node scripts/check-startup-office-retrieval-quality.cjs",

@@ -13,7 +13,10 @@ The current codebase is ready for a closed beta production rehearsal when all of
 these commands pass on the deploy commit:
 
 - `npm run beta:release-gate`
+- `npm run startup-office:release-health`
+- `npm run startup-office:release-versioning`
 - `npm run startup-office:secret-rotation`
+- `npm run startup-office:migration-recovery`
 - `npm run startup-office:rls-live`
 - `npm run hosted-env:preflight -- --no-env-file` against production variables
 - `npx supabase migration list` shows local and remote at the same latest
@@ -38,18 +41,30 @@ The repository now contains:
   loops, approval desk, artifacts, receipts, beta operations, and workspace
   activity.
 
+## Release Versioning
+
+`shared/startup-office-release-versioning.json` defines the SaaS release ID:
+`startup-office@{package.version}+schema.{latestMigration}+commit.{shortSha}`.
+Every production handoff must record the package version, deployed commit,
+latest applied migration, release gate result, release health result, secret
+rotation result, rollback decision and owner, and post-release monitor window
+result.
+
 ## G099 Production Deployment Evidence
 
 Mark G099 complete only after storing an external deployment record with these
 fields in the operator system of record:
 
 - Deploy commit SHA.
+- Package version.
 - Production app URL.
 - Production API base URL.
 - DNS provider and record type, without credentials.
 - Supabase project ref and latest applied migration.
 - Redacted `npm run hosted-env:preflight -- --no-env-file` result.
 - Release gate result for the deploy commit.
+- Release health contract result.
+- Secret rotation contract result.
 - Loop worker workflow run ID.
 - Outbox worker workflow run ID.
 - Ops monitor workflow run ID.
@@ -59,6 +74,8 @@ fields in the operator system of record:
 - First production smoke run ID.
 - First production approval ID.
 - First production receipt ID.
+- Rollback decision and owner.
+- Post-release monitor window result.
 - Screenshot or browser-test artifact proving profile, loop, approval, receipt,
   notification, export, and logout work on the production domain.
 

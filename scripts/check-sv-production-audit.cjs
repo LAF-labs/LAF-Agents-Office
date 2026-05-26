@@ -104,6 +104,7 @@ for (const staleClaim of [
   "Worker concurrency and queue backpressure are not modeled.",
   "There is no staged rollout or feature flag plan for risky cloud loops.",
   "Secrets and config rotation are not a release checklist item.",
+  "Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence.",
   "Post-release monitoring and rollback criteria are undefined.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
@@ -218,6 +219,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:secret-rotation"')) {
   fail("beta release gate must include the secret rotation contract");
+}
+
+for (const required of [
+  "startup-office:release-versioning",
+  "shared/startup-office-release-versioning.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record release versioning evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:release-versioning"] !==
+  "node scripts/check-startup-office-release-versioning.cjs"
+) {
+  fail("package.json must expose startup-office:release-versioning");
+}
+
+if (!releaseGate.includes('"startup-office:release-versioning"')) {
+  fail("beta release gate must include the release versioning contract");
 }
 
 for (const required of [

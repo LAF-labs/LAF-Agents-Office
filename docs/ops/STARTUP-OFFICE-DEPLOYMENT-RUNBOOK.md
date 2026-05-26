@@ -310,6 +310,12 @@ Point-in-time restore path:
 
 ## Rollback
 
+Host web/API rollback is allowed only when schema compatibility is preserved.
+Applied production migrations are forward-fixed unless destructive corruption
+requires PITR. Loop and outbox workers can be disabled independently without
+reverting the web/API deploy. Release evidence must record whether rollback,
+forward-fix, or worker pause was chosen.
+
 If the web/API deploy fails, roll back through the host provider and leave the
 outbox workflow disabled until the app smoke passes.
 

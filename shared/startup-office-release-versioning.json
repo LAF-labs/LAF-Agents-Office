@@ -1,0 +1,31 @@
+{
+  "version": "startup-office-release-versioning.v1",
+  "package_version_source": "package.json",
+  "schema_version_source": "supabase/schema/current.json",
+  "release_id_format": "startup-office@{package.version}+schema.{latestMigration}+commit.{shortSha}",
+  "current_package_version": "0.0.7.1",
+  "current_minimum_migration": "20260526080000",
+  "required_release_evidence": [
+    "Deploy commit SHA",
+    "Package version",
+    "Supabase project ref and latest applied migration",
+    "Release gate result for the deploy commit",
+    "Release health contract result",
+    "Secret rotation contract result",
+    "Rollback decision and owner",
+    "Post-release monitor window result"
+  ],
+  "rollback_compatibility": [
+    "Host web/API rollback is allowed only when schema compatibility is preserved.",
+    "Applied production migrations are forward-fixed unless destructive corruption requires PITR.",
+    "Loop and outbox workers can be disabled independently without reverting the web/API deploy.",
+    "Release evidence must record whether rollback, forward-fix, or worker pause was chosen."
+  ],
+  "required_commands": [
+    "npm run beta:release-gate",
+    "npm run startup-office:release-health",
+    "npm run startup-office:secret-rotation",
+    "npm run startup-office:migration-recovery",
+    "npm run startup-office:production-handoff"
+  ]
+}
