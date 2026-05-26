@@ -18,6 +18,7 @@ function recordFor(goalId, overrides = {}) {
     templateRecord.requiredFields.map((field) => [field.key, `${goalId}-${field.key}-evidence`]),
   );
   if (goalId === "G099") {
+    fields.current_beta_terms_acceptance = `terms-acceptance-1 ${releaseContext.currentTermsVersion}`;
     fields.deploy_commit_sha = "abcdef1234567890abcdef1234567890abcdef12";
     fields.hosted_env_preflight_result = "passed with redacted output";
     fields.package_version = releaseContext.packageVersion;
@@ -30,8 +31,10 @@ function recordFor(goalId, overrides = {}) {
     fields.post_release_monitor_window_result = "ok after 60 minutes";
   }
   if (goalId === "G100") {
+    fields.current_beta_terms_acceptance = `terms-acceptance-2 ${releaseContext.currentTermsVersion}`;
     fields.payment_status = "paid";
     fields.founder_decision = "approved";
+    fields.signed_beta_agreement_or_payment_reference = "invoice ref INV-2026-0001";
   }
   return {
     fields: { ...fields, ...(overrides.fields || {}) },
@@ -102,6 +105,27 @@ test("rejects invalid customer decision and payment states", () => {
       fields: { founder_decision: "approved", payment_status: "free" },
     }), template),
     /payment_status/,
+  );
+});
+
+test("rejects stale terms evidence and weak customer agreement references", () => {
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G099", {
+      fields: { current_beta_terms_acceptance: "terms-acceptance-1 startup-office-beta-terms-2020-01-01" },
+    }), template, releaseContext),
+    /current_beta_terms_acceptance must include current terms version/,
+  );
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G100", {
+      fields: { current_beta_terms_acceptance: "terms-acceptance-2 startup-office-beta-terms-2020-01-01" },
+    }), template, releaseContext),
+    /current_beta_terms_acceptance must include current terms version/,
+  );
+  assert.throws(
+    () => validateExternalEvidencePayload(recordFor("G100", {
+      fields: { signed_beta_agreement_or_payment_reference: "looks good to me" },
+    }), template, releaseContext),
+    /must be an external agreement, invoice, or payment reference/,
   );
 });
 

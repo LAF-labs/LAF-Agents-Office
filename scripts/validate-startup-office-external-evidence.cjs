@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, "..");
 const packagePath = path.join(root, "package.json");
 const schemaPath = path.join(root, "supabase", "schema", "current.json");
 const templatePath = path.join(root, "shared", "startup-office-external-evidence-template.json");
+const { startupOfficeCurrentTermsPackage } = require("../api/lib/startup-office/betaTerms");
 const PLACEHOLDER_VALUES = new Set(["", "n/a", "na", "none", "null", "pending", "tbd", "todo", "unknown"]);
 const FORBIDDEN_VALUE_PATTERNS = [
   { label: "AWS access key", pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/ },
@@ -29,6 +30,7 @@ function loadTemplate() {
 
 function loadReleaseContext() {
   return {
+    currentTermsVersion: startupOfficeCurrentTermsPackage().terms_version,
     latestMigration: String(loadJSON(schemaPath).latestMigration),
     packageVersion: String(loadJSON(packagePath).version),
   };
@@ -134,6 +136,7 @@ function validateRecord(record, template, releaseContext) {
 
 function validateFieldSemantics(record, releaseContext) {
   const fields = record.fields;
+  validateTermsEvidence(record.goalId, fields.current_beta_terms_acceptance, releaseContext);
   if (record.goalId === "G099") {
     if (!/^[a-f0-9]{7,40}$/i.test(String(fields.deploy_commit_sha))) {
       throw new Error("G099 deploy_commit_sha must look like a git SHA");
@@ -162,6 +165,7 @@ function validateFieldSemantics(record, releaseContext) {
     }
   }
   if (record.goalId === "G100") {
+    validateCustomerAgreementReference(fields.signed_beta_agreement_or_payment_reference);
     if (!["trial", "paid", "paused", "blocked"].includes(String(fields.payment_status))) {
       throw new Error("G100 payment_status must be trial, paid, paused, or blocked");
     }
@@ -169,6 +173,24 @@ function validateFieldSemantics(record, releaseContext) {
       throw new Error("G100 founder_decision must be approved, revised, or rejected");
     }
   }
+}
+
+function validateTermsEvidence(goalId, value, releaseContext) {
+  if (!String(value).includes(releaseContext.currentTermsVersion)) {
+    throw new Error(`${goalId} current_beta_terms_acceptance must include current terms version ${releaseContext.currentTermsVersion}`);
+  }
+}
+
+function validateCustomerAgreementReference(value) {
+  const text = String(value).trim();
+  if (
+    text.startsWith("https://") ||
+    /\b(?:agreement|contract|invoice|payment|reference|ref|signed|stripe|manual)\b/i.test(text) ||
+    /\b(?:inv|pay|agr|contract)_[A-Za-z0-9_-]{4,}\b/i.test(text)
+  ) {
+    return;
+  }
+  throw new Error("G100 signed_beta_agreement_or_payment_reference must be an external agreement, invoice, or payment reference");
 }
 
 function validateExternalEvidencePayload(payload, template = loadTemplate(), releaseContext = loadReleaseContext()) {
