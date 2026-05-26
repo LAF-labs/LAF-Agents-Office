@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "default_stage": "closed_beta",
+  "flag": "startup_office_rollout.enabled_loops",
+  "stable_loops": [
+    "customer-discovery",
+    "idea-validation",
+    "offer-package",
+    "weekly-operator-review"
+  ],
+  "gated_loops": [
+    {
+      "slug": "launch-campaign",
+      "stage": "operator_preview",
+      "flag": "startup_office_rollout.enabled_loops",
+      "reason": "Public launch copy, outbound assets, and campaign promises require staged rollout before general beta."
+    }
+  ],
+  "required_controls": [
+    "founder approval gates",
+    "receipt trace",
+    "run and worker metadata",
+    "rollback by removing the loop slug from workspace settings"
+  ]
+}

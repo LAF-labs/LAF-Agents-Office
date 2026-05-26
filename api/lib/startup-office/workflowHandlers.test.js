@@ -254,12 +254,16 @@ test("loopRun can queue a deferred run without executing the worker", async () =
   assert.equal(deps.calls.permission, "memory:write_draft");
   assert.equal(deps.calls.rateLimits[0].action, "loop_run");
   assert.equal(deps.calls.createdRun.metadata.provider, "fake");
+  assert.equal(deps.calls.createdRun.metadata.rollout.source, "stable_default");
   assert.equal(deps.calls.createdRun.metadata.skill_invocations[0].skill_name, "market-research");
+  assert.equal(deps.calls.createdWorkerJob.metadata.rollout.stage, "closed_beta");
   assert.equal(deps.calls.createdWorkerJob.metadata.skill_invocations[0].reason, "Ground the loop in a reusable playbook.");
   assert.equal(deps.calls.createdWorkerJob.run_id, "run-1");
   assert.equal(deps.calls.receipts[0].event_type, "run.queued");
+  assert.equal(deps.calls.receipts[0].trace.rollout.allowed, true);
   assert.equal(deps.calls.receipts[0].trace.skill_invocations[0].input_keys[0], "market");
   assert.equal(deps.calls.audits[0][1], "startup_office.run_created");
+  assert.equal(deps.calls.audits[0][4].rollout.source, "stable_default");
   assert.equal(deps.calls.activations[0].milestone, "run_progress");
   assert.equal(deps.calls.activations[0].runID, "run-1");
   assert.equal(deps.calls.writes[0].status, 202);
@@ -336,6 +340,59 @@ test("loopRun executes immediately and records usage plus notification events", 
   assert.equal(deps.calls.rest[0].options.body.tool_calls, 1);
   assert.equal(deps.calls.rest[0].options.body.worker_duration_ms, 60000);
   assert.equal(deps.calls.rest[1].options.body.event_type, "approval_waiting");
+});
+
+test("loopRun blocks gated loops unless workspace rollout flag enables them", async () => {
+  const blockedDeps = baseDeps({
+    async ensureStartupOfficeLoop() {
+      return {
+        id: "loop-launch",
+        name: "Launch Campaign",
+        objective: "Prepare launch assets",
+        slug: "launch-campaign",
+      };
+    },
+    async workspaceSettings() {
+      return { preferences: {} };
+    },
+  });
+  const blockedHandlers = createStartupOfficeWorkflowHandlers(blockedDeps);
+
+  await assert.rejects(
+    () => blockedHandlers.loopRun({ method: "POST" }, {}, "launch-campaign"),
+    (err) => err.status === 403 && /not enabled/.test(err.message),
+  );
+  assert.equal(blockedDeps.calls.createdRun, undefined);
+  assert.equal(blockedDeps.calls.createdWorkerJob, undefined);
+  assert.equal(blockedDeps.calls.receipts.length, 0);
+
+  const enabledDeps = baseDeps({
+    async ensureStartupOfficeLoop() {
+      return {
+        id: "loop-launch",
+        name: "Launch Campaign",
+        objective: "Prepare launch assets",
+        slug: "launch-campaign",
+      };
+    },
+    async workspaceSettings() {
+      return {
+        preferences: {
+          startup_office_rollout: {
+            enabled_loops: ["launch-campaign"],
+          },
+        },
+      };
+    },
+  });
+  const enabledHandlers = createStartupOfficeWorkflowHandlers(enabledDeps);
+
+  await enabledHandlers.loopRun({ method: "POST" }, {}, "launch-campaign");
+
+  assert.equal(enabledDeps.calls.createdRun.metadata.rollout.source, "workspace_flag");
+  assert.equal(enabledDeps.calls.createdRun.metadata.rollout.stage, "operator_preview");
+  assert.equal(enabledDeps.calls.createdWorkerJob.metadata.rollout.slug, "launch-campaign");
+  assert.equal(enabledDeps.calls.receipts[0].trace.rollout.allowed, true);
 });
 
 test("run handler returns run detail and can cancel an unfinished run", async () => {

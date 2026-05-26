@@ -8,6 +8,7 @@ const {
 } = require("./approvalRevisions");
 const { recordStartupOfficeRunOutcome } = require("./runOutcomeRecorder");
 const { createStartupOfficeRunHandlers } = require("./workflowRunHandlers");
+const { assertStartupOfficeLoopRollout } = require("./loopRollout");
 
 function createStartupOfficeWorkflowHandlers(deps) {
   const {
@@ -75,11 +76,13 @@ function createStartupOfficeWorkflowHandlers(deps) {
     await enforceWorkflowRateLimit(membership, "loop_run");
     await enforceStartupOfficeRunLimit(membership.team_id);
     const loop = await ensureStartupOfficeLoop(membership, loopID);
+    const settings = await workspaceSettingsForMembership(membership.team_id);
+    const rollout = assertStartupOfficeLoopRollout({ createHTTPError, loop, settings });
     const profile = await companyProfileSnapshot(membership.team_id, team, user);
     const objective = truncateText(body.objective || loop.objective || profile.priority || "Run this operating loop.", 2000);
     const now = nowISO();
     const modelClient = startupOfficeModelClient();
-    const approvalPolicy = await approvalPolicyForMembership(membership.team_id);
+    const approvalPolicy = await approvalPolicyForSettings(settings);
     const skillInvocations = startupOfficeLoopSkillInvocations({ inputs: body.inputs, loop, objective, profile, truncateText });
     const run = await repository.createRun(membership, {
       idempotency_key: idempotencyKey,
@@ -90,6 +93,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         company_name: profile.name || "",
         loop_slug: loop.slug,
         provider: modelClient.provider,
+        rollout,
         skill_invocations: skillInvocations,
       },
       objective,
@@ -104,6 +108,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
         approval_policy: approvalPolicy,
         objective,
         provider: modelClient.provider,
+        rollout,
         skill_invocations: skillInvocations,
       },
       run_id: runID,
@@ -116,12 +121,14 @@ function createStartupOfficeWorkflowHandlers(deps) {
       summary: `${loop.name} run queued for AI execution.`,
       trace: {
         loop_slug: loop.slug,
+        rollout,
         skill_invocations: skillInvocations,
         worker_job_id: workerJob?.id || null,
       },
     });
     await writeAuditEvent(membership, "startup_office.run_created", "run", runID, {
       loop_slug: loop.slug,
+      rollout,
       worker_job_id: workerJob?.id || "",
     });
     await deps.recordStartupOfficeRunActivation?.({ membership, runID });
@@ -129,7 +136,7 @@ function createStartupOfficeWorkflowHandlers(deps) {
       id: runID,
       inputs: body.inputs,
       loop_id: loop.id || null,
-      metadata: { loop_slug: loop.slug },
+      metadata: { loop_slug: loop.slug, rollout },
       objective,
       status: "queued",
       title: loop.name,
@@ -360,9 +367,12 @@ function createStartupOfficeWorkflowHandlers(deps) {
       teamID,
     });
   }
-  async function approvalPolicyForMembership(teamID) {
+  async function workspaceSettingsForMembership(teamID) {
+    return typeof workspaceSettings === "function" ? await workspaceSettings(teamID) : null;
+  }
+
+  function approvalPolicyForSettings(settings) {
     if (typeof startupOfficeApprovalPolicy !== "function") return null;
-    const settings = typeof workspaceSettings === "function" ? await workspaceSettings(teamID) : null;
     return startupOfficeApprovalPolicy(settings);
   }
 

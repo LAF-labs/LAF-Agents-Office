@@ -201,7 +201,7 @@ startup, what fundamental problems would we refuse to carry forward?
 | SV-I133 | Release | Environment preflight now validates hosted config, outbox email, and AI provider shape, but not live external reachability. | hosted-env preflight |
 | SV-I134 | Release | The outbox and AI loop workers are independently scheduled, but production deploy evidence and live smoke are still missing. | workers directory |
 | SV-I135 | Release | CI is now hosted-only but still lacks a production deploy smoke with live environment reachability. | `.github/workflows/ci.yml` |
-| SV-I136 | Release | There is no staged rollout or feature flag plan for risky cloud loops. | docs |
+| SV-I136 | Release | Risky cloud loops now have a staged rollout contract: stable loops are enabled for closed beta, launch-campaign requires the workspace rollout flag, and run, worker, receipt, and audit metadata record the decision; live canary evidence remains deploy-time. | `shared/startup-office-rollout-policy.json`, `startup-office:loop-rollout` |
 | SV-I137 | Release | Database migration failure recovery is now release-gated through a forward-only repair policy, applied-version inspection, tenant-safe repair boundary, live RLS verification step, beta gate rerun, and PITR fallback. | `startup-office:migration-recovery`, deployment runbook |
 | SV-I138 | Release | Secrets and config rotation are not a release checklist item. | env docs |
 | SV-I139 | Release | Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence. | release docs |
