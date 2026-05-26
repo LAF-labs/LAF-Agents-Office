@@ -63,6 +63,7 @@ const checks = [
   ["npm", ["run", "startup-office:static-analysis"]],
   ["npm", ["run", "startup-office:web-lint-budget"]],
   ["npm", ["run", "startup-office:surface"]],
+  ["npm", ["run", "startup-office:subprocessors"]],
   ["npm", ["run", "startup-office:support-playbooks"]],
   ["npm", ["run", "startup-office:support-timeline"]],
   ["npm", ["run", "startup-office:synthetic-monitor-check"]],

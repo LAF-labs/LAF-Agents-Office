@@ -1,0 +1,50 @@
+{
+  "version": "startup-office-subprocessors.v1",
+  "status": "closed_beta_disclosure",
+  "change_notice_days": 30,
+  "public_launch_requirement": "Counsel-approved named vendor list with DPA links, regions, and transfer terms.",
+  "subprocessors": [
+    {
+      "name": "Supabase",
+      "category": "database, auth, storage, and edge APIs",
+      "customer_data": "workspace records, user identity, auth sessions, assets, receipts, and audit evidence",
+      "enabled_when": "always required for hosted Startup Office"
+    },
+    {
+      "name": "OpenAI or OpenAI-compatible model provider",
+      "category": "AI model inference and embeddings",
+      "customer_data": "task-specific workspace context, prompts, retrieved citations, and generated drafts",
+      "enabled_when": "LAF_OFFICE_STARTUP_OFFICE_AI_PROVIDER=openai or compatible gateway is configured"
+    },
+    {
+      "name": "Resend",
+      "category": "transactional email",
+      "customer_data": "recipient email, notification subject, approval/failure summary, and delivery metadata",
+      "enabled_when": "LAF_OUTBOX_EMAIL_PROVIDER=resend"
+    },
+    {
+      "name": "GitHub Actions",
+      "category": "scheduled workers, monitors, and CI",
+      "customer_data": "redacted aggregate worker, monitor, and deploy logs",
+      "enabled_when": "repository workflows run loop worker, outbox worker, ops monitor, or synthetic monitor"
+    },
+    {
+      "name": "Host provider",
+      "category": "web/API hosting",
+      "customer_data": "HTTP metadata, app logs, and hosted API traffic",
+      "enabled_when": "production web/API is deployed"
+    },
+    {
+      "name": "Billing or agreement provider",
+      "category": "manual billing, invoice, payment, or signed agreement evidence",
+      "customer_data": "company billing status, signed agreement URL, invoice reference, or payment reference",
+      "enabled_when": "paid beta or commercial evidence is recorded"
+    }
+  ],
+  "model_provider_controls": [
+    "Production preflight rejects fake or disabled AI providers.",
+    "Model calls should minimize workspace context to the current task.",
+    "Run metadata records provider, model, token usage, cost, and redacted fallback attempts.",
+    "AI output remains draft-only until founder approval or explicit human review."
+  ]
+}

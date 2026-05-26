@@ -107,6 +107,7 @@ for (const staleClaim of [
   "Versioning is not yet SaaS release-oriented around deployments, migrations, and rollback evidence.",
   "Post-release monitoring and rollback criteria are undefined.",
   "Privacy policy, DPA, and terms are not implemented as launch artifacts.",
+  "Subprocessor/model provider disclosure is not represented.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
@@ -256,6 +257,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:legal-artifacts"')) {
   fail("beta release gate must include the legal artifact contract");
+}
+
+for (const required of [
+  "startup-office:subprocessors",
+  "shared/startup-office-subprocessors.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record subprocessor evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:subprocessors"] !==
+  "node scripts/check-startup-office-subprocessors.cjs"
+) {
+  fail("package.json must expose startup-office:subprocessors");
+}
+
+if (!releaseGate.includes('"startup-office:subprocessors"')) {
+  fail("beta release gate must include the subprocessor disclosure contract");
 }
 
 for (const required of [

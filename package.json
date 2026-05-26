@@ -62,6 +62,7 @@
     "startup-office:secret-rotation": "node scripts/check-startup-office-secret-rotation.cjs",
     "startup-office:static-analysis": "node scripts/check-startup-office-static-analysis.cjs",
     "startup-office:surface": "node scripts/check-startup-office-surface.cjs",
+    "startup-office:subprocessors": "node scripts/check-startup-office-subprocessors.cjs",
     "startup-office:support-playbooks": "node scripts/check-startup-office-support-playbooks.cjs",
     "startup-office:support-timeline": "node scripts/check-startup-office-support-timeline.cjs",
     "startup-office:web-lint-budget": "node scripts/check-startup-office-web-lint-budget.cjs",

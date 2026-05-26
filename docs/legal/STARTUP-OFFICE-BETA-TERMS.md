@@ -78,6 +78,39 @@ This structure follows the GDPR Article 28 controller/processor contract shape
 and EDPB controller/processor guidance, while US beta customers receive the same
 operational controls as a product commitment.
 
+## Subprocessor And Model Provider Disclosure
+
+`shared/startup-office-subprocessors.json` is the closed-beta disclosure source
+of truth. Public self-serve launch requires a counsel-approved named vendor list
+with DPA links, regions, and transfer terms. Closed-beta subprocessor changes
+require at least 30 days notice unless an urgent security or continuity issue
+requires faster replacement.
+
+Closed-beta processors and provider categories:
+
+- Supabase: database, auth, storage, and edge APIs for workspace records, user
+  identity, auth sessions, assets, receipts, and audit evidence.
+- OpenAI or OpenAI-compatible model provider: AI model inference and embeddings
+  for task-specific workspace context, prompts, retrieved citations, and
+  generated drafts.
+- Resend: transactional email when `LAF_OUTBOX_EMAIL_PROVIDER=resend`, covering
+  recipient email, notification subject, approval/failure summary, and delivery
+  metadata.
+- GitHub Actions: scheduled workers, monitors, and CI with redacted aggregate
+  worker, monitor, and deploy logs.
+- Host provider: production web/API hosting for HTTP metadata, app logs, and
+  hosted API traffic.
+- Billing or agreement provider: manual billing, invoice, payment, or signed
+  agreement evidence for paid beta records.
+
+Model provider controls:
+
+- Production preflight rejects fake or disabled AI providers.
+- Model calls should minimize workspace context to the current task.
+- Run metadata records provider, model, token usage, cost, and redacted fallback
+  attempts.
+- AI output remains draft-only until founder approval or explicit human review.
+
 ## AI Use Terms
 
 Startup Office uses AI to draft and analyze business work. AI output can be
