@@ -9,6 +9,8 @@ import {
 import { formatRelativeTime, formatTokens, formatUSD } from "../../lib/format";
 import { useUiText } from "../../lib/uiText";
 
+type ReceiptsCopy = ReturnType<typeof useUiText>["receipts"];
+
 export function ReceiptsApp() {
   const [selectedRunID, setSelectedRunID] = useState<string | null>(null);
 
@@ -65,7 +67,7 @@ function LogTable({
   onSelectRun,
   receipts,
 }: {
-  copy: ReturnType<typeof useUiText>["receipts"];
+  copy: ReceiptsCopy;
   onSelectRun: (runID: string) => void;
   receipts: StartupOfficeReceipt[];
 }) {
@@ -188,46 +190,82 @@ function ReceiptDetail({
       ) : null}
 
       {!(isLoading || error) && receipts.length > 0 ? (
-        <div className="app-table-shell app-trace-list">
-          {receipts.map((entry, i) => (
-            <div key={entry.id} className="app-trace-entry">
-              <div className="app-trace-entry-head">
-                <span className="app-trace-index">
-                  #{i + 1}{" "}
-                  {entry.created_at
-                    ? new Date(entry.created_at).toLocaleTimeString()
-                    : "\u2014"}
-                </span>
-                <span className="app-trace-action">
-                  {entry.event_type || copy.unknown}
-                </span>
-                {entry.actor_slug ? (
-                  <span className="app-trace-agent">@{entry.actor_slug}</span>
-                ) : null}
-              </div>
-              {entry.summary ? (
-                <div className="app-trace-content">
-                  {entry.summary.slice(0, 200)}
-                </div>
-              ) : null}
-              {entry.integrity?.digest ? (
-                <div className="app-trace-integrity">
-                  <span>{copy.digest}</span>
-                  <code title={entry.integrity.digest}>
-                    {shortDigest(entry.integrity.digest)}
-                  </code>
-                  {entry.integrity.signed ? null : (
-                    <span className="app-trace-integrity-badge">
-                      {copy.unsigned}
-                    </span>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
+        <ReceiptTraceList copy={copy} receipts={receipts} />
       ) : null}
     </>
+  );
+}
+
+function ReceiptTraceList({
+  copy,
+  receipts,
+}: {
+  copy: ReceiptsCopy;
+  receipts: StartupOfficeReceipt[];
+}) {
+  return (
+    <div className="app-table-shell app-trace-list">
+      {receipts.map((entry, index) => (
+        <ReceiptTraceEntry
+          copy={copy}
+          entry={entry}
+          index={index}
+          key={entry.id}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ReceiptTraceEntry({
+  copy,
+  entry,
+  index,
+}: {
+  copy: ReceiptsCopy;
+  entry: StartupOfficeReceipt;
+  index: number;
+}) {
+  return (
+    <div className="app-trace-entry">
+      <div className="app-trace-entry-head">
+        <span className="app-trace-index">
+          #{index + 1} {formatTraceTime(entry.created_at)}
+        </span>
+        <span className="app-trace-action">
+          {entry.event_type || copy.unknown}
+        </span>
+        {entry.actor_slug ? (
+          <span className="app-trace-agent">@{entry.actor_slug}</span>
+        ) : null}
+      </div>
+      {entry.summary ? (
+        <div className="app-trace-content">{entry.summary.slice(0, 200)}</div>
+      ) : null}
+      {entry.integrity?.digest ? (
+        <ReceiptIntegrity copy={copy} receipt={entry} />
+      ) : null}
+    </div>
+  );
+}
+
+function ReceiptIntegrity({
+  copy,
+  receipt,
+}: {
+  copy: ReceiptsCopy;
+  receipt: StartupOfficeReceipt;
+}) {
+  const digest = receipt.integrity?.digest;
+  if (!digest) return null;
+  return (
+    <div className="app-trace-integrity">
+      <span>{copy.digest}</span>
+      <code title={digest}>{shortDigest(digest)}</code>
+      {receipt.integrity?.signed ? null : (
+        <span className="app-trace-integrity-badge">{copy.unsigned}</span>
+      )}
+    </div>
   );
 }
 
@@ -252,6 +290,10 @@ function objectValue(value: unknown): Record<string, unknown> {
 function numberValue(value: unknown): number {
   const number = Number(value || 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+function formatTraceTime(value?: string | null): string {
+  return value ? new Date(value).toLocaleTimeString() : "\u2014";
 }
 
 function shortDigest(digest: string): string {
