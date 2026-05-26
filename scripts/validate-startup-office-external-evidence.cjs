@@ -75,7 +75,7 @@ function normalizeRecords(payload) {
 function isBlankOrPlaceholder(value) {
   if (value === null || value === undefined) return true;
   const normalized = String(value).trim().toLowerCase();
-  return PLACEHOLDER_VALUES.has(normalized) || /^<.+>$/.test(normalized);
+  return PLACEHOLDER_VALUES.has(normalized) || /^<[^<>]+>$/.test(normalized);
 }
 
 function assertNoForbiddenValue(value, label) {
@@ -388,16 +388,101 @@ function validateExternalEvidencePayload(payload, template = loadTemplate(), rel
   return results;
 }
 
+function buildEvidenceSkeleton(template = loadTemplate(), releaseContext = loadReleaseContext()) {
+  return {
+    records: template.records.map((record) => ({
+      fields: Object.fromEntries(
+        record.requiredFields.map((field) => [
+          field.key,
+          skeletonFieldValue(record.goalId, field.key, releaseContext),
+        ]),
+      ),
+      goalId: record.goalId,
+      recordedIn: template.recordCompletedCopiesIn,
+      recordType: record.recordType,
+    })),
+  };
+}
+
+function skeletonFieldValue(goalId, key, releaseContext) {
+  if (key === "current_beta_terms_acceptance") {
+    return `<terms-acceptance-id> ${releaseContext.currentTermsVersion}`;
+  }
+  if (goalId === "G099") {
+    return skeletonDeploymentFieldValue(key, releaseContext);
+  }
+  if (goalId === "G100") {
+    return skeletonCustomerFieldValue(key);
+  }
+  return `<${key}>`;
+}
+
+function skeletonDeploymentFieldValue(key, releaseContext) {
+  const shortSha = releaseContext.deployCommitSha.slice(0, 12);
+  const values = {
+    deploy_commit_sha: releaseContext.deployCommitSha,
+    dns_provider_record: "<dns-provider> CNAME <production-host>",
+    first_production_approval_id: "fill <production-approval-id>",
+    first_production_receipt_id: "fill <production-receipt-id>",
+    first_production_smoke_run_id: "fill <production-smoke-run-id>",
+    hosted_env_preflight_result: "passed with redacted output: <preflight-run-id-or-artifact>",
+    loop_worker_workflow_run_id: "fill <loop-worker-workflow-run-id-or-url>",
+    ops_monitor_workflow_run_id: "fill <ops-monitor-workflow-run-id-or-url>",
+    outbox_worker_workflow_run_id: "fill <outbox-worker-workflow-run-id-or-url>",
+    package_version: releaseContext.packageVersion,
+    post_release_monitor_window_result: "ok after <duration> minutes: <monitor-artifact-id-or-url>",
+    production_api_base_url: "https://<production-api-host>",
+    production_app_url: "https://<production-app-host>",
+    production_browser_artifact: "fill <browser-artifact-id-or-url>",
+    production_smoke_workspace_id: "fill <production-smoke-workspace-id>",
+    release_gate_result: `passed on deploy commit ${shortSha}: <release-gate-run-id-or-artifact>`,
+    release_health_result: "green: <release-health-artifact-id-or-url>",
+    rollback_decision_owner: "no-rollback owner <operator-or-founder>",
+    secret_rotation_result: "success with redacted output: <rotation-artifact-id-or-url>",
+    supabase_project_ref_latest_migration: `<supabase-project-ref> latest ${releaseContext.latestMigration}`,
+    synthetic_monitor_workflow_run_id: "fill <synthetic-monitor-workflow-run-id-or-url>",
+  };
+  return values[key] || `<${key}>`;
+}
+
+function skeletonCustomerFieldValue(key) {
+  const values = {
+    billing_provider: "manual",
+    customer_company_name: "fill <customer-company-name>",
+    first_approval_id: "fill <first-customer-approval-id>",
+    first_customer_run_id: "fill <first-customer-run-id>",
+    first_loop_slug: "idea-validation",
+    first_receipt_id: "fill <first-customer-receipt-id>",
+    founder_contact_owner: "fill <internal-founder-contact-owner>",
+    founder_decision: "approved",
+    payment_status: "paid",
+    signed_beta_agreement_or_payment_reference: "invoice ref INV-<external-id>",
+    success_note: "fill <short business outcome the founder received>",
+    workspace_id: "fill <customer-workspace-id>",
+  };
+  return values[key] || `<${key}>`;
+}
+
 function parseArgs(argv) {
+  if (argv.includes("--print-template")) {
+    return { printTemplate: true };
+  }
   const fileIndex = argv.indexOf("--file");
   if (fileIndex === -1 || !argv[fileIndex + 1]) {
-    throw new Error("usage: npm run startup-office:external-evidence:validate -- --file /path/to/evidence.json");
+    throw new Error(
+      "usage: npm run startup-office:external-evidence:validate -- --file /path/to/evidence.json " +
+        "or -- --print-template",
+    );
   }
   return { file: path.resolve(argv[fileIndex + 1]) };
 }
 
 function main(argv = process.argv.slice(2)) {
-  const { file } = parseArgs(argv);
+  const { file, printTemplate } = parseArgs(argv);
+  if (printTemplate) {
+    console.log(JSON.stringify(buildEvidenceSkeleton(), null, 2));
+    return;
+  }
   const results = validateExternalEvidencePayload(loadJSON(file));
   console.log(
     `startup-office external evidence validation passed: ` +
@@ -415,6 +500,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildEvidenceSkeleton,
   loadReleaseContext,
   loadTemplate,
   validateExternalEvidencePayload,

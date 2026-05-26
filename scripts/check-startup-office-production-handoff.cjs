@@ -157,6 +157,7 @@ for (const snippet of [
   "Repository-Controlled Readiness",
   manifestPath,
   evidenceTemplatePath,
+  "npm run startup-office:external-evidence:validate -- --print-template",
   "npm run startup-office:external-evidence:validate -- --file",
   manifest.currentMinimumMigration,
   "G099 Production Deployment Evidence",
@@ -226,6 +227,11 @@ assertContains(
   "scripts/startup-office-beta-release-gate.cjs",
   '"startup-office:external-evidence-validator"',
   "release gate",
+);
+assertContains(
+  "scripts/validate-startup-office-external-evidence.cjs",
+  '"--print-template"',
+  "external evidence skeleton command",
 );
 assertContains(
   "docs/specs/SILICON-VALLEY-PRODUCTION-AUDIT.md",

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  buildEvidenceSkeleton,
   loadReleaseContext,
   loadTemplate,
   validateExternalEvidencePayload,
@@ -69,6 +70,26 @@ test("validates complete G099 and G100 evidence records", () => {
   }, template);
 
   assert.deepEqual(result.map((record) => record.goalId), ["G099", "G100"]);
+});
+
+test("builds an operator skeleton pinned to current release facts", () => {
+  const skeleton = buildEvidenceSkeleton(template, releaseContext);
+  const g099 = skeleton.records.find((record) => record.goalId === "G099");
+  const g100 = skeleton.records.find((record) => record.goalId === "G100");
+
+  assert.equal(skeleton.records.length, 2);
+  assert.equal(g099.recordedIn, "operator system of record");
+  assert.equal(g099.fields.deploy_commit_sha, releaseContext.deployCommitSha);
+  assert.equal(g099.fields.package_version, releaseContext.packageVersion);
+  assert.match(g099.fields.release_gate_result, new RegExp(releaseContext.deployCommitSha.slice(0, 12)));
+  assert.match(g099.fields.supabase_project_ref_latest_migration, new RegExp(releaseContext.latestMigration));
+  assert.match(g099.fields.current_beta_terms_acceptance, new RegExp(releaseContext.currentTermsVersion));
+  assert.equal(g100.fields.first_loop_slug, "idea-validation");
+  assert.match(g100.fields.current_beta_terms_acceptance, new RegExp(releaseContext.currentTermsVersion));
+  assert.throws(
+    () => validateExternalEvidencePayload(skeleton, template, releaseContext),
+    /production_app_url must be a valid HTTPS URL/,
+  );
 });
 
 test("rejects missing required evidence fields", () => {
