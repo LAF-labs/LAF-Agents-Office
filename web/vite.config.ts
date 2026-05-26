@@ -34,6 +34,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    modulePreload: {
+      resolveDependencies(filename, deps, context) {
+        if (
+          context.hostType === 'html' &&
+          /index-[\w-]+\.js$/.test(filename)
+        ) {
+          return deps.filter((dep) => !isDeferredWorkspaceSurfaceDependency(dep))
+        }
+        if (!/WorkspaceApp-[\w-]+\.js$/.test(filename)) return deps
+        return deps.filter((dep) => !isDeferredWorkspaceSurfaceDependency(dep))
+      },
+    },
     rolldownOptions: {
       output: {
         codeSplitting: {
@@ -73,3 +85,9 @@ export default defineConfig({
     },
   },
 })
+
+function isDeferredWorkspaceSurfaceDependency(dep: string) {
+  return /(?:ArtifactsApp|CitedAnswer|HomeApp|Notebook|ReceiptsApp|RequestsApp|ReviewQueueKanban|SettingsApp|SkillsApp|StartupOfficeApp|ThreadsApp|Wiki|markdown-vendor|notebook-|startupOffice(?:-|Copy))/.test(
+    dep,
+  )
+}

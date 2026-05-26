@@ -111,8 +111,8 @@ function extractSidebarApps() {
 function extractWorkspacePanelApps() {
   const segment = extractBetween(
     "web/src/components/workspace/WorkspaceApp.tsx",
-    "const panels: Record<string, PanelComponent> = {",
-    "    };",
+    "const APP_PANELS: Record<string, PanelComponent> = {",
+    "};",
   );
   return Array.from(segment.matchAll(/^\s*([a-z-]+):\s*/gm)).map((match) => match[1]);
 }

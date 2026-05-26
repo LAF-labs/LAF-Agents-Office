@@ -1,0 +1,42 @@
+{
+  "version": "startup-office-web-bundle-budget.v1",
+  "build_dir": "web/dist",
+  "scope": "Startup Office web shell and lazy workspace surfaces",
+  "budgets": {
+    "max_app_surface_js_bytes": 70000,
+    "max_css_chunk_bytes": 160000,
+    "max_entry_js_bytes": 75000,
+    "max_initial_modulepreload_count": 4,
+    "max_initial_preload_js_bytes": 400000,
+    "max_vendor_js_bytes": 210000,
+    "max_workspace_shell_js_bytes": 80000
+  },
+  "required_lazy_chunks": [
+    "ArtifactsApp",
+    "HomeApp",
+    "ReceiptsApp",
+    "RequestsApp",
+    "SettingsApp",
+    "SkillsApp",
+    "StartupOfficeApp",
+    "ThreadsApp",
+    "Wiki"
+  ],
+  "forbidden_initial_preload_patterns": [
+    "ArtifactsApp",
+    "CitedAnswer",
+    "HomeApp",
+    "Notebook",
+    "ReceiptsApp",
+    "RequestsApp",
+    "ReviewQueueKanban",
+    "SettingsApp",
+    "SkillsApp",
+    "StartupOfficeApp",
+    "ThreadsApp",
+    "Wiki",
+    "markdown-vendor",
+    "notebook-"
+  ],
+  "release_gate": "npm run startup-office:web-bundle-budget"
+}

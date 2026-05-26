@@ -246,6 +246,7 @@ const checks = [
   ],
   ["npm", ["--prefix", "web", "run", "typecheck"]],
   ["npm", ["--prefix", "web", "run", "build"]],
+  ["npm", ["run", "startup-office:web-bundle-budget"]],
 ];
 
 for (const [command, args] of checks) {
