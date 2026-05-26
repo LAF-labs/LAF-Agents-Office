@@ -131,6 +131,11 @@ assertContains(
   "wiki fixture boundary",
 );
 assertContains(
+  "scripts/startup-office-beta-release-gate.cjs",
+  ["src/api/notebook.test.ts", "src/api/wiki.test.ts"],
+  "release gate UI mock boundary tests",
+);
+assertContains(
   "docs/specs/SILICON-VALLEY-PRODUCTION-AUDIT.md",
   [
     "Startup Office environment boundaries now have a tracked manifest",
