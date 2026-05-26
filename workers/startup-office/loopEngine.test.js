@@ -42,6 +42,10 @@ test("startup office loop engine creates AI artifact, approval, receipt, and cos
   assert.equal(result.run.metadata.prompt_version.schema_name, "idea_validation_output");
   assert.equal(result.run.metadata.tool_policy.loop_slug, "idea-validation");
   assert.equal(result.run.metadata.model_timeout.version, "startup-office-model-timeout.v1");
+  assert.equal(result.run.metadata.model_latency_budget.version, "startup-office-model-latency-budget.v1");
+  assert.equal(result.run.metadata.model_latency_budget.loop_slug, "idea-validation");
+  assert.equal(result.run.metadata.model_latency.status, "completed");
+  assert.equal(result.run.metadata.model_latency.duration_ms >= 0, true);
   assert.equal(result.run.model_timeout_ms, 120000);
   assert.equal(result.run.model_deadline_at, "2026-05-24T00:02:00.000Z");
   assert.equal(result.approval.risk_level, "high");
@@ -216,6 +220,8 @@ test("startup office loop engine fails and receipts model calls that exceed the 
   assert.equal(result.run.model_timeout_ms, 1);
   assert.equal(result.run.model_deadline_at, "2026-05-24T00:00:00.001Z");
   assert.equal(result.run.metadata.model_timeout.timed_out, true);
+  assert.equal(result.run.metadata.model_latency.status, "timed_out");
+  assert.equal(result.run.metadata.model_latency.effective_timeout_ms, 1);
   assert.equal(state.jobPatches.at(0).model_deadline_at, "2026-05-24T00:00:00.001Z");
   assert.equal(state.jobPatches.at(-1).timed_out_at, "2026-05-24T00:00:00.000Z");
   assert.equal(state.receipts.at(-1).trace.model_timeout.timed_out, true);

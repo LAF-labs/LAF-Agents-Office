@@ -1,0 +1,17 @@
+{
+  "version": "startup-office-model-latency-budget.v1",
+  "scope": "Per-loop model-call latency budgets for Startup Office cloud AI runs.",
+  "policy": {
+    "target_ms": "Normal successful model call target for operator dashboards and SLO alerts.",
+    "warning_ms": "Budget breach threshold that should be investigated before paid-beta expansion.",
+    "timeout_ms": "Durable worker timeout fallback when no run/job/env override is provided.",
+    "release_gate": "npm run startup-office:model-latency-budget"
+  },
+  "budgets": {
+    "customer-discovery": { "target_ms": 60000, "warning_ms": 90000, "timeout_ms": 150000 },
+    "idea-validation": { "target_ms": 45000, "warning_ms": 75000, "timeout_ms": 120000 },
+    "launch-campaign": { "target_ms": 75000, "warning_ms": 120000, "timeout_ms": 180000 },
+    "offer-package": { "target_ms": 60000, "warning_ms": 90000, "timeout_ms": 150000 },
+    "weekly-operator-review": { "target_ms": 45000, "warning_ms": 75000, "timeout_ms": 120000 }
+  }
+}

@@ -427,6 +427,25 @@ if (!releaseGate.includes('"startup-office:index-coverage"')) {
 }
 
 for (const required of [
+  "startup-office:model-latency-budget",
+  "shared/startup-office-model-latency-budget.json",
+  "workers/startup-office/modelLatencyBudgets.js",
+]) {
+  if (!doc.includes(required)) fail(`audit must record model latency budget evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:model-latency-budget"] !==
+  "node scripts/check-startup-office-model-latency-budget.cjs"
+) {
+  fail("package.json must expose startup-office:model-latency-budget");
+}
+
+if (!releaseGate.includes('"startup-office:model-latency-budget"')) {
+  fail("beta release gate must include the model latency budget contract");
+}
+
+for (const required of [
   "startup-office:export-chunks",
   "shared/startup-office-export-chunks.json",
 ]) {

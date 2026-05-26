@@ -92,6 +92,7 @@
     "startup-office:memory-freshness": "node scripts/check-startup-office-memory-freshness.cjs",
     "startup-office:memory-import": "node scripts/check-startup-office-memory-import.cjs",
     "startup-office:model-failover": "node scripts/check-startup-office-model-failover.cjs",
+    "startup-office:model-latency-budget": "node scripts/check-startup-office-model-latency-budget.cjs",
     "startup-office:model-client:test": "node --test workers/startup-office/modelClient.test.js",
     "startup-office:object-invariants": "node scripts/check-startup-office-object-invariants.cjs",
     "startup-office:object-payload-schemas": "node scripts/check-startup-office-object-payload-schemas.cjs",

@@ -21,6 +21,10 @@ const {
   startupOfficeMemoryPromotionPreview,
   startupOfficeWikiPromotionDraft,
 } = require("./wikiWriter");
+const {
+  startupOfficeModelLatencyBudget,
+  startupOfficeModelLatencyRecord,
+} = require("./modelLatencyBudgets");
 
 const STARTUP_OFFICE_MODEL_TIMEOUT_POLICY_VERSION = "startup-office-model-timeout.v1";
 const DEFAULT_STARTUP_OFFICE_MODEL_TIMEOUT_MS = 120000;
@@ -55,13 +59,20 @@ async function runStartupOfficeLoop({
   const attempt = claimedAttempt > 0 ? claimedAttempt : Number(run?.metadata?.attempt || 0) + 1;
   const recordedSkillInvocations = normalizedSkillInvocations(skillInvocations, run);
   const toolPolicy = startupOfficeLoopToolPolicy({ approvalPolicy, loop });
+  const baseLatencyBudget = startupOfficeModelLatencyBudget(loop.slug);
   const modelTimeout = startupOfficeModelTimeoutPolicy({
+    latencyBudget: baseLatencyBudget,
     modelTimeoutMs,
     run,
     startedAt,
     workerJob,
   });
+  const modelLatencyBudget = startupOfficeModelLatencyBudget(loop.slug, {
+    timeoutMs: modelTimeout.timeout_ms,
+  });
   let modelResult = null;
+  let modelCallStartedAtMs = null;
+  let modelLatency = null;
 
   try {
     const canceledBeforeStart = await finishCanceledRun({
@@ -79,6 +90,7 @@ async function runStartupOfficeLoop({
         attempts: attempt,
         locked_at: startedAt,
         metadata: mergeMetadata(workerJob.metadata, {
+          model_latency_budget: modelLatencyBudget,
           model_timeout: modelTimeout,
           run_id: run.id,
         }),
@@ -95,6 +107,7 @@ async function runStartupOfficeLoop({
       metadata: mergeMetadata(run.metadata, {
         attempt,
         loop_slug: loop.slug,
+        model_latency_budget: modelLatencyBudget,
         model_timeout: modelTimeout,
         prompt_version: promptVersion,
         provider: modelClient.provider,
@@ -121,6 +134,7 @@ async function runStartupOfficeLoop({
         attempt,
         loop_slug: loop.slug,
         model: modelClient.model,
+        model_latency_budget: modelLatencyBudget,
         model_timeout: modelTimeout,
         provider: modelClient.provider,
         prompt_version: promptVersion,
@@ -170,6 +184,7 @@ async function runStartupOfficeLoop({
     });
     if (canceledBeforeModel) return canceledBeforeModel;
 
+    modelCallStartedAtMs = Date.now();
     modelResult = await generateStructuredWithTimeout(modelClient, {
       input: template.userPrompt({ context, inputs, objective }),
       instructions: template.instructions,
@@ -179,6 +194,7 @@ async function runStartupOfficeLoop({
         run_id: run.id,
         skill_names: recordedSkillInvocations.map((item) => item.skill_name),
         team_id: membership.team_id,
+        model_latency_budget: modelLatencyBudget,
         model_timeout: modelTimeout,
         prompt_version: promptVersion.version,
         prompt_version_manifest: promptVersion,
@@ -190,6 +206,11 @@ async function runStartupOfficeLoop({
       schemaDescription: template.schemaDescription,
       schemaName: template.schemaName,
     }, modelTimeout);
+    modelLatency = startupOfficeModelLatencyRecord(modelLatencyBudget, {
+      completedAtMs: Date.now(),
+      startedAtMs: modelCallStartedAtMs,
+      status: "completed",
+    });
     const canceledAfterModel = await finishCanceledRun({
       membership,
       nowISO,
@@ -254,6 +275,7 @@ async function runStartupOfficeLoop({
         approval_risk_level: approvalRisk,
         loop_slug: loop.slug,
         model: modelClient.model,
+        model_latency: modelLatency,
         provider: modelClient.provider,
         prompt_version: promptVersion,
         quality: qualityMetadata,
@@ -314,6 +336,7 @@ async function runStartupOfficeLoop({
           approval_required: approvalRequired,
           approval_risk_level: approvalRisk,
           cost: modelResult.cost,
+          model_latency: modelLatency,
           browser_research: browserResearch,
           loop_slug: loop.slug,
           memory_diff: memoryDiff,
@@ -351,6 +374,7 @@ async function runStartupOfficeLoop({
       metadata: mergeMetadata(run.metadata, {
         attempt,
         cost: modelResult.cost,
+        model_latency: modelLatency,
         approval_gates: effectiveApprovalGates,
         approval_mode: approvalDecision.approval_mode,
         approval_policy: approvalDecision.approval_policy,
@@ -363,6 +387,7 @@ async function runStartupOfficeLoop({
         loop_slug: loop.slug,
         model: modelClient.model,
         model_timeout: modelTimeout,
+        model_latency_budget: modelLatencyBudget,
         provider: modelClient.provider,
         prompt_version: promptVersion,
         quality: qualityMetadata,
@@ -404,6 +429,7 @@ async function runStartupOfficeLoop({
             source_count: browserResearch.sources.length,
           },
           cost: modelResult.cost,
+          model_latency: modelLatency,
           model_timeout: modelTimeout,
           prompt_version: promptVersion,
           run_id: run.id,
@@ -435,6 +461,7 @@ async function runStartupOfficeLoop({
         },
         cost: modelResult.cost,
         loop_slug: loop.slug,
+        model_latency: modelLatency,
         model_timeout: modelTimeout,
         prompt_version: promptVersion,
         quality: qualityMetadata,
@@ -463,6 +490,13 @@ async function runStartupOfficeLoop({
     const failedAt = nowISO();
     const message = truncateText(err.message || "Startup Office AI run failed", 2000);
     const timedOut = isStartupOfficeModelTimeout(err);
+    if (!modelLatency && modelCallStartedAtMs !== null) {
+      modelLatency = startupOfficeModelLatencyRecord(modelLatencyBudget, {
+        completedAtMs: Date.now(),
+        startedAtMs: modelCallStartedAtMs,
+        status: timedOut ? "timed_out" : "failed",
+      });
+    }
     const cost = modelResult?.cost || {
       currency: "USD",
       estimated_usd: null,
@@ -482,6 +516,8 @@ async function runStartupOfficeLoop({
         cost,
         error: message,
         loop_slug: loop.slug,
+        model_latency: modelLatency,
+        model_latency_budget: modelLatencyBudget,
         model: modelClient.model,
         model_timeout: {
           ...modelTimeout,
@@ -519,6 +555,8 @@ async function runStartupOfficeLoop({
         locked_at: null,
         metadata: {
           cost,
+          model_latency: modelLatency,
+          model_latency_budget: modelLatencyBudget,
           model_timeout: {
             ...modelTimeout,
             timed_out: timedOut,
@@ -545,6 +583,8 @@ async function runStartupOfficeLoop({
         attempt,
         cost,
         loop_slug: loop.slug,
+        model_latency: modelLatency,
+        model_latency_budget: modelLatencyBudget,
         model_timeout: {
           ...modelTimeout,
           timed_out: timedOut,
@@ -572,12 +612,19 @@ function mergeMetadata(current, patch) {
   };
 }
 
-function startupOfficeModelTimeoutPolicy({ modelTimeoutMs = null, run = {}, startedAt, workerJob = {} }) {
+function startupOfficeModelTimeoutPolicy({
+  latencyBudget,
+  modelTimeoutMs = null,
+  run = {},
+  startedAt,
+  workerJob = {},
+}) {
   const timeoutMs = clampModelTimeoutMs(
     modelTimeoutMs ||
       objectValue(workerJob.metadata).model_timeout_ms ||
       objectValue(run.metadata).model_timeout_ms ||
-      process.env.LAF_STARTUP_OFFICE_MODEL_TIMEOUT_MS,
+      process.env.LAF_STARTUP_OFFICE_MODEL_TIMEOUT_MS ||
+      latencyBudget?.timeout_ms,
   );
   const startedAtMs = Date.parse(startedAt);
   const baseMs = Number.isFinite(startedAtMs) ? startedAtMs : Date.now();
