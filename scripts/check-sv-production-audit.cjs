@@ -390,6 +390,24 @@ if (!releaseGate.includes('"startup-office:retrieval-performance"')) {
 }
 
 for (const required of [
+  "startup-office:export-chunks",
+  "shared/startup-office-export-chunks.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record export chunks evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:export-chunks"] !==
+  "node scripts/check-startup-office-export-chunks.cjs"
+) {
+  fail("package.json must expose startup-office:export-chunks");
+}
+
+if (!releaseGate.includes('"startup-office:export-chunks"')) {
+  fail("beta release gate must include the export chunks contract");
+}
+
+for (const required of [
   "startup-office:backup-restore-drill",
   "docs/ops/STARTUP-OFFICE-BACKUP-RESTORE-DRILL.md",
   "startup-office:migration-recovery",

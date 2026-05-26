@@ -29,6 +29,7 @@
     "startup-office:dev-workflow": "node scripts/check-startup-office-dev-workflow.cjs",
     "startup-office:environment-boundaries": "node scripts/check-startup-office-environment-boundaries.cjs",
     "startup-office:error-envelope": "node scripts/check-startup-office-error-envelope.cjs",
+    "startup-office:export-chunks": "node scripts/check-startup-office-export-chunks.cjs",
     "startup-office:export-coverage": "node scripts/check-startup-office-export-coverage.cjs",
     "startup-office:generated-artifacts": "node scripts/check-startup-office-generated-artifacts.cjs",
     "startup-office:first-beta-smoke": "node scripts/startup-office-first-beta-smoke.cjs",

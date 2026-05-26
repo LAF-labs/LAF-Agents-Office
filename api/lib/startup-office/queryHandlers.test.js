@@ -377,11 +377,15 @@ test("export handler includes schema version and restore notes", async () => {
   const bundle = deps.calls.writes[0].body.export;
   assert.equal(bundle.schema_version, "startup-office-export.v2");
   assert.equal(bundle.export_manifest.exported_tables.includes("startup_office_artifacts"), true);
+  assert.equal(bundle.export_manifest.chunked_collections.some((item) => item.collection === "artifacts"), true);
   assert.equal(bundle.export_manifest.row_limit, 1000);
   assert.deepEqual(bundle.export_limits, {
+    chunked_endpoint: "/startup-office/export?collection={collection}&cursor={next_cursor}",
     possibly_truncated_collections: [],
     row_limit: 1000,
   });
+  assert.equal(bundle.export_chunks.max_limit, 100);
+  assert.equal(bundle.export_chunks.collections.some((item) => item.collection === "memory_pages"), true);
   assert.equal(
     bundle.export_manifest.omitted_tables[0].name,
     "startup_office_outbox_events",
@@ -428,8 +432,63 @@ test("export handler reports possibly truncated capped collections", async () =>
   const bundle = deps.calls.writes[0].body.export;
 
   assert.deepEqual(bundle.export_limits.possibly_truncated_collections, [
-    { count: 1000, key: "artifacts", row_limit: 1000 },
+    { chunked: true, count: 1000, key: "artifacts", row_limit: 1000 },
   ]);
+});
+
+test("export handler returns cursor-paginated collection chunks", async () => {
+  let artifactOptions = null;
+  const deps = baseDeps({
+    async startupOfficeArtifacts(_teamID, options) {
+      artifactOptions = options;
+      return [
+        { created_at: "2026-05-25T03:00:00.000Z", id: "artifact-3" },
+        { created_at: "2026-05-25T02:00:00.000Z", id: "artifact-2" },
+        { created_at: "2026-05-25T01:00:00.000Z", id: "artifact-1" },
+      ];
+    },
+  });
+  const handlers = createStartupOfficeQueryHandlers(deps);
+
+  await handlers.export(
+    {
+      method: "GET",
+      query: {
+        collection: "artifacts",
+        cursor: "2026-05-25T04:00:00.000Z",
+        limit: "2",
+      },
+    },
+    {},
+  );
+  const chunk = deps.calls.writes[0].body.export_chunk;
+
+  assert.deepEqual(artifactOptions, {
+    cursor: "2026-05-25T04:00:00.000Z",
+    limit: 3,
+  });
+  assert.equal(chunk.collection, "artifacts");
+  assert.equal(chunk.cursor_field, "created_at");
+  assert.deepEqual(
+    chunk.items.map((item) => item.id),
+    ["artifact-3", "artifact-2"],
+  );
+  assert.deepEqual(chunk.pagination, {
+    cursor: "2026-05-25T04:00:00.000Z",
+    has_more: true,
+    limit: 2,
+    next_cursor: "2026-05-25T02:00:00.000Z",
+  });
+  assert.equal(deps.calls.activations.length, 0);
+});
+
+test("export handler rejects unsupported chunk collections", async () => {
+  const handlers = createStartupOfficeQueryHandlers(baseDeps());
+
+  await assert.rejects(
+    () => handlers.export({ method: "GET", query: { collection: "worker_jobs" } }, {}),
+    (err) => err.status === 400 && err.message.includes("collection must be one of"),
+  );
 });
 
 test("query handlers preserve typed 400 and 405 errors", async () => {

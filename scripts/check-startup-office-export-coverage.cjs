@@ -72,6 +72,7 @@ for (const snippet of [
   "startupOfficeExportLimitReport",
   "export_manifest",
   "export_limits",
+  "export_chunks",
   "billing_documents",
   "channel_messages",
   "deletion_requests",
@@ -82,6 +83,7 @@ for (const snippet of [
   "workspace_billing",
   "workspace_settings",
   "STARTUP_OFFICE_EXPORT_ROW_LIMIT",
+  "startupOfficeExportChunkManifest",
 ]) {
   if (!exportHandlers.includes(snippet)) {
     fail(`export handler is missing ${snippet}`);

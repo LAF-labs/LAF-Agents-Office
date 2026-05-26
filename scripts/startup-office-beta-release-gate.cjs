@@ -30,6 +30,7 @@ const checks = [
   ["npm", ["run", "startup-office:dev-workflow"]],
   ["npm", ["run", "startup-office:environment-boundaries"]],
   ["npm", ["run", "startup-office:error-envelope"]],
+  ["npm", ["run", "startup-office:export-chunks"]],
   ["npm", ["run", "startup-office:export-coverage"]],
   ["npm", ["run", "startup-office:generated-artifacts"]],
   ["npm", ["run", "startup-office:first-beta-smoke"]],

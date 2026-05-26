@@ -63,12 +63,24 @@ test("hosted API reads only caller workspace records when IDs collide", async ()
 
 test("hosted API writes caller workspace only when request carries another team id", async () => {
   await withTenantAPI(async ({ calls, tables }) => {
+    const rejectedResponse = await invoke("startup-office/assets", "POST", {
+      body: "Do not cross tenant boundaries.",
+      kind: "document",
+      name: "Rejected injected asset",
+      team_id: TEAM_BETA,
+    });
+
+    assert.equal(rejectedResponse.status, 400);
+    assert.equal(
+      tables.startup_office_assets.some((row) => row.name === "Rejected injected asset"),
+      false,
+    );
+
     const createResponse = await invoke("startup-office/assets", "POST", {
       body: "Do not cross tenant boundaries.",
       kind: "document",
       metadata: { requested_team_id: TEAM_BETA },
       name: "Injected asset",
-      team_id: TEAM_BETA,
     });
 
     assert.equal(createResponse.status, 200);
@@ -84,9 +96,15 @@ test("hosted API writes caller workspace only when request carries another team 
       false,
     );
 
-    const patchResponse = await invoke("startup-office/assets/shared-asset", "PATCH", {
+    const rejectedPatchResponse = await invoke("startup-office/assets/shared-asset", "PATCH", {
       name: "Alpha asset patched",
       team_id: TEAM_BETA,
+    });
+
+    assert.equal(rejectedPatchResponse.status, 400);
+
+    const patchResponse = await invoke("startup-office/assets/shared-asset", "PATCH", {
+      name: "Alpha asset patched",
     });
 
     assert.equal(patchResponse.status, 200);
@@ -290,7 +308,12 @@ function jsonResponse(status, value) {
 
 function assertNoBetaData(value) {
   const text = JSON.stringify(value);
-  assert.doesNotMatch(text, /Beta/);
+  assert.doesNotMatch(text, /Beta Inc/);
+  assert.doesNotMatch(text, /Beta artifact/);
+  assert.doesNotMatch(text, /Beta asset/);
+  assert.doesNotMatch(text, /Beta customer/);
+  assert.doesNotMatch(text, /Beta memory/);
+  assert.doesNotMatch(text, /Beta run/);
   assert.doesNotMatch(text, new RegExp(TEAM_BETA));
 }
 

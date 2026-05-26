@@ -1,12 +1,21 @@
 const {
+  STARTUP_OFFICE_EXPORT_CHUNK_COLLECTIONS,
+  STARTUP_OFFICE_EXPORT_CHUNK_LIMIT,
   STARTUP_OFFICE_EXPORT_ROW_LIMIT,
+  STARTUP_OFFICE_EXPORT_SCHEMA_VERSION,
+  startupOfficeExportChunkManifest,
   startupOfficeExportLimitReport,
   startupOfficeExportManifest,
 } = require("./exportManifest");
+const {
+  startupOfficePageRequest,
+  startupOfficePageResult,
+} = require("./pagination");
 
 function createStartupOfficeExportHandlers(deps) {
   const {
     companyProfileSnapshot,
+    createHTTPError,
     nowISO,
     requirePermission,
     requireUser,
@@ -26,6 +35,11 @@ function createStartupOfficeExportHandlers(deps) {
   async function handleStartupOfficeExport(req, res) {
     const { membership, team, user } = await requireUser(req);
     requirePermission(membership, "workspace:read");
+    const chunkCollection = queryValue(req.query?.collection);
+    if (chunkCollection) {
+      await handleStartupOfficeExportChunk(req, res, membership, chunkCollection);
+      return;
+    }
     const [
       auditEvents, channelMessages, assets, artifacts, activationEvents,
       customers, deletionRequests, invites, loops, memberships, metrics,
@@ -73,7 +87,8 @@ function createStartupOfficeExportHandlers(deps) {
       artifacts, assets, beta_ops: betaOps,
       billing_documents: betaOps.billing_documents || [],
       channel_messages: channelMessages, company_profile: profile, customers,
-      deletion_requests: deletionRequests, export_manifest: exportManifest,
+      deletion_requests: deletionRequests, export_chunks: startupOfficeExportChunkManifest(),
+      export_manifest: exportManifest,
       generated_at: nowISO(), loops, memory_pages: memoryPages, memberships,
       metrics, notifications, orchestration_intents: orchestrationIntents, receipts,
       restore_notes: "Restore into another workspace must preserve team-scoped IDs, loop slugs, approval decisions, receipt traces, memory page slugs, and legal acceptance evidence.",
@@ -87,13 +102,68 @@ function createStartupOfficeExportHandlers(deps) {
     writeJSON(res, 200, { export: exportBundle });
   }
 
+  async function handleStartupOfficeExportChunk(req, res, membership, collection) {
+    const descriptor = STARTUP_OFFICE_EXPORT_CHUNK_COLLECTIONS[collection];
+    if (!descriptor) {
+      throw httpError(400, `collection must be one of: ${Object.keys(STARTUP_OFFICE_EXPORT_CHUNK_COLLECTIONS).join(", ")}`);
+    }
+    const page = startupOfficePageRequest(req.query, {
+      createHTTPError: httpError,
+      defaultLimit: STARTUP_OFFICE_EXPORT_CHUNK_LIMIT,
+      maxLimit: STARTUP_OFFICE_EXPORT_CHUNK_LIMIT,
+    });
+    const rows = await exportChunkRows(collection, membership.team_id, page, descriptor);
+    const { items, pagination } = startupOfficePageResult(rows, page, descriptor.cursor_field);
+    writeJSON(res, 200, {
+      export_chunk: {
+        collection,
+        cursor_field: descriptor.cursor_field,
+        generated_at: nowISO(),
+        items,
+        pagination,
+        schema_version: STARTUP_OFFICE_EXPORT_SCHEMA_VERSION,
+        source_table: descriptor.source_table,
+      },
+    });
+  }
+
+  function exportChunkRows(collection, teamID, page, descriptor) {
+    const options = { cursor: page.cursor, limit: page.request_limit };
+    if (collection === "assets" || collection === "customers" || collection === "metrics" || collection === "signals") {
+      return startupOfficeObjectRows(teamID, collection, options);
+    }
+    if (collection === "artifacts") return startupOfficeArtifacts(teamID, options);
+    if (collection === "approvals") return startupOfficeApprovals(teamID, options);
+    if (collection === "memory_pages") return startupOfficeRepository().memoryPages(teamID, options);
+    if (collection === "receipts") return startupOfficeReceipts(teamID, options);
+    if (collection === "runs") return startupOfficeRuns(teamID, options);
+    return teamRows(descriptor.source_table, teamID, {
+      cursor: page.cursor,
+      cursorField: descriptor.cursor_field,
+      limit: page.request_limit,
+    });
+  }
+
   function teamRows(table, teamID, options = {}) {
-    return safeStartupOfficeRest(table, { query: {
+    const query = {
       limit: String(options.limit || STARTUP_OFFICE_EXPORT_ROW_LIMIT),
       order: options.order || "created_at.desc",
       select: options.select || "*",
       team_id: `eq.${teamID}`,
-    } });
+    };
+    if (options.cursor) query[options.cursorField || "created_at"] = `lt.${options.cursor}`;
+    return safeStartupOfficeRest(table, { query });
+  }
+
+  function queryValue(value) {
+    return String(Array.isArray(value) ? value[0] : value || "").trim();
+  }
+
+  function httpError(status, message) {
+    if (typeof createHTTPError === "function") return createHTTPError(status, message);
+    const err = new Error(message);
+    err.status = status;
+    return err;
   }
 
   return { export: handleStartupOfficeExport };

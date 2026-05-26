@@ -1,0 +1,34 @@
+{
+  "version": "startup-office-export-chunks.v1",
+  "endpoint": "GET /startup-office/export?collection={collection}&cursor={next_cursor}",
+  "default_limit": 100,
+  "max_limit": 100,
+  "collections": [
+    "approvals",
+    "artifacts",
+    "assets",
+    "audit_events",
+    "channel_messages",
+    "customers",
+    "memory_pages",
+    "metrics",
+    "notifications",
+    "receipts",
+    "runs",
+    "signals",
+    "usage_events"
+  ],
+  "response_shape": {
+    "root": "export_chunk",
+    "required_fields": [
+      "collection",
+      "cursor_field",
+      "generated_at",
+      "items",
+      "pagination",
+      "schema_version",
+      "source_table"
+    ]
+  },
+  "release_gate": "npm run startup-office:export-chunks"
+}
