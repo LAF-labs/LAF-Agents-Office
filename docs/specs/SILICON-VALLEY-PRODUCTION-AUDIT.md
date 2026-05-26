@@ -742,6 +742,12 @@ the final release commit or when a shared invariant changes.
   release gate runs `api/lib/hosted/handlerBundle.test.js`, and
   `npm run startup-office:architecture` prevents hosted handler factory calls
   from drifting back into `api/[...path].js`.
+- R2 now splits hosted identity handler wiring into
+  `api/lib/hosted/identityHandlerBundle.js`. The hosted handler bundle is down
+  to 248 lines, the release gate runs
+  `api/lib/hosted/identityHandlerBundle.test.js`, and
+  `npm run startup-office:architecture` keeps both handler bundles under
+  explicit size budgets.
 - The linked `laf-agents-office` Supabase project was repaired from legacy
   8-digit migration history into 14-digit Supabase versions, then pushed through
   the pure-cloud boundary guard. A linked DB query confirms

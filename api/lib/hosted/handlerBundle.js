@@ -8,9 +8,6 @@ const {
   createHostedAuditHandlers,
 } = require("./auditHandlers");
 const {
-  createHostedAuthHandlers,
-} = require("./authHandlers");
-const {
   createHostedClientTelemetryHandlers,
 } = require("./clientTelemetryHandlers");
 const {
@@ -23,11 +20,8 @@ const {
   createHostedHealthHandlers,
 } = require("./healthHandlers");
 const {
-  createHostedInviteHandlers,
-} = require("./inviteHandlers");
-const {
-  createHostedMemberHandlers,
-} = require("./memberHandlers");
+  createHostedIdentityHandlerBundle,
+} = require("./identityHandlerBundle");
 const {
   createHostedMemoryHandlers,
 } = require("./memoryHandlers");
@@ -48,62 +42,41 @@ const {
   createHostedSchedulerHandlers,
 } = require("./schedulerHandlers");
 const {
-  createHostedSignupHandlers,
-} = require("./signupHandlers");
-const {
   createHostedSkillHandlers,
 } = require("./skillHandlers");
 const {
   createHostedUsageHandlers,
 } = require("./usageHandlers");
 const {
-  DEFAULT_PROFILE_AVATAR_ID,
-  normalizeProfileAvatarID,
-  publicUser,
-} = require("./userPresentation");
-const {
   publicTeam,
 } = require("./teamPresentation");
 
 function createHostedHandlerBundle(deps) {
   const {
-    WORKSPACE_PERMISSIONS,
-    WORKSPACE_ROLES,
-    activeMembership,
-    authAdminFetch,
     authFetch,
     clamp,
-    clientRateLimitKey,
     createActivityHandlers = createHostedActivityHandlers,
     createAgentLogHandlers = createHostedAgentLogHandlers,
     createAuditHandlers = createHostedAuditHandlers,
-    createAuthHandlers = createHostedAuthHandlers,
     createClientTelemetryHandlers = createHostedClientTelemetryHandlers,
     createCommandHandlers = createHostedCommandHandlers,
     createConversationHandlers = createHostedConversationHandlers,
     createHTTPError,
     createHealthHandlers = createHostedHealthHandlers,
-    createInviteHandlers = createHostedInviteHandlers,
-    createMemberHandlers = createHostedMemberHandlers,
+    createIdentityHandlerBundle = createHostedIdentityHandlerBundle,
     createMemoryHandlers = createHostedMemoryHandlers,
     createModelAccess = createHostedModelAccess,
     createOrchestrationHandlers = createHostedOrchestrationHandlers,
     createRequestHandlers = createHostedRequestHandlers,
     createRosterHandlers = createHostedRosterHandlers,
     createSchedulerHandlers = createHostedSchedulerHandlers,
-    createSignupHandlers = createHostedSignupHandlers,
     createSkillHandlers = createHostedSkillHandlers,
     createUsageHandlers = createHostedUsageHandlers,
-    effectivePermissions,
-    enforceRateLimit,
     env = process.env,
-    getTeam,
     hasPermission,
     isHuman,
     nowISO,
     objectValue,
-    originFor,
-    RATE_LIMITS,
     randomID,
     readBody,
     requirePermission,
@@ -111,8 +84,6 @@ function createHostedHandlerBundle(deps) {
     rest,
     rpc,
     safeStartupOfficeRest,
-    sendInviteEmail,
-    setAuthCookies,
     shortID,
     slugify,
     startupOfficeApprovals,
@@ -125,19 +96,7 @@ function createHostedHandlerBundle(deps) {
     writeJSON,
   } = deps;
 
-  const inviteHandlers = createInviteHandlers({
-    createHTTPError,
-    normalizeRole: deps.normalizeRole,
-    nowISO,
-    originFor,
-    readBody,
-    requirePermission,
-    requireUser,
-    rest,
-    sendInviteEmail,
-    writeAuditEvent,
-    writeJSON,
-  });
+  const identityHandlers = createIdentityHandlerBundle(deps);
 
   return Object.freeze({
     activityHandlers: createActivityHandlers({
@@ -165,20 +124,7 @@ function createHostedHandlerBundle(deps) {
       rest,
       writeJSON,
     }),
-    authHandlers: createAuthHandlers({
-      activeMembership,
-      authFetch,
-      createHTTPError,
-      getTeam,
-      normalizeProfileAvatarID,
-      publicTeam,
-      publicUser,
-      readBody,
-      requireUser,
-      setAuthCookies,
-      writeAuditEvent,
-      writeJSON,
-    }),
+    authHandlers: identityHandlers.authHandlers,
     clientTelemetryHandlers: createClientTelemetryHandlers({
       createHTTPError,
       readBody,
@@ -215,25 +161,8 @@ function createHostedHandlerBundle(deps) {
       rest,
       writeJSON,
     }),
-    inviteHandlers,
-    memberHandlers: createMemberHandlers({
-      WORKSPACE_PERMISSIONS,
-      WORKSPACE_ROLES,
-      authAdminFetch,
-      createHTTPError,
-      effectivePermissions,
-      normalizePermissionOverride: deps.normalizePermissionOverride,
-      normalizeRole: deps.normalizeRole,
-      nowISO,
-      publicUser,
-      readBody,
-      requirePermission,
-      requireUser,
-      rest,
-      startupOfficeBetaOpsSnapshot,
-      writeAuditEvent,
-      writeJSON,
-    }),
+    inviteHandlers: identityHandlers.inviteHandlers,
+    memberHandlers: identityHandlers.memberHandlers,
     memoryHandlers: createMemoryHandlers({
       createHTTPError,
       objectValue,
@@ -294,25 +223,7 @@ function createHostedHandlerBundle(deps) {
       safeStartupOfficeRest,
       writeJSON,
     }),
-    signupHandlers: createSignupHandlers({
-      authAdminFetch,
-      authFetch,
-      createHTTPError,
-      defaultProfileAvatarID: DEFAULT_PROFILE_AVATAR_ID,
-      enforceSignupRateLimit: (req) =>
-        enforceRateLimit("auth_signup", clientRateLimitKey(req), RATE_LIMITS.authSignup),
-      getTeam,
-      inviteByToken: inviteHandlers.inviteByToken,
-      nowISO,
-      publicTeam,
-      publicUser,
-      readBody,
-      rest,
-      setAuthCookies,
-      shortID,
-      slugify,
-      writeJSON,
-    }),
+    signupHandlers: identityHandlers.signupHandlers,
     skillHandlers: createSkillHandlers({
       createHTTPError,
       nowISO,
