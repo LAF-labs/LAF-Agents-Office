@@ -93,8 +93,13 @@ for (const releaseGateScript of ["production:audit", "closed-beta:goals"]) {
 for (const staleClaim of [
   "The release gate does not include the new production audit.",
   "There is no single command proving all cloud SaaS invariants.",
+  "stricter warning cleanup",
 ]) {
   if (doc.includes(staleClaim)) fail(`audit contains stale claim: ${staleClaim}`);
+}
+
+if (!doc.includes("zero web lint errors, warnings, or infos")) {
+  fail("audit must record the zero-warning web lint gate");
 }
 
 console.log(
