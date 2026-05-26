@@ -408,6 +408,25 @@ if (!releaseGate.includes('"startup-office:retrieval-performance"')) {
 }
 
 for (const required of [
+  "startup-office:index-coverage",
+  "shared/startup-office-index-coverage.json",
+  "supabase/migrations/20260526090000_add_startup_office_index_coverage.sql",
+]) {
+  if (!doc.includes(required)) fail(`audit must record index coverage evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:index-coverage"] !==
+  "node scripts/check-startup-office-index-coverage.cjs"
+) {
+  fail("package.json must expose startup-office:index-coverage");
+}
+
+if (!releaseGate.includes('"startup-office:index-coverage"')) {
+  fail("beta release gate must include the index coverage contract");
+}
+
+for (const required of [
   "startup-office:export-chunks",
   "shared/startup-office-export-chunks.json",
 ]) {
