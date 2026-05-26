@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1440);
+assertMaxLines("api/[...path].js", 1210);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/auditHandlers.js", 80);
@@ -87,6 +87,7 @@ assertMaxLines("api/lib/startup-office/objectInvariants.js", 80);
 assertMaxLines("api/lib/startup-office/objectPayloadSchemas.js", 100);
 assertMaxLines("api/lib/startup-office/objectQueries.js", 120);
 assertMaxLines("api/lib/startup-office/objectStore.js", 210);
+assertMaxLines("api/lib/startup-office/operationsStore.js", 290);
 assertMaxLines("api/lib/startup-office/profileHandlers.js", 120);
 assertMaxLines("api/lib/startup-office/payloadLimits.js", 80);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
@@ -322,6 +323,18 @@ for (const [pattern, label] of [
   [/function startupOfficeObjectPayload\b/, "startup office object payload facade helper"],
   [/function startupOfficeObjectPatch\b/, "startup office object patch facade helper"],
   [/function numericOrNull\b/, "startup office object numeric facade helper"],
+  [/async function startupOfficeBetaOpsSnapshot\b/, "startup office beta ops facade helper"],
+  [/async function startupOfficeBillingDocuments\b/, "startup office billing documents facade helper"],
+  [/async function startupOfficeTermsAcceptances\b/, "startup office terms acceptances facade helper"],
+  [/async function startupOfficeBilling\b/, "startup office billing facade helper"],
+  [/async function upsertStartupOfficeBilling\b/, "startup office billing upsert facade helper"],
+  [/async function upsertStartupOfficeBillingDocument\b/, "startup office billing document upsert facade helper"],
+  [/async function upsertStartupOfficeTermsAcceptance\b/, "startup office terms acceptance upsert facade helper"],
+  [/async function startupOfficeUsage\b/, "startup office usage facade helper"],
+  [/async function startupOfficeStorageUsage\b/, "startup office storage usage facade helper"],
+  [/async function startupOfficeStuckJobs\b/, "startup office stuck jobs facade helper"],
+  [/const STARTUP_OFFICE_STORAGE_SOURCES\b/, "startup office storage source facade constant"],
+  [/function percent\b/, "startup office percent facade helper"],
   [/async function handleSkills\b/, "hosted skills handler"],
   [/async function handleSkillInvoke\b/, "hosted skill invoke handler"],
   [/function skillRequiredPermissions\b/, "hosted skill permission helper"],
