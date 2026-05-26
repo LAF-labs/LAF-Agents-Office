@@ -179,6 +179,9 @@ const {
   dispatchStartupOfficeRoute,
 } = require("./lib/startup-office/dispatcher");
 const {
+  createStartupOfficeRouteHandlerMap,
+} = require("./lib/startup-office/routeHandlerMap");
+const {
   createStartupOfficeOperationsHandlers,
 } = require("./lib/startup-office/operationsHandlers");
 const {
@@ -856,33 +859,18 @@ const HOSTED_SKILL_HANDLERS = createHostedSkillHandlers({
   writeJSON,
 });
 
-const STARTUP_OFFICE_ROUTE_HANDLERS = Object.freeze({
-  approvalAction: STARTUP_OFFICE_WORKFLOW_HANDLERS.approvalAction,
-  approvals: STARTUP_OFFICE_QUERY_HANDLERS.approvals,
-  artifactObjectAction: STARTUP_OFFICE_OBJECT_HANDLERS.artifactObjectAction,
-  assetUploadIntent: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS.assetUploadIntent,
-  betaDashboard: STARTUP_OFFICE_OPERATIONS_HANDLERS.betaDashboard,
-  billing: STARTUP_OFFICE_OPERATIONS_HANDLERS.billing,
-  companyProfile: (req, res) => STARTUP_OFFICE_PROFILE_HANDLERS.companyProfile(req, res),
-  customerCsv: STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS.customerCsv,
-  deletionPurge: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionPurge,
-  deletionRequest: STARTUP_OFFICE_LIFECYCLE_HANDLERS.deletionRequest,
-  demoSeed: (req, res) => STARTUP_OFFICE_DEMO_SEED_HANDLERS.demoSeed(req, res),
-  export: STARTUP_OFFICE_QUERY_HANDLERS.export,
-  growthSummary: STARTUP_OFFICE_QUERY_HANDLERS.growthSummary,
-  loopRun: STARTUP_OFFICE_WORKFLOW_HANDLERS.loopRun,
-  loops: STARTUP_OFFICE_QUERY_HANDLERS.loops,
-  memoryImport: STARTUP_OFFICE_IMPORT_HANDLERS.memoryImport,
-  objectCollection: STARTUP_OFFICE_OBJECT_HANDLERS.objectCollection,
-  objectItem: STARTUP_OFFICE_OBJECT_HANDLERS.objectItem,
-  policy: STARTUP_OFFICE_OPERATIONS_HANDLERS.policy,
-  receipts: STARTUP_OFFICE_QUERY_HANDLERS.receipts,
-  run: STARTUP_OFFICE_WORKFLOW_HANDLERS.run,
-  supportAccess: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
-  supportAccessAction: STARTUP_OFFICE_LIFECYCLE_HANDLERS.supportAccess,
-  supportTimeline: STARTUP_OFFICE_OPERATIONS_HANDLERS.supportTimeline,
-  terms: STARTUP_OFFICE_TERMS_HANDLERS.terms,
-  workerJobAction: STARTUP_OFFICE_OPERATIONS_HANDLERS.workerJobAction,
+const STARTUP_OFFICE_ROUTE_HANDLERS = createStartupOfficeRouteHandlerMap({
+  assetUploadHandlers: STARTUP_OFFICE_ASSET_UPLOAD_HANDLERS,
+  customerCsvHandlers: STARTUP_OFFICE_CUSTOMER_CSV_HANDLERS,
+  demoSeedHandlers: () => STARTUP_OFFICE_DEMO_SEED_HANDLERS,
+  importHandlers: STARTUP_OFFICE_IMPORT_HANDLERS,
+  lifecycleHandlers: STARTUP_OFFICE_LIFECYCLE_HANDLERS,
+  objectHandlers: STARTUP_OFFICE_OBJECT_HANDLERS,
+  operationsHandlers: STARTUP_OFFICE_OPERATIONS_HANDLERS,
+  profileHandlers: () => STARTUP_OFFICE_PROFILE_HANDLERS,
+  queryHandlers: STARTUP_OFFICE_QUERY_HANDLERS,
+  termsHandlers: STARTUP_OFFICE_TERMS_HANDLERS,
+  workflowHandlers: STARTUP_OFFICE_WORKFLOW_HANDLERS,
 });
 
 module.exports = async function handler(req, res) {

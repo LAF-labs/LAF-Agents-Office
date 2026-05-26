@@ -32,7 +32,7 @@ function assertNotContains(relativePath, pattern, label) {
   }
 }
 
-assertMaxLines("api/[...path].js", 1180);
+assertMaxLines("api/[...path].js", 1168);
 assertMaxLines("api/lib/hosted/activityHandlers.js", 220);
 assertMaxLines("api/lib/hosted/agentLogHandlers.js", 80);
 assertMaxLines("api/lib/hosted/apiPrimitives.js", 35);
@@ -94,6 +94,7 @@ assertMaxLines("api/lib/startup-office/payloadLimits.js", 80);
 assertMaxLines("api/lib/startup-office/queryHandlers.js", 260);
 assertMaxLines("api/lib/startup-office/rateLimits.js", 90);
 assertMaxLines("api/lib/startup-office/repositoryDelegates.js", 70);
+assertMaxLines("api/lib/startup-office/routeHandlerMap.js", 55);
 assertMaxLines("api/lib/startup-office/runtimeFactories.js", 50);
 assertMaxLines("api/lib/startup-office/services.js", 90);
 assertMaxLines("api/lib/startup-office/supportPlaybooks.js", 100);
@@ -276,6 +277,8 @@ for (const [pattern, label] of [
   [/async function companyProfileSnapshot\b/, "startup office profile snapshot facade wrapper"],
   [/async function handleStartupOfficeDemoSeed\b/, "startup office demo seed facade wrapper"],
   [/async function seedStartupOfficeWorkspace\b/, "startup office demo seed workspace facade wrapper"],
+  [/const STARTUP_OFFICE_ROUTE_HANDLERS = Object\.freeze/, "startup office route handler facade map"],
+  [/companyProfile: \(req, res\) => STARTUP_OFFICE_PROFILE_HANDLERS/, "startup office route map profile entry"],
   [/function clientRateLimitKey\b/, "hosted client rate-limit key helper"],
   [/function enforceRateLimit\b/, "hosted in-memory rate-limit helper"],
   [/function persistentRateLimitsEnabled\b/, "hosted persistent rate-limit toggle"],
