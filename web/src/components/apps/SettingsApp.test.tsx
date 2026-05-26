@@ -77,7 +77,7 @@ describe("SettingsApp cloud office settings", () => {
     );
 
     await waitFor(() => expect(apiMocks.updateConfig).toHaveBeenCalled());
-    const calls = apiMocks.updateConfig.mock.calls;
+    const { calls } = apiMocks.updateConfig.mock;
     const patch = calls[calls.length - 1]?.[0];
     expect(patch).toEqual({
       max_concurrent_agents: 4,

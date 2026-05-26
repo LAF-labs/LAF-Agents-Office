@@ -185,11 +185,9 @@ function EntityBriefStatus({
       data-testid="wk-entity-brief-bar"
     >
       <span className="wk-entity-brief-bar__label">
-        {hasPending ? (
-          <>{copy.newFactsSince(pending)}</>
-        ) : (
-          <>{copy.briefSynthesized(relativeSynth)}</>
-        )}
+        {hasPending
+          ? copy.newFactsSince(pending)
+          : copy.briefSynthesized(relativeSynth)}
       </span>
       {hasPending ? (
         <button

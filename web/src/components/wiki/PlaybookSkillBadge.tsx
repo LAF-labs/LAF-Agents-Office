@@ -65,7 +65,7 @@ export default function PlaybookSkillBadge({ slug }: PlaybookSkillBadgeProps) {
             <code className="wk-playbook-badge__path">{skillPath}</code>
           </>
         ) : (
-          <>{copy.compiledSkillPending}</>
+          copy.compiledSkillPending
         )}
       </span>
       {compiled && playbook ? (
