@@ -9,6 +9,9 @@ The machine-readable evidence contract lives in
 The external record field template lives in
 `shared/startup-office-external-evidence-template.json`; completed records must
 stay in the operator system of record, not in this repository.
+Before marking G099 or G100 complete, export a redacted JSON evidence record
+from that system and run
+`npm run startup-office:external-evidence:validate -- --file /path/to/evidence.json`.
 
 ## Repository-Controlled Readiness
 

@@ -232,6 +232,8 @@ for (const required of [
   "shared/startup-office-release-versioning.json",
   "shared/startup-office-production-handoff.json",
   "shared/startup-office-external-evidence-template.json",
+  "startup-office:external-evidence-validator",
+  "scripts/validate-startup-office-external-evidence.cjs",
 ]) {
   if (!doc.includes(required)) fail(`audit must record release versioning evidence: ${required}`);
 }

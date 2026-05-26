@@ -394,8 +394,12 @@ monitoring, and smoke evidence, then one real founder payment or signed beta
 agreement with a first approved loop and receipt. The external proof contract is
 now machine-readable in `shared/startup-office-production-handoff.json`, with
 the external record fields mirrored in
-`shared/startup-office-external-evidence-template.json`, and checked by
-`npm run startup-office:production-handoff`.
+`shared/startup-office-external-evidence-template.json`. Redacted exports from
+the operator system can be checked with
+`npm run startup-office:external-evidence:validate`, and the validator is
+release-gated by `npm run startup-office:external-evidence-validator`.
+The handoff contract itself is checked by `npm run
+startup-office:production-handoff`.
 
 SV-G097 is now product-enforced rather than doc-only: the beta terms package in
 `docs/legal/STARTUP-OFFICE-BETA-TERMS.md` is versioned in
@@ -462,9 +466,10 @@ the final release commit or when a shared invariant changes.
   minimum, deploy-commit checks, forbidden-in-repo data, external evidence
   fields, and cutover order. `shared/startup-office-external-evidence-template.json`
   mirrors every G099/G100 field for the operator system of record while keeping
-  completed records out of the repository; `npm run
-  startup-office:production-handoff` checks the manifest, template, handoff
-  doc, closed-beta goals, and release-gate wiring.
+  completed records out of the repository. `scripts/validate-startup-office-external-evidence.cjs`
+  validates redacted external evidence exports before G099/G100 are marked
+  complete; `npm run startup-office:production-handoff` checks the manifest,
+  template, handoff doc, closed-beta goals, and release-gate wiring.
 - R6 now has a release-gated visual regression contract:
   `shared/startup-office-visual-regression.json` defines the desktop dashboard,
   mobile approval desk, and approved receipt screenshot baselines, while

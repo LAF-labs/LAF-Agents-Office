@@ -55,6 +55,18 @@ if (
 ) {
   fail("package.json must expose startup-office:production-handoff");
 }
+if (
+  pkg.scripts?.["startup-office:external-evidence:validate"] !==
+  "node scripts/validate-startup-office-external-evidence.cjs"
+) {
+  fail("package.json must expose startup-office:external-evidence:validate");
+}
+if (
+  pkg.scripts?.["startup-office:external-evidence-validator"] !==
+  "node --test scripts/validate-startup-office-external-evidence.test.cjs"
+) {
+  fail("package.json must expose startup-office:external-evidence-validator");
+}
 
 if (manifest.version !== "startup-office-production-handoff.v1") {
   fail(`unexpected production handoff manifest version ${manifest.version || "<missing>"}`);
@@ -96,6 +108,7 @@ for (const snippet of [
   "Repository-Controlled Readiness",
   manifestPath,
   evidenceTemplatePath,
+  "npm run startup-office:external-evidence:validate -- --file",
   manifest.currentMinimumMigration,
   "G099 Production Deployment Evidence",
   "G100 First Customer Evidence",
@@ -158,6 +171,11 @@ for (const snippet of [
 assertContains(
   "scripts/startup-office-beta-release-gate.cjs",
   '"startup-office:production-handoff"',
+  "release gate",
+);
+assertContains(
+  "scripts/startup-office-beta-release-gate.cjs",
+  '"startup-office:external-evidence-validator"',
   "release gate",
 );
 assertContains(

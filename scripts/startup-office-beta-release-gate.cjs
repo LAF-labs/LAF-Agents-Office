@@ -45,6 +45,7 @@ const checks = [
   ["npm", ["run", "startup-office:paid-beta-package"]],
   ["npm", ["run", "startup-office:plan-limits"]],
   ["npm", ["run", "startup-office:production-handoff"]],
+  ["npm", ["run", "startup-office:external-evidence-validator"]],
   ["npm", ["run", "startup-office:product-identity"]],
   ["npm", ["run", "startup-office:provenance-replay"]],
   ["npm", ["run", "startup-office:prompt-versions"]],

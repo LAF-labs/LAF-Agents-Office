@@ -44,6 +44,8 @@
     "startup-office:paid-beta-package": "node scripts/check-startup-office-paid-beta-package.cjs",
     "startup-office:plan-limits": "node scripts/check-startup-office-plan-limits.cjs",
     "startup-office:production-handoff": "node scripts/check-startup-office-production-handoff.cjs",
+    "startup-office:external-evidence:validate": "node scripts/validate-startup-office-external-evidence.cjs",
+    "startup-office:external-evidence-validator": "node --test scripts/validate-startup-office-external-evidence.test.cjs",
     "startup-office:product-identity": "node scripts/check-startup-office-product-identity.cjs",
     "startup-office:provenance-replay": "node scripts/check-startup-office-provenance-replay.cjs",
     "startup-office:prompt-versions": "node scripts/check-startup-office-prompt-versions.cjs",
