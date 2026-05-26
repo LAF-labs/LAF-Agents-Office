@@ -41,13 +41,15 @@ function createStartupOfficeOperationsStore(deps) {
     shortID,
   } = deps;
 
-  async function startupOfficeBetaOpsSnapshot(teamID) {
+  async function startupOfficeBetaOpsSnapshot(teamID, options = {}) {
     const [billing, usage, billingDocuments, activationEvents, termsAcceptances] = await Promise.all([
       startupOfficeBilling(teamID),
-      startupOfficeUsage(teamID),
-      startupOfficeBillingDocuments(teamID),
-      activationEventsForTeam(teamID, safeStartupOfficeRest),
-      startupOfficeTermsAcceptances(teamID),
+      startupOfficeUsage(teamID, options),
+      startupOfficeBillingDocuments(teamID, { limit: options.billing_documents_limit }),
+      activationEventsForTeam(teamID, safeStartupOfficeRest, {
+        limit: options.activation_event_limit,
+      }),
+      startupOfficeTermsAcceptances(teamID, { limit: options.terms_acceptances_limit }),
     ]);
     const terms = startupOfficeTermsSnapshot(termsAcceptances);
     const commercial = startupOfficeCommercialSnapshot({
@@ -180,18 +182,19 @@ function createStartupOfficeOperationsStore(deps) {
     return publicStartupOfficeTermsAcceptance(acceptance || { id: shortID(), ...patch });
   }
 
-  async function startupOfficeUsage(teamID) {
+  async function startupOfficeUsage(teamID, options = {}) {
     const [events, memberships, invites, storageBytes] = await Promise.all([
       safeStartupOfficeRest("startup_office_usage_events", {
         query: {
-          limit: "1000",
+          limit: String(clamp(Number(options.usage_event_limit) || 1000, 1, 1000)),
           order: "created_at.desc",
-          select: "*",
+          select: "event_type,cost_cents,tool_calls,total_tokens",
           team_id: `eq.${teamID}`,
         },
       }),
       safeStartupOfficeRest("memberships", {
         query: {
+          limit: String(clamp(Number(options.membership_limit) || 1000, 1, 1000)),
           select: "id",
           status: "eq.active",
           team_id: `eq.${teamID}`,
@@ -199,12 +202,13 @@ function createStartupOfficeOperationsStore(deps) {
       }),
       safeStartupOfficeRest("team_invites", {
         query: {
+          limit: String(clamp(Number(options.invite_limit) || 1000, 1, 1000)),
           select: "id",
           status: "eq.pending",
           team_id: `eq.${teamID}`,
         },
       }),
-      startupOfficeStorageUsage(teamID),
+      startupOfficeStorageUsage(teamID, { row_limit: options.storage_row_limit }),
     ]);
     return events.reduce(
       (out, event) => {
@@ -227,12 +231,13 @@ function createStartupOfficeOperationsStore(deps) {
     );
   }
 
-  async function startupOfficeStorageUsage(teamID) {
+  async function startupOfficeStorageUsage(teamID, options = {}) {
+    const rowLimit = String(clamp(Number(options.row_limit) || 1000, 1, 1000));
     const rowsBySource = await Promise.all(
       STARTUP_OFFICE_STORAGE_SOURCES.map(([table, select]) =>
         safeStartupOfficeRest(table, {
           query: {
-            limit: "1000",
+            limit: rowLimit,
             select,
             team_id: `eq.${teamID}`,
           },

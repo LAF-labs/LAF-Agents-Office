@@ -1,8 +1,8 @@
 function createStartupOfficeRepositoryDelegates(deps) {
   const { startupOfficeRepository } = deps;
 
-  async function startupOfficeLoops(teamID) {
-    return startupOfficeRepository().loops(teamID);
+  async function startupOfficeLoops(teamID, options = {}) {
+    return startupOfficeRepository().loops(teamID, options);
   }
 
   async function startupOfficeRuns(teamID, options = {}) {

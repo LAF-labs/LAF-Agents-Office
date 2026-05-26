@@ -28,7 +28,7 @@ test("repository delegates lazily forward calls to the active repository", async
   });
 
   assert.equal(repositoryCalls, 0);
-  assert.deepEqual(await delegates.startupOfficeLoops("team-1"), { method: "loops" });
+  assert.deepEqual(await delegates.startupOfficeLoops("team-1", { limit: 5 }), { method: "loops" });
   assert.deepEqual(await delegates.startupOfficeRuns("team-1", { limit: 2 }), { method: "runs" });
   assert.deepEqual(await delegates.startupOfficeArtifacts("team-1", { kind: "doc" }), { method: "artifacts" });
   assert.deepEqual(await delegates.startupOfficeApprovals("team-1", { status: "pending" }), { method: "approvals" });
@@ -40,7 +40,7 @@ test("repository delegates lazily forward calls to the active repository", async
   assert.deepEqual(delegates.isMissingStartupOfficeTableError({ status: 404 }, "startup_office_runs"), { method: "isMissingTableError" });
   assert.equal(repositoryCalls, 10);
   assert.deepEqual(calls, [
-    ["loops", ["team-1"]],
+    ["loops", ["team-1", { limit: 5 }]],
     ["runs", ["team-1", { limit: 2 }]],
     ["artifacts", ["team-1", { kind: "doc" }]],
     ["approvals", ["team-1", { status: "pending" }]],

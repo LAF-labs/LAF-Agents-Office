@@ -1,0 +1,42 @@
+{
+  "version": "startup-office-summary-query-budget.v1",
+  "endpoint": "GET /startup-office/growth-summary",
+  "purpose": "Keep the founder dashboard summary bounded as workspace data grows.",
+  "summary_limits": {
+    "activation_events": 20,
+    "approvals": 10,
+    "artifacts": 10,
+    "assets": 5,
+    "billing_documents": 3,
+    "customers": 5,
+    "invites": 50,
+    "loops": 50,
+    "memberships": 50,
+    "memory_pages": 10,
+    "metrics": 50,
+    "notifications": 10,
+    "receipts": 10,
+    "runs": 10,
+    "signals": 5,
+    "storage_rows_per_table": 50,
+    "terms_acceptances": 3,
+    "usage_events": 200
+  },
+  "select_policy": {
+    "forbid_wildcard_selects": true,
+    "required_collections": [
+      "approvals",
+      "artifacts",
+      "assets",
+      "customers",
+      "loops",
+      "memoryPages",
+      "metrics",
+      "notifications",
+      "receipts",
+      "runs",
+      "signals"
+    ]
+  },
+  "release_gate": "npm run startup-office:summary-query-budget"
+}

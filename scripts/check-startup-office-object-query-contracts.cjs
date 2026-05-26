@@ -52,7 +52,7 @@ for (const [relativePath, snippets, label] of [
     "object handler query parser",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/objectStore.js",
     ["applyStartupOfficeObjectListQuery(query, kind, options)"],
     "object row REST query",
   ],

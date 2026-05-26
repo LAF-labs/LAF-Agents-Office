@@ -136,11 +136,53 @@ test("usage, storage, and stuck job helpers query tenant-scoped operating tables
   ]);
 });
 
+test("operations snapshot honors summary query budgets", async () => {
+  const calls = [];
+  const store = createStore({}, {
+    safeStartupOfficeRest: async (table, options = {}) => {
+      calls.push([table, options.query || {}]);
+      return [];
+    },
+  });
+
+  await store.startupOfficeBetaOpsSnapshot("team-1", {
+    activation_event_limit: 4,
+    billing_documents_limit: 2,
+    invite_limit: 6,
+    membership_limit: 5,
+    storage_row_limit: 7,
+    terms_acceptances_limit: 3,
+    usage_event_limit: 8,
+  });
+
+  assert.equal(
+    queryFor(calls, "startup_office_billing_documents", (query) => query.order === "created_at.desc").limit,
+    "2",
+  );
+  assert.equal(
+    queryFor(calls, "startup_office_terms_acceptances", (query) => query.order === "accepted_at.desc").limit,
+    "3",
+  );
+  assert.equal(
+    queryFor(calls, "startup_office_activation_events", (query) => query.order === "first_seen_at.asc").limit,
+    "4",
+  );
+  assert.equal(queryFor(calls, "startup_office_usage_events").limit, "8");
+  assert.equal(queryFor(calls, "startup_office_usage_events").select, "event_type,cost_cents,tool_calls,total_tokens");
+  assert.equal(queryFor(calls, "memberships").limit, "5");
+  assert.equal(queryFor(calls, "team_invites").limit, "6");
+  assert.equal(queryFor(calls, "startup_office_assets").limit, "7");
+});
+
 test("percent handles empty limits and rounded percentages", () => {
   assert.equal(percent(25, 100), 25);
   assert.equal(percent(1, 3), 33);
   assert.equal(percent(100, 0), 0);
 });
+
+function queryFor(calls, tableName, predicate = () => true) {
+  return calls.find(([table, query]) => table === tableName && predicate(query))?.[1] || {};
+}
 
 function createStore(tables = {}, overrides = {}) {
   return createStartupOfficeOperationsStore({

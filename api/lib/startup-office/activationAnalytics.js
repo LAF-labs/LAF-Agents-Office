@@ -76,12 +76,12 @@ async function recordStartupOfficeExportActivation({ membership, nowISO, safeSta
   });
 }
 
-async function activationEventsForTeam(teamID, safeStartupOfficeRest) {
+async function activationEventsForTeam(teamID, safeStartupOfficeRest, options = {}) {
   const rows = await safeStartupOfficeRest("startup_office_activation_events", {
     query: {
-      limit: "20",
+      limit: String(Math.min(Math.max(Number(options.limit) || 20, 1), 100)),
       order: "first_seen_at.asc",
-      select: "*",
+      select: "id,milestone,source_table,source_id,metadata,created_by,created_at,first_seen_at,updated_at",
       team_id: `eq.${teamID}`,
     },
   });

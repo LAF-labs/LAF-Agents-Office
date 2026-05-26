@@ -336,6 +336,24 @@ if (!releaseGate.includes('"startup-office:api-performance"')) {
 }
 
 for (const required of [
+  "startup-office:summary-query-budget",
+  "shared/startup-office-summary-query-budget.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record summary query budget evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:summary-query-budget"] !==
+  "node scripts/check-startup-office-summary-query-budget.cjs"
+) {
+  fail("package.json must expose startup-office:summary-query-budget");
+}
+
+if (!releaseGate.includes('"startup-office:summary-query-budget"')) {
+  fail("beta release gate must include the summary query budget contract");
+}
+
+for (const required of [
   "startup-office:backup-restore-drill",
   "docs/ops/STARTUP-OFFICE-BACKUP-RESTORE-DRILL.md",
   "startup-office:migration-recovery",

@@ -60,7 +60,7 @@ for (const [relativePath, snippets, label] of [
     "repository cursor filters",
   ],
   [
-    "api/[...path].js",
+    "api/lib/startup-office/objectStore.js",
     ["applyStartupOfficeCursor(query, options.cursor)"],
     "operating object cursor filters",
   ],

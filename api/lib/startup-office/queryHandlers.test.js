@@ -3,6 +3,8 @@ const test = require("node:test");
 
 const {
   createStartupOfficeQueryHandlers,
+  STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET,
+  STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS,
 } = require("./queryHandlers");
 
 const membership = Object.freeze({
@@ -14,6 +16,9 @@ function baseDeps(overrides = {}) {
   const calls = {
     activations: [],
     audits: [],
+    betaOps: [],
+    loops: [],
+    memoryPages: [],
     permissions: [],
     rest: [],
     rows: [],
@@ -21,6 +26,7 @@ function baseDeps(overrides = {}) {
   };
   const repository = {
     async memoryPages(_teamID, options) {
+      calls.memoryPages.push(options);
       return [{ options, slug: "positioning" }];
     },
     async uniqueLoopSlug(_teamID, seed) {
@@ -78,10 +84,12 @@ function baseDeps(overrides = {}) {
     async startupOfficeArtifacts(_teamID, options) {
       return [{ id: "artifact-1", options }];
     },
-    async startupOfficeBetaOpsSnapshot() {
+    async startupOfficeBetaOpsSnapshot(_teamID, options = {}) {
+      calls.betaOps.push(options);
       return { billing: { plan: "founder_beta" }, usage: { monthly_runs: 2 } };
     },
-    async startupOfficeLoops() {
+    async startupOfficeLoops(_teamID, options = {}) {
+      calls.loops.push(options);
       return [
         { id: "loop-1", status: "active" },
         { id: "loop-2", status: "paused" },
@@ -154,6 +162,58 @@ test("growth summary composes pulse, memory, beta ops, and operating object summ
     updated_at: "2026-05-25T00:00:00Z",
   });
   assert.equal(body.memory_pages[0].slug, "positioning");
+});
+
+test("growth summary caps row counts and avoids wildcard selects", async () => {
+  const deps = baseDeps();
+  const handlers = createStartupOfficeQueryHandlers(deps);
+
+  await handlers.growthSummary({ method: "GET" }, {});
+  const body = deps.calls.writes[0].body;
+  const notificationQuery = deps.calls.rest.find(
+    (call) => call.table === "startup_office_notifications",
+  ).options.query;
+
+  assert.deepEqual(deps.calls.loops[0], {
+    limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.loops,
+    select: STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.loops,
+  });
+  assert.equal(body.recent_runs[0].options.limit, STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.runs);
+  assert.equal(body.recent_runs[0].options.select, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.runs);
+  assert.equal(body.recent_artifacts[0].options.limit, STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.artifacts);
+  assert.equal(body.recent_artifacts[0].options.select, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.artifacts);
+  assert.equal(body.pending_approvals[0].options.limit, STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.approvals);
+  assert.equal(body.pending_approvals[0].options.select, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.approvals);
+  assert.equal(body.recent_receipts[0].options.limit, STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.receipts);
+  assert.equal(body.recent_receipts[0].options.select, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.receipts);
+  assert.deepEqual(deps.calls.memoryPages[0], {
+    limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.memory_pages,
+    select: STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.memoryPages,
+    status: "approved",
+  });
+  assert.deepEqual(
+    deps.calls.rows.map((call) => [call.kind, call.options.limit, call.options.select]),
+    [
+      ["assets", STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.assets, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.assets],
+      ["customers", STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.customers, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.customers],
+      ["metrics", STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.metrics, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.metrics],
+      ["signals", STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.signals, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.signals],
+    ],
+  );
+  assert.equal(notificationQuery.limit, String(STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.notifications));
+  assert.equal(notificationQuery.select, STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS.notifications);
+  assert.deepEqual(deps.calls.betaOps[0], {
+    activation_event_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.activation_events,
+    billing_documents_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.billing_documents,
+    invite_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.invites,
+    membership_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.memberships,
+    storage_row_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.storage_rows_per_table,
+    terms_acceptances_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.terms_acceptances,
+    usage_event_limit: STARTUP_OFFICE_GROWTH_SUMMARY_QUERY_BUDGET.usage_events,
+  });
+  for (const select of Object.values(STARTUP_OFFICE_GROWTH_SUMMARY_SELECTS)) {
+    assert.notEqual(select, "*");
+  }
 });
 
 test("loops handler lists loops and creates a loop with normalized fields", async () => {

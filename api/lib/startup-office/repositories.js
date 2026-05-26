@@ -40,13 +40,15 @@ function createStartupOfficeRepository({
     return message.includes(table) || message.includes(`public.${table}`);
   }
 
-  async function loops(teamID) {
+  async function loops(teamID, options = {}) {
+    const query = {
+      order: "created_at.asc",
+      select: options.select || "*",
+      team_id: `eq.${teamID}`,
+    };
+    applyLimit(query, options.limit);
     const rows = await safeRest("startup_office_loops", {
-      query: {
-        order: "created_at.asc",
-        select: "*",
-        team_id: `eq.${teamID}`,
-      },
+      query,
     });
     const bySlug = new Map(
       (rows || []).map((row) => [row.slug, publicStartupOfficeLoop(row)]),
@@ -73,7 +75,7 @@ function createStartupOfficeRepository({
   async function runs(teamID, options = {}) {
     const query = {
       order: "created_at.desc",
-      select: "*",
+      select: options.select || "*",
       team_id: `eq.${teamID}`,
     };
     if (options.run_id) query.id = `eq.${options.run_id}`;
@@ -88,7 +90,7 @@ function createStartupOfficeRepository({
   async function artifacts(teamID, options = {}) {
     const query = {
       order: "created_at.desc",
-      select: "*",
+      select: options.select || "*",
       team_id: `eq.${teamID}`,
     };
     if (options.run_id) query.run_id = `eq.${options.run_id}`;
@@ -101,7 +103,7 @@ function createStartupOfficeRepository({
   async function approvals(teamID, options = {}) {
     const query = {
       order: "requested_at.desc",
-      select: "*",
+      select: options.select || "*",
       team_id: `eq.${teamID}`,
     };
     if (options.status) {
@@ -117,7 +119,7 @@ function createStartupOfficeRepository({
   async function receipts(teamID, options = {}) {
     const query = {
       order: "created_at.desc",
-      select: "*",
+      select: options.select || "*",
       team_id: `eq.${teamID}`,
     };
     if (options.run_id) query.run_id = `eq.${options.run_id}`;
@@ -370,7 +372,7 @@ function createStartupOfficeRepository({
   async function memoryPages(teamID, options = {}) {
     const query = {
       order: "updated_at.desc",
-      select: "*",
+      select: options.select || "*",
       team_id: `eq.${teamID}`,
     };
     if (options.status) query.status = `eq.${options.status}`;

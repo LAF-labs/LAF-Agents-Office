@@ -21,7 +21,7 @@ function createStartupOfficeObjectStore(deps) {
   async function startupOfficeObjectRows(teamID, kind, options = {}) {
     const definition = startupOfficeObjectDefinition(kind);
     const query = {
-      select: "*",
+      select: options.select || "*",
       team_id: `eq.${teamID}`,
     };
     applyStartupOfficeObjectListQuery(query, kind, options);
