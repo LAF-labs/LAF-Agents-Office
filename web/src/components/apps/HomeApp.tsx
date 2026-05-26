@@ -727,7 +727,6 @@ function HomeComposer({
   threadId: string;
   onAwaitingReply: (since: number | null) => void;
 }) {
-  const { t } = useI18n();
   const [text, setText] = useState("");
   const [caret, setCaret] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -940,117 +939,204 @@ function HomeComposer({
       el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
     }
   };
+  const sendDisabled =
+    !(text.trim() && threadId) ||
+    sendMutation.isPending ||
+    confirmMutation.isPending ||
+    sendLockedRef.current;
 
   return (
     <div className="home-composer-wrap">
-      <div className="home-context-chips">
-        {displayTargets.slice(0, 4).map((target) => (
-          <span className="home-context-chip" key={target}>
-            @{target}
-          </span>
-        ))}
-        {displayTargets.length > 4 ? (
-          <span className="home-context-chip">
-            +{displayTargets.length - 4}
-          </span>
-        ) : null}
-      </div>
-      {pendingIntent ? (
-        <div className="home-confirmation-card" role="status">
-          <div>
-            <strong>{t("home.confirmWorkspaceChange")}</strong>
-            <span>{pendingIntent.summary}</span>
-            {pendingIntent.required_permissions.length > 0 ? (
-              <small>
-                {t("home.requires").replace(
-                  "{permissions}",
-                  pendingIntent.required_permissions.join(", "),
-                )}
-              </small>
-            ) : null}
-          </div>
-          <div className="home-confirmation-actions">
-            <button
-              type="button"
-              disabled={confirmMutation.isPending}
-              onClick={() => confirmMutation.mutate(pendingIntent)}
-            >
-              {t("home.confirm")}
-            </button>
-            <button
-              type="button"
-              disabled={confirmMutation.isPending}
-              onClick={() => setPendingIntent(null)}
-            >
-              {t("home.cancel")}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <HomeContextChips targets={displayTargets} />
+      <HomeIntentConfirmation
+        intent={pendingIntent}
+        isPending={confirmMutation.isPending}
+        onCancel={() => setPendingIntent(null)}
+        onConfirm={(intent) => confirmMutation.mutate(intent)}
+      />
       <div className="home-composer">
-        {showAutocomplete ? (
-          <div
-            className={`home-autocomplete${trigger?.type === "skill" ? " is-skill" : ""}`}
-            role="listbox"
-          >
-            {autocompleteItems.length > 0 ? (
-              autocompleteItems.map((item, idx) => (
-                <button
-                  type="button"
-                  key={item.insert}
-                  className={idx === selectedIdx ? "is-selected" : ""}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    pickAutocomplete(item);
-                  }}
-                >
-                  <span>{item.label}</span>
-                  {item.desc ? <small>{item.desc}</small> : null}
-                </button>
-              ))
-            ) : (
-              <div className="home-autocomplete-empty">
-                <span>등록된 활성 스킬이 없습니다</span>
-                <small>직접 /스킬이름 을 입력할 수 있습니다.</small>
-              </div>
-            )}
-          </div>
-        ) : null}
-        <textarea
-          ref={textareaRef}
-          value={text}
-          placeholder="무엇이든 물어보세요"
-          rows={1}
-          onChange={(event) =>
-            handleInput(event.target.value, event.target.selectionStart ?? 0)
-          }
-          onKeyDown={handleKeyDown}
-          onCompositionStart={() => {
-            composingRef.current = true;
-          }}
-          onCompositionEnd={() => {
-            composingRef.current = false;
-          }}
-          onKeyUp={(event) => setCaret(event.currentTarget.selectionStart ?? 0)}
-          onClick={(event) => setCaret(event.currentTarget.selectionStart ?? 0)}
+        <HomeAutocompleteMenu
+          items={autocompleteItems}
+          onPick={pickAutocomplete}
+          open={showAutocomplete}
+          selectedIdx={selectedIdx}
+          triggerType={trigger?.type}
         />
-        <button
-          type="button"
-          className="home-send"
-          aria-label="보내기"
-          title="보내기"
-          disabled={
-            !(text.trim() && threadId) ||
-            sendMutation.isPending ||
-            confirmMutation.isPending ||
-            sendLockedRef.current
-          }
-          onClick={handleSubmit}
-        >
-          <SendDiagonal />
-        </button>
+        <HomeComposerTextarea
+          composingRef={composingRef}
+          onCaretChange={setCaret}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          textareaRef={textareaRef}
+          text={text}
+        />
+        <HomeSendButton disabled={sendDisabled} onSend={handleSubmit} />
       </div>
       {sendError ? <p className="home-inline-error">{sendError}</p> : null}
+    </div>
+  );
+}
+
+function HomeComposerTextarea({
+  composingRef,
+  onCaretChange,
+  onInput,
+  onKeyDown,
+  textareaRef,
+  text,
+}: {
+  composingRef: { current: boolean };
+  onCaretChange: (caret: number) => void;
+  onInput: (value: string, selectionStart: number) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  textareaRef: { current: HTMLTextAreaElement | null };
+  text: string;
+}) {
+  return (
+    <textarea
+      ref={textareaRef}
+      value={text}
+      placeholder="무엇이든 물어보세요"
+      rows={1}
+      onChange={(event) =>
+        onInput(event.target.value, event.target.selectionStart ?? 0)
+      }
+      onKeyDown={onKeyDown}
+      onCompositionStart={() => {
+        composingRef.current = true;
+      }}
+      onCompositionEnd={() => {
+        composingRef.current = false;
+      }}
+      onKeyUp={(event) =>
+        onCaretChange(event.currentTarget.selectionStart ?? 0)
+      }
+      onClick={(event) =>
+        onCaretChange(event.currentTarget.selectionStart ?? 0)
+      }
+    />
+  );
+}
+
+function HomeSendButton({
+  disabled,
+  onSend,
+}: {
+  disabled: boolean;
+  onSend: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="home-send"
+      aria-label="보내기"
+      title="보내기"
+      disabled={disabled}
+      onClick={onSend}
+    >
+      <SendDiagonal />
+    </button>
+  );
+}
+
+function HomeContextChips({ targets }: { targets: string[] }) {
+  return (
+    <div className="home-context-chips">
+      {targets.slice(0, 4).map((target) => (
+        <span className="home-context-chip" key={target}>
+          @{target}
+        </span>
+      ))}
+      {targets.length > 4 ? (
+        <span className="home-context-chip">+{targets.length - 4}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function HomeIntentConfirmation({
+  intent,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  intent: OrchestrationIntent | null;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: (intent: OrchestrationIntent) => void;
+}) {
+  const { t } = useI18n();
+  if (!intent) return null;
+  return (
+    <div className="home-confirmation-card" role="status">
+      <div>
+        <strong>{t("home.confirmWorkspaceChange")}</strong>
+        <span>{intent.summary}</span>
+        {intent.required_permissions.length > 0 ? (
+          <small>
+            {t("home.requires").replace(
+              "{permissions}",
+              intent.required_permissions.join(", "),
+            )}
+          </small>
+        ) : null}
+      </div>
+      <div className="home-confirmation-actions">
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => onConfirm(intent)}
+        >
+          {t("home.confirm")}
+        </button>
+        <button type="button" disabled={isPending} onClick={onCancel}>
+          {t("home.cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function HomeAutocompleteMenu({
+  items,
+  onPick,
+  open,
+  selectedIdx,
+  triggerType,
+}: {
+  items: HomeAutocompleteItem[];
+  onPick: (item: HomeAutocompleteItem) => void;
+  open: boolean;
+  selectedIdx: number;
+  triggerType?: HomeAutocompleteType;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className={`home-autocomplete${triggerType === "skill" ? " is-skill" : ""}`}
+      role="listbox"
+    >
+      {items.length > 0 ? (
+        items.map((item, idx) => (
+          <button
+            type="button"
+            key={item.insert}
+            className={idx === selectedIdx ? "is-selected" : ""}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onPick(item);
+            }}
+          >
+            <span>{item.label}</span>
+            {item.desc ? <small>{item.desc}</small> : null}
+          </button>
+        ))
+      ) : (
+        <div className="home-autocomplete-empty">
+          <span>등록된 활성 스킬이 없습니다</span>
+          <small>직접 /스킬이름 을 입력할 수 있습니다.</small>
+        </div>
+      )}
     </div>
   );
 }
