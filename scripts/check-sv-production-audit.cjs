@@ -111,6 +111,7 @@ for (const staleClaim of [
   "Incident response is not operationalized.",
   "Security review artifacts are not attached to release gates.",
   "SAST/DAST and a launch security packet remain incomplete.",
+  "API server cold-start and route dispatch performance are not measured.",
   "Disaster recovery tests are missing.",
   "Database migration failure recovery is not rehearsed.",
   "There is no escrow or backup story for paid customers.",
@@ -314,6 +315,24 @@ if (
 
 if (!releaseGate.includes('"startup-office:security-review"')) {
   fail("beta release gate must include the security review contract");
+}
+
+for (const required of [
+  "startup-office:api-performance",
+  "shared/startup-office-api-performance.json",
+]) {
+  if (!doc.includes(required)) fail(`audit must record API performance evidence: ${required}`);
+}
+
+if (
+  packageJson.scripts?.["startup-office:api-performance"] !==
+  "node scripts/check-startup-office-api-performance.cjs"
+) {
+  fail("package.json must expose startup-office:api-performance");
+}
+
+if (!releaseGate.includes('"startup-office:api-performance"')) {
+  fail("beta release gate must include the API performance contract");
 }
 
 for (const required of [

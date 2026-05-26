@@ -1,0 +1,19 @@
+{
+  "version": "startup-office-api-performance.v1",
+  "measurement_scope": "repo-controlled cold require and route dispatch microbenchmarks",
+  "budgets": {
+    "hosted_facade_cold_require_ms": 1000,
+    "hosted_dispatch_p95_us": 250,
+    "startup_office_route_match_p95_us": 200,
+    "startup_office_route_contract_max": 60
+  },
+  "measured_paths": [
+    "health",
+    "auth/session",
+    "startup-office/loops",
+    "startup-office/runs/run-1",
+    "skills/growth-audit/invoke",
+    "missing"
+  ],
+  "release_gate": "npm run startup-office:api-performance"
+}

@@ -8,6 +8,7 @@ const checks = [
   ["npm", ["run", "closed-beta:goals"]],
   ["npm", ["run", "startup-office:activation-analytics"]],
   ["npm", ["run", "startup-office:api-contracts"]],
+  ["npm", ["run", "startup-office:api-performance"]],
   ["npm", ["run", "startup-office:architecture"]],
   ["npm", ["run", "startup-office:approval-races"]],
   ["npm", ["run", "startup-office:audit-coverage"]],
