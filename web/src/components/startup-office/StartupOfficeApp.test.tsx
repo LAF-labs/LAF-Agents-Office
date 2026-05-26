@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { StartupOfficeTermsAcceptance } from "../../api/startupOffice";
 import { useAppStore } from "../../stores/app";
 import { StartupOfficeApp } from "./StartupOfficeApp";
 
@@ -147,8 +148,8 @@ function mockStartupOfficeSummary() {
           privacy_version: "startup-office-privacy-2026-05-26",
           retention_version: "startup-office-retention-2026-05-26",
           terms_version: "startup-office-beta-terms-2026-05-26",
-        },
-        missing_versions: [],
+        } as StartupOfficeTermsAcceptance | null,
+        missing_versions: [] as string[],
       },
       usage: {
         model_spend_cents: 0,
@@ -497,7 +498,7 @@ describe("StartupOfficeApp", () => {
 
   it("accepts current beta terms from beta operations", async () => {
     const user = userEvent.setup();
-    const summary = mockStartupOfficeSummary() as any;
+    const summary = mockStartupOfficeSummary();
     summary.beta_ops.commercial = {
       ...summary.beta_ops.commercial,
       can_start_paid_beta: false,
