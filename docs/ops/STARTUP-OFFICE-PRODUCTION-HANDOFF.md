@@ -6,6 +6,9 @@ customer private data, payment instruments, or provider tokens to this file.
 The machine-readable evidence contract lives in
 `shared/startup-office-production-handoff.json` and is enforced by
 `npm run startup-office:production-handoff`.
+The external record field template lives in
+`shared/startup-office-external-evidence-template.json`; completed records must
+stay in the operator system of record, not in this repository.
 
 ## Repository-Controlled Readiness
 

@@ -1,6 +1,7 @@
 {
   "version": "startup-office-production-handoff.v1",
   "currentMinimumMigration": "20260526090000",
+  "evidenceTemplate": "shared/startup-office-external-evidence-template.json",
   "repositoryReadiness": {
     "deployCommitChecks": [
       "npm run beta:release-gate",

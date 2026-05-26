@@ -1,0 +1,200 @@
+{
+  "version": "startup-office-external-evidence-template.v1",
+  "recordCompletedCopiesIn": "operator system of record",
+  "doNotCommitCompletedRecords": true,
+  "forbiddenInRepo": [
+    "secret values",
+    "customer private data",
+    "payment instruments",
+    "provider tokens"
+  ],
+  "records": [
+    {
+      "goalId": "G099",
+      "recordType": "production_deployment",
+      "requiredFields": [
+        {
+          "key": "deploy_commit_sha",
+          "label": "Deploy commit SHA",
+          "valuePolicy": "Full deployed git commit SHA."
+        },
+        {
+          "key": "package_version",
+          "label": "Package version",
+          "valuePolicy": "Root package version deployed."
+        },
+        {
+          "key": "production_app_url",
+          "label": "Production app URL",
+          "valuePolicy": "Public HTTPS app URL."
+        },
+        {
+          "key": "production_api_base_url",
+          "label": "Production API base URL",
+          "valuePolicy": "Public HTTPS API base URL."
+        },
+        {
+          "key": "dns_provider_record",
+          "label": "DNS provider and record type, without credentials.",
+          "valuePolicy": "Provider name and DNS record type only."
+        },
+        {
+          "key": "supabase_project_ref_latest_migration",
+          "label": "Supabase project ref and latest applied migration",
+          "valuePolicy": "Project ref plus latest applied migration ID."
+        },
+        {
+          "key": "hosted_env_preflight_result",
+          "label": "Redacted `npm run hosted-env:preflight -- --no-env-file` result.",
+          "valuePolicy": "Pass/fail result with all values redacted."
+        },
+        {
+          "key": "release_gate_result",
+          "label": "Release gate result for the deploy commit",
+          "valuePolicy": "Command result tied to deploy commit."
+        },
+        {
+          "key": "release_health_result",
+          "label": "Release health contract result",
+          "valuePolicy": "Release health command result."
+        },
+        {
+          "key": "secret_rotation_result",
+          "label": "Secret rotation contract result",
+          "valuePolicy": "Secret rotation check result without secret values."
+        },
+        {
+          "key": "loop_worker_workflow_run_id",
+          "label": "Loop worker workflow run ID",
+          "valuePolicy": "External workflow run identifier."
+        },
+        {
+          "key": "outbox_worker_workflow_run_id",
+          "label": "Outbox worker workflow run ID",
+          "valuePolicy": "External workflow run identifier."
+        },
+        {
+          "key": "ops_monitor_workflow_run_id",
+          "label": "Ops monitor workflow run ID",
+          "valuePolicy": "External workflow run identifier."
+        },
+        {
+          "key": "synthetic_monitor_workflow_run_id",
+          "label": "Synthetic monitor workflow run ID",
+          "valuePolicy": "External workflow run identifier."
+        },
+        {
+          "key": "production_smoke_workspace_id",
+          "label": "Production smoke workspace ID",
+          "valuePolicy": "Production smoke workspace identifier."
+        },
+        {
+          "key": "current_beta_terms_acceptance",
+          "label": "Current beta terms acceptance ID and terms version",
+          "valuePolicy": "Acceptance ID and terms version."
+        },
+        {
+          "key": "first_production_smoke_run_id",
+          "label": "First production smoke run ID",
+          "valuePolicy": "Production smoke run identifier."
+        },
+        {
+          "key": "first_production_approval_id",
+          "label": "First production approval ID",
+          "valuePolicy": "Production smoke approval identifier."
+        },
+        {
+          "key": "first_production_receipt_id",
+          "label": "First production receipt ID",
+          "valuePolicy": "Production smoke receipt identifier."
+        },
+        {
+          "key": "rollback_decision_owner",
+          "label": "Rollback decision and owner",
+          "valuePolicy": "Rollback, forward-fix, or no-rollback decision plus owner."
+        },
+        {
+          "key": "post_release_monitor_window_result",
+          "label": "Post-release monitor window result",
+          "valuePolicy": "Monitor window duration and pass/fail result."
+        },
+        {
+          "key": "production_browser_artifact",
+          "label": "Screenshot or browser-test artifact proving profile, loop, approval, receipt, notification, export, and logout work on the production domain.",
+          "valuePolicy": "External artifact URL or ID, not embedded private data."
+        }
+      ]
+    },
+    {
+      "goalId": "G100",
+      "recordType": "first_customer",
+      "requiredFields": [
+        {
+          "key": "customer_company_name",
+          "label": "Customer company name",
+          "valuePolicy": "Company name as recorded in the operator system."
+        },
+        {
+          "key": "founder_contact_owner",
+          "label": "Founder contact owner",
+          "valuePolicy": "Internal owner for the founder relationship."
+        },
+        {
+          "key": "signed_beta_agreement_or_payment_reference",
+          "label": "Signed beta agreement URL or payment/invoice reference",
+          "valuePolicy": "External agreement or billing reference, not payment instruments."
+        },
+        {
+          "key": "current_beta_terms_acceptance",
+          "label": "Current beta terms acceptance ID and terms version",
+          "valuePolicy": "Acceptance ID and terms version."
+        },
+        {
+          "key": "workspace_id",
+          "label": "Workspace ID",
+          "valuePolicy": "Customer workspace identifier."
+        },
+        {
+          "key": "billing_provider",
+          "label": "Billing provider",
+          "valuePolicy": "Manual, Stripe, or other provider name."
+        },
+        {
+          "key": "payment_status",
+          "label": "Payment status",
+          "valuePolicy": "One of trial, paid, paused, or blocked."
+        },
+        {
+          "key": "first_loop_slug",
+          "label": "First loop slug",
+          "valuePolicy": "Slug for the first customer loop."
+        },
+        {
+          "key": "first_customer_run_id",
+          "label": "First customer run ID",
+          "valuePolicy": "First customer run identifier."
+        },
+        {
+          "key": "first_approval_id",
+          "label": "First approval ID",
+          "valuePolicy": "First customer approval identifier."
+        },
+        {
+          "key": "first_receipt_id",
+          "label": "First receipt ID",
+          "valuePolicy": "First customer receipt identifier."
+        },
+        {
+          "key": "founder_decision",
+          "label": "Founder decision",
+          "valuePolicy": "One of approved, revised, or rejected."
+        },
+        {
+          "key": "success_note",
+          "label": "Success note",
+          "valuePolicy": "Short business outcome note without private customer data."
+        }
+      ]
+    }
+  ]
+}

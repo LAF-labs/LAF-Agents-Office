@@ -230,6 +230,8 @@ if (!releaseGate.includes('"startup-office:secret-rotation"')) {
 for (const required of [
   "startup-office:release-versioning",
   "shared/startup-office-release-versioning.json",
+  "shared/startup-office-production-handoff.json",
+  "shared/startup-office-external-evidence-template.json",
 ]) {
   if (!doc.includes(required)) fail(`audit must record release versioning evidence: ${required}`);
 }
