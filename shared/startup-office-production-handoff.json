@@ -79,7 +79,7 @@
     "Deploy web/API.",
     "Configure production secrets and variables.",
     "Run production preflight.",
-    "Enable and dispatch loop worker, outbox worker, and ops monitor workflows.",
+    "Set STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true, then enable and dispatch loop worker, outbox worker, and ops monitor workflows.",
     "Create a staging workspace, accept the current beta terms, and complete the production smoke flow.",
     "Record G099 evidence.",
     "Invite the first beta founder and record G100 evidence."

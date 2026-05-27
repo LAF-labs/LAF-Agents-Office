@@ -189,6 +189,7 @@ for (const snippet of [
   "npm run startup-office:external-evidence:validate -- --print-template",
   "npm run startup-office:external-evidence:validate -- --file",
   "scans tracked JSON, Markdown, YAML, text",
+  "STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED",
   manifest.currentMinimumMigration,
   "G099 Production Deployment Evidence",
   "G100 First Customer Evidence",

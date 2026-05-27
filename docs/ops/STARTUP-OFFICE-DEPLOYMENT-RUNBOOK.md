@@ -11,19 +11,23 @@ and the scheduled ops monitor that catches silent queue failure.
 2. Run `npm run hosted-env:preflight` against the production environment.
 3. Apply Supabase migrations with `npx supabase db push`.
 4. Deploy the hosted web/API app.
-5. Enable `.github/workflows/startup-office-loop-worker.yml`.
-6. Run the AI loop worker once with `npm run startup-office:loop-worker` or the
+5. Set GitHub Actions variable `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true`
+   only after production secrets, variables, web/API, and database migrations
+   are ready. Keep it unset or `false` before production cutover so scheduled
+   jobs skip instead of sending expected failure emails.
+6. Enable `.github/workflows/startup-office-loop-worker.yml`.
+7. Run the AI loop worker once with `npm run startup-office:loop-worker` or the
    workflow dispatch button.
-7. Enable `.github/workflows/startup-office-outbox-worker.yml`.
-8. Run the outbox worker once with `npm run startup-office:outbox-worker` or
+8. Enable `.github/workflows/startup-office-outbox-worker.yml`.
+9. Run the outbox worker once with `npm run startup-office:outbox-worker` or
    the workflow dispatch button.
-9. Enable `.github/workflows/startup-office-ops-monitor.yml`.
-10. Run the ops monitor once with `npm run startup-office:ops-monitor` or the
+10. Enable `.github/workflows/startup-office-ops-monitor.yml`.
+11. Run the ops monitor once with `npm run startup-office:ops-monitor` or the
    workflow dispatch button.
-11. Enable `.github/workflows/startup-office-synthetic-monitor.yml`.
-12. Run the synthetic monitor once with
+12. Enable `.github/workflows/startup-office-synthetic-monitor.yml`.
+13. Run the synthetic monitor once with
    `npm run startup-office:synthetic-monitor` or the workflow dispatch button.
-13. Complete the smoke test below.
+14. Complete the smoke test below.
 
 ## Required Secrets And Variables
 
@@ -41,6 +45,9 @@ GitHub Actions secrets:
 GitHub Actions variables:
 
 - `LAF_OFFICE_PUBLIC_HOST`
+- `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED`, set to `true` only after
+  production secrets and deploy checks pass. Missing or `false` makes scheduled
+  worker and monitor workflows skip; manual dispatch still runs for validation.
 - `LAF_OFFICE_BILLING_MODE`, set to `manual` for the closed beta
 - `LAF_OFFICE_ALLOWED_ORIGINS`
 - `LAF_OUTBOX_EMAIL_PROVIDER`, either `in_app`, `none`, or `resend`
@@ -116,6 +123,9 @@ batch of queued or retryable Startup Office loop jobs:
   `dead_letter`
 - Side-effect safety: artifacts and approvals use deterministic idempotency
   keys derived from the run and worker job
+- Schedule guard: schedule events run only when
+  `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true`; manual dispatch always runs so
+  operators can validate readiness before enabling the schedule.
 
 The worker prints aggregate job IDs and statuses only. It does not print model
 prompts, generated artifacts, user profile payloads, provider responses, or
@@ -143,6 +153,8 @@ The scheduled workflow runs every five minutes and drains one bounded batch:
 - Claim RPC: `claim_startup_office_outbox_event`
 - Locking: `FOR UPDATE SKIP LOCKED` with stale-lock recovery
 - Failure policy: retry with backoff, then `dead_letter`
+- Schedule guard: schedule events run only when
+  `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true`; manual dispatch always runs.
 
 The workflow runs `npm run hosted-env:preflight -- --no-env-file` before
 draining. If required secrets or email variables are missing, the worker fails
@@ -176,6 +188,8 @@ the office is no longer draining work:
   `LAF_MONITOR_MAX_WORKSPACE_MODEL_SPEND_RATIO_BPS`,
   `LAF_MONITOR_APPROVAL_STALE_MS`, `LAF_MONITOR_OUTBOX_STALE_MS`, and
   `LAF_MONITOR_WORKER_JOB_STUCK_MS`
+- Schedule guard: schedule events run only when
+  `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true`; manual dispatch always runs.
 
 The monitor prints only aggregate counts, latency/wait/cost metrics, and
 threshold failures. It does not print payloads, last-error bodies, user data, or
@@ -196,6 +210,8 @@ founder path, not just static health checks:
 - Flow: health check, login, authenticated session, Growth Center/profile read,
   live loop run, approval lookup, optional approval decision, receipt lookup,
   and logout
+- Schedule guard: schedule events run only when
+  `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true`; manual dispatch always runs.
 
 Keep `LAF_SYNTHETIC_APPROVAL_ACTION=approve` only for the dedicated synthetic
 workspace. The script fails if the loop remains queued, because that means the

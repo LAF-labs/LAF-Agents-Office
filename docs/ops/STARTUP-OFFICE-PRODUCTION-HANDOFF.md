@@ -121,7 +121,8 @@ G100 remains blocked by external customer proof.
 4. Deploy web/API.
 5. Configure production secrets and variables.
 6. Run production preflight.
-7. Enable and dispatch loop worker, outbox worker, and ops monitor workflows.
+7. Set `STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED=true`, then enable and dispatch
+   loop worker, outbox worker, and ops monitor workflows.
 8. Create a staging workspace, accept the current beta terms, and complete the
    production smoke flow.
 9. Record G099 evidence.

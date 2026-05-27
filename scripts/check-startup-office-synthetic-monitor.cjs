@@ -57,6 +57,11 @@ for (const [relativePath, snippet, label] of [
   ],
   [
     ".github/workflows/startup-office-synthetic-monitor.yml",
+    "if: ${{ github.event_name == 'workflow_dispatch' || vars.STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED == 'true' }}",
+    "synthetic monitor production schedule guard",
+  ],
+  [
+    ".github/workflows/startup-office-synthetic-monitor.yml",
     "npm run startup-office:synthetic-monitor",
     "synthetic monitor workflow command",
   ],

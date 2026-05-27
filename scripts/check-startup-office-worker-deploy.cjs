@@ -37,6 +37,8 @@ const loopWorkflow = fs.readFileSync(loopWorkflowPath, "utf8");
 const monitorWorkflow = fs.readFileSync(monitorWorkflowPath, "utf8");
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const runbook = fs.readFileSync(runbookPath, "utf8");
+const productionScheduleGuard =
+  "if: ${{ github.event_name == 'workflow_dispatch' || vars.STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED == 'true' }}";
 
 if (pkg.scripts?.["startup-office:outbox-worker"] !== "node scripts/startup-office-outbox-worker.cjs") {
   fail("package.json must expose startup-office:outbox-worker");
@@ -61,6 +63,7 @@ for (const snippet of [
   "workflow_dispatch:",
   "permissions:\n  contents: read",
   "concurrency:",
+  productionScheduleGuard,
   "timeout-minutes: 10",
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
   "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
@@ -103,6 +106,7 @@ for (const snippet of [
   "workflow_dispatch:",
   "permissions:\n  contents: read",
   "concurrency:",
+  productionScheduleGuard,
   "timeout-minutes: 20",
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
   "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
@@ -142,6 +146,7 @@ for (const snippet of [
   "workflow_dispatch:",
   "permissions:\n  contents: read",
   "concurrency:",
+  productionScheduleGuard,
   "timeout-minutes: 5",
   "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
   "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
@@ -206,6 +211,7 @@ for (const term of [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_ANON_KEY",
+  "STARTUP_OFFICE_PRODUCTION_JOBS_ENABLED",
   "LAF_OFFICE_BILLING_MODE",
   "LAF_OUTBOX_EMAIL_PROVIDER",
   "LAF_OFFICE_OPENAI_API_KEY",
