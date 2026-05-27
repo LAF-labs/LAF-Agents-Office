@@ -29,13 +29,16 @@ jobs:
       - name: Install root tooling
         run: bun install --frozen-lockfile
 
+      - name: Install web tooling
+        working-directory: web
+        run: bun install --frozen-lockfile
+
       - name: Run Startup Office release gate
         run: npm run beta:release-gate
 
-      - name: Install and build web app
+      - name: Verify web app
         working-directory: web
         run: |
-          bun install --frozen-lockfile
           npm --prefix .. run startup-office:web-lint-budget
           npm run typecheck
           npm run build
