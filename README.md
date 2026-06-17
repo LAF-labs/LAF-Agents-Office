@@ -13,6 +13,7 @@ Startup Office is a cloud AI operating system for founders and small teams. It g
 ## Development
 
 ```bash
+npm run oss:readiness
 npm run startup-office:surface
 npm run hosted-env:preflight:test
 node --test api/hosted-api.test.js
@@ -55,5 +56,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Startup Office is released under the [MIT License](LICENSE). The root package is marked private only to prevent accidental npm publishing; the source code is public and open for review, issues, and pull requests.
 
+- Run `npm run oss:readiness` after clone to verify the public collaboration surface.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 - Report security issues through [SECURITY.md](SECURITY.md).

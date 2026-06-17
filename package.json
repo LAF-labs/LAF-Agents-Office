@@ -3,6 +3,8 @@
   "private": true,
   "description": "Root-level dev tooling for the hosted Startup Office SaaS; web UI lives in ./web with its own package.json.",
   "scripts": {
+    "oss:readiness": "node scripts/check-open-source-readiness.cjs",
+    "oss:readiness:test": "node --test scripts/check-open-source-readiness.test.cjs",
     "beta:release-gate": "node scripts/startup-office-beta-release-gate.cjs",
     "closed-beta:goals": "node scripts/check-closed-beta-goals.cjs",
     "production:audit": "node scripts/check-sv-production-audit.cjs",

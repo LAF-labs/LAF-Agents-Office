@@ -23,6 +23,7 @@ Copy `.env.example` to `.env.local` only when you need local hosted API work. Us
 Run the narrowest checks that cover your change:
 
 ```bash
+npm run oss:readiness
 npm run startup-office:surface
 npm run hosted-env:preflight:test
 node --test api/hosted-api.test.js
