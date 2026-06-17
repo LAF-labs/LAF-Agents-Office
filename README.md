@@ -50,3 +50,10 @@ npm run hosted-env:preflight
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Open Source
+
+Startup Office is released under the [MIT License](LICENSE). The root package is marked private only to prevent accidental npm publishing; the source code is public and open for review, issues, and pull requests.
+
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+- Report security issues through [SECURITY.md](SECURITY.md).
